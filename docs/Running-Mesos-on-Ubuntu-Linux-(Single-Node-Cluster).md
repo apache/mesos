@@ -277,7 +277,7 @@ drwxr-xr-x   - hadoop supergroup          0 2011-07-19 15:35 /user/hadoop/output
 
 ## Need more help?   
 * [Use our mailing lists](http://incubator.apache.org/projects/mesos.html)
-* mesos-dev@incubator.apache.org
+* dev@mesos.apache.org
 
 ## Wants to contribute?
 * [Contributing to Open Source Projects HOWTO](http://www.kegel.com/academy/opensource.html)

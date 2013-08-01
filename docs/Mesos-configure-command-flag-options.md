@@ -1,4 +1,4 @@
-NOTE: The documentation below is only for convenience of reference. <i>As with any documentation, the following may become stale</i>. If you discover it is wrong, please: (1) run the command `./configure --help` and treat the printed output as the true source of the configure flag options, and (2) either edit this wiki page or send mail to mesos-dev@incubator.apache.org to point out the error.
+NOTE: The documentation below is only for convenience of reference. <i>As with any documentation, the following may become stale</i>. If you discover it is wrong, please: (1) run the command `./configure --help` and treat the printed output as the true source of the configure flag options, and (2) either edit this wiki page or send mail to dev@mesos.apache.org to point out the error.
 
 The configure script itself accepts the following arguments to enable various options:
 

@@ -167,6 +167,6 @@ And you can stop the cluster by doing:
 
 As always, if you run into any issues please email:
 
-  mesos-dev@incubator.apache.org
+  dev@mesos.apache.org
 
 (Remember to include as much debug information as possible.)
