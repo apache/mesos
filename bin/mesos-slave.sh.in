@@ -21,4 +21,4 @@
 
 . @abs_top_srcdir@/bin/mesos-slave-flags.sh
 
-@abs_top_builddir@/src/mesos-slave "${@}"
+exec @abs_top_builddir@/src/mesos-slave "${@}"
