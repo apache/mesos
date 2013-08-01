@@ -196,6 +196,21 @@ AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
 
+# Check the version of gcc and add any flags as appropriate.
+GCC_VERSION="`gcc -dumpversion`"
+test $? = 0 || AC_MSG_ERROR([failed to determine version of gcc])
+case  "${GCC_VERSION}" in
+  4.4*)
+    echo ===========================================================
+    echo Setting up CXXFLAGS for gcc 4.4.*
+    echo ===========================================================
+    # We fail to build some protobuf generated code with gcc 4.4
+    # without setting -fno-strict-aliasing.
+    CFLAGS="$CFLAGS -fno-strict-aliasing"
+    CXXFLAGS="$CXXFLAGS -fno-strict-aliasing"
+  ;;
+esac
+
 
 # Check for pthreads (uses m4/acx_pthread.m4).
 ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
