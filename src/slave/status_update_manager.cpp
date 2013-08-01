@@ -380,17 +380,17 @@ Try<bool> StatusUpdateManagerProcess::acknowledgement(
   // This might happen if we retried a status update and got back
   // acknowledgments for both the original and the retried update.
   if (update.isNone()) {
-    LOG(WARNING) << "Ignoring unexpected status update acknowledgment " << uuid
-                 << " for task " << taskId
-                 << " of framework " << frameworkId;
-    return false;
+    return Error(
+        "Unexpected status update acknowledgment " + uuid.toString() +
+        " for task " + stringify(taskId) +
+        " of framework " + stringify(frameworkId));
   }
 
   // Handle the acknowledgement.
   Try<bool> result =
     stream->acknowledgement(taskId, frameworkId, uuid, update.get());
 
-  if (result.isError() || !result.get()) {
+  if (result.isError()) {
     return result;
   }
 
@@ -415,7 +415,7 @@ Try<bool> StatusUpdateManagerProcess::acknowledgement(
     stream->timeout = forward(next.get());
   }
 
-  return true;
+  return result;
 }
 
 

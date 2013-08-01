@@ -36,6 +36,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/stringify.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
@@ -102,9 +103,10 @@ public:
 
   // Checkpoints the status update to disk if necessary.
   // Also, sends the next pending status update, if any.
-  // @return True if the ACK is handled successfully (e.g., checkpointed).
-  //         False if the ACK was ignored because it was a duplicate.
-  //         Error if there are any errors (e.g., checkpointing).
+  // @return true if the ACK is handled successfully (e.g., checkpointed)
+  //              and the task's status update stream is not terminated.
+  //         false same as above except the status update stream is terminated.
+  //         Error if there are any errors (e.g., duplicate, checkpointing).
   process::Future<Try<bool> > acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
@@ -236,20 +238,18 @@ struct StatusUpdateStream
     }
 
     if (acknowledged.contains(uuid)) {
-      LOG(WARNING) << "Ignoring duplicate status update acknowledgment " << uuid
-                   << " for update " << update;
-      return false;
+      return Error("Duplicate status update acknowledgment " + uuid.toString() +
+                   " for update " + stringify(update));
     }
 
     // This might happen if we retried a status update and got back
     // acknowledgments for both the original and the retried update.
     if (uuid != UUID::fromBytes(update.uuid())) {
-      LOG(WARNING)
-        << "Ignoring unexpected status update acknowledgement "
-        << "(received " << uuid
-        << ", expecting " << UUID::fromBytes(update.uuid())
-        << ") for update " << update;
-      return false;
+      return Error(
+        "Unexpected status update acknowledgement (received " +
+        uuid.toString() +
+        ", expecting " + UUID::fromBytes(update.uuid()).toString() +
+        ") for update " + stringify(update));
     }
 
     // Handle the ACK, checkpointing if necessary.
@@ -258,7 +258,7 @@ struct StatusUpdateStream
       return Error(result.error());
     }
 
-    return true;
+    return !terminated;
   }
 
   // Returns the next update (or none, if empty) in the queue.

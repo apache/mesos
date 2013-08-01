@@ -862,7 +862,7 @@ void Slave::_runTask(
                  << " because the framework is terminating";
 
     if (framework->executors.empty() && framework->pending.empty()) {
-      remove(framework);
+      removeFramework(framework);
     }
     return;
   }
@@ -887,7 +887,7 @@ void Slave::_runTask(
     statusUpdate(update);
 
     if (framework->executors.empty() && framework->pending.empty()) {
-      remove(framework);
+      removeFramework(framework);
     }
 
     return;
@@ -1184,7 +1184,7 @@ void Slave::shutdownFramework(const FrameworkID& frameworkId)
           // NOTE: We call remove here to ensure we can remove an
           // executor (of a terminating framework) that is terminated
           // but waiting for acknowledgements.
-          remove(framework, executor);
+          removeExecutor(framework, executor);
         } else {
           // Executor is terminating. Ignore.
         }
@@ -1363,11 +1363,6 @@ void Slave::_statusUpdateAcknowledgement(
     return;
   }
 
-  if (!future.get().get()) {
-    // The status update manager ignored the acknowledgement (e.g., duplicate).
-    return;
-  }
-
   VLOG(1) << "Status update manager successfully handled status update"
           << " acknowledgement " << uuid
           << " for task " << taskId
@@ -1404,14 +1399,16 @@ void Slave::_statusUpdateAcknowledgement(
         executor->state == Executor::TERMINATED)
     << executor->state;
 
-  if (executor->terminatedTasks.contains(taskId)) {
+  // If the task has reached terminal state and all its updates have
+  // been acknowledged, mark it completed.
+  if (executor->terminatedTasks.contains(taskId) && !future.get().get()) {
     executor->completeTask(taskId);
   }
 
   // Remove the executor if it has terminated and there are no more
   // incomplete tasks.
   if (executor->state == Executor::TERMINATED && !executor->incompleteTasks()) {
-    remove(framework, executor);
+    removeExecutor(framework, executor);
   }
 }
 
@@ -2202,7 +2199,7 @@ void Slave::executorTerminated(
       // there are no incomplete tasks.
       if (framework->state == Framework::TERMINATING ||
           !executor->incompleteTasks()) {
-        remove(framework, executor);
+        removeExecutor(framework, executor);
       }
       break;
     }
@@ -2215,7 +2212,7 @@ void Slave::executorTerminated(
 }
 
 
-void Slave::remove(Framework* framework, Executor* executor)
+void Slave::removeExecutor(Framework* framework, Executor* executor)
 {
   CHECK_NOTNULL(framework);
   CHECK_NOTNULL(executor);
@@ -2275,12 +2272,12 @@ void Slave::remove(Framework* framework, Executor* executor)
 
   // Remove this framework if it has no pending executors and tasks.
   if (framework->executors.empty() && framework->pending.empty()) {
-    remove(framework);
+    removeFramework(framework);
   }
 }
 
 
-void Slave::remove(Framework* framework)
+void Slave::removeFramework(Framework* framework)
 {
   CHECK_NOTNULL(framework);
 
@@ -2706,7 +2703,7 @@ void Slave::recoverFramework(const FrameworkState& state, bool reconnect)
 
   // Remove the framework in case we didn't recover any executors.
   if (framework->executors.empty()) {
-    remove(framework);
+    removeFramework(framework);
   }
 }
 
@@ -2991,6 +2988,8 @@ void Executor::terminateTask(
     const TaskID& taskId,
     const mesos::TaskState& state)
 {
+  VLOG(1) << "Terminating task " << taskId;
+
   Task* task = NULL;
   // Remove the task if it's queued.
   if (queuedTasks.contains(taskId)) {
@@ -3011,6 +3010,8 @@ void Executor::terminateTask(
 
 void Executor::completeTask(const TaskID& taskId)
 {
+  VLOG(1) << "Completing task " << taskId;
+
   CHECK(terminatedTasks.contains(taskId))
     << "Failed to find terminated task " << taskId;
 
