@@ -46,6 +46,7 @@
 
 #include "master/master.hpp"
 
+#include "slave/gc.hpp"
 #ifdef __linux__
 #include "slave/cgroups_isolator.hpp"
 #endif
@@ -69,6 +70,7 @@ using namespace process;
 
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::GarbageCollectorProcess;
 #ifdef __linux__
 using mesos::internal::slave::CgroupsIsolator;
 #endif
@@ -672,6 +674,79 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   // Scheduler should receive the TASK_FAILED update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+}
+
+
+// The slave is stopped after an executor is completed (i.e., it has
+// terminated and all its updates have been acknowledged).
+// When it comes back up with recovery=reconnect, make
+// sure the recovery successfully completes.
+TYPED_TEST(SlaveRecoveryTest, RecoverPreviouslyTerminatedExecutor)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "exit 0");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Short-lived task.
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .Times(2); // TASK_RUNNING and TASK_FINISHED updates.
+
+  Future<Nothing> schedule = FUTURE_DISPATCH(
+      _, &GarbageCollectorProcess::schedule);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // We use 'gc.schedule' as a proxy for the cleanup of the executor.
+  AWAIT_READY(schedule);
+
+  this->Stop(slave.get());
+
+  Future<Nothing> schedule2 = FUTURE_DISPATCH(
+      _, &GarbageCollectorProcess::schedule);
+
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
+
+  // We use 'gc.schedule' as a proxy for the cleanup of the executor.
+  AWAIT_READY(schedule2);
 
   driver.stop();
   driver.join();

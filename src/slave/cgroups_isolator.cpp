@@ -776,6 +776,28 @@ Future<Nothing> CgroupsIsolator::recover(
         CgroupInfo* info = registerCgroupInfo(
             framework.id, executor.id, uuid, run.forkedPid, flags);
 
+        // If the cgroup has already been removed inform the slave.
+        Try<bool> exists = cgroups::exists(hierarchy, info->name());
+        CHECK_SOME(exists) << "Failed to find the existence of cgroup "
+                           << info->name();
+        if (!exists.get()) {
+          dispatch(slave,
+                   &Slave::executorTerminated,
+                   info->frameworkId,
+                   info->executorId,
+                   info->status,
+                   info->destroyed,
+                   info->message);
+
+          // We make a copy here because 'info' will be deleted when
+          // we unregister.
+          unregisterCgroupInfo(
+              utils::copy(info->frameworkId),
+              utils::copy(info->executorId));
+
+          continue;
+        }
+
         cgroups.insert(info->name());
 
         // Add the pid to the reaper to monitor exit status.
