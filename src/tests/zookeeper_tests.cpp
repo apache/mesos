@@ -432,7 +432,7 @@ TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSession)
 // Tests whether a slave correctly detects the new master
 // when its ZooKeeper session is expired and a new master is elected before the
 // slave reconnects with ZooKeeper.
-TEST_F(ZooKeeperTest, MasterDetectorExpireSlaveZKSessionNewMaster)
+TEST_F(ZooKeeperTest, DISABLED_MasterDetectorExpireSlaveZKSessionNewMaster)
 {
   // Simulate a leading master.
   MockMasterDetectorListenerProcess master1;

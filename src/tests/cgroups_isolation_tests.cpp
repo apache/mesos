@@ -38,7 +38,7 @@ using std::map;
 
 // Run the balloon framework under the cgroups isolation module.
 TEST_SCRIPT(CgroupsIsolationTest,
-            ROOT_CGROUPS_BalloonFramework,
+            DISABLED_ROOT_CGROUPS_BalloonFramework,
             "balloon_framework_test.sh")
 
 
