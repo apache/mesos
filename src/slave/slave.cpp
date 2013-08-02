@@ -2982,6 +2982,7 @@ void Executor::terminateTask(
   if (queuedTasks.contains(taskId)) {
     task = new Task(
         protobuf::createTask(queuedTasks[taskId], state, id, frameworkId));
+    queuedTasks.erase(taskId);
   } else if (launchedTasks.contains(taskId)) {
     // Update the resources if it's been launched.
     task = launchedTasks[taskId];
