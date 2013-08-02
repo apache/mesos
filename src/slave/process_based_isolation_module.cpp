@@ -231,16 +231,6 @@ void ProcessBasedIsolationModule::killExecutor(
     if (killpg(pid, SIGKILL) == -1 && errno != ESRCH) {
       PLOG(WARNING) << "Failed to kill process group " << pid;
     }
-
-    ProcessInfo* info = infos[frameworkId][executorId];
-
-    if (infos[frameworkId].size() == 1) {
-      infos.erase(frameworkId);
-    } else {
-      infos[frameworkId].erase(executorId);
-    }
-
-    delete info;
   }
 }
 
@@ -354,6 +344,14 @@ void ProcessBasedIsolationModule::processExited(pid_t pid, int status)
 
         // Try and cleanup after the executor.
         killExecutor(frameworkId, executorId);
+
+        if (infos[frameworkId].size() == 1) {
+          infos.erase(frameworkId);
+        } else {
+          infos[frameworkId].erase(executorId);
+        }
+
+        delete info;
         return;
       }
     }
