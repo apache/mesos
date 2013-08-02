@@ -243,7 +243,7 @@ protected:
   Future<Nothing> _recover(const state::SlaveState& state, bool reconnect);
 
   // Helper to recover a framework from the specified state.
-  void recoverFramework(const state::FrameworkState& state, bool reconnect);
+  void recoverFramework(const state::FrameworkState& state);
 
   // Removes and garbage collects the executor.
   void removeExecutor(Framework* framework, Executor* executor);
