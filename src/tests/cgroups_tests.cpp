@@ -88,7 +88,7 @@ protected:
 // exist in order to test the ability to create a hierarchy (since
 // most likely existing hierarchies will have all or most subsystems
 // attached rendering our ability to create a hierarchy fruitless).
-class CgroupsNoHierarchyTest : public CgroupsTest
+class DISABLED_CgroupsNoHierarchyTest : public CgroupsTest
 {
 protected:
   static void SetUpTestCase()
@@ -116,10 +116,10 @@ protected:
 // it has the subsystems attached that were specified in the
 // constructor. If no hierarchy could be found that has all the
 // required subsystems then we attempt to create a new hierarchy.
-class CgroupsAnyHierarchyTest : public CgroupsTest
+class DISABLED_CgroupsAnyHierarchyTest : public CgroupsTest
 {
 public:
-  CgroupsAnyHierarchyTest(const std::string& _subsystems = "cpu")
+  DISABLED_CgroupsAnyHierarchyTest(const std::string& _subsystems = "cpu")
     : subsystems(_subsystems) {}
 
 protected:
@@ -205,25 +205,25 @@ protected:
 };
 
 
-class CgroupsAnyHierarchyWithCpuMemoryTest
-  : public CgroupsAnyHierarchyTest
+class DISABLED_CgroupsAnyHierarchyWithCpuMemoryTest
+  : public DISABLED_CgroupsAnyHierarchyTest
 {
 public:
-  CgroupsAnyHierarchyWithCpuMemoryTest()
-    : CgroupsAnyHierarchyTest("cpu,memory") {}
+  DISABLED_CgroupsAnyHierarchyWithCpuMemoryTest()
+    : DISABLED_CgroupsAnyHierarchyTest("cpu,memory") {}
 };
 
 
-class CgroupsAnyHierarchyWithCpuMemoryFreezerTest
-  : public CgroupsAnyHierarchyTest
+class DISABLED_CgroupsAnyHierarchyWithCpuMemoryFreezerTest
+  : public DISABLED_CgroupsAnyHierarchyTest
 {
 public:
-  CgroupsAnyHierarchyWithCpuMemoryFreezerTest()
-    : CgroupsAnyHierarchyTest("cpu,memory,freezer") {}
+  DISABLED_CgroupsAnyHierarchyWithCpuMemoryFreezerTest()
+    : DISABLED_CgroupsAnyHierarchyTest("cpu,memory,freezer") {}
 };
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Enabled)
+TEST_F(DISABLED_CgroupsAnyHierarchyTest, ROOT_CGROUPS_Enabled)
 {
   EXPECT_SOME_TRUE(cgroups::enabled(""));
   EXPECT_SOME_TRUE(cgroups::enabled(","));
@@ -236,7 +236,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Enabled)
 }
 
 
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Busy)
+TEST_F(DISABLED_CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Busy)
 {
   EXPECT_SOME_FALSE(cgroups::busy(""));
   EXPECT_SOME_FALSE(cgroups::busy(","));
@@ -249,7 +249,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Busy)
 }
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Subsystems)
+TEST_F(DISABLED_CgroupsAnyHierarchyTest, ROOT_CGROUPS_Subsystems)
 {
   Try<std::set<std::string> > names = cgroups::subsystems();
   ASSERT_SOME(names);
@@ -269,7 +269,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Subsystems)
 }
 
 
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_SubsystemsHierarchy)
+TEST_F(DISABLED_CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_SubsystemsHierarchy)
 {
   Try<std::set<std::string> > names = cgroups::subsystems(hierarchy);
   ASSERT_SOME(names);
@@ -289,7 +289,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_SubsystemsHierarchy)
 }
 
 
-TEST_F(CgroupsNoHierarchyTest, ROOT_CGROUPS_MountUnmountHierarchy)
+TEST_F(DISABLED_CgroupsNoHierarchyTest, ROOT_CGROUPS_MountUnmountHierarchy)
 {
   EXPECT_ERROR(cgroups::mount("/tmp", "cpu"));
   EXPECT_ERROR(cgroups::mount(HIERARCHY, "invalid"));
@@ -300,7 +300,7 @@ TEST_F(CgroupsNoHierarchyTest, ROOT_CGROUPS_MountUnmountHierarchy)
 }
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Mounted)
+TEST_F(DISABLED_CgroupsAnyHierarchyTest, ROOT_CGROUPS_Mounted)
 {
   EXPECT_SOME_FALSE(cgroups::mounted("/tmp-nonexist"));
   EXPECT_SOME_FALSE(cgroups::mounted("/tmp"));
@@ -310,7 +310,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Mounted)
 }
 
 
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_MountedSubsystems)
+TEST_F(DISABLED_CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_MountedSubsystems)
 {
   EXPECT_SOME_FALSE(cgroups::mounted("/tmp-nonexist", "cpu"));
   EXPECT_SOME_FALSE(cgroups::mounted("/tmp", "cpu,memory"));
@@ -323,7 +323,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_MountedSubsystems)
 }
 
 
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_CreateRemove)
+TEST_F(DISABLED_CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_CreateRemove)
 {
   EXPECT_ERROR(cgroups::create("/tmp", "test"));
   EXPECT_ERROR(cgroups::create(hierarchy, "mesos_test_missing/1"));
@@ -333,7 +333,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_CreateRemove)
 }
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
+TEST_F(DISABLED_CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
 {
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test1"));
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test2"));
@@ -350,7 +350,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
 }
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
+TEST_F(DISABLED_CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
 {
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test/1"))
     << "-------------------------------------------------------------\n"
@@ -374,7 +374,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
 }
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Tasks)
+TEST_F(DISABLED_CgroupsAnyHierarchyTest, ROOT_CGROUPS_Tasks)
 {
   Try<std::set<pid_t> > pids = cgroups::tasks(hierarchy, "/");
   ASSERT_SOME(pids);
@@ -383,7 +383,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Tasks)
 }
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Read)
+TEST_F(DISABLED_CgroupsAnyHierarchyTest, ROOT_CGROUPS_Read)
 {
   EXPECT_ERROR(cgroups::read(hierarchy, "mesos_test", "invalid"));
 
@@ -395,7 +395,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Read)
 }
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
+TEST_F(DISABLED_CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
 {
   EXPECT_ERROR(cgroups::write(hierarchy, "mesos_test", "invalid", "invalid"));
 
@@ -430,7 +430,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
   }
 }
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Stat)
+TEST_F(DISABLED_CgroupsAnyHierarchyTest, ROOT_CGROUPS_Stat)
 {
   EXPECT_ERROR(cgroups::stat(hierarchy, "mesos_test", "invalid"));
 
@@ -449,7 +449,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Stat)
 }
 
 
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
+TEST_F(DISABLED_CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
 {
   ASSERT_SOME(cgroups::exists(hierarchy, "mesos_test", "memory.oom_control"))
     << "-------------------------------------------------------------\n"
@@ -540,7 +540,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
 }
 
 
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Freeze)
+TEST_F(DISABLED_CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Freeze)
 {
   int pipes[2];
   int dummy;
@@ -605,7 +605,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Freeze)
 }
 
 
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Kill)
+TEST_F(DISABLED_CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Kill)
 {
   int pipes[2];
   int dummy;
@@ -666,7 +666,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Kill)
 
 
 // TODO(benh): Write a version of this test with nested cgroups.
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Destroy)
+TEST_F(DISABLED_CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Destroy)
 {
   int pipes[2];
   int dummy;

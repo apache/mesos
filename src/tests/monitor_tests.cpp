@@ -55,7 +55,7 @@ using std::string;
 //   2. Check that metering is occurring on subsequent resource data.
 //   3. Add tests for process based isolation usage.
 //   4. Add tests for cgroups based isolation usage.
-TEST(MonitorTest, WatchUnwatch)
+TEST(MonitorTest, DISABLED_WatchUnwatch)
 {
   FrameworkID frameworkId;
   frameworkId.set_value("framework");

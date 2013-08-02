@@ -40,7 +40,7 @@ TEST(Statistics, set)
 }
 
 
-TEST(Statistics, truncate)
+TEST(Statistics, DISABLED_truncate)
 {
   Clock::pause();
 
@@ -124,7 +124,7 @@ TEST(Statistics, meter) {
 }
 
 
-TEST(Statistics, archive)
+TEST(Statistics, DISABLED_archive)
 {
   Clock::pause();
 
