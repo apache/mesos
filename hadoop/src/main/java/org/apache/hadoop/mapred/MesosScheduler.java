@@ -635,20 +635,17 @@ public class MesosScheduler extends TaskScheduler implements Scheduler {
         String master = conf.get("mapred.mesos.master", "local");
 
         if (master.equals("local")) {
-          try {
-            commandInfo = CommandInfo.newBuilder()
-              .setEnvironment(envBuilder)
-              .setValue(new File("bin/mesos-executor").getCanonicalPath())
-              .build();
-          } catch (IOException e) {
-            LOG.fatal("Failed to find Mesos executor ", e);
-            System.exit(1);
-          }
+          commandInfo = CommandInfo.newBuilder()
+            .setEnvironment(envBuilder)
+            .setValue(new File("bin/hadoop").getCanonicalPath() +
+                      " org.apache.hadoop.mapred.MesosExecutor")
+            .build();
         } else {
           String uri = conf.get("mapred.mesos.executor");
           commandInfo = CommandInfo.newBuilder()
             .setEnvironment(envBuilder)
-            .setValue("cd hadoop-* && ./bin/mesos-executor")
+            .setValue("cd hadoop-* && " +
+                      "./bin/hadoop org.apache.hadoop.mapred.MesosExecutor")
             .addUris(CommandInfo.URI.newBuilder().setValue(uri)).build();
         }
 
