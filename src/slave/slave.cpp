@@ -391,8 +391,13 @@ void Slave::initialize()
 void Slave::_initialize(const Future<Nothing>& future)
 {
   if (!future.isReady()) {
-    LOG(FATAL) << "Recovery failure: "
-               << (future.isFailed() ? future.failure() : "future discarded");
+    EXIT(1)
+      << "Failed to perform recovery: "
+      << (future.isFailed() ? future.failure() : "future discarded") << "\n"
+      << "To remedy this do as follows:\n"
+      << "Step 1: rm -f " << paths::getLatestSlavePath(metaDir) << "\n"
+      << "        This ensures slave doesn't recover old live executors.\n"
+      << "Step 2: Restart the slave.";
   }
 
   LOG(INFO) << "Finished recovery";
@@ -2552,7 +2557,12 @@ Future<Nothing> Slave::recover(bool reconnect, bool strict)
   // First, recover the slave state.
   Result<SlaveState> state = state::recover(metaDir, strict);
   if (state.isError()) {
-    EXIT(1) << "Failed to recover slave state: " << state.error();
+    EXIT(1)
+      << "Failed to recover slave state: " << state.error() << "\n"
+      << "To remedy this try the following:\n"
+      << (flags.strict
+          ? "Restart the slave with '--no-strict' flag (partial recovery)"
+          : "rm '" + paths::getLatestSlavePath(metaDir) + "' (no recovery)");
   }
 
   if (state.isNone() || state.get().info.isNone()) {
@@ -2574,9 +2584,9 @@ Future<Nothing> Slave::recover(bool reconnect, bool strict)
       << "Old slave info:\n" << state.get().info.get() << "\n"
       << "New slave info:\n" << info << "\n"
       << "To properly upgrade the slave do as follows:\n"
-      << "Step 1: Start the slave (old slave info) with --recover=cleanup.\n"
+      << "Step 1: Start the slave with --recover=cleanup.\n"
       << "Step 2: Wait till the slave kills all executors and shuts down.\n"
-      << "Step 3: Start the upgraded slave (new slave info).\n";
+      << "Step 3: Start the upgraded slave with --recover=reconnect.\n";
   }
 
   info = state.get().info.get(); // Recover the slave info.
