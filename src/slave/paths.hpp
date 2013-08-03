@@ -49,31 +49,47 @@ const std::string FRAMEWORK_PID_FILE = "framework.pid";
 const std::string FRAMEWORK_INFO_FILE = "framework.info";
 const std::string LIBPROCESS_PID_FILE = "libprocess.pid";
 const std::string EXECUTOR_INFO_FILE = "executor.info";
+const std::string EXECUTOR_SENTINEL_FILE = "executor.sentinel";
 const std::string FORKED_PID_FILE = "forked.pid";
 const std::string TASK_INFO_FILE = "task.info";
 const std::string TASK_UPDATES_FILE = "task.updates";
 
 // Path layout templates.
 const std::string ROOT_PATH = "%s";
-const std::string LATEST_SLAVE_PATH = ROOT_PATH + "/slaves/" + LATEST_SYMLINK;
-const std::string SLAVE_PATH = ROOT_PATH + "/slaves/%s";
-const std::string SLAVE_INFO_PATH = SLAVE_PATH + "/" + SLAVE_INFO_FILE;
-const std::string FRAMEWORK_PATH = SLAVE_PATH + "/frameworks/%s";
+const std::string LATEST_SLAVE_PATH =
+  path::join(ROOT_PATH, "slaves", LATEST_SYMLINK);
+const std::string SLAVE_PATH =
+  path::join(ROOT_PATH, "slaves", "%s");
+const std::string SLAVE_INFO_PATH =
+  path::join(SLAVE_PATH, SLAVE_INFO_FILE);
+const std::string FRAMEWORK_PATH =
+  path::join(SLAVE_PATH, "frameworks", "%s");
 const std::string FRAMEWORK_PID_PATH =
-    FRAMEWORK_PATH + "/" + FRAMEWORK_PID_FILE;
+  path::join(FRAMEWORK_PATH, FRAMEWORK_PID_FILE);
 const std::string FRAMEWORK_INFO_PATH =
-    FRAMEWORK_PATH + "/" + FRAMEWORK_INFO_FILE;
-const std::string EXECUTOR_PATH = FRAMEWORK_PATH + "/executors/%s";
-const std::string EXECUTOR_INFO_PATH = EXECUTOR_PATH + "/" + EXECUTOR_INFO_FILE;
-const std::string EXECUTOR_RUN_PATH = EXECUTOR_PATH + "/runs/%s";
+  path::join(FRAMEWORK_PATH, FRAMEWORK_INFO_FILE);
+const std::string EXECUTOR_PATH =
+  path::join(FRAMEWORK_PATH, "executors", "%s");
+const std::string EXECUTOR_INFO_PATH =
+  path::join(EXECUTOR_PATH, EXECUTOR_INFO_FILE);
+const std::string EXECUTOR_RUN_PATH =
+  path::join(EXECUTOR_PATH, "runs", "%s");
+const std::string EXECUTOR_SENTINEL_PATH =
+  path::join(EXECUTOR_RUN_PATH, EXECUTOR_SENTINEL_FILE);
 const std::string EXECUTOR_LATEST_RUN_PATH =
-  EXECUTOR_PATH + "/runs/" + LATEST_SYMLINK;
-const std::string PIDS_PATH = EXECUTOR_RUN_PATH + "/pids";
-const std::string LIBPROCESS_PID_PATH = PIDS_PATH + "/" + LIBPROCESS_PID_FILE;
-const std::string FORKED_PID_PATH = PIDS_PATH + "/" + FORKED_PID_FILE;
-const std::string TASK_PATH = EXECUTOR_RUN_PATH + "/tasks/%s";
-const std::string TASK_INFO_PATH = TASK_PATH + "/" + TASK_INFO_FILE;
-const std::string TASK_UPDATES_PATH = TASK_PATH + "/" + TASK_UPDATES_FILE;
+  path::join(EXECUTOR_PATH, "runs", LATEST_SYMLINK);
+const std::string PIDS_PATH =
+  path::join(EXECUTOR_RUN_PATH, "pids");
+const std::string LIBPROCESS_PID_PATH =
+  path::join(PIDS_PATH, LIBPROCESS_PID_FILE);
+const std::string FORKED_PID_PATH =
+  path::join(PIDS_PATH, FORKED_PID_FILE);
+const std::string TASK_PATH =
+  path::join(EXECUTOR_RUN_PATH, "tasks", "%s");
+const std::string TASK_INFO_PATH =
+  path::join(TASK_PATH, TASK_INFO_FILE);
+const std::string TASK_UPDATES_PATH =
+  path::join(TASK_PATH, TASK_UPDATES_FILE);
 
 
 inline std::string getMetaRootDir(const std::string rootDir)
@@ -171,6 +187,23 @@ inline std::string getExecutorRunPath(
 {
   return strings::format(
       EXECUTOR_RUN_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      executorUUID.toString()).get();
+}
+
+
+inline std::string getExecutorSentinelPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const UUID& executorUUID)
+{
+  return strings::format(
+      EXECUTOR_SENTINEL_PATH,
       rootDir,
       slaveId,
       frameworkId,

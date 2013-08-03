@@ -204,6 +204,14 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
       CHECK(executor.runs.contains(uuid));
       const RunState& run  = executor.runs.get(uuid).get();
 
+      if (run.completed) {
+        VLOG(1) << "Skipping recovering updates of"
+                << " executor '" << executor.id
+                << "' of framework " << framework.id
+                << " because its latest run " << uuid << " is completed";
+        continue;
+      }
+
       foreachvalue (const TaskState& task, run.tasks) {
         // No updates were ever received for this task!
         // This means either:

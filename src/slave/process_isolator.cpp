@@ -342,6 +342,13 @@ Future<Nothing> ProcessIsolator::recover(
       CHECK(executor.runs.contains(uuid));
       const RunState& run  = executor.runs.get(uuid).get();
 
+      if (run.completed) {
+        VLOG(1) << "Skipping recovery of executor '" << executor.id
+                << "' of framework " << framework.id
+                << " because its latest run " << uuid << " is completed";
+        continue;
+      }
+
       ProcessInfo* info =
         new ProcessInfo(framework.id, executor.id, run.forkedPid);
 

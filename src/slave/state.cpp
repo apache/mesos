@@ -293,6 +293,7 @@ Try<RunState> RunState::recover(
 {
   RunState state;
   state.id = uuid;
+  state.completed = false;
   string message;
 
   // Find the tasks.
@@ -371,6 +372,12 @@ Try<RunState> RunState::recover(
   }
 
   state.libprocessPid = process::UPID(pid.get());
+
+  // See if the sentinel file exists.
+  path = paths::getExecutorSentinelPath(
+      rootDir, slaveId, frameworkId, executorId, uuid);
+
+  state.completed = os::exists(path);
 
   return state;
 }

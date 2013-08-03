@@ -686,7 +686,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 // terminated and all its updates have been acknowledged).
 // When it comes back up with recovery=reconnect, make
 // sure the recovery successfully completes.
-TYPED_TEST(SlaveRecoveryTest, RecoverPreviouslyTerminatedExecutor)
+TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 {
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);

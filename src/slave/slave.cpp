@@ -602,11 +602,10 @@ void Slave::registered(const SlaveID& slaveId)
 
       if (flags.checkpoint) {
         // Create the slave meta directory.
-        paths::createSlaveDirectory(paths::getMetaRootDir(flags.work_dir), slaveId);
+        paths::createSlaveDirectory(metaDir, slaveId);
 
         // Checkpoint slave info.
-        const string& path = paths::getSlaveInfoPath(
-            paths::getMetaRootDir(flags.work_dir), slaveId);
+        const string& path = paths::getSlaveInfoPath(metaDir, slaveId);
 
         CHECK_SOME(state::checkpoint(path, info));
       }
@@ -1308,9 +1307,7 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
       if (framework->info.checkpoint()) {
         // Checkpoint the framework pid.
         const string& path = paths::getFrameworkPidPath(
-            paths::getMetaRootDir(flags.work_dir),
-            info.id(),
-            frameworkId);
+            metaDir, info.id(), frameworkId);
 
         CHECK_SOME(state::checkpoint(path, framework->pid));
       }
@@ -1489,7 +1486,7 @@ void Slave::registerExecutor(
 
         // Checkpoint the libprocess pid.
         string path = paths::getLibprocessPidPath(
-            paths::getMetaRootDir(flags.work_dir),
+            metaDir,
             info.id(),
             executor->frameworkId,
             executor->id,
@@ -2219,6 +2216,14 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   CHECK(framework->state == Framework::TERMINATING ||
         !executor->incompleteTasks());
 
+  // Write a sentinel file to indicate that this executor
+  // is completed.
+  if (executor->checkpoint) {
+    const string& path = paths::getExecutorSentinelPath(
+        metaDir, info.id(), framework->id, executor->id, executor->uuid);
+    CHECK_SOME(os::touch(path));
+  }
+
   // TODO(vinod): Move the responsibility of gc'ing to the
   // Executor struct.
 
@@ -2463,13 +2468,9 @@ void Slave::registerExecutorTimeout(
 
   switch (executor->state) {
     case Executor::RUNNING:
-      // Executor has registered. Ignore the registration timeout.
-      break;
     case Executor::TERMINATING:
     case Executor::TERMINATED:
-      LOG(INFO) << "Ignoring registration timeout for executor '" << executorId
-                << "' of framework " << frameworkId
-                << " because the executor is terminating/terminated";
+      // Ignore the registration timeout.
       break;
     case Executor::REGISTERING:
       LOG(INFO) << "Terminating executor " << executor->id
@@ -2539,8 +2540,6 @@ void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
 
 Future<Nothing> Slave::recover(bool reconnect, bool strict)
 {
-  const string& metaDir = paths::getMetaRootDir(flags.work_dir);
-
   // We consider the absence of 'metaDir' to mean that this is either
   // the first time this slave was started with checkpointing enabled
   // or this slave was started after an upgrade (--recover=cleanup).
@@ -2717,17 +2716,13 @@ Framework::Framework(
   if (info.checkpoint() && slave->state != slave->RECOVERING) {
     // Checkpoint the framework info.
     string path = paths::getFrameworkInfoPath(
-        paths::getMetaRootDir(slave->flags.work_dir),
-        slave->info.id(),
-        id);
+        slave->metaDir, slave->info.id(), id);
 
     CHECK_SOME(state::checkpoint(path, info));
 
     // Checkpoint the framework pid.
     path = paths::getFrameworkPidPath(
-        paths::getMetaRootDir(slave->flags.work_dir),
-        slave->info.id(),
-        id);
+        slave->metaDir, slave->info.id(), id);
 
     CHECK_SOME(state::checkpoint(path, pid));
   }
@@ -2876,15 +2871,42 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
     }
   }
 
+  CHECK(state.runs.contains(uuid));
+  const RunState& run = state.runs.get(uuid).get();
+
+  // If the latest run of the executor was completed (i.e., terminated
+  // and all updates are acknowledged) in the previous run, we don't
+  // recover it.
+  if (run.completed) {
+    VLOG(1) << "Skipping recovery of executor " << state.id
+            << " of framework " << id
+            << " because its latest run " << uuid << " is completed";
+
+    // GC the executor run's work directory.
+    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorRunPath(
+        slave->flags.work_dir, slave->info.id(), id, state.id, run.id.get()));
+
+    // GC the executor run's meta directory.
+    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorRunPath(
+        slave->metaDir, slave->info.id(), id, state.id, run.id.get()));
+
+    // GC the top level executor work directory.
+    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorPath(
+        slave->flags.work_dir, slave->info.id(), id, state.id));
+
+    // GC the top level executor meta directory.
+    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorPath(
+        slave->metaDir, slave->info.id(), id, state.id));
+
+    return NULL;
+  }
+
   // Create executor.
   const string& directory = paths::getExecutorRunPath(
       slave->flags.work_dir, slave->info.id(), id, state.id, uuid);
 
   Executor* executor = new Executor(
       slave, id, state.info.get(), uuid, directory, info.checkpoint());
-
-  CHECK(state.runs.contains(uuid));
-  const RunState& run = state.runs.get(uuid).get();
 
   // Recover the libprocess PID if possible.
   if (run.libprocessPid.isSome()) {
@@ -2935,21 +2957,14 @@ Executor::Executor(
   if (checkpoint && slave->state != slave->RECOVERING) {
     // Checkpoint the executor info.
     const string& path = paths::getExecutorInfoPath(
-        paths::getMetaRootDir(slave->flags.work_dir),
-        slave->info.id(),
-        frameworkId,
-        id);
+        slave->metaDir, slave->info.id(), frameworkId, id);
 
     CHECK_SOME(state::checkpoint(path, info));
 
     // Create the meta executor directory.
     // NOTE: This creates the 'latest' symlink in the meta directory.
     paths::createExecutorDirectory(
-        paths::getMetaRootDir(slave->flags.work_dir),
-        slave->info.id(),
-        frameworkId,
-        id,
-        uuid);
+        slave->metaDir, slave->info.id(), frameworkId, id, uuid);
   }
 }
 
@@ -3022,16 +3037,9 @@ void Executor::checkpointTask(const TaskInfo& task)
   if (checkpoint) {
     CHECK_NOTNULL(slave);
 
+    const Task& t = protobuf::createTask(task, TASK_STAGING, id, frameworkId);
     const string& path = paths::getTaskInfoPath(
-        paths::getMetaRootDir(slave->flags.work_dir),
-        slave->info.id(),
-        frameworkId,
-        id,
-        uuid,
-        task.task_id());
-
-    const Task& t = protobuf::createTask(
-        task, TASK_STAGING, id, frameworkId);
+        slave->metaDir, slave->info.id(), frameworkId, id, uuid, t.task_id());
 
     CHECK_SOME(state::checkpoint(path, t));
   }

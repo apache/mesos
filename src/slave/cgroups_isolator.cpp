@@ -768,6 +768,13 @@ Future<Nothing> CgroupsIsolator::recover(
         CHECK(executor.runs.contains(uuid));
         const RunState& run = executor.runs.get(uuid).get();
 
+        if (run.completed) {
+          VLOG(1) << "Skipping recovery of executor '" << executor.id
+                  << "' of framework " << framework.id
+                  << " because its latest run " << uuid << " is completed";
+          continue;
+        }
+
         // TODO(vinod): Currently, we assume that the cgroups
         // information (e.g., hierarchy, root) used while recovering
         // is same as the one that was used by the previous slave
