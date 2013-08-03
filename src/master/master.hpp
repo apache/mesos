@@ -284,6 +284,7 @@ struct Slave
       pid(_pid),
       registeredTime(time),
       lastHeartbeat(time),
+      disconnected(false),
       observer(NULL) {}
 
   ~Slave() {}
@@ -382,6 +383,10 @@ struct Slave
 
   Time registeredTime;
   Time lastHeartbeat;
+
+  // We mark a slave 'disconnected' when it has checkpointing
+  // enabled because we expect it reregister after recovery.
+  bool disconnected;
 
   Resources resourcesOffered; // Resources offered.
   Resources resourcesInUse;   // Resources used by tasks and executors.

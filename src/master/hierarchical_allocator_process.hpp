@@ -441,7 +441,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveRemoved(
     const SlaveID& slaveId)
 {
   CHECK(initialized);
-
   CHECK(slaves.contains(slaveId));
 
   roleSorter->remove(slaves[slaveId].resources());
@@ -453,7 +452,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveRemoved(
   // HierarchicalAllocatorProcess::expire gets invoked (or the framework
   // that applied the filters gets removed).
 
-  LOG(INFO) << "Removed slave " << slaveId;
+  LOG(INFO)<< "Removed slave " << slaveId;
 }
 
 

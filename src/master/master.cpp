@@ -529,9 +529,19 @@ void Master::exited(const UPID& pid)
         removeSlave(slave);
         return;
       } else {
+        CHECK(!slave->disconnected)
+              << "Slave " << slave->id << " ("
+              << slave->info.hostname() << ") already disconnected!" ;
+
+        // Mark the slave as disconnected and remove it from the allocator.
+        slave->disconnected = true;
+
+        // TODO(vinod/Thomas): Instead of removing the slave, we should
+        // have 'Allocator::slave{Reconnected, Disconnected}'.
+        allocator->slaveRemoved(slave->id);
+
         // If a slave is checkpointing, remove all non-checkpointing
         // frameworks from the slave.
-
         // First, collect all the frameworks running on this slave.
         hashset<FrameworkID> frameworkIds;
         foreachvalue (Task* task, slave->tasks) {
@@ -551,6 +561,16 @@ void Master::exited(const UPID& pid)
 
             removeFramework(slave, framework);
           }
+        }
+
+        foreach (Offer* offer, utils::copy(slave->offers)) {
+          // TODO(vinod): We don't need to call 'Allocator::resourcesRecovered'
+          // once MESOS-621 is fixed.
+          allocator->resourcesRecovered(
+              offer->framework_id(), slave->id, offer->resources());
+
+          // Remove and rescind offers.
+          removeOffer(offer, true); // Rescind!
         }
       }
     }
@@ -829,7 +849,15 @@ void Master::launchTasks(const FrameworkID& frameworkId,
     if (offer != NULL) {
       CHECK(offer->framework_id() == frameworkId);
       Slave* slave = getSlave(offer->slave_id());
-      CHECK(slave != NULL) << "An offer should not outlive a slave!";
+      CHECK(slave != NULL)
+        << "Offer " << offerId << " outlived  slave "
+        << slave->id << " (" << slave->info.hostname() << ")";
+
+      // If a slave is disconnected we should've removed its offers.
+      CHECK(!slave->disconnected)
+        << "Offer " << offerId << " outlived disconnected slave "
+        << slave->id << " (" << slave->info.hostname() << ")";
+
       processTasks(offer, framework, slave, tasks, filters);
     } else {
       // The offer is gone (possibly rescinded, lost slave, re-reply
@@ -877,6 +905,8 @@ void Master::killTask(const FrameworkID& frameworkId,
       Slave* slave = getSlave(task->slave_id());
       CHECK(slave != NULL);
 
+      // TODO(vinod): Reconcile KillTaskMessages that are not received
+      // by the slave (e.g., disconnected, partitioned).
       LOG(INFO) << "Telling slave " << slave->id << " ("
                 << slave->info.hostname() << ")"
                 << " to kill task " << taskId
@@ -920,18 +950,26 @@ void Master::schedulerMessage(const SlaveID& slaveId,
   if (framework != NULL) {
     Slave* slave = getSlave(slaveId);
     if (slave != NULL) {
-      LOG(INFO) << "Sending framework message for framework "
-                << frameworkId << " to slave " << slaveId
-                << " (" << slave->info.hostname() << ")";
+      if (!slave->disconnected) {
+        LOG(INFO) << "Sending framework message for framework "
+                  << frameworkId << " to slave " << slaveId
+                  << " (" << slave->info.hostname() << ")";
 
-      FrameworkToExecutorMessage message;
-      message.mutable_slave_id()->MergeFrom(slaveId);
-      message.mutable_framework_id()->MergeFrom(frameworkId);
-      message.mutable_executor_id()->MergeFrom(executorId);
-      message.set_data(data);
-      send(slave->pid, message);
+        FrameworkToExecutorMessage message;
+        message.mutable_slave_id()->MergeFrom(slaveId);
+        message.mutable_framework_id()->MergeFrom(frameworkId);
+        message.mutable_executor_id()->MergeFrom(executorId);
+        message.set_data(data);
+        send(slave->pid, message);
 
-      stats.validFrameworkMessages++;
+        stats.validFrameworkMessages++;
+      } else {
+        LOG(WARNING) << "Cannot send framework message for framework "
+                     << frameworkId << " to slave " << slaveId
+                     << " (" << slave->info.hostname() << ")"
+                     << " because slave is disconnected";
+        stats.invalidFrameworkMessages++;
+      }
     } else {
       LOG(WARNING) << "Cannot send framework message for framework "
                    << frameworkId << " to slave " << slaveId
@@ -958,12 +996,24 @@ void Master::registerSlave(const SlaveInfo& slaveInfo)
   // Check if this slave is already registered (because it retries).
   foreachvalue (Slave* slave, slaves) {
     if (slave->pid == from) {
-      LOG(INFO) << "Slave " << slave->id << " (" << slave->info.hostname()
-                << ") already registered, resending acknowledgement";
-      SlaveRegisteredMessage message;
-      message.mutable_slave_id()->MergeFrom(slave->id);
-      reply(message);
-      return;
+      if (slave->disconnected) {
+        // The slave was previously disconnected but it is now trying
+        // to register as a new slave. This could happen if the slave
+        // failed recovery and hence registering as a new slave before
+        // the master removed the old slave from its map.
+        LOG(INFO) << "Removing old disconnected slave " << slave->id << " ("
+                  << slave->info.hostname() << ") because a registration"
+                  << " attempt is being made from " << from;
+        removeSlave(slave);
+        break;
+      } else {
+        LOG(INFO) << "Slave " << slave->id << " (" << slave->info.hostname()
+                  << ") already registered, resending acknowledgement";
+        SlaveRegisteredMessage message;
+        message.mutable_slave_id()->MergeFrom(slave->id);
+        reply(message);
+        return;
+      }
     }
   }
 
@@ -1026,6 +1076,23 @@ void Master::reregisterSlave(const SlaveID& slaveId,
                    << ") is being allowed to re-register with an already"
                    << " in use id (" << slaveId << ")";
 
+      // If this is a disconnected slave, add it back to the allocator.
+      if (slave->disconnected) {
+        slave->disconnected = false; // Reset the flag.
+
+        hashmap<FrameworkID, Resources> resources;
+        foreach (const ExecutorInfo& executorInfo, executorInfos) {
+          resources[executorInfo.framework_id()] += executorInfo.resources();
+        }
+        foreach (const Task& task, tasks) {
+          // Ignore tasks that have reached terminal state.
+          if (!protobuf::isTerminalState(task.state())) {
+            resources[task.framework_id()] += task.resources();
+          }
+        }
+        allocator->slaveAdded(slaveId, slaveInfo, resources);
+      }
+
       // Reconcile tasks between master and the slave.
       reconcileTasks(slave, tasks);
 
@@ -1047,19 +1114,6 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       // TODO(benh): We assume all slaves can register for now.
       CHECK(flags.slaves == "*");
       readdSlave(slave, executorInfos, tasks);
-
-//       // Checks if this slave, or if all slaves, can be accepted.
-//       if (slaveHostnamePorts.contains(slaveInfo.hostname(), from.port)) {
-//         run(&SlaveReregistrar::run, slave, executorInfos, tasks, self());
-//       } else if (flags.slaves == "*") {
-//         run(&SlaveReregistrar::run,
-//             slave, executorInfos, tasks, self(), slavesManager->self());
-//       } else {
-//         LOG(WARNING) << "Cannot re-register slave at "
-//                      << slaveInfo.hostname() << ":" << from.port
-//                      << " because not in allocated set of slaves!";
-//         reply(ShutdownMessage());
-//       }
     }
 
     // Send the latest framework pids to the slave.
@@ -1293,6 +1347,16 @@ void Master::offer(const FrameworkID& frameworkId,
       LOG(WARNING) << "Master returning resources offered to checkpointing "
                    << "framework " << frameworkId << " because slave "
                    << slaveId << " is not checkpointing";
+
+      allocator->resourcesRecovered(frameworkId, slaveId, offered);
+      continue;
+    }
+
+    // This could happen if the allocator dispatched 'Master::offer' before
+    // it received 'Allocator::slaveRemoved' from the master.
+    if (slave->disconnected) {
+      LOG(WARNING) << "Master returning resources offered because slave "
+                   << slaveId << " is disconnected";
 
       allocator->resourcesRecovered(frameworkId, slaveId, offered);
       continue;
@@ -1913,19 +1977,6 @@ void Master::removeFramework(Slave* slave, Framework* framework)
     }
   }
 
-  // Remove and rescind offers from this slave given to this framework.
-  foreach (Offer* offer, utils::copy(slave->offers)) {
-    if (framework->offers.contains(offer)) {
-      allocator->resourcesRecovered(
-          offer->framework_id(),
-          offer->slave_id(),
-          Resources(offer->resources()));
-
-      // Remove the offer from slave and framework.
-      removeOffer(offer, true); // Rescind.
-    }
-  }
-
   // Remove the framework's executors from the slave and framework
   // for proper resource accounting.
   if (slave->executors.contains(framework->id)) {
@@ -2060,7 +2111,9 @@ void Master::removeSlave(Slave* slave)
 
   // We do this first, to make sure any of the resources recovered
   // below (e.g., removeTask()) are ignored by the allocator.
-  allocator->slaveRemoved(slave->id);
+  if (!slave->disconnected) {
+    allocator->slaveRemoved(slave->id);
+  }
 
   // Remove pointers to slave's tasks in frameworks, and send status updates
   foreachvalue (Task* task, utils::copy(slave->tasks)) {
@@ -2095,9 +2148,13 @@ void Master::removeSlave(Slave* slave)
     removeTask(task);
   }
 
-  // Remove and rescind offers (but don't "recover" any resources
-  // since the slave is gone).
   foreach (Offer* offer, utils::copy(slave->offers)) {
+    // TODO(vinod): We don't need to call 'Allocator::resourcesRecovered'
+    // once MESOS-621 is fixed.
+    allocator->resourcesRecovered(
+        offer->framework_id(), slave->id, offer->resources());
+
+    // Remove and rescind offers.
     removeOffer(offer, true); // Rescind!
   }
 

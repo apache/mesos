@@ -81,6 +81,7 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::AtMost;
 using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
@@ -306,7 +307,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
                 .tasks[task.task_id()]
                 .acks.contains(UUID::fromBytes(ack.get().uuid())));
 
-  // Shut down the executor.
+  // Shut down the executor manually so that it doesn't hang around
+  // after the test finishes.
   process::post(libprocessPid, ShutdownExecutorMessage());
 
   driver.stop();
@@ -388,7 +390,10 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_RUNNING, status.get().state());
 
-  // Shut down the executor.
+  // Shut down the executor manually so that it doesn't hang around
+  // after the test finishes.
+  // TODO(vinod): Kill this after the fix to 'Cluster' to properly
+  // shutdown the slaves.
   process::post(executorPid, ShutdownExecutorMessage());
 
   driver.stop();
@@ -480,7 +485,10 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_RUNNING, status.get().state());
 
-  // Shut down the executor.
+  // Shut down the executor manually so that it doesn't hang around
+  // after the test finishes.
+  // TODO(vinod): Kill this after the fix to 'Cluster' to properly
+  // shutdown the slaves.
   process::post(executorPid, ShutdownExecutorMessage());
 
   driver.stop();
@@ -1233,7 +1241,8 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   this->Stop(slave.get());
 
-  // Now shut down the executor, when the slave is down.
+  // Shut down the executor manually so that it doesn't hang around
+  // after the test finishes.
   process::post(executorPid, ShutdownExecutorMessage());
 
   // Remove the symlink "latest" in the executor directory
@@ -1386,6 +1395,103 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   // Ensure the slave id is different.
   ASSERT_NE(
       offers1.get()[0].slave_id().value(), offers2.get()[0].slave_id().value());
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+}
+
+
+// The checkpointing slave fails to do recovery and tries to register
+// as a new slave. The master should give it a new id and transition
+// all the tasks of the old slave to LOST.
+TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
+
+  TypeParam isolator;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task
+
+  // Capture the slave and framework ids.
+  SlaveID slaveId = offers.get()[0].slave_id();
+  FrameworkID frameworkId = offers.get()[0].framework_id();
+
+  Future<Message> registerExecutorMessage =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  Future<Nothing> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureSatisfy(&status));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Capture the executor pid.
+  AWAIT_READY(registerExecutorMessage);
+  RegisterExecutorMessage registerExecutor;
+  registerExecutor.ParseFromString(registerExecutorMessage.get().body);
+  UPID executorPid = registerExecutorMessage.get().from;
+
+  // Wait for TASK_RUNNING update.
+  AWAIT_READY(status);
+
+  EXPECT_CALL(sched, slaveLost(_, _))
+    .Times(AtMost(1));
+
+  this->Stop(slave.get());
+
+  // Shut down the executor manually so that it doesn't hang around
+  // after the test finishes.
+  process::post(executorPid, ShutdownExecutorMessage());
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  // Spoof the registration attempt of a checkpointing slave
+  // that failed recovery. We do this because simply restarting
+  // the slave will result in a slave with a different pid than
+  // the previous one.
+  post(slave.get(), master.get(), registerSlaveMessage.get());
+
+  // Scheduler should get a TASK_LOST message.
+  AWAIT_READY(status2);
+  ASSERT_EQ(TASK_LOST, status2.get().state());
 
   driver.stop();
   driver.join();
