@@ -3381,6 +3381,23 @@ void post(const UPID& to, const string& name, const char* data, size_t length)
 }
 
 
+void post(const UPID& from,
+          const UPID& to,
+          const string& name,
+          const char* data,
+          size_t length)
+{
+  process::initialize();
+
+  if (!to) {
+    return;
+  }
+
+  // Encode and transport outgoing message.
+  transport(encode(from, to, name, string(data, length)));
+}
+
+
 namespace io {
 
 namespace internal {

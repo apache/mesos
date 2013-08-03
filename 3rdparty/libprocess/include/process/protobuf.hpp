@@ -27,6 +27,16 @@ inline void post(const process::UPID& to,
   post(to, message.GetTypeName(), data.data(), data.size());
 }
 
+
+inline void post(const process::UPID& from,
+                 const process::UPID& to,
+                 const google::protobuf::Message& message)
+{
+  std::string data;
+  message.SerializeToString(&data);
+  post(from, to, message.GetTypeName(), data.data(), data.size());
+}
+
 } // namespace process {
 
 

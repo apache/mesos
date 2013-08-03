@@ -329,6 +329,13 @@ void post(const UPID& to,
           size_t length = 0);
 
 
+void post(const UPID& from,
+          const UPID& to,
+          const std::string& name,
+          const char* data = NULL,
+          size_t length = 0);
+
+
 // Inline implementations of above.
 inline void terminate(const ProcessBase& process, bool inject)
 {
