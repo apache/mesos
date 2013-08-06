@@ -314,7 +314,10 @@ TEST_F(OsTest, children)
   ASSERT_SOME(children);
 
   // Depending on whether or not the shell has fork/exec'ed in each
-  // above 'Exec', we could have 2 or 4 children.
+  // above 'Exec', we could have 2 or 4 children. That is, some shells
+  // might simply for exec the command above (i.e., 'sleep 10') while
+  // others might fork/exec the command, keeping around a 'sh -c'
+  // process as well.
   EXPECT_LE(2u, children.get().size());
   EXPECT_GE(4u, children.get().size());
 
@@ -452,8 +455,13 @@ TEST_F(OsTest, killtree)
 
   foreach (const ProcessTree& tree, trees.get()) {
     if (tree.process.pid == child) {
-      // The 'grandchild' should still be in the tree, just zombied.
-      EXPECT_TRUE(tree.contains(grandchild)) << tree;
+      // The 'grandchild' _might_ still be in the tree, just zombied,
+      // unless the 'child' reaps the 'grandchild', which may happen
+      // if the shell "sticks around" (i.e., some invocations of 'sh
+      // -c' will 'exec' the command which will likely not do any
+      // reaping, but in other cases an invocation of 'sh -c' will not
+      // 'exec' the command, for example when the command is a
+      // sequence of commands separated by ';').
       EXPECT_FALSE(tree.contains(greatGrandchild)) << tree;
       EXPECT_FALSE(tree.contains(greatGreatGrandchild)) << tree;
     } else if (tree.process.pid == greatGrandchild) {
