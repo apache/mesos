@@ -309,7 +309,7 @@ struct Slave
     tasks[key] = task;
     LOG(INFO) << "Adding task " << task->task_id()
               << " with resources " << task->resources()
-              << " on slave " << id;
+              << " on slave " << id << " (" << info.hostname() << ")";
     resourcesInUse += task->resources();
   }
 
@@ -319,9 +319,10 @@ struct Slave
       std::make_pair(task->framework_id(), task->task_id());
     CHECK(tasks.count(key) > 0);
     tasks.erase(key);
+    killedTasks.remove(task->framework_id(), task->task_id());
     LOG(INFO) << "Removing task " << task->task_id()
               << " with resources " << task->resources()
-              << " on slave " << id;
+              << " on slave " << id << " (" << info.hostname() << ")";
     resourcesInUse -= task->resources();
   }
 
@@ -331,7 +332,7 @@ struct Slave
     offers.insert(offer);
     VLOG(1) << "Adding offer " << offer->id()
             << " with resources " << offer->resources()
-            << " on slave " << id;
+            << " on slave " << id << " (" << info.hostname() << ")";
     resourcesOffered += offer->resources();
   }
 
@@ -341,7 +342,7 @@ struct Slave
     offers.erase(offer);
     VLOG(1) << "Removing offer " << offer->id()
             << " with resources " << offer->resources()
-            << " on slave " << id;
+            << " on slave " << id << " (" << info.hostname() << ")";
     resourcesOffered -= offer->resources();
   }
 
@@ -399,6 +400,10 @@ struct Slave
   // that we own the pointer here, but it's shared with the Framework struct.
   // We should find a way to eliminate this.
   hashmap<std::pair<FrameworkID, TaskID>, Task*> tasks;
+
+  // Tasks that were asked to kill by frameworks.
+  // This is used for reconciliation when the slave re-registers.
+  multihashmap<FrameworkID, TaskID> killedTasks;
 
   // Active offers on this slave.
   hashset<Offer*> offers;

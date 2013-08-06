@@ -905,17 +905,24 @@ void Master::killTask(const FrameworkID& frameworkId,
       Slave* slave = getSlave(task->slave_id());
       CHECK(slave != NULL);
 
-      // TODO(vinod): Reconcile KillTaskMessages that are not received
-      // by the slave (e.g., disconnected, partitioned).
-      LOG(INFO) << "Telling slave " << slave->id << " ("
-                << slave->info.hostname() << ")"
-                << " to kill task " << taskId
-                << " of framework " << frameworkId;
+      // We add the task to 'killedTasks' here because the slave
+      // might be partitioned or disconnected but the master
+      // doesn't know it yet.
+      slave->killedTasks.put(frameworkId, taskId);
 
-      KillTaskMessage message;
-      message.mutable_framework_id()->MergeFrom(frameworkId);
-      message.mutable_task_id()->MergeFrom(taskId);
-      send(slave->pid, message);
+      // NOTE: This task will be properly reconciled when the
+      // disconnected slave re-registers with the master.
+      if (!slave->disconnected) {
+        LOG(INFO) << "Telling slave " << slave->id << " ("
+                  << slave->info.hostname() << ")"
+                  << " to kill task " << taskId
+                  << " of framework " << frameworkId;
+
+        KillTaskMessage message;
+        message.mutable_framework_id()->MergeFrom(frameworkId);
+        message.mutable_task_id()->MergeFrom(taskId);
+        send(slave->pid, message);
+      }
     } else {
       // TODO(benh): Once the scheduler has persistance and
       // high-availability of it's tasks, it will be the one that
@@ -1093,9 +1100,6 @@ void Master::reregisterSlave(const SlaveID& slaveId,
         allocator->slaveAdded(slaveId, slaveInfo, resources);
       }
 
-      // Reconcile tasks between master and the slave.
-      reconcileTasks(slave, tasks);
-
       SlaveReregisteredMessage message;
       message.mutable_slave_id()->MergeFrom(slave->id);
       reply(message);
@@ -1103,6 +1107,11 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       // Update the slave pid and relink to it.
       slave->pid = from;
       link(slave->pid);
+
+      // Reconcile tasks between master and the slave.
+      // NOTE: This needs to be done after the registration message is
+      // sent to the slave and the new pid is linked.
+      reconcileTasks(slave, tasks);
     } else {
       // NOTE: This handles the case when the slave tries to
       // re-register with a failed over master.
@@ -1798,6 +1807,24 @@ void Master::reconcileTasks(Slave* slave, const vector<Task>& tasks)
         send(framework->pid, message);
       }
       removeTask(task);
+    }
+  }
+
+  // Send KillTaskMessages for tasks in 'killedTasks' that are
+  // still alive on the slave. This could happen if the slave
+  // did not receive KillTaskMessage because of a partition or
+  // disconnection.
+  foreach (const Task& task, tasks) {
+    if (!protobuf::isTerminalState(task.state()) &&
+        slave->killedTasks.contains(task.framework_id(), task.task_id())) {
+      LOG(WARNING) << " Slave " << slave->id << " (" << slave->info.hostname()
+                   << ") has non-terminal task " << task.task_id()
+                   << " that is supposed to be killed. Killing it now!";
+
+      KillTaskMessage message;
+      message.mutable_framework_id()->MergeFrom(task.framework_id());
+      message.mutable_task_id()->MergeFrom(task.task_id());
+      send(slave->pid, message);
     }
   }
 }
