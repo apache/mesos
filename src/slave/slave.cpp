@@ -814,6 +814,19 @@ void Slave::runTask(
 
     framework = new Framework(this, frameworkId, frameworkInfo, pid);
     frameworks[frameworkId] = framework;
+
+    // Is this same framework in completedFrameworks? If so, move the completed
+    // executors to this framework and remove it from that list.
+    // TODO(brenden): Consider using stout/cache.hpp instead of boost
+    // circular_buffer.
+    for (boost::circular_buffer<Owned<Framework> >::iterator i =
+        completedFrameworks.begin(); i != completedFrameworks.end(); ++i) {
+      if ((*i)->id == frameworkId) {
+        framework->completedExecutors = (*i)->completedExecutors;
+        completedFrameworks.erase(i);
+        break;
+      }
+    }
   }
 
   const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
