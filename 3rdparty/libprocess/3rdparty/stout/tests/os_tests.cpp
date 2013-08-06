@@ -312,7 +312,12 @@ TEST_F(OsTest, children)
   children = os::children(getpid());
 
   ASSERT_SOME(children);
-  EXPECT_EQ(2u, children.get().size());
+
+  // Depending on whether or not the shell has fork/exec'ed in each
+  // above 'Exec', we could have 2 or 4 children.
+  EXPECT_LE(2u, children.get().size());
+  EXPECT_GE(4u, children.get().size());
+
   EXPECT_EQ(1u, children.get().count(child));
   EXPECT_EQ(1u, children.get().count(grandchild));
 
@@ -443,15 +448,20 @@ TEST_F(OsTest, killtree)
 
   ASSERT_SOME(trees);
 
-  EXPECT_EQ(2u, trees.get().size());
+  EXPECT_EQ(2u, trees.get().size()) << stringify(trees.get());
 
   foreach (const ProcessTree& tree, trees.get()) {
     if (tree.process.pid == child) {
-      EXPECT_TRUE(tree.contains(grandchild)); // But zombied.
-      EXPECT_FALSE(tree.contains(greatGrandchild));
-      EXPECT_FALSE(tree.contains(greatGreatGrandchild));
+      // The 'grandchild' should still be in the tree, just zombied.
+      EXPECT_TRUE(tree.contains(grandchild)) << tree;
+      EXPECT_FALSE(tree.contains(greatGrandchild)) << tree;
+      EXPECT_FALSE(tree.contains(greatGreatGrandchild)) << tree;
     } else if (tree.process.pid == greatGrandchild) {
-      EXPECT_TRUE(tree.contains(greatGreatGrandchild));
+      EXPECT_TRUE(tree.contains(greatGreatGrandchild)) << tree;
+    } else {
+      FAIL()
+        << "Not expecting a process tree rooted at "
+        << tree.process.pid << "\n" << tree;
     }
   }
 
