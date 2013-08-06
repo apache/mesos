@@ -838,6 +838,12 @@ TEST(Process, collect)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
+  // First ensure an empty list functions correctly.
+  std::list<Future<int> > empty;
+  Future<std::list<int> > future = collect(empty);
+  EXPECT_TRUE(future.await());
+  EXPECT_TRUE(future.get().empty());
+
   Promise<int> promise1;
   Promise<int> promise2;
   Promise<int> promise3;
@@ -855,7 +861,7 @@ TEST(Process, collect)
   promise1.set(1);
   promise3.set(3);
 
-  Future<std::list<int> > future = collect(futures);
+  future = collect(futures);
 
   EXPECT_TRUE(future.await());
   EXPECT_TRUE(future.isReady());

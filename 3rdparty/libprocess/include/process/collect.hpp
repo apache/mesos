@@ -119,6 +119,10 @@ inline Future<std::list<T> > collect(
     std::list<Future<T> >& futures,
     const Option<Timeout>& timeout)
 {
+  if (futures.empty()) {
+    return std::list<T>();
+  }
+
   Promise<std::list<T> >* promise = new Promise<std::list<T> >();
   Future<std::list<T> > future = promise->future();
   spawn(new internal::CollectProcess<T>(futures, timeout, promise), true);
