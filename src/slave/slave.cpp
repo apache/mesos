@@ -474,12 +474,13 @@ void Slave::finalize()
     }
   }
 
-  if (flags.checkpoint &&
-      (state == TERMINATING || flags.recover == "cleanup")) {
+  if (state == TERMINATING || flags.recover == "cleanup") {
     // We remove the "latest" symlink in meta directory, so that the
     // slave doesn't recover the state when it restarts and registers
     // as a new slave with the master.
-    CHECK_SOME(os::rm(paths::getLatestSlavePath(metaDir)));
+    if (os::exists(paths::getLatestSlavePath(metaDir))) {
+      CHECK_SOME(os::rm(paths::getLatestSlavePath(metaDir)));
+    }
   }
 
   // Stop the isolator.
@@ -1143,8 +1144,8 @@ void Slave::shutdownFramework(const FrameworkID& frameworkId)
   // its a message from the currently registered master.
   if (from && from != master) {
     LOG(WARNING) << "Ignoring shutdown framework message for " << frameworkId
-                 << " from " << from << "because it is not from the registered "
-                 << "master (" << master << ")";
+                 << " from " << from << " because it is not from the registered"
+                 << " master (" << master << ")";
     return;
   }
 
