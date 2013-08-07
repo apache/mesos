@@ -176,11 +176,11 @@ void Slave::initialize()
   if (!resources.disk().isSome()) {
     Bytes disk;
 
-    // NOTE: We calculate disk availability of the file system on
+    // NOTE: We calculate disk size of the file system on
     // which the slave work directory is mounted.
-    Try<Bytes> disk_ = fs::available(flags.work_dir);
+    Try<Bytes> disk_ = fs::size(flags.work_dir);
     if (!disk_.isSome()) {
-      LOG(WARNING) << "Failed to auto-detect the free disk space: '"
+      LOG(WARNING) << "Failed to auto-detect the disk space: '"
                    << disk_.error()
                    << "' ; defaulting to " << DEFAULT_DISK;
       disk = DEFAULT_DISK;
