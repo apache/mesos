@@ -340,7 +340,8 @@ TEST_F(OsTest, process)
   ASSERT_SOME(process);
   EXPECT_EQ(getpid(), process.get().pid);
   EXPECT_EQ(getppid(), process.get().parent);
-  EXPECT_EQ(getsid(getpid()), process.get().session);
+  ASSERT_SOME(process.get().session);
+  EXPECT_EQ(getsid(getpid()), process.get().session.get());
 
   ASSERT_SOME(process.get().rss);
   EXPECT_GT(process.get().rss.get(), 0);
@@ -370,7 +371,8 @@ TEST_F(OsTest, processes)
       found = true;
       EXPECT_EQ(getpid(), process.pid);
       EXPECT_EQ(getppid(), process.parent);
-      EXPECT_EQ(getsid(getpid()), process.session);
+      ASSERT_SOME(process.session);
+      EXPECT_EQ(getsid(getpid()), process.session.get());
 
       ASSERT_SOME(process.rss);
       EXPECT_GT(process.rss.get(), 0);

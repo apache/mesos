@@ -1110,12 +1110,15 @@ inline Try<std::set<pid_t> > pids(Option<pid_t> group, Option<pid_t> session)
   foreach (const Process& process, processes.get()) {
     // Group AND Session (intersection).
     if (group.isSome() && session.isSome()) {
-      if (group.get() == process.group && session.get() == process.session) {
+      if (group.get() == process.group &&
+          process.session.isSome() &&
+          session.get() == process.session.get()) {
         result.insert(process.pid);
       }
     } else if (group.isSome() && group.get() == process.group) {
       result.insert(process.pid);
-    } else if (session.isSome() && session.get() == process.session) {
+    } else if (session.isSome() && process.session.isSome() &&
+               session.get() == process.session.get()) {
       result.insert(process.pid);
     }
   }

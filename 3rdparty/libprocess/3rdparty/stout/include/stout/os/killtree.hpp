@@ -71,8 +71,8 @@ inline Try<std::list<ProcessTree> > killtree(
       if (groups) {
         visited.groups.insert(parent.get().group);
       }
-      if (sessions) {
-        visited.sessions.insert(parent.get().session);
+      if (sessions && parent.get().session.isSome()) {
+        visited.sessions.insert(parent.get().session.get());
       }
     }
   }
@@ -131,11 +131,16 @@ inline Try<std::list<ProcessTree> > killtree(
       }
     }
 
-    if (sessions) {
-      pid_t session = process.get().session;
+    // If we do not have a session for the process, it's likely
+    // because the process is a zombie on OS X. This implies it has
+    // not been reaped and thus is located somewhere in the tree we
+    // are trying to kill. Therefore, we should discover it from our
+    // tree traversal, or through its group (which is always present).
+    if (sessions && process.get().session.isSome()) {
+      pid_t session = process.get().session.get();
       if (visited.sessions.count(session) == 0) {
         foreach (const Process& process, processes.get()) {
-          if (process.session == session) {
+          if (process.session.isSome() && process.session.get() == session) {
             queue.push(process.pid);
           }
         }

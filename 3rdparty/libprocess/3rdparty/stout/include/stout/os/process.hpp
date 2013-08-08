@@ -21,7 +21,7 @@ struct Process
   Process(pid_t _pid,
           pid_t _parent,
           pid_t _group,
-          pid_t _session,
+          const Option<pid_t>& _session,
           const Option<Bytes>& _rss,
           const Option<Duration>& _utime,
           const Option<Duration>& _stime,
@@ -40,7 +40,7 @@ struct Process
   const pid_t pid;
   const pid_t parent;
   const pid_t group;
-  const pid_t session;
+  const Option<pid_t> session;
   const Option<Bytes> rss;
   const Option<Duration> utime;
   const Option<Duration> stime;

@@ -110,11 +110,15 @@ inline Result<Process> process(pid_t pid)
   proc_taskinfo task;
   int size = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &task, sizeof(task));
 
+  // It appears that zombie processes on OS X do not have sessions and
+  // result in ESRCH.
+  int session = getsid(pid);
+
   if (size != sizeof(task)) {
     return Process(process.kp_proc.p_pid,
                    process.kp_eproc.e_ppid,
                    process.kp_eproc.e_pgid,
-                   getsid(pid),
+                   session > 0 ? session : Option<pid_t>::none(),
                    None(),
                    None(),
                    None(),
@@ -124,7 +128,7 @@ inline Result<Process> process(pid_t pid)
     return Process(process.kp_proc.p_pid,
                    process.kp_eproc.e_ppid,
                    process.kp_eproc.e_pgid,
-                   getsid(pid),
+                   session > 0 ? session : Option<pid_t>::none(),
                    Bytes(task.pti_resident_size),
                    Nanoseconds(task.pti_total_user),
                    Nanoseconds(task.pti_total_system),
