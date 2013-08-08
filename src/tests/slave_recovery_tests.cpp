@@ -791,8 +791,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
 
@@ -815,9 +814,16 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   this->Stop(slave.get());
 
+  // Slave in cleanup mode shouldn't reregister with slave and hence
+  // no offers should be made by the master.
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .Times(0);
+
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status));
+
+  Future<Nothing> _initialize = FUTURE_DISPATCH(_, &Slave::_initialize);
 
   // Restart the slave in 'cleanup' recovery mode with a new isolator.
   TypeParam isolator2;
@@ -838,6 +844,10 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   // Scheduler should receive the TASK_FAILED update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
+
+  // Wait for recovery to complete.
+  AWAIT_READY(_initialize);
+  Clock::settle();
 
   Clock::resume();
 

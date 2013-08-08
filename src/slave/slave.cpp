@@ -438,8 +438,13 @@ void Slave::_initialize(const Future<Nothing>& future)
   // in 'cleanup' mode.
   if (frameworks.empty() && flags.recover == "cleanup") {
     terminate(self());
-  } else {
-    // Register with the master.
+  } else if (flags.recover == "reconnect") {
+    // Re-register if reconnecting.
+    // NOTE: Since the slave in cleanup mode never re-registers, if
+    // the master fails over it will not forward the updates from
+    // the "unknown" slave to the scheduler. This could lead to the
+    // slave waiting indefinitely for acknowledgements. The master's
+    // registrar could help in handling this correctly.
     state = DISCONNECTED;
     if (master) {
       doReliableRegistration();
