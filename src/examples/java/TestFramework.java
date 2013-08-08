@@ -145,10 +145,18 @@ public class TestFramework {
       .setSource("java_test")
       .build();
 
-    FrameworkInfo framework = FrameworkInfo.newBuilder()
+    FrameworkInfo.Builder frameworkBuilder = FrameworkInfo.newBuilder()
         .setUser("") // Have Mesos fill in the current user.
-        .setName("Test Framework (Java)")
-        .build();
+        .setName("Test Framework (Java)");
+
+    // TODO(vinod): Make checkpointing the default when it is default
+    // on the slave.
+    if (System.getenv("MESOS_CHECKPOINT") != null) {
+      System.out.println("Enabling checkpoint for the framework");
+      frameworkBuilder.setCheckpoint(true);
+    }
+
+    FrameworkInfo framework = frameworkBuilder.build();
 
     MesosSchedulerDriver driver = args.length == 1
       ? new MesosSchedulerDriver(

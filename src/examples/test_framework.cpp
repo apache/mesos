@@ -210,6 +210,13 @@ int main(int argc, char** argv)
   framework.set_name("Test Framework (C++)");
   framework.set_role(role);
 
+  // TODO(vinod): Make checkpointing the default when it is default
+  // on the slave.
+  if (getenv("MESOS_CHECKPOINT")) {
+    cout << "Enabling checkpoint for the framework" << endl;
+    framework.set_checkpoint(true);
+  }
+
   MesosSchedulerDriver driver(&scheduler, framework, master.get());
 
   return driver.run() == DRIVER_STOPPED ? 0 : 1;

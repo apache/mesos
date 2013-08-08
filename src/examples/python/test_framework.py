@@ -129,6 +129,12 @@ if __name__ == "__main__":
   framework.user = "" # Have Mesos fill in the current user.
   framework.name = "Test Framework (Python)"
 
+  # TODO(vinod): Make checkpointing the default when it is default
+  # on the slave.
+  if os.getenv("MESOS_CHECKPOINT"):
+    print "Enabling checkpoint for the framework";
+    framework.checkpoint = True
+
   driver = mesos.MesosSchedulerDriver(
     TestScheduler(executor),
     framework,

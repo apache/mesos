@@ -178,6 +178,13 @@ int main(int argc, char** argv)
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Long Lived Framework (C++)");
 
+  // TODO(vinod): Make checkpointing the default when it is default
+  // on the slave.
+  if (getenv("MESOS_CHECKPOINT")) {
+    cout << "Enabling checkpoint for the framework" << endl;
+    framework.set_checkpoint(true);
+  }
+
   MesosSchedulerDriver driver(&scheduler, framework, argv[1]);
 
   return driver.run() == DRIVER_STOPPED ? 0 : 1;
