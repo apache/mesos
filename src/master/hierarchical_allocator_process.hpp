@@ -61,6 +61,7 @@ struct Slave
   Slave(const SlaveInfo& _info)
     : available(_info.resources()),
       whitelisted(false),
+      checkpoint(_info.checkpoint()),
       info(_info) {}
 
   Resources resources() const { return info.resources(); }
@@ -74,6 +75,7 @@ struct Slave
   // frameworks.
   bool whitelisted;
 
+  bool checkpoint;
 private:
   SlaveInfo info;
 };
@@ -84,13 +86,15 @@ struct Framework
   Framework() {}
 
   Framework(const FrameworkInfo& _info)
-    : info(_info) {}
+    : checkpoint(_info.checkpoint()),
+      info(_info) {}
 
   std::string role() const { return info.role(); }
 
   // Filters that have been added by this framework.
   hashset<Filter*> filters;
 
+  bool checkpoint;
 private:
   FrameworkInfo info;
 };
@@ -773,19 +777,28 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::isFiltered(
     const SlaveID& slaveId,
     const Resources& resources)
 {
-  bool filtered = false;
-
   CHECK(frameworks.contains(frameworkId));
+  CHECK(slaves.contains(slaveId));
+
+  // Do not offer a non-checkpointing slave's resources to a checkpointing
+  // framework. This is a short term fix until the following is resolved:
+  // https://issues.apache.org/jira/browse/MESOS-444.
+  if (frameworks[frameworkId].checkpoint && !slaves[slaveId].checkpoint) {
+    VLOG(1) << "Filtered " << resources
+            << " on non-checkpointing slave " << slaveId
+            << " for checkpointing framework " << frameworkId;
+    return true;
+  }
+
   foreach (Filter* filter, frameworks[frameworkId].filters) {
     if (filter->filter(slaveId, resources)) {
       VLOG(1) << "Filtered " << resources
               << " on slave " << slaveId
               << " for framework " << frameworkId;
-      filtered = true;
-      break;
+      return true;
     }
   }
-  return filtered;
+  return false;
 }
 
 

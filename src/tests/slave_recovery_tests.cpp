@@ -1034,8 +1034,15 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.checkpoint = false;
 
+  Clock::pause();
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
+
   Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
+
+  AWAIT_READY(registerSlaveMessage);
 
   MockScheduler sched;
 
@@ -1053,17 +1060,11 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   EXPECT_CALL(sched, resourceOffers(_, _))
     .Times(0); // No offers should be received!
 
-  Future<Nothing> offer = FUTURE_DISPATCH(_, &Master::offer);
-
-  Clock::pause();
-
   driver.start();
 
-  AWAIT_READY(registered);
-
-  // Wait for an offer to be made. We do a Clock::settle() here
+  // Wait for scheduler to register. We do a Clock::settle() here
   // to ensure that no offers are received by the scheduler.
-  AWAIT_READY(offer);
+  AWAIT_READY(registered);
   Clock::settle();
 
   driver.stop();
