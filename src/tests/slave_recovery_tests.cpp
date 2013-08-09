@@ -734,6 +734,9 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .Times(2); // TASK_RUNNING and TASK_FINISHED updates.
 
+  EXPECT_CALL(sched, offerRescinded(_, _))
+    .Times(AtMost(1));
+
   Future<Nothing> schedule = FUTURE_DISPATCH(
       _, &GarbageCollectorProcess::schedule);
 
@@ -1365,6 +1368,9 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   UPID executorPid = registerExecutor.get().from;
 
   AWAIT_READY(statusUpdate1); // Wait for TASK_RUNNING update.
+
+  EXPECT_CALL(sched, offerRescinded(_, _))
+    .Times(AtMost(1));
 
   Future<Nothing> executorTerminated =
     FUTURE_DISPATCH(_, &Slave::executorTerminated);

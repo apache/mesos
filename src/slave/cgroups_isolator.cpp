@@ -532,6 +532,19 @@ void CgroupsIsolator::launchExecutor(
   // Start listening on OOM events.
   oomListen(frameworkId, executorId);
 
+  // Use pipes to determine which child has successfully changed session.
+  int pipes[2];
+  if (pipe(pipes) < 0) {
+    PLOG(FATAL) << "Failed to create a pipe";
+  }
+
+  // Set the FD_CLOEXEC flags on these pipes
+  Try<Nothing> cloexec = os::cloexec(pipes[0]);
+  CHECK_SOME(cloexec) << "Error setting FD_CLOEXEC on pipe[0]";
+
+  cloexec = os::cloexec(pipes[1]);
+  CHECK_SOME(cloexec) << "Error setting FD_CLOEXEC on pipe[1]";
+
   // Launch the executor using fork-exec.
   pid_t pid;
   if ((pid = ::fork()) == -1) {
@@ -539,6 +552,15 @@ void CgroupsIsolator::launchExecutor(
   }
 
   if (pid > 0) {
+    os::close(pipes[1]);
+
+    // Get the child's pid via the pipe.
+    if (read(pipes[0], &pid, sizeof(pid)) == -1) {
+      PLOG(FATAL) << "Failed to get child PID from pipe";
+    }
+
+    os::close(pipes[0]);
+
     // In parent process.
     LOG(INFO) << "Forked executor at = " << pid;
 
@@ -558,7 +580,34 @@ void CgroupsIsolator::launchExecutor(
              executorId,
              pid);
   } else {
-    // In child process.
+    // In child process, we make cleanup easier by putting process
+    // into it's own session. DO NOT USE GLOG!
+    os::close(pipes[0]);
+
+    // NOTE: We setsid() in a loop because setsid() might fail if another
+    // process has the same process group id as the calling process.
+    while ((pid = setsid()) == -1) {
+      perror("Could not put executor in its own session");
+
+      std::cout << "Forking another process and retrying ..." << std::endl;
+
+      if ((pid = fork()) == -1) {
+        perror("Failed to fork to launch executor");
+        abort();
+      }
+
+      if (pid > 0) {
+        // In parent process.
+        exit(0);
+      }
+    }
+
+    if (write(pipes[1], &pid, sizeof(pid)) != sizeof(pid)) {
+      perror("Failed to write PID on pipe");
+      abort();
+    }
+
+    os::close(pipes[1]);
 
     launcher::ExecutorLauncher launcher(
         slaveId,

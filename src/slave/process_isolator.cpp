@@ -191,8 +191,6 @@ void ProcessIsolator::launchExecutor(
 
       if (pid > 0) {
         // In parent process.
-        // It is ok to suicide here, though process reaper signals the exit,
-        // because the process isolator ignores unknown processes.
         exit(0);
       }
     }
