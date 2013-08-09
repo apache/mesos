@@ -2550,8 +2550,11 @@ Future<Nothing> Slave::recover(bool reconnect, bool strict)
   if (reconnect && !(info == state.get().info.get())) {
     EXIT(1)
       << "Incompatible slave info detected.\n"
+      << "------------------------------------------------------------\n"
       << "Old slave info:\n" << state.get().info.get() << "\n"
+      << "------------------------------------------------------------\n"
       << "New slave info:\n" << info << "\n"
+      << "------------------------------------------------------------\n"
       << "To properly upgrade the slave do as follows:\n"
       << "Step 1: Start the slave (old slave info) with --recover=cleanup.\n"
       << "Step 2: Wait till the slave kills all executors and shuts down.\n"

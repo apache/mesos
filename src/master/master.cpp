@@ -1355,12 +1355,11 @@ struct ResourceUsageChecker : TaskInfoVisitor
     Resources taskResources = task.resources();
 
     if (!((usedResources + taskResources) <= offer->resources())) {
-      LOG(WARNING) << "Task " << task.task_id() << " attempted to use "
-                   << taskResources << " combined with already used "
-                   << usedResources << " is greater than offered "
-                   << offer->resources();
-
-      return TaskInfoError::some("Task uses more resources than offered");
+      return TaskInfoError::some(
+          "Task " + stringify(task.task_id()) + " attempted to use " +
+          stringify(taskResources) + " combined with already used " +
+          stringify(usedResources) + " is greater than offered " +
+          stringify(Resources(offer->resources())));
     }
 
     // Check this task's executor's resources.
@@ -1370,9 +1369,9 @@ struct ResourceUsageChecker : TaskInfoVisitor
       foreach (const Resource& resource, task.executor().resources()) {
         if (!Resources::isAllocatable(resource)) {
           // TODO(benh): Send back the invalid resources?
-          LOG(WARNING) << "Executor for task " << task.task_id()
-                       << " uses invalid resources " << resource;
-          return TaskInfoError::some("Task's executor uses invalid resources");
+          return TaskInfoError::some(
+              "Executor for task " + stringify(task.task_id()) +
+              " uses invalid resources " + stringify(resource));
         }
       }
 
@@ -1382,13 +1381,11 @@ struct ResourceUsageChecker : TaskInfoVisitor
         if (!slave->hasExecutor(framework->id, task.executor().executor_id())) {
           taskResources += task.executor().resources();
           if (!((usedResources + taskResources) <= offer->resources())) {
-            LOG(WARNING) << "Task " << task.task_id() << " + executor attempted"
-                         << " to use " << taskResources << " combined with"
-                         << " already used " << usedResources << " is greater"
-                         << " than offered " << offer->resources();
-
             return TaskInfoError::some(
-                "Task + executor uses more resources than offered");
+                "Task " + stringify(task.task_id()) + " + executor attempted" +
+                " to use " + stringify(taskResources) + " combined with" +
+                " already used " + stringify(usedResources) + " is greater" +
+                " than offered " + stringify(Resources(offer->resources())));
           }
         }
         executors.insert(task.executor().executor_id());
@@ -1428,7 +1425,14 @@ struct ExecutorInfoChecker : TaskInfoVisitor
         if (!(task.executor() == executorInfo)) {
           return TaskInfoError::some(
               "Task has invalid ExecutorInfo (existing ExecutorInfo"
-              " with same ExecutorID is not compatible)");
+              " with same ExecutorID is not compatible).\n"
+              "------------------------------------------------------------\n"
+              "Existing ExecutorInfo:\n" +
+              stringify(executorInfo) + "\n"
+              "------------------------------------------------------------\n"
+              "Task's ExecutorInfo:\n" +
+              stringify(task.executor()) + "\n"
+              "------------------------------------------------------------\n");
         }
       }
     }
