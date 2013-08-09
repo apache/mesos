@@ -89,6 +89,14 @@ inline std::ostream& operator << (std::ostream& stream, const SlaveInfo& slave)
 }
 
 
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const ExecutorInfo& executor)
+{
+  return stream << executor.DebugString();
+}
+
+
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() == right.value();

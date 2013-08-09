@@ -23,6 +23,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <stout/strings.hpp>
+
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
@@ -252,7 +254,8 @@ TEST_F(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
   EXPECT_TRUE(status.get().has_message());
-  EXPECT_EQ("Task uses more resources than offered", status.get().message());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(), "greater than offered"));
 
   driver.stop();
   driver.join();
@@ -570,9 +573,8 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
   EXPECT_EQ(task2.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
   EXPECT_TRUE(status.get().has_message());
-  EXPECT_EQ("Task has invalid ExecutorInfo (existing ExecutorInfo"
-            " with same ExecutorID is not compatible)",
-            status.get().message());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(), "Task has invalid ExecutorInfo"));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
