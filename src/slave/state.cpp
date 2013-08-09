@@ -70,6 +70,13 @@ Try<SlaveState> SlaveState::recover(
 
   // Read the slave info.
   const string& path = paths::getSlaveInfoPath(rootDir, slaveId);
+  if (!os::exists(path)) {
+    // This could happen if the slave died before it registered
+    // with the master.
+    LOG(WARNING) << "Failed to find slave info file '" << path << "'";
+    return state;
+  }
+
   const Result<SlaveInfo>& slaveInfo = ::protobuf::read<SlaveInfo>(path);
 
   if (!slaveInfo.isSome()) {
@@ -126,6 +133,14 @@ Try<FrameworkState> FrameworkState::recover(
 
   // Read the framework info.
   string path = paths::getFrameworkInfoPath(rootDir, slaveId, frameworkId);
+  if (!os::exists(path)) {
+    // This could happen if the slave died after creating the
+    // framework directory but before it checkpointed the
+    // framework info.
+    LOG(WARNING) << "Failed to find framework info file '" << path << "'";
+    return state;
+  }
+
   const Result<FrameworkInfo>& frameworkInfo =
     ::protobuf::read<FrameworkInfo>(path);
 
@@ -145,6 +160,13 @@ Try<FrameworkState> FrameworkState::recover(
 
   // Read the framework pid.
   path = paths::getFrameworkPidPath(rootDir, slaveId, frameworkId);
+  if (!os::exists(path)) {
+    // This could happen if the slave died after creating the
+    // framework info but before it checkpointed the framework pid.
+    LOG(WARNING) << "Failed to framework pid file '" << path << "'";
+    return state;
+  }
+
   const Try<string>& pid = os::read(path);
 
   if (pid.isError()) {
@@ -205,6 +227,12 @@ Try<ExecutorState> ExecutorState::recover(
   // Read the executor info.
   const string& path =
     paths::getExecutorInfoPath(rootDir, slaveId, frameworkId, executorId);
+  if (!os::exists(path)) {
+    // This could happen if the slave died after creating the executor
+    // directory but before it checkpointed the executor info.
+    LOG(WARNING) << "Failed to find executor info file '" << path << "'";
+    return state;
+  }
 
   const Result<ExecutorInfo>& executorInfo =
     ::protobuf::read<ExecutorInfo>(path);
@@ -330,6 +358,12 @@ Try<RunState> RunState::recover(
   // Read the forked pid.
   string path = paths::getForkedPidPath(
       rootDir, slaveId, frameworkId, executorId, uuid);
+  if (!os::exists(path)) {
+    // This could happen if the slave died before the isolator
+    // checkpointed the forked pid.
+    LOG(WARNING) << "Failed to find executor forked pid file '" << path << "'";
+    return state;
+  }
 
   Try<string> pid = os::read(path);
 
@@ -356,6 +390,14 @@ Try<RunState> RunState::recover(
   // Read the libprocess pid.
   path = paths::getLibprocessPidPath(
       rootDir, slaveId, frameworkId, executorId, uuid);
+
+  if (!os::exists(path)) {
+    // This could happen if the slave died before the executor
+    // registered with the slave.
+    LOG(WARNING)
+      << "Failed to find executor libprocess pid file '" << path << "'";
+    return state;
+  }
 
   pid = os::read(path);
 
@@ -399,6 +441,12 @@ Try<TaskState> TaskState::recover(
   // Read the task info.
   string path = paths::getTaskInfoPath(
       rootDir, slaveId, frameworkId, executorId, uuid, taskId);
+  if (!os::exists(path)) {
+    // This could happen if the slave died after creating the task
+    // directory but before it checkpointed the task info.
+    LOG(WARNING) << "Failed to find task info file '" << path << "'";
+    return state;
+  }
 
   const Result<Task>& task = ::protobuf::read<Task>(path);
 
@@ -419,6 +467,12 @@ Try<TaskState> TaskState::recover(
   // Read the status updates.
   path = paths::getTaskUpdatesPath(
       rootDir, slaveId, frameworkId, executorId, uuid, taskId);
+  if (!os::exists(path)) {
+    // This could happen if the slave died before it checkpointed
+    // any status updates for this task.
+    LOG(WARNING) << "Failed to find status updates file '" << path << "'";
+    return state;
+  }
 
   // Open the status updates file for reading and writing (for truncating).
   const Try<int>& fd = os::open(path, O_RDWR);
