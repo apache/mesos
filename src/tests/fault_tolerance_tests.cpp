@@ -431,18 +431,16 @@ TEST_F(FaultToleranceTest, PartitionedSlaveStatusUpdates)
 
   // At this point, the slave still thinks it's registered, so we
   // simulate a status update coming from the slave.
-  StatusUpdateMessage statusUpdate;
-  statusUpdate.set_pid(stringify(slave.get()));
-  statusUpdate.mutable_update()->mutable_framework_id()->set_value(
-      frameworkId.get().value());
-  statusUpdate.mutable_update()->mutable_executor_id()->set_value("executor");
-  statusUpdate.mutable_update()->mutable_slave_id()->set_value(slaveId.value());
-  statusUpdate.mutable_update()->mutable_status()->mutable_task_id()->set_value(
-      "task_id");
-  statusUpdate.mutable_update()->mutable_status()->set_state(TASK_RUNNING);
-  statusUpdate.mutable_update()->set_timestamp(Clock::now().secs());
-  statusUpdate.mutable_update()->set_uuid(stringify(UUID::random()));
-  process::post(master.get(), statusUpdate);
+  TaskID taskId;
+  taskId.set_value("task_id");
+  const StatusUpdate& update = createStatusUpdate(
+      frameworkId.get(), slaveId, taskId, TASK_RUNNING);
+
+  StatusUpdateMessage message;
+  message.mutable_update()->CopyFrom(update);
+  message.set_pid(stringify(slave.get()));
+
+  process::post(master.get(), message);
 
   // The master should shutdown the slave upon receiving the update.
   AWAIT_READY(shutdownMessage);

@@ -185,6 +185,8 @@ message KillTaskMessage {
 }
 
 
+// NOTE: If 'pid' is present, scheduler driver sends an
+// acknowledgement to the pid.
 message StatusUpdateMessage {
   required StatusUpdate update = 1;
   optional string pid = 2;
