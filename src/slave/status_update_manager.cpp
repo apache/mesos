@@ -297,8 +297,7 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
   const TaskID& taskId = update.status().task_id();
   const FrameworkID& frameworkId = update.framework_id();
 
-  LOG(INFO) << "Received status update " << update
-            << " with checkpoint=" << stringify(checkpoint);
+  LOG(INFO) << "Received status update " << update;
 
   // Write the status update to disk and enqueue it to send it to the master.
   // Create/Get the status update stream for this task.
@@ -457,8 +456,8 @@ StatusUpdateStream* StatusUpdateManagerProcess::createStatusUpdateStream(
     const Option<ExecutorID>& executorId,
     const Option<UUID>& uuid)
 {
-  LOG(INFO) << "Creating StatusUpdate stream for task " << taskId
-            << " of framework " << frameworkId;
+  VLOG(1) << "Creating StatusUpdate stream for task " << taskId
+          << " of framework " << frameworkId;
 
   StatusUpdateStream* stream = new StatusUpdateStream(
       taskId, frameworkId, slaveId, flags, checkpoint, executorId, uuid);
@@ -488,9 +487,9 @@ void StatusUpdateManagerProcess::cleanupStatusUpdateStream(
     const TaskID& taskId,
     const FrameworkID& frameworkId)
 {
-  LOG(INFO) << "Cleaning up status update stream"
-            << " for task " << taskId
-            << " of framework " << frameworkId;
+  VLOG(1) << "Cleaning up status update stream"
+          << " for task " << taskId
+          << " of framework " << frameworkId;
 
   CHECK(streams.contains(frameworkId))
     << "Cannot find the status update streams for framework " << frameworkId;

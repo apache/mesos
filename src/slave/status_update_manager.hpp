@@ -285,7 +285,7 @@ struct StatusUpdateStream
       return Error(error.get());
     }
 
-    LOG(INFO) << "Replaying status update stream for task " << taskId;
+    VLOG(1) << "Replaying status update stream for task " << taskId;
 
     foreach (const StatusUpdate& update, updates) {
       // Handle the update.

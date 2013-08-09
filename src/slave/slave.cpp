@@ -2348,8 +2348,8 @@ void _unwatch(
 {
   if (!unwatch.isReady()) {
     LOG(ERROR) << "Failed to unwatch executor " << executorId
-               << " of framework " << frameworkId
-               << ": " << unwatch.isFailed() ? unwatch.failure() : "discarded";
+               << " of framework " << frameworkId << ": "
+               << (unwatch.isFailed() ? unwatch.failure() : "discarded");
   }
 }
 
@@ -2619,6 +2619,15 @@ Future<Nothing> Slave::_recover(const SlaveState& state, bool reconnect)
 {
   foreachvalue(Framework* framework, frameworks){
     foreachvalue(Executor* executor, framework->executors) {
+      // If the executor is already terminating/terminated don't
+      // bother reconnecting or killing it. This could happen if
+      // the recovered isolator sent a 'ExecutorTerminated' message
+      // before the slave is here.
+      if (executor->state == Executor::TERMINATING ||
+          executor->state == Executor::TERMINATED) {
+        continue;
+      }
+
       // Monitor the executor.
       monitor.watch(
           framework->id,

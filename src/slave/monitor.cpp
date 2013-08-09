@@ -183,7 +183,7 @@ void ResourceMonitorProcess::_collect(
   } else {
     // Note that the isolator might have been terminated and pending
     // dispatches deleted, causing the future to get discarded.
-    LOG(WARNING)
+    VLOG(1)
       << "Failed to collect resource usage for executor '" << executorId
       << "' of framework '" << frameworkId << "': "
       << (statistics.isFailed() ? statistics.failure() : "Future discarded");
