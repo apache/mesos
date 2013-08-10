@@ -123,6 +123,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/gzip_tests.cpp			\
   $(STOUT)/tests/hashset_tests.cpp		\
   $(STOUT)/tests/json_tests.cpp			\
+  $(STOUT)/tests/linkedhashmap_tests.cpp	\
   $(STOUT)/tests/main.cpp			\
   $(STOUT)/tests/multimap_tests.cpp		\
   $(STOUT)/tests/none_tests.cpp			\

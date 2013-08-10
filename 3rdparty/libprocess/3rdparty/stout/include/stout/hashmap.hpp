@@ -53,6 +53,7 @@ public:
   }
 
   // Returns the set of keys in this map.
+  // TODO(vinod/bmahler): Should return a list instead.
   hashset<Key> keys() const
   {
     hashset<Key> result;
@@ -63,6 +64,7 @@ public:
   }
 
   // Returns the set of values in this map.
+  // TODO(vinod/bmahler): Should return a list instead.
   hashset<Value> values() const
   {
     hashset<Value> result;
