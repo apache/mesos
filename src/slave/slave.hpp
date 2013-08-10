@@ -210,7 +210,9 @@ protected:
 
   // Returns an ExecutorInfo for a TaskInfo (possibly
   // constructing one if the task has a CommandInfo).
-  ExecutorInfo getExecutorInfo(const TaskInfo& task);
+  ExecutorInfo getExecutorInfo(
+      const FrameworkID& frameworkId,
+      const TaskInfo& task);
 
   // Handle the second phase of shutting down an executor for those
   // executors that have not properly shutdown within a timeout.

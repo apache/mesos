@@ -683,8 +683,10 @@ void Slave::doReliableRegistration()
           continue;
         }
 
-        // TODO(benh): Kill this once framework_id is required
-        // on ExecutorInfo.
+        // TODO(bmahler): Kill this in 0.15.0, as in 0.14.0 we've
+        // added code into the Scheduler Driver to ensure the
+        // framework id is set in ExecutorInfo, effectively making
+        // it a required field.
         ExecutorInfo* executorInfo = message.add_executor_infos();
         executorInfo->MergeFrom(executor->info);
         executorInfo->mutable_framework_id()->MergeFrom(framework->id);
@@ -781,7 +783,7 @@ void Slave::runTask(
     frameworks[frameworkId] = framework;
   }
 
-  const ExecutorInfo& executorInfo = getExecutorInfo(task);
+  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // We add the task to 'pending' to ensure the framework is not
@@ -833,7 +835,7 @@ void Slave::_runTask(
   LOG(INFO) << "Launching task " << task.task_id()
             << " for framework " << frameworkId;
 
-  const ExecutorInfo& executorInfo = getExecutorInfo(task);
+  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // Remove the pending task from framework.
@@ -1894,7 +1896,9 @@ Framework* Slave::getFramework(const FrameworkID& frameworkId)
 }
 
 
-ExecutorInfo Slave::getExecutorInfo(const TaskInfo& task)
+ExecutorInfo Slave::getExecutorInfo(
+    const FrameworkID& frameworkId,
+    const TaskInfo& task)
 {
   CHECK(task.has_executor() != task.has_command());
 
@@ -1903,6 +1907,8 @@ ExecutorInfo Slave::getExecutorInfo(const TaskInfo& task)
 
     // Command executors share the same id as the task.
     executor.mutable_executor_id()->set_value(task.task_id().value());
+
+    executor.mutable_framework_id()->CopyFrom(frameworkId);
 
     // Prepare an executor name which includes information on the
     // command being launched.
