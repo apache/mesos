@@ -312,22 +312,32 @@ Future<Response> Master::Http::stats(const Request& request)
   Resources totalResources;
   Resources usedResources;
   foreachvalue (Slave* slave, master.slaves) {
-    totalResources += slave->info.resources();
-    usedResources += slave->resourcesInUse;
+    // Instead of accumulating all types of resources (which is
+    // not necessary), we only accumulate scalar resources. This
+    // helps us bypass a performance problem caused by range
+    // additions (e.g. ports).
+    foreach (const Resource& resource, slave->info.resources()) {
+      if (resource.type() == Value::SCALAR) {
+        totalResources += resource;
+      }
+    }
+    foreach (const Resource& resource, slave->resourcesInUse) {
+      if (resource.type() == Value::SCALAR) {
+        usedResources += resource;
+      }
+    }
   }
 
   foreach (const Resource& resource, totalResources) {
-    if (resource.type() == Value::SCALAR) {
-      CHECK(resource.has_scalar());
-      double total = resource.scalar().value();
-      object.values[resource.name() + "_total"] = total;
-      Option<Resource> option = usedResources.get(resource);
-      CHECK(!option.isSome() || option.get().has_scalar());
-      double used = option.isSome() ? option.get().scalar().value() : 0.0;
-      object.values[resource.name() + "_used"] = used;
-      double percent = used / total;
-      object.values[resource.name() + "_percent"] = percent;
-    }
+    CHECK(resource.has_scalar());
+    double total = resource.scalar().value();
+    object.values[resource.name() + "_total"] = total;
+    Option<Resource> option = usedResources.get(resource);
+    CHECK(!option.isSome() || option.get().has_scalar());
+    double used = option.isSome() ? option.get().scalar().value() : 0.0;
+    object.values[resource.name() + "_used"] = used;
+    double percent = used / total;
+    object.values[resource.name() + "_percent"] = percent;
   }
 
   return OK(object, request.query.get("jsonp"));
