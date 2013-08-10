@@ -133,7 +133,7 @@ TEST_F(OsTest, touch)
 TEST_F(OsTest, readWriteString)
 {
   const string& testfile  = tmpdir + "/" + UUID::random().toString();
-  const string& teststr = "test";
+  const string& teststr = "line1\nline2";
 
   ASSERT_SOME(os::write(testfile, teststr));
 
