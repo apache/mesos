@@ -15,7 +15,7 @@
 #include <list>
 #include <queue>
 #include <set>
-#include <sstream> // For 'std::stringbuf'.
+#include <sstream> // For 'std::istringstream'.
 #include <string>
 #include <vector>
 
@@ -29,6 +29,7 @@
 
 #include <stout/os/exists.hpp>
 #include <stout/os/ls.hpp>
+#include <stout/os/read.hpp>
 
 namespace proc {
 
@@ -153,17 +154,17 @@ inline Result<ProcessStatus> status(pid_t pid)
 {
   std::string path = "/proc/" + stringify(pid) + "/stat";
 
-  std::ifstream file(path.c_str());
-
-  if (!file.is_open()) {
+  Try<std::string> read = os::read(path);
+  if (read.isError()) {
     // Need to check if file exists AFTER we open it to guarantee
-    // process hasn't terminated (or if it has, we at least have a
-    // file which the kernel _should_ respect until a close).
+    // process hasn't terminated.
     if (!os::exists(path)) {
       return None();
     }
-    return Error("Failed to open '" + path + "'");
+    return Error(read.error());
   }
+
+  std::istringstream data(read.get());
 
   std::string comm;
   char state;
@@ -212,7 +213,7 @@ inline Result<ProcessStatus> status(pid_t pid)
   std::string _; // For ignoring fields.
 
   // Parse all fields from stat.
-  file >> _ >> comm >> state >> ppid >> pgrp >> session >> tty_nr
+  data >> _ >> comm >> state >> ppid >> pgrp >> session >> tty_nr
        >> tpgid >> flags >> minflt >> cminflt >> majflt >> cmajflt
        >> utime >> stime >> cutime >> cstime >> priority >> nice
        >> num_threads >> itrealvalue >> starttime >> vsize >> rss
@@ -220,8 +221,7 @@ inline Result<ProcessStatus> status(pid_t pid)
        >> signal >> blocked >> sigcatch >> wchan >> nswap >> cnswap;
 
   // Check for any read/parse errors.
-  if (file.fail() && !file.eof()) {
-    file.close();
+  if (data.fail() && !data.eof()) {
     return Error("Failed to read/parse '" + path + "'");
   }
 
@@ -230,8 +230,6 @@ inline Result<ProcessStatus> status(pid_t pid)
   // indicate "zombie" processes).
   comm = strings::remove(comm, "(", strings::PREFIX);
   comm = strings::remove(comm, ")", strings::SUFFIX);
-
-  file.close();
 
   return ProcessStatus(pid, comm, state, ppid, pgrp, session, tty_nr,
                        tpgid, flags, minflt, cminflt, majflt, cmajflt,
