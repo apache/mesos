@@ -2076,9 +2076,9 @@ void Master::readdSlave(Slave* slave,
   hashmap<FrameworkID, Resources> resources;
 
   foreach (const ExecutorInfo& executorInfo, executorInfos) {
-    // TODO(benh): Remove this check if framework_id becomes required
-    // on ExecutorInfo (which will also mean we can remove setting it
-    // in the slave).
+    // TODO(bmahler): ExecutorInfo.framework_id is set by the Scheduler
+    // Driver in 0.14.0. Therefore, in 0.15.0, the slave no longer needs
+    // to set it, and we could remove this CHECK if desired.
     CHECK(executorInfo.has_framework_id());
     if (!slave->hasExecutor(executorInfo.framework_id(),
                             executorInfo.executor_id())) {

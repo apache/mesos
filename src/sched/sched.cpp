@@ -593,9 +593,11 @@ protected:
       return;
     }
 
-    // Check that each TaskInfo has either an ExecutorInfo or a
-    // CommandInfo but not both.
+    vector<TaskInfo> result;
+
     foreach (const TaskInfo& task, tasks) {
+      // Check that each TaskInfo has either an ExecutorInfo or a
+      // CommandInfo but not both.
       if (task.has_executor() == task.has_command()) {
         StatusUpdate update;
         update.mutable_framework_id()->MergeFrom(framework.id());
@@ -608,7 +610,38 @@ protected:
         update.set_uuid(UUID::random().toBytes());
 
         statusUpdate(update, UPID());
+        continue;
       }
+
+      // Ensure the ExecutorInfo.framework_id is valid, if present.
+      if (task.has_executor() &&
+          task.executor().has_framework_id() &&
+          !(task.executor().framework_id() == framework.id())) {
+        StatusUpdate update;
+        update.mutable_framework_id()->MergeFrom(framework.id());
+        TaskStatus* status = update.mutable_status();
+        status->mutable_task_id()->MergeFrom(task.task_id());
+        status->set_state(TASK_LOST);
+        status->set_message(
+            "ExecutorInfo has an invalid FrameworkID (Actual: " +
+            stringify(task.executor().framework_id()) + " vs Expected: " +
+            stringify(framework.id()) + ")");
+        update.set_timestamp(Clock::now().secs());
+        update.set_uuid(UUID::random().toBytes());
+
+        statusUpdate(update, UPID());
+        continue;
+      }
+
+      TaskInfo copy = task;
+
+      // Set the ExecutorInfo.framework_id if missing.
+      if (task.has_executor() && !task.executor().has_framework_id()) {
+        copy.mutable_executor()->mutable_framework_id()->CopyFrom(
+            framework.id());
+      }
+
+      result.push_back(copy);
     }
 
     LaunchTasksMessage message;
@@ -616,7 +649,7 @@ protected:
     message.mutable_offer_id()->MergeFrom(offerId);
     message.mutable_filters()->MergeFrom(filters);
 
-    foreach (const TaskInfo& task, tasks) {
+    foreach (const TaskInfo& task, result) {
       // Keep only the slave PIDs where we run tasks so we can send
       // framework messages directly.
       if (savedOffers.count(offerId) > 0) {
