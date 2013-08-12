@@ -714,12 +714,16 @@ void Slave::doReliableRegistration()
         executorInfo->mutable_framework_id()->MergeFrom(framework->id);
 
         // Add launched tasks.
-        foreachvalue (Task* task, executor->launchedTasks) {
+        // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+        // supports it.
+        foreach (Task* task, executor->launchedTasks.values()) {
           message.add_tasks()->CopyFrom(*task);
         }
 
         // Add queued tasks.
-        foreachvalue (const TaskInfo& task, executor->queuedTasks) {
+        // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+        // supports it.
+        foreach (const TaskInfo& task, executor->queuedTasks.values()) {
           const Task& t = protobuf::createTask(
               task, TASK_STAGING, executor->id, framework->id);
 
@@ -727,7 +731,9 @@ void Slave::doReliableRegistration()
         }
 
         // Add terminated tasks.
-        foreachvalue (Task* task, executor->terminatedTasks) {
+        // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+        // supports it.
+        foreach (Task* task, executor->terminatedTasks.values()) {
           message.add_tasks()->CopyFrom(*task);
         }
       }
@@ -1509,7 +1515,9 @@ void Slave::registerExecutor(
       }
 
       // First account for the tasks we're about to start.
-      foreachvalue (const TaskInfo& task, executor->queuedTasks) {
+      // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+      // supports it.
+      foreach (const TaskInfo& task, executor->queuedTasks.values()) {
         // Add the task to the executor.
         executor->addTask(task);
       }
@@ -1534,7 +1542,9 @@ void Slave::registerExecutor(
       message.mutable_slave_info()->MergeFrom(info);
       send(executor->pid, message);
 
-      foreachvalue (const TaskInfo& task, executor->queuedTasks) {
+      // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+      // supports it.
+      foreach (const TaskInfo& task, executor->queuedTasks.values()) {
         LOG(INFO) << "Flushing queued task " << task.task_id()
                   << " for executor '" << executor->id << "'"
                   << " of framework " << framework->id;
@@ -1641,7 +1651,9 @@ void Slave::reregisterExecutor(
         launched[task.task_id()] = task;
       }
 
-      foreachvalue (Task* task, executor->launchedTasks) {
+      // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+      // supports it.
+      foreach (Task* task, executor->launchedTasks.values()) {
         if (task->state() == TASK_STAGING &&
             !launched.contains(task->task_id())) {
 
@@ -2138,7 +2150,9 @@ void Slave::executorTerminated(
         StatusUpdate update;
 
         // Transition all live launched tasks.
-        foreachvalue (Task* task, utils::copy(executor->launchedTasks)) {
+        // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+        // supports it.
+        foreach (Task* task, executor->launchedTasks.values()) {
           if (!protobuf::isTerminalState(task->state())) {
             mesos::TaskState taskState;
             isCommandExecutor = !task->has_executor_id();
@@ -2158,8 +2172,9 @@ void Slave::executorTerminated(
         }
 
         // Transition all queued tasks.
-        foreachvalue (const TaskInfo& task,
-                      utils::copy(executor->queuedTasks)) {
+        // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+        // supports it.
+        foreach (const TaskInfo& task, executor->queuedTasks.values()) {
           mesos::TaskState taskState;
           isCommandExecutor = task.has_command();
           if (destroyed || isCommandExecutor.get()) {
@@ -3006,7 +3021,12 @@ Executor::Executor(
 Executor::~Executor()
 {
   // Delete the tasks.
-  foreachvalue (Task* task, launchedTasks) {
+  // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+  // supports it.
+  foreach (Task* task, launchedTasks.values()) {
+    delete task;
+  }
+  foreach (Task* task, terminatedTasks.values()) {
     delete task;
   }
 }

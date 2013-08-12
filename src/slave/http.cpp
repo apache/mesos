@@ -204,22 +204,30 @@ JSON::Object model(const Executor& executor)
   object.values["resources"] = model(executor.resources);
 
   JSON::Array tasks;
-  foreachvalue (Task* task, executor.launchedTasks) {
+  foreach (Task* task, executor.launchedTasks.values()) {
     tasks.values.push_back(model(*task));
   }
   object.values["tasks"] = tasks;
 
   JSON::Array queued;
-  foreachvalue (const TaskInfo& task, executor.queuedTasks) {
+  foreach (const TaskInfo& task, executor.queuedTasks.values()) {
     queued.values.push_back(model(task));
   }
   object.values["queued_tasks"] = queued;
 
-  JSON::Array completedTasks;
+  JSON::Array completed;
   foreach (const Task& task, executor.completedTasks) {
-    completedTasks.values.push_back(model(task));
+    completed.values.push_back(model(task));
   }
-  object.values["completed_tasks"] = completedTasks;
+
+  // NOTE: We add 'terminatedTasks' to 'completed_tasks' for
+  // simplicity.
+  // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+  // supports it.
+  foreach (Task* task, executor.terminatedTasks.values()) {
+    completed.values.push_back(model(*task));
+  }
+  object.values["completed_tasks"] = completed;
 
   return object;
 }

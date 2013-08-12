@@ -34,6 +34,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/bytes.hpp>
+#include <stout/linkedhashmap.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/multihashmap.hpp>
@@ -378,9 +379,9 @@ struct Executor
 
   Resources resources; // Currently consumed resources.
 
-  hashmap<TaskID, TaskInfo> queuedTasks; // Not yet launched.
-  hashmap<TaskID, Task*> launchedTasks;  // Running.
-  hashmap<TaskID, Task*> terminatedTasks; // Terminated but pending updates.
+  LinkedHashMap<TaskID, TaskInfo> queuedTasks; // Not yet launched.
+  LinkedHashMap<TaskID, Task*> launchedTasks;  // Running.
+  LinkedHashMap<TaskID, Task*> terminatedTasks; // Terminated but pending updates.
   boost::circular_buffer<Task> completedTasks; // Terminated and updates acked.
 
 private:
