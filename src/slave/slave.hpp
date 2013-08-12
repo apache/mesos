@@ -375,6 +375,8 @@ struct Executor
 
   const bool checkpoint;
 
+  const bool commandExecutor;
+
   UPID pid;
 
   Resources resources; // Currently consumed resources.
