@@ -1648,6 +1648,13 @@ void Slave::reregisterExecutor(
         statusUpdate(update); // This also updates the executor's resources!
       }
 
+      // Tell the isolator to update the resources.
+      dispatch(isolator,
+               &Isolator::resourcesChanged,
+               frameworkId,
+               executorId,
+               executor->resources);
+
       // Now, if there is any task still in STAGING state and not in
       // 'tasks' known to the executor, the slave must have died
       // before the executor received the task! Relaunch it!
