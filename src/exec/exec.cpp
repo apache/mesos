@@ -33,7 +33,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/duration.hpp>
-#include <stout/hashmap.hpp>
+#include <stout/linkedhashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/fatal.hpp>
 #include <stout/numify.hpp>
@@ -246,12 +246,16 @@ protected:
     message.mutable_framework_id()->MergeFrom(frameworkId);
 
     // Send all unacknowledged updates.
-    foreachvalue (const StatusUpdate& update, updates) {
+    // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+    // supports it.
+    foreach (const StatusUpdate& update, updates.values()) {
       message.add_updates()->MergeFrom(update);
     }
 
     // Send all unacknowledged tasks.
-    foreachvalue (const TaskInfo& task, tasks) {
+    // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+    // supports it.
+    foreach (const TaskInfo& task, tasks.values()) {
       message.add_tasks()->MergeFrom(task);
     }
 
@@ -494,13 +498,13 @@ private:
   const string directory;
   bool checkpoint;
 
-  hashmap<UUID, StatusUpdate> updates; // Unacknowledged updates.
+  LinkedHashMap<UUID, StatusUpdate> updates; // Unacknowledged updates.
 
   // We store tasks that have not been acknowledged
   // (via status updates) by the slave. This ensures that, during
   // recovery, the slave relaunches only those tasks that have
   // never reached this executor.
-  hashmap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
+  LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
 };
 
 } // namespace internal {
