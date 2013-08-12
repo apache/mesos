@@ -1601,3 +1601,96 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 
   this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
+
+
+// This test verifies that when the slave recovers and re-registers
+// with a framework that was shutdown when the slave was down, it gets
+// a ShutdownFramework message.
+TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Capture the slave and framework ids.
+  SlaveID slaveId = offers.get()[0].slave_id();
+  FrameworkID frameworkId = offers.get()[0].framework_id();
+
+  EXPECT_CALL(sched, statusUpdate(_, _)); // TASK_RUNNING
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Wait for TASK_RUNNING update to be acknowledged.
+  AWAIT_READY(_statusUpdateAcknowledgement);
+
+  this->Stop(slave.get());
+
+  Future<UnregisterFrameworkMessage> unregisterFrameworkMessage =
+    FUTURE_PROTOBUF(UnregisterFrameworkMessage(), _, _);
+
+  // Now stop the framework.
+  driver.stop();
+  driver.join();
+
+  // Wait util the framework is removed.
+  AWAIT_READY(unregisterFrameworkMessage);
+
+  Future<ShutdownFrameworkMessage> shutdownFrameworkMessage =
+    FUTURE_PROTOBUF(ShutdownFrameworkMessage(), _, _);
+
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  // Now restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
+
+  // Slave should get a ShutdownFrameworkMessage.
+  AWAIT_READY(shutdownFrameworkMessage);
+
+  // Ensure that the executor is terminated.
+  AWAIT_READY(executorTerminated);
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+}

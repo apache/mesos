@@ -54,7 +54,7 @@ using process::wait; // Necessary on some OS's to disambiguate.
 
 using std::tr1::cref;
 using std::tr1::bind;
-
+using std::tr1::shared_ptr;
 
 namespace mesos {
 namespace internal {
@@ -1775,6 +1775,9 @@ Resources Master::launchTask(const TaskInfo& task,
 }
 
 
+// NOTE: This function is only called when the slave re-registers
+// with a master that already knows about it (i.e., not a failed
+// over master).
 void Master::reconcileTasks(Slave* slave, const vector<Task>& tasks)
 {
   CHECK_NOTNULL(slave);
@@ -1821,6 +1824,27 @@ void Master::reconcileTasks(Slave* slave, const vector<Task>& tasks)
       KillTaskMessage message;
       message.mutable_framework_id()->MergeFrom(task.framework_id());
       message.mutable_task_id()->MergeFrom(task.task_id());
+      send(slave->pid, message);
+    }
+  }
+
+  // Send ShutdownFrameworkMessages for frameworks that are completed.
+  // This could happen if the message wasn't received by the slave
+  // (e.g., slave was down, partitioned).
+  // NOTE: This is a short-term hack because this information is lost
+  // when the master fails over. Also, 'completedFrameworks' has a
+  // limited capacity.
+  // TODO(vinod): Revisit this when registrar is in place. It would
+  // likely involve storing this information in the registrar.
+  foreach (const shared_ptr<Framework>& framework, completedFrameworks) {
+    if (slaveTasks.contains(framework->id)) {
+      LOG(WARNING)
+        << "Slave " << slave->id << " (" << slave->info.hostname()
+        << ") re-registered with completed framework " << framework->id
+        << ". Shutting down the framework on the slave";
+
+      ShutdownFrameworkMessage message;
+      message.mutable_framework_id()->MergeFrom(framework->id);
       send(slave->pid, message);
     }
   }
