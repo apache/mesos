@@ -775,7 +775,7 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     // N.B. Need to add the framwwork _after_ we add it's tasks
     // (above) so that we can properly determine the resources it's
     // currently using!
-    addFramework(framework, true);
+    addFramework(framework);
   }
 
   CHECK(frameworks.count(frameworkInfo.id()) > 0);
@@ -1830,7 +1830,7 @@ void Master::reconcileTasks(Slave* slave, const vector<Task>& tasks)
 }
 
 
-void Master::addFramework(Framework* framework, bool reregister)
+void Master::addFramework(Framework* framework)
 {
   CHECK(frameworks.count(framework->id) == 0);
 
@@ -1842,17 +1842,10 @@ void Master::addFramework(Framework* framework, bool reregister)
   CHECK(roles.contains(framework->info.role()));
   roles[framework->info.role()]->addFramework(framework);
 
-  if (reregister) {
-    FrameworkReregisteredMessage message;
-    message.mutable_framework_id()->MergeFrom(framework->id);
-    message.mutable_master_info()->MergeFrom(info);
-    send(framework->pid, message);
-  } else {
-    FrameworkRegisteredMessage message;
-    message.mutable_framework_id()->MergeFrom(framework->id);
-    message.mutable_master_info()->MergeFrom(info);
-    send(framework->pid, message);
-  }
+  FrameworkRegisteredMessage message;
+  message.mutable_framework_id()->MergeFrom(framework->id);
+  message.mutable_master_info()->MergeFrom(info);
+  send(framework->pid, message);
 
   allocator->frameworkAdded(
       framework->id, framework->info, framework->resources);

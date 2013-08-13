@@ -147,7 +147,7 @@ protected:
       const std::vector<Task>& tasks);
 
   // Add a framework.
-  void addFramework(Framework* framework, bool reregister = false);
+  void addFramework(Framework* framework);
 
   // Replace the scheduler for a framework with a new process ID, in
   // the event of a scheduler failover.
