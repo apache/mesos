@@ -242,7 +242,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
           cleanupStatusUpdateStream(task.id, framework.id);
         } else {
           // If a stream has pending updates after the replay,
-          // send the first pending update
+          // send the first pending update.
           const Result<StatusUpdate>& next = stream->next();
           CHECK(!next.isError());
           if (next.isSome()) {
@@ -317,9 +317,15 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
   }
 
   // Handle the status update.
-  Try<Nothing> result = stream->update(update);
+  Try<bool> result = stream->update(update);
   if (result.isError()) {
     return Future<Nothing>::failed(result.error());
+  }
+
+  // We don't return a failed future here so that the slave can re-ack
+  // the duplicate update.
+  if (!result.get()) {
+    return Nothing();
   }
 
   // Forward the status update to the master if this is the first in the stream.
@@ -403,6 +409,10 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
     return Future<bool>::failed(result.error());
   }
 
+  if (!result.get()) {
+    return Future<bool>::failed("Duplicate acknowledgement");
+  }
+
   // Reset the timeout.
   stream->timeout = None();
 
@@ -412,7 +422,9 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
     return Future<bool>::failed(next.error());
   }
 
-  if (stream->terminated) {
+  bool terminated = stream->terminated;
+
+  if (terminated) {
     if (next.isSome()) {
       LOG(WARNING) << "Acknowledged a terminal"
                    << " status update " << update.get()
@@ -424,7 +436,7 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
     stream->timeout = forward(next.get());
   }
 
-  return result.get();
+  return !terminated;
 }
 
 

@@ -103,9 +103,9 @@ public:
 
   // Checkpoints the status update to disk if necessary.
   // Also, sends the next pending status update, if any.
-  // @return true if the ACK is handled successfully (e.g., checkpointed)
+  // @return True if the ACK is handled successfully (e.g., checkpointed)
   //              and the task's status update stream is not terminated.
-  //         false same as above except the status update stream is terminated.
+  //         False same as above except the status update stream is terminated.
   //         Failed if there are any errors (e.g., duplicate, checkpointing).
   process::Future<bool> acknowledgement(
       const TaskID& taskId,
@@ -200,7 +200,11 @@ struct StatusUpdateStream
     }
   }
 
-  Try<Nothing> update(const StatusUpdate& update)
+  // This function handles the update, checkpointing if necessary.
+  // @return   True if the update is successfully handled.
+  //           False if the update is a duplicate.
+  //           Error Any errors (e.g., checkpointing).
+  Try<bool> update(const StatusUpdate& update)
   {
     if (error.isSome()) {
       return Error(error.get());
@@ -212,7 +216,7 @@ struct StatusUpdateStream
     if (acknowledged.contains(UUID::fromBytes(update.uuid()))) {
       LOG(WARNING) << "Ignoring status update " << update
                    << " that has already been acknowledged by the framework!";
-      return Nothing();
+      return false;
     }
 
     // Check that this update hasn't already been received.
@@ -220,13 +224,22 @@ struct StatusUpdateStream
     // then crashes after it writes it to disk but before it sends an ack.
     if (received.contains(UUID::fromBytes(update.uuid()))) {
       LOG(WARNING) << "Ignoring duplicate status update " << update;
-      return Nothing();
+      return false;
     }
 
     // Handle the update, checkpointing if necessary.
-    return handle(update, StatusUpdateRecord::UPDATE);
+    Try<Nothing> result = handle(update, StatusUpdateRecord::UPDATE);
+    if (result.isError()) {
+      return Error(result.error());
+    }
+
+    return true;
   }
 
+  // This function handles the ACK, checkpointing if necessary.
+  // @return   True if the acknowledgement is successfully handled.
+  //           False if the acknowledgement is a duplicate.
+  //           Error Any errors (e.g., checkpointing).
   Try<bool> acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
@@ -238,18 +251,18 @@ struct StatusUpdateStream
     }
 
     if (acknowledged.contains(uuid)) {
-      return Error("Duplicate status update acknowledgment (UUID: "
-                   + uuid.toString() + ") for update " + stringify(update));
+      LOG(WARNING) << "Duplicate status update acknowledgment (UUID: "
+                    << uuid << ") for update " << update;
+      return false;
     }
 
     // This might happen if we retried a status update and got back
     // acknowledgments for both the original and the retried update.
     if (uuid != UUID::fromBytes(update.uuid())) {
-      return Error(
-        "Unexpected status update acknowledgement (received " +
-        uuid.toString() +
-        ", expecting " + UUID::fromBytes(update.uuid()).toString() +
-        ") for update " + stringify(update));
+      LOG(WARNING) << "Unexpected status update acknowledgement (received "
+                   << uuid << ", expecting " << UUID::fromBytes(update.uuid())
+                   << ") for update " << update;
+      return false;
     }
 
     // Handle the ACK, checkpointing if necessary.
@@ -258,7 +271,7 @@ struct StatusUpdateStream
       return Error(result.error());
     }
 
-    return !terminated;
+    return true;
   }
 
   // Returns the next update (or none, if empty) in the queue.
