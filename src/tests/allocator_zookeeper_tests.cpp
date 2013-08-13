@@ -179,7 +179,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
     .WillOnce(DoAll(InvokeFrameworkAdded(&allocator2),
                     FutureSatisfy(&frameworkAdded)));
 
-  EXPECT_CALL(sched, reregistered(&driver, _));
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   AWAIT_READY(frameworkAdded);
 
@@ -301,7 +301,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
     .WillOnce(DoAll(InvokeSlaveAdded(&allocator2),
                     FutureSatisfy(&slaveAdded)));
 
-  EXPECT_CALL(sched, reregistered(&driver, _));
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   AWAIT_READY(slaveAdded);
 

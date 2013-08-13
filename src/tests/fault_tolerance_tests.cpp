@@ -594,7 +594,9 @@ TEST_F(FaultToleranceTest, PartitionedSlaveExitedExecutor)
 
 
 // This test ensures that a framework connecting with a
-// failed over master gets a re-registered callback.
+// failed over master gets a registered callback.
+// Note that this behavior might change in the future and
+// the scheduler might receive a re-registered callback.
 TEST_F(FaultToleranceTest, MasterFailover)
 {
   Try<PID<Master> > master = StartMaster();
@@ -619,9 +621,9 @@ TEST_F(FaultToleranceTest, MasterFailover)
 
   EXPECT_CALL(sched, disconnected(&driver));
 
-  Future<Nothing> reregistered;
-  EXPECT_CALL(sched, reregistered(&driver, _))
-    .WillOnce(FutureSatisfy(&reregistered));
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
 
   // Simulate a new master detected message to the scheduler.
   NewMasterDetectedMessage newMasterDetectedMsg;
@@ -629,8 +631,8 @@ TEST_F(FaultToleranceTest, MasterFailover)
 
   process::post(frameworkRegisteredMessage.get().to, newMasterDetectedMsg);
 
-  // Framework should get a re-register callback.
-  AWAIT_READY(reregistered);
+  // Framework should get a registered callback.
+  AWAIT_READY(registered);
 
   driver.stop();
   driver.join();
