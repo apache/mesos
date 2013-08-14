@@ -137,7 +137,11 @@ public:
   void ping(const UPID& from, const std::string& body);
 
   // Handles the status update.
-  void statusUpdate(const StatusUpdate& update);
+  // NOTE: If 'pid' is a valid UPID an ACK is sent to this pid
+  // after the update is successfully handled. If pid == UPID()
+  // no ACK is sent. The latter is used by the slave to send
+  // status updates it generated (e.g., TASK_LOST).
+  void statusUpdate(const StatusUpdate& update, const UPID& pid);
 
   // This is called when the status update manager finishes
   // handling the update. If the handling is successful, an
@@ -145,7 +149,7 @@ public:
   void _statusUpdate(
       const Future<Nothing>& future,
       const StatusUpdate& update,
-      const Option<UPID>& pid);
+      const UPID& pid);
 
   void statusUpdateAcknowledgement(
       const SlaveID& slaveId,

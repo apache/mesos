@@ -1043,7 +1043,7 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   StatusUpdate statusUpdate2 = createStatusUpdate(
       frameworkId, offer.slave_id(), taskId, TASK_RUNNING, "Dummy update");
 
-  process::dispatch(slave.get(), &Slave::statusUpdate, statusUpdate2);
+  process::dispatch(slave.get(), &Slave::statusUpdate, statusUpdate2, UPID());
 
   // Ensure that the scheduler receives task2's update.
   AWAIT_READY(status);

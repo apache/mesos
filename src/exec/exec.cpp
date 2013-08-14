@@ -464,6 +464,7 @@ protected:
     update->mutable_status()->MergeFrom(status);
     update->set_timestamp(Clock::now().secs());
     update->set_uuid(UUID::random().toBytes());
+    message.set_pid(self());
 
     VLOG(1) << "Executor sending status update " << *update;
 
