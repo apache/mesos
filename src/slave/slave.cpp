@@ -1050,7 +1050,7 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
                  << " of framework " << frameworkId
                  << " because the slave is " << state;
     // TODO(vinod): Consider sending a TASK_LOST here.
-    // Currently it is tricky because 'statsuUpdate()'
+    // Currently it is tricky because 'statusUpdate()'
     // ignores updates for unknown frameworks.
     return;
   }
@@ -1093,31 +1093,7 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
 
   switch (executor->state) {
     case Executor::REGISTERING: {
-      if (executor->queuedTasks.contains(taskId)) {
-        // We remove the task here so that if this executor registers at
-        // a later point in time it won't be sent this task.
-        LOG(WARNING) << "Removing queued task " << taskId
-                     << " from executor '" << executor->id
-                     << "' of framework " << frameworkId
-                     << " because the executor hasn't registered yet";
-        executor->queuedTasks.erase(taskId);
-
-        if (executor->queuedTasks.empty()) {
-          CHECK(executor->launchedTasks.empty()) << executor;
-          // This executor no longer has any running tasks, so kill it.
-          LOG(WARNING) << "Killing the unregistered executor '" << executor->id
-                       << "' of framework " << framework->id
-                       << " because it has no tasks";
-          dispatch(
-              isolator, &Isolator::killExecutor, framework->id, executor->id);
-        }
-      } else {
-        LOG(WARNING) << "Cannot kill task " << taskId
-                     << " of framework " << frameworkId
-                     << " because the executor '" << executor->id
-                     << "' hasn't registered yet";
-      }
-
+      // The executor hasn't registered yet.
       // NOTE: Sending a TASK_KILLED update removes the task from
       // Executor::queuedTasks, so that if the executor registers at
       // a later point in time, it won't get this task.
@@ -1130,6 +1106,19 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
           executor->id);
 
       statusUpdate(update, UPID());
+
+      // This executor no longer has any running tasks, so kill it.
+      if (executor->queuedTasks.empty()) {
+        CHECK(executor->launchedTasks.empty())
+            << " Unregistered executor " << executor->id
+            << " has launched tasks";
+
+        LOG(WARNING) << "Killing the unregistered executor '" << executor->id
+                     << "' of framework " << framework->id
+                     << " because it has no tasks";
+        dispatch(
+            isolator, &Isolator::killExecutor, framework->id, executor->id);
+      }
       break;
     }
     case Executor::TERMINATING:
@@ -1670,29 +1659,40 @@ void Slave::reregisterExecutor(
                executorId,
                executor->resources);
 
-      // Now, if there is any task still in STAGING state and not in
-      // 'tasks' known to the executor, the slave must have died
-      // before the executor received the task! Relaunch it!
-      hashmap<TaskID, TaskInfo> launched;
+      hashmap<TaskID, TaskInfo> unackedTasks;
       foreach (const TaskInfo& task, tasks) {
-        launched[task.task_id()] = task;
+        unackedTasks[task.task_id()] = task;
       }
 
+      // Now, if there is any task still in STAGING state and not in
+      // unacknowledged 'tasks' known to the executor, the slave must
+      // have died before the executor received the task! We should
+      // transition it to TASK_LOST. We only consider/store
+      // unacknowledged 'tasks' at the executor driver because if a
+      // task has been acknowledged, the slave must have received
+      // an update for that task and transitioned it out of STAGING!
+      // TODO(vinod): Consider checkpointing 'TaskInfo' instead of
+      // 'Task' so that we can relaunch such tasks! Currently we
+      // don't do it because 'TaskInfo.data' could be huge.
       // TODO(vinod): Use foreachvalue instead once LinkedHashmap
       // supports it.
       foreach (Task* task, executor->launchedTasks.values()) {
         if (task->state() == TASK_STAGING &&
-            !launched.contains(task->task_id())) {
+            !unackedTasks.contains(task->task_id())) {
 
-          LOG (INFO) << "Relaunching STAGED task " << task->task_id()
-                     << " of executor " << task->executor_id();
+          LOG(INFO)
+            << "Transitioning STAGED task " << task->task_id() << " to LOST"
+            << " because it is unknown to the executor " << executorId;
 
-          RunTaskMessage message;
-          message.mutable_framework_id()->MergeFrom(framework->id);
-          message.mutable_framework()->MergeFrom(framework->info);
-          message.set_pid(framework->pid);
-          message.mutable_task()->MergeFrom(launched[task->task_id()]);
-          send(executor->pid, message);
+          const StatusUpdate& update = protobuf::createStatusUpdate(
+              frameworkId,
+              info.id(),
+              task->task_id(),
+              TASK_LOST,
+              "Task launched during slave restart",
+              executorId);
+
+          statusUpdate(update, UPID());
         }
       }
       break;

@@ -122,6 +122,10 @@ public:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
+  // Called when an executor re-registers with a recovering slave.
+  // 'tasks' : Unacknowledged tasks (i.e., tasks that the executor
+  //           driver never received an ACK for.)
+  // 'updates' : Unacknowledged updates.
   void reregisterExecutor(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
