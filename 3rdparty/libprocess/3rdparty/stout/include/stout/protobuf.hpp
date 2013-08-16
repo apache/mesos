@@ -79,10 +79,12 @@ inline Try<Nothing> write(
 }
 
 
-// Read the next protobuf of type T from the file by first reading the "size"
-// followed by the contents (as written by 'write' above).
+// Read the next protobuf of type T from the file by first reading
+// the "size" followed by the contents (as written by 'write' above).
+// If 'ignorePartial' is true, None() is returned when we unexpectedly
+// hit EOF while reading the protobuf (e.g., partial write).
 template <typename T>
-inline Result<T> read(int fd)
+inline Result<T> read(int fd, bool ignorePartial = false)
 {
   // Save the offset so we can re-adjust if something goes wrong.
   off_t offset = lseek(fd, 0, SEEK_CUR);
@@ -110,9 +112,11 @@ inline Result<T> read(int fd)
   if (result.isNone()) {
     // Hit EOF unexpectedly. Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
-    return Error(
-        "Failed to read message of size " + stringify(size) + " bytes: "
-        "hit EOF unexpectedly, possible corruption");
+    if (ignorePartial) {
+      return None();
+    }
+    return Error("Failed to read message of size " + stringify(size) +
+                 " bytes: hit EOF unexpectedly, possible corruption");
   } else if (result.isError()) {
     // Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
