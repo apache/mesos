@@ -492,7 +492,8 @@ Try<TaskState> TaskState::recover(
   // Now, read the updates.
   Result<StatusUpdateRecord> record = None();
   while (true) {
-    record = ::protobuf::read<StatusUpdateRecord>(fd.get());
+    // Ignore errors due to partial protobuf read.
+    record = ::protobuf::read<StatusUpdateRecord>(fd.get(), true);
 
     if (!record.isSome()) {
       break;
@@ -505,6 +506,15 @@ Try<TaskState> TaskState::recover(
     }
   }
 
+  // Always truncate the file to contain only valid updates.
+  // NOTE: This is safe even though we ignore partial protobuf
+  // read errors above, because the 'fd' is properly set to the
+  // end of the last valid update by 'protobuf::read()'.
+  if (ftruncate(fd.get(), lseek(fd.get(), 0, SEEK_CUR)) != 0) {
+    return ErrnoError(
+        "Failed to truncate status updates file '" + path + "'");
+  }
+
   // After reading a non-corrupted updates file, 'record' should be 'none'.
   if (record.isError()) {
     message = "Failed to read status updates file  '" + path +
@@ -514,13 +524,6 @@ Try<TaskState> TaskState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
-
-      // Truncate the file to contain only valid updates.
-      if (ftruncate(fd.get(), lseek(fd.get(), 0, SEEK_CUR)) != 0) {
-        return ErrnoError(
-            "Failed to truncate status updates file '" + path + "'");
-      }
-
       return state;
     }
   }
