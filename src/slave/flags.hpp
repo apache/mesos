@@ -148,7 +148,7 @@ public:
         "information about an executor, because the slave died right before\n"
         "the executor registered.) during recovery are ignored and as much\n"
         "state as possible is recovered.\n",
-        false);
+        true);
 
 #ifdef __linux__
     add(&Flags::cgroups_hierarchy,
