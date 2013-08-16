@@ -1444,14 +1444,16 @@ void initialize(const string& delegate)
     char hostname[512];
 
     if (gethostname(hostname, sizeof(hostname)) < 0) {
-      PLOG(FATAL) << "Ffailed to initialize, gethostname";
+      LOG(FATAL) << "Failed to initialize, gethostname: "
+                 << hstrerror(h_errno);
     }
 
     // Lookup IP address of local hostname.
     hostent* he;
 
     if ((he = gethostbyname2(hostname, AF_INET)) == NULL) {
-      PLOG(FATAL) << "Failed to initialize, gethostbyname2";
+      LOG(FATAL) << "Failed to initialize, gethostbyname2: "
+                 << hstrerror(h_errno);
     }
 
     __ip__ = *((uint32_t *) he->h_addr_list[0]);
