@@ -659,7 +659,7 @@ TEST(ResourcesTest, SetEquals)
 TEST(ResourcesTest, SetSubset)
 {
   Resource disks1 = Resources::parse("disks", "{sda1,sda2}", "*").get();
-  Resource disks2 = Resources::parse("disks", "{sda1,sda2,sda3,sda4}", "*").get();
+  Resource disks2 = Resources::parse("disks", "{sda1,sda3,sda4,sda2}", "*").get();
 
   Resources r1;
   r1 += disks1;

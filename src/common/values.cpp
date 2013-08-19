@@ -466,7 +466,7 @@ bool operator <= (const Value::Set& left, const Value::Set& right)
       // Make sure this item is equal to an item in the right.
       bool found = false;
       for (int j = 0; j < right.item_size(); j++) {
-        if (left.item(i) == right.item(i)) {
+        if (left.item(i) == right.item(j)) {
           found = true;
           break;
         }
