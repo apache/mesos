@@ -128,7 +128,7 @@ public:
     // Setup recovery slave flags.
     flags.checkpoint = true;
     flags.recover = "reconnect";
-    flags.strict = false;
+    flags.strict = true;
 
     return flags;
   }
@@ -1190,8 +1190,9 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
 
 // When the slave is down we remove the "latest" symlink in the
-// executor's run directory, to simulate a situation where the slave
-// cannot recover the executor and hence schedules it for gc.
+// executor's run directory, to simulate a situation where the
+// recovered slave (--no-strict) cannot recover the executor and
+// hence schedules it for gc.
 TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 {
   Try<PID<Master> > master = this->StartMaster();
@@ -1200,6 +1201,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   TypeParam isolator1;
 
   slave::Flags flags = this->CreateSlaveFlags();
+  flags.strict = false;
 
   Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
   ASSERT_SOME(slave);
