@@ -619,6 +619,7 @@ void Slave::registered(const SlaveID& slaveId)
         // Checkpoint slave info.
         const string& path = paths::getSlaveInfoPath(metaDir, slaveId);
 
+        LOG(INFO) << "Checkpointing SlaveInfo to '" << path << "'";
         CHECK_SOME(state::checkpoint(path, info));
       }
       break;
@@ -1336,6 +1337,8 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
         const string& path = paths::getFrameworkPidPath(
             metaDir, info.id(), frameworkId);
 
+        LOG(INFO) << "Checkpointing framework pid '"
+                  << framework->pid << "' to '" << path << "'";
         CHECK_SOME(state::checkpoint(path, framework->pid));
       }
       break;
@@ -1519,6 +1522,8 @@ void Slave::registerExecutor(
             executor->id,
             executor->uuid);
 
+        LOG(INFO) << "Checkpointing executor pid '"
+                  << executor->pid << "' to '" << path << "'";
         CHECK_SOME(state::checkpoint(path, executor->pid));
       }
 
@@ -2807,12 +2812,15 @@ Framework::Framework(
     string path = paths::getFrameworkInfoPath(
         slave->metaDir, slave->info.id(), id);
 
+    LOG(INFO) << "Checkpointing FrameworkInfo to '" << path << "'";
     CHECK_SOME(state::checkpoint(path, info));
 
     // Checkpoint the framework pid.
     path = paths::getFrameworkPidPath(
         slave->metaDir, slave->info.id(), id);
 
+    LOG(INFO) << "Checkpointing framework pid '"
+              << pid << "' to '" << path << "'";
     CHECK_SOME(state::checkpoint(path, pid));
   }
 }
@@ -3051,6 +3059,7 @@ Executor::Executor(
     const string& path = paths::getExecutorInfoPath(
         slave->metaDir, slave->info.id(), frameworkId, id);
 
+    LOG(INFO) << "Checkpointing ExecutorInfo to '" << path << "'";
     CHECK_SOME(state::checkpoint(path, info));
 
     // Create the meta executor directory.
@@ -3138,6 +3147,7 @@ void Executor::checkpointTask(const TaskInfo& task)
     const string& path = paths::getTaskInfoPath(
         slave->metaDir, slave->info.id(), frameworkId, id, uuid, t.task_id());
 
+    LOG(INFO) << "Checkpointing TaskInfo to '" << path << "'";
     CHECK_SOME(state::checkpoint(path, t));
   }
 }

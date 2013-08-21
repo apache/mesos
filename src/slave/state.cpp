@@ -548,16 +548,11 @@ Try<TaskState> TaskState::recover(
 
 
 // Helpers to checkpoint string/protobuf to disk, with necessary error checking.
-// NOTE: We don't use 'glog' to log these messages because they could be
-// called from within a forked executor process, leading to potential deadlock.
 
 Try<Nothing> checkpoint(
     const string& path,
     const google::protobuf::Message& message)
 {
-  std::cout << "Checkpointing " << message.GetDescriptor()->name()
-            << " to '" << path << "'" << std::endl;
-
   // Create the base directory.
   Try<Nothing> result = os::mkdir(os::dirname(path).get());
   if (result.isError()) {
@@ -578,9 +573,6 @@ Try<Nothing> checkpoint(
 
 Try<Nothing> checkpoint(const std::string& path, const std::string& message)
 {
-  std::cout << "Checkpointing '" << message << "' to '" << path << "'"
-            << std::endl;
-
   // Create the base directory.
   Try<Nothing> result = os::mkdir(os::dirname(path).get());
   if (result.isError()) {

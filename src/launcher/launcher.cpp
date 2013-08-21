@@ -105,8 +105,17 @@ int ExecutorLauncher::setup()
         frameworkId,
         executorId,
         uuid);
-    cout << "Checkpointing forked pid " << getpid() << endl;
-    slave::state::checkpoint(path, stringify(getpid()));
+    cout << "Checkpointing executor's forked pid " << getpid()
+         << " to '" << path <<  "'" << endl;
+
+    Try<Nothing> checkpoint =
+      slave::state::checkpoint(path, stringify(getpid()));
+
+    if (checkpoint.isError()) {
+      cerr << "Failed to checkpoint executor's forked pid to '"
+           << path << "': " << checkpoint.error();
+      return -1;
+    }
   }
 
   const string& cwd = os::getcwd();

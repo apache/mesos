@@ -177,7 +177,7 @@ struct StatusUpdateStream
           O_CREAT | O_WRONLY | O_APPEND | O_SYNC,
           S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
-      if(result.isError()) {
+      if (result.isError()) {
         error = "Failed to open '" + path.get() + "' for status updates";
         return;
       }
