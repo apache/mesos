@@ -1824,7 +1824,7 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
   // TODO(vinod): Revisit these semantics when we disallow executors
   // from sending updates for tasks that belong to other executors.
-  if (executor->pid != pid) {
+  if (pid != UPID() && executor->pid != pid) {
     LOG(WARNING) << "Received status update " << update << " from " << pid
                  << " on behalf of a different executor " << executor->id
                  << " (" << executor->pid << ")";
