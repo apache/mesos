@@ -7,17 +7,19 @@ source ${MESOS_SOURCE_DIR}/support/colors.sh
 source ${MESOS_SOURCE_DIR}/support/atexit.sh
 
 # TODO(benh): Look for an existing hierarchy first.
-HIERARCHY=/cgroup
+TEST_CGROUP_HIERARCHY=/tmp/mesos_test_cgroup
+TEST_CGROUP_ROOT=mesos_test
 
 # Check if the hierarchy exists. If it doesn't, we want to make sure we
 # remove it, since we will create it.
 unmount=false
-if [[ ! -d ${HIERARCHY} ]]; then
+if [[ ! -d ${TEST_CGROUP_HIERARCHY} ]]; then
   unmount=true
 fi
 
 MASTER_PID=
 SLAVE_PID=
+SLAVE_WORK_DIR=
 
 # This function ensures that we first kill the slave (if present) and
 # then cleanup the cgroups. This is necessary because a running slave
@@ -37,19 +39,35 @@ function cleanup() {
   fi
 
   # Make sure we cleanup any cgroups we created on exiting.
-  find ${HIERARCHY}/mesos/* -depth -type d | xargs -r rmdir
+  find ${TEST_CGROUP_HIERARCHY}/${TEST_CGROUP_ROOT} -mindepth 1 -depth -type d | xargs -r rmdir
 
   # Make sure we cleanup the hierarchy, if we created it.
   # NOTE: We do a sleep here, to ensure the hierarchy is not busy.
   if ${unmount}; then
-   rmdir ${HIERARCHY}/mesos; sleep 1; umount ${HIERARCHY}; rmdir ${HIERARCHY}
+   rmdir ${TEST_CGROUP_HIERARCHY}/${TEST_CGROUP_ROOT} && sleep 1 && umount ${TEST_CGROUP_HIERARCHY} && rmdir ${TEST_CGROUP_HIERARCHY}
+  fi
+
+  if [[ -d "${SLAVE_WORK_DIR}" ]]; then
+    rm -rf ${SLAVE_WORK_DIR};
   fi
 }
 
 atexit cleanup
 
+export LD_LIBRARY_PATH=${MESOS_BUILD_DIR}/src/.libs
+MASTER=${MESOS_BUILD_DIR}/src/mesos-master
+SLAVE=${MESOS_BUILD_DIR}/src/mesos-slave
+BALLOON_FRAMEWORK=${MESOS_BUILD_DIR}/src/balloon-framework
+
+# The mesos binaries expect MESOS_ prefixed environment variables
+# to correspond to flags, so we unset these here.
+unset MESOS_BUILD_DIR
+unset MESOS_SOURCE_DIR
+unset MESOS_LAUNCHER_DIR
+unset MESOS_VERBOSE
+
 # Launch master.
-${MESOS_BUILD_DIR}/src/mesos-master --port=5432 &
+${MASTER} --port=5432 &
 MASTER_PID=${!}
 echo "${GREEN}Launched master at ${MASTER_PID}${NORMAL}"
 sleep 2
@@ -64,10 +82,14 @@ fi
 
 
 # Launch slave.
-${MESOS_BUILD_DIR}/src/mesos-slave \
+SLAVE_WORK_DIR=`mktemp -d`
+
+${SLAVE} \
+    --work_dir=${SLAVE_WORK_DIR} \
     --master=localhost:5432 \
     --isolation=cgroups \
-    --cgroups_hierarchy_root=${HIERARCHY} \
+    --cgroups_hierarchy=${TEST_CGROUP_HIERARCHY} \
+    --cgroups_root=${TEST_CGROUP_ROOT} \
     --resources="cpus:1;mem:96" &
 SLAVE_PID=${!}
 echo "${GREEN}Launched slave at ${SLAVE_PID}${NORMAL}"
@@ -82,11 +104,12 @@ if [[ ${STATUS} -ne 0 ]]; then
 fi
 
 # The main event!
-${MESOS_BUILD_DIR}/src/balloon-framework localhost:5432 1024
+${BALLOON_FRAMEWORK} localhost:5432 1024
 STATUS=${?}
 
 # Make sure the balloon framework "failed".
 if [[ ! ${STATUS} -eq 1 ]]; then
+  echo "${RED} Balloon framework returned ${STATUS} not 1${NORMAL}"
   exit 1
 fi
 
@@ -97,3 +120,5 @@ if [[ ${STATUS} -ne 0 ]]; then
   echo "${RED}Slave crashed; failing test${NORMAL}"
   exit 2
 fi
+
+exit 0
