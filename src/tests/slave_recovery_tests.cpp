@@ -1694,3 +1694,144 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 
   this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
+
+// Scheduler asks a restarted slave to kill a task that has been
+// running before the slave restarted. A scheduler failover happens
+// when the slave is down. This test verifies that a scheduler
+// failover will not affect the slave recovery process.
+TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
+  // Launch the first (i.e., failing) scheduler.
+  MockScheduler sched1;
+
+  FrameworkInfo framework1;
+  framework1.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  framework1.set_checkpoint(true);
+
+  MesosSchedulerDriver driver1(&sched1, framework1, master.get());
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched1, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver1.start();
+
+  AWAIT_READY(frameworkId);
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  // Create a long running task.
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(sched1, statusUpdate(_, _));
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver1.launchTasks(offers1.get()[0].id(), tasks);
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(_statusUpdateAcknowledgement);
+
+  this->Stop(slave.get());
+
+  // Now launch the second (i.e., failover) scheduler using the
+  // framework id recorded from the first scheduler.
+  MockScheduler sched2;
+
+  FrameworkInfo framework2;
+  framework2.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  framework2.mutable_id()->MergeFrom(frameworkId.get());
+  framework2.set_checkpoint(true);
+
+  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
+
+  Future<Nothing> sched2Registered;
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
+    .WillOnce(FutureSatisfy(&sched2Registered));
+
+  Future<Nothing> sched1Error;
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
+    .WillOnce(FutureSatisfy(&sched1Error));
+
+  driver2.start();
+
+  AWAIT_READY(sched2Registered);
+  AWAIT_READY(sched1Error);
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+      FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+
+  AWAIT_READY(_recover);
+
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(reregisterSlaveMessage);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched2, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());        // Ignore subsequent updates.
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched2, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+   // Kill the task.
+  driver2.killTask(task.task_id());
+
+  // Wait for TASK_KILLED update.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_KILLED, status.get().state());
+
+  // Advance the clock until the allocator allocates
+  // the recovered resources.
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
+
+  Clock::resume();
+
+  driver2.stop();
+  driver2.join();
+
+  driver1.stop();
+  driver1.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+}
