@@ -1835,3 +1835,124 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 
   this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
+
+
+// The purpose of this test is to ensure that during a network
+// partition, the master will remove a partitioned slave. When the
+// partition is removed, the slave will receive a ShutdownMessage.
+// When the slave starts again on the same host, we verify that the
+// slave will not try to reregister itself with the master. It will
+// register itself with the master and get a new slave id.
+TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  // Set these expectations up before we spawn the slave so that we
+  // don't miss the first PING.
+  Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+
+  // Drop all the PONGs to simulate slave partition.
+  DROP_MESSAGES(Eq("PONG"), _, _);
+
+  TypeParam isolator1;
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers.get().size());
+
+  // Long running task.
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(sched, statusUpdate(_, _));
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(_statusUpdateAcknowledgement);
+
+  Future<ShutdownMessage> shutdownMessage =
+    FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  Clock::pause();
+
+  // Now, induce a partition of the slave by having the master
+  // timeout the slave.
+  uint32_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+     break;
+    }
+    ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::settle();
+  }
+
+  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::settle();
+
+  // The master will notify the framework that the slave was lost.
+  AWAIT_READY(slaveLost);
+
+  // The master will have notified the framework of the lost task.
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_LOST, status.get().state());
+
+  // Wait for the master to attempt to shut down the slave.
+  AWAIT_READY(shutdownMessage);
+
+  this->Stop(slave.get());
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
+
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+}
