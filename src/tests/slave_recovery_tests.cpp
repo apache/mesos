@@ -1909,6 +1909,9 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
   Clock::pause();
 
   // Now, induce a partition of the slave by having the master
@@ -1937,6 +1940,15 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 
   // Wait for the master to attempt to shut down the slave.
   AWAIT_READY(shutdownMessage);
+
+  // Wait for the executor to be terminated.
+  while (executorTerminated.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_READY(executorTerminated);
+  Clock::settle();
 
   this->Stop(slave.get());
 
