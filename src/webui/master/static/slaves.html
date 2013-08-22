@@ -36,6 +36,10 @@
           ng-click="selectColumn('slaves', 'registered_time')">
         Registered
       </th>
+      <th ng-class="columnClass('slaves', 'reregistered_time')"
+          ng-click="selectColumn('slaves', 'reregistered_time')">
+        Re-Registered
+      </th>
     </tr>
   </thead>
   <tr ng-repeat="slave in _.values(slaves) | orderBy:tables['slaves'].selected_column:tables['slaves'].reverse">
@@ -60,6 +64,18 @@
       <button class="btn btn-mini btn-toggle"
           clipboard
           data-clipboard-text="{{slave.registered_time * 1000 | isoDate}}"
+          tooltip="Copy timestamp"
+          tooltip-placement="right"
+          tooltip-trigger="clipboardhover">
+        <i class="icon-file"></i>
+      </button>
+    </td>
+    <td>
+      <abbr title="{{slave.reregistered_time * 1000 | isoDate}}">
+        {{slave.reregistered_time * 1000 | relativeDate}}</abbr>
+      <button class="btn btn-mini btn-toggle"
+          clipboard
+          data-clipboard-text="{{slave.reregistered_time * 1000 | isoDate}}"
           tooltip="Copy timestamp"
           tooltip-placement="right"
           tooltip-trigger="clipboardhover">

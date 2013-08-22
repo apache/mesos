@@ -247,6 +247,12 @@ private:
   hashmap<FrameworkID, Framework*> frameworks;
 
   hashmap<SlaveID, Slave*> slaves;
+
+  // Ideally we could use SlaveIDs to track deactivated slaves.
+  // However, we would not know when to remove the SlaveID from this
+  // set. After deactivation, the same slave machine can register with
+  // the same. Using PIDs allows us to remove the deactivated
+  // slave PID once any slave registers with the same PID!
   hashset<UPID> deactivatedSlaves;
 
   hashmap<OfferID, Offer*> offers;
@@ -383,6 +389,7 @@ struct Slave
   UPID pid;
 
   Time registeredTime;
+  Option<Time> reregisteredTime;
   Time lastHeartbeat;
 
   // We mark a slave 'disconnected' when it has checkpointing

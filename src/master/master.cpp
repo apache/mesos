@@ -1075,6 +1075,8 @@ void Master::reregisterSlave(const SlaveID& slaveId,
   } else {
     Slave* slave = getSlave(slaveId);
     if (slave != NULL) {
+      slave->reregisteredTime = Clock::now();
+
       // NOTE: This handles the case where a slave tries to
       // re-register with an existing master (e.g. because of a
       // spurious Zookeeper session expiration or after the slave
@@ -1119,6 +1121,7 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       // NOTE: This handles the case when the slave tries to
       // re-register with a failed over master.
       slave = new Slave(slaveInfo, slaveId, from, Clock::now());
+      slave->reregisteredTime = Clock::now();
 
       LOG(INFO) << "Attempting to re-register slave " << slave->id << " at "
                 << slave->pid << " (" << slave->info.hostname() << ")";

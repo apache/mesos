@@ -208,6 +208,11 @@ JSON::Object model(const Slave& slave)
   object.values["pid"] = string(slave.pid);
   object.values["hostname"] = slave.info.hostname();
   object.values["registered_time"] = slave.registeredTime.secs();
+
+  if (slave.reregisteredTime.isSome()) {
+    object.values["reregistered_time"] = slave.reregisteredTime.get().secs();
+  }
+
   object.values["resources"] = model(slave.info.resources());
   object.values["attributes"] = model(slave.info.attributes());
   return object;
