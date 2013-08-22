@@ -711,6 +711,87 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
 }
 
 
+// This test was added to cover a fix for MESOS-659.
+// Here, we drop the initial FrameworkReregisteredMessage from the
+// master, so that the scheduler driver retries the initial failover
+// re-registration. Previously, this caused a "Framework failed over"
+// to be sent to the new scheduler driver!
+TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Launch the first (i.e., failing) scheduler and wait until
+  // registered gets called to launch the second (i.e., failover)
+  // scheduler.
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver1.start();
+
+  AWAIT_READY(frameworkId);
+
+  // Now launch the second (i.e., failover) scheduler using the
+  // framework id recorded from the first scheduler and wait until it
+  // gets a registered callback..
+
+  MockScheduler sched2;
+
+  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
+  framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId.get());
+
+  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
+
+  Clock::pause();
+
+  // Drop the initial FrameworkRegisteredMessage to the failed over
+  // scheduler. This ensures the scheduler driver will retry the
+  // registration.
+  Future<process::Message> reregistrationMessage = DROP_MESSAGE(
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+
+  // There should be no error received, the master sends the error
+  // prior to sending the FrameworkRegisteredMessage so we don't
+  // need to wait to ensure this does not occur.
+  EXPECT_CALL(sched2, error(&driver2, "Framework failed over"))
+    .Times(0);
+
+  Future<Nothing> sched2Registered;
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
+    .WillOnce(FutureSatisfy(&sched2Registered));
+
+  Future<Nothing> sched1Error;
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
+    .WillOnce(FutureSatisfy(&sched1Error));
+
+  driver2.start();
+
+  AWAIT_READY(reregistrationMessage);
+
+  // Trigger the re-registration retry.
+  Clock::advance(Seconds(1));
+
+  AWAIT_READY(sched2Registered);
+
+  AWAIT_READY(sched1Error);
+
+  EXPECT_EQ(DRIVER_STOPPED, driver2.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver2.join());
+
+  EXPECT_EQ(DRIVER_ABORTED, driver1.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver1.join());
+
+  Shutdown();
+  Clock::resume();
+}
+
+
 TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 {
   Clock::pause();
