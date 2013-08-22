@@ -114,6 +114,10 @@ public:
                       const ExecutorID& executorId,
                       int32_t status);
   void deactivateSlave(const SlaveID& slaveId);
+
+  // TODO(bmahler): It would be preferred to use a unique libprocess
+  // Process identifier (PID is not sufficient) for identifying the
+  // framework instance, rather than relying on re-registration time.
   void frameworkFailoverTimeout(const FrameworkID& frameworkId,
                                 const Time& reregisteredTime);
 
