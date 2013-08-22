@@ -746,6 +746,12 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     framework->reregisteredTime = Clock::now();
 
     if (failover) {
+      // We do not attempt to detect a duplicate re-registration
+      // message here because it is impossible to distinguish between
+      // a duplicate message, and a scheduler failover to the same
+      // pid, given the existing libprocess primitives (PID does not
+      // identify the libprocess Process instance).
+
       // TODO: Should we check whether the new scheduler has given
       // us a different framework name, user name or executor info?
       LOG(INFO) << "Framework " << frameworkInfo.id() << " failed over";
@@ -2005,7 +2011,17 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
 {
   const UPID& oldPid = framework->pid;
 
-  {
+  // There are a few failover cases to consider:
+  //   1. The pid has changed. In this case we definitely want to
+  //      send a FrameworkErrorMessage to shut down the older
+  //      scheduler.
+  //   2. The pid has not changed.
+  //      2.1 The old scheduler on that pid failed over to a new
+  //          instance on the same pid. No need to shut down the old
+  //          scheduler as it is necessarily dead.
+  //      2.2 This is a duplicate message. In this case, the scheduler
+  //          has not failed over, so we do not want to shut it down.
+  if (oldPid != newPid) {
     FrameworkErrorMessage message;
     message.set_message("Framework failed over");
     send(oldPid, message);
@@ -2022,6 +2038,8 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
     allocator->frameworkActivated(framework->id, framework->info);
   }
 
+  // The scheduler driver safely ignores any duplicate registration
+  // messages, so we don't need to compare the old and new pids here.
   {
     FrameworkRegisteredMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id);
