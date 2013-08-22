@@ -744,6 +744,7 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     // know which scheduler is the correct one.
 
     Framework* framework = frameworks[frameworkInfo.id()];
+    framework->reregisteredTime = Clock::now();
 
     if (failover) {
       // TODO: Should we check whether the new scheduler has given
@@ -778,6 +779,7 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     // any tasks it has that have been reported by reconnecting slaves.
     Framework* framework =
       new Framework(frameworkInfo, frameworkInfo.id(), from, Clock::now());
+    framework->reregisteredTime = Clock::now();
 
     // TODO(benh): Check for root submissions like above!
 
@@ -1362,11 +1364,15 @@ void Master::frameworkFailoverTimeout(const FrameworkID& frameworkId,
                                       const Time& reregisteredTime)
 {
   Framework* framework = getFramework(frameworkId);
-  if (framework != NULL && !framework->active &&
-      framework->reregisteredTime == reregisteredTime) {
-    LOG(INFO) << "Framework failover timeout, removing framework "
-              << framework->id;
-    removeFramework(framework);
+
+  if (framework != NULL && !framework->active) {
+    // If the re-registration time has not changed, then the framework
+    // has not re-registered within the failover timeout.
+    if (framework->reregisteredTime == reregisteredTime) {
+      LOG(INFO) << "Framework failover timeout, removing framework "
+                << framework->id;
+      removeFramework(framework);
+    }
   }
 }
 
@@ -1997,8 +2003,6 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
     framework->active = true;
     allocator->frameworkActivated(framework->id, framework->info);
   }
-
-  framework->reregisteredTime = Clock::now();
 
   {
     FrameworkRegisteredMessage message;
