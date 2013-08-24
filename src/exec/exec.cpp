@@ -106,7 +106,8 @@ public:
                   const ExecutorID& _executorId,
                   bool _local,
                   const string& _directory,
-                  bool _checkpoint)
+                  bool _checkpoint,
+                  Duration _recoveryTimeout)
     : ProcessBase(ID::generate("executor")),
       slave(_slave),
       driver(_driver),
@@ -115,10 +116,12 @@ public:
       frameworkId(_frameworkId),
       executorId(_executorId),
       connected(false),
+      connection(UUID::random()),
       local(_local),
       aborted(false),
       directory(_directory),
-      checkpoint(_checkpoint)
+      checkpoint(_checkpoint),
+      recoveryTimeout(_recoveryTimeout)
   {
     install<ExecutorRegisteredMessage>(
         &ExecutorProcess::registered,
@@ -195,6 +198,7 @@ protected:
     VLOG(1) << "Executor registered on slave " << slaveId;
 
     connected = true;
+    connection = UUID::random();
 
     Stopwatch stopwatch;
     if (FLAGS_v >= 1) {
@@ -215,6 +219,9 @@ protected:
     }
 
     VLOG(1) << "Executor re-registered on slave " << slaveId;
+
+    connected = true;
+    connection = UUID::random();
 
     Stopwatch stopwatch;
     if (FLAGS_v >= 1) {
@@ -391,6 +398,23 @@ protected:
     aborted = true;
   }
 
+  void _recoveryTimeout(UUID _connection)
+  {
+    // If we're connected, no need to shut down the driver!
+    if (connected) {
+      return;
+    }
+
+    // We need to compare the connections here to ensure there have
+    // not been any subsequent re-registrations with the slave in the
+    // interim.
+    if (connection == _connection) {
+      VLOG(1) << "Recovery timeout of " << recoveryTimeout << " exceeded; "
+              << "Shutting down";
+      shutdown();
+    }
+  }
+
   virtual void exited(const UPID& pid)
   {
     if (aborted) {
@@ -402,12 +426,20 @@ protected:
     // successfully registered with the slave, the slave can reconnect with
     // this executor when it comes back up and performs recovery!
     if (checkpoint && connected) {
+      connected = false;
+
       VLOG(1) << "Slave exited, but framework has checkpointing enabled. "
-              << "Waiting to reconnect with slave " << slaveId;
+              << "Waiting " << recoveryTimeout << " to reconnect with slave "
+              << slaveId;
+
+      delay(recoveryTimeout, self(), &Self::_recoveryTimeout, connection);
+
       return;
     }
 
     VLOG(1) << "Slave exited ... shutting down";
+
+    connected = false;
 
     if (!local) {
       // Start the Shutdown Process.
@@ -494,10 +526,12 @@ private:
   FrameworkID frameworkId;
   ExecutorID executorId;
   bool connected; // Registered with the slave.
+  UUID connection; // UUID to identify the connection instance.
   bool local;
   bool aborted;
   const string directory;
   bool checkpoint;
+  Duration recoveryTimeout;
 
   LinkedHashMap<UUID, StatusUpdate> updates; // Unacknowledged updates.
 
@@ -587,7 +621,7 @@ Status MesosExecutorDriver::start()
   value = os::getenv("MESOS_SLAVE_PID");
   slave = UPID(value);
   if (!slave) {
-    fatal("cannot parse MESOS_SLAVE_PID");
+    fatal("Cannot parse MESOS_SLAVE_PID '%s'", value.c_str());
   }
 
   // Get slave ID from environment.
@@ -615,6 +649,25 @@ Status MesosExecutorDriver::start()
     checkpoint = false;
   }
 
+  Duration recoveryTimeout = slave::RECOVERY_TIMEOUT;
+
+  // Get the recovery timeout if checkpointing is enabled.
+  if (checkpoint) {
+    value = os::getenv("MESOS_RECOVERY_TIMEOUT", false);
+
+    if (!value.empty()) {
+      Try<Duration> _recoveryTimeout = Duration::parse(value);
+
+      if (_recoveryTimeout.isError()) {
+        fatal("Cannot parse MESOS_RECOVERY_TIMEOUT '%s': %s",
+              value.c_str(),
+              _recoveryTimeout.error().c_str());
+      }
+
+      recoveryTimeout = _recoveryTimeout.get();
+    }
+  }
+
   CHECK(process == NULL);
 
   process = new ExecutorProcess(
@@ -626,7 +679,8 @@ Status MesosExecutorDriver::start()
       executorId,
       local,
       workDirectory,
-      checkpoint);
+      checkpoint,
+      recoveryTimeout);
 
   spawn(process);
 

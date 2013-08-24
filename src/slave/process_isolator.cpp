@@ -136,7 +136,8 @@ void ProcessIsolator::launchExecutor(
       flags.hadoop_home,
       !local,
       flags.switch_user,
-      frameworkInfo.checkpoint());
+      frameworkInfo.checkpoint(),
+      flags.recovery_timeout);
 
   // We get the environment map for launching mesos-launcher before
   // the fork, because we have seen deadlock issues with ostringstream

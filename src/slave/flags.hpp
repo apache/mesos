@@ -141,6 +141,14 @@ public:
         "      and the slave registers with the master as a new slave.",
         "reconnect");
 
+    add(&Flags::recovery_timeout,
+        "recovery_timeout",
+        "Amount of time alloted for the slave to recover. If the slave takes\n"
+        "longer than recovery_timeout to recover, any executors that are\n"
+        "waiting to reconnect to the slave will self-terminate.\n"
+        "NOTE: This flag is only applicable when checkpoint is enabled.\n",
+        RECOVERY_TIMEOUT);
+
     add(&Flags::strict,
         "strict",
         "If strict=true, any and all recovery errors are considered fatal.\n"
@@ -189,6 +197,7 @@ public:
   Duration resource_monitoring_interval;
   bool checkpoint;
   std::string recover;
+  Duration recovery_timeout;
   bool strict;
 #ifdef __linux__
   std::string cgroups_hierarchy;

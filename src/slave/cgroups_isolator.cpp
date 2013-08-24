@@ -623,7 +623,8 @@ void CgroupsIsolator::launchExecutor(
         flags.hadoop_home,
         !local,
         flags.switch_user,
-        frameworkInfo.checkpoint());
+        frameworkInfo.checkpoint(),
+        flags.recovery_timeout);
 
     // First fetch the executor.
     if (launcher.setup() < 0) {

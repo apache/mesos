@@ -24,6 +24,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/uuid.hpp>
 
 #include "slave/flags.hpp"
@@ -60,7 +61,8 @@ public:
       const std::string& hadoopHome,
       bool redirectIO,
       bool shouldSwitchUser,
-      bool checkpoint);
+      bool checkpoint,
+      Duration recoveryTimeout);
 
   virtual ~ExecutorLauncher();
 
@@ -111,6 +113,9 @@ protected:
   const bool redirectIO;   // Whether to redirect stdout and stderr to files.
   const bool shouldSwitchUser; // Whether to setuid to framework's user.
   const bool checkpoint; // Whether the framework enabled checkpointing.
+
+  // Executor suicide timeout for slave recovery.
+  const Duration recoveryTimeout;
 };
 
 } // namespace launcher {

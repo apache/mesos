@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
+#include <string>
+
 #include <mesos/mesos.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/strings.hpp>
 #include <stout/os.hpp>
 
@@ -25,6 +28,8 @@
 
 using namespace mesos;
 using namespace mesos::internal; // For 'utils'.
+
+using std::string;
 
 
 int main(int argc, char** argv)
@@ -57,6 +62,24 @@ int main(int argc, char** argv)
     commandInfo.add_uris()->MergeFrom(uri);
   }
 
+  bool checkpoint = os::getenv("MESOS_CHECKPOINT", false) == "1";
+
+  Duration recoveryTimeout = slave::RECOVERY_TIMEOUT;
+
+  // Get the recovery timeout if checkpointing is enabled.
+  if (checkpoint) {
+    string value = os::getenv("MESOS_RECOVERY_TIMEOUT", false);
+
+    if (!value.empty()) {
+      Try<Duration> _recoveryTimeout = Duration::parse(value);
+
+      CHECK_SOME(_recoveryTimeout)
+        << "Cannot parse MESOS_RECOVERY_TIMEOUT '" + value + "'";
+
+      recoveryTimeout = _recoveryTimeout.get();
+    }
+  }
+
   return mesos::internal::launcher::ExecutorLauncher(
       slaveId,
       frameworkId,
@@ -71,6 +94,7 @@ int main(int argc, char** argv)
       os::getenv("MESOS_HADOOP_HOME"),
       os::getenv("MESOS_REDIRECT_IO") == "1",
       os::getenv("MESOS_SWITCH_USER") == "1",
-      os::getenv("MESOS_CHECKPOINT") == "1")
+      checkpoint,
+      recoveryTimeout)
     .run();
 }
