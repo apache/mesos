@@ -68,7 +68,8 @@ ExecutorLauncher::ExecutorLauncher(
     const string& _hadoopHome,
     bool _redirectIO,
     bool _shouldSwitchUser,
-    bool _checkpoint)
+    bool _checkpoint,
+    Duration _recoveryTimeout)
   : slaveId(_slaveId),
     frameworkId(_frameworkId),
     executorId(_executorId),
@@ -82,7 +83,8 @@ ExecutorLauncher::ExecutorLauncher(
     hadoopHome(_hadoopHome),
     redirectIO(_redirectIO),
     shouldSwitchUser(_shouldSwitchUser),
-    checkpoint (_checkpoint) {}
+    checkpoint(_checkpoint),
+    recoveryTimeout(_recoveryTimeout) {}
 
 
 ExecutorLauncher::~ExecutorLauncher() {}
@@ -455,6 +457,10 @@ map<string, string> ExecutorLauncher::getEnvironment()
   env["MESOS_EXECUTOR_ID"] = executorId.value();
   env["MESOS_EXECUTOR_UUID"] = uuid.toString();
   env["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
+
+  if (checkpoint) {
+    env["MESOS_RECOVERY_TIMEOUT"] = stringify(recoveryTimeout);
+  }
 
   return env;
 }

@@ -690,6 +690,99 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 }
 
 
+// The slave is stopped after a non-terminal update is received.
+// The command executor is expected to self-terminate while the slave
+// is down, because the recovery timeout elapses.
+// When the slave comes back up with recovery=reconnect, make
+// sure the task is properly transitioned to FAILED.
+TYPED_TEST(SlaveRecoveryTest, RecoveryTimeout)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  // Set a short recovery timeout, as we can't control the executor
+  // driver time when using the process / cgroups isolators.
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.recovery_timeout = Milliseconds(1);
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task.
+
+  EXPECT_CALL(sched, statusUpdate(_, _));
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(_statusUpdateAcknowledgement);
+
+  this->Stop(slave.get());
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  // Ensure the executor terminates by causing the recovery timeout
+  // to elapse while disconnected from the slave.
+  os::sleep(Milliseconds(1));
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+
+  AWAIT_READY(_recover);
+
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::settle();
+
+  Clock::resume();
+
+  // Scheduler should receive the TASK_FAILED update.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_FAILED, status.get().state());
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+}
+
+
 // The slave is stopped after an executor is completed (i.e., it has
 // terminated and all its updates have been acknowledged).
 // When it comes back up with recovery=reconnect, make
