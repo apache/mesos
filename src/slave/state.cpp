@@ -86,6 +86,7 @@ Try<SlaveState> SlaveState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
+      state.errors++;
       return state;
     }
   }
@@ -115,6 +116,7 @@ Try<SlaveState> SlaveState::recover(
     }
 
     state.frameworks[frameworkId] = framework.get();
+    state.errors += framework.get().errors;
   }
 
   return state;
@@ -148,13 +150,14 @@ Try<FrameworkState> FrameworkState::recover(
     message = "Failed to read framework info from '" + path + "': " +
               (frameworkInfo.isError() ? frameworkInfo.error() : " none");
 
-      if (strict) {
-        return Error(message);
-      } else {
-        LOG(WARNING) << message;
-        return state;
-      }
+    if (strict) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      state.errors++;
+      return state;
     }
+  }
 
   state.info = frameworkInfo.get();
 
@@ -177,6 +180,7 @@ Try<FrameworkState> FrameworkState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
+      state.errors++;
       return state;
     }
   }
@@ -207,6 +211,7 @@ Try<FrameworkState> FrameworkState::recover(
     }
 
     state.executors[executorId] = executor.get();
+    state.errors += executor.get().errors;
   }
 
   return state;
@@ -246,6 +251,7 @@ Try<ExecutorState> ExecutorState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
+      state.errors++;
       return state;
     }
   }
@@ -285,12 +291,13 @@ Try<ExecutorState> ExecutorState::recover(
           rootDir, slaveId, frameworkId, executorId, uuid, strict);
 
       if (run.isError()) {
-       return Error("Failed to recover run " + uuid.toString() +
-                    " of executor '" + executorId.value() +
-                    "': " + run.error());
+        return Error("Failed to recover run " + uuid.toString() +
+                     " of executor '" + executorId.value() +
+                     "': " + run.error());
       }
 
       state.runs[uuid] = run.get();
+      state.errors += run.get().errors;
     }
   }
 
@@ -303,6 +310,7 @@ Try<ExecutorState> ExecutorState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
+      state.errors++;
       return state;
     }
   }
@@ -321,7 +329,6 @@ Try<RunState> RunState::recover(
 {
   RunState state;
   state.id = uuid;
-  state.completed = false;
   string message;
 
   // Find the tasks.
@@ -353,6 +360,7 @@ Try<RunState> RunState::recover(
     }
 
     state.tasks[taskId] = task.get();
+    state.errors += task.get().errors;
   }
 
   // Read the forked pid.
@@ -375,6 +383,7 @@ Try<RunState> RunState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
+      state.errors++;
       return state;
     }
   }
@@ -409,6 +418,7 @@ Try<RunState> RunState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
+      state.errors++;
       return state;
     }
   }
@@ -458,6 +468,7 @@ Try<TaskState> TaskState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
+      state.errors++;
       return state;
     }
   }
@@ -485,6 +496,7 @@ Try<TaskState> TaskState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
+      state.errors++;
       return state;
     }
   }
@@ -524,6 +536,7 @@ Try<TaskState> TaskState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
+      state.errors++;
       return state;
     }
   }
@@ -539,6 +552,7 @@ Try<TaskState> TaskState::recover(
       return Error(message);
     } else {
       LOG(WARNING) << message;
+      state.errors++;
       return state;
     }
   }

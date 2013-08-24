@@ -289,7 +289,7 @@ Future<Response> Slave::Http::stats(const Request& request)
   object.values["valid_status_updates"] = slave.stats.validStatusUpdates;
   object.values["invalid_status_updates"] = slave.stats.invalidStatusUpdates;
   object.values["registered"] = slave.master ? "1" : "0";
-
+  object.values["recovery_errors"] = slave.recoveryErrors;
 
   return OK(object, request.query.get("jsonp"));
 }
