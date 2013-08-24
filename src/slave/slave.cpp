@@ -90,7 +90,8 @@ Slave::Slave(const slave::Flags& _flags,
     files(_files),
     monitor(_isolator),
     statusUpdateManager(new StatusUpdateManager()),
-    metaDir(paths::getMetaRootDir(flags.work_dir)) {}
+    metaDir(paths::getMetaRootDir(flags.work_dir)),
+    recoveryErrors(0) {}
 
 
 Slave::~Slave()
@@ -2665,6 +2666,11 @@ Future<Nothing> Slave::recover(bool reconnect, bool strict)
   }
 
   info = state.get().info.get(); // Recover the slave info.
+
+  recoveryErrors = state.get().errors;
+  if (recoveryErrors > 0) {
+    LOG(WARNING) << "Errors encountered during recovery: " << recoveryErrors;
+  }
 
   // First, recover the frameworks and executors.
   foreachvalue (const FrameworkState& frameworkState, state.get().frameworks) {

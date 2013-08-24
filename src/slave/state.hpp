@@ -56,11 +56,16 @@ struct TaskState;
 // recovering a state are considered fatal and hence the recovery is
 // short-circuited and returns an error. There might be orphaned
 // executors that need to be manually cleaned up. If 'strict' flag is
-// not set, any errors encountered are considered  non-fatal and the
-// recovery continues by recovering as much of the state as possible.
+// not set, any errors encountered are considered non-fatal and the
+// recovery continues by recovering as much of the state as possible,
+// while increasing the 'errors' count. Note that 'errors' on a struct
+// includes the 'errors' encountered recursively. In other words,
+// 'SlaveState.errors' is the sum total of all recovery errors.
 
 struct SlaveState
 {
+  SlaveState () : errors(0) {}
+
   static Try<SlaveState> recover(
       const std::string& rootDir,
       const SlaveID& slaveId,
@@ -69,11 +74,14 @@ struct SlaveState
   SlaveID id;
   Option<SlaveInfo> info;
   hashmap<FrameworkID, FrameworkState> frameworks;
+  unsigned int errors;
 };
 
 
 struct FrameworkState
 {
+  FrameworkState () : errors(0) {}
+
   static Try<FrameworkState> recover(
       const std::string& rootDir,
       const SlaveID& slaveId,
@@ -84,11 +92,14 @@ struct FrameworkState
   Option<FrameworkInfo> info;
   Option<process::UPID> pid;
   hashmap<ExecutorID, ExecutorState> executors;
+  unsigned int errors;
 };
 
 
 struct ExecutorState
 {
+  ExecutorState () : errors(0) {}
+
   static Try<ExecutorState> recover(
       const std::string& rootDir,
       const SlaveID& slaveId,
@@ -100,11 +111,14 @@ struct ExecutorState
   Option<ExecutorInfo> info;
   Option<UUID> latest;
   hashmap<UUID, RunState> runs;
+  unsigned int errors;
 };
 
 
 struct RunState
 {
+  RunState () : completed(false), errors(0) {}
+
   static Try<RunState> recover(
       const std::string& rootDir,
       const SlaveID& slaveId,
@@ -118,11 +132,14 @@ struct RunState
   Option<pid_t> forkedPid;
   Option<process::UPID> libprocessPid;
   bool completed; // Executor terminated and all its updates acknowledged.
+  unsigned int errors;
 };
 
 
 struct TaskState
 {
+  TaskState () : errors(0) {}
+
   static Try<TaskState> recover(
       const std::string& rootDir,
       const SlaveID& slaveId,
@@ -136,6 +153,7 @@ struct TaskState
   Option<Task> info;
   std::vector<StatusUpdate> updates;
   hashset<UUID> acks;
+  unsigned int errors;
 };
 
 

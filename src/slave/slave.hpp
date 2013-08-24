@@ -334,6 +334,9 @@ private:
 
   // Root meta directory containing checkpointed data.
   const std::string metaDir;
+
+  // Indicates the number of errors ignored in "--no-strict" recovery mode.
+  unsigned int recoveryErrors;
 };
 
 
