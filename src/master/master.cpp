@@ -208,15 +208,50 @@ Master::~Master()
 {
   LOG(INFO) << "Shutting down master";
 
-  foreachvalue (Framework* framework, utils::copy(frameworks)) {
-    removeFramework(framework);
-  }
+  // Remove the frameworks.
+  // Note we are not deleting the pointers to the frameworks from the
+  // allocator or the roles because it is unnecessary bookkeeping at
+  // this point since we are shutting down.
+  foreachvalue (Framework* framework, frameworks) {
+    // Remove pointers to the framework's tasks in slaves.
+    foreachvalue (Task* task, utils::copy(framework->tasks)) {
+      Slave* slave = getSlave(task->slave_id());
+      // Since we only find out about tasks when the slave re-registers,
+      // it must be the case that the slave exists!
+      CHECK(slave != NULL);
+      removeTask(task);
+    }
 
-  foreachvalue (Slave* slave, utils::copy(slaves)) {
-    removeSlave(slave);
+    // Remove the framework's offers (if they weren't removed before).
+    foreach (Offer* offer, utils::copy(framework->offers)) {
+      removeOffer(offer);
+    }
+
+    delete framework;
   }
+  frameworks.clear();
 
   CHECK(offers.size() == 0);
+
+  foreachvalue (Slave* slave, slaves) {
+    LOG(INFO) << "Removing slave " << slave->id
+              << " (" << slave->info.hostname() << ")";
+
+    // Remove tasks that are in the slave but not in any framework.
+    // This could happen when the framework has yet to reregister
+    // after master failover.
+    foreachvalue (Task* task, utils::copy(slave->tasks)) {
+      removeTask(task);
+    }
+
+    // Kill the slave observer.
+    terminate(slave->observer);
+    wait(slave->observer);
+
+    delete slave->observer;
+    delete slave;
+  }
+  slaves.clear();
 
   terminate(whitelistWatcher);
   wait(whitelistWatcher);
@@ -444,9 +479,6 @@ void Master::initialize()
 void Master::finalize()
 {
   LOG(INFO) << "Master terminating";
-  foreachvalue (Slave* slave, slaves) {
-    send(slave->pid, ShutdownMessage());
-  }
 }
 
 

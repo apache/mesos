@@ -145,11 +145,6 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  // Stop the failing master from telling the slave to shut down when
-  // it is killed.
-  Future<ShutdownMessage> shutdownMessage =
-    DROP_PROTOBUF(ShutdownMessage(), _, _);
-
   // Stop the slave from reregistering with the new master until the
   // framework has reregistered.
   DROP_PROTOBUFS(ReregisterSlaveMessage(), _, _);
@@ -158,15 +153,7 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   // disconnected.
   EXPECT_CALL(sched, disconnected(_));
 
-  // Shutting down the masters will also cause the slave to shutdown
-  // frameworks that are not checkpointing, thus causing the executor
-  // to get shutdown.
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
-
   this->ShutdownMasters();
-
-  AWAIT_READY(shutdownMessage);
 
   MockAllocatorProcess<TypeParam> allocator2;
 
@@ -267,11 +254,6 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  // Stop the failing master from telling the slave to shut down when
-  // it is killed.
-  Future<ShutdownMessage> shutdownMessage =
-    DROP_PROTOBUF(ShutdownMessage(), _, _);
-
   // Stop the framework from reregistering with the new master until the
   // slave has reregistered.
   DROP_PROTOBUFS(ReregisterFrameworkMessage(), _, _);
@@ -280,15 +262,7 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   // disconnected.
   EXPECT_CALL(sched, disconnected(_));
 
-  // Shutting down the masters will also cause the slave to shutdown
-  // frameworks that are not checkpointing, thus causing the executor
-  // to get shutdown.
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
-
   this->ShutdownMasters();
-
-  AWAIT_READY(shutdownMessage);
 
   MockAllocatorProcess<TypeParam> allocator2;
 
