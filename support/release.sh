@@ -18,10 +18,7 @@ read -p "Hit enter to continue ... "
 make distcheck || \
   { echo "${RED}Failed to check the distribution${NORMAL}"; exit 1; }
 
-mv mesos-${VERSION}.tar.gz mesos-${VERSION}-incubating.tar.gz || \
-  { echo "${RED}Failed to rename the distribution${NORMAL}"; exit 1; }
-
-TARBALL=mesos-${VERSION}-incubating.tar.gz
+TARBALL=mesos-${VERSION}.tar.gz
 
 echo "${GREEN}Now let's sign the distribution ...${NORMAL}"
 
@@ -35,7 +32,7 @@ echo "${GREEN}And let's create a MD5 checksum...${NORMAL}"
 gpg --print-md MD5 ${TARBALL} > ${TARBALL}.md5 || \
   { echo "${RED}Failed to create MD5 for distribution${NORMAL}"; exit 1; }
 
-DIRECTORY=public_html/mesos-${VERSION}-incubating-RC${CANDIDATE}
+DIRECTORY=public_html/mesos-${VERSION}-RC${CANDIDATE}
 
 echo "${GREEN}Now let's upload our artifacts (the distribution," \
   "signature, and MD5) ...${NORMAL}"
@@ -65,7 +62,7 @@ git tag -m "${MESSAGE}" ${TAG} || \
 
 echo "${GREEN}Finally, we'll push the git tag to the repository...${NORMAL}"
 
-REPOSITORY="https://git-wip-us.apache.org/repos/asf/incubator-mesos.git"
+REPOSITORY="https://git-wip-us.apache.org/repos/asf/mesos.git"
 git push ${REPOSITORY} ${TAG} || \
   { echo "${RED}Failed to push git tag to the repo${NORMAL}"; exit 1; }
 
