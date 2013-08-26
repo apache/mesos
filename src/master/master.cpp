@@ -979,6 +979,10 @@ void Master::killTask(const FrameworkID& frameworkId,
       update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
     }
+  } else {
+    LOG(WARNING) << "Failed to kill task " << taskId
+                 << " of framework " << frameworkId
+                 << " because the framework cannot be found";
   }
 }
 

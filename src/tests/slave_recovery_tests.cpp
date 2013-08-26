@@ -1970,3 +1970,138 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 
   this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
+
+
+// This test verifies that if the master changes when the slave is
+// down, the slave can still recover the task when it restarts. We
+// verify its correctness by killing the task from the scheduler.
+TYPED_TEST(SlaveRecoveryTest, MasterFailover)
+{
+  // Step 1. Run a task.
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  Future<process::Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  driver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task
+
+  EXPECT_CALL(sched, statusUpdate(_, _));
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers1.get()[0].id(), tasks);
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(_statusUpdateAcknowledgement);
+
+  this->Stop(slave.get());
+
+  // Step 2. Simulate failed over master by restarting the master.
+  this->Stop(master.get());
+  master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Simulate a new master detected message to the scheduler.
+  NewMasterDetectedMessage newMasterDetectedMsg;
+  newMasterDetectedMsg.set_pid(master.get());
+
+  process::post(frameworkRegisteredMessage.get().to, newMasterDetectedMsg);
+
+  // Framework should get a registered callback.
+  AWAIT_READY(registered);
+
+  // Step 3. Restart the slave and kill the task.
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+
+  AWAIT_READY(_recover);
+
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(reregisterSlaveMessage);
+
+  Clock::resume();
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());        // Ignore subsequent updates.
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  // Wait for the executor to terminate before shutting down the
+  // slave in order to give cgroups (if applicable) time to clean up.
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  // Kill the task.
+  driver.killTask(task.task_id());
+
+  // Wait for TASK_KILLED update.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_KILLED, status.get().state());
+
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
+
+  AWAIT_READY(executorTerminated);
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+}
