@@ -32,6 +32,7 @@
 #include <stout/path.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
+#include <stout/lambda.hpp>
 
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
@@ -44,16 +45,12 @@
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
-namespace params = std::tr1::placeholders;
-
 using std::list;
 using std::string;
 using std::vector;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
-using std::tr1::cref;
-using std::tr1::bind;
 using std::tr1::shared_ptr;
 
 namespace mesos {
@@ -442,19 +439,19 @@ void Master::initialize()
   // Setup HTTP routes.
   route("/health",
         Http::HEALTH_HELP,
-        bind(&Http::health, http, params::_1));
+        lambda::bind(&Http::health, http, lambda::_1));
   route("/redirect",
         Http::REDIRECT_HELP,
-        bind(&Http::redirect, http, params::_1));
+        lambda::bind(&Http::redirect, http, lambda::_1));
   route("/stats.json",
         None(),
-        bind(&Http::stats, http, params::_1));
+        lambda::bind(&Http::stats, http, lambda::_1));
   route("/state.json",
         None(),
-        bind(&Http::state, http, params::_1));
+        lambda::bind(&Http::state, http, lambda::_1));
   route("/roles.json",
         None(),
-        bind(&Http::roles, http, params::_1));
+        lambda::bind(&Http::roles, http, lambda::_1));
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the
@@ -470,7 +467,7 @@ void Master::initialize()
       LOG(ERROR) << "Master log file cannot be found: " << log.error();
     } else {
       files->attach(log.get(), "/master/log")
-        .onAny(defer(self(), &Self::fileAttached, params::_1, log.get()));
+        .onAny(defer(self(), &Self::fileAttached, lambda::_1, log.get()));
     }
   }
 }

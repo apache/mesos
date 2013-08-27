@@ -58,17 +58,11 @@
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 
-namespace params = std::tr1::placeholders;
-
 using std::list;
 using std::string;
 using std::vector;
 
 using process::wait; // Necessary on some OS's to disambiguate.
-
-using std::tr1::cref;
-using std::tr1::bind;
-
 
 namespace mesos {
 namespace internal {
@@ -364,9 +358,9 @@ void Slave::initialize()
   install("PING", &Slave::ping);
 
   // Setup HTTP routes.
-  route("/health", Http::HEALTH_HELP, bind(&Http::health, http, params::_1));
-  route("/stats.json", None(), bind(&Http::stats, http, params::_1));
-  route("/state.json", None(), bind(&Http::state, http, params::_1));
+  route("/health", Http::HEALTH_HELP, lambda::bind(&Http::health, http, lambda::_1));
+  route("/stats.json", None(), lambda::bind(&Http::stats, http, lambda::_1));
+  route("/state.json", None(), lambda::bind(&Http::state, http, lambda::_1));
 
   if (flags.log_dir.isSome()) {
     Try<string> log = logging::getLogFile(google::INFO);
@@ -374,7 +368,7 @@ void Slave::initialize()
       LOG(ERROR) << "Slave log file cannot be found: " << log.error();
     } else {
       files->attach(log.get(), "/slave/log")
-        .onAny(defer(self(), &Self::fileAttached, params::_1, log.get()));
+        .onAny(defer(self(), &Self::fileAttached, lambda::_1, log.get()));
     }
   }
 
@@ -386,7 +380,7 @@ void Slave::initialize()
 
   // Start recovery.
   recover(flags.recover == "reconnect", flags.strict)
-    .onAny(defer(self(), &Slave::_initialize, params::_1));
+    .onAny(defer(self(), &Slave::_initialize, lambda::_1));
 }
 
 
@@ -866,7 +860,7 @@ void Slave::runTask(
   unschedule.onAny(
       defer(self(),
             &Self::_runTask,
-            params::_1,
+            lambda::_1,
             frameworkInfo,
             frameworkId,
             pid,
@@ -1362,7 +1356,7 @@ void Slave::statusUpdateAcknowledgement(
       taskId, frameworkId, UUID::fromBytes(uuid))
     .onAny(defer(self(),
                  &Slave::_statusUpdateAcknowledgement,
-                 params::_1,
+                 lambda::_1,
                  taskId,
                  frameworkId,
                  UUID::fromBytes(uuid)));
@@ -1817,7 +1811,7 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
     // corresponding to this task because the task has been moved to
     // 'Executor::completedTasks'.
     statusUpdateManager->update(update, info.id())
-      .onAny(defer(self(), &Slave::_statusUpdate, params::_1, update, pid));
+      .onAny(defer(self(), &Slave::_statusUpdate, lambda::_1, update, pid));
 
     return;
   }
@@ -1862,7 +1856,7 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
     statusUpdateManager->update(update, info.id(), executor->id, executor->uuid)
       .onAny(defer(self(),
                    &Slave::_statusUpdate,
-                   params::_1,
+                   lambda::_1,
                    update,
                    pid));
   } else {
@@ -1870,7 +1864,7 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
     statusUpdateManager->update(update, info.id())
       .onAny(defer(self(),
                    &Slave::_statusUpdate,
-                   params::_1,
+                   lambda::_1,
                    update,
                    pid));
   }
@@ -2584,7 +2578,7 @@ void Slave::checkDiskUsage()
   // NOTE: We calculate disk usage of the file system on which the
   // slave work directory is mounted.
   Future<Try<double> >(fs::usage(flags.work_dir))
-    .onAny(defer(self(), &Slave::_checkDiskUsage, params::_1));
+    .onAny(defer(self(), &Slave::_checkDiskUsage, lambda::_1));
 }
 
 
@@ -2789,7 +2783,7 @@ void Slave::recoverFramework(const FrameworkState& state)
     files->attach(executor->directory, executor->directory)
       .onAny(defer(self(),
                    &Self::fileAttached,
-                   params::_1,
+                   lambda::_1,
                    executor->directory));
   }
 
@@ -2870,7 +2864,7 @@ Executor* Framework::launchExecutor(const ExecutorInfo& executorInfo)
   slave->files->attach(executor->directory, executor->directory)
     .onAny(defer(slave,
                  &Slave::fileAttached,
-                 params::_1,
+                 lambda::_1,
                  executor->directory));
 
   // Tell the isolator to launch the executor.
