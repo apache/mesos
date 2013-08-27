@@ -272,7 +272,7 @@ Future<Response> FilesProcess::read(const Request& request)
   }
 
   // Cap the read length at 16 pages.
-  length = std::min(length, sysconf(_SC_PAGE_SIZE) * 16);
+  length = std::min<ssize_t>(length, sysconf(_SC_PAGE_SIZE) * 16);
 
   if (offset >= size) {
     os::close(fd.get());
