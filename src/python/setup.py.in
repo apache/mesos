@@ -20,7 +20,7 @@ src_python_dist = os.path.join('src', 'python', 'dist')
 src_python_native = os.path.join('src', 'python', 'native')
 
 leveldb = os.path.join('3rdparty', 'leveldb')
-zookeeper = os.path.join('3rdparty', 'zookeeper-3.3.4', 'src', 'c')
+zookeeper = os.path.join('3rdparty', 'zookeeper-3.3.6', 'src', 'c')
 libprocess = os.path.join('3rdparty', 'libprocess')
 
 # Even though a statically compiled libprocess should include glog,
