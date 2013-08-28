@@ -672,12 +672,11 @@ void CgroupsIsolator::killExecutor(
   LOG(INFO) << "Killing executor " << executorId
             << " of framework " << frameworkId;
 
-  // Stop the OOM listener if needed.
-  if (info->oomNotifier.isPending()) {
-    info->oomNotifier.discard();
-  }
-
   info->killed = true;
+
+  // Stop the OOM and threshold listeners.
+  info->oomNotifier.discard();
+  info->memoryThresholdNotifier.discard();
 
   // Destroy the cgroup that is associated with the executor. Here, we
   // don't wait for it to succeed as we don't want to block the
@@ -1073,6 +1072,8 @@ Try<Nothing> CgroupsIsolator::memChanged(
     return Error("Expecting resource 'mem' to be a scalar");
   }
 
+  // The soft limit is used as a threshold for inducing our own "OOM"s
+  // so that we can capture memory information for debugging purposes.
   Bytes mem = Bytes((uint64_t) resource.scalar().value() * 1024LL * 1024LL);
   Bytes limit = std::max(mem, MIN_MEMORY);
 
@@ -1089,7 +1090,7 @@ Try<Nothing> CgroupsIsolator::memChanged(
             << " for executor " << info->executorId
             << " of framework " << info->frameworkId;
 
-  // Read the existing limit.
+  // Determine the current hard limit.
   Try<Bytes> currentLimit =
     cgroups::memory::limit_in_bytes(hierarchy, info->name());
 
@@ -1097,6 +1098,10 @@ Try<Nothing> CgroupsIsolator::memChanged(
     return Error(
         "Failed to read 'memory.limit_in_bytes': " + currentLimit.error());
   }
+
+  // The hard limit has an additional memory buffer to allow us
+  // to induce our own OOM when the soft limit threshold is reached.
+  Bytes hardLimit = limit + flags.cgroups_oom_buffer;
 
   // Determine whether to set the hard limit. If this is the first
   // time (info->pid.isNone()), or we're raising the existing limit,
@@ -1108,16 +1113,43 @@ Try<Nothing> CgroupsIsolator::memChanged(
   // TODO(benh): Introduce a MemoryWatcherProcess which monitors the
   // discrepancy between usage and soft limit and introduces a
   // "manual oom" if necessary.
-  if (info->pid.isNone() || limit > currentLimit.get()) {
-    write = cgroups::memory::limit_in_bytes(hierarchy, info->name(), limit);
+  if (info->pid.isNone() || hardLimit > currentLimit.get()) {
+    // Set the memory hard limit.
+    write = cgroups::memory::limit_in_bytes(hierarchy, info->name(), hardLimit);
 
     if (write.isError()) {
       return Error("Failed to set 'memory.limit_in_bytes': " + write.error());
     }
 
-    LOG(INFO) << "Updated 'memory.limit_in_bytes' to " << limit
+    LOG(INFO) << "Updated 'memory.limit_in_bytes' to " << hardLimit
               << " for executor " << info->executorId
               << " of framework " << info->frameworkId;
+
+    // Update the memory threshold notification.
+    if (info->memoryThresholdNotifier.isPending()) {
+      // The threshold can be triggered while we go to discard it
+      // here, but that's ok. It's still an OOM!
+      info->memoryThresholdNotifier.discard();
+    }
+
+    // The new threshold notification should be created only if we
+    // were able to successfully discard it above.
+    if (info->memoryThresholdNotifier.isDiscarded()) {
+      info->memoryThresholdNotifier = cgroups::listen(
+          hierarchy,
+          info->name(),
+          "memory.usage_in_bytes",
+          stringify(limit.bytes()));
+
+      info->memoryThresholdNotifier.onAny(
+          defer(PID<CgroupsIsolator>(this),
+                &CgroupsIsolator::oomWaited,
+                info->frameworkId,
+                info->executorId,
+                info->uuid.get(),
+                "memory threshold (" + stringify(limit) + ")",
+                lambda::_1));
+    }
   }
 
   return Nothing();
@@ -1152,6 +1184,7 @@ void CgroupsIsolator::oomListen(
             frameworkId,
             executorId,
             info->uuid.get(),
+            "OOM",
             lambda::_1));
 }
 
@@ -1160,22 +1193,46 @@ void CgroupsIsolator::oomWaited(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const UUID& uuid,
+    const string& event,
     const Future<uint64_t>& future)
 {
-  LOG(INFO) << "OOM notifier is triggered for executor "
-            << executorId << " of framework " << frameworkId
-            << " with uuid " << uuid;
-
   if (future.isDiscarded()) {
-    LOG(INFO) << "Discarded OOM notifier for executor "
+    LOG(INFO) << "Discarded " << event << " notifier for executor "
               << executorId << " of framework " << frameworkId
               << " with uuid " << uuid;
   } else if (future.isFailed()) {
-    LOG(ERROR) << "Listening on OOM events failed for executor "
+    LOG(ERROR) << "Failed to listen to " << event << " events for executor "
                << executorId << " of framework " << frameworkId
                << " with uuid " << uuid << ": " << future.failure();
   } else {
-    // Out-of-memory event happened, call the handler.
+    CgroupInfo* info = findCgroupInfo(frameworkId, executorId);
+
+    if (info == NULL) {
+      LOG(WARNING) << event << " handler invoked for the already terminated "
+                   << "executor " << executorId
+                   << " of framework " << frameworkId
+                   << " with uuid " << uuid;
+      return;
+    }
+
+    if (info->killed) {
+      LOG(WARNING) << "Ignoring " << event << " notification for the killed "
+                   << "executor " << executorId
+                   << " of framework " << frameworkId
+                   << " with uuid " << uuid;
+      return;
+    }
+
+    LOG(INFO) << event << " event detected for executor " << executorId
+              << " of framework " << frameworkId << " with uuid " << uuid
+              << " ; invoking OOM handler";
+
+    // Discard both notifiers. If either an OOM occurs or the memory
+    // threshold is reached, we're treating it as an OOM and no longer
+    // need to be notified.
+    info->memoryThresholdNotifier.discard();
+    info->oomNotifier.discard();
+
     oom(frameworkId, executorId, uuid);
   }
 }
@@ -1191,7 +1248,9 @@ void CgroupsIsolator::oom(
     // It is likely that processExited is executed before this function (e.g.
     // The kill and OOM events happen at the same time, and the process exit
     // event arrives first.) Therefore, we should not report a fatal error here.
-    LOG(INFO) << "OOM detected for an already terminated executor";
+    LOG(WARNING) << "OOM handler invoked for the already terminated executor "
+                 << executorId << " of framework " << frameworkId
+                 << " with uuid " << uuid;
     return;
   }
 
@@ -1199,15 +1258,18 @@ void CgroupsIsolator::oom(
   // previous instance of an executor.
   CHECK_SOME(info->uuid);
   if (uuid != info->uuid.get()) {
-    LOG(INFO) << "OOM detected for a previous executor instance";
+    LOG(WARNING) << "OOM handler invoked for the previous executor instance "
+                 << executorId << " of framework " << frameworkId
+                 << " with uuid " << uuid
+                 << " vs current uuid " << info->uuid.get();
     return;
   }
 
   // If killed is set, the OOM notifier will be discarded in oomWaited.
   // Therefore, we should not be able to reach this point.
-  CHECK(!info->killed) << "OOM detected for an already killed executor";
+  CHECK(!info->killed) << "OOM handler invoked for an already killed executor";
 
-  LOG(INFO) << "OOM detected for executor " << executorId
+  LOG(INFO) << "OOM handler invoked for executor " << executorId
             << " of framework " << frameworkId
             << " with uuid " << uuid;
 
@@ -1217,10 +1279,12 @@ void CgroupsIsolator::oom(
   message << "Memory limit exceeded: ";
 
   // Output the requested memory limit.
-  Try<Bytes> limit = cgroups::memory::limit_in_bytes(hierarchy, info->name());
+  Try<Bytes> limit = cgroups::memory::soft_limit_in_bytes(
+      hierarchy, info->name());
 
   if (limit.isError()) {
-    LOG(ERROR) << "Failed to read 'memory.limit_in_bytes': " << limit.error();
+    LOG(ERROR) << "Failed to read 'memory.soft_limit_in_bytes': "
+               << limit.error();
   } else {
     message << "Requested: " << limit.get() << " ";
   }
