@@ -50,6 +50,13 @@ inline Try<Duration> parse(const std::string& value)
   return Duration::parse(value);
 }
 
+
+template <>
+inline Try<Bytes> parse(const std::string& value)
+{
+  return Bytes::parse(value);
+}
+
 } // namespace flags {
 
 #endif // __STOUT_FLAGS_PARSE_HPP__
