@@ -172,6 +172,9 @@ private:
     // Used to cancel the OOM listening.
     process::Future<uint64_t> oomNotifier;
 
+    // Used to cancel the memory threshold listening.
+    process::Future<uint64_t> memoryThresholdNotifier;
+
     // CPUs allocated if using 'cpuset' subsystem.
     Cpuset* cpuset;
   };
@@ -222,13 +225,17 @@ private:
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
   // @param   uuid          The uuid of the given executor.
+  // @param   event         The OOM event type name:
+  //                          "OOM" or "memory threshold ({Bytes})".
   void oomWaited(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const UUID& uuid,
+      const std::string& event,
       const process::Future<uint64_t>& future);
 
-  // This function is invoked when the OOM event happens.
+  // This function is invoked to process an executor that has
+  // OOMed or exceeded its memory limit.
   // @param   frameworkId   The id of the given framework.
   // @param   executorId    The id of the given executor.
   // @param   uuid          The uuid of the given executor.
