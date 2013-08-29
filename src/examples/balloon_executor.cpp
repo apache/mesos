@@ -26,51 +26,50 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <mesos/executor.hpp>
 
+#include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 
 using namespace mesos;
 
-
-// The amount of memory in MB each balloon step consumes.
-const static size_t BALLOON_STEP_MB = 64;
+using std::string;
+using std::vector;
 
 
 // This function will increase the memory footprint gradually. The parameter
-// limit specifies the upper limit (in MB) of the memory footprint. The
-// parameter step specifies the step size (in MB).
-static void balloon(size_t limit)
+// limit specifies the upper limit of the memory footprint. The
+// parameter step specifies the step size.
+static void balloon(const Bytes& limit, const Bytes& step)
 {
-  size_t chunk = BALLOON_STEP_MB * 1024 * 1024;
-  for (size_t i = 0; i < limit / BALLOON_STEP_MB; i++) {
-    std::cout << "Increasing memory footprint by "
-              << BALLOON_STEP_MB << " MB" << std::endl;
+  for (size_t i = 0; i < limit.bytes() / step.bytes(); i++) {
+    std::cout << "Increasing memory footprint by " << step << std::endl;
 
     // Allocate page-aligned virtual memory.
     void* buffer = NULL;
-    if (posix_memalign(&buffer, getpagesize(), chunk) != 0) {
+    if (posix_memalign(&buffer, getpagesize(), step.bytes()) != 0) {
       perror("Failed to allocate page-aligned memory, posix_memalign");
       abort();
     }
 
     // We use mlock and memset here to make sure that the memory
     // actually gets paged in and thus accounted for.
-    if (mlock(buffer, chunk) != 0) {
+    if (mlock(buffer, step.bytes()) != 0) {
       perror("Failed to lock memory, mlock");
       abort();
     }
 
-    if (memset(buffer, 1, chunk) != buffer) {
+    if (memset(buffer, 1, step.bytes()) != buffer) {
       perror("Failed to fill memory, memset");
       abort();
     }
 
     // Try not to increase the memory footprint too fast.
-    os::sleep(Seconds(1));
+    os::sleep(Milliseconds(50));
   }
 }
 
@@ -109,18 +108,21 @@ public:
 
     driver->sendStatusUpdate(status);
 
-    // Get the balloon limit (in MB).
-    Try<size_t> limit = numify<size_t>(task.data());
-    assert(limit.isSome());
-    size_t balloonLimit = limit.get();
+    // Get the balloon step and limit.
+    vector<string> split = strings::split(task.data(), ",");
 
-    // Artificially increase the memory usage gradually. The
-    // balloonLimit specifies the upper limit. The balloonLimit can be
-    // larger than the amount of memory allocated to this executor. In
-    // that case, the isolator (e.g. cgroups) should be able to detect
-    // that and the task should not be able to reach TASK_FINISHED
-    // state.
-    balloon(balloonLimit);
+    Try<Bytes> step = Bytes::parse(split[0]);
+    assert(step.isSome());
+
+    Try<Bytes> limit = Bytes::parse(split[1]);
+    assert(limit.isSome());
+
+    // Artificially increase the memory usage gradually. The limit
+    // can be larger than the amount of memory allocated to this
+    // executor. In that case, the isolator (e.g. cgroups) should be
+    // able to detect that and the task should not be able to reach
+    // TASK_FINISHED state.
+    balloon(limit.get(), step.get());
 
     std::cout << "Finishing task " << task.task_id().value() << std::endl;
 
@@ -135,7 +137,7 @@ public:
     std::cout << "Kill task " << taskId.value() << std::endl;
   }
 
-  virtual void frameworkMessage(ExecutorDriver* driver, const std::string& data)
+  virtual void frameworkMessage(ExecutorDriver* driver, const string& data)
   {
     std::cout << "Framework message: " << data << std::endl;
   }
@@ -145,7 +147,7 @@ public:
     std::cout << "Shutdown" << std::endl;
   }
 
-  virtual void error(ExecutorDriver* driver, const std::string& message)
+  virtual void error(ExecutorDriver* driver, const string& message)
   {
     std::cout << "Error message: " << message << std::endl;
   }

@@ -3,6 +3,12 @@
 # This script runs the balloon framework on a cluster using the cgroups
 # isolator and checks that the framework returns a status of 1.
 
+if [ $# -ne 3 ]; then
+  echo "usage: `basename $0` cgroups_oom_buffer balloon_step balloon_limit"
+  echo "example: `basename $0` 127MB 32MB 1GB"
+  exit 1
+fi
+
 source ${MESOS_SOURCE_DIR}/support/colors.sh
 source ${MESOS_SOURCE_DIR}/support/atexit.sh
 
@@ -90,7 +96,8 @@ ${SLAVE} \
     --isolation=cgroups \
     --cgroups_hierarchy=${TEST_CGROUP_HIERARCHY} \
     --cgroups_root=${TEST_CGROUP_ROOT} \
-    --resources="cpus:1;mem:96" &
+    --resources="cpus:1;mem:96" \
+    --cgroups_oom_buffer=${1} &
 SLAVE_PID=${!}
 echo "${GREEN}Launched slave at ${SLAVE_PID}${NORMAL}"
 sleep 2
@@ -104,7 +111,7 @@ if [[ ${STATUS} -ne 0 ]]; then
 fi
 
 # The main event!
-${BALLOON_FRAMEWORK} localhost:5432 1024
+${BALLOON_FRAMEWORK} localhost:5432 ${2} ${3}
 STATUS=${?}
 
 # Make sure the balloon framework "failed".
