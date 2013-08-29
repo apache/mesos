@@ -1798,4 +1798,70 @@ Try<hashmap<string, uint64_t> > stat(
   return result;
 }
 
+
+namespace memory {
+
+Try<Bytes> limit_in_bytes(const string& hierarchy, const string& cgroup)
+{
+  Try<string> read = cgroups::read(
+      hierarchy, cgroup, "memory.limit_in_bytes");
+
+  if (read.isError()) {
+    return Error(read.error());
+  }
+
+  return Bytes::parse(strings::trim(read.get()) + "B");
+}
+
+
+Try<Nothing> limit_in_bytes(
+    const string& hierarchy,
+    const string& cgroup,
+    const Bytes& limit)
+{
+  return cgroups::write(
+      hierarchy, cgroup, "memory.limit_in_bytes", stringify(limit.bytes()));
+}
+
+
+Try<Bytes> soft_limit_in_bytes(const string& hierarchy, const string& cgroup)
+{
+  Try<string> read = cgroups::read(
+      hierarchy, cgroup, "memory.soft_limit_in_bytes");
+
+  if (read.isError()) {
+    return Error(read.error());
+  }
+
+  return Bytes::parse(strings::trim(read.get()) + "B");
+}
+
+
+Try<Nothing> soft_limit_in_bytes(
+    const string& hierarchy,
+    const string& cgroup,
+    const Bytes& limit)
+{
+  return cgroups::write(
+      hierarchy,
+      cgroup,
+      "memory.soft_limit_in_bytes",
+      stringify(limit.bytes()));
+}
+
+
+Try<Bytes> usage_in_bytes(const string& hierarchy, const string& cgroup)
+{
+  Try<string> read = cgroups::read(
+      hierarchy, cgroup, "memory.usage_in_bytes");
+
+  if (read.isError()) {
+    return Error(read.error());
+  }
+
+  return Bytes::parse(strings::trim(read.get()) + "B");
+}
+
+} // namespace memory {
+
 } // namespace cgroups {

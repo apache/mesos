@@ -86,7 +86,7 @@ const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
 const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
 
 // Memory subsystem constants.
-const size_t MIN_MEMORY_MB = 32 * Megabyte;
+const Bytes MIN_MEMORY = Megabytes(32);
 
 
 // This is an approximate double precision equality check.
@@ -1041,49 +1041,52 @@ Try<Nothing> CgroupsIsolator::memChanged(
     return Error("Expecting resource 'mem' to be a scalar");
   }
 
-  double mem = resource.scalar().value();
-  size_t limitInBytes =
-    std::max((size_t) mem, MIN_MEMORY_MB) * 1024LL * 1024LL;
+  Bytes mem = Bytes((uint64_t) resource.scalar().value() * 1024LL * 1024LL);
+  Bytes limit = std::max(mem, MIN_MEMORY);
 
-  // Determine which control to set. If this is the first time we're
-  // setting the limit, use 'memory.limit_in_bytes'. The "first time"
-  // is determined by checking whether or not we've forked a process
-  // in the cgroup yet (i.e., 'info->pid.isSome()'). If this is not
-  // the first time we're setting the limit AND we're decreasing the
-  // limit, use 'memory.soft_limit_in_bytes'. We do this because we
-  // might not be able to decrease 'memory.limit_in_bytes' if too much
-  // memory is being used. This is probably okay if the machine has
-  // available resources; TODO(benh): Introduce a MemoryWatcherProcess
-  // which monitors the discrepancy between usage and soft limit and
-  // introduces a "manual oom" if necessary.
-  string control = "memory.limit_in_bytes";
-
-  if (info->pid.isSome()) {
-    Try<string> read = cgroups::read(
-        hierarchy, info->name(), "memory.limit_in_bytes");
-    if (read.isError()) {
-      return Error(
-          "Failed to read 'memory.limit_in_bytes': " + read.error());
-    }
-
-    Try<size_t> currentLimitInBytes = numify<size_t>(strings::trim(read.get()));
-    CHECK_SOME(currentLimitInBytes);
-
-    if (limitInBytes <= currentLimitInBytes.get()) {
-      control = "memory.soft_limit_in_bytes";
-    }
-  }
-
-  Try<Nothing> write = cgroups::write(
-      hierarchy, info->name(), control, stringify(limitInBytes));
+  // Always set the soft limit.
+  Try<Nothing> write =
+    cgroups::memory::soft_limit_in_bytes(hierarchy, info->name(), limit);
 
   if (write.isError()) {
-    return Error("Failed to update '" + control + "': " + write.error());
+    return Error("Failed to set 'memory.soft_limit_in_bytes': "
+        + write.error());
   }
 
-  LOG(INFO) << "Updated '" << control << "' to " << limitInBytes
+  LOG(INFO) << "Updated 'memory.soft_limit_in_bytes' to " << limit
             << " for executor " << info->executorId
             << " of framework " << info->frameworkId;
+
+  // Read the existing limit.
+  Try<Bytes> currentLimit =
+    cgroups::memory::limit_in_bytes(hierarchy, info->name());
+
+  if (currentLimit.isError()) {
+    return Error(
+        "Failed to read 'memory.limit_in_bytes': " + currentLimit.error());
+  }
+
+  // Determine whether to set the hard limit. If this is the first
+  // time (info->pid.isNone()), or we're raising the existing limit,
+  // then we can update the hard limit safely. Otherwise, if we need
+  // to decrease 'memory.limit_in_bytes' we may induce an OOM if too
+  // much memory is in use. As a result, we only update the soft
+  // limit when the memory reservation is being reduced. This is
+  // probably okay if the machine has available resources.
+  // TODO(benh): Introduce a MemoryWatcherProcess which monitors the
+  // discrepancy between usage and soft limit and introduces a
+  // "manual oom" if necessary.
+  if (info->pid.isNone() || limit > currentLimit.get()) {
+    write = cgroups::memory::limit_in_bytes(hierarchy, info->name(), limit);
+
+    if (write.isError()) {
+      return Error("Failed to set 'memory.limit_in_bytes': " + write.error());
+    }
+
+    LOG(INFO) << "Updated 'memory.limit_in_bytes' to " << limit
+              << " for executor " << info->executorId
+              << " of framework " << info->frameworkId;
+  }
 
   return Nothing();
 }
@@ -1181,35 +1184,29 @@ void CgroupsIsolator::oom(
   ostringstream message;
   message << "Memory limit exceeded: ";
 
-  Try<string> read = cgroups::read(
-      hierarchy, info->name(), "memory.limit_in_bytes");
-  if (read.isSome()) {
-    Try<uint64_t> bytes = numify<uint64_t>(strings::trim(read.get()));
-    if (bytes.isError()) {
-      LOG(ERROR)
-        << "Failed to numify 'memory.limit_in_bytes': " << bytes.error();
-      message << "Requested: " << strings::trim(read.get()) << " bytes ";
-    } else {
-      message << "Requested: " << Bytes(bytes.get()) << " ";
-    }
+  // Output the requested memory limit.
+  Try<Bytes> limit = cgroups::memory::limit_in_bytes(hierarchy, info->name());
+
+  if (limit.isError()) {
+    LOG(ERROR) << "Failed to read 'memory.limit_in_bytes': " << limit.error();
+  } else {
+    message << "Requested: " << limit.get() << " ";
   }
 
-  // Output 'memory.usage_in_bytes'.
-  read = cgroups::read(hierarchy, info->name(), "memory.usage_in_bytes");
-  if (read.isSome()) {
-    Try<uint64_t> bytes = numify<uint64_t>(strings::trim(read.get()));
-    if (bytes.isError()) {
-      LOG(ERROR)
-        << "Failed to numify 'memory.usage_in_bytes': " << bytes.error();
-      message << "Used: " << strings::trim(read.get()) << " bytes\n";
-    } else {
-      message << "Used: " << Bytes(bytes.get()) << "\n";
-    }
+  // Output the memory usage.
+  Try<Bytes> usage = cgroups::memory::usage_in_bytes(hierarchy, info->name());
+
+  if (usage.isError()) {
+    LOG(ERROR) << "Failed to read 'memory.usage_in_bytes': " << usage.error();
+  } else {
+    message << "Used: " << usage.get() << "\n";
   }
 
   // Output 'memory.stat' of the cgroup to help with debugging.
-  read = cgroups::read(hierarchy, info->name(), "memory.stat");
-  if (read.isSome()) {
+  Try<string> read = cgroups::read(hierarchy, info->name(), "memory.stat");
+  if (read.isError()) {
+    LOG(ERROR) << "Failed to read 'memory.stat': " << read.error();
+  } else {
     message << "\nMEMORY STATISTICS: \n" << read.get() << "\n";
   }
 
