@@ -21,12 +21,19 @@
 
 #include <gtest/gtest.h>
 
+#include <string>
+#include <vector>
+
+#include <stout/preprocessor.hpp>
+
 namespace mesos {
 namespace internal {
 namespace tests {
 
 // Helper used by TEST_SCRIPT to execute the script.
-void execute(const std::string& script);
+void execute(
+    const std::string& script,
+    const std::vector<std::string>& arguments = std::vector<std::string>());
 
 } // namespace tests {
 } // namespace internal {
@@ -37,9 +44,33 @@ void execute(const std::string& script);
 // script in temporary directory and pipe its output to '/dev/null'
 // unless the verbose option is specified. The "test" passes if the
 // script returns 0.
-#define TEST_SCRIPT(test_case_name, test_name, script)      \
-  TEST(test_case_name, test_name) {                         \
-    mesos::internal::tests::execute(script);                \
+#define TEST_SCRIPT_0(test_case_name, test_name, script)               \
+  TEST(test_case_name, test_name) {                                    \
+    mesos::internal::tests::execute(script);                           \
+  }
+
+#define TEST_SCRIPT_1(test_case_name, test_name, script, arg1)         \
+  TEST(test_case_name, test_name) {                                    \
+    std::vector<std::string> arguments;                                \
+    arguments.push_back(arg1);                                         \
+    mesos::internal::tests::execute(script, arguments);                \
+  }
+
+#define TEST_SCRIPT_2(test_case_name, test_name, script, arg1, arg2)   \
+  TEST(test_case_name, test_name) {                                    \
+    std::vector<std::string> arguments;                                \
+    arguments.push_back(arg1);                                         \
+    arguments.push_back(arg2);                                         \
+    mesos::internal::tests::execute(script, arguments);                \
+  }
+
+#define TEST_SCRIPT_3(test_case_name, test_name, script, arg1, arg2, arg3)   \
+  TEST(test_case_name, test_name) {                                          \
+    std::vector<std::string> arguments;                                      \
+    arguments.push_back(arg1);                                               \
+    arguments.push_back(arg2);                                               \
+    arguments.push_back(arg3);                                               \
+    mesos::internal::tests::execute(script, arguments);                      \
   }
 
 #endif // __TESTS_SCRIPT_HPP__
