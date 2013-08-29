@@ -526,7 +526,7 @@ void CgroupsIsolator::launchExecutor(
                << ": " << create.error();
   }
 
-  // Setup the initial resource constrains.
+  // Setup the initial resource constraints.
   resourcesChanged(frameworkId, executorId, resources);
 
   // Start listening on OOM events.
@@ -846,11 +846,7 @@ Future<Nothing> CgroupsIsolator::recover(
                    info->destroyed,
                    info->message);
 
-          // We make a copy here because 'info' will be deleted when
-          // we unregister.
-          unregisterCgroupInfo(
-              utils::copy(info->frameworkId),
-              utils::copy(info->executorId));
+          unregisterCgroupInfo(framework.id, executor.id);
 
           continue;
         }
@@ -864,6 +860,16 @@ Future<Nothing> CgroupsIsolator::recover(
                          &CgroupsIsolator::reaped,
                          run.forkedPid.get(),
                          lambda::_1));
+        }
+
+        // Start listening for OOMs. If the executor OOMed while the
+        // slave was down or recovering, the cgroup will already be
+        // under_oom, resulting in immediate notification.
+        // TODO(bmahler): I've been unable to find documentation
+        // guaranteeing this, but the kernel source indicates they
+        // notify if already under_oom.
+        if (subsystems.contains("memory")) {
+          oomListen(framework.id, executor.id);
         }
       }
     }
