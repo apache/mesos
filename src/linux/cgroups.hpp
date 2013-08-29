@@ -378,6 +378,39 @@ Try<hashmap<std::string, uint64_t> > stat(
     const std::string& cgroup,
     const std::string& file);
 
+
+// Memory controls.
+namespace memory {
+
+// Returns the memory limit from memory.limit_in_bytes.
+Try<Bytes> limit_in_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+// Sets the memory limit using memory.limit_in_bytes.
+Try<Nothing> limit_in_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Bytes& limit);
+
+// Returns the soft memory limit from memory.soft_limit_in_bytes.
+Try<Bytes> soft_limit_in_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+// Sets the soft memory limit using memory.soft_limit_in_bytes.
+Try<Nothing> soft_limit_in_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Bytes& limit);
+
+// Returns the memory usage from memory.usage_in_bytes.
+Try<Bytes> usage_in_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+} // namespace memory {
+
 } // namespace cgroups {
 
 #endif // __CGROUPS_HPP__
