@@ -12,7 +12,7 @@
 namespace process {
 
 // Forward declarations.
-struct ProcessBase;
+class ProcessBase;
 struct MessageEvent;
 struct DispatchEvent;
 struct HttpEvent;
