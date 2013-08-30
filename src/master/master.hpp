@@ -140,10 +140,12 @@ protected:
       const std::vector<TaskInfo>& tasks,
       const Filters& filters);
 
-  // Reconciles a re-registering slave's tasks and sends TASK_LOST
-  // updates for tasks known to the master but unknown to the slave.
-  void reconcileTasks(
+  // Reconciles a re-registering slave's tasks / executors and sends
+  // TASK_LOST updates for tasks known to the master but unknown to
+  // the slave.
+  void reconcile(
       Slave* slave,
+      const std::vector<ExecutorInfo>& executors,
       const std::vector<Task>& tasks);
 
   // Add a framework.
