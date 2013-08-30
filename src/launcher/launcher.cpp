@@ -135,7 +135,7 @@ int ExecutorLauncher::setup()
   }
 
   // Enter working directory.
-  if (os::chdir(workDirectory) < 0) {
+  if (!os::chdir(workDirectory)) {
     cerr << "Failed to chdir into executor work directory" << endl;
     return -1;
   }
@@ -160,7 +160,7 @@ int ExecutorLauncher::setup()
   }
 
   // Go back to previous directory.
-  if (os::chdir(cwd) < 0) {
+  if (!os::chdir(cwd)) {
     cerr << "Failed to chdir (back) into slave directory" << endl;
     return -1;
   }
