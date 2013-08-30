@@ -1155,7 +1155,7 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       // Reconcile tasks between master and the slave.
       // NOTE: This needs to be done after the registration message is
       // sent to the slave and the new pid is linked.
-      reconcileTasks(slave, tasks);
+      reconcile(slave, executorInfos, tasks);
     } else {
       // NOTE: This handles the case when the slave tries to
       // re-register with a failed over master.
@@ -1820,7 +1820,10 @@ Resources Master::launchTask(const TaskInfo& task,
 // NOTE: This function is only called when the slave re-registers
 // with a master that already knows about it (i.e., not a failed
 // over master).
-void Master::reconcileTasks(Slave* slave, const vector<Task>& tasks)
+void Master::reconcile(
+    Slave* slave,
+    const vector<ExecutorInfo>& executors,
+    const vector<Task>& tasks)
 {
   CHECK_NOTNULL(slave);
 
@@ -1839,7 +1842,8 @@ void Master::reconcileTasks(Slave* slave, const vector<Task>& tasks)
     if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
       LOG(WARNING) << "Sending TASK_LOST for task " << task->task_id()
                    << " of framework " << task->framework_id()
-                   << " unknown to the slave " << slave->id;
+                   << " unknown to the slave " << slave->id
+                   << " (" << slave->info.hostname() << ")";
 
       const StatusUpdate& update = protobuf::createStatusUpdate(
           task->framework_id(),
@@ -1849,6 +1853,53 @@ void Master::reconcileTasks(Slave* slave, const vector<Task>& tasks)
           "Task is unknown to the slave");
 
       statusUpdate(update, UPID());
+    }
+  }
+
+  // Likewise, any executors that are present in the master but
+  // not present in the slave must be removed to correctly account
+  // for resources. First we index the executors for fast lookup below.
+  multihashmap<FrameworkID, ExecutorID> slaveExecutors;
+  foreach (const ExecutorInfo& executor, executors) {
+    // TODO(bmahler): The slave ensures the framework id is set in the
+    // framework info when re-registering. This can be killed in 0.15.0
+    // as we've added code in 0.14.0 to ensure the framework id is set
+    // in the scheduler driver.
+    if (!executor.has_framework_id()) {
+      LOG(ERROR) << "Slave " << slave->id
+                 << " (" << slave->info.hostname() << ") "
+                 << "re-registered with executor " << executor.executor_id()
+                 << " without setting the framework id";
+      continue;
+    }
+    slaveExecutors.put(executor.framework_id(), executor.executor_id());
+  }
+
+  // Now that we have the index for lookup, remove all the executors
+  // in the master that are not known to the slave.
+  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->executors)) {
+    foreachkey (const ExecutorID& executorId,
+                utils::copy(slave->executors[frameworkId])) {
+      if (!slaveExecutors.contains(frameworkId, executorId)) {
+        LOG(WARNING) << "Removing executor " << executorId << " of framework "
+                     << frameworkId << " as it is unknown to the slave "
+                     << slave->id << " (" << slave->info.hostname() << ")";
+
+        // TODO(bmahler): This is duplicated in several locations, we
+        // may benefit from a method for removing an executor from
+        // all the relevant data structures and the allocator, akin
+        // to removeTask().
+        allocator->resourcesRecovered(
+            frameworkId,
+            slave->id,
+            slave->executors[frameworkId][executorId].resources());
+
+        slave->removeExecutor(frameworkId, executorId);
+
+        if (frameworks.contains(frameworkId)) {
+          frameworks[frameworkId]->removeExecutor(slave->id, executorId);
+        }
+      }
     }
   }
 
@@ -2319,31 +2370,19 @@ void Master::removeOffer(Offer* offer, bool rescind)
 
 Framework* Master::getFramework(const FrameworkID& frameworkId)
 {
-  if (frameworks.count(frameworkId) > 0) {
-    return frameworks[frameworkId];
-  } else {
-    return NULL;
-  }
+  return frameworks.contains(frameworkId) ? frameworks[frameworkId] : NULL;
 }
 
 
 Slave* Master::getSlave(const SlaveID& slaveId)
 {
-  if (slaves.count(slaveId) > 0) {
-    return slaves[slaveId];
-  } else {
-    return NULL;
-  }
+  return slaves.contains(slaveId) ? slaves[slaveId] : NULL;
 }
 
 
 Offer* Master::getOffer(const OfferID& offerId)
 {
-  if (offers.count(offerId) > 0) {
-    return offers[offerId];
-  } else {
-    return NULL;
-  }
+  return offers.contains(offerId) ? offers[offerId] : NULL;
 }
 
 
