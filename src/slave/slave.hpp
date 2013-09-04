@@ -447,6 +447,11 @@ private:
   Framework& operator = (const Framework&); // No assigning.
 };
 
+
+std::ostream& operator << (std::ostream& stream, Slave::State state);
+std::ostream& operator << (std::ostream& stream, Framework::State state);
+std::ostream& operator << (std::ostream& stream, Executor::State state);
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

@@ -668,6 +668,12 @@ void Slave::reregistered(const SlaveID& slaveId)
       LOG(WARNING) << "Ignoring re-registration because slave is terminating";
       break;
     case RECOVERING:
+      // It's possible to receive a message intended for the previous
+      // run of the slave here. Short term we can leave this as is and
+      // crash in this case. Ideally responses can be tied to a
+      // particular run of the slave, see:
+      // https://issues.apache.org/jira/browse/MESOS-676
+      // https://issues.apache.org/jira/browse/MESOS-677
     default:
       LOG(FATAL) << "Unexpected slave state " << state;
       break;
@@ -3214,7 +3220,20 @@ bool Executor::incompleteTasks()
 }
 
 
-std::ostream& operator << (std::ostream& stream, Framework::State state) {
+std::ostream& operator << (std::ostream& stream, Slave::State state)
+{
+  switch (state) {
+    case Slave::RECOVERING:   return stream << "RECOVERING";
+    case Slave::DISCONNECTED: return stream << "DISCONNECTED";
+    case Slave::RUNNING:      return stream << "RUNNING";
+    case Slave::TERMINATING:  return stream << "TERMINATING";
+    default:                  return stream << "UNKNOWN";
+  }
+}
+
+
+std::ostream& operator << (std::ostream& stream, Framework::State state)
+{
   switch (state) {
     case Framework::RUNNING:     return stream << "RUNNING";
     case Framework::TERMINATING: return stream << "TERMINATING";
@@ -3223,24 +3242,14 @@ std::ostream& operator << (std::ostream& stream, Framework::State state) {
 }
 
 
-std::ostream& operator << (std::ostream& stream, Executor::State state) {
+std::ostream& operator << (std::ostream& stream, Executor::State state)
+{
   switch (state) {
     case Executor::REGISTERING: return stream << "REGISTERING";
     case Executor::RUNNING:     return stream << "RUNNING";
     case Executor::TERMINATING: return stream << "TERMINATING";
     case Executor::TERMINATED:  return stream << "TERMINATED";
     default:                    return stream << "UNKNOWN";
-  }
-}
-
-
-std::ostream& operator << (std::ostream& stream, Slave::State state) {
-  switch (state) {
-    case Slave::RECOVERING:   return stream << "RECOVERING";
-    case Slave::DISCONNECTED: return stream << "DISCONNECTED";
-    case Slave::RUNNING:      return stream << "RUNNING";
-    case Slave::TERMINATING:  return stream << "TERMINATING";
-    default:                  return stream << "UNKNOWN";
   }
 }
 
