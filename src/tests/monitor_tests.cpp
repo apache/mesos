@@ -75,15 +75,18 @@ TEST(MonitorTest, WatchUnwatch)
   ResourceStatistics initialStatistics;
   initialStatistics.set_cpus_user_time_secs(0);
   initialStatistics.set_cpus_system_time_secs(0);
-  initialStatistics.set_cpus_limit(1.0);
+  initialStatistics.set_cpus_limit(2.5);
   initialStatistics.set_mem_rss_bytes(0);
   initialStatistics.set_mem_limit_bytes(2048);
   initialStatistics.set_timestamp(Clock::now().secs());
 
   ResourceStatistics statistics;
+  statistics.set_cpus_nr_periods(100);
+  statistics.set_cpus_nr_throttled(2);
   statistics.set_cpus_user_time_secs(4);
   statistics.set_cpus_system_time_secs(1);
-  statistics.set_cpus_limit(1.0);
+  statistics.set_cpus_throttled_time_secs(0.5);
+  statistics.set_cpus_limit(2.5);
   statistics.set_mem_rss_bytes(1024);
   statistics.set_mem_limit_bytes(2048);
   statistics.set_timestamp(
@@ -183,14 +186,20 @@ TEST(MonitorTest, WatchUnwatch)
               "\"source\":\"source\","
               "\"statistics\":{"
                   "\"cpus_limit\":%g,"
+                  "\"cpus_nr_periods\":%d,"
+                  "\"cpus_nr_throttled\":%d,"
                   "\"cpus_system_time_secs\":%g,"
+                  "\"cpus_throttled_time_secs\":%g,"
                   "\"cpus_user_time_secs\":%g,"
                   "\"mem_limit_bytes\":%lu,"
                   "\"mem_rss_bytes\":%lu"
               "}"
           "}]",
           statistics.cpus_limit(),
+          statistics.cpus_nr_periods(),
+          statistics.cpus_nr_throttled(),
           statistics.cpus_system_time_secs(),
+          statistics.cpus_throttled_time_secs(),
           statistics.cpus_user_time_secs(),
           statistics.mem_limit_bytes(),
           statistics.mem_rss_bytes()).get(),

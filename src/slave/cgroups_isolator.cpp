@@ -782,6 +782,29 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
     result.set_mem_rss_bytes(stat.get()["rss"]);
   }
 
+  // Add the cpu.stat information.
+  stat = cgroups::stat(hierarchy, info->name(), "cpu.stat");
+
+  if (stat.isError()) {
+    return Future<ResourceStatistics>::failed(
+        "Failed to read cpu.stat: " + stat.error());
+  }
+
+  if (stat.get().contains("nr_periods")) {
+    result.set_cpus_nr_periods(
+        (uint32_t) stat.get()["nr_periods"]);
+  }
+
+  if (stat.get().contains("nr_throttled")) {
+    result.set_cpus_nr_throttled(
+        (uint32_t) stat.get()["nr_throttled"]);
+  }
+
+  if (stat.get().contains("throttled_time")) {
+    result.set_cpus_throttled_time_secs(
+        Nanoseconds(stat.get()["throttled_time"]).secs());
+  }
+
   return result;
 }
 

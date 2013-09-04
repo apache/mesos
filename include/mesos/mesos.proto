@@ -274,6 +274,11 @@ message ResourceStatistics {
   // Number of CPUs allocated.
   required double cpus_limit = 4;
 
+  // cpu.stat on process throttling (for contention issues).
+  optional uint32 cpus_nr_periods = 7;
+  optional uint32 cpus_nr_throttled = 8;
+  optional double cpus_throttled_time_secs = 9;
+
   // Memory Usage Information:
   optional uint64 mem_rss_bytes = 5; // Resident Set Size.
 

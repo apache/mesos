@@ -52,12 +52,16 @@ using process::wait; // Necessary on some OS's to disambiguate.
 // These match the names in the ResourceStatistics protobuf.
 // TODO(bmahler): Later, when we have a richer monitoring story,
 // we will want to publish these outside of this file.
+// TODO(cdel): Check if we need any more of the cgroup stats.
 const std::string CPUS_TIME_SECS        = "cpus_time_secs";
 const std::string CPUS_USER_TIME_SECS   = "cpus_user_time_secs";
 const std::string CPUS_SYSTEM_TIME_SECS = "cpus_system_time_secs";
 const std::string CPUS_LIMIT            = "cpus_limit";
 const std::string MEM_RSS_BYTES         = "mem_rss_bytes";
 const std::string MEM_LIMIT_BYTES       = "mem_limit_bytes";
+const std::string CPUS_NR_PERIODS       = "cpus_nr_periods";
+const std::string CPUS_NR_THROTTLED     = "cpus_nr_throttled";
+const std::string CPUS_THROTTLED_TIME_SECS = "cpus_throttled_time_secs";
 
 // TODO(bmahler): Deprecated statistical names, these will be removed!
 const std::string CPU_TIME   = "cpu_time";
@@ -126,6 +130,9 @@ Future<Nothing> ResourceMonitorProcess::unwatch(
   ::statistics->archive("monitor", prefix + CPUS_LIMIT);
   ::statistics->archive("monitor", prefix + MEM_RSS_BYTES);
   ::statistics->archive("monitor", prefix + MEM_LIMIT_BYTES);
+  ::statistics->archive("monitor", prefix + CPUS_NR_PERIODS);
+  ::statistics->archive("monitor", prefix + CPUS_NR_THROTTLED);
+  ::statistics->archive("monitor", prefix + CPUS_THROTTLED_TIME_SECS);
 
   if (!watches.contains(frameworkId) ||
       !watches[frameworkId].contains(executorId)) {
@@ -248,6 +255,23 @@ void publish(
       prefix + MEM_LIMIT_BYTES,
       statistics.mem_limit_bytes(),
       time);
+
+  // Publish cpu.stat statistics.
+  ::statistics->set(
+      "monitor",
+      prefix + CPUS_NR_PERIODS,
+      statistics.cpus_nr_periods(),
+      time);
+  ::statistics->set(
+      "monitor",
+      prefix + CPUS_NR_THROTTLED,
+      statistics.cpus_nr_throttled(),
+      time);
+  ::statistics->set(
+      "monitor",
+      prefix + CPUS_THROTTLED_TIME_SECS,
+      statistics.cpus_throttled_time_secs(),
+      time);
 }
 
 
@@ -286,6 +310,9 @@ Future<http::Response> _statisticsJSON(
       usage.values[CPUS_LIMIT] = 0;
       usage.values[MEM_RSS_BYTES] = 0;
       usage.values[MEM_LIMIT_BYTES] = 0;
+      usage.values[CPUS_NR_PERIODS] = 0;
+      usage.values[CPUS_NR_THROTTLED] = 0;
+      usage.values[CPUS_THROTTLED_TIME_SECS] = 0;
 
       // Set the cpu usage data if present.
       if (statistics.count(prefix + CPUS_USER_TIME_SECS) > 0) {
@@ -308,6 +335,20 @@ Future<http::Response> _statisticsJSON(
       if (statistics.count(prefix + MEM_LIMIT_BYTES) > 0) {
         usage.values[MEM_LIMIT_BYTES] =
           statistics.find(prefix + MEM_LIMIT_BYTES)->second;
+      }
+
+      // Set the cpu.stat data if present.
+      if (statistics.count(prefix + CPUS_NR_PERIODS) > 0) {
+        usage.values[CPUS_NR_PERIODS] =
+          statistics.find(prefix + CPUS_NR_PERIODS)->second;
+      }
+      if (statistics.count(prefix + CPUS_NR_THROTTLED) > 0) {
+        usage.values[CPUS_NR_THROTTLED] =
+          statistics.find(prefix + CPUS_NR_THROTTLED)->second;
+      }
+      if (statistics.count(prefix + CPUS_THROTTLED_TIME_SECS) > 0) {
+        usage.values[CPUS_THROTTLED_TIME_SECS] =
+          statistics.find(prefix + CPUS_THROTTLED_TIME_SECS)->second;
       }
 
       JSON::Object entry;
