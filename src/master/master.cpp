@@ -560,11 +560,7 @@ void Master::exited(const UPID& pid)
                   << "because it is not checkpointing!";
         removeSlave(slave);
         return;
-      } else {
-        CHECK(!slave->disconnected)
-              << "Slave " << slave->id << " ("
-              << slave->info.hostname() << ") already disconnected!" ;
-
+      } else if (!slave->disconnected) {
         // Mark the slave as disconnected and remove it from the allocator.
         slave->disconnected = true;
 
@@ -604,6 +600,10 @@ void Master::exited(const UPID& pid)
           // Remove and rescind offers.
           removeOffer(offer, true); // Rescind!
         }
+      } else {
+        LOG(WARNING) << "Ignoring duplicate exited() notification for "
+                     << "checkpointing slave " << slave->id
+                     << " (" << slave->info.hostname() << ")";
       }
     }
   }
@@ -1146,6 +1146,12 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       reply(message);
 
       // Update the slave pid and relink to it.
+      // NOTE: Re-linking the slave here always rather than only when
+      // the slave is disconnected can lead to multiple exited events
+      // in succession for a disconnected slave. As a result, we
+      // ignore duplicate exited events for disconnected checkpointing
+      // slaves.
+      // See: https://issues.apache.org/jira/browse/MESOS-675
       slave->pid = from;
       link(slave->pid);
 
