@@ -2230,7 +2230,8 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 
   Future<vector<Offer> > offers1;
   EXPECT_CALL(sched1, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers1));
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   driver1.start();
 
@@ -2272,7 +2273,8 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched2, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers2));
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
 
   driver2.start();
 
@@ -2332,6 +2334,13 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
     .WillOnce(FutureArg<1>(&status2))
     .WillRepeatedly(Return());        // Ignore subsequent updates.
 
+  // Wait for the executors to terminate before shutting down the
+  // slave in order to give cgroups (if applicable) time to clean up.
+  Future<Nothing> executorTerminated1 =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+  Future<Nothing> executorTerminated2 =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
   // Kill task 1.
   driver1.killTask(task1.task_id());
 
@@ -2345,6 +2354,9 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   // Wait for TASK_KILLED update.
   AWAIT_READY(status2);
   ASSERT_EQ(TASK_KILLED, status2.get().state());
+
+  AWAIT_READY(executorTerminated1);
+  AWAIT_READY(executorTerminated2);
 
   driver1.stop();
   driver1.join();
