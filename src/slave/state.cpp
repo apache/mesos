@@ -301,18 +301,13 @@ Try<ExecutorState> ExecutorState::recover(
     }
   }
 
-  // Make sure we can find the latest executor.
+  // Find the latest executor.
+  // It is possible that we cannot find the "latest" executor if the
+  // slave died before it created the "latest" symlink.
   if (state.latest.isNone()) {
-    message =
-      "Failed to find the latest run of executor '" + executorId.value() + "'";
-
-    if (strict) {
-      return Error(message);
-    } else {
-      LOG(WARNING) << message;
-      state.errors++;
-      return state;
-    }
+    LOG(WARNING) << "Failed to find the latest run of executor '"
+                 << executorId << "' of framework " << frameworkId;
+    return state;
   }
 
   return state;
