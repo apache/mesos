@@ -5,6 +5,9 @@ Organizations using Mesos:
 * [UCSF](http://www.ucsf.edu)
 * [UC Berkeley](http://www.berkeley.edu)
 
+Organizations trying Mesos:
+* [Cloud Physics](http://www.cloudphysics.com)
+
 Software projects built on Mesos:
 
 * [Spark](http://www.spark-project.org) cluster computing framework
