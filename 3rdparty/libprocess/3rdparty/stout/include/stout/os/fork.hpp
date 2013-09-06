@@ -204,6 +204,26 @@ struct Fork
   }
 
 private:
+  // Represents the "tree" of descendants where each node has a
+  // pointer (into shared memory) from which we can read the
+  // descendants process information as well as a vector of children.
+  struct Tree
+  {
+    // NOTE: This struct is stored in shared memory and thus cannot
+    // hold any pointers to heap allocated memory.
+    struct Memory {
+      pid_t pid;
+      pid_t parent;
+      pid_t group;
+      pid_t session;
+
+      bool set; // Has this been initialized?
+    };
+
+    std::tr1::shared_ptr<Memory> memory;
+    std::vector<Tree> children;
+  };
+
   // We use shared memory to "share" the pids of forked descendants.
   // The benefit of shared memory over pipes is that each forked
   // process can read its descendants' pids leading to a simpler
@@ -222,9 +242,9 @@ private:
   {
     SharedMemoryDeleter(int _fd) : fd(_fd) {}
 
-    void operator () (pid_t* pid) const
+    void operator () (Tree::Memory* process) const
     {
-      if (munmap(pid, sizeof(pid_t)) == -1) {
+      if (munmap(process, sizeof(Tree::Memory)) == -1) {
         perror("Failed to unmap memory");
         abort();
       }
@@ -235,15 +255,6 @@ private:
     }
 
     const int fd;
-  };
-
-  // Represents the "tree" of descendants where each node has a
-  // pointer (into shared memory) from which we can read the
-  // descendants pid as well as a vector of children.
-  struct Tree
-  {
-    std::tr1::shared_ptr<pid_t> pid;
-    std::vector<Tree> children;
   };
 
   // Constructs a Tree (see above) from this fork template.
@@ -264,12 +275,16 @@ private:
       return ErrnoError("Failed to open a shared memory object");
     }
 
-    if (ftruncate(fd, sizeof(pid_t)) == -1) {
+    if (ftruncate(fd, sizeof(Tree::Memory)) == -1) {
       return ErrnoError("Failed to set size of shared memory object");
     }
 
     void* memory = mmap(
-        NULL, sizeof(pid_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        NULL,
+        sizeof(Tree::Memory),
+        PROT_READ | PROT_WRITE, MAP_SHARED,
+        fd,
+        0);
 
     if (memory == MAP_FAILED) {
       return ErrnoError("Failed to map shared memory object");
@@ -282,8 +297,9 @@ private:
     SharedMemoryDeleter deleter(fd);
 
     Tree tree;
-    tree.pid = std::tr1::shared_ptr<pid_t>((pid_t*) memory, deleter);
-    *tree.pid = -1;
+    tree.memory = std::tr1::shared_ptr<Tree::Memory>(
+        (Tree::Memory*) memory, deleter);
+    tree.memory->set = false;
 
     for (size_t i = 0; i < children.size(); i++) {
       Try<Tree> tree_ = children[i].prepare();
@@ -302,11 +318,19 @@ private:
   {
     pid_t pid = ::fork();
     if (pid > 0) {
-      *tree.pid = pid;
       return pid;
     }
 
-    // Child process.
+    // Set the basic process information.
+    Tree::Memory process;
+    process.pid = getpid();
+    process.parent = getppid();
+    process.group = getpgid(0);
+    process.session = getsid(0);
+    process.set = true;
+
+    // Copy it into shared memory.
+    memcpy(tree.memory.get(), &process, sizeof(Tree::Memory));
 
     // Execute the function, if any.
     if (function.isSome()) {
@@ -338,27 +362,33 @@ private:
   }
 
   // Waits for all of the descendant processes in the tree to update
-  // their pids and constructs a ProcessTree by calling os::process
-  // for each pid.
+  // their pids and constructs a ProcessTree using the Tree::Memory
+  // information from shared memory.
   static Try<ProcessTree> coordinate(const Tree& tree)
   {
     // Wait for the forked process.
     // TODO(benh): Don't wait forever?
-    while (*tree.pid == -1) {
+    while (!tree.memory->set) {
       // Make sure we don't keep reading the value from a register.
       __sync_synchronize();
     }
 
-    Result<Process> process = os::process(*tree.pid);
+    // All processes in the returned ProcessTree will have the
+    // command-line of the top level process, since we construct the
+    // tree using post-fork pre-exec information. So, we'll grab the
+    // command of the current process here.
+    Result<Process> self = os::process(getpid());
 
-    if (process.isError()) {
-      return Error(process.error());
-    } else if (process.isNone()) {
-      // TODO(benh): Use a duplicate of the current process with
-      // 'tree.pid' instead, or consider copying the 'Process' struct
-      // via shared memory instead of just the pid.
-      return Error("Process already terminated");
-    }
+    Process process = Process(
+        tree.memory->pid,
+        tree.memory->parent,
+        tree.memory->group,
+        tree.memory->session,
+        None(),
+        None(),
+        None(),
+        self.isSome() ? self.get().command : "",
+        false);
 
     std::list<ProcessTree> children;
     for (size_t i = 0; i < tree.children.size(); i++) {
@@ -369,7 +399,7 @@ private:
       children.push_back(child.get());
     }
 
-    return ProcessTree(process.get(), children);
+    return ProcessTree(process, children);
   }
 
 public:
