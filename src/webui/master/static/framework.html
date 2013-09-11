@@ -90,11 +90,21 @@
           </td>
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
-          <td>{{slaves[task.slave_id].hostname}}</td>
           <td>
-            <a href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
+            <span data-ng-show="slaves[task.slave_id]">
+              {{slaves[task.slave_id].hostname}}
+            </span>
+            <span class="muted" data-ng-show="!slaves[task.slave_id]">
+              Slave offline
+            </span>
+          </td>
+          <td>
+            <a data-ng-show="slaves[task.slave_id]" href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
               Sandbox
             </a>
+            <span class="muted" data-ng-show="!slaves[task.slave_id]">
+              Slave offline
+            </span>
           </td>
         </tr>
       </tbody>
@@ -130,14 +140,21 @@
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
-            <a href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
+            <a data-ng-show="slaves[task.slave_id]"
+                href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
               {{slaves[task.slave_id].hostname}}
             </a>
+            <span class="muted" data-ng-show="!slaves[task.slave_id]">
+              Slave offline
+            </span>
           </td>
           <td>
-            <a href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
+            <a data-ng-show="slaves[task.slave_id]" href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
               Sandbox
             </a>
+            <span class="muted" data-ng-show="!slaves[task.slave_id]">
+              Slave offline
+            </span>
           </td>
         </tr>
       </tbody>
