@@ -1110,7 +1110,7 @@ TEST_F(FaultToleranceTest, ReregisterFrameworkExitedExecutor)
     .WillOnce(SaveArg<1>(&frameworkId));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(LaunchTasks(1, 1, 16, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 16, "*"));
 
   Future<Nothing> statusUpdate;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1536,7 +1536,7 @@ TEST_F(FaultToleranceTest, SlaveReregisterTerminatedExecutor)
     .WillOnce(FutureArg<1>(&frameworkId));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(LaunchTasks(1, 1, 512, "*"))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(exec, registered(_, _, _, _));

@@ -18,6 +18,10 @@
 
 #include <gmock/gmock.h>
 
+#include <map>
+#include <string>
+#include <vector>
+
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
@@ -32,6 +36,7 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
+#include "tests/isolator.hpp"
 #include "tests/mesos.hpp"
 
 using namespace mesos;
@@ -49,6 +54,7 @@ using process::Clock;
 using process::Future;
 using process::PID;
 
+using std::map;
 using std::string;
 using std::vector;
 
@@ -520,7 +526,7 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   // Initially, framework1 should be offered all of the resources on
   // slave1 that aren't reserved to role2.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 400)))
-    .WillOnce(LaunchTasks(1, 1, 100, "role1"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 100, "role1"));
 
   EXPECT_CALL(allocator, resourcesUnused(_, _, _, _))
     .WillOnce(InvokeUnusedWithFilters(&allocator, 0));
@@ -738,7 +744,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   // this is the only framework running so far. Launch a task that
   // uses less than that to leave some resources unused.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 1024)))
-    .WillOnce(LaunchTasks(1, 1, 512, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"));
 
   Future<Nothing> resourcesUnused;
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
@@ -981,7 +987,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   // Initially, all of slave1's resources are avaliable.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(1, 1, 256, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 256, "*"));
 
   // We don't filter the unused resources to make sure that
   // they get offered to the framework as soon as it fails over.
@@ -1073,9 +1079,20 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
-  // TODO(benh): We use this executor for two frameworks in this test
-  // which works but is brittle and harder to reason about.
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
+  executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
+
+  ExecutorInfo executor2; // Bug in gcc 4.1.*, must assign on next line.
+  executor2 = CREATE_EXECUTOR_INFO("executor-2", "exit 1");
+
+  MockExecutor exec1(executor1.executor_id());
+  MockExecutor exec2(executor2.executor_id());
+
+  map<ExecutorID, Executor*> execs;
+  execs[executor1.executor_id()] = &exec1;
+  execs[executor2.executor_id()] = &exec2;
+
+  TestingIsolator isolator(execs);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
@@ -1083,7 +1100,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
+  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
@@ -1104,7 +1121,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   // The first time the framework is offered resources, all of the
   // cluster's resources should be avaliable.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(1, 2, 512, "*"));
+    .WillOnce(LaunchTasks(executor1, 1, 2, 512, "*"));
 
   // The framework does not use all the resources.
   Future<Nothing> resourcesUnused;
@@ -1112,10 +1129,10 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
     .WillOnce(DoAll(InvokeResourcesUnused(&this->allocator),
                     FutureSatisfy(&resourcesUnused)));
 
-  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(exec1, registered(_, _, _, _));
 
   Future<Nothing> launchTask;
-  EXPECT_CALL(exec, launchTask(_, _))
+  EXPECT_CALL(exec1, launchTask(_, _))
     .WillOnce(FutureSatisfy(&launchTask));
 
   driver1.start();
@@ -1148,13 +1165,13 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   // The first time sched2 gets an offer, framework 1 has a task
   // running with 2 cpus and 512 mem, leaving 1 cpu and 512 mem.
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(1, 512)))
-    .WillOnce(LaunchTasks(1, 1, 256, "*"));
+    .WillOnce(LaunchTasks(executor2, 1, 1, 256, "*"));
 
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
 
-  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(exec2, registered(_, _, _, _));
 
-  EXPECT_CALL(exec, launchTask(_, _))
+  EXPECT_CALL(exec2, launchTask(_, _))
     .WillOnce(FutureSatisfy(&launchTask));
 
   driver2.start();
@@ -1179,7 +1196,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(2, 768)))
     .WillOnce(FutureSatisfy(&resourceOffers));
 
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(exec1, shutdown(_))
     .Times(AtMost(1));
 
   driver1.stop();
@@ -1187,7 +1204,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 
   AWAIT_READY(resourceOffers);
 
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(exec2, shutdown(_))
     .Times(AtMost(1));
 
   driver2.stop();
@@ -1231,7 +1248,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   // Initially, all of slave1's resources are available.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 1024)))
-    .WillOnce(LaunchTasks(1, 2, 512, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 512, "*"));
 
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
 
@@ -1349,7 +1366,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
 
   // Initially, all of slave1's resources are avaliable.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(1, 2, 512, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 512, "*"));
 
   // We filter the first time so that the unused resources
   // on slave1 from the task launch won't get reoffered
@@ -1450,7 +1467,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
 
   // Initially, all of the slave's resources.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(2, 1, 256, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 2, 1, 256, "*"));
 
   // Some resources will be unused and we need to make sure that we
   // don't send the TASK_FINISHED status update below until after the

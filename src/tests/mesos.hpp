@@ -164,7 +164,7 @@ private:
 
 #define CREATE_EXECUTOR_INFO(executorId, command)                       \
       ({ ExecutorInfo executor;                                         \
-        executor.mutable_executor_id()->MergeFrom(executorId);          \
+        executor.mutable_executor_id()->set_value(executorId);          \
         executor.mutable_command()->set_value(command);                 \
         executor; })
 
@@ -230,10 +230,10 @@ public:
 
 // For use with a MockScheduler, for example:
 // EXPECT_CALL(sched, resourceOffers(_, _))
-//   .WillOnce(LaunchTasks(TASKS, CPUS, MEM));
+//   .WillOnce(LaunchTasks(EXECUTOR, TASKS, CPUS, MEM, ROLE));
 // Launches up to TASKS no-op tasks, if possible,
-// each with CPUS cpus and MEM memory.
-ACTION_P4(LaunchTasks, tasks, cpus, mem, role)
+// each with CPUS cpus and MEM memory and EXECUTOR executor.
+ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
 {
   SchedulerDriver* driver = arg0;
   std::vector<Offer> offers = arg1;
@@ -255,10 +255,6 @@ ACTION_P4(LaunchTasks, tasks, cpus, mem, role)
       task.set_name("TestTask");
       task.mutable_task_id()->set_value(stringify(nextTaskId++));
       task.mutable_slave_id()->MergeFrom(offer.slave_id());
-
-      ExecutorInfo executor;
-      executor.mutable_executor_id()->set_value("default");
-      executor.mutable_command()->set_value(":");
       task.mutable_executor()->MergeFrom(executor);
 
       Option<Resources> resources = remaining.find(TASK_RESOURCES, role);
