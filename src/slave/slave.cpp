@@ -459,7 +459,9 @@ void Slave::finalize()
 {
   LOG(INFO) << "Slave terminating";
 
-  foreachkey (const FrameworkID& frameworkId, frameworks) {
+  // NOTE: We use 'frameworks.keys()' here because 'shutdownFramework'
+  // can potentially remove a framework from 'frameworks'.
+  foreach (const FrameworkID& frameworkId, frameworks.keys()) {
     // TODO(benh): Because a shut down isn't instantaneous (but has
     // a shut down/kill phases) we might not actually propogate all
     // the status updates appropriately here. Consider providing
@@ -518,7 +520,9 @@ void Slave::shutdown()
     // since it cannot reliably know when a framework has shut down.
     // A short-term fix could be to wait for a certain time for ACKs
     // and then shutdown.
-    foreachkey (const FrameworkID& frameworkId, utils::copy(frameworks)) {
+    // NOTE: We use 'frameworks.keys()' here because 'shutdownFramework'
+    // can potentially remove a framework from 'frameworks'.
+    foreach (const FrameworkID& frameworkId, frameworks.keys()) {
       shutdownFramework(frameworkId);
     }
   }
@@ -1204,7 +1208,10 @@ void Slave::shutdownFramework(const FrameworkID& frameworkId)
       // NOTE: If there are no executors but 'pending' tasks, the
       // framework will be removed and all its tasks are appropriately
       // handled in '_runTask()'.
-      foreachvalue (Executor* executor, utils::copy(framework->executors)) {
+      // NOTE: We use 'executors.keys()' here because 'shutdownExecutor'
+      // and 'removeExecutor' can remove an executor from 'executors'.
+      foreach (const ExecutorID& executorId, framework->executors.keys()) {
+        Executor* executor = framework->executors[executorId];
         CHECK(executor->state == Executor::REGISTERING ||
               executor->state == Executor::RUNNING ||
               executor->state == Executor::TERMINATING ||
