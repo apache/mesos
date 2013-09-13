@@ -333,8 +333,6 @@ inline std::string createExecutorDirectory(
   CHECK_SOME(mkdir)
     << "Failed to create executor directory '" << directory << "'";
 
-  LOG(INFO) << "Created executor directory '" << directory << "'";
-
   // Remove the previous "latest" symlink.
   std::string latest =
     getExecutorLatestRunPath(rootDir, slaveId, frameworkId, executorId);
@@ -365,8 +363,6 @@ inline std::string createSlaveDirectory(
 
   CHECK_SOME(mkdir)
     << "Failed to create slave directory '" << directory << "'";
-
-  LOG(INFO) << "Created slave directory '" << directory << "'";
 
   // Remove the previous "latest" symlink.
   std::string latest = getLatestSlavePath(rootDir);

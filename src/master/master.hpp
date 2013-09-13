@@ -313,7 +313,10 @@ struct Slave
   {
     std::pair<FrameworkID, TaskID> key =
       std::make_pair(task->framework_id(), task->task_id());
-    CHECK(tasks.count(key) == 0);
+    CHECK(!tasks.contains(key))
+      << "Duplicate task " << task->task_id()
+      << " of framework " << task->framework_id();
+
     tasks[key] = task;
     LOG(INFO) << "Adding task " << task->task_id()
               << " with resources " << task->resources()
@@ -325,7 +328,10 @@ struct Slave
   {
     std::pair<FrameworkID, TaskID> key =
       std::make_pair(task->framework_id(), task->task_id());
-    CHECK(tasks.count(key) > 0);
+    CHECK(tasks.contains(key))
+      << "Unknown task " << task->task_id()
+      << " of framework " << task->framework_id();
+
     tasks.erase(key);
     killedTasks.remove(task->framework_id(), task->task_id());
     LOG(INFO) << "Removing task " << task->task_id()
@@ -336,7 +342,7 @@ struct Slave
 
   void addOffer(Offer* offer)
   {
-    CHECK(!offers.contains(offer));
+    CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
     offers.insert(offer);
     VLOG(1) << "Adding offer " << offer->id()
             << " with resources " << offer->resources()
@@ -346,7 +352,7 @@ struct Slave
 
   void removeOffer(Offer* offer)
   {
-    CHECK(offers.contains(offer));
+    CHECK(offers.contains(offer)) << "Unknown offer " << offer->id();
     offers.erase(offer);
     VLOG(1) << "Removing offer " << offer->id()
             << " with resources " << offer->resources()
@@ -364,7 +370,10 @@ struct Slave
   void addExecutor(const FrameworkID& frameworkId,
                    const ExecutorInfo& executorInfo)
   {
-    CHECK(!hasExecutor(frameworkId, executorInfo.executor_id()));
+    CHECK(!hasExecutor(frameworkId, executorInfo.executor_id()))
+      << "Duplicate executor " << executorInfo.executor_id()
+      << " of framework " << frameworkId;
+
     executors[frameworkId][executorInfo.executor_id()] = executorInfo;
 
     // Update the resources in use to reflect running this executor.
@@ -453,14 +462,19 @@ struct Framework
 
   void addTask(Task* task)
   {
-    CHECK(!tasks.contains(task->task_id()));
+    CHECK(!tasks.contains(task->task_id()))
+      << "Duplicate task " << task->task_id()
+      << " of framework " << task->framework_id();
+
     tasks[task->task_id()] = task;
     resources += task->resources();
   }
 
   void removeTask(Task* task)
   {
-    CHECK(tasks.contains(task->task_id()));
+    CHECK(tasks.contains(task->task_id()))
+      << "Unknown task " << task->task_id()
+      << " of framework " << task->framework_id();
 
     completedTasks.push_back(*task);
     tasks.erase(task->task_id());
@@ -469,14 +483,16 @@ struct Framework
 
   void addOffer(Offer* offer)
   {
-    CHECK(!offers.contains(offer));
+    CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
     offers.insert(offer);
     resources += offer->resources();
   }
 
   void removeOffer(Offer* offer)
   {
-    CHECK(offers.find(offer) != offers.end());
+    CHECK(offers.find(offer) != offers.end())
+      << "Unknown offer " << offer->id();
+
     offers.erase(offer);
     resources -= offer->resources();
   }
@@ -491,7 +507,10 @@ struct Framework
   void addExecutor(const SlaveID& slaveId,
                    const ExecutorInfo& executorInfo)
   {
-    CHECK(!hasExecutor(slaveId, executorInfo.executor_id()));
+    CHECK(!hasExecutor(slaveId, executorInfo.executor_id()))
+      << "Duplicate executor " << executorInfo.executor_id()
+      << " on slave " << slaveId;
+
     executors[slaveId][executorInfo.executor_id()] = executorInfo;
 
     // Update our resources to reflect running this executor.

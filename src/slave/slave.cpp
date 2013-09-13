@@ -521,12 +521,11 @@ void Slave::shutdown()
 
 void Slave::fileAttached(const Future<Nothing>& result, const string& path)
 {
-  CHECK(!result.isDiscarded());
   if (result.isReady()) {
-    LOG(INFO) << "Successfully attached file '" << path << "'";
+    VLOG(1) << "Successfully attached file '" << path << "'";
   } else {
     LOG(ERROR) << "Failed to attach file '" << path << "': "
-               << result.failure();
+               << result.isFailed() ? result.failure() : "discarded";
   }
 }
 
@@ -1606,7 +1605,9 @@ void Slave::reregisterExecutor(
   LOG(INFO) << "Re-registering executor " << executorId
             << " of framework " << frameworkId;
 
-  CHECK(frameworks.contains(frameworkId));
+  CHECK(frameworks.contains(frameworkId))
+    << "Unknown framework " << frameworkId;
+
   Framework* framework = frameworks[frameworkId];
 
   CHECK(framework->state == Framework::RUNNING ||
@@ -1735,7 +1736,7 @@ void Slave::reregisterExecutorTimeout()
           // exited! This is because if the executor properly exited,
           // it should have already been identified by the isolator
           // (via the reaper) and cleaned up!
-          LOG(INFO) << "Killing an un-reregistered executor '" << executor->id
+          LOG(INFO) << "Killing un-reregistered executor '" << executor->id
                     << "' of framework " << framework->id;
 
           executor->state = Executor::TERMINATING;
@@ -1993,7 +1994,9 @@ ExecutorInfo Slave::getExecutorInfo(
     const FrameworkID& frameworkId,
     const TaskInfo& task)
 {
-  CHECK(task.has_executor() != task.has_command());
+  CHECK_NE(task.has_executor(), task.has_command())
+    << "Task " << task.task_id()
+    << " should have either CommandInfo or ExecutorInfo set but not both";
 
   if (task.has_command()) {
     ExecutorInfo executor;
@@ -2467,9 +2470,9 @@ void Slave::shutdownExecutorTimeout(
 
   Executor* executor = framework->getExecutor(executorId);
   if (executor == NULL) {
-    LOG(INFO) << "Executor '" << executorId
-              << "' of framework " << frameworkId
-              << " seems to have exited. Ignoring its shutdown timeout";
+    VLOG(1) << "Executor '" << executorId
+            << "' of framework " << frameworkId
+            << " seems to have exited. Ignoring its shutdown timeout";
     return;
   }
 
@@ -2529,9 +2532,9 @@ void Slave::registerExecutorTimeout(
 
   Executor* executor = framework->getExecutor(executorId);
   if (executor == NULL) {
-    LOG(INFO) << "Executor '" << executorId
-              << "' of framework " << frameworkId
-              << " seems to have exited. Ignoring its registration timeout";
+    VLOG(1) << "Executor '" << executorId
+            << "' of framework " << frameworkId
+            << " seems to have exited. Ignoring its registration timeout";
     return;
   }
 
@@ -2862,10 +2865,10 @@ Executor* Framework::launchExecutor(const ExecutorInfo& executorInfo)
   Executor* executor = new Executor(
       slave, id, executorInfo, uuid, directory, info.checkpoint());
 
-  CHECK(!executors.contains(executorInfo.executor_id()));
-  executors[executorInfo.executor_id()] = executor;
+  CHECK(!executors.contains(executorInfo.executor_id()))
+    << "Unknown executor " << executorInfo.executor_id();
 
-  CHECK_NOTNULL(executor);
+  executors[executorInfo.executor_id()] = executor;
 
   slave->files->attach(executor->directory, executor->directory)
     .onAny(defer(slave,
@@ -2974,7 +2977,10 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
     }
   }
 
-  CHECK(state.runs.contains(uuid));
+  CHECK(state.runs.contains(uuid))
+    << "Cannot find latest run " << uuid << " for executor " << state.id
+    << " of framework " << id;
+
   const RunState& run = state.runs.get(uuid).get();
 
   // If the latest run of the executor was completed (i.e., terminated
@@ -3094,7 +3100,8 @@ Task* Executor::addTask(const TaskInfo& task)
 {
   // The master should enforce unique task IDs, but just in case
   // maybe we shouldn't make this a fatal error.
-  CHECK(!launchedTasks.contains(task.task_id()));
+  CHECK(!launchedTasks.contains(task.task_id()))
+    << "Duplicate task " << task.task_id();
 
   Task* t = new Task(
       protobuf::createTask(task, TASK_STAGING, id, frameworkId));

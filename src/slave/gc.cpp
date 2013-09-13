@@ -53,7 +53,7 @@ Future<Nothing> GarbageCollectorProcess::schedule(
     const Duration& d,
     const string& path)
 {
-  LOG(INFO) << "Scheduling '" << path << "' for removal";
+  LOG(INFO) << "Scheduling '" << path << "' for gc";
 
   // If there's an existing schedule for this path, we must remove
   // it here in order to reschedule.
@@ -81,7 +81,7 @@ Future<Nothing> GarbageCollectorProcess::schedule(
 
 bool GarbageCollectorProcess::unschedule(const string& path)
 {
-  LOG(INFO) << "Unscheduling '" << path << "' for removal";
+  LOG(INFO) << "Unscheduling '" << path << "' from gc";
 
   if (!timeouts.contains(path)) {
     return false;
