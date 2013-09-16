@@ -21,22 +21,22 @@ Presented August 20, 2013 at [NYC Mesos Meetup](https://mesos-nyc-aug2013.eventb
 Florian Leibert  
 Presented August 20, 2013 at [NYC Mesos Meetup](https://mesos-nyc-aug2013.eventbrite.com/)
 
-## Airbnb tech talk ([Video](http://www.youtube.com/watch?v=Hal00g8o1iY))
+### Airbnb tech talk ([Video](http://www.youtube.com/watch?v=Hal00g8o1iY))
 Benjamin Hindman  
 Presented September 6, 2012 at [Airbnb](http://airbnb.com)
 
-## Managing Twitter clusters with Mesos ([Video](http://www.youtube.com/watch?v=37OMbAjnJn0))
+### Managing Twitter clusters with Mesos ([Video](http://www.youtube.com/watch?v=37OMbAjnJn0))
 Benjamin Hindman  
 Presented August 22, 2012 at [AMP Camp](http://ampcamp.berkeley.edu)
 
-## Mesos: A Platform for Fine-Grained Resource Sharing in Datacenters ([Video](http://www.youtube.com/watch?v=dB8IDu7g9Nc))
+### Mesos: A Platform for Fine-Grained Resource Sharing in Datacenters ([Video](http://www.youtube.com/watch?v=dB8IDu7g9Nc))
 Matei Zaharia  
 Presented March 2011 at [UC Berkeley](http://berkeley.edu)
 
-## Mesos: Efficiently Sharing the Datacenter ([Video](http://vimeo.com/17821090))
+### Mesos: Efficiently Sharing the Datacenter ([Video](http://vimeo.com/17821090))
 Benjamin Hindman  
 Presented November 8, 2010 at [LinkedIn](http://linkedin.com)
 
-## Mesos: A Resource Management Platform for Hadoop and Big Data Clusters ([Video](http://www.youtube.com/watch?v=lE3jR6nM3bw))
+### Mesos: A Resource Management Platform for Hadoop and Big Data Clusters ([Video](http://www.youtube.com/watch?v=lE3jR6nM3bw))
 Matei Zaharia  
 Presented Summer 2010 at [Yahoo](http://yahoo.com)
