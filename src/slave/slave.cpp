@@ -2599,7 +2599,7 @@ void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
     if (result.isSome()) {
       double use = result.get();
 
-      LOG(INFO) << "Current usage " << std::setiosflags(std::ios::fixed)
+      LOG(INFO) << "Current disk usage " << std::setiosflags(std::ios::fixed)
                 << std::setprecision(2) << 100 * use << "%."
                 << " Max allowed age: " << age(use);
 
