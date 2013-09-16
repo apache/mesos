@@ -4,9 +4,11 @@ Organizations using Mesos:
 * [Categorize](http://categorize.co)
 * [CloudPhysics](http://cloudphysics.com)
 * [Conviva](http://www.conviva.com)
+* [MediaCrossing](http://www.mediacrossing.com)
 * [Twitter](http://www.twitter.com)
 * [UCSF](http://www.ucsf.edu)
 * [UC Berkeley](http://www.berkeley.edu)
+* [Xogito](http://www.xogito.com)
 
 Software projects built on Mesos:
 
