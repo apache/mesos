@@ -3,12 +3,32 @@
 # Make sure that we are in the right directory.
 if test ! -f configure.ac; then
     cat >&2 <<__EOF__
+
 You must run bootstrap from the root of the distribution.
+
 __EOF__
     exit 1
 fi
 
-# Note that we don't use '--no-recursive' becuase older versions of
+# Make sure that we have a version of automake that doesn't force
+# 'subdir-objects'.
+AUTOMAKE_VERSION=$(automake --version | head -1 | cut -d' ' -f4)
+case ${AUTOMAKE_VERSION} in
+  1.14)
+    cat >&2 <<__EOF__
+
+Mesos requires automake < 1.14 due to incompatibility issues
+with the 'subdir-objects' option.
+
+See https://issues.apache.org/jira/browse/MESOS-577 and
+please downgrade your automake installation.
+
+__EOF__
+    exit 1
+  ;;
+esac
+
+# Note that we don't use '--no-recursive' because older versions of
 # autoconf/autoreconf bail with that option. Unfortunately this means
 # that we'll modify a lot of files in 3rdparty/libprocess, but that
 # may change in the future.
