@@ -1,9 +1,5 @@
-**This page is up to date as of 2011, Nov 23**
-
 ## How to contribute code
-1. Check out the code from the Apache repository either via Git or SVN, get it to build on your machine (instructions on at the wiki [Home](Home.md), we don't currently support building on Windows)
-    2. If you encounter a bug while building, report it (see below for instructions)
-    2. Right now, all active development happens against "trunk" (we aren't yet, as of 2011/11/23, using SVN branches or tags).
+1. Check out the code from the Apache repository via Git or SVN. Instructions are on the [Getting Started](http://mesos.apache.org/gettingstarted/) page.
 
 1. Join the dev@mesos.apache.org mailing list by sending an email to dev-subscribe@mesos.apache.org
 
@@ -58,12 +54,12 @@
 1. Please ensure that the necessary wiki documentation gets created or updated (i.e. make the changes yourself!)
 
 ## Guidelines for using JIRA
-* We track all issues via Apache's hosted JIRA issue tracker: https://issues.apache.org/jira/browse/MESOS
+* We track all issues via Apache's hosted [JIRA issue tracker](https://issues.apache.org/jira/browse/MESOS)
 * A JIRA should be created for every task, feature, bug-fix, etc.
 * Always assign the JIRA to yourself before you start working on it. This helps to avoid duplication of work
 
 ## Using Review Board
-* A code review request should be created for every JIRA that involves a change to the codebase
+* A code review request should be created for every JIRA that involves a change to the codebase.
 
 ## Style Guides
 * [Mesos C++ Style Guide](Mesos-c++-style-guide.md)
