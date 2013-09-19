@@ -83,6 +83,15 @@ message ExecutorID {
 
 
 /**
+ * Describes authentication credentials.
+ */
+message Credential {
+  required string principal = 1;
+  optional bytes secret = 2;
+}
+
+
+/**
  * Describes a framework. If the user field is set to an empty string
  * Mesos will automagically set it to the current user. Note that the
  * ID is only available after a framework has registered, however, it

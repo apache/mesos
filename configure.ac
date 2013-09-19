@@ -508,4 +508,15 @@ AM_CONDITIONAL([WITH_INCLUDED_ZOOKEEPER],
                [test "x$with_included_zookeeper" = "xyes"])
 
 
+# TODO(benh): Also check for md5 support so we can use the CRAM-MD5
+# mechanism. We can likely do a AC_CHECK_LIB looking for a particular
+# function only provided if md5 support is present.
+AC_CHECK_LIB([sasl2], [sasl_done], [],
+             [AC_MSG_ERROR([cannot find libsasl2
+-------------------------------------------------------------------
+We need libsasl2 for authentication!
+-------------------------------------------------------------------
+])])
+
+
 AC_OUTPUT

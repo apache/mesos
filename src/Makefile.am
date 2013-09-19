@@ -154,6 +154,10 @@ nodist_libmesos_no_3rdparty_la_SOURCES =				\
   $(REGISTRY_PROTOS)
 
 libmesos_no_3rdparty_la_SOURCES =					\
+	sasl/authenticatee.hpp						\
+	sasl/authenticator.hpp						\
+	sasl/auxprop.hpp						\
+	sasl/auxprop.cpp						\
 	sched/sched.cpp							\
 	local/local.cpp							\
 	master/constants.cpp						\
@@ -755,6 +759,7 @@ mesos_tests_SOURCES = tests/main.cpp tests/utils.cpp			\
 	              tests/reaper_tests.cpp				\
 	              tests/slave_recovery_tests.cpp			\
 	              tests/status_update_manager_tests.cpp		\
+	              tests/sasl_tests.cpp				\
 	              tests/gc_tests.cpp				\
 	              tests/resource_offers_tests.cpp			\
 	              tests/fault_tolerance_tests.cpp			\

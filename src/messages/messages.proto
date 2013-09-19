@@ -335,3 +335,34 @@ message NoMasterDetectedMessage {}
 message NewMasterDetectedMessage {
   required string pid = 2;
 }
+
+
+message AuthenticateMessage {}
+
+
+message AuthenticationMechanismsMessage {
+  repeated string mechanisms = 1; // List of available SASL mechanisms.
+}
+
+
+message AuthenticationStartMessage {
+  required string mechanism = 1;
+  optional string data = 2;
+}
+
+
+message AuthenticationStepMessage {
+  required bytes data = 1;
+}
+
+
+message AuthenticationCompletedMessage {}
+
+
+message AuthenticationFailedMessage {}
+
+
+message AuthenticationErrorMessage {
+  optional string error = 1;
+}
+
