@@ -21,6 +21,7 @@ Release Notes - Mesos - Version 0.14.0
 
 * There are also several bug fixes and stability improvements.
 
+
 ** Sub-task
     * [MESOS-548] - Upgrade angular.js to use the full angular-ui.js
     * [MESOS-549] - Change truncated IDs to show on hover
@@ -37,6 +38,7 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-461] - Freezer failure while in FREEZING state.
     * [MESOS-479] - SlaveRecoveryTest/0.CleanupExecutor failure.
     * [MESOS-485] - Latest trunk fails on strict aliasing on CentOS
+    * [MESOS-488] - Master should not send FrameworkError messages if the same scheduler tries to re-register
     * [MESOS-490] - Update mesos-daemon.sh (and associated scripts) to work with new flags mechanisms.
     * [MESOS-497] - Queued tasks should be launched in the order they were received
     * [MESOS-499] - Local slave run crashes on startup
@@ -66,6 +68,14 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-644] - Slave doesn't correctly handle checkpointed terminal update whose ack doesn't reach the executor
     * [MESOS-646] - Slave recovery doesn't properly handle checkpointed queued tasks
     * [MESOS-648] - Slave should properly handle partial writes of status updates
+    * [MESOS-657] - SlaveRecoveryTest/1.PartitionedSlave fails with cgroups
+    * [MESOS-658] - A framework can be incorrectly removed by the Master.
+    * [MESOS-668] - SlaveRecoveryTest/0.MultipleFrameworks flaky
+    * [MESOS-671] - CgroupsIsolator does not listen for OOM events on recovered executors.
+    * [MESOS-673] - Task reconciliation does not properly release executor resources.
+    * [MESOS-675] - CHECK failure in the Master.
+    * [MESOS-676] - Slave::reregistered LOG(FATAL)s due to being in RECOVERING state.
+    * [MESOS-689] - Master incorrectly rejects tasks for long lived executors if they don't have FrameworkID set
 
 ** Improvement
     * [MESOS-179] - Need to check for Python development headers
@@ -82,6 +92,9 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-613] - Give better guidance when recovery fails
     * [MESOS-626] - Add the ability for example frameworks to checkpoint
     * [MESOS-634] - Make slave recovery more robust by ignoring absence of files
+    * [MESOS-651] - Expose slave re-registration time in the Web UI
+    * [MESOS-663] - Expose recovery errors when running recovery in --no-strict mode
+    * [MESOS-666] - Include CHANGELOG and docs/ in distributions.
 
 ** New Feature
     * [MESOS-110] - Slave Recovery: A slave restart should not restart tasks
