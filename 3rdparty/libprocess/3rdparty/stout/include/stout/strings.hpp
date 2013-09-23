@@ -93,8 +93,7 @@ inline std::vector<std::string> tokenize(
   while (true) {
     size_t i = s.find_first_not_of(delims, offset);
     if (std::string::npos == i) {
-      offset = s.length();
-      return tokens;
+      break;
     }
 
     size_t j = s.find_first_of(delims, i);
