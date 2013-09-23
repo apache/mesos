@@ -21,7 +21,7 @@ TEST(IO, Poll)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   int pipes[2];
-  pipe(pipes);
+  ASSERT_NE(-1, pipe(pipes));
 
   Future<short> future = io::poll(pipes[0], io::READ);
 
