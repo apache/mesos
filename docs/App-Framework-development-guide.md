@@ -197,6 +197,17 @@ You can use the `$MESOS_HOME` environment variable inside of your executor to de
 
 ## Install your Framework
 
-You need to put your framework somewhere that all slaves on the cluster can get it from. If you are running HDFS, you can put your executor into HDFS. Then, you tell Mesos where it is via the `ExecutorInfo` parameter of `MesosSchedulerDriver`'s constructor (e.g. see src/examples/java/TestFramework.java for an example of this). ExecutorInfo is a a Protocol Buffer Message class (defined in `include/mesos/mesos.proto`), and you set its uri field to something like `"HDFS://path/to/executor/"`. Also, you can pass the `frameworks_home` configuration option (defaults to:`MESOS_HOME/frameworks`) to your `mesos-slave` daemons when you launch them to specify where all of your framework executors are stored (e.g. on an NFS mount that is available to all slaves), then set `ExecutorInfo` to be a relative path, and the slave will prepend the value of `frameworks_home` to the relative path provided.
+You need to put your framework somewhere that all slaves on the cluster can get it from. 
+If you are running HDFS, you can put your executor into HDFS. 
+Then, you tell Mesos where it is via the `ExecutorInfo` parameter of `MesosSchedulerDriver`'s constructor 
+(e.g. see `src/examples/java/TestFramework.java` for an example of this). 
+`ExecutorInfo` is a a _Protocol Buffer Message_ class (defined in `include/mesos/mesos.proto`), 
+and you set its uri field to something like `"HDFS://path/to/executor/"`. 
+Also, you can pass the `frameworks_home` configuration option (defaults to:`MESOS_HOME/frameworks`) 
+to your `mesos-slave` daemons when you launch them to specify where all of your framework executors 
+are stored (e.g. on an NFS mount that is available to all slaves), then set `ExecutorInfo` to 
+be a relative path, and the slave will prepend the value of `frameworks_home` to the relative path provided.
 
-Once you are sure that your executors are available to the mesos-slaves, you should be able to run your scheduler, which will register with the Mesos master, and start receiving resource offers!
+Once you are sure that your executors are available to the **Mesos Slaves**, 
+you should be able to run your scheduler, which will register with the **Mesos Master**, 
+and start receiving resource offers!
