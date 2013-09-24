@@ -10,7 +10,7 @@ You can write a framework scheduler in C, C++, Java/Scala, or Python. Your frame
 
 h3. Scheduler API (as of 2013/02/01) declared in @MESOS_HOME/include/mesos/scheduler.hpp@
 
-```c++
+<pre>
   /**
    * Empty virtual destructor (necessary to instantiate subclasses).
    */
@@ -117,7 +117,7 @@ h3. Scheduler API (as of 2013/02/01) declared in @MESOS_HOME/include/mesos/sched
    * callback.
    */
   virtual void error(SchedulerDriver* driver, const std::string& message) = 0;
-```
+</pre>
 
 h2. Create your Framework Executor
 
@@ -126,7 +126,7 @@ You can use the $MESOS_HOME environment variable inside of your executor to dete
 
 h3. Executor API (as of 2013/02/01) declared in @MESOS_HOME/include/mesos/executor.hpp@
 
-```c++
+<pre>
   /**
    * Invoked once the executor driver has been able to successfully
    * connect with Mesos. In particular, a scheduler can pass some
@@ -192,7 +192,7 @@ h3. Executor API (as of 2013/02/01) declared in @MESOS_HOME/include/mesos/execut
    * callback.
    */
   virtual void error(ExecutorDriver* driver, const std::string& message) = 0;
-```
+</pre>
 
 
 h2. Install your Framework
