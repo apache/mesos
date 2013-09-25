@@ -33,17 +33,21 @@ inline Result<std::string> read(int fd, size_t size)
       }
       // Attempt to restore the original offset.
       lseek(fd, current, SEEK_SET);
+      delete[] buffer;
       return ErrnoError();
     } else if (length == 0) {
       // Reached EOF before expected! Restore the offset.
       lseek(fd, current, SEEK_SET);
+      delete[] buffer;
       return None();
     }
 
     offset += length;
   }
 
-  return std::string(buffer, size);
+  std::string result = std::string(buffer, size);
+  delete[] buffer;
+  return result;
 }
 
 
