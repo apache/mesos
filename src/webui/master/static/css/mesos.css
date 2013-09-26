@@ -1,3 +1,16 @@
+/*
+ * BOOTSTRAP OVERRIDES
+ */
+
+.table thead th {
+  vertical-align: top;
+}
+
+/*
+ * /BOOTSTRAP OVERRIDES
+ */
+
+
 body {
   /* Add space for fixed position navbar. */
   padding-top: 60px;
