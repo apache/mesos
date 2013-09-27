@@ -73,7 +73,11 @@ public:
       const char* name);
 
 private:
+#if SASL_AUXPROP_PLUG_VERSION <= 4
   static void lookup(
+#else
+  static int lookup(
+#endif
       void* context,
       sasl_server_params_t* sparams,
       unsigned flags,

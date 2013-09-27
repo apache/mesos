@@ -48,7 +48,11 @@ int InMemoryAuxiliaryPropertyPlugin::initialize(
 }
 
 
-void InMemoryAuxiliaryPropertyPlugin::lookup(
+#if SASL_AUXPROP_PLUG_VERSION <= 4
+  void InMemoryAuxiliaryPropertyPlugin::lookup(
+#else
+  int InMemoryAuxiliaryPropertyPlugin::lookup(
+#endif
     void* context,
     sasl_server_params_t* sparams,
     unsigned flags,
@@ -171,6 +175,10 @@ void InMemoryAuxiliaryPropertyPlugin::lookup(
       }
     }
   }
+
+#if SASL_AUXPROP_PLUG_VERSION > 4
+  return SASL_OK;
+#endif
 }
 
 } // namespace sasl {
