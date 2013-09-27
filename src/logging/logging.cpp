@@ -69,7 +69,7 @@ void handler(int signal)
     RAW_LOG(WARNING, "Received signal SIGPIPE; escalating to SIGABRT");
     raise(SIGABRT);
   } else {
-    RAW_LOG(FATAL, "Unexpected signal in signal handler: " + signal);
+    RAW_LOG(FATAL, "Unexpected signal in signal handler: %d", signal);
   }
 }
 
