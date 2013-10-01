@@ -2308,6 +2308,13 @@ void Master::removeSlave(Slave* slave)
     Framework* framework = getFramework(frameworkId);
     if (framework != NULL) {
       foreachkey (const ExecutorID& executorId, slave->executors[frameworkId]) {
+        // TODO(vinod): We don't need to call 'Allocator::resourcesRecovered'
+        // once MESOS-621 is fixed.
+        allocator->resourcesRecovered(
+            frameworkId,
+            slave->id,
+            slave->executors[frameworkId][executorId].resources());
+
         framework->removeExecutor(slave->id, executorId);
       }
     }

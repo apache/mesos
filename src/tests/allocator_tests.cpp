@@ -1228,13 +1228,14 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   driver.start();
 
-  // Ensures the task is completely launched before we
-  // kill the slave, to test that the task's resources
-  // are recovered correctly (i.e. never reallocated
-  // since the slave is killed)
+  // Ensures the task is completely launched before we kill the
+  // slave, to test that the task's and executor's resources are
+  // recovered correctly (i.e. never reallocated since the slave
+  // is killed).
   AWAIT_READY(launchTask);
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+    .Times(2);
 
   Future<Nothing> slaveRemoved;
   EXPECT_CALL(this->allocator, slaveRemoved(_))
@@ -1251,21 +1252,24 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   AWAIT_READY(slaveRemoved);
 
   slave::Flags flags2 = this->CreateSlaveFlags();
-  flags2.resources = Option<string>("cpus:3;mem:256");
+  flags2.resources = string("cpus:3;mem:256;disk:1024;ports:[31000-32000]");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
   // Eventually after slave2 is launched, we should get
   // an offer that contains all of slave2's resources
   // and none of slave1's resources.
-  Future<Nothing> resourceOffers;
+  Future<vector<Offer> > resourceOffers;
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 256)))
-    .WillOnce(FutureSatisfy(&resourceOffers));
+    .WillOnce(FutureArg<1>(&resourceOffers));
 
   Try<PID<Slave> > slave2 = this->StartSlave(flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(resourceOffers);
+
+  EXPECT_EQ(Resources(resourceOffers.get()[0].resources()),
+            Resources::parse(flags2.resources.get()).get());
 
   // Shut everything down.
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
