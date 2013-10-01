@@ -568,9 +568,7 @@ void Master::exited(const UPID& pid)
         // Mark the slave as disconnected and remove it from the allocator.
         slave->disconnected = true;
 
-        // TODO(vinod/Thomas): Instead of removing the slave, we should
-        // have 'Allocator::slave{Reconnected, Disconnected}'.
-        allocator->slaveRemoved(slave->id);
+        allocator->slaveDisconnected(slave->id);
 
         // If a slave is checkpointing, remove all non-checkpointing
         // frameworks from the slave.
@@ -591,8 +589,6 @@ void Master::exited(const UPID& pid)
         }
 
         foreach (Offer* offer, utils::copy(slave->offers)) {
-          // TODO(vinod): We don't need to call 'Allocator::resourcesRecovered'
-          // once MESOS-621 is fixed.
           allocator->resourcesRecovered(
               offer->framework_id(), slave->id, offer->resources());
 
@@ -1115,6 +1111,7 @@ void Master::reregisterSlave(const SlaveID& slaveId,
     reply(ShutdownMessage());
   } else {
     Slave* slave = getSlave(slaveId);
+
     if (slave != NULL) {
       slave->reregisteredTime = Clock::now();
 
@@ -1129,22 +1126,13 @@ void Master::reregisterSlave(const SlaveID& slaveId,
                    << ") is being allowed to re-register with an already"
                    << " in use id (" << slaveId << ")";
 
-      // If this is a disconnected slave, add it back to the allocator.
-      if (slave->disconnected) {
-        slave->disconnected = false; // Reset the flag.
-
-        hashmap<FrameworkID, Resources> resources;
-        foreach (const ExecutorInfo& executorInfo, executorInfos) {
-          resources[executorInfo.framework_id()] += executorInfo.resources();
-        }
-        foreach (const Task& task, tasks) {
-          // Ignore tasks that have reached terminal state.
-          if (!protobuf::isTerminalState(task.state())) {
-            resources[task.framework_id()] += task.resources();
-          }
-        }
-        allocator->slaveAdded(slaveId, slaveInfo, resources);
-      }
+      // TODO(bmahler): There's an implicit assumption here that when
+      // the master already knows about this slave, the slave cannot
+      // have tasks unknown to the master. This _should_ be the case
+      // since the causal relationship is:
+      //   slave removes task -> master removes task
+      // We should enforce this via a CHECK (dangerous), or by shutting
+      // down slaves that are found to violate this assumption.
 
       SlaveReregisteredMessage message;
       message.mutable_slave_id()->MergeFrom(slave->id);
@@ -1164,6 +1152,15 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       // NOTE: This needs to be done after the registration message is
       // sent to the slave and the new pid is linked.
       reconcile(slave, executorInfos, tasks);
+
+      // If this is a disconnected slave, add it back to the allocator.
+      // This is done after reconciliation to ensure the allocator's
+      // offers include the recovered resources initially on this
+      // slave.
+      if (slave->disconnected) {
+        slave->disconnected = false; // Reset the flag.
+        allocator->slaveReconnected(slaveId);
+      }
     } else {
       // NOTE: This handles the case when the slave tries to
       // re-register with a failed over master.
