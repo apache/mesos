@@ -299,22 +299,19 @@ struct Slave
 
   Task* getTask(const FrameworkID& frameworkId, const TaskID& taskId)
   {
-    foreachvalue (Task* task, tasks) {
-      if (task->framework_id() == frameworkId &&
-          task->task_id() == taskId) {
-        return task;
-      }
+    if (tasks.contains(frameworkId) && tasks[frameworkId].contains(taskId)) {
+      return tasks[frameworkId][taskId];
     }
-
     return NULL;
   }
 
   void addTask(Task* task)
   {
-    std::pair<FrameworkID, TaskID> key =
-      std::make_pair(task->framework_id(), task->task_id());
-    CHECK(tasks.count(key) == 0);
-    tasks[key] = task;
+    CHECK(!tasks[task->framework_id()].contains(task->task_id()))
+      << "Duplicate task " << task->task_id()
+      << " of framework " << task->framework_id();
+
+    tasks[task->framework_id()][task->task_id()] = task;
     LOG(INFO) << "Adding task " << task->task_id()
               << " with resources " << task->resources()
               << " on slave " << id << " (" << info.hostname() << ")";
@@ -323,10 +320,15 @@ struct Slave
 
   void removeTask(Task* task)
   {
-    std::pair<FrameworkID, TaskID> key =
-      std::make_pair(task->framework_id(), task->task_id());
-    CHECK(tasks.count(key) > 0);
-    tasks.erase(key);
+    CHECK(tasks[task->framework_id()].contains(task->task_id()))
+      << "Unknown task " << task->task_id()
+      << " of framework " << task->framework_id();
+
+    tasks[task->framework_id()].erase(task->task_id());
+    if (tasks[task->framework_id()].empty()) {
+      tasks.erase(task->framework_id());
+    }
+
     killedTasks.remove(task->framework_id(), task->task_id());
     LOG(INFO) << "Removing task " << task->task_id()
               << " with resources " << task->resources()
@@ -404,11 +406,11 @@ struct Slave
   // Executors running on this slave.
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > executors;
 
-  // Tasks running on this slave, indexed by FrameworkID x TaskID.
+  // Tasks present on this slave.
   // TODO(bmahler): The task pointer ownership complexity arises from the fact
   // that we own the pointer here, but it's shared with the Framework struct.
   // We should find a way to eliminate this.
-  hashmap<std::pair<FrameworkID, TaskID>, Task*> tasks;
+  hashmap<FrameworkID, hashmap<TaskID, Task*> > tasks;
 
   // Tasks that were asked to kill by frameworks.
   // This is used for reconciliation when the slave re-registers.
