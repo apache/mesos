@@ -335,6 +335,12 @@ public:
     ON_CALL(*this, slaveRemoved(_))
       .WillByDefault(InvokeSlaveRemoved(this));
 
+    ON_CALL(*this, slaveDisconnected(_))
+      .WillByDefault(InvokeSlaveDisconnected(this));
+
+    ON_CALL(*this, slaveReconnected(_))
+      .WillByDefault(InvokeSlaveReconnected(this));
+
     ON_CALL(*this, updateWhitelist(_))
       .WillByDefault(InvokeUpdateWhitelist(this));
 
@@ -371,6 +377,8 @@ public:
                                 const SlaveInfo&,
                                 const hashmap<FrameworkID, Resources>&));
   MOCK_METHOD1(slaveRemoved, void(const SlaveID&));
+  MOCK_METHOD1(slaveDisconnected, void(const SlaveID&));
+  MOCK_METHOD1(slaveReconnected, void(const SlaveID&));
   MOCK_METHOD1(updateWhitelist, void(const Option<hashset<std::string> >&));
   MOCK_METHOD2(resourcesRequested, void(const FrameworkID&,
                                         const std::vector<Request>&));
@@ -462,6 +470,24 @@ ACTION_P(InvokeSlaveRemoved, allocator)
   process::dispatch(
       allocator->real,
       &master::allocator::AllocatorProcess::slaveRemoved,
+      arg0);
+}
+
+
+ACTION_P(InvokeSlaveDisconnected, allocator)
+{
+  process::dispatch(
+      allocator->real,
+      &master::allocator::AllocatorProcess::slaveDisconnected,
+      arg0);
+}
+
+
+ACTION_P(InvokeSlaveReconnected, allocator)
+{
+  process::dispatch(
+      allocator->real,
+      &master::allocator::AllocatorProcess::slaveReconnected,
       arg0);
 }
 
