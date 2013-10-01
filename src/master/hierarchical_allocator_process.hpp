@@ -60,6 +60,7 @@ struct Slave
 
   Slave(const SlaveInfo& _info)
     : available(_info.resources()),
+      connected(true),
       whitelisted(false),
       checkpoint(_info.checkpoint()),
       info(_info) {}
@@ -70,6 +71,10 @@ struct Slave
 
   // Contains all of the resources currently free on this slave.
   Resources available;
+
+  // Whether the slave is connected. Resources are not offered for
+  // disconnected slaves until they reconnect.
+  bool connected;
 
   // Indicates if the resources on this slave should be offered to
   // frameworks.
@@ -138,6 +143,12 @@ public:
       const hashmap<FrameworkID, Resources>& used);
 
   void slaveRemoved(
+      const SlaveID& slaveId);
+
+  void slaveDisconnected(
+      const SlaveID& slaveId);
+
+  void slaveReconnected(
       const SlaveID& slaveId);
 
   void updateWhitelist(
@@ -456,7 +467,35 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveRemoved(
   // HierarchicalAllocatorProcess::expire gets invoked (or the framework
   // that applied the filters gets removed).
 
-  LOG(INFO)<< "Removed slave " << slaveId;
+  LOG(INFO) << "Removed slave " << slaveId;
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveDisconnected(
+    const SlaveID& slaveId)
+{
+  CHECK(initialized);
+  CHECK(slaves.contains(slaveId));
+
+  slaves[slaveId].connected = false;
+
+  LOG(INFO) << "Slave " << slaveId << " disconnected";
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveReconnected(
+    const SlaveID& slaveId)
+{
+  CHECK(initialized);
+  CHECK(slaves.contains(slaveId));
+
+  slaves[slaveId].connected = true;
+
+  LOG(INFO)<< "Slave " << slaveId << " reconnected";
 }
 
 
@@ -707,6 +746,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         bool filtered = isFiltered(frameworkId, slaveId, resources);
 
         if (!filtered &&
+            slaves[slaveId].connected &&
             slaves[slaveId].whitelisted &&
             allocatable(resources)) {
           VLOG(1)

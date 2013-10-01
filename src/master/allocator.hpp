@@ -85,6 +85,14 @@ public:
   virtual void slaveRemoved(
       const SlaveID& slaveId) = 0;
 
+  // No longer offers resources for the disconnected slave.
+  virtual void slaveDisconnected(
+      const SlaveID& slaveId) = 0;
+
+  // Resumes resource offers for the reconnected slave.
+  virtual void slaveReconnected(
+      const SlaveID& slaveId) = 0;
+
   virtual void updateWhitelist(
       const Option<hashset<std::string> >& whitelist) = 0;
 
@@ -154,6 +162,12 @@ public:
       const hashmap<FrameworkID, Resources>& used);
 
   void slaveRemoved(
+      const SlaveID& slaveId);
+
+  void slaveDisconnected(
+      const SlaveID& slaveId);
+
+  void slaveReconnected(
       const SlaveID& slaveId);
 
   void updateWhitelist(
@@ -278,6 +292,24 @@ inline void Allocator::slaveRemoved(const SlaveID& slaveId)
   process::dispatch(
       process,
       &AllocatorProcess::slaveRemoved,
+      slaveId);
+}
+
+
+inline void Allocator::slaveDisconnected(const SlaveID& slaveId)
+{
+  process::dispatch(
+      process,
+      &AllocatorProcess::slaveDisconnected,
+      slaveId);
+}
+
+
+inline void Allocator::slaveReconnected(const SlaveID& slaveId)
+{
+  process::dispatch(
+      process,
+      &AllocatorProcess::slaveReconnected,
       slaveId);
 }
 
