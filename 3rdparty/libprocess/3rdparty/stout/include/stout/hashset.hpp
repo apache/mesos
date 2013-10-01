@@ -54,4 +54,18 @@ public:
   }
 };
 
+
+// Union operator.
+template <typename Elem>
+hashset<Elem> operator | (const hashset<Elem>& set1, const hashset<Elem>& set2)
+{
+  hashset<Elem> result = set1;
+
+  foreach (const Elem& elem, set2) {
+    result.insert(elem);
+  }
+
+  return result;
+}
+
 #endif // __STOUT_HASHSET_HPP__
