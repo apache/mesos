@@ -495,6 +495,7 @@ protected:
     update->mutable_slave_id()->MergeFrom(slaveId);
     update->mutable_status()->MergeFrom(status);
     update->set_timestamp(Clock::now().secs());
+    update->mutable_status()->set_timestamp(update->timestamp());
     update->set_uuid(UUID::random().toBytes());
     message.set_pid(self());
 

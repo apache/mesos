@@ -394,6 +394,7 @@ message TaskStatus {
   optional string message = 4; // Possible message explaining state.
   optional bytes data = 3;
   optional SlaveID slave_id = 5;
+  optional double timestamp = 6;
 }
 
 
@@ -434,8 +435,8 @@ message Parameter {
   required string key = 1;
   required string value = 2;
 }
- 
- 
+
+
 /**
  * Collection of Parameter.
  */

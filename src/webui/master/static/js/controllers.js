@@ -221,11 +221,15 @@
         if (!task.executor_id) {
           task.executor_id = task.id;
         }
+        task.start_time = task.statuses[0].timestamp * 1000
+        task.finish_time = task.statuses[task.statuses.length - 1].timestamp * 1000
       });
       _.each(framework.completed_tasks, function(task) {
         if (!task.executor_id) {
           task.executor_id = task.id;
         }
+        task.start_time = task.statuses[0].timestamp * 1000
+        task.finish_time = task.statuses[task.statuses.length - 1].timestamp * 1000
       });
     });
 

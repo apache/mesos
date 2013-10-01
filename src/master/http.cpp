@@ -38,6 +38,7 @@
 #include "common/attributes.hpp"
 #include "common/build.hpp"
 #include "common/type_utils.hpp"
+#include "common/protobuf_utils.hpp"
 
 #include "logging/logging.hpp"
 
@@ -121,6 +122,17 @@ JSON::Object model(const Attributes& attributes)
 }
 
 
+// Returns a JSON object modeled on a TaskStatus.
+JSON::Object model(const TaskStatus& status)
+{
+  JSON::Object object;
+  object.values["state"] = TaskState_Name(status.state());
+  object.values["timestamp"] = status.timestamp();
+
+  return object;
+}
+
+
 // Returns a JSON object modeled on a Task.
 // TODO(bmahler): Expose the executor name / source.
 JSON::Object model(const Task& task)
@@ -133,6 +145,13 @@ JSON::Object model(const Task& task)
   object.values["slave_id"] = task.slave_id().value();
   object.values["state"] = TaskState_Name(task.state());
   object.values["resources"] = model(task.resources());
+
+  JSON::Array array;
+  foreach (const TaskStatus& status, task.statuses()) {
+    array.values.push_back(model(status));
+  }
+  object.values["statuses"] = array;
+
   return object;
 }
 

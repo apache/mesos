@@ -1812,7 +1812,7 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
   stats.tasks[update.status().state()]++;
   stats.validStatusUpdates++;
 
-  executor->updateTaskState(status.task_id(), status.state());
+  executor->updateTaskState(status);
 
   // Handle the task appropriately if it is terminated.
   // TODO(vinod): Revisit these semantics when we disallow duplicate
@@ -3250,7 +3250,7 @@ void Executor::recoverTask(const TaskState& state)
 
   // Read updates to get the latest state of the task.
   foreach (const StatusUpdate& update, state.updates) {
-    updateTaskState(state.id, update.status().state());
+    updateTaskState(update.status());
 
     // Terminate the task if it received a terminal update.
     // We ignore duplicate terminal updates by checking if
@@ -3271,10 +3271,16 @@ void Executor::recoverTask(const TaskState& state)
 }
 
 
-void Executor::updateTaskState(const TaskID& taskId, mesos::TaskState state)
+void Executor::updateTaskState(const TaskStatus& status)
 {
-  if (launchedTasks.contains(taskId)) {
-    launchedTasks[taskId]->set_state(state);
+  if (launchedTasks.contains(status.task_id())) {
+    Task* task = launchedTasks[status.task_id()];
+    // TODO(brenden): Consider wiping the `data` and `message` fields?
+    if (task->state() == status.state()) {
+      task->mutable_statuses()->RemoveLast();
+    }
+    task->add_statuses()->CopyFrom(status);
+    task->set_state(status.state());
   }
 }
 

@@ -366,7 +366,7 @@ struct Executor
   void completeTask(const TaskID& taskId);
   void checkpointTask(const TaskInfo& task);
   void recoverTask(const state::TaskState& state);
-  void updateTaskState(const TaskID& taskId, TaskState state);
+  void updateTaskState(const TaskStatus& status);
 
   // Returns true if there are any queued/launched/terminated tasks.
   bool incompleteTasks();

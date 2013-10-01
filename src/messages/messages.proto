@@ -46,8 +46,8 @@ message Task {
   required SlaveID slave_id = 5;
   required TaskState state = 6;
   repeated Resource resources = 7;
+  repeated TaskStatus statuses = 8;
 }
-
 
 // Describes a role, which are used to group frameworks for allocation
 // decisions, depending on the allocation policy being used.

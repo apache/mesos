@@ -1417,6 +1417,11 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
   LOG(INFO) << "Status update " << update << " from " << pid;
 
+  // TODO(brenden) Consider wiping the `data` and `message` fields?
+  if (task->state() == status.state()) {
+    task->mutable_statuses()->RemoveLast();
+  }
+  task->add_statuses()->CopyFrom(status);
   task->set_state(status.state());
 
   // Handle the task appropriately if it's terminated.

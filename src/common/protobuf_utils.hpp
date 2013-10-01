@@ -66,6 +66,7 @@ inline StatusUpdate createStatusUpdate(
   status->mutable_slave_id()->MergeFrom(slaveId);
   status->set_state(state);
   status->set_message(message);
+  status->set_timestamp(update.timestamp());
 
   return update;
 }
