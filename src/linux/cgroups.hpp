@@ -409,6 +409,11 @@ Try<Bytes> usage_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
 
+// Returns the max memory usage from memory.max_usage_in_bytes.
+Try<Bytes> max_usage_in_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
 } // namespace memory {
 
 } // namespace cgroups {
