@@ -124,7 +124,7 @@ public class MesosSchedulerDriver implements SchedulerDriver {
     this.master = master;
     this.credential = credential;
 
-    init();
+    initialize();
   }
 
 
@@ -170,10 +170,6 @@ public class MesosSchedulerDriver implements SchedulerDriver {
                                             byte[] data);
 
   protected native void initialize();
-
-  // Same as initialize() but expects 'credential' field to be present.
-  protected native void init();
-
   protected native void finalize();
 
   private final Scheduler scheduler;

@@ -21,8 +21,15 @@
 
 #include <jni.h>
 
+#include <stout/try.hpp>
 
 template <typename T>
 jobject convert(JNIEnv* env, const T& t);
+
+Result<jfieldID> getFieldID(
+    JNIEnv* env,
+    jclass clazz,
+    const char* name,
+    const char* signature);
 
 #endif // __CONVERT_HPP__
