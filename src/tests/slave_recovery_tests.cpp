@@ -524,17 +524,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers1));
 
   driver.start();
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
 
@@ -542,7 +541,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   Future<Message> registerExecutor =
     DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers1.get()[0].id(), tasks);
 
   // Stop the slave before the executor is registered.
   AWAIT_READY(registerExecutor);
@@ -559,6 +558,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   // Restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   slave = this->StartSlave(&isolator2, flags);
   ASSERT_SOME(slave);
@@ -582,6 +586,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   ASSERT_EQ(TASK_FAILED, status.get().state());
 
   Clock::resume();
+
+  // Master should subsequently reoffer the same resources.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   driver.stop();
   driver.join();
@@ -617,17 +626,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers1));
 
   driver.start();
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
 
@@ -639,7 +647,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   Future<Nothing> ack =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers1.get()[0].id(), tasks);
 
   // Capture the executor pid.
   AWAIT_READY(registerExecutor);
@@ -662,6 +670,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   // Restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
 
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
   slave = this->StartSlave(&isolator2, flags);
   ASSERT_SOME(slave);
 
@@ -682,6 +695,13 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   // Scheduler should receive the TASK_FAILED update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
+
+  Clock::resume();
+
+  // Master should subsequently reoffer the same resources.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   driver.stop();
   driver.join();
@@ -811,17 +831,17 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   driver.start();
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "exit 0");
+  TaskInfo task = createTask(offers1.get()[0], "exit 0");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Short-lived task.
 
@@ -834,7 +854,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   Future<Nothing> schedule = FUTURE_DISPATCH(
       _, &GarbageCollectorProcess::schedule);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers1.get()[0].id(), tasks);
 
   // We use 'gc.schedule' as a proxy for the cleanup of the executor.
   AWAIT_READY(schedule);
@@ -847,11 +867,21 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   // Restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
 
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
   slave = this->StartSlave(&isolator2, flags);
   ASSERT_SOME(slave);
 
   // We use 'gc.schedule' as a proxy for the cleanup of the executor.
   AWAIT_READY(schedule2);
+
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   driver.stop();
   driver.join();
@@ -888,7 +918,8 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   driver.start();
 
@@ -1200,7 +1231,8 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers1));
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   driver.start();
 
@@ -1276,6 +1308,11 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   Clock::resume();
 
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
+
   driver.stop();
   driver.join();
 
@@ -1311,23 +1348,22 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers1));
 
   driver.start();
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task
 
   // Capture the slave and framework ids.
-  SlaveID slaveId = offers.get()[0].slave_id();
-  FrameworkID frameworkId = offers.get()[0].framework_id();
+  SlaveID slaveId = offers1.get()[0].slave_id();
+  FrameworkID frameworkId = offers1.get()[0].framework_id();
 
   Future<Message> registerExecutorMessage =
     FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
@@ -1337,7 +1373,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
     .WillOnce(FutureSatisfy(&status))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers1.get()[0].id(), tasks);
 
   // Capture the executor id and pid.
   AWAIT_READY(registerExecutorMessage);
@@ -1371,6 +1407,11 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   // Restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
 
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
   slave = this->StartSlave(&isolator2, flags);
   ASSERT_SOME(slave);
 
@@ -1401,6 +1442,11 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
       executorId)));
 
   Clock::resume();
+
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   driver.stop();
   driver.join();
@@ -1504,6 +1550,9 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   AWAIT_READY(offers2);
 
   EXPECT_NE(0u, offers2.get().size());
+  // Make sure all slave resources are reoffered.
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   // Ensure the slave id is different.
   ASSERT_NE(
@@ -1644,30 +1693,29 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers1));
 
   driver.start();
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task
 
   // Capture the slave and framework ids.
-  SlaveID slaveId = offers.get()[0].slave_id();
-  FrameworkID frameworkId = offers.get()[0].framework_id();
+  SlaveID slaveId = offers1.get()[0].slave_id();
+  FrameworkID frameworkId = offers1.get()[0].framework_id();
 
   EXPECT_CALL(sched, statusUpdate(_, _)); // TASK_RUNNING
 
   Future<Nothing> _statusUpdateAcknowledgement =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers1.get()[0].id(), tasks);
 
   // Wait for TASK_RUNNING update to be acknowledged.
   AWAIT_READY(_statusUpdateAcknowledgement);
@@ -1685,12 +1733,22 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   // Now restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
 
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
   slave = this->StartSlave(&isolator2, flags);
   ASSERT_SOME(slave);
 
   // Scheduler should get a TASK_KILLED message.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_KILLED, status.get().state());
+
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   driver.stop();
   driver.join();
