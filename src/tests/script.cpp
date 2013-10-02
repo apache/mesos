@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <limits.h> // For ARG_MAX.
 #include <signal.h> // For strsignal.
 #include <stdio.h>  // For freopen.
 #include <string.h> // For strlen, strerror.
