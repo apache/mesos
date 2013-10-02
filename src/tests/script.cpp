@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-#include <limits.h> // For ARG_MAX.
 #include <signal.h> // For strsignal.
 #include <stdio.h>  // For freopen.
 #include <string.h> // For strlen, strerror.
+#include <unistd.h> // For sysconf.
 
 #include <sys/wait.h> // For wait (and associated macros).
 
@@ -44,7 +44,10 @@ namespace tests {
 
 void execute(const string& script, const vector<string>& arguments)
 {
-  CHECK_LT(arguments.size(), static_cast<size_t>(ARG_MAX));
+  static long maximumArguments = sysconf(_SC_ARG_MAX);
+  PCHECK(maximumArguments != -1);
+
+  CHECK_LT(arguments.size(), static_cast<size_t>(maximumArguments));
 
   // Create a temporary directory for the test.
   Try<string> directory = environment->mkdtemp();
