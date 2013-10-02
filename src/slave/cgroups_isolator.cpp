@@ -351,11 +351,14 @@ void CgroupsIsolator::initialize(
             << "might be too old to use the cgroups isolator";
   }
 
-  // Disable the OOM killer so that we can capture 'memory.stat'.
+  // Make sure the memcg OOM-killer is not disabled.
+  // The Mesos OOM handler, as implemented, is not capable of handling
+  // the oom condition by itself safely given the limitations Linux
+  // imposes on this code path.
   Try<Nothing> write = cgroups::write(
-      hierarchy, flags.cgroups_root, "memory.oom_control", "1");
+      hierarchy, flags.cgroups_root, "memory.oom_control", "0");
 
-  CHECK_SOME(write) << "Failed to disable OOM killer";
+  CHECK_SOME(write) << "Failed to update memory.oom_control";
 
   if (subsystems.contains("cpu") && subsystems.contains("cpuset")) {
     EXIT(1) << "The use of both 'cpu' and 'cpuset' subsystems is not allowed.\n"
@@ -1222,16 +1225,18 @@ void CgroupsIsolator::oom(
     message << "Requested: " << limit.get() << " ";
   }
 
-  // Output the memory usage.
-  Try<Bytes> usage = cgroups::memory::usage_in_bytes(hierarchy, info->name());
+  // Output the maximum memory usage.
+  Try<Bytes> usage = cgroups::memory::max_usage_in_bytes(hierarchy, info->name());
 
   if (usage.isError()) {
-    LOG(ERROR) << "Failed to read 'memory.usage_in_bytes': " << usage.error();
+    LOG(ERROR) << "Failed to read 'memory.max_usage_in_bytes': " << usage.error();
   } else {
-    message << "Used: " << usage.get() << "\n";
+    message << "Maximum Used: " << usage.get() << "\n";
   }
 
   // Output 'memory.stat' of the cgroup to help with debugging.
+  // NOTE: With Kernel OOM-killer enabled these stats may not reflect
+  // memory state at time of OOM.
   Try<string> read = cgroups::read(hierarchy, info->name(), "memory.stat");
   if (read.isError()) {
     LOG(ERROR) << "Failed to read 'memory.stat': " << read.error();
