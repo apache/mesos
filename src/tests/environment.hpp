@@ -34,15 +34,16 @@ namespace tests {
 class Environment : public ::testing::Environment {
 public:
   Environment();
-  virtual ~Environment();
 
   virtual void SetUp();
+
+  virtual void TearDown();
 
   // Helper to create a temporary directory based on the current test
   // case name and test name (derived from TestInfo via
   // ::testing::UnitTest::GetInstance()->current_test_info()). Note
   // that the directory will automagically get removed when the
-  // environment instance gets destructed.
+  // environment is teared down.
   Try<std::string> mkdtemp();
 
 private:
