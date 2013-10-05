@@ -120,7 +120,10 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, stringify(this->url.get()));
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      stringify(this->url.get()),
+      DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -229,7 +232,10 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, stringify(this->url.get()));
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      stringify(this->url.get()),
+      DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 

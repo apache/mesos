@@ -69,7 +69,8 @@ TEST_F(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
   }
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -105,7 +106,8 @@ TEST_F(ResourceOffersTest, TaskUsesNoResources)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -157,7 +159,8 @@ TEST_F(ResourceOffersTest, TaskUsesInvalidResources)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -214,7 +217,8 @@ TEST_F(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -273,7 +277,8 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .Times(1);
@@ -291,7 +296,8 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
   driver1.join();
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched2, registered(&driver2, _, _))
     .Times(1);
@@ -319,7 +325,8 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .Times(1);
@@ -337,7 +344,8 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   driver1.launchTasks(offers.get()[0].id(), tasks);
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched2, registered(&driver2, _, _))
     .Times(1);
@@ -369,7 +377,8 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .Times(1);
@@ -416,7 +425,8 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   EXPECT_EQ("Task uses invalid resources", status.get().message());
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched2, registered(&driver2, _, _))
     .Times(1);
@@ -457,7 +467,8 @@ TEST_F(ResourceOffersTest, Request)
   ASSERT_SOME(master);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _))
     .Times(1);
@@ -513,7 +524,8 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
   ASSERT_SOME(master);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);

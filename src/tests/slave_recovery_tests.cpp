@@ -164,7 +164,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -339,7 +340,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -425,7 +427,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -520,7 +523,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -622,7 +626,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -737,7 +742,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoveryTimeout)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -826,7 +832,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -911,7 +918,8 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1004,7 +1012,8 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(false);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1089,7 +1098,8 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(false);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -1178,7 +1188,8 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -1224,7 +1235,8 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1343,7 +1355,8 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1475,7 +1488,8 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1591,7 +1605,8 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1688,7 +1703,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1783,7 +1799,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1881,7 +1898,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -2010,7 +2028,8 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   framework1.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   framework1.set_checkpoint(true);
 
-  MesosSchedulerDriver driver1(&sched1, framework1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, framework1, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -2052,7 +2071,8 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   framework2.mutable_id()->MergeFrom(frameworkId.get());
   framework2.set_checkpoint(true);
 
-  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> sched2Registered;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
@@ -2160,7 +2180,8 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -2286,7 +2307,8 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -2323,6 +2345,8 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   this->Stop(master.get());
   master = this->StartMaster();
   ASSERT_SOME(master);
+
+  EXPECT_CALL(sched, disconnected(_));
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -2422,7 +2446,8 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   frameworkInfo1.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo1.set_checkpoint(true);
 
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched1, registered(_, _, _));
 
@@ -2465,7 +2490,8 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   frameworkInfo2.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo2.set_checkpoint(true);
 
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched2, registered(_, _, _));
 
@@ -2604,7 +2630,8 @@ TYPED_TEST(SlaveRecoveryProcessIsolatorTest, MultipleSlaves)
   frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 

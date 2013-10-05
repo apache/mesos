@@ -175,6 +175,13 @@ private:
         framework; })
 
 
+#define DEFAULT_CREDENTIAL                                             \
+     ({ Credential credential;                                         \
+        credential.set_principal("test-principal");                    \
+        credential.set_secret("test-secret");                          \
+        credential; })
+
+
 #define DEFAULT_EXECUTOR_ID						\
       DEFAULT_EXECUTOR_INFO.executor_id()
 

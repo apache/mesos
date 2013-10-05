@@ -96,7 +96,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   frameworkInfo1.set_role("role1");
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -122,7 +123,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   frameworkInfo2.set_role("role2");
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> frameworkAdded2;
   EXPECT_CALL(allocator, frameworkAdded(_, _, _))
@@ -195,7 +197,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   frameworkInfo3.set_role("role1");
 
   MockScheduler sched3;
-  MesosSchedulerDriver driver3(&sched3, frameworkInfo3, master.get());
+  MesosSchedulerDriver driver3(
+      &sched3, frameworkInfo3, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> frameworkAdded3;
   EXPECT_CALL(allocator, frameworkAdded(_, _, _))
@@ -243,7 +246,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   frameworkInfo4.set_user("user1");
   frameworkInfo4.set_role("role1");
   MockScheduler sched4;
-  MesosSchedulerDriver driver4(&sched4, frameworkInfo4, master.get());
+  MesosSchedulerDriver driver4(
+      &sched4, frameworkInfo4, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> frameworkAdded4;
   EXPECT_CALL(allocator, frameworkAdded(_, _, _))
@@ -368,7 +372,8 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_role("role1");
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -389,7 +394,8 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   frameworkInfo2.set_name("framework2");
   frameworkInfo2.set_role("role2");
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -409,7 +415,8 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   frameworkInfo3.set_name("framework3");
   frameworkInfo3.set_role("role3");
   MockScheduler sched3;
-  MesosSchedulerDriver driver3(&sched3, frameworkInfo3, master.get());
+  MesosSchedulerDriver driver3(
+      &sched3, frameworkInfo3, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -503,7 +510,8 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   FrameworkID frameworkId1;
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -550,7 +558,8 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   FrameworkID frameworkId2;
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -653,7 +662,8 @@ TYPED_TEST(AllocatorTest, MockAllocator)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -710,7 +720,8 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   ASSERT_SOME(slave1);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -754,7 +765,8 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   frameworkInfo2.set_name("framework2");
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -822,7 +834,8 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   frameworkInfo1.set_name("framework1");
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo1), _))
     .WillOnce(InvokeFrameworkAdded(&this->allocator));
@@ -884,7 +897,8 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   frameworkInfo2.set_name("framework2");
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo2), _))
     .WillOnce(InvokeFrameworkAdded(&this->allocator));
@@ -949,7 +963,8 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1006,7 +1021,8 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   // Now launch the second (i.e., failover) scheduler using the
   // framework id recorded from the first scheduler.
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkActivated(_, _));
 
@@ -1071,7 +1087,8 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1114,7 +1131,8 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   AWAIT_READY(resourcesUnused);
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1204,7 +1222,8 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   ASSERT_SOME(slave1);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1314,7 +1333,8 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   ASSERT_SOME(slave1);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1414,7 +1434,8 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1531,7 +1552,8 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1617,7 +1639,8 @@ TYPED_TEST(AllocatorTest, RoleTest)
   frameworkInfo1.set_role("role1");
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkErrorMessage> errorMessage =
     FUTURE_PROTOBUF(FrameworkErrorMessage(), _, _);
@@ -1635,7 +1658,8 @@ TYPED_TEST(AllocatorTest, RoleTest)
   frameworkInfo2.set_role("role2");
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered2;
   EXPECT_CALL(sched2, registered(_, _, _))

@@ -132,12 +132,33 @@ if __name__ == "__main__":
   # TODO(vinod): Make checkpointing the default when it is default
   # on the slave.
   if os.getenv("MESOS_CHECKPOINT"):
-    print "Enabling checkpoint for the framework";
+    print "Enabling checkpoint for the framework"
     framework.checkpoint = True
 
-  driver = mesos.MesosSchedulerDriver(
-    TestScheduler(executor),
-    framework,
-    sys.argv[1])
+  if os.getenv("MESOS_AUTHENTICATE"):
+    print "Enabling authentication for the framework"
+
+    if not os.getenv("DEFAULT_PRINCIPAL"):
+      print "Expecting authentication principal in the environment"
+      sys.exit(1);
+
+    if not os.getenv("DEFAULT_SECRET"):
+      print "Expecting authentication secret in the environment"
+      sys.exit(1);
+
+    credential = mesos_pb2.Credential()
+    credential.principal = os.getenv("DEFAULT_PRINCIPAL")
+    credential.secret = os.getenv("DEFAULT_SECRET")
+
+    driver = mesos.MesosSchedulerDriver(
+        TestScheduler(executor),
+        framework,
+        sys.argv[1],
+        credential)
+  else:
+    driver = mesos.MesosSchedulerDriver(
+        TestScheduler(executor),
+        framework,
+        sys.argv[1])
 
   sys.exit(0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1)

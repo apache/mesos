@@ -25,6 +25,9 @@
 
 #include <mesos/scheduler.hpp>
 
+#include <stout/exit.hpp>
+#include <stout/os.hpp>
+
 using namespace mesos;
 
 using boost::lexical_cast;
@@ -170,7 +173,38 @@ int main(int argc, char** argv)
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("No Executor Framework (C++)");
 
-  MesosSchedulerDriver driver(&scheduler, framework, argv[1]);
+  // TODO(vinod): Make checkpointing the default when it is default
+  // on the slave.
+  if (os::hasenv("MESOS_CHECKPOINT")) {
+    cout << "Enabling checkpoint for the framework" << endl;
+    framework.set_checkpoint(true);
+  }
 
-  return driver.run() == DRIVER_STOPPED ? 0 : 1;
+  MesosSchedulerDriver* driver;
+  if (os::hasenv("MESOS_AUTHENTICATE")) {
+    cout << "Enabling authentication for the framework" << endl;
+
+    if (!os::hasenv("DEFAULT_PRINCIPAL")) {
+      EXIT(1) << "Expecting authentication principal in the environment";
+    }
+
+    if (!os::hasenv("DEFAULT_SECRET")) {
+      EXIT(1) << "Expecting authentication secret in the environment";
+    }
+
+    Credential credential;
+    credential.set_principal(getenv("DEFAULT_PRINCIPAL"));
+    credential.set_secret(getenv("DEFAULT_SECRET"));
+
+    driver = new MesosSchedulerDriver(
+        &scheduler, framework, argv[1], credential);
+  } else {
+    driver = new MesosSchedulerDriver(
+        &scheduler, framework, argv[1]);
+  }
+
+  int status = driver->run() == DRIVER_STOPPED ? 0 : 1;
+
+  delete driver;
+  return status;
 }

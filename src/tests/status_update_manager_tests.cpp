@@ -107,7 +107,8 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _))
     .Times(1);
@@ -205,7 +206,8 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _))
     .Times(1);
@@ -279,7 +281,8 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -393,7 +396,8 @@ TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -483,7 +487,8 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -587,7 +592,8 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateAfterAck)
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -685,7 +691,8 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
