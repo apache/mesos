@@ -155,8 +155,10 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
   PyObject* schedulerObj = NULL;
   PyObject* frameworkObj = NULL;
   const char* master;
+  PyObject* credentialObj = NULL;
 
-  if (!PyArg_ParseTuple(args, "OOs", &schedulerObj, &frameworkObj, &master)) {
+  if (!PyArg_ParseTuple(
+      args, "OOs|O", &schedulerObj, &frameworkObj, &master, &credentialObj)) {
     return -1;
   }
 
@@ -175,6 +177,15 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
     }
   }
 
+  Credential credential;
+  if (credentialObj != NULL) {
+    if (!readPythonProtobuf(credentialObj, &credential)) {
+      PyErr_Format(PyExc_Exception, "Could not deserialize Python Credential");
+      return -1;
+    }
+  }
+
+
   if (self->driver != NULL) {
     self->driver->stop();
     delete self->driver;
@@ -188,8 +199,13 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
 
   self->proxyScheduler = new ProxyScheduler(self);
 
-  self->driver =
-    new MesosSchedulerDriver(self->proxyScheduler, framework, master);
+  if (credentialObj != NULL) {
+    self->driver = new MesosSchedulerDriver(
+        self->proxyScheduler, framework, master, credential);
+  } else {
+    self->driver = new MesosSchedulerDriver(
+        self->proxyScheduler, framework, master);
+  }
 
   return 0;
 }

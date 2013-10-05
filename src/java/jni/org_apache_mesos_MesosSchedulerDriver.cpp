@@ -468,6 +468,9 @@ extern "C" {
  * Class:     org_apache_mesos_MesosSchedulerDriver
  * Method:    initialize
  * Signature: ()V
+ *
+ * TODO(vinod): Deprecate this in favor of
+ * 'Java_org_apache_mesos_MesosSchedulerDriver_init' below.
  */
 JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_initialize
   (JNIEnv* env, jobject thiz)
@@ -498,6 +501,54 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_initialize
     new MesosSchedulerDriver(scheduler,
                              construct<FrameworkInfo>(env, jframework),
                              construct<string>(env, jmaster));
+
+  jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
+  env->SetLongField(thiz, __driver, (jlong) driver);
+}
+
+
+/*
+ * Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    init
+ * Signature: ()V
+ *
+ * Same as the 'initialize' above but expects Credential for authentication.
+ * TODO(vinod): Figure out how to properly overload initialize() instead.
+ */
+JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_init
+  (JNIEnv* env, jobject thiz)
+{
+  jclass clazz = env->GetObjectClass(thiz);
+
+  // Create a weak global reference to the MesosSchedulerDriver
+  // instance (we want a global reference so the GC doesn't collect
+  // the instance but we make it weak so the JVM can exit).
+  jweak jdriver = env->NewWeakGlobalRef(thiz);
+
+  // Create the C++ scheduler and initialize the __scheduler variable.
+  JNIScheduler* scheduler = new JNIScheduler(env, jdriver);
+
+  jfieldID __scheduler = env->GetFieldID(clazz, "__scheduler", "J");
+  env->SetLongField(thiz, __scheduler, (jlong) scheduler);
+
+  // Get out the FrameworkInfo passed into the constructor.
+  jfieldID framework = env->GetFieldID(clazz, "framework", "Lorg/apache/mesos/Protos$FrameworkInfo;");
+  jobject jframework = env->GetObjectField(thiz, framework);
+
+  // Get out the master passed into the constructor.
+  jfieldID master = env->GetFieldID(clazz, "master", "Ljava/lang/String;");
+  jobject jmaster = env->GetObjectField(thiz, master);
+
+  // Get out the Credential passed into the constructor.
+  jfieldID credential = env->GetFieldID(clazz, "credential", "Lorg/apache/mesos/Protos$Credential;");
+  jobject jcredential = env->GetObjectField(thiz, credential);
+
+  // Create the C++ driver and initialize the __driver variable.
+  MesosSchedulerDriver* driver =
+    new MesosSchedulerDriver(scheduler,
+                             construct<FrameworkInfo>(env, jframework),
+                             construct<string>(env, jmaster),
+                             construct<Credential>(env, jcredential));
 
   jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
   env->SetLongField(thiz, __driver, (jlong) driver);

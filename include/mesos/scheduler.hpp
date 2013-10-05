@@ -20,10 +20,10 @@
 #define __MESOS_SCHEDULER_HPP__
 
 #include <string>
-#include <map>
 #include <vector>
 
 #include <mesos/mesos.hpp>
+
 
 /**
  * Mesos scheduler interface and scheduler driver. A scheduler is used
@@ -322,10 +322,24 @@ public:
    * Any Mesos configuration options are read from environment
    * variables, as well as any configuration files found through the
    * environment variables.
+   *
+   * TODO(vinod): Deprecate this once 'MesosSchedulerDriver' can
+   * take 'Option<Credential>' as parameter. Currently it cannot
+   * because 'stout' is not visible from here.
    */
   MesosSchedulerDriver(Scheduler* scheduler,
                        const FrameworkInfo& framework,
                        const std::string& master);
+
+  /**
+   * Same as the above constructor but takes 'credential' as argument.
+   *
+   * The credential will be used for authenticating with the master.
+   */
+  MesosSchedulerDriver(Scheduler* scheduler,
+                       const FrameworkInfo& framework,
+                       const std::string& master,
+                       const Credential& credential);
 
   /**
    * This destructor will block indefinitely if

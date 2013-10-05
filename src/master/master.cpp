@@ -27,12 +27,16 @@
 #include <process/run.hpp>
 
 #include <stout/check.hpp>
+#include <stout/lambda.hpp>
 #include <stout/multihashmap.hpp>
+#include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/owned.hpp>
 #include <stout/path.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
-#include <stout/lambda.hpp>
+
+#include "sasl/authenticator.hpp"
 
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
@@ -59,6 +63,7 @@ namespace master {
 
 using allocator::Allocator;
 
+
 class WhitelistWatcher : public Process<WhitelistWatcher> {
 public:
   WhitelistWatcher(const string& _path, Allocator* _allocator)
@@ -81,12 +86,10 @@ protected:
     } else {
       // Read from local file.
       // TODO(vinod): Add support for reading from ZooKeeper.
-      CHECK(path.find("file://") == 0)
-          << "File path " << path << " should start with file://";
-
       // TODO(vinod): Ensure this read is atomic w.r.t external
       // writes/updates to this file.
-      Try<string> read = os::read(path.substr(strlen("file://")));
+      Try<string> read = os::read(
+          strings::remove(path, "file://", strings::PREFIX));
       if (read.isError()) {
         LOG(ERROR) << "Error reading whitelist file: " << read.error() << ". "
                    << "Retrying";
@@ -231,6 +234,18 @@ Master::~Master()
   }
   frameworks.clear();
 
+  foreachvalue (Future<Nothing> future, authenticating) {
+    // NOTE: This is necessary during tests because a copy of
+    // this future is used to setup authentication timeout. If a
+    // test doesn't discard this future, authentication timeout might
+    // fire in a different test and any associated callbacks
+    // (e.g., '_authenticate()') would be called. This is because the
+    // master pid doesn't change across the tests.
+    // TODO(vinod): This seems to be a bug in libprocess or the
+    // testing infrastructure.
+    future.discard();
+  }
+
   CHECK_EQ(offers.size(), 0UL);
 
   foreachvalue (Slave* slave, slaves) {
@@ -282,6 +297,54 @@ void Master::initialize()
   info.set_port(self().port);
 
   LOG(INFO) << "Master ID: " << info.id();
+
+  if (flags.authenticate) {
+    LOG(INFO) << "Master only allowing authenticated frameworks to register!";
+
+    if (flags.credentials.isNone()) {
+      EXIT(1) << "Authentication requires a credentials file"
+              << " (see --credentials flag)";
+    }
+  } else {
+    LOG(INFO) << "Master allowing unauthenticated frameworks to register!!";
+  }
+
+
+  if (flags.credentials.isSome()) {
+    vector<Credential> credentials;
+
+    const std::string& path = flags.credentials.get();
+
+    // TODO(vinod): Warn if the credentials file has bad file
+    // permissions (e.g., world readable!).
+    Try<string> read = os::read(
+        strings::remove(path, "file://", strings::PREFIX));
+    if (read.isError()) {
+      EXIT(1) << "Failed to read credentials file '" << path
+              << "': " << read.error();
+    } else if (read.get().empty()) {
+      LOG(WARNING) << "Empty credentials file '" << path << "'. "
+                   << "!!No frameworks will be allowed to register!!";
+    } else {
+      foreach (const string& line, strings::tokenize(read.get(), "\n")) {
+        const vector<string>& pairs = strings::tokenize(line, " ");
+        if (pairs.size() != 2) {
+          EXIT(1)
+            << "Invalid credential format at line: " << (credentials.size() + 1)
+            << " (see --credentials flag)";
+        }
+
+        // Add the credential.
+        Credential credential;
+        credential.set_principal(pairs[0]);
+        credential.set_secret(pairs[1]);
+
+        credentials.push_back(credential);
+      }
+    }
+    // Give Authenticator access to credentials.
+    sasl::secrets::load(credentials);
+  }
 
   hashmap<string, RoleInfo> roleInfos;
 
@@ -443,6 +506,10 @@ void Master::initialize()
       &ExitedExecutorMessage::executor_id,
       &ExitedExecutorMessage::status);
 
+  install<AuthenticateMessage>(
+      &Master::authenticate,
+      &AuthenticateMessage::pid);
+
   // Setup HTTP routes.
   route("/health",
         Http::HEALTH_HELP,
@@ -492,13 +559,8 @@ void Master::exited(const UPID& pid)
     if (framework->pid == pid) {
       LOG(INFO) << "Framework " << framework->id << " disconnected";
 
-//       removeFramework(framework);
-
-      // Stop sending offers here for now.
-      framework->active = false;
-
-      // Tell the allocator to stop allocating resources to this framework.
-      allocator->frameworkDeactivated(framework->id);
+      // Deactivate framework.
+      deactivate(framework);
 
       // Set 'failoverTimeout' to the default and update only if the
       // input is valid.
@@ -527,15 +589,6 @@ void Master::exited(const UPID& pid)
           framework->id,
           framework->reregisteredTime);
 
-      // Remove the framework's offers.
-      foreach (Offer* offer, utils::copy(framework->offers)) {
-        allocator->resourcesRecovered(
-            offer->framework_id(),
-            offer->slave_id(),
-            Resources(offer->resources()));
-
-        removeOffer(offer);
-      }
       return;
     }
   }
@@ -658,8 +711,45 @@ void Master::noMasterDetected()
 
 void Master::registerFramework(const FrameworkInfo& frameworkInfo)
 {
+  if (authenticating.contains(from)) {
+    LOG(INFO) << "Queuing up registration request from " << from
+              << " because authentication is still in progress";
+
+    authenticating[from]
+      .onReady(defer(self(), &Self::_registerFramework, frameworkInfo, from));
+  } else {
+    _registerFramework(frameworkInfo, from);
+  }
+}
+
+
+void Master::_registerFramework(
+    const FrameworkInfo& frameworkInfo,
+    const UPID& from)
+{
   if (!elected) {
     LOG(WARNING) << "Ignoring register framework message since not elected yet";
+    return;
+  }
+
+  if (authenticating.contains(from)) {
+    // This could happen if another authentication request came
+    // through before we are here.
+    LOG(WARNING) << "Ignoring registration request from " << from
+                 << " because authentication is back in progress";
+    return;
+  }
+
+  if (flags.authenticate && !authenticated.contains(from)) {
+    // This could happen if another authentication request came
+    // through before we are here or if a framework tried to register
+    // without authentication.
+    LOG(WARNING) << "Refusing registration of framework at " << from
+                 << " because it is not authenticated";
+    FrameworkErrorMessage message;
+    message.set_message("Framework at " + stringify(from) +
+                        " is not authenticated.");
+    reply(message);
     return;
   }
 
@@ -669,6 +759,8 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
     reply(message);
     return;
   }
+
+  LOG(INFO) << "Received registration request from " << from;
 
   // Check if this framework is already registered (because it retries).
   foreachvalue (Framework* framework, frameworks) {
@@ -704,8 +796,30 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
 }
 
 
-void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
-                                 bool failover)
+void Master::reregisterFramework(
+    const FrameworkInfo& frameworkInfo,
+    bool failover)
+{
+  if (authenticating.contains(from)) {
+    LOG(INFO) << "Queuing up re-registration request from " << from
+              << " because authentication is still in progress";
+
+    authenticating[from]
+      .onReady(defer(self(),
+                     &Self::_reregisterFramework,
+                     frameworkInfo,
+                     failover,
+                     from));
+  } else {
+    _reregisterFramework(frameworkInfo, failover, from);
+  }
+}
+
+
+void Master::_reregisterFramework(
+    const FrameworkInfo& frameworkInfo,
+    bool failover,
+    const UPID& from)
 {
   if (!elected) {
     LOG(WARNING) << "Ignoring re-register framework message since "
@@ -717,6 +831,28 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     LOG(ERROR) << "Framework re-registering without an id!";
     FrameworkErrorMessage message;
     message.set_message("Framework reregistered without a framework id");
+    reply(message);
+    return;
+  }
+
+  if (authenticating.contains(from)) {
+    // This could happen if another authentication request came
+    // through before we are here.
+    LOG(WARNING)
+      << "Ignoring re-registration request for framework " << frameworkInfo.id()
+      << " from " << from << " because authentication is back in progress";
+    return;
+  }
+
+  if (flags.authenticate && !authenticated.contains(from)) {
+    // This could happen if another authentication request came
+    // through before we are here or if a framework tried to
+    // re-register without authentication.
+    LOG(WARNING) << "Refusing registration of framework at " << from
+                  << " because it is not authenticated";
+    FrameworkErrorMessage message;
+    message.set_message("Framework '" + frameworkInfo.id().value() + "' at " +
+                        stringify(from) + " is not authenticated.");
     reply(message);
     return;
   }
@@ -829,6 +965,8 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     message.set_pid(from);
     send(slave->pid, message);
   }
+
+  return;
 }
 
 
@@ -854,13 +992,40 @@ void Master::deactivateFramework(const FrameworkID& frameworkId)
 
   if (framework != NULL) {
     if (framework->pid == from) {
-      LOG(INFO) << "Deactivating framework " << frameworkId
-                << " as requested by " << from;
-      framework->active = false;
+      LOG(INFO) << from << " asked to deactivate framework " << frameworkId;
+      deactivate(framework);
     } else {
       LOG(WARNING) << from << " tried to deactivate framework; "
                    << "expecting " << framework->pid;
     }
+  }
+}
+
+
+void Master::deactivate(Framework* framework)
+{
+  CHECK_NOTNULL(framework);
+
+  LOG(INFO) << "Deactivating framework " << framework->id;
+
+  // Stop sending offers here for now.
+  framework->active = false;
+
+  // Tell the allocator to stop allocating resources to this framework.
+  allocator->frameworkDeactivated(framework->id);
+
+  // Remove the framework from authenticated. This is safe because
+  // a framework will always reauthenticate before (re-)registering.
+  authenticated.erase(framework->pid);
+
+  // Remove the framework's offers.
+  foreach (Offer* offer, utils::copy(framework->offers)) {
+    allocator->resourcesRecovered(
+        offer->framework_id(),
+        offer->slave_id(),
+        Resources(offer->resources()));
+
+    removeOffer(offer);
   }
 }
 
@@ -1471,6 +1636,95 @@ void Master::offer(const FrameworkID& frameworkId,
             << " offers to framework " << framework->id;
 
   send(framework->pid, message);
+}
+
+
+void Master::authenticate(const UPID& pid)
+{
+  // Deactivate the framework if it's already registered.
+  foreachvalue (Framework* framework, frameworks) {
+    if (framework->pid == pid) {
+      deactivate(framework);
+      break;
+    }
+  }
+
+  authenticated.erase(pid);
+
+  if (authenticating.contains(pid)) {
+    LOG(INFO) << "Queuing up authentication request from " << pid
+              << " because authentication is still in progress";
+
+    // Try to cancel the in progress authentication by deleting
+    // the authenticator.
+    authenticators.erase(pid);
+
+    // Retry after the current authenticator finishes.
+    authenticating[pid]
+      .onAny(defer(self(), &Self::authenticate, pid));
+
+    return;
+  }
+
+  LOG(INFO) << "Authenticating framework at " << pid;
+
+  // Create a promise to capture the entire "authenticating"
+  // procedure. We'll set this _after_ we finish _authenticate.
+  Owned<Promise<Nothing> > promise = new Promise<Nothing>();
+
+  // Create the authenticator.
+  Owned<sasl::Authenticator> authenticator = new sasl::Authenticator(from);
+
+  // Start authentication.
+  const Future<bool>& future = authenticator->authenticate()
+    .onAny(defer(self(), &Self::_authenticate, pid, promise, lambda::_1));
+
+  // Don't wait for authentication to happen for ever.
+  delay(Seconds(5),
+        self(),
+        &Self::authenticationTimeout,
+        future);
+
+  // Save our state.
+  authenticating[pid] = promise->future();
+  authenticators.put(pid, authenticator);
+}
+
+
+void Master::_authenticate(
+    const UPID& pid,
+    const Owned<Promise<Nothing> >& promise,
+    const Future<bool>& future)
+{
+  if (!future.isReady() || !future.get()) {
+    const string& error = future.isReady()
+        ? "Refused authentication"
+        : (future.isFailed() ? future.failure() : "future discarded");
+
+    LOG(WARNING) << "Failed to authenticate framework at " << pid
+                 << ": " << error;
+
+    promise->fail(error);
+  } else {
+    LOG(INFO) << "Successfully authenticated framework at " << pid;
+
+    promise->set(Nothing());
+    authenticated.insert(pid);
+  }
+
+  authenticators.erase(pid);
+  authenticating.erase(pid);
+}
+
+
+void Master::authenticationTimeout(Future<bool> future)
+{
+  // Note that a 'discard' here is safe even if another
+  // authenticator is in progress because this copy of the future
+  // corresponds to the original authenticator that started the timer.
+  if (future.discard()) { // This is a no-op if the future is already ready.
+    LOG(WARNING) << "Authentication timed out";
+  }
 }
 
 
@@ -2127,6 +2381,10 @@ void Master::removeFramework(Framework* framework)
     << " of framework " << framework->id;
 
   roles[framework->info.role()]->removeFramework(framework);
+
+
+  // Remove the framework from authenticated.
+  authenticated.erase(framework->pid);
 
   // Remove it.
   frameworks.erase(framework->id);

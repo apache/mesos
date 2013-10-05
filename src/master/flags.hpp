@@ -55,8 +55,8 @@ public:
     add(&Flags::whitelist,
         "whitelist",
         "Path to a file with a list of slaves\n"
-        "(one per line) to advertise offers for;\n"
-        "should be of the form: file://path/to/file",
+        "(one per line) to advertise offers for.\n"
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'",
         "*");
 
     add(&Flags::user_sorter,
@@ -95,6 +95,19 @@ public:
         "A comma seperated list of role/weight pairs\n"
         "of the form 'role=weight,role=weight'. Weights\n"
         "are used to indicate forms of priority.");
+
+    add(&Flags::authenticate,
+        "authenticate",
+        "If authenticate is 'true' only authenticated frameworks are allowed\n"
+        "to register. If 'false' unauthenticated frameworks are also\n"
+        "allowed to register.",
+        false);
+
+    add(&Flags::credentials,
+        "credentials",
+        "Path to a file with a list of credentials.\n"
+        "Each line contains a 'principal' and 'secret' separated by whitespace.\n"
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'");
   }
 
   bool root_submissions;
@@ -107,6 +120,8 @@ public:
   Option<std::string> cluster;
   Option<std::string> roles;
   Option<std::string> weights;
+  bool authenticate;
+  Option<std::string> credentials;
 };
 
 } // namespace mesos {

@@ -109,6 +109,14 @@ inline bool operator == (const FrameworkInfo& left, const FrameworkInfo& right)
 }
 
 
+inline bool operator == (const Credential& left, const Credential& right)
+{
+  return left.principal() == right.principal() &&
+         left.has_secret() == right.has_secret() &&
+         (!left.has_secret() || (left.secret() == right.secret()));
+}
+
+
 inline bool operator == (const OfferID& left, const OfferID& right)
 {
   return left.value() == right.value();

@@ -22,6 +22,11 @@
 #include <sasl/sasl.h>
 #include <sasl/saslplug.h>
 
+#include <string>
+#include <vector>
+
+#include <mesos/mesos.hpp>
+
 #include <process/future.hpp>
 #include <process/id.hpp>
 #include <process/once.hpp>
@@ -382,20 +387,35 @@ process::Future<bool> Authenticator::authenticate()
 
 namespace secrets {
 
-// Loads secrets (user -> secret) into the in-memory auxiliary
+// Loads secrets (principal -> secret) into the in-memory auxiliary
 // property plugin that is used by the authenticators.
 void load(const std::map<std::string, std::string>& secrets)
 {
   Multimap<std::string, Property> properties;
 
-  foreachpair (const std::string& user, const std::string& secret, secrets) {
+  foreachpair (const std::string& principal,
+               const std::string& secret, secrets) {
     Property property;
     property.name = SASL_AUX_PASSWORD_PROP;
     property.values.push_back(secret);
-    properties.put(user, property);
+    properties.put(principal, property);
   }
 
   InMemoryAuxiliaryPropertyPlugin::load(properties);
+}
+
+
+// Load credentials into the in-memory auxiliary propery plugin
+// that is used by the authenticators.
+void load(const std::vector<Credential>& credentials)
+{
+  std::map<std::string, std::string> secrets;
+
+  foreach (const Credential& credential, credentials) {
+    secrets[credential.principal()] = credential.secret();
+  }
+
+  load(secrets);
 }
 
 } // namespace secrets {

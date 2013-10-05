@@ -83,15 +83,6 @@ message ExecutorID {
 
 
 /**
- * Describes authentication credentials.
- */
-message Credential {
-  required string principal = 1;
-  optional bytes secret = 2;
-}
-
-
-/**
  * Describes a framework. If the user field is set to an empty string
  * Mesos will automagically set it to the current user. Note that the
  * ID is only available after a framework has registered, however, it
@@ -101,7 +92,7 @@ message Credential {
  * for the scheduler to failover before removing the framework is
  * specified by failover_timeout.
  * If checkpoint is set, framework pid, executor pids and status updates
- * are checkpointed to disk.
+ * are checkpointed to disk by the slaves.
  * Checkpointing allows a restarted slave to reconnect with old executors
  * and recover status updates, at the cost of disk I/O.
  * The role field is used to group frameworks for allocation decisions,
@@ -445,4 +436,18 @@ message Parameter {
  */
 message Parameters {
   repeated Parameter parameter = 1;
+}
+
+
+/**
+ * Credential used for authentication.
+ *
+ * NOTE: The 'principal' is used for authenticating the framework with
+ * the master. This is different from 'FrameworkInfo.user'
+ * which is used to determine the user under which the framework's
+ * executors/tasks are run.
+ */
+message Credential {
+  required string principal = 1;
+  optional bytes secret = 2;
 }
