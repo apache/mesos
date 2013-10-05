@@ -44,7 +44,8 @@ class AuthenticateeProcess;
 class Authenticatee
 {
 public:
-  Authenticatee(const Credential& credential);
+  // 'credential' is used to authenticate the 'client'.
+  Authenticatee(const Credential& credential, const process::UPID& client);
   ~Authenticatee();
 
   // Returns true if successfully authenticated otherwise false or an
@@ -61,9 +62,11 @@ private:
 class AuthenticateeProcess : public ProtobufProcess<AuthenticateeProcess>
 {
 public:
-  AuthenticateeProcess(const Credential& _credential)
+  AuthenticateeProcess(const Credential& _credential,
+                       const process::UPID& _client)
     : ProcessBase(process::ID::generate("authenticatee")),
       credential(_credential),
+      client(_client),
       status(READY),
       connection(NULL)
   {
@@ -164,6 +167,7 @@ public:
     }
 
     AuthenticateMessage message;
+    message.set_pid(client);
     send(pid, message);
 
     status = STARTING;
@@ -291,6 +295,8 @@ protected:
       return;
     }
 
+    LOG(INFO) << "Authentication success";
+
     status = COMPLETED;
     promise.set(true);
   }
@@ -335,6 +341,9 @@ private:
 
   const Credential credential;
 
+  // PID of the client that needs to be authenticated.
+  const process::UPID client;
+
   sasl_secret_t* secret;
 
   sasl_callback_t callbacks[5];
@@ -354,9 +363,11 @@ private:
 };
 
 
-Authenticatee::Authenticatee(const Credential& credential)
+Authenticatee::Authenticatee(
+    const Credential& credential,
+    const process::UPID& client)
 {
-  process = new AuthenticateeProcess(credential);
+  process = new AuthenticateeProcess(credential, client);
   process::spawn(process);
 }
 

@@ -337,7 +337,9 @@ message NewMasterDetectedMessage {
 }
 
 
-message AuthenticateMessage {}
+message AuthenticateMessage {
+  required string pid = 1; // PID that needs to be authenticated.
+}
 
 
 message AuthenticationMechanismsMessage {

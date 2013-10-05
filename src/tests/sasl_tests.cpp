@@ -53,7 +53,7 @@ TEST(SASL, success)
   credential.set_principal("benh");
   credential.set_secret("secret");
 
-  Authenticatee authenticatee(credential);
+  Authenticatee authenticatee(credential, UPID());
 
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
@@ -88,7 +88,7 @@ TEST(SASL, failed1)
   credential.set_principal("benh");
   credential.set_secret("secret");
 
-  Authenticatee authenticatee(credential);
+  Authenticatee authenticatee(credential, UPID());
 
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
@@ -123,7 +123,7 @@ TEST(SASL, failed2)
   credential.set_principal("benh");
   credential.set_secret("secret");
 
-  Authenticatee authenticatee(credential);
+  Authenticatee authenticatee(credential, UPID());
 
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
