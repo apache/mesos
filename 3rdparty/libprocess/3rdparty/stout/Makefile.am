@@ -65,6 +65,7 @@ EXTRA_DIST =					\
   tests/error_tests.cpp				\
   tests/flags_tests.cpp				\
   tests/gzip_tests.cpp				\
+  tests/hashmap_tests.cpp			\
   tests/hashset_tests.cpp			\
   tests/json_tests.cpp				\
   tests/linkedhashmap_tests.cpp			\
