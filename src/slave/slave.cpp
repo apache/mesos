@@ -602,6 +602,12 @@ void Slave::noMasterDetected()
 
 void Slave::registered(const SlaveID& slaveId)
 {
+  if (from != master) {
+    LOG(WARNING) << "Ignoring registration message from " << from
+                 << " because it is not the expected master " << master;
+    return;
+  }
+
   switch(state) {
     case DISCONNECTED: {
       LOG(INFO) << "Registered with master " << master
@@ -643,6 +649,12 @@ void Slave::registered(const SlaveID& slaveId)
 
 void Slave::reregistered(const SlaveID& slaveId)
 {
+  if (from != master) {
+    LOG(WARNING) << "Ignoring re-registration message from " << from
+                 << " because it is not the expected master " << master;
+    return;
+  }
+
   switch(state) {
     case DISCONNECTED:
       LOG(INFO) << "Re-registered with master " << master;
@@ -773,6 +785,9 @@ void Slave::runTask(
     const string& pid,
     const TaskInfo& task)
 {
+  // TODO(bmahler): Consider ignoring requests not originating from the
+  // expected master.
+
   LOG(INFO) << "Got assigned task " << task.task_id()
             << " for framework " << frameworkId;
 
@@ -1043,6 +1058,9 @@ void Slave::_runTask(
 
 void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
 {
+  // TODO(bmahler): Consider ignoring requests not originating from the
+  // expected master.
+
   LOG(INFO) << "Asked to kill task " << taskId
             << " of framework " << frameworkId;
 
