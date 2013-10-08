@@ -795,18 +795,16 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
         foreachvalue (Task* task, slave->tasks[frameworkId]) {
           if (framework->id == task->framework_id()) {
             framework->addTask(task);
-            // Also add the task's executor for resource accounting.
-            if (task->has_executor_id()) {
-              if (!framework->hasExecutor(slave->id, task->executor_id())) {
-                CHECK(slave->hasExecutor(framework->id, task->executor_id()))
-                  << "Unknown executor " << task->executor_id()
-                  << " of framework " << framework->id
-                  << " for the task " << task->task_id();
 
-                const ExecutorInfo& executorInfo =
-                  slave->executors[framework->id][task->executor_id()];
-                framework->addExecutor(slave->id, executorInfo);
-              }
+            // Also add the task's executor for resource accounting
+            // if it's still alive on the slave and we've not yet
+            // added it to the framework.
+            if (task->has_executor_id() &&
+                slave->hasExecutor(framework->id, task->executor_id()) &&
+                !framework->hasExecutor(slave->id, task->executor_id())) {
+              const ExecutorInfo& executorInfo =
+                slave->executors[framework->id][task->executor_id()];
+              framework->addExecutor(slave->id, executorInfo);
             }
           }
         }
