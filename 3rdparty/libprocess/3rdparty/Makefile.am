@@ -121,6 +121,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/error_tests.cpp		\
   $(STOUT)/tests/flags_tests.cpp		\
   $(STOUT)/tests/gzip_tests.cpp			\
+  $(STOUT)/tests/hashmap_tests.cpp		\
   $(STOUT)/tests/hashset_tests.cpp		\
   $(STOUT)/tests/json_tests.cpp			\
   $(STOUT)/tests/linkedhashmap_tests.cpp	\
