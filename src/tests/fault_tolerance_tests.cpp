@@ -998,8 +998,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -1058,6 +1057,112 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   Shutdown();
 
   Clock::resume();
+}
+
+
+// This test was added to ensure MESOS-420 is fixed.
+// We need to make sure that the master correctly handles non-terminal
+// tasks with exited executors upon framework re-registration. This is
+// possible because the ExitedExecutor message can arrive before the
+// terminal status update(s) of its task(s).
+TEST_F(FaultToleranceTest, ReregisterFrameworkExitedExecutor)
+{
+  // First we'll start a master and slave, then register a framework
+  // so we can launch a task.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+  Try<PID<Slave> > slave = StartSlave(&isolator);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  Future<process::Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(1, 1, 16, "*"));
+
+  Future<Nothing> statusUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureSatisfy(&statusUpdate));    // TASK_RUNNING.
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  driver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+
+  // Wait until TASK_RUNNING of the task is received.
+  AWAIT_READY(statusUpdate);
+
+  EXPECT_CALL(sched, disconnected(&driver));
+
+  // Now that the task is launched, we need to induce the following:
+  //   1. ExitedExecutorMessage received by the master prior to a
+  //      terminal status update for the corresponding task. This
+  //      means we need to drop the status update coming from the
+  //      slave.
+  //   2. Framework re-registration.
+  //
+  // To achieve this, we need to:
+  //   1. Restart the master (the slave / framework will not detect
+  //      the new master automatically using the BasicMasterDetector).
+  //   2. Notify the slave of the new master.
+  //   3. Kill the executor.
+  //   4. Drop the status update, but allow the ExitedExecutorMessage.
+  //   5. Notify the framework of the new master.
+  Stop(master.get());
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Simulate a new master detected message to the slave.
+  NewMasterDetectedMessage newMasterDetectedMsg;
+  newMasterDetectedMsg.set_pid(master.get());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  process::post(slave.get(), newMasterDetectedMsg);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Allow the executor exited message and drop the status update.
+  Future<ExitedExecutorMessage> executorExitedMessage =
+    FUTURE_PROTOBUF(ExitedExecutorMessage(), _, _);
+  Future<StatusUpdateMessage> statusUpdateMessage =
+    DROP_PROTOBUF(StatusUpdateMessage(), _, _);
+
+  // Now kill the executor.
+  dispatch(isolator, &Isolator::killExecutor, frameworkId, DEFAULT_EXECUTOR_ID);
+
+  AWAIT_READY(executorExitedMessage);
+  AWAIT_READY(statusUpdateMessage);
+
+  // Now notify the framework of the new master.
+  Future<FrameworkRegisteredMessage> frameworkRegisteredMessage2 =
+    FUTURE_PROTOBUF(FrameworkRegisteredMessage(), _, _);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  process::post(frameworkRegisteredMessage.get().to, newMasterDetectedMsg);
+
+  AWAIT_READY(frameworkRegisteredMessage2);
+
+  driver.stop();
+  driver.join();
+  Shutdown();
 }
 
 
