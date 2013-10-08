@@ -67,7 +67,7 @@ unset MESOS_LAUNCHER_DIR
 unset MESOS_VERBOSE
 
 # Launch master.
-${MASTER} --port=5432 &
+${MASTER} --ip=127.0.0.1 --port=5432 &
 MASTER_PID=${!}
 echo "${GREEN}Launched master at ${MASTER_PID}${NORMAL}"
 sleep 2
@@ -86,7 +86,7 @@ SLAVE_WORK_DIR=`mktemp -d`
 
 ${SLAVE} \
     --work_dir=${SLAVE_WORK_DIR} \
-    --master=localhost:5432 \
+    --master=127.0.0.1:5432 \
     --isolation=cgroups \
     --cgroups_hierarchy=${TEST_CGROUP_HIERARCHY} \
     --cgroups_root=${TEST_CGROUP_ROOT} \
