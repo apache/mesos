@@ -46,7 +46,7 @@ public:
   // if the key is already present.
   void put(const Key& key, const Value& value)
   {
-    erase(key);
+    boost::unordered_map<Key, Value>::erase(key);
     boost::unordered_map<Key, Value>::insert(std::pair<Key, Value>(key, value));
   }
 
