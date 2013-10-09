@@ -1,3 +1,27 @@
+Release Notes - Mesos - Version 0.14.1
+--------------------------------------
+* This is a bug fix release.
+
+** Sub-task
+    * [MESOS-725] - Slave should cleanup meta directory if started in non-strict mode and slave info changes.
+
+** Bug
+    * [MESOS-420] - Master crashes when re-registering framework
+    * [MESOS-488] - The Master incorrectly sends a "Framework failed over" message when the scheduler driver retries an initial failover re-registration.
+    * [MESOS-641] - Stout killtree / pstree tests fail on Ubuntu 10.04.
+    * [MESOS-658] - A framework can be incorrectly removed by the Master.
+    * [MESOS-662] - Executor OOM could lead to a kernel hang
+    * [MESOS-679] - Inability to find a latest run should not be considered a recovery error
+    * [MESOS-680] - Empty files should not be considered as recovery errors
+    * [MESOS-690] - Slave finalize() throws segfault
+    * [MESOS-694] - Preserve exit status for SIGTERM.
+    * [MESOS-711] - Master::reconcile incorrectly recovers resources from reconciled tasks.
+    * [MESOS-714] - Slave should check if the (re-)registered is from the expected master
+
+** Improvement
+    * [MESOS-620] - Add slaveDisconnected and slaveReconnected calls to the Allocator
+
+
 Release Notes - Mesos - Version 0.14.0
 --------------------------------------
 * The primary feature in this release is "Slave Recovery" which allows
