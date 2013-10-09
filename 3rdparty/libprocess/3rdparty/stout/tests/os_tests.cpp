@@ -403,7 +403,9 @@ void dosetsid(void)
 }
 
 
-TEST_F(OsTest, killtree)
+// Disabled in 0.14.0 due to MESOS-641. Will be re-enabled
+// after fixes in 0.14.1.
+TEST_F(OsTest, DISABLED_killtree)
 {
   Try<ProcessTree> tree =
     Fork(dosetsid,                         // Child.
@@ -490,7 +492,9 @@ TEST_F(OsTest, killtree)
 }
 
 
-TEST_F(OsTest, pstree)
+// Disabled in 0.14.0 due to MESOS-641. Will be re-enabled
+// after fixes in 0.14.1.
+TEST_F(OsTest, DISABLED_pstree)
 {
   Try<ProcessTree> tree = os::pstree(getpid());
 

@@ -695,7 +695,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 // is down, because the recovery timeout elapses.
 // When the slave comes back up with recovery=reconnect, make
 // sure the task is properly transitioned to FAILED.
-TYPED_TEST(SlaveRecoveryTest, RecoveryTimeout)
+// Disabled in 0.14.0 due to MESOS-685.
+TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
 {
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
