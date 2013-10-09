@@ -21,7 +21,6 @@ Release Notes - Mesos - Version 0.14.0
 
 * There are also several bug fixes and stability improvements.
 
-
 ** Sub-task
     * [MESOS-548] - Upgrade angular.js to use the full angular-ui.js
     * [MESOS-549] - Change truncated IDs to show on hover
@@ -38,7 +37,6 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-461] - Freezer failure while in FREEZING state.
     * [MESOS-479] - SlaveRecoveryTest/0.CleanupExecutor failure.
     * [MESOS-485] - Latest trunk fails on strict aliasing on CentOS
-    * [MESOS-488] - Master should not send FrameworkError messages if the same scheduler tries to re-register
     * [MESOS-490] - Update mesos-daemon.sh (and associated scripts) to work with new flags mechanisms.
     * [MESOS-497] - Queued tasks should be launched in the order they were received
     * [MESOS-499] - Local slave run crashes on startup
@@ -55,10 +53,11 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-611] - Refactor slave recovery to ensure slave recovers its state first
     * [MESOS-612] - Slave should not recover completed executors
     * [MESOS-614] - Master should remove checkpointing slave that gets disconnected when the new slave tries to register
+    * [MESOS-616] - The Master / Slave should not store frameworks as both active and completed.
     * [MESOS-619] - Master should properly reconcile KillTasks
     * [MESOS-627] - Slave should offer total disk instead of available disk by default
     * [MESOS-628] - A non-checkpointing slave should still cleanup the latest slave symlink
-    * [MESOS-631] - Slave started in cleanup mode shouldn't accept new tasks
+    * [MESOS-632] - Executor driver should commit suicide if it cannot re-connect with a slave after a timeout
     * [MESOS-633] - Master should inform a recovered slave about frameworks that were completed
     * [MESOS-635] - Master doesn't update the task state when it generates TASK_LOST
     * [MESOS-636] - Executors under cgroups isolator die immediately when a slave dies if it has a controlling TTY attached
@@ -69,7 +68,6 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-646] - Slave recovery doesn't properly handle checkpointed queued tasks
     * [MESOS-648] - Slave should properly handle partial writes of status updates
     * [MESOS-657] - SlaveRecoveryTest/1.PartitionedSlave fails with cgroups
-    * [MESOS-658] - A framework can be incorrectly removed by the Master.
     * [MESOS-668] - SlaveRecoveryTest/0.MultipleFrameworks flaky
     * [MESOS-671] - CgroupsIsolator does not listen for OOM events on recovered executors.
     * [MESOS-673] - Task reconciliation does not properly release executor resources.
@@ -94,7 +92,6 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-634] - Make slave recovery more robust by ignoring absence of files
     * [MESOS-651] - Expose slave re-registration time in the Web UI
     * [MESOS-663] - Expose recovery errors when running recovery in --no-strict mode
-    * [MESOS-666] - Include CHANGELOG and docs/ in distributions.
 
 ** New Feature
     * [MESOS-110] - Slave Recovery: A slave restart should not restart tasks
