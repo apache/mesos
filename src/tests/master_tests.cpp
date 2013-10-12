@@ -1022,3 +1022,79 @@ TEST_F(MasterTest, MasterLost)
 
   Shutdown();
 }
+
+// Test sends different state than current and expects an update with
+// the current state of task.
+//
+// TODO(nnielsen): Stubs have been left for future test, where test sends
+// expected state of non-existing task and an update with TASK_LOST should
+// be received. Also (not currently covered) if statuses are up to date,
+// nothing should happen.
+TEST_F(MasterTest, ReconcileTaskTest)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+
+  Try<PID<Slave> > slave = StartSlave(&isolator);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(1, 1, 512, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  EXPECT_EQ(true, status.get().has_slave_id());
+
+  const TaskID taskId = status.get().task_id();
+  const SlaveID slaveId = status.get().slave_id();
+
+  // If framwework has different state, current state should be reported.
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  vector<TaskStatus> statuses;
+
+  TaskStatus differentStatus;
+  differentStatus.mutable_task_id()->CopyFrom(taskId);
+  differentStatus.mutable_slave_id()->CopyFrom(slaveId);
+  differentStatus.set_state(TASK_KILLED);
+
+  statuses.push_back(differentStatus);
+
+  driver.reconcileTasks(statuses);
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+}

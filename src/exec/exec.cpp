@@ -498,6 +498,10 @@ protected:
     update->set_uuid(UUID::random().toBytes());
     message.set_pid(self());
 
+    // Incoming status update might come from an executor which has not set
+    // slave id in TaskStatus. Set/overwrite slave id.
+    update->mutable_status()->mutable_slave_id()->CopyFrom(slaveId);;
+
     VLOG(1) << "Executor sending status update " << *update;
 
     // Capture the status update.

@@ -499,6 +499,11 @@ void Master::initialize()
       &StatusUpdateMessage::update,
       &StatusUpdateMessage::pid);
 
+  install<ReconcileTasksMessage>(
+      &Master::reconcileTasks,
+      &ReconcileTasksMessage::framework_id,
+      &ReconcileTasksMessage::statuses);
+
   install<ExitedExecutorMessage>(
       &Master::exitedExecutor,
       &ExitedExecutorMessage::slave_id,
@@ -1536,6 +1541,55 @@ void Master::deactivateSlave(const SlaveID& slaveId)
 
   send(slave->pid, ShutdownMessage());
   removeSlave(slave);
+}
+
+
+void Master::reconcileTasks(
+    const FrameworkID& frameworkId,
+    const std::vector<TaskStatus>& statuses)
+{
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+    LOG(WARNING) << "Unknown framework " << frameworkId << " at " << from
+                 << " attempted to reconcile tasks";
+    return;
+  }
+
+  LOG(INFO) << "Performing task state reconciliation for framework "
+            << frameworkId;
+
+  // Verify expected task states and send status updates whenever expectations
+  // are not met. When:
+  //   1) Slave is unknown.*
+  //   2) Task is unknown.*
+  //   3) Task state has changed.
+  //
+  // *) TODO(nnielsen): Missing slaves and tasks are currently treated silently
+  //                    i.e. nothing is sent. To give accurate responses in
+  //                    these cases during master fail-over, we need to leverage
+  //                    the registrar.
+  foreach (const TaskStatus& status, statuses) {
+    if (!status.has_slave_id()) {
+      LOG(WARNING) << "Status from task " << status.task_id()
+                   << " does not include slave id";
+      continue;
+    }
+
+    Slave* slave = getSlave(status.slave_id());
+    if (slave != NULL) {
+      Task* task = slave->getTask(frameworkId, status.task_id());
+      if (task != NULL && task->state() != status.state()) {
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+          frameworkId,
+          task->slave_id(),
+          task->task_id(),
+          task->state(),
+          "Task state changed");
+
+        statusUpdate(update, UPID());
+      }
+    }
+  }
 }
 
 

@@ -142,4 +142,10 @@ public interface SchedulerDriver {
   Status sendFrameworkMessage(ExecutorID executorId,
                               SlaveID slaveId,
                               byte[] data);
+
+  /**
+   * Reconciliation of tasks causes the master to send status updates for tasks
+   * whose status differs from the status sent here.
+   */
+  Status reconcileTasks(Collection<TaskStatus> statuses);
 }

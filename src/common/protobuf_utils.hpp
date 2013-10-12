@@ -63,6 +63,7 @@ inline StatusUpdate createStatusUpdate(
 
   TaskStatus* status = update.mutable_status();
   status->mutable_task_id()->MergeFrom(taskId);
+  status->mutable_slave_id()->MergeFrom(slaveId);
   status->set_state(state);
   status->set_message(message);
 

@@ -843,4 +843,48 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_requestReso
   return convert<Status>(env, status);
 }
 
+/*
+ * Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    reconcileTasks
+ * Signature: (Ljava/util/Collection;)Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_reconcileTasks
+  (JNIEnv* env, jobject thiz, jobject jstatuses)
+{
+  // Construct a C++ TaskStatus from each Java TaskStatus.
+  vector<TaskStatus> statuses;
+
+  jclass clazz = env->GetObjectClass(jstatuses);
+
+  // Iterator iterator = statuses.iterator();
+  jmethodID iterator =
+    env->GetMethodID(clazz, "iterator", "()Ljava/util/Iterator;");
+  jobject jiterator = env->CallObjectMethod(jstatuses, iterator);
+
+  clazz = env->GetObjectClass(jiterator);
+
+  // while (iterator.hasNext()) {
+  jmethodID hasNext = env->GetMethodID(clazz, "hasNext", "()Z");
+
+  jmethodID next = env->GetMethodID(clazz, "next", "()Ljava/lang/Object;");
+
+  while (env->CallBooleanMethod(jiterator, hasNext)) {
+    // Object status = iterator.next();
+    jobject jstatus = env->CallObjectMethod(jiterator, next);
+    const TaskStatus& status = construct<TaskStatus>(env, jstatus);
+    statuses.push_back(status);
+  }
+
+  // Now invoke the underlying driver.
+  clazz = env->GetObjectClass(thiz);
+
+  jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
+  MesosSchedulerDriver* driver =
+    (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
+
+  Status status = driver->reconcileTasks(statuses);
+
+  return convert<Status>(env, status);
+}
+
 } // extern "C" {

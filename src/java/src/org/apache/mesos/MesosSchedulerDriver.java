@@ -169,6 +169,8 @@ public class MesosSchedulerDriver implements SchedulerDriver {
                                             SlaveID slaveId,
                                             byte[] data);
 
+  public native Status reconcileTasks(Collection<TaskStatus> statuses);
+
   protected native void initialize();
   protected native void finalize();
 

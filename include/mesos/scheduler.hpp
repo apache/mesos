@@ -280,6 +280,13 @@ public:
   virtual Status sendFrameworkMessage(const ExecutorID& executorId,
                                       const SlaveID& slaveId,
                                       const std::string& data) = 0;
+
+  /**
+   * Reconciliation of tasks causes the master to send status updates for tasks
+   * whose status differs from the status sent here.
+   */
+  virtual Status reconcileTasks(
+      const std::vector<TaskStatus>& statuses) = 0;
 };
 
 
@@ -368,6 +375,8 @@ public:
   virtual Status sendFrameworkMessage(const ExecutorID& executorId,
                                       const SlaveID& slaveId,
                                       const std::string& data);
+  virtual Status reconcileTasks(
+      const std::vector<TaskStatus>& statuses);
 
 private:
   Scheduler* scheduler;

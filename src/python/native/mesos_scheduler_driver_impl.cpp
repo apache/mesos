@@ -122,6 +122,10 @@ PyMethodDef MesosSchedulerDriverImpl_methods[] = {
    (PyCFunction) MesosSchedulerDriverImpl_sendFrameworkMessage,
    METH_VARARGS,
    "Send a FrameworkMessage to a slave"},
+   {"reconcileTasks",
+   (PyCFunction) MesosSchedulerDriverImpl_reconcileTasks,
+   METH_VARARGS,
+   "Master sends status updates if task status is different from last known state."},
   {NULL}  /* Sentinel */
 };
 
@@ -536,6 +540,50 @@ PyObject* MesosSchedulerDriverImpl_sendFrameworkMessage(
       executorId, slaveId, string(data, length));
 
   return PyInt_FromLong(status); // Sets exception if creating long fails.
+}
+
+
+PyObject* MesosSchedulerDriverImpl_reconcileTasks(
+    MesosSchedulerDriverImpl* self,
+    PyObject* args)
+{
+  if (self->driver == NULL) {
+    PyErr_Format(PyExc_Exception, "MesosSchedulerDriverImpl.driver is NULL");
+    return NULL;
+  }
+
+  PyObject* statusesObj = NULL;
+  vector<TaskStatus> statuses;
+
+  if (!PyArg_ParseTuple(args, "O", &statusesObj)) {
+    return NULL;
+  }
+
+  if (!PyList_Check(statusesObj)) {
+    PyErr_Format(PyExc_Exception,
+      "Parameter 1 to reconcileTasks is not a list");
+
+    return NULL;
+  }
+
+  Py_ssize_t len = PyList_Size(statusesObj);
+  for (int i = 0; i < len; i++) {
+    PyObject* statusObj = PyList_GetItem(statusesObj, i);
+    if (statusObj == NULL) {
+      return NULL;
+    }
+
+    TaskStatus status;
+    if (!readPythonProtobuf(statusObj, &status)) {
+      PyErr_Format(PyExc_Exception,
+                   "Could not deserialize Python TaskStatus");
+      return NULL;
+    }
+    statuses.push_back(status);
+  }
+
+  Status status = self->driver->reconcileTasks(statuses);
+  return PyInt_FromLong(status);
 }
 
 } // namespace python {

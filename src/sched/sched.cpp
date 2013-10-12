@@ -857,6 +857,23 @@ protected:
     }
   }
 
+  void reconcileTasks(const vector<TaskStatus>& statuses)
+  {
+    if (!connected) {
+     VLOG(1) << "Ignoring task reconciliation as master is disconnected";
+     return;
+    }
+
+    ReconcileTasksMessage message;
+    message.mutable_framework_id()->MergeFrom(framework.id());
+
+    foreach (const TaskStatus& status, statuses) {
+      message.add_statuses()->MergeFrom(status);
+    }
+
+    send(master, message);
+  }
+
 private:
   friend class mesos::MesosSchedulerDriver;
 
@@ -1239,6 +1256,23 @@ Status MesosSchedulerDriver::sendFrameworkMessage(
 
   dispatch(process, &SchedulerProcess::sendFrameworkMessage,
            executorId, slaveId, data);
+
+  return status;
+}
+
+
+Status MesosSchedulerDriver::reconcileTasks(
+    const vector<TaskStatus>& statuses)
+{
+  Lock lock(&mutex);
+
+  if (status != DRIVER_RUNNING) {
+    return status;
+  }
+
+  CHECK(process != NULL);
+
+  dispatch(process, &SchedulerProcess::reconcileTasks, statuses);
 
   return status;
 }

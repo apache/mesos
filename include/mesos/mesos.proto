@@ -389,6 +389,7 @@ message TaskStatus {
   required TaskState state = 2;
   optional string message = 4; // Possible message explaining state.
   optional bytes data = 3;
+  optional SlaveID slave_id = 5;
 }
 
 

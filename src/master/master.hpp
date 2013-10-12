@@ -132,6 +132,10 @@ public:
   void offer(const FrameworkID& framework,
              const hashmap<SlaveID, Resources>& resources);
 
+  void reconcileTasks(
+      const FrameworkID& frameworkId,
+      const std::vector<TaskStatus>& statuses);
+
   void authenticate(const UPID& pid);
 
 protected:
