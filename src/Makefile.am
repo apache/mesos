@@ -215,6 +215,7 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	common/lock.hpp							\
 	common/type_utils.hpp common/thread.hpp common/units.hpp	\
 	detector/detector.hpp examples/utils.hpp files/files.hpp	\
+	hdfs/hdfs.hpp							\
 	launcher/launcher.hpp linux/cgroups.hpp				\
 	linux/fs.hpp local/flags.hpp local/local.hpp			\
 	logging/flags.hpp logging/logging.hpp				\
