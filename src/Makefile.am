@@ -52,6 +52,7 @@ noinst_LTLIBRARIES =
 sbin_PROGRAMS =
 bin_PROGRAMS =
 pkglibexec_PROGRAMS =
+dist_bin_SCRIPTS =
 dist_pkglibexec_SCRIPTS =
 nobase_dist_pkgdata_DATA =
 nodist_sbin_SCRIPTS =
@@ -361,6 +362,20 @@ bin_PROGRAMS += mesos
 mesos_SOURCES = cli/mesos.cpp
 mesos_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_LDADD = libmesos.la
+
+bin_PROGRAMS += mesos-execute
+mesos_execute_SOURCES = cli/execute.cpp
+mesos_execute_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_execute_LDADD = libmesos.la
+
+bin_PROGRAMS += mesos-resolve
+mesos_resolve_SOURCES = cli/resolve.cpp
+mesos_resolve_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_resolve_LDADD = libmesos.la
+
+# Need to distribute and install mesos-*.
+dist_bin_SCRIPTS +=							\
+  cli/mesos-ps
 
 # Need to distribute/install webui javascript. We use 'pkgdatadir'
 # instead of 'datadir' as the install directory so we get the the

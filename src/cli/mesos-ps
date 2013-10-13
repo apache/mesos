@@ -1,0 +1,229 @@
+#!/usr/bin/env python2.6
+
+import datetime
+import json
+import resource
+import subprocess
+import sys
+import time
+import urllib
+
+from optparse import OptionParser
+
+USER_COLUMN_WIDTH = 4
+FRAMEWORK_COLUMN_WIDTH = 4
+TASK_COLUMN_WIDTH = 6
+SLAVE_COLUMN_WIDTH = 14
+MEM_COLUMN_WIDTH = 8
+TIME_COLUMN_WIDTH = 14
+
+
+# Helper that uses 'mesos-resolve' to resolve the master's IP:port.
+def resolve(master):
+  process = subprocess.Popen(
+    ['mesos-resolve', master],
+    stdin=None,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    shell=False)
+
+  status = process.wait()
+  if status != 0:
+    print 'Failed to execute \'mesos-resolve %s\':\n' % master
+    print process.stderr.read()
+    sys.exit(1)
+
+  result = process.stdout.read()
+  process.stdout.close()
+  process.stderr.close()
+  return result
+
+
+# Helper to determine the number of open file descriptors specified by
+# ulimit (since resource.RLIMIT_NOFILE is not always accurate).
+def ulimit(args):
+  command = args if isinstance(args, list) else [ args ]
+  command.insert(0, 'ulimit')
+  process = subprocess.Popen(
+    command,
+    stdin=None,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    shell=False)
+
+  status = process.wait()
+  if status != 0:
+    print 'Failed to execute \'ulimit %s\':\n' % ' '.join(command)
+    print process.stderr.read()
+    sys.exit(1)
+
+  result = process.stdout.read()
+  process.stdout.close()
+  process.stderr.close()
+  return result
+
+class Slave:
+  def __init__(self, slave):
+    self.slave = slave
+    self.process = None
+    self.statistics = None
+
+  def hostname(self):
+    return self.slave['hostname']
+
+  def curl(self):
+    if self.process is None:
+      pid = self.slave['pid']
+      url = 'http://' + pid[len('slave(1)@'):] + '/monitor/statistics.json'
+      self.process = subprocess.Popen(
+        ['curl', '-s', url],
+        stdin=None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=False)
+
+  def load(self):
+    if self.process is None:
+      self.curl()
+    if self.statistics is None:
+      status = self.process.wait()
+      if status != 0:
+        print 'Failed to execute \'curl\':\n'
+        print self.process.stderr.read()
+        sys.exit(1)
+      self.statistics = json.loads(self.process.stdout.read())
+      self.process.stdout.close()
+      self.process.stderr.close()
+
+  def cpus_time_secs(self, task):
+    self.load()
+    framework_id = task['framework_id']
+    executor_id = task['executor_id']
+    if executor_id == "": executor_id = task['id']
+    for i in range(len(self.statistics)):
+      entry = self.statistics[i]
+      if entry['framework_id'] == framework_id and \
+         entry['executor_id'] == executor_id:
+        return entry['statistics']['cpus_system_time_secs'] + \
+               entry['statistics']['cpus_user_time_secs']
+    return None
+
+  def mem_rss_bytes(self, task):
+    self.load()
+    framework_id = task['framework_id']
+    executor_id = task['executor_id']
+    if executor_id == "": executor_id = task['id']
+    for i in range(len(self.statistics)):
+      entry = self.statistics[i]
+      if entry['framework_id'] == framework_id and \
+         entry['executor_id'] == executor_id:
+        return entry['statistics']['mem_rss_bytes']
+    return None
+
+
+# Define the columns.
+class Column:
+  def __init__(self, title, padding):
+    self.title = title
+    self.padding = padding
+
+  def width(self):
+    return len(self.title) + self.padding
+
+  def format(self, text):
+    if text is None:
+      return ' ' * self.width()
+
+    text = str(text)
+
+    # If 'text' is less than the width then add spaces.
+    # Otherwise, abbreviate and add a space.
+    if len(text) < self.width():
+      spaces = ' ' * (self.width() - len(text))
+      text += spaces
+    else:
+      text = text[:self.width() - 4]
+      text += '... '
+    return text
+
+
+def main():
+  # Parse options for this script.
+  parser = OptionParser()
+  parser.add_option('--master')
+  (options, args) = parser.parse_args(sys.argv)
+
+  if options.master is None:
+    print "Missing --master\n"
+    parser.print_help()
+    exit(-1)
+
+  url = 'http://' + resolve(options.master) + '/master/state.json'
+  file = urllib.urlopen(url)
+  state = json.loads(file.read())
+  file.close()
+
+  # Build a dict from slave ID to `slaves'.
+  slaves = {}
+  for slave in state['slaves']:
+    slaves[slave['id']] = Slave(slave)
+
+  # Initiate the curl requests in batches less than the open file
+  # descriptor limit.
+  fd_limit = ulimit('-Sn')
+
+  batch = []
+  for slave in slaves.values():
+    if len(batch) == fd_limit:
+      for slave in batch:
+        slave.load() # Forces close of open file descriptors.
+      batch = []
+    slave.curl()
+    batch.append(slave)
+
+  columns = {}
+
+  columns[0] = Column('USER', USER_COLUMN_WIDTH)
+  columns[1] = Column('FRAMEWORK', FRAMEWORK_COLUMN_WIDTH)
+  columns[2] = Column('TASK', TASK_COLUMN_WIDTH)
+  columns[3] = Column('SLAVE', SLAVE_COLUMN_WIDTH)
+  columns[4] = Column('MEM', MEM_COLUMN_WIDTH)
+  columns[5] = Column('TIME', TIME_COLUMN_WIDTH)
+
+  for i in columns:
+    sys.stdout.write(columns[i].title)
+    sys.stdout.write(' ' * columns[i].padding)
+
+  for framework in state['frameworks']:
+    for task in framework['tasks']:
+      sys.stdout.write('\n')
+      sys.stdout.write(columns[0].format(framework['user']))
+      sys.stdout.write(columns[1].format(framework['name']))
+      sys.stdout.write(columns[2].format(task['name']))
+      sys.stdout.write(columns[3].format(slaves[task['slave_id']].hostname()))
+
+      # Get memory usage and cpus *time* from the slave (we can't get
+      # cpus % unless we have a previous value).
+      mem_rss_bytes = slaves[task['slave_id']].mem_rss_bytes(task)
+      cpus_time_secs = slaves[task['slave_id']].cpus_time_secs(task)
+
+      if mem_rss_bytes is not None:
+        MB = 1024.0 * 1024.0
+        mem_rss_megabytes = mem_rss_bytes / MB
+        s = "{0:.1f} MB".format(mem_rss_megabytes)
+        sys.stdout.write(columns[4].format(s))
+      else:
+        sys.stdout.write(columns[4].format(None))
+
+      if cpus_time_secs is not None:
+        dt = datetime.datetime.utcfromtimestamp(cpus_time_secs)
+        sys.stdout.write(columns[5].format(dt.strftime('%H:%M:%S.%f')))
+      else:
+        sys.stdout.write(columns[5].format(None))
+
+  sys.stdout.write('\n')
+  sys.stdout.flush()
+
+
+if __name__ == "__main__":
+  main()
