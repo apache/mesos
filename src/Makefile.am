@@ -356,10 +356,10 @@ mesos_log_SOURCES = log/main.cpp
 mesos_log_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_log_LDADD = libmesos.la
 
-bin_PROGRAMS += mesos-mesos
-mesos_mesos_SOURCES = mesos/main.cpp
-mesos_mesos_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_mesos_LDADD = libmesos.la
+bin_PROGRAMS += mesos
+mesos_SOURCES = cli/mesos.cpp
+mesos_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_LDADD = libmesos.la
 
 # Need to distribute/install webui javascript. We use 'pkgdatadir'
 # instead of 'datadir' as the install directory so we get the the
