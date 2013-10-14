@@ -364,24 +364,6 @@
   });
 
 
-  mesosApp.controller('DashboardCtrl', function($scope) {
-    setNavbarActiveTab('dashboard');
-
-    var context = cubism.context()
-      .step(1000)
-      .size(1440);
-
-    // Create a "cpus" horizon.
-    horizons.create(context, "cpus", random(context, "cpus"), [0, 10], "cpus");
-
-    // Create a "mem" horizon.
-    horizons.create(context, "mem", random(context, "mem"), [0, 10], "mb");
-
-    // Do any cleanup before we change the route.
-    $scope.$on('$routeChangeStart', function() { context.stop(); });
-  });
-
-
   mesosApp.controller('FrameworksCtrl', function($scope) {
     setNavbarActiveTab('frameworks');
 

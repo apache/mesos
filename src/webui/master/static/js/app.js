@@ -6,8 +6,6 @@
       $routeProvider
         .when('/',
           {templateUrl: 'static/home.html', controller: 'HomeCtrl'})
-        .when('/dashboard',
-          {templateUrl: 'static/dashboard.html', controller: 'DashboardCtrl'})
         .when('/frameworks',
           {templateUrl: 'static/frameworks.html', controller: 'FrameworksCtrl'})
         .when('/frameworks/:id',
