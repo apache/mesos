@@ -45,7 +45,13 @@
     .filter('truncateMesosID', function() {
       return function(id) {
         if (id) {
-          return '…' + id.split('-').splice(3, 3).join('-');
+          var truncatedIdParts = id.split('-');
+
+          if (truncatedIdParts.length > 3) {
+            return '…' + truncatedIdParts.splice(3, 3).join('-');
+          } else {
+            return id;
+          }
         } else {
           return '';
         }
