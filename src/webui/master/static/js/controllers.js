@@ -753,7 +753,7 @@
           } else {
             // Otherwise navigate to the framework page, which is likely the
             // previous page anyway.
-            $location.path('/frameworks/' + $routeParms.framework_id).replace();
+            $location.path('/frameworks/' + $routeParams.framework_id).replace();
           }
         }
 
