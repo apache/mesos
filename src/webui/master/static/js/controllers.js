@@ -734,7 +734,30 @@
   mesosApp.controller('SlaveExecutorRerouterCtrl',
       function($http, $location, $routeParams, $scope, $window) {
 
-    var pid = $scope.slaves[$routeParams.slave_id].pid;
+    // TODO(ssorallen): Add error messaging on the following pageview should
+    // an error cause this function to be called.
+    function goBack() {
+      if ($window.history.length > 1) {
+        // If the browser has something in its history, just go back.
+        $window.history.back();
+      } else {
+        // Otherwise navigate to the framework page, which is likely the
+        // previous page anyway.
+        $location.path('/frameworks/' + $routeParams.framework_id).replace();
+      }
+    }
+
+    // When navigating directly to this page, e.g. pasting the URL into the
+    // browser, the previous page is not a page in Mesos. In that case, navigate
+    // home.
+    if (!$scope.slaves) { return $location.path('/').replace(); }
+
+    var slave = $scope.slaves[$routeParams.slave_id];
+
+    // If the slave doesn't exist, send the user back.
+    if (!slave) { return goBack(); }
+
+    var pid = slave.pid;
     var hostname = $scope.slaves[$routeParams.slave_id].hostname;
     var id = pid.substring(0, pid.indexOf('@'));
     var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
@@ -743,19 +766,6 @@
     // to navigate directly to the executor's sandbox.
     $http.jsonp('http://' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
       .success(function(response) {
-
-        // TODO(ssorallen): Add error messaging on the following pageview should
-        // an error cause this function to be called.
-        function goBack() {
-          if ($window.history.length > 1) {
-            // If the browser has something in its history, just go back.
-            $window.history.back();
-          } else {
-            // Otherwise navigate to the framework page, which is likely the
-            // previous page anyway.
-            $location.path('/frameworks/' + $routeParams.framework_id).replace();
-          }
-        }
 
         function matchFramework(framework) {
           return $routeParams.framework_id === framework.id;
