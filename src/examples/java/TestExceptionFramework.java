@@ -116,6 +116,11 @@ public class TestExceptionFramework {
           args[0]);
     }
 
-    System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);
+    int status = driver.run() == Status.DRIVER_STOPPED ? 0 : 1;
+
+    // Ensure that the driver process terminates.
+    driver.stop();
+
+    System.exit(status);
   }
 }

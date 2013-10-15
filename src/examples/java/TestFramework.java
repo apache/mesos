@@ -189,9 +189,8 @@ public class TestFramework {
 
     int status = driver.run() == Status.DRIVER_STOPPED ? 0 : 1;
 
-    // NOTE: We sleep for a second here to wait for the scheduler driver
-    // process to terminate. This is a hack for now.
-    Thread.sleep(1000);
+    // Ensure that the driver process terminates.
+    driver.stop();
 
     System.exit(status);
   }

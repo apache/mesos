@@ -243,6 +243,9 @@ int main(int argc, char** argv)
 
   int status = driver->run() == DRIVER_STOPPED ? 0 : 1;
 
+  // Ensure that the driver process terminates.
+  driver->stop();
+
   delete driver;
   return status;
 }

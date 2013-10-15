@@ -181,6 +181,7 @@ class SchedulerDriver
 public:
   /**
    * Empty virtual destructor (necessary to instantiate subclasses).
+   * It is expected that 'stop()' is called before this is called.
    */
   virtual ~SchedulerDriver() {}
 
@@ -207,7 +208,8 @@ public:
    * separated so that code can detect an aborted driver (i.e., via
    * the return status of SchedulerDriver::join, see below), and
    * instantiate and start another driver if desired (from within the
-   * same process).
+   * same process). Note that 'stop()' is not automatically called
+   * inside 'abort()'.
    */
   virtual Status abort() = 0;
 

@@ -161,4 +161,9 @@ if __name__ == "__main__":
         framework,
         sys.argv[1])
 
-  sys.exit(0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1)
+  status = 0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1
+
+  # Ensure that the driver process terminates.
+  driver.stop();
+
+  sys.exit(status)
