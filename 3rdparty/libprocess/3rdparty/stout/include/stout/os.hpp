@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <utime.h>
 
 #include <glog/logging.h>
 
@@ -221,19 +222,32 @@ inline Try<bool> isNonblock(int fd)
 }
 
 
-inline Try<Nothing> touch(const std::string& path)
+// Sets the access and modification times of 'path' to the current time.
+inline Try<Nothing> utime(const std::string& path)
 {
-  Try<int> fd =
-    open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
-
-  if (fd.isError()) {
-    return Error("Failed to open file '" + path + "'");
+  if (::utime(path.c_str(), NULL) == -1) {
+    return ErrnoError();
   }
 
-  // TODO(benh): Is opening/closing sufficient to have the same
-  // semantics as the touch utility (i.e., doesn't the utility change
-  // the modified date)?
-  return close(fd.get());
+  return Nothing();
+}
+
+
+inline Try<Nothing> touch(const std::string& path)
+{
+  if (!exists(path)) {
+    Try<int> fd =
+      open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
+    if (fd.isError()) {
+      return Error("Failed to open file: " + fd.error());
+    }
+
+    return close(fd.get());
+  }
+
+  // Update the access and modification times.
+  return utime(path);
 }
 
 
