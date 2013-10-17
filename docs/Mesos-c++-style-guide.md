@@ -19,8 +19,46 @@ We follow the [Google C++ Style Guide](http://google-styleguide.googlecode.com/s
 - At most 70 characters per line in comments.
 
 ## Indentation
-- New line when calling or defining a function: indent with 4 spaces.
-- Other cases: indent with 2 spaces.
+- Newline when calling or defining a function: indent with 4 spaces.
+- We do not follow Google's style of wrapping on the open parenthesis, the general goal is to reduce visual "jaggedness" in the code. Prefer (1), (4), (5), sometimes (3), never (2):
+
+<pre>
+// 1: OK.
+allocator->resourcesUnused(frameworkId, slaveId, resources, filters);
+
+// 2: Don't use.
+allocator->resourcesUnused(frameworkId, slaveId,
+                           resources, filters);
+
+// 3: Don't use in this case due to "jaggedness".
+allocator->resourcesUnused(frameworkId,
+                           slaveId,
+                           resources,
+                           filters);
+
+// 3: In this case, 3 is OK.
+foobar(someArgument,
+       someOtherArgument,
+       theLastArgument);
+
+// 4: OK.
+allocator->resourcesUnused(
+    frameworkId,
+    slaveId,
+    resources,
+    filters);
+
+// 5: OK.
+allocator->resourcesUnused(
+    frameworkId, slaveId, resources, filters);
+</pre>
+
+- Newline for an assignment statement: indent with 2 spaces.
+
+<pre>
+Try&lt;Duration&gt; failoverTimeout =
+  Duration::create(FrameworkInfo().failover_timeout());
+</pre>
 
 ## New Lines
 - 1 blank line at the end of the file.
