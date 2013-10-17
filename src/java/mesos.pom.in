@@ -87,7 +87,7 @@
     </dependency>
   </dependencies>
   <build>
-    <sourceDirectory>${basedir}/src</sourceDirectory>
+    <sourceDirectory>@abs_top_srcdir@/src/java/src</sourceDirectory>
     <resources>
       <resource>
         <directory>${basedir}/classes</directory>
@@ -127,7 +127,7 @@
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
-          <sourcepath>src</sourcepath>
+          <sourcepath>@abs_top_srcdir@/src/java/src</sourcepath>
           <subpackages>org.apache.mesos</subpackages>
         </configuration>
         <executions>
