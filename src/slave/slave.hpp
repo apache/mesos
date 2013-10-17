@@ -263,6 +263,9 @@ protected:
   // Removes and garbage collects the framework.
   void removeFramework(Framework* framework);
 
+  // Schedules a 'path' for gc based on its modification time.
+  Future<Nothing> garbageCollect(const std::string& path);
+
 private:
   // Inner class used to namespace HTTP route handlers (see
   // slave/http.cpp for implementations).

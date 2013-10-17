@@ -2266,7 +2266,8 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   const string& path = paths::getExecutorRunPath(
       flags.work_dir, info.id(), framework->id, executor->id, executor->uuid);
 
-  gc.schedule(flags.gc_delay, path)
+  os::utime(path); // Update the modification time.
+  garbageCollect(path)
     .then(defer(self(), &Self::detachFile, path));
 
   // Schedule the top level executor work directory, only if the
@@ -2275,7 +2276,8 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
     const string& path = paths::getExecutorPath(
         flags.work_dir, info.id(), framework->id, executor->id);
 
-    gc.schedule(flags.gc_delay, path);
+    os::utime(path); // Update the modification time.
+    garbageCollect(path);
   }
 
   if (executor->checkpoint) {
@@ -2283,7 +2285,8 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
     const string& path = paths::getExecutorRunPath(
         metaDir, info.id(), framework->id, executor->id, executor->uuid);
 
-    gc.schedule(flags.gc_delay, path);
+    os::utime(path); // Update the modification time.
+    garbageCollect(path);
 
     // Schedule the top level executor meta directory, only if the
     // framework doesn't have any 'pending' tasks for this executor.
@@ -2291,7 +2294,8 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
       const string& path = paths::getExecutorPath(
           metaDir, info.id(), framework->id, executor->id);
 
-      gc.schedule(flags.gc_delay, path);
+      os::utime(path); // Update the modification time.
+      garbageCollect(path);
     }
   }
 
@@ -2329,14 +2333,16 @@ void Slave::removeFramework(Framework* framework)
   const string& path = paths::getFrameworkPath(
       flags.work_dir, info.id(), framework->id);
 
-  gc.schedule(flags.gc_delay, path);
+  os::utime(path); // Update the modification time.
+  garbageCollect(path);
 
   if (framework->info.checkpoint()) {
     // Schedule the framework meta directory to get garbage collected.
     const string& path = paths::getFrameworkPath(
         metaDir, info.id(), framework->id);
 
-    gc.schedule(flags.gc_delay, path);
+    os::utime(path); // Update the modification time.
+    garbageCollect(path);
   }
 
   frameworks.erase(framework->id);
@@ -2722,7 +2728,7 @@ void Slave::__recover(const Future<Nothing>& future)
   // the latest slave.
   const string& directory = path::join(flags.work_dir, "slaves");
   foreach (const string& entry, os::ls(directory)) {
-    const string& path = path::join(directory, entry);
+    string path = path::join(directory, entry);
     // Ignore non-directory entries.
     if (!os::isdir(path)) {
       continue;
@@ -2736,12 +2742,19 @@ void Slave::__recover(const Future<Nothing>& future)
     if (!info.has_id() || !(slaveId == info.id())) {
       LOG(INFO) << "Garbage collecting old slave " << slaveId;
 
-      // GC the slave work directory.
-      gc.schedule(flags.gc_delay, path);
+      // NOTE: We update the modification time of the slave work/meta
+      // directories even though these are old because these
+      // directories might not have been scheduled for gc before.
 
-      if (os::exists(paths::getSlavePath(metaDir, slaveId))) {
-        // GC the slave meta directory.
-        gc.schedule(flags.gc_delay, paths::getSlavePath(metaDir, slaveId));
+      // GC the slave work directory.
+      os::utime(path); // Update the modification time.
+      garbageCollect(path);
+
+      // GC the slave meta directory.
+      path = paths::getSlavePath(metaDir, slaveId);
+      if (os::exists(path)) {
+        os::utime(path); // Update the modification time.
+        garbageCollect(path);
       }
     }
   }
@@ -2773,12 +2786,13 @@ void Slave::recoverFramework(const FrameworkState& state)
 
   if (state.executors.empty()) {
     // GC the framework work directory.
-    gc.schedule(flags.gc_delay,
-                paths::getFrameworkPath(flags.work_dir, info.id(), state.id));
+    garbageCollect(
+        paths::getFrameworkPath(flags.work_dir, info.id(), state.id));
 
     // GC the framework meta directory.
-    gc.schedule(flags.gc_delay,
-                paths::getFrameworkPath(metaDir, info.id(), state.id));
+    garbageCollect(
+        paths::getFrameworkPath(metaDir, info.id(), state.id));
+
     return;
   }
 
@@ -2811,6 +2825,22 @@ void Slave::recoverFramework(const FrameworkState& state)
   }
 }
 
+
+Future<Nothing> Slave::garbageCollect(const string& path)
+{
+  Try<long> mtime = os::mtime(path);
+  if (mtime.isError()) {
+    LOG(ERROR) << "Failed to find the mtime of '" << path
+               << "': " << mtime.error();
+    return Future<Nothing>::failed(mtime.error());
+  }
+
+  // GC based on the modification time.
+  Duration delay =
+    flags.gc_delay - (Clock::now().duration() - Seconds(mtime.get()));
+
+  return gc.schedule(delay, path);
+}
 
 
 Framework::Framework(
@@ -2956,11 +2986,11 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
                  << " because its latest run cannot be recovered";
 
     // GC the top level executor work directory.
-    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorPath(
+    slave->garbageCollect(paths::getExecutorPath(
         slave->flags.work_dir, slave->info.id(), id, state.id));
 
     // GC the top level executor meta directory.
-    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorPath(
+    slave->garbageCollect(paths::getExecutorPath(
         slave->metaDir, slave->info.id(), id, state.id));
 
     return NULL;
@@ -2971,14 +3001,15 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
   const UUID& uuid = state.latest.get();
   foreachvalue (const RunState& run, state.runs) {
     CHECK_SOME(run.id);
-    if (uuid != run.id.get()) {
+    const UUID& runId = run.id.get();
+    if (uuid != runId) {
       // GC the executor run's work directory.
-      slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorRunPath(
-          slave->flags.work_dir, slave->info.id(), id, state.id, run.id.get()));
+      slave->garbageCollect(paths::getExecutorRunPath(
+          slave->flags.work_dir, slave->info.id(), id, state.id, runId));
 
       // GC the executor run's meta directory.
-      slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorRunPath(
-          slave->metaDir, slave->info.id(), id, state.id, run.id.get()));
+      slave->garbageCollect(paths::getExecutorRunPath(
+          slave->metaDir, slave->info.id(), id, state.id, runId));
 
       // NOTE: We don't schedule the top level executor work and meta
       // directories for GC here, because they will be scheduled when
@@ -3000,20 +3031,23 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
             << " of framework " << id
             << " because its latest run " << uuid << " is completed";
 
+    CHECK_SOME(run.id);
+    const UUID& runId = run.id.get();
+
     // GC the executor run's work directory.
-    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorRunPath(
-        slave->flags.work_dir, slave->info.id(), id, state.id, run.id.get()));
+    slave->garbageCollect(paths::getExecutorRunPath(
+        slave->flags.work_dir, slave->info.id(), id, state.id, runId));
 
     // GC the executor run's meta directory.
-    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorRunPath(
-        slave->metaDir, slave->info.id(), id, state.id, run.id.get()));
+    slave->garbageCollect(paths::getExecutorRunPath(
+        slave->metaDir, slave->info.id(), id, state.id, runId));
 
     // GC the top level executor work directory.
-    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorPath(
+    slave->garbageCollect(paths::getExecutorPath(
         slave->flags.work_dir, slave->info.id(), id, state.id));
 
     // GC the top level executor meta directory.
-    slave->gc.schedule(slave->flags.gc_delay, paths::getExecutorPath(
+    slave->garbageCollect(paths::getExecutorPath(
         slave->metaDir, slave->info.id(), id, state.id));
 
     return NULL;
