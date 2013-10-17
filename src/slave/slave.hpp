@@ -207,9 +207,6 @@ protected:
   virtual void finalize();
   virtual void exited(const UPID& pid);
 
-  // This is called when recovery finishes.
-  void _initialize(const Future<Nothing>& future);
-
   void fileAttached(const Future<Nothing>& result, const std::string& path);
 
   Nothing detachFile(const std::string& path);
@@ -246,12 +243,16 @@ protected:
   // Checks the current disk usage and schedules for gc as necessary.
   void checkDiskUsage();
 
-  // Reads the checkpointed data from a previous run and recovers state.
-  // If 'reconnect' is true, the slave attempts to reconnect to any old
-  // live executors. Otherwise, the slave attempts to shutdown/kill them.
-  // If 'strict' is true, any recovery errors are considered fatal.
-  Future<Nothing> recover(bool reconnect, bool strict);
-  Future<Nothing> _recover(const state::SlaveState& state, bool reconnect);
+  // Recovers the slave, status update manager and isolator.
+  Future<Nothing> recover(const Result<state::SlaveState>& state);
+
+  // This is called after 'recoveR()'. If 'flags.reconnect' is
+  // 'reconnect', the slave attempts to reconnect to any old live
+  // executors. Otherwise, the slave attempts to shutdown/kill them.
+  Future<Nothing> _recover();
+
+  // This is called when recovery finishes.
+  void __recover(const Future<Nothing>& future);
 
   // Helper to recover a framework from the specified state.
   void recoverFramework(const state::FrameworkState& state);

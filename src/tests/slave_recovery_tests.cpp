@@ -558,7 +558,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
@@ -573,7 +573,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   Clock::pause();
 
-  AWAIT_READY(recover);
+  AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -589,9 +589,12 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
 
-  Clock::resume();
-
   // Master should subsequently reoffer the same resources.
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
   AWAIT_READY(offers2);
   ASSERT_EQ(Resources(offers1.get()[0].resources()),
             Resources(offers2.get()[0].resources()));
@@ -670,7 +673,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   // Now shut down the executor, when the slave is down.
   process::post(executorPid, ShutdownExecutorMessage());
 
-  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
@@ -685,7 +688,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   Clock::pause();
 
-  AWAIT_READY(recover);
+  AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -701,7 +704,10 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
 
-  Clock::resume();
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
 
   // Master should subsequently reoffer the same resources.
   AWAIT_READY(offers2);
@@ -960,7 +966,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status));
 
-  Future<Nothing> _initialize = FUTURE_DISPATCH(_, &Slave::_initialize);
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
   // Restart the slave in 'cleanup' recovery mode with a new isolator.
   TypeParam isolator2;
@@ -983,7 +989,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   ASSERT_EQ(TASK_FAILED, status.get().state());
 
   // Wait for recovery to complete.
-  AWAIT_READY(_initialize);
+  AWAIT_READY(__recover);
   Clock::settle();
 
   Clock::resume();
@@ -1268,7 +1274,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   this->Stop(slave.get());
 
-  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<ReregisterSlaveMessage> reregisterSlave =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
@@ -1281,7 +1287,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   Clock::pause();
 
-  AWAIT_READY(recover);
+  AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -1320,11 +1326,6 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
             Resources(offers2.get()[0].resources()));
 
   Clock::resume();
-
-  // Make sure all slave resources are reoffered.
-  AWAIT_READY(offers2);
-  ASSERT_EQ(Resources(offers1.get()[0].resources()),
-            Resources(offers2.get()[0].resources()));
 
   driver.stop();
   driver.join();
@@ -1413,7 +1414,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
       frameworkId,
       executorId)));
 
-  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<ReregisterSlaveMessage> reregisterSlave =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
@@ -1431,7 +1432,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   Clock::pause();
 
-  AWAIT_READY(recover);
+  AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -1455,12 +1456,17 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
       frameworkId,
       executorId)));
 
-  Clock::resume();
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
 
   // Make sure all slave resources are reoffered.
   AWAIT_READY(offers2);
   ASSERT_EQ(Resources(offers1.get()[0].resources()),
             Resources(offers2.get()[0].resources()));
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -1948,30 +1954,13 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   // recover the task.
   ASSERT_SOME(os::rmdir(frameworkPath, true));
 
-  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<ReregisterSlaveMessage> reregisterSlave =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   EXPECT_CALL(allocator, slaveReconnected(_));
   EXPECT_CALL(allocator, resourcesRecovered(_, _, _));
-
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
-
-  slave = this->StartSlave(&isolator2, flags);
-  ASSERT_SOME(slave);
-
-  Clock::pause();
-
-  AWAIT_READY(recover);
-
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-
-  // Wait for the slave to re-register.
-  AWAIT_READY(reregisterSlave);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -1982,6 +1971,19 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+
+  AWAIT_READY(_recover);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(reregisterSlave);
 
   // Wait for TASK_LOST update.
   AWAIT_READY(status);
@@ -2596,7 +2598,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 // Create a test fixture for those slave recovery tests that only work
 // when ProcessIsolator is used.
 // TODO(jieyu): We use typed test here because it magically allows us
-// to access protected members in Slave (e.g. Slave::_recover).
+// to access protected members in Slave (e.g. Slave::reconnect).
 template <typename T>
 class SlaveRecoveryProcessIsolatorTest : public IsolatorTest<T>
 {

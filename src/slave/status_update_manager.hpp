@@ -56,7 +56,7 @@ namespace slave {
 
 namespace state {
 
-class SlaveState;
+struct SlaveState;
 
 }
 
@@ -115,7 +115,7 @@ public:
   // Recover status updates.
   process::Future<Nothing> recover(
       const std::string& rootDir,
-      const state::SlaveState& state);
+      const Option<state::SlaveState>& state);
 
   // TODO(vinod): Remove this hack once the new leader detector code is merged.
   void newMasterDetected(const UPID& pid);
