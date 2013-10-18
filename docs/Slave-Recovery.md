@@ -23,7 +23,7 @@ As part of this feature, 4 new flags were added to the slave.
   - `checkpoint` :  Whether to checkpoint slave and frameworks information
                     to disk [Default: false].
     - This enables a restarted slave to recover status updates and reconnect
-      with (--recover=reconnect) or kill (--recover=kill) old executorors.
+      with (--recover=reconnect) or kill (--recover=kill) old executors.
 
   - `strict` : Whether to do recovery in strict mode [Default: true].
     - If strict=true, any and all recovery errors are considered fatal.
@@ -37,7 +37,7 @@ As part of this feature, 4 new flags were added to the slave.
        NOTE: If no checkpointing information exists, no recovery is performed
        and the slave registers with the master as a new slave.
 
-  - `recovery_timeout` : Amount of time alloted for the slave to recover [Default: 15 mins].
+  - `recovery_timeout` : Amount of time allotted for the slave to recover [Default: 15 mins].
      - If the slave takes longer than `recovery_timeout` to recover, any executors that are waiting to
      reconnect to the slave will self-terminate.
      NOTE: This flag is only applicable when `--checkpoint` is enabled.
@@ -58,8 +58,8 @@ Therefore, it is highly recommended to automate the process of restarting a slav
 
 As part of this feature, `FrameworkInfo` has been updated to include an optional `checkpoint` field. A framework that would like to opt in to checkpointing should set `FrameworkInfo.checkpoint=True` before registering with the master.
 
-> NOTE: Frameworks that have anbled checkpointing will only get offers from checkpointing slave. Therefore, before setting `checkpoint=True` on FrameworkInfo, ensure that there are slaves in your cluster that have enabled checkpointing.
-> Because, if there are no checkpointing slaves, the framework would not get any offers and hence cannot launch any tasks/executors.
+> NOTE: Frameworks that have enabled checkpointing will only get offers from checkpointing slaves. So, before setting `checkpoint=True` on FrameworkInfo, ensure that there are slaves in your cluster that have enabled checkpointing.
+> Because, if there are no checkpointing slaves, the framework would not get any offers and hence cannot launch any tasks/executors!
 
 
 ### Upgrading to 0.14.0 ###
