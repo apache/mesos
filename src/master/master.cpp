@@ -373,7 +373,7 @@ void Master::initialize()
       if (pair.size() != 2) {
         EXIT(1) << "Invalid weight: '" << token << "'. --weights should"
           "be of the form 'role=weight,role=weight'\n";
-      } else if (!roles.contains(pair[0])) {
+      } else if (!roleInfos.contains(pair[0])) {
         EXIT(1) << "Invalid weight: '" << token << "'. " << pair[0]
                 << " is not a valid role.";
       }
