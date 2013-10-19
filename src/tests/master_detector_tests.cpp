@@ -233,7 +233,8 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectors)
 }
 
 
-TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorShutdownNetwork)
+// Disabled due to MESOS-455.
+TEST_F(ZooKeeperMasterDetectorTest, DISABLED_MasterDetectorShutdownNetwork)
 {
   Clock::pause();
 
