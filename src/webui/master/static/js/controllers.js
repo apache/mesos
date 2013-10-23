@@ -124,13 +124,12 @@
       // Redirect if we aren't the leader.
       if ($scope.state.leader != $scope.state.pid) {
         $scope.redirect = 6000;
-        $scope.leader = $scope.state.leader.split("@")[1];
         $("#not-leader-alert").show();
 
         var countdown = function() {
           if ($scope.redirect == 0) {
             // TODO(benh): Use '$window'.
-            window.location = 'http://' + $scope.leader;
+            window.location = '/master/redirect';
           } else {
             $scope.redirect = $scope.redirect - 1000;
             $timeout(countdown, 1000);
