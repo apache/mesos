@@ -23,7 +23,6 @@
 #include <sys/wait.h> // For wait (and associated macros).
 
 #include <string>
-#include <vector>
 
 #include <stout/check.hpp>
 #include <stout/os.hpp>
@@ -36,16 +35,13 @@
 #include "tests/script.hpp"
 
 using std::string;
-using std::vector;
 
 namespace mesos {
 namespace internal {
 namespace tests {
 
-void execute(const string& script, const vector<string>& arguments)
+void execute(const string& script)
 {
-  CHECK_LT(arguments.size(), static_cast<size_t>(ARG_MAX));
-
   // Create a temporary directory for the test.
   Try<string> directory = environment->mkdtemp();
 
@@ -128,17 +124,8 @@ void execute(const string& script, const vector<string>& arguments)
     os::setenv("DEFAULT_PRINCIPAL", DEFAULT_CREDENTIAL.principal());
     os::setenv("DEFAULT_SECRET", DEFAULT_CREDENTIAL.secret());
 
-    // Construct the argument array.
-    const char** args = (const char**) new char*[arguments.size() + 1];
-    args[0] = path.get().c_str();
-    size_t index = 1;
-    foreach (const string& argument, arguments) {
-      args[index++] = argument.c_str();
-    }
-    args[arguments.size() + 1] = NULL;
-
     // Now execute the script.
-    execv(path.get().c_str(), (char* const*) args);
+    execl(path.get().c_str(), path.get().c_str(), (char*) NULL);
 
     std::cerr << "Failed to execute '" << script << "': "
               << strerror(errno) << std::endl;

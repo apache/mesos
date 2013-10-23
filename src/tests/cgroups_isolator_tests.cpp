@@ -35,39 +35,10 @@ using namespace mesos::internal::slave;
 
 using std::map;
 
-// Run the balloon framework under the cgroups isolator with a few
-// configurations.
-
-// No memory buffer on the slave.
-// Step with 64MB, limit 1GB.
-// This should behave as if there's only a hard threshold.
-TEST_SCRIPT_3(CgroupsIsolatorTest,
-              ROOT_CGROUPS_BalloonFramework_NoBuffer,
-              "balloon_framework_test.sh",
-              stringify(Megabytes(0)),
-              stringify(Megabytes(64)),
-              stringify(Gigabytes(1)))
-
-
-// 128MB memory buffer on the slave, step with 32 MB, limit 1GB.
-// This ensures we'll have time to act on the threshold notification.
-TEST_SCRIPT_3(CgroupsIsolatorTest,
-              ROOT_CGROUPS_BalloonFramework_Threshold,
-              "balloon_framework_test.sh",
-              stringify(Megabytes(128)),
-              stringify(Megabytes(32)),
-              stringify(Gigabytes(1)))
-
-
-// 1MB memory buffer on the slave, step with 64 MB, limit 1GB.
-// This ensures the OOM occurs before we can act on the threshold
-// notification.
-TEST_SCRIPT_3(CgroupsIsolatorTest,
-              ROOT_CGROUPS_BalloonFramework_OOM,
-              "balloon_framework_test.sh",
-              stringify(Megabytes(1)),
-              stringify(Megabytes(128)),
-              stringify(Gigabytes(1)))
+// Run the balloon framework under the cgroups isolator.
+TEST_SCRIPT(CgroupsIsolatorTest,
+            ROOT_CGROUPS_BalloonFramework,
+            "balloon_framework_test.sh")
 
 
 #define GROW_USAGE(delta, cpuset, usage)                                   \
