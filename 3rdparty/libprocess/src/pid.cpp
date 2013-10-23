@@ -125,8 +125,8 @@ istream& operator >> (istream& stream, UPID& pid)
   length = 1024;
   temp = new char[length];
 
-  while ((result = gethostbyname2_r(host.c_str(), AF_INET, &he,
-				    temp, length, &hep, &herrno)) == ERANGE) {
+  while ((result = gethostbyname2_r(
+      host.c_str(), AF_INET, &he, temp, length, &hep, &herrno)) == ERANGE) {
     // Enlarge the buffer.
     delete[] temp;
     length *= 2;
@@ -135,7 +135,7 @@ istream& operator >> (istream& stream, UPID& pid)
 
   if (result != 0 || hep == NULL) {
     VLOG(2) << "Failed to parse host '" << host
-	    << "' because " << hstrerror(herrno);
+            << "' because " << hstrerror(herrno);
     delete[] temp;
     stream.setstate(std::ios_base::badbit);
     return stream;
