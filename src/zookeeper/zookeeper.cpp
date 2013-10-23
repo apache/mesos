@@ -356,12 +356,21 @@ public:
   }
 
 private:
-  static void event(zhandle_t* zh, int type, int state,
-		    const char* path, void* ctx)
+  static void event(
+      zhandle_t* zh,
+      int type,
+      int state,
+      const char* path,
+      void* ctx)
   {
     ZooKeeperImpl* impl = static_cast<ZooKeeperImpl*>(ctx);
-    process::dispatch(impl->pid, &WatcherProcess::event,
-		      impl->zk, type, state, string(path));
+    process::dispatch(
+        impl->pid,
+        &WatcherProcess::event,
+        impl->zk,
+        type,
+        state,
+        string(path));
   }
 
 
@@ -389,7 +398,7 @@ private:
 
     if (ret == 0) {
       if (result != NULL) {
-	result->assign(value);
+        result->assign(value);
       }
     }
 
@@ -410,7 +419,7 @@ private:
 
     if (ret == 0) {
       if (stat_result != NULL) {
-	*stat_result = *stat;
+        *stat_result = *stat;
       }
     }
 
@@ -421,8 +430,12 @@ private:
   }
 
 
-  static void dataCompletion(int ret, const char* value, int value_len,
-			     const Stat* stat, const void* data)
+  static void dataCompletion(
+      int ret,
+      const char* value,
+      int value_len,
+      const Stat* stat,
+      const void* data)
   {
     const tuple<Promise<int>*, string*, Stat*>* args =
       reinterpret_cast<const tuple<Promise<int>*, string*, Stat*>*>(data);
@@ -433,11 +446,11 @@ private:
 
     if (ret == 0) {
       if (result != NULL) {
-	result->assign(value, value_len);
+        result->assign(value, value_len);
       }
 
       if (stat_result != NULL) {
-	*stat_result = *stat;
+        *stat_result = *stat;
       }
     }
 
@@ -448,8 +461,10 @@ private:
   }
 
 
-  static void stringsCompletion(int ret, const String_vector* values,
-				const void* data)
+  static void stringsCompletion(
+      int ret,
+      const String_vector* values,
+      const void* data)
   {
     const tuple<Promise<int>*, vector<string>*>* args =
       reinterpret_cast<const tuple<Promise<int>*, vector<string>*>*>(data);
@@ -459,9 +474,9 @@ private:
 
     if (ret == 0) {
       if (results != NULL) {
-	for (int i = 0; i < values->count; i++) {
-	  results->push_back(values->data[i]);
-	}
+        for (int i = 0; i < values->count; i++) {
+          results->push_back(values->data[i]);
+        }
       }
     }
 
