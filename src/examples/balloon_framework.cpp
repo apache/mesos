@@ -28,8 +28,6 @@
 
 #include <mesos/scheduler.hpp>
 
-#include <stout/bytes.hpp>
-#include <stout/exit.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -46,18 +44,15 @@ using std::endl;
 using std::string;
 
 // The amount of memory in MB the executor itself takes.
-const static Bytes EXECUTOR_MEMORY = Megabytes(64);
+const static size_t EXECUTOR_MEMORY_MB = 64;
 
 
 class BalloonScheduler : public Scheduler
 {
 public:
-  BalloonScheduler(
-      const ExecutorInfo& _executor,
-      const Bytes& _balloonStep,
-      const Bytes& _balloonLimit)
+  BalloonScheduler(const ExecutorInfo& _executor,
+                   size_t _balloonLimit)
     : executor(_executor),
-      balloonStep(_balloonStep),
       balloonLimit(_balloonLimit),
       taskLaunched(false) {}
 
@@ -91,7 +86,7 @@ public:
       // We just launch one task.
       if (!taskLaunched) {
         double mem = getScalarResource(offer, "mem");
-        assert(mem > EXECUTOR_MEMORY.megabytes());
+        assert(mem > EXECUTOR_MEMORY_MB);
 
         std::vector<TaskInfo> tasks;
         std::cout << "Starting the task" << std::endl;
@@ -101,15 +96,14 @@ public:
         task.mutable_task_id()->set_value("1");
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
         task.mutable_executor()->MergeFrom(executor);
-        task.set_data(stringify(balloonStep) + "," + stringify(balloonLimit));
+        task.set_data(stringify<size_t>(balloonLimit));
 
         // Use up all the memory from the offer.
         Resource* resource;
         resource = task.add_resources();
         resource->set_name("mem");
         resource->set_type(Value::SCALAR);
-        resource->mutable_scalar()->set_value(
-            mem - EXECUTOR_MEMORY.megabytes());
+        resource->mutable_scalar()->set_value(mem - EXECUTOR_MEMORY_MB);
 
         tasks.push_back(task);
         driver->launchTasks(offer.id(), tasks);
@@ -171,33 +165,29 @@ public:
 
 private:
   const ExecutorInfo executor;
-  const Bytes balloonStep;
-  const Bytes balloonLimit;
+  const size_t balloonLimit;
   bool taskLaunched;
 };
 
 
 int main(int argc, char** argv)
 {
-  if (argc != 4) {
-    EXIT(1) << "Usage: " << argv[0]
-            << " <master> <balloon step> <balloon limit>";
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0]
+              << " <master> <balloon limit in MB>" << std::endl;
+    return -1;
   }
 
-  // Parse the balloon step.
-  Try<Bytes> step = Bytes::parse(argv[2]);
-  if (step.isError()) {
-    EXIT(1) << "Balloon memory step is invalid: " << step.error();
-  }
-
-  // Parse the balloon limit.
-  Try<Bytes> limit = Bytes::parse(argv[3]);
+  // Verify the balloon limit.
+  Try<size_t> limit = numify<size_t>(argv[2]);
   if (limit.isError()) {
-    EXIT(1) << "Balloon memory limit is invalid: " << limit.error();
+    std::cerr << "Balloon limit is not a valid number" << std::endl;
+    return -1;
   }
 
-  if (limit.get() < EXECUTOR_MEMORY) {
-    EXIT(1) << "Please use an executor limit smaller than " << EXECUTOR_MEMORY;
+  if (limit.get() < EXECUTOR_MEMORY_MB) {
+    std::cerr << "Please use a balloon limit bigger than "
+              << EXECUTOR_MEMORY_MB << " MB" << std::endl;
   }
 
   // Find this executable's directory to locate executor.
@@ -216,9 +206,9 @@ int main(int argc, char** argv)
   Resource* mem = executor.add_resources();
   mem->set_name("mem");
   mem->set_type(Value::SCALAR);
-  mem->mutable_scalar()->set_value(EXECUTOR_MEMORY.megabytes());
+  mem->mutable_scalar()->set_value(EXECUTOR_MEMORY_MB);
 
-  BalloonScheduler scheduler(executor, step.get(), limit.get());
+  BalloonScheduler scheduler(executor, limit.get());
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
