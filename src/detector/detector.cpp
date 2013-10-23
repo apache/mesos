@@ -67,10 +67,11 @@ const Duration ZOOKEEPER_SESSION_TIMEOUT = Seconds(10);
 MasterDetector::~MasterDetector() {}
 
 
-Try<MasterDetector*> MasterDetector::create(const string& master,
-                                            const UPID& pid,
-                                            bool contend,
-                                            bool quiet)
+Try<MasterDetector*> MasterDetector::create(
+    const string& master,
+    const UPID& pid,
+    bool contend,
+    bool quiet)
 {
   if (master == "") {
     if (contend) {
@@ -138,9 +139,10 @@ BasicMasterDetector::BasicMasterDetector(const UPID& _master)
 }
 
 
-BasicMasterDetector::BasicMasterDetector(const UPID& _master,
-					 const UPID& pid,
-					 bool elect)
+BasicMasterDetector::BasicMasterDetector(
+    const UPID& _master,
+    const UPID& pid,
+    bool elect)
   : master(_master)
 {
   if (elect) {
@@ -157,9 +159,10 @@ BasicMasterDetector::BasicMasterDetector(const UPID& _master,
 }
 
 
-BasicMasterDetector::BasicMasterDetector(const UPID& _master,
-					 const vector<UPID>& pids,
-					 bool elect)
+BasicMasterDetector::BasicMasterDetector(
+    const UPID& _master,
+    const vector<UPID>& pids,
+    bool elect)
   : master(_master)
 {
   if (elect) {

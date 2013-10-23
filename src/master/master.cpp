@@ -2537,8 +2537,8 @@ void Master::addSlave(Slave* slave, bool reregister)
 
 
 void Master::readdSlave(Slave* slave,
-			const vector<ExecutorInfo>& executorInfos,
-			const vector<Task>& tasks)
+    const vector<ExecutorInfo>& executorInfos,
+    const vector<Task>& tasks)
 {
   CHECK_NOTNULL(slave);
 

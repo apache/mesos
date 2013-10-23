@@ -135,7 +135,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   Future<Nothing> frameworkAdded2;
   EXPECT_CALL(allocator, frameworkAdded(_, _, _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
-		    FutureSatisfy(&frameworkAdded2)));
+      FutureSatisfy(&frameworkAdded2)));
 
   EXPECT_CALL(sched2, registered(_, _, _));
 
@@ -209,7 +209,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   Future<Nothing> frameworkAdded3;
   EXPECT_CALL(allocator, frameworkAdded(_, _, _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
-		    FutureSatisfy(&frameworkAdded3)));
+      FutureSatisfy(&frameworkAdded3)));
 
   EXPECT_CALL(sched3, registered(_, _, _));
 
