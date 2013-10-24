@@ -76,7 +76,6 @@ void FetchAndStoreAndFetch(State* state)
 
   Slave* slave = registry1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
-  slave->mutable_info()->set_webui_hostname("localhost");
 
   variable = variable.mutate(registry1);
 
@@ -92,7 +91,6 @@ void FetchAndStoreAndFetch(State* state)
   Registry registry2 = variable.get();
   ASSERT_TRUE(registry2.slaves().size() == 1);
   EXPECT_EQ("localhost", registry2.slaves(0).info().hostname());
-  EXPECT_EQ("localhost", registry2.slaves(0).info().webui_hostname());
 }
 
 
@@ -108,7 +106,6 @@ void FetchAndStoreAndStoreAndFetch(State* state)
 
   Slave* slave = registry1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
-  slave->mutable_info()->set_webui_hostname("localhost");
 
   variable = variable.mutate(registry1);
 
@@ -130,7 +127,6 @@ void FetchAndStoreAndStoreAndFetch(State* state)
   Registry registry2 = variable.get();
   ASSERT_TRUE(registry2.slaves().size() == 1);
   EXPECT_EQ("localhost", registry2.slaves(0).info().hostname());
-  EXPECT_EQ("localhost", registry2.slaves(0).info().webui_hostname());
 }
 
 
@@ -146,7 +142,6 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
 
   Slave* slave1 = registry1.add_slaves();
   slave1->mutable_info()->set_hostname("localhost1");
-  slave1->mutable_info()->set_webui_hostname("localhost1");
 
   Variable<Registry> variable2 = variable1.mutate(registry1);
 
@@ -159,7 +154,6 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
 
   Slave* slave2 = registry2.add_slaves();
   slave2->mutable_info()->set_hostname("localhost2");
-  slave2->mutable_info()->set_webui_hostname("localhost2");
 
   variable2 = variable1.mutate(registry2);
 
@@ -175,7 +169,6 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
   registry1 = variable1.get();
   ASSERT_TRUE(registry1.slaves().size() == 1);
   EXPECT_EQ("localhost1", registry1.slaves(0).info().hostname());
-  EXPECT_EQ("localhost1", registry1.slaves(0).info().webui_hostname());
 }
 
 
@@ -191,7 +184,6 @@ void FetchAndStoreAndExpungeAndFetch(State* state)
 
   Slave* slave = registry1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
-  slave->mutable_info()->set_webui_hostname("localhost");
 
   variable = variable.mutate(registry1);
 
@@ -227,7 +219,6 @@ void FetchAndStoreAndExpungeAndExpunge(State* state)
 
   Slave* slave = registry1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
-  slave->mutable_info()->set_webui_hostname("localhost");
 
   variable = variable.mutate(registry1);
 
@@ -259,7 +250,6 @@ void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
 
   Slave* slave = registry1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
-  slave->mutable_info()->set_webui_hostname("localhost");
 
   variable = variable.mutate(registry1);
 
@@ -285,7 +275,6 @@ void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
   Registry registry2 = variable.get();
   ASSERT_TRUE(registry2.slaves().size() == 1);
   EXPECT_EQ("localhost", registry2.slaves(0).info().hostname());
-  EXPECT_EQ("localhost", registry2.slaves(0).info().webui_hostname());
 }
 
 
@@ -301,7 +290,6 @@ void Names(State* state)
 
   Slave* slave = registry1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
-  slave->mutable_info()->set_webui_hostname("localhost");
 
   variable = variable.mutate(registry1);
 

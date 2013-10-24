@@ -211,28 +211,24 @@ void Slave::initialize()
     attributes = Attributes::parse(flags.attributes.get());
   }
 
-  // Determine our hostname.
-  Try<string> result = os::hostname();
+  // Determine our hostname or use the hostname provided.
+  string hostname;
 
-  if (result.isError()) {
-    LOG(FATAL) << "Failed to get hostname: " << result.error();
-  }
+  if (flags.hostname.isNone()) {
+    Try<string> result = os::hostname();
 
-  string hostname = result.get();
+    if (result.isError()) {
+      LOG(FATAL) << "Failed to get hostname: " << result.error();
+    }
 
-  // Check and see if we have a different public DNS name. Normally
-  // this is our hostname, but on EC2 we look for the MESOS_PUBLIC_DNS
-  // environment variable. This allows the master to display our
-  // public name in its webui.
-  string webui_hostname = hostname;
-  if (getenv("MESOS_PUBLIC_DNS") != NULL) {
-    webui_hostname = getenv("MESOS_PUBLIC_DNS");
+    hostname = result.get();
+  } else {
+    hostname = flags.hostname.get();
   }
 
   // Initialize slave info.
   info.set_hostname(hostname);
   info.set_port(self().port);
-  info.set_webui_hostname(webui_hostname); // Deprecated!
   info.mutable_resources()->MergeFrom(resources);
   info.mutable_attributes()->MergeFrom(attributes);
   info.set_checkpoint(flags.checkpoint);

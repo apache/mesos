@@ -164,20 +164,15 @@ message MasterInfo {
 
 
 /**
- * Describes a slave. The 'webui_hostname' and 'webui_port' are
- * provided in the event a host has different private and public
- * hostnames (e.g., Amazon EC2). Note that the 'id' field is only
- * available after a slave is registered with the master, and is made
- * available here to facilitate re-registration.
- * If checkpoint is set, the slave is checkpointing its own
- * information and potentially frameworks' information (if a
- * framework has checkpointing enabled).
+ * Describes a slave. Note that the 'id' field is only available after
+ * a slave is registered with the master, and is made available here
+ * to facilitate re-registration.  If checkpoint is set, the slave is
+ * checkpointing its own information and potentially frameworks'
+ * information (if a framework has checkpointing enabled).
  */
 message SlaveInfo {
   required string hostname = 1;
   optional int32 port = 8 [default = 5051];
-  required string webui_hostname = 2;             // Deprecated!
-  optional int32 webui_port = 4 [default = 8081]; // Deprecated!
   repeated Resource resources = 3;
   repeated Attribute attributes = 5;
   optional SlaveID id = 6;

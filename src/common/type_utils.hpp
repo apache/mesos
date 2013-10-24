@@ -282,12 +282,9 @@ inline bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
 inline bool operator == (const SlaveInfo& left, const SlaveInfo& right)
 {
   return left.hostname() == right.hostname() &&
-    left.webui_hostname() == right.webui_hostname() &&
     Resources(left.resources()) == Resources(right.resources()) &&
     internal::Attributes(left.attributes()) ==
     internal::Attributes(right.attributes()) &&
-    left.has_webui_port() == right.has_webui_port() &&
-    (!left.has_webui_port() || (left.webui_port() == right.webui_port())) &&
     left.has_id() == right.has_id() &&
     (!left.has_id() || (left.id() == right.id())) &&
     left.has_checkpoint() == right.has_checkpoint() &&
