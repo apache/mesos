@@ -853,7 +853,6 @@ void Slave::_runTask(
     return;
   }
 
-
   if (!future.isReady()) {
     LOG(ERROR) << "Failed to unschedule directories scheduled for gc: "
                << (future.isFailed() ? future.failure() : "future discarded");
@@ -1145,9 +1144,6 @@ void Slave::shutdownFramework(const FrameworkID& frameworkId)
       framework->state = Framework::TERMINATING;
 
       // Shut down all executors of this framework.
-      // NOTE: If there are no executors but 'pending' tasks, the
-      // framework will be removed and all its tasks are appropriately
-      // handled in '_runTask()'.
       // NOTE: We use 'executors.keys()' here because 'shutdownExecutor'
       // and 'removeExecutor' can remove an executor from 'executors'.
       foreach (const ExecutorID& executorId, framework->executors.keys()) {
@@ -1169,6 +1165,11 @@ void Slave::shutdownFramework(const FrameworkID& frameworkId)
         } else {
           // Executor is terminating. Ignore.
         }
+      }
+
+      // Remove this framework if it has no pending executors and tasks.
+      if (framework->executors.empty() && framework->pending.empty()) {
+        removeFramework(framework);
       }
       break;
     default:
@@ -1383,6 +1384,11 @@ void Slave::_statusUpdateAcknowledgement(
   // incomplete tasks.
   if (executor->state == Executor::TERMINATED && !executor->incompleteTasks()) {
     removeExecutor(framework, executor);
+  }
+
+  // Remove this framework if it has no pending executors and tasks.
+  if (framework->executors.empty() && framework->pending.empty()) {
+    removeFramework(framework);
   }
 }
 
@@ -2220,6 +2226,11 @@ void Slave::executorTerminated(
           !executor->incompleteTasks()) {
         removeExecutor(framework, executor);
       }
+
+      // Remove this framework if it has no pending executors and tasks.
+      if (framework->executors.empty() && framework->pending.empty()) {
+        removeFramework(framework);
+      }
       break;
     }
     default:
@@ -2300,11 +2311,6 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   }
 
   framework->destroyExecutor(executor->id);
-
-  // Remove this framework if it has no pending executors and tasks.
-  if (framework->executors.empty() && framework->pending.empty()) {
-    removeFramework(framework);
-  }
 }
 
 
@@ -2817,6 +2823,11 @@ void Slave::recoverFramework(const FrameworkState& state)
                    &Self::fileAttached,
                    lambda::_1,
                    executor->directory));
+
+    // Remove the executor if it's terminated.
+    if (executor->state == Executor::TERMINATED) {
+      removeExecutor(framework, executor);
+    }
   }
 
   // Remove the framework in case we didn't recover any executors.
@@ -2998,22 +3009,23 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
 
   // We are only interested in the latest run of the executor!
   // So, we GC all the old runs.
+  // NOTE: We don't schedule the top level executor work and meta
+  // directories for GC here, because they will be scheduled when
+  // the latest executor run terminates.
   const UUID& uuid = state.latest.get();
   foreachvalue (const RunState& run, state.runs) {
     CHECK_SOME(run.id);
     const UUID& runId = run.id.get();
     if (uuid != runId) {
       // GC the executor run's work directory.
+      // TODO(vinod): Expose this directory to webui by recovering the
+      // tasks and doing a 'files->attach()'.
       slave->garbageCollect(paths::getExecutorRunPath(
           slave->flags.work_dir, slave->info.id(), id, state.id, runId));
 
       // GC the executor run's meta directory.
       slave->garbageCollect(paths::getExecutorRunPath(
           slave->metaDir, slave->info.id(), id, state.id, runId));
-
-      // NOTE: We don't schedule the top level executor work and meta
-      // directories for GC here, because they will be scheduled when
-      // the latest executor run terminates.
     }
   }
 
@@ -3022,36 +3034,6 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
     << " of framework " << id;
 
   const RunState& run = state.runs.get(uuid).get();
-
-  // If the latest run of the executor was completed (i.e., terminated
-  // and all updates are acknowledged) in the previous run, we don't
-  // recover it.
-  if (run.completed) {
-    VLOG(1) << "Skipping recovery of executor " << state.id
-            << " of framework " << id
-            << " because its latest run " << uuid << " is completed";
-
-    CHECK_SOME(run.id);
-    const UUID& runId = run.id.get();
-
-    // GC the executor run's work directory.
-    slave->garbageCollect(paths::getExecutorRunPath(
-        slave->flags.work_dir, slave->info.id(), id, state.id, runId));
-
-    // GC the executor run's meta directory.
-    slave->garbageCollect(paths::getExecutorRunPath(
-        slave->metaDir, slave->info.id(), id, state.id, runId));
-
-    // GC the top level executor work directory.
-    slave->garbageCollect(paths::getExecutorPath(
-        slave->flags.work_dir, slave->info.id(), id, state.id));
-
-    // GC the top level executor meta directory.
-    slave->garbageCollect(paths::getExecutorPath(
-        slave->metaDir, slave->info.id(), id, state.id));
-
-    return NULL;
-  }
 
   // Create executor.
   const string& directory = paths::getExecutorRunPath(
@@ -3072,6 +3054,13 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
       << " of framework " << id;
 
     executor->pid = run.libprocessPid.get();
+  }
+
+  // If the latest run of the executor was completed (i.e., terminated
+  // and all updates are acknowledged) in the previous run, we
+  // transition its state to 'TERMINATED'.
+  if (run.completed) {
+    executor->state = Executor::TERMINATED;
   }
 
   // And finally recover all the executor's tasks.
