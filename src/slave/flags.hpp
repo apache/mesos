@@ -132,7 +132,7 @@ public:
         "to disk. This enables a restarted slave to recover\n"
         "status updates and reconnect with (--recover=reconnect) or\n"
         "kill (--recover=kill) old executors",
-        false);
+        true);
 
     add(&Flags::recover,
         "recover",
