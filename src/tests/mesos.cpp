@@ -59,6 +59,9 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
+  // TODO(vinod): Consider making this true and fixing the tests.
+  flags.checkpoint = false;
+
   flags.resources = Option<std::string>(
       "cpus:2;mem:1024;disk:1024;ports:[31000-32000]");
 
