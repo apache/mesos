@@ -714,34 +714,21 @@ void Master::noMasterDetected()
 }
 
 
-void Master::registerFramework(const FrameworkInfo& frameworkInfo)
+void Master::registerFramework(
+    const UPID& from,
+    const FrameworkInfo& frameworkInfo)
 {
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up registration request from " << from
               << " because authentication is still in progress";
 
     authenticating[from]
-      .onReady(defer(self(), &Self::_registerFramework, frameworkInfo, from));
-  } else {
-    _registerFramework(frameworkInfo, from);
-  }
-}
-
-
-void Master::_registerFramework(
-    const FrameworkInfo& frameworkInfo,
-    const UPID& from)
-{
-  if (!elected) {
-    LOG(WARNING) << "Ignoring register framework message since not elected yet";
+      .onReady(defer(self(), &Self::registerFramework, from, frameworkInfo));
     return;
   }
 
-  if (authenticating.contains(from)) {
-    // This could happen if another authentication request came
-    // through before we are here.
-    LOG(WARNING) << "Ignoring registration request from " << from
-                 << " because authentication is back in progress";
+  if (!elected) {
+    LOG(WARNING) << "Ignoring register framework message since not elected yet";
     return;
   }
 
@@ -754,14 +741,14 @@ void Master::_registerFramework(
     FrameworkErrorMessage message;
     message.set_message("Framework at " + stringify(from) +
                         " is not authenticated.");
-    reply(message);
+    send(from, message);
     return;
   }
 
   if (!roles.contains(frameworkInfo.role())) {
     FrameworkErrorMessage message;
     message.set_message("Role '" + frameworkInfo.role() + "' is not valid.");
-    reply(message);
+    send(from, message);
     return;
   }
 
@@ -775,7 +762,7 @@ void Master::_registerFramework(
       FrameworkRegisteredMessage message;
       message.mutable_framework_id()->MergeFrom(framework->id);
       message.mutable_master_info()->MergeFrom(info);
-      reply(message);
+      send(from, message);
       return;
     }
   }
@@ -792,7 +779,7 @@ void Master::_registerFramework(
               << "root submissions are disabled on this cluster";
     FrameworkErrorMessage message;
     message.set_message("User 'root' is not allowed to run frameworks");
-    reply(message);
+    send(from, message);
     delete framework;
     return;
   }
@@ -802,6 +789,7 @@ void Master::_registerFramework(
 
 
 void Master::reregisterFramework(
+    const UPID& from,
     const FrameworkInfo& frameworkInfo,
     bool failover)
 {
@@ -811,21 +799,13 @@ void Master::reregisterFramework(
 
     authenticating[from]
       .onReady(defer(self(),
-                     &Self::_reregisterFramework,
+                     &Self::reregisterFramework,
+                     from,
                      frameworkInfo,
-                     failover,
-                     from));
-  } else {
-    _reregisterFramework(frameworkInfo, failover, from);
+                     failover));
+    return;
   }
-}
 
-
-void Master::_reregisterFramework(
-    const FrameworkInfo& frameworkInfo,
-    bool failover,
-    const UPID& from)
-{
   if (!elected) {
     LOG(WARNING) << "Ignoring re-register framework message since "
                  << "not elected yet";
@@ -836,16 +816,7 @@ void Master::_reregisterFramework(
     LOG(ERROR) << "Framework re-registering without an id!";
     FrameworkErrorMessage message;
     message.set_message("Framework reregistered without a framework id");
-    reply(message);
-    return;
-  }
-
-  if (authenticating.contains(from)) {
-    // This could happen if another authentication request came
-    // through before we are here.
-    LOG(WARNING)
-      << "Ignoring re-registration request for framework " << frameworkInfo.id()
-      << " from " << from << " because authentication is back in progress";
+    send(from, message);
     return;
   }
 
@@ -858,14 +829,14 @@ void Master::_reregisterFramework(
     FrameworkErrorMessage message;
     message.set_message("Framework '" + frameworkInfo.id().value() + "' at " +
                         stringify(from) + " is not authenticated.");
-    reply(message);
+    send(from, message);
     return;
   }
 
   if (!roles.contains(frameworkInfo.role())) {
     FrameworkErrorMessage message;
     message.set_message("Role '" + frameworkInfo.role() + "' is not valid.");
-    reply(message);
+    send(from, message);
     return;
   }
 
@@ -915,7 +886,7 @@ void Master::_reregisterFramework(
       FrameworkReregisteredMessage message;
       message.mutable_framework_id()->MergeFrom(frameworkInfo.id());
       message.mutable_master_info()->MergeFrom(info);
-      reply(message);
+      send(from, message);
       return;
     }
   } else {
@@ -975,7 +946,9 @@ void Master::_reregisterFramework(
 }
 
 
-void Master::unregisterFramework(const FrameworkID& frameworkId)
+void Master::unregisterFramework(
+    const UPID& from,
+    const FrameworkID& frameworkId)
 {
   LOG(INFO) << "Asked to unregister framework " << frameworkId;
 
@@ -991,7 +964,9 @@ void Master::unregisterFramework(const FrameworkID& frameworkId)
 }
 
 
-void Master::deactivateFramework(const FrameworkID& frameworkId)
+void Master::deactivateFramework(
+    const UPID& from,
+    const FrameworkID& frameworkId)
 {
   Framework* framework = getFramework(frameworkId);
 
@@ -1211,7 +1186,7 @@ void Master::schedulerMessage(const SlaveID& slaveId,
 }
 
 
-void Master::registerSlave(const SlaveInfo& slaveInfo)
+void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
 {
   if (!elected) {
     LOG(WARNING) << "Ignoring register slave message from "
@@ -1266,10 +1241,12 @@ void Master::registerSlave(const SlaveInfo& slaveInfo)
 }
 
 
-void Master::reregisterSlave(const SlaveID& slaveId,
-                             const SlaveInfo& slaveInfo,
-                             const vector<ExecutorInfo>& executorInfos,
-                             const vector<Task>& tasks)
+void Master::reregisterSlave(
+    const UPID& from,
+    const SlaveID& slaveId,
+    const SlaveInfo& slaveInfo,
+    const vector<ExecutorInfo>& executorInfos,
+    const vector<Task>& tasks)
 {
   if (!elected) {
     LOG(WARNING) << "Ignoring re-register slave message from "
@@ -1460,6 +1437,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
 
 void Master::exitedExecutor(
+    const UPID& from,
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
@@ -1488,7 +1466,7 @@ void Master::exitedExecutor(
 
   CHECK(!deactivatedSlaves.contains(from))
     << "Received exited message for executor " << executorId << " from " << from
-    << " which is deactivated slave " << slaveId
+    << " which is the deactivated slave " << slaveId
     << "(" << slave->info.hostname() << ")";
 
   // Tell the allocator about the recovered resources.
@@ -1545,6 +1523,7 @@ void Master::deactivateSlave(const SlaveID& slaveId)
 
 
 void Master::reconcileTasks(
+    const UPID& from,
     const FrameworkID& frameworkId,
     const std::vector<TaskStatus>& statuses)
 {
@@ -1693,7 +1672,7 @@ void Master::offer(const FrameworkID& frameworkId,
 }
 
 
-void Master::authenticate(const UPID& pid)
+void Master::authenticate(const UPID& from, const UPID& pid)
 {
   // Deactivate the framework if it's already registered.
   foreachvalue (Framework* framework, frameworks) {
@@ -1715,7 +1694,7 @@ void Master::authenticate(const UPID& pid)
 
     // Retry after the current authenticator finishes.
     authenticating[pid]
-      .onAny(defer(self(), &Self::authenticate, pid));
+      .onAny(defer(self(), &Self::authenticate, from, pid));
 
     return;
   }

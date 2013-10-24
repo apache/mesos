@@ -242,7 +242,7 @@ protected:
     message.set_mechanism(mechanism);
     message.set_data(output, length);
 
-    send(from, message);
+    reply(message);
 
     status = STEPPING;
   }
@@ -279,7 +279,7 @@ protected:
       if (output != NULL && length > 0) {
         message.set_data(output, length);
       }
-      send(from, message);
+      reply(message);
     } else {
       status = ERROR;
       std::string error(sasl_errdetail(connection));

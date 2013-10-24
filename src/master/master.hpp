@@ -89,66 +89,90 @@ public:
 
   virtual ~Master();
 
-  void submitScheduler(const std::string& name);
-  void newMasterDetected(const UPID& pid);
+  void submitScheduler(
+      const std::string& name);
+  void newMasterDetected(
+      const UPID& pid);
   void noMasterDetected();
   void masterDetectionFailure();
-  void registerFramework(const FrameworkInfo& frameworkInfo);
-  void reregisterFramework(const FrameworkInfo& frameworkInfo,
-                           bool failover);
-  void unregisterFramework(const FrameworkID& frameworkId);
-  void deactivateFramework(const FrameworkID& frameworkId);
-  void resourceRequest(const FrameworkID& frameworkId,
-                       const std::vector<Request>& requests);
-  void launchTasks(const FrameworkID& frameworkId,
-                   const OfferID& offerId,
-                   const std::vector<TaskInfo>& tasks,
-                   const Filters& filters);
-  void reviveOffers(const FrameworkID& frameworkId);
-  void killTask(const FrameworkID& frameworkId, const TaskID& taskId);
-  void schedulerMessage(const SlaveID& slaveId,
-                        const FrameworkID& frameworkId,
-                        const ExecutorID& executorId,
-                        const std::string& data);
-  void registerSlave(const SlaveInfo& slaveInfo);
-  void reregisterSlave(const SlaveID& slaveId,
-                       const SlaveInfo& slaveInfo,
-                       const std::vector<ExecutorInfo>& executorInfos,
-                       const std::vector<Task>& tasks);
-  void unregisterSlave(const SlaveID& slaveId);
-  void statusUpdate(const StatusUpdate& update, const UPID& pid);
-  void exitedExecutor(const SlaveID& slaveId,
-                      const FrameworkID& frameworkId,
-                      const ExecutorID& executorId,
-                      int32_t status);
-  void deactivateSlave(const SlaveID& slaveId);
+  void registerFramework(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo);
+  void reregisterFramework(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      bool failover);
+  void unregisterFramework(
+      const process::UPID& from,
+      const FrameworkID& frameworkId);
+  void deactivateFramework(
+      const process::UPID& from,
+      const FrameworkID& frameworkId);
+  void resourceRequest(
+      const FrameworkID& frameworkId,
+      const std::vector<Request>& requests);
+  void launchTasks(
+      const FrameworkID& frameworkId,
+      const OfferID& offerId,
+      const std::vector<TaskInfo>& tasks,
+      const Filters& filters);
+  void reviveOffers(
+      const FrameworkID& frameworkId);
+  void killTask(
+      const FrameworkID& frameworkId,
+      const TaskID& taskId);
+  void schedulerMessage(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const std::string& data);
+  void registerSlave(
+      const process::UPID& from,
+      const SlaveInfo& slaveInfo);
+  void reregisterSlave(
+      const process::UPID& from,
+      const SlaveID& slaveId,
+      const SlaveInfo& slaveInfo,
+      const std::vector<ExecutorInfo>& executorInfos,
+      const std::vector<Task>& tasks);
+  void unregisterSlave(
+      const SlaveID& slaveId);
+  void statusUpdate(
+      const StatusUpdate& update,
+      const UPID& pid);
+  void exitedExecutor(
+      const process::UPID& from,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      int32_t status);
+  void deactivateSlave(
+      const SlaveID& slaveId);
 
   // TODO(bmahler): It would be preferred to use a unique libprocess
   // Process identifier (PID is not sufficient) for identifying the
   // framework instance, rather than relying on re-registration time.
-  void frameworkFailoverTimeout(const FrameworkID& frameworkId,
-                                const Time& reregisteredTime);
+  void frameworkFailoverTimeout(
+      const FrameworkID& frameworkId,
+      const Time& reregisteredTime);
 
-  void offer(const FrameworkID& framework,
-             const hashmap<SlaveID, Resources>& resources);
+  void offer(
+      const FrameworkID& framework,
+      const hashmap<SlaveID, Resources>& resources);
 
   void reconcileTasks(
+      const process::UPID& from,
       const FrameworkID& frameworkId,
       const std::vector<TaskStatus>& statuses);
 
-  void authenticate(const UPID& pid);
+  void authenticate(
+      const process::UPID& from,
+      const process::UPID& pid);
 
 protected:
   virtual void initialize();
   virtual void finalize();
   virtual void exited(const UPID& pid);
-
-  void _registerFramework(const FrameworkInfo& frameworkInfo, const UPID& pid);
-
-  void _reregisterFramework(
-      const FrameworkInfo& frameworkInfo,
-      bool failover,
-      const UPID& pid);
 
   void deactivate(Framework* framework);
 

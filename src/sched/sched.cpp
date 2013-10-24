@@ -554,7 +554,7 @@ protected:
     send(pid, message);
   }
 
-  void lostSlave(const SlaveID& slaveId)
+  void lostSlave(const UPID& from, const SlaveID& slaveId)
   {
     if (aborted) {
       VLOG(1) << "Ignoring lost slave message because the driver is aborted!";
@@ -563,7 +563,7 @@ protected:
 
     if (from != master) {
       LOG(WARNING) << "Ignoring lost slave message from " << from
-                   << "because it is not from the registered master ("
+                   << " because it is not from the registered master ("
                    << master << ")";
       return;
     }

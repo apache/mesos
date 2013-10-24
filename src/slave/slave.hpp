@@ -82,13 +82,13 @@ public:
 
   virtual ~Slave();
 
-  void shutdown();
+  void shutdown(const process::UPID& from);
 
   void newMasterDetected(const UPID& pid);
   void noMasterDetected();
   void masterDetectionFailure();
-  void registered(const SlaveID& slaveId);
-  void reregistered(const SlaveID& slaveId);
+  void registered(const process::UPID& from, const SlaveID& slaveId);
+  void reregistered(const process::UPID& from, const SlaveID& slaveId);
   void doReliableRegistration();
 
   void runTask(
@@ -108,7 +108,9 @@ public:
 
   void killTask(const FrameworkID& frameworkId, const TaskID& taskId);
 
-  void shutdownFramework(const FrameworkID& frameworkId);
+  void shutdownFramework(
+      const process::UPID& from,
+      const FrameworkID& frameworkId);
 
   void schedulerMessage(
       const SlaveID& slaveId,
@@ -119,6 +121,7 @@ public:
   void updateFramework(const FrameworkID& frameworkId, const std::string& pid);
 
   void registerExecutor(
+      const process::UPID& from,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
@@ -127,6 +130,7 @@ public:
   //           driver never received an ACK for.)
   // 'updates' : Unacknowledged updates.
   void reregisterExecutor(
+      const process::UPID& from,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const std::vector<TaskInfo>& tasks,

@@ -233,7 +233,7 @@ protected:
     VLOG(1) << "Executor::reregistered took " << stopwatch.elapsed();
   }
 
-  void reconnect(const SlaveID& slaveId)
+  void reconnect(const UPID& from, const SlaveID& slaveId)
   {
     if (aborted) {
       VLOG(1) << "Ignoring reconnect message from slave " << slaveId

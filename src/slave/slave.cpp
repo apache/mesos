@@ -402,7 +402,7 @@ void Slave::finalize()
     // checkpointing. This is because slave recovery tests terminate
     // the slave to simulate slave restart.
     if (!frameworks[frameworkId]->info.checkpoint()) {
-      shutdownFramework(frameworkId);
+      shutdownFramework(UPID(), frameworkId);
     }
   }
 
@@ -421,7 +421,7 @@ void Slave::finalize()
 }
 
 
-void Slave::shutdown()
+void Slave::shutdown(const UPID& from)
 {
   // Allow shutdown message only if
   // 1) Its a message received from the registered master or
@@ -451,7 +451,7 @@ void Slave::shutdown()
     // NOTE: We use 'frameworks.keys()' here because 'shutdownFramework'
     // can potentially remove a framework from 'frameworks'.
     foreach (const FrameworkID& frameworkId, frameworks.keys()) {
-      shutdownFramework(frameworkId);
+      shutdownFramework(from, frameworkId);
     }
   }
 }
@@ -534,7 +534,7 @@ void Slave::noMasterDetected()
 }
 
 
-void Slave::registered(const SlaveID& slaveId)
+void Slave::registered(const UPID& from, const SlaveID& slaveId)
 {
   if (from != master) {
     LOG(WARNING) << "Ignoring registration message from " << from
@@ -581,7 +581,7 @@ void Slave::registered(const SlaveID& slaveId)
 }
 
 
-void Slave::reregistered(const SlaveID& slaveId)
+void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
 {
   if (from != master) {
     LOG(WARNING) << "Ignoring re-registration message from " << from
@@ -1102,7 +1102,9 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
 // sending back a shut down acknowledgement, because otherwise you
 // could get into a state where a shut down was sent, dropped, and
 // therefore never processed.
-void Slave::shutdownFramework(const FrameworkID& frameworkId)
+void Slave::shutdownFramework(
+    const UPID& from,
+    const FrameworkID& frameworkId)
 {
   // Allow shutdownFramework() only if
   // its called directly (e.g. Slave::finalize()) or
@@ -1394,6 +1396,7 @@ void Slave::_statusUpdateAcknowledgement(
 
 
 void Slave::registerExecutor(
+    const UPID& from,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
@@ -1545,6 +1548,7 @@ void Slave::registerExecutor(
 
 
 void Slave::reregisterExecutor(
+    const UPID& from,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const vector<TaskInfo>& tasks,
