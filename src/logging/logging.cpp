@@ -95,11 +95,24 @@ void initialize(
               << flags.log_dir.get() << ": " << mkdir.error();
     }
     FLAGS_log_dir = flags.log_dir.get();
+    // Do not log to stderr instead of log files.
+    FLAGS_logtostderr = false;
+  } else {
+    // Log to stderr instead of log files.
+    FLAGS_logtostderr = true;
   }
 
   // Log everything to stderr IN ADDITION to log files unless
   // otherwise specified.
-  if (!flags.quiet) {
+  if (flags.quiet) {
+    FLAGS_stderrthreshold = 3; // FATAL.
+
+    // FLAGS_stderrthreshold is ignored when logging to stderr instead of log files.
+    // Setting the minimum log level gets around this issue.
+    if (FLAGS_logtostderr) {
+      FLAGS_minloglevel = 3; // FATAL.
+    }
+  } else {
     FLAGS_stderrthreshold = 0; // INFO.
   }
 
