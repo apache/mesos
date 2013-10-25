@@ -8,6 +8,8 @@ import sys
 import time
 import urllib
 
+from cli_utils import ulimit, resolve
+
 from optparse import OptionParser
 
 USER_COLUMN_WIDTH = 4
@@ -18,51 +20,7 @@ MEM_COLUMN_WIDTH = 8
 TIME_COLUMN_WIDTH = 14
 
 
-# Helper that uses 'mesos-resolve' to resolve the master's IP:port.
-def resolve(master):
-  process = subprocess.Popen(
-    ['mesos-resolve', master],
-    stdin=None,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    shell=False)
-
-  status = process.wait()
-  if status != 0:
-    print 'Failed to execute \'mesos-resolve %s\':\n' % master
-    print process.stderr.read()
-    sys.exit(1)
-
-  result = process.stdout.read()
-  process.stdout.close()
-  process.stderr.close()
-  return result
-
-
-# Helper to determine the number of open file descriptors specified by
-# ulimit (since resource.RLIMIT_NOFILE is not always accurate).
-def ulimit(args):
-  command = args if isinstance(args, list) else [ args ]
-  command.insert(0, 'ulimit')
-  process = subprocess.Popen(
-    command,
-    stdin=None,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    shell=False)
-
-  status = process.wait()
-  if status != 0:
-    print 'Failed to execute \'ulimit %s\':\n' % ' '.join(command)
-    print process.stderr.read()
-    sys.exit(1)
-
-  result = process.stdout.read()
-  process.stdout.close()
-  process.stderr.close()
-  return result
-
-class Slave:
+class PsSlave:
   def __init__(self, slave):
     self.slave = slave
     self.process = None
@@ -166,7 +124,7 @@ def main():
   # Build a dict from slave ID to `slaves'.
   slaves = {}
   for slave in state['slaves']:
-    slaves[slave['id']] = Slave(slave)
+    slaves[slave['id']] = PsSlave(slave)
 
   # Initiate the curl requests in batches less than the open file
   # descriptor limit.
