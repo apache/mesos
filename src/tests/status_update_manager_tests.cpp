@@ -520,6 +520,9 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
   Future<StatusUpdateAcknowledgementMessage> statusUpdateAcknowledgementMessage =
     DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, slave.get());
 
+  Future<Nothing> _statusUpdate =
+    FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdate);
+
   Clock::pause();
 
   driver.launchTasks(offers.get()[0].id(), createTasks(offers.get()[0]));
@@ -530,7 +533,11 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
 
   AWAIT_READY(statusUpdateAcknowledgementMessage);
 
-  Future<Nothing> _statusUpdate =
+  // At this point the status update manager has enqueued
+  // TASK_FINISHED update.
+  AWAIT_READY(_statusUpdate);
+
+  Future<Nothing> _statusUpdate2 =
     FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdate);
 
   // Now send a TASK_KILLED update for the same task.
@@ -540,7 +547,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
 
   // At this point the status update manager has enqueued
   // TASK_FINISHED and TASK_KILLED updates.
-  AWAIT_READY(_statusUpdate);
+  AWAIT_READY(_statusUpdate2);
 
   // After we advance the clock, the scheduler should receive
   // the retried TASK_FINISHED update and acknowledge it. The
