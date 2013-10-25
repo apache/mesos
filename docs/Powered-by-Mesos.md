@@ -4,6 +4,7 @@ Organizations using Mesos:
 * [Categorize](http://categorize.co)
 * [CloudPhysics](http://cloudphysics.com)
 * [Conviva](http://www.conviva.com)
+* [iQIYI](http://www.iqiyi.com/)
 * [MediaCrossing](http://www.mediacrossing.com)
 * [Sharethrough](http://www.sharethrough.com)
 * [Twitter](http://www.twitter.com)

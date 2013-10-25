@@ -841,24 +841,24 @@ void handle_async(struct ev_loop* loop, ev_async* _, int revents)
   synchronized (timeouts) {
     if (update_timer) {
       if (!timeouts->empty()) {
-	// Determine when the next timer should fire.
-	timeouts_watcher.repeat = (timeouts->begin()->first - Clock::now()).secs();
+        // Determine when the next timer should fire.
+        timeouts_watcher.repeat = (timeouts->begin()->first - Clock::now()).secs();
 
         if (timeouts_watcher.repeat <= 0) {
-	  // Feed the event now!
-	  timeouts_watcher.repeat = 0;
-	  ev_timer_again(loop, &timeouts_watcher);
+          // Feed the event now!
+          timeouts_watcher.repeat = 0;
+          ev_timer_again(loop, &timeouts_watcher);
           ev_feed_event(loop, &timeouts_watcher, EV_TIMEOUT);
         } else {
- 	  // Don't fire the timer if the clock is paused since we
- 	  // don't want time to advance (instead a call to
- 	  // clock::advance() will handle the timer).
- 	  if (Clock::paused() && timeouts_watcher.repeat > 0) {
- 	    timeouts_watcher.repeat = 0;
+          // Don't fire the timer if the clock is paused since we
+          // don't want time to advance (instead a call to
+          // clock::advance() will handle the timer).
+          if (Clock::paused() && timeouts_watcher.repeat > 0) {
+            timeouts_watcher.repeat = 0;
           }
 
-	  ev_timer_again(loop, &timeouts_watcher);
-	}
+          ev_timer_again(loop, &timeouts_watcher);
+        }
       }
 
       update_timer = false;
@@ -1274,10 +1274,10 @@ void* schedule(void* arg)
       Gate::state_t old = gate->approach();
       process = process_manager->dequeue();
       if (process == NULL) {
-	gate->arrive(old); // Wait at gate if idle.
-	continue;
+        gate->arrive(old); // Wait at gate if idle.
+        continue;
       } else {
-	gate->leave();
+        gate->leave();
       }
     }
     process_manager->resume(process);

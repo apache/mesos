@@ -20,6 +20,7 @@
 #include <string.h> // For strsignal().
 
 #include <glog/logging.h>
+#include <glog/raw_logging.h>
 
 #include <string>
 
@@ -47,16 +48,28 @@ namespace logging {
 string argv0;
 
 
+// NOTE: We use RAW_LOG instead of LOG because RAW_LOG doesn't
+// allocate any memory or grab locks. And according to
+// https://code.google.com/p/google-glog/issues/detail?id=161
+// it should work in 'most' cases in signal handlers.
 void handler(int signal)
 {
   if (signal == SIGTERM) {
-    EXIT(1) << "Received signal SIGTERM; exiting.";
+    RAW_LOG(WARNING, "Received signal SIGTERM; exiting.");
+
+    // Setup the default handler for SIGTERM so that we don't print
+    // a stack trace.
+    struct sigaction action;
+    memset(&action, 0, sizeof(action));
+    sigemptyset(&action.sa_mask);
+    action.sa_handler = SIG_DFL;
+    sigaction(signal, &action, NULL);
+    raise(signal);
   } else if (signal == SIGPIPE) {
-    LOG(WARNING) << "Received signal SIGPIPE; escalating to SIGABRT";
+    RAW_LOG(WARNING, "Received signal SIGPIPE; escalating to SIGABRT");
     raise(SIGABRT);
   } else {
-    LOG(FATAL) << "Unexpected signal in signal handler: '"
-               << strsignal(signal) << "'";
+    RAW_LOG(FATAL, "Unexpected signal in signal handler: %d", signal);
   }
 }
 
@@ -82,11 +95,24 @@ void initialize(
               << flags.log_dir.get() << ": " << mkdir.error();
     }
     FLAGS_log_dir = flags.log_dir.get();
+    // Do not log to stderr instead of log files.
+    FLAGS_logtostderr = false;
+  } else {
+    // Log to stderr instead of log files.
+    FLAGS_logtostderr = true;
   }
 
   // Log everything to stderr IN ADDITION to log files unless
   // otherwise specified.
-  if (!flags.quiet) {
+  if (flags.quiet) {
+    FLAGS_stderrthreshold = 3; // FATAL.
+
+    // FLAGS_stderrthreshold is ignored when logging to stderr instead of log files.
+    // Setting the minimum log level gets around this issue.
+    if (FLAGS_logtostderr) {
+      FLAGS_minloglevel = 3; // FATAL.
+    }
+  } else {
     FLAGS_stderrthreshold = 0; // INFO.
   }
 

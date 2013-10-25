@@ -164,7 +164,7 @@ private:
 
 #define CREATE_EXECUTOR_INFO(executorId, command)                       \
       ({ ExecutorInfo executor;                                         \
-        executor.mutable_executor_id()->MergeFrom(executorId);          \
+        executor.mutable_executor_id()->set_value(executorId);          \
         executor.mutable_command()->set_value(command);                 \
         executor; })
 
@@ -173,6 +173,13 @@ private:
      ({ FrameworkInfo framework;                                        \
         framework.set_name("default");                                  \
         framework; })
+
+
+#define DEFAULT_CREDENTIAL                                             \
+     ({ Credential credential;                                         \
+        credential.set_principal("test-principal");                    \
+        credential.set_secret("test-secret");                          \
+        credential; })
 
 
 #define DEFAULT_EXECUTOR_ID						\
@@ -223,10 +230,10 @@ public:
 
 // For use with a MockScheduler, for example:
 // EXPECT_CALL(sched, resourceOffers(_, _))
-//   .WillOnce(LaunchTasks(TASKS, CPUS, MEM));
+//   .WillOnce(LaunchTasks(EXECUTOR, TASKS, CPUS, MEM, ROLE));
 // Launches up to TASKS no-op tasks, if possible,
-// each with CPUS cpus and MEM memory.
-ACTION_P4(LaunchTasks, tasks, cpus, mem, role)
+// each with CPUS cpus and MEM memory and EXECUTOR executor.
+ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
 {
   SchedulerDriver* driver = arg0;
   std::vector<Offer> offers = arg1;
@@ -248,10 +255,6 @@ ACTION_P4(LaunchTasks, tasks, cpus, mem, role)
       task.set_name("TestTask");
       task.mutable_task_id()->set_value(stringify(nextTaskId++));
       task.mutable_slave_id()->MergeFrom(offer.slave_id());
-
-      ExecutorInfo executor;
-      executor.mutable_executor_id()->set_value("default");
-      executor.mutable_command()->set_value(":");
       task.mutable_executor()->MergeFrom(executor);
 
       Option<Resources> resources = remaining.find(TASK_RESOURCES, role);
@@ -335,6 +338,12 @@ public:
     ON_CALL(*this, slaveRemoved(_))
       .WillByDefault(InvokeSlaveRemoved(this));
 
+    ON_CALL(*this, slaveDisconnected(_))
+      .WillByDefault(InvokeSlaveDisconnected(this));
+
+    ON_CALL(*this, slaveReconnected(_))
+      .WillByDefault(InvokeSlaveReconnected(this));
+
     ON_CALL(*this, updateWhitelist(_))
       .WillByDefault(InvokeUpdateWhitelist(this));
 
@@ -371,6 +380,8 @@ public:
                                 const SlaveInfo&,
                                 const hashmap<FrameworkID, Resources>&));
   MOCK_METHOD1(slaveRemoved, void(const SlaveID&));
+  MOCK_METHOD1(slaveDisconnected, void(const SlaveID&));
+  MOCK_METHOD1(slaveReconnected, void(const SlaveID&));
   MOCK_METHOD1(updateWhitelist, void(const Option<hashset<std::string> >&));
   MOCK_METHOD2(resourcesRequested, void(const FrameworkID&,
                                         const std::vector<Request>&));
@@ -462,6 +473,24 @@ ACTION_P(InvokeSlaveRemoved, allocator)
   process::dispatch(
       allocator->real,
       &master::allocator::AllocatorProcess::slaveRemoved,
+      arg0);
+}
+
+
+ACTION_P(InvokeSlaveDisconnected, allocator)
+{
+  process::dispatch(
+      allocator->real,
+      &master::allocator::AllocatorProcess::slaveDisconnected,
+      arg0);
+}
+
+
+ACTION_P(InvokeSlaveReconnected, allocator)
+{
+  process::dispatch(
+      allocator->real,
+      &master::allocator::AllocatorProcess::slaveReconnected,
       arg0);
 }
 

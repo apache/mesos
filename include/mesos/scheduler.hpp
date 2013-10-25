@@ -20,10 +20,10 @@
 #define __MESOS_SCHEDULER_HPP__
 
 #include <string>
-#include <map>
 #include <vector>
 
 #include <mesos/mesos.hpp>
+
 
 /**
  * Mesos scheduler interface and scheduler driver. A scheduler is used
@@ -181,6 +181,7 @@ class SchedulerDriver
 public:
   /**
    * Empty virtual destructor (necessary to instantiate subclasses).
+   * It is expected that 'stop()' is called before this is called.
    */
   virtual ~SchedulerDriver() {}
 
@@ -207,7 +208,8 @@ public:
    * separated so that code can detect an aborted driver (i.e., via
    * the return status of SchedulerDriver::join, see below), and
    * instantiate and start another driver if desired (from within the
-   * same process).
+   * same process). Note that 'stop()' is not automatically called
+   * inside 'abort()'.
    */
   virtual Status abort() = 0;
 
@@ -280,6 +282,13 @@ public:
   virtual Status sendFrameworkMessage(const ExecutorID& executorId,
                                       const SlaveID& slaveId,
                                       const std::string& data) = 0;
+
+  /**
+   * Reconciliation of tasks causes the master to send status updates for tasks
+   * whose status differs from the status sent here.
+   */
+  virtual Status reconcileTasks(
+      const std::vector<TaskStatus>& statuses) = 0;
 };
 
 
@@ -322,10 +331,24 @@ public:
    * Any Mesos configuration options are read from environment
    * variables, as well as any configuration files found through the
    * environment variables.
+   *
+   * TODO(vinod): Deprecate this once 'MesosSchedulerDriver' can
+   * take 'Option<Credential>' as parameter. Currently it cannot
+   * because 'stout' is not visible from here.
    */
   MesosSchedulerDriver(Scheduler* scheduler,
                        const FrameworkInfo& framework,
                        const std::string& master);
+
+  /**
+   * Same as the above constructor but takes 'credential' as argument.
+   *
+   * The credential will be used for authenticating with the master.
+   */
+  MesosSchedulerDriver(Scheduler* scheduler,
+                       const FrameworkInfo& framework,
+                       const std::string& master,
+                       const Credential& credential);
 
   /**
    * This destructor will block indefinitely if
@@ -354,6 +377,8 @@ public:
   virtual Status sendFrameworkMessage(const ExecutorID& executorId,
                                       const SlaveID& slaveId,
                                       const std::string& data);
+  virtual Status reconcileTasks(
+      const std::vector<TaskStatus>& statuses);
 
 private:
   Scheduler* scheduler;

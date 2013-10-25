@@ -24,6 +24,7 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/option.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
@@ -81,7 +82,7 @@ public:
 
   Future<Nothing> recover(
       const string& rootDir,
-      const SlaveState& state);
+      const Option<SlaveState>& state);
 
   void newMasterDetected(const UPID& pid);
 
@@ -174,11 +175,15 @@ void StatusUpdateManagerProcess::newMasterDetected(const UPID& pid)
 
 Future<Nothing> StatusUpdateManagerProcess::recover(
     const string& rootDir,
-    const SlaveState& state)
+    const Option<SlaveState>& state)
 {
   LOG(INFO) << "Recovering status update manager";
 
-  foreachvalue (const FrameworkState& framework, state.frameworks) {
+  if (state.isNone()) {
+    return Nothing();
+  }
+
+  foreachvalue (const FrameworkState& framework, state.get().frameworks) {
     foreachvalue (const ExecutorState& executor, framework.executors) {
       LOG(INFO) << "Recovering executor '" << executor.id
                 << "' of framework " << framework.id;
@@ -225,7 +230,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
 
         // Create a new status update stream.
         StatusUpdateStream* stream = createStatusUpdateStream(
-            task.id, framework.id, state.id, true, executor.id, uuid);
+            task.id, framework.id, state.get().id, true, executor.id, uuid);
 
         // Replay the stream.
         Try<Nothing> replay = stream->replay(task.updates, task.acks);
@@ -587,7 +592,7 @@ Future<bool> StatusUpdateManager::acknowledgement(
 
 Future<Nothing> StatusUpdateManager::recover(
     const string& rootDir,
-    const SlaveState& state)
+    const Option<SlaveState>& state)
 {
   return dispatch(
       process, &StatusUpdateManagerProcess::recover, rootDir, state);

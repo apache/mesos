@@ -38,6 +38,7 @@
 #include <stout/hashset.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
+#include <stout/owned.hpp>
 
 #include "common/type_utils.hpp"
 #include "common/units.hpp"
@@ -52,6 +53,13 @@
 
 namespace mesos {
 namespace internal {
+
+namespace sasl {
+
+class Authenticator; // Forward declaration.
+
+}
+
 namespace master {
 
 using namespace process; // Included to make code easier to read.
@@ -59,7 +67,7 @@ using namespace process; // Included to make code easier to read.
 // Forward declarations.
 namespace allocator {
 
-  class Allocator;
+class Allocator;
 
 }
 
@@ -81,49 +89,101 @@ public:
 
   virtual ~Master();
 
-  void submitScheduler(const std::string& name);
-  void newMasterDetected(const UPID& pid);
+  void submitScheduler(
+      const std::string& name);
+  void newMasterDetected(
+      const UPID& pid);
   void noMasterDetected();
   void masterDetectionFailure();
-  void registerFramework(const FrameworkInfo& frameworkInfo);
-  void reregisterFramework(const FrameworkInfo& frameworkInfo,
-                           bool failover);
-  void unregisterFramework(const FrameworkID& frameworkId);
-  void deactivateFramework(const FrameworkID& frameworkId);
-  void resourceRequest(const FrameworkID& frameworkId,
-                       const std::vector<Request>& requests);
-  void launchTasks(const FrameworkID& frameworkId,
-                   const OfferID& offerId,
-                   const std::vector<TaskInfo>& tasks,
-                   const Filters& filters);
-  void reviveOffers(const FrameworkID& frameworkId);
-  void killTask(const FrameworkID& frameworkId, const TaskID& taskId);
-  void schedulerMessage(const SlaveID& slaveId,
-                        const FrameworkID& frameworkId,
-                        const ExecutorID& executorId,
-                        const std::string& data);
-  void registerSlave(const SlaveInfo& slaveInfo);
-  void reregisterSlave(const SlaveID& slaveId,
-                       const SlaveInfo& slaveInfo,
-                       const std::vector<ExecutorInfo>& executorInfos,
-                       const std::vector<Task>& tasks);
-  void unregisterSlave(const SlaveID& slaveId);
-  void statusUpdate(const StatusUpdate& update, const UPID& pid);
-  void exitedExecutor(const SlaveID& slaveId,
-                      const FrameworkID& frameworkId,
-                      const ExecutorID& executorId,
-                      int32_t status);
-  void deactivateSlave(const SlaveID& slaveId);
-  void frameworkFailoverTimeout(const FrameworkID& frameworkId,
-                                const Time& reregisteredTime);
+  void registerFramework(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo);
+  void reregisterFramework(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      bool failover);
+  void unregisterFramework(
+      const process::UPID& from,
+      const FrameworkID& frameworkId);
+  void deactivateFramework(
+      const process::UPID& from,
+      const FrameworkID& frameworkId);
+  void resourceRequest(
+      const FrameworkID& frameworkId,
+      const std::vector<Request>& requests);
+  void launchTasks(
+      const FrameworkID& frameworkId,
+      const OfferID& offerId,
+      const std::vector<TaskInfo>& tasks,
+      const Filters& filters);
+  void reviveOffers(
+      const FrameworkID& frameworkId);
+  void killTask(
+      const FrameworkID& frameworkId,
+      const TaskID& taskId);
+  void schedulerMessage(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const std::string& data);
+  void registerSlave(
+      const process::UPID& from,
+      const SlaveInfo& slaveInfo);
+  void reregisterSlave(
+      const process::UPID& from,
+      const SlaveID& slaveId,
+      const SlaveInfo& slaveInfo,
+      const std::vector<ExecutorInfo>& executorInfos,
+      const std::vector<Task>& tasks);
+  void unregisterSlave(
+      const SlaveID& slaveId);
+  void statusUpdate(
+      const StatusUpdate& update,
+      const UPID& pid);
+  void exitedExecutor(
+      const process::UPID& from,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      int32_t status);
+  void deactivateSlave(
+      const SlaveID& slaveId);
 
-  void offer(const FrameworkID& framework,
-             const hashmap<SlaveID, Resources>& resources);
+  // TODO(bmahler): It would be preferred to use a unique libprocess
+  // Process identifier (PID is not sufficient) for identifying the
+  // framework instance, rather than relying on re-registration time.
+  void frameworkFailoverTimeout(
+      const FrameworkID& frameworkId,
+      const Time& reregisteredTime);
+
+  void offer(
+      const FrameworkID& framework,
+      const hashmap<SlaveID, Resources>& resources);
+
+  void reconcileTasks(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const std::vector<TaskStatus>& statuses);
+
+  void authenticate(
+      const process::UPID& from,
+      const process::UPID& pid);
 
 protected:
   virtual void initialize();
   virtual void finalize();
   virtual void exited(const UPID& pid);
+
+  void deactivate(Framework* framework);
+
+  // 'promise' is used to signal finish of authentication.
+  // 'future' is the future returned by the authenticator.
+  void _authenticate(
+      const UPID& pid,
+      const Owned<Promise<Nothing> >& promise,
+      const Future<bool>& future);
+
+  void authenticationTimeout(Future<bool> future);
 
   void fileAttached(const Future<Nothing>& result, const std::string& path);
 
@@ -261,6 +321,16 @@ private:
 
   hashmap<std::string, Role*> roles;
 
+  // Frameworks that are currently in the process of authentication.
+  // 'authenticating' future for a framework is ready when it is
+  // authenticated.
+  hashmap<UPID, Future<Nothing> > authenticating;
+
+  hashmap<UPID, Owned<sasl::Authenticator> > authenticators;
+
+  // Authenticated frameworks keyed by framework's PID.
+  hashset<UPID> authenticated;
+
   boost::circular_buffer<std::tr1::shared_ptr<Framework> > completedFrameworks;
 
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
@@ -299,25 +369,19 @@ struct Slave
 
   Task* getTask(const FrameworkID& frameworkId, const TaskID& taskId)
   {
-    foreachvalue (Task* task, tasks) {
-      if (task->framework_id() == frameworkId &&
-          task->task_id() == taskId) {
-        return task;
-      }
+    if (tasks.contains(frameworkId) && tasks[frameworkId].contains(taskId)) {
+      return tasks[frameworkId][taskId];
     }
-
     return NULL;
   }
 
   void addTask(Task* task)
   {
-    std::pair<FrameworkID, TaskID> key =
-      std::make_pair(task->framework_id(), task->task_id());
-    CHECK(!tasks.contains(key))
+    CHECK(!tasks[task->framework_id()].contains(task->task_id()))
       << "Duplicate task " << task->task_id()
       << " of framework " << task->framework_id();
 
-    tasks[key] = task;
+    tasks[task->framework_id()][task->task_id()] = task;
     LOG(INFO) << "Adding task " << task->task_id()
               << " with resources " << task->resources()
               << " on slave " << id << " (" << info.hostname() << ")";
@@ -326,13 +390,15 @@ struct Slave
 
   void removeTask(Task* task)
   {
-    std::pair<FrameworkID, TaskID> key =
-      std::make_pair(task->framework_id(), task->task_id());
-    CHECK(tasks.contains(key))
+    CHECK(tasks[task->framework_id()].contains(task->task_id()))
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
 
-    tasks.erase(key);
+    tasks[task->framework_id()].erase(task->task_id());
+    if (tasks[task->framework_id()].empty()) {
+      tasks.erase(task->framework_id());
+    }
+
     killedTasks.remove(task->framework_id(), task->task_id());
     LOG(INFO) << "Removing task " << task->task_id()
               << " with resources " << task->resources()
@@ -413,11 +479,11 @@ struct Slave
   // Executors running on this slave.
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > executors;
 
-  // Tasks running on this slave, indexed by FrameworkID x TaskID.
+  // Tasks present on this slave.
   // TODO(bmahler): The task pointer ownership complexity arises from the fact
   // that we own the pointer here, but it's shared with the Framework struct.
   // We should find a way to eliminate this.
-  hashmap<std::pair<FrameworkID, TaskID>, Task*> tasks;
+  hashmap<FrameworkID, hashmap<TaskID, Task*> > tasks;
 
   // Tasks that were asked to kill by frameworks.
   // This is used for reconciliation when the slave re-registers.

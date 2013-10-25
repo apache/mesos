@@ -20,6 +20,8 @@ import java.io.File;
 
 import java.util.List;
 
+import com.google.protobuf.ByteString;
+
 import org.apache.mesos.*;
 import org.apache.mesos.Protos.*;
 
@@ -83,11 +85,42 @@ public class TestExceptionFramework {
         .setName("Exception Framework (Java)")
         .build();
 
-    MesosSchedulerDriver driver = new MesosSchedulerDriver(
-        new TestExceptionScheduler(),
-        framework,
-        args[0]);
+    MesosSchedulerDriver driver = null;
+    if (System.getenv("MESOS_AUTHENTICATE") != null) {
+      System.out.println("Enabling authentication for the framework");
 
-    System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);
+      if (System.getenv("DEFAULT_PRINCIPAL") == null) {
+        System.err.println("Expecting authentication principal in the environment");
+        System.exit(1);
+      }
+
+      if (System.getenv("DEFAULT_SECRET") == null) {
+        System.err.println("Expecting authentication secret in the environment");
+        System.exit(1);
+      }
+
+      Credential credential = Credential.newBuilder()
+        .setPrincipal(System.getenv("DEFAULT_PRINCIPAL"))
+        .setSecret(ByteString.copyFrom(System.getenv("DEFAULT_SECRET").getBytes()))
+        .build();
+
+      driver = new MesosSchedulerDriver(
+          new TestExceptionScheduler(),
+          framework,
+          args[0],
+          credential);
+    } else {
+      driver = new MesosSchedulerDriver(
+          new TestExceptionScheduler(),
+          framework,
+          args[0]);
+    }
+
+    int status = driver.run() == Status.DRIVER_STOPPED ? 0 : 1;
+
+    // Ensure that the driver process terminates.
+    driver.stop();
+
+    System.exit(status);
   }
 }

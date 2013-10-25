@@ -233,7 +233,7 @@ protected:
     VLOG(1) << "Executor::reregistered took " << stopwatch.elapsed();
   }
 
-  void reconnect(const SlaveID& slaveId)
+  void reconnect(const UPID& from, const SlaveID& slaveId)
   {
     if (aborted) {
       VLOG(1) << "Ignoring reconnect message from slave " << slaveId
@@ -497,6 +497,10 @@ protected:
     update->set_timestamp(Clock::now().secs());
     update->set_uuid(UUID::random().toBytes());
     message.set_pid(self());
+
+    // Incoming status update might come from an executor which has not set
+    // slave id in TaskStatus. Set/overwrite slave id.
+    update->mutable_status()->mutable_slave_id()->CopyFrom(slaveId);;
 
     VLOG(1) << "Executor sending status update " << *update;
 

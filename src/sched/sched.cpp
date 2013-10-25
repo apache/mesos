@@ -32,6 +32,7 @@
 
 #include <mesos/scheduler.hpp>
 
+#include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
@@ -42,9 +43,14 @@
 #include <stout/error.hpp>
 #include <stout/flags.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/lambda.hpp>
+#include <stout/option.hpp>
+#include <stout/owned.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/uuid.hpp>
+
+#include "sasl/authenticatee.hpp"
 
 #include "common/lock.hpp"
 #include "common/type_utils.hpp"
@@ -85,6 +91,7 @@ public:
   SchedulerProcess(MesosSchedulerDriver* _driver,
                    Scheduler* _scheduler,
                    const FrameworkInfo& _framework,
+                   const Option<Credential>& _credential,
                    const string& _url,
                    pthread_mutex_t* _mutex,
                    pthread_cond_t* _cond)
@@ -100,7 +107,11 @@ public:
       connected(false),
       aborted(false),
       // TODO(benh): Add Try().
-      detector(Error("uninitialized"))
+      detector(Error("uninitialized")),
+      credential(_credential),
+      authenticating(None()),
+      authenticated(false),
+      reauthenticate(false)
   {}
 
   virtual ~SchedulerProcess() {}
@@ -175,6 +186,12 @@ protected:
 
   void newMasterDetected(const UPID& pid)
   {
+    if (aborted) {
+      VLOG(1) << "Ignoring new master detected message because "
+              << "the driver is aborted!";
+      return;
+    }
+
     VLOG(1) << "New master at " << pid;
 
     master = pid;
@@ -194,11 +211,27 @@ protected:
     }
 
     connected = false;
-    doReliableRegistration();
+
+    if (credential.isSome()) {
+      // Authenticate with the master.
+      authenticate();
+    } else {
+      // Proceed with registration without authentication.
+      LOG(INFO) << "No credentials provided."
+                << " Attempting to register without authentication";
+
+      doReliableRegistration();
+    }
   }
 
   void noMasterDetected()
   {
+    if (aborted) {
+      VLOG(1) << "Ignoring no master detected message because "
+              << "the driver is aborted!";
+      return;
+    }
+
     VLOG(1) << "No master detected, waiting for another master";
 
     // Inform the scheduler about the disconnection if the driver
@@ -218,6 +251,101 @@ protected:
     // since we might get reconnected to a master imminently.
     connected = false;
     master = UPID();
+  }
+
+  void authenticate()
+  {
+    if (aborted) {
+      VLOG(1) << "Ignoring authenticate because the driver is aborted!";
+      return;
+    }
+
+    authenticated = false;
+
+    if (!master) {
+      return;
+    }
+
+    if (authenticating.isSome()) {
+      // Authentication is in progress. Try to cancel it.
+      // Note that it is possible that 'authenticating' is ready
+      // and the dispatch to '_authenticate' is enqueued when we
+      // are here, making the 'discard' here a no-op. This is ok
+      // because we set 'reauthenticate' here which enforces a retry
+      // in '_authenticate'.
+      authenticating.get().discard();
+      reauthenticate = true;
+      return;
+    }
+
+    LOG(INFO) << "Authenticating with master " << master;
+
+    CHECK_SOME(credential);
+    Owned<sasl::Authenticatee> authenticatee =
+      new sasl::Authenticatee(credential.get(), self());
+
+    authenticating = authenticatee->authenticate(master)
+      .onAny(defer(self(), &Self::_authenticate, authenticatee));
+
+    delay(Seconds(5),
+          self(),
+          &Self::authenticationTimeout,
+          authenticating.get());
+  }
+
+  void _authenticate(const Owned<sasl::Authenticatee>& authenticatee)
+  {
+    if (aborted) {
+      VLOG(1) << "Ignoring _authenticate because the driver is aborted!";
+      return;
+    }
+
+    CHECK_SOME(authenticating);
+    const Future<bool>& future = authenticating.get();
+
+    if (reauthenticate || !future.isReady()) {
+      LOG(WARNING)
+        << "Failed to authenticate with master " << master << ": "
+        << (reauthenticate ? "master changed" :
+           (future.isFailed() ? future.failure() : "future discarded"));
+
+      authenticating = None();
+      reauthenticate = false;
+
+      // TODO(vinod): Add a limit on number of retries.
+      dispatch(self(), &Self::authenticate); // Retry.
+      return;
+    }
+
+    if (!future.get()) {
+      LOG(ERROR) << "Master " << master << " refused authentication";
+      error("Master refused authentication");
+      return;
+    }
+
+    LOG(INFO) << "Successfully authenticated with master " << master;
+
+    authenticated = true;
+    authenticating = None();
+
+    doReliableRegistration(); // Proceed with registration.
+  }
+
+  void authenticationTimeout(Future<bool> future)
+  {
+    if (aborted) {
+      VLOG(1) << "Ignoring authentication timeout because "
+              << "the driver is aborted!";
+      return;
+    }
+
+    // NOTE: Discarded future results in a retry in '_authenticate()'.
+    // Also note that a 'discard' here is safe even if another
+    // authenticator is in progress because this copy of the future
+    // corresponds to the original authenticator that started the timer.
+    if (future.discard()) { // This is a no-op if the future is already ready.
+      LOG(WARNING) << "Authentication timed out";
+    }
   }
 
   void registered(const FrameworkID& frameworkId, const MasterInfo& masterInfo)
@@ -285,6 +413,10 @@ protected:
   void doReliableRegistration()
   {
     if (connected || !master) {
+      return;
+    }
+
+    if (credential.isSome() && !authenticated) {
       return;
     }
 
@@ -422,7 +554,7 @@ protected:
     send(pid, message);
   }
 
-  void lostSlave(const SlaveID& slaveId)
+  void lostSlave(const UPID& from, const SlaveID& slaveId)
   {
     if (aborted) {
       VLOG(1) << "Ignoring lost slave message because the driver is aborted!";
@@ -431,7 +563,7 @@ protected:
 
     if (from != master) {
       LOG(WARNING) << "Ignoring lost slave message from " << from
-                   << "because it is not from the registered master ("
+                   << " because it is not from the registered master ("
                    << master << ")";
       return;
     }
@@ -725,6 +857,23 @@ protected:
     }
   }
 
+  void reconcileTasks(const vector<TaskStatus>& statuses)
+  {
+    if (!connected) {
+     VLOG(1) << "Ignoring task reconciliation as master is disconnected";
+     return;
+    }
+
+    ReconcileTasksMessage message;
+    message.mutable_framework_id()->MergeFrom(framework.id());
+
+    foreach (const TaskStatus& status, statuses) {
+      message.add_statuses()->MergeFrom(status);
+    }
+
+    send(master, message);
+  }
+
 private:
   friend class mesos::MesosSchedulerDriver;
 
@@ -744,6 +893,17 @@ private:
 
   hashmap<OfferID, hashmap<SlaveID, UPID> > savedOffers;
   hashmap<SlaveID, UPID> savedSlavePids;
+
+  const Option<Credential> credential;
+
+  // Indicates if an authentication attempt is in progress.
+  Option<Future<bool> > authenticating;
+
+  // Indicates if the authentication is successful.
+  bool authenticated;
+
+  // Indicates if a new authentication attempt should be enforced.
+  bool reauthenticate;
 };
 
 } // namespace internal {
@@ -762,7 +922,8 @@ private:
 //
 // (2) There is a variable called state, that represents the current
 //     state of the driver and is used to enforce its state transitions.
-
+// TODO(vinod): Deprecate this in favor of the constructor that takes
+// the credential.
 MesosSchedulerDriver::MesosSchedulerDriver(
     Scheduler* _scheduler,
     const FrameworkInfo& _framework,
@@ -825,10 +986,83 @@ MesosSchedulerDriver::MesosSchedulerDriver(
 
   if (pid.isSome()) {
     process = new SchedulerProcess(
-        this, scheduler, framework, pid.get(), &mutex, &cond);
+        this, scheduler, framework, None(), pid.get(), &mutex, &cond);
   } else {
     process = new SchedulerProcess(
-        this, scheduler, framework, master, &mutex, &cond);
+        this, scheduler, framework, None(), master, &mutex, &cond);
+  }
+}
+
+
+// The implementation of this is same as the above constructor
+// except that the SchedulerProcess is passed the credential.
+MesosSchedulerDriver::MesosSchedulerDriver(
+    Scheduler* _scheduler,
+    const FrameworkInfo& _framework,
+    const string& _master,
+    const Credential& credential)
+  : scheduler(_scheduler),
+    framework(_framework),
+    master(_master),
+    process(NULL),
+    status(DRIVER_NOT_STARTED)
+{
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  // Load any flags from the environment (we use local::Flags in the
+  // event we run in 'local' mode, since it inherits logging::Flags).
+  // In the future, just as the TODO in local/main.cpp discusses,
+  // we'll probably want a way to load master::Flags and slave::Flags
+  // as well.
+  local::Flags flags;
+
+  Try<Nothing> load = flags.load("MESOS_");
+
+  if (load.isError()) {
+    status = DRIVER_ABORTED;
+    scheduler->error(this, load.error());
+    return;
+  }
+
+  // Initialize libprocess.
+  process::initialize();
+
+  // TODO(benh): Replace whitespace in framework.name() with '_'?
+  logging::initialize(framework.name(), flags);
+
+  // Initialize mutex and condition variable. TODO(benh): Consider
+  // using a libprocess Latch rather than a pthread mutex and
+  // condition variable for signaling.
+  pthread_mutexattr_t attr;
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&mutex, &attr);
+  pthread_mutexattr_destroy(&attr);
+  pthread_cond_init(&cond, 0);
+
+  // TODO(benh): Check the user the framework wants to run tasks as,
+  // see if the current user can switch to that user, or via an
+  // authentication module ensure this is acceptable.
+
+  // If no user specified, just use the current user.
+  if (framework.user() == "") {
+    framework.set_user(os::user());
+  }
+
+  // Launch a local cluster if necessary.
+  Option<UPID> pid;
+  if (master == "local") {
+    pid = local::launch(flags);
+  }
+
+  CHECK(process == NULL);
+
+  if (pid.isSome()) {
+    process = new SchedulerProcess(
+        this, scheduler, framework, credential, pid.get(), &mutex, &cond);
+  } else {
+    process = new SchedulerProcess(
+        this, scheduler, framework, credential, master, &mutex, &cond);
   }
 }
 
@@ -1022,6 +1256,23 @@ Status MesosSchedulerDriver::sendFrameworkMessage(
 
   dispatch(process, &SchedulerProcess::sendFrameworkMessage,
            executorId, slaveId, data);
+
+  return status;
+}
+
+
+Status MesosSchedulerDriver::reconcileTasks(
+    const vector<TaskStatus>& statuses)
+{
+  Lock lock(&mutex);
+
+  if (status != DRIVER_RUNNING) {
+    return status;
+  }
+
+  CHECK(process != NULL);
+
+  dispatch(process, &SchedulerProcess::reconcileTasks, statuses);
 
   return status;
 }

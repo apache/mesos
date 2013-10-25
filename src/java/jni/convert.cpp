@@ -23,6 +23,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/result.hpp>
 #include <stout/strings.hpp>
 
 #include "construct.hpp"
@@ -508,4 +509,40 @@ jobject convert(JNIEnv* env, const Status& status)
   jobject jstate = env->CallStaticObjectMethod(clazz, valueOf, jvalue);
 
   return jstate;
+}
+
+
+// Helper to safely return the 'jfieldID' of the given 'name'
+// and 'signature'. If the field doesn't exist 'None' is
+// returned. If any other JVM Exception is encountered an 'Error'
+// is returned and the JVM exception rethrown.
+Result<jfieldID> getFieldID(
+    JNIEnv* env,
+    jclass clazz,
+    const char* name,
+    const char* signature)
+{
+  static jclass NO_SUCH_FIELD_ERROR = NULL;
+
+  if (NO_SUCH_FIELD_ERROR == NULL) {
+    NO_SUCH_FIELD_ERROR = env->FindClass("java/lang/NoSuchFieldError");
+    if (env->ExceptionCheck() == JNI_TRUE) {
+      return Error("Cannot find NoSuchFieldError class");
+    }
+  }
+
+  jfieldID jfield = env->GetFieldID(clazz, name, signature);
+  jthrowable jexception = env->ExceptionOccurred();
+  if (jexception != NULL) {
+    env->ExceptionClear(); // Clear the exception first before proceeding.
+    if (!env->IsInstanceOf(jexception, NO_SUCH_FIELD_ERROR)) {
+      // We are here if we got a different exception than
+      // 'NoSuchFieldError'. Rethrow and bail.
+      env->Throw(jexception);
+      return Error("Unexpected exception");
+    }
+    return None(); // The field doesn't exist.
+  }
+
+  return jfield;
 }

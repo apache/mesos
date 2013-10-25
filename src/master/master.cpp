@@ -27,12 +27,16 @@
 #include <process/run.hpp>
 
 #include <stout/check.hpp>
+#include <stout/lambda.hpp>
 #include <stout/multihashmap.hpp>
+#include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/owned.hpp>
 #include <stout/path.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
-#include <stout/lambda.hpp>
+
+#include "sasl/authenticator.hpp"
 
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
@@ -59,6 +63,7 @@ namespace master {
 
 using allocator::Allocator;
 
+
 class WhitelistWatcher : public Process<WhitelistWatcher> {
 public:
   WhitelistWatcher(const string& _path, Allocator* _allocator)
@@ -81,12 +86,10 @@ protected:
     } else {
       // Read from local file.
       // TODO(vinod): Add support for reading from ZooKeeper.
-      CHECK(path.find("file://") == 0)
-          << "File path " << path << " should start with file://";
-
       // TODO(vinod): Ensure this read is atomic w.r.t external
       // writes/updates to this file.
-      Try<string> read = os::read(path.substr(strlen("file://")));
+      Try<string> read = os::read(
+          strings::remove(path, "file://", strings::PREFIX));
       if (read.isError()) {
         LOG(ERROR) << "Error reading whitelist file: " << read.error() << ". "
                    << "Retrying";
@@ -231,6 +234,18 @@ Master::~Master()
   }
   frameworks.clear();
 
+  foreachvalue (Future<Nothing> future, authenticating) {
+    // NOTE: This is necessary during tests because a copy of
+    // this future is used to setup authentication timeout. If a
+    // test doesn't discard this future, authentication timeout might
+    // fire in a different test and any associated callbacks
+    // (e.g., '_authenticate()') would be called. This is because the
+    // master pid doesn't change across the tests.
+    // TODO(vinod): This seems to be a bug in libprocess or the
+    // testing infrastructure.
+    future.discard();
+  }
+
   CHECK_EQ(offers.size(), 0UL);
 
   foreachvalue (Slave* slave, slaves) {
@@ -240,8 +255,12 @@ Master::~Master()
     // Remove tasks that are in the slave but not in any framework.
     // This could happen when the framework has yet to reregister
     // after master failover.
-    foreachvalue (Task* task, utils::copy(slave->tasks)) {
-      removeTask(task);
+    // NOTE: keys() and values() are used because slave->tasks is
+    //       modified by removeTask()!
+    foreach (const FrameworkID& frameworkId, slave->tasks.keys()) {
+      foreach (Task* task, slave->tasks[frameworkId].values()) {
+        removeTask(task);
+      }
     }
 
     // Kill the slave observer.
@@ -279,6 +298,54 @@ void Master::initialize()
 
   LOG(INFO) << "Master ID: " << info.id();
 
+  if (flags.authenticate) {
+    LOG(INFO) << "Master only allowing authenticated frameworks to register!";
+
+    if (flags.credentials.isNone()) {
+      EXIT(1) << "Authentication requires a credentials file"
+              << " (see --credentials flag)";
+    }
+  } else {
+    LOG(INFO) << "Master allowing unauthenticated frameworks to register!!";
+  }
+
+
+  if (flags.credentials.isSome()) {
+    vector<Credential> credentials;
+
+    const std::string& path = flags.credentials.get();
+
+    // TODO(vinod): Warn if the credentials file has bad file
+    // permissions (e.g., world readable!).
+    Try<string> read = os::read(
+        strings::remove(path, "file://", strings::PREFIX));
+    if (read.isError()) {
+      EXIT(1) << "Failed to read credentials file '" << path
+              << "': " << read.error();
+    } else if (read.get().empty()) {
+      LOG(WARNING) << "Empty credentials file '" << path << "'. "
+                   << "!!No frameworks will be allowed to register!!";
+    } else {
+      foreach (const string& line, strings::tokenize(read.get(), "\n")) {
+        const vector<string>& pairs = strings::tokenize(line, " ");
+        if (pairs.size() != 2) {
+          EXIT(1)
+            << "Invalid credential format at line: " << (credentials.size() + 1)
+            << " (see --credentials flag)";
+        }
+
+        // Add the credential.
+        Credential credential;
+        credential.set_principal(pairs[0]);
+        credential.set_secret(pairs[1]);
+
+        credentials.push_back(credential);
+      }
+    }
+    // Give Authenticator access to credentials.
+    sasl::secrets::load(credentials);
+  }
+
   hashmap<string, RoleInfo> roleInfos;
 
   // Add the default role.
@@ -306,7 +373,7 @@ void Master::initialize()
       if (pair.size() != 2) {
         EXIT(1) << "Invalid weight: '" << token << "'. --weights should"
           "be of the form 'role=weight,role=weight'\n";
-      } else if (!roles.contains(pair[0])) {
+      } else if (!roleInfos.contains(pair[0])) {
         EXIT(1) << "Invalid weight: '" << token << "'. " << pair[0]
                 << " is not a valid role.";
       }
@@ -432,12 +499,21 @@ void Master::initialize()
       &StatusUpdateMessage::update,
       &StatusUpdateMessage::pid);
 
+  install<ReconcileTasksMessage>(
+      &Master::reconcileTasks,
+      &ReconcileTasksMessage::framework_id,
+      &ReconcileTasksMessage::statuses);
+
   install<ExitedExecutorMessage>(
       &Master::exitedExecutor,
       &ExitedExecutorMessage::slave_id,
       &ExitedExecutorMessage::framework_id,
       &ExitedExecutorMessage::executor_id,
       &ExitedExecutorMessage::status);
+
+  install<AuthenticateMessage>(
+      &Master::authenticate,
+      &AuthenticateMessage::pid);
 
   // Setup HTTP routes.
   route("/health",
@@ -488,13 +564,8 @@ void Master::exited(const UPID& pid)
     if (framework->pid == pid) {
       LOG(INFO) << "Framework " << framework->id << " disconnected";
 
-//       removeFramework(framework);
-
-      // Stop sending offers here for now.
-      framework->active = false;
-
-      // Tell the allocator to stop allocating resources to this framework.
-      allocator->frameworkDeactivated(framework->id);
+      // Deactivate framework.
+      deactivate(framework);
 
       // Set 'failoverTimeout' to the default and update only if the
       // input is valid.
@@ -523,15 +594,6 @@ void Master::exited(const UPID& pid)
           framework->id,
           framework->reregisteredTime);
 
-      // Remove the framework's offers.
-      foreach (Offer* offer, utils::copy(framework->offers)) {
-        allocator->resourcesRecovered(
-            offer->framework_id(),
-            offer->slave_id(),
-            Resources(offer->resources()));
-
-        removeOffer(offer);
-      }
       return;
     }
   }
@@ -564,20 +626,13 @@ void Master::exited(const UPID& pid)
         // Mark the slave as disconnected and remove it from the allocator.
         slave->disconnected = true;
 
-        // TODO(vinod/Thomas): Instead of removing the slave, we should
-        // have 'Allocator::slave{Reconnected, Disconnected}'.
-        allocator->slaveRemoved(slave->id);
+        allocator->slaveDisconnected(slave->id);
 
         // If a slave is checkpointing, remove all non-checkpointing
         // frameworks from the slave.
         // First, collect all the frameworks running on this slave.
-        hashset<FrameworkID> frameworkIds;
-        foreachvalue (Task* task, slave->tasks) {
-          frameworkIds.insert(task->framework_id());
-        }
-        foreachkey (const FrameworkID& frameworkId, slave->executors) {
-          frameworkIds.insert(frameworkId);
-        }
+        hashset<FrameworkID> frameworkIds =
+          slave->tasks.keys() | slave->executors.keys();
 
         // Now, remove all the non-checkpointing frameworks.
         foreach (const FrameworkID& frameworkId, frameworkIds) {
@@ -592,8 +647,6 @@ void Master::exited(const UPID& pid)
         }
 
         foreach (Offer* offer, utils::copy(slave->offers)) {
-          // TODO(vinod): We don't need to call 'Allocator::resourcesRecovered'
-          // once MESOS-621 is fixed.
           allocator->resourcesRecovered(
               offer->framework_id(), slave->id, offer->resources());
 
@@ -661,19 +714,45 @@ void Master::noMasterDetected()
 }
 
 
-void Master::registerFramework(const FrameworkInfo& frameworkInfo)
+void Master::registerFramework(
+    const UPID& from,
+    const FrameworkInfo& frameworkInfo)
 {
+  if (authenticating.contains(from)) {
+    LOG(INFO) << "Queuing up registration request from " << from
+              << " because authentication is still in progress";
+
+    authenticating[from]
+      .onReady(defer(self(), &Self::registerFramework, from, frameworkInfo));
+    return;
+  }
+
   if (!elected) {
     LOG(WARNING) << "Ignoring register framework message since not elected yet";
+    return;
+  }
+
+  if (flags.authenticate && !authenticated.contains(from)) {
+    // This could happen if another authentication request came
+    // through before we are here or if a framework tried to register
+    // without authentication.
+    LOG(WARNING) << "Refusing registration of framework at " << from
+                 << " because it is not authenticated";
+    FrameworkErrorMessage message;
+    message.set_message("Framework at " + stringify(from) +
+                        " is not authenticated.");
+    send(from, message);
     return;
   }
 
   if (!roles.contains(frameworkInfo.role())) {
     FrameworkErrorMessage message;
     message.set_message("Role '" + frameworkInfo.role() + "' is not valid.");
-    reply(message);
+    send(from, message);
     return;
   }
+
+  LOG(INFO) << "Received registration request from " << from;
 
   // Check if this framework is already registered (because it retries).
   foreachvalue (Framework* framework, frameworks) {
@@ -683,7 +762,7 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
       FrameworkRegisteredMessage message;
       message.mutable_framework_id()->MergeFrom(framework->id);
       message.mutable_master_info()->MergeFrom(info);
-      reply(message);
+      send(from, message);
       return;
     }
   }
@@ -700,7 +779,7 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
               << "root submissions are disabled on this cluster";
     FrameworkErrorMessage message;
     message.set_message("User 'root' is not allowed to run frameworks");
-    reply(message);
+    send(from, message);
     delete framework;
     return;
   }
@@ -709,9 +788,24 @@ void Master::registerFramework(const FrameworkInfo& frameworkInfo)
 }
 
 
-void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
-                                 bool failover)
+void Master::reregisterFramework(
+    const UPID& from,
+    const FrameworkInfo& frameworkInfo,
+    bool failover)
 {
+  if (authenticating.contains(from)) {
+    LOG(INFO) << "Queuing up re-registration request from " << from
+              << " because authentication is still in progress";
+
+    authenticating[from]
+      .onReady(defer(self(),
+                     &Self::reregisterFramework,
+                     from,
+                     frameworkInfo,
+                     failover));
+    return;
+  }
+
   if (!elected) {
     LOG(WARNING) << "Ignoring re-register framework message since "
                  << "not elected yet";
@@ -722,14 +816,27 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     LOG(ERROR) << "Framework re-registering without an id!";
     FrameworkErrorMessage message;
     message.set_message("Framework reregistered without a framework id");
-    reply(message);
+    send(from, message);
+    return;
+  }
+
+  if (flags.authenticate && !authenticated.contains(from)) {
+    // This could happen if another authentication request came
+    // through before we are here or if a framework tried to
+    // re-register without authentication.
+    LOG(WARNING) << "Refusing registration of framework at " << from
+                  << " because it is not authenticated";
+    FrameworkErrorMessage message;
+    message.set_message("Framework '" + frameworkInfo.id().value() + "' at " +
+                        stringify(from) + " is not authenticated.");
+    send(from, message);
     return;
   }
 
   if (!roles.contains(frameworkInfo.role())) {
     FrameworkErrorMessage message;
     message.set_message("Role '" + frameworkInfo.role() + "' is not valid.");
-    reply(message);
+    send(from, message);
     return;
   }
 
@@ -748,8 +855,15 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     // know which scheduler is the correct one.
 
     Framework* framework = frameworks[frameworkInfo.id()];
+    framework->reregisteredTime = Clock::now();
 
     if (failover) {
+      // We do not attempt to detect a duplicate re-registration
+      // message here because it is impossible to distinguish between
+      // a duplicate message, and a scheduler failover to the same
+      // pid, given the existing libprocess primitives (PID does not
+      // identify the libprocess Process instance).
+
       // TODO: Should we check whether the new scheduler has given
       // us a different framework name, user name or executor info?
       LOG(INFO) << "Framework " << frameworkInfo.id() << " failed over";
@@ -772,7 +886,7 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
       FrameworkReregisteredMessage message;
       message.mutable_framework_id()->MergeFrom(frameworkInfo.id());
       message.mutable_master_info()->MergeFrom(info);
-      reply(message);
+      send(from, message);
       return;
     }
   } else {
@@ -782,22 +896,23 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     // any tasks it has that have been reported by reconnecting slaves.
     Framework* framework =
       new Framework(frameworkInfo, frameworkInfo.id(), from, Clock::now());
+    framework->reregisteredTime = Clock::now();
 
     // TODO(benh): Check for root submissions like above!
 
     // Add any running tasks reported by slaves for this framework.
     foreachvalue (Slave* slave, slaves) {
-      foreachvalue (Task* task, slave->tasks) {
-        if (framework->id == task->framework_id()) {
-          framework->addTask(task);
-          // Also add the task's executor for resource accounting.
-          if (task->has_executor_id()) {
-            if (!framework->hasExecutor(slave->id, task->executor_id())) {
-              CHECK(slave->hasExecutor(framework->id, task->executor_id()))
-                << "Unknown executor " << task->executor_id()
-                << " of framework " << framework->id
-                << " for the task " << task->task_id();
+      foreachkey (const FrameworkID& frameworkId, slave->tasks) {
+        foreachvalue (Task* task, slave->tasks[frameworkId]) {
+          if (framework->id == task->framework_id()) {
+            framework->addTask(task);
 
+            // Also add the task's executor for resource accounting
+            // if it's still alive on the slave and we've not yet
+            // added it to the framework.
+            if (task->has_executor_id() &&
+                slave->hasExecutor(framework->id, task->executor_id()) &&
+                !framework->hasExecutor(slave->id, task->executor_id())) {
               const ExecutorInfo& executorInfo =
                 slave->executors[framework->id][task->executor_id()];
               framework->addExecutor(slave->id, executorInfo);
@@ -826,10 +941,14 @@ void Master::reregisterFramework(const FrameworkInfo& frameworkInfo,
     message.set_pid(from);
     send(slave->pid, message);
   }
+
+  return;
 }
 
 
-void Master::unregisterFramework(const FrameworkID& frameworkId)
+void Master::unregisterFramework(
+    const UPID& from,
+    const FrameworkID& frameworkId)
 {
   LOG(INFO) << "Asked to unregister framework " << frameworkId;
 
@@ -845,19 +964,48 @@ void Master::unregisterFramework(const FrameworkID& frameworkId)
 }
 
 
-void Master::deactivateFramework(const FrameworkID& frameworkId)
+void Master::deactivateFramework(
+    const UPID& from,
+    const FrameworkID& frameworkId)
 {
   Framework* framework = getFramework(frameworkId);
 
   if (framework != NULL) {
     if (framework->pid == from) {
-      LOG(INFO) << "Deactivating framework " << frameworkId
-                << " as requested by " << from;
-      framework->active = false;
+      LOG(INFO) << from << " asked to deactivate framework " << frameworkId;
+      deactivate(framework);
     } else {
       LOG(WARNING) << from << " tried to deactivate framework; "
                    << "expecting " << framework->pid;
     }
+  }
+}
+
+
+void Master::deactivate(Framework* framework)
+{
+  CHECK_NOTNULL(framework);
+
+  LOG(INFO) << "Deactivating framework " << framework->id;
+
+  // Stop sending offers here for now.
+  framework->active = false;
+
+  // Tell the allocator to stop allocating resources to this framework.
+  allocator->frameworkDeactivated(framework->id);
+
+  // Remove the framework from authenticated. This is safe because
+  // a framework will always reauthenticate before (re-)registering.
+  authenticated.erase(framework->pid);
+
+  // Remove the framework's offers.
+  foreach (Offer* offer, utils::copy(framework->offers)) {
+    allocator->resourcesRecovered(
+        offer->framework_id(),
+        offer->slave_id(),
+        Resources(offer->resources()));
+
+    removeOffer(offer);
   }
 }
 
@@ -1038,7 +1186,7 @@ void Master::schedulerMessage(const SlaveID& slaveId,
 }
 
 
-void Master::registerSlave(const SlaveInfo& slaveInfo)
+void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
 {
   if (!elected) {
     LOG(WARNING) << "Ignoring register slave message from "
@@ -1093,10 +1241,12 @@ void Master::registerSlave(const SlaveInfo& slaveInfo)
 }
 
 
-void Master::reregisterSlave(const SlaveID& slaveId,
-                             const SlaveInfo& slaveInfo,
-                             const vector<ExecutorInfo>& executorInfos,
-                             const vector<Task>& tasks)
+void Master::reregisterSlave(
+    const UPID& from,
+    const SlaveID& slaveId,
+    const SlaveInfo& slaveInfo,
+    const vector<ExecutorInfo>& executorInfos,
+    const vector<Task>& tasks)
 {
   if (!elected) {
     LOG(WARNING) << "Ignoring re-register slave message from "
@@ -1117,6 +1267,7 @@ void Master::reregisterSlave(const SlaveID& slaveId,
     reply(ShutdownMessage());
   } else {
     Slave* slave = getSlave(slaveId);
+
     if (slave != NULL) {
       slave->reregisteredTime = Clock::now();
 
@@ -1131,22 +1282,13 @@ void Master::reregisterSlave(const SlaveID& slaveId,
                    << ") is being allowed to re-register with an already"
                    << " in use id (" << slaveId << ")";
 
-      // If this is a disconnected slave, add it back to the allocator.
-      if (slave->disconnected) {
-        slave->disconnected = false; // Reset the flag.
-
-        hashmap<FrameworkID, Resources> resources;
-        foreach (const ExecutorInfo& executorInfo, executorInfos) {
-          resources[executorInfo.framework_id()] += executorInfo.resources();
-        }
-        foreach (const Task& task, tasks) {
-          // Ignore tasks that have reached terminal state.
-          if (!protobuf::isTerminalState(task.state())) {
-            resources[task.framework_id()] += task.resources();
-          }
-        }
-        allocator->slaveAdded(slaveId, slaveInfo, resources);
-      }
+      // TODO(bmahler): There's an implicit assumption here that when
+      // the master already knows about this slave, the slave cannot
+      // have tasks unknown to the master. This _should_ be the case
+      // since the causal relationship is:
+      //   slave removes task -> master removes task
+      // We should enforce this via a CHECK (dangerous), or by shutting
+      // down slaves that are found to violate this assumption.
 
       SlaveReregisteredMessage message;
       message.mutable_slave_id()->MergeFrom(slave->id);
@@ -1166,6 +1308,15 @@ void Master::reregisterSlave(const SlaveID& slaveId,
       // NOTE: This needs to be done after the registration message is
       // sent to the slave and the new pid is linked.
       reconcile(slave, executorInfos, tasks);
+
+      // If this is a disconnected slave, add it back to the allocator.
+      // This is done after reconciliation to ensure the allocator's
+      // offers include the recovered resources initially on this
+      // slave.
+      if (slave->disconnected) {
+        slave->disconnected = false; // Reset the flag.
+        allocator->slaveReconnected(slaveId);
+      }
     } else {
       // NOTE: This handles the case when the slave tries to
       // re-register with a failed over master.
@@ -1286,6 +1437,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
 
 void Master::exitedExecutor(
+    const UPID& from,
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
@@ -1314,7 +1466,7 @@ void Master::exitedExecutor(
 
   CHECK(!deactivatedSlaves.contains(from))
     << "Received exited message for executor " << executorId << " from " << from
-    << " which is deactivated slave " << slaveId
+    << " which is the deactivated slave " << slaveId
     << "(" << slave->info.hostname() << ")";
 
   // Tell the allocator about the recovered resources.
@@ -1370,15 +1522,69 @@ void Master::deactivateSlave(const SlaveID& slaveId)
 }
 
 
+void Master::reconcileTasks(
+    const UPID& from,
+    const FrameworkID& frameworkId,
+    const std::vector<TaskStatus>& statuses)
+{
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+    LOG(WARNING) << "Unknown framework " << frameworkId << " at " << from
+                 << " attempted to reconcile tasks";
+    return;
+  }
+
+  LOG(INFO) << "Performing task state reconciliation for framework "
+            << frameworkId;
+
+  // Verify expected task states and send status updates whenever expectations
+  // are not met. When:
+  //   1) Slave is unknown.*
+  //   2) Task is unknown.*
+  //   3) Task state has changed.
+  //
+  // *) TODO(nnielsen): Missing slaves and tasks are currently treated silently
+  //                    i.e. nothing is sent. To give accurate responses in
+  //                    these cases during master fail-over, we need to leverage
+  //                    the registrar.
+  foreach (const TaskStatus& status, statuses) {
+    if (!status.has_slave_id()) {
+      LOG(WARNING) << "Status from task " << status.task_id()
+                   << " does not include slave id";
+      continue;
+    }
+
+    Slave* slave = getSlave(status.slave_id());
+    if (slave != NULL) {
+      Task* task = slave->getTask(frameworkId, status.task_id());
+      if (task != NULL && task->state() != status.state()) {
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+          frameworkId,
+          task->slave_id(),
+          task->task_id(),
+          task->state(),
+          "Task state changed");
+
+        statusUpdate(update, UPID());
+      }
+    }
+  }
+}
+
+
 void Master::frameworkFailoverTimeout(const FrameworkID& frameworkId,
                                       const Time& reregisteredTime)
 {
   Framework* framework = getFramework(frameworkId);
-  if (framework != NULL && !framework->active &&
-      framework->reregisteredTime == reregisteredTime) {
-    LOG(INFO) << "Framework failover timeout, removing framework "
-              << framework->id;
-    removeFramework(framework);
+
+  if (framework != NULL && !framework->active) {
+    // If the re-registration time has not changed, then the framework
+    // has not re-registered within the failover timeout.
+    if (framework->reregisteredTime == reregisteredTime) {
+      LOG(INFO) << "Framework failover timeout, removing framework "
+                << framework->id;
+      removeFramework(framework);
+    }
   }
 }
 
@@ -1463,6 +1669,95 @@ void Master::offer(const FrameworkID& frameworkId,
             << " offers to framework " << framework->id;
 
   send(framework->pid, message);
+}
+
+
+void Master::authenticate(const UPID& from, const UPID& pid)
+{
+  // Deactivate the framework if it's already registered.
+  foreachvalue (Framework* framework, frameworks) {
+    if (framework->pid == pid) {
+      deactivate(framework);
+      break;
+    }
+  }
+
+  authenticated.erase(pid);
+
+  if (authenticating.contains(pid)) {
+    LOG(INFO) << "Queuing up authentication request from " << pid
+              << " because authentication is still in progress";
+
+    // Try to cancel the in progress authentication by deleting
+    // the authenticator.
+    authenticators.erase(pid);
+
+    // Retry after the current authenticator finishes.
+    authenticating[pid]
+      .onAny(defer(self(), &Self::authenticate, from, pid));
+
+    return;
+  }
+
+  LOG(INFO) << "Authenticating framework at " << pid;
+
+  // Create a promise to capture the entire "authenticating"
+  // procedure. We'll set this _after_ we finish _authenticate.
+  Owned<Promise<Nothing> > promise = new Promise<Nothing>();
+
+  // Create the authenticator.
+  Owned<sasl::Authenticator> authenticator = new sasl::Authenticator(from);
+
+  // Start authentication.
+  const Future<bool>& future = authenticator->authenticate()
+    .onAny(defer(self(), &Self::_authenticate, pid, promise, lambda::_1));
+
+  // Don't wait for authentication to happen for ever.
+  delay(Seconds(5),
+        self(),
+        &Self::authenticationTimeout,
+        future);
+
+  // Save our state.
+  authenticating[pid] = promise->future();
+  authenticators.put(pid, authenticator);
+}
+
+
+void Master::_authenticate(
+    const UPID& pid,
+    const Owned<Promise<Nothing> >& promise,
+    const Future<bool>& future)
+{
+  if (!future.isReady() || !future.get()) {
+    const string& error = future.isReady()
+        ? "Refused authentication"
+        : (future.isFailed() ? future.failure() : "future discarded");
+
+    LOG(WARNING) << "Failed to authenticate framework at " << pid
+                 << ": " << error;
+
+    promise->fail(error);
+  } else {
+    LOG(INFO) << "Successfully authenticated framework at " << pid;
+
+    promise->set(Nothing());
+    authenticated.insert(pid);
+  }
+
+  authenticators.erase(pid);
+  authenticating.erase(pid);
+}
+
+
+void Master::authenticationTimeout(Future<bool> future)
+{
+  // Note that a 'discard' here is safe even if another
+  // authenticator is in progress because this copy of the future
+  // corresponds to the original authenticator that started the timer.
+  if (future.discard()) { // This is a no-op if the future is already ready.
+    LOG(WARNING) << "Authentication timed out";
+  }
 }
 
 
@@ -1859,21 +2154,25 @@ void Master::reconcile(
   // missing from the slave. This could happen if the task was
   // dropped by the slave (e.g., slave exited before getting the
   // task or the task was launched while slave was in recovery).
-  foreachvalue (Task* task, utils::copy(slave->tasks)) {
-    if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
-      LOG(WARNING) << "Sending TASK_LOST for task " << task->task_id()
-                   << " of framework " << task->framework_id()
-                   << " unknown to the slave " << slave->id
-                   << " (" << slave->info.hostname() << ")";
+  // NOTE: keys() and values() are used since statusUpdate()
+  //       modifies slave->tasks.
+  foreach (const FrameworkID& frameworkId, slave->tasks.keys()) {
+    foreach (Task* task, slave->tasks[frameworkId].values()) {
+      if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
+        LOG(WARNING) << "Sending TASK_LOST for task " << task->task_id()
+                     << " of framework " << task->framework_id()
+                     << " unknown to the slave " << slave->id
+                     << " (" << slave->info.hostname() << ")";
 
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          task->framework_id(),
-          slave->id,
-          task->task_id(),
-          TASK_LOST,
-          "Task is unknown to the slave");
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+            task->framework_id(),
+            slave->id,
+            task->task_id(),
+            TASK_LOST,
+            "Task is unknown to the slave");
 
-      statusUpdate(update, UPID());
+        statusUpdate(update, UPID());
+      }
     }
   }
 
@@ -1997,7 +2296,17 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
 {
   const UPID& oldPid = framework->pid;
 
-  {
+  // There are a few failover cases to consider:
+  //   1. The pid has changed. In this case we definitely want to
+  //      send a FrameworkErrorMessage to shut down the older
+  //      scheduler.
+  //   2. The pid has not changed.
+  //      2.1 The old scheduler on that pid failed over to a new
+  //          instance on the same pid. No need to shut down the old
+  //          scheduler as it is necessarily dead.
+  //      2.2 This is a duplicate message. In this case, the scheduler
+  //          has not failed over, so we do not want to shut it down.
+  if (oldPid != newPid) {
     FrameworkErrorMessage message;
     message.set_message("Framework failed over");
     send(oldPid, message);
@@ -2014,8 +2323,8 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
     allocator->frameworkActivated(framework->id, framework->info);
   }
 
-  framework->reregisteredTime = Clock::now();
-
+  // The scheduler driver safely ignores any duplicate registration
+  // messages, so we don't need to compare the old and new pids here.
   {
     FrameworkRegisteredMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id);
@@ -2106,6 +2415,10 @@ void Master::removeFramework(Framework* framework)
 
   roles[framework->info.role()]->removeFramework(framework);
 
+
+  // Remove the framework from authenticated.
+  authenticated.erase(framework->pid);
+
   // Remove it.
   frameworks.erase(framework->id);
   allocator->frameworkRemoved(framework->id);
@@ -2121,8 +2434,11 @@ void Master::removeFramework(Slave* slave, Framework* framework)
             << " from slave " << slave->id
             << " (" << slave->info.hostname() << ")";
 
-  // Remove pointers to framework's tasks in slaves, and send status updates.
-  foreachvalue (Task* task, utils::copy(slave->tasks)) {
+  // Remove pointers to framework's tasks in slaves, and send status
+  // updates.
+  // NOTE: values() is used because statusUpdate() modifies
+  //       slave->tasks.
+  foreach (Task* task, slave->tasks[framework->id].values()) {
     // Remove tasks that belong to this framework.
     if (task->framework_id() == framework->id) {
       // A framework might not actually exist because the master failed
@@ -2200,8 +2516,8 @@ void Master::addSlave(Slave* slave, bool reregister)
 
 
 void Master::readdSlave(Slave* slave,
-			const vector<ExecutorInfo>& executorInfos,
-			const vector<Task>& tasks)
+    const vector<ExecutorInfo>& executorInfos,
+    const vector<Task>& tasks)
 {
   CHECK_NOTNULL(slave);
 
@@ -2284,26 +2600,31 @@ void Master::removeSlave(Slave* slave)
     allocator->slaveRemoved(slave->id);
   }
 
-  // Remove pointers to slave's tasks in frameworks, and send status updates
-  foreachvalue (Task* task, utils::copy(slave->tasks)) {
-    // A framework might not actually exist because the master failed
-    // over and the framework hasn't reconnected. This can be a tricky
-    // situation for frameworks that want to have high-availability,
-    // because if they eventually do connect they won't ever get a
-    // status update about this task.  Perhaps in the future what we
-    // want to do is create a local Framework object to represent that
-    // framework until it fails over. See the TODO above in
-    // Master::reregisterSlave.
-    const StatusUpdate& update = protobuf::createStatusUpdate(
-        task->framework_id(),
-        task->slave_id(),
-        task->task_id(),
-        TASK_LOST,
-        "Slave " + slave->info.hostname() + " removed",
-        (task->has_executor_id() ?
-            Option<ExecutorID>(task->executor_id()) : None()));
+  // Remove pointers to slave's tasks in frameworks, and send status
+  // updates.
+  // NOTE: keys() and values() are used because statusUpdate()
+  //       modifies slave->tasks.
+  foreach (const FrameworkID& frameworkId, slave->tasks.keys()) {
+    foreach (Task* task, slave->tasks[frameworkId].values()) {
+      // A framework might not actually exist because the master failed
+      // over and the framework hasn't reconnected. This can be a tricky
+      // situation for frameworks that want to have high-availability,
+      // because if they eventually do connect they won't ever get a
+      // status update about this task.  Perhaps in the future what we
+      // want to do is create a local Framework object to represent that
+      // framework until it fails over. See the TODO above in
+      // Master::reregisterSlave.
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          task->framework_id(),
+          task->slave_id(),
+          task->task_id(),
+          TASK_LOST,
+          "Slave " + slave->info.hostname() + " removed",
+          (task->has_executor_id() ?
+              Option<ExecutorID>(task->executor_id()) : None()));
 
-    statusUpdate(update, UPID());
+      statusUpdate(update, UPID());
+    }
   }
 
   foreach (Offer* offer, utils::copy(slave->offers)) {
@@ -2321,6 +2642,13 @@ void Master::removeSlave(Slave* slave)
     Framework* framework = getFramework(frameworkId);
     if (framework != NULL) {
       foreachkey (const ExecutorID& executorId, slave->executors[frameworkId]) {
+        // TODO(vinod): We don't need to call 'Allocator::resourcesRecovered'
+        // once MESOS-621 is fixed.
+        allocator->resourcesRecovered(
+            frameworkId,
+            slave->id,
+            slave->executors[frameworkId][executorId].resources());
+
         framework->removeExecutor(slave->id, executorId);
       }
     }

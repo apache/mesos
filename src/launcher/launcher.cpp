@@ -19,8 +19,9 @@
 #include <dirent.h>
 #include <errno.h>
 #include <libgen.h>
-#include <stdlib.h>
 #include <pwd.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include <iostream>
 #include <map>
@@ -36,6 +37,8 @@
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+
+#include "hdfs/hdfs.hpp"
 
 #include "launcher/launcher.hpp"
 
@@ -230,37 +233,23 @@ int ExecutorLauncher::fetchExecutors()
     // htfp://. TODO(matei): Enforce some size limits on files we get
     // from HDFS
     if (resource.find("hdfs://") == 0 || resource.find("hftp://") == 0) {
-      // Locate Hadoop's bin/hadoop script. If a Hadoop home was given to us by
-      // the slave (from the Mesos config file), use that. Otherwise check for
-      // a HADOOP_HOME environment variable. Finally, if that doesn't exist,
-      // try looking for hadoop on the PATH.
-      string hadoopScript;
-      if (hadoopHome != "") {
-        hadoopScript = path::join(hadoopHome, "bin/hadoop");
-      } else if (getenv("HADOOP_HOME") != 0) {
-        hadoopScript = path::join(string(getenv("HADOOP_HOME")), "bin/hadoop");
-      } else {
-        hadoopScript = "hadoop"; // Look for hadoop on the PATH.
-      }
+      HDFS hdfs(path::join(hadoopHome, "bin/hadoop"));
 
-      Try<std::string> base = os::basename(resource);
-      if (base.isError()) {
-        cerr << base.error() << endl;
+      Try<std::string> basename = os::basename(resource);
+      if (basename.isError()) {
+        cerr << basename.error() << endl;
         return -1;
       }
 
-      string localFile = path::join(".", base.get());
-      ostringstream command;
-      command << hadoopScript << " fs -copyToLocal '" << resource
-              << "' '" << localFile << "'";
-      cout << "Downloading resource from '" << resource << "'" << endl;
-      cout << "HDFS command: " << command.str() << endl;
+      string localFile = path::join(".", basename.get());
 
-      int ret = os::system(command.str());
-      if (ret != 0) {
-        cerr << "HDFS copyToLocal failed: return code " << ret << endl;
+      Try<Nothing> copy = hdfs.copyToLocal(resource, localFile);
+
+      if (copy.isError()) {
+        cerr << "Failed to copy from HDFS: " << copy.error() << endl;
         return -1;
       }
+
       resource = localFile;
     } else if (resource.find("http://") == 0
                || resource.find("https://") == 0

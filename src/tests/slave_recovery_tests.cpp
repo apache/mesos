@@ -164,7 +164,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -339,7 +340,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -425,7 +427,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -520,21 +523,21 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers1));
 
   driver.start();
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
 
@@ -542,7 +545,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   Future<Message> registerExecutor =
     DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers1.get()[0].id(), tasks);
 
   // Stop the slave before the executor is registered.
   AWAIT_READY(registerExecutor);
@@ -555,17 +558,22 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   slave = this->StartSlave(&isolator2, flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
 
-  AWAIT_READY(recover);
+  AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -581,7 +589,15 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
 
-  Clock::resume();
+  // Master should subsequently reoffer the same resources.
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   driver.stop();
   driver.join();
@@ -613,21 +629,21 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers1));
 
   driver.start();
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
 
@@ -639,7 +655,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   Future<Nothing> ack =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers1.get()[0].id(), tasks);
 
   // Capture the executor pid.
   AWAIT_READY(registerExecutor);
@@ -657,17 +673,22 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   // Now shut down the executor, when the slave is down.
   process::post(executorPid, ShutdownExecutorMessage());
 
-  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   slave = this->StartSlave(&isolator2, flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
 
-  AWAIT_READY(recover);
+  AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -683,6 +704,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
 
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  // Master should subsequently reoffer the same resources.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
+
   driver.stop();
   driver.join();
 
@@ -695,7 +726,9 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 // is down, because the recovery timeout elapses.
 // When the slave comes back up with recovery=reconnect, make
 // sure the task is properly transitioned to FAILED.
-TYPED_TEST(SlaveRecoveryTest, RecoveryTimeout)
+// TODO(bmahler): Disabled for MESOS-685: the exited() event for the
+// slave will not be delivered to the executor driver.
+TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
 {
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
@@ -717,7 +750,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoveryTimeout)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -806,21 +840,22 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   driver.start();
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "exit 0");
+  TaskInfo task = createTask(offers1.get()[0], "exit 0");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Short-lived task.
 
@@ -833,7 +868,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   Future<Nothing> schedule = FUTURE_DISPATCH(
       _, &GarbageCollectorProcess::schedule);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers1.get()[0].id(), tasks);
 
   // We use 'gc.schedule' as a proxy for the cleanup of the executor.
   AWAIT_READY(schedule);
@@ -846,11 +881,21 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   // Restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
 
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
   slave = this->StartSlave(&isolator2, flags);
   ASSERT_SOME(slave);
 
   // We use 'gc.schedule' as a proxy for the cleanup of the executor.
   AWAIT_READY(schedule2);
+
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   driver.stop();
   driver.join();
@@ -881,13 +926,15 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
   Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   driver.start();
 
@@ -919,7 +966,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status));
 
-  Future<Nothing> _initialize = FUTURE_DISPATCH(_, &Slave::_initialize);
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
   // Restart the slave in 'cleanup' recovery mode with a new isolator.
   TypeParam isolator2;
@@ -942,7 +989,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   ASSERT_EQ(TASK_FAILED, status.get().state());
 
   // Wait for recovery to complete.
-  AWAIT_READY(_initialize);
+  AWAIT_READY(__recover);
   Clock::settle();
 
   Clock::resume();
@@ -973,7 +1020,8 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(false);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1058,7 +1106,8 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(false);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -1147,7 +1196,8 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -1193,13 +1243,15 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
   Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers1));
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   driver.start();
 
@@ -1222,7 +1274,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   this->Stop(slave.get());
 
-  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<ReregisterSlaveMessage> reregisterSlave =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
@@ -1235,7 +1287,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   Clock::pause();
 
-  AWAIT_READY(recover);
+  AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -1306,27 +1358,27 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers1));
 
   driver.start();
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task
 
   // Capture the slave and framework ids.
-  SlaveID slaveId = offers.get()[0].slave_id();
-  FrameworkID frameworkId = offers.get()[0].framework_id();
+  SlaveID slaveId = offers1.get()[0].slave_id();
+  FrameworkID frameworkId = offers1.get()[0].framework_id();
 
   Future<Message> registerExecutorMessage =
     FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
@@ -1336,7 +1388,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
     .WillOnce(FutureSatisfy(&status))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers1.get()[0].id(), tasks);
 
   // Capture the executor id and pid.
   AWAIT_READY(registerExecutorMessage);
@@ -1362,7 +1414,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
       frameworkId,
       executorId)));
 
-  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<ReregisterSlaveMessage> reregisterSlave =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
@@ -1370,12 +1422,17 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   // Restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
 
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
   slave = this->StartSlave(&isolator2, flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
 
-  AWAIT_READY(recover);
+  AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -1398,6 +1455,16 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
       slaveId,
       frameworkId,
       executorId)));
+
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   Clock::resume();
 
@@ -1429,7 +1496,8 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1503,6 +1571,9 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   AWAIT_READY(offers2);
 
   EXPECT_NE(0u, offers2.get().size());
+  // Make sure all slave resources are reoffered.
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   // Ensure the slave id is different.
   ASSERT_NE(
@@ -1542,7 +1613,8 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1639,34 +1711,34 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers1));
 
   driver.start();
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task
 
   // Capture the slave and framework ids.
-  SlaveID slaveId = offers.get()[0].slave_id();
-  FrameworkID frameworkId = offers.get()[0].framework_id();
+  SlaveID slaveId = offers1.get()[0].slave_id();
+  FrameworkID frameworkId = offers1.get()[0].framework_id();
 
   EXPECT_CALL(sched, statusUpdate(_, _)); // TASK_RUNNING
 
   Future<Nothing> _statusUpdateAcknowledgement =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers1.get()[0].id(), tasks);
 
   // Wait for TASK_RUNNING update to be acknowledged.
   AWAIT_READY(_statusUpdateAcknowledgement);
@@ -1684,12 +1756,22 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   // Now restart the slave (use same flags) with a new isolator.
   TypeParam isolator2;
 
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
   slave = this->StartSlave(&isolator2, flags);
   ASSERT_SOME(slave);
 
   // Scheduler should get a TASK_KILLED message.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_KILLED, status.get().state());
+
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   driver.stop();
   driver.join();
@@ -1725,7 +1807,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1790,6 +1873,143 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   this->Shutdown(); // Shutdown before isolator(s) get deallocated.
 }
 
+
+// This ensures that reconciliation properly deals with tasks
+// present in the master and missing from the slave. Notably:
+//   1. The tasks are sent to LOST.
+//   2. The task resources are recovered.
+// TODO(bmahler): Ensure the executor resources are recovered by
+// using an explicit executor.
+TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
+{
+  MockAllocatorProcess<master::allocator::HierarchicalDRFAllocatorProcess>
+    allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  Try<PID<Master> > master = this->StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  TypeParam isolator1;
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+
+  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  // Start a task on the slave so that the master has knowledge of it.
+  // We'll ensure the slave does not have this task when it
+  // re-registers by wiping the relevant meta directory.
+  TaskInfo task = createTask(offers1.get()[0], "sleep 10");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task
+
+  EXPECT_CALL(sched, statusUpdate(_, _));
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers1.get()[0].id(), tasks);
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(_statusUpdateAcknowledgement);
+
+  EXPECT_CALL(allocator, slaveDisconnected(_));
+
+  this->Stop(slave.get());
+
+  // Construct the framework meta directory that needs wiping.
+  string frameworkPath = paths::getFrameworkPath(
+      paths::getMetaRootDir(flags.work_dir),
+      offers1.get()[0].slave_id(),
+      frameworkInfo.id());
+
+  // Remove the framework meta directory, so that the slave will not
+  // recover the task.
+  ASSERT_SOME(os::rmdir(frameworkPath, true));
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  Future<ReregisterSlaveMessage> reregisterSlave =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  EXPECT_CALL(allocator, slaveReconnected(_));
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());        // Ignore subsequent updates.
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  // Restart the slave (use same flags) with a new isolator.
+  TypeParam isolator2;
+
+  slave = this->StartSlave(&isolator2, flags);
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+
+  AWAIT_READY(_recover);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(reregisterSlave);
+
+  // Wait for TASK_LOST update.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_LOST, status.get().state());
+
+  // Advance the clock until the allocator allocates
+  // the recovered resources.
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+}
+
+
 // Scheduler asks a restarted slave to kill a task that has been
 // running before the slave restarted. A scheduler failover happens
 // when the slave is down. This test verifies that a scheduler
@@ -1812,7 +2032,8 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   framework1.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   framework1.set_checkpoint(true);
 
-  MesosSchedulerDriver driver1(&sched1, framework1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, framework1, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -1854,7 +2075,8 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   framework2.mutable_id()->MergeFrom(frameworkId.get());
   framework2.set_checkpoint(true);
 
-  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> sched2Registered;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
@@ -1962,7 +2184,8 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -2088,7 +2311,8 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -2125,6 +2349,8 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   this->Stop(master.get());
   master = this->StartMaster();
   ASSERT_SOME(master);
+
+  EXPECT_CALL(sched, disconnected(_));
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -2224,7 +2450,8 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   frameworkInfo1.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo1.set_checkpoint(true);
 
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched1, registered(_, _, _));
 
@@ -2267,7 +2494,8 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   frameworkInfo2.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo2.set_checkpoint(true);
 
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched2, registered(_, _, _));
 
@@ -2370,7 +2598,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 // Create a test fixture for those slave recovery tests that only work
 // when ProcessIsolator is used.
 // TODO(jieyu): We use typed test here because it magically allows us
-// to access protected members in Slave (e.g. Slave::_recover).
+// to access protected members in Slave (e.g. Slave::reconnect).
 template <typename T>
 class SlaveRecoveryProcessIsolatorTest : public IsolatorTest<T>
 {
@@ -2406,7 +2634,8 @@ TYPED_TEST(SlaveRecoveryProcessIsolatorTest, MultipleSlaves)
   frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 

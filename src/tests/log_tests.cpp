@@ -54,12 +54,16 @@ using testing::_;
 using testing::Eq;
 using testing::Return;
 
+#include "tests/utils.hpp"
 
-TEST(ReplicaTest, Promise)
+using namespace mesos::internal::tests;
+
+class ReplicaTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(ReplicaTest, Promise)
 {
   const std::string path = os::getcwd() + "/.log";
-
-  os::rmdir(path);
 
   Replica replica(path);
 
@@ -104,16 +108,12 @@ TEST(ReplicaTest, Promise)
   EXPECT_TRUE(response.has_position());
   EXPECT_EQ(0u, response.position());
   EXPECT_FALSE(response.has_action());
-
-  os::rmdir(path);
 }
 
 
-TEST(ReplicaTest, Append)
+TEST_F(ReplicaTest, Append)
 {
   const std::string path = os::getcwd() + "/.log";
-
-  os::rmdir(path);
 
   Replica replica(path);
 
@@ -167,16 +167,12 @@ TEST(ReplicaTest, Append)
   EXPECT_TRUE(action.has_append());
   EXPECT_FALSE(action.has_truncate());
   EXPECT_EQ("hello world", action.append().bytes());
-
-  os::rmdir(path);
 }
 
 
-TEST(ReplicaTest, Recover)
+TEST_F(ReplicaTest, Recover)
 {
   const std::string path = os::getcwd() + "/.log";
-
-  os::rmdir(path);
 
   Replica replica1(path);
 
@@ -254,18 +250,16 @@ TEST(ReplicaTest, Recover)
     EXPECT_FALSE(action.has_truncate());
     EXPECT_EQ("hello world", action.append().bytes());
   }
-
-  os::rmdir(path);
 }
 
 
-TEST(CoordinatorTest, Elect)
+class CoordinatorTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(CoordinatorTest, Elect)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -291,19 +285,13 @@ TEST(CoordinatorTest, Elect)
     ASSERT_TRUE(actions.get().front().has_type());
     ASSERT_EQ(Action::NOP, actions.get().front().type());
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 }
 
 
-TEST(CoordinatorTest, AppendRead)
+TEST_F(CoordinatorTest, AppendRead)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -340,19 +328,13 @@ TEST(CoordinatorTest, AppendRead)
     ASSERT_EQ(Action::APPEND, actions.get().front().type());
     EXPECT_EQ("hello world", actions.get().front().append().bytes());
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 }
 
 
-TEST(CoordinatorTest, AppendReadError)
+TEST_F(CoordinatorTest, AppendReadError)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -386,17 +368,12 @@ TEST(CoordinatorTest, AppendReadError)
     AWAIT_FAILED(actions);
     EXPECT_EQ("Bad read range (past end of log)", actions.failure());
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 }
 
 
-TEST(CoordinatorTest, ElectNoQuorum)
+TEST_F(CoordinatorTest, ElectNoQuorum)
 {
   const std::string path = os::getcwd() + "/.log";
-
-  os::rmdir(path);
 
   Replica replica(path);
 
@@ -418,19 +395,14 @@ TEST(CoordinatorTest, ElectNoQuorum)
     EXPECT_TRUE(result.isNone());
   }
 
-  os::rmdir(path);
-
   Clock::resume();
 }
 
 
-TEST(CoordinatorTest, AppendNoQuorum)
+TEST_F(CoordinatorTest, AppendNoQuorum)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -463,19 +435,13 @@ TEST(CoordinatorTest, AppendNoQuorum)
   }
 
   Clock::resume();
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 }
 
 
-TEST(CoordinatorTest, Failover)
+TEST_F(CoordinatorTest, Failover)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -525,19 +491,13 @@ TEST(CoordinatorTest, Failover)
     ASSERT_EQ(Action::APPEND, actions.get().front().type());
     EXPECT_EQ("hello world", actions.get().front().append().bytes());
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 }
 
 
-TEST(CoordinatorTest, Demoted)
+TEST_F(CoordinatorTest, Demoted)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -602,21 +562,14 @@ TEST(CoordinatorTest, Demoted)
     ASSERT_EQ(Action::APPEND, actions.get().front().type());
     EXPECT_EQ("hello hello", actions.get().front().append().bytes());
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 }
 
 
-TEST(CoordinatorTest, Fill)
+TEST_F(CoordinatorTest, Fill)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
   const std::string path3 = os::getcwd() + "/.log3";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
-  os::rmdir(path3);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -670,14 +623,10 @@ TEST(CoordinatorTest, Fill)
     ASSERT_EQ(Action::APPEND, actions.get().front().type());
     EXPECT_EQ("hello world", actions.get().front().append().bytes());
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
-  os::rmdir(path3);
 }
 
 
-TEST(CoordinatorTest, NotLearnedFill)
+TEST_F(CoordinatorTest, NotLearnedFill)
 {
   DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, _);
 
@@ -685,10 +634,6 @@ TEST(CoordinatorTest, NotLearnedFill)
   const std::string path2 = os::getcwd() + "/.log2";
   const std::string path3 = os::getcwd() + "/.log3";
 
-  os::rmdir(path1);
-  os::rmdir(path2);
-  os::rmdir(path3);
-
   Replica replica1(path1);
   Replica replica2(path2);
 
@@ -741,20 +686,13 @@ TEST(CoordinatorTest, NotLearnedFill)
     ASSERT_EQ(Action::APPEND, actions.get().front().type());
     EXPECT_EQ("hello world", actions.get().front().append().bytes());
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
-  os::rmdir(path3);
 }
 
 
-TEST(CoordinatorTest, MultipleAppends)
+TEST_F(CoordinatorTest, MultipleAppends)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -789,23 +727,16 @@ TEST(CoordinatorTest, MultipleAppends)
       EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 }
 
 
-TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
+TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
 {
   DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, _);
 
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
   const std::string path3 = os::getcwd() + "/.log3";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
-  os::rmdir(path3);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -857,20 +788,13 @@ TEST(CoordinatorTest, MultipleAppendsNotLearnedFill)
       EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
-  os::rmdir(path3);
 }
 
 
-TEST(CoordinatorTest, Truncate)
+TEST_F(CoordinatorTest, Truncate)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 
   Replica replica1(path1);
   Replica replica2(path2);
@@ -917,13 +841,10 @@ TEST(CoordinatorTest, Truncate)
       EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 }
 
 
-TEST(CoordinatorTest, TruncateNotLearnedFill)
+TEST_F(CoordinatorTest, TruncateNotLearnedFill)
 {
   DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, _);
 
@@ -931,10 +852,6 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
   const std::string path2 = os::getcwd() + "/.log2";
   const std::string path3 = os::getcwd() + "/.log3";
 
-  os::rmdir(path1);
-  os::rmdir(path2);
-  os::rmdir(path3);
-
   Replica replica1(path1);
   Replica replica2(path2);
 
@@ -997,23 +914,15 @@ TEST(CoordinatorTest, TruncateNotLearnedFill)
       EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
-  os::rmdir(path3);
 }
 
 
-TEST(CoordinatorTest, TruncateLearnedFill)
+TEST_F(CoordinatorTest, TruncateLearnedFill)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
   const std::string path3 = os::getcwd() + "/.log3";
 
-  os::rmdir(path1);
-  os::rmdir(path2);
-  os::rmdir(path3);
-
   Replica replica1(path1);
   Replica replica2(path2);
 
@@ -1076,20 +985,16 @@ TEST(CoordinatorTest, TruncateLearnedFill)
       EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
   }
-
-  os::rmdir(path1);
-  os::rmdir(path2);
-  os::rmdir(path3);
 }
 
 
-TEST(LogTest, WriteRead)
+class LogTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(LogTest, WriteRead)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 
   Replica replica1(path1);
 
@@ -1114,19 +1019,13 @@ TEST(LogTest, WriteRead)
   ASSERT_EQ(1u, entries.get().size());
   EXPECT_EQ(position.get(), entries.get().front().position);
   EXPECT_EQ("hello world", entries.get().front().data);
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 }
 
 
-TEST(LogTest, Position)
+TEST_F(LogTest, Position)
 {
   const std::string path1 = os::getcwd() + "/.log1";
   const std::string path2 = os::getcwd() + "/.log2";
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 
   Replica replica1(path1);
 
@@ -1143,18 +1042,16 @@ TEST(LogTest, Position)
   ASSERT_SOME(position);
 
   ASSERT_EQ(position.get(), log.position(position.get().identity()));
-
-  os::rmdir(path1);
-  os::rmdir(path2);
 }
 
 
-TEST(CoordinatorTest, RacingElect) {}
+TEST_F(CoordinatorTest, RacingElect) {}
 
-TEST(CoordinatorTest, FillNoQuorum) {}
+TEST_F(CoordinatorTest, FillNoQuorum) {}
 
-TEST(CoordinatorTest, FillInconsistent) {}
+TEST_F(CoordinatorTest, FillInconsistent) {}
 
-TEST(CoordinatorTest, LearnedOnOneReplica_NotLearnedOnAnother) {}
+TEST_F(CoordinatorTest, LearnedOnOneReplica_NotLearnedOnAnother) {}
 
-TEST(CoordinatorTest, LearnedOnOneReplica_NotLearnedOnAnother_AnotherFailsAndRecovers) {}
+TEST_F(CoordinatorTest,
+       LearnedOnOneReplica_NotLearnedOnAnother_AnotherFailsAndRecovers) {}

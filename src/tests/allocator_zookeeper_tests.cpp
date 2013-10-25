@@ -120,14 +120,17 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, stringify(this->url.get()));
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      stringify(this->url.get()),
+      DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework should be offered all of the resources on the slave
   // since it is the only framework running.
   EXPECT_CALL(sched, resourceOffers(&driver, OfferEq(2, 1024)))
-    .WillOnce(LaunchTasks(1, 1, 500, "*"))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 500, "*"))
     .WillRepeatedly(DeclineOffers());
 
   EXPECT_CALL(exec, registered(_, _, _, _));
@@ -198,6 +201,9 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   EXPECT_CALL(allocator2, frameworkRemoved(_))
     .Times(AtMost(1));
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   driver.stop();
   driver.join();
 
@@ -229,14 +235,17 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, stringify(this->url.get()));
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      stringify(this->url.get()),
+      DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework should be offered all of the resources on the slave
   // since it is the only framework running.
   EXPECT_CALL(sched, resourceOffers(&driver, OfferEq(2, 1024)))
-    .WillOnce(LaunchTasks(1, 1, 500, "*"))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 500, "*"))
     .WillRepeatedly(DeclineOffers());
 
   EXPECT_CALL(exec, registered(_, _, _, _));
@@ -305,6 +314,9 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
     .Times(AtMost(1));
 
   EXPECT_CALL(allocator2, frameworkRemoved(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
   driver.stop();

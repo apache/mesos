@@ -31,6 +31,7 @@
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
+#include "tests/mesos.hpp"
 #include "tests/script.hpp"
 
 using std::string;
@@ -103,6 +104,25 @@ void execute(const string& script)
     os::setenv("MESOS_BUILD_DIR", flags.build_dir);
     os::setenv("MESOS_WEBUI_DIR", path::join(flags.source_dir, "src", "webui"));
     os::setenv("MESOS_LAUNCHER_DIR", path::join(flags.build_dir, "src"));
+
+    // Enable authentication.
+    os::setenv("MESOS_AUTHENTICATE", "true");
+
+    // Create test credentials.
+    const std::string& credentialsPath =
+      path::join(directory.get(), "credentials");
+
+    const std::string& credentials =
+      DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
+
+    CHECK_SOME(os::write(credentialsPath, credentials))
+      << "Failed to write credentials to '" << credentialsPath << "'";
+
+    os::setenv("MESOS_CREDENTIALS", "file://" + credentialsPath);
+
+    // We set test credentials here for example frameworks to use.
+    os::setenv("DEFAULT_PRINCIPAL", DEFAULT_CREDENTIAL.principal());
+    os::setenv("DEFAULT_SECRET", DEFAULT_CREDENTIAL.secret());
 
     // Now execute the script.
     execl(path.get().c_str(), path.get().c_str(), (char*) NULL);

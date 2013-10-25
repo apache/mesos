@@ -272,7 +272,8 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   AWAIT_READY(slaveRegisteredMessage);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _))
     .Times(1);
@@ -282,7 +283,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem, "*"))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -371,7 +372,8 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
   SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   // Scheduler expectations.
   FrameworkID frameworkId;
@@ -383,7 +385,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
   double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem, "*"))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
     .WillRepeatedly(Return());
 
   // Executor expectations.
@@ -398,7 +400,20 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());      // Ignore subsequent updates.
 
+  Future<Nothing> executorStarted = FUTURE_DISPATCH(_, &Slave::executorStarted);
+
   driver.start();
+
+  // Wait until the slave has been notified about the start of the
+  // executor. There is race where in a slave might get status updates
+  // before it it notified about the start of the executor. This is
+  // important in this test because if we don't wait and shutdown the
+  // framework, it might so happen that 'executorStarted' event is
+  // received after the slave gets a 'shutdownFramework' leading to
+  // shutdown and eventually gc of the executor and framework
+  // directories. We want the gc to happen after we setup the
+  // expectation on 'gc.schedule'.
+  AWAIT_READY(executorStarted);
 
   AWAIT_READY(status);
 
@@ -460,13 +475,20 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 
   TestingIsolator isolator(&exec);
 
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = StartSlave(&isolator);
+  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -477,7 +499,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem, "*"))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -497,19 +519,18 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  const std::string& executorDir = isolator.directories[DEFAULT_EXECUTOR_ID];
+  const std::string& executorDir = slave::paths::getExecutorPath(
+      flags.work_dir, slaveId, frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
   ASSERT_TRUE(os::exists(executorDir));
-
-  process::UPID files("files", process::ip(), process::port());
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      process::http::OK().status,
-      process::http::get(files, "browse.json", "path=" + executorDir));
 
   Clock::pause();
 
   // Kiling the executor will cause the slave to schedule its
   // directory to get garbage collected.
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   Future<Nothing> schedule =
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
@@ -517,8 +538,10 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
     .Times(AtMost(1)); // Ignore TASK_LOST from killed executor.
 
   // Kill the executor and inform the slave.
-  // TODO(benh): WTF? Why aren't we dispatching?
-  isolator.killExecutor(frameworkId.get(), DEFAULT_EXECUTOR_ID);
+  dispatch(isolator,
+           &Isolator::killExecutor,
+           frameworkId.get(),
+           DEFAULT_EXECUTOR_ID);
 
   AWAIT_READY(schedule);
 
@@ -530,6 +553,8 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 
   // Executor's directory should be gc'ed by now.
   ASSERT_FALSE(os::exists(executorDir));
+
+  process::UPID files("files", process::ip(), process::port());
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
       process::http::get(files, "browse.json", "path=" + executorDir));
@@ -552,13 +577,20 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 
   TestingIsolator isolator(&exec);
 
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
   slave::Flags flags = CreateSlaveFlags();
 
   Try<PID<Slave> > slave = StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -569,7 +601,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem, "*"))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -589,19 +621,18 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  const std::string& executorDir = isolator.directories[DEFAULT_EXECUTOR_ID];
+  const std::string& executorDir = slave::paths::getExecutorPath(
+      flags.work_dir, slaveId, frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
   ASSERT_TRUE(os::exists(executorDir));
-
-  process::UPID files("files", process::ip(), process::port());
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      process::http::OK().status,
-      process::http::get(files, "browse.json", "path=" + executorDir));
 
   Clock::pause();
 
   // Kiling the executor will cause the slave to schedule its
   // directory to get garbage collected.
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   Future<Nothing> schedule =
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
@@ -609,8 +640,10 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
     .Times(AtMost(1)); // Ignore TASK_LOST from killed executor.
 
   // Kill the executor and inform the slave.
-  // TODO(benh): WTF? Why aren't we dispatching?
-  isolator.killExecutor(frameworkId.get(), DEFAULT_EXECUTOR_ID);
+  dispatch(isolator,
+           &Isolator::killExecutor,
+           frameworkId.get(),
+           DEFAULT_EXECUTOR_ID);
 
   AWAIT_READY(schedule);
 
@@ -631,6 +664,8 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 
   // Executor's directory should be gc'ed by now.
   ASSERT_FALSE(os::exists(executorDir));
+
+  process::UPID files("files", process::ip(), process::port());
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
       process::http::get(files, "browse.json", "path=" + executorDir));
@@ -645,8 +680,8 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 
 
 // This test verifies that the launch of new executor will result in
-// an unschedule of the framework and executor work directories
-// created by an old executor (with the same id).
+// an unschedule of the framework work directory created by an old
+// executor.
 TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 {
   Try<PID<Master> > master = StartMaster();
@@ -655,9 +690,20 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   Future<SlaveRegisteredMessage> slaveRegistered =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
+  executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
 
-  TestingIsolator isolator(&exec);
+  ExecutorInfo executor2; // Bug in gcc 4.1.*, must assign on next line.
+  executor2 = CREATE_EXECUTOR_INFO("executor-2", "exit 1");
+
+  MockExecutor exec1(executor1.executor_id());
+  MockExecutor exec2(executor2.executor_id());
+
+  map<ExecutorID, Executor*> execs;
+  execs[executor1.executor_id()] = &exec1;
+  execs[executor2.executor_id()] = &exec2;
+
+  TestingIsolator isolator(execs);
 
   slave::Flags flags = CreateSlaveFlags();
 
@@ -667,7 +713,8 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   AWAIT_READY(slaveRegistered);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -678,11 +725,11 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   double mem = resources.get("mem", Value::Scalar()).value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem, "*"));
+    .WillOnce(LaunchTasks(executor1, 1, cpus, mem, "*"));
 
-  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(exec1, registered(_, _, _, _));
 
-  EXPECT_CALL(exec, launchTask(_, _))
+  EXPECT_CALL(exec1, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Future<TaskStatus> status;
@@ -715,16 +762,12 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   Future<Nothing> scheduleExecutorRunWork =
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
-  // Unschedule top level executor work directory.
-  Future<Nothing> unscheduleExecutorWork =
-    FUTURE_DISPATCH(_, &GarbageCollectorProcess::unschedule);
-
   // Unschedule framework work directory.
   Future<Nothing> unscheduleFrameworkWork =
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::unschedule);
 
-  // We ask the isolator to kill the exector below.
-  EXPECT_CALL(exec, shutdown(_))
+  // We ask the isolator to kill the first executor below.
+  EXPECT_CALL(exec1, shutdown(_))
     .Times(AtMost(1));
 
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -732,11 +775,11 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 
   // We use the killed executor/tasks resources to run another task.
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(LaunchTasks(1, cpus, mem, "*"));
+    .WillOnce(LaunchTasks(executor2, 1, cpus, mem, "*"));
 
-  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(exec2, registered(_, _, _, _));
 
-  EXPECT_CALL(exec, launchTask(_, _))
+  EXPECT_CALL(exec2, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Clock::pause();
@@ -746,7 +789,7 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
       isolator,
       &Isolator::killExecutor,
       frameworkId.get(),
-      DEFAULT_EXECUTOR_ID);
+      exec1.id);
 
   AWAIT_READY(scheduleExecutorRunWork);
   AWAIT_READY(scheduleExecutorWork);
@@ -759,9 +802,11 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   }
 
   AWAIT_READY(unscheduleFrameworkWork);
-  AWAIT_READY(unscheduleExecutorWork);
 
   Clock::resume();
+
+  EXPECT_CALL(exec2, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();

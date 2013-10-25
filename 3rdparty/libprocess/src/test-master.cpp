@@ -22,29 +22,29 @@ protected:
     do {
       switch (receive()) {
       case REGISTER: {
-	Out::println("Master received REGISTER");
+        Out::println("Master received REGISTER");
 
-	string name;
-	unpack<REGISTER>(name);
+        string name;
+        unpack<REGISTER>(name);
 
-	Out::println("Registered slave: %s", name.c_str());
+        Out::println("Registered slave: %s", name.c_str());
 
-	send(from(), pack<OKAY>(id++));
-	break;
+        send(from(), pack<OKAY>(id++));
+        break;
       }
       case UNREGISTER: {
-	Out::println("Master received UNREGISTER");
+        Out::println("Master received UNREGISTER");
 
-	int slave_id;
-	unpack<UNREGISTER>(slave_id);
+        int slave_id;
+        unpack<UNREGISTER>(slave_id);
 
-	Out::println("Unregistered slave id: %d", slave_id);
+        Out::println("Unregistered slave id: %d", slave_id);
 
-	send(from(), pack<OKAY>(0));
-	break;
+        send(from(), pack<OKAY>(0));
+        break;
       }
       default:
-	Out::println("UNKNOWN MESSAGE RECEIVED");
+        Out::println("UNKNOWN MESSAGE RECEIVED");
       }
     } while (true);
   }

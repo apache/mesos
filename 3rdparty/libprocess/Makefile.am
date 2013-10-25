@@ -87,6 +87,7 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/profiler.hpp			\
   $(top_srcdir)/include/process/protobuf.hpp			\
   $(top_srcdir)/include/process/run.hpp				\
+  $(top_srcdir)/include/process/shared.hpp			\
   $(top_srcdir)/include/process/socket.hpp			\
   $(top_srcdir)/include/process/statistics.hpp			\
   $(top_srcdir)/include/process/time.hpp			\
@@ -103,6 +104,7 @@ tests_SOURCES =							\
   src/tests/io_tests.cpp					\
   src/tests/main.cpp						\
   src/tests/process_tests.cpp					\
+  src/tests/shared_tests.cpp					\
   src/tests/statistics_tests.cpp				\
   src/tests/time_tests.cpp
 

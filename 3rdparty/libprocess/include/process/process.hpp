@@ -174,12 +174,14 @@ private:
   friend void* schedule(void*);
 
   // Process states.
-  enum { BOTTOM,
-         READY,
-	 RUNNING,
-         BLOCKED,
-         TERMINATING,
-	 TERMINATED } state;
+  enum {
+    BOTTOM,
+    READY,
+    RUNNING,
+    BLOCKED,
+    TERMINATING,
+    TERMINATED
+  } state;
 
   // Mutex protecting internals.
   // TODO(benh): Consider replacing with a spinlock, on multi-core systems.

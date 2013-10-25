@@ -1,3 +1,27 @@
+Release Notes - Mesos - Version 0.14.1
+--------------------------------------
+* This is a bug fix release.
+
+** Sub-task
+    * [MESOS-725] - Slave should cleanup meta directory if started in non-strict mode and slave info changes.
+
+** Bug
+    * [MESOS-420] - Master crashes when re-registering framework
+    * [MESOS-488] - The Master incorrectly sends a "Framework failed over" message when the scheduler driver retries an initial failover re-registration.
+    * [MESOS-641] - Stout killtree / pstree tests fail on Ubuntu 10.04.
+    * [MESOS-658] - A framework can be incorrectly removed by the Master.
+    * [MESOS-662] - Executor OOM could lead to a kernel hang
+    * [MESOS-679] - Inability to find a latest run should not be considered a recovery error
+    * [MESOS-680] - Empty files should not be considered as recovery errors
+    * [MESOS-690] - Slave finalize() throws segfault
+    * [MESOS-694] - Preserve exit status for SIGTERM.
+    * [MESOS-711] - Master::reconcile incorrectly recovers resources from reconciled tasks.
+    * [MESOS-714] - Slave should check if the (re-)registered is from the expected master
+
+** Improvement
+    * [MESOS-620] - Add slaveDisconnected and slaveReconnected calls to the Allocator
+
+
 Release Notes - Mesos - Version 0.14.0
 --------------------------------------
 * The primary feature in this release is "Slave Recovery" which allows
@@ -21,7 +45,6 @@ Release Notes - Mesos - Version 0.14.0
 
 * There are also several bug fixes and stability improvements.
 
-
 ** Sub-task
     * [MESOS-548] - Upgrade angular.js to use the full angular-ui.js
     * [MESOS-549] - Change truncated IDs to show on hover
@@ -38,7 +61,6 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-461] - Freezer failure while in FREEZING state.
     * [MESOS-479] - SlaveRecoveryTest/0.CleanupExecutor failure.
     * [MESOS-485] - Latest trunk fails on strict aliasing on CentOS
-    * [MESOS-488] - Master should not send FrameworkError messages if the same scheduler tries to re-register
     * [MESOS-490] - Update mesos-daemon.sh (and associated scripts) to work with new flags mechanisms.
     * [MESOS-497] - Queued tasks should be launched in the order they were received
     * [MESOS-499] - Local slave run crashes on startup
@@ -55,10 +77,11 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-611] - Refactor slave recovery to ensure slave recovers its state first
     * [MESOS-612] - Slave should not recover completed executors
     * [MESOS-614] - Master should remove checkpointing slave that gets disconnected when the new slave tries to register
+    * [MESOS-616] - The Master / Slave should not store frameworks as both active and completed.
     * [MESOS-619] - Master should properly reconcile KillTasks
     * [MESOS-627] - Slave should offer total disk instead of available disk by default
     * [MESOS-628] - A non-checkpointing slave should still cleanup the latest slave symlink
-    * [MESOS-631] - Slave started in cleanup mode shouldn't accept new tasks
+    * [MESOS-632] - Executor driver should commit suicide if it cannot re-connect with a slave after a timeout
     * [MESOS-633] - Master should inform a recovered slave about frameworks that were completed
     * [MESOS-635] - Master doesn't update the task state when it generates TASK_LOST
     * [MESOS-636] - Executors under cgroups isolator die immediately when a slave dies if it has a controlling TTY attached
@@ -69,7 +92,6 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-646] - Slave recovery doesn't properly handle checkpointed queued tasks
     * [MESOS-648] - Slave should properly handle partial writes of status updates
     * [MESOS-657] - SlaveRecoveryTest/1.PartitionedSlave fails with cgroups
-    * [MESOS-658] - A framework can be incorrectly removed by the Master.
     * [MESOS-668] - SlaveRecoveryTest/0.MultipleFrameworks flaky
     * [MESOS-671] - CgroupsIsolator does not listen for OOM events on recovered executors.
     * [MESOS-673] - Task reconciliation does not properly release executor resources.
@@ -94,7 +116,6 @@ Release Notes - Mesos - Version 0.14.0
     * [MESOS-634] - Make slave recovery more robust by ignoring absence of files
     * [MESOS-651] - Expose slave re-registration time in the Web UI
     * [MESOS-663] - Expose recovery errors when running recovery in --no-strict mode
-    * [MESOS-666] - Include CHANGELOG and docs/ in distributions.
 
 ** New Feature
     * [MESOS-110] - Slave Recovery: A slave restart should not restart tasks
@@ -198,6 +219,27 @@ Release Notes - Mesos - Version 0.13.0
 ** Task
     * [MESOS-618] - Remove Hadoop on Mesos from repository in favor of external repository
     * [MESOS-643] - Revert the semantics of newly introduced changes to FrameworkReregistered messages
+
+
+Release Notes - Mesos - Version 0.12.1
+--------------------------------------
+* This release is primarily a bug fix release with a few small features for running JVM frameworks, like Hadoop and Jenkins.
+
+** Bug
+    * [MESOS-515] - Slave fails to detect free disk space
+    * [MESOS-524] - JVM tests are flaky on OSX.
+    * [MESOS-587] - MesosNativeLibrary.java doesn't read environment variable "MESOS_NATIVE_LIBRARY".
+    * [MESOS-597] - Set MESOS_NATIVE_LIBRARY or (DY)LD_LIBRARY_PATH before launching an executor in order to enable JVM based executors to easily find libmesos.so.
+    * [MESOS-599] - Make sure stderr/stdout get launcher output.
+    * [MESOS-604] - Slave should use the filesystem containing the work directory for disk usage calculation
+    * [MESOS-605] - Fix wrong compression for hadoop package
+
+** Improvement
+    * [MESOS-179] - Need to check for Python development headers
+    * [MESOS-346] - Improve OSX configure output when deprecated headers are present.
+    * [MESOS-360] - Mesos jar should be built for java 6
+    * [MESOS-602] - Allow Mesos native library to be loaded from an absolute path
+    * [MESOS-603] - Add support for better test output in newer versions of autools
 
 
 Release Notes - Mesos - Version 0.12.0

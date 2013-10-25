@@ -19,6 +19,8 @@
 #ifndef __TESTS_ISOLATOR_HPP__
 #define __TESTS_ISOLATOR_HPP__
 
+#include "unistd.h"
+
 #include <map>
 #include <string>
 
@@ -95,41 +97,51 @@ public:
       const std::string& directory,
       const Resources& resources)
   {
-    if (executors.count(executorInfo.executor_id()) > 0) {
-      Executor* executor = executors[executorInfo.executor_id()];
-      MesosExecutorDriver* driver = new MesosExecutorDriver(executor);
-      drivers[executorInfo.executor_id()] = driver;
-
-      directories[executorInfo.executor_id()] = directory;
-
-      os::setenv("MESOS_LOCAL", "1");
-      os::setenv("MESOS_DIRECTORY", directory);
-      os::setenv("MESOS_SLAVE_PID", slave);
-      os::setenv("MESOS_SLAVE_ID", slaveId.value());
-      os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
-      os::setenv("MESOS_EXECUTOR_ID", executorInfo.executor_id().value());
-      os::setenv("MESOS_CHECKPOINT", frameworkInfo.checkpoint() ? "1" : "0");
-
-      driver->start();
-
-      os::unsetenv("MESOS_LOCAL");
-      os::unsetenv("MESOS_DIRECTORY");
-      os::unsetenv("MESOS_SLAVE_PID");
-      os::unsetenv("MESOS_SLAVE_ID");
-      os::unsetenv("MESOS_FRAMEWORK_ID");
-      os::unsetenv("MESOS_EXECUTOR_ID");
-      os::unsetenv("MESOS_CHECKPOINT");
-
-      process::dispatch(
-          slave,
-          &slave::Slave::executorStarted,
-          frameworkId,
-          executorInfo.executor_id(),
-          -1);
-
-    } else {
-      FAIL() << "Cannot launch executor";
+    // TODO(vinod): Currently TestingIsolator doesn't support 2
+    // different frameworks launching an executor with the same
+    // executorID! This is tricky to support because most of the
+    // tests do not known the framework id when they setup the
+    // TestingIsolator.
+    if (drivers.count(executorInfo.executor_id()) > 0) {
+      FAIL() << "Failed to launch executor " << executorInfo.executor_id()
+             << " of framework " << frameworkId
+             << " because it is already launched";
     }
+
+    if (executors.count(executorInfo.executor_id()) == 0) {
+      FAIL() << "Failed to launch executor " << executorInfo.executor_id()
+             << " of framework " << frameworkId
+             << " because it is unknown to the isolator";
+    }
+
+    Executor* executor = executors[executorInfo.executor_id()];
+    MesosExecutorDriver* driver = new MesosExecutorDriver(executor);
+    drivers[executorInfo.executor_id()] = driver;
+
+    os::setenv("MESOS_LOCAL", "1");
+    os::setenv("MESOS_DIRECTORY", directory);
+    os::setenv("MESOS_SLAVE_PID", slave);
+    os::setenv("MESOS_SLAVE_ID", slaveId.value());
+    os::setenv("MESOS_FRAMEWORK_ID", frameworkId.value());
+    os::setenv("MESOS_EXECUTOR_ID", executorInfo.executor_id().value());
+    os::setenv("MESOS_CHECKPOINT", frameworkInfo.checkpoint() ? "1" : "0");
+
+    driver->start();
+
+    os::unsetenv("MESOS_LOCAL");
+    os::unsetenv("MESOS_DIRECTORY");
+    os::unsetenv("MESOS_SLAVE_PID");
+    os::unsetenv("MESOS_SLAVE_ID");
+    os::unsetenv("MESOS_FRAMEWORK_ID");
+    os::unsetenv("MESOS_EXECUTOR_ID");
+    os::unsetenv("MESOS_CHECKPOINT");
+
+    process::dispatch(
+        slave,
+        &slave::Slave::executorStarted,
+        frameworkId,
+        executorInfo.executor_id(),
+        getpid());
   }
 
   virtual void killExecutor(
@@ -152,7 +164,9 @@ public:
           false,
           "Killed executor");
     } else {
-      FAIL() << "Cannot kill executor";
+      FAIL() << "Failed to kill executor " << executorId
+             << " of framework " << frameworkId
+             << " because it is not launched";
     }
   }
 
@@ -170,8 +184,6 @@ public:
   MOCK_METHOD1(
       recover,
       process::Future<Nothing>(const Option<slave::state::SlaveState>&));
-
-  std::map<ExecutorID, std::string> directories;
 
 private:
   // Helper to setup default expectations.

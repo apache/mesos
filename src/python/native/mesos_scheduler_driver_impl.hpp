@@ -110,6 +110,10 @@ PyObject* MesosSchedulerDriverImpl_sendFrameworkMessage(
     MesosSchedulerDriverImpl* self,
     PyObject* args);
 
+PyObject* MesosSchedulerDriverImpl_reconcileTasks(
+    MesosSchedulerDriverImpl* self,
+    PyObject* args);
+
 }} /* namespace mesos { namespace python { */
 
 #endif /* MESOS_SCHEDULER_DRIVER_IMPL_HPP */

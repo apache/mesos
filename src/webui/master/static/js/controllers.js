@@ -124,13 +124,12 @@
       // Redirect if we aren't the leader.
       if ($scope.state.leader != $scope.state.pid) {
         $scope.redirect = 6000;
-        $scope.leader = $scope.state.leader.split("@")[1];
         $("#not-leader-alert").show();
 
         var countdown = function() {
           if ($scope.redirect == 0) {
             // TODO(benh): Use '$window'.
-            window.location = 'http://' + $scope.leader;
+            window.location = '/master/redirect';
           } else {
             $scope.redirect = $scope.redirect - 1000;
             $timeout(countdown, 1000);
@@ -362,24 +361,6 @@
             'Mesos Master');
       }
     };
-  });
-
-
-  mesosApp.controller('DashboardCtrl', function($scope) {
-    setNavbarActiveTab('dashboard');
-
-    var context = cubism.context()
-      .step(1000)
-      .size(1440);
-
-    // Create a "cpus" horizon.
-    horizons.create(context, "cpus", random(context, "cpus"), [0, 10], "cpus");
-
-    // Create a "mem" horizon.
-    horizons.create(context, "mem", random(context, "mem"), [0, 10], "mb");
-
-    // Do any cleanup before we change the route.
-    $scope.$on('$routeChangeStart', function() { context.stop(); });
   });
 
 

@@ -128,9 +128,9 @@ protected:
     switch (message->method) {
     case HTTP_GET: {
       message->uri =
-	message->uri != "/"
-	? "." + message->uri
-	: "./index.html";
+        message->uri != "/"
+        ? "." + message->uri
+        : "./index.html";
 
       //cout << "URI: " << message->uri << endl;
 
@@ -138,17 +138,17 @@ protected:
       int fd;
 
       if ((fd = open(message->uri.c_str(), O_RDONLY, 0)) < 0) {
-	send(HTTP_404, strlen(HTTP_404));
-	return;
+        send(HTTP_404, strlen(HTTP_404));
+        return;
       }
 
       /* Lookup file size. */
       struct stat fd_stat;
 
       if (fstat(fd, &fd_stat) < 0) {
-	send(HTTP_500, strlen(HTTP_500));
-	os::close(fd);
-	return;
+        send(HTTP_500, strlen(HTTP_500));
+        os::close(fd);
+        return;
       }
 
       /* TODO(benh): Use TCP_CORK. */
@@ -160,20 +160,20 @@ protected:
 
       /* Determine the content type. */
       if (message->uri.find(".jpg") != string::npos) {
-	out << "Content-Type: image/jpeg\r\n";
+        out << "Content-Type: image/jpeg\r\n";
       } else if (message->uri.find(".gif") != string::npos) {
-	out << "Content-Type: image/gif\r\n";
+        out << "Content-Type: image/gif\r\n";
       } else if (message->uri.find(".png") != string::npos) {
-	out << "Content-Type: image/png\r\n";
+        out << "Content-Type: image/png\r\n";
       } else if (message->uri.find(".css") != string::npos) {
-	out << "Content-Type: text/css\r\n";
+        out << "Content-Type: text/css\r\n";
       } else {
-	out << "Content-Type: text/html\r\n";
+        out << "Content-Type: text/html\r\n";
       }
 
       out <<
-	"Content-Length: " << fd_stat.st_size << "\r\n"
-	"\r\n";
+        "Content-Length: " << fd_stat.st_size << "\r\n"
+        "\r\n";
 
       //cout << out.str() << endl;
 
@@ -249,29 +249,29 @@ protected:
     do {
       switch (receive()) {
       case ACCEPT: {
-	//cout << ht_id() << ": running server (accept)" << endl;
-	int c;
-	unpack<ACCEPT>(c);
-	HttpConnection *connection = new HttpConnection(c);
-	connections[link(spawn(connection))] = connection;
-	//cout << "...started (" << connection << ")..." << endl;
-	break;
+        //cout << ht_id() << ": running server (accept)" << endl;
+        int c;
+        unpack<ACCEPT>(c);
+        HttpConnection *connection = new HttpConnection(c);
+        connections[link(spawn(connection))] = connection;
+        //cout << "...started (" << connection << ")..." << endl;
+        break;
       }
       case PROCESS_EXIT: {
-	//cout << ht_id() << ": running server (exit)" << endl;
-	if (from() == acceptor->getPID()) {
-	  throw runtime_error("unimplemented acceptor failure");
-	} else if (connections.find(from()) != connections.end()) {
-	  HttpConnection *connection = connections[from()];
-	  connections.erase(from());
-	  delete connection;
-	  //cout << "...finished (" << connection << ")..." << endl;
-	}
-	break;
+        //cout << ht_id() << ": running server (exit)" << endl;
+        if (from() == acceptor->getPID()) {
+          throw runtime_error("unimplemented acceptor failure");
+        } else if (connections.find(from()) != connections.end()) {
+          HttpConnection *connection = connections[from()];
+          connections.erase(from());
+          delete connection;
+          //cout << "...finished (" << connection << ")..." << endl;
+        }
+        break;
       }
       default:
-	cout << "HttpServer received unexpected message" << endl;
-	break;
+        cout << "HttpServer received unexpected message" << endl;
+        break;
       }
     } while (true);
   }

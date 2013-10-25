@@ -1,6 +1,7 @@
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/result.hpp>
 
 #ifdef __linux__
@@ -22,7 +23,27 @@ MesosTest::MesosTest(const Option<zookeeper::URL>& url) : cluster(url) {}
 
 master::Flags MesosTest::CreateMasterFlags()
 {
-  return master::Flags();
+  master::Flags flags;
+
+  // Enable authentication.
+  flags.authenticate = true;
+
+  // Create a temporary work directory (removed by Environment).
+  const Try<std::string>& directory = environment->mkdtemp();
+  CHECK_SOME(directory) << "Failed to create temporary directory";
+
+  // Create a default credentials file.
+  const std::string& path = path::join(directory.get(), "credentials");
+
+  const std::string& credentials =
+    DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
+
+  CHECK_SOME(os::write(path, credentials))
+    << "Failed to write credentials to '" << path << "'";
+
+  flags.credentials = "file://" + path;
+
+  return flags;
 }
 
 
@@ -37,6 +58,9 @@ slave::Flags MesosTest::CreateSlaveFlags()
   flags.work_dir = directory.get();
 
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  // TODO(vinod): Consider making this true and fixing the tests.
+  flags.checkpoint = false;
 
   flags.resources = Option<std::string>(
       "cpus:2;mem:1024;disk:1024;ports:[31000-32000]");

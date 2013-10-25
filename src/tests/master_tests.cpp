@@ -89,7 +89,8 @@ TEST_F(MasterTest, TaskRunning)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -161,7 +162,8 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -229,7 +231,8 @@ TEST_F(MasterTest, KillTask)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -304,7 +307,8 @@ TEST_F(MasterTest, StatusUpdateAck)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -376,7 +380,8 @@ TEST_F(MasterTest, RecoverResources)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -459,8 +464,10 @@ TEST_F(MasterTest, RecoverResources)
     .Times(AtMost(1));
 
   // Now kill the executor, scheduler should get an offer it's resources.
-  // TODO(benh): WTF? Why aren't we dispatching?
-  isolator.killExecutor(offer.framework_id(), executorInfo.executor_id());
+  dispatch(isolator,
+           &Isolator::killExecutor,
+           offer.framework_id(),
+           executorInfo.executor_id());
 
   // TODO(benh): We can't do driver.reviveOffers() because we need to
   // wait for the killed executors resources to get aggregated! We
@@ -490,7 +497,8 @@ TEST_F(MasterTest, FrameworkMessage)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver schedDriver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver schedDriver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&schedDriver, _, _))
     .Times(1);
@@ -565,18 +573,18 @@ TEST_F(MasterTest, MultipleExecutors)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  ExecutorID executorId1;
-  executorId1.set_value("executor-1");
+  ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
+  executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
 
-  ExecutorID executorId2;
-  executorId2.set_value("executor-2");
+  ExecutorInfo executor2; // Bug in gcc 4.1.*, must assign on next line.
+  executor2 = CREATE_EXECUTOR_INFO("executor-2", "exit 1");
 
-  MockExecutor exec1(executorId1);
-  MockExecutor exec2(executorId2);
+  MockExecutor exec1(executor1.executor_id());
+  MockExecutor exec2(executor2.executor_id());
 
   map<ExecutorID, Executor*> execs;
-  execs[executorId1] = &exec1;
-  execs[executorId2] = &exec2;
+  execs[executor1.executor_id()] = &exec1;
+  execs[executor2.executor_id()] = &exec2;
 
   TestingIsolator isolator(execs);
 
@@ -584,7 +592,8 @@ TEST_F(MasterTest, MultipleExecutors)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -599,18 +608,12 @@ TEST_F(MasterTest, MultipleExecutors)
   AWAIT_READY(offers);
   ASSERT_NE(0u, offers.get().size());
 
-  ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
-  executor1 = CREATE_EXECUTOR_INFO(executorId1, "exit 1");
-
   TaskInfo task1;
   task1.set_name("");
   task1.mutable_task_id()->set_value("1");
   task1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task1.mutable_resources()->MergeFrom(Resources::parse("cpus:1;mem:512").get());
   task1.mutable_executor()->MergeFrom(executor1);
-
-  ExecutorInfo executor2; // Bug in gcc 4.1.*, must assign on next line.
-  executor2 = CREATE_EXECUTOR_INFO(executorId2, "exit 1");
 
   TaskInfo task2;
   task2.set_name("");
@@ -685,7 +688,8 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -771,7 +775,8 @@ TEST_F(MasterTest, RemoveUnregisteredTerminatedExecutor)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -843,7 +848,8 @@ TEST_F(MasterTest, MasterInfo)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<MasterInfo> masterInfo;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -874,7 +880,8 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -951,7 +958,8 @@ TEST_F(WhitelistTest, WhitelistSlave)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -980,7 +988,8 @@ TEST_F(MasterTest, MasterLost)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -1008,4 +1017,81 @@ TEST_F(MasterTest, MasterLost)
   driver.join();
 
   Shutdown();
+}
+
+// Test sends different state than current and expects an update with
+// the current state of task.
+//
+// TODO(nnielsen): Stubs have been left for future test, where test sends
+// expected state of non-existing task and an update with TASK_LOST should
+// be received. Also (not currently covered) if statuses are up to date,
+// nothing should happen.
+TEST_F(MasterTest, ReconcileTaskTest)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+
+  Try<PID<Slave> > slave = StartSlave(&isolator);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  EXPECT_EQ(true, status.get().has_slave_id());
+
+  const TaskID taskId = status.get().task_id();
+  const SlaveID slaveId = status.get().slave_id();
+
+  // If framwework has different state, current state should be reported.
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  vector<TaskStatus> statuses;
+
+  TaskStatus differentStatus;
+  differentStatus.mutable_task_id()->CopyFrom(taskId);
+  differentStatus.mutable_slave_id()->CopyFrom(slaveId);
+  differentStatus.set_state(TASK_KILLED);
+
+  statuses.push_back(differentStatus);
+
+  driver.reconcileTasks(statuses);
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }

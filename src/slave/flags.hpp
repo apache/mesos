@@ -38,6 +38,11 @@ class Flags : public logging::Flags
 public:
   Flags()
   {
+    add(&Flags::hostname,
+        "hostname",
+        "The hostname the slave should report.\n"
+        "If left unset, system hostname will be used (recommended).");
+
     // TODO(benh): Is there a way to specify units for the resources?
     add(&Flags::resources,
         "resources",
@@ -127,7 +132,7 @@ public:
         "to disk. This enables a restarted slave to recover\n"
         "status updates and reconnect with (--recover=reconnect) or\n"
         "kill (--recover=kill) old executors",
-        false);
+        true);
 
     add(&Flags::recover,
         "recover",
@@ -182,6 +187,7 @@ public:
 #endif
   }
 
+  Option<std::string> hostname;
   Option<std::string> resources;
   std::string default_role;
   Option<std::string> attributes;

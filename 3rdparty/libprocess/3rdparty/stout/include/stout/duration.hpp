@@ -162,6 +162,10 @@ private:
     : nanos(static_cast<int64_t>(value * unit)) {}
 
   int64_t nanos;
+
+  friend std::ostream& operator << (
+    std::ostream& stream,
+    const Duration& duration);
 };
 
 
@@ -246,29 +250,85 @@ public:
 
 inline std::ostream& operator << (
     std::ostream& stream,
-    const Duration& duration)
+    const Duration& duration_)
 {
   long precision = stream.precision();
 
   // Output the duration in full double precision.
   stream.precision(std::numeric_limits<double>::digits10);
 
+  // Parse the duration as the sign and the absolute value.
+  Duration duration = duration_;
+  if (duration_ < Duration::zero()) {
+    stream << "-";
+
+    // Duration::min() may not be representable as a positive Duration.
+    if (duration_ == Duration::min()) {
+      duration = Duration::max();
+    } else {
+      duration = duration_ * -1;
+    }
+  }
+
+  // First determine which bucket of time unit the duration falls into
+  // then check whether the duration can be represented as a whole
+  // number with this time unit or a smaller one.
+  // e.g. 1.42857142857143weeks falls into the 'Weeks' bucket but
+  // reads better with a smaller unit: '10days'. So we use 'days'
+  // instead of 'weeks' to output the duration.
+  int64_t nanoseconds = duration.ns();
   if (duration < Microseconds(1)) {
     stream << duration.ns() << "ns";
   } else if (duration < Milliseconds(1)) {
-    stream << duration.us() << "us";
+    if (nanoseconds % Duration::MICROSECONDS != 0) {
+      // We can't get a whole number using this unit but we can at
+      // one level down.
+      stream << duration.ns() << "ns";
+    } else {
+      stream << duration.us() << "us";
+    }
   } else if (duration < Seconds(1)) {
-    stream << duration.ms() << "ms";
+    if (nanoseconds % Duration::MILLISECONDS != 0 &&
+        nanoseconds % Duration::MICROSECONDS == 0) {
+      stream << duration.us() << "us";
+    } else {
+      stream << duration.ms() << "ms";
+    }
   } else if (duration < Minutes(1)) {
-    stream << duration.secs() << "secs";
+    if (nanoseconds % Duration::SECONDS != 0 &&
+        nanoseconds % Duration::MILLISECONDS == 0) {
+      stream << duration.ms() << "ms";
+    } else {
+      stream << duration.secs() << "secs";
+    }
   } else if (duration < Hours(1)) {
-    stream << duration.mins() << "mins";
+    if (nanoseconds % Duration::MINUTES != 0 &&
+        nanoseconds % Duration::SECONDS == 0) {
+      stream << duration.secs() << "secs";
+    } else {
+      stream << duration.mins() << "mins";
+    }
   } else if (duration < Days(1)) {
-    stream << duration.hrs() << "hrs";
+    if (nanoseconds % Duration::HOURS != 0 &&
+        nanoseconds % Duration::MINUTES == 0) {
+      stream << duration.mins() << "mins";
+    } else {
+      stream << duration.hrs() << "hrs";
+    }
   } else if (duration < Weeks(1)) {
-    stream << duration.days() << "days";
+    if (nanoseconds % Duration::DAYS != 0 &&
+        nanoseconds % Duration::HOURS == 0) {
+      stream << duration.hrs() << "hrs";
+    } else {
+      stream << duration.days() << "days";
+    }
   } else {
-    stream << duration.weeks() << "weeks";
+    if (nanoseconds % Duration::WEEKS != 0 &&
+        nanoseconds % Duration::DAYS == 0) {
+      stream << duration.days() << "days";
+    } else {
+      stream << duration.weeks() << "weeks";
+    }
   }
 
   // Return the stream to original formatting state.
@@ -280,9 +340,9 @@ inline std::ostream& operator << (
 
 inline Try<Duration> Duration::create(double seconds)
 {
-  if (seconds * SECONDS > LLONG_MAX) {
-    return Error("Argument larger than the maximum number of seconds that "
-                 "a Duration can represent due to int64_t's size limit.");
+  if (seconds * SECONDS > LLONG_MAX || seconds * SECONDS < LLONG_MIN) {
+    return Error("Argument out of the range that a Duration can represent due "
+                 "to int64_t's size limit");
   }
 
   return Nanoseconds(static_cast<int64_t>(seconds * SECONDS));

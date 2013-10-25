@@ -23,6 +23,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/try.hpp>
 
 #include "jvm/jvm.hpp"
 
@@ -468,6 +469,9 @@ extern "C" {
  * Class:     org_apache_mesos_MesosSchedulerDriver
  * Method:    initialize
  * Signature: ()V
+ *
+ * TODO(vinod): Deprecate this in favor of
+ * 'Java_org_apache_mesos_MesosSchedulerDriver_init' below.
  */
 JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_initialize
   (JNIEnv* env, jobject thiz)
@@ -493,12 +497,37 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_initialize
   jfieldID master = env->GetFieldID(clazz, "master", "Ljava/lang/String;");
   jobject jmaster = env->GetObjectField(thiz, master);
 
-  // Create the C++ driver and initialize the __driver variable.
-  MesosSchedulerDriver* driver =
-    new MesosSchedulerDriver(scheduler,
-                             construct<FrameworkInfo>(env, jframework),
-                             construct<string>(env, jmaster));
+  // Get out the Credential passed into the constructor.
+  // NOTE: Older versions (< 0.15.0) of MesosSchedulerDriver do not set
+  // 'credential' field. To be backwards compatible we should safely
+  // handle this case.
+  Result<jfieldID> credential = getFieldID(env, clazz, "credential", "Lorg/apache/mesos/Protos$Credential;");
+  if (credential.isError()) {
+    return;
+  }
 
+  jobject jcredential = NULL;
+  if (credential.isSome()) {
+    // Credential might exist but set to 'null'.
+    jcredential = env->GetObjectField(thiz, credential.get());
+  }
+
+  // Create the C++ driver.
+  MesosSchedulerDriver* driver = NULL;
+  if (jcredential != NULL) {
+     driver = new MesosSchedulerDriver(
+        scheduler,
+        construct<FrameworkInfo>(env, jframework),
+        construct<string>(env, jmaster),
+        construct<Credential>(env, jcredential));
+  } else {
+    driver = new MesosSchedulerDriver(
+       scheduler,
+       construct<FrameworkInfo>(env, jframework),
+       construct<string>(env, jmaster));
+  }
+
+  // Initialize the __driver variable
   jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
   env->SetLongField(thiz, __driver, (jlong) driver);
 }
@@ -810,6 +839,50 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_requestReso
   }
 
   Status status = driver->requestResources(requests);
+
+  return convert<Status>(env, status);
+}
+
+/*
+ * Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    reconcileTasks
+ * Signature: (Ljava/util/Collection;)Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_reconcileTasks
+  (JNIEnv* env, jobject thiz, jobject jstatuses)
+{
+  // Construct a C++ TaskStatus from each Java TaskStatus.
+  vector<TaskStatus> statuses;
+
+  jclass clazz = env->GetObjectClass(jstatuses);
+
+  // Iterator iterator = statuses.iterator();
+  jmethodID iterator =
+    env->GetMethodID(clazz, "iterator", "()Ljava/util/Iterator;");
+  jobject jiterator = env->CallObjectMethod(jstatuses, iterator);
+
+  clazz = env->GetObjectClass(jiterator);
+
+  // while (iterator.hasNext()) {
+  jmethodID hasNext = env->GetMethodID(clazz, "hasNext", "()Z");
+
+  jmethodID next = env->GetMethodID(clazz, "next", "()Ljava/lang/Object;");
+
+  while (env->CallBooleanMethod(jiterator, hasNext)) {
+    // Object status = iterator.next();
+    jobject jstatus = env->CallObjectMethod(jiterator, next);
+    const TaskStatus& status = construct<TaskStatus>(env, jstatus);
+    statuses.push_back(status);
+  }
+
+  // Now invoke the underlying driver.
+  clazz = env->GetObjectClass(thiz);
+
+  jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
+  MesosSchedulerDriver* driver =
+    (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
+
+  Status status = driver->reconcileTasks(statuses);
 
   return convert<Status>(env, status);
 }

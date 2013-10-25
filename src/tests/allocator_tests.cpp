@@ -18,6 +18,10 @@
 
 #include <gmock/gmock.h>
 
+#include <map>
+#include <string>
+#include <vector>
+
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
@@ -32,6 +36,7 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
+#include "tests/isolator.hpp"
 #include "tests/mesos.hpp"
 
 using namespace mesos;
@@ -49,6 +54,7 @@ using process::Clock;
 using process::Future;
 using process::PID;
 
+using std::map;
 using std::string;
 using std::vector;
 
@@ -96,7 +102,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   frameworkInfo1.set_role("role1");
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -122,12 +129,13 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   frameworkInfo2.set_role("role2");
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> frameworkAdded2;
   EXPECT_CALL(allocator, frameworkAdded(_, _, _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
-		    FutureSatisfy(&frameworkAdded2)));
+      FutureSatisfy(&frameworkAdded2)));
 
   EXPECT_CALL(sched2, registered(_, _, _));
 
@@ -195,12 +203,13 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   frameworkInfo3.set_role("role1");
 
   MockScheduler sched3;
-  MesosSchedulerDriver driver3(&sched3, frameworkInfo3, master.get());
+  MesosSchedulerDriver driver3(
+      &sched3, frameworkInfo3, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> frameworkAdded3;
   EXPECT_CALL(allocator, frameworkAdded(_, _, _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
-		    FutureSatisfy(&frameworkAdded3)));
+      FutureSatisfy(&frameworkAdded3)));
 
   EXPECT_CALL(sched3, registered(_, _, _));
 
@@ -243,7 +252,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   frameworkInfo4.set_user("user1");
   frameworkInfo4.set_role("role1");
   MockScheduler sched4;
-  MesosSchedulerDriver driver4(&sched4, frameworkInfo4, master.get());
+  MesosSchedulerDriver driver4(
+      &sched4, frameworkInfo4, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> frameworkAdded4;
   EXPECT_CALL(allocator, frameworkAdded(_, _, _))
@@ -368,7 +378,8 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_role("role1");
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -389,7 +400,8 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   frameworkInfo2.set_name("framework2");
   frameworkInfo2.set_role("role2");
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -409,7 +421,8 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   frameworkInfo3.set_name("framework3");
   frameworkInfo3.set_role("role3");
   MockScheduler sched3;
-  MesosSchedulerDriver driver3(&sched3, frameworkInfo3, master.get());
+  MesosSchedulerDriver driver3(
+      &sched3, frameworkInfo3, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -503,7 +516,8 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   FrameworkID frameworkId1;
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -512,7 +526,7 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   // Initially, framework1 should be offered all of the resources on
   // slave1 that aren't reserved to role2.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 400)))
-    .WillOnce(LaunchTasks(1, 1, 100, "role1"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 100, "role1"));
 
   EXPECT_CALL(allocator, resourcesUnused(_, _, _, _))
     .WillOnce(InvokeUnusedWithFilters(&allocator, 0));
@@ -550,7 +564,8 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   FrameworkID frameworkId2;
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
@@ -653,7 +668,8 @@ TYPED_TEST(AllocatorTest, MockAllocator)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -710,7 +726,8 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   ASSERT_SOME(slave1);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -727,7 +744,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   // this is the only framework running so far. Launch a task that
   // uses less than that to leave some resources unused.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 1024)))
-    .WillOnce(LaunchTasks(1, 1, 512, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"));
 
   Future<Nothing> resourcesUnused;
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
@@ -754,7 +771,8 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   frameworkInfo2.set_name("framework2");
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -822,7 +840,8 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   frameworkInfo1.set_name("framework1");
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo1), _))
     .WillOnce(InvokeFrameworkAdded(&this->allocator));
@@ -884,7 +903,8 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   frameworkInfo2.set_name("framework2");
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, Eq(frameworkInfo2), _))
     .WillOnce(InvokeFrameworkAdded(&this->allocator));
@@ -949,7 +969,8 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -966,7 +987,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   // Initially, all of slave1's resources are avaliable.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(1, 1, 256, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 256, "*"));
 
   // We don't filter the unused resources to make sure that
   // they get offered to the framework as soon as it fails over.
@@ -1006,7 +1027,8 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   // Now launch the second (i.e., failover) scheduler using the
   // framework id recorded from the first scheduler.
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkActivated(_, _));
 
@@ -1057,9 +1079,20 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
-  // TODO(benh): We use this executor for two frameworks in this test
-  // which works but is brittle and harder to reason about.
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
+  executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
+
+  ExecutorInfo executor2; // Bug in gcc 4.1.*, must assign on next line.
+  executor2 = CREATE_EXECUTOR_INFO("executor-2", "exit 1");
+
+  MockExecutor exec1(executor1.executor_id());
+  MockExecutor exec2(executor2.executor_id());
+
+  map<ExecutorID, Executor*> execs;
+  execs[executor1.executor_id()] = &exec1;
+  execs[executor2.executor_id()] = &exec2;
+
+  TestingIsolator isolator(execs);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
@@ -1067,11 +1100,12 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
+  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1087,7 +1121,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   // The first time the framework is offered resources, all of the
   // cluster's resources should be avaliable.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(1, 2, 512, "*"));
+    .WillOnce(LaunchTasks(executor1, 1, 2, 512, "*"));
 
   // The framework does not use all the resources.
   Future<Nothing> resourcesUnused;
@@ -1095,10 +1129,10 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
     .WillOnce(DoAll(InvokeResourcesUnused(&this->allocator),
                     FutureSatisfy(&resourcesUnused)));
 
-  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(exec1, registered(_, _, _, _));
 
   Future<Nothing> launchTask;
-  EXPECT_CALL(exec, launchTask(_, _))
+  EXPECT_CALL(exec1, launchTask(_, _))
     .WillOnce(FutureSatisfy(&launchTask));
 
   driver1.start();
@@ -1114,7 +1148,8 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   AWAIT_READY(resourcesUnused);
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1130,13 +1165,13 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   // The first time sched2 gets an offer, framework 1 has a task
   // running with 2 cpus and 512 mem, leaving 1 cpu and 512 mem.
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(1, 512)))
-    .WillOnce(LaunchTasks(1, 1, 256, "*"));
+    .WillOnce(LaunchTasks(executor2, 1, 1, 256, "*"));
 
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
 
-  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(exec2, registered(_, _, _, _));
 
-  EXPECT_CALL(exec, launchTask(_, _))
+  EXPECT_CALL(exec2, launchTask(_, _))
     .WillOnce(FutureSatisfy(&launchTask));
 
   driver2.start();
@@ -1161,7 +1196,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(2, 768)))
     .WillOnce(FutureSatisfy(&resourceOffers));
 
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(exec1, shutdown(_))
     .Times(AtMost(1));
 
   driver1.stop();
@@ -1169,7 +1204,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 
   AWAIT_READY(resourceOffers);
 
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(exec2, shutdown(_))
     .Times(AtMost(1));
 
   driver2.stop();
@@ -1204,7 +1239,8 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   ASSERT_SOME(slave1);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1212,7 +1248,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   // Initially, all of slave1's resources are available.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 1024)))
-    .WillOnce(LaunchTasks(1, 2, 512, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 512, "*"));
 
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
 
@@ -1228,13 +1264,14 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 
   driver.start();
 
-  // Ensures the task is completely launched before we
-  // kill the slave, to test that the task's resources
-  // are recovered correctly (i.e. never reallocated
-  // since the slave is killed)
+  // Ensures the task is completely launched before we kill the
+  // slave, to test that the task's and executor's resources are
+  // recovered correctly (i.e. never reallocated since the slave
+  // is killed).
   AWAIT_READY(launchTask);
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+    .Times(2);
 
   Future<Nothing> slaveRemoved;
   EXPECT_CALL(this->allocator, slaveRemoved(_))
@@ -1251,21 +1288,24 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   AWAIT_READY(slaveRemoved);
 
   slave::Flags flags2 = this->CreateSlaveFlags();
-  flags2.resources = Option<string>("cpus:3;mem:256");
+  flags2.resources = string("cpus:3;mem:256;disk:1024;ports:[31000-32000]");
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
   // Eventually after slave2 is launched, we should get
   // an offer that contains all of slave2's resources
   // and none of slave1's resources.
-  Future<Nothing> resourceOffers;
+  Future<vector<Offer> > resourceOffers;
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 256)))
-    .WillOnce(FutureSatisfy(&resourceOffers));
+    .WillOnce(FutureArg<1>(&resourceOffers));
 
   Try<PID<Slave> > slave2 = this->StartSlave(flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(resourceOffers);
+
+  EXPECT_EQ(Resources(resourceOffers.get()[0].resources()),
+            Resources::parse(flags2.resources.get()).get());
 
   // Shut everything down.
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
@@ -1310,7 +1350,8 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   ASSERT_SOME(slave1);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1325,7 +1366,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
 
   // Initially, all of slave1's resources are avaliable.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(1, 2, 512, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 512, "*"));
 
   // We filter the first time so that the unused resources
   // on slave1 from the task launch won't get reoffered
@@ -1410,7 +1451,8 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1425,7 +1467,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
 
   // Initially, all of the slave's resources.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(2, 1, 256, "*"));
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 2, 1, 256, "*"));
 
   // Some resources will be unused and we need to make sure that we
   // don't send the TASK_FINISHED status update below until after the
@@ -1527,7 +1569,8 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
@@ -1613,7 +1656,8 @@ TYPED_TEST(AllocatorTest, RoleTest)
   frameworkInfo1.set_role("role1");
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkErrorMessage> errorMessage =
     FUTURE_PROTOBUF(FrameworkErrorMessage(), _, _);
@@ -1631,7 +1675,8 @@ TYPED_TEST(AllocatorTest, RoleTest)
   frameworkInfo2.set_role("role2");
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered2;
   EXPECT_CALL(sched2, registered(_, _, _))

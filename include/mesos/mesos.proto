@@ -92,7 +92,7 @@ message ExecutorID {
  * for the scheduler to failover before removing the framework is
  * specified by failover_timeout.
  * If checkpoint is set, framework pid, executor pids and status updates
- * are checkpointed to disk.
+ * are checkpointed to disk by the slaves.
  * Checkpointing allows a restarted slave to reconnect with old executors
  * and recover status updates, at the cost of disk I/O.
  * The role field is used to group frameworks for allocation decisions,
@@ -164,20 +164,15 @@ message MasterInfo {
 
 
 /**
- * Describes a slave. The 'webui_hostname' and 'webui_port' are
- * provided in the event a host has different private and public
- * hostnames (e.g., Amazon EC2). Note that the 'id' field is only
- * available after a slave is registered with the master, and is made
- * available here to facilitate re-registration.
- * If checkpoint is set, the slave is checkpointing its own
- * information and potentially frameworks' information (if a
- * framework has checkpointing enabled).
+ * Describes a slave. Note that the 'id' field is only available after
+ * a slave is registered with the master, and is made available here
+ * to facilitate re-registration.  If checkpoint is set, the slave is
+ * checkpointing its own information and potentially frameworks'
+ * information (if a framework has checkpointing enabled).
  */
 message SlaveInfo {
   required string hostname = 1;
   optional int32 port = 8 [default = 5051];
-  required string webui_hostname = 2;             // Deprecated!
-  optional int32 webui_port = 4 [default = 8081]; // Deprecated!
   repeated Resource resources = 3;
   repeated Attribute attributes = 5;
   optional SlaveID id = 6;
@@ -389,6 +384,7 @@ message TaskStatus {
   required TaskState state = 2;
   optional string message = 4; // Possible message explaining state.
   optional bytes data = 3;
+  optional SlaveID slave_id = 5;
 }
 
 
@@ -436,4 +432,18 @@ message Parameter {
  */
 message Parameters {
   repeated Parameter parameter = 1;
+}
+
+
+/**
+ * Credential used for authentication.
+ *
+ * NOTE: The 'principal' is used for authenticating the framework with
+ * the master. This is different from 'FrameworkInfo.user'
+ * which is used to determine the user under which the framework's
+ * executors/tasks are run.
+ */
+message Credential {
+  required string principal = 1;
+  optional bytes secret = 2;
 }

@@ -319,21 +319,25 @@ inline Try<Nothing> FlagsBase::load(
 
   // Read flags from the command line.
   for (int i = 1; i < argc; i++) {
-    const std::string arg(argv[i]);
+    const std::string arg(strings::trim(argv[i]));
+
+    if (arg.find("--") != 0) {
+      continue;
+    }
 
     std::string name;
     Option<std::string> value = None();
-    if (arg.find("--") == 0) {
-      size_t eq = arg.find_first_of("=");
-      if (eq == std::string::npos && arg.find("--no-") == 0) { // --no-name
-        name = arg.substr(2);
-      } else if (eq == std::string::npos) {                    // --name
-        name = arg.substr(2);
-      } else {                                                 // --name=value
-        name = arg.substr(2, eq - 2);
-        value = arg.substr(eq + 1);
-      }
+
+    size_t eq = arg.find_first_of("=");
+    if (eq == std::string::npos && arg.find("--no-") == 0) { // --no-name
+      name = arg.substr(2);
+    } else if (eq == std::string::npos) {                    // --name
+      name = arg.substr(2);
+    } else {                                                 // --name=value
+      name = arg.substr(2, eq - 2);
+      value = arg.substr(eq + 1);
     }
+
     name = strings::lower(name);
 
     if (!duplicates) {

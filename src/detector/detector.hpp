@@ -42,6 +42,12 @@ class ZooKeeper;
 namespace mesos {
 namespace internal {
 
+// Returns the current master PID (waiting until a master is elected).
+process::Future<process::UPID> detect(
+    const std::string& master,
+    bool quiet = true);
+
+
 // Forward declarations.
 class ZooKeeperMasterDetectorProcess;
 

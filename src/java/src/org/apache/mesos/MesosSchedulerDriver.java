@@ -66,10 +66,14 @@ public class MesosSchedulerDriver implements SchedulerDriver {
    * Any Mesos configuration options are read from environment
    * variables, as well as any configuration files found through the
    * environment variables.
+   *
+   * TODO(vinod): Deprecate this in favor the constructor that takes
+   * 'credential' as parameter.
    */
-  public MesosSchedulerDriver(Scheduler scheduler,
-                              FrameworkInfo framework,
-                              String master) {
+  public MesosSchedulerDriver(
+      Scheduler scheduler,
+      FrameworkInfo framework,
+      String master) {
     if (scheduler == null) {
       throw new NullPointerException("Not expecting a null Scheduler");
     }
@@ -85,9 +89,44 @@ public class MesosSchedulerDriver implements SchedulerDriver {
     this.scheduler = scheduler;
     this.framework = framework;
     this.master = master;
+    this.credential = null;
 
     initialize();
   }
+
+  /**
+   * Same as the above constructor, except that it accepts 'credential'
+   * as a parameter.
+   */
+  public MesosSchedulerDriver(
+      Scheduler scheduler,
+      FrameworkInfo framework,
+      String master,
+      Credential credential) {
+    if (scheduler == null) {
+      throw new NullPointerException("Not expecting a null Scheduler");
+    }
+
+    if (framework == null) {
+      throw new NullPointerException("Not expecting a null FrameworkInfo");
+    }
+
+    if (master == null) {
+      throw new NullPointerException("Not expecting a null master");
+    }
+
+    if (credential == null) {
+      throw new NullPointerException("Not expecting a null credential");
+    }
+
+    this.scheduler = scheduler;
+    this.framework = framework;
+    this.master = master;
+    this.credential = credential;
+
+    initialize();
+  }
+
 
   /**
    * See SchedulerDriver for descriptions of these.
@@ -130,12 +169,15 @@ public class MesosSchedulerDriver implements SchedulerDriver {
                                             SlaveID slaveId,
                                             byte[] data);
 
+  public native Status reconcileTasks(Collection<TaskStatus> statuses);
+
   protected native void initialize();
   protected native void finalize();
 
   private final Scheduler scheduler;
   private final FrameworkInfo framework;
   private final String master;
+  private final Credential credential;
 
   private long __scheduler;
   private long __driver;

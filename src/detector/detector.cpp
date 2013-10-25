@@ -22,6 +22,8 @@
 #include <ios>
 #include <vector>
 
+#include <tr1/memory> // TODO(benh): Replace shared_ptr with unique_ptr.
+
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -31,6 +33,7 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
@@ -49,6 +52,7 @@
 
 using process::Future;
 using process::Process;
+using process::Promise;
 using process::Timer;
 using process::UPID;
 using process::wait; // Necessary on some OS's to disambiguate.
@@ -67,10 +71,11 @@ const Duration ZOOKEEPER_SESSION_TIMEOUT = Seconds(10);
 MasterDetector::~MasterDetector() {}
 
 
-Try<MasterDetector*> MasterDetector::create(const string& master,
-                                            const UPID& pid,
-                                            bool contend,
-                                            bool quiet)
+Try<MasterDetector*> MasterDetector::create(
+    const string& master,
+    const UPID& pid,
+    bool contend,
+    bool quiet)
 {
   if (master == "") {
     if (contend) {
@@ -138,9 +143,10 @@ BasicMasterDetector::BasicMasterDetector(const UPID& _master)
 }
 
 
-BasicMasterDetector::BasicMasterDetector(const UPID& _master,
-					 const UPID& pid,
-					 bool elect)
+BasicMasterDetector::BasicMasterDetector(
+    const UPID& _master,
+    const UPID& pid,
+    bool elect)
   : master(_master)
 {
   if (elect) {
@@ -157,9 +163,10 @@ BasicMasterDetector::BasicMasterDetector(const UPID& _master,
 }
 
 
-BasicMasterDetector::BasicMasterDetector(const UPID& _master,
-					 const vector<UPID>& pids,
-					 bool elect)
+BasicMasterDetector::BasicMasterDetector(
+    const UPID& _master,
+    const vector<UPID>& pids,
+    bool elect)
   : master(_master)
 {
   if (elect) {
@@ -512,6 +519,62 @@ Future<int64_t> ZooKeeperMasterDetector::session()
 {
   return dispatch(process, &ZooKeeperMasterDetectorProcess::session);
 }
+
+
+// A simple "listener" for doing one-time detections to support the
+// 'detect' function (see below). Note that this can't be
+// declared/defined inside of the 'detect' function because until
+// C++11 we can't have template arguments be local types (which
+// 'Listener' would be).
+class Listener : public ProtobufProcess<Listener>
+{
+public:
+  Future<UPID> future() { return promise.future(); }
+
+protected:
+  virtual void initialize()
+  {
+    // Stop listening if no one cares.
+    void(*terminate)(const UPID&, bool) = process::terminate;
+    promise.future().onDiscarded(lambda::bind(terminate, self(), true));
+
+    install<NewMasterDetectedMessage>(
+        &Listener::newMasterDetected,
+        &NewMasterDetectedMessage::pid);
+  }
+
+  void newMasterDetected(const UPID& pid)
+  {
+    promise.set(pid);
+    process::terminate(self());
+  }
+
+private:
+  Promise<UPID> promise;
+};
+
+
+Future<UPID> detect(const string& master, bool quiet)
+{
+  Listener* listener = new Listener();
+
+  // Save the future before we spawn.
+  Future<UPID> future = listener->future();
+
+  process::spawn(listener, true); // Let the GC clean up the Listener.
+
+  Try<MasterDetector*> detector =
+    MasterDetector::create(master, listener->self(), false, quiet);
+
+  if (detector.isError()) {
+    process::terminate(listener);
+    return Future<UPID>::failed(
+        "Failed to create a master detector: " + detector.error());
+  }
+
+  return future;
+}
+
 
 } // namespace internal {
 } // namespace mesos {

@@ -271,6 +271,15 @@ TEST(StringsTest, Pairs)
   ASSERT_EQ(1u, pairs.count("two"));
   ASSERT_EQ(1u, pairs["two"].size());
   EXPECT_EQ("2", pairs["two"].front());
+
+  pairs = strings::pairs("foo=1;bar=2;baz;foo=3;bam=1=2", ";&", "=");
+  ASSERT_EQ(2, pairs.size());
+  ASSERT_EQ(1u, pairs.count("foo"));
+  ASSERT_EQ(2u, pairs["foo"].size());
+  ASSERT_EQ("1", pairs["foo"].front());
+  ASSERT_EQ("3", pairs["foo"].back());
+  ASSERT_EQ(1u, pairs.count("bar"));
+  ASSERT_EQ("2", pairs["bar"].front());
 }
 
 

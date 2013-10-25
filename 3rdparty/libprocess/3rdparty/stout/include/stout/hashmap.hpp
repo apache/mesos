@@ -1,6 +1,8 @@
 #ifndef __STOUT_HASHMAP_HPP__
 #define __STOUT_HASHMAP_HPP__
 
+#include <utility>
+
 #include <boost/get_pointer.hpp>
 #include <boost/unordered_map.hpp>
 
@@ -40,6 +42,14 @@ public:
     }
   }
 
+  // Inserts a key, value pair into the map replacing an old value
+  // if the key is already present.
+  void put(const Key& key, const Value& value)
+  {
+    boost::unordered_map<Key, Value>::erase(key);
+    boost::unordered_map<Key, Value>::insert(std::pair<Key, Value>(key, value));
+  }
+
   // Returns an Option for the binding to the key.
   Option<Value> get(const Key& key) const
   {
@@ -63,13 +73,12 @@ public:
     return result;
   }
 
-  // Returns the set of values in this map.
-  // TODO(vinod/bmahler): Should return a list instead.
-  hashset<Value> values() const
+  // Returns the list of values in this map.
+  std::list<Value> values() const
   {
-    hashset<Value> result;
+    std::list<Value> result;
     foreachvalue (const Value& value, *this) {
-      result.insert(value);
+      result.push_back(value);
     }
     return result;
   }

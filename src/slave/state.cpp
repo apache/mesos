@@ -30,7 +30,14 @@ using std::max;
 
 Result<SlaveState> recover(const string& rootDir, bool strict)
 {
-  LOG(INFO) << "Recovering state from " << rootDir;
+  LOG(INFO) << "Recovering state from '" << rootDir << "'";
+
+  // We consider the absence of 'rootDir' to mean that this is either
+  // the first time this slave was started with checkpointing enabled
+  // or this slave was started after an upgrade (--recover=cleanup).
+  if (!os::exists(rootDir)) {
+    return None();
+  }
 
   const std::string& latest = paths::getLatestSlavePath(rootDir);
 
@@ -79,9 +86,9 @@ Try<SlaveState> SlaveState::recover(
 
   const Result<SlaveInfo>& slaveInfo = ::protobuf::read<SlaveInfo>(path);
 
-  if (!slaveInfo.isSome()) {
+  if (slaveInfo.isError()) {
     const string& message = "Failed to read slave info from '" + path + "': " +
-                            (slaveInfo.isError() ? slaveInfo.error() : " none");
+                            slaveInfo.error();
     if (strict) {
       return Error(message);
     } else {
@@ -89,6 +96,13 @@ Try<SlaveState> SlaveState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (slaveInfo.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty slave info file '" << path << "'";
+    return state;
   }
 
   state.info = slaveInfo.get();
@@ -146,9 +160,9 @@ Try<FrameworkState> FrameworkState::recover(
   const Result<FrameworkInfo>& frameworkInfo =
     ::protobuf::read<FrameworkInfo>(path);
 
-  if (!frameworkInfo.isSome()) {
+  if (frameworkInfo.isError()) {
     message = "Failed to read framework info from '" + path + "': " +
-              (frameworkInfo.isError() ? frameworkInfo.error() : " none");
+              frameworkInfo.error();
 
     if (strict) {
       return Error(message);
@@ -157,6 +171,13 @@ Try<FrameworkState> FrameworkState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (frameworkInfo.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty framework info file '" << path << "'";
+    return state;
   }
 
   state.info = frameworkInfo.get();
@@ -183,6 +204,13 @@ Try<FrameworkState> FrameworkState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (pid.get().empty()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty framework pid file '" << path << "'";
+    return state;
   }
 
   state.pid = process::UPID(pid.get());
@@ -242,10 +270,9 @@ Try<ExecutorState> ExecutorState::recover(
   const Result<ExecutorInfo>& executorInfo =
     ::protobuf::read<ExecutorInfo>(path);
 
-  if (!executorInfo.isSome()) {
-    message =
-      "Failed to read executor info from '" + path +
-      "': " + (executorInfo.isError() ? executorInfo.error() : " none");
+  if (executorInfo.isError()) {
+    message = "Failed to read executor info from '" + path + "': " +
+              executorInfo.error();
 
     if (strict) {
       return Error(message);
@@ -254,6 +281,13 @@ Try<ExecutorState> ExecutorState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (executorInfo.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty executor info file '" << path << "'";
+    return state;
   }
 
   state.info = executorInfo.get();
@@ -371,7 +405,7 @@ Try<RunState> RunState::recover(
   Try<string> pid = os::read(path);
 
   if (pid.isError()) {
-    message = "Failed to read executor's forked pid from '" + path +
+    message = "Failed to read executor forked pid from '" + path +
               "': " + pid.error();
 
     if (strict) {
@@ -381,6 +415,13 @@ Try<RunState> RunState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (pid.get().empty()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty executor forked pid file '" << path << "'";
+    return state;
   }
 
   Try<pid_t> forkedPid = numify<pid_t>(pid.get());
@@ -406,7 +447,7 @@ Try<RunState> RunState::recover(
   pid = os::read(path);
 
   if (pid.isError()) {
-    message = "Failed to read executor's libprocess pid from '" + path +
+    message = "Failed to read executor libprocess pid from '" + path +
               "': " + pid.error();
 
     if (strict) {
@@ -416,6 +457,13 @@ Try<RunState> RunState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (pid.get().empty()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty executor libprocess pid file '" << path << "'";
+    return state;
   }
 
   state.libprocessPid = process::UPID(pid.get());
@@ -455,9 +503,8 @@ Try<TaskState> TaskState::recover(
 
   const Result<Task>& task = ::protobuf::read<Task>(path);
 
-  if (!task.isSome()) {
-    message = "Failed to read task info from '" + path +
-              "': " + (task.isError() ? task.error() : " none");
+  if (task.isError()) {
+    message = "Failed to read task info from '" + path + "': " + task.error();
 
     if (strict) {
       return Error(message);
@@ -466,6 +513,13 @@ Try<TaskState> TaskState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (task.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty task info file '" << path << "'";
+    return state;
   }
 
   state.info = task.get();

@@ -192,18 +192,6 @@ Environment::Environment()
 }
 
 
-Environment::~Environment()
-{
-  foreach (const string& directory, directories) {
-    Try<Nothing> rmdir = os::rmdir(directory);
-    if (rmdir.isError()) {
-      LOG(ERROR) << "Failed to remove '" << directory
-                 << "': " << rmdir.error();
-    }
-  }
-}
-
-
 void Environment::SetUp()
 {
   // Clear any MESOS_ environment variables so they don't affect our tests.
@@ -237,6 +225,19 @@ void Environment::SetUp()
 }
 
 
+void Environment::TearDown()
+{
+  foreach (const string& directory, directories) {
+    Try<Nothing> rmdir = os::rmdir(directory);
+    if (rmdir.isError()) {
+      LOG(ERROR) << "Failed to remove '" << directory
+                 << "': " << rmdir.error();
+    }
+  }
+  directories.clear();
+}
+
+
 Try<string> Environment::mkdtemp()
 {
   const ::testing::TestInfo* const testInfo =
@@ -264,7 +265,11 @@ Try<string> Environment::mkdtemp()
   const string& path =
     path::join("/tmp", strings::join("_", testCase, testName, "XXXXXX"));
 
-  return os::mkdtemp(path);
+  Try<string> mkdtemp = os::mkdtemp(path);
+  if (mkdtemp.isSome()) {
+    directories.push_back(mkdtemp.get());
+  }
+  return mkdtemp;
 }
 
 } // namespace tests {

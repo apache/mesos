@@ -92,7 +92,8 @@ TEST_F(FaultToleranceTest, SlaveLost)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -130,8 +131,6 @@ TEST_F(FaultToleranceTest, SlaveLost)
 // message for a partioned slave.
 TEST_F(FaultToleranceTest, PartitionedSlave)
 {
-  Clock::pause();
-
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
@@ -146,7 +145,8 @@ TEST_F(FaultToleranceTest, PartitionedSlave)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -160,6 +160,8 @@ TEST_F(FaultToleranceTest, PartitionedSlave)
   // Need to make sure the framework AND slave have registered with
   // master. Waiting for resource offers should accomplish both.
   AWAIT_READY(resourceOffers);
+
+  Clock::pause();
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(AtMost(1));
@@ -220,7 +222,8 @@ TEST_F(FaultToleranceTest, PartitionedSlaveReregistration)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -376,7 +379,8 @@ TEST_F(FaultToleranceTest, PartitionedSlaveStatusUpdates)
   SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -482,7 +486,8 @@ TEST_F(FaultToleranceTest, PartitionedSlaveExitedExecutor)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -601,16 +606,21 @@ TEST_F(FaultToleranceTest, MasterFailover)
   ASSERT_SOME(master);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<process::Message> frameworkRegisteredMessage =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
 
-  EXPECT_CALL(sched, registered(&driver, _, _));
+  Future<Nothing> registered1;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered1));
 
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
+
+  AWAIT_READY(registered1);
 
   // Simulate failed over master by restarting the master.
   Stop(master.get());
@@ -619,9 +629,12 @@ TEST_F(FaultToleranceTest, MasterFailover)
 
   EXPECT_CALL(sched, disconnected(&driver));
 
-  Future<Nothing> registered;
+  Future<AuthenticateMessage> authenticateMessage =
+    FUTURE_PROTOBUF(AuthenticateMessage(), _, _);
+
+  Future<Nothing> registered2;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureSatisfy(&registered));
+    .WillOnce(FutureSatisfy(&registered2));
 
   // Simulate a new master detected message to the scheduler.
   NewMasterDetectedMessage newMasterDetectedMsg;
@@ -629,8 +642,11 @@ TEST_F(FaultToleranceTest, MasterFailover)
 
   process::post(frameworkRegisteredMessage.get().to, newMasterDetectedMsg);
 
+  // Scheduler should retry authentication.
+  AWAIT_READY(authenticateMessage);
+
   // Framework should get a registered callback.
-  AWAIT_READY(registered);
+  AWAIT_READY(registered2);
 
   driver.stop();
   driver.join();
@@ -652,7 +668,8 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
   // scheduler.
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -675,7 +692,8 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
   framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId.get());
 
-  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> sched2Registered;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
@@ -711,6 +729,89 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
 }
 
 
+// This test was added to cover a fix for MESOS-659.
+// Here, we drop the initial FrameworkReregisteredMessage from the
+// master, so that the scheduler driver retries the initial failover
+// re-registration. Previously, this caused a "Framework failed over"
+// to be sent to the new scheduler driver!
+TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Launch the first (i.e., failing) scheduler and wait until
+  // registered gets called to launch the second (i.e., failover)
+  // scheduler.
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver1.start();
+
+  AWAIT_READY(frameworkId);
+
+  // Now launch the second (i.e., failover) scheduler using the
+  // framework id recorded from the first scheduler and wait until it
+  // gets a registered callback..
+
+  MockScheduler sched2;
+
+  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
+  framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId.get());
+
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+
+  Clock::pause();
+
+  // Drop the initial FrameworkRegisteredMessage to the failed over
+  // scheduler. This ensures the scheduler driver will retry the
+  // registration.
+  Future<process::Message> reregistrationMessage = DROP_MESSAGE(
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+
+  // There should be no error received, the master sends the error
+  // prior to sending the FrameworkRegisteredMessage so we don't
+  // need to wait to ensure this does not occur.
+  EXPECT_CALL(sched2, error(&driver2, "Framework failed over"))
+    .Times(0);
+
+  Future<Nothing> sched2Registered;
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
+    .WillOnce(FutureSatisfy(&sched2Registered));
+
+  Future<Nothing> sched1Error;
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
+    .WillOnce(FutureSatisfy(&sched1Error));
+
+  driver2.start();
+
+  AWAIT_READY(reregistrationMessage);
+
+  // Trigger the re-registration retry.
+  Clock::advance(Seconds(1));
+
+  AWAIT_READY(sched2Registered);
+
+  AWAIT_READY(sched1Error);
+
+  EXPECT_EQ(DRIVER_STOPPED, driver2.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver2.join());
+
+  EXPECT_EQ(DRIVER_ABORTED, driver1.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver1.join());
+
+  Shutdown();
+  Clock::resume();
+}
+
+
 TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 {
   Clock::pause();
@@ -722,7 +823,8 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -765,7 +867,8 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -820,7 +923,8 @@ TEST_F(FaultToleranceTest, TaskLost)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -878,8 +982,6 @@ TEST_F(FaultToleranceTest, TaskLost)
 // retried status update.
 TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 {
-  Clock::pause();
-
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
@@ -890,7 +992,8 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -917,8 +1020,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -942,7 +1044,8 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId);
 
-  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered2;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
@@ -954,6 +1057,8 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   driver2.start();
 
   AWAIT_READY(registered2);
+
+  Clock::pause();
 
   // Now advance time enough for the reliable timeout
   // to kick in and another status update is sent.
@@ -980,6 +1085,114 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 }
 
 
+// This test was added to ensure MESOS-420 is fixed.
+// We need to make sure that the master correctly handles non-terminal
+// tasks with exited executors upon framework re-registration. This is
+// possible because the ExitedExecutor message can arrive before the
+// terminal status update(s) of its task(s).
+TEST_F(FaultToleranceTest, ReregisterFrameworkExitedExecutor)
+{
+  // First we'll start a master and slave, then register a framework
+  // so we can launch a task.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+  Try<PID<Slave> > slave = StartSlave(&isolator);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<process::Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 16, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<Nothing> statusUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureSatisfy(&statusUpdate));    // TASK_RUNNING.
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  driver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+
+  // Wait until TASK_RUNNING of the task is received.
+  AWAIT_READY(statusUpdate);
+
+  EXPECT_CALL(sched, disconnected(&driver));
+
+  // Now that the task is launched, we need to induce the following:
+  //   1. ExitedExecutorMessage received by the master prior to a
+  //      terminal status update for the corresponding task. This
+  //      means we need to drop the status update coming from the
+  //      slave.
+  //   2. Framework re-registration.
+  //
+  // To achieve this, we need to:
+  //   1. Restart the master (the slave / framework will not detect
+  //      the new master automatically using the BasicMasterDetector).
+  //   2. Notify the slave of the new master.
+  //   3. Kill the executor.
+  //   4. Drop the status update, but allow the ExitedExecutorMessage.
+  //   5. Notify the framework of the new master.
+  Stop(master.get());
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Simulate a new master detected message to the slave.
+  NewMasterDetectedMessage newMasterDetectedMsg;
+  newMasterDetectedMsg.set_pid(master.get());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  process::post(slave.get(), newMasterDetectedMsg);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Allow the executor exited message and drop the status update.
+  Future<ExitedExecutorMessage> executorExitedMessage =
+    FUTURE_PROTOBUF(ExitedExecutorMessage(), _, _);
+  Future<StatusUpdateMessage> statusUpdateMessage =
+    DROP_PROTOBUF(StatusUpdateMessage(), _, _);
+
+  // Now kill the executor.
+  dispatch(isolator, &Isolator::killExecutor, frameworkId, DEFAULT_EXECUTOR_ID);
+
+  AWAIT_READY(executorExitedMessage);
+  AWAIT_READY(statusUpdateMessage);
+
+  // Now notify the framework of the new master.
+  Future<FrameworkRegisteredMessage> frameworkRegisteredMessage2 =
+    FUTURE_PROTOBUF(FrameworkRegisteredMessage(), _, _);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  process::post(frameworkRegisteredMessage.get().to, newMasterDetectedMsg);
+
+  AWAIT_READY(frameworkRegisteredMessage2);
+
+  driver.stop();
+  driver.join();
+  Shutdown();
+}
+
+
 TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 {
   Try<PID<Master> > master = StartMaster();
@@ -991,7 +1204,8 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -1071,7 +1285,8 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(&sched1, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -1119,7 +1334,8 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId);
 
-  MesosSchedulerDriver driver2(&sched2, framework2, master.get());
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
@@ -1164,7 +1380,8 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1229,7 +1446,8 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1264,7 +1482,8 @@ TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1314,14 +1533,15 @@ TEST_F(FaultToleranceTest, SlaveReregisterTerminatedExecutor)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(LaunchTasks(1, 1, 512, "*"))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(exec, registered(_, _, _, _));
@@ -1387,7 +1607,8 @@ TEST_F(FaultToleranceTest, ReconcileLostTasks)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1464,7 +1685,8 @@ TEST_F(FaultToleranceTest, ReconcileIncompleteTasks)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 

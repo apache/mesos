@@ -33,7 +33,7 @@ struct Request
   // Tracked by: https://issues.apache.org/jira/browse/MESOS-328.
   hashmap<std::string, std::string> headers;
   std::string method;
-  std::string url; // path/query#fragment
+  std::string url; // path?query#fragment
   std::string path;
   std::string fragment;
   hashmap<std::string, std::string> query;
@@ -268,6 +268,79 @@ struct ServiceUnavailable : Response
     status = "503 Service Unavailable";
   }
 };
+
+
+namespace path {
+
+// Parses an HTTP path into a map given a pattern (TODO(benh): Make
+// the patterns be regular expressions). This returns an error if
+// 'pattern' doesn't match 'path'. For example:
+//
+//   parse("/books/{isbn}/chapters/{chapter}",
+//         "/books/0304827484/chapters/3")
+//
+// Would return a map with the following:
+//   books: "books"
+//   isbn: "0304827484"
+//   chapters: "chapters"
+//   chapter: "3"
+//
+// Another example:
+//
+//   parse("/books/{isbn}/chapters/{chapter}",
+//         "/books/0304827484")
+//
+// Would return a map with the following:
+//   books: "books"
+//   isbn: "0304827484"
+//
+// And another:
+//
+//   parse("/books/{isbn}/chapters/{chapter}",
+//         "/books/0304827484/chapters")
+//
+// Would return a map with the following:
+//   books: "books"
+//   isbn: "0304827484"
+//   chapters: "chapters"
+inline Try<hashmap<std::string, std::string> > parse(
+    const std::string& pattern,
+    const std::string& path)
+{
+  // Split the pattern by '/' into keys.
+  std::vector<std::string> keys = strings::tokenize(pattern, "/");
+
+  // Split the path by '/' into segments.
+  std::vector<std::string> segments = strings::tokenize(path, "/");
+
+  hashmap<std::string, std::string> result;
+
+  while (!segments.empty()) {
+    if (keys.empty()) {
+      return Error(
+          "Not expecting suffix '" + strings::join("/", segments) + "'");
+    }
+
+    std::string key = keys.front();
+
+    if (strings::startsWith(key, "{") &&
+        strings::endsWith(key, "}")) {
+      key = strings::remove(key, "{", strings::PREFIX);
+      key = strings::remove(key, "}", strings::SUFFIX);
+    } else if (key != segments.front()) {
+      return Error("Expecting '" + key + "' not '" + segments.front() + "'");
+    }
+
+    result[key] = segments.front();
+
+    keys.erase(keys.begin());
+    segments.erase(segments.begin());
+  }
+
+  return result;
+}
+
+} // namespace path {
 
 
 namespace query {

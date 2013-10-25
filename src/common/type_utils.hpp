@@ -109,6 +109,14 @@ inline bool operator == (const FrameworkInfo& left, const FrameworkInfo& right)
 }
 
 
+inline bool operator == (const Credential& left, const Credential& right)
+{
+  return left.principal() == right.principal() &&
+         left.has_secret() == right.has_secret() &&
+         (!left.has_secret() || (left.secret() == right.secret()));
+}
+
+
 inline bool operator == (const OfferID& left, const OfferID& right)
 {
   return left.value() == right.value();
@@ -274,12 +282,9 @@ inline bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
 inline bool operator == (const SlaveInfo& left, const SlaveInfo& right)
 {
   return left.hostname() == right.hostname() &&
-    left.webui_hostname() == right.webui_hostname() &&
     Resources(left.resources()) == Resources(right.resources()) &&
     internal::Attributes(left.attributes()) ==
     internal::Attributes(right.attributes()) &&
-    left.has_webui_port() == right.has_webui_port() &&
-    (!left.has_webui_port() || (left.webui_port() == right.webui_port())) &&
     left.has_id() == right.has_id() &&
     (!left.has_id() || (left.id() == right.id())) &&
     left.has_checkpoint() == right.has_checkpoint() &&

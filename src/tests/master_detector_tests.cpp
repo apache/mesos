@@ -108,7 +108,8 @@ TEST_F(MasterDetectorTest, File)
   ASSERT_SOME(detector);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -232,7 +233,8 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectors)
 }
 
 
-TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorShutdownNetwork)
+// Disabled due to MESOS-455.
+TEST_F(ZooKeeperMasterDetectorTest, DISABLED_MasterDetectorShutdownNetwork)
 {
   Clock::pause();
 

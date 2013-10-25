@@ -383,9 +383,13 @@ void LogProcess::connected()
               << prefix << "' in ZooKeeper";
 
     // Create the node (even if it already exists).
-    ret = zk->create(prefix, "", ZOO_OPEN_ACL_UNSAFE,
-		     // ZOO_CREATOR_ALL_ACL, // needs authentication
-		     0, &result);
+    ret = zk->create(
+        prefix,
+        "",
+        ZOO_OPEN_ACL_UNSAFE,
+        // ZOO_CREATOR_ALL_ACL, // needs authentication
+        0,
+        &result);
 
     if (ret != ZOK && ret != ZNODEEXISTS) {
       LOG(FATAL) << "Failed to create '" << prefix

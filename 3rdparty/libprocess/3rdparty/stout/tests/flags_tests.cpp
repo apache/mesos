@@ -194,6 +194,38 @@ TEST(FlagsTest, LoadFromCommandLine)
 }
 
 
+TEST(FlagsTest, LoadFromCommandLineWithNonFlags)
+{
+  TestFlags flags;
+
+  int argc = 11;
+  char* argv[argc];
+
+  argv[0] = (char*) "/path/to/program";
+  argv[1] = (char*) "more";
+  argv[2] = (char*) "--name1=billy joel";
+  argv[3] = (char*) "stuff";
+  argv[4] = (char*) "at";
+  argv[5] = (char*) "--name2=43";
+  argv[6] = (char*) "--no-name3";
+  argv[7] = (char*) "--no-name4";
+  argv[8] = (char*) "--name5";
+  argv[9] = (char*) "the";
+  argv[10] = (char*) "end";
+
+  Try<Nothing> load = flags.load("FLAGSTEST_", argc, argv);
+  EXPECT_SOME(load);
+
+  EXPECT_EQ("billy joel", flags.name1);
+  EXPECT_EQ(43, flags.name2);
+  EXPECT_FALSE(flags.name3);
+  ASSERT_SOME(flags.name4);
+  EXPECT_FALSE(flags.name4.get());
+  ASSERT_SOME(flags.name5);
+  EXPECT_TRUE(flags.name5.get());
+}
+
+
 TEST(FlagsTest, DuplicatesFromEnvironment)
 {
   TestFlags flags;
