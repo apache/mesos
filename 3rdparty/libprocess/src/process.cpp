@@ -2983,7 +2983,7 @@ Timer Timer::create(
     const Duration& duration,
     const lambda::function<void(void)>& thunk)
 {
-  static uint64_t id = 1; // Start at 1 since Timer() instances start with 0.
+  static uint64_t id = 1; // Start at 1 since Timer() instances use id 0.
 
   // Assumes Clock::now() does Clock::now(__process__).
   Timeout timeout = Timeout::in(duration);
@@ -3020,8 +3020,6 @@ bool Timer::cancel(const Timer& timer)
     // Check if the timeout is still pending, and if so, erase it. In
     // addition, erase an empty list if we just removed the last
     // timeout.
-    // TODO(benh): If two timers are created with the same timeout,
-    // this will erase *both*. Fix this!
     Time time = timer.timeout().time();
     if (timeouts->count(time) > 0) {
       canceled = true;
