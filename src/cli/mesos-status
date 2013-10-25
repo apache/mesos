@@ -1,0 +1,135 @@
+#!/usr/bin/env python2.6
+
+# this CLI command is to report the status of mesos daemons
+# it first retrieves a list of live slaves by master/state.json
+# then it compares this list with the configured deploy/slaves
+
+import datetime
+import json
+import resource
+import subprocess
+import sys
+import os, os.path
+import time
+import urllib
+
+from cli_utils import ulimit, resolve
+
+from optparse import OptionParser
+
+
+class StatusSlave:
+    def __init__(self, slave):
+        self.slave = slave
+        self.host = None
+        self.process = None
+        self.status = None
+
+    def getHost(self):
+        return self.host
+
+    def getStatus(self):
+        if self.status is None:
+           self.load()
+        return "mesos slave live" if (self.status==True) else "mesos slave dead"
+
+    def curl(self):
+        if self.process is None:
+           pid = self.slave['pid']
+           self.host = pid.split("@")[1].split(":")[0]
+           url = 'http://' + pid[len('slave(1)@'):] + '/monitor/statistics.json'
+           self.process = subprocess.Popen(
+               ['curl', '-s', url],
+               stdin=None,
+               stdout=subprocess.PIPE,
+               stderr=subprocess.PIPE,
+               shell=False)
+  
+    def load(self):
+        if self.process is None:
+           self.curl()
+        if self.status is None:
+           w = self.process.wait()
+           if w != 0:
+              print 'Failed to execute \'curl\':\n'
+              print self.process.stderr.read()
+           #don't really care the results returned
+           #self.statistics = json.loads(self.process.stdout.read())
+           self.process.stdout.close()
+           self.process.stderr.close()
+  
+           self.status = (w==0)
+
+
+def main():
+  # Parse options for this script.
+  parser = OptionParser()
+  parser.add_option('--master')
+  (options, args) = parser.parse_args(sys.argv)
+
+  if options.master is None:
+    print "Missing --master\n"
+    parser.print_help()
+    exit(-1)
+
+  url = 'http://' + resolve(options.master) + '/master/state.json'
+  file = urllib.urlopen(url)
+  state = json.loads(file.read())
+  file.close()
+
+  # Build a dict from slave ID to `slaves'.
+  slaves = {}
+  for slave in state['slaves']:
+    slaves[slave['id']] = StatusSlave(slave)
+
+  # Initiate the curl requests in batches less than the open file
+  # descriptor limit.
+  fd_limit = ulimit('-Sn')
+
+  batch = []
+  for slave in slaves.values():
+    if len(batch) == fd_limit:
+      for slave in batch:
+        slave.load() # Forces close of open file descriptors.
+      batch = []
+    slave.curl()
+    batch.append(slave)
+
+  # output the status of slaves
+  # "live": those that responded to monitor/statistics.json query
+  # "dead": reported by master/state.json but not responding correctly to query
+
+  for slave in slaves.values():
+      print "%s\t%s" %(slave.getHost(), slave.getStatus()) 
+
+  print "------"
+
+  # read the configuration file $MESOS_HOME/var/mesos/deploy/slaves
+
+  if "MESOS_HOME" not in os.environ:
+     print "Missing environment variable MESOS_HOME\n"
+     parser.print_help()
+     exit(-2)
+
+  mesos_home = os.environ.get("MESOS_HOME")
+  deployed_slaves = mesos_home + "/var/mesos/deploy/slaves"
+
+  if not os.path.exists(deployed_slaves):
+     print "Expected configuration file: ", deployed_slaves
+     parser.print_help()
+     exit(-3)
+
+  # for hosts in the deploy/slaves file but not reported by master
+
+  deployed_hosts = [host.strip() for host in open(deployed_slaves)]
+  checked_hosts = [slave.getHost() for slave in slaves.values()]
+  for host in deployed_hosts:
+     if host not in checked_hosts:
+        print "%s\tmesos slave not running" % host
+
+  sys.stdout.write('\n')
+  sys.stdout.flush()
+
+
+if __name__ == "__main__":
+  main()
