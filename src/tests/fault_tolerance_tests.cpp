@@ -612,11 +612,15 @@ TEST_F(FaultToleranceTest, MasterFailover)
   Future<process::Message> frameworkRegisteredMessage =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
 
-  EXPECT_CALL(sched, registered(&driver, _, _));
+  Future<Nothing> registered1;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered1));
 
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
+
+  AWAIT_READY(registered1);
 
   // Simulate failed over master by restarting the master.
   Stop(master.get());
@@ -628,9 +632,9 @@ TEST_F(FaultToleranceTest, MasterFailover)
   Future<AuthenticateMessage> authenticateMessage =
     FUTURE_PROTOBUF(AuthenticateMessage(), _, _);
 
-  Future<Nothing> registered;
+  Future<Nothing> registered2;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureSatisfy(&registered));
+    .WillOnce(FutureSatisfy(&registered2));
 
   // Simulate a new master detected message to the scheduler.
   NewMasterDetectedMessage newMasterDetectedMsg;
@@ -642,7 +646,7 @@ TEST_F(FaultToleranceTest, MasterFailover)
   AWAIT_READY(authenticateMessage);
 
   // Framework should get a registered callback.
-  AWAIT_READY(registered);
+  AWAIT_READY(registered2);
 
   driver.stop();
   driver.join();
