@@ -2063,6 +2063,9 @@ void Slave::executorStarted(
       break;
     case Executor::REGISTERING:
     case Executor::RUNNING:
+      LOG(INFO) << "Monitoring executor " << executorId
+                << " of framework " << frameworkId
+                << " forked at pid " << pid;
       monitor.watch(
           frameworkId,
           executorId,
