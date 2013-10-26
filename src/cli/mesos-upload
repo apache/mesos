@@ -1,0 +1,138 @@
+#!/usr/bin/env python2.6
+
+# this CLI command is to upload local files to all slaves 
+# in the same mesos cluster as defined in var/mesos/deploy/slaves
+# success/failure wrt each slave is reported in the end
+# the environment variable MESOS_HOME must be defined
+
+# current implementation builds on rsync
+# it could be improved, e.g., by dynamically organize the hosts
+# into a trea structure. however, fault tolerance will be complicated.
+
+import datetime
+import json
+import resource
+import subprocess
+import sys
+import os, os.path
+import time
+import urllib
+
+from cli_utils import ulimit, resolve
+
+from optparse import OptionParser
+
+
+class RsyncWorker:
+    def __init__(self, host, src, dst):
+        self.host = host 
+        self.src = src
+        self.dst = dst
+        self.process = None
+        self.status = None
+
+    def getHost(self):
+        return self.host
+
+    def getStatus(self):
+        if self.status is None:
+           self.upload()
+        return "uploaded" if (self.status==True) else "failed"
+
+    def rsync(self):
+        self.cmd = "rsync -avz %s %s::%s" % (self.src, self.host, self.dst)
+        print "to execute cmd: %s" % self.cmd
+        if self.process is None:
+           self.process = subprocess.Popen(
+               self.cmd,
+               stdin=None,
+               stdout=subprocess.PIPE,
+               stderr=subprocess.PIPE,
+               shell=False)
+  
+    def upload(self):
+        if self.process is None:
+           self.rsync()
+        if self.status is None:
+           w = self.process.wait()
+           if w != 0:
+              print 'Failed to execute \'%s\':\n' % self.cmd
+              print self.process.stderr.read()
+           self.process.stdout.close()
+           self.process.stderr.close()
+  
+           self.status = (w==0)
+
+
+def print_usage():
+    print "mesos-upload <local-file(s)> <remote-dir>"
+
+
+def main():
+
+  # check the arguments
+
+  parser = OptionParser()
+  (options, args) = parser.parse_args(sys.argv)
+
+  if len(args) != 3:
+     print_usage()
+     parser.print_help()
+     exit(-1)
+
+  src = args[1]
+  dst = args[2]
+
+  # read the configuration file $MESOS_HOME/var/mesos/deploy/slaves
+
+  if "MESOS_HOME" not in os.environ:
+     print "Missing environment variable MESOS_HOME\n"
+     parser.print_help()
+     exit(-2)
+
+  mesos_home = os.environ.get("MESOS_HOME")
+  file_slaves = mesos_home + "/var/mesos/deploy/slaves"
+
+  if not os.path.exists(file_slaves):
+     print "Expected configuration file: ", file_slaves
+     parser.print_help()
+     exit(-3)
+
+  # for hosts in the deploy/slaves file but not reported by master
+
+  upload_hosts = {}
+
+  deployed_hosts = [host.strip() for host in open(file_slaves)]
+  for host in deployed_hosts:
+      upload_hosts[host] = RsyncWorker(host, src, dst)
+  
+
+  # Initiate the curl requests in batches less than the open file
+  # descriptor limit.
+  fd_limit = ulimit('-Sn')
+
+  batch = []
+  for slave in upload_hosts.values():
+    if len(batch) == fd_limit:
+      for slave in batch:
+        slave.upload() # Forces close of open file descriptors.
+      batch = []
+    slave.rsync()
+    batch.append(slave)
+
+  # output the status of workers
+
+  print "------"
+
+  for worker in upload_hosts.values():
+      print "%s\t%s" %(worker.getHost(), slave.getStatus()) 
+
+  print "------"
+
+
+  sys.stdout.write('\n')
+  sys.stdout.flush()
+
+
+if __name__ == "__main__":
+  main()
