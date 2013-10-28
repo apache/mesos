@@ -1,4 +1,21 @@
-## How to contribute code
+---
+layout: page
+---
+
+# Developers Guide
+
+## Reporting a Bug
+* You've found a bug and want to report it. THANKS!
+* We track all issues via Apache's hosted [JIRA issue tracker](https://issues.apache.org/jira/browse/MESOS), so if you don't already have an account you'll need to register for one. It's quick and easy.
+* A JIRA should be created for every task, feature, bug-fix, etc. This makes it easy to track track progress of tickets.
+* Assign the JIRA issue to yourself before you start working on it. This helps to avoid duplication of work, and alerts anyone who is following that issue.
+
+## Submitting a patch
+* You've fixed a bug or added a feature and want to contribute it. AWESOME!
+* We use [Apache Review Board](https://reviews.apache.org) for code reviews. If you don't already have an account, you'll need to create one (it's separate from your Apache JIRA account).
+* A code review request should be created for every JIRA that involves a change to the codebase.
+
+### Before you submit
 1. Check out the code from the Apache repository via Git or SVN. Instructions are on the [Getting Started](http://mesos.apache.org/gettingstarted/) page.
 
 1. Join the dev@mesos.apache.org mailing list by sending an email to dev-subscribe@mesos.apache.org
@@ -26,16 +43,15 @@
 1. Make sure all of your test cases now pass.
 	2. `make check`
 
-1. Think you're code is ready for review?
-    2. Make sure to pull in any changes that have been committed to trunk. If you are using Git, do this via something like:
-        3. `git checkout master`
-        3. `git pull`
-        4. `git co my_branch`
-        3. Check the output of `git diff master` and make sure it lists only your changes. If other changes you did not make are listed, try a rebase to bring your branch up to date with master.
-    2. Make sure it is building and all test cases are passing by running `make clean && make check`.
+1. Make sure to pull in any changes that have been committed to master branch. Using Git, do this via something like:
+  2. `git checkout master`
+  2. `git pull`
+  3. `git co my_branch`
+  2. Check the output of `git diff master` and make sure it lists only your changes. If other changes you did not make are listed, try a rebase to bring your branch up to date with master.
 
-1. Detailed instructions for posting a review:
-	2. Log in or create an account at reviews.apache.org (Apache's infrastructure doesn't have any sort of single-sign-in process, so you need to have an account specific to this instance of RB)
+### Submit your patch
+1. You're ready to submit your patch for review!
+	2. Log in or create an account at ]Apache Review Board](http://reviews.apache.org)
     2. The easiest (and recommended) way to submit reviews is through `post-reviews.py` a wrapper around post-review.
 	2. First, install post-review. [See Instructions](http://www.reviewboard.org/docs/manual/dev/users/tools/post-review/)
 	2. From your local branch run `support/post-reviews.py`.
@@ -50,16 +66,7 @@
 
 1. After consensus is reached on your JIRA/patch, you're review request will receive a "Ship It!" from a committer, and then a committer will commit your patch to the git repository. Congratulations and thanks for participating in our community!
 
-1. Please ensure that the necessary wiki documentation gets created or updated (i.e. make the changes yourself!)
-
-## Guidelines for using JIRA
-* We track all issues via Apache's hosted [JIRA issue tracker](https://issues.apache.org/jira/browse/MESOS)
-* A JIRA should be created for every task, feature, bug-fix, etc.
-* Always assign the JIRA to yourself before you start working on it. This helps to avoid duplication of work
-
-## Using Review Board
-* We use [Apache Review Board](https://reviews.apache.org) to host reviews.
-* A code review request should be created for every JIRA that involves a change to the codebase.
+1. The last step is to ensure that the necessary documentation gets created or updated so the whole world knows about your new feature or bug fix.
 
 ## Style Guides
-* [Mesos C++ Style Guide](Mesos-c++-style-guide.md)
+* For patches to the core, we ask that you follow the [Mesos C++ Style Guide](Mesos-c++-style-guide.md)

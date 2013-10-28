@@ -1,4 +1,10 @@
-Organizations using Mesos:
+---
+layout: page
+---
+
+# Powered By Mesos
+
+## Organizations using Mesos
 
 * [Airbnb](http://www.airbnb.com)
 * [Categorize](http://categorize.co)
@@ -12,13 +18,12 @@ Organizations using Mesos:
 * [UC Berkeley](http://www.berkeley.edu)
 * [Xogito](http://www.xogito.com)
 
-Software projects built on Mesos:
+## Software projects built on Mesos
 
 * [Spark](http://spark.incubator.apache.org/) cluster computing framework
 Spark
 http://spark.incubator.apache.org/index.html
 * [Chronos](https://github.com/airbnb/chronos)
 * [Marathon](https://github.com/mesosphere/marathon)
-
 
 If you're using Mesos, please add yourself to the list above, or email user@mesos.apache.org and we'll add you!
