@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: documentation
 ---
 
 # Slave Recovery
@@ -63,4 +63,4 @@ As part of this feature, `FrameworkInfo` has been updated to include an optional
 
 ## Upgrading to 0.14.0
 
-If you want to upgrade a running Mesos cluster to 0.14.0 to take advantage of slave recovery please follow the [upgrade instructions](https://github.com/apache/mesos/blob/master/docs/Upgrades.md).
+If you want to upgrade a running Mesos cluster to 0.14.0 to take advantage of slave recovery please follow the [upgrade instructions](upgrades.md).

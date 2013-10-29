@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: documentation
 ---
 
 # Torque or MPI on Mesos

@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: documentation
 ---
 
 # Mesos C++ Style Guide

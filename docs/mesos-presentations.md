@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: documentation
 ---
 
 # Video and Slides of Mesos Presentations

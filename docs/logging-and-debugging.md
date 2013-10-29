@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: documentation
 ---
 
 # Logging and Debugging

@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: documentation
 ---
 
 # Developers Guide
@@ -32,7 +32,7 @@ layout: page
 1. Create one or more test cases to exercise the bug or the feature (the Mesos team uses [test-driven development](http://en.wikipedia.org/wiki/Test-driven_development)), before you start coding, make sure these test cases all fail.
 
 1. Make your changes to the code (using whatever IDE/editor you choose) to actually fix the bug or implement the feature.
-    2. Before beginning, please read the [Mesos C++ Style Guide](Mesos-c++-style-guide.md)
+    2. Before beginning, please read the [Mesos C++ Style Guide](mesos-c++-style-guide.md)
     2. Most of your changes will probably be to files inside of &lt;BASE_MESOS_DIR&gt;/src
     2. To build, we recommend that you don't build inside of the src directory. We recommend you do the following:
         3. From inside of the root Mesos directory: `mkdir build && cd build`
@@ -69,4 +69,4 @@ layout: page
 1. The last step is to ensure that the necessary documentation gets created or updated so the whole world knows about your new feature or bug fix.
 
 ## Style Guides
-* For patches to the core, we ask that you follow the [Mesos C++ Style Guide](Mesos-c++-style-guide.md)
+* For patches to the core, we ask that you follow the [Mesos C++ Style Guide](mesos-c++-style-guide.md)

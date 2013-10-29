@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: documentation
 ---
 
 # Running a web-farm on Mesos in your private cluster
