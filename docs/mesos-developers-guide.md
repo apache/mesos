@@ -33,7 +33,7 @@ layout: documentation
 
 1. Make your changes to the code (using whatever IDE/editor you choose) to actually fix the bug or implement the feature.
     2. Before beginning, please read the [Mesos C++ Style Guide](mesos-c++-style-guide.md)
-    2. Most of your changes will probably be to files inside of &lt;BASE_MESOS_DIR&gt;/src
+    2. Most of your changes will probably be to files inside of `BASE_MESOS_DIR`
     2. To build, we recommend that you don't build inside of the src directory. We recommend you do the following:
         3. From inside of the root Mesos directory: `mkdir build && cd build`
         3. `../configure`

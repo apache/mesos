@@ -2,7 +2,7 @@
 layout: documentation
 ---
 
-# Documentation
+# Apache Mesos Documentation
 
 ## Users Documentation
 
@@ -16,7 +16,7 @@ layout: documentation
 ## Running Mesos Frameworks
 
 * [Running Hadoop on Mesos](https://github.com/mesos/hadoop)
-* [Running Spark on Mesos](https://cwiki.apache.org/confluence/display/SPARK/)
+* [Running Spark on Mesos](http://spark.incubator.apache.org/docs/latest/running-on-mesos.html)
 * [Running Torque or MPI on Mesos](running-torque-or-mpi-on-mesos.md)
 * [Running Jenkins on Mesos](https://github.com/jenkinsci/mesos-plugin)
 * [Running Chronos on Mesos](https://github.com/airbnb/chronos)
