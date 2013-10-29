@@ -80,15 +80,18 @@ TEST_F(RegistrarTest, admit)
 {
   Registrar registrar(state);
 
-  SlaveID id1;
-  id1.set_value("1");
-
   SlaveInfo info1;
   info1.set_hostname("localhost");
+
+  // Missing ID results in a Failure.
+  AWAIT_EXPECT_FAILED(registrar.admit(info1));
+
+  SlaveID id1;
+  id1.set_value("1");
   info1.mutable_id()->CopyFrom(id1);
 
-  AWAIT_EQ(true, registrar.admit(id1, info1));
-  AWAIT_EQ(false, registrar.admit(id1, info1));
+  AWAIT_EQ(true, registrar.admit(info1));
+  AWAIT_EQ(false, registrar.admit(info1));
 }
 
 
@@ -96,11 +99,14 @@ TEST_F(RegistrarTest, readmit)
 {
   Registrar registrar(state);
 
-  SlaveID id1;
-  id1.set_value("1");
-
   SlaveInfo info1;
   info1.set_hostname("localhost");
+
+  // Missing ID results in a failure.
+  AWAIT_EXPECT_FAILED(registrar.readmit(info1));
+
+  SlaveID id1;
+  id1.set_value("1");
   info1.mutable_id()->CopyFrom(id1);
 
   SlaveID id2;
@@ -110,7 +116,7 @@ TEST_F(RegistrarTest, readmit)
   info2.set_hostname("localhost");
   info2.mutable_id()->CopyFrom(id2);
 
-  AWAIT_EQ(true, registrar.admit(id1, info1));
+  AWAIT_EQ(true, registrar.admit(info1));
 
   AWAIT_EQ(true, registrar.readmit(info1));
 
@@ -122,11 +128,14 @@ TEST_F(RegistrarTest, remove)
 {
   Registrar registrar(state);
 
-  SlaveID id1;
-  id1.set_value("1");
-
   SlaveInfo info1;
   info1.set_hostname("localhost");
+
+  // Missing ID results in a Failure.
+  AWAIT_EXPECT_FAILED(registrar.remove(info1));
+
+  SlaveID id1;
+  id1.set_value("1");
   info1.mutable_id()->CopyFrom(id1);
 
   SlaveID id2;
@@ -136,17 +145,27 @@ TEST_F(RegistrarTest, remove)
   info2.set_hostname("localhost");
   info2.mutable_id()->CopyFrom(id2);
 
-  AWAIT_EQ(true, registrar.admit(id1, info1));
+  SlaveID id3;
+  id3.set_value("3");
 
-  AWAIT_EQ(true, registrar.admit(id2, info2));
+  SlaveInfo info3;
+  info3.set_hostname("localhost");
+  info3.mutable_id()->CopyFrom(id3);
+
+  AWAIT_EQ(true, registrar.admit(info1));
+  AWAIT_EQ(true, registrar.admit(info2));
+  AWAIT_EQ(true, registrar.admit(info3));
 
   AWAIT_EQ(true, registrar.remove(info1));
-
   AWAIT_EQ(false, registrar.remove(info1));
 
-  AWAIT_EQ(true, registrar.admit(id1, info1));
+  AWAIT_EQ(true, registrar.admit(info1));
 
   AWAIT_EQ(true, registrar.remove(info2));
+  AWAIT_EQ(false, registrar.remove(info2));
+
+  AWAIT_EQ(true, registrar.remove(info3));
+  AWAIT_EQ(false, registrar.remove(info3));
 }
 
 } // namespace master {

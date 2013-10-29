@@ -38,7 +38,9 @@ public:
   Registrar(state::protobuf::State* state);
   ~Registrar();
 
-  process::Future<bool> admit(const SlaveID& id, const SlaveInfo& info);
+  // Returns the future for slave admission into the Registry. The
+  // SlaveInfo must contain an 'id', otherwise a Failure will result.
+  process::Future<bool> admit(const SlaveInfo& info);
   process::Future<bool> readmit(const SlaveInfo& info);
   process::Future<bool> remove(const SlaveInfo& info);
 

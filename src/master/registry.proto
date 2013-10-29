@@ -23,7 +23,7 @@ package mesos.internal.registry;
 message Slave {
   // TODO(benh): Add other information here that is internal to Mesos
   // and shouldn't be exposed in SlaveInfo.
-  required SlaveInfo info = 2;
+  required SlaveInfo info = 1;
 }
 
 
