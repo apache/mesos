@@ -167,6 +167,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/master.cpp						\
 	master/registry.hpp						\
 	master/registry.proto                                           \
+	master/registrar.cpp						\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
 	slave/monitor.cpp						\
@@ -223,6 +224,7 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	master/allocator.hpp						\
 	master/constants.hpp master/drf_sorter.hpp master/flags.hpp	\
 	master/hierarchical_allocator_process.hpp			\
+	master/registrar.hpp						\
 	master/master.hpp master/sorter.hpp				\
 	messages/messages.hpp slave/constants.hpp			\
 	slave/flags.hpp slave/gc.hpp slave/monitor.hpp			\
@@ -298,7 +300,7 @@ libmesos_no_3rdparty_la_LIBADD += libstate.la
 # The final result!
 lib_LTLIBRARIES += libmesos.la
 
-libmesos_la_SOURCES = $(MESOS_PROTO) # Part of the distribution.
+libmesos_la_SOURCES = $(MESOS_PROTO) # Include as part of the distribution.
 
 libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
@@ -781,6 +783,7 @@ mesos_tests_SOURCES =			\
   tests/paths_tests.cpp			\
   tests/protobuf_io_tests.cpp		\
   tests/reaper_tests.cpp		\
+  tests/registrar_tests.cpp		\
   tests/resource_offers_tests.cpp	\
   tests/resources_tests.cpp		\
   tests/sasl_tests.cpp			\
