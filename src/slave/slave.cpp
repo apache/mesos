@@ -641,13 +641,14 @@ void Slave::doReliableRegistration()
     // Slave started before master.
     // (Vinod): Is the above comment true?
     RegisterSlaveMessage message;
-    message.mutable_slave()->MergeFrom(info);
+    message.mutable_slave()->CopyFrom(info);
     send(master, message);
   } else {
     // Re-registering, so send tasks running.
     ReregisterSlaveMessage message;
-    message.mutable_slave_id()->MergeFrom(info.id());
-    message.mutable_slave()->MergeFrom(info);
+    message.mutable_slave_id()->CopyFrom(info.id());
+    message.mutable_slave()->CopyFrom(info);
+    message.mutable_slave()->mutable_id()->CopyFrom(info.id());
 
     foreachvalue (Framework* framework, frameworks){
       foreachvalue (Executor* executor, framework->executors) {

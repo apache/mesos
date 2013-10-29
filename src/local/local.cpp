@@ -20,8 +20,10 @@
 #include <sstream>
 #include <vector>
 
-#include <stout/fatal.hpp>
+#include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/path.hpp>
+#include <stout/strings.hpp>
 
 #include "local.hpp"
 
@@ -34,9 +36,14 @@
 #include "master/drf_sorter.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
+#include "master/registrar.hpp"
 
 #include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
+
+#include "state/leveldb.hpp"
+#include "state/protobuf.hpp"
+#include "state/storage.hpp"
 
 using namespace mesos::internal;
 
@@ -46,6 +53,7 @@ using mesos::internal::master::allocator::DRFSorter;
 using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
 
 using mesos::internal::master::Master;
+using mesos::internal::master::Registrar;
 
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::Isolator;
@@ -66,6 +74,9 @@ namespace local {
 
 static Allocator* allocator = NULL;
 static AllocatorProcess* allocatorProcess = NULL;
+static state::Storage* storage = NULL;
+static state::protobuf::State* state = NULL;
+static Registrar* registrar = NULL;
 static Master* master = NULL;
 static map<Isolator*, Slave*> slaves;
 static MasterDetector* detector = NULL;
@@ -98,7 +109,24 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       EXIT(1) << "Failed to start a local cluster while loading "
               << "master flags from the environment: " << load.error();
     }
-    master = new Master(_allocator, files, flags);
+
+    if (strings::startsWith(flags.registry, "zk://")) {
+      // TODO(benh):
+      EXIT(1) << "ZooKeeper based registry unimplemented";
+    } else if (flags.registry == "local") {
+      storage = new state::LevelDBStorage(
+          path::join(flags.work_dir, "registry"));
+    } else {
+      EXIT(1) << "'" << flags.registry << "' is not a supported"
+              << " option for registry persistence";
+    }
+
+    CHECK_NOTNULL(storage);
+
+    state = new state::protobuf::State(storage);
+    registrar = new Registrar(state);
+
+    master = new Master(_allocator, registrar, files, flags);
   }
 
   PID<Master> pid = process::spawn(master);
@@ -160,6 +188,15 @@ void shutdown()
 
     delete files;
     files = NULL;
+
+    delete registrar;
+    registrar = NULL;
+
+    delete state;
+    state = NULL;
+
+    delete storage;
+    storage = NULL;
   }
 }
 

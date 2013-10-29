@@ -32,6 +32,8 @@ master::Flags MesosTest::CreateMasterFlags()
   const Try<std::string>& directory = environment->mkdtemp();
   CHECK_SOME(directory) << "Failed to create temporary directory";
 
+  flags.work_dir = directory.get();
+
   // Create a default credentials file.
   const std::string& path = path::join(directory.get(), "credentials");
 

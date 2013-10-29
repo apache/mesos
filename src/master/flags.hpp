@@ -40,12 +40,17 @@ public:
         "Can root submit frameworks?",
         true);
 
-    add(&Flags::slaves,
-        "slaves",
-        "Initial slaves that should be\n"
-        "considered part of this cluster\n"
-        "(or if using ZooKeeper a URL)",
-        "*");
+    add(&Flags::work_dir,
+        "work_dir",
+        "Where to store master specific files\n",
+        "/tmp/mesos");
+
+    add(&Flags::registry,
+        "registry",
+        "Persistence strategy for the registry;\n"
+        "available options are 'local' or a ZooKeeper\n"
+        "URL (i.e., 'zk://host1:port1,host2:port2,.../path')",
+        "local");
 
     add(&Flags::webui_dir,
         "webui_dir",
@@ -111,7 +116,8 @@ public:
   }
 
   bool root_submissions;
-  std::string slaves;
+  std::string work_dir;
+  std::string registry;
   std::string webui_dir;
   std::string whitelist;
   std::string user_sorter;

@@ -19,10 +19,13 @@
 #include <mesos/mesos.hpp>
 
 #include <stout/check.hpp>
+#include <stout/exit.hpp>
 #include <stout/flags.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include "common/build.hpp"
@@ -36,6 +39,12 @@
 #include "master/drf_sorter.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
+#include "master/registrar.hpp"
+
+#include "state/leveldb.hpp"
+#include "state/protobuf.hpp"
+#include "state/storage.hpp"
+
 
 using namespace mesos::internal;
 using namespace mesos::internal::master;
@@ -119,8 +128,25 @@ int main(int argc, char** argv)
   allocator::Allocator* allocator =
     new allocator::Allocator(allocatorProcess);
 
+  state::Storage* storage = NULL;
+
+  if (strings::startsWith(flags.registry, "zk://")) {
+    // TODO(benh):
+    EXIT(1) << "ZooKeeper based registry unimplemented";
+  } else if (flags.registry == "local") {
+    storage = new state::LevelDBStorage(path::join(flags.work_dir, "registry"));
+  } else {
+    EXIT(1) << "'" << flags.registry << "' is not a supported"
+            << " option for registry persistence";
+  }
+
+  CHECK_NOTNULL(storage);
+
+  state::protobuf::State* state = new state::protobuf::State(storage);
+  Registrar* registrar = new Registrar(state);
+
   Files files;
-  Master* master = new Master(allocator, &files, flags);
+  Master* master = new Master(allocator, registrar, &files, flags);
   process::spawn(master);
 
   Try<MasterDetector*> detector =
@@ -132,6 +158,10 @@ int main(int argc, char** argv)
   delete master;
   delete allocator;
   delete allocatorProcess;
+
+  delete registrar;
+  delete state;
+  delete storage;
 
   MasterDetector::destroy(detector.get());
 
