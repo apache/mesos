@@ -40,7 +40,7 @@ class RsyncWorker:
         return "uploaded" if (self.status==True) else "failed"
 
     def rsync(self):
-        self.cmd = "rsync -avz %s %s::%s" % (self.src, self.host, self.dst)
+        self.cmd = ["rsync", "-avz", self.src, self.host + "::" + self.dst]
         print "to execute cmd: %s" % self.cmd
         if self.process is None:
            try:
