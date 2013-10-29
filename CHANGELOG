@@ -1,3 +1,54 @@
+Release Notes - Mesos - Version 0.15.0
+--------------------------------------
+* The primary feature in this release is to add authentication support
+  between frameworks and masters.
+ * You can set --authentication=true on masters to only allow
+   authenticated frameworks to register.
+ * Frameworks can call the new `MesosSchedulerDriver` constructor to
+   enable authentication.
+
+* This release also moves Jenkins framework out of the mesos repo to
+  https://github.com/jenkinsci/mesos-plugin.
+
+** Sub-task
+    * [MESOS-742] - GC directories based on modification time
+    * [MESOS-766] - Make --checkpoint to true by default
+
+** Bug
+    * [MESOS-400] - Example Java framework test is flaky
+    * [MESOS-467] - AllocatorTest.FrameworkExited is flaky
+    * [MESOS-477] - Improve stout duration tests and Stringify(Days(value))
+    * [MESOS-512] - GroupTest.MultipleGroups is flaky.
+    * [MESOS-577] - bootstrap fails with automake 1.14
+    * [MESOS-655] - FaultToleranceTest.MasterFailover not simulating a realistic Master shutdown
+    * [MESOS-661] - WebUI pailer does not preserve newlines when data is copied from firefox.
+    * [MESOS-664] - Type resolution issue on 32 bit systems
+    * [MESOS-685] - SlaveRecoveryTest/0.RecoveryTimeout Java SIGSEGV
+    * [MESOS-686] - Testing isolator is broken when multiple frameworks are in play
+    * [MESOS-702] - Webui table headers are not consistently aligned vertically
+    * [MESOS-729] - ./stout/include/stout/hashmap.hpp:49:5: error: ‘erase’ was not declared in this scope, and no declarations were found by argument-dependent lookup at the point of instantiation [-fpermissive]
+    * [MESOS-732] - Make slave recovery asynchronous
+    * [MESOS-734] - MasterTest.ReconcileTaskTest "not authenticated"
+    * [MESOS-737] - Recover completed frameworks/executors during recovery
+    * [MESOS-738] - CgroupsIsolatorTest.ROOT_CGROUPS_BalloonFramework_NoBuffer can't finish
+    * [MESOS-746] - master error when start with --weights  input parameters
+    * [MESOS-747] - FaultToleranceTest.ReregisterFrameworkExitedExecutor test fails
+    * [MESOS-762] - Revert the use of the soft limit and memory threshold notifications.
+    * [MESOS-777] - GarbageCollectorIntegrationTest.ExitedFramework test is flaky
+
+** Documentation
+    * [MESOS-518] - Improve README with Markdown
+
+** Improvement
+    * [MESOS-769] - Master's authenticate should not depend on 'from'
+
+** New Feature
+    * [MESOS-704] - Add authentication support using SASL and CRAM-MD5
+
+** Task
+    * [MESOS-608] - Move Jenkins code out of the mesos repo to Jenkins CI repo
+
+
 Release Notes - Mesos - Version 0.14.1
 --------------------------------------
 * This is a bug fix release.

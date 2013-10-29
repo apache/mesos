@@ -209,6 +209,15 @@ TEST_F(GroupTest, MultipleGroups)
   Future<std::set<Group::Membership> > memberships1 = group1.watch();
 
   AWAIT_READY(memberships1);
+
+  // NOTE: Since 'group2' joining doesn't guarantee that 'group1'
+  // knows about it synchronously, we have to ensure that 'group1'
+  // knows about both the memberships.
+  if (memberships1.get().size() == 1) {
+    memberships1 = group1.watch(memberships1.get());
+    AWAIT_READY(memberships1);
+  }
+
   EXPECT_EQ(2u, memberships1.get().size());
   EXPECT_EQ(1u, memberships1.get().count(membership1.get()));
   EXPECT_EQ(1u, memberships1.get().count(membership2.get()));
@@ -216,6 +225,13 @@ TEST_F(GroupTest, MultipleGroups)
   Future<std::set<Group::Membership> > memberships2 = group2.watch();
 
   AWAIT_READY(memberships2);
+
+  // See comments above for why we need to do this.
+  if (memberships2.get().size() == 1) {
+    memberships2 = group2.watch(memberships2.get());
+    AWAIT_READY(memberships2);
+  }
+
   EXPECT_EQ(2u, memberships2.get().size());
   EXPECT_EQ(1u, memberships2.get().count(membership1.get()));
   EXPECT_EQ(1u, memberships2.get().count(membership2.get()));

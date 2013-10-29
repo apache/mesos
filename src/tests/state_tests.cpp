@@ -51,7 +51,7 @@ using namespace mesos::internal;
 
 using namespace process;
 
-using mesos::internal::registry::Registry;
+using mesos::internal::registry::Slaves;
 using mesos::internal::registry::Slave;
 
 using state::LevelDBStorage;
@@ -66,50 +66,50 @@ using state::protobuf::Variable;
 
 void FetchAndStoreAndFetch(State* state)
 {
-  Future<Variable<Registry> > future1 = state->fetch<Registry>("registry");
+  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
-  Variable<Registry> variable = future1.get();
+  Variable<Slaves> variable = future1.get();
 
-  Registry registry1 = variable.get();
-  EXPECT_TRUE(registry1.slaves().size() == 0);
+  Slaves slaves1 = variable.get();
+  EXPECT_TRUE(slaves1.slaves().size() == 0);
 
-  Slave* slave = registry1.add_slaves();
+  Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
 
-  variable = variable.mutate(registry1);
+  variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Registry> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  future1 = state->fetch<Registry>("registry");
+  future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   variable = future1.get();
 
-  Registry registry2 = variable.get();
-  ASSERT_TRUE(registry2.slaves().size() == 1);
-  EXPECT_EQ("localhost", registry2.slaves(0).info().hostname());
+  Slaves slaves2 = variable.get();
+  ASSERT_TRUE(slaves2.slaves().size() == 1);
+  EXPECT_EQ("localhost", slaves2.slaves(0).info().hostname());
 }
 
 
 void FetchAndStoreAndStoreAndFetch(State* state)
 {
-  Future<Variable<Registry> > future1 = state->fetch<Registry>("registry");
+  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
-  Variable<Registry> variable = future1.get();
+  Variable<Slaves> variable = future1.get();
 
-  Registry registry1 = variable.get();
-  EXPECT_TRUE(registry1.slaves().size() == 0);
+  Slaves slaves1 = variable.get();
+  EXPECT_TRUE(slaves1.slaves().size() == 0);
 
-  Slave* slave = registry1.add_slaves();
+  Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
 
-  variable = variable.mutate(registry1);
+  variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Registry> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
@@ -119,75 +119,75 @@ void FetchAndStoreAndStoreAndFetch(State* state)
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  future1 = state->fetch<Registry>("registry");
+  future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   variable = future1.get();
 
-  Registry registry2 = variable.get();
-  ASSERT_TRUE(registry2.slaves().size() == 1);
-  EXPECT_EQ("localhost", registry2.slaves(0).info().hostname());
+  Slaves slaves2 = variable.get();
+  ASSERT_TRUE(slaves2.slaves().size() == 1);
+  EXPECT_EQ("localhost", slaves2.slaves(0).info().hostname());
 }
 
 
 void FetchAndStoreAndStoreFailAndFetch(State* state)
 {
-  Future<Variable<Registry> > future1 = state->fetch<Registry>("registry");
+  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
-  Variable<Registry> variable1 = future1.get();
+  Variable<Slaves> variable1 = future1.get();
 
-  Registry registry1 = variable1.get();
-  EXPECT_TRUE(registry1.slaves().size() == 0);
+  Slaves slaves1 = variable1.get();
+  EXPECT_TRUE(slaves1.slaves().size() == 0);
 
-  Slave* slave1 = registry1.add_slaves();
+  Slave* slave1 = slaves1.add_slaves();
   slave1->mutable_info()->set_hostname("localhost1");
 
-  Variable<Registry> variable2 = variable1.mutate(registry1);
+  Variable<Slaves> variable2 = variable1.mutate(slaves1);
 
-  Future<Option<Variable<Registry> > > future2 = state->store(variable2);
+  Future<Option<Variable<Slaves> > > future2 = state->store(variable2);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  Registry registry2 = variable1.get();
-  EXPECT_TRUE(registry2.slaves().size() == 0);
+  Slaves slaves2 = variable1.get();
+  EXPECT_TRUE(slaves2.slaves().size() == 0);
 
-  Slave* slave2 = registry2.add_slaves();
+  Slave* slave2 = slaves2.add_slaves();
   slave2->mutable_info()->set_hostname("localhost2");
 
-  variable2 = variable1.mutate(registry2);
+  variable2 = variable1.mutate(slaves2);
 
   future2 = state->store(variable2);
   AWAIT_READY(future2);
   EXPECT_TRUE(future2.get().isNone());
 
-  future1 = state->fetch<Registry>("registry");
+  future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   variable1 = future1.get();
 
-  registry1 = variable1.get();
-  ASSERT_TRUE(registry1.slaves().size() == 1);
-  EXPECT_EQ("localhost1", registry1.slaves(0).info().hostname());
+  slaves1 = variable1.get();
+  ASSERT_TRUE(slaves1.slaves().size() == 1);
+  EXPECT_EQ("localhost1", slaves1.slaves(0).info().hostname());
 }
 
 
 void FetchAndStoreAndExpungeAndFetch(State* state)
 {
-  Future<Variable<Registry> > future1 = state->fetch<Registry>("registry");
+  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
-  Variable<Registry> variable = future1.get();
+  Variable<Slaves> variable = future1.get();
 
-  Registry registry1 = variable.get();
-  EXPECT_TRUE(registry1.slaves().size() == 0);
+  Slaves slaves1 = variable.get();
+  EXPECT_TRUE(slaves1.slaves().size() == 0);
 
-  Slave* slave = registry1.add_slaves();
+  Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
 
-  variable = variable.mutate(registry1);
+  variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Registry> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
@@ -197,32 +197,32 @@ void FetchAndStoreAndExpungeAndFetch(State* state)
   AWAIT_READY(future3);
   ASSERT_TRUE(future3.get());
 
-  future1 = state->fetch<Registry>("registry");
+  future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   variable = future1.get();
 
-  Registry registry2 = variable.get();
-  ASSERT_EQ(0, registry2.slaves().size());
+  Slaves slaves2 = variable.get();
+  ASSERT_EQ(0, slaves2.slaves().size());
 }
 
 
 void FetchAndStoreAndExpungeAndExpunge(State* state)
 {
-  Future<Variable<Registry> > future1 = state->fetch<Registry>("registry");
+  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
-  Variable<Registry> variable = future1.get();
+  Variable<Slaves> variable = future1.get();
 
-  Registry registry1 = variable.get();
-  EXPECT_TRUE(registry1.slaves().size() == 0);
+  Slaves slaves1 = variable.get();
+  EXPECT_TRUE(slaves1.slaves().size() == 0);
 
-  Slave* slave = registry1.add_slaves();
+  Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
 
-  variable = variable.mutate(registry1);
+  variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Registry> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
@@ -240,20 +240,20 @@ void FetchAndStoreAndExpungeAndExpunge(State* state)
 
 void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
 {
-  Future<Variable<Registry> > future1 = state->fetch<Registry>("registry");
+  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
-  Variable<Registry> variable = future1.get();
+  Variable<Slaves> variable = future1.get();
 
-  Registry registry1 = variable.get();
-  EXPECT_TRUE(registry1.slaves().size() == 0);
+  Slaves slaves1 = variable.get();
+  EXPECT_TRUE(slaves1.slaves().size() == 0);
 
-  Slave* slave = registry1.add_slaves();
+  Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
 
-  variable = variable.mutate(registry1);
+  variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Registry> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
@@ -267,40 +267,40 @@ void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  future1 = state->fetch<Registry>("registry");
+  future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   variable = future1.get();
 
-  Registry registry2 = variable.get();
-  ASSERT_TRUE(registry2.slaves().size() == 1);
-  EXPECT_EQ("localhost", registry2.slaves(0).info().hostname());
+  Slaves slaves2 = variable.get();
+  ASSERT_TRUE(slaves2.slaves().size() == 1);
+  EXPECT_EQ("localhost", slaves2.slaves(0).info().hostname());
 }
 
 
 void Names(State* state)
 {
-  Future<Variable<Registry> > future1 = state->fetch<Registry>("registry");
+  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
-  Variable<Registry> variable = future1.get();
+  Variable<Slaves> variable = future1.get();
 
-  Registry registry1 = variable.get();
-  EXPECT_TRUE(registry1.slaves().size() == 0);
+  Slaves slaves1 = variable.get();
+  EXPECT_TRUE(slaves1.slaves().size() == 0);
 
-  Slave* slave = registry1.add_slaves();
+  Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
 
-  variable = variable.mutate(registry1);
+  variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Registry> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
   Future<std::vector<std::string> > names = state->names();
   AWAIT_READY(names);
   ASSERT_TRUE(names.get().size() == 1);
-  EXPECT_EQ("registry", names.get()[0]);
+  EXPECT_EQ("slaves", names.get()[0]);
 }
 
 

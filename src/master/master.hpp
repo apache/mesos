@@ -47,6 +47,7 @@
 
 #include "master/constants.hpp"
 #include "master/flags.hpp"
+#include "master/registrar.hpp"
 
 #include "messages/messages.hpp"
 
@@ -82,8 +83,12 @@ struct Role;
 class Master : public ProtobufProcess<Master>
 {
 public:
-  Master(allocator::Allocator* allocator, Files* files);
   Master(allocator::Allocator* allocator,
+         Registrar* registrar,
+         Files* files);
+
+  Master(allocator::Allocator* allocator,
+         Registrar* registrar,
          Files* files,
          const Flags& flags);
 
@@ -302,6 +307,7 @@ private:
 
   allocator::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;
+  Registrar* registrar;
   Files* files;
 
   MasterInfo info;

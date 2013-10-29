@@ -16,17 +16,38 @@
  * limitations under the License.
  */
 
-import "mesos.proto";
+#ifndef __MASTER_REGISTRAR_HPP__
+#define __MASTER_REGISTRAR_HPP__
 
-package mesos.internal.registry;
+#include <mesos/mesos.hpp>
 
-message Slave {
-  // TODO(benh): Add other information here that is internal to Mesos
-  // and shouldn't be exposed in SlaveInfo.
-  required SlaveInfo info = 2;
-}
+#include <process/future.hpp>
 
+#include "state/protobuf.hpp"
 
-message Slaves {
-  repeated Slave slaves = 1;
-}
+namespace mesos {
+namespace internal {
+namespace master {
+
+// Forward declaration.
+class RegistrarProcess;
+
+class Registrar
+{
+public:
+  Registrar(state::protobuf::State* state);
+  ~Registrar();
+
+  process::Future<bool> admit(const SlaveID& id, const SlaveInfo& info);
+  process::Future<bool> readmit(const SlaveInfo& info);
+  process::Future<bool> remove(const SlaveInfo& info);
+
+private:
+  RegistrarProcess* process;
+};
+
+} // namespace master {
+} // namespace internal {
+} // namespace mesos {
+
+#endif // __MASTER_REGISTRAR_HPP__

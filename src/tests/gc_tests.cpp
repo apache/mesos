@@ -400,7 +400,20 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());      // Ignore subsequent updates.
 
+  Future<Nothing> executorStarted = FUTURE_DISPATCH(_, &Slave::executorStarted);
+
   driver.start();
+
+  // Wait until the slave has been notified about the start of the
+  // executor. There is race where in a slave might get status updates
+  // before it it notified about the start of the executor. This is
+  // important in this test because if we don't wait and shutdown the
+  // framework, it might so happen that 'executorStarted' event is
+  // received after the slave gets a 'shutdownFramework' leading to
+  // shutdown and eventually gc of the executor and framework
+  // directories. We want the gc to happen after we setup the
+  // expectation on 'gc.schedule'.
+  AWAIT_READY(executorStarted);
 
   AWAIT_READY(status);
 

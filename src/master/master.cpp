@@ -186,20 +186,29 @@ private:
 };
 
 
-Master::Master(Allocator* _allocator, Files* _files)
+Master::Master(
+    Allocator* _allocator,
+    Registrar* _registrar,
+    Files* _files)
   : ProcessBase("master"),
     http(*this),
     flags(),
     allocator(_allocator),
+    registrar(_registrar),
     files(_files),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS) {}
 
 
-Master::Master(Allocator* _allocator, Files* _files, const Flags& _flags)
+Master::Master(
+    Allocator* _allocator,
+    Registrar* _registrar,
+    Files* _files,
+    const Flags& _flags)
   : ProcessBase("master"),
     http(*this),
     flags(_flags),
     allocator(_allocator),
+    registrar(_registrar),
     files(_files),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS) {}
 
@@ -1223,21 +1232,7 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
   LOG(INFO) << "Attempting to register slave on " << slave->info.hostname()
             << " at " << slave->pid;
 
-  // TODO(benh): We assume all slaves can register for now.
-  CHECK_EQ(flags.slaves, "*");
   addSlave(slave);
-
-//   // Checks if this slave, or if all slaves, can be accepted.
-//   if (slaveHostnamePorts.contains(slaveInfo.hostname(), from.port)) {
-//     run(&SlaveRegistrar::run, slave, self());
-//   } else if (flags.slaves == "*") {
-//     run(&SlaveRegistrar::run, slave, self(), slavesManager->self());
-//   } else {
-//     LOG(WARNING) << "Cannot register slave at "
-//                  << slaveInfo.hostname() << ":" << from.port
-//                  << " because not in allocated set of slaves!";
-//     reply(ShutdownMessage());
-//   }
 }
 
 
@@ -1326,8 +1321,6 @@ void Master::reregisterSlave(
       LOG(INFO) << "Attempting to re-register slave " << slave->id << " at "
                 << slave->pid << " (" << slave->info.hostname() << ")";
 
-      // TODO(benh): We assume all slaves can register for now.
-      CHECK_EQ(flags.slaves, "*");
       readdSlave(slave, executorInfos, tasks);
     }
 

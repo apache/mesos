@@ -1,7 +1,10 @@
-# Getting Started #
+---
+layout: gettingstarted
+---
 
+# Getting Started
 
-### Downloading Mesos  ###
+## Downloading Mesos
 
 There are different ways you can get Mesos:
 
@@ -14,8 +17,7 @@ There are different ways you can get Mesos:
 
         $ git clone http://git-wip-us.apache.org/repos/asf/mesos.git
 
-
-### System Requirements ###
+## System Requirements
 
 -  Mesos runs on Linux and Mac OSX.
 
@@ -48,7 +50,6 @@ If you are building from git repository, you will need to additionally install t
         # Install libtool.
         $ sudo apt-get install libtool
 
-
 ***NOTES***
 
 > 1. The build process attempts to guess where your Java include directory is, but if you have set the `$JAVA_HOME` environment variable, it will use `$JAVA_HOME/include`, which may not be correct (or exist) on your machine (in which case you will see an error such as: `configure: error: failed to build against JDK (using libtool)`). If this is the case, we suggest you unset the `JAVA_HOME` environment variable.
@@ -56,7 +57,7 @@ If you are building from git repository, you will need to additionally install t
 > 2. Mesos is currently being developed/tested/supported on 64 Bit machines only.
 
 
-### Building Mesos ###
+## Building Mesos
 
         # Change working directory.
         $ cd mesos
@@ -76,10 +77,7 @@ If you are building from git repository, you will need to additionally install t
         # Install (***Optional***).
         $ make install
 
-
-
-### Examples ###
-
+## Examples
 Mesos comes bundled with example frameworks written in `C++`, `Java` and `Python`.
 
         # Change into build directory.
@@ -103,5 +101,4 @@ Mesos comes bundled with example frameworks written in `C++`, `Java` and `Python
         # Run Python framework (***Exits after successfully running some tasks.***).
         $ ./src/examples/python/test-framework 127.0.0.1:5050
 
-
-> NOTE: To build the example frameworks, make sure you build the test suite by doing `make check`.
+*NOTE: To build the example frameworks, make sure you build the test suite by doing `make check`.*

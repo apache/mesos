@@ -426,7 +426,7 @@ struct Framework
   void destroyExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const TaskID& taskId);
-  Executor* recoverExecutor(const state::ExecutorState& state);
+  void recoverExecutor(const state::ExecutorState& state);
 
   enum State {
     RUNNING,      // First state of a newly created framework.

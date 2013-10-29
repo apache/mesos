@@ -97,7 +97,7 @@ TEST_F(SlaveStateTest, CheckpointProtobuf)
   expected.set_value("slave1");
 
   const string& file = "slave.id";
-  state::checkpoint(file, expected);
+  slave::state::checkpoint(file, expected);
 
   const Result<SlaveID>& actual = ::protobuf::read<SlaveID>(file);
   ASSERT_SOME(actual);
@@ -111,7 +111,7 @@ TEST_F(SlaveStateTest, CheckpointString)
   // Checkpoint a test string.
   const string expected = "test";
   const string file = "test-file";
-  state::checkpoint(file, expected);
+  slave::state::checkpoint(file, expected);
 
   ASSERT_SOME_EQ(expected, os::read(file));
 }
@@ -228,12 +228,12 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   AWAIT_READY(_ack);
 
   // Recover the state.
-  Result<state::SlaveState> recover = state::recover(
+  Result<slave::state::SlaveState> recover = slave::state::recover(
       paths::getMetaRootDir(flags.work_dir), true);
 
   ASSERT_SOME(recover);
 
-  state::SlaveState state = recover.get();
+  slave::state::SlaveState state = recover.get();
 
   // Check slave id.
   ASSERT_EQ(slaveId, state.id);

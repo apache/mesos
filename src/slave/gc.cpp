@@ -53,7 +53,7 @@ Future<Nothing> GarbageCollectorProcess::schedule(
     const Duration& d,
     const string& path)
 {
-  LOG(INFO) << "Scheduling '" << path << "' for gc";
+  LOG(INFO) << "Scheduling '" << path << "' for gc " << d << " in the future";
 
   // If there's an existing schedule for this path, we must remove
   // it here in order to reschedule.

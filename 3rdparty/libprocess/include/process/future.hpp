@@ -253,7 +253,7 @@ class Promise
 public:
   Promise();
   Promise(const T& t);
-  ~Promise();
+  virtual ~Promise();
 
   bool set(const T& _t);
   bool set(const Future<T>& future); // Alias for associate.

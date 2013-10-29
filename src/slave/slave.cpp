@@ -641,13 +641,14 @@ void Slave::doReliableRegistration()
     // Slave started before master.
     // (Vinod): Is the above comment true?
     RegisterSlaveMessage message;
-    message.mutable_slave()->MergeFrom(info);
+    message.mutable_slave()->CopyFrom(info);
     send(master, message);
   } else {
     // Re-registering, so send tasks running.
     ReregisterSlaveMessage message;
-    message.mutable_slave_id()->MergeFrom(info.id());
-    message.mutable_slave()->MergeFrom(info);
+    message.mutable_slave_id()->CopyFrom(info.id());
+    message.mutable_slave()->CopyFrom(info);
+    message.mutable_slave()->mutable_id()->CopyFrom(info.id());
 
     foreachvalue (Framework* framework, frameworks){
       foreachvalue (Executor* executor, framework->executors) {
@@ -2063,6 +2064,9 @@ void Slave::executorStarted(
       break;
     case Executor::REGISTERING:
     case Executor::RUNNING:
+      LOG(INFO) << "Monitoring executor " << executorId
+                << " of framework " << frameworkId
+                << " forked at pid " << pid;
       monitor.watch(
           frameworkId,
           executorId,
@@ -2814,24 +2818,7 @@ void Slave::recoverFramework(const FrameworkState& state)
 
   // Now recover the executors for this framework.
   foreachvalue (const ExecutorState& executorState, state.executors) {
-    Executor* executor = framework->recoverExecutor(executorState);
-
-    // Continue to next executor if this one couldn't be recovered.
-    if (executor == NULL) {
-      continue;
-    }
-
-    // Expose the executor's files.
-    files->attach(executor->directory, executor->directory)
-      .onAny(defer(self(),
-                   &Self::fileAttached,
-                   lambda::_1,
-                   executor->directory));
-
-    // Remove the executor if it's terminated.
-    if (executor->state == Executor::TERMINATED) {
-      removeExecutor(framework, executor);
-    }
+    framework->recoverExecutor(executorState);
   }
 
   // Remove the framework in case we didn't recover any executors.
@@ -2988,7 +2975,7 @@ Executor* Framework::getExecutor(const TaskID& taskId)
 }
 
 
-Executor* Framework::recoverExecutor(const ExecutorState& state)
+void Framework::recoverExecutor(const ExecutorState& state)
 {
   LOG(INFO) << "Recovering executor '" << state.id
             << "' of framework " << id;
@@ -3008,7 +2995,7 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
     slave->garbageCollect(paths::getExecutorPath(
         slave->metaDir, slave->info.id(), id, state.id));
 
-    return NULL;
+    return;
   }
 
   // We are only interested in the latest run of the executor!
@@ -3060,22 +3047,54 @@ Executor* Framework::recoverExecutor(const ExecutorState& state)
     executor->pid = run.libprocessPid.get();
   }
 
-  // If the latest run of the executor was completed (i.e., terminated
-  // and all updates are acknowledged) in the previous run, we
-  // transition its state to 'TERMINATED'.
-  if (run.completed) {
-    executor->state = Executor::TERMINATED;
-  }
-
   // And finally recover all the executor's tasks.
   foreachvalue (const TaskState& taskState, run.tasks) {
     executor->recoverTask(taskState);
   }
 
+  // Expose the executor's files.
+  slave->files->attach(executor->directory, executor->directory)
+    .onAny(defer(slave,
+                 &Slave::fileAttached,
+                 lambda::_1,
+                 executor->directory));
+
   // Add the executor to the framework.
   executors[executor->id] = executor;
 
-  return executor;
+  // If the latest run of the executor was completed (i.e., terminated
+  // and all updates are acknowledged) in the previous run, we
+  // transition its state to 'TERMINATED' and gc the directories.
+  if (run.completed) {
+    executor->state = Executor::TERMINATED;
+
+    CHECK_SOME(run.id);
+    const UUID& runId = run.id.get();
+
+    // GC the executor run's work directory.
+    const string& path = paths::getExecutorRunPath(
+        slave->flags.work_dir, slave->info.id(), id, state.id, runId);
+
+    slave->garbageCollect(path)
+       .then(defer(slave, &Slave::detachFile, path));
+
+    // GC the executor run's meta directory.
+    slave->garbageCollect(paths::getExecutorRunPath(
+        slave->metaDir, slave->info.id(), id, state.id, runId));
+
+    // GC the top level executor work directory.
+    slave->garbageCollect(paths::getExecutorPath(
+        slave->flags.work_dir, slave->info.id(), id, state.id));
+
+    // GC the top level executor meta directory.
+    slave->garbageCollect(paths::getExecutorPath(
+        slave->metaDir, slave->info.id(), id, state.id));
+
+    // Move the executor to 'completedExecutors'.
+    destroyExecutor(executor->id);
+  }
+
+  return;
 }
 
 

@@ -167,6 +167,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/master.cpp						\
 	master/registry.hpp						\
 	master/registry.proto                                           \
+	master/registrar.cpp						\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
 	slave/monitor.cpp						\
@@ -223,6 +224,7 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	master/allocator.hpp						\
 	master/constants.hpp master/drf_sorter.hpp master/flags.hpp	\
 	master/hierarchical_allocator_process.hpp			\
+	master/registrar.hpp						\
 	master/master.hpp master/sorter.hpp				\
 	messages/messages.hpp slave/constants.hpp			\
 	slave/flags.hpp slave/gc.hpp slave/monitor.hpp			\
@@ -298,7 +300,7 @@ libmesos_no_3rdparty_la_LIBADD += libstate.la
 # The final result!
 lib_LTLIBRARIES += libmesos.la
 
-libmesos_la_SOURCES = $(MESOS_PROTO) # Part of the distribution.
+libmesos_la_SOURCES = $(MESOS_PROTO) # Include as part of the distribution.
 
 libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
@@ -386,20 +388,17 @@ dist_bin_SCRIPTS +=							\
 nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/controllers.js					\
   webui/master/static/js/app.js						\
-  webui/master/static/js/dashboard.js					\
   webui/master/static/js/jquery.pailer.js
 
 # Need to distribute/install webui CSS.
 nobase_dist_pkgdata_DATA +=						\
   webui/master/static/css/bootstrap-responsive-2.3.2.min.css		\
   webui/master/static/css/bootstrap-2.3.2.min.css			\
-  webui/master/static/css/graph.css					\
   webui/master/static/css/mesos.css
 
 # Need to distribute/install webui HTML.
 nobase_dist_pkgdata_DATA +=						\
   webui/master/static/browse.html					\
-  webui/master/static/dashboard.html					\
   webui/master/static/framework.html					\
   webui/master/static/frameworks.html					\
   webui/master/static/home.html						\
@@ -425,10 +424,6 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/ui-bootstrap-tpls-0.4.0.min.js			\
   webui/master/static/js/underscore-1.4.3.js				\
   webui/master/static/js/underscore-1.4.3.min.js			\
-  webui/master/static/js/cubism.v1.js					\
-  webui/master/static/js/cubism.v1.min.js				\
-  webui/master/static/js/d3.v2.js					\
-  webui/master/static/js/d3.v2.min.js					\
   webui/master/static/js/jquery-1.7.1.js				\
   webui/master/static/js/jquery-1.7.1.min.js				\
   webui/master/static/js/relative-date.js				\
@@ -788,6 +783,7 @@ mesos_tests_SOURCES =			\
   tests/paths_tests.cpp			\
   tests/protobuf_io_tests.cpp		\
   tests/reaper_tests.cpp		\
+  tests/registrar_tests.cpp		\
   tests/resource_offers_tests.cpp	\
   tests/resources_tests.cpp		\
   tests/sasl_tests.cpp			\

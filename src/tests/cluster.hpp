@@ -30,6 +30,7 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/owned.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include "detector/detector.hpp"
@@ -40,11 +41,16 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
+#include "master/registrar.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/isolator.hpp"
 #include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
+
+#include "state/leveldb.hpp"
+#include "state/protobuf.hpp"
+#include "state/storage.hpp"
 
 #include "zookeeper/url.hpp"
 
@@ -108,6 +114,9 @@ public:
       master::Master* master;
       master::allocator::Allocator* allocator;
       master::allocator::AllocatorProcess* allocatorProcess;
+      state::Storage* storage;
+      state::protobuf::State* state;
+      master::Registrar* registrar;
       MasterDetector* detector;
     };
 
@@ -223,7 +232,28 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 
   master.allocatorProcess = new master::allocator::HierarchicalDRFAllocatorProcess();
   master.allocator = new master::allocator::Allocator(master.allocatorProcess);
-  master.master = new master::Master(master.allocator, &cluster->files, flags);
+
+  if (strings::startsWith(flags.registry, "zk://")) {
+    // TODO(benh):
+    return Error("ZooKeeper based registry unimplemented");
+  } else if (flags.registry == "local") {
+    master.storage = new state::LevelDBStorage(
+        path::join(flags.work_dir, "registry"));
+  } else {
+    return Error("'" + flags.registry + "' is not a supported"
+                 " option for registry persistence");
+  }
+
+  CHECK_NOTNULL(master.storage);
+
+  master.state = new state::protobuf::State(master.storage);
+  master.registrar = new master::Registrar(master.state);
+
+  master.master = new master::Master(
+      master.allocator,
+      master.registrar,
+      &cluster->files,
+      flags);
 
   process::PID<master::Master> pid = process::spawn(master.master);
 
@@ -249,9 +279,31 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   }
 
   Master master;
+
   master.allocatorProcess = NULL;
   master.allocator = new master::allocator::Allocator(allocatorProcess);
-  master.master = new master::Master(master.allocator, &cluster->files, flags);
+
+  if (strings::startsWith(flags.registry, "zk://")) {
+    // TODO(benh):
+    return Error("ZooKeeper based registry unimplemented");
+  } else if (flags.registry == "local") {
+    master.storage = new state::LevelDBStorage(
+        path::join(flags.work_dir, "registry"));
+  } else {
+    return Error("'" + flags.registry + "' is not a supported"
+                 " option for registry persistence");
+  }
+
+  CHECK_NOTNULL(master.storage);
+
+  master.state = new state::protobuf::State(master.storage);
+  master.registrar = new master::Registrar(master.state);
+
+  master.master = new master::Master(
+      master.allocator,
+      master.registrar,
+      &cluster->files,
+      flags);
 
   process::PID<master::Master> pid = process::spawn(master.master);
 
@@ -282,6 +334,10 @@ inline Try<Nothing> Cluster::Masters::stop(
 
   delete master.allocator; // Terminates and waits for allocator process.
   delete master.allocatorProcess; // May be NULL.
+
+  delete master.registrar;
+  delete master.state;
+  delete master.storage;
 
   delete master.detector;
 
