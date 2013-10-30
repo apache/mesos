@@ -53,10 +53,10 @@ void LevelDBStorageProcess::initialize()
   if (!status.ok()) {
     // TODO(benh): Consider trying to repair the DB.
     error = Option<string>::some(status.ToString());
+  } else {
+    // TODO(benh): Conditionally compact to avoid long recovery times?
+    db->CompactRange(NULL, NULL);
   }
-
-  // TODO(benh): Conditionally compact to avoid long recovery times?
-  db->CompactRange(NULL, NULL);
 }
 
 
