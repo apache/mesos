@@ -60,6 +60,7 @@ using std::vector;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 using process::Clock;
+using process::Failure;
 using process::Future;
 using process::MessageEvent;
 using process::Owned;
@@ -67,6 +68,7 @@ using process::PID;
 using process::Process;
 using process::Promise;
 using process::Time;
+using process::Timer;
 using process::UPID;
 
 using memory::shared_ptr;
@@ -607,6 +609,16 @@ void Master::finalize()
   }
   roles.clear();
 
+  foreachvalue (const Timer& timer, slaves.recovered) {
+    // NOTE: This is necessary during tests because we don't want the
+    // timer to fire in a different test and invoke the callback.
+    // The callback would be invoked because the master pid doesn't
+    // change across the tests.
+    // TODO(vinod): This seems to be a bug in libprocess or the
+    // testing infrastructure.
+    Timer::cancel(timer);
+  }
+
   terminate(whitelistWatcher);
   wait(whitelistWatcher);
   delete whitelistWatcher;
@@ -727,7 +739,93 @@ void Master::visit(const MessageEvent& event)
     return;
   }
 
+  CHECK_SOME(recovered);
+
+  // All messages are filtered while recovering.
+  // TODO(bmahler): Consider instead re-enqueing *all* messages
+  // through recover(). What are the performance implications of
+  // the additional queueing delay and the accumulated backlog
+  // of messages post-recovery?
+  if (!recovered.get().isReady()) {
+    LOG(WARNING) << "Dropping '" << event.message->name << "' message since "
+                 << "not recovered yet";
+    return;
+  }
+
   ProtobufProcess<Master>::visit(event);
+}
+
+
+Future<Nothing> Master::recover()
+{
+  if (!elected()) {
+    return Failure("Not elected as leading master");
+  }
+
+  if (recovered.isNone()) {
+    LOG(INFO) << "Recovering from registrar";
+
+    recovered = registrar->recover(info_)
+      .then(defer(self(), &Self::_recover, lambda::_1));
+  }
+
+  return recovered.get();
+}
+
+
+Future<Nothing> Master::_recover(const Registry& registry)
+{
+  const Registry::Slaves& slaves = registry.slaves();
+
+  foreach (const Registry::Slave& slave, slaves.slaves()) {
+    // Set up a timeout for this slave to re-register. This timeout
+    // is based on the maximum amount of time the SlaveObserver
+    // allows slaves to not respond to health checks. Re-registration
+    // of the slave will cancel this timer.
+    // XXX: What if there is a ZK issue that delays detection for slaves?
+    //      Should we be more conservative here to avoid a full shutdown?
+    this->slaves.recovered[slave.info().id()] =
+      delay(SLAVE_PING_TIMEOUT * MAX_SLAVE_PING_TIMEOUTS,
+            self(),
+            &Self::__recoverSlaveTimeout,
+            slave);
+  }
+
+  // Recovery is now complete!
+  LOG(INFO) << "Recovered " << slaves.slaves().size() << " slaves "
+            << " from the Registry (" << Bytes(registry.ByteSize()) << ")";
+
+  return Nothing();
+}
+
+
+void Master::__recoverSlaveTimeout(const Registry::Slave& slave)
+{
+  CHECK(elected());
+
+  if (!slaves.recovered.contains(slave.info().id())) {
+    return; // Slave re-registered.
+  }
+
+  LOG(WARNING) << "Slave " << slave.info().id()
+               << " (" << slave.info().hostname() << ") did not re-register "
+               << "within the timeout; Removing it from the registrar";
+
+  slaves.recovered.erase(slave.info().id());
+  slaves.removing.insert(slave.info().id());
+
+  registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
+    .onAny(defer(self(),
+                 &Self::_removeSlave,
+                 slave.info(),
+                 vector<StatusUpdate>(), // No TASK_LOST updates to send.
+                 lambda::_1));
+}
+
+
+void fail(const string& message, const string& failure)
+{
+  LOG(FATAL) << message << ": " << failure;
 }
 
 
@@ -806,6 +904,11 @@ void Master::detected(const Future<Option<MasterInfo> >& _leader)
 
   if (!wasElected && elected()) {
     LOG(INFO) << "Elected as the leading master!";
+
+    // Begin the recovery process, bail if it fails or is discarded.
+    recover()
+      .onFailed(lambda::bind(fail, "Recovery failed", lambda::_1))
+      .onDiscarded(lambda::bind(fail, "Recovery failed", "discarded"));
   }
 
   // Keep detecting.
@@ -1276,7 +1379,6 @@ struct ResourceUsageChecker : TaskInfoVisitor
     // Check this task's executor's resources.
     if (task.has_executor()) {
       // TODO(benh): Check that the executor uses some resources.
-
       foreach (const Resource& resource, task.executor().resources()) {
         if (!Resources::isAllocatable(resource)) {
           // TODO(benh): Send back the invalid resources?
@@ -1757,29 +1859,44 @@ void Master::killTask(
 
   Task* task = framework->getTask(taskId);
   if (task == NULL) {
-    // TODO(bmahler): This is incorrect in some cases, see:
-    // https://issues.apache.org/jira/browse/MESOS-783
+    // TODO(bmahler): If we knew the slaveID here we could reply more
+    // frequently in the presence of recovering slaves or slaves being
+    // removed.
+    if (!slaves.recovered.empty()) {
+      LOG(WARNING) << "Cannot kill task " << taskId << " of framework "
+                   << frameworkId << " because the slave containing this task "
+                   << "may not have re-registered yet with this master";
+    } else if (!slaves.removing.empty()) {
+      LOG(WARNING) << "Cannot kill task " << taskId << " of framework "
+                   << frameworkId << " because the slave may be in the process "
+                   << "of being removed from the registrar, it is likely "
+                   << "TASK_LOST updates will occur when the slave is removed";
+    } else if (!slaves.reregistering.empty()) {
+      LOG(WARNING) << "Cannot kill task " << taskId << " of framework "
+                   << frameworkId << " because the slave may be in the process "
+                   << "of being re-admitted by the registrar";
+    } else {
+      // TODO(benh): Once the scheduler has persistence and
+      // high-availability of it's tasks, it will be the one that
+      // determines that this invocation of 'killTask' is silly, and
+      // can just return "locally" (i.e., after hitting only the other
+      // replicas). Unfortunately, it still won't know the slave id.
 
-    // TODO(benh): Once the scheduler has persistence and
-    // high-availability of it's tasks, it will be the one that
-    // determines that this invocation of 'killTask' is silly, and
-    // can just return "locally" (i.e., after hitting only the other
-    // replicas). Unfortunately, it still won't know the slave id.
+      LOG(WARNING) << "Cannot kill task " << taskId
+                   << " of framework " << frameworkId
+                   << " because it cannot be found, sending TASK_LOST";
+      StatusUpdateMessage message;
+      StatusUpdate* update = message.mutable_update();
+      update->mutable_framework_id()->MergeFrom(frameworkId);
+      TaskStatus* status = update->mutable_status();
+      status->mutable_task_id()->MergeFrom(taskId);
+      status->set_state(TASK_LOST);
+      status->set_message("Task not found");
+      update->set_timestamp(Clock::now().secs());
+      update->set_uuid(UUID::random().toBytes());
+      send(framework->pid, message);
+    }
 
-    LOG(WARNING) << "Cannot kill task " << taskId
-                 << " of framework " << frameworkId
-                 << " because it cannot be found, sending TASK_LOST";
-
-    StatusUpdateMessage message;
-    StatusUpdate* update = message.mutable_update();
-    update->mutable_framework_id()->MergeFrom(frameworkId);
-    TaskStatus* status = update->mutable_status();
-    status->mutable_task_id()->MergeFrom(taskId);
-    status->set_state(TASK_LOST);
-    status->set_message("Task not found");
-    update->set_timestamp(Clock::now().secs());
-    update->set_uuid(UUID::random().toBytes());
-    send(framework->pid, message);
     return;
   }
 
@@ -1795,9 +1912,9 @@ void Master::killTask(
   // disconnected slave re-registers with the master.
   if (!slave->disconnected) {
     LOG(INFO) << "Telling slave " << slave->id << " ("
-        << slave->info.hostname() << ")"
-        << " to kill task " << taskId
-        << " of framework " << frameworkId;
+              << slave->info.hostname() << ")"
+              << " to kill task " << taskId
+              << " of framework " << frameworkId;
 
     KillTaskMessage message;
     message.mutable_framework_id()->MergeFrom(frameworkId);
@@ -1839,7 +1956,7 @@ void Master::schedulerMessage(
   if (slave == NULL) {
     LOG(WARNING) << "Cannot send framework message for framework "
                  << frameworkId << " to slave " << slaveId
-                 << " because slave does not exist";
+                 << " because slave is not activated";
     stats.invalidFrameworkMessages++;
     return;
   }
@@ -1894,12 +2011,57 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
     }
   }
 
-  Slave* slave = new Slave(slaveInfo, newSlaveId(), from, Clock::now());
+  // We need to generate a SlaveID and admit this slave only *once*.
+  if (slaves.registering.contains(from)) {
+    LOG(INFO) << "Ignoring register slave message from " << from
+              << " (" << slaveInfo.hostname() << ") as admission is"
+              << " already in progress";
+    return;
+  }
 
-  LOG(INFO) << "Attempting to register slave on " << slave->info.hostname()
-            << " at " << slave->pid;
+  slaves.registering.insert(from);
 
-  addSlave(slave);
+  // Create and add the slave id.
+  SlaveInfo slaveInfo_ = slaveInfo;
+  slaveInfo_.mutable_id()->CopyFrom(newSlaveId());
+
+  registrar->apply(Owned<Operation>(new AdmitSlave(slaveInfo_)))
+    .onAny(defer(self(),
+                 &Self::_registerSlave,
+                 slaveInfo_,
+                 from,
+                 lambda::_1));
+}
+
+
+void Master::_registerSlave(
+    const SlaveInfo& slaveInfo,
+    const UPID& pid,
+    const Future<bool>& admit)
+{
+  slaves.registering.erase(pid);
+
+  CHECK(!admit.isDiscarded());
+
+  if (admit.isFailed()) {
+    LOG(FATAL) << "Failed to admit slave " << slaveInfo.id() << " at " << pid
+               << " (" << slaveInfo.hostname() << "): " << admit.failure();
+  } else if (!admit.get()) {
+    // This means the slave is already present in the registrar, it's
+    // likely we generated a duplicate slave id!
+    LOG(ERROR) << "Slave " << slaveInfo.id() << " at " << pid
+               << " (" << slaveInfo.hostname() << ") was not admitted, "
+               << "asking to shut down";
+    slaves.deactivated.put(slaveInfo.id(), Nothing());
+    send(pid, ShutdownMessage());
+  } else {
+    Slave* slave = new Slave(slaveInfo, slaveInfo.id(), pid, Clock::now());
+
+    LOG(INFO) << "Admitted slave on " << slave->info.hostname()
+              << " at " << slave->pid;
+
+    addSlave(slave);
+  }
 }
 
 
@@ -1911,25 +2073,21 @@ void Master::reregisterSlave(
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks)
 {
-  if (slaveId == "") {
-    LOG(ERROR) << "Shutting down slave " << from << " that re-registered "
-               << "without an id!";
+  if (slaves.deactivated.get(slaveInfo.id()).isSome()) {
+    // To compensate for the case where a non-strict registrar is
+    // being used, we explicitly deny deactivated slaves from
+    // re-registering. This is because a non-strict registrar cannot
+    // enforce this. We've already told frameworks the tasks were
+    // lost so it's important to deny the slave from re-registering.
+    LOG(WARNING) << "Slave " << slaveId << " at " << from
+                 << " (" << slaveInfo.hostname() << ") attempted to "
+                 << "re-register after deactivation; shutting it down";
     reply(ShutdownMessage());
     return;
   }
 
-  if (slaves.deactivated.contains(from)) {
-    // We disallow deactivated slaves from re-registering. This is
-    // to ensure that when a master deactivates a slave that was
-    // partitioned, we don't allow the slave to re-register, as we've
-    // already informed frameworks that the tasks were lost.
-    LOG(ERROR) << "Shutting down slave " << slaveId << " at " << from
-               << " that attempted to re-register after deactivation";
-    reply(ShutdownMessage());
-    return;
-  }
+  Slave* slave = getSlave(slaveInfo.id());
 
-  Slave* slave = getSlave(slaveId);
   if (slave != NULL) {
     slave->reregisteredTime = Clock::now();
 
@@ -1941,8 +2099,8 @@ void Master::reregisterSlave(
     // this will be handled by orthogonal security measures like key
     // based authentication).
     LOG(WARNING) << "Slave at " << from << " (" << slave->info.hostname()
-                       << ") is being allowed to re-register with an already"
-                       << " in use id (" << slaveId << ")";
+                 << ") is being allowed to re-register with an already"
+                 << " in use id (" << slave->id << ")";
 
     // TODO(bmahler): There's an implicit assumption here that when
     // the master already knows about this slave, the slave cannot
@@ -1977,22 +2135,87 @@ void Master::reregisterSlave(
     // slave.
     if (slave->disconnected) {
       slave->disconnected = false; // Reset the flag.
-      allocator->slaveReconnected(slaveId);
+      allocator->slaveReconnected(slave->id);
     }
-  } else {
-    // NOTE: This handles the case when the slave tries to
-    // re-register with a failed over master.
-    slave = new Slave(slaveInfo, slaveId, from, Clock::now());
-    slave->reregisteredTime = Clock::now();
 
-    LOG(INFO) << "Attempting to re-register slave " << slave->id << " at "
-        << slave->pid << " (" << slave->info.hostname() << ")";
+    // Inform the slave of the new framework pids for its tasks.
+    __reregisterSlave(slave, tasks);
 
-    readdSlave(slave, executorInfos, tasks, completedFrameworks);
+    return;
   }
 
+  // Ensure we don't remove the slave for not re-registering after
+  // we've recovered it from the registry.
+  if (slaves.recovered.contains(slaveInfo.id())) {
+    Timer::cancel(slaves.recovered[slaveInfo.id()]);
+    slaves.recovered.erase(slaveInfo.id());
+  }
+
+  // If we're already re-registering this slave, then no need to ask
+  // the registrar again.
+  if (slaves.reregistering.contains(slaveInfo.id())) {
+    LOG(INFO) << "Ignoring re-register slave message from slave "
+              << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
+              << "as readmission is already in progress";
+    return;
+  }
+
+  slaves.reregistering.insert(slaveInfo.id());
+
+  // This handles the case when the slave tries to re-register with
+  // a failed over master, in which case we must consult the
+  // registrar.
+  registrar->apply(Owned<Operation>(new ReadmitSlave(slaveInfo)))
+    .onAny(defer(self(),
+           &Self::_reregisterSlave,
+           slaveInfo,
+           from,
+           executorInfos,
+           tasks,
+           completedFrameworks,
+           lambda::_1));
+}
+
+
+void Master::_reregisterSlave(
+    const SlaveInfo& slaveInfo,
+    const UPID& pid,
+    const vector<ExecutorInfo>& executorInfos,
+    const vector<Task>& tasks,
+    const vector<Archive::Framework>& completedFrameworks,
+    const Future<bool>& readmit)
+{
+  slaves.reregistering.erase(slaveInfo.id());
+
+  CHECK(!readmit.isDiscarded());
+
+  if (readmit.isFailed()) {
+    LOG(FATAL) << "Failed to readmit slave " << slaveInfo.id() << " at " << pid
+               << " (" << slaveInfo.hostname() << "): " << readmit.failure();
+  } else if (!readmit.get()) {
+    LOG(WARNING) << "The slave " << slaveInfo.id() << " at "
+                 << pid << " (" << slaveInfo.hostname() << ") could not be"
+                 << " readmitted; shutting it down";
+    slaves.deactivated.put(slaveInfo.id(), Nothing());
+    send(pid, ShutdownMessage());
+  } else {
+    // Re-admission succeeded.
+    Slave* slave = new Slave(slaveInfo, slaveInfo.id(), pid, Clock::now());
+    slave->reregisteredTime = Clock::now();
+
+    LOG(INFO) << "Readmitted slave " << slave->id << " at "
+              << slave->pid << " (" << slave->info.hostname() << ")";
+
+    readdSlave(slave, executorInfos, tasks, completedFrameworks);
+
+    __reregisterSlave(slave, tasks);
+  }
+}
+
+
+void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
+{
   // Send the latest framework pids to the slave.
-  CHECK_NOTNULL(slave);
   hashset<UPID> pids;
   foreach (const Task& task, tasks) {
     Framework* framework = getFramework(task.framework_id());
@@ -2013,10 +2236,8 @@ void Master::unregisterSlave(const SlaveID& slaveId)
   LOG(INFO) << "Asked to unregister slave " << slaveId;
 
   // TODO(benh): Check that only the slave is asking to unregister?
-
-  Slave* slave = getSlave(slaveId);
-  if (slave != NULL) {
-    removeSlave(slave);
+  if (slaves.activated.contains(slaveId)) {
+    removeSlave(slaves.activated[slaveId]);
   }
 }
 
@@ -2028,32 +2249,28 @@ void Master::unregisterSlave(const SlaveID& slaveId)
 // the slave.
 void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 {
-  const TaskStatus& status = update.status();
-
-  Slave* slave = getSlave(update.slave_id());
-  if (slave == NULL) {
-    if (slaves.deactivated.contains(pid)) {
-      // If the slave is deactivated, we have already informed
-      // frameworks that its tasks were LOST, so the slave should
-      // shut down.
-      LOG(WARNING) << "Ignoring status update " << update
-                   << " from deactivated slave " << pid
-                   << " with id " << update.slave_id() << " ; asking slave "
-                   << " to shutdown";
-      send(pid, ShutdownMessage());
-    } else {
-      LOG(WARNING) << "Ignoring status update " << update
-                   << " from unknown slave " << pid
-                   << " with id " << update.slave_id();
-    }
+  if (slaves.deactivated.get(update.slave_id()).isSome()) {
+    // If the slave is deactivated, we have already informed
+    // frameworks that its tasks were LOST, so the slave should
+    // shut down.
+    LOG(WARNING) << "Ignoring status update " << update
+                 << " from deactivated slave " << pid
+                 << " with id " << update.slave_id() << " ; asking slave "
+                 << " to shutdown";
+    send(pid, ShutdownMessage());
     stats.invalidStatusUpdates++;
     return;
   }
 
-  CHECK(!slaves.deactivated.contains(pid))
-    << "Received status update " << update << " from " << pid
-    << " which is deactivated slave " << update.slave_id()
-    << "(" << slave->info.hostname() << ")";
+  if (!slaves.activated.contains(update.slave_id())) {
+    LOG(WARNING) << "Ignoring status update " << update
+                 << " from unknown slave " << pid
+                 << " with id " << update.slave_id();
+    stats.invalidStatusUpdates++;
+    return;
+  }
+
+  Slave* slave = CHECK_NOTNULL(slaves.activated[update.slave_id()]);
 
   // Forward the update to the framework.
   Try<Nothing> _forward = forward(update, pid);
@@ -2065,6 +2282,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
   }
 
   // Lookup the task and see if we need to update anything locally.
+  const TaskStatus& status = update.status();
   Task* task = slave->getTask(update.framework_id(), status.task_id());
   if (task == NULL) {
     LOG(WARNING) << "Status update " << update
@@ -2117,31 +2335,28 @@ void Master::exitedExecutor(
     const ExecutorID& executorId,
     int32_t status)
 {
-  // Only update master's internal data structures here for properly accounting.
-  // The TASK_LOST updates are handled by the slave.
-  Slave* slave = getSlave(slaveId);
-  if (slave == NULL) {
-    if (slaves.deactivated.contains(from)) {
-      // If the slave is deactivated, we have already informed
-      // frameworks that its tasks were LOST, so the slave should
-      // shut down.
-      LOG(WARNING) << "Ignoring exited executor '" << executorId
-                   << "' of framework " << frameworkId
-                   << " on deactivated slave " << slaveId
-                   << " ; asking slave to shutdown";
-      reply(ShutdownMessage());
-    } else {
-      LOG(WARNING) << "Ignoring exited executor '" << executorId
-                   << "' of framework " << frameworkId
-                   << " on unknown slave " << slaveId;
-    }
+  if (slaves.deactivated.get(slaveId).isSome()) {
+    // If the slave is deactivated, we have already informed
+    // frameworks that its tasks were LOST, so the slave should
+    // shut down.
+    LOG(WARNING) << "Ignoring exited executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " on deactivated slave " << slaveId
+                 << " ; asking slave to shutdown";
+    reply(ShutdownMessage());
     return;
   }
 
-  CHECK(!slaves.deactivated.contains(from))
-    << "Received exited message for executor " << executorId << " from " << from
-    << " which is the deactivated slave " << slaveId
-    << "(" << slave->info.hostname() << ")";
+  // Only update master's internal data structures here for proper
+  // accounting. The TASK_LOST updates are handled by the slave.
+  if (!slaves.activated.contains(slaveId)) {
+    LOG(WARNING) << "Ignoring exited executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " on unknown slave " << slaveId;
+    return;
+  }
+
+  Slave* slave = CHECK_NOTNULL(slaves.activated[slaveId]);
 
   // Tell the allocator about the recovered resources.
   if (slave->hasExecutor(frameworkId, executorId)) {
@@ -2211,7 +2426,7 @@ void Master::reconcileTasks(
     return;
   }
 
-  LOG(INFO) << "Performing task state reconciliation for framework "
+  LOG(INFO) << "Performing best-effort task state reconciliation for framework "
             << frameworkId;
 
   // Verify expected task states and send status updates whenever expectations
@@ -2244,6 +2459,10 @@ void Master::reconcileTasks(
 
         statusUpdate(update, UPID());
       }
+    } else {
+      // TODO(bmahler): We can answer here if and only if the slave is
+      // *completely* unknown to us. That is, it's not being tracked
+      // in any of our 'slaves' data.
     }
   }
 }
@@ -2875,7 +3094,7 @@ void Master::addSlave(Slave* slave, bool reregister)
             << " at " << slave->info.hostname()
             << " with " << slave->info.resources();
 
-  slaves.deactivated.erase(slave->pid);
+  slaves.deactivated.erase(slave->id);
   slaves.activated[slave->id] = slave;
 
   link(slave->pid);
@@ -2890,11 +3109,6 @@ void Master::addSlave(Slave* slave, bool reregister)
     send(slave->pid, message);
   }
 
-  // TODO(benh):
-  //     // Ask the slaves manager to monitor this slave for us.
-  //     dispatch(slavesManager->self(), &SlavesManager::monitor,
-  //              slave->pid, slave->info, slave->id);
-
   // Set up an observer for the slave.
   slave->observer = new SlaveObserver(slave->pid, slave->info,
                                       slave->id, self());
@@ -2908,7 +3122,8 @@ void Master::addSlave(Slave* slave, bool reregister)
 }
 
 
-void Master::readdSlave(Slave* slave,
+void Master::readdSlave(
+    Slave* slave,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks)
@@ -3016,7 +3231,6 @@ void Master::readdCompletedFramework(
 }
 
 
-// Lose all of a slave's tasks and delete the slave object.
 void Master::removeSlave(Slave* slave)
 {
   CHECK_NOTNULL(slave);
@@ -3028,20 +3242,12 @@ void Master::removeSlave(Slave* slave)
   // below (e.g., removeTask()) are ignored by the allocator.
   allocator->slaveRemoved(slave->id);
 
-  // Remove pointers to slave's tasks in frameworks, and send status
-  // updates.
-  // NOTE: keys() and values() are used because statusUpdate()
-  //       modifies slave->tasks.
+  // Transition the tasks to lost and remove them, BUT do not send
+  // updates. Rather, build up the updates so that we can send them
+  // after the slave is removed from the registry.
+  vector<StatusUpdate> updates;
   foreach (const FrameworkID& frameworkId, slave->tasks.keys()) {
     foreach (Task* task, slave->tasks[frameworkId].values()) {
-      // A framework might not actually exist because the master failed
-      // over and the framework hasn't reconnected. This can be a tricky
-      // situation for frameworks that want to have high-availability,
-      // because if they eventually do connect they won't ever get a
-      // status update about this task.  Perhaps in the future what we
-      // want to do is create a local Framework object to represent that
-      // framework until it fails over. See the TODO above in
-      // Master::reregisterSlave.
       const StatusUpdate& update = protobuf::createStatusUpdate(
           task->framework_id(),
           task->slave_id(),
@@ -3051,7 +3257,11 @@ void Master::removeSlave(Slave* slave)
           (task->has_executor_id() ?
               Option<ExecutorID>(task->executor_id()) : None()));
 
-      statusUpdate(update, UPID());
+      task->add_statuses()->CopyFrom(update.status());
+      task->set_state(update.status().state());
+      removeTask(task);
+
+      updates.push_back(update);
     }
   }
 
@@ -3082,31 +3292,67 @@ void Master::removeSlave(Slave* slave)
     }
   }
 
-  // Send lost-slave message to all frameworks (this helps them re-run
-  // previously finished tasks whose output was on the lost slave).
-  foreachvalue (Framework* framework, frameworks.activated) {
-    LostSlaveMessage message;
-    message.mutable_slave_id()->MergeFrom(slave->id);
-    send(framework->pid, message);
-  }
-
-  // TODO(benh):
-  //     // Tell the slaves manager to stop monitoring this slave for us.
-  //     dispatch(slavesManager->self(), &SlavesManager::forget,
-  //              slave->pid, slave->info, slave->id);
+  // Mark the slave as being removed.
+  slaves.removing.insert(slave->id);
+  slaves.activated.erase(slave->id);
+  slaves.deactivated.put(slave->id, Nothing());
 
   // Kill the slave observer.
   terminate(slave->observer);
   wait(slave->observer);
-
   delete slave->observer;
 
   // TODO(benh): unlink(slave->pid);
 
-  // Mark the slave as deactivated.
-  slaves.deactivated.insert(slave->pid);
-  slaves.activated.erase(slave->id);
+
+  // Remove this slave from the registrar. Once this is completed, we
+  // can forward the LOST task updates to the frameworks and notify
+  // all frameworks that this slave was lost.
+  registrar->apply(Owned<Operation>(new RemoveSlave(slave->info)))
+    .onAny(defer(self(),
+                 &Self::_removeSlave,
+                 slave->info,
+                 updates,
+                 lambda::_1));
+
   delete slave;
+}
+
+
+void Master::_removeSlave(
+    const SlaveInfo& slaveInfo,
+    const vector<StatusUpdate>& updates,
+    const Future<bool>& removed)
+{
+  slaves.removing.erase(slaveInfo.id());
+
+  CHECK(!removed.isDiscarded());
+
+  if (removed.isFailed()) {
+    LOG(FATAL) << "Failed to remove slave " << slaveInfo.id()
+               << " (" << slaveInfo.hostname() << ")"
+               << " from the registrar: " << removed.failure();
+  }
+
+  CHECK(removed.get())
+    << "Slave " << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
+    << "already removed from the registrar";
+
+  // Forward the LOST updates on to the framework.
+  foreach (const StatusUpdate& update, updates) {
+    Try<Nothing> _forward = forward(update, UPID());
+    if (_forward.isError()) {
+      LOG(WARNING) << "Unable to send update " << update << " on to framework "
+                   << update.framework_id() << ": " << _forward.error();
+    }
+  }
+
+  // Notify all frameworks of the lost slave.
+  foreachvalue (Framework* framework, frameworks.activated) {
+    LostSlaveMessage message;
+    message.mutable_slave_id()->MergeFrom(slaveInfo.id());
+    send(framework->pid, message);
+  }
 }
 
 

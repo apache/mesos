@@ -53,6 +53,9 @@ extern const Duration SLAVE_PING_TIMEOUT;
 // Maximum number of ping timeouts until slave is considered failed.
 extern const uint32_t MAX_SLAVE_PING_TIMEOUTS;
 
+// Maximum number of deactivated slaves to store in the cache.
+extern const size_t MAX_DEACTIVATED_SLAVES;
+
 // Maximum number of completed frameworks to store in the cache.
 // TODO(thomasm): Make configurable.
 extern const uint32_t MAX_COMPLETED_FRAMEWORKS;

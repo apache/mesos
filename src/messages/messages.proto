@@ -181,6 +181,8 @@ message RunTaskMessage {
 
 
 message KillTaskMessage {
+  // TODO(bmahler): Include the SlaveID here to improve the Master's
+  // ability to respond for non-activated slaves.
   required FrameworkID framework_id = 1;
   required TaskID task_id = 2;
 }
@@ -224,6 +226,8 @@ message RegisterSlaveMessage {
 
 
 message ReregisterSlaveMessage {
+  // TODO(bmahler): Deprecate and remove the explicit slave_id as
+  // SlaveInfo already includes this information.
   required SlaveID slave_id = 1;
   required SlaveInfo slave = 2;
   repeated ExecutorInfo executor_infos = 4;

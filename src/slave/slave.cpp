@@ -555,9 +555,8 @@ void Slave::doReliableRegistration()
   } else {
     // Re-registering, so send tasks running.
     ReregisterSlaveMessage message;
-    message.mutable_slave_id()->CopyFrom(info.id());
+    message.mutable_slave_id()->CopyFrom(info.id()); // TODO: deprecate this.
     message.mutable_slave()->CopyFrom(info);
-    message.mutable_slave()->mutable_id()->CopyFrom(info.id());
 
     foreachvalue (Framework* framework, frameworks) {
       foreachvalue (Executor* executor, framework->executors) {

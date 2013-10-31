@@ -33,7 +33,9 @@
 #include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
+#include <process/timer.hpp>
 
+#include <stout/cache.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -57,20 +59,20 @@
 namespace mesos {
 namespace internal {
 
+// Forward declarations.
+namespace registry {
+class Slaves;
+}
+
 namespace sasl {
-
-class Authenticator; // Forward declaration.
-
+class Authenticator;
 }
 
 namespace master {
 
-
 // Forward declarations.
 namespace allocator {
-
 class Allocator;
-
 }
 
 class Repairer;
@@ -199,7 +201,27 @@ protected:
   virtual void exited(const process::UPID& pid);
   virtual void visit(const process::MessageEvent& event);
 
-  void deactivate(Framework* framework);
+  // Recovers state from the registrar.
+  process::Future<Nothing> recover();
+  process::Future<Nothing> _recover(const Registry& registry);
+  void __recoverSlaveTimeout(const Registry::Slave& slave);
+
+  void _registerSlave(
+      const SlaveInfo& slaveInfo,
+      const process::UPID& pid,
+      const process::Future<bool>& admit);
+
+  void _reregisterSlave(
+      const SlaveInfo& slaveInfo,
+      const process::UPID& pid,
+      const std::vector<ExecutorInfo>& executorInfos,
+      const std::vector<Task>& tasks,
+      const std::vector<Archive::Framework>& completedFrameworks,
+      const process::Future<bool>& readmit);
+
+  void __reregisterSlave(
+      Slave* slave,
+      const std::vector<Task>& tasks);
 
   // 'promise' is used to signal finish of authentication.
   // 'future' is the future returned by the authenticator.
@@ -242,18 +264,25 @@ protected:
   // remove its offers and reallocate its resources.
   void removeFramework(Slave* slave, Framework* framework);
 
+  void deactivate(Framework* framework);
+
   // Add a slave.
   void addSlave(Slave* slave, bool reregister = false);
 
-  void readdSlave(Slave* slave,
+  void readdSlave(
+      Slave* slave,
       const std::vector<ExecutorInfo>& executorInfos,
       const std::vector<Task>& tasks,
       const std::vector<Archive::Framework>& completedFrameworks);
 
   void readdCompletedFramework(const Archive::Framework& completedFramework);
 
-  // Lose all of a slave's tasks and delete the slave object
+  // Remove the slave from the registrar and from the master's state.
   void removeSlave(Slave* slave);
+  void _removeSlave(
+      const SlaveInfo& slaveInfo,
+      const std::vector<StatusUpdate>& updates,
+      const process::Future<bool>& removed);
 
   // Launch a task from a task description, and returned the consumed
   // resources for the task and possibly it's executor.
@@ -351,15 +380,43 @@ private:
 
   MasterInfo info_;
 
-  // Ideally we could use SlaveIDs to track deactivated slaves.
-  // However, we would not know when to remove the SlaveID from this
-  // set. After deactivation, the same slave machine can register with
-  // the same. Using PIDs allows us to remove the deactivated
-  // slave PID once any slave registers with the same PID!
+  // Indicates when recovery is complete. Recovery begins once the
+  // master is elected as a leader.
+  Option<process::Future<Nothing> > recovered;
+
   struct Slaves
   {
+    Slaves() : deactivated(MAX_DEACTIVATED_SLAVES) {}
+
+    // Slaves that have been recovered from the registrar but have yet
+    // to re-register. We keep a Timer for the removal of these slaves
+    // so that we can cancel it to avoid unnecessary dispatches.
+    hashmap<SlaveID, process::Timer> recovered;
+
+    // Slaves that are in the process of registering.
+    hashset<process::UPID> registering;
+
+    // Only those slaves that are re-registering for the first time
+    // with this master. We must not answer questions related to
+    // these slaves until the registrar determines their fate.
+    hashset<SlaveID> reregistering;
+
     hashmap<SlaveID, Slave*> activated;
-    hashset<process::UPID> deactivated;
+
+    // Slaves that are in the process of being removed from the
+    // registrar. Think of these as being partially removed: we must
+    // not answer questions related to these until they are removed
+    // from the registry.
+    hashset<SlaveID> removing;
+
+    // We track deactivated slaves to preserve the consistency
+    // semantics of the pre-registrar code when a non-strict registrar
+    // is being used. That is, if we deactivate a slave, we must make
+    // an effort to prevent it from (re-)registering, sending updates,
+    // etc. We keep a cache here to prevent this from growing in an
+    // unbounded manner.
+    // TODO(bmahler): Ideally we could use a cache with set semantics.
+    Cache<SlaveID, Nothing> deactivated;
   } slaves;
 
   struct Frameworks
