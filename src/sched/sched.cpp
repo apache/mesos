@@ -109,12 +109,16 @@ public:
       // TODO(benh): Add Try().
       detector(Error("uninitialized")),
       credential(_credential),
+      authenticatee(NULL),
       authenticating(None()),
       authenticated(false),
       reauthenticate(false)
   {}
 
-  virtual ~SchedulerProcess() {}
+  virtual ~SchedulerProcess()
+  {
+    delete authenticatee;
+  }
 
 protected:
   virtual void initialize()
@@ -281,11 +285,25 @@ protected:
     LOG(INFO) << "Authenticating with master " << master;
 
     CHECK_SOME(credential);
-    Owned<sasl::Authenticatee> authenticatee =
-      new sasl::Authenticatee(credential.get(), self());
 
+    CHECK(authenticatee == NULL);
+    authenticatee = new sasl::Authenticatee(credential.get(), self());
+
+    // NOTE: We do not pass 'Owned<Authenticatee>' here because doing
+    // so could make 'AuthenticateeProcess' responsible for deleting
+    // 'Authenticatee' causing a deadlock because the destructor of
+    // 'Authenticatee' waits on 'AuthenticateeProcess'.
+    // This will happen in the following scenario:
+    // --> 'AuthenticateeProcess' does a 'Future.set()'.
+    // --> '_authenticate()' is dispatched to this process.
+    // --> This process executes '_authenticatee()'.
+    // --> 'AuthenticateeProcess' removes the onAny callback
+    //     from its queue which holds the last reference to
+    //     'Authenticatee'.
+    // --> '~Authenticatee()' is invoked by 'AuthenticateeProcess'.
+    // TODO(vinod): Consider using 'Shared' to 'Owned' upgrade.
     authenticating = authenticatee->authenticate(master)
-      .onAny(defer(self(), &Self::_authenticate, authenticatee));
+      .onAny(defer(self(), &Self::_authenticate));
 
     delay(Seconds(5),
           self(),
@@ -293,12 +311,15 @@ protected:
           authenticating.get());
   }
 
-  void _authenticate(const Owned<sasl::Authenticatee>& authenticatee)
+  void _authenticate()
   {
     if (aborted) {
       VLOG(1) << "Ignoring _authenticate because the driver is aborted!";
       return;
     }
+
+    delete CHECK_NOTNULL(authenticatee);
+    authenticatee = NULL;
 
     CHECK_SOME(authenticating);
     const Future<bool>& future = authenticating.get();
@@ -895,6 +916,8 @@ private:
   hashmap<SlaveID, UPID> savedSlavePids;
 
   const Option<Credential> credential;
+
+  sasl::Authenticatee* authenticatee;
 
   // Indicates if an authentication attempt is in progress.
   Option<Future<bool> > authenticating;
