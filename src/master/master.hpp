@@ -254,6 +254,9 @@ protected:
   // Remove a task.
   void removeTask(Task* task);
 
+  // Forwards the update to the framework.
+  Try<Nothing> forward(const StatusUpdate& update, const UPID& pid);
+
   // Remove an offer and optionally rescind the offer as well.
   void removeOffer(Offer* offer, bool rescind = false);
 
@@ -387,7 +390,6 @@ struct Slave
       info(_info),
       pid(_pid),
       registeredTime(time),
-      lastHeartbeat(time),
       disconnected(false),
       observer(NULL) {}
 
@@ -493,7 +495,6 @@ struct Slave
 
   Time registeredTime;
   Option<Time> reregisteredTime;
-  Time lastHeartbeat;
 
   // We mark a slave 'disconnected' when it has checkpointing
   // enabled because we expect it reregister after recovery.
@@ -623,8 +624,8 @@ struct Framework
     }
   }
 
-
   const FrameworkID id; // TODO(benh): Store this in 'info'.
+
   const FrameworkInfo info;
 
   UPID pid;
