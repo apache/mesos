@@ -73,7 +73,7 @@ endif
 # a configure.ac for leveldb.
 $(LEVELDB)/libleveldb.a: $(LEVELDB)-stamp
 	cd $(LEVELDB) && \
-          $(MAKE) $(AM_MAKEFLAGS) CC="$(CXX)" OPT="$(CXXFLAGS) -fPIC"
+          $(MAKE) $(AM_MAKEFLAGS) CC="$(CC)" CXX="$(CXX)" OPT="$(CXXFLAGS) -fPIC"
 
 $(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
 	cd $(ZOOKEEPER)/src/c && ./configure $(CONFIGURE_ARGS) && \
