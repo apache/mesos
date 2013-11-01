@@ -230,36 +230,17 @@ private:
     // Need to JSONify the markdown for embedding into JavaScript.
     markdown = stringify(JSON::String(markdown));
 
-    // URL for jQuery.
-    const std::string jquery =
-      "https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js";
-
-    // Assuming client has Internet access, provide some JavaScript to
-    // render the Markdown into some aesthetically pleasing HTML. ;)
-    // This currently uses GitHub to render the Markdown instead of
-    // doing it client-side in the browser (e.g., using something like
-    // 'showdown.js').
+    // Provide some JavaScript to render the Markdown into some aesthetically
+    // pleasing HTML. ;)
     return http::OK(
         "<html>"
         "<head>"
         "<title>Help</title>"
-        "<script src=\"" + jquery + "\"></script>"
+        "<script src=\"/static/js/marked.min.js\"></script>"
         "<script>"
         "  function loaded() {"
-        "    var markdown = " + markdown + ";"
-        "    if (typeof $ === 'undefined') {"
-        "      document.body.innerHTML = '<pre>' + markdown + '</pre>';"
-        "    } else {"
-        "      var data = { text: markdown, mode: 'gfm' };"
-        "      $.ajax({"
-        "        type: 'POST',"
-        "        url: 'https://api.github.com/markdown',"
-        "        data: JSON.stringify(data),"
-        "        success: function(data) {"
-        "          document.body.innerHTML = data;"
-        "        }"
-        "      });"
-        "    }"
+        "    marked.setOptions({ breaks: true });"
+        "    document.body.innerHTML = marked(" + markdown + ");"
         "  }"
         "</script>"
         "<style>"

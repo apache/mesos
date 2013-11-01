@@ -387,6 +387,7 @@ dist_bin_SCRIPTS +=							\
 # 'localstatedir' (e.g., /usr/local/var) is for modifiable "data".
 nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/controllers.js					\
+  webui/master/static/js/marked.min.js					\
   webui/master/static/js/app.js						\
   webui/master/static/js/jquery.pailer.js
 
