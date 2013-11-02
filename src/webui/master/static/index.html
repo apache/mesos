@@ -29,7 +29,7 @@
               <span class="icon-bar"></span>
               <span class="icon-bar"></span>
             </a>
-            <a class="brand" href="#">Mesos</a>
+            <a class="brand" href="#/">Mesos</a>
             <div class="nav-collapse" data-collapse="!navbarExpanded">
               <ul class="nav">
                 <li data-tabname="frameworks"><a href="#/frameworks">Frameworks</a></li>
@@ -53,6 +53,18 @@
           <button class="close" data-dismiss="alert">×</button>
           <strong>This master is <u>not the leader</u>, redirecting in {{redirect / 1000}} seconds ...</strong>
           <a href="/master/redirect">go now</a>
+        </div>
+
+        <div data-ng-repeat="alert in currentAlerts" class="alert alert-{{ alert.type }}">
+          <p data-ng-show="alert.title">
+            <strong>{{ alert.title }}</strong>
+          </p>
+          {{ alert.message }}
+          <ul data-ng-show="alert.bullets" style="margin-bottom: 0;">
+            <li data-ng-repeat="bullet in alert.bullets">
+              {{ bullet }}
+            </li>
+          </ul>
         </div>
 
         <div ng-view></div>
@@ -82,6 +94,7 @@
     <script src="/static/js/relative-date.js"></script>
 
     <script src="/static/js/app.js"></script>
+    <script src="/static/js/services.js"></script>
     <script src="/static/js/controllers.js"></script>
   </body>
 </html>

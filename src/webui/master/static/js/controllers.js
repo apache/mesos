@@ -729,11 +729,13 @@
   // TODO(ssorallen): Add `executor.directory` to the state.json output so this
   // controller of rerouting is no longer necessary.
   mesosApp.controller('SlaveExecutorRerouterCtrl',
-      function($http, $location, $routeParams, $scope, $window) {
+      function($alert, $http, $location, $routeParams, $scope, $window) {
 
-    // TODO(ssorallen): Add error messaging on the following pageview should
-    // an error cause this function to be called.
-    function goBack() {
+    function goBack(flashMessageOrOptions) {
+      if (flashMessageOrOptions) {
+        $alert.danger(flashMessageOrOptions);
+      }
+
       if ($window.history.length > 1) {
         // If the browser has something in its history, just go back.
         $window.history.back();
@@ -747,17 +749,26 @@
     // When navigating directly to this page, e.g. pasting the URL into the
     // browser, the previous page is not a page in Mesos. In that case, navigate
     // home.
-    if (!$scope.slaves) { return $location.path('/').replace(); }
+    if (!$scope.slaves) {
+      $alert.danger({
+        message: "Navigate to the slave's sandbox via the Mesos UI.",
+        title: "Failed to find slaves."
+      });
+      return $location.path('/').replace();
+    }
 
     var slave = $scope.slaves[$routeParams.slave_id];
 
     // If the slave doesn't exist, send the user back.
-    if (!slave) { return goBack(); }
+    if (!slave) {
+      return goBack("Slave with ID '" + $routeParams.slave_id + "' does not exist.");
+    }
 
     var pid = slave.pid;
     var hostname = $scope.slaves[$routeParams.slave_id].hostname;
     var id = pid.substring(0, pid.indexOf('@'));
-    var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
+    var port = pid.substring(pid.lastIndexOf(':') + 1);
+    var host = hostname + ":" + port;
 
     // Request slave details to get access to the route executor's "directory"
     // to navigate directly to the executor's sandbox.
@@ -773,7 +784,11 @@
           _.find(response.completed_frameworks, matchFramework);
 
         if (!framework) {
-          return goBack();
+          return goBack(
+            "Framework with ID '" + $routeParams.framework_id +
+              "' does not exist on slave with ID '" + $routeParams.slave_id +
+              "'."
+          );
         }
 
         function matchExecutor(executor) {
@@ -785,7 +800,11 @@
           _.find(framework.completed_executors, matchExecutor);
 
         if (!executor) {
-          return goBack();
+          return goBack(
+            "Executor with ID '" + $routeParams.executor_id +
+              "' does not exist on slave with ID '" + $routeParams.slave_id +
+              "'."
+          );
         }
 
         // Navigate to a path like '/slaves/:id/browse?path=%2Ftmp%2F', the
@@ -795,6 +814,17 @@
           .replace();
       })
       .error(function(response) {
+        $alert.danger({
+          bullets: [
+            "The slave's hostname, '" + hostname + "', is not accessible from your network",
+            "The slave's port, '" + port + "', is not accessible from your network",
+            "The slave timed out or went offline"
+          ],
+          message: "Potential reasons:",
+          title: "Failed to connect to slave '" + $routeParams.slave_id +
+            "' on '" + host + "'."
+        });
+
         // Is the slave dead? Navigate home since returning to the slave might
         // end up in an endless loop.
         $location.path('/').replace();

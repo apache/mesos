@@ -1,7 +1,7 @@
 (function() {
   'use strict';
 
-  angular.module('mesos', ['ui.bootstrap']).
+  angular.module('mesos', ['mesos.services', 'ui.bootstrap']).
     config(['$dialogProvider', '$routeProvider', function($dialogProvider, $routeProvider) {
       $routeProvider
         .when('/',
