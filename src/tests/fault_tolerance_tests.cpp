@@ -1347,9 +1347,15 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 
   EXPECT_CALL(sched1, error(&driver1, "Framework failed over"));
 
+  Future<UpdateFrameworkMessage> updateFrameworkMessage =
+    FUTURE_PROTOBUF(UpdateFrameworkMessage(), _, _);
+
   driver2.start();
 
   AWAIT_READY(registered);
+
+  // Wait for the slave to get the updated framework pid.
+  AWAIT_READY(updateFrameworkMessage);
 
   execDriver->sendFrameworkMessage("Executor to Framework message");
 
