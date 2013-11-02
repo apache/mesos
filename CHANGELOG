@@ -20,6 +20,7 @@ Release Notes - Mesos - Version 0.15.0
     * [MESOS-477] - Improve stout duration tests and Stringify(Days(value))
     * [MESOS-512] - GroupTest.MultipleGroups is flaky.
     * [MESOS-577] - bootstrap fails with automake 1.14
+    * [MESOS-650] - SlaveExecutorRerouterCtrl does not handle missing slave.
     * [MESOS-655] - FaultToleranceTest.MasterFailover not simulating a realistic Master shutdown
     * [MESOS-661] - WebUI pailer does not preserve newlines when data is copied from firefox.
     * [MESOS-664] - Type resolution issue on 32 bit systems
@@ -34,7 +35,12 @@ Release Notes - Mesos - Version 0.15.0
     * [MESOS-746] - master error when start with --weights  input parameters
     * [MESOS-747] - FaultToleranceTest.ReregisterFrameworkExitedExecutor test fails
     * [MESOS-762] - Revert the use of the soft limit and memory threshold notifications.
+    * [MESOS-771] - StatusUpdateManagerTest.DuplicateTerminalUpdateBeforeAck is flaky
+    * [MESOS-773] - StatusUpdateManagerTest.DuplicateTerminalUpdateBeforeAck is flaky
+    * [MESOS-774] - FaultToleranceTest.MasterFailover test is flaky
     * [MESOS-777] - GarbageCollectorIntegrationTest.ExitedFramework test is flaky
+    * [MESOS-787] - Authenticatee process deadlocks
+    * [MESOS-792] - FaultToleranceTest.SchedulerFailoverFrameworkMessage is flaky
 
 ** Documentation
     * [MESOS-518] - Improve README with Markdown
