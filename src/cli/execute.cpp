@@ -30,6 +30,9 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 
+#include <common/type_utils.hpp>
+#include <common/protobuf_utils.hpp>
+
 #include "hdfs/hdfs.hpp"
 
 using namespace mesos;
@@ -124,13 +127,17 @@ public:
   virtual ~CommandScheduler() {}
 
   virtual void registered(
-      SchedulerDriver*,
-      const FrameworkID&,
-      const MasterInfo&) {}
+      SchedulerDriver* _driver,
+      const FrameworkID& _frameworkId,
+      const MasterInfo& _masterInfo) {
+    cout << "Framework registered with " << _frameworkId << endl;
+  }
 
   virtual void reregistered(
-      SchedulerDriver*,
-      const MasterInfo& masterInfo) {}
+      SchedulerDriver* _driver,
+      const MasterInfo& _masterInfo) {
+    cout << "Framework re-registered" << endl;
+  }
 
   virtual void disconnected(
       SchedulerDriver* driver) {}
@@ -148,30 +155,30 @@ public:
       return;
     }
 
-    if (launched) {
-      foreach (const Offer& offer, offers) {
+    foreach (const Offer& offer, offers) {
+      if (!launched && TASK_RESOURCES.get() <= offer.resources()) {
+        TaskInfo task;
+        task.set_name(name);
+        task.mutable_task_id()->set_value(name);
+        task.mutable_slave_id()->MergeFrom(offer.slave_id());
+        task.mutable_resources()->CopyFrom(TASK_RESOURCES.get());
+        task.mutable_command()->set_value(command);
+        if (uri.isSome()) {
+          task.mutable_command()->add_uris()->set_value(uri.get());
+        }
+
+        vector<TaskInfo> tasks;
+        tasks.push_back(task);
+
+        driver->launchTasks(offer.id(), tasks);
+        cout << "task " << name << " submitted to slave "
+             << offer.slave_id() << endl;
+
+        launched = true;
+      } else {
         driver->declineOffer(offer.id());
       }
     }
-
-    const Offer& offer = offers.front();
-
-    // TODO(benh): Make sure offer has enough resources.
-
-    TaskInfo task;
-    task.set_name(name);
-    task.mutable_task_id()->set_value(name);
-    task.mutable_slave_id()->MergeFrom(offer.slave_id());
-    task.mutable_resources()->CopyFrom(TASK_RESOURCES.get());
-    task.mutable_command()->set_value(command);
-    if (uri.isSome()) task.mutable_command()->add_uris()->set_value(uri.get());
-
-    vector<TaskInfo> tasks;
-    tasks.push_back(task);
-
-    driver->launchTasks(offer.id(), tasks);
-
-    launched = true;
   }
 
   virtual void offerRescinded(
@@ -183,7 +190,9 @@ public:
       const TaskStatus& status)
   {
     CHECK_EQ(name, status.task_id().value());
-    if (status.state() == TASK_FINISHED || status.state() == TASK_FAILED) {
+    cout << "Received status update " << status.state()
+         << " for task " << status.task_id() << endl;
+    if (protobuf::isTerminalState(status.state())) {
       driver->stop();
     }
   }
