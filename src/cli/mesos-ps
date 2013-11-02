@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.6
+#!/usr/bin/env python
 
 import datetime
 import json
@@ -9,6 +9,10 @@ import time
 import urllib
 
 from optparse import OptionParser
+
+if sys.version_info < (2,6,0):
+  sys.stderr.write("You need python 2.6 or later to run\n")
+  sys.exit(1)
 
 USER_COLUMN_WIDTH = 4
 FRAMEWORK_COLUMN_WIDTH = 4
