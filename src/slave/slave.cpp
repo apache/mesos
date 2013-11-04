@@ -234,6 +234,13 @@ void Slave::initialize()
   info.mutable_attributes()->MergeFrom(attributes);
   info.set_checkpoint(flags.checkpoint);
 
+  // The required 'webui_hostname' field has been deprecated and
+  // changed to optional for now, but we still need to set it for
+  // interoperating with code that expects it to be required (e.g., an
+  // executor on an older release).
+  // TODO(benh): Remove this after the deprecation cycle.
+  info.set_webui_hostname(hostname);
+
   // Spawn and initialize the isolator.
   // TODO(benh): Seems like the isolator should really be
   // spawned before being passed to the slave.
