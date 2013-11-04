@@ -240,7 +240,7 @@ private:
     ~Data();
 
     int lock;
-    Latch latch;
+    Latch* latch;
     State state;
     T* t;
     std::string* message; // Message associated with failure.
@@ -492,6 +492,7 @@ Future<T> Future<T>::failed(const std::string& message)
 template <typename T>
 Future<T>::Data::Data()
   : lock(0),
+    latch(NULL),
     state(PENDING),
     t(NULL),
     message(NULL) {}
@@ -500,6 +501,7 @@ Future<T>::Data::Data()
 template <typename T>
 Future<T>::Data::~Data()
 {
+  delete latch;
   delete t;
   delete message;
 }
@@ -568,7 +570,9 @@ bool Future<T>::discard()
   {
     if (data->state == PENDING) {
       data->state = DISCARDED;
-      data->latch.trigger();
+      if (data->latch != NULL) {
+        data->latch->trigger();
+      }
       result = true;
     }
   }
@@ -626,11 +630,24 @@ bool Future<T>::isFailed() const
 template <typename T>
 bool Future<T>::await(const Duration& duration) const
 {
-  if (!isReady() && !isDiscarded() && !isFailed()) {
-    return data->latch.await(duration);
-  } else {
-    return true;
+  bool await = false;
+
+  internal::acquire(&data->lock);
+  {
+    if (data->state == PENDING) {
+      if (data->latch == NULL) {
+        data->latch = new Latch();
+      }
+      await = true;
+    }
   }
+  internal::release(&data->lock);
+
+  if (await) {
+    return data->latch->await(duration);
+  }
+
+  return true;
 }
 
 
@@ -898,7 +915,9 @@ bool Future<T>::set(const T& _t)
     if (data->state == PENDING) {
       data->t = new T(_t);
       data->state = READY;
-      data->latch.trigger();
+      if (data->latch != NULL) {
+        data->latch->trigger();
+      }
       result = true;
     }
   }
@@ -935,7 +954,9 @@ bool Future<T>::fail(const std::string& _message)
     if (data->state == PENDING) {
       data->message = new std::string(_message);
       data->state = FAILED;
-      data->latch.trigger();
+      if (data->latch != NULL) {
+        data->latch->trigger();
+      }
       result = true;
     }
   }
