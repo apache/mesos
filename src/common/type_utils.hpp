@@ -281,6 +281,8 @@ inline bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
 
 inline bool operator == (const SlaveInfo& left, const SlaveInfo& right)
 {
+  // NOTE: We don't compare 'webui_hostname' and 'webui_port' since
+  // they're deprecated and do not carry any semantic meaning.
   return left.hostname() == right.hostname() &&
     Resources(left.resources()) == Resources(right.resources()) &&
     internal::Attributes(left.attributes()) ==
