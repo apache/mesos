@@ -1203,9 +1203,12 @@ void CgroupsIsolator::oom(
     return;
   }
 
-  // If killed is set, the OOM notifier will be discarded in oomWaited.
-  // Therefore, we should not be able to reach this point.
-  CHECK(!info->killed) << "OOM detected for an already killed executor";
+  // It's possible for an executor to OOM right as it was being
+  // killed, ignore this case.
+  if (info->killed) {
+    LOG(INFO) << "OOM detected for an already killed executor";
+    return;
+  }
 
   LOG(INFO) << "OOM detected for executor " << executorId
             << " of framework " << frameworkId
