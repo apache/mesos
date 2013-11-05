@@ -116,10 +116,7 @@
     $scope.state = $.parseJSON(data);
 
     // Determine if there is a leader (and redirect if not the leader).
-    if (!$scope.state.leader) {
-      $("#no-leader-alert").show();
-    } else {
-      $("#no-leader-alert").hide();
+    if ($scope.state.leader) {
 
       // Redirect if we aren't the leader.
       if ($scope.state.leader != $scope.state.pid) {
