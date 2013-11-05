@@ -195,7 +195,7 @@ AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
 
 # Check the version of gcc and add any flags as appropriate.
-GCC_VERSION="`gcc -dumpversion`"
+GCC_VERSION="`${CC} -dumpversion`"
 test $? = 0 || AC_MSG_ERROR([failed to determine version of gcc])
 case  "${GCC_VERSION}" in
   4.4*)
