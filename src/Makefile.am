@@ -379,6 +379,15 @@ mesos_resolve_LDADD = libmesos.la
 dist_bin_SCRIPTS +=							\
   cli/mesos-ps
 
+# Also install the supporting scripts for the Python based CLI tools.
+# TODO(benh): Use PIP and python/setup.py to do this correctly.
+mesospythonpkglibexecdir = $(pkglibexecdir)/python/mesos
+
+dist_mesospythonpkglibexec_SCRIPTS =					\
+  cli/python/mesos/__init__.py						\
+  cli/python/mesos/cli.py						\
+  cli/python/mesos/futures.py
+
 # Need to distribute/install webui javascript. We use 'pkgdatadir'
 # instead of 'datadir' as the install directory so we get the the
 # package name (i.e., 'mesos') as part of the path (i.e.,

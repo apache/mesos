@@ -68,6 +68,12 @@ int main(int argc, char** argv)
     exit(1);
   }
 
+  // Update PYTHONPATH to include path to installed 'mesos' module.
+  // TODO(benh): Remove this if/when we install the 'mesos' module via
+  // PIP and setuptools.
+  string path = path::join(PKGLIBEXECDIR, "python");
+  os::setenv("PYTHONPATH", os::getenv("PYTHONPATH", false) + ":" + path);
+
   // Now dispatch to any mesos-'command' on PATH.
   if (string(argv[1]) == "help") {
     if (argc == 2) {

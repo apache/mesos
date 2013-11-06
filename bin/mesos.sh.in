@@ -27,4 +27,11 @@ PATH=@abs_top_builddir@/src:${PATH}
 
 export PATH
 
+# Add 'src/cli/python' to PYTHONPATH.
+# TODO(benh): Remove this if/when we install the 'mesos' module via
+# PIP and setuptools.
+PYTHONPATH=@abs_top_srcdir@/src/cli/python:${PYTHONPATH}
+
+export PYTHONPATH
+
 exec @abs_top_builddir@/src/mesos "${@}"
