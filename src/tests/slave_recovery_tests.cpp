@@ -2003,6 +2003,16 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   Clock::resume();
 
+  EXPECT_CALL(allocator, frameworkDeactivated(_))
+    .WillRepeatedly(Return());
+  EXPECT_CALL(allocator, frameworkRemoved(_))
+    .WillRepeatedly(Return());
+
+  // If there was an outstanding offer, we can get a call to
+  // resourcesRecovered when we stop the scheduler.
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _))
+    .WillRepeatedly(Return());
+
   driver.stop();
   driver.join();
 
