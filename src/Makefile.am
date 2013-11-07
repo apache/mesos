@@ -388,7 +388,8 @@ mesospythonpkglibexecdir = $(pkglibexecdir)/python/mesos
 dist_mesospythonpkglibexec_SCRIPTS =					\
   cli/python/mesos/__init__.py						\
   cli/python/mesos/cli.py						\
-  cli/python/mesos/futures.py
+  cli/python/mesos/futures.py						\
+  cli/python/mesos/http.py
 
 # Need to distribute/install webui javascript. We use 'pkgdatadir'
 # instead of 'datadir' as the install directory so we get the the

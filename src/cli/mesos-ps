@@ -4,11 +4,12 @@ import datetime
 import json
 import signal
 import sys
-import urllib2
 
 from contextlib import closing
 from optparse import OptionParser
+from urllib2 import urlopen
 
+from mesos import http
 from mesos.cli import *
 from mesos.futures import *
 
@@ -62,7 +63,7 @@ def mem(task, statistics):
 
     # An executorless task has an empty executor ID in the master but
     # uses the same executor ID as task ID in the slave.
-    if executor_id == "": executor_id = task['id']
+    if executor_id == '': executor_id = task['id']
 
     mem_rss_bytes = None
     for entry in statistics:
@@ -73,7 +74,7 @@ def mem(task, statistics):
 
     if mem_rss_bytes is not None:
         MB = 1024.0 * 1024.0
-        return "{0:.1f} MB".format(mem_rss_bytes / MB)
+        return '{0:.1f} MB'.format(mem_rss_bytes / MB)
 
     return None
 
@@ -88,7 +89,7 @@ def time(task, statistics):
 
     # An executorless task has an empty executor ID in the master but
     # uses the same executor ID as task ID in the slave.
-    if executor_id == "": executor_id = task['id']
+    if executor_id == '': executor_id = task['id']
 
     cpus_time_secs = None
     for entry in statistics:
@@ -115,9 +116,7 @@ def main():
     (options, args) = parser.parse_args(sys.argv)
 
     if options.master is None:
-        sys.stderr.write('Missing --master\n')
-        parser.print_help()
-        sys.exit(-1)
+        usage('Missing --master', parser)
 
     try:
         timeout = float(options.timeout)
@@ -126,13 +125,11 @@ def main():
         sys.exit(-1)
 
     # Get the master's state.
-    url = 'http://' + resolve(options.master) + '/master/state.json'
-    with closing(urllib2.urlopen(url)) as file:
-        try:
-            state = json.loads(file.read())
-        except:
-            sys.stderr.write('Failed to read the master state\n')
-            sys.exit(1)
+    try:
+        state = http.get(resolve(options.master), '/master/state.json')
+    except:
+        sys.stderr.write('Failed to get the master state\n')
+        sys.exit(1)
 
     # Collect all the active frameworks and tasks by slave ID.
     active = {}
@@ -157,19 +154,13 @@ def main():
         sys.stdout.write(columns[i].title)
         sys.stdout.write(' ' * columns[i].padding)
 
-    # Helper to get the statistics from the slave.
-    def get(slave):
-        pid = slave['pid']
-        url = 'http://' + pid[len('slave(1)@'):] + '/monitor/statistics.json'
-        with closing(urllib2.urlopen(url)) as file:
-            return json.loads(file.read())
-
     with ThreadingExecutor() as executor:
         # Grab all the slaves with active tasks.
         slaves = [slave for slave in state['slaves'] if slave['id'] in active]
 
         # Now submit calls to get the statistics for each slave.
-        futures = dict((executor.submit(get, slave), slave)
+        path = '/monitor/statistics.json'
+        futures = dict((executor.submit(http.get, slave['pid'], path), slave)
                        for slave in slaves)
 
         # And wait for each future to complete!
@@ -198,7 +189,7 @@ def main():
     sys.exit(0)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   def handler(signal, frame):
     sys.stdout.write('\n')
     sys.exit(130)
