@@ -50,9 +50,12 @@ Result<SlaveState> recover(const string& rootDir, bool strict)
   }
 
   // Get the latest slave id.
-  Try<string> directory = os::realpath(latest);
-  if (directory.isError()) {
-    return Error("Failed to find latest slave: " + directory.error());
+  Result<string> directory = os::realpath(latest);
+  if (!directory.isSome()) {
+    return Error("Failed to find latest slave: " +
+                 (directory.isError()
+                  ? directory.error()
+                  : "No such file or directory"));
   }
 
   SlaveID slaveId;
@@ -309,11 +312,14 @@ Try<ExecutorState> ExecutorState::recover(
   // Recover the runs.
   foreach (const string& path, runs.get()) {
     if (os::basename(path).get() == paths::LATEST_SYMLINK) {
-      const Try<string>& latest = os::realpath(path);
-      if (latest.isError()) {
+      const Result<string>& latest = os::realpath(path);
+      if (!latest.isSome()) {
         return Error(
-            "Failed to find latest run of executor '" + executorId.value() +
-            "': " + latest.error());
+            "Failed to find latest run of executor '" +
+            executorId.value() + "': " +
+            (latest.isError()
+             ? latest.error()
+             : "No such file or directory"));
       }
 
       // Store the UUID of the latest executor run.

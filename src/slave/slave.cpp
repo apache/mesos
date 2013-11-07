@@ -1998,14 +1998,18 @@ ExecutorInfo Slave::getExecutorInfo(
     // echo the error and exit).
     executor.mutable_command()->MergeFrom(task.command());
 
-    Try<string> path = os::realpath(
+    Result<string> path = os::realpath(
         path::join(flags.launcher_dir, "mesos-executor"));
 
     if (path.isSome()) {
       executor.mutable_command()->set_value(path.get());
     } else {
       executor.mutable_command()->set_value(
-          "echo '" + path.error() + "'; exit 1");
+          "echo '" +
+          (path.isError()
+           ? path.error()
+           : "No such file or directory") +
+          "'; exit 1");
     }
 
     // TODO(benh): Set some resources for the executor so that a task

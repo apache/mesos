@@ -57,7 +57,7 @@ int main(int argc, char** argv)
   // the path).
   Try<string> dirname = os::dirname(argv[0]);
   if (dirname.isSome()) {
-    Try<string> realpath = os::realpath(dirname.get());
+    Result<string> realpath = os::realpath(dirname.get());
     if (realpath.isSome()) {
       os::setenv("PATH", realpath.get() + ":" + os::getenv("PATH"));
     }

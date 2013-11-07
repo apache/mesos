@@ -47,7 +47,7 @@ public:
     // preprocessor definitions (at the time this comment was written
     // these were set via '-DSOURCE_DIR=...' and '-DBUILD_DIR=...' in
     // src/Makefile.am).
-    Try<std::string> path = os::realpath(SOURCE_DIR);
+    Result<std::string> path = os::realpath(SOURCE_DIR);
     CHECK_SOME(path);
     add(&Flags::source_dir,
         "source_dir",

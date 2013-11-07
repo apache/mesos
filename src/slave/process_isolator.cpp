@@ -211,14 +211,17 @@ void ProcessIsolator::launchExecutor(
     const char** args = (const char**) new char*[2];
 
     // Determine path for mesos-launcher.
-    Try<string> realpath = os::realpath(
+    Result<string> realpath = os::realpath(
         path::join(flags.launcher_dir, "mesos-launcher"));
 
-    if (realpath.isError()) {
+    if (!realpath.isSome()) {
       EXIT(1) << "Failed to determine the canonical path "
               << "for the mesos-launcher '"
               << path::join(flags.launcher_dir, "mesos-launcher")
-              << "': " << realpath.error();
+              << "': "
+              << (realpath.isError()
+                  ? realpath.error()
+                  : "No such file or directory");
     }
 
     // Grab a copy of the path so that we can reliably use 'c_str()'.

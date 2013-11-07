@@ -458,11 +458,13 @@ Try<set<string> > hierarchies()
   set<string> results;
   foreach (const fs::MountTable::Entry& entry, table.get().entries) {
     if (entry.type == "cgroup") {
-      Try<string> realpath = os::realpath(entry.dir);
-      if (realpath.isError()) {
+      Result<string> realpath = os::realpath(entry.dir);
+      if (!realpath.isSome()) {
         return Error(
-            "Failed to determine canonical path of " + entry.dir +
-            ": " + realpath.error());
+            "Failed to determine canonical path of " + entry.dir + ": " +
+            (realpath.isError()
+             ? realpath.error()
+             : "No such file or directory"));
       }
       results.insert(realpath.get());
     }
@@ -573,11 +575,13 @@ Try<set<string> > subsystems()
 Try<set<string> > subsystems(const string& hierarchy)
 {
   // We compare the canonicalized absolute paths.
-  Try<string> hierarchyAbsPath = os::realpath(hierarchy);
-  if (hierarchyAbsPath.isError()) {
+  Result<string> hierarchyAbsPath = os::realpath(hierarchy);
+  if (!hierarchyAbsPath.isSome()) {
     return Error(
-        "Failed to determine canonical path of '" + hierarchy +
-        "': " + hierarchyAbsPath.error());
+        "Failed to determine canonical path of '" + hierarchy + "': " +
+        (hierarchyAbsPath.isError()
+         ? hierarchyAbsPath.error()
+         : "No such file or directory"));
   }
 
   // Read currently mounted file systems from /proc/mounts.
@@ -590,11 +594,13 @@ Try<set<string> > subsystems(const string& hierarchy)
   Option<fs::MountTable::Entry> hierarchyEntry;
   foreach (const fs::MountTable::Entry& entry, table.get().entries) {
     if (entry.type == "cgroup") {
-      Try<string> dirAbsPath = os::realpath(entry.dir);
-      if (dirAbsPath.isError()) {
+      Result<string> dirAbsPath = os::realpath(entry.dir);
+      if (!dirAbsPath.isSome()) {
         return Error(
-            "Failed to determine canonical path of '" + entry.dir +
-            "': " + dirAbsPath.error());
+            "Failed to determine canonical path of '" + entry.dir + "': " +
+            (dirAbsPath.isError()
+             ? dirAbsPath.error()
+             : "No such file or directory"));
       }
 
       // Seems that a directory can be mounted more than once. Previous mounts
@@ -676,11 +682,13 @@ Try<bool> mounted(const string& hierarchy, const string& subsystems)
   }
 
   // We compare canonicalized absolute paths.
-  Try<string> realpath = os::realpath(hierarchy);
-  if (realpath.isError()) {
+  Result<string> realpath = os::realpath(hierarchy);
+  if (!realpath.isSome()) {
     return Error(
-        "Failed to determine canonical path of '" + hierarchy +
-        "': " + realpath.error());
+        "Failed to determine canonical path of '" + hierarchy + "': " +
+        (realpath.isError()
+         ? realpath.error()
+         : "No such file or directory"));
   }
 
   Try<set<string> > hierarchies = cgroups::hierarchies();
@@ -760,18 +768,23 @@ Try<vector<string> > get(const string& hierarchy, const string& cgroup)
     return Error(error.get());
   }
 
-  Try<string> hierarchyAbsPath = os::realpath(hierarchy);
-  if (hierarchyAbsPath.isError()) {
+  Result<string> hierarchyAbsPath = os::realpath(hierarchy);
+  if (!hierarchyAbsPath.isSome()) {
     return Error(
-        "Failed to determine canonical path of '" + hierarchy +
-        "': " + hierarchyAbsPath.error());
+        "Failed to determine canonical path of '" + hierarchy + "': " +
+        (hierarchyAbsPath.isError()
+         ? hierarchyAbsPath.error()
+         : "No such file or directory"));
   }
 
-  Try<string> destAbsPath = os::realpath(path::join(hierarchy, cgroup));
-  if (destAbsPath.isError()) {
+  Result<string> destAbsPath = os::realpath(path::join(hierarchy, cgroup));
+  if (!destAbsPath.isSome()) {
     return Error(
         "Failed to determine canonical path of '" +
-        path::join(hierarchy, cgroup) + "': " + destAbsPath.error());
+        path::join(hierarchy, cgroup) + "': " +
+        (destAbsPath.isError()
+         ? destAbsPath.error()
+         : "No such file or directory"));
   }
 
   char* paths[] = { const_cast<char*>(destAbsPath.get().c_str()), NULL };

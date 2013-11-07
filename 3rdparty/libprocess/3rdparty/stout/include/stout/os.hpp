@@ -361,10 +361,13 @@ inline Try<std::string> dirname(const std::string& path)
 }
 
 
-inline Try<std::string> realpath(const std::string& path)
+inline Result<std::string> realpath(const std::string& path)
 {
   char temp[PATH_MAX];
   if (::realpath(path.c_str(), temp) == NULL) {
+    if (errno == ENOENT || errno == ENOTDIR) {
+      return None();
+    }
     return ErrnoError();
   }
   return std::string(temp);

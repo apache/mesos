@@ -53,11 +53,12 @@ void execute(const string& script)
   }
 
   // Determine the path for the script.
-  Try<string> path =
+  Result<string> path =
     os::realpath(path::join(flags.source_dir, "src", "tests", script));
 
-  if (path.isError()) {
-    FAIL() << "Failed to locate script: " << path.error();
+  if (!path.isSome()) {
+    FAIL() << "Failed to locate script: "
+           << (path.isError() ? path.error() : "No such file or directory");
   }
 
   // Fork a process to change directory and run the test.
