@@ -377,7 +377,9 @@ mesos_resolve_LDADD = libmesos.la
 
 # Need to distribute and install mesos-*.
 dist_bin_SCRIPTS +=							\
-  cli/mesos-ps
+  cli/mesos-cat								\
+  cli/mesos-ps								\
+  cli/mesos-tail
 
 # Also install the supporting scripts for the Python based CLI tools.
 # TODO(benh): Use PIP and python/setup.py to do this correctly.
