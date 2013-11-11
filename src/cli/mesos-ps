@@ -19,13 +19,12 @@ if sys.version_info < (2,6,0):
     sys.exit(1)
 
 
-USER_COLUMN_WIDTH = 4
-FRAMEWORK_COLUMN_WIDTH = 4
-TASK_COLUMN_WIDTH = 6
-SLAVE_COLUMN_WIDTH = 14
-MEM_COLUMN_WIDTH = 8
-TIME_COLUMN_WIDTH = 14
-
+USER_COLUMN_PADDING = 4
+FRAMEWORK_COLUMN_PADDING = 4
+TASK_COLUMN_PADDING = 6
+SLAVE_COLUMN_PADDING = 14
+MEM_COLUMN_PADDING = 16
+TIME_COLUMN_PADDING = 14
 
 # Defines the column structure for printing to the terminal.
 class Column:
@@ -52,6 +51,30 @@ class Column:
             text += '... '
         return text
 
+# Helper for formatting the CPU column for a task.
+# TODO(everpeace): Support to display not only CPU limit but CPU usage.
+def cpus(task, statistics):
+    if statistics is None:
+        return None
+
+    framework_id = task['framework_id']
+    executor_id = task['executor_id']
+
+    # An executorless task has an empty executor ID in the master but
+    # uses the same executor ID as task ID in the slave.
+    if executor_id == '': executor_id = task['id']
+
+    cpus_limit = None
+    for entry in statistics:
+        if (entry['framework_id'] == framework_id and
+            entry['executor_id'] == executor_id):
+            cpus_limit = entry['statistics']['cpus_limit']
+            break
+
+    if cpus_limit is not None:
+        return str(cpus_limit)
+
+    return None
 
 # Helper for formatting the MEM column for a task.
 def mem(task, statistics):
@@ -66,17 +89,31 @@ def mem(task, statistics):
     if executor_id == '': executor_id = task['id']
 
     mem_rss_bytes = None
+    mem_limit_bytes = None
     for entry in statistics:
         if (entry['framework_id'] == framework_id and
             entry['executor_id'] == executor_id):
             mem_rss_bytes = entry['statistics']['mem_rss_bytes']
+            mem_limit_bytes = entry['statistics']['mem_limit_bytes']
             break
 
     if mem_rss_bytes is not None:
         MB = 1024.0 * 1024.0
-        return '{0:.1f} MB'.format(mem_rss_bytes / MB)
+        return '{usage}/{limit}' \
+                .format(usage = data_size(mem_rss_bytes, "%.1f"),
+                        limit = data_size(mem_limit_bytes, "%.1f"))
 
     return None
+
+def data_size(bytes, format):
+    if bytes < 1024:
+        return (format % bytes) + ' B'
+    elif bytes < (1024 * 1024):
+        return (format % (bytes / 1024)) + ' KB'
+    elif bytes < (1024 * 1024 * 1024):
+        return (format % (bytes / (1024 * 1024))) + ' MB'
+    else:
+        return (format % (bytes / (1024 * 1024 * 1024))) + ' GB'
 
 
 # Helper for formatting the TIME column for a task.
@@ -142,12 +179,13 @@ def main():
     # Now set up the columns.
     columns = {}
 
-    columns[0] = Column('USER', USER_COLUMN_WIDTH)
-    columns[1] = Column('FRAMEWORK', FRAMEWORK_COLUMN_WIDTH)
-    columns[2] = Column('TASK', TASK_COLUMN_WIDTH)
-    columns[3] = Column('SLAVE', SLAVE_COLUMN_WIDTH)
-    columns[4] = Column('MEM', MEM_COLUMN_WIDTH)
-    columns[5] = Column('TIME', TIME_COLUMN_WIDTH)
+    columns[0] = Column('USER', USER_COLUMN_PADDING)
+    columns[1] = Column('FRAMEWORK', FRAMEWORK_COLUMN_PADDING)
+    columns[2] = Column('TASK', TASK_COLUMN_PADDING)
+    columns[3] = Column('SLAVE', SLAVE_COLUMN_PADDING)
+    columns[4] = Column('MEM', MEM_COLUMN_PADDING)
+    columns[5] = Column('TIME', TIME_COLUMN_PADDING)
+    columns[6] = Column('CPU (allocated)', 0) # padding is not needed for right most column
 
     # Output the header.
     for i in columns:
@@ -184,6 +222,7 @@ def main():
                     sys.stdout.write(columns[3].truncate(slave['hostname']))
                     sys.stdout.write(columns[4].truncate(mem(task, statistics)))
                     sys.stdout.write(columns[5].truncate(time(task, statistics)))
+                    sys.stdout.write(columns[6].truncate(cpus(task, statistics)))
 
     sys.stdout.write('\n')
     sys.exit(0)
