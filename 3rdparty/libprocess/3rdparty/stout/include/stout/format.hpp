@@ -279,6 +279,45 @@ Try<std::string> format(const std::string& s,
       internal::stringify<T9, !std::tr1::is_pod<T9>::value>(t9).get(),
       internal::stringify<T10, !std::tr1::is_pod<T10>::value>(t10).get());
 }
+
+template <typename T1,
+          typename T2,
+          typename T3,
+          typename T4,
+          typename T5,
+          typename T6,
+          typename T7,
+          typename T8,
+          typename T9,
+          typename T10,
+	  typename T11>
+Try<std::string> format(const std::string& s,
+                        const T1& t1,
+                        const T2& t2,
+                        const T3& t3,
+                        const T4& t4,
+                        const T5& t5,
+                        const T6& t6,
+                        const T7& t7,
+                        const T8& t8,
+                        const T9& t9,
+                        const T10& t10,
+                        const T11& t11)
+{
+  return internal::format(
+      s,
+      internal::stringify<T1, !std::tr1::is_pod<T1>::value>(t1).get(),
+      internal::stringify<T2, !std::tr1::is_pod<T2>::value>(t2).get(),
+      internal::stringify<T3, !std::tr1::is_pod<T3>::value>(t3).get(),
+      internal::stringify<T4, !std::tr1::is_pod<T4>::value>(t4).get(),
+      internal::stringify<T5, !std::tr1::is_pod<T5>::value>(t5).get(),
+      internal::stringify<T6, !std::tr1::is_pod<T6>::value>(t6).get(),
+      internal::stringify<T7, !std::tr1::is_pod<T7>::value>(t7).get(),
+      internal::stringify<T8, !std::tr1::is_pod<T8>::value>(t8).get(),
+      internal::stringify<T9, !std::tr1::is_pod<T9>::value>(t9).get(),
+      internal::stringify<T10, !std::tr1::is_pod<T10>::value>(t10).get(),
+      internal::stringify<T11, !std::tr1::is_pod<T11>::value>(t11).get());
+}
 #endif // __cplusplus >= 201103L
 
 
