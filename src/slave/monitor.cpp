@@ -59,6 +59,9 @@ const std::string CPUS_SYSTEM_TIME_SECS = "cpus_system_time_secs";
 const std::string CPUS_LIMIT            = "cpus_limit";
 const std::string MEM_RSS_BYTES         = "mem_rss_bytes";
 const std::string MEM_LIMIT_BYTES       = "mem_limit_bytes";
+const std::string MEM_FILE_BYTES	= "mem_file_bytes";
+const std::string MEM_ANON_BYTES	= "mem_anon_bytes";
+const std::string MEM_MAPPED_FILE_BYTES	= "mem_mapped_file_bytes";
 const std::string CPUS_NR_PERIODS       = "cpus_nr_periods";
 const std::string CPUS_NR_THROTTLED     = "cpus_nr_throttled";
 const std::string CPUS_THROTTLED_TIME_SECS = "cpus_throttled_time_secs";
@@ -130,6 +133,9 @@ Future<Nothing> ResourceMonitorProcess::unwatch(
   ::statistics->archive("monitor", prefix + CPUS_LIMIT);
   ::statistics->archive("monitor", prefix + MEM_RSS_BYTES);
   ::statistics->archive("monitor", prefix + MEM_LIMIT_BYTES);
+  ::statistics->archive("monitor", prefix + MEM_FILE_BYTES);
+  ::statistics->archive("monitor", prefix + MEM_ANON_BYTES);
+  ::statistics->archive("monitor", prefix + MEM_MAPPED_FILE_BYTES);
   ::statistics->archive("monitor", prefix + CPUS_NR_PERIODS);
   ::statistics->archive("monitor", prefix + CPUS_NR_THROTTLED);
   ::statistics->archive("monitor", prefix + CPUS_THROTTLED_TIME_SECS);
@@ -255,6 +261,21 @@ void publish(
       prefix + MEM_LIMIT_BYTES,
       statistics.mem_limit_bytes(),
       time);
+  ::statistics->set(
+      "monitor",
+      prefix + MEM_FILE_BYTES,
+      statistics.mem_file_bytes(),
+      time);
+  ::statistics->set(
+      "monitor",
+      prefix + MEM_ANON_BYTES,
+      statistics.mem_anon_bytes(),
+      time);
+  ::statistics->set(
+      "monitor",
+      prefix + MEM_MAPPED_FILE_BYTES,
+      statistics.mem_mapped_file_bytes(),
+      time);
 
   // Publish cpu.stat statistics.
   ::statistics->set(
@@ -310,6 +331,9 @@ Future<http::Response> _statisticsJSON(
       usage.values[CPUS_LIMIT] = 0;
       usage.values[MEM_RSS_BYTES] = 0;
       usage.values[MEM_LIMIT_BYTES] = 0;
+      usage.values[MEM_FILE_BYTES] = 0;
+      usage.values[MEM_ANON_BYTES] = 0;
+      usage.values[MEM_MAPPED_FILE_BYTES] = 0;
       usage.values[CPUS_NR_PERIODS] = 0;
       usage.values[CPUS_NR_THROTTLED] = 0;
       usage.values[CPUS_THROTTLED_TIME_SECS] = 0;
@@ -335,6 +359,18 @@ Future<http::Response> _statisticsJSON(
       if (statistics.count(prefix + MEM_LIMIT_BYTES) > 0) {
         usage.values[MEM_LIMIT_BYTES] =
           statistics.find(prefix + MEM_LIMIT_BYTES)->second;
+      }
+      if (statistics.count(prefix + MEM_FILE_BYTES) > 0) {
+        usage.values[MEM_FILE_BYTES] =
+          statistics.find(prefix + MEM_FILE_BYTES)->second;
+      }
+      if (statistics.count(prefix + MEM_ANON_BYTES) > 0) {
+        usage.values[MEM_ANON_BYTES] =
+          statistics.find(prefix + MEM_ANON_BYTES)->second;
+      }
+      if (statistics.count(prefix + MEM_MAPPED_FILE_BYTES) > 0) {
+        usage.values[MEM_MAPPED_FILE_BYTES] =
+          statistics.find(prefix + MEM_MAPPED_FILE_BYTES)->second;
       }
 
       // Set the cpu.stat data if present.
