@@ -109,7 +109,8 @@ public interface SchedulerDriver {
    * Kills the specified task. Note that attempting to kill a task is
    * currently not reliable. If, for example, a scheduler fails over
    * while it was attempting to kill a task it will need to retry in
-   * the future (these semantics may be changed in the future).
+   * the future Likewise, if unregistered / disconnected, the request
+   * will be dropped (these semantics may be changed in the future).
    */
   Status killTask(TaskID taskId);
 
