@@ -139,7 +139,7 @@ public class Log {
     }
 
     /**
-     * Attepts to read from the log between the specified positions
+     * Attempts to read from the log between the specified positions
      * (inclusive). If either of the positions are invalid, an
      * OperationFailedException will get thrown. Unfortunately, this
      * will also get thrown in other circumstances (e.g., disk
@@ -185,14 +185,14 @@ public class Log {
     }
 
     /**
-     * Attepts to append to the log with the specified data returning
+     * Attempts to append to the log with the specified data returning
      * the new end position of the log if successful.
      */
     public native Position append(byte[] data, long timeout, TimeUnit unit)
       throws TimeoutException, WriterFailedException;
 
     /**
-     * Attepts to truncate the log (from the beginning to the
+     * Attempts to truncate the log (from the beginning to the
      * specified position exclusive) If the position is invalid, an
      * WriterFailedException will get thrown. Unfortunately, this will
      * also get thrown in other circumstances (e.g., disk failure) and
