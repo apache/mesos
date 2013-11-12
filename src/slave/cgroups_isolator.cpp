@@ -785,6 +785,24 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
   // structure, e.g, cgroups::memory::stat.
   result.set_mem_rss_bytes(usage.get().bytes());
 
+  stat = cgroups::stat(hierarchy, info->name(), "memory.stat");
+  if (stat.isError()) {
+    return Future<ResourceStatistics>::failed(
+        "Failed to read memory.stat: " + stat.error());
+  }
+
+  if (stat.get().contains("total_cache")) {
+    result.set_mem_file_bytes(stat.get()["total_cache"]);
+  }
+
+  if (stat.get().contains("total_rss")) {
+    result.set_mem_anon_bytes(stat.get()["total_rss"]);
+  }
+
+  if (stat.get().contains("total_mapped_file")) {
+    result.set_mem_mapped_file_bytes(stat.get()["total_mapped_file"]);
+  }
+
   // Add the cpu.stat information.
   stat = cgroups::stat(hierarchy, info->name(), "cpu.stat");
 

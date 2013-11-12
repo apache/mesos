@@ -77,6 +77,9 @@ TEST(MonitorTest, WatchUnwatch)
   initialStatistics.set_cpus_system_time_secs(0);
   initialStatistics.set_cpus_limit(2.5);
   initialStatistics.set_mem_rss_bytes(0);
+  initialStatistics.set_mem_file_bytes(0);
+  initialStatistics.set_mem_anon_bytes(0);
+  initialStatistics.set_mem_mapped_file_bytes(0);
   initialStatistics.set_mem_limit_bytes(2048);
   initialStatistics.set_timestamp(Clock::now().secs());
 
@@ -88,6 +91,9 @@ TEST(MonitorTest, WatchUnwatch)
   statistics.set_cpus_throttled_time_secs(0.5);
   statistics.set_cpus_limit(2.5);
   statistics.set_mem_rss_bytes(1024);
+  statistics.set_mem_file_bytes(512);
+  statistics.set_mem_anon_bytes(512);
+  statistics.set_mem_mapped_file_bytes(256);
   statistics.set_mem_limit_bytes(2048);
   statistics.set_timestamp(
       initialStatistics.timestamp() +
@@ -191,7 +197,10 @@ TEST(MonitorTest, WatchUnwatch)
                   "\"cpus_system_time_secs\":%g,"
                   "\"cpus_throttled_time_secs\":%g,"
                   "\"cpus_user_time_secs\":%g,"
+                  "\"mem_anon_bytes\":%lu,"
+                  "\"mem_file_bytes\":%lu,"
                   "\"mem_limit_bytes\":%lu,"
+                  "\"mem_mapped_file_bytes\":%lu,"
                   "\"mem_rss_bytes\":%lu"
               "}"
           "}]",
@@ -201,7 +210,10 @@ TEST(MonitorTest, WatchUnwatch)
           statistics.cpus_system_time_secs(),
           statistics.cpus_throttled_time_secs(),
           statistics.cpus_user_time_secs(),
+          statistics.mem_anon_bytes(),
+          statistics.mem_file_bytes(),
           statistics.mem_limit_bytes(),
+          statistics.mem_mapped_file_bytes(),
           statistics.mem_rss_bytes()).get(),
       response);
 
