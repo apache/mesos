@@ -34,6 +34,7 @@ Release Notes - Mesos - Version 0.15.0
     * [MESOS-738] - CgroupsIsolatorTest.ROOT_CGROUPS_BalloonFramework_NoBuffer can't finish
     * [MESOS-746] - master error when start with --weights  input parameters
     * [MESOS-747] - FaultToleranceTest.ReregisterFrameworkExitedExecutor test fails
+    * [MESOS-758] - Incorrect memory statistics are reported under linux
     * [MESOS-762] - Revert the use of the soft limit and memory threshold notifications.
     * [MESOS-771] - StatusUpdateManagerTest.DuplicateTerminalUpdateBeforeAck is flaky
     * [MESOS-773] - StatusUpdateManagerTest.DuplicateTerminalUpdateBeforeAck is flaky
@@ -41,6 +42,7 @@ Release Notes - Mesos - Version 0.15.0
     * [MESOS-777] - GarbageCollectorIntegrationTest.ExitedFramework test is flaky
     * [MESOS-787] - Authenticatee process deadlocks
     * [MESOS-792] - FaultToleranceTest.SchedulerFailoverFrameworkMessage is flaky
+    * [MESOS-801] - SlaveRecoveryTest / ReconcileTasksMissingFromSlave is flaky.
 
 ** Documentation
     * [MESOS-518] - Improve README with Markdown
