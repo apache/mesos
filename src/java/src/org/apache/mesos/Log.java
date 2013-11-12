@@ -59,7 +59,7 @@ public class Log {
     }
 
     /**
-     * Returns an "identity" off this position, useful for serializing
+     * Returns an "identity" of this position, useful for serializing
      * to logs or across communication mediums.
      */
     public byte[] identity() {
@@ -75,7 +75,7 @@ public class Log {
       return bytes;
     }
 
-    /* A Position is (and should only) get invoked by the underlying JNI. */
+    /* A Position is (and should only be) invoked by the underlying JNI. */
     private Position(long value) {
       this.value = value;
     }
@@ -91,7 +91,7 @@ public class Log {
     public final Position position;
     public final byte[] data;
 
-    /* An Entry is (and should only) get invoked by the underlying JNI. */
+    /* An Entry is (and should only be) invoked by the underlying JNI. */
     private Entry(Position position, byte[] data) {
       this.position = position;
       this.data = data;
@@ -185,16 +185,8 @@ public class Log {
     }
 
     /**
-     * Attepts to read from the log between the specified positions
-     * (inclusive). If either of the positions are invalid, a
-     * WriterFailedException will get thrown. Unfortunately, this will
-     * also get thrown in other circumstances (e.g., disk failure) and
-     * therefore it is currently impossible to tell these two cases
-     * apart.
-     *
-     * <p>TODO(benh): Throw both OperationFailedException and
-     * WriterFailedException to differentiate the need for a new
-     * writer from a bad position, or a bad disk, etc.
+     * Attepts to append to the log with the specified data returning
+     * the new end position of the log if successful.
      */
     public native Position append(byte[] data, long timeout, TimeUnit unit)
       throws TimeoutException, WriterFailedException;
