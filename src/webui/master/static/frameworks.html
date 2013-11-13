@@ -97,5 +97,72 @@
         </tr>
       </tbody>
     </table>
+
+    <h3>Terminated Frameworks</h3>
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th ng-class="columnClass('completed_frameworks', 'id')"
+              ng-click="selectColumn('completed_frameworks', 'id')">
+            ID
+          </th>
+          <th ng-class="columnClass('completed_frameworks', 'user')"
+              ng-click="selectColumn('completed_frameworks', 'user')">
+            User
+          </th>
+          <th ng-class="columnClass('completed_frameworks', 'name')"
+              ng-click="selectColumn('completed_frameworks', 'name')">
+            Name
+          </th>
+          <th ng-class="columnClass('completed_frameworks', 'registered_time')"
+              ng-click="selectColumn('completed_frameworks', 'registered_time')">
+            Registered
+          </th>
+          <th ng-class="columnClass('completed_frameworks', 'unregistered_time')"
+              ng-click="selectColumn('completed_frameworks', 'unregistered_time')">
+            Unregistered
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="framework in _.values(completed_frameworks) | orderBy:tables['completed_frameworks'].selected_column:tables['completed_frameworks'].reverse">
+          <td>
+            <a href="{{'#/frameworks/' + framework.id}}" title="{{framework.id}}">
+              {{framework.id | truncateMesosID}}</a>
+            <button class="btn btn-mini btn-toggle"
+              clipboard
+              data-clipboard-text="{{framework.id}}"
+              tooltip="Copy ID"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+            </button>
+          </td>
+          <td>{{framework.user}}</td>
+          <td>{{framework.name}}</td>
+          <td>
+            <abbr title="{{framework.registered_time * 1000 | isoDate}}">
+              {{framework.registered_time * 1000 | relativeDate}}</abbr>
+            <button class="btn btn-mini btn-toggle"
+              clipboard
+              data-clipboard-text="{{framework.reregistered_time * 1000 | isoDate}}"
+              tooltip="Copy timestamp"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+            </button>
+          </td>
+          <td>
+            <abbr title="{{framework.unregistered_time * 1000 | isoDate}}">
+              {{framework.unregistered_time * 1000 | relativeDate}}</abbr>
+            <button class="btn btn-mini btn-toggle"
+              clipboard
+              data-clipboard-text="{{framework.unregistered_time * 1000 | isoDate}}"
+              tooltip="Copy timestamp"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>
