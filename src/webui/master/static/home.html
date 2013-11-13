@@ -290,48 +290,5 @@
       </tbody>
     </table>
 
-    <h3>Offers</h3>
-    <table class="table table-striped table-bordered table-condensed">
-      <thead>
-        <tr>
-          <th ng-class="columnClass('offers', 'id')"
-              ng-click="selectColumn('offers', 'id')">
-            ID
-          </th>
-          <th ng-class="columnClass('offers', 'framework_name')"
-              ng-click="selectColumn('offers', 'framework_name')">
-            Framework
-          </th>
-          <th ng-class="columnClass('offers', 'hostname')"
-              ng-click="selectColumn('offers', 'hostname')">
-            Host
-          </th>
-          <th ng-class="columnClass('offers', 'resources.cpus')"
-              ng-click="selectColumn('offers', 'resources.cpus')">
-            CPUs
-          </th>
-          <th ng-class="columnClass('offers', 'resources.mem')"
-              ng-click="selectColumn('offers', 'resources.mem')">
-            Mem
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="offer in _.values(offers) | orderBy:tables['offers'].selected_column:tables['offers'].reverse">
-          <td>
-            <abbr title="{{offer.id}}">{{offer.id | truncateMesosID}}</abbr>
-          </td>
-          <td><a href="{{'#/frameworks/' + offer.framework_id}}">{{offer.framework_name}}</a></td>
-          <td>
-            <a href="#/slaves/{{slaves[offer.slave_id].id}}">
-              {{offer.hostname}}
-            </a>
-          </td>
-          <td>{{offer.resources.cpus | number}}</td>
-          <td>{{offer.resources.mem * (1024 * 1024) | dataSize}}</td>
-        </tr>
-      </tbody>
-    </table>
-
   </div>
 </div>

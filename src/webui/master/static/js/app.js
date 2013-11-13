@@ -10,6 +10,8 @@
           {templateUrl: 'static/frameworks.html', controller: 'FrameworksCtrl'})
         .when('/frameworks/:id',
           {templateUrl: 'static/framework.html', controller: 'FrameworkCtrl'})
+        .when('/offers',
+          {templateUrl: 'static/offers.html', controller: 'OffersCtrl'})
         .when('/slaves',
           {templateUrl: 'static/slaves.html', controller: 'SlavesCtrl'})
         .when('/slaves/:slave_id',

@@ -342,7 +342,6 @@
     $scope.tables = {};
     $scope.tables['frameworks'] = new Table('id');
     $scope.tables['slaves'] = new Table('id');
-    $scope.tables['offers'] = new Table('id');
     $scope.tables['completed_frameworks'] = new Table('id');
 
     $scope.columnClass = columnClass($scope);
@@ -375,6 +374,16 @@
     $scope.selectColumn = selectColumn($scope);
   });
 
+
+  mesosApp.controller('OffersCtrl', function($scope) {
+    setNavbarActiveTab('offers');
+
+    $scope.tables = {};
+    $scope.tables['offers'] = new Table('id');
+
+    $scope.columnClass = columnClass($scope);
+    $scope.selectColumn = selectColumn($scope);
+  });
 
   mesosApp.controller('FrameworkCtrl', function($scope, $routeParams) {
     setNavbarActiveTab('frameworks');
