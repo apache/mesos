@@ -10,12 +10,17 @@ layout: documentation
 * [Categorize](http://categorize.co)
 * [CloudPhysics](http://cloudphysics.com)
 * [Conviva](http://www.conviva.com)
+* [Devicescape](http://www.devicescape.com)
+* [HubSpot](http://www.hubspot.com)
 * [iQIYI](http://www.iqiyi.com/)
 * [MediaCrossing](http://www.mediacrossing.com)
+* [OpenTable](http://www.opentable.com)
+* [Pinkbike](http://www.pinkbike.com)
 * [Sharethrough](http://www.sharethrough.com)
 * [Twitter](http://www.twitter.com)
 * [UCSF](http://www.ucsf.edu)
 * [UC Berkeley](http://www.berkeley.edu)
+* [Vimeo](http://www.vimeo.com)
 * [Xogito](http://www.xogito.com)
 
 ## Software projects built on Mesos
