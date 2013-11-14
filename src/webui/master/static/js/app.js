@@ -83,17 +83,21 @@
       };
     })
     .filter('dataSize', function() {
+      var BYTES_PER_KB = Math.pow(2, 10);
+      var BYTES_PER_MB = Math.pow(2, 20);
+      var BYTES_PER_GB = Math.pow(2, 30);
+
       return function(bytes) {
-        if (bytes === null || bytes === undefined || isNaN(bytes)) {
+        if (bytes == null || isNaN(bytes)) {
           return '';
-        } else if (bytes < 1024) {
+        } else if (bytes < BYTES_PER_KB) {
           return bytes.toFixed() + ' B';
-        } else if (bytes < (1024 * 1024)) {
-          return (bytes / 1024).toFixed() + ' KB';
-        } else if (bytes < (1024 * 1024 * 1024)) {
-          return (bytes / (1024 * 1024)).toFixed() + ' MB';
+        } else if (bytes < BYTES_PER_MB) {
+          return (bytes / BYTES_PER_KB).toFixed() + ' KB';
+        } else if (bytes < BYTES_PER_GB) {
+          return (bytes / BYTES_PER_MB).toFixed() + ' MB';
         } else {
-          return (bytes / (1024 * 1024 * 1024)).toFixed() + ' GB';
+          return (bytes / BYTES_PER_GB).toFixed(1) + ' GB';
         }
       };
     })
