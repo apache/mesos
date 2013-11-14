@@ -336,12 +336,12 @@ inline Try<std::string> basename(const std::string& path)
   char* temp = new char[path.size() + 1];
   char* result = ::basename(::strcpy(temp, path.c_str()));
   if (result == NULL) {
-    delete temp;
+    delete[] temp;
     return ErrnoError();
   }
 
   std::string s(result);
-  delete temp;
+  delete[] temp;
   return s;
 }
 
@@ -351,12 +351,12 @@ inline Try<std::string> dirname(const std::string& path)
   char* temp = new char[path.size() + 1];
   char* result = ::dirname(::strcpy(temp, path.c_str()));
   if (result == NULL) {
-    delete temp;
+    delete[] temp;
     return ErrnoError();
   }
 
   std::string s(result);
-  delete temp;
+  delete[] temp;
   return s;
 }
 
@@ -456,10 +456,10 @@ inline Try<std::string> mkdtemp(const std::string& path = "/tmp/XXXXXX")
   char* temp = new char[path.size() + 1];
   if (::mkdtemp(::strcpy(temp, path.c_str())) != NULL) {
     std::string result(temp);
-    delete temp;
+    delete[] temp;
     return result;
   } else {
-    delete temp;
+    delete[] temp;
     return ErrnoError();
   }
 }
