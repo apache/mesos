@@ -345,7 +345,6 @@
 
     $scope.tables = {};
     $scope.tables['frameworks'] = new Table('id');
-    $scope.tables['slaves'] = new Table('id');
     $scope.tables['completed_frameworks'] = new Table('id');
 
     $scope.columnClass = columnClass($scope);
