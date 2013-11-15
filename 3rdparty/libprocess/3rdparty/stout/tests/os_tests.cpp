@@ -523,7 +523,6 @@ TEST_F(OsTest, pstree)
 
   ASSERT_LE(1u, tree.get().children.size());
   ASSERT_GE(2u, tree.get().children.size());
-  EXPECT_EQ(grandchild, tree.get().children.front().process.pid);
 
   // Cleanup by killing the descendant processes.
   EXPECT_EQ(0, kill(grandchild, SIGKILL));
