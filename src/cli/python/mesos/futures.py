@@ -5,6 +5,7 @@ except ImportError:
     import time
 
     from Queue import Queue
+    from Queue import Empty
 
     class TimeoutError(Exception):
         """The operation timed out"""
