@@ -369,6 +369,7 @@
 
     $scope.tables = {};
     $scope.tables['frameworks'] = new Table('id');
+    $scope.tables['completed_frameworks'] = new Table('id');
 
     $scope.columnClass = columnClass($scope);
     $scope.selectColumn = selectColumn($scope);
