@@ -284,10 +284,6 @@ private:
     taskStatus.set_message(message);
 
     driver->sendStatusUpdate(taskStatus);
-
-    // A hack for now ... but we need to wait until the status update
-    // is sent to the slave before we shut ourselves down.
-    os::sleep(Seconds(1));
     driver->stop();
   }
 
