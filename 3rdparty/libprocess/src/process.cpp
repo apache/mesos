@@ -136,9 +136,15 @@ namespace ID {
 string generate(const string& prefix)
 {
   static map<string, int> prefixes;
-  stringstream out;
-  out << __sync_add_and_fetch(&prefixes[prefix], 1);
-  return prefix + "(" + out.str() + ")";
+  static synchronizable(prefixes) = SYNCHRONIZED_INITIALIZER;
+
+  int id;
+  synchronized (prefixes) {
+    int& _id = prefixes[prefix];
+    _id += 1;
+    id = _id;
+  }
+  return prefix + "(" + stringify(id) + ")";
 }
 
 } // namespace ID {
