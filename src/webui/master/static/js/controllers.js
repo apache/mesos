@@ -221,15 +221,19 @@
         if (!task.executor_id) {
           task.executor_id = task.id;
         }
-        task.start_time = task.statuses[0].timestamp
-        task.finish_time = task.statuses[task.statuses.length - 1].timestamp
+        if (task.statuses.length > 0) {
+          task.start_time = task.statuses[0].timestamp;
+          task.finish_time = task.statuses[task.statuses.length - 1].timestamp;
+        }
       });
       _.each(framework.completed_tasks, function(task) {
         if (!task.executor_id) {
           task.executor_id = task.id;
         }
-        task.start_time = task.statuses[0].timestamp
-        task.finish_time = task.statuses[task.statuses.length - 1].timestamp
+        if (task.statuses.length > 0) {
+          task.start_time = task.statuses[0].timestamp;
+          task.finish_time = task.statuses[task.statuses.length - 1].timestamp;
+        }
       });
     });
 
