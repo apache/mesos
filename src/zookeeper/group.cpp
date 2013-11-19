@@ -500,6 +500,10 @@ Result<bool> GroupProcess::doCancel(const Group::Membership& membership)
   if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK(zk->getState() != ZOO_AUTH_FAILED_STATE);
     return None();
+  } else if (code == ZNONODE) {
+    // This can happen because the membership could have expired but
+    // we have yet to receive the update about it.
+    return false;
   } else if (code != ZOK) {
     return Error(
         "Failed to remove ephemeral node '" + path +
