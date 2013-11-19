@@ -188,6 +188,8 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	common/values.cpp						\
 	files/files.cpp							\
 	logging/logging.cpp						\
+	zookeeper/contender.cpp						\
+	zookeeper/detector.cpp						\
 	zookeeper/zookeeper.cpp						\
 	zookeeper/authentication.cpp					\
 	zookeeper/group.cpp						\
@@ -241,6 +243,8 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	tests/isolator.hpp						\
 	tests/mesos.hpp							\
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
+	zookeeper/contender.hpp						\
+	zookeeper/detector.hpp						\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
 	zookeeper/zookeeper.hpp zookeeper/url.hpp
 

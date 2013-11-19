@@ -86,7 +86,7 @@ std::string ZooKeeperTestServer::connectString() const
 
 void ZooKeeperTestServer::shutdownNetwork()
 {
-  if (started && connectionFactory->isAlive()) {
+  if (started && connectionFactory && connectionFactory->isAlive()) {
     connectionFactory->shutdown();
     delete connectionFactory;
     connectionFactory = NULL;

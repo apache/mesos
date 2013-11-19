@@ -22,14 +22,23 @@
 
 #include <string>
 
+#include <process/gtest.hpp>
+
+#include <stout/gtest.hpp>
+#include <stout/owned.hpp>
 #include <stout/strings.hpp>
 
 #include "zookeeper/authentication.hpp"
+#include "zookeeper/contender.hpp"
+#include "zookeeper/detector.hpp"
+#include "zookeeper/group.hpp"
 
 #include "tests/zookeeper.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
+using namespace process;
+using namespace zookeeper;
 
 
 TEST_F(ZooKeeperTest, Auth)
@@ -104,4 +113,211 @@ TEST_F(ZooKeeperTest, Create)
                                    &result,
                                    true));
   EXPECT_TRUE(strings::startsWith(result, "/foo/bar/baz/0"));
+}
+
+
+TEST_F(ZooKeeperTest, LeaderDetector)
+{
+  Group group(server->connectString(), NO_TIMEOUT, "/test/");
+
+  // Initialize two members.
+  Future<Group::Membership> membership1 =
+    group.join("member 1");
+  AWAIT_READY(membership1);
+  Future<Group::Membership> membership2 =
+    group.join("member 2");
+  AWAIT_READY(membership2);
+
+  LeaderDetector detector(&group);
+
+  // Detect the leader.
+  Future<Result<Group::Membership> > leader =
+    detector.detect(None());
+  AWAIT_READY(leader);
+  ASSERT_SOME_EQ(membership1.get(), leader.get());
+
+  // Detect next leader change.
+  leader = detector.detect(leader.get());
+  EXPECT_TRUE(leader.isPending());
+
+  // Leader doesn't change after cancelling the follower.
+  Future<bool> cancellation = group.cancel(membership2.get());
+  AWAIT_READY(cancellation);
+  EXPECT_TRUE(cancellation.get());
+  EXPECT_TRUE(leader.isPending());
+
+  // Join member 2 back.
+  membership2 = group.join("member 2");
+  AWAIT_READY(membership2);
+  EXPECT_TRUE(leader.isPending());
+
+  // Cancelling the incumbent leader allows member 2 to be elected.
+  cancellation = group.cancel(membership1.get());
+  AWAIT_READY(cancellation);
+  EXPECT_TRUE(cancellation.get());
+  AWAIT_READY(leader);
+  EXPECT_SOME_EQ(membership2.get(), leader.get());
+
+  // Cancelling the only member results in no leader elected.
+  leader = detector.detect(leader.get().get());
+  EXPECT_TRUE(leader.isPending());
+  cancellation = group.cancel(membership2.get());
+
+  AWAIT_READY(cancellation);
+  EXPECT_TRUE(cancellation.get());
+  AWAIT_READY(leader);
+  ASSERT_TRUE(leader.get().isNone());
+}
+
+
+TEST_F(ZooKeeperTest, LeaderDetectorFailureHandling)
+{
+  Seconds timeout(10);
+  Group group(server->connectString(), timeout, "/test/");
+  LeaderDetector detector(&group);
+
+  Future<Group::Membership> membership1 =
+    group.join("member 1");
+  AWAIT_READY(membership1);
+
+  Future<Result<Group::Membership> > leader =
+    detector.detect();
+
+  AWAIT_READY(leader);
+  EXPECT_SOME(leader.get());
+
+  leader = detector.detect(leader.get());
+
+  server->shutdownNetwork();
+
+  Clock::pause();
+  // We may need to advance multiple times because we could have
+  // advanced the clock before the timer in Group starts.
+  while (leader.isPending()) {
+    Clock::advance(timeout);
+    Clock::settle();
+  }
+  Clock::resume();
+
+  // The detect operation times out, which results in the erroneous
+  // state in the detector.
+  AWAIT_READY(leader);
+  EXPECT_ERROR(leader.get());
+
+  // The detection will fail because of the error state.
+  leader = detector.detect();
+  AWAIT_READY(leader);
+  EXPECT_ERROR(leader.get());
+
+  // Passing the previous state forces the detector to retry.
+  leader = detector.detect(leader.get());
+
+  server->startNetwork();
+
+  membership1 = group.join("member 1");
+  AWAIT_READY(membership1);
+
+  AWAIT_READY(leader);
+  EXPECT_SOME(leader.get());
+
+  // Cancel the member and join another.
+  Future<bool> cancelled = group.cancel(leader.get().get());
+  AWAIT_READY(cancelled);
+  Future<Group::Membership> membership2 = group.join("member 2");
+  AWAIT_READY(membership2);
+
+  // Detect a new leader.
+  leader = detector.detect(leader.get());
+  AWAIT_READY(leader);
+  EXPECT_SOME(leader.get());
+}
+
+
+TEST_F(ZooKeeperTest, LeaderContender)
+{
+  Seconds timeout(10);
+  Group group(server->connectString(), timeout, "/test/");
+
+  Owned<LeaderContender> contender = new LeaderContender(&group, "candidate 1");
+  contender->contend();
+
+  // Immediately withdrawing after contending leads to delayed
+  // cancellation.
+  Future<bool> withdrawn = contender->withdraw();
+  AWAIT_READY(withdrawn);
+  EXPECT_TRUE(withdrawn.get());
+
+  // Normal workflow.
+  contender = new LeaderContender(&group, "candidate 1");
+
+  Future<Future<Nothing> > candidated = contender->contend();
+  AWAIT_READY(candidated);
+
+  Future<Nothing> lostCandidacy = candidated.get();
+  EXPECT_TRUE(lostCandidacy.isPending());
+
+  // Expire the Group session while we are watching for updates from
+  // the contender and the candidacy will be lost.
+  Future<Option<int64_t> > session = group.session();
+  AWAIT_READY(session);
+  ASSERT_SOME(session.get());
+  server->expireSession(session.get().get());
+  AWAIT_READY(lostCandidacy);
+
+  // Withdraw directly returns because candidacy is lost and there
+  // is nothing to cancel.
+  withdrawn = contender->withdraw();
+  AWAIT_READY(withdrawn);
+  EXPECT_FALSE(withdrawn.get());
+
+  // Contend again.
+  contender = new LeaderContender(&group, "candidate 1");
+  candidated = contender->contend();
+
+  session = group.session();
+  AWAIT_READY(session);
+  ASSERT_SOME(session.get());
+
+  server->expireSession(session.get().get());
+
+  Clock::pause();
+  // The retry timeout.
+  Clock::advance(GroupProcess::RETRY_INTERVAL);
+  Clock::settle();
+  Clock::resume();
+
+  // The contender weathered the expiration and succeeded in a retry.
+  AWAIT_READY(candidated);
+
+  withdrawn = contender->withdraw();
+  AWAIT_READY(withdrawn);
+
+  // Contend (3) and shutdown the network this time.
+  contender = new LeaderContender(&group, "candidate 1");
+  candidated = contender->contend();
+  AWAIT_READY(candidated);
+  lostCandidacy = candidated.get();
+
+  server->shutdownNetwork();
+
+  Clock::pause();
+
+  // We may need to advance multiple times because we could have
+  // advanced the clock before the timer in Group starts.
+  while (lostCandidacy.isPending()) {
+    Clock::advance(timeout);
+    Clock::settle();
+  }
+
+  // Server failure results in failed future.
+  AWAIT_ASSERT_FAILED(lostCandidacy);
+
+  Clock::resume();
+
+  server->startNetwork();
+
+  // Contend again (4).
+  contender = new LeaderContender(&group, "candidate 1");
+  candidated = contender->contend();
+  AWAIT_READY(candidated);
 }
