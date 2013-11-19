@@ -33,11 +33,11 @@
 #include <stout/path.hpp>
 #include <stout/try.hpp>
 
-#include "detector/detector.hpp"
-
 #include "files/files.hpp"
 
 #include "master/allocator.hpp"
+#include "master/contender.hpp"
+#include "master/detector.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
@@ -90,9 +90,7 @@ public:
     Try<Nothing> stop(const process::PID<master::Master>& pid);
 
     // Returns a new master detector for this instance of masters.
-    Owned<MasterDetector> detector(
-        const process::PID<slave::Slave>& pid,
-        const slave::Flags& flags);
+    Owned<MasterDetector> detector();
 
   private:
     // Not copyable, not assignable.
@@ -109,6 +107,7 @@ public:
         : master(NULL),
           allocator(NULL),
           allocatorProcess(NULL),
+          contender(NULL),
           detector(NULL) {}
 
       master::Master* master;
@@ -117,6 +116,7 @@ public:
       state::Storage* storage;
       state::protobuf::State* state;
       master::Registrar* registrar;
+      MasterContender* contender;
       MasterDetector* detector;
     };
 
@@ -145,6 +145,18 @@ public:
         slave::Isolator* isolator,
         const slave::Flags& flags = slave::Flags());
 
+    // Start and manage a new slave injecting the specified Master
+    // Detector. The detector is expected to outlive the launched
+    // slave (i.e., until it is stopped via Slaves::stop).
+    Try<process::PID<slave::Slave> > start(
+        Owned<MasterDetector> detector,
+        const slave::Flags& flags = slave::Flags());
+
+    Try<process::PID<slave::Slave> > start(
+        slave::Isolator* isolator,
+        Owned<MasterDetector> detector,
+        const slave::Flags& flags = slave::Flags());
+
     // Stops and cleans up a slave at the specified PID. If 'shutdown'
     // is true than the slave is sent a shutdown message instead of
     // being terminated.
@@ -168,6 +180,8 @@ public:
           slave(NULL),
           detector(NULL) {}
 
+      // Only register the isolator here if it is created within the
+      // Cluster.
       slave::Isolator* isolator;
       slave::Slave* slave;
       Owned<MasterDetector> detector;
@@ -249,19 +263,29 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   master.state = new state::protobuf::State(master.storage);
   master.registrar = new master::Registrar(master.state);
 
+  if (url.isSome()) {
+    master.contender = new ZooKeeperMasterContender(url.get());
+    master.detector = new ZooKeeperMasterDetector(url.get());
+  } else {
+    master.contender = new StandaloneMasterContender();
+    master.detector = new StandaloneMasterDetector();
+  }
+
   master.master = new master::Master(
       master.allocator,
       master.registrar,
       &cluster->files,
+      master.contender,
+      master.detector,
       flags);
 
-  process::PID<master::Master> pid = process::spawn(master.master);
-
-  if (url.isSome()) {
-    master.detector = new ZooKeeperMasterDetector(url.get(), pid, true, true);
-  } else {
-    master.detector = new BasicMasterDetector(pid);
+  if (url.isNone()) {
+    // This means we are using the StandaloneMasterDetector.
+    dynamic_cast<StandaloneMasterDetector*>(master.detector)->appoint(
+        master.master->self());
   }
+
+  process::PID<master::Master> pid = process::spawn(master.master);
 
   masters[pid] = master;
 
@@ -299,19 +323,29 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   master.state = new state::protobuf::State(master.storage);
   master.registrar = new master::Registrar(master.state);
 
+  if (url.isSome()) {
+    master.contender = new ZooKeeperMasterContender(url.get());
+    master.detector = new ZooKeeperMasterDetector(url.get());
+  } else {
+    master.contender = new StandaloneMasterContender();
+    master.detector = new StandaloneMasterDetector();
+  }
+
   master.master = new master::Master(
       master.allocator,
       master.registrar,
       &cluster->files,
+      master.contender,
+      master.detector,
       flags);
 
-  process::PID<master::Master> pid = process::spawn(master.master);
-
-  if (url.isSome()) {
-    master.detector = new ZooKeeperMasterDetector(url.get(), pid, true, true);
-  } else {
-    master.detector = new BasicMasterDetector(pid);
+  if (url.isNone()) {
+    // This means we are using the StandaloneMasterDetector.
+    dynamic_cast<StandaloneMasterDetector*>(master.detector)->appoint(
+        master.master->self());
   }
+
+  process::PID<master::Master> pid = process::spawn(master.master);
 
   masters[pid] = master;
 
@@ -339,6 +373,7 @@ inline Try<Nothing> Cluster::Masters::stop(
   delete master.state;
   delete master.storage;
 
+  delete master.contender;
   delete master.detector;
 
   masters.erase(pid);
@@ -347,16 +382,15 @@ inline Try<Nothing> Cluster::Masters::stop(
 }
 
 
-inline Owned<MasterDetector> Cluster::Masters::detector(
-    const process::PID<slave::Slave>& pid,
-    const slave::Flags& flags)
+inline Owned<MasterDetector> Cluster::Masters::detector()
 {
   if (url.isSome()) {
-    return new ZooKeeperMasterDetector(url.get(), pid, false, flags.quiet);
+    return new ZooKeeperMasterDetector(url.get());
   }
 
   CHECK(masters.size() == 1);
-  return new BasicMasterDetector(masters.begin()->first, pid);
+
+  return new StandaloneMasterDetector(masters.begin()->first);
 }
 
 
@@ -392,11 +426,12 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
   slave.isolator = new slave::ProcessIsolator();
   process::spawn(slave.isolator);
 
-  slave.slave = new slave::Slave(flags, true, slave.isolator, &cluster->files);
-  process::PID<slave::Slave> pid = process::spawn(slave.slave);
-
   // Get a detector for the master(s).
-  slave.detector = masters->detector(pid, flags);
+  slave.detector = masters->detector();
+
+  slave.slave = new slave::Slave(flags, true, slave.detector.get(), slave.isolator,
+      &cluster->files);
+  process::PID<slave::Slave> pid = process::spawn(slave.slave);
 
   slaves[pid] = slave;
 
@@ -408,15 +443,33 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
     slave::Isolator* isolator,
     const slave::Flags& flags)
 {
+  return start(isolator, masters->detector(), flags);
+}
+
+
+inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
+    Owned<MasterDetector> detector,
+    const slave::Flags& flags)
+{
+  return start(new slave::ProcessIsolator(), detector, flags);
+}
+
+
+inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
+    slave::Isolator* isolator,
+    Owned<MasterDetector> detector,
+    const slave::Flags& flags)
+{
   // TODO(benh): Create a work directory if using the default.
 
   Slave slave;
 
-  slave.slave = new slave::Slave(flags, true, isolator, &cluster->files);
-  process::PID<slave::Slave> pid = process::spawn(slave.slave);
-
   // Get a detector for the master(s).
-  slave.detector = masters->detector(pid, flags);
+  slave.detector = detector;
+
+  slave.slave = new slave::Slave(flags, true, slave.detector.get(),
+      isolator, &cluster->files);
+  process::PID<slave::Slave> pid = process::spawn(slave.slave);
 
   slaves[pid] = slave;
 

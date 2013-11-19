@@ -30,12 +30,12 @@
 
 #include "common/build.hpp"
 
-#include "detector/detector.hpp"
-
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
 #include "master/allocator.hpp"
+#include "master/contender.hpp"
+#include "master/detector.hpp"
 #include "master/drf_sorter.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
@@ -46,8 +46,11 @@
 #include "state/storage.hpp"
 
 
+#include "zookeeper/detector.hpp"
+
 using namespace mesos::internal;
 using namespace mesos::internal::master;
+using namespace zookeeper;
 
 using mesos::MasterInfo;
 
@@ -146,13 +149,28 @@ int main(int argc, char** argv)
   Registrar* registrar = new Registrar(state);
 
   Files files;
-  Master* master = new Master(allocator, registrar, &files, flags);
+
+  MasterContender* contender;
+  MasterDetector* detector;
+
+  Try<MasterContender*> contender_ = MasterContender::create(zk);
+  CHECK_SOME(contender_) << "Failed to create a master contender";
+  contender = contender_.get();
+
+  Try<MasterDetector*> detector_ = MasterDetector::create(zk);
+  CHECK_SOME(detector_) << "Failed to create a master detector";
+  detector = detector_.get();
+
+  Master* master = new Master(
+      allocator, registrar, &files, contender, detector, flags);
+
+  if (zk == "") {
+    // It means we are using the standalone detector so we need to
+    // appoint this Master as the leader.
+    dynamic_cast<StandaloneMasterDetector*>(detector)->appoint(master->self());
+  }
+
   process::spawn(master);
-
-  Try<MasterDetector*> detector =
-    MasterDetector::create(zk, master->self(), true, flags.quiet);
-
-  CHECK_SOME(detector) << "Failed to create a master detector";
 
   process::wait(master->self());
   delete master;
@@ -163,7 +181,8 @@ int main(int argc, char** argv)
   delete state;
   delete storage;
 
-  MasterDetector::destroy(detector.get());
+  delete contender;
+  delete detector;
 
   return 0;
 }

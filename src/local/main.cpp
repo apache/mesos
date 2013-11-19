@@ -22,8 +22,6 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
-#include "detector/detector.hpp"
-
 #include "local/flags.hpp"
 #include "local/local.hpp"
 

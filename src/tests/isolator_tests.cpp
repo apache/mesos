@@ -30,9 +30,8 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
-#include "detector/detector.hpp"
-
 #include "master/master.hpp"
+#include "master/detector.hpp"
 
 #include "slave/flags.hpp"
 #ifdef __linux__

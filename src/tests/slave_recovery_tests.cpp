@@ -38,12 +38,11 @@
 
 #include "common/protobuf_utils.hpp"
 
-#include "detector/detector.hpp"
-
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif
 
+#include "master/detector.hpp"
 #include "master/master.hpp"
 
 #include "slave/gc.hpp"
@@ -2321,8 +2320,10 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+  Owned<StandaloneMasterDetector> detector =
+    new StandaloneMasterDetector(master.get());
+  TestingMesosSchedulerDriver driver(
+      &sched, frameworkInfo, DEFAULT_CREDENTIAL, detector.get());
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -2366,11 +2367,8 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureSatisfy(&registered));
 
-  // Simulate a new master detected message to the scheduler.
-  NewMasterDetectedMessage newMasterDetectedMsg;
-  newMasterDetectedMsg.set_pid(master.get());
-
-  process::post(frameworkRegisteredMessage.get().to, newMasterDetectedMsg);
+  // Simulate a new master detected event to the scheduler.
+  detector->appoint(master.get());
 
   // Framework should get a registered callback.
   AWAIT_READY(registered);

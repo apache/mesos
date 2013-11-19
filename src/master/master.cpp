@@ -189,27 +189,19 @@ private:
 Master::Master(
     Allocator* _allocator,
     Registrar* _registrar,
-    Files* _files)
-  : ProcessBase("master"),
-    http(*this),
-    flags(),
-    allocator(_allocator),
-    registrar(_registrar),
-    files(_files),
-    completedFrameworks(MAX_COMPLETED_FRAMEWORKS) {}
-
-
-Master::Master(
-    Allocator* _allocator,
-    Registrar* _registrar,
     Files* _files,
+    MasterContender* _contender,
+    MasterDetector* _detector,
     const Flags& _flags)
   : ProcessBase("master"),
     http(*this),
     flags(_flags),
+    leader(None()),
     allocator(_allocator),
     registrar(_registrar),
     files(_files),
+    contender(_contender),
+    detector(_detector),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS) {}
 
 
@@ -294,7 +286,6 @@ void Master::initialize()
 
   // The master ID is currently comprised of the current date, the IP
   // address and port from self() and the OS PID.
-
   Try<string> id =
     strings::format("%s-%u-%u-%d", DateUtils::currentDate(),
                     self().ip, self().port, getpid());
@@ -410,8 +401,6 @@ void Master::initialize()
   whitelistWatcher = new WhitelistWatcher(flags.whitelist, allocator);
   spawn(whitelistWatcher);
 
-  elected = false;
-
   nextFrameworkId = 0;
   nextSlaveId = 0;
   nextOfferId = 0;
@@ -435,13 +424,6 @@ void Master::initialize()
   install<SubmitSchedulerRequest>(
       &Master::submitScheduler,
       &SubmitSchedulerRequest::name);
-
-  install<NewMasterDetectedMessage>(
-      &Master::newMasterDetected,
-      &NewMasterDetectedMessage::pid);
-
-  install<NoMasterDetectedMessage>(
-      &Master::noMasterDetected);
 
   install<RegisterFrameworkMessage>(
       &Master::registerFramework,
@@ -558,6 +540,12 @@ void Master::initialize()
         .onAny(defer(self(), &Self::fileAttached, lambda::_1, log.get()));
     }
   }
+
+  contender->initialize(self());
+
+  // Start contending to be a leading master.
+  contender->contend()
+    .onAny(defer(self(), &Master::contended, lambda::_1));
 }
 
 
@@ -692,34 +680,80 @@ void Master::submitScheduler(const string& name)
 }
 
 
-void Master::newMasterDetected(const UPID& pid)
+void Master::contended(const Future<Future<Nothing> >& _contended)
 {
-  // Check and see if we are (1) still waiting to be the elected
-  // master, (2) newly elected master, (3) no longer elected master,
-  // or (4) still elected master.
+  if (_contended.isFailed()) {
+    CHECK(!elected()) << "Failed to contend so we should not be elected";
+    LOG(ERROR) << "Failed to contend when not elected: "
+               << _contended.failure() << "; contend again...";
+    contender->contend()
+      .onAny(defer(self(), &Master::contended, lambda::_1));
+    return;
+  }
 
-  leader = pid;
+  CHECK(_contended.isReady()) <<
+    "Not expecting MasterContender to discard this future";
 
-  if (leader != self() && !elected) {
-    LOG(INFO) << "Waiting to be master!";
-  } else if (leader == self() && !elected) {
-    LOG(INFO) << "Elected as master!";
-    elected = true;
-  } else if (leader != self() && elected) {
-    LOG(FATAL) << "No longer elected master ... committing suicide!";
-  } else if (leader == self() && elected) {
-    LOG(INFO) << "Still acting as master!";
+  // Now that we know we have our candidacy registered, we start
+  // detecting who is the leader.
+  detector->detect()
+    .onAny(defer(self(), &Master::detected, lambda::_1));
+
+  // Watch for candidacy change.
+  _contended.get()
+    .onAny(defer(self(), &Master::lostCandidacy, lambda::_1));
+}
+
+
+void Master::lostCandidacy(const Future<Nothing>& lost)
+{
+  CHECK(!lost.isDiscarded())
+    << "Not expecting MasterContender to discard this future";
+
+  if (lost.isFailed()) {
+    LOG(ERROR) << "Failed to watch for candidacy: " << lost.failure();
+  }
+
+  if (elected()) {
+    EXIT(1) << "Lost leadership... committing suicide!";
+  } else {
+    LOG(INFO) << "Lost candidacy as a follower... Contend again";
+    contender->contend()
+      .onAny(defer(self(), &Master::contended, lambda::_1));
   }
 }
 
 
-void Master::noMasterDetected()
+void Master::detected(const Future<Result<UPID> >& _leader)
 {
-  if (elected) {
-    LOG(FATAL) << "No longer elected master ... committing suicide!";
+  CHECK(_leader.isReady())
+    << "Not expecting MasterContender to fail or discard this future";
+
+  bool wasElected = elected();
+  leader = _leader.get();
+
+  if (leader.isError()) {
+    if (wasElected) {
+      EXIT(1) << "Failed to detect the leading master while elected: "
+                 << leader.error() << "; committing suicide!";
+    } else {
+      LOG(ERROR) << "Failed to detect the leading master when not elected: "
+                 << leader.error();
+    }
   } else {
-    LOG(FATAL) << "No master detected (?) ... committing suicide!";
+    LOG(INFO) << "The newly elected leader is "
+              << (leader.isSome() ? leader.get() : "NONE");
+
+    if (!wasElected && elected()) {
+      LOG(INFO) << "Elected as the leading master!";
+    } else if (wasElected && !elected()) {
+      EXIT(1) << "Lost leadership... committing suicide!";
+    }
   }
+
+  // Keep detecting.
+  detector->detect(leader)
+    .onAny(defer(self(), &Master::detected, lambda::_1));
 }
 
 
@@ -736,7 +770,7 @@ void Master::registerFramework(
     return;
   }
 
-  if (!elected) {
+  if (!elected()) {
     LOG(WARNING) << "Ignoring register framework message since not elected yet";
     return;
   }
@@ -815,7 +849,7 @@ void Master::reregisterFramework(
     return;
   }
 
-  if (!elected) {
+  if (!elected()) {
     LOG(WARNING) << "Ignoring re-register framework message since "
                  << "not elected yet";
     return;
@@ -1197,7 +1231,7 @@ void Master::schedulerMessage(const SlaveID& slaveId,
 
 void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
 {
-  if (!elected) {
+  if (!elected()) {
     LOG(WARNING) << "Ignoring register slave message from "
                  << slaveInfo.hostname() << " since not elected yet";
     return;
@@ -1243,7 +1277,7 @@ void Master::reregisterSlave(
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks)
 {
-  if (!elected) {
+  if (!elected()) {
     LOG(WARNING) << "Ignoring re-register slave message from "
                  << slaveInfo.hostname() << " since not elected yet";
     return;

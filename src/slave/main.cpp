@@ -27,7 +27,7 @@
 
 #include "common/build.hpp"
 
-#include "detector/detector.hpp"
+#include "master/detector.hpp"
 
 #include "logging/logging.hpp"
 
@@ -127,19 +127,18 @@ int main(int argc, char** argv)
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Starting Mesos slave";
 
-  Files files;
-  Slave* slave = new Slave(flags, false, isolator, &files);
-  process::spawn(slave);
-
-  Try<MasterDetector*> detector =
-    MasterDetector::create(master.get(), slave->self(), false, flags.quiet);
+  Try<MasterDetector*> detector = MasterDetector::create(master.get());
 
   CHECK_SOME(detector) << "Failed to create a master detector";
+
+  Files files;
+  Slave* slave = new Slave(flags, false,  detector.get(), isolator, &files);
+  process::spawn(slave);
 
   process::wait(slave->self());
   delete slave;
 
-  MasterDetector::destroy(detector.get());
+  delete detector.get();
   Isolator::destroy(isolator);
 
   return 0;

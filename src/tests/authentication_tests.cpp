@@ -277,8 +277,9 @@ TEST_F(AuthenticationTest, MasterFailover)
   ASSERT_SOME(master);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+  Owned<StandaloneMasterDetector> detector =
+    new StandaloneMasterDetector(master.get());
+  TestingMesosSchedulerDriver driver(&sched, detector.get());
 
   // Drop the authenticate message from the scheduler.
   Future<AuthenticateMessage> authenticateMessage =
@@ -287,7 +288,6 @@ TEST_F(AuthenticationTest, MasterFailover)
   driver.start();
 
   AWAIT_READY(authenticateMessage);
-  UPID frameworkPid = authenticateMessage.get().pid();
 
   // While the authentication is in progress simulate a failed over
   // master by restarting the master.
@@ -299,12 +299,8 @@ TEST_F(AuthenticationTest, MasterFailover)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureSatisfy(&registered));
 
-  // Send a new master detected message to inform the scheduler
-  // about the new master.
-  NewMasterDetectedMessage newMasterDetectedMsg;
-  newMasterDetectedMsg.set_pid(master.get());
-
-  process::post(frameworkPid, newMasterDetectedMsg);
+  // Appoint a new master and inform the scheduler about it.
+  detector->appoint(master.get());
 
   // Scheduler should successfully register with the new master.
   AWAIT_READY(registered);
@@ -325,21 +321,15 @@ TEST_F(AuthenticationTest, LeaderElection)
   ASSERT_SOME(master);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  Future<AuthenticateMessage> authenticateMessage =
-    FUTURE_PROTOBUF(AuthenticateMessage(), _, _);
+  Owned<StandaloneMasterDetector> detector =
+    new StandaloneMasterDetector(master.get());
+  TestingMesosSchedulerDriver driver(&sched, detector.get());
 
   // Drop the AuthenticationStepMessage from authenticator.
   Future<AuthenticationStepMessage> authenticationStepMessage =
     DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
 
   driver.start();
-
-  // Grab the framework pid.
-  AWAIT_READY(authenticateMessage);
-  UPID frameworkPid = authenticateMessage.get().pid();
 
   // Drop the intermediate SASL message so that authentication fails.
   AWAIT_READY(authenticationStepMessage);
@@ -348,12 +338,8 @@ TEST_F(AuthenticationTest, LeaderElection)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureSatisfy(&registered));
 
-  // Send a new master detected message to inform the scheduler
-  // about the new master after a leader election.
-  NewMasterDetectedMessage newMasterDetectedMsg;
-  newMasterDetectedMsg.set_pid(master.get());
-
-  process::post(frameworkPid, newMasterDetectedMsg);
+  // Appoint a new master and inform the scheduler about it.
+  detector->appoint(master.get());
 
   // Scheduler should successfully register with the new master.
   AWAIT_READY(registered);
@@ -375,21 +361,15 @@ TEST_F(AuthenticationTest, SchedulerFailover)
 
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
-  MesosSchedulerDriver driver1(
-      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  Future<AuthenticateMessage> authenticateMessage =
-    FUTURE_PROTOBUF(AuthenticateMessage(), _, _);
+  Owned<StandaloneMasterDetector> detector =
+    new StandaloneMasterDetector(master.get());
+  TestingMesosSchedulerDriver driver1(&sched1, detector.get());
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
   driver1.start();
-
-  // Grab the framework pid.
-  AWAIT_READY(authenticateMessage);
-  UPID frameworkPid = authenticateMessage.get().pid();
 
   AWAIT_READY(frameworkId);
 
@@ -400,11 +380,8 @@ TEST_F(AuthenticationTest, SchedulerFailover)
 
   EXPECT_CALL(sched1, disconnected(&driver1));
 
-  // Send a NewMasterDetected message to elicit authentication.
-  NewMasterDetectedMessage newMasterDetectedMsg;
-  newMasterDetectedMsg.set_pid(master.get());
-
-  process::post(frameworkPid, newMasterDetectedMsg);
+  // Appoint a new master and inform the scheduler about it.
+  detector->appoint(master.get());
 
   AWAIT_READY(authenticationStepMessage);
 

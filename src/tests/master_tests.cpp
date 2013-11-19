@@ -876,12 +876,14 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  StandaloneMasterDetector* detector =
+    new StandaloneMasterDetector(master.get());
+
+  Try<PID<Slave> > slave = StartSlave(Owned<MasterDetector>(detector));
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+  TestingMesosSchedulerDriver driver(&sched, detector);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -896,11 +898,6 @@ TEST_F(MasterTest, MasterInfoOnReElection)
 
   AWAIT_READY(message);
 
-  // Simulate a spurious newMasterDetected event (e.g., due to ZooKeeper
-  // expiration) at the scheduler.
-  NewMasterDetectedMessage newMasterDetectedMsg;
-  newMasterDetectedMsg.set_pid(master.get());
-
   Future<Nothing> disconnected;
   EXPECT_CALL(sched, disconnected(&driver))
     .WillOnce(FutureSatisfy(&disconnected));
@@ -909,7 +906,9 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   EXPECT_CALL(sched, reregistered(&driver, _))
     .WillOnce(FutureArg<1>(&masterInfo));
 
-  process::post(message.get().to, newMasterDetectedMsg);
+  // Simulate a spurious event (e.g., due to ZooKeeper
+  // expiration) at the scheduler.
+  detector->appoint(master.get());
 
   AWAIT_READY(disconnected);
 
@@ -984,12 +983,14 @@ TEST_F(MasterTest, MasterLost)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
+  Owned<StandaloneMasterDetector> detector = new StandaloneMasterDetector();
+  detector->appoint(master.get());
+
   Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+  TestingMesosSchedulerDriver driver(&sched, detector.get());
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -1008,8 +1009,8 @@ TEST_F(MasterTest, MasterLost)
   EXPECT_CALL(sched, disconnected(&driver))
     .WillOnce(FutureSatisfy(&disconnected));
 
-  // Simulate a spurious noMasterDetected event at the scheduler.
-  process::post(message.get().to, NoMasterDetectedMessage());
+  // Simulate a spurious event at the scheduler.
+  detector->appoint(None());
 
   AWAIT_READY(disconnected);
 

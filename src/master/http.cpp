@@ -298,7 +298,7 @@ Future<Response> Master::Http::redirect(const Request& request)
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
   // If there's no leader, redirect to this master's base url.
-  UPID pid = master.leader != UPID() ? master.leader : master.self();
+  UPID pid = master.leader.isSome() ? master.leader.get() : master.self();
 
   Try<string> hostname = net::getHostname(pid.ip);
   if (hostname.isError()) {
@@ -316,7 +316,7 @@ Future<Response> Master::Http::stats(const Request& request)
 
   JSON::Object object;
   object.values["uptime"] = (Clock::now() - master.startTime).secs();
-  object.values["elected"] = master.elected; // Note: using int not bool.
+  object.values["elected"] = master.elected(); // Note: using int not bool.
   object.values["total_schedulers"] = master.frameworks.size();
   object.values["active_schedulers"] = master.getActiveFrameworks().size();
   object.values["activated_slaves"] = master.slaves.size();
@@ -393,9 +393,8 @@ Future<Response> Master::Http::state(const Request& request)
     object.values["cluster"] = master.flags.cluster.get();
   }
 
-  // TODO(benh): Use an Option for the leader PID.
-  if (master.leader != UPID()) {
-    object.values["leader"] = string(master.leader);
+  if (master.leader.isSome()) {
+    object.values["leader"] = string(master.leader.get());
   }
 
   if (master.flags.log_dir.isSome()) {

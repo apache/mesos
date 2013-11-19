@@ -29,7 +29,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
-#include "detector/detector.hpp"
+#include "master/detector.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -117,19 +117,32 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  Future<UPID> pid = mesos::internal::detect(master.get(), !verbose);
+  Try<MasterDetector*> detector = MasterDetector::create(master.get());
+
+  if (detector.isError()) {
+    cerr << "Failed to create a master detector: " << detector.error() << endl;
+    return -1;
+  }
+
+  Future<Result<UPID> > pid = detector.get()->detect();
 
   if (!pid.await(timeout)) {
     cerr << "Failed to detect master from '" << master.get()
          << "' within " << timeout << endl;
     return -1;
-  } else if (pid.isFailed()) {
-    cerr << "Failed to detect master from '" << master.get()
-         << "': " << pid.failure() << endl;
-    return -1;
+  } else {
+    // Not expecting detect() to fail or discard the future.
+    CHECK(pid.isReady());
+    if (pid.get().isError()) {
+      cerr << "Failed to detect master from '" << master.get()
+           << "': " << pid.failure() << endl;
+      return -1;
+    }
   }
 
-  cout << string(pid.get()).substr(7) << endl;
+  // The future is not satisfied unless the result is Some.
+  CHECK_SOME(pid.get());
+  cout << strings::remove(pid.get().get(), "master@") << endl;
 
   return 0;
 }

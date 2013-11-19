@@ -183,7 +183,6 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	launcher/launcher.cpp						\
 	exec/exec.cpp							\
 	common/lock.cpp							\
-	detector/detector.cpp						\
 	common/date_utils.cpp						\
 	common/resources.cpp						\
 	common/attributes.cpp						\
@@ -220,7 +219,7 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	common/protobuf_utils.hpp					\
 	common/lock.hpp							\
 	common/type_utils.hpp common/thread.hpp common/units.hpp	\
-	detector/detector.hpp examples/utils.hpp files/files.hpp	\
+	examples/utils.hpp files/files.hpp				\
 	hdfs/hdfs.hpp							\
 	launcher/launcher.hpp linux/cgroups.hpp				\
 	linux/fs.hpp local/flags.hpp local/local.hpp			\

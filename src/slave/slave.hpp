@@ -30,6 +30,7 @@
 #include <mesos/resources.hpp>
 
 #include <process/http.hpp>
+#include <process/future.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -38,10 +39,13 @@
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/multihashmap.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/owned.hpp>
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
+
+#include "master/detector.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
@@ -59,9 +63,11 @@
 
 #include "messages/messages.hpp"
 
-
 namespace mesos {
 namespace internal {
+
+class MasterDetector; // Forward declaration.
+
 namespace slave {
 
 using namespace process;
@@ -71,22 +77,19 @@ class StatusUpdateManager;
 struct Executor;
 struct Framework;
 
-
 class Slave : public ProtobufProcess<Slave>
 {
 public:
   Slave(const Flags& flags,
         bool local,
-        Isolator *isolator,
+        MasterDetector* detector,
+        Isolator* isolator,
         Files* files);
 
   virtual ~Slave();
 
   void shutdown(const process::UPID& from);
 
-  void newMasterDetected(const UPID& pid);
-  void noMasterDetected();
-  void masterDetectionFailure();
   void registered(const process::UPID& from, const SlaveID& slaveId);
   void reregistered(const process::UPID& from, const SlaveID& slaveId);
   void doReliableRegistration();
@@ -215,6 +218,9 @@ protected:
 
   Nothing detachFile(const std::string& path);
 
+  // Invoked whenever the detector detects a change in masters.
+  void detected(const Future<Result<UPID> >& pid);
+
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
 
@@ -308,7 +314,7 @@ private:
 
   SlaveInfo info;
 
-  UPID master;
+  Result<UPID> master;
 
   Resources resources;
   Attributes attributes;
@@ -316,6 +322,8 @@ private:
   hashmap<FrameworkID, Framework*> frameworks;
 
   boost::circular_buffer<Owned<Framework> > completedFrameworks;
+
+  MasterDetector* detector;
 
   Isolator* isolator;
   Files* files;

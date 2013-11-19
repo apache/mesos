@@ -288,7 +288,7 @@ Future<Response> Slave::Http::stats(const Request& request)
   object.values["lost_tasks"] = slave.stats.tasks[TASK_LOST];
   object.values["valid_status_updates"] = slave.stats.validStatusUpdates;
   object.values["invalid_status_updates"] = slave.stats.invalidStatusUpdates;
-  object.values["registered"] = slave.master ? "1" : "0";
+  object.values["registered"] = slave.master.isSome() ? "1" : "0";
   object.values["recovery_errors"] = slave.recoveryErrors;
 
   return OK(object, request.query.get("jsonp"));
@@ -317,7 +317,7 @@ Future<Response> Slave::Http::state(const Request& request)
   object.values["failed_tasks"] = slave.stats.tasks[TASK_FAILED];
   object.values["lost_tasks"] = slave.stats.tasks[TASK_LOST];
 
-  Try<string> masterHostname = net::getHostname(slave.master.ip);
+  Try<string> masterHostname = net::getHostname(slave.master.get().ip);
   if (masterHostname.isSome()) {
     object.values["master_hostname"] = masterHostname.get();
   }

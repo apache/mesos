@@ -73,6 +73,7 @@ using namespace state;
 
 Slave::Slave(const slave::Flags& _flags,
              bool _local,
+             MasterDetector* _detector,
              Isolator* _isolator,
              Files* _files)
   : ProcessBase(ID::generate("slave")),
@@ -80,7 +81,9 @@ Slave::Slave(const slave::Flags& _flags,
     http(*this),
     flags(_flags),
     local(_local),
+    master(None()),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
+    detector(_detector),
     isolator(_isolator),
     files(_files),
     monitor(_isolator),
@@ -281,13 +284,6 @@ void Slave::initialize()
   startTime = Clock::now();
 
   // Install protobuf handlers.
-  install<NewMasterDetectedMessage>(
-      &Slave::newMasterDetected,
-      &NewMasterDetectedMessage::pid);
-
-  install<NoMasterDetectedMessage>(
-      &Slave::noMasterDetected);
-
   install<SlaveRegisteredMessage>(
       &Slave::registered,
       &SlaveRegisteredMessage::slave_id);
@@ -433,10 +429,10 @@ void Slave::shutdown(const UPID& from)
   // Allow shutdown message only if
   // 1) Its a message received from the registered master or
   // 2) If its called locally (e.g tests)
-  if (from && from != master) {
+  if (from && (!master.isSome() || from != master.get())) {
     LOG(WARNING) << "Ignoring shutdown message from " << from
-                 << " because it is not from the registered master ("
-                 << master << ")";
+                 << " because it is not from the registered master: "
+                 << (master.isSome() ? master.get() : "None/Error");
     return;
   }
 
@@ -483,75 +479,67 @@ Nothing Slave::detachFile(const string& path)
 }
 
 
-void Slave::newMasterDetected(const UPID& pid)
+void Slave::detected(const Future<Result<UPID> >& pid)
 {
-  LOG(INFO) << "New master detected at " << pid;
+  CHECK(state == DISCONNECTED ||
+        state == RUNNING ||
+        state == TERMINATING) << state;
 
-  master = pid;
-  link(master);
-
-  // Inform the status updates manager about the new master.
-  statusUpdateManager->newMasterDetected(master);
-
-  if (flags.recover == "cleanup") {
-    LOG(INFO) << "Skipping registration because slave is in 'cleanup' mode";
-    return;
-  }
-
-  switch (state) {
-    case RECOVERING:
-      LOG(INFO) << "Postponing registration until recovery is complete";
-      break;
-    case DISCONNECTED:
-    case RUNNING:
-      state = DISCONNECTED;
-      doReliableRegistration();
-      break;
-    case TERMINATING:
-      LOG(INFO) << "Skipping registration because slave is terminating";
-      break;
-    default:
-      LOG(FATAL) << "Unexpected slave state " << state;
-      break;
-  }
-}
-
-
-void Slave::noMasterDetected()
-{
-  LOG(INFO) << "Lost master(s) ... waiting";
-  master = UPID();
-
-  CHECK(state == RECOVERING || state == DISCONNECTED ||
-        state == RUNNING || state == TERMINATING)
-    << state;
-
-  // We only change state if the slave is in RUNNING state because
-  // if the slave is in:
-  // RECOVERY: Slave needs to finish recovery before changing states.
-  // DISCONNECTED: Redundant.
-  // TERMINATING: Slave is shutting down.
-  // TODO(vinod): Subscribe to master detector after recovery.
-  // Similarly, unsubscribe from master detector during termination.
-  // Currently it is tricky because master detector is injected into
-  // the slave from outside.
-  if (state == RUNNING) {
+  if (state != TERMINATING) {
     state = DISCONNECTED;
   }
+
+  // Not expecting MasterDetector to discard or fail futures.
+  CHECK(pid.isReady());
+  master = pid.get();
+
+  if (master.isSome()) {
+    LOG(INFO) << "New master detected at " << master.get();
+    link(master.get());
+
+    // Inform the status updates manager about the new master.
+    statusUpdateManager->newMasterDetected(master.get());
+
+    if (state == TERMINATING) {
+      LOG(INFO) << "Skipping registration because slave is terminating";
+      return;
+    }
+
+    // The slave does not (re-)register if it is in the cleanup mode
+    // because we do not want to accept new tasks.
+    if (flags.recover == "cleanup") {
+      LOG(INFO)
+        << "Skipping registration because slave was started in cleanup mode";
+      return;
+    }
+
+    doReliableRegistration();
+  } else if (master.isNone()) {
+    LOG(INFO) << "Lost leading master";
+  } else {
+    LOG(ERROR) << "Failed to detect a master: " << master.error();
+  }
+
+  // Keep detecting masters.
+  LOG(INFO) << "Detecting new master";
+  detector->detect(master)
+    .onAny(defer(self(), &Slave::detected, lambda::_1));
 }
 
 
 void Slave::registered(const UPID& from, const SlaveID& slaveId)
 {
-  if (from != master) {
+  if (!master.isSome() || from != master.get()) {
     LOG(WARNING) << "Ignoring registration message from " << from
-                 << " because it is not the expected master " << master;
+                 << " because it is not the expected master: "
+                 << (master.isSome() ? master.get() : "NONE/ERROR");
     return;
   }
 
   switch(state) {
     case DISCONNECTED: {
-      LOG(INFO) << "Registered with master " << master
+      CHECK_SOME(master);
+      LOG(INFO) << "Registered with master " << master.get()
                 << "; given slave ID " << slaveId;
 
       state = RUNNING;
@@ -575,7 +563,8 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
        EXIT(1) << "Registered but got wrong id: " << slaveId
                << "(expected: " << info.id() << "). Committing suicide";
       }
-      LOG(WARNING) << "Already registered with master " << master;
+      CHECK_SOME(master);
+      LOG(WARNING) << "Already registered with master " << master.get();
       break;
     case TERMINATING:
       LOG(WARNING) << "Ignoring registration because slave is terminating";
@@ -590,15 +579,17 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
 
 void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
 {
-  if (from != master) {
+  if (!master.isSome() || from != master.get()) {
     LOG(WARNING) << "Ignoring re-registration message from " << from
-                 << " because it is not the expected master " << master;
+                 << " because it is not the expected master: "
+                 << (master.isSome() ? master.get() : "NONE/ERROR");
     return;
   }
 
   switch(state) {
     case DISCONNECTED:
-      LOG(INFO) << "Re-registered with master " << master;
+      CHECK_SOME(master);
+      LOG(INFO) << "Re-registered with master " << master.get();
 
       state = RUNNING;
       if (!(info.id() == slaveId)) {
@@ -612,7 +603,8 @@ void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
         EXIT(1) << "Re-registered but got wrong id: " << slaveId
                 << "(expected: " << info.id() << "). Committing suicide";
       }
-      LOG(WARNING) << "Already re-registered with master " << master;
+      CHECK_SOME(master);
+      LOG(WARNING) << "Already re-registered with master " << master.get();
       break;
     case TERMINATING:
       LOG(WARNING) << "Ignoring re-registration because slave is terminating";
@@ -633,7 +625,7 @@ void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
 
 void Slave::doReliableRegistration()
 {
-  if (!master) {
+  if (!master.isSome()) {
     LOG(INFO) << "Skipping registration because no master present";
     return;
   }
@@ -649,7 +641,7 @@ void Slave::doReliableRegistration()
     // (Vinod): Is the above comment true?
     RegisterSlaveMessage message;
     message.mutable_slave()->CopyFrom(info);
-    send(master, message);
+    send(master.get(), message);
   } else {
     // Re-registering, so send tasks running.
     ReregisterSlaveMessage message;
@@ -698,7 +690,9 @@ void Slave::doReliableRegistration()
         }
       }
     }
-    send(master, message);
+
+    CHECK_SOME(master);
+    send(master.get(), message);
   }
 
   // Retry registration if necessary.
@@ -1117,10 +1111,11 @@ void Slave::shutdownFramework(
   // Allow shutdownFramework() only if
   // its called directly (e.g. Slave::finalize()) or
   // its a message from the currently registered master.
-  if (from && from != master) {
+  if (from && (!master.isSome() || from != master.get())) {
     LOG(WARNING) << "Ignoring shutdown framework message for " << frameworkId
-                 << " from " << from << " because it is not from the registered"
-                 << " master (" << master << ")";
+                 << " from " << from
+                 << " because it is not from the registered master ("
+                 << (master.isSome() ? master.get() : "NONE/ERROR") << ")";
     return;
   }
 
@@ -1944,7 +1939,7 @@ void Slave::exited(const UPID& pid)
 {
   LOG(INFO) << pid << " exited";
 
-  if (master == pid) {
+  if (!master.isSome() || master.get() == pid) {
     LOG(WARNING) << "Master disconnected!"
                  << " Waiting for a new master to be elected";
     // TODO(benh): After so long waiting for a master, commit suicide.
@@ -2236,7 +2231,7 @@ void Slave::executorTerminated(
         message.mutable_executor_id()->MergeFrom(executorId);
         message.set_status(status);
 
-        send(master, message);
+        if (master.isSome()) { send(master.get(), message); }
       }
 
       // Remove the executor if either the framework is terminating or
@@ -2747,6 +2742,9 @@ void Slave::__recover(const Future<Nothing>& future)
 
   LOG(INFO) << "Finished recovery";
 
+  CHECK_EQ(RECOVERING, state);
+  state = DISCONNECTED;
+
   // Schedule all old slave directories for garbage collection.
   // TODO(vinod): Do this as part of recovery. This needs a fix
   // in the recovery code, to recover all slaves instead of only
@@ -2790,18 +2788,12 @@ void Slave::__recover(const Future<Nothing>& future)
   // in 'cleanup' mode.
   if (frameworks.empty() && flags.recover == "cleanup") {
     terminate(self());
-  } else if (flags.recover == "reconnect") {
-    // Re-register if reconnecting.
-    // NOTE: Since the slave in cleanup mode never re-registers, if
-    // the master fails over it will not forward the updates from
-    // the "unknown" slave to the scheduler. This could lead to the
-    // slave waiting indefinitely for acknowledgements. The master's
-    // registrar could help in handling this correctly.
-    state = DISCONNECTED;
-    if (master) {
-      doReliableRegistration();
-    }
+    return;
   }
+
+  // Start detecting masters.
+  detector->detect(master)
+    .onAny(defer(self(), &Slave::detected, lambda::_1));
 }
 
 

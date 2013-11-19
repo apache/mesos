@@ -39,13 +39,12 @@
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 
-#include "detector/detector.hpp"
-
 #include "logging/logging.hpp"
 
 #include "local/local.hpp"
 
 #include "master/master.hpp"
+#include "master/detector.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"

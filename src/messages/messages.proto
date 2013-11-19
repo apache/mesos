@@ -332,17 +332,6 @@ message FrameworkExpiredMessage {
 message ShutdownMessage {}
 
 
-// Master detector messages.
-
-
-message NoMasterDetectedMessage {}
-
-
-message NewMasterDetectedMessage {
-  required string pid = 2;
-}
-
-
 message AuthenticateMessage {
   required string pid = 1; // PID that needs to be authenticated.
 }

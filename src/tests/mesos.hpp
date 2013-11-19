@@ -20,6 +20,7 @@
 #define __TESTS_MESOS_HPP__
 
 #include <map>
+#include <set>
 #include <string>
 
 #include <mesos/executor.hpp>
@@ -42,6 +43,7 @@
 #include "messages/messages.hpp" // For google::protobuf::Message.
 
 #include "master/allocator.hpp"
+#include "master/detector.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
@@ -96,6 +98,24 @@ protected:
   // Starts a slave with the specified isolator and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
       slave::Isolator* isolator,
+      const Option<slave::Flags>& flags = None());
+
+  // Starts a slave with the specified isolator, detector and flags.
+  virtual Try<process::PID<slave::Slave> > StartSlave(
+      slave::Isolator* isolator,
+      Owned<MasterDetector> detector,
+      const Option<slave::Flags>& flags = None());
+
+  // Starts a slave with the specified MasterDetector and flags.
+  virtual Try<process::PID<slave::Slave> > StartSlave(
+      Owned<MasterDetector> detector,
+      const Option<slave::Flags>& flags = None());
+
+  // Starts a slave with the specified mock executor, MasterDetector
+  // and flags.
+  virtual Try<process::PID<slave::Slave> > StartSlave(
+      MockExecutor* executor,
+      Owned<MasterDetector> detector,
       const Option<slave::Flags>& flags = None());
 
   // Stop the specified master.
@@ -303,6 +323,45 @@ public:
   MOCK_METHOD2(error, void(ExecutorDriver*, const std::string&));
 
   const ExecutorID id;
+};
+
+
+class TestingMesosSchedulerDriver : public MesosSchedulerDriver
+{
+public:
+  TestingMesosSchedulerDriver(
+      Scheduler* scheduler,
+      const FrameworkInfo& framework,
+      const Credential& credential,
+      MasterDetector* _detector)
+    : MesosSchedulerDriver(scheduler, framework, "", credential)
+  {
+    detector = _detector;
+  }
+
+  // A constructor that uses the DEFAULT_FRAMEWORK_INFO &
+  // DEFAULT_CREDENTIAL.
+  TestingMesosSchedulerDriver(
+      Scheduler* scheduler,
+      MasterDetector* _detector)
+    : MesosSchedulerDriver(
+          scheduler,
+          DEFAULT_FRAMEWORK_INFO,
+          "",
+          DEFAULT_CREDENTIAL)
+  {
+    detector = _detector;
+  }
+
+  ~TestingMesosSchedulerDriver()
+  {
+    // This is necessary because in the base class the detector is
+    // internally created and deleted whereas in the testing driver
+    // it is injected and thus should not be deleted in the
+    // destructor. Setting it to null allows the detector to survive
+    // MesosSchedulerDriver::~MesosSchedulerDriver().
+    detector = NULL;
+  }
 };
 
 

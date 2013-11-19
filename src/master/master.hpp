@@ -46,6 +46,8 @@
 #include "files/files.hpp"
 
 #include "master/constants.hpp"
+#include "master/contender.hpp"
+#include "master/detector.hpp"
 #include "master/flags.hpp"
 #include "master/registrar.hpp"
 
@@ -85,21 +87,15 @@ class Master : public ProtobufProcess<Master>
 public:
   Master(allocator::Allocator* allocator,
          Registrar* registrar,
-         Files* files);
-
-  Master(allocator::Allocator* allocator,
-         Registrar* registrar,
          Files* files,
-         const Flags& flags);
+         MasterContender* contender,
+         MasterDetector* detector,
+         const Flags& flags = Flags());
 
   virtual ~Master();
 
   void submitScheduler(
       const std::string& name);
-  void newMasterDetected(
-      const UPID& pid);
-  void noMasterDetected();
-  void masterDetectionFailure();
   void registerFramework(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo);
@@ -194,6 +190,15 @@ protected:
 
   // Return connected frameworks that are not in the process of being removed
   std::vector<Framework*> getActiveFrameworks() const;
+
+  // Invoked when the contender has entered the contest.
+  void contended(const Future<Future<Nothing> >& contended);
+
+  // Invoked when the contender has lost the candidacy.
+  void lostCandidacy(const Future<Nothing>& lost);
+
+  // Invoked when there is a newly elected leading master.
+  void detected(const Future<Result<UPID> >& pid);
 
   // Process a launch tasks request (for a non-cancelled offer) by
   // launching the desired tasks (if the offer contains a valid set of
@@ -301,14 +306,18 @@ private:
 
   const Flags flags;
 
-  UPID leader; // Current leading master.
+  Result<UPID> leader; // Current leading master.
 
-  bool elected;
+  // Whether we are the current leading master.
+  bool elected() const { return leader.isSome() && leader.get() == self(); }
 
   allocator::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;
   Registrar* registrar;
   Files* files;
+
+  MasterContender* contender;
+  MasterDetector* detector;
 
   MasterInfo info;
 

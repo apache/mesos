@@ -30,9 +30,8 @@
 #include <process/gmock.hpp>
 #include <process/pid.hpp>
 
-#include "detector/detector.hpp"
-
 #include "master/allocator.hpp"
+#include "master/detector.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 

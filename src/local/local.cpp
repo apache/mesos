@@ -27,12 +27,12 @@
 
 #include "local.hpp"
 
-#include "detector/detector.hpp"
-
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
 #include "master/allocator.hpp"
+#include "master/contender.hpp"
+#include "master/detector.hpp"
 #include "master/drf_sorter.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
@@ -79,7 +79,8 @@ static state::protobuf::State* state = NULL;
 static Registrar* registrar = NULL;
 static Master* master = NULL;
 static map<Isolator*, Slave*> slaves;
-static MasterDetector* detector = NULL;
+static StandaloneMasterDetector* detector = NULL;
+static MasterContender* contender = NULL;
 static Files* files = NULL;
 
 
@@ -126,7 +127,11 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     state = new state::protobuf::State(storage);
     registrar = new Registrar(state);
 
-    master = new Master(_allocator, registrar, files, flags);
+    contender = new StandaloneMasterContender();
+    detector = new StandaloneMasterDetector();
+    master =
+      new Master(_allocator, registrar, files, contender, detector, flags);
+    detector->appoint(master->self());
   }
 
   PID<Master> pid = process::spawn(master);
@@ -147,12 +152,12 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     // Use a different work directory for each slave.
     flags.work_dir = path::join(flags.work_dir, stringify(i));
 
-    Slave* slave = new Slave(flags, true, isolator, files);
+    // NOTE: At this point detector is already initialized by the
+    // Master.
+    Slave* slave = new Slave(flags, true, detector, isolator, files);
     slaves[isolator] = slave;
     pids.push_back(process::spawn(slave));
   }
-
-  detector = new BasicMasterDetector(pid, pids, true);
 
   return pid;
 }
@@ -185,6 +190,9 @@ void shutdown()
 
     delete detector;
     detector = NULL;
+
+    delete contender;
+    contender = NULL;
 
     delete files;
     files = NULL;
