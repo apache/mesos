@@ -11,7 +11,6 @@
 # Note that you can also pass an IP:port (or hostname:port) for 'pid'
 # (i.e., you can omit the ID component of the PID, e.g., 'foo@').
 def get(pid, path, query=None):
-    import json
     import urllib2
 
     from contextlib import closing
@@ -24,4 +23,4 @@ def get(pid, path, query=None):
              for (key, value) in query.items()])
 
     with closing(urllib2.urlopen(url)) as file:
-        return json.loads(file.read())
+        return file.read()
