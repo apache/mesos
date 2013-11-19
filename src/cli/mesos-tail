@@ -30,7 +30,7 @@ def read_forever(slave, task, file):
 
     # Get 'state.json' to get the executor directory.
     try:
-      state = http.get(slave['pid'], '/slave(1)/state.json', None)
+      state = json.loads(http.get(slave['pid'], '/slave(1)/state.json'))
     except:
       sys.stderr.write('Failed to get state from slave\n')
       sys.exit(1)
@@ -58,11 +58,11 @@ def read_forever(slave, task, file):
 
     while True:
         try:
-            result = http.get(slave['pid'],
+            result = json.loads(http.get(slave['pid'],
                 '/files/read.json',
                 {'path': path,
                  'offset': offset,
-                 'length': PAGE_LENGTH})
+                 'length': PAGE_LENGTH}))
         except HTTPError as error:
             if error.code == 404:
                 sys.stderr.write('No such file or directory\n')
@@ -99,7 +99,8 @@ def main():
 
     # Get the master's state.
     try:
-        master_state = http.get(resolve(options.master), '/master/state.json')
+        master_state = json.loads(http.get(resolve(options.master),
+                                           '/master/state.json'))
     except:
         sys.stderr.write('Failed to get the master state\n')
         sys.exit(1)

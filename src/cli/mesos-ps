@@ -163,7 +163,8 @@ def main():
 
     # Get the master's state.
     try:
-        state = http.get(resolve(options.master), '/master/state.json')
+        state = json.loads(http.get(resolve(options.master),
+                                    '/master/state.json'))
     except:
         sys.stderr.write('Failed to get the master state\n')
         sys.exit(1)
@@ -204,9 +205,8 @@ def main():
         # And wait for each future to complete!
         for future in as_completed(futures, timeout):
             slave = futures[future]
-            statistics = None
             try:
-                statistics = future.result()
+                statistics = json.loads(future.result())
             except TimeoutError:
                 sys.stderr.write('Timed out while waiting for slaves\n')
                 sys.exit(1)

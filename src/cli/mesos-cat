@@ -30,7 +30,7 @@ def read(slave, task, file):
 
     # Get 'state.json' to determine the executor directory.
     try:
-        state = http.get(slave['pid'], '/slave(1)/state.json')
+        state = json.loads(http.get(slave['pid'], '/slave(1)/state.json'))
     except:
         sys.stderr.write('Failed to get state from slave\n')
         sys.exit(1)
@@ -63,11 +63,11 @@ def read(slave, task, file):
 
     # Determine the current length of the file.
     try:
-        result = http.get(
+        result = json.loads(http.get(
             slave['pid'],
             '/files/read.json',
             {'path': path,
-             'offset': -1})
+             'offset': -1}))
     except HTTPError as error:
         if error.code == 404:
             sys.stderr.write('No such file or directory\n')
@@ -83,12 +83,12 @@ def read(slave, task, file):
 
     while True:
         try:
-            result = http.get(
+            result = json.loads(http.get(
                 slave['pid'],
                 '/files/read.json',
                 {'path': path,
                  'offset': offset,
-                 'length': PAGE_LENGTH})
+                 'length': PAGE_LENGTH}))
             offset += len(result['data'])
             yield result['data']
             if offset == length:
@@ -121,7 +121,8 @@ def main():
 
     # Get the master's state.
     try:
-        state = http.get(resolve(options.master), '/master/state.json')
+        state = json.loads(http.get(resolve(options.master),
+                                    '/master/state.json'))
     except:
         sys.stderr.write('Failed to get the master state\n')
         sys.exit(1)
