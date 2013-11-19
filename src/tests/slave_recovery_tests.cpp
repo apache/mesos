@@ -1501,9 +1501,10 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   EXPECT_CALL(sched, registered(_, _, _));
 
   Future<vector<Offer> > offers1;
+  Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers1))
-    .WillOnce(Return());       // Ignore the offer when slave is shutting down.
+    .WillOnce(FutureArg<1>(&offers1))  // Initial offer.
+    .WillOnce(FutureArg<1>(&offers2)); // Task resources re-offered.
 
   driver.start();
 
@@ -1550,14 +1551,15 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   }
 
   AWAIT_READY(executorTerminated);
+  AWAIT_READY(offers2);
 
   Clock::resume();
 
   this->Stop(slave.get(), true); // Send a "shut down".
 
-  Future<vector<Offer> > offers2;
+  Future<vector<Offer> > offers3;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers2))
+    .WillOnce(FutureArg<1>(&offers3))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   // Now restart the slave (use same flags) with a new isolator.
@@ -1567,16 +1569,16 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   ASSERT_SOME(slave);
 
   // Ensure that the slave registered with a new id.
-  AWAIT_READY(offers2);
+  AWAIT_READY(offers3);
 
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers3.get().size());
   // Make sure all slave resources are reoffered.
   ASSERT_EQ(Resources(offers1.get()[0].resources()),
-            Resources(offers2.get()[0].resources()));
+            Resources(offers3.get()[0].resources()));
 
   // Ensure the slave id is different.
   ASSERT_NE(
-      offers1.get()[0].slave_id().value(), offers2.get()[0].slave_id().value());
+      offers1.get()[0].slave_id().value(), offers3.get()[0].slave_id().value());
 
   driver.stop();
   driver.join();
