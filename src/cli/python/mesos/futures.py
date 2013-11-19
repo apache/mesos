@@ -76,7 +76,7 @@ except ImportError:
         def set_exception(self, exception):
             with self._lock:
                 self._exception = exception
-                self._done = True
+                self._finish()
 
         def _await(self, timeout):
             with self._lock:
