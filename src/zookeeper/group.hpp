@@ -5,6 +5,7 @@
 #include <set>
 
 #include "process/future.hpp"
+#include "process/timer.hpp"
 
 #include <stout/duration.hpp>
 #include <stout/none.hpp>
@@ -38,6 +39,11 @@ public:
     bool operator == (const Membership& that) const
     {
       return sequence == that.sequence;
+    }
+
+    bool operator != (const Membership& that) const
+    {
+      return sequence != that.sequence;
     }
 
     bool operator < (const Membership& that) const
@@ -92,6 +98,9 @@ public:
         const Duration& timeout,
         const std::string& znode,
         const Option<Authentication>& auth = None());
+  Group(const URL& url,
+        const Duration& timeout);
+
   ~Group();
 
   // Returns the result of trying to join a "group" in ZooKeeper. If
@@ -251,6 +260,10 @@ private:
   // Cache of owned + unowned, where 'None' represents an invalid
   // cache and 'Some' represents a valid cache.
   Option<std::set<Group::Membership> > memberships;
+
+  // The timer that determines whether we should quit waiting for the
+  // connection to be restored.
+  Option<process::Timer> timer;
 };
 
 } // namespace zookeeper {

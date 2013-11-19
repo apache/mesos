@@ -72,6 +72,25 @@ GroupProcess::GroupProcess(
 {}
 
 
+// TODO(xujyan): Reuse the peer constructor above once we switch to
+// C++ 11.
+GroupProcess::GroupProcess(
+    const URL& url,
+    const Duration& _timeout)
+  : servers(url.servers),
+    timeout(_timeout),
+    znode(strings::remove(url.path, "/", strings::SUFFIX)),
+    auth(url.authentication),
+    acl(url.authentication.isSome()
+        ? EVERYONE_READ_CREATOR_ALL
+        : ZOO_OPEN_ACL_UNSAFE),
+    watcher(NULL),
+    zk(NULL),
+    state(DISCONNECTED),
+    retrying(false)
+{}
+
+
 GroupProcess::~GroupProcess()
 {
   fail(&pending.joins, "No longer watching group");
@@ -302,6 +321,14 @@ void GroupProcess::connected(bool reconnect)
       abort(); // Cancels everything pending.
       return;
     }
+  } else {
+    LOG(INFO) << "Group process (" << self() << ")  reconnected to Zookeeper";
+
+    // Cancel and cleanup the reconnect timer (if necessary).
+    if (timer.isSome()) {
+      Timer::cancel(timer.get());
+      timer = None();
+    }
   }
 
   state = CONNECTED;
@@ -312,12 +339,49 @@ void GroupProcess::connected(bool reconnect)
 
 void GroupProcess::reconnecting()
 {
+  LOG(INFO) << "Lost connection to ZooKeeper, attempting to reconnect ...";
+
   state = CONNECTING;
+
+  // ZooKeeper won't tell us of a session expiration until we
+  // reconnect, which could occur much much later than the session was
+  // actually expired. This can lead to a prolonged split-brain
+  // scenario when network partitions occur. Rather than wait for a
+  // reconnection to occur (i.e., a network partition to be repaired)
+  // we create a local timer and "expire" our session prematurely if
+  // we haven't reconnected within the session expiration time out.
+  // The timer can be reset if the connection is restored.
+  CHECK(timer.isNone());
+  timer = delay(timeout, self(), &Self::timedout, zk->getSessionId());
+}
+
+
+void GroupProcess::timedout(const int64_t& sessionId)
+{
+  CHECK_NOTNULL(zk);
+
+  if (timer.isSome() &&
+      timer.get().timeout().expired() &&
+      zk->getSessionId() == sessionId) {
+    // The timer can be reset or replaced and 'zk' can be replaced
+    // since this method was dispatched.
+    std::ostringstream error_;
+    error_ << "Timed out waiting to reconnect to ZooKeeper (sessionId="
+           << std::hex << sessionId << ")";
+    error = error_.str();
+    abort();
+  }
 }
 
 
 void GroupProcess::expired()
 {
+  // Cancel and cleanup the reconnect timer (if necessary).
+  if (timer.isSome()) {
+    Timer::cancel(timer.get());
+    timer = None();
+  }
+
   // Invalidate the cache.
   memberships = None();
 
@@ -337,7 +401,9 @@ void GroupProcess::expired()
 
   state = DISCONNECTED;
 
-  delete zk;
+  delete CHECK_NOTNULL(zk);
+  delete CHECK_NOTNULL(watcher);
+  watcher = new ProcessWatcher<GroupProcess>(self());
   zk = new ZooKeeper(servers, timeout, watcher);
 
   state = CONNECTING;
@@ -675,8 +741,13 @@ void GroupProcess::abort()
   fail(&pending.datas, error.get());
   fail(&pending.watches, error.get());
 
-  // TODO(benh): Delete the ZooKeeper instance in order to terminate
-  // our session (cleaning up any ephemeral znodes as necessary)?
+  error = None();
+
+  // If we decide to abort, make sure we expire the session
+  // (cleaning up any ephemeral ZNodes as necessary). We also
+  // create a new ZooKeeper instance for clients that want to
+  // continue to reuse this group instance.
+  expired();
 }
 
 
@@ -686,6 +757,14 @@ Group::Group(const string& servers,
              const Option<Authentication>& auth)
 {
   process = new GroupProcess(servers, timeout, znode, auth);
+  spawn(process);
+}
+
+
+Group::Group(const URL& url,
+             const Duration& timeout)
+{
+  process = new GroupProcess(url, timeout);
   spawn(process);
 }
 
