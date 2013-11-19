@@ -1364,7 +1364,16 @@ void initialize(const string& delegate)
   socket_manager = new SocketManager();
 
   // Setup processing threads.
-  long cpus = std::max(4L, sysconf(_SC_NPROCESSORS_ONLN));
+  // We create no fewer than 8 threads because some tests require
+  // more worker threads than 'sysconf(_SC_NPROCESSORS_ONLN)' on
+  // computers with fewer cores.
+  // e.g. https://issues.apache.org/jira/browse/MESOS-818
+  //
+  // TODO(xujyan): Use a smarter algorithm to allocate threads.
+  // Allocating a static number of threads can cause starvation if
+  // there are more waiting Processes than the number of worker
+  // threads.
+  long cpus = std::max(8L, sysconf(_SC_NPROCESSORS_ONLN));
 
   for (int i = 0; i < cpus; i++) {
     pthread_t thread; // For now, not saving handles on our threads.
