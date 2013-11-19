@@ -161,7 +161,9 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	sasl/auxprop.cpp						\
 	sched/sched.cpp							\
 	local/local.cpp							\
+	master/contender.cpp						\
 	master/constants.cpp						\
+	master/detector.cpp						\
 	master/drf_sorter.cpp						\
 	master/http.cpp							\
 	master/master.cpp						\
@@ -224,7 +226,10 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	linux/fs.hpp local/flags.hpp local/local.hpp			\
 	logging/flags.hpp logging/logging.hpp				\
 	master/allocator.hpp						\
-	master/constants.hpp master/drf_sorter.hpp master/flags.hpp	\
+	master/contender.hpp						\
+	master/constants.hpp						\
+	master/detector.hpp						\
+	master/drf_sorter.hpp master/flags.hpp				\
 	master/hierarchical_allocator_process.hpp			\
 	master/registrar.hpp						\
 	master/master.hpp master/sorter.hpp				\
@@ -779,38 +784,38 @@ balloon_executor_LDADD = libmesos.la
 
 check_PROGRAMS += mesos-tests
 
-mesos_tests_SOURCES =			\
-  tests/allocator_tests.cpp		\
-  tests/attributes_tests.cpp		\
-  tests/authentication_tests.cpp	\
-  tests/environment.cpp			\
-  tests/examples_tests.cpp		\
-  tests/exception_tests.cpp		\
-  tests/fault_tolerance_tests.cpp	\
-  tests/files_tests.cpp			\
-  tests/flags.cpp			\
-  tests/gc_tests.cpp			\
-  tests/isolator_tests.cpp		\
-  tests/log_tests.cpp			\
-  tests/logging_tests.cpp		\
-  tests/main.cpp			\
-  tests/master_detector_tests.cpp	\
-  tests/master_tests.cpp		\
-  tests/mesos.cpp			\
-  tests/monitor_tests.cpp		\
-  tests/paths_tests.cpp			\
-  tests/protobuf_io_tests.cpp		\
-  tests/reaper_tests.cpp		\
-  tests/registrar_tests.cpp		\
-  tests/resource_offers_tests.cpp	\
-  tests/resources_tests.cpp		\
-  tests/sasl_tests.cpp			\
-  tests/script.cpp			\
-  tests/slave_recovery_tests.cpp	\
-  tests/sorter_tests.cpp		\
-  tests/state_tests.cpp			\
-  tests/status_update_manager_tests.cpp	\
-  tests/utils.cpp			\
+mesos_tests_SOURCES =				\
+  tests/allocator_tests.cpp			\
+  tests/attributes_tests.cpp			\
+  tests/authentication_tests.cpp		\
+  tests/environment.cpp				\
+  tests/examples_tests.cpp			\
+  tests/exception_tests.cpp			\
+  tests/fault_tolerance_tests.cpp		\
+  tests/files_tests.cpp				\
+  tests/flags.cpp				\
+  tests/gc_tests.cpp				\
+  tests/isolator_tests.cpp			\
+  tests/log_tests.cpp				\
+  tests/logging_tests.cpp			\
+  tests/main.cpp				\
+  tests/master_contender_detector_tests.cpp	\
+  tests/master_tests.cpp			\
+  tests/mesos.cpp				\
+  tests/monitor_tests.cpp			\
+  tests/paths_tests.cpp				\
+  tests/protobuf_io_tests.cpp			\
+  tests/reaper_tests.cpp			\
+  tests/registrar_tests.cpp			\
+  tests/resource_offers_tests.cpp		\
+  tests/resources_tests.cpp			\
+  tests/sasl_tests.cpp				\
+  tests/script.cpp				\
+  tests/slave_recovery_tests.cpp		\
+  tests/sorter_tests.cpp			\
+  tests/state_tests.cpp				\
+  tests/status_update_manager_tests.cpp		\
+  tests/utils.cpp				\
   tests/zookeeper_url_tests.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
