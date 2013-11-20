@@ -105,6 +105,7 @@ void execute(const string& script)
     os::setenv("MESOS_BUILD_DIR", flags.build_dir);
     os::setenv("MESOS_WEBUI_DIR", path::join(flags.source_dir, "src", "webui"));
     os::setenv("MESOS_LAUNCHER_DIR", path::join(flags.build_dir, "src"));
+    os::setenv("MESOS_WORK_DIR", directory.get());
 
     // Enable authentication.
     os::setenv("MESOS_AUTHENTICATE", "true");
