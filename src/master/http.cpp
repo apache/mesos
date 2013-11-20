@@ -176,6 +176,9 @@ JSON::Object model(const Framework& framework)
   object.values["id"] = framework.id.value();
   object.values["name"] = framework.info.name();
   object.values["user"] = framework.info.user();
+  object.values["failover_timeout"] = framework.info.failover_timeout();
+  object.values["checkpoint"] = framework.info.checkpoint();
+  object.values["role"] = framework.info.role();
   object.values["registered_time"] = framework.registeredTime.secs();
   object.values["unregistered_time"] = framework.unregisteredTime.secs();
   object.values["active"] = framework.active;
