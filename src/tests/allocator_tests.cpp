@@ -982,7 +982,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   // _separate_ from the expectation below so that this expectation is
   // checked last and matches all possible offers.
   EXPECT_CALL(sched1, resourceOffers(_, _))
-    .WillRepeatedly(DeclineOffers());
+    .WillRepeatedly(DeclineOffers()); // For subsequent offers.
 
   // Initially, all of slave1's resources are avaliable.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
@@ -991,7 +991,9 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   // We don't filter the unused resources to make sure that
   // they get offered to the framework as soon as it fails over.
   EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
-    .WillOnce(InvokeUnusedWithFilters(&this->allocator, 0));
+    .WillOnce(InvokeUnusedWithFilters(&this->allocator, 0))
+    // For subsequent offers.
+    .WillRepeatedly(InvokeUnusedWithFilters(&this->allocator, 0));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
