@@ -1509,7 +1509,10 @@ void Master::exitedExecutor(
               << " of framework " << frameworkId
               << " on slave " << slaveId
               << " (" << slave->info.hostname() << ")"
-              << " exited with status " << status;
+              << (WIFEXITED(status) ? " has exited with status "
+                                     : " has terminated with signal ")
+              << (WIFEXITED(status) ? stringify(WEXITSTATUS(status))
+                                     : strsignal(WTERMSIG(status)));
 
     allocator->resourcesRecovered(frameworkId,
         slaveId,

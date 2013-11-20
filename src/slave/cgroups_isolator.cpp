@@ -955,12 +955,19 @@ void CgroupsIsolator::reaped(pid_t pid, const Future<Option<int> >& status)
       return;
     }
 
-    LOG(INFO) << "Executor " << executorId
-              << " of framework " << frameworkId
-              << " terminated with status "
-              << (status.get().isSome()
-                  ? stringify(status.get().get())
-                  : "unknown");
+    if (status.get().isSome()) {
+      int _status = status.get().get();
+      LOG(INFO) << "Executor '" << executorId
+                << "' of framework " << frameworkId
+                << (WIFEXITED(_status) ? " has exited with status "
+                                       : " has terminated with signal ")
+                << (WIFEXITED(_status) ? stringify(WEXITSTATUS(_status))
+                                       : strsignal(WTERMSIG(_status)));
+    } else {
+      LOG(WARNING) << "Executor '" << executorId
+                   << "' of framework " << frameworkId
+                   << " terminated with unknown status";
+    }
 
     // Set the exit status, so that '_killExecutor()' can send it to the slave.
     info->status = status.get();
