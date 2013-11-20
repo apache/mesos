@@ -82,7 +82,7 @@ fi
 
 
 # Launch slave.
-SLAVE_WORK_DIR=`mktemp -d`
+SLAVE_WORK_DIR=`mktemp -d -t mesos-XXXXXX`
 
 ${SLAVE} \
     --work_dir=${SLAVE_WORK_DIR} \
