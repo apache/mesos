@@ -41,7 +41,6 @@
 #include <stout/owned.hpp>
 
 #include "common/type_utils.hpp"
-#include "common/units.hpp"
 
 #include "files/files.hpp"
 

@@ -53,8 +53,6 @@
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
-#include "common/units.hpp"
-
 #include "linux/cgroups.hpp"
 
 #include "slave/cgroups_isolator.hpp"

@@ -859,7 +859,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
   Option<Bytes> mem = resources.mem();
 
   if (cpus.isSome() && mem.isSome()) {
-    return cpus.get() >= MIN_CPUS && mem.get() > Megabytes(MIN_MEM);
+    return cpus.get() >= MIN_CPUS && mem.get() > MIN_MEM;
   }
 
   return false;

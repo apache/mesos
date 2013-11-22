@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#include "common/units.hpp"
+#include <stout/bytes.hpp>
 
 #include "master/constants.hpp"
 
@@ -25,10 +25,8 @@ namespace internal {
 namespace master {
 
 const int MAX_OFFERS_PER_FRAMEWORK = 50;
-const uint32_t MIN_CPUS = 1;
-const uint32_t MIN_MEM = 32 * Megabyte;
-const uint32_t MAX_CPUS = 1000 * 1000;
-const uint32_t MAX_MEM = 1024 * 1024 * Megabyte;
+const double MIN_CPUS = 0.1;
+const Bytes MIN_MEM = Megabytes(32);
 const Duration SLAVE_PING_TIMEOUT = Seconds(15);
 const uint32_t MAX_SLAVE_PING_TIMEOUTS = 5;
 const uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
