@@ -30,7 +30,7 @@ def read_forever(slave, task, file):
 
     # Get 'state.json' to get the executor directory.
     try:
-      state = json.loads(http.get(slave['pid'], '/slave(1)/state.json'))
+      state = json.loads(http.get(slave['pid'], '/state.json'))
     except:
       sys.stderr.write('Failed to get state from slave\n')
       sys.exit(1)

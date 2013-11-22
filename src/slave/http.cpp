@@ -261,7 +261,7 @@ const string Slave::Http::HEALTH_HELP = HELP(
     TLDR(
         "Health check of the Slave."),
     USAGE(
-        "/slave(1)/health"),
+        "/health"),
     DESCRIPTION(
         "Returns 200 OK iff the Slave is healthy.",
         "Delayed responses are also indicative of poor health."));

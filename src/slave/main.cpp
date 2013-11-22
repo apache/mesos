@@ -112,7 +112,7 @@ int main(int argc, char** argv)
 
   os::setenv("LIBPROCESS_PORT", stringify(port));
 
-  process::initialize();
+  process::initialize("slave(1)");
 
   logging::initialize(argv[0], flags, true); // Catch signals.
 
