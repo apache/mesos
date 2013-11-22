@@ -1379,6 +1379,127 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
 }
 
 
+// This test verifies that a partitioned framework that still
+// thinks it is registered with the master cannot kill a task because
+// the master has re-registered another instance of the framework.
+// What this test does:
+// 1. Launch a master, slave and scheduler.
+// 2. Scheduler launches a task.
+// 3. Launch a second failed over scheduler.
+// 4. Make the first scheduler believe it is still registered.
+// 5. First scheduler attempts to kill the task which is ignored by the master.
+TEST_F(FaultToleranceTest, IgnoreKillTaskFromUnregisteredFramework)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave> > slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  // Start the first scheduler and launch a task.
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched1, statusUpdate(&driver1, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  driver1.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Now start the second failed over scheduler.
+  MockScheduler sched2;
+
+  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
+  framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId);
+
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillRepeatedly(Return()); // Ignore any offers.
+
+  // Drop the framework error message from the master to simulate
+  // a partitioned framework.
+  Future<FrameworkErrorMessage> frameworkErrorMessage =
+    DROP_PROTOBUF(FrameworkErrorMessage(), _ , _);
+
+  driver2.start();
+
+  AWAIT_READY(frameworkErrorMessage);
+
+  AWAIT_READY(registered);
+
+  // Now both the frameworks think they are registered with the
+  // master, but the master only knows about the second framework.
+
+  // A 'killTask' by first framework should be dropped by the master.
+  EXPECT_CALL(sched1, statusUpdate(&driver1, _))
+    .Times(0);
+
+  // 'TASK_FINSIHED' by the executor should reach the second framework.
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched2, statusUpdate(&driver2, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  Future<KillTaskMessage> killTaskMessage =
+    FUTURE_PROTOBUF(KillTaskMessage(), _, _);
+
+  driver1.killTask(status.get().task_id());
+
+  AWAIT_READY(killTaskMessage);
+
+  // By this point the master must have processed and ignored the
+  // 'killTask' message from the first framework. To verify this,
+  // the executor sends 'TASK_FINISHED' to ensure the only update
+  // received by the scheduler is 'TASK_FINISHED' and not
+  // 'TASK_KILLED'.
+  TaskStatus finishedStatus;
+  finishedStatus = status.get();
+  finishedStatus.set_state(TASK_FINISHED);
+  execDriver->sendStatusUpdate(finishedStatus);
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_FINISHED, status2.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver1.stop();
+  driver2.stop();
+
+  driver1.join();
+  driver2.join();
+
+  Shutdown();
+}
+
+
 // This test checks that a scheduler exit shuts down the executor.
 TEST_F(FaultToleranceTest, SchedulerExit)
 {
