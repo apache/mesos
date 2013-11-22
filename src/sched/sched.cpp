@@ -356,7 +356,10 @@ protected:
     }
   }
 
-  void registered(const FrameworkID& frameworkId, const MasterInfo& masterInfo)
+  void registered(
+      const UPID& from,
+      const FrameworkID& frameworkId,
+      const MasterInfo& masterInfo)
   {
     if (aborted) {
       VLOG(1) << "Ignoring framework registered message because "
@@ -367,6 +370,13 @@ protected:
     if (connected) {
       VLOG(1) << "Ignoring framework registered message because "
               << "the driver is already connected!";
+      return;
+    }
+
+    if (!master.isSome() || from != master.get()) {
+      VLOG(1) << "Ignoring framework registered message because it was sent "
+              << "from '" << from << "' instead of the leading master '"
+              << (master.isSome() ? master.get() : UPID()) << "'";
       return;
     }
 
@@ -387,7 +397,10 @@ protected:
     VLOG(1) << "Scheduler::registered took " << stopwatch.elapsed();
   }
 
-  void reregistered(const FrameworkID& frameworkId, const MasterInfo& masterInfo)
+  void reregistered(
+      const UPID& from,
+      const FrameworkID& frameworkId,
+      const MasterInfo& masterInfo)
   {
     if (aborted) {
       VLOG(1) << "Ignoring framework re-registered message because "
@@ -398,6 +411,13 @@ protected:
     if (connected) {
       VLOG(1) << "Ignoring framework re-registered message because "
               << "the driver is already connected!";
+      return;
+    }
+
+    if (!master.isSome() || from != master.get()) {
+      VLOG(1) << "Ignoring framework re-registered message because it was sent "
+              << "from '" << from << "' instead of the leading master '"
+              << (master.isSome() ? master.get() : UPID()) << "'";
       return;
     }
 
@@ -444,12 +464,29 @@ protected:
     delay(Seconds(1), self(), &Self::doReliableRegistration);
   }
 
-  void resourceOffers(const vector<Offer>& offers,
-                      const vector<string>& pids)
+  void resourceOffers(
+      const UPID& from,
+      const vector<Offer>& offers,
+      const vector<string>& pids)
   {
     if (aborted) {
       VLOG(1) << "Ignoring resource offers message because "
               << "the driver is aborted!";
+      return;
+    }
+
+    if (!connected) {
+      VLOG(1) << "Ignoring resource offers message because the driver is "
+              << "disconnected!";
+      return;
+    }
+
+    CHECK_SOME(master);
+
+    if (from != master.get()) {
+      VLOG(1) << "Ignoring resource offers message because it was sent "
+              << "from '" << from << "' instead of the leading master '"
+              << master.get() << "'";
       return;
     }
 
@@ -480,11 +517,26 @@ protected:
     VLOG(1) << "Scheduler::resourceOffers took " << stopwatch.elapsed();
   }
 
-  void rescindOffer(const OfferID& offerId)
+  void rescindOffer(const UPID& from, const OfferID& offerId)
   {
     if (aborted) {
       VLOG(1) << "Ignoring rescind offer message because "
               << "the driver is aborted!";
+      return;
+    }
+
+    if (!connected) {
+      VLOG(1) << "Ignoring rescind offer message because the driver is "
+              << "disconnected!";
+      return;
+    }
+
+    CHECK_SOME(master);
+
+    if (from != master.get()) {
+      VLOG(1) << "Ignoring rescind offer message because it was sent "
+              << "from '" << from << "' instead of the leading master '"
+              << master.get() << "'";
       return;
     }
 
@@ -502,7 +554,10 @@ protected:
     VLOG(1) << "Scheduler::offerRescinded took " << stopwatch.elapsed();
   }
 
-  void statusUpdate(const StatusUpdate& update, const UPID& pid)
+  void statusUpdate(
+      const UPID& from,
+      const StatusUpdate& update,
+      const UPID& pid)
   {
     const TaskStatus& status = update.status();
 
@@ -510,6 +565,24 @@ protected:
       VLOG(1) << "Ignoring task status update message because "
               << "the driver is aborted!";
       return;
+    }
+
+    // Allow status updates created from the driver itself.
+    if (from != UPID()) {
+      if (!connected) {
+        VLOG(1) << "Ignoring status update message because the driver is "
+                << "disconnected!";
+        return;
+      }
+
+      CHECK_SOME(master);
+
+      if (from != master.get()) {
+        VLOG(1) << "Ignoring status update message because it was sent "
+                << "from '" << from << "' instead of the leading master '"
+                << master.get() << "'";
+        return;
+      }
     }
 
     VLOG(2) << "Received status update " << update << " from " << pid;
@@ -569,10 +642,18 @@ protected:
       return;
     }
 
-    if (!master.isSome() || from != master.get()) {
-      LOG(WARNING) << "Ignoring lost slave message from " << from
-                   << " because it is not from the registered master ("
-                   << (master.isSome() ? master.get() : "NONE/ERROR") << ")";
+    if (!connected) {
+      VLOG(1) << "Ignoring lost slave message because the driver is "
+              << "disconnected!";
+      return;
+    }
+
+    CHECK_SOME(master);
+
+    if (from != master.get()) {
+      VLOG(1) << "Ignoring lost slave message because it was sent "
+              << "from '" << from << "' instead of the leading master '"
+              << master.get() << "'";
       return;
     }
 
@@ -732,7 +813,7 @@ protected:
         update.set_timestamp(Clock::now().secs());
         update.set_uuid(UUID::random().toBytes());
 
-        statusUpdate(update, UPID());
+        statusUpdate(UPID(), update, UPID());
       }
       return;
     }
@@ -753,7 +834,7 @@ protected:
         update.set_timestamp(Clock::now().secs());
         update.set_uuid(UUID::random().toBytes());
 
-        statusUpdate(update, UPID());
+        statusUpdate(UPID(), update, UPID());
         continue;
       }
 
@@ -773,7 +854,7 @@ protected:
         update.set_timestamp(Clock::now().secs());
         update.set_uuid(UUID::random().toBytes());
 
-        statusUpdate(update, UPID());
+        statusUpdate(UPID(), update, UPID());
         continue;
       }
 

@@ -1768,3 +1768,92 @@ TEST_F(FaultToleranceTest, ReconcileIncompleteTasks)
 
   Shutdown();
 }
+
+
+// This test ensures that if a master incorrectly thinks that it is
+// leading, the scheduler driver will drop messages from this master.
+// Unfortunately, it is not currently possible to start more than one
+// master within the same process. So, this test merely simulates this
+// by spoofing messages.
+// This test does the following:
+//   1. Start a master, scheduler, launch a task.
+//   2. Spoof a lost task message for the slave.
+//   3. Once the message is sent to the scheduler, kill the task.
+//   4. Ensure the task was KILLED rather than LOST.
+TEST_F(FaultToleranceTest, SplitBrainMasters)
+{
+  // 1. Start a master, scheduler, and launch a task.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave> > slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Message> registered =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> runningStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&runningStatus));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+  AWAIT_READY(frameworkId);
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
+
+  // 2. Spoof a lost task message for the slave.
+  StatusUpdateMessage lostUpdate;
+  lostUpdate.mutable_update()->CopyFrom(createStatusUpdate(
+      frameworkId.get(),
+      runningStatus.get().slave_id(),
+      runningStatus.get().task_id(),
+      TASK_LOST));
+
+  // Spoof a message from a random master; this should be dropped by
+  // the scheduler driver. Since this is delivered locally, it is
+  // synchronously placed on the scheduler driver's queue.
+  process::post(UPID("master2@127.0.0.1:50"), registered.get().to, lostUpdate);
+
+  // 3. Once the message is sent to the scheduler, kill the task.
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
+
+  Future<TaskStatus> killedStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&killedStatus));
+
+  driver.killTask(runningStatus.get().task_id());
+
+  // 4. Ensure the task was KILLED rather than LOST.
+  AWAIT_READY(killedStatus);
+  EXPECT_EQ(TASK_KILLED, killedStatus.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .WillRepeatedly(Return());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
