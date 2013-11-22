@@ -728,7 +728,8 @@ void Master::registerFramework(
   }
 
   if (!elected) {
-    LOG(WARNING) << "Ignoring register framework message since not elected yet";
+    LOG(WARNING) << "Ignoring register framework message from " << from
+                 << " since not elected yet";
     return;
   }
 
@@ -807,8 +808,8 @@ void Master::reregisterFramework(
   }
 
   if (!elected) {
-    LOG(WARNING) << "Ignoring re-register framework message since "
-                 << "not elected yet";
+    LOG(WARNING) << "Ignoring re-register framework message from " << from
+                 << " since not elected yet";
     return;
   }
 
@@ -868,6 +869,15 @@ void Master::reregisterFramework(
       // us a different framework name, user name or executor info?
       LOG(INFO) << "Framework " << frameworkInfo.id() << " failed over";
       failoverFramework(framework, from);
+    } else if (from != framework->pid) {
+      LOG(ERROR)
+        << "Framework " << frameworkInfo.id() << " at " << from
+        << " attempted to re-register while a framework at " << framework->pid
+        << " is already registered";
+      FrameworkErrorMessage message;
+      message.set_message("Framework failed over");
+      send(from, message);
+      return;
     } else {
       LOG(INFO) << "Allowing the Framework " << frameworkInfo.id()
                 << " to re-register with an already used id";
@@ -877,9 +887,8 @@ void Master::reregisterFramework(
       // replied to the offers but the driver might have dropped
       // those messages since it wasn't connected to the master.
       foreach (Offer* offer, utils::copy(framework->offers)) {
-        allocator->resourcesRecovered(offer->framework_id(),
-                                      offer->slave_id(),
-                                      offer->resources());
+        allocator->resourcesRecovered(
+            offer->framework_id(), offer->slave_id(), offer->resources());
         removeOffer(offer);
       }
 
@@ -957,8 +966,10 @@ void Master::unregisterFramework(
     if (framework->pid == from) {
       removeFramework(framework);
     } else {
-      LOG(WARNING) << from << " tried to unregister framework; "
-                   << "expecting " << framework->pid;
+      LOG(WARNING)
+        << "Ignoring unregister framework message for framework " << frameworkId
+        << " from " << from << " because it is not from the registered"
+        << " framework " << framework->pid;
     }
   }
 }
@@ -970,15 +981,22 @@ void Master::deactivateFramework(
 {
   Framework* framework = getFramework(frameworkId);
 
-  if (framework != NULL) {
-    if (framework->pid == from) {
-      LOG(INFO) << from << " asked to deactivate framework " << frameworkId;
-      deactivate(framework);
-    } else {
-      LOG(WARNING) << from << " tried to deactivate framework; "
-                   << "expecting " << framework->pid;
-    }
+  if (framework == NULL) {
+    LOG(WARNING)
+      << "Ignoring deactivate framework message for framework " << frameworkId
+      << " because the framework cannot be found";
+    return;
   }
+
+  if (from != framework->pid) {
+    LOG(WARNING)
+      << "Ignoring deactivate framework message for framework " << frameworkId
+      << " from '" << from << "' because it is not from the registered"
+      << " framework '" << framework->pid << "'";
+    return;
+  }
+
+  deactivate(framework);
 }
 
 
@@ -1010,177 +1028,257 @@ void Master::deactivate(Framework* framework)
 }
 
 
-void Master::resourceRequest(const FrameworkID& frameworkId,
-                             const vector<Request>& requests)
+void Master::resourceRequest(
+    const UPID& from,
+    const FrameworkID& frameworkId,
+    const vector<Request>& requests)
 {
+  Framework* framework = getFramework(frameworkId);
+
+  if (framework == NULL) {
+    LOG(WARNING)
+        << "Ignoring resource request message from framework " << frameworkId
+        << " because the framework cannot be found";
+    return;
+  }
+
+  if (from != framework->pid) {
+    LOG(WARNING)
+      << "Ignoring resource request message from framework " << frameworkId
+      << " from '" << from << "' because it is not from the registered "
+      << " framework '" << framework->pid << "'";
+    return;
+  }
+
+  LOG(INFO) << "Requesting resources for framework " << frameworkId;
   allocator->resourcesRequested(frameworkId, requests);
 }
 
 
-void Master::launchTasks(const FrameworkID& frameworkId,
-                         const OfferID& offerId,
-                         const vector<TaskInfo>& tasks,
-                         const Filters& filters)
+void Master::launchTasks(
+    const UPID& from,
+    const FrameworkID& frameworkId,
+    const OfferID& offerId,
+    const vector<TaskInfo>& tasks,
+    const Filters& filters)
 {
   Framework* framework = getFramework(frameworkId);
-  if (framework != NULL) {
-    // TODO(benh): Support offer "hoarding" and allow multiple offers
-    // *from the same slave* to be used to launch tasks. This can be
-    // accomplished rather easily by collecting and merging all offers
-    // into a mega-offer and passing that offer to
-    // Master::processTasks.
-    Offer* offer = getOffer(offerId);
-    if (offer != NULL) {
-      CHECK_EQ(offer->framework_id(), frameworkId)
-          << "Offer " << offerId
-          << " has invalid frameworkId " << offer->framework_id();
 
-      Slave* slave = getSlave(offer->slave_id());
-      CHECK(slave != NULL)
-        << "Offer " << offerId << " outlived  slave "
-        << slave->id << " (" << slave->info.hostname() << ")";
+  if (framework == NULL) {
+    LOG(WARNING)
+      << "Ignoring launch tasks message for offer " << offerId
+      << " of framework " << frameworkId
+      << " because the framework cannot be found";
+    return;
+  }
 
-      // If a slave is disconnected we should've removed its offers.
-      CHECK(!slave->disconnected)
-        << "Offer " << offerId << " outlived disconnected slave "
-        << slave->id << " (" << slave->info.hostname() << ")";
+  if (from != framework->pid) {
+    LOG(WARNING)
+      << "Ignoring launch tasks message for offer " << offerId
+      << " of framework " << frameworkId << " from '" << from
+      << "' because it is not from the registered framework '"
+      << framework->pid << "'";
+    return;
+  }
 
-      processTasks(offer, framework, slave, tasks, filters);
-    } else {
-      // The offer is gone (possibly rescinded, lost slave, re-reply
-      // to same offer, etc). Report all tasks in it as failed.
-      // TODO: Consider adding a new task state TASK_INVALID for
-      // situations like these.
-      LOG(WARNING) << "Offer " << offerId << " is no longer valid";
-      foreach (const TaskInfo& task, tasks) {
-        StatusUpdateMessage message;
-        StatusUpdate* update = message.mutable_update();
-        update->mutable_framework_id()->MergeFrom(frameworkId);
-        TaskStatus* status = update->mutable_status();
-        status->mutable_task_id()->MergeFrom(task.task_id());
-        status->set_state(TASK_LOST);
-        status->set_message("Task launched with invalid offer");
-        update->set_timestamp(Clock::now().secs());
-        update->set_uuid(UUID::random().toBytes());
+  // TODO(benh): Support offer "hoarding" and allow multiple offers
+  // *from the same slave* to be used to launch tasks. This can be
+  // accomplished rather easily by collecting and merging all offers
+  // into a mega-offer and passing that offer to
+  // Master::processTasks.
+  Offer* offer = getOffer(offerId);
+  if (offer != NULL) {
+    CHECK_EQ(offer->framework_id(), frameworkId)
+        << "Offer " << offerId
+        << " has invalid frameworkId " << offer->framework_id();
 
-        LOG(INFO) << "Sending status update " << *update
-                  << " for launch task attempt on invalid offer " << offerId;
-        send(framework->pid, message);
-      }
+    Slave* slave = getSlave(offer->slave_id());
+    CHECK(slave != NULL)
+      << "Offer " << offerId << " outlived  slave "
+      << slave->id << " (" << slave->info.hostname() << ")";
+
+    // If a slave is disconnected we should've removed its offers.
+    CHECK(!slave->disconnected)
+      << "Offer " << offerId << " outlived disconnected slave "
+      << slave->id << " (" << slave->info.hostname() << ")";
+
+    processTasks(offer, framework, slave, tasks, filters);
+  } else {
+    // The offer is gone (possibly rescinded, lost slave, re-reply
+    // to same offer, etc). Report all tasks in it as failed.
+    // TODO: Consider adding a new task state TASK_INVALID for
+    // situations like these.
+    LOG(WARNING) << "Offer " << offerId << " is no longer valid";
+    foreach (const TaskInfo& task, tasks) {
+      StatusUpdateMessage message;
+      StatusUpdate* update = message.mutable_update();
+      update->mutable_framework_id()->MergeFrom(frameworkId);
+      TaskStatus* status = update->mutable_status();
+      status->mutable_task_id()->MergeFrom(task.task_id());
+      status->set_state(TASK_LOST);
+      status->set_message("Task launched with invalid offer");
+      update->set_timestamp(Clock::now().secs());
+      update->set_uuid(UUID::random().toBytes());
+
+      LOG(INFO) << "Sending status update " << *update
+                << " for launch task attempt on invalid offer " << offerId;
+      send(framework->pid, message);
     }
   }
 }
 
 
-void Master::reviveOffers(const FrameworkID& frameworkId)
+void Master::reviveOffers(const UPID& from, const FrameworkID& frameworkId)
 {
   Framework* framework = getFramework(frameworkId);
-  if (framework != NULL) {
-    LOG(INFO) << "Reviving offers for framework " << framework->id;
-    allocator->offersRevived(framework->id);
+
+  if (framework == NULL) {
+    LOG(WARNING)
+      << "Ignoring revive offers message for framework " << frameworkId
+      << " because the framework cannot be found";
+    return;
   }
+
+  if (from != framework->pid) {
+    LOG(WARNING)
+      << "Ignoring revive offers message for framework " << frameworkId
+      << " from '" << from << "' because it is not from the registered"
+      << " framework '" << framework->pid << "'";
+    return;
+  }
+
+  LOG(INFO) << "Reviving offers for framework " << framework->id;
+  allocator->offersRevived(framework->id);
 }
 
 
-void Master::killTask(const FrameworkID& frameworkId,
-                      const TaskID& taskId)
+void Master::killTask(
+    const UPID& from,
+    const FrameworkID& frameworkId,
+    const TaskID& taskId)
 {
   LOG(INFO) << "Asked to kill task " << taskId
             << " of framework " << frameworkId;
 
   Framework* framework = getFramework(frameworkId);
-  if (framework != NULL) {
-    Task* task = framework->getTask(taskId);
-    if (task != NULL) {
-      Slave* slave = getSlave(task->slave_id());
-      CHECK(slave != NULL) << "Unknown slave " << task->slave_id();
 
-      // We add the task to 'killedTasks' here because the slave
-      // might be partitioned or disconnected but the master
-      // doesn't know it yet.
-      slave->killedTasks.put(frameworkId, taskId);
+  if (framework == NULL) {
+    LOG(WARNING)
+      << "Ignoring kill task message for task " << taskId << " of framework "
+      << frameworkId << " because the framework cannot be found";
+    return;
+  }
 
-      // NOTE: This task will be properly reconciled when the
-      // disconnected slave re-registers with the master.
-      if (!slave->disconnected) {
-        LOG(INFO) << "Telling slave " << slave->id << " ("
-                  << slave->info.hostname() << ")"
-                  << " to kill task " << taskId
-                  << " of framework " << frameworkId;
+  if (from != framework->pid) {
+    LOG(WARNING)
+      << "Ignoring kill task message for task " << taskId
+      << " of framework " << frameworkId << " from '" << from
+      << "' because it is not from the registered framework '"
+      << framework->pid << "'";
+    return;
+  }
 
-        KillTaskMessage message;
-        message.mutable_framework_id()->MergeFrom(frameworkId);
-        message.mutable_task_id()->MergeFrom(taskId);
-        send(slave->pid, message);
-      }
-    } else {
-      // TODO(benh): Once the scheduler has persistance and
-      // high-availability of it's tasks, it will be the one that
-      // determines that this invocation of 'killTask' is silly, and
-      // can just return "locally" (i.e., after hitting only the other
-      // replicas). Unfortunately, it still won't know the slave id.
+  Task* task = framework->getTask(taskId);
+  if (task != NULL) {
+    Slave* slave = getSlave(task->slave_id());
+    CHECK(slave != NULL) << "Unknown slave " << task->slave_id();
 
-      LOG(WARNING) << "Cannot kill task " << taskId
-                   << " of framework " << frameworkId
-                   << " because it cannot be found";
-      StatusUpdateMessage message;
-      StatusUpdate* update = message.mutable_update();
-      update->mutable_framework_id()->MergeFrom(frameworkId);
-      TaskStatus* status = update->mutable_status();
-      status->mutable_task_id()->MergeFrom(taskId);
-      status->set_state(TASK_LOST);
-      status->set_message("Task not found");
-      update->set_timestamp(Clock::now().secs());
-      update->set_uuid(UUID::random().toBytes());
-      send(framework->pid, message);
+    // We add the task to 'killedTasks' here because the slave
+    // might be partitioned or disconnected but the master
+    // doesn't know it yet.
+    slave->killedTasks.put(frameworkId, taskId);
+
+    // NOTE: This task will be properly reconciled when the
+    // disconnected slave re-registers with the master.
+    if (!slave->disconnected) {
+      LOG(INFO) << "Telling slave " << slave->id << " ("
+                << slave->info.hostname() << ")"
+                << " to kill task " << taskId
+                << " of framework " << frameworkId;
+
+      KillTaskMessage message;
+      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_task_id()->MergeFrom(taskId);
+      send(slave->pid, message);
     }
   } else {
-    LOG(WARNING) << "Failed to kill task " << taskId
+    // TODO(benh): Once the scheduler has persistance and
+    // high-availability of it's tasks, it will be the one that
+    // determines that this invocation of 'killTask' is silly, and
+    // can just return "locally" (i.e., after hitting only the other
+    // replicas). Unfortunately, it still won't know the slave id.
+
+    LOG(WARNING) << "Cannot kill task " << taskId
                  << " of framework " << frameworkId
-                 << " because the framework cannot be found";
+                 << " because the task cannot be found";
+    StatusUpdateMessage message;
+    StatusUpdate* update = message.mutable_update();
+    update->mutable_framework_id()->MergeFrom(frameworkId);
+    TaskStatus* status = update->mutable_status();
+    status->mutable_task_id()->MergeFrom(taskId);
+    status->set_state(TASK_LOST);
+    status->set_message("Task not found");
+    update->set_timestamp(Clock::now().secs());
+    update->set_uuid(UUID::random().toBytes());
+    send(framework->pid, message);
   }
 }
 
 
-void Master::schedulerMessage(const SlaveID& slaveId,
-                              const FrameworkID& frameworkId,
-                              const ExecutorID& executorId,
-                              const string& data)
+void Master::schedulerMessage(
+    const UPID& from,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const string& data)
 {
   Framework* framework = getFramework(frameworkId);
-  if (framework != NULL) {
-    Slave* slave = getSlave(slaveId);
-    if (slave != NULL) {
-      if (!slave->disconnected) {
-        LOG(INFO) << "Sending framework message for framework "
-                  << frameworkId << " to slave " << slaveId
-                  << " (" << slave->info.hostname() << ")";
 
-        FrameworkToExecutorMessage message;
-        message.mutable_slave_id()->MergeFrom(slaveId);
-        message.mutable_framework_id()->MergeFrom(frameworkId);
-        message.mutable_executor_id()->MergeFrom(executorId);
-        message.set_data(data);
-        send(slave->pid, message);
+  if (framework == NULL) {
+    LOG(WARNING)
+      << "Ignoring framework message for executor " << executorId
+      << " of framework " << frameworkId
+      << " because the framework cannot be found";
+    stats.invalidFrameworkMessages++;
+    return;
+  }
 
-        stats.validFrameworkMessages++;
-      } else {
-        LOG(WARNING) << "Cannot send framework message for framework "
-                     << frameworkId << " to slave " << slaveId
-                     << " (" << slave->info.hostname() << ")"
-                     << " because slave is disconnected";
-        stats.invalidFrameworkMessages++;
-      }
+  if (from != framework->pid) {
+    LOG(WARNING)
+      << "Ignoring framework message for executor " << executorId
+      << " of framework " << frameworkId << " from " << from
+      << " because it is not from the registered framework "
+      << framework->pid;
+    stats.invalidFrameworkMessages++;
+    return;
+  }
+
+  Slave* slave = getSlave(slaveId);
+  if (slave != NULL) {
+    if (!slave->disconnected) {
+      LOG(INFO) << "Sending framework message for framework "
+                << frameworkId << " to slave " << slaveId
+                << " (" << slave->info.hostname() << ")";
+
+      FrameworkToExecutorMessage message;
+      message.mutable_slave_id()->MergeFrom(slaveId);
+      message.mutable_framework_id()->MergeFrom(frameworkId);
+      message.mutable_executor_id()->MergeFrom(executorId);
+      message.set_data(data);
+      send(slave->pid, message);
+
+      stats.validFrameworkMessages++;
     } else {
       LOG(WARNING) << "Cannot send framework message for framework "
                    << frameworkId << " to slave " << slaveId
-                   << " because slave does not exist";
+                   << " (" << slave->info.hostname() << ")"
+                   << " because slave is disconnected";
       stats.invalidFrameworkMessages++;
     }
   } else {
     LOG(WARNING) << "Cannot send framework message for framework "
                  << frameworkId << " to slave " << slaveId
-                 << " because framework does not exist";
+                 << " because slave does not exist";
     stats.invalidFrameworkMessages++;
   }
 }
@@ -1672,6 +1770,11 @@ void Master::offer(const FrameworkID& frameworkId,
 }
 
 
+// TODO(vinod): If due to network partition there are two instances
+// of the framework that think they are leaders and try to
+// authenticate with master they would be stepping on each other's
+// toes. Currently it is tricky to detect this case because the
+// 'authenticate' message doesn't contain the 'FrameworkID'.
 void Master::authenticate(const UPID& from, const UPID& pid)
 {
   // Deactivate the framework if it's already registered.
