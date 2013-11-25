@@ -1301,6 +1301,11 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
                   << framework->pid << "' to '" << path << "'";
         CHECK_SOME(state::checkpoint(path, framework->pid));
       }
+
+      // Inform status update manager to immediately resend any pending
+      // updates.
+      statusUpdateManager->flush();
+
       break;
     }
     default:

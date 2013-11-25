@@ -25,7 +25,8 @@ namespace slave {
 const Duration EXECUTOR_REGISTRATION_TIMEOUT = Minutes(1);
 const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5);
 const Duration EXECUTOR_REREGISTER_TIMEOUT = Seconds(2);
-const Duration STATUS_UPDATE_RETRY_INTERVAL = Seconds(10);
+const Duration STATUS_UPDATE_RETRY_INTERVAL_MIN = Seconds(10);
+const Duration STATUS_UPDATE_RETRY_INTERVAL_MAX = Minutes(10);
 const Duration GC_DELAY = Weeks(1);
 const double GC_DISK_HEADROOM = 0.1;
 const Duration DISK_WATCH_INTERVAL = Minutes(1);

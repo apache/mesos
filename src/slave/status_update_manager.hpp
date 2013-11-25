@@ -120,6 +120,11 @@ public:
   // TODO(vinod): Remove this hack once the new leader detector code is merged.
   void newMasterDetected(const UPID& pid);
 
+  // Resend all the pending updates right away.
+  // This is useful when the updates were pending because there was
+  // no master elected (e.g., during recovery) or framework failed over.
+  void flush();
+
   // Closes all the status update streams corresponding to this framework.
   // NOTE: This stops retrying any pending status updates for this framework.
   void cleanup(const FrameworkID& frameworkId);

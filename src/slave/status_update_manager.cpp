@@ -86,6 +86,8 @@ public:
 
   void newMasterDetected(const UPID& pid);
 
+  void flush();
+
   void cleanup(const FrameworkID& frameworkId);
 
 private:
@@ -98,13 +100,13 @@ private:
       const Option<UUID>& uuid);
 
   // Status update timeout.
-  void timeout();
+  void timeout(const Duration& duration);
 
-  // Forwards the status update to the master and starts a timer to check
-  // for ACK from the scheduler.
+  // Forwards the status update to the master and starts a timer based
+  // on the 'duration' to check for ACK from the scheduler.
   // NOTE: This should only be used for those messages that expect an
   // ACK (e.g updates from the executor).
-  Timeout forward(const StatusUpdate& update);
+  Timeout forward(const StatusUpdate& update, const Duration& duration);
 
   // Helper functions.
 
@@ -159,14 +161,18 @@ void StatusUpdateManagerProcess::newMasterDetected(const UPID& pid)
   master = pid;
 
   // Retry any pending status updates.
-  // This is useful when the updates were pending because there was
-  // no master elected (e.g., during recovery).
+  flush();
+}
+
+
+void StatusUpdateManagerProcess::flush()
+{
   foreachkey (const FrameworkID& frameworkId, streams) {
     foreachvalue (StatusUpdateStream* stream, streams[frameworkId]) {
       if (!stream->pending.empty()) {
         const StatusUpdate& update = stream->pending.front();
         LOG(WARNING) << "Resending status update " << update;
-        stream->timeout = forward(update);
+        stream->timeout = forward(update, STATUS_UPDATE_RETRY_INTERVAL_MIN);
       }
     }
   }
@@ -251,7 +257,8 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
           const Result<StatusUpdate>& next = stream->next();
           CHECK(!next.isError());
           if (next.isSome()) {
-            stream->timeout = forward(next.get());
+            stream->timeout =
+              forward(next.get(), STATUS_UPDATE_RETRY_INTERVAL_MIN);
           }
         }
       }
@@ -343,14 +350,16 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
     }
 
     CHECK_SOME(next);
-    stream->timeout = forward(next.get());
+    stream->timeout = forward(next.get(), STATUS_UPDATE_RETRY_INTERVAL_MIN);
   }
 
   return Nothing();
 }
 
 
-Timeout StatusUpdateManagerProcess::forward(const StatusUpdate& update)
+Timeout StatusUpdateManagerProcess::forward(
+    const StatusUpdate& update,
+    const Duration& duration)
 {
   if (master) {
     LOG(INFO) << "Forwarding status update " << update << " to " << master;
@@ -366,9 +375,10 @@ Timeout StatusUpdateManagerProcess::forward(const StatusUpdate& update)
   }
 
   // Send a message to self to resend after some delay if no ACK is received.
-  return delay(STATUS_UPDATE_RETRY_INTERVAL,
+  return delay(duration,
                self(),
-               &StatusUpdateManagerProcess::timeout).timeout();
+               &StatusUpdateManagerProcess::timeout,
+               duration).timeout();
 }
 
 
@@ -438,7 +448,7 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
     cleanupStatusUpdateStream(taskId, frameworkId);
   } else if (next.isSome()) {
     // Forward the next queued status update.
-    stream->timeout = forward(next.get());
+    stream->timeout = forward(next.get(), STATUS_UPDATE_RETRY_INTERVAL_MIN);
   }
 
   return !terminated;
@@ -446,7 +456,7 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
 
 
 // TODO(vinod): There should be a limit on the retries.
-void StatusUpdateManagerProcess::timeout()
+void StatusUpdateManagerProcess::timeout(const Duration& duration)
 {
   // Check and see if we should resend any status updates.
   foreachkey (const FrameworkID& frameworkId, streams) {
@@ -457,7 +467,12 @@ void StatusUpdateManagerProcess::timeout()
         if (stream->timeout.get().expired()) {
           const StatusUpdate& update = stream->pending.front();
           LOG(WARNING) << "Resending status update " << update;
-          stream->timeout = forward(update);
+
+          // Bounded exponential backoff.
+          Duration duration_ =
+            std::min(duration * 2, STATUS_UPDATE_RETRY_INTERVAL_MAX);
+
+          stream->timeout = forward(update, duration_);
         }
       }
     }
@@ -602,6 +617,12 @@ Future<Nothing> StatusUpdateManager::recover(
 void StatusUpdateManager::newMasterDetected(const UPID& pid)
 {
   dispatch(process, &StatusUpdateManagerProcess::newMasterDetected, pid);
+}
+
+
+void StatusUpdateManager::flush()
+{
+  dispatch(process, &StatusUpdateManagerProcess::flush);
 }
 
 

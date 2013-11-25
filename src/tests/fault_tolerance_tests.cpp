@@ -55,7 +55,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Isolator;
 using mesos::internal::slave::Slave;
-using mesos::internal::slave::STATUS_UPDATE_RETRY_INTERVAL;
+using mesos::internal::slave::STATUS_UPDATE_RETRY_INTERVAL_MIN;
 
 using process::Clock;
 using process::Future;
@@ -1072,7 +1072,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(sched2, statusUpdate(&driver2, _))
     .WillOnce(FutureSatisfy(&statusUpdate));
 
-  Clock::advance(STATUS_UPDATE_RETRY_INTERVAL);
+  Clock::advance(STATUS_UPDATE_RETRY_INTERVAL_MIN);
 
   AWAIT_READY(statusUpdate);
 
@@ -1853,7 +1853,8 @@ TEST_F(FaultToleranceTest, ReconcileIncompleteTasks)
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return()); // Ignore retried update due to update framework.
 
   Clock::pause();
 

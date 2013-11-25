@@ -241,7 +241,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status));
 
-  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL);
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
 
   AWAIT_READY(status);
 
@@ -325,7 +325,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
   Future<Nothing> ack =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL);
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
 
   AWAIT_READY(status);
 
@@ -557,7 +557,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&update));
 
-  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL);
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
   Clock::settle();
 
   // Ensure the scheduler receives TASK_FINISHED.
@@ -763,7 +763,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&update));
 
-  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL);
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
   Clock::settle();
 
   // Ensure the scheduler receives TASK_FINISHED.
