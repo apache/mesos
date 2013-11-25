@@ -71,18 +71,37 @@ message Action {
 }
 
 
+// The metadata of a replica. It has to be persisted on the disk. We
+// store the current status of the replica as well as the implicit
+// promise that a replica has made. This message is intended to
+// replace the old Promise message to support catch-up.
+message Metadata {
+  enum Status {
+    VOTING = 1;      // Normal voting member in Paxos group.
+    RECOVERING = 2;  // In the process of catching up.
+    STARTING = 3;    // Transient state between EMPTY and RECOVERING.
+    EMPTY = 4;       // Initial state if start with an empty log.
+  }
+
+  required Status status = 1 [default = EMPTY];
+  required uint64 promised = 2 [default = 0];
+}
+
+
 // Represents a log record written to the local filesystem by a
-// replica. A log record may either be a promise or an action (defined
-// above).
+// replica. A log record may store a promise (DEPRECATED), an action
+// or metadata (defined above).
 message Record {
   enum Type {
-    PROMISE = 1;
+    PROMISE = 1;  // DEPRECATED!
     ACTION = 2;
+    METADATA = 3;
   }
 
   required Type type = 1;
-  optional Promise promise = 2;
+  optional Promise promise = 2;   // DEPRECATED!
   optional Action action = 3;
+  optional Metadata metadata = 4;
 }
 
 

@@ -275,10 +275,16 @@ Try<State> LevelDBStorage::recover(const string& path)
     }
 
     switch (record.type()) {
+      case Record::METADATA: {
+        CHECK(record.has_metadata());
+        state.coordinator = record.metadata().promised();
+        break;
+      }
+
+      // DEPRECATED!
       case Record::PROMISE: {
         CHECK(record.has_promise());
-        const Promise& promise = record.promise();
-        state.coordinator = promise.id();
+        state.coordinator = record.promise().id();
         break;
       }
 
