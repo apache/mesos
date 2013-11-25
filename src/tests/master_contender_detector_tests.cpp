@@ -298,10 +298,14 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
   // Shut down ZooKeeper and expect things to fail after the timeout.
   server->shutdownNetwork();
 
-  Clock::advance(std::max(
-      MASTER_DETECTOR_ZK_SESSION_TIMEOUT,
-      MASTER_CONTENDER_ZK_SESSION_TIMEOUT));
-  Clock::settle();
+  // We may need to advance multiple times because we could have
+  // advanced the clock before the timer in Group starts.
+  while (lostCandidacy.isPending()) {
+    Clock::advance(std::max(
+        MASTER_DETECTOR_ZK_SESSION_TIMEOUT,
+        MASTER_CONTENDER_ZK_SESSION_TIMEOUT));
+    Clock::settle();
+  }
 
   AWAIT_EXPECT_FAILED(lostCandidacy);
   AWAIT_READY(leader);
@@ -320,6 +324,8 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
   server->startNetwork();
   AWAIT_READY(contended);
   AWAIT_READY(leader);
+
+  Clock::resume();
 }
 
 
