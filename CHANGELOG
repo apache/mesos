@@ -43,6 +43,9 @@ Release Notes - Mesos - Version 0.15.0
     * [MESOS-787] - Authenticatee process deadlocks
     * [MESOS-792] - FaultToleranceTest.SchedulerFailoverFrameworkMessage is flaky
     * [MESOS-801] - SlaveRecoveryTest / ReconcileTasksMissingFromSlave is flaky.
+    * [MESOS-815] - Race condition in process::ID::generate().
+    * [MESOS-832] - Scheduler Driver should reject messages from a non-leading master.
+    * [MESOS-834] - The Master should reject framework messages from a non-registered driver.
 
 ** Documentation
     * [MESOS-518] - Improve README with Markdown
