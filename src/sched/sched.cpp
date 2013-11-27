@@ -743,17 +743,16 @@ protected:
   {
     VLOG(1) << "Aborting framework '" << framework.id() << "'";
 
-    aborted = true;
+    CHECK(aborted);
 
     if (!connected) {
       VLOG(1) << "Not sending a deactivate message as master is disconnected";
-      return;
+    } else {
+      DeactivateFrameworkMessage message;
+      message.mutable_framework_id()->MergeFrom(framework.id());
+      CHECK_SOME(master);
+      send(master.get(), message);
     }
-
-    DeactivateFrameworkMessage message;
-    message.mutable_framework_id()->MergeFrom(framework.id());
-    CHECK_SOME(master);
-    send(master.get(), message);
 
     Lock lock(mutex);
     pthread_cond_signal(cond);
@@ -982,7 +981,7 @@ private:
   bool failover;
   Result<UPID> master;
 
-  volatile bool connected; // Flag to indicate if framework is registered.
+  bool connected; // Flag to indicate if framework is registered.
   volatile bool aborted; // Flag to indicate if the driver is aborted.
 
   MasterDetector* detector;
@@ -1269,6 +1268,16 @@ Status MesosSchedulerDriver::abort()
 
   CHECK(process != NULL);
 
+  // We set the volatile aborted to true here to prevent any further
+  // messages from being processed in the SchedulerProcess. However,
+  // if abort() is called from another thread as the SchedulerProcess,
+  // there may be at most one additional message processed.
+  // TODO(bmahler): Use an atomic boolean.
+  process->aborted = true;
+
+  // Dispatching here ensures that we still process the outstanding
+  // requests *from* the scheduler, since those do proceed when
+  // aborted is true.
   dispatch(process, &SchedulerProcess::abort);
 
   return status = DRIVER_ABORTED;

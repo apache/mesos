@@ -407,7 +407,7 @@ protected:
   void abort()
   {
     VLOG(1) << "De-activating the executor libprocess";
-    aborted = true;
+    CHECK(aborted);
 
     Lock lock(mutex);
     pthread_cond_signal(cond);
@@ -548,7 +548,7 @@ private:
   bool connected; // Registered with the slave.
   UUID connection; // UUID to identify the connection instance.
   bool local;
-  bool aborted;
+  volatile bool aborted;
   pthread_mutex_t* mutex;
   pthread_cond_t* cond;
   const string directory;
@@ -742,6 +742,16 @@ Status MesosExecutorDriver::abort()
 
   CHECK(process != NULL);
 
+  // We set the volatile aborted to true here to prevent any further
+  // messages from being processed in the ExecutorProcess. However,
+  // if abort() is called from another thread as the ExecutorProcess,
+  // there may be at most one additional message processed.
+  // TODO(bmahler): Use an atomic boolean.
+  process->aborted = true;
+
+  // Dispatching here ensures that we still process the outstanding
+  // requests *from* the executor, since those do proceed when
+  // aborted is true.
   dispatch(process, &ExecutorProcess::abort);
 
   return status = DRIVER_ABORTED;
