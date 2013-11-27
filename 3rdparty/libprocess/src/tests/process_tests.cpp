@@ -158,7 +158,7 @@ Future<bool> readyFuture()
 
 Future<bool> failedFuture()
 {
-  return Future<bool>::failed("The value is not positive (or zero)");
+  return Failure("The value is not positive (or zero)");
 }
 
 

@@ -154,7 +154,7 @@ Future<Owned<T> > Shared<T>::own()
   }
 
   if (!__sync_bool_compare_and_swap(&data->owned, false, true)) {
-    return Future<Owned<T> >::failed("Ownership has already been transferred");
+    return Failure("Ownership has already been transferred");
   }
 
   Future<Owned<T> > future = data->promise.future();

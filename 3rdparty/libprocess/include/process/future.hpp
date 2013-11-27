@@ -18,6 +18,7 @@
 #include <process/pid.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/option.hpp>
 #include <stout/preprocessor.hpp>
 
@@ -252,6 +253,33 @@ private:
 
   std::tr1::shared_ptr<Data> data;
 };
+
+
+// Helper for creating failed futures.
+struct _Failure
+{
+  _Failure(const std::string& _message) : message(_message) {}
+
+  template <typename T>
+  operator Future<T> () const
+  {
+    return Future<T>::failed(message);
+  }
+
+  const std::string message;
+};
+
+
+inline _Failure Failure(const std::string& message)
+{
+  return _Failure(message);
+}
+
+
+inline _Failure Failure(const Error& error)
+{
+  return _Failure(error.message);
+}
 
 
 // TODO(benh): Make Promise a subclass of Future?

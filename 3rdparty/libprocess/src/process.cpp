@@ -3603,8 +3603,7 @@ Future<Response> decode(const string& buffer)
     for (size_t i = 0; i < responses.size(); ++i) {
       delete responses[i];
     }
-    return Future<Response>::failed(
-        "Failed to decode HTTP response:\n" + buffer + "\n");
+    return Failure("Failed to decode HTTP response:\n" + buffer + "\n");
   } else if (responses.size() > 1) {
     PLOG(ERROR) << "Received more than 1 HTTP Response";
   }
@@ -3625,13 +3624,12 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
   int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
   if (s < 0) {
-    return Future<Response>::failed(
-        string("Failed to create socket: ") + strerror(errno));
+    return Failure(string("Failed to create socket: ") + strerror(errno));
   }
 
   Try<Nothing> cloexec = os::cloexec(s);
   if (!cloexec.isSome()) {
-    return Future<Response>::failed("Failed to cloexec: " + cloexec.error());
+    return Failure("Failed to cloexec: " + cloexec.error());
   }
 
   sockaddr_in addr;
@@ -3642,8 +3640,7 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
 
   if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
     os::close(s);
-    return Future<Response>::failed(
-        string("Failed to connect: ") + strerror(errno));
+    return Failure(string("Failed to connect: ") + strerror(errno));
   }
 
   std::ostringstream out;
@@ -3674,8 +3671,7 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
         continue;
       }
       os::close(s);
-      return Future<Response>::failed(
-          string("Failed to write: ") + strerror(errno));
+      return Failure(string("Failed to write: ") + strerror(errno));
     }
 
     remaining -= n;
@@ -3684,8 +3680,7 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
   Try<Nothing> nonblock = os::nonblock(s);
   if (!nonblock.isSome()) {
     os::close(s);
-    return Future<Response>::failed(
-        "Failed to set nonblock: " + nonblock.error());
+    return Failure("Failed to set nonblock: " + nonblock.error());
   }
 
   // Decode once the async read completes.
