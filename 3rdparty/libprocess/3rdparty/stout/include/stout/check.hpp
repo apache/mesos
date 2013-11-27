@@ -10,6 +10,7 @@
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
+#include <stout/some.hpp>
 #include <stout/try.hpp>
 
 // Provides a CHECK_SOME macro, akin to CHECK.
@@ -26,7 +27,7 @@ template <typename T>
 Option<std::string> _check(const Option<T>& o)
 {
   if (o.isNone()) {
-    return Option<std::string>::some("is NONE");
+    return Some("is NONE");
   }
   return None();
 }
@@ -48,7 +49,7 @@ Option<std::string> _check(const Result<T>& r)
   if (r.isError()) {
     return r.error();
   } else if (r.isNone()) {
-    return Option<std::string>::some("is NONE");
+    return Some("is NONE");
   }
   return None();
 }

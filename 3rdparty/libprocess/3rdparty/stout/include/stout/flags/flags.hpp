@@ -16,6 +16,7 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/some.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -289,7 +290,7 @@ inline std::map<std::string, Option<std::string> > FlagsBase::extract(
       if (flags.count(name) > 0 ||
           (name.find("no-") == 0 && flags.count(name.substr(3)) > 0)) {
         std::string value = variable.substr(eq + 1);
-        values[name] = Option<std::string>::some(value);
+        values[name] = Some(value);
       }
     }
   }
@@ -361,11 +362,7 @@ inline Try<Nothing> FlagsBase::load(
     bool unknowns,
     bool duplicates)
 {
-  return load(Option<std::string>::some(prefix),
-              argc,
-              argv,
-              unknowns,
-              duplicates);
+  return load(Some(prefix), argc, argv, unknowns, duplicates);
 }
 
 
@@ -436,7 +433,7 @@ inline Try<Nothing> FlagsBase::load(
   for (iterator = _values.begin(); iterator != _values.end(); ++iterator) {
     const std::string& name = iterator->first;
     const std::string& value = iterator->second;
-    values[name] = Option<std::string>::some(value);
+    values[name] = Some(value);
   }
   return load(values, unknowns);
 }

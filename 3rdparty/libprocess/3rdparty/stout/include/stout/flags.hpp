@@ -28,11 +28,11 @@
 // ...
 //
 // map<string, Option<string> > values;
-// values["no-debug"] = None();                       // --no-debug
-// values["debug"] = None();                          // --debug
-// values["debug"] = Option<string>::some("true");    // --debug=true
-// values["debug"] = Option<string>::some("false");   // --debug=false
-// values["name"] = Option<string>::some("frank");    // --name=frank
+// values["no-debug"] = None();            // --no-debug
+// values["debug"] = None();               // --debug
+// values["debug"] = Some("true");         // --debug=true
+// values["debug"] = Some("false");        // --debug=false
+// values["name"] = Some("frank");         // --name=frank
 //
 // MyFlags flags;
 // flags.load(values);

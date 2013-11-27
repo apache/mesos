@@ -10,6 +10,7 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/some.hpp>
 
 
 using namespace flags;
@@ -57,9 +58,9 @@ TEST(FlagsTest, Load)
 
   std::map<std::string, Option<std::string> > values;
 
-  values["name1"] = Option<std::string>::some("billy joel");
-  values["name2"] = Option<std::string>::some("43");
-  values["name3"] = Option<std::string>::some("false");
+  values["name1"] = Some("billy joel");
+  values["name2"] = Some("43");
+  values["name3"] = Some("false");
   values["no-name4"] = None();
   values["name5"] = None();
 
@@ -100,7 +101,7 @@ TEST(FlagsTest, Add)
 
   std::map<std::string, Option<std::string> > values;
 
-  values["name6"] = Option<std::string>::some("ben folds");
+  values["name6"] = Some("ben folds");
   values["no-name7"] = None();
 
   flags.load(values);
@@ -120,9 +121,9 @@ TEST(FlagsTest, Flags)
 
   std::map<std::string, Option<std::string> > values;
 
-  values["name1"] = Option<std::string>::some("billy joel");
-  values["name2"] = Option<std::string>::some("43");
-  values["name3"] = Option<std::string>::some("false");
+  values["name1"] = Some("billy joel");
+  values["name2"] = Some("43");
+  values["name3"] = Some("false");
   values["no-name4"] = None();
   values["name5"] = None();
 
@@ -369,8 +370,8 @@ TEST(FlagsTest, Duration)
 
   std::map<std::string, Option<std::string> > values;
 
-  values["name6"] = Option<std::string>::some("2mins");
-  values["name7"] = Option<std::string>::some("3hrs");
+  values["name6"] = Some("2mins");
+  values["name7"] = Some("3hrs");
 
   flags.load(values);
 

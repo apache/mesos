@@ -704,7 +704,7 @@ inline Try<std::string> hostname()
 
   std::string hostname = hep->h_name;
   delete[] temp;
-  return Try<std::string>::some(hostname);
+  return hostname;
 }
 
 

@@ -8,6 +8,7 @@
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
+#include <stout/some.hpp>
 #include <stout/try.hpp>
 
 #include <stout/flags/parse.hpp>
@@ -48,7 +49,7 @@ struct OptionLoader
   {
     Try<T> t = parse(value);
     if (t.isSome()) {
-      *flag = Option<T>::some(t.get());
+      *flag = Some(t.get());
     } else {
       return Error("Failed to load value '" + value + "': " + t.error());
     }
@@ -95,7 +96,7 @@ struct OptionMemberLoader
     if (f != NULL) {
       Try<T> t = parse(value);
       if (t.isSome()) {
-        f->*flag = Option<T>::some(t.get());
+        f->*flag = Some(t.get());
       } else {
         return Error("Failed to load value '" + value + "': " + t.error());
       }
