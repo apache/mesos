@@ -97,7 +97,7 @@ void ZooKeeperStorageProcess::initialize()
 Future<vector<string> > ZooKeeperStorageProcess::names()
 {
   if (error.isSome()) {
-    return Future<vector<string> >::failed(error.get());
+    return Failure(error.get());
   } else if (state != CONNECTED) {
     Names* names = new Names();
     pending.names.push(names);
@@ -111,7 +111,7 @@ Future<vector<string> > ZooKeeperStorageProcess::names()
     pending.names.push(names);
     return names->promise.future();
   } else if (result.isError()) {
-    return Future<vector<string> >::failed(result.error());
+    return Failure(result.error());
   }
 
   return result.get();
@@ -121,7 +121,7 @@ Future<vector<string> > ZooKeeperStorageProcess::names()
 Future<Option<Entry> > ZooKeeperStorageProcess::get(const string& name)
 {
   if (error.isSome()) {
-    return Future<Option<Entry> >::failed(error.get());
+    return Failure(error.get());
   } else if (state != CONNECTED) {
     Get* get = new Get(name);
     pending.gets.push(get);
@@ -135,7 +135,7 @@ Future<Option<Entry> > ZooKeeperStorageProcess::get(const string& name)
     pending.gets.push(get);
     return get->promise.future();
   } else if (result.isError()) {
-    return Future<Option<Entry> >::failed(result.error());
+    return Failure(result.error());
   }
 
   return result.get();
@@ -145,7 +145,7 @@ Future<Option<Entry> > ZooKeeperStorageProcess::get(const string& name)
 Future<bool> ZooKeeperStorageProcess::set(const Entry& entry, const UUID& uuid)
 {
   if (error.isSome()) {
-    return Future<bool>::failed(error.get());
+    return Failure(error.get());
   } else if (state != CONNECTED) {
     Set* set = new Set(entry, uuid);
     pending.sets.push(set);
@@ -159,7 +159,7 @@ Future<bool> ZooKeeperStorageProcess::set(const Entry& entry, const UUID& uuid)
     pending.sets.push(set);
     return set->promise.future();
   } else if (result.isError()) {
-    return Future<bool>::failed(result.error());
+    return Failure(result.error());
   }
 
   return result.get();
@@ -169,7 +169,7 @@ Future<bool> ZooKeeperStorageProcess::set(const Entry& entry, const UUID& uuid)
 Future<bool> ZooKeeperStorageProcess::expunge(const Entry& entry)
 {
   if (error.isSome()) {
-    return Future<bool>::failed(error.get());
+    return Failure(error.get());
   } else if (state != CONNECTED) {
     Expunge* expunge = new Expunge(entry);
     pending.expunges.push(expunge);
@@ -183,7 +183,7 @@ Future<bool> ZooKeeperStorageProcess::expunge(const Entry& entry)
     pending.expunges.push(expunge);
     return expunge->promise.future();
   } else if (result.isError()) {
-    return Future<bool>::failed(result.error());
+    return Failure(result.error());
   }
 
   return result.get();

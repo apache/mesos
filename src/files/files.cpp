@@ -116,7 +116,7 @@ Future<Nothing> FilesProcess::attach(const string& path, const string& name)
   Result<string> result = os::realpath(path);
 
   if (!result.isSome()) {
-    return Future<Nothing>::failed(
+    return Failure(
         "Failed to get realpath of '" + path + "': " +
         (result.isError()
          ? result.error()
@@ -127,8 +127,8 @@ Future<Nothing> FilesProcess::attach(const string& path, const string& name)
   Try<bool> access = os::access(result.get(), R_OK);
 
   if (access.isError() || !access.get()) {
-    return Future<Nothing>::failed("Failed to access '" + path + "': " +
-        (access.isError() ? access.error() : "Access denied"));
+    return Failure("Failed to access '" + path + "': " +
+                   (access.isError() ? access.error() : "Access denied"));
   }
 
   // To simplify the read/browse logic, strip any trailing / from the name.

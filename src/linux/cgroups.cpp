@@ -407,32 +407,30 @@ static Try<Nothing> write(
 
 // Returns some error string if either (a) hierarchy is not mounted,
 // (b) cgroup does not exist, or (c) control file does not exist.
-static Option<string> verify(
+static Option<Error> verify(
     const string& hierarchy,
     const string& cgroup = "",
     const string& control = "")
 {
   Try<bool> mounted = cgroups::mounted(hierarchy);
   if (mounted.isError()) {
-    return Option<string>::some(
+    return Error(
         "Failed to determine if the hierarchy at '" + hierarchy +
         "' is mounted: " + mounted.error());
   } else if (!mounted.get()) {
-    return Option<string>::some(
-        "'" + hierarchy + "' is not a valid hierarchy");
+    return Error("'" + hierarchy + "' is not a valid hierarchy");
   }
 
   if (cgroup != "") {
     if (!os::exists(path::join(hierarchy, cgroup))) {
-      return Option<string>::some(
-          "'" + cgroup + "' is not a valid cgroup");
+      return Error("'" + cgroup + "' is not a valid cgroup");
     }
   }
 
   if (control != "") {
     CHECK(cgroup != "");
     if (!os::exists(path::join(hierarchy, cgroup, control))) {
-      return Option<string>::some(
+      return Error(
           "'" + control + "' is not a valid control (is subsystem attached?)");
     }
   }
@@ -655,9 +653,9 @@ Try<Nothing> mount(const string& hierarchy, const string& subsystems, int retry)
 
 Try<Nothing> unmount(const string& hierarchy)
 {
-  Option<string> error = verify(hierarchy);
+  Option<Error> error = verify(hierarchy);
   if (error.isSome()) {
-    return Error(error.get());
+    return error.get();
   }
 
   Try<Nothing> unmount = internal::unmount(hierarchy);
@@ -721,9 +719,9 @@ Try<bool> mounted(const string& hierarchy, const string& subsystems)
 
 Try<Nothing> create(const string& hierarchy, const string& cgroup)
 {
-  Option<string> error = verify(hierarchy);
+  Option<Error> error = verify(hierarchy);
   if (error.isSome()) {
-    return Error(error.get());
+    return error.get();
   }
 
   return internal::create(hierarchy, cgroup);
@@ -732,9 +730,9 @@ Try<Nothing> create(const string& hierarchy, const string& cgroup)
 
 Try<Nothing> remove(const string& hierarchy, const string& cgroup)
 {
-  Option<string> error = verify(hierarchy, cgroup);
+  Option<Error> error = verify(hierarchy, cgroup);
   if (error.isSome()) {
-    return Error(error.get());
+    return error.get();
   }
 
   Try<vector<string> > cgroups = cgroups::get(hierarchy, cgroup);
@@ -752,9 +750,9 @@ Try<Nothing> remove(const string& hierarchy, const string& cgroup)
 
 Try<bool> exists(const string& hierarchy, const string& cgroup)
 {
-  Option<string> error = verify(hierarchy);
+  Option<Error> error = verify(hierarchy);
   if (error.isSome()) {
-    return Error(error.get());
+    return error.get();
   }
 
   return os::exists(path::join(hierarchy, cgroup));
@@ -763,9 +761,9 @@ Try<bool> exists(const string& hierarchy, const string& cgroup)
 
 Try<vector<string> > get(const string& hierarchy, const string& cgroup)
 {
-  Option<string> error = verify(hierarchy, cgroup);
+  Option<Error> error = verify(hierarchy, cgroup);
   if (error.isSome()) {
-    return Error(error.get());
+    return error.get();
   }
 
   Result<string> hierarchyAbsPath = os::realpath(hierarchy);
@@ -826,9 +824,9 @@ Try<Nothing> kill(
     const string& cgroup,
     int signal)
 {
-  Option<string> error = verify(hierarchy, cgroup);
+  Option<Error> error = verify(hierarchy, cgroup);
   if (error.isSome()) {
-    return Error(error.get());
+    return error.get();
   }
 
   Try<set<pid_t> > pids = tasks(hierarchy, cgroup);
@@ -858,9 +856,9 @@ Try<string> read(
     const string& cgroup,
     const string& control)
 {
-  Option<string> error = verify(hierarchy, cgroup, control);
+  Option<Error> error = verify(hierarchy, cgroup, control);
   if (error.isSome()) {
-    return Error(error.get());
+    return error.get();
   }
 
   return internal::read(hierarchy, cgroup, control);
@@ -873,9 +871,9 @@ Try<Nothing> write(
     const string& control,
     const string& value)
 {
-  Option<string> error = verify(hierarchy, cgroup, control);
+  Option<Error> error = verify(hierarchy, cgroup, control);
   if (error.isSome()) {
-    return Error(error.get());
+    return error.get();
   }
 
   return internal::write(hierarchy, cgroup, control, value);
@@ -887,9 +885,9 @@ Try<bool> exists(
     const string& cgroup,
     const string& control)
 {
-  Option<string> error = verify(hierarchy, cgroup);
+  Option<Error> error = verify(hierarchy, cgroup);
   if (error.isSome()) {
-    return Error(error.get());
+    return error.get();
   }
 
   return os::exists(path::join(hierarchy, cgroup, control));
@@ -1146,9 +1144,9 @@ Future<uint64_t> listen(
     const string& control,
     const Option<string>& args)
 {
-  Option<string> error = verify(hierarchy, cgroup, control);
+  Option<Error> error = verify(hierarchy, cgroup, control);
   if (error.isSome()) {
-    return Future<uint64_t>::failed(error.get());
+    return Failure(error.get());
   }
 
   internal::EventListener* listener =
@@ -1357,19 +1355,19 @@ Future<bool> freeze(
     const Duration& interval,
     unsigned int retries)
 {
-  Option<string> error = verify(hierarchy, cgroup, "freezer.state");
+  Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
   if (error.isSome()) {
-    return Future<bool>::failed(error.get());
+    return Failure(error.get());
   }
 
   if (interval < Seconds(0)) {
-    return Future<bool>::failed("Interval should be non-negative");
+    return Failure("Interval should be non-negative");
   }
 
   // Check the current freezer state.
   Try<string> state = internal::read(hierarchy, cgroup, "freezer.state");
   if (state.isError()) {
-    return Future<bool>::failed(
+    return Failure(
         "Failed to read control 'freezer.state': " + state.error());
   } else if (strings::trim(state.get()) == "FROZEN") {
     // Immediately return success.
@@ -1389,19 +1387,19 @@ Future<bool> thaw(
     const string& cgroup,
     const Duration& interval)
 {
-  Option<string> error = verify(hierarchy, cgroup, "freezer.state");
+  Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
   if (error.isSome()) {
-    return Future<bool>::failed(error.get());
+    return Failure(error.get());
   }
 
   if (interval < Seconds(0)) {
-    return Future<bool>::failed("Interval should be non-negative");
+    return Failure("Interval should be non-negative");
   }
 
   // Check the current freezer state.
   Try<string> state = internal::read(hierarchy, cgroup, "freezer.state");
   if (state.isError()) {
-    return Future<bool>::failed(
+    return Failure(
         "Failed to read control 'freezer.state': " + state.error());
   } else if (strings::trim(state.get()) == "THAWED") {
     // Immediately return success.
@@ -1551,7 +1549,7 @@ private:
   {
     Try<Nothing> kill = cgroups::kill(hierarchy, cgroup, signal);
     if (kill.isError()) {
-      return Future<Nothing>::failed(kill.error());
+      return Failure(kill.error());
     }
     return Nothing();
   }
@@ -1685,13 +1683,13 @@ Future<bool> destroy(
     const Duration& interval)
 {
   if (interval < Seconds(0)) {
-    return Future<bool>::failed("Interval should be non-negative");
+    return Failure("Interval should be non-negative");
   }
 
   // Construct the vector of cgroups to destroy.
   Try<vector<string> > cgroups = cgroups::get(hierarchy, cgroup);
   if (cgroups.isError()) {
-    return Future<bool>::failed(
+    return Failure(
         "Failed to get nested cgroups: " + cgroups.error());
   }
 
@@ -1705,7 +1703,7 @@ Future<bool> destroy(
   }
 
   // If the freezer subsystem is available, destroy the cgroups.
-  Option<string> error = verify(hierarchy, cgroup, "freezer.state");
+  Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
   if (error.isNone()) {
     internal::Destroyer* destroyer =
       new internal::Destroyer(hierarchy, candidates, interval);
@@ -1717,7 +1715,7 @@ Future<bool> destroy(
     foreach (const std::string& cgroup, candidates) {
       Try<Nothing> remove = cgroups::remove(hierarchy, cgroup);
       if (remove.isError()) {
-        return Future<bool>::failed(remove.error());
+        return Failure(remove.error());
       }
     }
   }
@@ -1734,7 +1732,7 @@ Future<bool> cleanup(const string& hierarchy)
 {
   Try<bool> mounted = cgroups::mounted(hierarchy);
   if (mounted.isError()) {
-    return Future<bool>::failed(mounted.error());
+    return Failure(mounted.error());
   }
 
   if (mounted.get()) {
@@ -1746,7 +1744,7 @@ Future<bool> cleanup(const string& hierarchy)
     if (os::exists(hierarchy)) {
       Try<Nothing> rmdir = os::rmdir(hierarchy);
       if (rmdir.isError()) {
-        return Future<bool>::failed(rmdir.error());
+        return Failure(rmdir.error());
       }
     }
   }
@@ -1760,14 +1758,14 @@ Future<bool> _cleanup(const string& hierarchy)
   // Remove the hierarchy.
   Try<Nothing> unmount = cgroups::unmount(hierarchy);
   if (unmount.isError()) {
-    return Future<bool>::failed(unmount.error());
+    return Failure(unmount.error());
   }
 
   // Remove the directory if it still exists.
   if (os::exists(hierarchy)) {
     Try<Nothing> rmdir = os::rmdir(hierarchy);
     if (rmdir.isError()) {
-      return Future<bool>::failed(rmdir.error());
+      return Failure(rmdir.error());
     }
   }
 

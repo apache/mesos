@@ -64,7 +64,7 @@ void LevelDBStorageProcess::initialize()
 Future<vector<string> > LevelDBStorageProcess::names()
 {
   if (error.isSome()) {
-    return Future<vector<string> >::failed(error.get());
+    return Failure(error.get());
   }
 
   vector<string> results;
@@ -87,13 +87,13 @@ Future<vector<string> > LevelDBStorageProcess::names()
 Future<Option<Entry> > LevelDBStorageProcess::get(const string& name)
 {
   if (error.isSome()) {
-    return Future<Option<Entry> >::failed(error.get());
+    return Failure(error.get());
   }
 
   Try<Option<Entry> > option = read(name);
 
   if (option.isError()) {
-    return Future<Option<Entry> >::failed(option.error());
+    return Failure(option.error());
   }
 
   return option.get();
@@ -103,7 +103,7 @@ Future<Option<Entry> > LevelDBStorageProcess::get(const string& name)
 Future<bool> LevelDBStorageProcess::set(const Entry& entry, const UUID& uuid)
 {
   if (error.isSome()) {
-    return Future<bool>::failed(error.get());
+    return Failure(error.get());
   }
 
   // We do a read first to make sure the version has not changed. This
@@ -112,7 +112,7 @@ Future<bool> LevelDBStorageProcess::set(const Entry& entry, const UUID& uuid)
   Try<Option<Entry> > option = read(entry.name());
 
   if (option.isError()) {
-    return Future<bool>::failed(option.error());
+    return Failure(option.error());
   }
 
   if (option.get().isSome()) {
@@ -128,7 +128,7 @@ Future<bool> LevelDBStorageProcess::set(const Entry& entry, const UUID& uuid)
   Try<bool> result = write(entry);
 
   if (result.isError()) {
-    return Future<bool>::failed(result.error());
+    return Failure(result.error());
   }
 
   return result.get();
@@ -138,7 +138,7 @@ Future<bool> LevelDBStorageProcess::set(const Entry& entry, const UUID& uuid)
 Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
 {
   if (error.isSome()) {
-    return Future<bool>::failed(error.get());
+    return Failure(error.get());
   }
 
   // We do a read first to make sure the version has not changed. This
@@ -147,7 +147,7 @@ Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
   Try<Option<Entry> > option = read(entry.name());
 
   if (option.isError()) {
-    return Future<bool>::failed(option.error());
+    return Failure(option.error());
   }
 
   if (option.get().isNone()) {
@@ -169,7 +169,7 @@ Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
   leveldb::Status status = db->Delete(options, entry.name());
 
   if (!status.ok()) {
-    return Future<bool>::failed(status.ToString());
+    return Failure(status.ToString());
   }
 
   return true;

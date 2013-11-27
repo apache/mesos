@@ -117,7 +117,7 @@ void GroupProcess::initialize()
 Future<Group::Membership> GroupProcess::join(const string& data)
 {
   if (error.isSome()) {
-    return Future<Group::Membership>::failed(error.get());
+    return Failure(error.get());
   } else if (state != CONNECTED) {
     Join* join = new Join(data);
     pending.joins.push(join);
@@ -143,7 +143,7 @@ Future<Group::Membership> GroupProcess::join(const string& data)
     pending.joins.push(join);
     return join->promise.future();
   } else if (membership.isError()) {
-    return Future<Group::Membership>::failed(membership.error());
+    return Failure(membership.error());
   }
 
   return membership.get();
@@ -153,7 +153,7 @@ Future<Group::Membership> GroupProcess::join(const string& data)
 Future<bool> GroupProcess::cancel(const Group::Membership& membership)
 {
   if (error.isSome()) {
-    return Future<bool>::failed(error.get());
+    return Failure(error.get());
   } else if (owned.count(membership.id()) == 0) {
     // TODO(benh): Should this be an error? Right now a user can't
     // differentiate when 'false' means they can't cancel because it's
@@ -184,7 +184,7 @@ Future<bool> GroupProcess::cancel(const Group::Membership& membership)
     pending.cancels.push(cancel);
     return cancel->promise.future();
   } else if (cancellation.isError()) {
-    return Future<bool>::failed(cancellation.error());
+    return Failure(cancellation.error());
   }
 
   return cancellation.get();
@@ -194,7 +194,7 @@ Future<bool> GroupProcess::cancel(const Group::Membership& membership)
 Future<string> GroupProcess::data(const Group::Membership& membership)
 {
   if (error.isSome()) {
-    return Future<string>::failed(error.get());
+    return Failure(error.get());
   } else if (state != CONNECTED) {
     Data* data = new Data(membership);
     pending.datas.push(data);
@@ -212,7 +212,7 @@ Future<string> GroupProcess::data(const Group::Membership& membership)
     pending.datas.push(data);
     return data->promise.future();
   } else if (result.isError()) {
-    return Future<string>::failed(result.error());
+    return Failure(result.error());
   }
 
   return result.get();
@@ -223,7 +223,7 @@ Future<set<Group::Membership> > GroupProcess::watch(
     const set<Group::Membership>& expected)
 {
   if (error.isSome()) {
-    return Future<set<Group::Membership> >::failed(error.get());
+    return Failure(error.get());
   } else if (state != CONNECTED) {
     Watch* watch = new Watch(expected);
     pending.watches.push(watch);

@@ -241,7 +241,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
         // Replay the stream.
         Try<Nothing> replay = stream->replay(task.updates, task.acks);
         if (replay.isError()) {
-          return Future<Nothing>::failed(
+          return Failure(
               "Failed to replay status updates for task " + stringify(task.id) +
               " of framework " + stringify(framework.id) +
               ": " + replay.error());
@@ -322,7 +322,7 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
   // Verify that we didn't get a non-checkpointable update for a
   // stream that is checkpointable, and vice-versa.
   if (stream->checkpoint != checkpoint) {
-    return Future<Nothing>::failed(
+    return Failure(
         "Mismatched checkpoint value for status update " + stringify(update) +
         " (expected checkpoint=" + stringify(stream->checkpoint) +
         " actual checkpoint=" + stringify(checkpoint) + ")");
@@ -331,7 +331,7 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
   // Handle the status update.
   Try<bool> result = stream->update(update);
   if (result.isError()) {
-    return Future<Nothing>::failed(result.error());
+    return Failure(result.error());
   }
 
   // We don't return a failed future here so that the slave can re-ack
@@ -346,7 +346,7 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
     CHECK(stream->timeout.isNone());
     const Result<StatusUpdate>& next = stream->next();
     if (next.isError()) {
-      return Future<Nothing>::failed(next.error());
+      return Failure(next.error());
     }
 
     CHECK_SOME(next);
@@ -396,7 +396,7 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
   // This might happen if we haven't completed recovery yet or if the
   // acknowledgement is for a stream that has been cleaned up.
   if (stream == NULL) {
-    return Future<bool>::failed(
+    return Failure(
         "Cannot find the status update stream for task " + stringify(taskId) +
         " of framework " + stringify(frameworkId));
   }
@@ -404,13 +404,13 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
   // Get the corresponding update for this ACK.
   const Result<StatusUpdate>& update = stream->next();
   if (update.isError()) {
-    return Future<bool>::failed(update.error());
+    return Failure(update.error());
   }
 
   // This might happen if we retried a status update and got back
   // acknowledgments for both the original and the retried update.
   if (update.isNone()) {
-    return Future<bool>::failed(
+    return Failure(
         "Unexpected status update acknowledgment (UUID: " + uuid.toString() +
         ") for task " + stringify(taskId) +
         " of framework " + stringify(frameworkId));
@@ -421,11 +421,11 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
     stream->acknowledgement(taskId, frameworkId, uuid, update.get());
 
   if (result.isError()) {
-    return Future<bool>::failed(result.error());
+    return Failure(result.error());
   }
 
   if (!result.get()) {
-    return Future<bool>::failed("Duplicate acknowledgement");
+    return Failure("Duplicate acknowledgement");
   }
 
   // Reset the timeout.
@@ -434,7 +434,7 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
   // Get the next update in the queue.
   const Result<StatusUpdate>& next = stream->next();
   if (next.isError()) {
-    return Future<bool>::failed(next.error());
+    return Failure(next.error());
   }
 
   bool terminated = stream->terminated;

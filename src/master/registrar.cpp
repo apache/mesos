@@ -40,6 +40,7 @@ using mesos::internal::state::protobuf::State;
 using mesos::internal::state::protobuf::Variable;
 
 using process::dispatch;
+using process::Failure;
 using process::Future;
 using process::Process;
 using process::Promise;
@@ -259,7 +260,7 @@ Future<bool> RegistrarProcess::_readmit(
   CHECK_SOME(slaves.variable);
 
   if (!info.has_id()) {
-    return Future<bool>::failed("Expecting SlaveInfo to have a SlaveID");
+    return Failure("Expecting SlaveInfo to have a SlaveID");
   }
 
   Mutation<registry::Slaves>* mutation = new Readmit(info);
@@ -285,7 +286,7 @@ Future<bool> RegistrarProcess::_remove(
   CHECK_SOME(slaves.variable);
 
   if (!info.has_id()) {
-    return Future<bool>::failed("Expecting SlaveInfo to have a SlaveID");
+    return Failure("Expecting SlaveInfo to have a SlaveID");
   }
 
   Mutation<registry::Slaves>* mutation = new Remove(info);
@@ -355,7 +356,7 @@ Future<bool> RegistrarProcess::_update(
 
   if (variable.isNone()) {
     LOG(WARNING) << "Failed to update 'slaves': version mismatch";
-    return Future<bool>::failed("Failed to update 'slaves': version mismatch");
+    return Failure("Failed to update 'slaves': version mismatch");
   }
 
   LOG(INFO) << "Successfully updated 'slaves'";

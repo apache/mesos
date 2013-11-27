@@ -60,7 +60,7 @@ Future<Option<int> > ReaperProcess::monitor(pid_t pid)
                  << " because it doesn't exist";
     return None();
   } else {
-    return Future<Option<int> >::failed(
+    return Failure(
         "Failed to monitor process " + stringify(pid) + ": " + process.error());
   }
 }

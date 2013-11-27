@@ -59,6 +59,7 @@
 #include "slave/state.hpp"
 
 using process::defer;
+using process::Failure;
 using process::Future;
 
 using std::list;
@@ -728,7 +729,7 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
   if (!infos.contains(frameworkId) ||
       !infos[frameworkId].contains(executorId) ||
       infos[frameworkId][executorId]->killed) {
-    return Future<ResourceStatistics>::failed("Unknown or killed executor");
+    return Failure("Unknown or killed executor");
   }
 
   // Get the number of clock ticks, used for cpu accounting.
@@ -757,8 +758,7 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
     cgroups::stat(hierarchy, info->name(), "cpuacct.stat");
 
   if (stat.isError()) {
-    return Future<ResourceStatistics>::failed(
-        "Failed to read cpuacct.stat: " + stat.error());
+    return Failure("Failed to read cpuacct.stat: " + stat.error());
   }
 
   // TODO(bmahler): Add namespacing to cgroups to enforce the expected
@@ -775,8 +775,7 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
   //   2. It does not include any file backed pages.
   Try<Bytes> usage = cgroups::memory::usage_in_bytes(hierarchy, info->name());
   if (usage.isError()) {
-    return Future<ResourceStatistics>::failed(
-        "Failed to parse memory.usage_in_bytes: " + usage.error());
+    return Failure("Failed to parse memory.usage_in_bytes: " + usage.error());
   }
 
   // TODO(bmahler): Add namespacing to cgroups to enforce the expected
@@ -785,8 +784,7 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
 
   stat = cgroups::stat(hierarchy, info->name(), "memory.stat");
   if (stat.isError()) {
-    return Future<ResourceStatistics>::failed(
-        "Failed to read memory.stat: " + stat.error());
+    return Failure("Failed to read memory.stat: " + stat.error());
   }
 
   if (stat.get().contains("total_cache")) {
@@ -805,8 +803,7 @@ Future<ResourceStatistics> CgroupsIsolator::usage(
   stat = cgroups::stat(hierarchy, info->name(), "cpu.stat");
 
   if (stat.isError()) {
-    return Future<ResourceStatistics>::failed(
-        "Failed to read cpu.stat: " + stat.error());
+    return Failure("Failed to read cpu.stat: " + stat.error());
   }
 
   if (stat.get().contains("nr_periods")) {
@@ -921,7 +918,7 @@ Future<Nothing> CgroupsIsolator::recover(
   // should be safe because we've been able to acquire the file lock).
   Try<vector<string> > orphans = cgroups::get(hierarchy, flags.cgroups_root);
   if (orphans.isError()) {
-    return Future<Nothing>::failed(orphans.error());
+    return Failure(orphans.error());
   }
 
   foreach (const string& orphan, orphans.get()) {

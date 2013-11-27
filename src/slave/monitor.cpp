@@ -96,7 +96,7 @@ Future<Nothing> ResourceMonitorProcess::watch(
 {
   if (watches.contains(frameworkId) &&
       watches[frameworkId].contains(executorId)) {
-    return Future<Nothing>::failed("Already watched");
+    return Failure("Already watched");
   }
 
   watches[frameworkId][executorId] = executorInfo;
@@ -142,7 +142,7 @@ Future<Nothing> ResourceMonitorProcess::unwatch(
 
   if (!watches.contains(frameworkId) ||
       !watches[frameworkId].contains(executorId)) {
-    return Future<Nothing>::failed("Not watched");
+    return Failure("Not watched");
   }
 
   watches[frameworkId].erase(executorId);

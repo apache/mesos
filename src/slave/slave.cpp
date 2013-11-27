@@ -2842,7 +2842,7 @@ Future<Nothing> Slave::garbageCollect(const string& path)
   if (mtime.isError()) {
     LOG(ERROR) << "Failed to find the mtime of '" << path
                << "': " << mtime.error();
-    return Future<Nothing>::failed(mtime.error());
+    return Failure(mtime.error());
   }
 
   // GC based on the modification time.

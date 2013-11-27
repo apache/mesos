@@ -378,7 +378,7 @@ Future<ResourceStatistics> ProcessIsolator::usage(
   if (!infos.contains(frameworkId) ||
       !infos[frameworkId].contains(executorId) ||
       infos[frameworkId][executorId]->killed) {
-    return Future<ResourceStatistics>::failed("Unknown/killed executor");
+    return Failure("Unknown/killed executor");
   }
 
   ProcessInfo* info = infos[frameworkId][executorId];
@@ -404,7 +404,7 @@ Future<ResourceStatistics> ProcessIsolator::usage(
   Result<os::Process> process = os::process(info->pid.get());
 
   if (!process.isSome()) {
-    return Future<ResourceStatistics>::failed(
+    return Failure(
         process.isError() ? process.error() : "Process does not exist");
   }
 
@@ -425,7 +425,7 @@ Future<ResourceStatistics> ProcessIsolator::usage(
   const Try<set<pid_t> >& children = os::children(info->pid.get(), true);
 
   if (children.isError()) {
-    return Future<ResourceStatistics>::failed(
+    return Failure(
         "Failed to get children of " + stringify(info->pid.get()) + ": " +
         children.error());
   }

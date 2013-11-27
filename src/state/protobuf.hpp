@@ -118,7 +118,7 @@ process::Future<Variable<T> > State::_fetch(
 {
   Try<T> t = messages::deserialize<T>(variable.value());
   if (t.isError()) {
-    return process::Future<Variable<T> >::failed(t.error());
+    return process::Failure(t.error());
   }
 
   return Variable<T>(variable, t.get());
@@ -132,7 +132,7 @@ process::Future<Option<Variable<T> > > State::store(
   Try<std::string> value = messages::serialize(variable.t);
 
   if (value.isError()) {
-    return process::Future<Option<Variable<T> > >::failed(value.error());
+    return process::Failure(value.error());
   }
 
   return state::State::store(variable.variable.mutate(value.get()))
