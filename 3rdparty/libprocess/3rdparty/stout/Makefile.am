@@ -52,6 +52,7 @@ EXTRA_DIST =					\
   include/stout/proc.hpp			\
   include/stout/protobuf.hpp			\
   include/stout/result.hpp			\
+  include/stout/set.hpp				\
   include/stout/stopwatch.hpp			\
   include/stout/stringify.hpp			\
   include/stout/strings.hpp			\
@@ -79,6 +80,7 @@ EXTRA_DIST =					\
   tests/protobuf_tests.pb.cc			\
   tests/protobuf_tests.pb.h			\
   tests/protobuf_tests.proto			\
+  tests/set_tests.cpp				\
   tests/strings_tests.cpp			\
   tests/thread_tests.cpp			\
   tests/uuid_tests.cpp

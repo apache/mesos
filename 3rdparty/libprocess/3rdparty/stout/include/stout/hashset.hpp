@@ -57,14 +57,12 @@ public:
 
 // Union operator.
 template <typename Elem>
-hashset<Elem> operator | (const hashset<Elem>& set1, const hashset<Elem>& set2)
+hashset<Elem> operator | (const hashset<Elem>& left, const hashset<Elem>& right)
 {
-  hashset<Elem> result = set1;
-
-  foreach (const Elem& elem, set2) {
-    result.insert(elem);
-  }
-
+  // Note, we're not using 'set_union' since it affords us no benefit
+  // in efficiency and is more complicated to use given we have sets.
+  hashset<Elem> result = left;
+  result.insert(right.begin(), right.end());
   return result;
 }
 
