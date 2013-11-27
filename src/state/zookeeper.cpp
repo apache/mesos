@@ -15,6 +15,7 @@
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
+#include <stout/some.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
@@ -339,7 +340,7 @@ Result<Option<Entry> > ZooKeeperStorageProcess::doGet(const string& name)
     return Error("Failed to deserialize Entry");
   }
 
-  return Option<Entry>::some(entry);
+  return Some(entry);
 }
 
 

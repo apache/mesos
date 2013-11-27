@@ -25,6 +25,7 @@
 
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
+#include <stout/some.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
@@ -145,7 +146,7 @@ process::Future<Option<Variable<T> > > State::_store(
     const Option<state::Variable>& variable)
 {
   if (variable.isSome()) {
-    return Option<Variable<T> >::some(Variable<T>(variable.get(), t));
+    return Some(Variable<T>(variable.get(), t));
   }
 
   return None();

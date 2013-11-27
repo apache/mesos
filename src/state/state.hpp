@@ -27,6 +27,7 @@
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+#include <stout/some.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
@@ -174,7 +175,7 @@ inline process::Future<Option<Variable > > State::_store(
     const bool& b) // TODO(benh): Remove 'const &' after fixing libprocess.
 {
   if (b) {
-    return Option<Variable>::some(Variable(entry));
+    return Some(Variable(entry));
   }
 
   return None();

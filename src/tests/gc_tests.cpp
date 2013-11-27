@@ -655,7 +655,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   process::dispatch(
       slave.get(),
       &Slave::_checkDiskUsage,
-      Try<double>::some(1.0 - slave::GC_DISK_HEADROOM));
+      Try<double>(1.0 - slave::GC_DISK_HEADROOM));
 
   AWAIT_READY(_checkDiskUsage);
 

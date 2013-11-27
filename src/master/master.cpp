@@ -96,14 +96,14 @@ protected:
       } else if (read.get().empty()) {
         LOG(WARNING) << "Empty whitelist file " << path << ". "
                      << "No offers will be made!";
-        whitelist = Option<hashset<string> >::some(hashset<string>());
+        whitelist = hashset<string>();
       } else {
         hashset<string> hostnames;
         vector<string> lines = strings::tokenize(read.get(), "\n");
         foreach (const string& hostname, lines) {
           hostnames.insert(hostname);
         }
-        whitelist = Option<hashset<string> >::some(hostnames);
+        whitelist = hostnames;
       }
     }
 
@@ -2229,7 +2229,7 @@ Resources Master::launchTask(const TaskInfo& task,
       resources += task.executor().resources();
     }
 
-    executorId = Option<ExecutorID>::some(task.executor().executor_id());
+    executorId = task.executor().executor_id();
   }
 
   // Add the task to the framework and slave.

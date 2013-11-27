@@ -14,6 +14,7 @@
 #include <stout/error.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+#include <stout/some.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
@@ -52,7 +53,7 @@ void LevelDBStorageProcess::initialize()
 
   if (!status.ok()) {
     // TODO(benh): Consider trying to repair the DB.
-    error = Option<string>::some(status.ToString());
+    error = status.ToString();
   } else {
     // TODO(benh): Conditionally compact to avoid long recovery times?
     db->CompactRange(NULL, NULL);
@@ -199,7 +200,7 @@ Try<Option<Entry> > LevelDBStorageProcess::read(const string& name)
     return Error("Failed to deserialize Entry");
   }
 
-  return Option<Entry>::some(entry);
+  return Some(entry);
 }
 
 

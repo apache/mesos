@@ -14,6 +14,7 @@
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/result.hpp>
+#include <stout/some.hpp>
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
 
@@ -270,7 +271,7 @@ Future<Option<int64_t> > GroupProcess::session()
     return None();
   }
 
-  return Option<int64_t>::some(zk->getSessionId());
+  return Some(zk->getSessionId());
 }
 
 
