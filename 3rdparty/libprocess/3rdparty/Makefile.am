@@ -135,6 +135,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/protobuf_tests.proto		\
   $(STOUT)/tests/os/sendfile_tests.cpp		\
   $(STOUT)/tests/os/signals_tests.cpp		\
+  $(STOUT)/tests/set_tests.cpp			\
   $(STOUT)/tests/strings_tests.cpp		\
   $(STOUT)/tests/thread_tests.cpp		\
   $(STOUT)/tests/uuid_tests.cpp
