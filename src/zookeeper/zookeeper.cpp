@@ -24,6 +24,7 @@
 #include <boost/tuple/tuple.hpp>
 
 #include <process/dispatch.hpp>
+#include <process/once.hpp>
 #include <process/process.hpp>
 
 #include <stout/duration.hpp>
@@ -129,19 +130,14 @@ private:
 Watcher::Watcher()
 {
   // Confirm we have created the WatcherProcessManager.
-  static volatile bool initialized = false;
-  static volatile bool initializing = true;
+  static process::Once* initialize = new process::Once();
 
   // Confirm everything is initialized.
-  if (!initialized) {
-    if (__sync_bool_compare_and_swap(&initialized, false, true)) {
-      manager = new WatcherProcessManager();
-      process::spawn(manager);
-      initializing = false;
-    }
+  if (!initialize->once()) {
+    manager = new WatcherProcessManager();
+    process::spawn(manager);
+    initialize->done();
   }
-
-  while (initializing);
 
   WatcherProcess* process =
     process::dispatch(manager->self(),
