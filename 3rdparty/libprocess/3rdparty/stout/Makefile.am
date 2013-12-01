@@ -47,7 +47,6 @@ EXTRA_DIST =					\
   include/stout/os/signals.hpp			\
   include/stout/os/pstree.hpp			\
   include/stout/os/sysctl.hpp			\
-  include/stout/owned.hpp			\
   include/stout/path.hpp			\
   include/stout/preprocessor.hpp		\
   include/stout/proc.hpp			\
