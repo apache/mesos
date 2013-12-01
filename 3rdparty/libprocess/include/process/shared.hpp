@@ -33,12 +33,12 @@ public:
   void reset(T* t);
   void swap(Shared<T>& that);
 
-  // Upgrading from a shared pointer to an owned pointer. This shared
-  // pointer will be reset after this function is invoked. If two
-  // shared pointers pointing to the same object both want to be
-  // upgraded, only one of them may succeed and the other one will get
-  // a failed future.
-  Future<Owned<T> > upgrade();
+  // Transfers ownership of the pointer by waiting for exclusive
+  // access (i.e., no other Shared instances). This shared pointer
+  // will be reset after this function is invoked. If multiple shared
+  // pointers pointing to the same object all want to be upgraded,
+  // only one of them may succeed and the rest will get failures.
+  Future<Owned<T> > own();
 
 private:
   struct Data
@@ -47,7 +47,7 @@ private:
     ~Data();
 
     T* t;
-    volatile bool upgraded;
+    volatile bool owned;
     Promise<Owned<T> > promise;
   };
 
@@ -140,7 +140,7 @@ void Shared<T>::swap(Shared<T>& that)
 
 
 template <typename T>
-Future<Owned<T> > Shared<T>::upgrade()
+Future<Owned<T> > Shared<T>::own()
 {
   // If two threads simultaneously access this object and at least one
   // of them is a write, the behavior is undefined. This is similar to
@@ -150,8 +150,8 @@ Future<Owned<T> > Shared<T>::upgrade()
     return Owned<T>(NULL);
   }
 
-  if (!__sync_bool_compare_and_swap(&data->upgraded, false, true)) {
-    return Future<Owned<T> >::failed("An upgrade is already being performed");
+  if (!__sync_bool_compare_and_swap(&data->owned, false, true)) {
+    return Future<Owned<T> >::failed("Ownership has already been transferred");
   }
 
   Future<Owned<T> > future = data->promise.future();
@@ -162,13 +162,13 @@ Future<Owned<T> > Shared<T>::upgrade()
 
 template <typename T>
 Shared<T>::Data::Data(T* _t)
-  : t(CHECK_NOTNULL(_t)), upgraded(false) {}
+  : t(CHECK_NOTNULL(_t)), owned(false) {}
 
 
 template <typename T>
 Shared<T>::Data::~Data()
 {
-  if (upgraded) {
+  if (owned) {
     promise.set(Owned<T>(t));
   } else {
     delete t;

@@ -63,7 +63,7 @@ TEST(Shared, Reset)
 }
 
 
-TEST(Shared, Upgrade)
+TEST(Shared, Own)
 {
   Foo* foo = new Foo();
   foo->set(42);
@@ -86,15 +86,15 @@ TEST(Shared, Upgrade)
     EXPECT_FALSE(shared2.unique());
     EXPECT_FALSE(shared.unique());
 
-    future = shared2.upgrade();
+    future = shared2.own();
 
-    // A shared pointer will be reset after it called upgrade.
+    // A shared pointer will be reset after it called 'own'.
     EXPECT_TRUE(shared2.get() == NULL);
 
-    // Only one upgrade is allowed.
-    AWAIT_FAILED(shared.upgrade());
+    // Do not allow 'own' to be called twice.
+    AWAIT_FAILED(shared.own());
 
-    // Upgrade is not done yet as 'shared' is still holding the reference.
+    // Not "owned" yet as 'shared' is still holding the reference.
     EXPECT_TRUE(future.isPending());
   }
 
