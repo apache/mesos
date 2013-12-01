@@ -1,6 +1,7 @@
 #include <gmock/gmock.h>
 
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 #include <process/shared.hpp>
 
 using namespace process;

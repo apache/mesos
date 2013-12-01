@@ -5,11 +5,14 @@
 
 #include <boost/shared_ptr.hpp>
 
-#include <stout/owned.hpp>
-
 #include <process/future.hpp>
 
 namespace process {
+
+// Forward declaration.
+template <typename T>
+class Owned;
+
 
 // Represents a shared pointer and therefore enforces 'const' access.
 template <typename T>

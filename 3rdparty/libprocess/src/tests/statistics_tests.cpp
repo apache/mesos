@@ -80,7 +80,10 @@ TEST(Statistics, meter) {
 
   // Set up a meter, and ensure it captures the expected time rate.
   Future<Try<Nothing> > meter =
-    statistics.meter("test", "statistic", new meters::TimeRate("metered"));
+    statistics.meter(
+        "test",
+        "statistic",
+        Owned<meters::Meter>(new meters::TimeRate("metered")));
 
   AWAIT_ASSERT_READY(meter);
 
@@ -130,7 +133,10 @@ TEST(Statistics, archive)
   // Create a meter and a statistic for archival.
   // Set up a meter, and ensure it captures the expected time rate.
   Future<Try<Nothing> > meter =
-    statistics.meter("test", "statistic", new meters::TimeRate("metered"));
+    statistics.meter(
+        "test",
+        "statistic",
+        Owned<meters::Meter>(new meters::TimeRate("metered")));
 
   AWAIT_ASSERT_READY(meter);
 

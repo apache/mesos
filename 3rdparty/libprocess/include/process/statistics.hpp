@@ -3,13 +3,13 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/time.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
-#include <stout/owned.hpp>
 
 namespace process {
 
