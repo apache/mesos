@@ -318,6 +318,14 @@ bool Promise<T>::set(const Future<T>& future)
 template <typename T>
 bool Promise<T>::associate(const Future<T>& future)
 {
+  // TODO(jieyu): Make 'f' a true alias of 'future'. Currently, only
+  // 'discard' is associated in both directions. In other words, if a
+  // future gets discarded, the other future will also get discarded.
+  // For 'set' and 'fail', they are associated only in one direction.
+  // In other words, calling 'set' or 'fail' on this promise will not
+  // affect the result of the future that we associated.
+  f.onDiscarded(std::tr1::bind(&Future<T>::discard, future));
+
   if (!f.isPending()) {
     return false;
   }

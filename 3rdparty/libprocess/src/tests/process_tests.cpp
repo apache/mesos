@@ -85,6 +85,14 @@ TEST(Process, associate)
   promise4.fail("associate");
   ASSERT_TRUE(promise3.future().isFailed());
   EXPECT_EQ("associate", promise3.future().failure());
+
+  // Test that 'discard' is associated in both directions.
+  Promise<bool> promise5;
+  Future<bool> future3;
+  promise5.associate(future3);
+  EXPECT_FALSE(future3.isDiscarded());
+  promise5.future().discard();
+  EXPECT_TRUE(future3.isDiscarded());
 }
 
 
