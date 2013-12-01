@@ -82,6 +82,7 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/message.hpp			\
   $(top_srcdir)/include/process/mime.hpp			\
   $(top_srcdir)/include/process/once.hpp			\
+  $(top_srcdir)/include/process/owned.hpp			\
   $(top_srcdir)/include/process/pid.hpp				\
   $(top_srcdir)/include/process/process.hpp			\
   $(top_srcdir)/include/process/profiler.hpp			\
@@ -103,6 +104,7 @@ tests_SOURCES =							\
   src/tests/http_tests.cpp					\
   src/tests/io_tests.cpp					\
   src/tests/main.cpp						\
+  src/tests/owned_tests.cpp					\
   src/tests/process_tests.cpp					\
   src/tests/shared_tests.cpp					\
   src/tests/statistics_tests.cpp				\
