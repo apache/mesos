@@ -31,7 +31,6 @@
 #include <stout/multihashmap.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
-#include <stout/owned.hpp>
 #include <stout/path.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
@@ -1841,10 +1840,10 @@ void Master::authenticate(const UPID& from, const UPID& pid)
 
   // Create a promise to capture the entire "authenticating"
   // procedure. We'll set this _after_ we finish _authenticate.
-  Owned<Promise<Nothing> > promise = new Promise<Nothing>();
+  Owned<Promise<Nothing> > promise(new Promise<Nothing>());
 
   // Create the authenticator.
-  Owned<sasl::Authenticator> authenticator = new sasl::Authenticator(from);
+  Owned<sasl::Authenticator> authenticator(new sasl::Authenticator(from));
 
   // Start authentication.
   const Future<bool>& future = authenticator->authenticate()

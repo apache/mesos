@@ -21,6 +21,7 @@
 
 #include <map>
 
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
@@ -29,7 +30,6 @@
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
-#include <stout/owned.hpp>
 #include <stout/path.hpp>
 #include <stout/try.hpp>
 
@@ -90,7 +90,7 @@ public:
     Try<Nothing> stop(const process::PID<master::Master>& pid);
 
     // Returns a new master detector for this instance of masters.
-    Owned<MasterDetector> detector();
+    process::Owned<MasterDetector> detector();
 
   private:
     // Not copyable, not assignable.
@@ -149,12 +149,12 @@ public:
     // Detector. The detector is expected to outlive the launched
     // slave (i.e., until it is stopped via Slaves::stop).
     Try<process::PID<slave::Slave> > start(
-        Owned<MasterDetector> detector,
+        process::Owned<MasterDetector> detector,
         const slave::Flags& flags = slave::Flags());
 
     Try<process::PID<slave::Slave> > start(
         slave::Isolator* isolator,
-        Owned<MasterDetector> detector,
+        process::Owned<MasterDetector> detector,
         const slave::Flags& flags = slave::Flags());
 
     // Stops and cleans up a slave at the specified PID. If 'shutdown'
@@ -184,7 +184,7 @@ public:
       // Cluster.
       slave::Isolator* isolator;
       slave::Slave* slave;
-      Owned<MasterDetector> detector;
+      process::Owned<MasterDetector> detector;
     };
 
     std::map<process::PID<slave::Slave>, Slave> slaves;
@@ -382,15 +382,17 @@ inline Try<Nothing> Cluster::Masters::stop(
 }
 
 
-inline Owned<MasterDetector> Cluster::Masters::detector()
+inline process::Owned<MasterDetector> Cluster::Masters::detector()
 {
   if (url.isSome()) {
-    return new ZooKeeperMasterDetector(url.get());
+    return process::Owned<MasterDetector>(
+        new ZooKeeperMasterDetector(url.get()));
   }
 
   CHECK(masters.size() == 1);
 
-  return new StandaloneMasterDetector(masters.begin()->first);
+  return process::Owned<MasterDetector>(
+      new StandaloneMasterDetector(masters.begin()->first));
 }
 
 
@@ -448,7 +450,7 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
 
 inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    Owned<MasterDetector> detector,
+    process::Owned<MasterDetector> detector,
     const slave::Flags& flags)
 {
   return start(new slave::ProcessIsolator(), detector, flags);
@@ -457,7 +459,7 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
 inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
     slave::Isolator* isolator,
-    Owned<MasterDetector> detector,
+    process::Owned<MasterDetector> detector,
     const slave::Flags& flags)
 {
   // TODO(benh): Create a work directory if using the default.

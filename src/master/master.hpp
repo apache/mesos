@@ -30,6 +30,7 @@
 #include <mesos/resources.hpp>
 
 #include <process/http.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -38,7 +39,6 @@
 #include <stout/hashset.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
-#include <stout/owned.hpp>
 
 #include "common/type_utils.hpp"
 

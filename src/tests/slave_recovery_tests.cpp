@@ -28,6 +28,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
@@ -2322,8 +2323,8 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
   frameworkInfo.set_checkpoint(true);
 
-  Owned<StandaloneMasterDetector> detector =
-    new StandaloneMasterDetector(master.get());
+  Owned<StandaloneMasterDetector> detector(
+      new StandaloneMasterDetector(master.get()));
   TestingMesosSchedulerDriver driver(
       &sched, frameworkInfo, DEFAULT_CREDENTIAL, detector.get());
 

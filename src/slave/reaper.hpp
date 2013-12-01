@@ -23,11 +23,11 @@
 #include <set>
 
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 
 #include <stout/multihashmap.hpp>
 #include <stout/nothing.hpp>
-#include <stout/owned.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -80,7 +80,8 @@ protected:
 private:
   // Mapping from the monitored pid to all promises the pid exit
   // status should be sent to.
-  multihashmap<pid_t, Owned<process::Promise<Option<int> > > > promises;
+  multihashmap<
+    pid_t, process::Owned<process::Promise<Option<int> > > > promises;
 };
 
 

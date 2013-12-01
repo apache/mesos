@@ -21,11 +21,11 @@
 
 #include <process/defer.hpp>
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
-#include <stout/owned.hpp>
 
 #include "zookeeper/contender.hpp"
 #include "zookeeper/group.hpp"
@@ -109,7 +109,7 @@ public:
   // Creates a contender that uses ZooKeeper to determine (i.e.,
   // elect) a leading master.
   ZooKeeperMasterContender(const zookeeper::URL& url);
-  ZooKeeperMasterContender(Owned<zookeeper::Group> group);
+  ZooKeeperMasterContender(process::Owned<zookeeper::Group> group);
 
   virtual ~ZooKeeperMasterContender();
 

@@ -24,6 +24,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 
 #include <stout/nothing.hpp>
 
@@ -277,8 +278,8 @@ TEST_F(AuthenticationTest, MasterFailover)
   ASSERT_SOME(master);
 
   MockScheduler sched;
-  Owned<StandaloneMasterDetector> detector =
-    new StandaloneMasterDetector(master.get());
+  Owned<StandaloneMasterDetector> detector(
+      new StandaloneMasterDetector(master.get()));
   TestingMesosSchedulerDriver driver(&sched, detector.get());
 
   // Drop the authenticate message from the scheduler.
@@ -321,8 +322,8 @@ TEST_F(AuthenticationTest, LeaderElection)
   ASSERT_SOME(master);
 
   MockScheduler sched;
-  Owned<StandaloneMasterDetector> detector =
-    new StandaloneMasterDetector(master.get());
+  Owned<StandaloneMasterDetector> detector(
+      new StandaloneMasterDetector(master.get()));
   TestingMesosSchedulerDriver driver(&sched, detector.get());
 
   // Drop the AuthenticationStepMessage from authenticator.
@@ -361,8 +362,8 @@ TEST_F(AuthenticationTest, SchedulerFailover)
 
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
-  Owned<StandaloneMasterDetector> detector =
-    new StandaloneMasterDetector(master.get());
+  Owned<StandaloneMasterDetector> detector(
+      new StandaloneMasterDetector(master.get()));
   TestingMesosSchedulerDriver driver1(&sched1, detector.get());
 
   Future<FrameworkID> frameworkId;

@@ -30,6 +30,7 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/protobuf.hpp>
 
@@ -66,6 +67,7 @@ using mesos::internal::slave::Slave;
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 using process::UPID;
 
@@ -99,7 +101,7 @@ TEST_F(MasterContenderDetectorTest, File)
 
   ASSERT_SOME(detector);
 
-  StartSlave(detector.get(), flags);
+  StartSlave(Owned<MasterDetector>(detector.get()), flags);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(

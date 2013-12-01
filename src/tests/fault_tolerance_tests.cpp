@@ -30,6 +30,7 @@
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -60,6 +61,7 @@ using mesos::internal::slave::STATUS_UPDATE_RETRY_INTERVAL_MIN;
 using process::Clock;
 using process::Future;
 using process::Message;
+using process::Owned;
 using process::PID;
 using process::UPID;
 
@@ -864,8 +866,8 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  Owned<MasterDetector> slaveDetector =
-    new StandaloneMasterDetector(master.get());
+  Owned<MasterDetector> slaveDetector(
+      new StandaloneMasterDetector(master.get()));
   Try<PID<Slave> > slave = StartSlave(slaveDetector);
   ASSERT_SOME(slave);
 
@@ -873,8 +875,8 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   // Create a detector for the scheduler driver because we want the
   // spurious leading master change to be known by the scheduler
   // driver only.
-  Owned<MasterDetector> schedDetector =
-    new StandaloneMasterDetector(master.get());
+  Owned<MasterDetector> schedDetector(
+      new StandaloneMasterDetector(master.get()));
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, schedDetector.get());
 
@@ -1105,13 +1107,14 @@ TEST_F(FaultToleranceTest, ReregisterFrameworkExitedExecutor)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestingIsolator isolator(&exec);
-  Owned<MasterDetector> slaveDetector = new StandaloneMasterDetector(master.get());
+  Owned<MasterDetector> slaveDetector(
+      new StandaloneMasterDetector(master.get()));
   Try<PID<Slave> > slave = StartSlave(&isolator, slaveDetector);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  Owned<StandaloneMasterDetector> schedDetector =
-    new StandaloneMasterDetector(master.get());
+  Owned<StandaloneMasterDetector> schedDetector(
+      new StandaloneMasterDetector(master.get()));
   TestingMesosSchedulerDriver driver(&sched, schedDetector.get());
 
   Future<process::Message> frameworkRegisteredMessage =

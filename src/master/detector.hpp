@@ -20,9 +20,9 @@
 #define __MASTER_DETECTOR_HPP__
 
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
-#include <stout/owned.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
@@ -112,7 +112,7 @@ public:
   // elect) a leading master.
   ZooKeeperMasterDetector(const zookeeper::URL& url);
   // A constructor overload for testing purposes.
-  ZooKeeperMasterDetector(Owned<zookeeper::Group> group);
+  ZooKeeperMasterDetector(process::Owned<zookeeper::Group> group);
   virtual ~ZooKeeperMasterDetector();
 
   // MasterDetector implementation.

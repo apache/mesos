@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 #include <process/timer.hpp>
@@ -31,7 +32,6 @@
 #include <stout/hashmap.hpp>
 #include <stout/multimap.hpp>
 #include <stout/nothing.hpp>
-#include <stout/owned.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -101,7 +101,7 @@ private:
   struct PathInfo
   {
     PathInfo(const std::string& _path,
-             Owned<process::Promise<Nothing> > _promise)
+             process::Owned<process::Promise<Nothing> > _promise)
       : path(_path), promise(_promise) {}
 
     bool operator == (const PathInfo& that) const
@@ -110,7 +110,7 @@ private:
     }
 
     const std::string path;
-    const Owned<process::Promise<Nothing> > promise;
+    const process::Owned<process::Promise<Nothing> > promise;
   };
 
   // Store all the timeouts and corresponding paths to delete.

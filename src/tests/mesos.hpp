@@ -29,6 +29,7 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
@@ -103,19 +104,19 @@ protected:
   // Starts a slave with the specified isolator, detector and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
       slave::Isolator* isolator,
-      Owned<MasterDetector> detector,
+      process::Owned<MasterDetector> detector,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified MasterDetector and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
-      Owned<MasterDetector> detector,
+      process::Owned<MasterDetector> detector,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified mock executor, MasterDetector
   // and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
       MockExecutor* executor,
-      Owned<MasterDetector> detector,
+      process::Owned<MasterDetector> detector,
       const Option<slave::Flags>& flags = None());
 
   // Stop the specified master.

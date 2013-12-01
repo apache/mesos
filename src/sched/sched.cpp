@@ -38,6 +38,7 @@
 #include <process/id.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -48,7 +49,6 @@
 #include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
-#include <stout/owned.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/uuid.hpp>

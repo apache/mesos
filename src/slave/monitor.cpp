@@ -108,7 +108,7 @@ Future<Nothing> ResourceMonitorProcess::watch(
   ::statistics->meter(
       "monitor",
       prefix + CPUS_TIME_SECS,
-      new meters::TimeRate(prefix + CPU_USAGE));
+      Owned<meters::Meter>(new meters::TimeRate(prefix + CPU_USAGE)));
 
   // Schedule the resource collection.
   delay(interval, self(), &Self::collect, frameworkId, executorId, interval);

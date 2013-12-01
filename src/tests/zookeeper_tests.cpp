@@ -23,9 +23,9 @@
 #include <string>
 
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 
 #include <stout/gtest.hpp>
-#include <stout/owned.hpp>
 #include <stout/strings.hpp>
 
 #include "zookeeper/authentication.hpp"
@@ -238,7 +238,8 @@ TEST_F(ZooKeeperTest, LeaderContender)
   Seconds timeout(10);
   Group group(server->connectString(), timeout, "/test/");
 
-  Owned<LeaderContender> contender = new LeaderContender(&group, "candidate 1");
+  Owned<LeaderContender> contender(
+      new LeaderContender(&group, "candidate 1"));
   contender->contend();
 
   // Immediately withdrawing after contending leads to delayed
@@ -248,7 +249,8 @@ TEST_F(ZooKeeperTest, LeaderContender)
   EXPECT_TRUE(withdrawn.get());
 
   // Normal workflow.
-  contender = new LeaderContender(&group, "candidate 1");
+  contender = Owned<LeaderContender>(
+      new LeaderContender(&group, "candidate 1"));
 
   Future<Future<Nothing> > candidated = contender->contend();
   AWAIT_READY(candidated);
@@ -271,7 +273,8 @@ TEST_F(ZooKeeperTest, LeaderContender)
   EXPECT_FALSE(withdrawn.get());
 
   // Contend again.
-  contender = new LeaderContender(&group, "candidate 1");
+  contender = Owned<LeaderContender>(
+      new LeaderContender(&group, "candidate 1"));
   candidated = contender->contend();
 
   session = group.session();
@@ -293,7 +296,8 @@ TEST_F(ZooKeeperTest, LeaderContender)
   AWAIT_READY(withdrawn);
 
   // Contend (3) and shutdown the network this time.
-  contender = new LeaderContender(&group, "candidate 1");
+  contender = Owned<LeaderContender>(
+      new LeaderContender(&group, "candidate 1"));
   candidated = contender->contend();
   AWAIT_READY(candidated);
   lostCandidacy = candidated.get();
@@ -317,7 +321,8 @@ TEST_F(ZooKeeperTest, LeaderContender)
   server->startNetwork();
 
   // Contend again (4).
-  contender = new LeaderContender(&group, "candidate 1");
+  contender = Owned<LeaderContender>(
+      new LeaderContender(&group, "candidate 1"));
   candidated = contender->contend();
   AWAIT_READY(candidated);
 }

@@ -31,6 +31,7 @@
 
 #include <process/http.hpp>
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -41,7 +42,6 @@
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
-#include <stout/owned.hpp>
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
 

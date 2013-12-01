@@ -30,6 +30,7 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/option.hpp>
@@ -61,6 +62,7 @@ using mesos::internal::slave::Slave;
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 
 using std::map;
@@ -983,7 +985,8 @@ TEST_F(MasterTest, MasterLost)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  Owned<StandaloneMasterDetector> detector = new StandaloneMasterDetector();
+  Owned<StandaloneMasterDetector> detector(
+      new StandaloneMasterDetector());
   detector->appoint(master.get());
 
   Try<PID<Slave> > slave = StartSlave();

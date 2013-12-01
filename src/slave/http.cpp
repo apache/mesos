@@ -25,6 +25,7 @@
 #include <mesos/resources.hpp>
 
 #include <process/help.hpp>
+#include <process/owned.hpp>
 
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
@@ -45,6 +46,7 @@ namespace slave {
 
 using process::Future;
 using process::HELP;
+using process::Owned;
 using process::TLDR;
 using process::USAGE;
 
