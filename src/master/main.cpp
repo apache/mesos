@@ -124,7 +124,6 @@ int main(int argc, char** argv)
   logging::initialize(argv[0], flags, true); // Catch signals.
 
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
-  LOG(INFO) << "Starting Mesos master";
 
   allocator::AllocatorProcess* allocatorProcess =
     new allocator::HierarchicalDRFAllocatorProcess();
@@ -154,12 +153,18 @@ int main(int argc, char** argv)
   MasterDetector* detector;
 
   Try<MasterContender*> contender_ = MasterContender::create(zk);
-  CHECK_SOME(contender_) << "Failed to create a master contender";
+  if (contender_.isError()) {
+    EXIT(1) << "Failed to create a master contender: " << contender_.error();
+  }
   contender = contender_.get();
 
   Try<MasterDetector*> detector_ = MasterDetector::create(zk);
-  CHECK_SOME(detector_) << "Failed to create a master detector";
+  if (detector_.isError()) {
+    EXIT(1) << "Failed to create a master detector: " << detector_.error();
+  }
   detector = detector_.get();
+
+  LOG(INFO) << "Starting Mesos master";
 
   Master* master = new Master(
       allocator, registrar, &files, contender, detector, flags);

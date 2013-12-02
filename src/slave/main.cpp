@@ -92,17 +92,16 @@ int main(int argc, char** argv)
   if (load.isError()) {
     cerr << load.error() << endl;
     usage(argv[0], flags);
-    exit(1);
+    EXIT(1);
   }
 
   if (help) {
     usage(argv[0], flags);
-    exit(1);
+    EXIT(1);
   }
 
   if (master.isNone()) {
-    cerr << "Missing required option --master" << endl;
-    exit(1);
+    EXIT(1) << "Missing required option --master";
   }
 
   // Initialize libprocess.
@@ -116,20 +115,21 @@ int main(int argc, char** argv)
 
   logging::initialize(argv[0], flags, true); // Catch signals.
 
+  LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
+
   LOG(INFO) << "Creating \"" << isolation << "\" isolator";
 
   Isolator* isolator = Isolator::create(isolation);
   if (isolator == NULL) {
-    cerr << "Unrecognized isolation type: " << isolation << endl;
-    exit(1);
+    EXIT(1) << "Unrecognized isolation type: " << isolation;
   }
 
-  LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
-  LOG(INFO) << "Starting Mesos slave";
-
   Try<MasterDetector*> detector = MasterDetector::create(master.get());
+  if (detector.isError()) {
+    EXIT(1) << "Failed to create a master detector: " << detector.error();
+  }
 
-  CHECK_SOME(detector) << "Failed to create a master detector";
+  LOG(INFO) << "Starting Mesos slave";
 
   Files files;
   Slave* slave = new Slave(flags, false,  detector.get(), isolator, &files);
