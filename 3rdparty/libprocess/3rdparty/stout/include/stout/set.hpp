@@ -10,28 +10,28 @@ public:
 
   Set(const T& t1)
   {
-    insert(t1);
+    std::set<T>::insert(t1);
   }
 
   Set(const T& t1, const T& t2)
   {
-    insert(t1);
-    insert(t2);
+    std::set<T>::insert(t1);
+    std::set<T>::insert(t2);
   }
 
   Set(const T& t1, const T& t2, const T& t3)
   {
-    insert(t1);
-    insert(t2);
-    insert(t3);
+    std::set<T>::insert(t1);
+    std::set<T>::insert(t2);
+    std::set<T>::insert(t3);
   }
 
   Set(const T& t1, const T& t2, const T& t3, const T& t4)
   {
-    insert(t1);
-    insert(t2);
-    insert(t3);
-    insert(t4);
+    std::set<T>::insert(t1);
+    std::set<T>::insert(t2);
+    std::set<T>::insert(t3);
+    std::set<T>::insert(t4);
   }
 };
 
