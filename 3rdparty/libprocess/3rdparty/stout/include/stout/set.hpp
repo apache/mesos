@@ -1,3 +1,4 @@
+#include <algorithm> // For std::set_intersection.
 #include <set>
 #include <vector>
 
