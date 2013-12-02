@@ -1062,6 +1062,12 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   // Scheduler1 should get an error due to failover.
   EXPECT_CALL(sched1, error(&driver1, "Framework failed over"));
 
+  // Scheduler2 should receive retried status updates.
+  Future<Nothing> statusUpdate;
+  EXPECT_CALL(sched2, statusUpdate(&driver2, _))
+    .WillOnce(FutureSatisfy(&statusUpdate))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
   driver2.start();
 
   AWAIT_READY(registered2);
@@ -1070,10 +1076,6 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   // Now advance time enough for the reliable timeout
   // to kick in and another status update is sent.
-  Future<Nothing> statusUpdate;
-  EXPECT_CALL(sched2, statusUpdate(&driver2, _))
-    .WillOnce(FutureSatisfy(&statusUpdate));
-
   Clock::advance(STATUS_UPDATE_RETRY_INTERVAL_MIN);
 
   AWAIT_READY(statusUpdate);
