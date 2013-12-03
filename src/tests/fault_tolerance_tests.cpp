@@ -1175,17 +1175,18 @@ TEST_F(FaultToleranceTest, ReregisterFrameworkExitedExecutor)
   // Wait for the slave to re-register.
   AWAIT_READY(slaveReregisteredMessage);
 
-  // Allow the executor exited message and drop the status update.
+  // Allow the executor exited message and drop the status update,
+  // it's possible for a duplicate update to occur if the status
+  // update manager is notified of the new master after the task was
+  // killed.
   Future<ExitedExecutorMessage> executorExitedMessage =
     FUTURE_PROTOBUF(ExitedExecutorMessage(), _, _);
-  Future<StatusUpdateMessage> statusUpdateMessage =
-    DROP_PROTOBUF(StatusUpdateMessage(), _, _);
+  DROP_PROTOBUFS(StatusUpdateMessage(), _, _);
 
   // Now kill the executor.
   dispatch(isolator, &Isolator::killExecutor, frameworkId, DEFAULT_EXECUTOR_ID);
 
   AWAIT_READY(executorExitedMessage);
-  AWAIT_READY(statusUpdateMessage);
 
   // Now notify the framework of the new master.
   Future<FrameworkRegisteredMessage> frameworkRegisteredMessage2 =
