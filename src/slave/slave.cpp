@@ -711,19 +711,21 @@ Future<bool> Slave::unschedule(const string& path)
 // TODO(vinod): Instead of crashing the slave on checkpoint errors,
 // send TASK_LOST to the framework.
 void Slave::runTask(
+    const UPID& from,
     const FrameworkInfo& frameworkInfo,
     const FrameworkID& frameworkId,
     const string& pid,
     const TaskInfo& task)
 {
-  // TODO(bmahler): Consider ignoring requests not originating from the
-  // expected master.
+  if (!master.isSome() || from != master.get()) {
+    LOG(WARNING) << "Ignoring run task message from " << from
+                 << " because it is not the expected master: "
+                 << (master.isSome() ? master.get() : "None");
+    return;
+  }
 
   LOG(INFO) << "Got assigned task " << task.task_id()
             << " for framework " << frameworkId;
-
-  // TODO(vinod): These ignored tasks should be consolidated by
-  // the master when the slave re-registers.
 
   if (!(task.slave_id() == info.id())) {
     LOG(WARNING) << "Slave " << info.id() << " ignoring task " << task.task_id()
@@ -735,6 +737,7 @@ void Slave::runTask(
         state == RUNNING || state == TERMINATING)
     << state;
 
+  // TODO(bmahler): Also ignore if we're DISCONNECTED.
   if (state == RECOVERING || state == TERMINATING) {
     LOG(WARNING) << "Ignoring task " << task.task_id()
                  << " because the slave is " << state;
@@ -986,10 +989,17 @@ void Slave::_runTask(
 }
 
 
-void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
+void Slave::killTask(
+    const UPID& from,
+    const FrameworkID& frameworkId,
+    const TaskID& taskId)
 {
-  // TODO(bmahler): Consider ignoring requests not originating from the
-  // expected master.
+  if (!master.isSome() || from != master.get()) {
+    LOG(WARNING) << "Ignoring kill task message from " << from
+                 << " because it is not the expected master: "
+                 << (master.isSome() ? master.get() : "None");
+    return;
+  }
 
   LOG(INFO) << "Asked to kill task " << taskId
             << " of framework " << frameworkId;
@@ -998,6 +1008,7 @@ void Slave::killTask(const FrameworkID& frameworkId, const TaskID& taskId)
         state == RUNNING || state == TERMINATING)
     << state;
 
+  // TODO(bmahler): Also ignore if we're DISCONNECTED.
   if (state == RECOVERING || state == TERMINATING) {
     LOG(WARNING) << "Cannot kill task " << taskId
                  << " of framework " << frameworkId

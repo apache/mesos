@@ -95,6 +95,7 @@ public:
   void doReliableRegistration();
 
   void runTask(
+      const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const std::string& pid,
@@ -109,7 +110,10 @@ public:
 
   Future<bool> unschedule(const std::string& path);
 
-  void killTask(const FrameworkID& frameworkId, const TaskID& taskId);
+  void killTask(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const TaskID& taskId);
 
   void shutdownFramework(
       const process::UPID& from,
