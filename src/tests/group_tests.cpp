@@ -23,10 +23,12 @@
 #include <string>
 
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 #include <process/gtest.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
 
 #include "tests/zookeeper.hpp"
 
@@ -37,9 +39,11 @@ using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
 using zookeeper::Group;
+using zookeeper::GroupProcess;
 
 using process::Future;
 
+using testing::_;
 
 class GroupTest : public ZooKeeperTest {};
 
@@ -309,4 +313,60 @@ TEST_F(GroupTest, GroupPathWithRestrictivePerms)
       auth);
 
   AWAIT_READY(successGroup.join("succeed"));
+}
+
+
+// Verifies that the Group operations can recover from retryable
+// errors caused by session expiration. This test does not guarantee
+// but rather, attempts to probabilistically trigger the retries with
+// repeated session expirations.
+TEST_F(GroupTest, RetryableErrors)
+{
+  Future<Nothing> connected = FUTURE_DISPATCH(_, &GroupProcess::connected);
+
+  zookeeper::Authentication auth("digest", "creator:creator");
+  Group group(server->connectString(), NO_TIMEOUT, "/test/", auth);
+
+  // Wait for Group to connect to get hold of the session.
+  AWAIT_READY(connected);
+  Future<Option<int64_t> > session = group.session();
+  AWAIT_READY(session);
+  ASSERT_SOME(session.get());
+
+  // We repeatedly expire the session while Group operations are
+  // on-going. This causes retries of authenticate() and group
+  // create().
+  connected = FUTURE_DISPATCH(_, &GroupProcess::connected);
+  server->expireSession(session.get().get());
+
+  Future<Group::Membership> membership = group.join("hello world");
+
+  // Wait for Group to connect to get hold of the session.
+  AWAIT_READY(connected);
+  session = group.session();
+  AWAIT_READY(session);
+  ASSERT_SOME(session.get());
+  connected = FUTURE_DISPATCH(_, &GroupProcess::connected);
+  server->expireSession(session.get().get());
+
+  AWAIT_READY(membership);
+
+  // Wait for Group to connect to get hold of the session.
+  AWAIT_READY(connected);
+  session = group.session();
+  AWAIT_READY(session);
+  ASSERT_SOME(session.get());
+  connected = FUTURE_DISPATCH(_, &GroupProcess::connected);
+  server->expireSession(session.get().get());
+
+  Future<bool> cancellation = group.cancel(membership.get());
+
+  // Wait for Group to connect to get hold of the session.
+  AWAIT_READY(connected);
+  session = group.session();
+  AWAIT_READY(session);
+  ASSERT_SOME(session.get());
+  server->expireSession(session.get().get());
+
+  AWAIT_READY(cancellation);
 }

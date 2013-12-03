@@ -171,15 +171,28 @@ private:
   Result<bool> doCancel(const Group::Membership& membership);
   Result<std::string> doData(const Group::Membership& membership);
 
-  // Attempts to cache the current set of memberships.
-  bool cache();
+  // Returns true if authentication is successful, false if the
+  // failure is retryable and Error otherwise.
+  Try<bool> authenticate();
 
-  // Updates any pending watches.
-  void update();
+  // Creates the group (which means creating its base path) on ZK.
+  // Returns true if successful, false if the failure is retryable
+  // and Error otherwise.
+  Try<bool> create();
+
+  // Attempts to cache the current set of memberships.
+  // Returns true if successful, false if the failure is retryable
+  // and Error otherwise.
+  Try<bool> cache();
 
   // Synchronizes pending operations with ZooKeeper and also attempts
   // to cache the current set of memberships if necessary.
-  bool sync();
+  // Returns true if successful, false if the failure is retryable
+  // and Error otherwise.
+  Try<bool> sync();
+
+  // Updates any pending watches.
+  void update();
 
   // Generic retry method. This mechanism is "generic" in the sense
   // that it is not specific to any particular operation, but rather
@@ -188,11 +201,9 @@ private:
   void retry(const Duration& duration);
 
   // Fails all pending operations.
-  void abort();
+  void abort(const std::string& error);
 
   void timedout(const int64_t& sessionId);
-
-  Option<std::string> error; // Potential non-retryable error.
 
   const std::string servers;
   const Duration timeout;
@@ -205,10 +216,12 @@ private:
   Watcher* watcher;
   ZooKeeper* zk;
 
-  enum State { // ZooKeeper connection state.
-    DISCONNECTED,
-    CONNECTING,
-    CONNECTED,
+  enum State {     // Group connection state.
+    CONNECTING,    // ZooKeeper connecting.
+    CONNECTED,     // ZooKeeper connected but before group setup.
+    AUTHENTICATED, // ZooKeeper connected and authenticated.
+    READY,         // ZooKeeper connected, session authenticated and
+                   // base path for the group created.
   } state;
 
   struct Join
@@ -249,6 +262,7 @@ private:
     std::queue<Watch*> watches;
   } pending;
 
+  // Indicates there is a pending delayed retry.
   bool retrying;
 
   // Expected ZooKeeper sequence numbers (either owned/created by this
