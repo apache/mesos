@@ -338,7 +338,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Tasks)
 {
-  Try<std::set<pid_t> > pids = cgroups::tasks(hierarchy, "/");
+  Try<std::set<pid_t> > pids = cgroups::processes(hierarchy, "/");
   ASSERT_SOME(pids);
   EXPECT_NE(0u, pids.get().count(1));
   EXPECT_NE(0u, pids.get().count(::getpid()));
@@ -370,7 +370,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
     ASSERT_SOME(
         cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "tasks", stringify(pid)));
 
-    Try<std::set<pid_t> > pids = cgroups::tasks(hierarchy, TEST_CGROUPS_ROOT);
+    Try<std::set<pid_t> > pids = cgroups::processes(hierarchy, TEST_CGROUPS_ROOT);
     ASSERT_SOME(pids);
 
     EXPECT_NE(0u, pids.get().count(pid));

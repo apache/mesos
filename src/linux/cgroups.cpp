@@ -829,9 +829,9 @@ Try<Nothing> kill(
     return error.get();
   }
 
-  Try<set<pid_t> > pids = tasks(hierarchy, cgroup);
+  Try<set<pid_t> > pids = processes(hierarchy, cgroup);
   if (pids.isError()) {
-    return Error("Failed to get tasks of cgroup: " + pids.error());
+    return Error("Failed to get processes of cgroup: " + pids.error());
   }
 
   foreach (pid_t pid, pids.get()) {
@@ -894,14 +894,19 @@ Try<bool> exists(
 }
 
 
-Try<set<pid_t> > tasks(const string& hierarchy, const string& cgroup)
+Try<set<pid_t> > processes(const string& hierarchy, const string& cgroup)
 {
-  Try<string> value = cgroups::read(hierarchy, cgroup, "tasks");
+  // Note: (from cgroups/cgroups.txt documentation)
+  // cgroup.procs: list of thread group IDs in the cgroup. This list is not
+  // guaranteed to be sorted or free of duplicate TGIDs, and userspace should
+  // sort/uniquify the list if this property is required.
+  Try<string> value = cgroups::read(hierarchy, cgroup, "cgroup.procs");
   if (value.isError()) {
-    return Error("Failed to read cgroups control 'tasks': " + value.error());
+    return Error("Failed to read cgroups control 'cgroup.procs': " + value.error());
   }
 
-  // Parse the value read from the control file.
+  // Parse the values read from the control file and insert into a set. This
+  // ensures they are unique (and also sorted).
   set<pid_t> pids;
   std::istringstream ss(value.get());
   ss >> std::dec;
@@ -1255,9 +1260,9 @@ private:
       // make sure that the freezer can finish.
       // TODO(jieyu): This code can be removed in the future as the newer
       // version of the kernel solves this problem (e.g. Linux-3.2.0).
-      Try<set<pid_t> > pids = tasks(hierarchy, cgroup);
+      Try<set<pid_t> > pids = processes(hierarchy, cgroup);
       if (pids.isError()) {
-        promise.fail("Failed to get tasks of cgroup: " + pids.error());
+        promise.fail("Failed to get processes of cgroup: " + pids.error());
         terminate(self());
         return;
       }
@@ -1453,9 +1458,9 @@ protected:
 private:
   void check(unsigned int attempt = 0)
   {
-    Try<set<pid_t> > pids = tasks(hierarchy, cgroup);
+    Try<set<pid_t> > pids = processes(hierarchy, cgroup);
     if (pids.isError()) {
-      promise.fail("Failed to get tasks of cgroup: " + pids.error());
+      promise.fail("Failed to get processes of cgroup: " + pids.error());
       terminate(self());
       return;
     }

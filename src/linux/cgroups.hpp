@@ -256,7 +256,7 @@ Try<bool> exists(
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @return  The set of process ids.
-Try<std::set<pid_t> > tasks(
+Try<std::set<pid_t> > processes(
     const std::string& hierarchy,
     const std::string& cgroup);
 
