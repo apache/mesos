@@ -7,9 +7,8 @@ import sys
 import time
 import itertools
 
-from contextlib import closing
 from optparse import OptionParser
-from urllib2 import HTTPError, urlopen
+from urllib2 import HTTPError
 
 from mesos import http
 from mesos.cli import *
@@ -17,8 +16,7 @@ from mesos.futures import *
 
 
 if sys.version_info < (2,6,0):
-    sys.stderr.write('Expecting Python >= 2.6\n')
-    sys.exit(1)
+    fatal('Expecting Python >= 2.6')
 
 def read_forever(slave, task, file):
     framework_id = task['framework_id']
@@ -32,8 +30,7 @@ def read_forever(slave, task, file):
     try:
       state = json.loads(http.get(slave['pid'], '/state.json'))
     except:
-      sys.stderr.write('Failed to get state from slave\n')
-      sys.exit(1)
+      fatal('Failed to get state from slave')
 
     directory = None
 
@@ -47,8 +44,7 @@ def read_forever(slave, task, file):
                     break
 
     if directory is None:
-        sys.stderr.write('Task directory not found\n')
-        sys.exit(1)
+        fatal('Task directory not found')
 
     path = os.path.join(directory, file)
 
@@ -65,10 +61,9 @@ def read_forever(slave, task, file):
                  'length': PAGE_LENGTH}))
         except HTTPError as error:
             if error.code == 404:
-                sys.stderr.write('No such file or directory\n')
+                fatal('No such file or directory')
             else:
-                sys.stderr.write('Failed to read file from slave\n')
-            sys.exit(1)
+                fatal('Failed to read file from slave')
         if len(result['data']) == 0:
             time.sleep(0.5)
             continue
@@ -102,8 +97,7 @@ def main():
         master_state = json.loads(http.get(resolve(options.master),
                                            '/master/state.json'))
     except:
-        sys.stderr.write('Failed to get the master state\n')
-        sys.exit(1)
+        fatal('Failed to get the master state')
 
     # Build a dict from slave ID to `slaves'.
     slaves = {}
@@ -123,16 +117,14 @@ def main():
                     tail(slaves[task['slave_id']], task, options.file)
                     sys.exit(0)
 
-    sys.stderr.write('No task or framework found!\n')
-    sys.stderr.flush()
-    sys.exit(-1)
+    fatal('No task or framework found!')
 
 
 if __name__ == '__main__':
-  def signal_handler(signal, frame):
-    sys.stdout.write('\n')
-    sys.exit(130)
+    def signal_handler(signal, frame):
+        sys.stdout.write('\n')
+        sys.exit(130)
 
-  signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
 
-  main()
+    main()

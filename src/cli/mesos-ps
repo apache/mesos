@@ -5,9 +5,7 @@ import json
 import signal
 import sys
 
-from contextlib import closing
 from optparse import OptionParser
-from urllib2 import urlopen
 
 from mesos import http
 from mesos.cli import *
@@ -15,8 +13,7 @@ from mesos.futures import *
 
 
 if sys.version_info < (2,6,0):
-    sys.stderr.write('Expecting Python >= 2.6\n')
-    sys.exit(1)
+    fatal('Expecting Python >= 2.6')
 
 
 USER_COLUMN_PADDING = 4
@@ -158,16 +155,14 @@ def main():
     try:
         timeout = float(options.timeout)
     except:
-        sys.stderr.write('Expecting --timeout to be a floating point number\n')
-        sys.exit(-1)
+        fatal('Expecting --timeout to be a floating point number')
 
     # Get the master's state.
     try:
         state = json.loads(http.get(resolve(options.master),
                                     '/master/state.json'))
     except:
-        sys.stderr.write('Failed to get the master state\n')
-        sys.exit(1)
+        fatal('Failed to get the master state')
 
     # Collect all the active frameworks and tasks by slave ID.
     active = {}
@@ -208,8 +203,7 @@ def main():
             try:
                 statistics = json.loads(future.result())
             except TimeoutError:
-                sys.stderr.write('Timed out while waiting for slaves\n')
-                sys.exit(1)
+                fatal('Timed out while waiting for slaves')
             except Exception as e:
                 # TODO(benh): Print error if 'verbose'.
                 pass
@@ -229,10 +223,10 @@ def main():
 
 
 if __name__ == '__main__':
-  def handler(signal, frame):
-    sys.stdout.write('\n')
-    sys.exit(130)
+    def handler(signal, frame):
+        sys.stdout.write('\n')
+        sys.exit(130)
 
-  signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGINT, handler)
 
-  main()
+    main()

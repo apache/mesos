@@ -405,6 +405,7 @@ mesos_resolve_LDADD = libmesos.la
 dist_bin_SCRIPTS +=							\
   cli/mesos-cat								\
   cli/mesos-ps								\
+  cli/mesos-scp								\
   cli/mesos-tail
 
 # Also install the supporting scripts for the Python based CLI tools.

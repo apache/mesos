@@ -6,6 +6,13 @@ def usage(message, parser):
     sys.exit(-1)
 
 
+# Helper for printing out a message and then exiting.
+def fatal(message):
+    import sys
+    sys.stderr.write(message + '\n')
+    sys.exit(-1)
+
+
 # Helper that uses 'mesos-resolve' to resolve a master IP:port from
 # one of:
 #     zk://host1:port1,host2:port2,.../path
