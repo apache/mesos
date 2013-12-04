@@ -23,6 +23,7 @@
 
 #include <stout/flags/flag.hpp>
 #include <stout/flags/loader.hpp>
+#include <stout/flags/stringifier.hpp>
 #include <stout/flags/parse.hpp>
 
 namespace flags {
@@ -71,6 +72,11 @@ public:
 
   const_iterator begin() const { return flags.begin(); }
   const_iterator end() const { return flags.end(); }
+
+  typedef std::map<std::string, Flag>::iterator iterator;
+
+  iterator begin() { return flags.begin(); }
+  iterator end() { return flags.end(); }
 
   template <typename T1, typename T2>
   void add(T1* t1,
@@ -150,6 +156,7 @@ void FlagsBase::add(
           std::tr1::bind(&parse<T1>, std::tr1::placeholders::_1)),
       name,
       std::tr1::placeholders::_2); // Use _2 because ignore FlagsBase*.
+  flag.stringify = std::tr1::bind(&Stringifier<T1>, t1);
 
   // Update the help string to include the default value.
   flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
@@ -179,6 +186,7 @@ void FlagsBase::add(
           std::tr1::bind(&parse<T>, std::tr1::placeholders::_1)),
       name,
       std::tr1::placeholders::_2); // Use _2 because ignore FlagsBase*.
+  flag.stringify = std::tr1::bind(&OptionStringifier<T>, option);
 
   FlagsBase::add(flag);
 }
@@ -212,6 +220,10 @@ void FlagsBase::add(
           std::tr1::bind(&parse<T1>, std::tr1::placeholders::_1)),
       name,
       std::tr1::placeholders::_2);
+  flag.stringify = std::tr1::bind(
+      &MemberStringifier<Flags, T1>,
+      std::tr1::placeholders::_1,
+      t1);
 
   // Update the help string to include the default value.
   flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
@@ -249,6 +261,10 @@ void FlagsBase::add(
           std::tr1::bind(&parse<T>, std::tr1::placeholders::_1)),
       name,
       std::tr1::placeholders::_2);
+  flag.stringify = std::tr1::bind(
+      &OptionMemberStringifier<Flags, T>,
+      std::tr1::placeholders::_1,
+      option);
 
   add(flag);
 }

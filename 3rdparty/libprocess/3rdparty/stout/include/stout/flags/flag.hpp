@@ -19,6 +19,7 @@ struct Flag
   std::string help;
   bool boolean;
   std::tr1::function<Try<Nothing>(FlagsBase*, const std::string&)> loader;
+  std::tr1::function<Option<std::string>(const FlagsBase&)> stringify;
 };
 
 } // namespace flags {
