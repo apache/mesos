@@ -401,6 +401,15 @@ Future<Response> Master::Http::state(const Request& request)
     object.values["log_dir"] = master.flags.log_dir.get();
   }
 
+  JSON::Object flags;
+  foreachpair (const string& name, const flags::Flag& flag, master.flags) {
+    Option<string> value = flag.stringify(master.flags);
+    if (value.isSome()) {
+      flags.values[name] = value.get();
+    }
+  }
+  object.values["flags"] = flags;
+
   // Model all of the slaves.
   {
     JSON::Array array;

@@ -340,6 +340,15 @@ Future<Response> Slave::Http::state(const Request& request)
   }
   object.values["completed_frameworks"] = completedFrameworks;
 
+  JSON::Object flags;
+  foreachpair (const string& name, const flags::Flag& flag, slave.flags) {
+    Option<string> value = flag.stringify(slave.flags);
+    if (value.isSome()) {
+      flags.values[name] = value.get();
+    }
+  }
+  object.values["flags"] = flags;
+
   return OK(object, request.query.get("jsonp"));
 }
 
