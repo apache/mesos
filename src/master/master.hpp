@@ -295,8 +295,13 @@ private:
     process::Future<process::http::Response> roles(
         const process::http::Request& request);
 
+    // /master/tasks.json
+    process::Future<process::http::Response> tasks(
+        const process::http::Request& request);
+
     const static std::string HEALTH_HELP;
     const static std::string REDIRECT_HELP;
+    const static std::string TASKS_HELP;
 
   private:
     const Master& master;

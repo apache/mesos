@@ -32,6 +32,7 @@ const uint32_t MAX_SLAVE_PING_TIMEOUTS = 5;
 const uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
 const uint32_t MAX_COMPLETED_TASKS_PER_FRAMEWORK = 1000;
 const Duration WHITELIST_WATCH_INTERVAL = Seconds(5);
+const uint32_t TASK_LIMIT = 100;
 
 } // namespace mesos {
 } // namespace internal {
