@@ -409,7 +409,7 @@ void GroupProcess::expired()
   memberships = None();
 
   // Set all owned memberships as cancelled.
-  foreachpair (uint64_t sequence, Promise<bool>* cancelled, utils::copy(owned)) {
+  foreachpair (int32_t sequence, Promise<bool>* cancelled, utils::copy(owned)) {
     cancelled->set(false); // Since this was not requested.
     owned.erase(sequence); // Okay since iterating over a copy.
     delete cancelled;
@@ -496,7 +496,7 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
     return Error("Failed to get the sequence number: " + basename.error());
   }
 
-  Try<uint64_t> sequence = numify<uint64_t>(basename.get());
+  Try<int32_t> sequence = numify<int32_t>(basename.get());
   CHECK_SOME(sequence);
 
   Promise<bool>* cancelled = new Promise<bool>();
@@ -598,10 +598,10 @@ Try<bool> GroupProcess::cache()
   }
 
   // Convert results to sequence numbers.
-  set<uint64_t> sequences;
+  set<int32_t> sequences;
 
   foreach (const string& result, results) {
-    Try<uint64_t> sequence = numify<uint64_t>(result);
+    Try<int32_t> sequence = numify<int32_t>(result);
 
     // Skip it if it couldn't be converted to a number.
     if (sequence.isError()) {
@@ -616,7 +616,7 @@ Try<bool> GroupProcess::cache()
   // Cache current memberships, cancelling those that are now missing.
   set<Group::Membership> current;
 
-  foreachpair (uint64_t sequence, Promise<bool>* cancelled, utils::copy(owned)) {
+  foreachpair (int32_t sequence, Promise<bool>* cancelled, utils::copy(owned)) {
     if (sequences.count(sequence) == 0) {
       cancelled->set(false);
       owned.erase(sequence); // Okay since iterating over a copy.
@@ -627,7 +627,7 @@ Try<bool> GroupProcess::cache()
     }
   }
 
-  foreachpair (uint64_t sequence, Promise<bool>* cancelled, utils::copy(unowned)) {
+  foreachpair (int32_t sequence, Promise<bool>* cancelled, utils::copy(unowned)) {
     if (sequences.count(sequence) == 0) {
       cancelled->set(false);
       unowned.erase(sequence); // Okay since iterating over a copy.
@@ -639,7 +639,7 @@ Try<bool> GroupProcess::cache()
   }
 
   // Add any remaining (i.e., unexpected) sequences.
-  foreach (uint64_t sequence, sequences) {
+  foreach (int32_t sequence, sequences) {
     Promise<bool>* cancelled = new Promise<bool>();
     unowned[sequence] = cancelled;
     current.insert(Group::Membership(sequence, cancelled->future()));
