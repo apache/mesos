@@ -3,49 +3,42 @@
   <head>
     <meta charset="utf-8">
     <title></title>
-
-    <style type="text/css">
-      .log {
-        font-family: "Inconsolata", "Monaco", "Courier New", "Courier";
-        line-height:16px;
+    <style>
+      body {
+        line-height: 16px;
         font-size: 14px;
       }
 
-      .invert {
-        color: #FFFFFF;
-        text-decoration: none;
+      .indicator {
         background: #000000;
+        color: #FFFFFF;
+        left: 5px;
+        position: absolute;
+        text-decoration: none;
+        top: 5px;
       }
     </style>
   </head>
 
   <body style="overflow: hidden;">
-    <pre><code id="data" class="log"></code></pre>
-
-    <div style="position: absolute; left: 5px; top: 0px;">
-      <p id="indicator" class="log invert"></p>
-    </div>
+    <pre id="data"></pre>
+    <div class="indicator" id="indicator"></div>
 
     <script src="/static/js/jquery-1.7.1.min.js"></script>
     <script src="/static/js/underscore-1.4.3.min.js"></script>
     <script src="/static/js/jquery.pailer.js"></script>
 
     <script>
-      // TODO(benh): Give focus to $('#data') so we can initially page
-      // with the arrow keys.
-      $(window).keydown(function(event) {
-        if ($('#data').scrollTop() == 0) {
-          if (event.keyCode == 38) { // UP.
-          }
-        }
-      });
+      var $body = $('body');
+      var $data = $('#data');
 
       function resize() {
-        var margin_left = parseInt($('body').css('margin-left'));
-        var margin_top = parseInt($('body').css('margin-top'));
-        var margin_bottom = parseInt($('body').css('margin-bottom'));
-        $('#data').width($(window).width() - margin_left);
-        $('#data').height($(window).height() - margin_top - margin_bottom);
+        var margin_left = parseInt($body.css('margin-left'));
+        var margin_top = parseInt($body.css('margin-top'));
+        var margin_bottom = parseInt($body.css('margin-bottom'));
+        $data
+          .width($(window).width() - margin_left)
+          .height($(window).height() - margin_top - margin_bottom);
       }
 
       $(window).resize(resize);
@@ -53,8 +46,8 @@
       $(document).ready(function() {
         resize();
 
-        $('#data').pailer({
-          'read': function(options) {
+        $data.pailer({
+          read: function(options) {
             var settings = $.extend({
               'offset': -1,
               'length': -1
