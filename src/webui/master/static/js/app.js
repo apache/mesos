@@ -65,7 +65,7 @@
     })
     .filter('isoDate', function($filter) {
       return function(date) {
-        return $filter('date')(date, 'yyyy-MM-dd H:mm:ss');
+        return $filter('date')(date, 'yyyy-MM-ddTH:mm:ssZ');
       };
     })
     .filter('relativeDate', function() {
