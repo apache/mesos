@@ -817,8 +817,6 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
 
 TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 {
-  Clock::pause();
-
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
@@ -839,15 +837,22 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(AtMost(1));
 
+  Future<AuthenticateMessage> authenticateMessage =
+    FUTURE_PROTOBUF(AuthenticateMessage(), _, master.get());
+
   // Drop the first framework registered message, allow subsequent messages.
   Future<FrameworkRegisteredMessage> frameworkRegisteredMessage =
-    DROP_PROTOBUF(FrameworkRegisteredMessage(), _, _);
+    DROP_PROTOBUF(FrameworkRegisteredMessage(), master.get(), _);
 
   driver.start();
+
+  // Ensure authentication occurs.
+  AWAIT_READY(authenticateMessage);
 
   AWAIT_READY(frameworkRegisteredMessage);
 
   // TODO(benh): Pull out constant from SchedulerProcess.
+  Clock::pause();
   Clock::advance(Seconds(1));
 
   AWAIT_READY(registered); // Ensures registered message is received.

@@ -1812,6 +1812,12 @@ void Master::offer(const FrameworkID& frameworkId,
 // 'authenticate' message doesn't contain the 'FrameworkID'.
 void Master::authenticate(const UPID& from, const UPID& pid)
 {
+  if (!elected()) {
+    LOG(WARNING) << "Ignoring authenticate message from " << from
+                 << " since not elected yet";
+    return;
+  }
+
   // Deactivate the framework if it's already registered.
   foreachvalue (Framework* framework, frameworks) {
     if (framework->pid == pid) {
