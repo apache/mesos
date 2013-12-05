@@ -3284,7 +3284,8 @@ void Executor::updateTaskState(const TaskStatus& status)
   if (launchedTasks.contains(status.task_id())) {
     Task* task = launchedTasks[status.task_id()];
     // TODO(brenden): Consider wiping the `data` and `message` fields?
-    if (task->state() == status.state()) {
+    if (task->statuses_size() > 0 &&
+        task->statuses(task->statuses_size() - 1).state() == task->state()) {
       task->mutable_statuses()->RemoveLast();
     }
     task->add_statuses()->CopyFrom(status);
