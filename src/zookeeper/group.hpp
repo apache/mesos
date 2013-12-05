@@ -66,7 +66,7 @@ public:
       return sequence >= that.sequence;
     }
 
-    uint64_t id() const
+    int32_t id() const
     {
       return sequence;
     }
@@ -85,10 +85,10 @@ public:
   private:
     friend class GroupProcess; // Creates and manages memberships.
 
-    Membership(uint64_t _sequence, const process::Future<bool>& cancelled)
+    Membership(int32_t _sequence, const process::Future<bool>& cancelled)
       : sequence(_sequence), cancelled_(cancelled) {}
 
-    uint64_t sequence;
+    const int32_t sequence;
     process::Future<bool> cancelled_;
   };
 
@@ -268,8 +268,8 @@ private:
   // Expected ZooKeeper sequence numbers (either owned/created by this
   // group instance or not) and the promise we associate with their
   // "cancellation" (i.e., no longer part of the group).
-  std::map<uint64_t, process::Promise<bool>*> owned;
-  std::map<uint64_t, process::Promise<bool>*> unowned;
+  std::map<int32_t, process::Promise<bool>*> owned;
+  std::map<int32_t, process::Promise<bool>*> unowned;
 
   // Cache of owned + unowned, where 'None' represents an invalid
   // cache and 'Some' represents a valid cache.
