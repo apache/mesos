@@ -98,7 +98,7 @@
       var height = this_.element.height();
       var scrollHeight = this_.element[0].scrollHeight;
 
-      if (scrollTop == 0) {
+      if (scrollTop === 0) {
         this_.page();
       } else if (scrollTop + height >= scrollHeight) {
         if (!this_.tailing) {
@@ -140,7 +140,7 @@
           this_.initialize();
         }, 1000);
       });
-  }
+  };
 
 
   Pailer.prototype.page = function() {
@@ -157,7 +157,7 @@
     this_.paging = true;
     this_.indicate('(PAGING)');
 
-    if (this_.start == 0) {
+    if (this_.start === 0) {
       this_.paging = false;
       this_.indicate('(AT BEGINNING OF FILE)');
       setTimeout(function() { this_.indicate(''); }, 1000);
@@ -190,7 +190,7 @@
             data.data = buffer + data.data;
 
             // Truncate to the first newline (unless this is the beginning).
-            if (data.offset != 0) {
+            if (data.offset !== 0) {
               var index = data.data.indexOf('\n') + 1;
               data.offset += index;
               data.data = data.data.substring(index);
@@ -216,10 +216,10 @@
             this_.page();
           }, 1000);
         });
-    }
+    };
 
     read(offset, length);
-  }
+  };
 
 
   Pailer.prototype.tail = function() {
@@ -245,7 +245,7 @@
         if (data.data.length > 0) {
           // Truncate to the first newline if this is the first time
           // (and we aren't reading from the beginning of the log).
-          if (this_.start == this_.end && data.offset != 0) {
+          if (this_.start === this_.end && data.offset !== 0) {
             var index = data.data.indexOf('\n') + 1;
             data.offset += index;
             data.data = data.data.substring(index);
@@ -272,7 +272,7 @@
         // log data at a time ... the right solution here might be to do
         // a request to determine the new ending offset and then request
         // the proper length.
-        if (data.data.length == this_.truncate_length) {
+        if (data.data.length === this_.truncate_length) {
           setTimeout(function() { this_.tail(); }, 0);
         } else {
           setTimeout(function() { this_.tail(); }, 1000);
@@ -286,7 +286,7 @@
           this_.initialize();
         }, 1000);
       });
-  }
+  };
 
 
   Pailer.prototype.indicate = function(text) {
@@ -295,7 +295,7 @@
     if (this_.indicator) {
       this_.indicator.text(text);
     }
-  }
+  };
 
 
   Pailer.prototype.truncate = function() {
@@ -307,14 +307,16 @@
       this_.start = this_.end - this_.truncate_length;
       this_.element.html(this_.element.html().substring(index));
     }
-  }
+  };
 
   $.fn.pailer = function(options) {
     var settings = $.extend({
-      'read': function() { return {
-        'success': function() {},
-        'error': function(f) { f(); }
-      }},
+      read: function() {
+        return {
+          success: function() {},
+          error: function(f) { f(); }
+        };
+      },
       'page_size': 8 * 4096, // 8 "pages".
       'truncate_length': 50000
     }, options);
@@ -331,5 +333,6 @@
         pailer.initialize();
       }
     });
-  }
+  };
+
 })(jQuery);
