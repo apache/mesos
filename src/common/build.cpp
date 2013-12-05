@@ -20,6 +20,9 @@
 
 #include <string>
 
+#include <stout/none.hpp>
+#include <stout/option.hpp>
+
 #include "common/build.hpp"
 
 namespace mesos {
@@ -31,6 +34,23 @@ const double TIME = atof(BUILD_TIME);
 const std::string USER = BUILD_USER;
 const std::string FLAGS = BUILD_FLAGS;
 
+#ifdef BUILD_GIT_SHA
+const Option<std::string> GIT_SHA = std::string(BUILD_GIT_SHA);
+#else
+const Option<std::string> GIT_SHA = None();
+#endif
+
+#ifdef BUILD_GIT_BRANCH
+const Option<std::string> GIT_BRANCH = std::string(BUILD_GIT_BRANCH);
+#else
+const Option<std::string> GIT_BRANCH = None();
+#endif
+
+#ifdef BUILD_GIT_TAG
+const Option<std::string> GIT_TAG = std::string(BUILD_GIT_TAG);
+#else
+const Option<std::string> GIT_TAG = None();
+#endif
 } // namespace build {
 } // namespace internal {
 } // namespace mesos {

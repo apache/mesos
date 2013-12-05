@@ -519,5 +519,6 @@ We need libsasl2 for authentication!
 -------------------------------------------------------------------
 ])])
 
+AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
 
 AC_OUTPUT

@@ -28,6 +28,9 @@ extern const std::string DATE;
 extern const double TIME;
 extern const std::string USER;
 extern const std::string FLAGS;
+extern const Option<std::string> GIT_SHA;
+extern const Option<std::string> GIT_BRANCH;
+extern const Option<std::string> GIT_TAG;
 
 } // namespace build {
 } // namespace internal {

@@ -303,6 +303,19 @@ Future<Response> Slave::Http::state(const Request& request)
 
   JSON::Object object;
   object.values["version"] = MESOS_VERSION;
+
+  if (build::GIT_SHA.isSome()) {
+    object.values["git_sha"] = build::GIT_SHA.get();
+  }
+
+  if (build::GIT_BRANCH.isSome()) {
+    object.values["git_branch"] = build::GIT_BRANCH.get();
+  }
+
+  if (build::GIT_TAG.isSome()) {
+    object.values["git_tag"] = build::GIT_TAG.get();
+  }
+
   object.values["build_date"] = build::DATE;
   object.values["build_time"] = build::TIME;
   object.values["build_user"] = build::USER;
