@@ -230,8 +230,9 @@
           task.executor_id = task.id;
         }
         if (task.statuses.length > 0) {
-          task.start_time = task.statuses[0].timestamp;
-          task.finish_time = task.statuses[task.statuses.length - 1].timestamp;
+          task.start_time = task.statuses[0].timestamp * 1000;
+          task.finish_time =
+            task.statuses[task.statuses.length - 1].timestamp * 1000;
         }
       });
       _.each(framework.completed_tasks, function(task) {
@@ -239,8 +240,9 @@
           task.executor_id = task.id;
         }
         if (task.statuses.length > 0) {
-          task.start_time = task.statuses[0].timestamp;
-          task.finish_time = task.statuses[task.statuses.length - 1].timestamp;
+          task.start_time = task.statuses[0].timestamp * 1000;
+          task.finish_time =
+            task.statuses[task.statuses.length - 1].timestamp * 1000;
         }
       });
     });

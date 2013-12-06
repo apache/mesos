@@ -95,11 +95,11 @@
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
-            <abbr title="{{task.start_time * 1000 | isoDate}}">
-              {{task.start_time * 1000 | relativeDate:pollTime}}</abbr>
+            <abbr title="{{task.start_time | isoDate}}">
+              {{task.start_time | relativeDate:pollTime}}</abbr>
             <button class="btn btn-mini btn-toggle"
               clipboard
-              data-clipboard-text="{{task.start_time * 1000 | isoDate}}"
+              data-clipboard-text="{{task.start_time | isoDate}}"
               tooltip="Copy start time"
               tooltip-placement="right"
               tooltip-trigger="clipboardhover">
@@ -163,22 +163,22 @@
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
-            <abbr title="{{task.start_time * 1000 | isoDate}}">
-              {{task.start_time * 1000 | relativeDate:pollTime}}</abbr>
+            <abbr title="{{task.start_time | isoDate}}">
+              {{task.start_time | relativeDate:pollTime}}</abbr>
             <button class="btn btn-mini btn-toggle"
               clipboard
-              data-clipboard-text="{{task.start_time * 1000 | isoDate}}"
+              data-clipboard-text="{{task.start_time | isoDate}}"
               tooltip="Copy start time"
               tooltip-placement="right"
               tooltip-trigger="clipboardhover">
             </button>
           </td>
           <td>
-            <abbr title="{{task.finish_time * 1000 | isoDate}}">
-              {{task.finish_time * 1000 | relativeDate:pollTime}}</abbr>
+            <abbr title="{{task.finish_time | isoDate}}">
+              {{task.finish_time | relativeDate:pollTime}}</abbr>
             <button class="btn btn-mini btn-toggle"
               clipboard
-              data-clipboard-text="{{task.finish_time * 1000 | isoDate}}"
+              data-clipboard-text="{{task.finish_time | isoDate}}"
               tooltip="Copy finish time"
               tooltip-placement="right"
               tooltip-trigger="clipboardhover">
