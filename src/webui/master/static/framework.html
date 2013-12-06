@@ -25,7 +25,7 @@
         <dt>Registered:</dt>
         <dd>
           <abbr title="{{framework.registered_time * 1000 | isoDate}}">
-            {{framework.registered_time * 1000 | relativeDate}}</abbr>
+            {{framework.registered_time * 1000 | relativeDate:pollTime}}</abbr>
           <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{framework.registered_time * 1000 | isoDate}}"
@@ -38,7 +38,7 @@
         <dd ng-show="!framework.reregistered_time">-</dd>
         <dd ng-show="framework.reregistered_time">
           <abbr title="{{framework.reregistered_time * 1000 | isoDate}}">
-            {{framework.reregistered_time * 1000 | relativeDate}}</abbr>
+            {{framework.reregistered_time * 1000 | relativeDate:pollTime}}</abbr>
           <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{framework.reregistered_time * 1000 | isoDate}}"
@@ -96,7 +96,7 @@
           <td>{{task.state | truncateMesosState}}</td>
           <td>
             <abbr title="{{task.start_time * 1000 | isoDate}}">
-              {{task.start_time * 1000 | relativeDate}}</abbr>
+              {{task.start_time * 1000 | relativeDate:pollTime}}</abbr>
             <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{task.start_time * 1000 | isoDate}}"
@@ -164,7 +164,7 @@
           <td>{{task.state | truncateMesosState}}</td>
           <td>
             <abbr title="{{task.start_time * 1000 | isoDate}}">
-              {{task.start_time * 1000 | relativeDate}}</abbr>
+              {{task.start_time * 1000 | relativeDate:pollTime}}</abbr>
             <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{task.start_time * 1000 | isoDate}}"
@@ -175,7 +175,7 @@
           </td>
           <td>
             <abbr title="{{task.finish_time * 1000 | isoDate}}">
-              {{task.finish_time * 1000 | relativeDate}}</abbr>
+              {{task.finish_time * 1000 | relativeDate:pollTime}}</abbr>
             <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{task.finish_time * 1000 | isoDate}}"

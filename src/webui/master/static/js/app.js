@@ -69,8 +69,8 @@
       };
     })
     .filter('relativeDate', function() {
-      return function(date) {
-        return relativeDate(date);
+      return function(date, refDate) {
+        return relativeDate(date, refDate);
       };
     })
     .filter('unixDate', function($filter) {

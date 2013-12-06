@@ -33,7 +33,7 @@
         <dt>Started:</dt>
         <dd>
           <abbr title="{{state.start_time * 1000 | isoDate}}">
-            {{state.start_time * 1000 | relativeDate}}</abbr>
+            {{state.start_time * 1000 | relativeDate:pollTime}}</abbr>
           <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{state.start_time * 1000 | isoDate}}"
@@ -45,7 +45,7 @@
         <dt>Built:</dt>
         <dd>
           <abbr title="{{state.build_time * 1000 | isoDate}}">
-            {{state.build_time * 1000 | relativeDate}}</abbr>
+            {{state.build_time * 1000 | relativeDate:pollTime}}</abbr>
           by <i>{{state.build_user}}</i>
           <button class="btn btn-mini btn-toggle"
               clipboard

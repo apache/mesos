@@ -60,7 +60,7 @@
     <td>{{slave.resources.disk * (1024 * 1024) | dataSize}}</td>
     <td>
       <abbr title="{{slave.registered_time * 1000 | isoDate}}">
-        {{slave.registered_time * 1000 | relativeDate}}</abbr>
+        {{slave.registered_time * 1000 | relativeDate:pollTime}}</abbr>
       <button class="btn btn-mini btn-toggle"
           clipboard
           data-clipboard-text="{{slave.registered_time * 1000 | isoDate}}"
@@ -72,7 +72,7 @@
     </td>
     <td>
       <abbr title="{{slave.reregistered_time * 1000 | isoDate}}">
-        {{slave.reregistered_time * 1000 | relativeDate}}</abbr>
+        {{slave.reregistered_time * 1000 | relativeDate:pollTime}}</abbr>
       <button class="btn btn-mini btn-toggle"
           clipboard
           data-clipboard-text="{{slave.reregistered_time * 1000 | isoDate}}"

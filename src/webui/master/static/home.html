@@ -24,7 +24,7 @@
         <dt>Built:</dt>
         <dd>
           <abbr title="{{state.build_time * 1000 | isoDate}}">
-            {{state.build_time * 1000 | relativeDate}}</abbr>
+            {{state.build_time * 1000 | relativeDate:pollTime}}</abbr>
           by <i>{{state.build_user}}</i>
           <button class="btn btn-mini btn-toggle"
               clipboard
@@ -37,7 +37,7 @@
         <dt>Started:</dt>
         <dd>
           <abbr title="{{state.start_time * 1000 | isoDate}}">
-            {{state.start_time * 1000 | relativeDate}}</abbr>
+            {{state.start_time * 1000 | relativeDate:pollTime}}</abbr>
           <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{state.start_time * 1000 | isoDate}}"
@@ -198,7 +198,7 @@
           <td>{{framework.max_share * 100 | number}}%</td>
           <td>
             <abbr title="{{framework.registered_time * 1000 | isoDate}}">
-              {{framework.registered_time * 1000 | relativeDate}}</abbr>
+              {{framework.registered_time * 1000 | relativeDate:pollTime}}</abbr>
             <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{framework.registered_time * 1000 | isoDate}}"
@@ -210,7 +210,7 @@
           <td ng-show="!framework.reregistered_time">-</td>
           <td ng-show="framework.reregistered_time">
             <abbr title="{{framework.reregistered_time * 1000 | isoDate}}">
-              {{framework.reregistered_time * 1000 | relativeDate}}</abbr>
+              {{framework.reregistered_time * 1000 | relativeDate:pollTime}}</abbr>
             <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{framework.reregistered_time * 1000 | isoDate}}"
@@ -266,7 +266,7 @@
           <td>{{framework.name}}</td>
           <td>
             <abbr title="{{framework.registered_time * 1000 | isoDate}}">
-              {{framework.registered_time * 1000 | relativeDate}}</abbr>
+              {{framework.registered_time * 1000 | relativeDate:pollTime}}</abbr>
             <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{framework.reregistered_time * 1000 | isoDate}}"
@@ -277,7 +277,7 @@
           </td>
           <td>
             <abbr title="{{framework.unregistered_time * 1000 | isoDate}}">
-              {{framework.unregistered_time * 1000 | relativeDate}}</abbr>
+              {{framework.unregistered_time * 1000 | relativeDate:pollTime}}</abbr>
             <button class="btn btn-mini btn-toggle"
               clipboard
               data-clipboard-text="{{framework.unregistered_time * 1000 | isoDate}}"

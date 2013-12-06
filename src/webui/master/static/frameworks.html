@@ -71,7 +71,7 @@
       <td>{{framework.max_share * 100 | number}}%</td>
       <td>
         <abbr title="{{framework.registered_time * 1000 | isoDate}}">
-          {{framework.registered_time * 1000 | relativeDate}}</abbr>
+          {{framework.registered_time * 1000 | relativeDate:pollTime}}</abbr>
         <button class="btn btn-mini btn-toggle"
           clipboard
           data-clipboard-text="{{framework.registered_time * 1000 | isoDate}}"
@@ -83,7 +83,7 @@
       <td ng-show="!framework.reregistered_time">-</td>
       <td ng-show="framework.reregistered_time">
         <abbr title="{{framework.reregistered_time * 1000 | isoDate}}">
-          {{framework.reregistered_time * 1000 | relativeDate}}</abbr>
+          {{framework.reregistered_time * 1000 | relativeDate:pollTime}}</abbr>
         <button class="btn btn-mini btn-toggle"
           clipboard
           data-clipboard-text="{{framework.registered_time * 1000 | isoDate}}"
@@ -139,7 +139,7 @@
       <td>{{framework.name}}</td>
       <td>
         <abbr title="{{framework.registered_time * 1000 | isoDate}}">
-          {{framework.registered_time * 1000 | relativeDate}}</abbr>
+          {{framework.registered_time * 1000 | relativeDate:pollTime}}</abbr>
         <button class="btn btn-mini btn-toggle"
           clipboard
           data-clipboard-text="{{framework.reregistered_time * 1000 | isoDate}}"
@@ -150,7 +150,7 @@
       </td>
       <td>
         <abbr title="{{framework.unregistered_time * 1000 | isoDate}}">
-          {{framework.unregistered_time * 1000 | relativeDate}}</abbr>
+          {{framework.unregistered_time * 1000 | relativeDate:pollTime}}</abbr>
         <button class="btn btn-mini btn-toggle"
           clipboard
           data-clipboard-text="{{framework.unregistered_time * 1000 | isoDate}}"

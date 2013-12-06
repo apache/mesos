@@ -154,6 +154,14 @@
 
     $scope.data = data;
 
+    // Pass this pollTime to all relativeDate calls to make them all relative to
+    // the same moment in time.
+    //
+    // If relativeDate is called without a reference time, it instantiates a new
+    // Date to be the reference. Since there can be hundreds of dates on a given
+    // page, they would all be relative to slightly different moments in time.
+    $scope.pollTime = new Date();
+
     // Update the maps.
     $scope.slaves = {};
     $scope.frameworks = {};
