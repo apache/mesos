@@ -319,9 +319,11 @@ Future<Response> Slave::Http::state(const Request& request)
   object.values["failed_tasks"] = slave.stats.tasks[TASK_FAILED];
   object.values["lost_tasks"] = slave.stats.tasks[TASK_LOST];
 
-  Try<string> masterHostname = net::getHostname(slave.master.get().ip);
-  if (masterHostname.isSome()) {
-    object.values["master_hostname"] = masterHostname.get();
+  if (slave.master.isSome()) {
+    Try<string> masterHostname = net::getHostname(slave.master.get().ip);
+    if (masterHostname.isSome()) {
+      object.values["master_hostname"] = masterHostname.get();
+    }
   }
 
   if (slave.flags.log_dir.isSome()) {
