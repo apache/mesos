@@ -1616,9 +1616,14 @@ TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
   StandaloneMasterDetector* detector = new StandaloneMasterDetector(master.get());
   Try<PID<Slave> > slave = StartSlave(Owned<MasterDetector>(detector));
   ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
