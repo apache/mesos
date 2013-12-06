@@ -1576,8 +1576,6 @@ TEST_F(FaultToleranceTest, SchedulerExit)
 
 TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 {
-  Clock::pause();
-
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
@@ -1592,7 +1590,9 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _));
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
 
   Future<Nothing> resourceOffers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1601,8 +1601,11 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 
   driver.start();
 
+  AWAIT_READY(registered);
+
   AWAIT_READY(slaveRegisteredMessage);
 
+  Clock::pause();
   Clock::advance(Seconds(1)); // TODO(benh): Pull out constant from Slave.
 
   AWAIT_READY(resourceOffers);
