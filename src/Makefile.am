@@ -459,10 +459,12 @@ nobase_dist_pkgdata_DATA +=						\
 
 # Need to distribute/install third-party javascript.
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/js/angular-1.0.7.js				\
-  webui/master/static/js/angular-1.0.7.min.js				\
-  webui/master/static/js/ui-bootstrap-tpls-0.4.0.js			\
-  webui/master/static/js/ui-bootstrap-tpls-0.4.0.min.js			\
+  webui/master/static/js/angular-1.2.3.js				\
+  webui/master/static/js/angular-1.2.3.min.js				\
+  webui/master/static/js/angular-route-1.2.3.js			\
+  webui/master/static/js/angular-route-1.2.3.min.js			\
+  webui/master/static/js/ui-bootstrap-tpls-0.7.0.js			\
+  webui/master/static/js/ui-bootstrap-tpls-0.7.0.min.js		\
   webui/master/static/js/underscore-1.4.3.js				\
   webui/master/static/js/underscore-1.4.3.min.js			\
   webui/master/static/js/jquery-1.7.1.js				\

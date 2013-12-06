@@ -68,4 +68,41 @@
       }
     });
   }]);
+
+  var uiModalDialog = angular.module('ui.bootstrap.dialog', ['ui.bootstrap']);
+  uiModalDialog
+    .factory('$dialog', ['$rootScope', '$modal', function ($rootScope, $modal) {
+
+      var prompt = function(title, message, buttons) {
+
+        if (typeof buttons === 'undefined') {
+          buttons = [
+            {result:'cancel', label: 'Cancel'},
+            {result:'yes', label: 'Yes', cssClass: 'btn-primary'}
+          ];
+        }
+
+        var ModalCtrl = function($scope, $modalInstance) {
+          $scope.title = title;
+          $scope.message = message;
+          $scope.buttons = buttons;
+        };
+
+        return $modal.open({
+          templateUrl: 'template/dialog/message.html',
+          controller: ModalCtrl
+        }).result;
+      };
+
+      return {
+        prompt: prompt,
+        messageBox: function(title, message, buttons) {
+          return {
+            open: function() {
+              return prompt(title, message, buttons);
+            }
+          };
+        }
+      };
+    }]);
 })();

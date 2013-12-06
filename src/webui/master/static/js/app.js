@@ -1,8 +1,8 @@
 (function() {
   'use strict';
 
-  angular.module('mesos', ['mesos.services', 'ui.bootstrap']).
-    config(['$dialogProvider', '$routeProvider', function($dialogProvider, $routeProvider) {
+  angular.module('mesos', ['ngRoute', 'mesos.services', 'ui.bootstrap', 'ui.bootstrap.dialog']).
+    config(['$routeProvider', function($routeProvider) {
       $routeProvider
         .when('/',
           {templateUrl: 'static/home.html', controller: 'HomeCtrl'})
@@ -35,8 +35,6 @@
         .when('/slaves/:slave_id/browse',
           {templateUrl: 'static/browse.html', controller: 'BrowseCtrl'})
         .otherwise({redirectTo: '/'});
-
-      $dialogProvider.options({dialogFade: true});
 
       ZeroClipboard.setDefaults({
         moviePath: '/static/obj/zeroclipboard-1.1.7.swf'

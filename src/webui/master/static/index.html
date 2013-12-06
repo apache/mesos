@@ -70,28 +70,42 @@
 
         <div ng-view></div>
       </div>
-
-      <div modal="errorModalOpen" style="display:none;">
-        <div class="modal-header">
-          <h3>Failed to connect to {{$location.host()}}:{{$location.port()}}!</h3>
-        </div>
-        <div class="modal-body">
-          <p>
-            Retrying in <b>{{retry / 1000}}</b> seconds...
-          </p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn" ng-click="errorModalClose()">Try now</button>
-        </div>
-      </div>
     </div>
+
+    <script type="text/ng-template" id="template/dialog/masterGone.html">
+      <div class="modal-header">
+        <h3>Failed to connect to {{rootScope.$location.host()}}:{{rootScope.$location.port()}}!</h3>
+      </div>
+      <div class="modal-body">
+        <p>
+          Retrying in <b>{{rootScope.retry / 1000}}</b> seconds...
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" ng-click="$close()">Try now</button>
+      </div>
+    </script>
+
+    <script type="text/ng-template" id="template/dialog/message.html">
+      <div class="modal-header">
+        <h3>{{ title }}</h3>
+      </div>
+      <div class="modal-body">
+        <p>{{ message }}</p>
+      </div>
+      <div class="modal-footer">
+        <a data-ng-repeat="btn in buttons" data-ng-click="$close(btn.result)" class="btn">
+          {{ btn.label }}
+        </a>
+      </div>
+    </script>
 
     <script src="/static/js/jquery-1.7.1.min.js"></script>
     <script src="/static/js/underscore-1.4.3.min.js"></script>
     <script src="/static/js/zeroclipboard-1.1.7.js"></script>
-    <script src="/static/js/angular-1.0.7.min.js"></script>
-    <script src="/static/js/ui-bootstrap-tpls-0.4.0.min.js"></script>
-
+    <script src="/static/js/angular-1.2.3.min.js"></script>
+    <script src="/static/js/angular-route-1.2.3.min.js"></script>
+    <script src="/static/js/ui-bootstrap-tpls-0.7.0.min.js"></script>
     <script src="/static/js/relative-date.js"></script>
 
     <script src="/static/js/app.js"></script>
