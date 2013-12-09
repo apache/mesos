@@ -14,20 +14,24 @@ test ! -z "${PYTHON}" && \
 
 PYTHON=@PYTHON@
 
-DISTRIBUTE_EGG=`echo ${MESOS_BUILD_DIR}/3rdparty/distribute-*/dist/*.egg`
+DISTRIBUTE_EGG=${MESOS_BUILD_DIR}/3rdparty/distribute-0.6.26/dist/
+DISTRIBUTE_EGG+=distribute-0.6.26@PYTHON_EGG_PUREPY_POSTFIX@.egg
 
 test ! -e ${DISTRIBUTE_EGG} && \
   echo "${RED}Failed to find ${DISTRIBUTE_EGG}${NORMAL}" && \
   exit 1
 
 PROTOBUF=${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-2.4.1
-PROTOBUF_EGG=`echo ${PROTOBUF}/python/dist/protobuf*.egg`
+
+PROTOBUF_EGG=${PROTOBUF}/python/dist/
+PROTOBUF_EGG+=protobuf-2.4.1@PYTHON_EGG_PUREPY_POSTFIX@.egg
 
 test ! -e ${PROTOBUF_EGG} && \
   echo "${RED}Failed to find ${PROTOBUF_EGG}${NORMAL}" && \
   exit 1
 
-MESOS_EGG=`echo ${MESOS_BUILD_DIR}/src/python/dist/mesos*.egg`
+MESOS_EGG=${MESOS_BUILD_DIR}/src/python/dist/
+MESOS_EGG+=mesos-@PACKAGE_VERSION@@PYTHON_EGG_POSTFIX@.egg
 
 test ! -e ${MESOS_EGG} && \
   echo "${RED}Failed to find ${MESOS_EGG}${NORMAL}" && \
