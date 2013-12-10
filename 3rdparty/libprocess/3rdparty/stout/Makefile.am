@@ -17,6 +17,7 @@ EXTRA_DIST =					\
   include/stout/flags/flags.hpp			\
   include/stout/flags/loader.hpp		\
   include/stout/flags/parse.hpp			\
+  include/stout/flags/stringifier.hpp		\
   include/stout/foreach.hpp			\
   include/stout/format.hpp			\
   include/stout/fs.hpp				\
