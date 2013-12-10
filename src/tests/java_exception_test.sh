@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Expecting MESOS_SOURCE_DIR and MESOS_BUILD_DIR to be in environment.
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script runs the balloon framework on a cluster using the cgroups
 # isolator and checks that the framework returns a status of 1.

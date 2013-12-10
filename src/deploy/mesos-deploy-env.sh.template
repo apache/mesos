@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # This file contains environment variables that modify how the deploy
 # scripts are run. For example, it can be used to configure SSH

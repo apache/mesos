@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Provides a tool to "apply" a review from Review Board.
 

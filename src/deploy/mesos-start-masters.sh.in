@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 prefix=@prefix@
 exec_prefix=@exec_prefix@
