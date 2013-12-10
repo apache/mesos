@@ -829,6 +829,35 @@ inline Try<long> cpus()
 }
 
 
+// Structure returned by loadavg(). Encodes system load average
+// for the last 1, 5 and 15 minutes.
+struct Load {
+  double one;
+  double five;
+  double fifteen;
+};
+
+
+// Returns load struct with average system loads for the last
+// 1, 5 and 15 minutes respectively.
+// Load values should be interpreted as usual average loads from
+// uptime(1).
+inline Try<Load> loadavg()
+{
+  double loadArray[3];
+  if (getloadavg(loadArray, 3) == -1) {
+    return ErrnoError("Failed to determine system load averages");
+  }
+
+  Load load;
+  load.one = loadArray[0];
+  load.five = loadArray[1];
+  load.fifteen = loadArray[2];
+
+  return load;
+}
+
+
 // Returns the total size of main memory.
 inline Try<Bytes> memory()
 {
