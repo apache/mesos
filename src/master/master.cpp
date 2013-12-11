@@ -1550,7 +1550,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
   // TODO(brenden) Consider wiping the `data` and `message` fields?
   if (task->statuses_size() > 0 &&
-      task->statuses(task->statuses_size() - 1).state() == task->state()) {
+      task->statuses(task->statuses_size() - 1).state() == status.state()) {
     task->mutable_statuses()->RemoveLast();
   }
   task->add_statuses()->CopyFrom(status);
