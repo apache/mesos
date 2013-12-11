@@ -35,15 +35,15 @@ public interface ExecutorDriver {
   public Status start();
 
   /**
-   * Stops the scheduler driver.
+   * Stops the executor driver.
    */
   public Status stop();
 
   /**
    * Aborts the driver so that no more callbacks can be made to the
-   * scheduler. The semantics of abort and stop have deliberately been
+   * executor. The semantics of abort and stop have deliberately been
    * separated so that code can detect an aborted driver (i.e., via
-   * the return status of {@link SchedulerDriver#join}, see below),
+   * the return status of {@link ExecutorDriver#join}, see below),
    * and instantiate and start another driver if desired (from within
    * the same process ... although this functionality is currently not
    * supported for executors).
