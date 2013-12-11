@@ -3,6 +3,8 @@
 
 #include <assert.h>
 
+#include <algorithm>
+
 #include <stout/result.hpp>
 
 template <typename T>
@@ -92,5 +94,35 @@ private:
   State state;
   T* t;
 };
+
+
+template <typename T>
+Option<T> min(const Option<T>& left, const Option<T>& right)
+{
+  if (left.isSome() && right.isSome()) {
+    return std::min(left.get(), right.get());
+  } else if (left.isSome()) {
+    return left.get();
+  } else if (right.isSome()) {
+    return right.get();
+  } else {
+    return Option<T>::none();
+  }
+}
+
+
+template <typename T>
+Option<T> max(const Option<T>& left, const Option<T>& right)
+{
+  if (left.isSome() && right.isSome()) {
+    return std::max(left.get(), right.get());
+  } else if (left.isSome()) {
+    return left.get();
+  } else if (right.isSome()) {
+    return right.get();
+  } else {
+    return Option<T>::none();
+  }
+}
 
 #endif // __STOUT_OPTION_HPP__
