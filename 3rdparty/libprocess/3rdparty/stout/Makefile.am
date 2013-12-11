@@ -74,6 +74,7 @@ EXTRA_DIST =					\
   tests/main.cpp				\
   tests/multimap_tests.cpp			\
   tests/none_tests.cpp				\
+  tests/option_tests.cpp			\
   tests/os_tests.cpp				\
   tests/os/sendfile_tests.cpp			\
   tests/os/signals_tests.cpp			\
