@@ -1683,21 +1683,29 @@ TYPED_TEST(AllocatorTest, RoleTest)
   EXPECT_CALL(sched2, registered(_, _, _))
     .WillOnce(FutureSatisfy(&registered2));
 
-  EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
+  Future<Nothing> frameworkAdded;
+  EXPECT_CALL(this->allocator, frameworkAdded(_, _, _))
+    .WillOnce(FutureSatisfy(&frameworkAdded));
 
   driver2.start();
 
   AWAIT_READY(registered2);
+  AWAIT_READY(frameworkAdded);
 
   // Shut everything down.
+  Future<Nothing> frameworkDeactivated;
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
-    .Times(AtMost(1));
+    .WillOnce(FutureSatisfy(&frameworkDeactivated));
 
+  Future<Nothing> frameworkRemoved;
   EXPECT_CALL(this->allocator, frameworkRemoved(_))
-    .Times(AtMost(1));
+    .WillOnce(FutureSatisfy(&frameworkRemoved));
 
   driver2.stop();
   driver2.join();
+
+  AWAIT_READY(frameworkDeactivated);
+  AWAIT_READY(frameworkRemoved);
 
   driver1.stop();
   driver1.join();
