@@ -80,6 +80,48 @@ public:
         constructor, (jobject) txnLogFactory, (jobject) treeBuilder);
   }
 
+  void setMaxSessionTimeout(int max)
+  {
+    static Jvm::Method method = Jvm::get()->findMethod(
+        Jvm::Class::named("org/apache/zookeeper/server/ZooKeeperServer")
+        .method("setMaxSessionTimeout")
+        .parameter(Jvm::get()->intClass)
+        .returns(Jvm::get()->voidClass));
+
+    Jvm::get()->invoke<void>(object, method, max);
+  }
+
+  void setMinSessionTimeout(int min)
+  {
+    static Jvm::Method method = Jvm::get()->findMethod(
+        Jvm::Class::named("org/apache/zookeeper/server/ZooKeeperServer")
+        .method("setMinSessionTimeout")
+        .parameter(Jvm::get()->intClass)
+        .returns(Jvm::get()->voidClass));
+
+    Jvm::get()->invoke<void>(object, method, min);
+  }
+
+  int getMaxSessionTimeout()
+  {
+    static Jvm::Method method = Jvm::get()->findMethod(
+        Jvm::Class::named("org/apache/zookeeper/server/ZooKeeperServer")
+        .method("getMaxSessionTimeout")
+        .returns(Jvm::get()->intClass));
+
+    return Jvm::get()->invoke<int>(object, method);
+  }
+
+  int getMinSessionTimeout()
+  {
+    static Jvm::Method method = Jvm::get()->findMethod(
+        Jvm::Class::named("org/apache/zookeeper/server/ZooKeeperServer")
+        .method("getMinSessionTimeout")
+        .returns(Jvm::get()->intClass));
+
+    return Jvm::get()->invoke<int>(object, method);
+  }
+
   int getClientPort()
   {
     static Jvm::Method method = Jvm::get()->findMethod(

@@ -66,6 +66,12 @@ public:
   // clients with the same session id.
   void expireSession(int64_t sessionId);
 
+  // Sets/gets the min/max session timeouts enforced by the server.
+  void setMinSessionTimeout(const Duration& min);
+  void setMaxSessionTimeout(const Duration& max);
+  Duration getMinSessionTimeout() const;
+  Duration getMaxSessionTimeout() const;
+
 private:
   org::apache::zookeeper::server::ZooKeeperServer* zooKeeperServer;
   org::apache::zookeeper::server::NIOServerCnxn::Factory* connectionFactory;

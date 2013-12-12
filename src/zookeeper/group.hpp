@@ -206,7 +206,10 @@ private:
   void timedout(const int64_t& sessionId);
 
   const std::string servers;
+
+  // The session timeout requested by the client.
   const Duration timeout;
+
   const std::string znode;
 
   Option<Authentication> auth; // ZooKeeper authentication.

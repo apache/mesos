@@ -68,6 +68,30 @@ TEST_F(ZooKeeperTest, Auth)
 }
 
 
+TEST_F(ZooKeeperTest, SessionTimeoutNegotiation)
+{
+  server->setMinSessionTimeout(Seconds(8));
+  server->setMaxSessionTimeout(Seconds(20));
+  EXPECT_EQ(Seconds(8), server->getMinSessionTimeout());
+  EXPECT_EQ(Seconds(20), server->getMaxSessionTimeout());
+
+  ZooKeeperTest::TestWatcher watcher;
+  ZooKeeper zk1(server->connectString(), Seconds(7), &watcher);
+  watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
+
+  // The requested timeout is less than server's min value so the
+  // negotiated result is the sever's min value.
+  EXPECT_EQ(Seconds(8), zk1.getSessionTimeout());
+
+  ZooKeeper zk2(server->connectString(), Seconds(22), &watcher);
+  watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
+
+  // The requested timeout is greater than server's max value so the
+  // negotiated result is the sever's max value.
+  EXPECT_EQ(Seconds(20), zk2.getSessionTimeout());
+}
+
+
 TEST_F(ZooKeeperTest, Create)
 {
   ZooKeeperTest::TestWatcher watcher;

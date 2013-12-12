@@ -77,6 +77,34 @@ void ZooKeeperTestServer::expireSession(int64_t sessionId)
 }
 
 
+void ZooKeeperTestServer::setMinSessionTimeout(const Duration& min)
+{
+  // ZooKeeper server uses int representation of milliseconds for
+  // session timeouts.
+  // See http://zookeeper.apache.org/doc/trunk/zookeeperAdmin.html
+  zooKeeperServer->setMinSessionTimeout(static_cast<int>(min.ms()));
+}
+
+
+void ZooKeeperTestServer::setMaxSessionTimeout(const Duration& max)
+{
+  // See the comment for setMinSessionTimeout.
+  zooKeeperServer->setMaxSessionTimeout(static_cast<int>(max.ms()));
+}
+
+
+Duration ZooKeeperTestServer::getMaxSessionTimeout() const
+{
+  return Milliseconds(zooKeeperServer->getMaxSessionTimeout());
+}
+
+
+Duration ZooKeeperTestServer::getMinSessionTimeout() const
+{
+  return Milliseconds(zooKeeperServer->getMinSessionTimeout());
+}
+
+
 std::string ZooKeeperTestServer::connectString() const
 {
   CHECK(port > 0) << "Illegal state, must call startNetwork first!";

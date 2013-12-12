@@ -165,7 +165,6 @@ public:
                 const Duration& timeout,
                 Watcher* watcher)
     : servers(servers),
-      timeout(timeout),
       zk(zk),
       watcher(watcher)
   {
@@ -486,7 +485,6 @@ private:
   friend class ZooKeeper;
 
   const string servers; // ZooKeeper host:port pairs.
-  const Duration timeout; // ZooKeeper session timeout.
 
   ZooKeeper* zk; // ZooKeeper instance.
   zhandle_t* zh; // ZooKeeper connection handle.
@@ -519,6 +517,16 @@ int ZooKeeper::getState()
 int64_t ZooKeeper::getSessionId()
 {
   return zoo_client_id(impl->zh)->client_id;
+}
+
+
+Duration ZooKeeper::getSessionTimeout() const
+{
+  // ZooKeeper server uses int representation of milliseconds for
+  // session timeouts.
+  // See:
+  // http://zookeeper.apache.org/doc/trunk/zookeeperProgrammers.html
+  return Milliseconds(zoo_recv_timeout(impl->zh));
 }
 
 
