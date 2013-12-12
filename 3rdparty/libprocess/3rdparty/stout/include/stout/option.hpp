@@ -112,6 +112,20 @@ Option<T> min(const Option<T>& left, const Option<T>& right)
 
 
 template <typename T>
+Option<T> min(const Option<T>& left, const T& right)
+{
+  return min(left, Option<T>(right));
+}
+
+
+template <typename T>
+Option<T> min(const T& left, const Option<T>& right)
+{
+  return min(Option<T>(left), right);
+}
+
+
+template <typename T>
 Option<T> max(const Option<T>& left, const Option<T>& right)
 {
   if (left.isSome() && right.isSome()) {
@@ -123,6 +137,20 @@ Option<T> max(const Option<T>& left, const Option<T>& right)
   } else {
     return Option<T>::none();
   }
+}
+
+
+template <typename T>
+Option<T> max(const Option<T>& left, const T& right)
+{
+  return max(left, Option<T>(right));
+}
+
+
+template <typename T>
+Option<T> max(const T& left, const Option<T>& right)
+{
+  return max(Option<T>(left), right);
 }
 
 #endif // __STOUT_OPTION_HPP__
