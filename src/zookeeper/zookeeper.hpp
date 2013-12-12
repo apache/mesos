@@ -141,6 +141,14 @@ public:
   int64_t getSessionId();
 
   /**
+   * \brief get the current session timeout.
+   *
+   * The session timeout requested by the client or the negotiated
+   * session timeout after the session is established with ZooKeeper.
+   */
+  Duration getSessionTimeout() const;
+
+  /**
    * \brief authenticate synchronously.
    */
   int authenticate(const std::string& scheme, const std::string& credentials);

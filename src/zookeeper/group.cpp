@@ -376,7 +376,12 @@ void GroupProcess::reconnecting()
   // we haven't reconnected within the session expiration time out.
   // The timer can be reset if the connection is restored.
   CHECK(timer.isNone());
-  timer = delay(timeout, self(), &Self::timedout, zk->getSessionId());
+
+  // Use the negotiated session timeout for the reconnect timer.
+  timer = delay(zk->getSessionTimeout(),
+                self(),
+                &Self::timedout,
+                zk->getSessionId());
 }
 
 

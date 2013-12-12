@@ -88,7 +88,10 @@ private:
   Result<bool> doExpunge(const Entry& entry);
 
   const std::string servers;
+
+  // The session timeout requested by the client.
   const Duration timeout;
+
   const std::string znode;
 
   Option<zookeeper::Authentication> auth; // ZooKeeper authentication.
