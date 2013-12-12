@@ -10,6 +10,7 @@ TEST(OptionTest, Min)
   Option<int> none2 = None();
   Option<int> value1 = 10;
   Option<int> value2 = 20;
+  int value3 = 15;
 
   Option<int> result = min(none1, none2);
   ASSERT_NONE(result);
@@ -25,6 +26,14 @@ TEST(OptionTest, Min)
   result = min(value1, value2);
   ASSERT_SOME(result);
   EXPECT_EQ(10, result.get());
+
+  result = min(none1, value3);
+  ASSERT_SOME(result);
+  EXPECT_EQ(15, result.get());
+
+  result = min(value3, value1);
+  ASSERT_SOME(result);
+  EXPECT_EQ(10, result.get());
 }
 
 
@@ -34,6 +43,7 @@ TEST(OptionTest, Max)
   Option<int> none2 = None();
   Option<int> value1 = 10;
   Option<int> value2 = 20;
+  int value3 = 15;
 
   Option<int> result = max(none1, none2);
   ASSERT_NONE(result);
@@ -47,6 +57,14 @@ TEST(OptionTest, Max)
   EXPECT_EQ(20, result.get());
 
   result = max(value1, value2);
+  ASSERT_SOME(result);
+  EXPECT_EQ(20, result.get());
+
+  result = max(none1, value3);
+  ASSERT_SOME(result);
+  EXPECT_EQ(15, result.get());
+
+  result = max(value3, value2);
   ASSERT_SOME(result);
   EXPECT_EQ(20, result.get());
 }
