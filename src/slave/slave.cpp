@@ -549,6 +549,15 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
         // Create the slave meta directory.
         paths::createSlaveDirectory(metaDir, slaveId);
 
+        // Checkpoint boot ID.
+        Try<string> bootId = os::bootId();
+        if (bootId.isError()) {
+          LOG(ERROR) << "Could not retrieve boot id: " << bootId.error();
+        } else {
+          const string& path = paths::getBootIdPath(metaDir, slaveId);
+          CHECK_SOME(state::checkpoint(path, bootId.get()));
+        }
+
         // Checkpoint slave info.
         const string& path = paths::getSlaveInfoPath(metaDir, slaveId);
 
