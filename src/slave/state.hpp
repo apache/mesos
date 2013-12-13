@@ -51,8 +51,8 @@ struct ExecutorState;
 struct RunState;
 struct TaskState;
 
-// Each of the structs below (recursively) recover the checkpointed
-// state. If the 'strict' flag is set, any errors encountered while
+// This function performs recovery from the state stored at 'rootDir'.
+// If the 'strict' flag is set, any errors encountered while
 // recovering a state are considered fatal and hence the recovery is
 // short-circuited and returns an error. There might be orphaned
 // executors that need to be manually cleaned up. If 'strict' flag is
@@ -61,7 +61,24 @@ struct TaskState;
 // while increasing the 'errors' count. Note that 'errors' on a struct
 // includes the 'errors' encountered recursively. In other words,
 // 'SlaveState.errors' is the sum total of all recovery errors.
+// If the machine has rebooted since the last slave run,
+// None is returned.
+Result<SlaveState> recover(const std::string& rootDir, bool strict);
 
+// Thin wrappers to checkpoint data to disk and perform the
+// necessary error checking.
+
+// Checkpoints a protobuf at the given path.
+Try<Nothing> checkpoint(
+    const std::string& path,
+    const google::protobuf::Message& message);
+
+
+// Checkpoints a string at the given path.
+Try<Nothing> checkpoint(const std::string& path, const std::string& message);
+
+// Each of the structs below (recursively) recover the checkpointed
+// state.
 struct SlaveState
 {
   SlaveState () : errors(0) {}
@@ -155,23 +172,6 @@ struct TaskState
   hashset<UUID> acks;
   unsigned int errors;
 };
-
-
-// This function performs recovery from the state stored at 'rootDir'.
-Result<SlaveState> recover(const std::string& rootDir, bool strict);
-
-
-// Thin wrappers to checkpoint data to disk and perform the
-// necessary error checking.
-
-// Checkpoints a protobuf at the given path.
-Try<Nothing> checkpoint(
-    const std::string& path,
-    const google::protobuf::Message& message);
-
-
-// Checkpoints a string at the given path.
-Try<Nothing> checkpoint(const std::string& path, const std::string& message);
 
 } // namespace state {
 } // namespace slave {
