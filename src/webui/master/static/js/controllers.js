@@ -4,15 +4,13 @@
   var mesosApp = angular.module('mesos');
 
   // Table Object.
-  //   selected_column: column predicate for the selected column.
+  //   page:            current page number if the table is paginated.
   //   reverse:         boolean indicating sort order.
+  //   selected_column: column predicate for the selected column.
   function Table(selected_column) {
-    if (this instanceof Table) {
-      this.selected_column = selected_column;
-      this.reverse = true;
-    } else {
-      return new Table(selected_column);
-    }
+    this.page = 1;
+    this.reverse = true;
+    this.selected_column = selected_column;
   }
 
 
@@ -88,13 +86,7 @@
     // keep a consistently fast rate for updating statistical information.
     // For the full system state updates, it may make sense to break
     // it up using pagination and/or splitting the endpoint.
-    if (num_slaves < 10) {
-      return 3000;
-    } else if (num_slaves < 50) {
-      return 4000;
-    } else if (num_slaves < 100) {
-      return 5000;
-    } else if (num_slaves < 500) {
+    if (num_slaves < 500) {
       return 10000;
     } else if (num_slaves < 1000) {
       return 20000;
@@ -167,6 +159,8 @@
     $scope.frameworks = {};
     $scope.offers = {};
     $scope.completed_frameworks = {};
+    $scope.active_tasks = [];
+    $scope.completed_tasks = [];
 
     // Update the stats.
     $scope.cluster = $scope.state.cluster;
@@ -206,8 +200,6 @@
 
       $scope.used_cpus += framework.resources.cpus;
       $scope.used_mem += framework.resources.mem;
-      $scope.active_tasks += framework.tasks.length;
-      $scope.completed_tasks += framework.completed_tasks.length;
 
       framework.cpus_share = 0;
       if ($scope.total_cpus > 0) {
@@ -245,6 +237,10 @@
             task.statuses[task.statuses.length - 1].timestamp * 1000;
         }
       });
+
+      $scope.active_tasks = $scope.active_tasks.concat(framework.tasks);
+      $scope.completed_tasks =
+        $scope.completed_tasks.concat(framework.completed_tasks);
     });
 
     _.each($scope.state.completed_frameworks, function(framework) {
@@ -271,7 +267,7 @@
   // active controller/view to easily access anything in scope (e.g.,
   // the state).
   mesosApp.controller('MainCntl',
-      function($scope, $http, $route, $routeParams, $location, $timeout, $modal) {
+      function($scope, $http, $route, $routeParams, $location, $timeout, $modal, paginationConfig) {
     $scope.doneLoading = true;
 
     // Adding bindings into scope so that they can be used from within
@@ -297,6 +293,10 @@
     $scope.delay = 2000;
     $scope.retry = 0;
     $scope.time_since_update = 0;
+
+    // Make pagination config available in all scopes to properly calculate
+    // slices of collections for pagination in views.
+    $scope.itemsPerPage = paginationConfig.itemsPerPage;
 
     var poll = function() {
       $http.get('master/state.json',
@@ -364,10 +364,10 @@
   mesosApp.controller('HomeCtrl', function($dialog, $scope) {
     setNavbarActiveTab('home');
 
-    $scope.tables = {};
-    $scope.tables['frameworks'] = new Table('id');
-    $scope.tables['completed_frameworks'] = new Table('id');
-
+    $scope.tables = {
+      active_tasks: new Table('start_time'),
+      completed_tasks: new Table('finish_time')
+    };
     $scope.columnClass = columnClass($scope);
     $scope.selectColumn = selectColumn($scope);
 

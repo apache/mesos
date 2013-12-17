@@ -2,7 +2,7 @@
   'use strict';
 
   angular.module('mesos', ['ngRoute', 'mesos.services', 'ui.bootstrap', 'ui.bootstrap.dialog']).
-    config(['$routeProvider', function($routeProvider) {
+    config(['paginationConfig', '$routeProvider', function(paginationConfig, $routeProvider) {
       $routeProvider
         .when('/',
           {templateUrl: 'static/home.html', controller: 'HomeCtrl'})
@@ -35,6 +35,16 @@
         .when('/slaves/:slave_id/browse',
           {templateUrl: 'static/browse.html', controller: 'BrowseCtrl'})
         .otherwise({redirectTo: '/'});
+
+      // Configure [Angular UI Pagination][1]:
+      //   * Show first/last buttons
+      //   * Show 50 items per page
+      //   * Show "..." when there are pages beyond the max shown
+      //
+      // [1] http://angular-ui.github.io/bootstrap/#/pagination
+      paginationConfig.boundaryLinks = true;
+      paginationConfig.itemsPerPage = 50;
+      paginationConfig.rotate = false;
 
       ZeroClipboard.setDefaults({
         moviePath: '/static/obj/zeroclipboard-1.1.7.swf'
@@ -69,6 +79,13 @@
     .filter('relativeDate', function() {
       return function(date, refDate) {
         return relativeDate(date, refDate);
+      };
+    })
+    .filter('slice', function() {
+      return function(array, begin, end) {
+        if (_.isArray(array)) {
+          return array.slice(begin, end);
+        }
       };
     })
     .filter('unixDate', function($filter) {
