@@ -15,8 +15,10 @@
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashset.hpp>
+#include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
@@ -175,6 +177,30 @@ TEST_F(OsTest, find)
   ASSERT_EQ(2u, files.size());
   ASSERT_TRUE(files.contains(file1));
   ASSERT_TRUE(files.contains(file2));
+}
+
+
+TEST_F(OsTest, bootId)
+{
+  Try<string> bootId = os::bootId();
+  ASSERT_SOME(bootId);
+  EXPECT_NE("", bootId.get());
+
+#ifdef __linux__
+  Try<string> read = os::read("/proc/sys/kernel/random/boot_id");
+  ASSERT_SOME(read);
+  EXPECT_EQ(bootId.get(), strings::trim(read.get()));
+#elif defined(__APPLE__)
+  // For OS X systems, the boot id is the system boot time in
+  // seconds, so assert it can be numified and is a reasonable value.
+  Try<uint64_t> numified = numify<uint64_t>(bootId.get());
+  ASSERT_SOME(numified);
+
+  timeval time;
+  gettimeofday(&time, NULL);
+  EXPECT_GT(Seconds(numified.get()), Seconds(0));
+  EXPECT_LT(Seconds(numified.get()), Seconds(time.tv_sec));
+#endif
 }
 
 
