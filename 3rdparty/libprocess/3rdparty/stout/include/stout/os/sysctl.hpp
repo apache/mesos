@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
@@ -29,8 +30,8 @@ namespace os {
 //   os::sysctl(CTL_KERN, KERN_MAXPROC)
 //
 // To _retrieve_ the value you need to use one of the 'integer',
-// 'string', or 'table' methods to indicate the type of the value
-// being retrieved. For example:
+// 'string', 'table', or 'time' methods to indicate the type of the
+// value being retrieved. For example:
 //
 //   Try<int> maxproc = os::sysctl(CTL_KERN, KERN_MAXPROC).integer();
 //
@@ -65,9 +66,12 @@ public:
   // Get system information as a string.
   Try<std::string> string() const;
 
+  // Get system information as a timeval.
+  Try<timeval> time() const;
+
   // Get system information as a table, optionally specifying a
   // length. Note that this function is lazy and will not actually
-  // perform the syscall until you cast (implicitely or explicitly) a
+  // perform the syscall until you cast (implicitly or explicitly) a
   // 'Table' to a std::vector<T>. For example, to get the first 10
   // processes in the process table you can do:
   //
@@ -190,6 +194,17 @@ inline Try<std::string> sysctl::string() const
   // the last null byte via 'size - 1').
   std::string result(temp, size - 1);
   delete[] temp;
+  return result;
+}
+
+
+inline Try<timeval> sysctl::time() const
+{
+  timeval result;
+  size_t size = sizeof(result);
+  if (::sysctl(name, levels, &result, &size, NULL, 0) == -1) {
+    return ErrnoError();
+  }
   return result;
 }
 

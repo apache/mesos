@@ -2,6 +2,10 @@
 
 #include <gtest/gtest.h>
 
+#ifndef __linux__
+#include <sys/time.h> // For gettimeofday.
+#endif
+
 #include <cstdlib> // For rand.
 #include <list>
 #include <set>
@@ -225,6 +229,7 @@ TEST_F(OsTest, sleep)
 #ifdef __APPLE__
 TEST_F(OsTest, sysctl)
 {
+  // String test.
   Try<os::UTSInfo> uname = os::uname();
 
   ASSERT_SOME(uname);
@@ -239,10 +244,12 @@ TEST_F(OsTest, sysctl)
   ASSERT_SOME(type);
   EXPECT_EQ(uname.get().sysname, type.get());
 
+  // Integer test.
   Try<int> maxproc = os::sysctl(CTL_KERN, KERN_MAXPROC).integer();
 
   ASSERT_SOME(maxproc);
 
+  // Table test.
   Try<std::vector<kinfo_proc> > processes =
     os::sysctl(CTL_KERN, KERN_PROC, KERN_PROC_ALL).table(maxproc.get());
 
@@ -255,6 +262,16 @@ TEST_F(OsTest, sysctl)
   }
 
   EXPECT_EQ(1, pids.count(getpid()));
+
+  // Timeval test.
+  Try<timeval> bootTime = os::sysctl(CTL_KERN, KERN_BOOTTIME).time();
+  ASSERT_SOME(bootTime);
+
+  timeval time;
+  gettimeofday(&time, NULL);
+
+  EXPECT_GT(Seconds(bootTime.get().tv_sec), Seconds(0));
+  EXPECT_LT(Seconds(bootTime.get().tv_sec), Seconds(time.tv_sec));
 }
 #endif // __APPLE__
 
