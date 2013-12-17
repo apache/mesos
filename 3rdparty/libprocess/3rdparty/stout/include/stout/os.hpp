@@ -885,6 +885,28 @@ inline Try<Bytes> memory()
 }
 
 
+inline Try<std::string> bootId()
+{
+#ifdef __linux__
+  Try<std::string> read = os::read("/proc/sys/kernel/random/boot_id");
+  if (read.isError()) {
+    return read;
+  }
+  return strings::trim(read.get());
+#elif defined(__APPLE__)
+  // For OS X, we use the boot time in seconds as a unique boot id.
+  // Although imperfect, this works quite well in practice.
+  Try<timeval> bootTime = os::sysctl(CTL_KERN, KERN_BOOTTIME).time();
+  if (bootTime.isError()) {
+    return Error(bootTime.error());
+  }
+  return stringify(bootTime.get().tv_sec);
+#else
+  return Error("Not implemented");
+#endif
+}
+
+
 // The structure returned by uname describing the currently running system.
 struct UTSInfo
 {
