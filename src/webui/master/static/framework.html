@@ -86,7 +86,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="task in framework.tasks | orderBy:tables['active_tasks'].selected_column:tables['active_tasks'].reverse">
+        <tr ng-repeat="task in framework.tasks | orderBy:tables['active_tasks'].selected_column:tables['active_tasks'].reverse | slice:((tables.active_tasks.page - 1) * itemsPerPage):(tables.active_tasks.page * itemsPerPage)">
           <td>
             <a href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
               {{task.id}}
@@ -124,6 +124,11 @@
         </tr>
       </tbody>
     </table>
+    <pagination
+      data-ng-if="active_tasks.length > itemsPerPage"
+      max-size="5"
+      page="tables.active_tasks.page"
+      total-items="active_tasks.length"></pagination>
 
     <h3 id="frameworks">Completed Tasks</h3>
     <table class="table table-striped table-bordered table-condensed">
@@ -158,7 +163,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="task in framework.completed_tasks | orderBy:tables['completed_tasks'].selected_column:tables['completed_tasks'].reverse">
+        <tr ng-repeat="task in framework.completed_tasks | orderBy:tables.completed_tasks.selected_column:tables.completed_tasks.reverse | slice:((tables.completed_tasks.page - 1) * itemsPerPage):(tables.completed_tasks.page * itemsPerPage)">
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
@@ -204,5 +209,11 @@
         </tr>
       </tbody>
     </table>
+    <pagination
+      data-ng-if="completed_tasks.length > itemsPerPage"
+      max-size="5"
+      page="tables.completed_tasks.page"
+      total-items="completed_tasks.length"></pagination>
+
   </div>
 </div>
