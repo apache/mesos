@@ -14,12 +14,6 @@
   }
 
 
-  function setNavbarActiveTab(tab_name) {
-    $('#navbar li').removeClass('active');
-    $('#navbar li[data-tabname='+tab_name+']').addClass('active');
-  }
-
-
   function hasSelectedText() {
     if (window.getSelection) {  // All browsers except IE before version 9.
       var range = window.getSelection();
@@ -266,8 +260,9 @@
   // In addition, the MainCntl encapsulates the "view", allowing the
   // active controller/view to easily access anything in scope (e.g.,
   // the state).
-  mesosApp.controller('MainCntl',
-      function($scope, $http, $route, $routeParams, $location, $timeout, $modal, paginationConfig) {
+  mesosApp.controller('MainCntl', [
+      '$scope', '$http', '$location', '$timeout', '$modal', 'paginationConfig',
+      function($scope, $http, $location, $timeout, $modal, paginationConfig) {
     $scope.doneLoading = true;
 
     // Adding bindings into scope so that they can be used from within
@@ -297,6 +292,39 @@
     // Make pagination config available in all scopes to properly calculate
     // slices of collections for pagination in views.
     $scope.itemsPerPage = paginationConfig.itemsPerPage;
+
+    // Ordered Array of path => activeTab mappings. On successful route changes,
+    // the `pathRegexp` values are matched against the current route. The first
+    // match will be used to set the active navbar tab.
+    var NAVBAR_PATHS = [
+      {
+        pathRegexp: /^\/slaves/,
+        tab: 'slaves'
+      },
+      {
+        pathRegexp: /^\/frameworks/,
+        tab: 'frameworks'
+      },
+      {
+        pathRegexp: /^\/offers/,
+        tab: 'offers'
+      }
+    ];
+
+    // Set the active tab on route changes according to NAVBAR_PATHS.
+    $scope.$on('$routeChangeSuccess', function(event, current) {
+      var path = current.$$route.originalPath;
+
+      // Use _.some so the loop can exit on the first `pathRegexp` match.
+      var matched = _.some(NAVBAR_PATHS, function(nav) {
+        if (path.match(nav.pathRegexp)) {
+          $scope.navbarActiveTab = nav.tab;
+          return true;
+        }
+      });
+
+      if (!matched) $scope.navbarActiveTab = null;
+    });
 
     var poll = function() {
       $http.get('master/state.json',
@@ -358,12 +386,10 @@
     };
 
     poll();
-  });
+  }]);
 
 
   mesosApp.controller('HomeCtrl', function($dialog, $scope) {
-    setNavbarActiveTab('home');
-
     $scope.tables = {
       active_tasks: new Table('start_time'),
       completed_tasks: new Table('finish_time')
@@ -389,8 +415,6 @@
 
 
   mesosApp.controller('FrameworksCtrl', function($scope) {
-    setNavbarActiveTab('frameworks');
-
     $scope.tables = {};
     $scope.tables['frameworks'] = new Table('id');
     $scope.tables['completed_frameworks'] = new Table('id');
@@ -401,8 +425,6 @@
 
 
   mesosApp.controller('OffersCtrl', function($scope) {
-    setNavbarActiveTab('offers');
-
     $scope.tables = {};
     $scope.tables['offers'] = new Table('id');
 
@@ -411,8 +433,6 @@
   });
 
   mesosApp.controller('FrameworkCtrl', function($scope, $routeParams) {
-    setNavbarActiveTab('frameworks');
-
     $scope.tables = {};
     $scope.tables['active_tasks'] = new Table('id');
     $scope.tables['completed_tasks'] = new Table('id');
@@ -447,8 +467,6 @@
 
 
   mesosApp.controller('SlavesCtrl', function($scope) {
-    setNavbarActiveTab('slaves');
-
     $scope.tables = {};
     $scope.tables['slaves'] = new Table('id');
 
@@ -458,8 +476,6 @@
 
 
   mesosApp.controller('SlaveCtrl', function($dialog, $scope, $routeParams, $http, $q) {
-    setNavbarActiveTab('slaves');
-
     $scope.slave_id = $routeParams.slave_id;
 
     $scope.tables = {};
@@ -557,8 +573,6 @@
 
 
   mesosApp.controller('SlaveFrameworkCtrl', function($scope, $routeParams, $http, $q) {
-    setNavbarActiveTab('slaves');
-
     $scope.slave_id = $routeParams.slave_id;
     $scope.framework_id = $routeParams.framework_id;
 
@@ -661,8 +675,6 @@
 
 
   mesosApp.controller('SlaveExecutorCtrl', function($scope, $routeParams, $http, $q) {
-    setNavbarActiveTab('slaves');
-
     $scope.slave_id = $routeParams.slave_id;
     $scope.framework_id = $routeParams.framework_id;
     $scope.executor_id = $routeParams.executor_id;
@@ -871,8 +883,6 @@
 
 
   mesosApp.controller('BrowseCtrl', function($scope, $routeParams, $http) {
-    setNavbarActiveTab('slaves');
-
     var update = function() {
       if ($routeParams.slave_id in $scope.slaves && $routeParams.path) {
         $scope.slave_id = $routeParams.slave_id;

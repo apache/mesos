@@ -32,9 +32,15 @@
             <a class="brand" href="#/">Mesos</a>
             <div class="nav-collapse" data-collapse="!navbarExpanded">
               <ul class="nav">
-                <li data-tabname="frameworks"><a href="#/frameworks">Frameworks</a></li>
-                <li data-tabname="slaves"><a href="#/slaves">Slaves</a></li>
-                <li data-tabname="offers"><a href="#/offers">Offers</a></li>
+                <li data-ng-class="{active: (navbarActiveTab === 'frameworks')}">
+                  <a href="#/frameworks">Frameworks</a>
+                </li>
+                <li data-ng-class="{active: (navbarActiveTab === 'slaves')}">
+                  <a href="#/slaves">Slaves</a>
+                </li>
+                <li data-ng-class="{active: (navbarActiveTab === 'offers')}">
+                  <a href="#/offers">Offers</a>
+                </li>
               </ul>
               <ul class="nav pull-right">
                 <li>
