@@ -542,9 +542,12 @@ void Master::initialize()
 
   contender->initialize(self());
 
-  // Start contending to be a leading master.
+  // Start contending to be a leading master and detecting the current
+  // leader.
   contender->contend()
     .onAny(defer(self(), &Master::contended, lambda::_1));
+  detector->detect()
+    .onAny(defer(self(), &Master::detected, lambda::_1));
 }
 
 
@@ -692,11 +695,6 @@ void Master::contended(const Future<Future<Nothing> >& _contended)
 
   CHECK(_contended.isReady()) <<
     "Not expecting MasterContender to discard this future";
-
-  // Now that we know we have our candidacy registered, we start
-  // detecting who is the leader.
-  detector->detect()
-    .onAny(defer(self(), &Master::detected, lambda::_1));
 
   // Watch for candidacy change.
   _contended.get()
