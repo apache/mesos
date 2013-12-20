@@ -116,7 +116,9 @@ void GroupProcess::initialize()
 
 Future<Group::Membership> GroupProcess::join(const string& data)
 {
-  if (state != READY) {
+  if (error.isSome()) {
+    return Failure(error.get());
+  } else if (state != READY) {
     Join* join = new Join(data);
     pending.joins.push(join);
     return join->promise.future();
@@ -150,7 +152,9 @@ Future<Group::Membership> GroupProcess::join(const string& data)
 
 Future<bool> GroupProcess::cancel(const Group::Membership& membership)
 {
-  if (owned.count(membership.id()) == 0) {
+  if (error.isSome()) {
+    return Failure(error.get());
+  } else if (owned.count(membership.id()) == 0) {
     // TODO(benh): Should this be an error? Right now a user can't
     // differentiate when 'false' means they can't cancel because it's
     // not owned or because it's already been cancelled (explicitly by
@@ -189,7 +193,9 @@ Future<bool> GroupProcess::cancel(const Group::Membership& membership)
 
 Future<string> GroupProcess::data(const Group::Membership& membership)
 {
-  if (state != READY) {
+  if (error.isSome()) {
+    return Failure(error.get());
+  } else if (state != READY) {
     Data* data = new Data(membership);
     pending.datas.push(data);
     return data->promise.future();
@@ -216,7 +222,9 @@ Future<string> GroupProcess::data(const Group::Membership& membership)
 Future<set<Group::Membership> > GroupProcess::watch(
     const set<Group::Membership>& expected)
 {
-  if (state != READY) {
+  if (error.isSome()) {
+    return Failure(error.get());
+  } else if (state != READY) {
     Watch* watch = new Watch(expected);
     pending.watches.push(watch);
     return watch->promise.future();
@@ -267,7 +275,9 @@ Future<set<Group::Membership> > GroupProcess::watch(
 
 Future<Option<int64_t> > GroupProcess::session()
 {
-  if (state == CONNECTING) {
+  if (error.isSome()) {
+    return Failure(error.get());
+  } else if (state == CONNECTING) {
     return None();
   }
 
@@ -277,6 +287,10 @@ Future<Option<int64_t> > GroupProcess::session()
 
 void GroupProcess::connected(bool reconnect)
 {
+  if (error.isSome()) {
+    return;
+  }
+
   LOG(INFO) << "Group process (" << self() << ") "
             << (reconnect ? "reconnected" : "connected") << " to ZooKeeper";
 
@@ -363,6 +377,10 @@ Try<bool> GroupProcess::create()
 
 void GroupProcess::reconnecting()
 {
+  if (error.isSome()) {
+    return;
+  }
+
   LOG(INFO) << "Lost connection to ZooKeeper, attempting to reconnect ...";
 
   state = CONNECTING;
@@ -385,8 +403,12 @@ void GroupProcess::reconnecting()
 }
 
 
-void GroupProcess::timedout(const int64_t& sessionId)
+void GroupProcess::timedout(int64_t sessionId)
 {
+  if (error.isSome()) {
+    return;
+  }
+
   CHECK_NOTNULL(zk);
 
   if (timer.isSome() &&
@@ -394,16 +416,21 @@ void GroupProcess::timedout(const int64_t& sessionId)
       zk->getSessionId() == sessionId) {
     // The timer can be reset or replaced and 'zk' can be replaced
     // since this method was dispatched.
-    std::ostringstream error_;
-    error_ << "Timed out waiting to reconnect to ZooKeeper (sessionId="
-           << std::hex << sessionId << ")";
-    abort(error_.str());
+    LOG(WARNING) << "Timed out waiting to reconnect to ZooKeeper "
+                     << "(sessionId=" << std::hex << sessionId << ")";
+
+    // Locally determine that the current session has expired.
+    expired();
   }
 }
 
 
 void GroupProcess::expired()
 {
+  if (error.isSome()) {
+    return;
+  }
+
   // Cancel and cleanup the reconnect timer (if necessary).
   if (timer.isSome()) {
     Timer::cancel(timer.get());
@@ -438,6 +465,10 @@ void GroupProcess::expired()
 
 void GroupProcess::updated(const string& path)
 {
+  if (error.isSome()) {
+    return;
+  }
+
   CHECK_EQ(znode, path);
 
   Try<bool> cached = cache(); // Update cache (will invalidate first).
@@ -773,10 +804,10 @@ void GroupProcess::retry(const Duration& duration)
   // Will reset it to true if another retry is necessary.
   retrying = false;
 
-  if (state == CONNECTING) {
-    // The delayed retry can be invoked while group is trying to
-    // (re)connect to ZK. In this case we directly return and we will
-    // sync when group is connected to ZK.
+  if (error.isSome() || state == CONNECTING) {
+    // The delayed retry can be invoked while group has aborted or
+    // is trying to (re)connect to ZK. In this case we directly
+    // return and we will sync when group is connected to ZK.
     return;
   }
 
@@ -794,18 +825,22 @@ void GroupProcess::retry(const Duration& duration)
 }
 
 
-void GroupProcess::abort(const string& error)
+void GroupProcess::abort(const string& message)
 {
-  fail(&pending.joins, error);
-  fail(&pending.cancels, error);
-  fail(&pending.datas, error);
-  fail(&pending.watches, error);
+  // Set the error variable so that the group becomes unfunctional.
+  error = Error(message);
 
-  // If we decide to abort, make sure we expire the session
-  // (cleaning up any ephemeral ZNodes as necessary). We also
-  // create a new ZooKeeper instance for clients that want to
-  // continue to reuse this group instance.
-  expired();
+  fail(&pending.joins, message);
+  fail(&pending.cancels, message);
+  fail(&pending.datas, message);
+  fail(&pending.watches, message);
+
+  // Since we decided to abort, we expire the session to clean up
+  // ephemeral ZNodes as necessary.
+  delete CHECK_NOTNULL(zk);
+  delete CHECK_NOTNULL(watcher);
+  zk = NULL;
+  watcher = NULL;
 }
 
 

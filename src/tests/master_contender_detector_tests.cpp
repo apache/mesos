@@ -303,19 +303,17 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
 
   // We may need to advance multiple times because we could have
   // advanced the clock before the timer in Group starts.
-  while (lostCandidacy.isPending() || leader.isPending()) {
-    Clock::advance(std::max(
-        MASTER_DETECTOR_ZK_SESSION_TIMEOUT,
-        MASTER_CONTENDER_ZK_SESSION_TIMEOUT));
+  while (lostCandidacy.isPending()) {
+    Clock::advance(MASTER_CONTENDER_ZK_SESSION_TIMEOUT);
     Clock::settle();
   }
 
-  EXPECT_TRUE(lostCandidacy.isFailed());
-  EXPECT_ERROR(leader.get());
+  // Local timeout does not fail the future but rather deems the
+  // session has timed out and the candidacy is lost.
+  EXPECT_TRUE(lostCandidacy.isReady());
 
-  // Re-contend and re-detect.
+  // Re-contend (and continue detecting).
   contended = contender.contend();
-  leader = detector.detect(leader.get());
 
   // Things will not change until the server restarts.
   Clock::advance(Minutes(1));
@@ -333,10 +331,8 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
 }
 
 
-// Tests that detectors and contenders fail when we reach our
-// ZooKeeper session timeout. This is to enforce that we manually
-// expire the session when we do not get reconnected within the
-// timeout.
+// Tests that detectors do not fail when we reach our ZooKeeper
+// session timeout.
 TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
 {
   // Use an arbitrary timeout value.
@@ -365,6 +361,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
 
   Future<Future<Nothing> > contended = leaderContender.contend();
   AWAIT_READY(contended);
+  Future<Nothing> leaderLostCandidacy = contended.get();
 
   ZooKeeperMasterDetector leaderDetector(leaderGroup);
 
@@ -384,6 +381,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
 
   contended = followerContender.contend();
   AWAIT_READY(contended);
+  Future<Nothing> followerLostCandidacy = contended.get();
 
   ZooKeeperMasterDetector followerDetector(followerGroup);
 
@@ -420,29 +418,26 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   AWAIT_READY(nonContenderReconnecting);
 
   // Now the detectors re-detect.
-  Future<Result<UPID> > leaderNoMasterDetected = leaderDetector.detect(leader);
-  Future<Result<UPID> > followerNoMasterDetected =
-    followerDetector.detect(leader);
-  Future<Result<UPID> > nonContenderNoMasterDetected =
+  Future<Result<UPID> > leaderDetected = leaderDetector.detect(leader);
+  Future<Result<UPID> > followerDetected = followerDetector.detect(leader);
+  Future<Result<UPID> > nonContenderDetected =
     nonContenderDetector.detect(leader);
 
   Clock::pause();
 
+  // We know when the groups have timed out when the contenders are
+  // informed of the candidacy loss.
   // We may need to advance multiple times because we could have
   // advanced the clock before the timer in Group starts.
-  while (leaderNoMasterDetected.isPending() ||
-         followerNoMasterDetected.isPending() ||
-         nonContenderNoMasterDetected.isPending()) {
+  while (leaderLostCandidacy.isPending() || followerLostCandidacy.isPending()) {
     Clock::advance(sessionTimeout);
     Clock::settle();
   }
 
-  AWAIT_READY(leaderNoMasterDetected);
-  EXPECT_ERROR(leaderNoMasterDetected.get());
-  AWAIT_READY(followerNoMasterDetected);
-  EXPECT_ERROR(followerNoMasterDetected.get());
-  AWAIT_READY(nonContenderNoMasterDetected);
-  EXPECT_ERROR(nonContenderNoMasterDetected.get());
+  // Detection is not interrupted.
+  EXPECT_TRUE(leaderDetected.isPending());
+  EXPECT_TRUE(followerDetected.isPending());
+  EXPECT_TRUE(nonContenderDetected.isPending());
 
   Clock::resume();
 }

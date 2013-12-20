@@ -37,11 +37,8 @@ private:
   // Invoked when we have joined the group (or failed to do so).
   void joined();
 
-  // Invoked when the group memberships have changed.
-  void watched(const Future<set<Group::Membership> >& memberships);
-
   // Invoked when the group membership is cancelled.
-  void cancelled(const Future<bool>& successful);
+  void cancelled(const Future<bool>& result);
 
   // Helper for setting error and failing pending promises.
   void fail(const string& message);
@@ -84,16 +81,19 @@ LeaderContenderProcess::LeaderContenderProcess(
 LeaderContenderProcess::~LeaderContenderProcess()
 {
   if (contending.isSome()) {
+    contending.get()->future().discard();
     delete contending.get();
     contending = None();
   }
 
   if (watching.isSome()) {
+    watching.get()->future().discard();
     delete watching.get();
     watching = None();
   }
 
   if (withdrawing.isSome()) {
+    withdrawing.get()->future().discard();
     delete withdrawing.get();
     withdrawing = None();
   }
@@ -117,7 +117,9 @@ void LeaderContenderProcess::finalize()
 
 Future<Future<Nothing> > LeaderContenderProcess::contend()
 {
-  CHECK(contending.isNone()) << "Cannot contend more than once";
+  if (contending.isSome()) {
+    return Failure("Cannot contend more than once");
+  }
 
   LOG(INFO) << "Joining the ZK group with data: '" << data << "'";
   candidacy = group->join(data);
@@ -132,8 +134,9 @@ Future<Future<Nothing> > LeaderContenderProcess::contend()
 
 Future<bool> LeaderContenderProcess::withdraw()
 {
-  CHECK_SOME(contending)
-    << "Can only withdraw after the contender has contended";
+  if (contending.isNone()) {
+    return Failure("Can only withdraw after the contender has contended");
+  }
 
   if (withdrawing.isSome()) {
     // Repeated calls to withdraw get the same result.
@@ -141,6 +144,8 @@ Future<bool> LeaderContenderProcess::withdraw()
   }
 
   withdrawing = new Promise<bool>();
+
+  CHECK(!candidacy.isDiscarded());
 
   if (candidacy.isPending()) {
     // If we have not obtained the candidacy yet, we withdraw after
@@ -151,8 +156,6 @@ Future<bool> LeaderContenderProcess::withdraw()
   } else if (candidacy.isReady()) {
     cancel();
   } else {
-    CHECK(candidacy.isFailed()) << "Not expecting candidacy to be discarded";
-
     // We have failed to obtain the candidacy so we do not need to
     // cancel it.
     return false;
@@ -176,24 +179,39 @@ void LeaderContenderProcess::cancel()
 }
 
 
-void LeaderContenderProcess::cancelled(const Future<bool>& successful)
+void LeaderContenderProcess::cancelled(const Future<bool>& result)
 {
   CHECK(candidacy.isReady());
   LOG(INFO) << "Membership cancelled: " << candidacy.get().id();
 
-  CHECK_SOME(withdrawing);
-  withdrawing.get()->set(successful);
+  // Can be called as a result of either withdraw() or server side
+  // expiration.
+  CHECK(withdrawing.isSome() || watching.isSome());
+
+  CHECK(!result.isDiscarded());
+
+  if (result.isFailed()) {
+    fail(result.failure());
+  } else {
+    if (withdrawing.isSome()) {
+      withdrawing.get()->set(result);
+    }
+
+    if (watching.isSome()) {
+      watching.get()->set(Nothing());
+    }
+  }
 }
 
 
 void LeaderContenderProcess::joined()
 {
+  CHECK(!candidacy.isDiscarded());
+
   if (candidacy.isFailed()) {
     fail(candidacy.failure());
     return;
   }
-
-  CHECK(candidacy.isReady()) << "Not expecting Group to discard the future";
 
   if (withdrawing.isSome()) {
     LOG(INFO) << "Joined group after the contender started withdrawing";
@@ -208,48 +226,12 @@ void LeaderContenderProcess::joined()
   watching = new Promise<Nothing>();
 
   // Notify the client.
-  CHECK(contending.isSome());
+  CHECK_SOME(contending);
   if (contending.get()->set(watching.get()->future())) {
     // Continue to watch that our membership is not removed (if the
     // client still cares about it).
-    group->watch()
-      .onAny(defer(self(), &Self::watched, lambda::_1));
-  }
-}
-
-
-void LeaderContenderProcess::watched(
-    const Future<set<Group::Membership> >& memberships)
-{
-  CHECK_SOME(contending);
-  CHECK(contending.get()->future().isReady())
-    << "'Contending' must be ready before 'watching'";
-
-  if (withdrawing.isSome()) {
-    LOG(INFO)
-      << "Group memberships changed after the contender started withdrawing";
-    return;
-  }
-
-  // Fail all operations.
-  if (memberships.isFailed()) {
-    fail(memberships.failure());
-    return;
-  }
-
-  CHECK(memberships.isReady()) << "Not expecting Group to discard the future";
-
-  CHECK_SOME(watching);
-  CHECK(candidacy.isReady());
-
-  if (memberships.get().count(candidacy.get()) == 0) {
-    // We had joined the group but our membership is gone.
-    LOG(INFO) << "Lost candidacy: " << candidacy.get().id();
-    watching.get()->set(Nothing());
-  } else {
-    // Continue to watch that our membership is not removed.
-    group->watch(memberships.get())
-      .onAny(defer(self(), &Self::watched, lambda::_1));
+    candidacy.get().cancelled()
+      .onAny(defer(self(), &Self::cancelled, lambda::_1));
   }
 }
 

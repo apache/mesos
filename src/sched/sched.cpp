@@ -180,8 +180,12 @@ protected:
       return;
     }
 
-    // Not expecting MasterDetector to discard or fail the future.
-    CHECK(pid.isReady());
+    CHECK(!pid.isDiscarded());
+
+    if (pid.isFailed()) {
+      EXIT(1) << "Failed to detect a master: " << pid.failure();
+    }
+
     master = pid.get();
 
     if (connected) {
@@ -222,7 +226,7 @@ protected:
       // since we might get reconnected to a master imminently.
       VLOG(1) << "No master detected";
     } else {
-      LOG(ERROR) << "Failed to detect master: " << master.error();
+      EXIT(1) << "Failed to detect master: " << master.error();
     }
 
     // Keep detecting masters.

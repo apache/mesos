@@ -200,10 +200,15 @@ private:
   // memberships if necessary).
   void retry(const Duration& duration);
 
-  // Fails all pending operations.
-  void abort(const std::string& error);
+  void timedout(int64_t sessionId);
 
-  void timedout(const int64_t& sessionId);
+  // Aborts the group instance and fails all pending operations.
+  // The group then enters an error state and all subsequent
+  // operations will fail as well.
+  void abort(const std::string& message);
+
+  // Potential non-retryable error set by abort().
+  Option<Error> error;
 
   const std::string servers;
 

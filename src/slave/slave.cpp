@@ -489,8 +489,12 @@ void Slave::detected(const Future<Result<UPID> >& pid)
     state = DISCONNECTED;
   }
 
-  // Not expecting MasterDetector to discard or fail futures.
-  CHECK(pid.isReady());
+  CHECK(!pid.isDiscarded());
+
+  if (pid.isFailed()) {
+    EXIT(1) << "Failed to detect a master: " << pid.failure();
+  }
+
   master = pid.get();
 
   if (master.isSome()) {
@@ -517,7 +521,7 @@ void Slave::detected(const Future<Result<UPID> >& pid)
   } else if (master.isNone()) {
     LOG(INFO) << "Lost leading master";
   } else {
-    LOG(ERROR) << "Failed to detect a master: " << master.error();
+    EXIT(1) << "Failed to detect a master: " << master.error();
   }
 
   // Keep detecting masters.
