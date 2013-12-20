@@ -54,6 +54,19 @@ void fail(queue<T*>* queue, const string& message)
 }
 
 
+// Helper for discarding a queue of promises.
+template <typename T>
+void discard(queue<T*>* queue)
+{
+  while (!queue->empty()) {
+    T* t = queue->front();
+    queue->pop();
+    t->promise.future().discard();
+    delete t;
+  }
+}
+
+
 GroupProcess::GroupProcess(
     const string& _servers,
     const Duration& _timeout,
@@ -94,10 +107,10 @@ GroupProcess::GroupProcess(
 
 GroupProcess::~GroupProcess()
 {
-  fail(&pending.joins, "No longer watching group");
-  fail(&pending.cancels, "No longer watching group");
-  fail(&pending.datas, "No longer watching group");
-  fail(&pending.watches, "No longer watching group");
+  discard(&pending.joins);
+  discard(&pending.cancels);
+  discard(&pending.datas);
+  discard(&pending.watches);
 
   delete zk;
   delete watcher;
