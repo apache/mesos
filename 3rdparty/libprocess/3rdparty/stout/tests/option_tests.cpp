@@ -68,3 +68,25 @@ TEST(OptionTest, Max)
   ASSERT_SOME(result);
   EXPECT_EQ(20, result.get());
 }
+
+
+TEST(OptionTest, Comparison)
+{
+  Option<int> none = None();
+  EXPECT_NE(none, 1);
+  EXPECT_FALSE(none == 1);
+
+  Option<int> one = 1;
+  EXPECT_EQ(one, 1);
+  EXPECT_NE(none, one);
+  EXPECT_FALSE(none == one);
+  EXPECT_EQ(one, Option<int>::some(1));
+
+  Option<int> two = 2;
+  EXPECT_NE(one, two);
+
+  Option<Option<int> > someNone = Option<Option<int> >::some(None());
+  Option<Option<int> > noneNone = Option<Option<int> >::none();
+  EXPECT_NE(someNone, noneNone);
+  EXPECT_NE(noneNone, someNone);
+}

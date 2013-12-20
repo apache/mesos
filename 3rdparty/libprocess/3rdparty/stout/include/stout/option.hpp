@@ -75,6 +75,16 @@ public:
     return !operator == (that);
   }
 
+  bool operator == (const T& that) const
+  {
+    return state == SOME && *t == that;
+  }
+
+  bool operator != (const T& that) const
+  {
+    return !operator == (that);
+  }
+
   bool isSome() const { return state == SOME; }
   bool isNone() const { return state == NONE; }
 
