@@ -54,20 +54,17 @@ class StandaloneMasterDetectorProcess
   : public Process<StandaloneMasterDetectorProcess>
 {
 public:
-  StandaloneMasterDetectorProcess() : leader(None()) {}
+  StandaloneMasterDetectorProcess() {}
   StandaloneMasterDetectorProcess(const UPID& _leader)
     : leader(_leader) {}
   ~StandaloneMasterDetectorProcess();
 
-  void appoint(const Result<UPID>& leader);
-  Future<Result<UPID> > detect(const Result<UPID>& previous = None());
+  void appoint(const Option<UPID>& leader);
+  Future<Option<UPID> > detect(const Option<UPID>& previous = None());
 
 private:
-  // The leading master that's directly 'appoint()'ed.
-  Result<UPID> leader;
-
-  // Promises for the detection result.
-  set<Promise<Result<UPID> >*> promises;
+  Option<UPID> leader; // The appointed master.
+  set<Promise<Option<UPID> >*> promises;
 };
 
 
@@ -80,13 +77,11 @@ public:
   ~ZooKeeperMasterDetectorProcess();
 
   virtual void initialize();
-
-  // ZooKeeperMasterDetector implementation.
-  Future<Result<UPID> > detect(const Result<UPID>& previous);
+  Future<Option<UPID> > detect(const Option<UPID>& previous);
 
 private:
   // Invoked when the group leadership has changed.
-  void detected(Future<Result<Group::Membership> > leader);
+  void detected(Future<Option<Group::Membership> > leader);
 
   // Invoked when we have fetched the data associated with the leader.
   void fetched(const Future<string>& data);
@@ -95,8 +90,8 @@ private:
   LeaderDetector detector;
 
   // The leading Master.
-  Result<UPID> leader;
-  set<Promise<Result<UPID> >*> promises;
+  Option<UPID> leader;
+  set<Promise<Option<UPID> >*> promises;
 };
 
 
@@ -143,8 +138,8 @@ MasterDetector::~MasterDetector() {}
 
 StandaloneMasterDetectorProcess::~StandaloneMasterDetectorProcess()
 {
-  foreach (Promise<Result<UPID> >* promise, promises) {
-    promise->set(Result<UPID>::error("MasterDetector is being destructed"));
+  foreach (Promise<Option<UPID> >* promise, promises) {
+    promise->future().discard();
     delete promise;
   }
   promises.clear();
@@ -152,11 +147,11 @@ StandaloneMasterDetectorProcess::~StandaloneMasterDetectorProcess()
 
 
 void StandaloneMasterDetectorProcess::appoint(
-    const Result<process::UPID>& _leader)
+    const Option<process::UPID>& _leader)
 {
   leader = _leader;
 
-  foreach (Promise<Result<UPID> >* promise, promises) {
+  foreach (Promise<Option<UPID> >* promise, promises) {
     promise->set(leader);
     delete promise;
   }
@@ -164,21 +159,14 @@ void StandaloneMasterDetectorProcess::appoint(
 }
 
 
-Future<Result<UPID> > StandaloneMasterDetectorProcess::detect(
-    const Result<UPID>& previous)
+Future<Option<UPID> > StandaloneMasterDetectorProcess::detect(
+    const Option<UPID>& previous)
 {
-  // Directly return the current leader is not the
-  // same as the previous one.
-  if (leader.isError() != previous.isError() ||
-      leader.isNone() != previous.isNone() ||
-      leader.isSome() != previous.isSome()) {
-    return leader; // State change.
-  } else if (leader.isSome() && previous.isSome() &&
-             leader.get() != previous.get()) {
-    return leader; // Leadership change.
+  if (leader != previous) {
+    return leader;
   }
 
-  Promise<Result<UPID> >* promise = new Promise<Result<UPID> >();
+  Promise<Option<UPID> >* promise = new Promise<Option<UPID> >();
   promises.insert(promise);
   return promise->future();
 }
@@ -206,14 +194,14 @@ StandaloneMasterDetector::~StandaloneMasterDetector()
 }
 
 
-void StandaloneMasterDetector::appoint(const Result<process::UPID>& leader)
+void StandaloneMasterDetector::appoint(const Option<process::UPID>& leader)
 {
   return dispatch(process, &StandaloneMasterDetectorProcess::appoint, leader);
 }
 
 
-Future<Result<UPID> > StandaloneMasterDetector::detect(
-    const Result<UPID>& previous)
+Future<Option<UPID> > StandaloneMasterDetector::detect(
+    const Option<UPID>& previous)
 {
   return dispatch(process, &StandaloneMasterDetectorProcess::detect, previous);
 }
@@ -240,8 +228,8 @@ ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
 
 ZooKeeperMasterDetectorProcess::~ZooKeeperMasterDetectorProcess()
 {
-  foreach (Promise<Result<UPID> >* promise, promises) {
-    promise->set(Result<UPID>::error("No longer detecting a master"));
+  foreach (Promise<Option<UPID> >* promise, promises) {
+    promise->future().discard();
     delete promise;
   }
   promises.clear();
@@ -250,43 +238,43 @@ ZooKeeperMasterDetectorProcess::~ZooKeeperMasterDetectorProcess()
 
 void ZooKeeperMasterDetectorProcess::initialize()
 {
-  detector.detect(None())
+  detector.detect()
     .onAny(defer(self(), &Self::detected, lambda::_1));
 }
 
 
-Future<Result<UPID> > ZooKeeperMasterDetectorProcess::detect(
-    const Result<UPID>& previous)
+Future<Option<UPID> > ZooKeeperMasterDetectorProcess::detect(
+    const Option<UPID>& previous)
 {
-  // Directly return when the current leader and previous are not the
-  // same.
-  if (leader.isError() != previous.isError() ||
-      leader.isNone() != previous.isNone() ||
-      leader.isSome() != previous.isSome()) {
-    return leader; // State change.
-  } else if (leader.isSome() && previous.isSome() &&
-             leader.get() != previous.get()) {
-    return leader; // Leadership change.
+  if (leader != previous) {
+    return leader;
   }
 
-  Promise<Result<UPID> >* promise = new Promise<Result<UPID> >();
+  Promise<Option<UPID> >* promise = new Promise<Option<UPID> >();
   promises.insert(promise);
   return promise->future();
 }
 
 
 void ZooKeeperMasterDetectorProcess::detected(
-    Future<Result<Group::Membership> > _leader)
+    Future<Option<Group::Membership> > _leader)
 {
-  CHECK(_leader.isReady())
-    << "Not expecting LeaderDetector to fail or discard futures";
+  CHECK(!_leader.isDiscarded());
 
-  if (!_leader.get().isSome()) {
-    leader = _leader.get().isError()
-        ? Result<UPID>::error(_leader.get().error())
-        : Result<UPID>::none();
+  if (_leader.isFailed()) {
+    leader = None();
+    foreach (Promise<Option<UPID> >* promise, promises) {
+      promise->fail(_leader.failure());
+      delete promise;
+    }
+    promises.clear();
+    return;
+  }
 
-    foreach (Promise<Result<UPID> >* promise, promises) {
+  if (_leader.get().isNone()) {
+    leader = None();
+
+    foreach (Promise<Option<UPID> >* promise, promises) {
       promise->set(leader);
       delete promise;
     }
@@ -305,23 +293,23 @@ void ZooKeeperMasterDetectorProcess::detected(
 
 void ZooKeeperMasterDetectorProcess::fetched(const Future<string>& data)
 {
+  CHECK(!data.isDiscarded());
+
   if (data.isFailed()) {
-    leader = Error(data.failure());
-    foreach (Promise<Result<UPID> >* promise, promises) {
-      promise->set(leader);
+    leader = None();
+    foreach (Promise<Option<UPID> >* promise, promises) {
+      promise->fail(data.failure());
       delete promise;
     }
     promises.clear();
     return;
   }
 
-  CHECK(data.isReady()); // Not expecting Group to discard futures.
-
   // Cache the master for subsequent requests.
   leader = UPID(data.get());
   LOG(INFO) << "A new leading master (UPID=" << leader.get() << ") is detected";
 
-  foreach (Promise<Result<UPID> >* promise, promises) {
+  foreach (Promise<Option<UPID> >* promise, promises) {
     promise->set(leader);
     delete promise;
   }
@@ -351,8 +339,8 @@ ZooKeeperMasterDetector::~ZooKeeperMasterDetector()
 }
 
 
-Future<Result<UPID> > ZooKeeperMasterDetector::detect(
-    const Result<UPID>& previous)
+Future<Option<UPID> > ZooKeeperMasterDetector::detect(
+    const Option<UPID>& previous)
 {
   return dispatch(process, &ZooKeeperMasterDetectorProcess::detect, previous);
 }

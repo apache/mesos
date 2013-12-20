@@ -81,7 +81,6 @@ Slave::Slave(const slave::Flags& _flags,
     http(*this),
     flags(_flags),
     local(_local),
-    master(None()),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     detector(_detector),
     isolator(_isolator),
@@ -429,7 +428,7 @@ void Slave::shutdown(const UPID& from)
   // Allow shutdown message only if
   // 1) Its a message received from the registered master or
   // 2) If its called locally (e.g tests)
-  if (from && (!master.isSome() || from != master.get())) {
+  if (from && master != from) {
     LOG(WARNING) << "Ignoring shutdown message from " << from
                  << " because it is not from the registered master: "
                  << (master.isSome() ? master.get() : "None");
@@ -479,7 +478,7 @@ Nothing Slave::detachFile(const string& path)
 }
 
 
-void Slave::detected(const Future<Result<UPID> >& pid)
+void Slave::detected(const Future<Option<UPID> >& pid)
 {
   CHECK(state == DISCONNECTED ||
         state == RUNNING ||
@@ -518,10 +517,8 @@ void Slave::detected(const Future<Result<UPID> >& pid)
     }
 
     doReliableRegistration();
-  } else if (master.isNone()) {
-    LOG(INFO) << "Lost leading master";
   } else {
-    EXIT(1) << "Failed to detect a master: " << master.error();
+    LOG(INFO) << "Lost leading master";
   }
 
   // Keep detecting masters.
@@ -533,7 +530,7 @@ void Slave::detected(const Future<Result<UPID> >& pid)
 
 void Slave::registered(const UPID& from, const SlaveID& slaveId)
 {
-  if (!master.isSome() || from != master.get()) {
+  if (master != from) {
     LOG(WARNING) << "Ignoring registration message from " << from
                  << " because it is not the expected master: "
                  << (master.isSome() ? master.get() : "None");
@@ -592,7 +589,7 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
 
 void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
 {
-  if (!master.isSome() || from != master.get()) {
+  if (master != from) {
     LOG(WARNING) << "Ignoring re-registration message from " << from
                  << " because it is not the expected master: "
                  << (master.isSome() ? master.get() : "None");
@@ -638,7 +635,7 @@ void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
 
 void Slave::doReliableRegistration()
 {
-  if (!master.isSome()) {
+  if (master.isNone()) {
     LOG(INFO) << "Skipping registration because no master present";
     return;
   }
@@ -730,7 +727,7 @@ void Slave::runTask(
     const string& pid,
     const TaskInfo& task)
 {
-  if (!master.isSome() || from != master.get()) {
+  if (master != from) {
     LOG(WARNING) << "Ignoring run task message from " << from
                  << " because it is not the expected master: "
                  << (master.isSome() ? master.get() : "None");
@@ -1007,7 +1004,7 @@ void Slave::killTask(
     const FrameworkID& frameworkId,
     const TaskID& taskId)
 {
-  if (!master.isSome() || from != master.get()) {
+  if (master != from) {
     LOG(WARNING) << "Ignoring kill task message from " << from
                  << " because it is not the expected master: "
                  << (master.isSome() ? master.get() : "None");
@@ -1135,7 +1132,7 @@ void Slave::shutdownFramework(
   // Allow shutdownFramework() only if
   // its called directly (e.g. Slave::finalize()) or
   // its a message from the currently registered master.
-  if (from && (!master.isSome() || from != master.get())) {
+  if (from && master != from) {
     LOG(WARNING) << "Ignoring shutdown framework message for " << frameworkId
                  << " from " << from
                  << " because it is not from the registered master ("
@@ -1968,7 +1965,7 @@ void Slave::exited(const UPID& pid)
 {
   LOG(INFO) << pid << " exited";
 
-  if (!master.isSome() || master.get() == pid) {
+  if (master.isNone() || master.get() == pid) {
     LOG(WARNING) << "Master disconnected!"
                  << " Waiting for a new master to be elected";
     // TODO(benh): After so long waiting for a master, commit suicide.

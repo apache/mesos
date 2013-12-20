@@ -26,17 +26,20 @@ public:
   // Returns some membership after an election has occurred and a
   // leader (membership) is elected, or none if an election occurs and
   // no leader is elected (e.g., all memberships are lost).
-  // The result is an error if the detector is not able to detect the
-  // leader, possibly due to network disconnection.
+  // A failed future is returned if the detector is unable to detect
+  // the leading master due to a non-retryable error.
+  // Note that the detector transparently tries to recover from
+  // retryable errors.
+  // The future is never discarded unless it stays pending when the
+  // detector destructs.
   //
   // The 'previous' result (if any) should be passed back if this
   // method is called repeatedly so the detector only returns when it
-  // gets a different result, either because an error is recovered or
-  // the elected membership is different from the 'previous'.
+  // gets a different result.
   //
   // TODO(xujyan): Use a Stream abstraction instead.
-  process::Future<Result<Group::Membership> > detect(
-      const Result<Group::Membership>& previous = None());
+  process::Future<Option<Group::Membership> > detect(
+      const Option<Group::Membership>& previous = None());
 
 private:
   LeaderDetectorProcess* process;

@@ -195,7 +195,6 @@ Master::Master(
   : ProcessBase("master"),
     http(*this),
     flags(_flags),
-    leader(None()),
     allocator(_allocator),
     registrar(_registrar),
     files(_files),
@@ -717,8 +716,10 @@ void Master::lostCandidacy(const Future<Nothing>& lost)
 }
 
 
-void Master::detected(const Future<Result<UPID> >& _leader)
+void Master::detected(const Future<Option<UPID> >& _leader)
 {
+  CHECK(!_leader.isDiscarded());
+
   if (_leader.isFailed()) {
     EXIT(1) << "Failed to detect the leading master: " << _leader.failure()
             << "; committing suicide!";
@@ -727,13 +728,8 @@ void Master::detected(const Future<Result<UPID> >& _leader)
   bool wasElected = elected();
   leader = _leader.get();
 
-  if (leader.isError()) {
-    EXIT(1) << "Failed to detect the leading master: " << leader.error()
-            << "; committing suicide!";
-  }
-
   LOG(INFO) << "The newly elected leader is "
-            << (leader.isSome() ? leader.get() : "NONE");
+            << (leader.isSome() ? leader.get() : "None");
 
   if (wasElected && !elected()) {
     EXIT(1) << "Lost leadership... committing suicide!";

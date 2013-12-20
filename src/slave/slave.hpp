@@ -223,7 +223,7 @@ protected:
   Nothing detachFile(const std::string& path);
 
   // Invoked whenever the detector detects a change in masters.
-  void detected(const Future<Result<UPID> >& pid);
+  void detected(const Future<Option<UPID> >& pid);
 
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
@@ -318,7 +318,7 @@ private:
 
   SlaveInfo info;
 
-  Result<UPID> master;
+  Option<UPID> master;
 
   Resources resources;
   Attributes attributes;

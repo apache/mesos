@@ -202,7 +202,7 @@ protected:
   void lostCandidacy(const Future<Nothing>& lost);
 
   // Invoked when there is a newly elected leading master.
-  void detected(const Future<Result<UPID> >& pid);
+  void detected(const Future<Option<UPID> >& pid);
 
   // Process a launch tasks request (for a non-cancelled offer) by
   // launching the desired tasks (if the offer contains a valid set of
@@ -315,7 +315,7 @@ private:
 
   const Flags flags;
 
-  Result<UPID> leader; // Current leading master.
+  Option<UPID> leader; // Current leading master.
 
   // Whether we are the current leading master.
   bool elected() const { return leader.isSome() && leader.get() == self(); }
