@@ -39,17 +39,19 @@ public:
   // The inner Future returns Nothing when the contender is out of
   // the contest (i.e. its membership is lost) and a failure if it is
   // unable to watch the membership.
+  // It should be called only once, otherwise a failure is returned.
   process::Future<process::Future<Nothing> > contend();
 
   // Returns true if successfully withdrawn from the contest (either
   // while contending or has already contended and is watching for
   // membership loss).
-  // It should only be called after contend() is called.
+  // It should only be called after contend() is called, otherwise a
+  // failure is returned.
   // A false return value implies that there was no valid group
   // membership to cancel, which may be a result of a race to cancel
   // an expired membership.
   // A failed future is returned if the contender is unable to
-  // withdraw (but the membership will expire).
+  // withdraw.
   process::Future<bool> withdraw();
 
 private:

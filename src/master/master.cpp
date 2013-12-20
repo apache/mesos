@@ -682,70 +682,62 @@ void Master::submitScheduler(const string& name)
 }
 
 
-void Master::contended(const Future<Future<Nothing> >& _contended)
+void Master::contended(const Future<Future<Nothing> >& candidacy)
 {
-  if (_contended.isFailed()) {
-    CHECK(!elected()) << "Failed to contend so we should not be elected";
-    LOG(ERROR) << "Failed to contend when not elected: "
-               << _contended.failure() << "; contend again...";
-    contender->contend()
-      .onAny(defer(self(), &Master::contended, lambda::_1));
-    return;
+  CHECK(!candidacy.isDiscarded());
+
+  if (candidacy.isFailed()) {
+    EXIT(1) << "Failed to contend: " << candidacy.failure();
   }
 
-  CHECK(_contended.isReady()) <<
-    "Not expecting MasterContender to discard this future";
-
   // Watch for candidacy change.
-  _contended.get()
+  candidacy.get()
     .onAny(defer(self(), &Master::lostCandidacy, lambda::_1));
 }
 
 
 void Master::lostCandidacy(const Future<Nothing>& lost)
 {
-  CHECK(!lost.isDiscarded())
-    << "Not expecting MasterContender to discard this future";
+  CHECK(!lost.isDiscarded());
 
   if (lost.isFailed()) {
-    LOG(ERROR) << "Failed to watch for candidacy: " << lost.failure();
+    EXIT(1) << "Failed to watch for candidacy: " << lost.failure();
   }
 
   if (elected()) {
     EXIT(1) << "Lost leadership... committing suicide!";
-  } else {
-    LOG(INFO) << "Lost candidacy as a follower... Contend again";
-    contender->contend()
-      .onAny(defer(self(), &Master::contended, lambda::_1));
   }
+
+  LOG(INFO) << "Lost candidacy as a follower... Contend again";
+  contender->contend()
+    .onAny(defer(self(), &Master::contended, lambda::_1));
 }
 
 
 void Master::detected(const Future<Result<UPID> >& _leader)
 {
-  CHECK(_leader.isReady())
-    << "Not expecting MasterContender to fail or discard this future";
+  if (_leader.isFailed()) {
+    EXIT(1) << "Failed to detect the leading master: " << _leader.failure()
+            << "; committing suicide!";
+  }
 
   bool wasElected = elected();
   leader = _leader.get();
 
   if (leader.isError()) {
-    if (wasElected) {
-      EXIT(1) << "Failed to detect the leading master while elected: "
-                 << leader.error() << "; committing suicide!";
-    } else {
-      LOG(ERROR) << "Failed to detect the leading master when not elected: "
-                 << leader.error();
-    }
-  } else {
-    LOG(INFO) << "The newly elected leader is "
-              << (leader.isSome() ? leader.get() : "NONE");
+    EXIT(1) << "Failed to detect the leading master: " << leader.error()
+            << "; committing suicide!";
+  }
 
-    if (!wasElected && elected()) {
-      LOG(INFO) << "Elected as the leading master!";
-    } else if (wasElected && !elected()) {
-      EXIT(1) << "Lost leadership... committing suicide!";
-    }
+  LOG(INFO) << "The newly elected leader is "
+            << (leader.isSome() ? leader.get() : "NONE");
+
+  if (wasElected && !elected()) {
+    EXIT(1) << "Lost leadership... committing suicide!";
+  }
+
+  if (!wasElected && elected()) {
+    LOG(INFO) << "Elected as the leading master!";
   }
 
   // Keep detecting.

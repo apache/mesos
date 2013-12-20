@@ -196,7 +196,7 @@ protected:
   std::vector<Framework*> getActiveFrameworks() const;
 
   // Invoked when the contender has entered the contest.
-  void contended(const Future<Future<Nothing> >& contended);
+  void contended(const Future<Future<Nothing> >& candidacy);
 
   // Invoked when the contender has lost the candidacy.
   void lostCandidacy(const Future<Nothing>& lost);

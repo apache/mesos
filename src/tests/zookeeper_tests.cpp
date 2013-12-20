@@ -22,6 +22,7 @@
 
 #include <string>
 
+#include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/owned.hpp>
 
@@ -194,18 +195,17 @@ TEST_F(ZooKeeperTest, LeaderDetector)
 }
 
 
-TEST_F(ZooKeeperTest, LeaderDetectorFailureHandling)
+TEST_F(ZooKeeperTest, LeaderDetectorTimeoutHandling)
 {
   Seconds timeout(10);
   Group group(server->connectString(), timeout, "/test/");
   LeaderDetector detector(&group);
 
-  Future<Group::Membership> membership1 =
-    group.join("member 1");
+  Future<Group::Membership> membership1 = group.join("member 1");
   AWAIT_READY(membership1);
+  Future<bool> cancelled = membership1.get().cancelled();
 
-  Future<Result<Group::Membership> > leader =
-    detector.detect();
+  Future<Result<Group::Membership> > leader = detector.detect();
 
   AWAIT_READY(leader);
   EXPECT_SOME(leader.get());
@@ -215,40 +215,43 @@ TEST_F(ZooKeeperTest, LeaderDetectorFailureHandling)
   server->shutdownNetwork();
 
   Clock::pause();
+
   // We may need to advance multiple times because we could have
   // advanced the clock before the timer in Group starts.
-  while (leader.isPending()) {
+  while (cancelled.isPending()) {
     Clock::advance(timeout);
     Clock::settle();
   }
   Clock::resume();
 
-  // The detect operation times out, which results in the erroneous
-  // state in the detector.
-  AWAIT_READY(leader);
-  EXPECT_ERROR(leader.get());
+  // The detect operation times out but the group internally
+  // recreates a new ZooKeeper client and hides the error from the
+  // detector.
+  EXPECT_TRUE(leader.isPending());
 
-  // The detection will fail because of the error state.
-  leader = detector.detect();
-  AWAIT_READY(leader);
-  EXPECT_ERROR(leader.get());
-
-  // Passing the previous state forces the detector to retry.
-  leader = detector.detect(leader.get());
-
+  Future<Nothing> connected = FUTURE_DISPATCH(
+      group.process->self(),
+      &GroupProcess::connected);
   server->startNetwork();
 
-  membership1 = group.join("member 1");
-  AWAIT_READY(membership1);
+  // When the service is restored, all sessions/memberships are gone.
+  AWAIT_READY(connected);
+  AWAIT_READY(leader);
+  EXPECT_TRUE(leader.get().isNone());
 
+  AWAIT_READY(group.join("member 1"));
+
+  leader = detector.detect(leader.get());
   AWAIT_READY(leader);
   EXPECT_SOME(leader.get());
 
   // Cancel the member and join another.
-  Future<bool> cancelled = group.cancel(leader.get().get());
-  AWAIT_READY(cancelled);
-  Future<Group::Membership> membership2 = group.join("member 2");
-  AWAIT_READY(membership2);
+  AWAIT_READY(group.cancel(leader.get().get()));
+  leader = detector.detect(leader.get());
+  AWAIT_READY(leader);
+  EXPECT_TRUE(leader.get().isNone());
+
+  AWAIT_READY(group.join("member 2"));
 
   // Detect a new leader.
   leader = detector.detect(leader.get());
@@ -287,6 +290,10 @@ TEST_F(ZooKeeperTest, LeaderContender)
   Future<Option<int64_t> > session = group.session();
   AWAIT_READY(session);
   ASSERT_SOME(session.get());
+
+  Future<Nothing> connected = FUTURE_DISPATCH(
+      group.process->self(),
+      &GroupProcess::connected);
   server->expireSession(session.get().get());
   AWAIT_READY(lostCandidacy);
 
@@ -301,6 +308,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
       new LeaderContender(&group, "candidate 1"));
   candidated = contender->contend();
 
+  AWAIT_READY(connected);
   session = group.session();
   AWAIT_READY(session);
   ASSERT_SOME(session.get());
@@ -337,8 +345,8 @@ TEST_F(ZooKeeperTest, LeaderContender)
     Clock::settle();
   }
 
-  // Server failure results in failed future.
-  AWAIT_ASSERT_FAILED(lostCandidacy);
+  // Server failure results in candidacy loss.
+  AWAIT_READY(lostCandidacy);
 
   Clock::resume();
 
