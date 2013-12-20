@@ -124,16 +124,16 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  Future<Result<UPID> > pid = detector.get()->detect();
+  Future<Option<UPID> > pid = detector.get()->detect();
 
   if (!pid.await(timeout)) {
     cerr << "Failed to detect master from '" << master.get()
          << "' within " << timeout << endl;
     return -1;
   } else {
-    // Not expecting detect() to fail or discard the future.
-    CHECK(pid.isReady());
-    if (pid.get().isError()) {
+    CHECK(!pid.isDiscarded());
+
+    if (pid.isFailed()) {
       cerr << "Failed to detect master from '" << master.get()
            << "': " << pid.failure() << endl;
       return -1;

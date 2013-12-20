@@ -156,7 +156,7 @@ TEST_F(ZooKeeperTest, LeaderDetector)
   LeaderDetector detector(&group);
 
   // Detect the leader.
-  Future<Result<Group::Membership> > leader =
+  Future<Option<Group::Membership> > leader =
     detector.detect(None());
   AWAIT_READY(leader);
   ASSERT_SOME_EQ(membership1.get(), leader.get());
@@ -205,7 +205,7 @@ TEST_F(ZooKeeperTest, LeaderDetectorTimeoutHandling)
   AWAIT_READY(membership1);
   Future<bool> cancelled = membership1.get().cancelled();
 
-  Future<Result<Group::Membership> > leader = detector.detect();
+  Future<Option<Group::Membership> > leader = detector.detect();
 
   AWAIT_READY(leader);
   EXPECT_SOME(leader.get());

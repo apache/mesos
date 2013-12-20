@@ -23,7 +23,7 @@
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
-#include <stout/result.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 #include "zookeeper/detector.hpp"
@@ -58,18 +58,18 @@ public:
   // Returns some PID after an election has occurred and the elected
   // PID is different than that specified (if any), or NONE if an
   // election occurs and no PID is elected (e.g., all PIDs are lost).
-  // The result is an error if the detector is not able to detect the
-  // leading master, possibly due to network disconnection.
-  //
-  // The future fails when the detector is destructed, it is never
-  // discarded.
+  // A failed future is returned if the detector is unable to detect
+  // the leading master due to a non-retryable error.
+  // Note that the detector transparently tries to recover from
+  // retryable errors.
+  // The future is never discarded unless it stays pending when the
+  // detector destructs.
   //
   // The 'previous' result (if any) should be passed back if this
   // method is called repeatedly so the detector only returns when it
-  // gets a different result, either because an error is recovered or
-  // the elected membership is different from the 'previous'.
-  virtual process::Future<Result<process::UPID> > detect(
-      const Result<process::UPID>& previous = None()) = 0;
+  // gets a different result.
+  virtual process::Future<Option<process::UPID> > detect(
+      const Option<process::UPID>& previous = None()) = 0;
 };
 
 
@@ -85,20 +85,11 @@ public:
   StandaloneMasterDetector(const process::UPID& leader);
   virtual ~StandaloneMasterDetector();
 
-  // Appoint the leading master so it can be *detected* by default.
-  // The leader can be NONE or ERROR.
-  // This method is used only by this basic implementation and not
-  // needed by child classes with other detection mechanisms such as
-  // Zookeeper.
-  //
-  // When used by Master, this method is called during its
-  // initialization process; when used by Slave and SchedulerDriver,
-  // the MasterDetector needs to have the leader installed prior to
-  // injection.
-  void appoint(const Result<process::UPID>& leader);
+  // Appoint the leading master so it can be *detected*.
+  void appoint(const Option<process::UPID>& leader);
 
-  virtual process::Future<Result<process::UPID> > detect(
-      const Result<process::UPID>& previous = None());
+  virtual process::Future<Option<process::UPID> > detect(
+      const Option<process::UPID>& previous = None());
 
 private:
   StandaloneMasterDetectorProcess* process;
@@ -111,13 +102,13 @@ public:
   // Creates a detector which uses ZooKeeper to determine (i.e.,
   // elect) a leading master.
   ZooKeeperMasterDetector(const zookeeper::URL& url);
-  // A constructor overload for testing purposes.
+  // Used for testing purposes.
   ZooKeeperMasterDetector(process::Owned<zookeeper::Group> group);
   virtual ~ZooKeeperMasterDetector();
 
   // MasterDetector implementation.
-  virtual process::Future<Result<process::UPID> > detect(
-      const Result<process::UPID>& previous = None());
+  virtual process::Future<Option<process::UPID> > detect(
+      const Option<process::UPID>& previous = None());
 
 private:
   ZooKeeperMasterDetectorProcess* process;

@@ -158,7 +158,7 @@ TEST(BasicMasterContenderDetectorTest, Detector)
 
   StandaloneMasterDetector detector;
 
-  Future<Result<UPID> > detected = detector.detect();
+  Future<Option<UPID> > detected = detector.detect();
 
   // No one has appointed the leader so we are pending.
   EXPECT_TRUE(detected.isPending());
@@ -196,7 +196,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
 
   ZooKeeperMasterDetector detector(url.get());
 
-  Future<Result<UPID> > leader = detector.detect();
+  Future<Option<UPID> > leader = detector.detect();
   EXPECT_SOME_EQ(master, leader.get());
   Future<Nothing> lostCandidacy = contended.get();
   leader = detector.detect(leader.get());
@@ -236,7 +236,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
 
   ZooKeeperMasterDetector detector1(url.get());
 
-  Future<Result<UPID> > leader1 = detector1.detect();
+  Future<Option<UPID> > leader1 = detector1.detect();
   AWAIT_READY(leader1);
   EXPECT_SOME_EQ(master1, leader1.get());
 
@@ -252,7 +252,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
   AWAIT_READY(contended2);
 
   ZooKeeperMasterDetector detector2(url.get());
-  Future<Result<UPID> > leader2 = detector2.detect();
+  Future<Option<UPID> > leader2 = detector2.detect();
   AWAIT_READY(leader2);
   EXPECT_SOME_EQ(master1, leader2.get());
 
@@ -261,9 +261,66 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
   // Destroying detector1 (below) causes leadership change.
   delete contender1;
 
-  Future<Result<UPID> > leader3 = detector2.detect(master1);
+  Future<Option<UPID> > leader3 = detector2.detect(master1);
   AWAIT_READY(leader3);
   EXPECT_SOME_EQ(master2, leader3.get());
+}
+
+
+// Verifies that contender and detector operations fail when facing
+// non-retryable errors returned by ZooKeeper.
+TEST_F(ZooKeeperMasterContenderDetectorTest, NonRetryableFrrors)
+{
+  // group1 creates a base directory in ZooKeeper and sets the
+  // credential for the user.
+  zookeeper::Group group1(
+      server->connectString(),
+      MASTER_CONTENDER_ZK_SESSION_TIMEOUT,
+      "/mesos",
+      zookeeper::Authentication("digest", "member:member"));
+  AWAIT_READY(group1.join("data"));
+
+  PID<Master> master;
+  master.ip = 10000000;
+  master.port = 10000;
+
+  // group2's password is wrong and operations on it will fail.
+  Owned<zookeeper::Group> group2(new Group(
+      server->connectString(),
+      MASTER_CONTENDER_ZK_SESSION_TIMEOUT,
+      "/mesos",
+      zookeeper::Authentication("digest", "member:wrongpass")));
+  ZooKeeperMasterContender contender(group2);
+  contender.initialize(master);
+
+  // Fails due to authentication error.
+  AWAIT_FAILED(contender.contend());
+
+  // Now test non-retryable failures in detection.
+  ZooKeeperTest::TestWatcher watcher;
+  ZooKeeper authenticatedZk(server->connectString(), NO_TIMEOUT, &watcher);
+  watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
+  authenticatedZk.authenticate("digest", "creator:creator");
+
+  // Creator of the base path restricts the all accesses to be
+  // itself.
+  ACL onlyCreatorCanAccess[] = {{ ZOO_PERM_ALL, ZOO_AUTH_IDS }};
+  authenticatedZk.create("/test",
+                         "42",
+                         (ACL_vector) {1, onlyCreatorCanAccess},
+                         0,
+                         NULL);
+  ASSERT_ZK_GET("42", &authenticatedZk, "/test");
+
+  // group3 cannot read the base path thus detector should fail.
+  Owned<Group> group3(new Group(
+      server->connectString(),
+      MASTER_DETECTOR_ZK_SESSION_TIMEOUT,
+      "/test",
+      None()));
+
+  ZooKeeperMasterDetector detector(group3);
+  AWAIT_FAILED(detector.detect());
 }
 
 
@@ -292,7 +349,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
 
   ZooKeeperMasterDetector detector(url.get());
 
-  Future<Result<UPID> > leader = detector.detect();
+  Future<Option<UPID> > leader = detector.detect();
   AWAIT_READY(leader);
   EXPECT_SOME_EQ(master, leader.get());
 
@@ -365,7 +422,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
 
   ZooKeeperMasterDetector leaderDetector(leaderGroup);
 
-  Future<Result<UPID> > detected = leaderDetector.detect();
+  Future<Option<UPID> > detected = leaderDetector.detect();
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(leader, detected.get());
 
@@ -418,9 +475,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   AWAIT_READY(nonContenderReconnecting);
 
   // Now the detectors re-detect.
-  Future<Result<UPID> > leaderDetected = leaderDetector.detect(leader);
-  Future<Result<UPID> > followerDetected = followerDetector.detect(leader);
-  Future<Result<UPID> > nonContenderDetected =
+  Future<Option<UPID> > leaderDetected = leaderDetector.detect(leader);
+  Future<Option<UPID> > followerDetected = followerDetector.detect(leader);
+  Future<Option<UPID> > nonContenderDetected =
     nonContenderDetector.detect(leader);
 
   Clock::pause();
@@ -474,12 +531,12 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 
   ZooKeeperMasterDetector leaderDetector(url.get());
 
-  Future<Result<UPID> > detected = leaderDetector.detect();
+  Future<Option<UPID> > detected = leaderDetector.detect();
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(leader, detected.get());
 
   // Keep detecting.
-  Future<Result<UPID> > newLeaderDetected =
+  Future<Option<UPID> > newLeaderDetected =
     leaderDetector.detect(detected.get());
 
   // Simulate a following master.
@@ -545,7 +602,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorExpireSlaveZKSession)
 
   ZooKeeperMasterDetector slaveDetector(group);
 
-  Future<Result<UPID> > detected = slaveDetector.detect();
+  Future<Option<UPID> > detected = slaveDetector.detect();
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(master, detected.get());
 
@@ -598,7 +655,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   Future<Future<Nothing> > contended = leaderContender.contend();
   AWAIT_READY(contended);
 
-  Future<Result<UPID> > detected = leaderDetector.detect(None());
+  Future<Option<UPID> > detected = leaderDetector.detect(None());
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(leader, detected.get());
 

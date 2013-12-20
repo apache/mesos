@@ -108,7 +108,6 @@ public:
       mutex(_mutex),
       cond(_cond),
       failover(_framework.has_id() && !framework.id().value().empty()),
-      master(None()),
       connected(false),
       aborted(false),
       detector(_detector),
@@ -173,7 +172,7 @@ protected:
       .onAny(defer(self(), &SchedulerProcess::detected, lambda::_1));
   }
 
-  void detected(const Future<Result<UPID> >& pid)
+  void detected(const Future<Option<UPID> >& pid)
   {
     if (aborted) {
       VLOG(1) << "Ignoring the master change because the driver is aborted!";
@@ -221,12 +220,10 @@ protected:
 
         doReliableRegistration();
       }
-    } else if (master.isNone()) {
+    } else {
       // In this case, we don't actually invoke Scheduler::error
       // since we might get reconnected to a master imminently.
       VLOG(1) << "No master detected";
-    } else {
-      EXIT(1) << "Failed to detect master: " << master.error();
     }
 
     // Keep detecting masters.
@@ -245,7 +242,7 @@ protected:
 
     authenticated = false;
 
-    if (!master.isSome()) {
+    if (master.isNone()) {
       return;
     }
 
@@ -303,7 +300,7 @@ protected:
     CHECK_SOME(authenticating);
     const Future<bool>& future = authenticating.get();
 
-    if (!master.isSome()) {
+    if (master.isNone()) {
       LOG(INFO) << "Ignoring _authenticate because the master is lost";
       authenticating = None();
       // Set it to false because we do not want further retries until
@@ -377,7 +374,7 @@ protected:
       return;
     }
 
-    if (!master.isSome() || from != master.get()) {
+    if (master != from) {
       VLOG(1) << "Ignoring framework registered message because it was sent "
               << "from '" << from << "' instead of the leading master '"
               << (master.isSome() ? master.get() : UPID()) << "'";
@@ -418,7 +415,7 @@ protected:
       return;
     }
 
-    if (!master.isSome() || from != master.get()) {
+    if (master != from) {
       VLOG(1) << "Ignoring framework re-registered message because it was sent "
               << "from '" << from << "' instead of the leading master '"
               << (master.isSome() ? master.get() : UPID()) << "'";
@@ -444,7 +441,7 @@ protected:
 
   void doReliableRegistration()
   {
-    if (connected || !master.isSome()) {
+    if (connected || master.isNone()) {
       return;
     }
 
@@ -983,7 +980,7 @@ private:
   pthread_mutex_t* mutex;
   pthread_cond_t* cond;
   bool failover;
-  Result<UPID> master;
+  Option<UPID> master;
 
   bool connected; // Flag to indicate if framework is registered.
   volatile bool aborted; // Flag to indicate if the driver is aborted.
