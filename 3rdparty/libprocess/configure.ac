@@ -69,6 +69,12 @@ AC_ARG_WITH([zlib],
                             will be far less responsive; not recommended]),
             [], [with_zlib=yes])
 
+AC_ARG_WITH([cxx11],
+            AS_HELP_STRING([--with-cxx11],
+                           [builds libprocess using C++11]),
+            [], [with_cxx11=no])
+
+
 # Do some OS specific setup.
 case "${target_os}" in
   linux*)
@@ -79,12 +85,16 @@ case "${target_os}" in
     ;;
 esac
 
-# Checks for gcc toolchain (we rely on some atomic builtins for now).
+
+# Used for conditionally building source files (e.g., only want to
+# build stout/tests/proc_tests.cpp on Linux).
+AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
+
+
+# Default to gcc toolchain (we rely on some atomic builtins for now,
+# that are also present with clang).
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
-
-# Check for pthreads (uses m4/acx_pthread.m4).
-ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
 
 # Check if we should try and enable optimizations.
@@ -94,6 +104,35 @@ if test "x$enable_optimize" = "xyes"; then
     CXXFLAGS="$CXXFLAGS -g2 -O2"
   fi
 fi
+
+
+# Check if clang was provided instead.
+AC_MSG_CHECKING([if compiling with clang])
+
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE(
+[AC_LANG_PROGRAM([], [[
+#ifndef __clang__
+       not clang
+#endif
+]])],
+[CLANG=yes], [CLANG=no])
+AC_LANG_POP([C++])
+
+AC_MSG_RESULT([$CLANG])
+AC_SUBST([CLANG])
+
+# Force C++11 if we're using clang.
+if test "x$CLANG" = "xyes"; then
+  with_cxx11=yes
+fi
+
+
+# Check for pthreads (uses m4/acx_pthread.m4).
+ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
+
+
+AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
 
 
 # Check if we should/can build with libz.
@@ -108,10 +147,23 @@ if test "x$with_zlib" = "xyes"; then
   ])])
 fi
 
-AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
 
-# Used for conditionally building source files (e.g., only want to
-# build stout/tests/proc_tests.cpp on Linux).
-AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
+# Check if we should/can build with C++11.
+if test "x$with_cxx11" = "xyes"; then
+  AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+
+  # If we're using clang, we need to pass -stdlib=libc++ too.
+  if test "x$CLANG" = "xyes"; then
+    CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+  fi
+
+  # Force gtest to use it's own tuple implementation since 'tr1/tuple'
+  # might not exist (for example, if building with clang).
+  CXXFLAGS="-DGTEST_USE_OWN_TR1_TUPLE=1 $CXXFLAGS"
+
+  # Also pass the flags to 3rdparty libraries.
+  CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
+fi
+
 
 AC_OUTPUT
