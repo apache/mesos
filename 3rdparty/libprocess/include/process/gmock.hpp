@@ -5,8 +5,6 @@
 
 #include <gmock/gmock.h>
 
-#include <tr1/tuple>
-
 #include <process/dispatch.hpp>
 #include <process/event.hpp>
 #include <process/filter.hpp>
@@ -14,6 +12,11 @@
 
 #include <stout/exit.hpp>
 #include <stout/nothing.hpp>
+
+// NOTE: The gmock library relies on std::tr1::tuple. The gmock
+// library provides multiple possible 'tuple' implementations but it
+// still uses std::tr1::tuple as the "type" name, hence our use of it
+// in this file.
 
 
 // THIS IS DEPRECATED AND BROKEN! REPLACE ALL USES!

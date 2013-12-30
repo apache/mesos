@@ -9,12 +9,10 @@
 #include <set>
 #include <vector>
 
-#include <tr1/functional>
-#include <tr1/unordered_map>
-
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
+#include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
 
 
@@ -667,7 +665,7 @@ private:
 
   typedef lambda::function<
       void(const process::UPID&, const std::string&)> handler;
-  std::tr1::unordered_map<std::string, handler> protobufHandlers;
+  hashmap<std::string, handler> protobufHandlers;
 
   // Sender of "current" message, inaccessible by subclasses.
   // This is only used for reply().

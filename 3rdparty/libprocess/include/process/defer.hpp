@@ -1,3 +1,6 @@
+#if __cplusplus >= 201103L
+#include <process/c++11/defer.hpp>
+#else
 #ifndef __PROCESS_DEFER_HPP__
 #define __PROCESS_DEFER_HPP__
 
@@ -436,3 +439,4 @@ inline Deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
 } // namespace process {
 
 #endif // __PROCESS_DEFER_HPP__
+#endif // __cplusplus >= 201103L

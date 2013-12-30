@@ -11,6 +11,7 @@
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
+#include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 
@@ -69,8 +70,7 @@ public:
 
     typename std::list<Future<T> >::const_iterator iterator;
     for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-      (*iterator).onAny(
-          defer(this, &CollectProcess::waited, std::tr1::placeholders::_1));
+      (*iterator).onAny(defer(this, &CollectProcess::waited, lambda::_1));
     }
   }
 
@@ -153,8 +153,7 @@ public:
 
     typename std::list<Future<T> >::const_iterator iterator;
     for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-      (*iterator).onAny(
-          defer(this, &AwaitProcess::waited, std::tr1::placeholders::_1));
+      (*iterator).onAny(defer(this, &AwaitProcess::waited, lambda::_1));
     }
   }
 

@@ -1,3 +1,6 @@
+#if __cplusplus >= 201103L
+#include <process/c++11/executor.hpp>
+#else
 #ifndef __PROCESS_EXECUTOR_HPP__
 #define __PROCESS_EXECUTOR_HPP__
 
@@ -258,3 +261,4 @@ extern ThreadLocal<Executor>* _executor_;
 } // namespace process {
 
 #endif // __PROCESS_EXECUTOR_HPP__
+#endif // __cplusplus >= 201103L

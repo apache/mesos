@@ -27,6 +27,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
+#include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -107,7 +108,7 @@ TEST(Process, onAny)
 {
   bool b = false;
   Future<bool>(true)
-    .onAny(std::tr1::bind(&onAny, std::tr1::placeholders::_1, &b));
+    .onAny(lambda::bind(&onAny, lambda::_1, &b));
   EXPECT_TRUE(b);
 }
 
@@ -137,13 +138,13 @@ TEST(Process, then)
   promise.set(&i);
 
   Future<string> future = promise.future()
-    .then(std::tr1::bind(&itoa1, std::tr1::placeholders::_1));
+    .then(lambda::bind(&itoa1, lambda::_1));
 
   ASSERT_TRUE(future.isReady());
   EXPECT_EQ("42", future.get());
 
   future = promise.future()
-    .then(std::tr1::bind(&itoa2, std::tr1::placeholders::_1));
+    .then(lambda::bind(&itoa2, lambda::_1));
 
   ASSERT_TRUE(future.isReady());
   EXPECT_EQ("42", future.get());
@@ -185,8 +186,8 @@ TEST(Process, chain)
   Promise<int*> promise;
 
   Future<string> s = readyFuture()
-    .then(std::tr1::bind(&second, std::tr1::placeholders::_1))
-    .then(std::tr1::bind(&third, std::tr1::placeholders::_1));
+    .then(lambda::bind(&second, lambda::_1))
+    .then(lambda::bind(&third, lambda::_1));
 
   s.await();
 
@@ -194,8 +195,8 @@ TEST(Process, chain)
   EXPECT_EQ("true", s.get());
 
   s = failedFuture()
-    .then(std::tr1::bind(&second, std::tr1::placeholders::_1))
-    .then(std::tr1::bind(&third, std::tr1::placeholders::_1));
+    .then(lambda::bind(&second, lambda::_1))
+    .then(lambda::bind(&third, lambda::_1));
 
   s.await();
 
@@ -204,8 +205,8 @@ TEST(Process, chain)
   Future<bool> future;
 
   s = pendingFuture(&future)
-    .then(std::tr1::bind(&second, std::tr1::placeholders::_1))
-    .then(std::tr1::bind(&third, std::tr1::placeholders::_1));
+    .then(lambda::bind(&second, lambda::_1))
+    .then(lambda::bind(&third, lambda::_1));
 
   ASSERT_TRUE(s.isPending());
   ASSERT_TRUE(future.isPending());
@@ -349,14 +350,14 @@ TEST(Process, defer1)
 
   {
     Deferred<Future<bool>(bool)> func4 =
-      defer(pid, &DispatchProcess::func4, std::tr1::placeholders::_1, 42);
+      defer(pid, &DispatchProcess::func4, lambda::_1, 42);
     future = func4(false);
     EXPECT_FALSE(future.get());
   }
 
   {
     Deferred<Future<bool>(int)> func4 =
-      defer(pid, &DispatchProcess::func4, true, std::tr1::placeholders::_1);
+      defer(pid, &DispatchProcess::func4, true, lambda::_1);
     future = func4(42);
     EXPECT_TRUE(future.get());
   }
@@ -373,7 +374,7 @@ class DeferProcess : public Process<DeferProcess>
 public:
   Future<string> func1(const Future<int>& f)
   {
-    return f.then(defer(self(), &Self::_func1, std::tr1::placeholders::_1));
+    return f.then(defer(self(), &Self::_func1, lambda::_1));
   }
 
   Future<string> func2(const Future<int>& f)
@@ -436,18 +437,26 @@ TEST(Process, defer3)
   volatile bool bool2 = false;
 
   Deferred<void(bool)> set1 =
+#if __cplusplus >= 201103L
+    defer([&bool1] (bool b) { bool1 = b; });
+#else // __cplusplus >= 201103L
     defer(std::tr1::function<void(bool)>(
               std::tr1::bind(&set<volatile bool>,
                              &bool1,
                              std::tr1::placeholders::_1)));
+#endif // __cplusplus >= 201103L
 
   set1(true);
 
   Deferred<void(bool)> set2 =
+#if __cplusplus >= 201103L
+    defer([&bool2] (bool b) { bool2 = b; });
+#else // __cplusplus >= 201103L
     defer(std::tr1::function<void(bool)>(
               std::tr1::bind(&set<volatile bool>,
                              &bool2,
                              std::tr1::placeholders::_1)));
+#endif // __cplusplus >= 201103L
 
   set2(true);
 
@@ -1056,16 +1065,17 @@ TEST(Process, executor)
   Executor executor;
 
   Deferred<void(int)> event1 =
-    executor.defer(std::tr1::bind(&EventReceiver::event1,
-                                  &receiver,
-                                  std::tr1::placeholders::_1));
-
+    executor.defer(lambda::function<void(int)>(
+                       lambda::bind(&EventReceiver::event1,
+                                    &receiver,
+                                    lambda::_1)));
   event1(42);
 
   Deferred<void(const string&)> event2 =
-    executor.defer(std::tr1::bind(&EventReceiver::event2,
-                                  &receiver,
-                                  std::tr1::placeholders::_1));
+    executor.defer(lambda::function<void(const string&)>(
+                       lambda::bind(&EventReceiver::event2,
+                                    &receiver,
+                                    lambda::_1)));
 
   event2("event2");
 

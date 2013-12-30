@@ -1,15 +1,12 @@
-#if __cplusplus >= 201103L
-#include <process/c++11/dispatch.hpp>
-#else
 #ifndef __PROCESS_DISPATCH_HPP__
 #define __PROCESS_DISPATCH_HPP__
 
+#include <functional>
+#include <memory> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <string>
 
 #include <process/process.hpp>
 
-#include <stout/lambda.hpp>
-#include <stout/memory.hpp> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <stout/preprocessor.hpp>
 
 namespace process {
@@ -53,53 +50,8 @@ namespace internal {
 // will probably change in the future to unique_ptr (or a variant).
 void dispatch(
     const UPID& pid,
-    const memory::shared_ptr<lambda::function<void(ProcessBase*)> >& f,
+    const std::shared_ptr<std::function<void(ProcessBase*)>>& f,
     const std::string& method = std::string());
-
-// For each return type (void, future, value) there is a dispatcher
-// function which should complete the picture. Given the process
-// argument these routines downcast the process to the correct subtype
-// and invoke the thunk using the subtype as the argument
-// (receiver). Note that we must use dynamic_cast because we permit a
-// process to use multiple inheritance (e.g., to expose multiple
-// callback interfaces).
-
-template <typename T>
-void vdispatcher(
-    ProcessBase* process,
-    memory::shared_ptr<lambda::function<void(T*)> > thunk)
-{
-  assert(process != NULL);
-  T* t = dynamic_cast<T*>(process);
-  assert(t != NULL);
-  (*thunk)(t);
-}
-
-
-template <typename R, typename T>
-void pdispatcher(
-    ProcessBase* process,
-    memory::shared_ptr<lambda::function<Future<R>(T*)> > thunk,
-    memory::shared_ptr<Promise<R> > promise)
-{
-  assert(process != NULL);
-  T* t = dynamic_cast<T*>(process);
-  assert(t != NULL);
-  promise->associate((*thunk)(t));
-}
-
-
-template <typename R, typename T>
-void rdispatcher(
-    ProcessBase* process,
-    memory::shared_ptr<lambda::function<R(T*)> > thunk,
-    memory::shared_ptr<Promise<R> > promise)
-{
-  assert(process != NULL);
-  T* t = dynamic_cast<T*>(process);
-  assert(t != NULL);
-  promise->set((*thunk)(t));
-}
 
 
 // Canonicalizes a pointer to a member function (i.e., method) into a
@@ -120,50 +72,28 @@ std::string canonicalize(Method method)
 // would shorten these definitions even more.
 //
 // First, definitions of dispatch for methods returning void:
-//
-// template <typename T, typename ...P>
-// void dispatch(
-//     const PID<T>& pid,
-//     void (T::*method)(P...),
-//     P... p)
-// {
-//   memory::shared_ptr<lambda::function<void(T*)> > thunk(
-//       new lambda::function<void(T*)>(
-//           lambda::bind(method,
-//                        lambda::_1,
-//                        std::forward<P>(p)...)));
-//
-//   memory::shared_ptr<lambda::function<void(ProcessBase*)> > dispatcher(
-//       new lambda::function<void(ProcessBase*)>(
-//           lambda::bind(&internal::vdispatcher<T>,
-//                        lambda::_1,
-//                        thunk)));
-//
-//   internal::dispatch(pid, dispatcher, internal::canonicalize(method));
-// }
 
 template <typename T>
 void dispatch(
     const PID<T>& pid,
-    void (T::*method)(void))
+    void (T::*method)())
 {
-  memory::shared_ptr<lambda::function<void(T*)> > thunk(
-      new lambda::function<void(T*)>(
-          lambda::bind(method, lambda::_1)));
+  std::shared_ptr<std::function<void(ProcessBase*)>> f(
+      new std::function<void(ProcessBase*)>(
+          [=] (ProcessBase* process) {
+            assert(process != NULL);
+            T* t = dynamic_cast<T*>(process);
+            assert(t != NULL);
+            (t->*method)();
+          }));
 
-  memory::shared_ptr<lambda::function<void(ProcessBase*)> > dispatcher(
-      new lambda::function<void(ProcessBase*)>(
-          lambda::bind(&internal::vdispatcher<T>,
-                       lambda::_1,
-                       thunk)));
-
-  internal::dispatch(pid, dispatcher, internal::canonicalize(method));
+  internal::dispatch(pid, f, internal::canonicalize(method));
 }
 
 template <typename T>
 void dispatch(
     const Process<T>& process,
-    void (T::*method)(void))
+    void (T::*method)())
 {
   dispatch(process.self(), method);
 }
@@ -171,11 +101,14 @@ void dispatch(
 template <typename T>
 void dispatch(
     const Process<T>* process,
-    void (T::*method)(void))
+    void (T::*method)())
 {
   dispatch(process->self(), method);
 }
 
+// Due to a bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=41933)
+// with variadic templates and lambdas, we still need to do
+// preprocessor expansions.
 #define TEMPLATE(Z, N, DATA)                                            \
   template <typename T,                                                 \
             ENUM_PARAMS(N, typename P),                                 \
@@ -185,19 +118,16 @@ void dispatch(
       void (T::*method)(ENUM_PARAMS(N, P)),                             \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
   {                                                                     \
-    memory::shared_ptr<lambda::function<void(T*)> > thunk(              \
-        new lambda::function<void(T*)>(                                 \
-            lambda::bind(method,                                        \
-                         lambda::_1,                                    \
-                         ENUM_PARAMS(N, a))));                          \
+    std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
+        new std::function<void(ProcessBase*)>(                          \
+            [=] (ProcessBase* process) {                                \
+              assert(process != NULL);                                  \
+              T* t = dynamic_cast<T*>(process);                         \
+              assert(t != NULL);                                        \
+              (t->*method)(ENUM_PARAMS(N, a));                          \
+            }));                                                        \
                                                                         \
-    memory::shared_ptr<lambda::function<void(ProcessBase*)> > dispatcher( \
-        new lambda::function<void(ProcessBase*)>(                       \
-            lambda::bind(&internal::vdispatcher<T>,                     \
-                         lambda::_1,                                    \
-                         thunk)));                                      \
-                                                                        \
-    internal::dispatch(pid, dispatcher, internal::canonicalize(method)); \
+    internal::dispatch(pid, f, internal::canonicalize(method));         \
   }                                                                     \
                                                                         \
   template <typename T,                                                 \
@@ -227,54 +157,26 @@ void dispatch(
 
 
 // Next, definitions of methods returning a future:
-//
-// template <typename R, typename T, typename ...P>
-// Future<R> dispatch(
-//     const PID<T>& pid,
-//     Future<R> (T::*method)(P...),
-//     P... p)
-// {
-//   memory::shared_ptr<lambda::function<Future<R>(T*)> > thunk(
-//       new lambda::function<Future<R>(T*)>(
-//           lambda::bind(method,
-//                        lambda::_1,
-//                        std::forward<P>(p)...)));
-//
-//   memory::shared_ptr<Promise<R> > promise(new Promise<R>());
-//   Future<R> future = promise->future();
-//
-//   memory::shared_ptr<lambda::function<void(ProcessBase*)> > dispatcher(
-//       new lambda::function<void(ProcessBase*)>(
-//           lambda::bind(&internal::pdispatcher<R, T>,
-//                        lambda::_1,
-//                        thunk, promise)));
-//
-//   internal::dispatch(pid, dispatcher, internal::canonicalize(method));
-//
-//   return future;
-// }
 
 template <typename R, typename T>
 Future<R> dispatch(
     const PID<T>& pid,
-    Future<R> (T::*method)(void))
+    Future<R> (T::*method)())
 {
-  memory::shared_ptr<lambda::function<Future<R>(T*)> > thunk(
-      new lambda::function<Future<R>(T*)>(
-          lambda::bind(method, lambda::_1)));
+  std::shared_ptr<Promise<R>> promise(new Promise<R>());
 
-  memory::shared_ptr<Promise<R> > promise(new Promise<R>());
-  Future<R> future = promise->future();
+  std::shared_ptr<std::function<void(ProcessBase*)>> f(
+      new std::function<void(ProcessBase*)>(
+          [=] (ProcessBase* process) {
+            assert(process != NULL);
+            T* t = dynamic_cast<T*>(process);
+            assert(t != NULL);
+            promise->associate((t->*method)());
+          }));
 
-  memory::shared_ptr<lambda::function<void(ProcessBase*)> > dispatcher(
-      new lambda::function<void(ProcessBase*)>(
-          lambda::bind(&internal::pdispatcher<R, T>,
-                       lambda::_1,
-                       thunk, promise)));
+  internal::dispatch(pid, f, internal::canonicalize(method));
 
-  internal::dispatch(pid, dispatcher, internal::canonicalize(method));
-
-  return future;
+  return promise->future();
 }
 
 template <typename R, typename T>
@@ -303,24 +205,20 @@ Future<R> dispatch(
       Future<R> (T::*method)(ENUM_PARAMS(N, P)),                        \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
   {                                                                     \
-    memory::shared_ptr<lambda::function<Future<R>(T*)> > thunk(         \
-        new lambda::function<Future<R>(T*)>(                            \
-            lambda::bind(method,                                        \
-                         lambda::_1,                                    \
-                         ENUM_PARAMS(N, a))));                          \
+    std::shared_ptr<Promise<R>> promise(new Promise<R>());              \
                                                                         \
-    memory::shared_ptr<Promise<R> > promise(new Promise<R>());          \
-    Future<R> future = promise->future();                               \
+    std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
+        new std::function<void(ProcessBase*)>(                          \
+            [=] (ProcessBase* process) {                                \
+              assert(process != NULL);                                  \
+              T* t = dynamic_cast<T*>(process);                         \
+              assert(t != NULL);                                        \
+              promise->associate((t->*method)(ENUM_PARAMS(N, a)));      \
+            }));                                                        \
                                                                         \
-    memory::shared_ptr<lambda::function<void(ProcessBase*)> > dispatcher( \
-        new lambda::function<void(ProcessBase*)>(                       \
-            lambda::bind(&internal::pdispatcher<R, T>,                  \
-                         lambda::_1,                                    \
-                         thunk, promise)));                             \
+    internal::dispatch(pid, f, internal::canonicalize(method));         \
                                                                         \
-    internal::dispatch(pid, dispatcher, internal::canonicalize(method)); \
-                                                                        \
-    return future;                                                      \
+    return promise->future();                                           \
   }                                                                     \
                                                                         \
   template <typename R,                                                 \
@@ -352,60 +250,32 @@ Future<R> dispatch(
 
 
 // Next, definitions of methods returning a value.
-//
-// template <typename R, typename T, typename ...P>
-// Future<R> dispatch(
-//     const PID<T>& pid,
-//     R (T::*method)(P...),
-//     P... p)
-// {
-//   memory::shared_ptr<lambda::function<R(T*)> > thunk(
-//       new lambda::function<R(T*)>(
-//           lambda::bind(method,
-//                        lambda::_1,
-//                        std::forward<P>(p)...)));
-//
-//   memory::shared_ptr<Promise<R> > promise(new Promise<R>());
-//   Future<R> future = promise->future();
-//
-//   memory::shared_ptr<lambda::function<void(ProcessBase*)> > dispatcher(
-//       new lambda::function<void(ProcessBase*)>(
-//           lambda::bind(&internal::rdispatcher<R, T>,
-//                        lambda::_1,
-//                        thunk, promise)));
-//
-//   internal::dispatch(pid, dispatcher, internal::canonicalize(method));
-//
-//   return future;
-// }
 
 template <typename R, typename T>
 Future<R> dispatch(
     const PID<T>& pid,
     R (T::*method)(void))
 {
-  memory::shared_ptr<lambda::function<R(T*)> > thunk(
-      new lambda::function<R(T*)>(
-          lambda::bind(method, lambda::_1)));
+  std::shared_ptr<Promise<R>> promise(new Promise<R>());
 
-  memory::shared_ptr<Promise<R> > promise(new Promise<R>());
-  Future<R> future = promise->future();
+  std::shared_ptr<std::function<void(ProcessBase*)>> f(
+      new std::function<void(ProcessBase*)>(
+          [=] (ProcessBase* process) {
+            assert(process != NULL);
+            T* t = dynamic_cast<T*>(process);
+            assert(t != NULL);
+            promise->set((t->*method)());
+          }));
 
-  memory::shared_ptr<lambda::function<void(ProcessBase*)> > dispatcher(
-      new lambda::function<void(ProcessBase*)>(
-          lambda::bind(&internal::rdispatcher<R, T>,
-                       lambda::_1,
-                       thunk, promise)));
+  internal::dispatch(pid, f, internal::canonicalize(method));
 
-  internal::dispatch(pid, dispatcher, internal::canonicalize(method));
-
-  return future;
+  return promise->future();
 }
 
 template <typename R, typename T>
 Future<R> dispatch(
     const Process<T>& process,
-    R (T::*method)(void))
+    R (T::*method)())
 {
   return dispatch(process.self(), method);
 }
@@ -413,7 +283,7 @@ Future<R> dispatch(
 template <typename R, typename T>
 Future<R> dispatch(
     const Process<T>* process,
-    R (T::*method)(void))
+    R (T::*method)())
 {
   return dispatch(process->self(), method);
 }
@@ -428,24 +298,20 @@ Future<R> dispatch(
       R (T::*method)(ENUM_PARAMS(N, P)),                                \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
   {                                                                     \
-    memory::shared_ptr<lambda::function<R(T*)> > thunk(                 \
-        new lambda::function<R(T*)>(                                    \
-            lambda::bind(method,                                        \
-                         lambda::_1,                                    \
-                         ENUM_PARAMS(N, a))));                          \
+    std::shared_ptr<Promise<R>> promise(new Promise<R>());              \
                                                                         \
-    memory::shared_ptr<Promise<R> > promise(new Promise<R>());          \
-    Future<R> future = promise->future();                               \
+    std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
+        new std::function<void(ProcessBase*)>(                          \
+            [=] (ProcessBase* process) {                                \
+              assert(process != NULL);                                  \
+              T* t = dynamic_cast<T*>(process);                         \
+              assert(t != NULL);                                        \
+              promise->set((t->*method)(ENUM_PARAMS(N, a)));            \
+            }));                                                        \
                                                                         \
-    memory::shared_ptr<lambda::function<void(ProcessBase*)> > dispatcher( \
-        new lambda::function<void(ProcessBase*)>(                       \
-            lambda::bind(&internal::rdispatcher<R, T>,                  \
-                         lambda::_1,                                    \
-                         thunk, promise)));                             \
+    internal::dispatch(pid, f, internal::canonicalize(method));         \
                                                                         \
-    internal::dispatch(pid, dispatcher, internal::canonicalize(method)); \
-                                                                        \
-    return future;                                                      \
+    return promise->future();                                           \
   }                                                                     \
                                                                         \
   template <typename R,                                                 \
@@ -475,7 +341,58 @@ Future<R> dispatch(
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
 
+
+inline void dispatch(
+    const UPID& pid,
+    const std::function<void()>& f)
+{
+  std::shared_ptr<std::function<void(ProcessBase*)>> f_(
+      new std::function<void(ProcessBase*)>(
+          [=] (ProcessBase*) {
+            f();
+          }));
+
+  internal::dispatch(pid, f_);
+}
+
+
+template <typename R>
+Future<R> dispatch(
+    const UPID& pid,
+    const std::function<Future<R>()>& f)
+{
+  std::shared_ptr<Promise<R>> promise(new Promise<R>());
+
+  std::shared_ptr<std::function<void(ProcessBase*)>> f_(
+      new std::function<void(ProcessBase*)>(
+          [=] (ProcessBase*) {
+            promise->associate(f());
+          }));
+
+  internal::dispatch(pid, f_);
+
+  return promise->future();
+}
+
+
+template <typename R>
+Future<R> dispatch(
+    const UPID& pid,
+    const std::function<R()>& f)
+{
+  std::shared_ptr<Promise<R>> promise(new Promise<R>());
+
+  std::shared_ptr<std::function<void(ProcessBase*)>> f_(
+      new std::function<void(ProcessBase*)>(
+          [=] (ProcessBase*) {
+            promise->set(f());
+          }));
+
+  internal::dispatch(pid, f_);
+
+  return promise->future();
+}
+
 } // namespace process {
 
 #endif // __PROCESS_DISPATCH_HPP__
-#endif // __cplusplus >= 201103L

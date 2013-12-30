@@ -1,3 +1,6 @@
+#if __cplusplus >= 201103L
+#include <process/c++11/deferred.hpp>
+#else
 #ifndef __PROCESS_DEFERRED_HPP__
 #define __PROCESS_DEFERRED_HPP__
 
@@ -134,3 +137,4 @@ private:
 } // namespace process {
 
 #endif // __PROCESS_DEFERRED_HPP__
+#endif // __cplusplus >= 201103L

@@ -7,8 +7,6 @@
 #include <map>
 #include <queue>
 
-#include <tr1/functional>
-
 #include <process/clock.hpp>
 #include <process/event.hpp>
 #include <process/filter.hpp>
@@ -18,6 +16,7 @@
 #include <process/pid.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/thread.hpp>
 
@@ -85,7 +84,7 @@ protected:
   // always takes precedence over delegating). A message handler is
   // any function which takes two arguments, the "from" pid and the
   // message body.
-  typedef std::tr1::function<void(const UPID&, const std::string&)>
+  typedef lambda::function<void(const UPID&, const std::string&)>
   MessageHandler;
 
   // Setup a handler for a message.
@@ -105,10 +104,7 @@ protected:
     // multiple inheritance if it sees so fit (e.g., to implement
     // multiple callback interfaces).
     MessageHandler handler =
-      std::tr1::bind(method,
-                     dynamic_cast<T*>(this),
-                     std::tr1::placeholders::_1,
-                     std::tr1::placeholders::_2);
+      lambda::bind(method, dynamic_cast<T*>(this), lambda::_1, lambda::_2);
     install(name, handler);
   }
 
@@ -121,7 +117,7 @@ protected:
   // The default visit implementation for HTTP events invokes
   // installed HTTP handlers. A HTTP handler is any function which
   // takes an http::Request object and returns an http::Response.
-  typedef std::tr1::function<Future<http::Response>(const http::Request&)>
+  typedef lambda::function<Future<http::Response>(const http::Request&)>
   HttpRequestHandler;
 
   // Setup a handler for an HTTP request.
@@ -140,8 +136,7 @@ protected:
     // multiple inheritance if it sees so fit (e.g., to implement
     // multiple callback interfaces).
     HttpRequestHandler handler =
-      std::tr1::bind(method, dynamic_cast<T*>(this),
-                     std::tr1::placeholders::_1);
+      lambda::bind(method, dynamic_cast<T*>(this), lambda::_1);
     return route(name, help, handler);
   }
 
@@ -268,6 +263,11 @@ uint16_t port();
  * @param manage boolean whether process should get garbage collected
  */
 UPID spawn(ProcessBase* process, bool manage = false);
+
+inline UPID spawn(ProcessBase& process, bool manage = false)
+{
+  return spawn(&process, manage);
+}
 
 template <typename T>
 PID<T> spawn(T* t, bool manage = false)

@@ -11,14 +11,13 @@
 
 #include <glog/logging.h>
 
-#include <tr1/functional>
-#include <tr1/memory> // TODO(benh): Replace shared_ptr with unique_ptr.
-
 #include <process/latch.hpp>
 #include <process/pid.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
+#include <stout/lambda.hpp>
+#include <stout/memory.hpp> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/preprocessor.hpp>
@@ -27,6 +26,10 @@ namespace process {
 
 // Forward declaration (instead of include to break circular dependency).
 template <typename _F> struct _Defer;
+template <typename F> struct Deferred;
+#if  __cplusplus >= 201103L
+template <typename G> struct _Deferred;
+#endif // __cplusplus >= 201103L
 
 namespace internal {
 
@@ -97,10 +100,10 @@ public:
 
   // Type of the callback functions that can get invoked when the
   // future gets set, fails, or is discarded.
-  typedef std::tr1::function<void(const T&)> ReadyCallback;
-  typedef std::tr1::function<void(const std::string&)> FailedCallback;
-  typedef std::tr1::function<void(void)> DiscardedCallback;
-  typedef std::tr1::function<void(const Future<T>&)> AnyCallback;
+  typedef lambda::function<void(const T&)> ReadyCallback;
+  typedef lambda::function<void(const std::string&)> FailedCallback;
+  typedef lambda::function<void(void)> DiscardedCallback;
+  typedef lambda::function<void(const Future<T>&)> AnyCallback;
 
   // Installs callbacks for the specified events and returns a const
   // reference to 'this' in order to easily support chaining.
@@ -109,14 +112,80 @@ public:
   const Future<T>& onDiscarded(const DiscardedCallback& callback) const;
   const Future<T>& onAny(const AnyCallback& callback) const;
 
+#if __cplusplus >= 201103L
+  template <typename F>
+  const Future<T>& onReady(const _Deferred<F>& deferred) const
+  {
+    return onReady(std::function<void(const T&)>(deferred));
+  }
+
+  template <typename F>
+  const Future<T>& onFailed(const _Deferred<F>& deferred) const
+  {
+    return onFailed(std::function<void(const std::string&)>(deferred));
+  }
+
+  template <typename F>
+  const Future<T>& onAny(const _Deferred<F>& deferred) const
+  {
+    return onAny(std::function<void(const Future<T>&)>(deferred));
+  }
+
+  const Future<T>& onReady(const Deferred<void(void)>& deferred) const
+  {
+    return onReady(std::function<void(const T&)>(lambda::bind(deferred)));
+  }
+
+  const Future<T>& onFailed(const Deferred<void(void)>& deferred) const
+  {
+    return onFailed(std::function<void(const std::string&)>(lambda::bind(deferred)));
+  }
+
+  const Future<T>& onAny(const Deferred<void(void)>& deferred) const
+  {
+    return onAny(std::function<void(const Future<T>&)>(lambda::bind(deferred)));
+  }
+#endif // __cplusplus >= 201103L
+
   // Installs callbacks that get executed when this future is ready
   // and associates the result of the callback with the future that is
   // returned to the caller (which may be of a different type).
   template <typename X>
-  Future<X> then(const std::tr1::function<Future<X>(const T&)>& f) const;
+  Future<X> then(const lambda::function<Future<X>(const T&)>& f) const;
 
   template <typename X>
-  Future<X> then(const std::tr1::function<X(const T&)>& f) const;
+  Future<X> then(const lambda::function<X(const T&)>& f) const;
+
+  template <typename X>
+  Future<X> then(const lambda::function<Future<X>(void)>& f) const
+  {
+    return then(lambda::function<Future<X>(const T&)>(lambda::bind(f)));
+  }
+
+  template <typename X>
+  Future<X> then(const lambda::function<X(void)>& f) const
+  {
+    return then(lambda::function<X(const T&)>(lambda::bind(f)));
+  }
+
+#if __cplusplus >= 201103L
+  template <typename F>
+  typename internal::wrap<typename std::result_of<F(const T&)>::type>::Type
+  then(F f) const
+  {
+    typedef typename std::result_of<F(const T&)>::type R;
+    return then(std::function<R(const T&)>(f));
+  }
+
+  template <typename F>
+  typename internal::wrap<typename std::result_of<F(const T&)>::type>::Type
+  then(const _Deferred<F>& deferred) const
+  {
+    typedef typename std::result_of<F(const T&)>::type R;
+    return then(std::function<R(const T&)>(deferred));
+  }
+
+#else // __cplusplus >= 201103L
 
   // Helpers for the compiler to be able to forward std::tr1::bind results.
   template <typename X>
@@ -211,13 +280,7 @@ public:
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
-
-  // C++11 implementation (covers all functors).
-#if __cplusplus >= 201103L
-  template <typename F>
-  auto then(F f) const
-    -> typename internal::wrap<decltype(f(T()))>::Type;
-#endif
+#endif // __cplusplus >= 201103L
 
 private:
   friend class Promise<T>;
@@ -255,7 +318,7 @@ private:
   // failed, or discarded, in which case it returns false.
   bool fail(const std::string& _message);
 
-  std::tr1::shared_ptr<Data> data;
+  memory::shared_ptr<Data> data;
 };
 
 
@@ -272,7 +335,7 @@ public:
   Option<Future<T> > get();
 
 private:
-  std::tr1::weak_ptr<typename Future<T>::Data> data;
+  memory::weak_ptr<typename Future<T>::Data> data;
 };
 
 
@@ -409,16 +472,16 @@ bool Promise<T>::associate(const Future<T>& future)
   // In other words, calling 'set' or 'fail' on this promise will not
   // affect the result of the future that we associated. To avoid
   // cyclic dependencies, we keep a weak future in the callback.
-  f.onDiscarded(std::tr1::bind(&internal::discard<T>, WeakFuture<T>(future)));
+  f.onDiscarded(lambda::bind(&internal::discard<T>, WeakFuture<T>(future)));
 
   if (!f.isPending()) {
     return false;
   }
 
   future
-    .onReady(std::tr1::bind(&Future<T>::set, f, std::tr1::placeholders::_1))
-    .onFailed(std::tr1::bind(&Future<T>::fail, f, std::tr1::placeholders::_1))
-    .onDiscarded(std::tr1::bind(&Future<T>::discard, f));
+    .onReady(lambda::bind(&Future<T>::set, f, lambda::_1))
+    .onFailed(lambda::bind(&Future<T>::fail, f, lambda::_1))
+    .onDiscarded(lambda::bind(&Future<T>::discard, f));
 
   return true;
 }
@@ -488,7 +551,7 @@ inline void release(int* lock)
 template <typename T>
 void select(
     const Future<T>& future,
-    std::tr1::shared_ptr<Promise<Future<T > > > promise)
+    memory::shared_ptr<Promise<Future<T > > > promise)
 {
   // We never fail the future associated with our promise.
   assert(!promise->future().isFailed());
@@ -510,19 +573,17 @@ void select(
 template <typename T>
 Future<Future<T> > select(const std::set<Future<T> >& futures)
 {
-  std::tr1::shared_ptr<Promise<Future<T> > > promise(
+  memory::shared_ptr<Promise<Future<T> > > promise(
       new Promise<Future<T> >());
 
   Future<Future<T> > future = promise->future();
 
-  std::tr1::function<void(const Future<T>&)> select =
-    std::tr1::bind(&internal::select<T>,
-                   std::tr1::placeholders::_1,
-                   promise);
+  lambda::function<void(const Future<T>&)> select =
+    lambda::bind(&internal::select<T>, lambda::_1, promise);
 
   typename std::set<Future<T> >::iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-    (*iterator).onAny(std::tr1::bind(select, std::tr1::placeholders::_1));
+    (*iterator).onAny(lambda::bind(select, lambda::_1));
   }
 
   return future;
@@ -878,8 +939,8 @@ const Future<T>& Future<T>::onAny(const AnyCallback& callback) const
 namespace internal {
 
 template <typename T, typename X>
-void thenf(const std::tr1::shared_ptr<Promise<X> >& promise,
-           const std::tr1::function<Future<X>(const T&)>& f,
+void thenf(const memory::shared_ptr<Promise<X> >& promise,
+           const lambda::function<Future<X>(const T&)>& f,
            const Future<T>& future)
 {
   if (future.isReady()) {
@@ -893,8 +954,8 @@ void thenf(const std::tr1::shared_ptr<Promise<X> >& promise,
 
 
 template <typename T, typename X>
-void then(const std::tr1::shared_ptr<Promise<X> >& promise,
-          const std::tr1::function<X(const T&)>& f,
+void then(const memory::shared_ptr<Promise<X> >& promise,
+          const lambda::function<X(const T&)>& f,
           const Future<T>& future)
 {
   if (future.isReady()) {
@@ -911,22 +972,19 @@ void then(const std::tr1::shared_ptr<Promise<X> >& promise,
 
 template <typename T>
 template <typename X>
-Future<X> Future<T>::then(const std::tr1::function<Future<X>(const T&)>& f) const
+Future<X> Future<T>::then(const lambda::function<Future<X>(const T&)>& f) const
 {
-  std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
+  memory::shared_ptr<Promise<X> > promise(new Promise<X>());
 
-  std::tr1::function<void(const Future<T>&)> thenf =
-    std::tr1::bind(&internal::thenf<T, X>,
-                   promise,
-                   f,
-                   std::tr1::placeholders::_1);
+  lambda::function<void(const Future<T>&)> thenf =
+    lambda::bind(&internal::thenf<T, X>, promise, f, lambda::_1);
 
   onAny(thenf);
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
   promise->future().onDiscarded(
-      std::tr1::bind(&internal::discard<T>, WeakFuture<T>(*this)));
+      lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
 
   return promise->future();
 }
@@ -934,58 +992,22 @@ Future<X> Future<T>::then(const std::tr1::function<Future<X>(const T&)>& f) cons
 
 template <typename T>
 template <typename X>
-Future<X> Future<T>::then(const std::tr1::function<X(const T&)>& f) const
+Future<X> Future<T>::then(const lambda::function<X(const T&)>& f) const
 {
-  std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
+  memory::shared_ptr<Promise<X> > promise(new Promise<X>());
 
-  std::tr1::function<void(const Future<T>&)> then =
-    std::tr1::bind(&internal::then<T, X>,
-                   promise,
-                   f,
-                   std::tr1::placeholders::_1);
+  lambda::function<void(const Future<T>&)> then =
+    lambda::bind(&internal::then<T, X>, promise, f, lambda::_1);
 
   onAny(then);
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
   promise->future().onDiscarded(
-      std::tr1::bind(&internal::discard<T>, WeakFuture<T>(*this)));
+      lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
 
   return promise->future();
 }
-
-
-#if __cplusplus >= 201103L
-template <typename T>
-template <typename F>
-auto Future<T>::then(F f) const
-  -> typename internal::wrap<decltype(f(T()))>::Type
-{
-  typedef typename internal::unwrap<decltype(f(T()))>::Type X;
-
-  std::tr1::shared_ptr<Promise<X>> promise(new Promise<X>());
-
-  onAny([=] (const Future<T>& future) {
-    if (future.isReady()) {
-      promise->set(f(future.get()));
-    } else if (future.isFailed()) {
-      promise->fail(future.failure());
-    } else if (future.isDiscarded()) {
-      promise->future().discard();
-    }
-  });
-
-  // Propagate discarding up the chain. To avoid cyclic dependencies,
-  // we keep a weak future in the callback.
-  WeakFuture<T> reference(*this);
-
-  promise->future().onDiscarded([=] () {
-    internal::discard(reference);
-  });
-
-  return promise->future();
-}
-#endif
 
 
 template <typename T>

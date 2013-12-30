@@ -3,11 +3,10 @@
 
 #include <stdlib.h> // For abort.
 
-#include <tr1/functional>
-
 #include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/lambda.hpp>
 
 namespace process {
 
@@ -20,7 +19,7 @@ public:
 
   static Timer create(
       const Duration& duration,
-      const std::tr1::function<void(void)>& thunk);
+      const lambda::function<void(void)>& thunk);
 
   static bool cancel(const Timer& timer);
 
@@ -53,7 +52,7 @@ private:
   Timer(long _id,
         const Timeout& _t,
         const process::UPID& _pid,
-        const std::tr1::function<void(void)>& _thunk)
+        const lambda::function<void(void)>& _thunk)
     : id(_id), t(_t), pid(_pid), thunk(_thunk)
   {}
 
@@ -68,7 +67,7 @@ private:
   // valid and get a refernce to it.)
   process::UPID pid;
 
-  std::tr1::function<void(void)> thunk;
+  lambda::function<void(void)> thunk;
 };
 
 } // namespace process {
