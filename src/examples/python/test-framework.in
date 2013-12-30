@@ -21,10 +21,10 @@ test ! -e ${DISTRIBUTE_EGG} && \
   echo "${RED}Failed to find ${DISTRIBUTE_EGG}${NORMAL}" && \
   exit 1
 
-PROTOBUF=${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-2.4.1
+PROTOBUF=${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-2.5.0
 
 PROTOBUF_EGG=${PROTOBUF}/python/dist/
-PROTOBUF_EGG+=protobuf-2.4.1@PYTHON_EGG_PUREPY_POSTFIX@.egg
+PROTOBUF_EGG+=protobuf-2.5.0@PYTHON_EGG_PUREPY_POSTFIX@.egg
 
 test ! -e ${PROTOBUF_EGG} && \
   echo "${RED}Failed to find ${PROTOBUF_EGG}${NORMAL}" && \

@@ -32,7 +32,7 @@ libprocess = os.path.join('3rdparty', 'libprocess')
 glog = os.path.join(libprocess, '3rdparty', 'glog-0.3.3')
 libev = os.path.join(libprocess, '3rdparty', 'libev-4.15')
 gperftools = os.path.join(libprocess, '3rdparty', 'gperftools-2.0')
-protobuf = os.path.join(libprocess, '3rdparty', 'protobuf-2.4.1')
+protobuf = os.path.join(libprocess, '3rdparty', 'protobuf-2.5.0')
 
 # We need to execute from the same directory as this script.
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
@@ -118,5 +118,5 @@ setup(name = 'mesos',
       description = 'Mesos',
       package_dir = { '': 'src' },
       packages = ['.'],
-      install_requires = ['protobuf>=2.4.1'],
+      install_requires = ['protobuf>=2.5.0'],
       ext_modules = [mesos_module])
