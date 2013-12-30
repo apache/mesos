@@ -1,11 +1,11 @@
 # This automake utility file is included from 3rdparty/Makefile.am
 # and src/Makefile.am, so we can update the version numbers of
-# third_party packages in exactly one place.
+# third party packages in exactly one place.
 
 BOOST_VERSION = 1.53.0
 GLOG_VERSION = 0.3.3
 GMOCK_VERSION = 1.6.0
 GPERFTOOLS_VERSION = 2.0
 LIBEV_VERSION = 4.15
-PROTOBUF_VERSION = 2.4.1
+PROTOBUF_VERSION = 2.5.0
 RY_HTTP_PARSER_VERSION = 1c3624a
