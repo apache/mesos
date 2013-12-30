@@ -33,9 +33,17 @@ EXTRA_DIST =			\
   $(GMOCK).tar.gz		\
   $(GPERFTOOLS).tar.gz		\
   $(LIBEV).tar.gz		\
-  $(LIBEV).patch		\
   $(PROTOBUF).tar.gz		\
   $(RY_HTTP_PARSER).tar.gz
+
+# We need to patch glog in order to deal with a compilation issue when
+# compiling with clang (and C++11); see MESOS-860.
+EXTRA_DIST +=			\
+  $(GLOG).patch
+
+# We patch libev to keep it from reaping child processes.
+EXTRA_DIST +=			\
+  $(LIBEV).patch
 
 CLEAN_EXTRACTED =	\
   $(BOOST)		\
@@ -75,6 +83,7 @@ libgmock_la_CPPFLAGS =			\
   -I$(GTEST)/include -I$(GTEST)		\
   -I$(GMOCK)/include -I$(GMOCK)
 
+
 # We list the sources in BUILT_SOURCES to make sure that the package
 # gets unarchived first.
 BUILT_SOURCES += $(nodist_libgmock_la_SOURCES)
@@ -85,8 +94,12 @@ $(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
 
 $(BOOST)/boost: $(BOOST)-stamp
 
+# NOTE: We explicitely set GTEST_CONFIG=no so that we don't attempt to
+# build glog against a system installed gtest (there's no reason to
+# "test" glog and it's highly likely it will cause a compilation bug
+# when building with clang).
 $(GLOG)/libglog.la: $(GLOG)-stamp
-	cd $(GLOG) && ./configure $(CONFIGURE_ARGS) && \
+	cd $(GLOG) && ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 
 if HAS_GPERFTOOLS

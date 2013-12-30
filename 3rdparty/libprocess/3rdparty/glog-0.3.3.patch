@@ -1,0 +1,105 @@
+diff --git a/src/glog/stl_logging.h.in b/src/glog/stl_logging.h.in
+index 30836de..3e90573 100644
+--- a/src/glog/stl_logging.h.in
++++ b/src/glog/stl_logging.h.in
+@@ -50,10 +50,13 @@
+ #include <utility>
+ #include <vector>
+ 
+-#ifdef __GNUC__
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
+ # include <ext/hash_set>
+ # include <ext/hash_map>
+ # include <ext/slist>
++#elif defined(_LIBCPP_VERSION)
++# include <unordered_map>
++# include <unordered_set>
+ #endif
+ 
+ // Forward declare these two, and define them after all the container streams
+@@ -80,7 +83,7 @@ inline std::ostream& operator<<(std::ostream& out, \
+ OUTPUT_TWO_ARG_CONTAINER(std::vector)
+ OUTPUT_TWO_ARG_CONTAINER(std::deque)
+ OUTPUT_TWO_ARG_CONTAINER(std::list)
+-#ifdef __GNUC__
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
+ OUTPUT_TWO_ARG_CONTAINER(__gnu_cxx::slist)
+ #endif
+ 
+@@ -109,9 +112,12 @@ inline std::ostream& operator<<(std::ostream& out, \
+ 
+ OUTPUT_FOUR_ARG_CONTAINER(std::map)
+ OUTPUT_FOUR_ARG_CONTAINER(std::multimap)
+-#ifdef __GNUC__
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
+ OUTPUT_FOUR_ARG_CONTAINER(__gnu_cxx::hash_set)
+ OUTPUT_FOUR_ARG_CONTAINER(__gnu_cxx::hash_multiset)
++#elif defined(_LIBCPP_VERSION)
++OUTPUT_FOUR_ARG_CONTAINER(std::unordered_set)
++OUTPUT_FOUR_ARG_CONTAINER(std::unordered_multiset)
+ #endif
+ 
+ #undef OUTPUT_FOUR_ARG_CONTAINER
+@@ -124,9 +130,12 @@ inline std::ostream& operator<<(std::ostream& out, \
+   return out; \
+ }
+ 
+-#ifdef __GNUC__
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
+ OUTPUT_FIVE_ARG_CONTAINER(__gnu_cxx::hash_map)
+ OUTPUT_FIVE_ARG_CONTAINER(__gnu_cxx::hash_multimap)
++#elif defined(_LIBCPP_VERSION)
++OUTPUT_FIVE_ARG_CONTAINER(std::unordered_map)
++OUTPUT_FIVE_ARG_CONTAINER(std::unordered_multimap)
+ #endif
+ 
+ #undef OUTPUT_FIVE_ARG_CONTAINER
+diff --git a/src/stl_logging_unittest.cc b/src/stl_logging_unittest.cc
+index 5dcbc44..ee344ca 100644
+--- a/src/stl_logging_unittest.cc
++++ b/src/stl_logging_unittest.cc
+@@ -39,7 +39,7 @@
+ #include <string>
+ #include <vector>
+ 
+-#ifdef __GNUC__
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
+ # include <ext/hash_map>
+ # include <ext/hash_set>
+ #endif
+@@ -48,7 +48,7 @@
+ #include "googletest.h"
+ 
+ using namespace std;
+-#ifdef __GNUC__
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
+ using namespace __gnu_cxx;
+ #endif
+ 
+@@ -83,7 +83,7 @@ void TestSTLLogging() {
+     CHECK_EQ(m, copied_m);  // This must compile.
+   }
+ 
+-#ifdef __GNUC__
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
+   {
+     // Test a hashed simple associative container.
+     hash_set<int> hs;
+@@ -98,7 +98,7 @@ void TestSTLLogging() {
+   }
+ #endif
+ 
+-#ifdef __GNUC__
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
+   {
+     // Test a hashed pair associative container.
+     hash_map<int, string> hm;
+@@ -145,7 +145,7 @@ void TestSTLLogging() {
+     CHECK_EQ(m, copied_m);  // This must compile.
+   }
+ 
+-#ifdef __GNUC__
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
+   {
+     // Test a hashed simple associative container.
+     // Use a user defined hash function.
