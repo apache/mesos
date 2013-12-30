@@ -3,7 +3,7 @@
 
 #include <pthread.h>
 
-#include <tr1/functional>
+#include <stout/lambda.hpp>
 
 // Provides a simple threading facility for starting a thread to run
 // an arbitrary function. No mechanism for returning a value from the
@@ -14,17 +14,17 @@ namespace thread {
 
 void* __run(void* arg)
 {
-  std::tr1::function<void(void)>* function =
-    reinterpret_cast<std::tr1::function<void(void)>*>(arg);
+  lambda::function<void(void)>* function =
+    reinterpret_cast<lambda::function<void(void)>*>(arg);
   (*function)();
   delete function;
   return 0;
 }
 
 
-bool start(const std::tr1::function<void(void)>& f, bool detach = false)
+bool start(const lambda::function<void(void)>& f, bool detach = false)
 {
-  std::tr1::function<void(void)>* __f = new std::tr1::function<void(void)>(f);
+  lambda::function<void(void)>* __f = new lambda::function<void(void)>(f);
 
   pthread_t t;
   if (pthread_create(&t, NULL, __run, __f) != 0) {

@@ -23,8 +23,6 @@
 #include <string>
 #include <vector>
 
-#include <tr1/functional>
-
 #include <boost/circular_buffer.hpp>
 
 #include <mesos/resources.hpp>
@@ -37,6 +35,7 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/memory.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
 
@@ -355,7 +354,7 @@ private:
   // Authenticated frameworks keyed by framework's PID.
   hashset<UPID> authenticated;
 
-  boost::circular_buffer<std::tr1::shared_ptr<Framework> > completedFrameworks;
+  boost::circular_buffer<memory::shared_ptr<Framework> > completedFrameworks;
 
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.

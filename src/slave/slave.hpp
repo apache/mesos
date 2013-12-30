@@ -23,8 +23,6 @@
 #include <string>
 #include <vector>
 
-#include <tr1/functional>
-
 #include <boost/circular_buffer.hpp>
 
 #include <mesos/resources.hpp>

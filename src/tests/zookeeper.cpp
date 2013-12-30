@@ -22,8 +22,6 @@
 
 #include <queue>
 
-#include <tr1/functional>
-
 #include <jvm/jvm.hpp>
 
 #include <jvm/org/apache/log4j.hpp>
@@ -158,7 +156,7 @@ ZooKeeperTest::TestWatcher::awaitEvent()
 
 ZooKeeperTest::TestWatcher::Event
 ZooKeeperTest::TestWatcher::awaitEvent(
-    const std::tr1::function<bool(Event)>& matches)
+    const lambda::function<bool(Event)>& matches)
 {
   while (true) {
     Event event = awaitEvent();

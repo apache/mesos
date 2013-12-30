@@ -22,11 +22,10 @@
 #include <cstdlib>
 #include <iostream>
 
-#include <tr1/functional>
-
 #include <mesos/executor.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/lambda.hpp>
 #include <stout/os.hpp>
 
 using namespace mesos;
@@ -50,7 +49,7 @@ void run(ExecutorDriver* driver, const TaskInfo& task)
 
 void* start(void* arg)
 {
-  std::tr1::function<void(void)>* thunk = (std::tr1::function<void(void)>*) arg;
+  lambda::function<void(void)>* thunk = (lambda::function<void(void)>*) arg;
   (*thunk)();
   delete thunk;
   return NULL;
@@ -82,8 +81,8 @@ public:
   {
     cout << "Starting task " << task.task_id().value() << endl;
 
-    std::tr1::function<void(void)>* thunk =
-      new std::tr1::function<void(void)>(std::tr1::bind(&run, driver, task));
+    lambda::function<void(void)>* thunk =
+      new lambda::function<void(void)>(lambda::bind(&run, driver, task));
 
     pthread_t pthread;
     if (pthread_create(&pthread, NULL, &start, thunk) != 0) {

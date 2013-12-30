@@ -29,6 +29,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
+#include <stout/memory.hpp>
 #include <stout/net.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
@@ -447,7 +448,7 @@ Future<Response> Master::Http::state(const Request& request)
   {
     JSON::Array array;
 
-    foreach (const std::tr1::shared_ptr<Framework>& framework,
+    foreach (const memory::shared_ptr<Framework>& framework,
              master.completedFrameworks) {
       array.values.push_back(model(*framework));
     }
@@ -538,7 +539,7 @@ Future<Response> Master::Http::tasks(const Request& request)
   foreachvalue (Framework* framework, master.frameworks) {
     frameworks.push_back(framework);
   }
-  foreach (const std::tr1::shared_ptr<Framework>& framework,
+  foreach (const memory::shared_ptr<Framework>& framework,
            master.completedFrameworks) {
     frameworks.push_back(framework.get());
   }

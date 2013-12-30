@@ -748,8 +748,8 @@ $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py		\
 	  $(MKDIR_P) python/src;					\
 	  cp -pf $(srcdir)/python/src/mesos.py python/src;		\
 	fi
-	@LIBS="$(LIBS)" PYTHONPATH=$(DISTRIBUTE_EGG)			\
-	  $(PYTHON) python/setup.py bdist_egg
+	@LIBS="$(LIBS)" CC="$(CC)" CXX="$(CXX)"				\
+	  PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) python/setup.py bdist_egg
 
 CLEANFILES += $(MESOS_EGG) python/build/temp.*/native/*.o python/build/lib.*/*
 

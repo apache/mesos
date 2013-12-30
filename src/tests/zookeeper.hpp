@@ -25,8 +25,6 @@
 
 #include <queue>
 
-#include <tr1/functional>
-
 #include <stout/duration.hpp>
 
 #include "tests/zookeeper_test_server.hpp"
@@ -104,7 +102,7 @@ public:
     void awaitCreated(const std::string& path);
 
     // Blocks until an event is fired matching the given predicate.
-    Event awaitEvent(const std::tr1::function<bool(Event)>& matches);
+    Event awaitEvent(const lambda::function<bool(Event)>& matches);
 
     // Blocks until an event is fired.
     Event awaitEvent();

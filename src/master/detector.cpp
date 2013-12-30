@@ -19,9 +19,6 @@
 #include <set>
 #include <string>
 
-#include <tr1/functional>
-#include <tr1/memory> // TODO(benh): Replace shared_ptr with unique_ptr.
-
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
