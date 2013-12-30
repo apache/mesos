@@ -272,14 +272,35 @@ Jvm::Method Jvm::findStaticMethod(const MethodSignature& signature)
 }
 
 
-Jvm::Field Jvm::findStaticField(const Class& clazz, const std::string& name)
+Jvm::Field Jvm::findField(
+    const Class& clazz,
+    const std::string& name,
+    const std::string& signature)
+{
+  Env env;
+
+  jfieldID id = env->GetFieldID(
+      findClass(clazz),
+      name.c_str(),
+      signature.c_str());
+
+  check(env);
+
+  return Jvm::Field(clazz, id);
+}
+
+
+Jvm::Field Jvm::findStaticField(
+    const Class& clazz,
+    const std::string& name,
+    const std::string& signature)
 {
   Env env;
 
   jfieldID id = env->GetStaticFieldID(
       findClass(clazz),
       name.c_str(),
-      clazz.signature().c_str());
+      signature.c_str());
 
   check(env);
 
@@ -296,6 +317,78 @@ jobject Jvm::invoke(const Constructor& ctor, ...)
   va_end(args);
   check(env);
   return o;
+}
+
+
+template <>
+void Jvm::setField<jobject>(jobject receiver, const Field& field, jobject o)
+{
+  Env env;
+  env->SetObjectField(receiver, field.id, o);
+  check(env);
+}
+
+
+template <>
+void Jvm::setField<bool>(jobject receiver, const Field& field, bool b)
+{
+  Env env;
+  env->SetBooleanField(receiver, field.id, b);
+  check(env);
+}
+
+
+template <>
+void Jvm::setField<char>(jobject receiver, const Field& field, char c)
+{
+  Env env;
+  env->SetCharField(receiver, field.id, c);
+  check(env);
+}
+
+
+template <>
+void Jvm::setField<short>(jobject receiver, const Field& field, short s)
+{
+  Env env;
+  env->SetShortField(receiver, field.id, s);
+  check(env);
+}
+
+
+template <>
+void Jvm::setField<int>(jobject receiver, const Field& field, int i)
+{
+  Env env;
+  env->SetIntField(receiver, field.id, i);
+  check(env);
+}
+
+
+template <>
+void Jvm::setField<long>(jobject receiver, const Field& field, long l)
+{
+  Env env;
+  env->SetLongField(receiver, field.id, l);
+  check(env);
+}
+
+
+template <>
+void Jvm::setField<float>(jobject receiver, const Field& field, float f)
+{
+  Env env;
+  env->SetFloatField(receiver, field.id, f);
+  check(env);
+}
+
+
+template <>
+void Jvm::setField<double>(jobject receiver, const Field& field, double d)
+{
+  Env env;
+  env->SetDoubleField(receiver, field.id, d);
+  check(env);
 }
 
 
@@ -421,9 +514,16 @@ jclass Jvm::findClass(const Class& clazz)
 {
   Env env;
 
+  jclass jclazz = env->FindClass(clazz.name.c_str());
+
+  if (env->ExceptionCheck()) {
+    env->ExceptionDescribe();
+    LOG(FATAL) << "Failed to find class " << clazz.name;
+  }
+
   // TODO(John Sirois): Consider CHECK_NOTNULL -> return Option if
   // re-purposing this code outside of tests.
-  return CHECK_NOTNULL(env->FindClass(clazz.name.c_str()));
+  return CHECK_NOTNULL(jclazz);
 }
 
 

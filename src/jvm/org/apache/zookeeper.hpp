@@ -6,11 +6,16 @@
 #include <jvm/java/io.hpp>
 #include <jvm/java/net.hpp>
 
-// Package 'org.apache.zookeeper.persistence'.
+
+// Package 'org.apache.zookeeper.server'.
 
 namespace org {
 namespace apache {
 namespace zookeeper {
+namespace server {
+
+// Package 'org.apache.zookeeper.server.persistence'.
+
 namespace persistence {
 
 class FileTxnSnapLog : public Jvm::Object
@@ -32,17 +37,14 @@ public:
 };
 
 } // namespace persistence {
-} // namespace zookeeper {
-} // namespace apache {
-} // namespace org {
 
 
-// Package 'org.apache.zookeeper.server'.
+class SessionTracker : public Jvm::Object {};
 
-namespace org {
-namespace apache {
-namespace zookeeper {
-namespace server {
+
+extern const char ZOOKEEPERSERVER_SESSIONTRACKER_SIGNATURE[];
+extern const char ZOOKEEPERSERVER_SESSIONTRACKER[];
+
 
 class ZooKeeperServer : public Jvm::Object
 {
@@ -65,6 +67,8 @@ public:
 
   ZooKeeperServer(const persistence::FileTxnSnapLog& txnLogFactory,
                   const DataTreeBuilder& treeBuilder)
+    : sessionTracker(
+        Jvm::Class::named("org/apache/zookeeper/server/ZooKeeperServer"))
   {
     static Jvm::Constructor constructor = Jvm::get()->findConstructor(
         Jvm::Class::named("org/apache/zookeeper/server/ZooKeeperServer")
@@ -78,6 +82,11 @@ public:
 
     object = Jvm::get()->invoke(
         constructor, (jobject) txnLogFactory, (jobject) treeBuilder);
+
+    // We need to "bind" the 'sessionTracker' Variable after we assign
+    // 'object' above so that '*this' is a Jvm::Object instance that
+    // doesn't point to a NULL jobject.
+    sessionTracker.bind(*this);
   }
 
   void setMaxSessionTimeout(int max)
@@ -142,64 +151,64 @@ public:
 
     Jvm::get()->invoke<void>(object, method, sessionId);
   }
+
+  Jvm::Variable<SessionTracker,
+                ZOOKEEPERSERVER_SESSIONTRACKER,
+                ZOOKEEPERSERVER_SESSIONTRACKER_SIGNATURE> sessionTracker;
 };
 
 
-class NIOServerCnxn : public Jvm::Object
+// TODO(benh): Extends ServerCnxnFactory implements Runnable.
+class NIOServerCnxnFactory : public Jvm::Object
 {
 public:
-  class Factory : public Jvm::Object // TODO(benh): Extends Thread.
+  NIOServerCnxnFactory()
   {
-  public:
-    Factory(const java::net::InetSocketAddress& addr)
-    {
-      static Jvm::Constructor constructor = Jvm::get()->findConstructor(
-          Jvm::Class::named(
-              "org/apache/zookeeper/server/NIOServerCnxn$Factory")
-          .constructor()
-          .parameter(Jvm::Class::named("java/net/InetSocketAddress")));
+    static Jvm::Constructor constructor = Jvm::get()->findConstructor(
+        Jvm::Class::named(
+            "org/apache/zookeeper/server/NIOServerCnxnFactory")
+        .constructor());
 
-      object = Jvm::get()->invoke(constructor, (jobject) addr);
-    }
+    object = Jvm::get()->invoke(constructor);
+  }
 
-    void startup(const ZooKeeperServer& zks)
-    {
-      static Jvm::Method method = Jvm::get()->findMethod(
-          Jvm::Class::named(
-              "org/apache/zookeeper/server/NIOServerCnxn$Factory")
-          .method("startup")
-          .parameter(Jvm::Class::named(
-                         "org/apache/zookeeper/server/ZooKeeperServer"))
-          .returns(Jvm::get()->voidClass));
+  void configure(const java::net::InetSocketAddress& addr, int maxcc)
+  {
+    static Jvm::Method method = Jvm::get()->findMethod(
+        Jvm::Class::named(
+            "org/apache/zookeeper/server/NIOServerCnxnFactory")
+        .method("configure")
+        .parameter(Jvm::Class::named("java/net/InetSocketAddress"))
+        .parameter(Jvm::get()->intClass)
+        .returns(Jvm::get()->voidClass));
 
-      Jvm::get()->invoke<void>(object, method, (jobject) zks);
-    }
 
-    bool isAlive()
-    {
-      static Jvm::Method method = Jvm::get()->findMethod(
-          Jvm::Class::named(
-              "org/apache/zookeeper/server/NIOServerCnxn$Factory")
-          .method("isAlive")
-          .returns(Jvm::get()->booleanClass));
+    Jvm::get()->invoke<void>(object, method, (jobject) addr, maxcc);
+  }
 
-      return Jvm::get()->invoke<bool>(object, method);
-    }
+  void startup(const ZooKeeperServer& zks)
+  {
+    static Jvm::Method method = Jvm::get()->findMethod(
+        Jvm::Class::named(
+            "org/apache/zookeeper/server/NIOServerCnxnFactory")
+        .method("startup")
+        .parameter(Jvm::Class::named(
+                       "org/apache/zookeeper/server/ZooKeeperServer"))
+        .returns(Jvm::get()->voidClass));
 
-    void shutdown()
-    {
-      static Jvm::Method method = Jvm::get()->findMethod(
-          Jvm::Class::named(
-              "org/apache/zookeeper/server/NIOServerCnxn$Factory")
-          .method("shutdown")
-          .returns(Jvm::get()->voidClass));
+    Jvm::get()->invoke<void>(object, method, (jobject) zks);
+  }
 
-      Jvm::get()->invoke<void>(object, method);
-    }
-  };
+  void shutdown()
+  {
+    static Jvm::Method method = Jvm::get()->findMethod(
+        Jvm::Class::named(
+            "org/apache/zookeeper/server/NIOServerCnxnFactory")
+        .method("shutdown")
+        .returns(Jvm::get()->voidClass));
 
-private:
-  NIOServerCnxn() {} // No default constructors.
+    Jvm::get()->invoke<void>(object, method);
+  }
 };
 
 } // namespace server {

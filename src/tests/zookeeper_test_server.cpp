@@ -30,9 +30,9 @@
 
 #include "tests/zookeeper_test_server.hpp"
 
-using org::apache::zookeeper::persistence::FileTxnSnapLog;
+using org::apache::zookeeper::server::persistence::FileTxnSnapLog;
 
-using org::apache::zookeeper::server::NIOServerCnxn;
+using org::apache::zookeeper::server::NIOServerCnxnFactory;
 using org::apache::zookeeper::server::ZooKeeperServer;
 
 namespace mesos {
@@ -114,32 +114,51 @@ std::string ZooKeeperTestServer::connectString() const
 
 void ZooKeeperTestServer::shutdownNetwork()
 {
-  if (started && connectionFactory && connectionFactory->isAlive()) {
+  if (connectionFactory != NULL && started) {
     connectionFactory->shutdown();
     delete connectionFactory;
     connectionFactory = NULL;
-    LOG(INFO) << "Shutdown ZooKeeperTestServer on port " << port << std::endl;
+    started = false;
+    LOG(INFO) << "Shutdown ZooKeeperTestServer on port " << port;
   }
 }
 
 
 int ZooKeeperTestServer::startNetwork()
 {
-  connectionFactory = new NIOServerCnxn::Factory(
-      java::net::InetSocketAddress(port));
+  if (!started) {
+    connectionFactory = new NIOServerCnxnFactory();
 
-  connectionFactory->startup(*zooKeeperServer);
+    // We use '-1' to allow an unlimited number of connections for his
+    // connection factory instance.
+    connectionFactory->configure(java::net::InetSocketAddress(port), -1);
 
-  if (port == 0) {
-    // We save the ephemeral port so if/when we restart the network
-    // the clients will reconnect to the same server. Note that this
-    // might not actually be kosher because it's possible that another
-    // process could bind to our ephemeral port after we unbind.
-    port = zooKeeperServer->getClientPort();
+    // It's possible that we are restarting the network, but not the
+    // server. Unfortunately, we can't just invoke 'startup' on the
+    // NIOServerCnxnFactory because of a bug in ZooKeeperServer (see
+    // MESOS-670). We remedy this with a giant hack: by setting the
+    // 'sessionTracker' variable on ZooKeeperServer to null then a new
+    // instance will get created and everything will work out. Until
+    // ZooKeeper provides mechanisms for doing in-memory testing this
+    // hack (or something like it) will need to exist. This hack is
+    // specific to ZooKeeper 3.4.5 and may need to change if up
+    // upgrade ZooKeeper.
+    zooKeeperServer->sessionTracker = Jvm::Null();
+
+    connectionFactory->startup(*zooKeeperServer);
+
+    if (port == 0) {
+      // We save the ephemeral port so if/when we restart the network
+      // the clients will reconnect to the same server. Note that this
+      // might not actually be kosher because it's possible that another
+      // process could bind to our ephemeral port after we unbind.
+      port = zooKeeperServer->getClientPort();
+    }
+
+    LOG(INFO) << "Started ZooKeeperTestServer on port " << port;
+    started = true;
   }
 
-  LOG(INFO) << "Started ZooKeeperTestServer on port " << port;
-  started = true;
   return port;
 }
 

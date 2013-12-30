@@ -234,8 +234,11 @@ public:
       : object(Jvm::get()->newGlobalRef(_object)) {}
 
     Object(const Object& that)
+      : object(NULL)
     {
-      object = Jvm::get()->newGlobalRef(that.object);
+      if (that.object != NULL) {
+        object = Jvm::get()->newGlobalRef(that.object);
+      }
     }
 
     ~Object()
@@ -249,8 +252,11 @@ public:
     {
       if (object != NULL) {
         Jvm::get()->deleteGlobalRef(object);
+        object = NULL;
       }
-      object = Jvm::get()->newGlobalRef(that.object);
+      if (that.object != NULL) {
+        object = Jvm::get()->newGlobalRef(that.object);
+      }
       return *this;
     }
 
@@ -265,16 +271,63 @@ public:
     jobject object;
   };
 
+
+  class Null : public Object {};
+
+
+  template <typename T, const char* name, const char* signature>
+  class Variable
+  {
+  public:
+    Variable(const Class& _clazz)
+      : clazz(_clazz)
+    {
+      // Check that T extends Object.
+      { T* t = NULL; Object* o = t; (void) o; }
+    }
+
+    Variable(const Class& _clazz, const Object& _object)
+      : clazz(_clazz), object(_object)
+    {
+      // Check that T extends Object.
+      { T* t = NULL; Object* o = t; (void) o; }
+    }
+
+    // TODO(benh): Implement cast operator (like in StaticVariable).
+    // This requires implementing Jvm::getField too.
+
+    template <typename U>
+    Variable& operator = (const U& u)
+    {
+      // Check that U extends Object (but not necessarily T since U
+      // might be 'Null').
+      { U* u = NULL; Object* o = u; (void) o; }
+
+      // Note that we actually look up the field lazily (upon first
+      // assignment operator) so that we don't possibly create the JVM
+      // too early.
+      static Field field = Jvm::get()->findField(clazz, name, signature);
+
+      Jvm::get()->setField<jobject>(object, field, u);
+
+      return *this;
+    }
+
+    void bind(const Object& _object) { object = _object; }
+
+  private:
+    const Class clazz;
+    Object object; // Not const so we can do late binding.
+  };
+
   // Helper for providing access to static variables in a class. You
   // can use this to delay the variable lookup until it's actually
   // accessed in order to keep the JVM from getting constructed too
   // early. See Level in jvm/org/apache/log4j.hpp for an example.
-  // TODO(benh): Make this work for instance variables too (i.e.,
-  // StaticVariable -> Variable).
   // TODO(benh): Provide template specialization for primitive
   // types (e.g., StaticVariable<int>, StaticVariable<short>,
   // StaticVariable<std::string>).
-  template <typename T, const char* name>
+  template <typename T, const char* name, const char* signature>
   class StaticVariable
   {
   public:
@@ -290,7 +343,8 @@ public:
       // Note that we actually look up the field lazily (upon first
       // invocation operator) so that we don't possibly create the JVM
       // too early.
-      static Field field = Jvm::get()->findStaticField(clazz, name);
+      static Field field =
+        Jvm::get()->findStaticField(clazz, name, signature);
       T t;
       t.object = Jvm::get()->getStaticField<jobject>(field);
       return t;
@@ -339,9 +393,20 @@ public:
   jstring string(const std::string& s);
 
   Constructor findConstructor(const ConstructorFinder& finder);
+
   Method findMethod(const MethodSignature& signature);
+
   Method findStaticMethod(const MethodSignature& signature);
-  Field findStaticField(const Class& clazz, const std::string& name);
+
+  Field findField(
+      const Class& clazz,
+      const std::string& name,
+      const std::string& signature);
+
+  Field findStaticField(
+      const Class& clazz,
+      const std::string& name,
+      const std::string& signature);
 
   // TODO(John Sirois): Add "type checking" to variadic method
   // calls. Possibly a way to do this with typelists, type
@@ -354,6 +419,9 @@ public:
 
   template <typename T>
   T invokeStatic(const Method& method, ...);
+
+  template <typename T>
+  void setField(jobject receiver, const Field& field, T t);
 
   template <typename T>
   T getStaticField(const Field& field);

@@ -598,6 +598,7 @@ libjava_la_SOURCES =							\
 	jvm/java/net.hpp						\
 	jvm/org/apache/log4j.cpp					\
 	jvm/org/apache/log4j.hpp					\
+	jvm/org/apache/zookeeper.cpp					\
 	jvm/org/apache/zookeeper.hpp
 
 libjava_la_CPPFLAGS = $(MESOS_CPPFLAGS)

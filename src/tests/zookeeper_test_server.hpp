@@ -74,7 +74,7 @@ public:
 
 private:
   org::apache::zookeeper::server::ZooKeeperServer* zooKeeperServer;
-  org::apache::zookeeper::server::NIOServerCnxn::Factory* connectionFactory;
+  org::apache::zookeeper::server::NIOServerCnxnFactory* connectionFactory;
 
   int port;
   bool started;

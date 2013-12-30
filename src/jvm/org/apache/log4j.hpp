@@ -8,15 +8,16 @@ namespace apache {
 namespace log4j {
 
 // Forward declaration.
+extern const char LEVEL_OFF_SIGNATURE[];
 extern const char LEVEL_OFF[];
 
 
 class Level : public Jvm::Object // TODO(benh): Extends Priority.
 {
 public:
-  friend class Jvm::StaticVariable<Level, LEVEL_OFF>;
+  friend class Jvm::StaticVariable<Level, LEVEL_OFF, LEVEL_OFF_SIGNATURE>;
 
-  static Jvm::StaticVariable<Level, LEVEL_OFF> OFF;
+  static Jvm::StaticVariable<Level, LEVEL_OFF, LEVEL_OFF_SIGNATURE> OFF;
 
   Level() {} // No default constuctors.
 };
