@@ -41,7 +41,7 @@ namespace internal {
 namespace slave {
 namespace state {
 
-class SlaveState; // Forward declaration.
+struct SlaveState; // Forward declaration.
 
 } // namespace state {
 
@@ -56,6 +56,9 @@ public:
   static void destroy(Isolator* isolator);
 
   virtual ~Isolator() {}
+
+  // Explicitely use 'initialize' since we're overloading below.
+  using process::ProcessBase::initialize;
 
   // Called during slave initialization.
   virtual void initialize(

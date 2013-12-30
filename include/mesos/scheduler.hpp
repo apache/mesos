@@ -19,6 +19,8 @@
 #ifndef __MESOS_SCHEDULER_HPP__
 #define __MESOS_SCHEDULER_HPP__
 
+#include <pthread.h>
+
 #include <string>
 #include <vector>
 

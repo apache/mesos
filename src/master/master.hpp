@@ -565,7 +565,7 @@ struct Framework
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
 
-    completedTasks.push_back(*task);
+    completedTasks.push_back(memory::shared_ptr<Task>(new Task(*task)));
     tasks.erase(task->task_id());
     resources -= task->resources();
   }
@@ -633,7 +633,10 @@ struct Framework
 
   hashmap<TaskID, Task*> tasks;
 
-  boost::circular_buffer<Task> completedTasks;
+  // NOTE: We use a shared pointer for Task because clang doesn't like
+  // Boost's implementation of circular_buffer with Task (Boost
+  // attempts to do some memset's which are unsafe).
+  boost::circular_buffer<memory::shared_ptr<Task> > completedTasks;
 
   hashset<Offer*> offers; // Active offers for framework.
 

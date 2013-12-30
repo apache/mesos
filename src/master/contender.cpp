@@ -49,7 +49,10 @@ class ZooKeeperMasterContenderProcess
 public:
   ZooKeeperMasterContenderProcess(const zookeeper::URL& url);
   ZooKeeperMasterContenderProcess(Owned<zookeeper::Group> group);
-  ~ZooKeeperMasterContenderProcess();
+  virtual ~ZooKeeperMasterContenderProcess();
+
+  // Explicitely use 'initialize' since we're overloading below.
+  using process::ProcessBase::initialize;
 
   void initialize(const PID<Master>& master);
 

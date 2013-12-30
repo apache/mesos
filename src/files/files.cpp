@@ -9,6 +9,7 @@
 
 #include <boost/shared_array.hpp>
 
+#include <process/deferred.hpp> // TODO(benh): This is required by Clang.
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>

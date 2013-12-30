@@ -208,8 +208,9 @@ void RegistrarProcess::_recover(
   CHECK(!recovery.isPending());
 
   if (recovery.isFailed() || recovery.isDiscarded()) {
-    LOG(WARNING) << "Failed to recover registrar: " << recovery.isFailed()
-      ? recovery.failure() : "future discarded";
+    LOG(WARNING)
+      << "Failed to recover registrar: "
+      << (recovery.isFailed() ? recovery.failure() : "future discarded");
     recover(); // Retry! TODO(benh): Don't retry forever?
   } else {
     LOG(INFO) << "Successfully recovered registrar";

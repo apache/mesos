@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include <process/deferred.hpp> // TODO(benh): This is required by Clang.
 #include <process/future.hpp>
 
 #include <stout/lambda.hpp>

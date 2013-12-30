@@ -465,7 +465,7 @@ void Slave::fileAttached(const Future<Nothing>& result, const string& path)
     VLOG(1) << "Successfully attached file '" << path << "'";
   } else {
     LOG(ERROR) << "Failed to attach file '" << path << "': "
-               << result.isFailed() ? result.failure() : "discarded";
+               << (result.isFailed() ? result.failure() : "discarded");
   }
 }
 
@@ -3229,9 +3229,8 @@ void Executor::completeTask(const TaskID& taskId)
     << "Failed to find terminated task " << taskId;
 
   Task* task = terminatedTasks[taskId];
-  completedTasks.push_back(*task);
+  completedTasks.push_back(memory::shared_ptr<Task>(task));
   terminatedTasks.erase(taskId);
-  delete task;
 }
 
 

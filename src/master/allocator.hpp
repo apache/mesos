@@ -57,6 +57,9 @@ public:
 
   virtual ~AllocatorProcess() {}
 
+  // Explicitely use 'initialize' since we're overloading below.
+  using process::ProcessBase::initialize;
+
   virtual void initialize(
       const Flags& flags,
       const process::PID<Master>& master,

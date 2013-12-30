@@ -218,8 +218,8 @@ JSON::Object model(const Executor& executor)
   object.values["queued_tasks"] = queued;
 
   JSON::Array completed;
-  foreach (const Task& task, executor.completedTasks) {
-    completed.values.push_back(model(task));
+  foreach (const memory::shared_ptr<Task>& task, executor.completedTasks) {
+    completed.values.push_back(model(*task));
   }
 
   // NOTE: We add 'terminatedTasks' to 'completed_tasks' for

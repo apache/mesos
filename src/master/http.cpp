@@ -199,8 +199,8 @@ JSON::Object model(const Framework& framework)
   // Model all of the completed tasks of a framework.
   {
     JSON::Array array;
-    foreach (const Task& task, framework.completedTasks) {
-      array.values.push_back(model(task));
+    foreach (const memory::shared_ptr<Task>& task, framework.completedTasks) {
+      array.values.push_back(model(*task));
     }
 
     object.values["completed_tasks"] = array;
@@ -551,8 +551,8 @@ Future<Response> Master::Http::tasks(const Request& request)
       CHECK_NOTNULL(task);
       tasks.push_back(task);
     }
-    foreach (const Task& task, framework->completedTasks) {
-      tasks.push_back(&task);
+    foreach (const memory::shared_ptr<Task>& task, framework->completedTasks) {
+      tasks.push_back(task.get());
     }
   }
 

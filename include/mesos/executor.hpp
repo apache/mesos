@@ -19,6 +19,8 @@
 #ifndef __MESOS_EXECUTOR_HPP__
 #define __MESOS_EXECUTOR_HPP__
 
+#include <pthread.h>
+
 #include <string>
 
 #include <mesos/mesos.hpp>

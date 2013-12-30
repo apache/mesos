@@ -211,7 +211,10 @@ public:
     TERMINATING,  // Slave is shutting down.
   } state;
 
-protected:
+  // TODO(benh): Clang requires members to be public in order to take
+  // their address which we do in tests (for things like
+  // FUTURE_DISPATCH).
+// protected:
   virtual void initialize();
   virtual void finalize();
   virtual void exited(const UPID& pid);
@@ -304,8 +307,8 @@ private:
     const Slave& slave;
   } http;
 
-  friend class Framework;
-  friend class Executor;
+  friend struct Framework;
+  friend struct Executor;
 
   Slave(const Slave&);              // No copying.
   Slave& operator = (const Slave&); // No assigning.
@@ -410,10 +413,22 @@ struct Executor
 
   Resources resources; // Currently consumed resources.
 
-  LinkedHashMap<TaskID, TaskInfo> queuedTasks; // Not yet launched.
-  LinkedHashMap<TaskID, Task*> launchedTasks;  // Running.
-  LinkedHashMap<TaskID, Task*> terminatedTasks; // Terminated but pending updates.
-  boost::circular_buffer<Task> completedTasks; // Terminated and updates acked.
+  // Tasks can be found in one of the following four data structures:
+
+  // Not yet launched.
+  LinkedHashMap<TaskID, TaskInfo> queuedTasks;
+
+  // Running.
+  LinkedHashMap<TaskID, Task*> launchedTasks;
+
+  // Terminated but pending updates.
+  LinkedHashMap<TaskID, Task*> terminatedTasks;
+
+  // Terminated and updates acked.
+  // NOTE: We use a shared pointer for Task because clang doesn't like
+  // Boost's implementation of circular_buffer with Task (Boost
+  // attempts to do some memset's which are unsafe).
+  boost::circular_buffer<memory::shared_ptr<Task> > completedTasks;
 
 private:
   Executor(const Executor&);              // No copying.

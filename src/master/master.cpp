@@ -671,7 +671,7 @@ void Master::fileAttached(const Future<Nothing>& result, const string& path)
     LOG(INFO) << "Successfully attached file '" << path << "'";
   } else {
     LOG(ERROR) << "Failed to attach file '" << path << "': "
-               << result.isFailed() ? result.failure() : "discarded";
+               << (result.isFailed() ? result.failure() : "discarded");
   }
 }
 

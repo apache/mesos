@@ -59,8 +59,10 @@ public:
   StatusUpdateManagerProcess() {}
   virtual ~StatusUpdateManagerProcess();
 
-  // StatusUpdateManager implementation.
+  // Explicitely use 'initialize' since we're overloading below.
+  using process::ProcessBase::initialize;
 
+  // StatusUpdateManager implementation.
   void initialize(
       const Flags& flags,
       const PID<Slave>& slave);
