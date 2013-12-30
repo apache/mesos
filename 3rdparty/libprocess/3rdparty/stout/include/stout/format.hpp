@@ -6,7 +6,11 @@
 
 #include <string>
 
+#if __cplusplus >= 201103L
+#include <type_traits> // For 'is_pod'.
+#else // __cplusplus >= 201103L
 #include <tr1/type_traits> // For 'is_pod'.
+#endif // __cplusplus >= 201103L
 
 #include "error.hpp"
 #include "try.hpp"

@@ -7,11 +7,10 @@
 #include <string>
 #include <typeinfo> // For typeid.
 
-#include <tr1/functional>
-
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -149,14 +148,14 @@ void FlagsBase::add(
   flag.name = name;
   flag.help = help;
   flag.boolean = typeid(T1) == typeid(bool);
-  flag.loader = std::tr1::bind(
+  flag.loader = lambda::bind(
       &Loader<T1>::load,
       t1,
-      std::tr1::function<Try<T1>(const std::string&)>(
-          std::tr1::bind(&parse<T1>, std::tr1::placeholders::_1)),
+      lambda::function<Try<T1>(const std::string&)>(
+          lambda::bind(&parse<T1>, lambda::_1)),
       name,
-      std::tr1::placeholders::_2); // Use _2 because ignore FlagsBase*.
-  flag.stringify = std::tr1::bind(&Stringifier<T1>, t1);
+      lambda::_2); // Use _2 because ignore FlagsBase*.
+  flag.stringify = lambda::bind(&Stringifier<T1>, t1);
 
   // Update the help string to include the default value.
   flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
@@ -179,14 +178,14 @@ void FlagsBase::add(
   flag.name = name;
   flag.help = help;
   flag.boolean = typeid(T) == typeid(bool);
-  flag.loader = std::tr1::bind(
+  flag.loader = lambda::bind(
       &OptionLoader<T>::load,
       option,
-      std::tr1::function<Try<T>(const std::string&)>(
-          std::tr1::bind(&parse<T>, std::tr1::placeholders::_1)),
+      lambda::function<Try<T>(const std::string&)>(
+          lambda::bind(&parse<T>, lambda::_1)),
       name,
-      std::tr1::placeholders::_2); // Use _2 because ignore FlagsBase*.
-  flag.stringify = std::tr1::bind(&OptionStringifier<T>, option);
+      lambda::_2); // Use _2 because ignore FlagsBase*.
+  flag.stringify = lambda::bind(&OptionStringifier<T>, option);
 
   FlagsBase::add(flag);
 }
@@ -212,17 +211,17 @@ void FlagsBase::add(
   flag.name = name;
   flag.help = help;
   flag.boolean = typeid(T1) == typeid(bool);
-  flag.loader = std::tr1::bind(
+  flag.loader = lambda::bind(
       &MemberLoader<Flags, T1>::load,
-      std::tr1::placeholders::_1,
+      lambda::_1,
       t1,
-      std::tr1::function<Try<T1>(const std::string&)>(
-          std::tr1::bind(&parse<T1>, std::tr1::placeholders::_1)),
+      lambda::function<Try<T1>(const std::string&)>(
+          lambda::bind(&parse<T1>, lambda::_1)),
       name,
-      std::tr1::placeholders::_2);
-  flag.stringify = std::tr1::bind(
+      lambda::_2);
+  flag.stringify = lambda::bind(
       &MemberStringifier<Flags, T1>,
-      std::tr1::placeholders::_1,
+      lambda::_1,
       t1);
 
   // Update the help string to include the default value.
@@ -253,17 +252,17 @@ void FlagsBase::add(
   flag.name = name;
   flag.help = help;
   flag.boolean = typeid(T) == typeid(bool);
-  flag.loader = std::tr1::bind(
+  flag.loader = lambda::bind(
       &OptionMemberLoader<Flags, T>::load,
-      std::tr1::placeholders::_1,
+      lambda::_1,
       option,
-      std::tr1::function<Try<T>(const std::string&)>(
-          std::tr1::bind(&parse<T>, std::tr1::placeholders::_1)),
+      lambda::function<Try<T>(const std::string&)>(
+          lambda::bind(&parse<T>, lambda::_1)),
       name,
-      std::tr1::placeholders::_2);
-  flag.stringify = std::tr1::bind(
+      lambda::_2);
+  flag.stringify = lambda::bind(
       &OptionMemberStringifier<Flags, T>,
-      std::tr1::placeholders::_1,
+      lambda::_1,
       option);
 
   add(flag);

@@ -12,11 +12,10 @@
 #include <set>
 #include <string>
 
-#include <tr1/memory>
-
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/memory.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -220,7 +219,7 @@ private:
       bool set; // Has this been initialized?
     };
 
-    std::tr1::shared_ptr<Memory> memory;
+    memory::shared_ptr<Memory> memory;
     std::vector<Tree> children;
   };
 
@@ -297,7 +296,7 @@ private:
     SharedMemoryDeleter deleter(fd);
 
     Tree tree;
-    tree.memory = std::tr1::shared_ptr<Tree::Memory>(
+    tree.memory = memory::shared_ptr<Tree::Memory>(
         (Tree::Memory*) memory, deleter);
     tree.memory->set = false;
 

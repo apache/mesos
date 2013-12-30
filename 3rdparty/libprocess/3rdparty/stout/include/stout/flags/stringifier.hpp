@@ -3,8 +3,6 @@
 
 #include <string>
 
-#include <tr1/functional>
-
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>

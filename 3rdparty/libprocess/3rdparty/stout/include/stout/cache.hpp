@@ -6,8 +6,7 @@
 #include <list>
 #include <map>
 
-#include <tr1/functional>
-#include <tr1/unordered_map>
+#include <boost/unordered_map.hpp>
 
 #include "none.hpp"
 #include "option.hpp"
@@ -30,7 +29,7 @@ class cache
 {
 public:
   typedef std::list<Key> list;
-  typedef std::tr1::unordered_map<
+  typedef boost::unordered_map<
     Key, std::pair<Value, typename list::iterator> > map;
 
   explicit cache(int _capacity) : capacity(_capacity) {}

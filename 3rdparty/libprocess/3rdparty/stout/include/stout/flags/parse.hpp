@@ -4,8 +4,6 @@
 #include <sstream> // For istringstream.
 #include <string>
 
-#include <tr1/functional>
-
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/try.hpp>

@@ -3,9 +3,8 @@
 
 #include <string>
 
-#include <tr1/functional>
-
 #include <stout/error.hpp>
+#include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/some.hpp>
@@ -23,7 +22,7 @@ struct Loader
 {
   static Try<Nothing> load(
       T* flag,
-      const std::tr1::function<Try<T>(const std::string&)>& parse,
+      const lambda::function<Try<T>(const std::string&)>& parse,
       const std::string& name,
       const std::string& value)
   {
@@ -43,7 +42,7 @@ struct OptionLoader
 {
   static Try<Nothing> load(
       Option<T>* flag,
-      const std::tr1::function<Try<T>(const std::string&)>& parse,
+      const lambda::function<Try<T>(const std::string&)>& parse,
       const std::string& name,
       const std::string& value)
   {
@@ -64,7 +63,7 @@ struct MemberLoader
   static Try<Nothing> load(
       FlagsBase* base,
       T F::*flag,
-      const std::tr1::function<Try<T>(const std::string&)>& parse,
+      const lambda::function<Try<T>(const std::string&)>& parse,
       const std::string& name,
       const std::string& value)
   {
@@ -88,7 +87,7 @@ struct OptionMemberLoader
   static Try<Nothing> load(
       FlagsBase* base,
       Option<T> F::*flag,
-      const std::tr1::function<Try<T>(const std::string&)>& parse,
+      const lambda::function<Try<T>(const std::string&)>& parse,
       const std::string& name,
       const std::string& value)
   {
