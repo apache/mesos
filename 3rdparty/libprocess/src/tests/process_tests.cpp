@@ -1267,3 +1267,149 @@ TEST(Process, provide)
 
   ASSERT_SOME(os::rmdir(path));
 }
+
+
+#if __cplusplus >= 201103L
+int baz(string s) { return 42; }
+
+Future<int> bam(string s) { return 42; }
+
+
+TEST(Process, defers)
+{
+  {
+    std::function<Future<int>(string)> f =
+      defer(std::bind(baz, std::placeholders::_1));
+
+    Deferred<Future<int>(string)> d =
+      defer(std::bind(baz, std::placeholders::_1));
+
+    Future<int> future = Future<string>().then(
+        defer(std::bind(baz, std::placeholders::_1)));
+
+    Future<int> future3 = Future<string>().then(
+        std::bind(baz, std::placeholders::_1));
+
+    Future<string>().then(std::function<int(string)>());
+    Future<string>().then(std::function<int(void)>());
+
+    Future<int> future11 = Future<string>().then(
+        defer(std::bind(bam, std::placeholders::_1)));
+
+    Future<int> future12 = Future<string>().then(
+        std::bind(bam, std::placeholders::_1));
+
+    std::function<Future<int>(string)> f2 =
+      defer([] (string s) { return baz(s); });
+
+    Deferred<Future<int>(string)> d2 =
+      defer([] (string s) { return baz(s); });
+
+    Future<int> future2 = Future<string>().then(
+        defer([] (string s) { return baz(s); }));
+
+    Future<int> future4 = Future<string>().then(
+        [] (string s) { return baz(s); });
+
+    Future<int> future5 = Future<string>().then(
+        defer([] (string s) -> Future<int> { return baz(s); }));
+
+    Future<int> future6 = Future<string>().then(
+        defer([] (string s) { return Future<int>(baz(s)); }));
+
+    Future<int> future7 = Future<string>().then(
+        defer([] (string s) { return bam(s); }));
+
+    Future<int> future8 = Future<string>().then(
+        [] (string s) { return Future<int>(baz(s)); });
+
+    Future<int> future9 = Future<string>().then(
+        [] (string s) -> Future<int> { return baz(s); });
+
+    Future<int> future10 = Future<string>().then(
+        [] (string s) { return bam(s); });
+  }
+
+//   {
+//     // CAN NOT DO IN CLANG!
+//     std::function<void(string)> f =
+//       defer(std::bind(baz, std::placeholders::_1));
+
+//     std::function<int(string)> blah;
+//     std::function<void(string)> blam = blah;
+
+//     std::function<void(string)> f2 =
+//       defer([] (string s) { return baz(s); });
+//   }
+
+//   {
+//     // CAN NOT DO WITH GCC OR CLANG!
+//     std::function<int(int)> f =
+//       defer(std::bind(baz, std::placeholders::_1));
+//   }
+
+  {
+    std::function<Future<int>(void)> f =
+      defer(std::bind(baz, "42"));
+
+    std::function<Future<int>(void)> f2 =
+      defer([] () { return baz("42"); });
+  }
+
+  {
+    std::function<Future<int>(int)> f =
+      defer(std::bind(baz, "42"));
+
+    std::function<Future<int>(int)> f2 =
+      defer([] (int i) { return baz("42"); });
+  }
+
+  // Don't care about value passed from Future::then.
+  {
+    Future<int> future = Future<string>().then(
+        defer(std::bind(baz, "42")));
+
+    Future<int> future3 = Future<string>().then(
+        std::bind(baz, "42"));
+
+    Future<int> future11 = Future<string>().then(
+        defer(std::bind(bam, "42")));
+
+    Future<int> future12 = Future<string>().then(
+        std::bind(bam, "42"));
+
+    Future<int> future2 = Future<string>().then(
+        defer([] () { return baz("42"); }));
+
+    Future<int> future4 = Future<string>().then(
+        [] () { return baz("42"); });
+
+    Future<int> future5 = Future<string>().then(
+        defer([] () -> Future<int> { return baz("42"); }));
+
+    Future<int> future6 = Future<string>().then(
+        defer([] () { return Future<int>(baz("42")); }));
+
+    Future<int> future7 = Future<string>().then(
+        defer([] () { return bam("42"); }));
+
+    Future<int> future8 = Future<string>().then(
+        [] () { return Future<int>(baz("42")); });
+
+    Future<int> future9 = Future<string>().then(
+        [] () -> Future<int> { return baz("42"); });
+
+    Future<int> future10 = Future<string>().then(
+        [] () { return bam("42"); });
+  }
+
+  struct Functor
+  {
+    int operator () (string) const { return 42; }
+    int operator () () const { return 42; }
+  } functor;
+
+  Future<int> future13 = Future<string>().then(
+      defer(functor));
+}
+#endif // __cplusplus >= 201103L

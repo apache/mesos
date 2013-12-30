@@ -105,46 +105,143 @@ public:
   typedef lambda::function<void(void)> DiscardedCallback;
   typedef lambda::function<void(const Future<T>&)> AnyCallback;
 
+#if __cplusplus >= 201103L
+  // Installs callbacks for the specified events and returns a const
+  // reference to 'this' in order to easily support chaining.
+  const Future<T>& onReady(ReadyCallback&& callback) const;
+  const Future<T>& onFailed(FailedCallback&& callback) const;
+  const Future<T>& onDiscarded(DiscardedCallback&& callback) const;
+  const Future<T>& onAny(AnyCallback&& callback) const;
+
+  // TODO(benh): Add onReady, onFailed, onAny for _Deferred<F> where F
+  // is not expected.
+
+  template <typename F>
+  const Future<T>& onReady(_Deferred<F>&& deferred) const
+  {
+    return onReady(std::function<void(const T&)>(deferred));
+  }
+
+  template <typename F>
+  const Future<T>& onFailed(_Deferred<F>&& deferred) const
+  {
+    return onFailed(std::function<void(const std::string&)>(deferred));
+  }
+
+  template <typename F>
+  const Future<T>& onDiscarded(_Deferred<F>&& deferred) const
+  {
+    return onDiscarded(std::function<void()>(deferred));
+  }
+
+  template <typename F>
+  const Future<T>& onAny(_Deferred<F>&& deferred) const
+  {
+    return onAny(std::function<void(const Future<T>&)>(deferred));
+  }
+
+private:
+  // We use the 'Prefer' and 'LessPrefer' structs as a way to prefer
+  // one function over the other when doing SFINAE for the 'onReady',
+  // 'onFailed', 'onAny', and 'then' functions. In each of these cases
+  // we prefer calling the version of the functor that takes in an
+  // argument (i.e., 'const T&' for 'onReady' and 'then' and 'const
+  // std::string&' for 'onFailed'), but we allow functors that don't
+  // care about the argument. We don't need to do this for
+  // 'onDiscarded' because it doesn't take an argument.
+  struct LessPrefer {};
+  struct Prefer : LessPrefer {};
+
+  template <typename F, typename = typename std::result_of<F(const T&)>::type>
+  const Future<T>& onReady(F&& f, Prefer) const
+  {
+    return onReady(std::function<void(const T&)>(
+        [=] (const T& t) mutable {
+          f(t);
+        }));
+  }
+
+  template <typename F, typename = typename std::result_of<F()>::type>
+  const Future<T>& onReady(F&& f, LessPrefer) const
+  {
+    return onReady(std::function<void(const T&)>(
+        [=] (const T&) mutable {
+          f();
+        }));
+  }
+
+  template <typename F, typename = typename std::result_of<F(const std::string&)>::type>
+  const Future<T>& onFailed(F&& f, Prefer) const
+  {
+    return onFailed(std::function<void(const std::string&)>(
+        [=] (const std::string& message) mutable {
+          f(message);
+        }));
+  }
+
+  template <typename F, typename = typename std::result_of<F()>::type>
+  const Future<T>& onFailed(F&& f, LessPrefer) const
+  {
+    return onFailed(std::function<void(const std::string&)>(
+        [=] (const std::string&) mutable {
+          f();
+        }));
+  }
+
+  template <typename F, typename = typename std::result_of<F(const Future<T>&)>::type>
+  const Future<T>& onAny(F&& f, Prefer) const
+  {
+    return onAny(std::function<void(const Future<T>&)>(
+        [=] (const Future<T>& future) {
+          f(future);
+        }));
+  }
+
+  template <typename F, typename = typename std::result_of<F()>::type>
+  const Future<T>& onAny(F&& f, LessPrefer) const
+  {
+    return onAny(std::function<void(const Future<T>&)>(
+        [=] (const Future<T>&) mutable {
+          f();
+        }));
+  }
+
+public:
+  template <typename F>
+  const Future<T>& onReady(F&& f) const
+  {
+    return onReady(std::forward<F>(f), Prefer());
+  }
+
+  template <typename F>
+  const Future<T>& onFailed(F&& f) const
+  {
+    return onFailed(std::forward<F>(f), Prefer());
+  }
+
+  template <typename F>
+  const Future<T>& onDiscarded(F&& f) const
+  {
+    return onDiscarded(std::function<void()>(
+        [=] () mutable {
+          f();
+        }));
+  }
+
+  template <typename F>
+  const Future<T>& onAny(F&& f) const
+  {
+    return onAny(std::forward<F>(f), Prefer());
+  }
+
+#else // __cplusplus >= 201103L
+
   // Installs callbacks for the specified events and returns a const
   // reference to 'this' in order to easily support chaining.
   const Future<T>& onReady(const ReadyCallback& callback) const;
   const Future<T>& onFailed(const FailedCallback& callback) const;
   const Future<T>& onDiscarded(const DiscardedCallback& callback) const;
   const Future<T>& onAny(const AnyCallback& callback) const;
-
-#if __cplusplus >= 201103L
-  template <typename F>
-  const Future<T>& onReady(const _Deferred<F>& deferred) const
-  {
-    return onReady(std::function<void(const T&)>(deferred));
-  }
-
-  template <typename F>
-  const Future<T>& onFailed(const _Deferred<F>& deferred) const
-  {
-    return onFailed(std::function<void(const std::string&)>(deferred));
-  }
-
-  template <typename F>
-  const Future<T>& onAny(const _Deferred<F>& deferred) const
-  {
-    return onAny(std::function<void(const Future<T>&)>(deferred));
-  }
-
-  const Future<T>& onReady(const Deferred<void(void)>& deferred) const
-  {
-    return onReady(std::function<void(const T&)>(lambda::bind(deferred)));
-  }
-
-  const Future<T>& onFailed(const Deferred<void(void)>& deferred) const
-  {
-    return onFailed(std::function<void(const std::string&)>(lambda::bind(deferred)));
-  }
-
-  const Future<T>& onAny(const Deferred<void(void)>& deferred) const
-  {
-    return onAny(std::function<void(const Future<T>&)>(lambda::bind(deferred)));
-  }
 #endif // __cplusplus >= 201103L
 
   // Installs callbacks that get executed when this future is ready
@@ -157,32 +254,51 @@ public:
   Future<X> then(const lambda::function<X(const T&)>& f) const;
 
   template <typename X>
-  Future<X> then(const lambda::function<Future<X>(void)>& f) const
+  Future<X> then(const lambda::function<Future<X>()>& f) const
   {
     return then(lambda::function<Future<X>(const T&)>(lambda::bind(f)));
   }
 
   template <typename X>
-  Future<X> then(const lambda::function<X(void)>& f) const
+  Future<X> then(const lambda::function<X()>& f) const
   {
     return then(lambda::function<X(const T&)>(lambda::bind(f)));
   }
 
 #if __cplusplus >= 201103L
-  template <typename F>
-  typename internal::wrap<typename std::result_of<F(const T&)>::type>::Type
-  then(F f) const
+private:
+  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F(const T&)>::type>::type>
+  Future<X> then(_Deferred<F>&& f, Prefer) const
   {
-    typedef typename std::result_of<F(const T&)>::type R;
-    return then(std::function<R(const T&)>(f));
+    // note the then<X> is necessary to not have an infinite loop with
+    // then(F&& f)
+    return then<X>(std::function<Future<X>(const T&)>(f));
   }
 
-  template <typename F>
-  typename internal::wrap<typename std::result_of<F(const T&)>::type>::Type
-  then(const _Deferred<F>& deferred) const
+  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F()>::type>::type>
+  Future<X> then(_Deferred<F>&& f, LessPrefer) const
   {
-    typedef typename std::result_of<F(const T&)>::type R;
-    return then(std::function<R(const T&)>(deferred));
+    return then<X>(std::function<Future<X>()>(f));
+  }
+
+  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F(const T&)>::type>::type>
+  Future<X> then(F&& f, Prefer) const
+  {
+    return then<X>(std::function<Future<X>(const T&)>(f));
+  }
+
+  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F()>::type>::type>
+  Future<X> then(F&& f, LessPrefer) const
+  {
+    return then<X>(std::function<Future<X>()>(f));
+  }
+
+public:
+  template <typename F>
+  auto then(F&& f) const
+    -> decltype(this->then(std::forward<F>(f), Prefer()))
+  {
+    return then(std::forward<F>(f), Prefer());
   }
 
 #else // __cplusplus >= 201103L
@@ -507,28 +623,28 @@ namespace internal {
 template <typename T>
 struct wrap
 {
-  typedef Future<T> Type;
+  typedef Future<T> type;
 };
 
 
 template <typename X>
 struct wrap<Future<X> >
 {
-  typedef Future<X> Type;
+  typedef Future<X> type;
 };
 
 
 template <typename T>
 struct unwrap
 {
-  typedef T Type;
+  typedef T type;
 };
 
 
 template <typename X>
 struct unwrap<Future<X> >
 {
-  typedef X Type;
+  typedef X type;
 };
 
 
@@ -576,8 +692,17 @@ Future<Future<T> > select(const std::set<Future<T> >& futures)
   memory::shared_ptr<Promise<Future<T> > > promise(
       new Promise<Future<T> >());
 
-  Future<Future<T> > future = promise->future();
-
+#if __cplusplus >= 201103L
+  typename std::set<Future<T>>::iterator iterator;
+  for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
+    // NOTE: We can't use std::bind with a std::function with Clang
+    // like we do below (see
+    // http://stackoverflow.com/questions/20097616/stdbind-to-a-stdfunction-crashes-with-clang).
+    (*iterator).onAny([=] (const Future<T>& future) {
+      internal::select(future, promise);
+    });
+  }
+#else // __cplusplus >= 201103L
   lambda::function<void(const Future<T>&)> select =
     lambda::bind(&internal::select<T>, lambda::_1, promise);
 
@@ -585,8 +710,9 @@ Future<Future<T> > select(const std::set<Future<T> >& futures)
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
     (*iterator).onAny(lambda::bind(select, lambda::_1));
   }
+#endif // __cplusplus >= 201103L
 
-  return future;
+  return promise->future();
 }
 
 
@@ -839,6 +965,103 @@ std::string Future<T>::failure() const
 }
 
 
+#if __cplusplus >= 201103L
+template <typename T>
+const Future<T>& Future<T>::onReady(ReadyCallback&& callback) const
+{
+  bool run = false;
+
+  internal::acquire(&data->lock);
+  {
+    if (data->state == READY) {
+      run = true;
+    } else if (data->state == PENDING) {
+      data->onReadyCallbacks.push(std::move(callback));
+    }
+  }
+  internal::release(&data->lock);
+
+  // TODO(*): Invoke callback in another execution context.
+  if (run) {
+    callback(*data->t);
+  }
+
+  return *this;
+}
+
+
+template <typename T>
+const Future<T>& Future<T>::onFailed(FailedCallback&& callback) const
+{
+  bool run = false;
+
+  internal::acquire(&data->lock);
+  {
+    if (data->state == FAILED) {
+      run = true;
+    } else if (data->state == PENDING) {
+      data->onFailedCallbacks.push(std::move(callback));
+    }
+  }
+  internal::release(&data->lock);
+
+  // TODO(*): Invoke callback in another execution context.
+  if (run) {
+    callback(*data->message);
+  }
+
+  return *this;
+}
+
+
+template <typename T>
+const Future<T>& Future<T>::onDiscarded(DiscardedCallback&& callback) const
+{
+  bool run = false;
+
+  internal::acquire(&data->lock);
+  {
+    if (data->state == DISCARDED) {
+      run = true;
+    } else if (data->state == PENDING) {
+      data->onDiscardedCallbacks.push(std::move(callback));
+    }
+  }
+  internal::release(&data->lock);
+
+  // TODO(*): Invoke callback in another execution context.
+  if (run) {
+    callback();
+  }
+
+  return *this;
+}
+
+
+template <typename T>
+const Future<T>& Future<T>::onAny(AnyCallback&& callback) const
+{
+  bool run = false;
+
+  internal::acquire(&data->lock);
+  {
+    if (data->state != PENDING) {
+      run = true;
+    } else if (data->state == PENDING) {
+      data->onAnyCallbacks.push(std::move(callback));
+    }
+  }
+  internal::release(&data->lock);
+
+  // TODO(*): Invoke callback in another execution context.
+  if (run) {
+    callback(*this);
+  }
+
+  return *this;
+}
+
+#else // __cplusplus >= 201103L
 template <typename T>
 const Future<T>& Future<T>::onReady(const ReadyCallback& callback) const
 {
@@ -934,7 +1157,7 @@ const Future<T>& Future<T>::onAny(const AnyCallback& callback) const
 
   return *this;
 }
-
+#endif // __cplusplus >= 201103L
 
 namespace internal {
 

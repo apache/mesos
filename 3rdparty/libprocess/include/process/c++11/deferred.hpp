@@ -4,18 +4,11 @@
 #include <functional>
 
 #include <process/dispatch.hpp>
-#include <process/future.hpp>
 #include <process/pid.hpp>
 
 #include <stout/preprocessor.hpp>
 
 namespace process {
-
-// Forward declarations (removing these produces cryptic compiler
-// errors even though we are just using them to declare friends).
-class Executor;
-template <typename G> struct _Deferred;
-
 
 // Acts like a function call but runs within an asynchronous execution
 // context such as an Executor or a ProcessBase (enforced because only
@@ -46,11 +39,28 @@ private:
 };
 
 
+// We need an intermeidate "deferred" type because when constructing a
+// Deferred we won't always know the underlying function type (for
+// example, if we're being passed a std::bind or a lambda). A lambda
+// won't always implicitly convert to a std::function so instead we
+// hold onto the functor type F and let the compiler invoke the
+// necessary cast operator (below) when it actually has determined
+// what type is needed. This is similar in nature to how std::bind
+// works with it's intermediate _Bind type (which the pre-C++11
+// implementation relied on).
 template <typename F>
 struct _Deferred
 {
   operator Deferred<void()> () const
   {
+    // The 'pid' differentiates an already dispatched functor versus
+    // one which still needs to be dispatched (which is done
+    // below). We have to delay wrapping the dispatch (for example, in
+    // defer.hpp) as long as possible because we don't always know
+    // what type the functor is or is going to be cast to (i.e., a
+    // std::bind might can be cast to functions that do or do not take
+    // arguments which will just be dropped when invoking the
+    // underlying bound function).
     if (pid.isNone()) {
       return std::function<void()>(f);
     }
@@ -113,6 +123,12 @@ struct _Deferred
         });
   }
 
+  // Due to a bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=41933)
+  // with variadic templates and lambdas, we still need to do
+  // preprocessor expansions. In addition, due to a bug with clang (or
+  // libc++) we can't use std::bind with a std::function so we have to
+  // explicitely use the std::function<R(P...)>::operator() (see
+  // http://stackoverflow.com/questions/20097616/stdbind-to-a-stdfunction-crashes-with-clang).
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename P)>                                 \
   operator Deferred<void(ENUM_PARAMS(N, P))> () const                   \
@@ -201,10 +217,7 @@ private:
   friend class Executor;
 
   template <typename G>
-  friend _Deferred<G> defer(const UPID& pid, G g);
-
-  template <typename G>
-  friend _Deferred<G> defer(G g);
+  friend _Deferred<G> defer(const UPID& pid, G&& g);
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <typename T,                                                 \
@@ -213,7 +226,7 @@ private:
   friend auto defer(const PID<T>& pid,                                  \
              void (T::*method)(ENUM_PARAMS(N, P)),                      \
              ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(std::function<void(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>;
+    -> _Deferred<decltype(std::bind(&std::function<void(ENUM_PARAMS(N, P))>::operator(), std::function<void(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>;
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
@@ -226,7 +239,7 @@ private:
   friend auto defer(const PID<T>& pid,                                  \
              Future<R> (T::*method)(ENUM_PARAMS(N, P)),                 \
              ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>;
+    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>;
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
@@ -239,12 +252,12 @@ private:
   friend auto defer(const PID<T>& pid,                                  \
              R (T::*method)(ENUM_PARAMS(N, P)),                         \
              ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>;
+    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>;
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
 
-  _Deferred(UPID pid, F f) : pid(pid), f(f) {}
+  _Deferred(const UPID& pid, F f) : pid(pid), f(f) {}
   _Deferred(F f) : f(f) {}
 
   Option<UPID> pid;
