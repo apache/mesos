@@ -8,6 +8,7 @@
 #include <string>
 
 #include "error.hpp"
+#include "stringify.hpp"
 #include "try.hpp"
 
 // Compression utilities.
@@ -38,7 +39,7 @@ inline Try<std::string> compress(
   // Verify the level is within range.
   if (!(level == Z_DEFAULT_COMPRESSION ||
       (level >= Z_NO_COMPRESSION && level <= Z_BEST_COMPRESSION))) {
-    return Error("Invalid compression level: " + level);
+    return Error("Invalid compression level: " + stringify(level));
   }
 
   z_stream_s stream;
