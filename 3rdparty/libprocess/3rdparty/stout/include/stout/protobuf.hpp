@@ -124,9 +124,13 @@ inline Result<T> read(int fd, bool ignorePartial = false)
   }
 
   // Parse the protobuf from the string.
+  // NOTE: We need to capture a const reference to the data because it
+  // must outlive the creation of ArrayInputStream.
+  const std::string& data = result.get();
+
   T message;
   google::protobuf::io::ArrayInputStream stream(
-      result.get().data(), result.get().size());
+      data.data(), data.size());
 
   if (!message.ParseFromZeroCopyStream(&stream)) {
     // Restore the offset to before the size read.
