@@ -140,6 +140,11 @@ AC_ARG_WITH([included-zookeeper],
                            appropriate may be necessary)]),
              [], [with_included_zookeeper=yes])
 
+AC_ARG_WITH([cxx11],
+            AS_HELP_STRING([--with-cxx11],
+                           [builds Mesos using C++11]),
+            [], [with_cxx11=no])
+
 # TODO(benh): Support --without-included-protobuf,
 # --without-included-glog, etc. Doing this for protobuf is
 # considerably more tricky because we need to make sure that 'protoc'
@@ -170,31 +175,24 @@ case "${target_os}" in
     echo ===========================================================
     OS_NAME=darwin
     ;;
-  solaris*)
-    echo ===========================================================
-    echo Setting up build environment for ${target_cpu} ${target_os}
-    echo ===========================================================
-    OS_NAME=solaris
-    CC=gcc-4.3.2
-    CXX=g++-4.3.2
-    CFLAGS="$CFLAGS -pthreads -march=i586"
-    CXXFLAGS="$CXXFLAGS -pthreads -march=i586"
-    LIBS="$LIBS -lsocket -lnsl -lproject -lproc"
-    ;;
   *)
     AC_MSG_ERROR("Mesos is currently unsupported on your platform.")
-  esac
+esac
 
 
 # Used for conditionally including source files.
 AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 
 
-# Checks for gcc toolchain (we rely on some atomic builtins for now).
+# Default to gcc toolchain (we rely on some atomic builtins for now,
+# that are also present with clang).
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
 
-# Check the version of gcc and add any flags as appropriate.
+
+# Check the version of gcc and add any flags as appropriate. Note that
+# '-dumpversion' works for clang as well but as of clang 3.3 it
+# reports version 4.2.1 (for gcc backwards compatibility).
 GCC_VERSION="`${CC} -dumpversion`"
 test $? = 0 || AC_MSG_ERROR([failed to determine version of gcc])
 case  "${GCC_VERSION}" in
@@ -218,6 +216,37 @@ case  "${GCC_VERSION}" in
     CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedefs"
   ;;
 esac
+
+
+# Check if we should try and enable optimizations.
+if test "x$enable_optimize" = "xyes"; then
+  # For now, we only turn on optimizations for gcc.
+  if test "x$GCC" = "xyes"; then
+    CXXFLAGS="$CXXFLAGS -g2 -O2"
+  fi
+fi
+
+
+# Check if we're using clang.
+AC_MSG_CHECKING([if compiling with clang])
+
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE(
+[AC_LANG_PROGRAM([], [[
+#ifndef __clang__
+       not clang
+#endif
+]])],
+[CLANG=yes], [CLANG=no])
+AC_LANG_POP([C++])
+
+AC_MSG_RESULT([$CLANG])
+AC_SUBST([CLANG])
+
+# Force C++11 if we're using clang.
+if test "x$CLANG" = "xyes"; then
+  with_cxx11=yes
+fi
 
 
 # Check for pthreads (uses m4/acx_pthread.m4).
@@ -555,15 +584,6 @@ fi
 AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
 
 
-# Check if we should try and enable optimizations.
-if test "x$enable_optimize" = "xyes"; then
-  # For now, we only turn on optimizations for gcc.
-  if test "x$GCC" = "xyes"; then
-    CXXFLAGS="$CXXFLAGS -g2 -O2"
-  fi
-fi
-
-
 # Check if we should/can build with libcurl.
 if test "x$with_curl" = "xyes"; then
   AC_CHECK_LIB([z], [gzread], [],
@@ -600,12 +620,29 @@ if test "x$with_curl" = "xyes"; then
   and task resources cannot be downloaded over http.
   -------------------------------------------------------------------
   ])])
-
 fi
 
 
 AM_CONDITIONAL([WITH_INCLUDED_ZOOKEEPER],
                [test "x$with_included_zookeeper" = "xyes"])
+
+
+# Check if we should/can build with C++11.
+if test "x$with_cxx11" = "xyes"; then
+  AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+
+   # If we're using clang, we need to pass -stdlib=libc++ too.
+  if test "x$CLANG" = "xyes"; then
+    CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+  fi
+
+  # Force gtest to use it's own tuple implementation since 'tr1/tuple'
+  # might not exist (for example, if building with clang).
+  CXXFLAGS="-DGTEST_USE_OWN_TR1_TUPLE=1 $CXXFLAGS"
+
+  # Also pass the flags to 3rdparty libraries.
+  CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
+fi
 
 
 # TODO(benh): Also check for md5 support so we can use the CRAM-MD5
@@ -618,6 +655,8 @@ We need libsasl2 for authentication!
 -------------------------------------------------------------------
 ])])
 
+
 AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
+
 
 AC_OUTPUT
