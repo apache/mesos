@@ -1242,9 +1242,12 @@ Status MesosSchedulerDriver::stop(bool failover)
     return status;
   }
 
-  CHECK(process != NULL);
-
-  dispatch(process, &SchedulerProcess::stop, failover);
+  // 'process' might be NULL if the driver has failed to instantiate
+  // it due to bad parameters (e.g. error in creating the detector
+  // or loading flags).
+  if (process != NULL) {
+    dispatch(process, &SchedulerProcess::stop, failover);
+  }
 
   // TODO: It might make more sense to clean up our local cluster here than in
   // the destructor. However, what would be even better is to allow multiple
