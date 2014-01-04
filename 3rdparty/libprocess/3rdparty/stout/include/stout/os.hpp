@@ -885,6 +885,43 @@ inline Try<Bytes> memory()
 }
 
 
+inline Try<Bytes> freeMemory()
+{
+#ifdef __linux__
+  struct sysinfo info;
+  if (sysinfo(&info) != 0) {
+    return ErrnoError();
+  }
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 23)
+  return Bytes(info.freeram * info.mem_unit);
+# else
+  return Bytes(info.freeram);
+# endif
+#elif defined __APPLE__
+  const long pageSize = sysconf(_SC_PAGESIZE);
+  if (pageSize < 0) {
+    return ErrnoError();
+  }
+
+  unsigned int freeCount;
+  size_t length = sizeof(freeCount);
+
+  if (sysctlbyname(
+      "vm.page_free_count",
+      &freeCount,
+      &length,
+      NULL,
+      0) != 0) {
+    return ErrnoError();
+  }
+
+  return Bytes(freeCount * pageSize);
+#else
+  return Error("Cannot determine the size of free memory");
+#endif
+}
+
+
 inline Try<std::string> bootId()
 {
 #ifdef __linux__
