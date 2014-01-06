@@ -29,8 +29,10 @@
 
 #include <process/future.hpp>
 
+#include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
