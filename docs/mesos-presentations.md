@@ -5,6 +5,10 @@ layout: documentation
 # Video and Slides of Mesos Presentations
 _(Listed in date descending order)_
 
+### Run your data center like Google's with Apache Mesos ([Video + Demo](https://www.youtube.com/watch?v=2YWVGMuMTrg)) 
+Abhishek Parolkar
+Presented November 14th, 2013 at [Cloud Expo Asia 2013](http://www.cloudexpoasia.com/)
+
 ### Datacenter Management with Mesos ([Video](http://www.youtube.com/watch?v=YB1VW0LKzJ4))
 Benjamin Hindman
 Presented August 29th, 2013 at [AMP Camp](http://ampcamp.berkeley.edu/3/)
