@@ -181,6 +181,17 @@
       $scope.total_mem += slave.resources.mem;
     });
 
+    var setTaskMetadata = function(task) {
+      if (!task.executor_id) {
+        task.executor_id = task.id;
+      }
+      if (task.statuses.length > 0) {
+        task.start_time = task.statuses[0].timestamp * 1000;
+        task.finish_time =
+          task.statuses[task.statuses.length - 1].timestamp * 1000;
+      }
+    };
+
     _.each($scope.state.frameworks, function(framework) {
       $scope.frameworks[framework.id] = framework;
 
@@ -211,26 +222,8 @@
       // internal executor ID generated from the task ID.
       // TODO(brenden): Remove this once
       // https://issues.apache.org/jira/browse/MESOS-527 is fixed.
-      _.each(framework.tasks, function(task) {
-        if (!task.executor_id) {
-          task.executor_id = task.id;
-        }
-        if (task.statuses.length > 0) {
-          task.start_time = task.statuses[0].timestamp * 1000;
-          task.finish_time =
-            task.statuses[task.statuses.length - 1].timestamp * 1000;
-        }
-      });
-      _.each(framework.completed_tasks, function(task) {
-        if (!task.executor_id) {
-          task.executor_id = task.id;
-        }
-        if (task.statuses.length > 0) {
-          task.start_time = task.statuses[0].timestamp * 1000;
-          task.finish_time =
-            task.statuses[task.statuses.length - 1].timestamp * 1000;
-        }
-      });
+      _.each(framework.tasks, setTaskMetadata);
+      _.each(framework.completed_tasks, setTaskMetadata);
 
       $scope.active_tasks = $scope.active_tasks.concat(framework.tasks);
       $scope.completed_tasks =
@@ -239,6 +232,8 @@
 
     _.each($scope.state.completed_frameworks, function(framework) {
       $scope.completed_frameworks[framework.id] = framework;
+
+      _.each(framework.completed_tasks, setTaskMetadata);
     });
 
     $scope.used_cpus -= $scope.offered_cpus;
