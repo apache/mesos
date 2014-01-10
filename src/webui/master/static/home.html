@@ -23,28 +23,13 @@
         <dd>{{state.pid.split("@")[1]}}</dd>
         <dt>Built:</dt>
         <dd>
-          <abbr title="{{state.build_time * 1000 | isoDate}}">
-            {{state.build_time * 1000 | relativeDate:pollTime}}</abbr>
-          by <i>{{state.build_user}}</i>
-          <button class="btn btn-mini btn-toggle"
-              clipboard
-              data-clipboard-text="{{state.build_time * 1000 | isoDate}}"
-              tooltip="Copy timestamp"
-              tooltip-placement="right"
-              tooltip-trigger="clipboardhover">
-          </button>
+          <m-timestamp value="{{state.build_time * 1000}}">
+            by <i>{{state.build_user}}</i>
+          </m-timestamp>
         </dd>
         <dt>Started:</dt>
         <dd>
-          <abbr title="{{state.start_time * 1000 | isoDate}}">
-            {{state.start_time * 1000 | relativeDate:pollTime}}</abbr>
-          <button class="btn btn-mini btn-toggle"
-              clipboard
-              data-clipboard-text="{{state.start_time * 1000 | isoDate}}"
-              tooltip="Copy timestamp"
-              tooltip-placement="right"
-              tooltip-trigger="clipboardhover">
-          </button>
+          <m-timestamp value="{{state.start_time * 1000}}"></m-timestamp>
         </dd>
       </dl>
 
@@ -173,15 +158,7 @@
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
-            <abbr title="{{task.start_time | isoDate}}">
-              {{task.start_time | relativeDate:pollTime}}</abbr>
-            <button class="btn btn-mini btn-toggle"
-              clipboard
-              data-clipboard-text="{{task.start_time | isoDate}}"
-              tooltip="Copy start time"
-              tooltip-placement="right"
-              tooltip-trigger="clipboardhover">
-            </button>
+            <m-timestamp value="{{task.start_time}}"></m-timestamp>
           </td>
           <td>
             <span data-ng-show="slaves[task.slave_id]">
@@ -249,26 +226,10 @@
           <td>{{task.name}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
-            <abbr title="{{task.start_time | isoDate}}">
-              {{task.start_time | relativeDate:pollTime}}</abbr>
-            <button class="btn btn-mini btn-toggle"
-              clipboard
-              data-clipboard-text="{{task.start_time | isoDate}}"
-              tooltip="Copy start time"
-              tooltip-placement="right"
-              tooltip-trigger="clipboardhover">
-            </button>
+            <m-timestamp value="{{task.start_time}}"></m-timestamp>
           </td>
           <td>
-            <abbr title="{{task.finish_time | isoDate}}">
-              {{task.finish_time | relativeDate:pollTime}}</abbr>
-            <button class="btn btn-mini btn-toggle"
-              clipboard
-              data-clipboard-text="{{task.finish_time | isoDate}}"
-              tooltip="Copy finish time"
-              tooltip-placement="right"
-              tooltip-trigger="clipboardhover">
-            </button>
+            <m-timestamp value="{{task.finish_time}}"></m-timestamp>
           </td>
           <td>
             <a data-ng-show="slaves[task.slave_id]"

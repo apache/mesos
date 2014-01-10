@@ -57,6 +57,14 @@ th.unselected:after {
   content: "　";
 }
 
+time {
+  border-bottom: 1px #999 dashed;
+}
+
+time:hover {
+  cursor: pointer;
+}
+
 .inline .btn-toggle,
 .table-condensed .btn-toggle {
   margin-bottom: -2px;

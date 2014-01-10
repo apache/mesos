@@ -1,0 +1,5 @@
+<time datetime="{{value | isoDate}}" ng-click="toggle()" ng-show="longDate">
+  {{value | isoDate}}</time>
+<time datetime="{{value | isoDate}}" ng-click="toggle()" ng-hide="longDate">
+  {{value | relativeDate:pollTime}}</time>
+<span ng-transclude></span>

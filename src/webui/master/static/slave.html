@@ -32,28 +32,11 @@
         <dd>{{state.master_hostname}}</dd>
         <dt>Started:</dt>
         <dd>
-          <abbr title="{{state.start_time * 1000 | isoDate}}">
-            {{state.start_time * 1000 | relativeDate:pollTime}}</abbr>
-          <button class="btn btn-mini btn-toggle"
-              clipboard
-              data-clipboard-text="{{state.start_time * 1000 | isoDate}}"
-              tooltip="Copy timestamp"
-              tooltip-placement="right"
-              tooltip-trigger="clipboardhover">
-          </button>
+          <m-timestamp value="{{state.start_time * 1000}}"></m-timestamp>
         </dd>
         <dt>Built:</dt>
         <dd>
-          <abbr title="{{state.build_time * 1000 | isoDate}}">
-            {{state.build_time * 1000 | relativeDate:pollTime}}</abbr>
-          by <i>{{state.build_user}}</i>
-          <button class="btn btn-mini btn-toggle"
-              clipboard
-              data-clipboard-text="{{state.build_time * 1000 | isoDate}}"
-              tooltip="Copy timestamp"
-              tooltip-placement="right"
-              tooltip-trigger="clipboardhover">
-          </button>
+          <m-timestamp value="{{state.build_time * 1000}}"></m-timestamp>
         </dd>
         <dt>Host:</dt>
         <dd>

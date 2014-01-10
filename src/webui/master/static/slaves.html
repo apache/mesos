@@ -59,28 +59,11 @@
     <td>{{slave.resources.mem * (1024 * 1024) | dataSize}}</td>
     <td>{{slave.resources.disk * (1024 * 1024) | dataSize}}</td>
     <td>
-      <abbr title="{{slave.registered_time * 1000 | isoDate}}">
-        {{slave.registered_time * 1000 | relativeDate:pollTime}}</abbr>
-      <button class="btn btn-mini btn-toggle"
-          clipboard
-          data-clipboard-text="{{slave.registered_time * 1000 | isoDate}}"
-          tooltip="Copy timestamp"
-          tooltip-placement="right"
-          tooltip-trigger="clipboardhover">
-        <i class="icon-file"></i>
-      </button>
+
+      <m-timestamp value="{{slave.registered_time * 1000}}"></m-timestamp>
     </td>
     <td>
-      <abbr title="{{slave.reregistered_time * 1000 | isoDate}}">
-        {{slave.reregistered_time * 1000 | relativeDate:pollTime}}</abbr>
-      <button class="btn btn-mini btn-toggle"
-          clipboard
-          data-clipboard-text="{{slave.reregistered_time * 1000 | isoDate}}"
-          tooltip="Copy timestamp"
-          tooltip-placement="right"
-          tooltip-trigger="clipboardhover">
-        <i class="icon-file"></i>
-      </button>
+      <m-timestamp value="{{slave.reregistered_time * 1000}}"></m-timestamp>
     </td>
   </tr>
 </table>

@@ -70,27 +70,11 @@
       <td>{{framework.resources.mem * (1024 * 1024) | dataSize}}</td>
       <td>{{framework.max_share * 100 | number}}%</td>
       <td>
-        <abbr title="{{framework.registered_time * 1000 | isoDate}}">
-          {{framework.registered_time * 1000 | relativeDate:pollTime}}</abbr>
-        <button class="btn btn-mini btn-toggle"
-          clipboard
-          data-clipboard-text="{{framework.registered_time * 1000 | isoDate}}"
-          tooltip="Copy timestamp"
-          tooltip-placement="right"
-          tooltip-trigger="clipboardhover">
-        </button>
+        <m-timestamp value="{{framework.registered_time * 1000}}"></m-timestamp>
       </td>
       <td ng-show="!framework.reregistered_time">-</td>
       <td ng-show="framework.reregistered_time">
-        <abbr title="{{framework.reregistered_time * 1000 | isoDate}}">
-          {{framework.reregistered_time * 1000 | relativeDate:pollTime}}</abbr>
-        <button class="btn btn-mini btn-toggle"
-          clipboard
-          data-clipboard-text="{{framework.registered_time * 1000 | isoDate}}"
-          tooltip="Copy timestamp"
-          tooltip-placement="right"
-          tooltip-trigger="clipboardhover">
-        </button>
+        <m-timestamp value="{{framework.reregistered_time * 1000}}"></m-timestamp>
       </td>
     </tr>
   </tbody>
@@ -138,26 +122,10 @@
       <td>{{framework.user}}</td>
       <td>{{framework.name}}</td>
       <td>
-        <abbr title="{{framework.registered_time * 1000 | isoDate}}">
-          {{framework.registered_time * 1000 | relativeDate:pollTime}}</abbr>
-        <button class="btn btn-mini btn-toggle"
-          clipboard
-          data-clipboard-text="{{framework.reregistered_time * 1000 | isoDate}}"
-          tooltip="Copy timestamp"
-          tooltip-placement="right"
-          tooltip-trigger="clipboardhover">
-        </button>
+        <m-timestamp value="{{framework.registered_time * 1000}}"></m-timestamp>
       </td>
       <td>
-        <abbr title="{{framework.unregistered_time * 1000 | isoDate}}">
-          {{framework.unregistered_time * 1000 | relativeDate:pollTime}}</abbr>
-        <button class="btn btn-mini btn-toggle"
-          clipboard
-          data-clipboard-text="{{framework.unregistered_time * 1000 | isoDate}}"
-          tooltip="Copy timestamp"
-          tooltip-placement="right"
-          tooltip-trigger="clipboardhover">
-        </button>
+        <m-timestamp value="{{framework.unregistered_time * 1000}}"></m-timestamp>
       </td>
     </tr>
   </tbody>

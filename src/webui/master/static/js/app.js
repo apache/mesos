@@ -73,12 +73,16 @@
     })
     .filter('isoDate', function($filter) {
       return function(date) {
-        return $filter('date')(date, 'yyyy-MM-ddTH:mm:ssZ');
+        var i = parseInt(date, 10);
+        if (_.isNaN(i)) { return '' };
+        return $filter('date')(i, 'yyyy-MM-ddTH:mm:ssZ');
       };
     })
     .filter('relativeDate', function() {
       return function(date, refDate) {
-        return relativeDate(date, refDate);
+        var i = parseInt(date, 10);
+        if (_.isNaN(i)) { return '' };
+        return relativeDate(i, refDate);
       };
     })
     .filter('slice', function() {
@@ -191,5 +195,28 @@
           });
         }
       };
+    }])
+    .directive('mTimestamp', [ '$rootScope', function($rootScope) {
+      return {
+        restrict: 'E',
+        transclude: true,
+        scope: {
+          value: '@'
+        },
+        link: function($scope, element, attrs) {
+          $scope.longDate = JSON.parse(
+            localStorage.getItem('longDate') || false);
+
+          $scope.$on('mTimestamp.toggle', function() {
+            $scope.longDate = !$scope.longDate;
+          });
+
+          $scope.toggle = function() {
+            localStorage.setItem('longDate', !$scope.longDate);
+            $rootScope.$broadcast('mTimestamp.toggle');
+          };
+        },
+        templateUrl: 'static/directives/timestamp.html'
+      }
     }]);
 })();
