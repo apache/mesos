@@ -354,7 +354,7 @@ inline std::string createExecutorDirectory(
   }
 
   // Symlink the new executor directory to "latest".
-  Try<Nothing> symlink = fs::symlink(directory, latest);
+  Try<Nothing> symlink = ::fs::symlink(directory, latest);
 
   CHECK_SOME(symlink)
     << "Failed to symlink directory '" << directory
@@ -384,7 +384,7 @@ inline std::string createSlaveDirectory(
   }
 
   // Symlink the new slave directory to "latest".
-  Try<Nothing> symlink = fs::symlink(directory, latest);
+  Try<Nothing> symlink = ::fs::symlink(directory, latest);
 
   CHECK_SOME(symlink)
     << "Failed to symlink directory '" << directory
