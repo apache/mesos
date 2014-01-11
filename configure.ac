@@ -426,6 +426,105 @@ if test "x$enable_python" = "xyes"; then
   # Next we ensure we have the Python development libraries.
   AC_PYTHON_DEVEL([>= '2.6'])
 
+  # Ensure that we can build a native Python egg linking against a
+  # static library that imports from the standard C++ library.
+  # This was added due to MESOS-799.
+  AC_MSG_CHECKING([whether we can build usable Python eggs])
+
+  # Render code that imports from the standard C++ library.
+  cat <<__EOF__ >testlib.cpp [
+#include <string>
+std::string test(void)
+{
+  return std::string("42");
+}]
+__EOF__
+
+  # Build a static library from the above code.
+  $CXX -x c++ -fPIC -c testlib.cpp $CPPFLAGS $CFLAGS $CXXFLAGS \
+    $LDFLAGS -o testlib.o
+  ar rcs libtest.a testlib.o
+
+  # Render a native Python module that imports from that library.
+  cat <<__EOF__ >testpyegg.cpp [
+#include <Python.h>
+#include <string>
+
+std::string test(void);
+PyMODINIT_FUNC initminimal(void);
+
+static PyObject *minimal_test(PyObject *self, PyObject* args)
+{
+  return PyString_FromString(test().c_str());
+}
+
+static PyMethodDef minimal_methods[] = {
+  { "test", minimal_test, METH_NOARGS, "Test." },
+  { NULL, NULL }
+};
+
+PyMODINIT_FUNC initminimal(void)
+{
+  PyImport_AddModule("minimal");
+  Py_InitModule("minimal", minimal_methods);
+}]
+__EOF__
+
+  # Render a distutils setup for building the Python egg.
+  cat <<__EOF__ >setup.py [
+from distutils.core import setup, Extension;
+setup(name = 'MinimalTest',
+      version = '1.0',
+      description = 'foo',
+      ext_modules = [ Extension('minimal',
+                                 extra_objects = ['libtest.a'],
+                                 sources = ['testpyegg.cpp'] ) ] )
+]
+__EOF__
+
+  # Build that Python egg that links against that library. The build
+  # settings are propagated to distutils.
+  CXX="$CXX" CC="$CC" CXXFLAGS="$CXXFLAGS" CFLAGS="$CFLAGS" \
+    LDFLAGS="$LDFLAGS" $PYTHON setup.py build_ext --inplace \
+    --build-temp ./ 2>1 >/dev/null
+
+  # Run a test-script that makes use of the Python egg.
+  pyeggtest=`$PYTHON -c "import minimal; print(minimal.test())" 2>1`
+
+  # Validate the test-script output.
+  AS_IF([test "x$pyeggtest" = "x42"], [pyeggbuild=yes])
+
+  # Clean up all leftovers from this test.
+  rm -f testlib.cpp testlib.o libtest.a
+  rm -f testpyegg.cpp testpyegg.o setup.py minimal.so
+
+  AS_IF([test "x$pyeggbuild" = "xyes"],
+        [AC_MSG_RESULT([yes])],
+        [AS_IF([test "x$OS_NAME" = "xdarwin"],
+               [AC_MSG_ERROR([no
+-------------------------------------------------------------------
+It appears we were unable to build a usable native Python egg. You
+might be using the default Mac OS X Python distribution which is
+incompatible for building native eggs using this compiler setup.
+For more details, see:
+    https://issues.apache.org/jira/browse/MESOS-799
+
+There are two possible workarounds for this issue:
+    1. Disable python bindings by configuring with --disable-python.
+    2. Use an alternative Python installation that was built using
+       the same build setup as Mesos.
+-------------------------------------------------------------------])],
+               [AC_MSG_ERROR([no
+-------------------------------------------------------------------
+It appears we were unable to build a usable native Python egg.
+
+There are two possible workarounds for this issue:
+    1. Disable python bindings by configuring with --disable-python.
+    2. Use an alternative Python installation that was built using
+       the same build setup as Mesos.
+-------------------------------------------------------------------])])
+        ])
+
   # Determine how the generated Python egg's will get named, used in
   # the Makefile to keep the targets from being rerun.
   PYTHON_EGG_POSTFIX=`$PYTHON -c \
