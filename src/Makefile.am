@@ -433,8 +433,7 @@ nobase_dist_pkgdata_DATA +=						\
 
 # Need to distribute/install webui CSS.
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/css/bootstrap-responsive-2.3.2.min.css		\
-  webui/master/static/css/bootstrap-2.3.2.min.css			\
+  webui/master/static/css/bootstrap-3.0.3.min.css			\
   webui/master/static/css/mesos.css
 
 # Need to distribute/install webui HTML.
@@ -454,18 +453,23 @@ nobase_dist_pkgdata_DATA +=						\
 # Need to distribute/install webui images.
 nobase_dist_pkgdata_DATA +=						\
   webui/master/static/img/loading.gif					\
-  webui/master/static/img/glyphicons-halflings-white.png		\
-  webui/master/static/img/glyphicons-halflings.png			\
   webui/master/static/ico/favicon.ico
+
+# Need to distribute/install webui fonts.
+nobase_dist_pkgdata_DATA +=
+  webui/master/static/fonts/glyphicons-halflings-regular.eot 		\
+  webui/master/static/fonts/glyphicons-halflings-regular.svg 		\
+  webui/master/static/fonts/glyphicons-halflings-regular.ttf 		\
+  webui/master/static/fonts/glyphicons-halflings-regular.wof
 
 # Need to distribute/install third-party javascript.
 nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/angular-1.2.3.js				\
   webui/master/static/js/angular-1.2.3.min.js				\
-  webui/master/static/js/angular-route-1.2.3.js			\
+  webui/master/static/js/angular-route-1.2.3.js				\
   webui/master/static/js/angular-route-1.2.3.min.js			\
-  webui/master/static/js/ui-bootstrap-tpls-0.7.0.js			\
-  webui/master/static/js/ui-bootstrap-tpls-0.7.0.min.js		\
+  webui/master/static/js/ui-bootstrap-tpls-0.9.0.js			\
+  webui/master/static/js/ui-bootstrap-tpls-0.9.0.min.js			\
   webui/master/static/js/underscore-1.4.3.js				\
   webui/master/static/js/underscore-1.4.3.min.js			\
   webui/master/static/js/jquery-1.7.1.js				\

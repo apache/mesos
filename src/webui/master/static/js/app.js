@@ -141,7 +141,7 @@
       return {
         restrict: 'A',
         scope: true,
-        template: '<i class="icon-file"></i>',
+        template: '<i class="glyphicon glyphicon-file"></i>',
 
         link: function(scope, element, attrs) {
           var clip = new ZeroClipboard(element[0]);

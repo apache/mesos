@@ -6,6 +6,13 @@
   vertical-align: top;
 }
 
+.breadcrumb > li + li:before {
+  /* Default content includes a space after the slash, which spreads breadcrumbs
+   * out too much. Remove the trailing space here.
+   */
+  content: "/";
+}
+
 /*
  * /BOOTSTRAP OVERRIDES
  */
@@ -30,12 +37,16 @@ dl.inline dt, dl.inline dd {
   float: left;
 }
 
+dl.inline dd {
+  margin-left: 5px;
+}
+
 dl.inline dd + dt, dl.inline dd + dd {
-  clear: left
+  clear: left;
 }
 
 dl.inline dd + dd {
-  float: none
+  float: none;
 }
 
 dl.inline dt {

@@ -1,35 +1,32 @@
-<ul class="breadcrumb">
+<ol class="breadcrumb">
   <li>
     <a class="badge badge-type" href="#">Master</a>
-    <span class="divider">/</span>
   </li>
   <li>
     <a class="badge badge-type" href="#/slaves/{{slave_id}}" title="{{slave_id}}">
       Slave</a>
-    <span class="divider">/</span>
   </li>
   <li class="active">
     Browse
   </li>
-</ul>
+</ol>
 
-<ul class="breadcrumb">
+<ol class="breadcrumb">
   <li ng-repeat="dir in path.split('/')">
     <a href="#/slaves/{{slave_id}}/browse?path={{
              encodeURIComponent(path.split('/').slice(0, $index + 1).join('/'))}}">
       {{dir}}
     </a>
-    <span class="divider">/</span>
   </li>
-</ul>
+</ol>
 
 <div class="alert alert-error hide" id="alert">
   <button class="close" data-dismiss="alert">×</button>
   <strong>{{alert_message}}</strong>
 </div>
 
-<div class="row hide" id="listing">
-  <div class="span9">
+<div class="row" id="listing">
+  <div class="col-md-9">
     <div class="well">
       <div data-ng-show="listing.length == 0">
         No files in this directory.
@@ -57,13 +54,13 @@
             <td class="text-right">{{file.mtime * 1000 | unixDate}}</td>
             <td>
               <span data-ng-show="file.mode[0] == 'd'">
-                <i class="icon-folder-close"></i>
+                <i class="glyphicon glyphicon-folder-close"></i>
                 <a href="#/slaves/{{slave_id}}/browse?path={{encodeURIComponent(file.path)}}">
                   {{basename(file.path)}}
                 </a>
               </span>
               <span data-ng-show="file.mode[0] != 'd'">
-                <i class="icon-file" style="visibility: hidden;"></i>
+                <i class="glyphicon glyphicon-file" style="visibility: hidden;"></i>
                 <a href="" ng-click="pail($event, encodeURIComponent(file.path))">
                   {{basename(file.path)}}
                 </a>
@@ -72,7 +69,7 @@
             <td>
               <a data-ng-show="file.mode[0] != 'd'"
                  href="http://{{slave_host}}/files/download.json?path={{encodeURIComponent(file.path)}}">
-                <button class="btn btn-mini" type="button">
+                <button class="btn btn-xs btn-default" type="button">
                   Download
                 </button>
               </a>

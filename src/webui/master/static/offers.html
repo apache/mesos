@@ -1,12 +1,11 @@
-<ul class="breadcrumb">
+<ol class="breadcrumb">
   <li>
     <a class="badge badge-type" href="#/">Master</a>
-    <span class="divider">/</span>
   </li>
   <li class="active">
     <span class="badge badge-type">Offers</span>
   </li>
-</ul>
+</ol>
 
 <h3>Offers</h3>
 <table class="table table-striped table-bordered table-condensed">
@@ -39,7 +38,11 @@
       <td>
         <abbr title="{{offer.id}}">{{offer.id | truncateMesosID}}</abbr>
       </td>
-      <td><a href="{{'#/frameworks/' + offer.framework_id}}">{{offer.framework_name}}</a></td>
+      <td>
+        <a href="{{'#/frameworks/' + offer.framework_id}}">
+          {{offer.framework_name}}
+        </a>
+      </td>
       <td>
         <a href="#/slaves/{{slaves[offer.slave_id].id}}">
           {{offer.hostname}}

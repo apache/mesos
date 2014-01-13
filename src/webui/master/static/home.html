@@ -1,12 +1,12 @@
-<ul class="breadcrumb">
+<ol class="breadcrumb">
   <li class="active">
     <span class="badge badge-type">Master</span>
     {{state.id}}
   </li>
-</ul>
+</ol>
 
 <div class="row">
-  <div class="span3">
+  <div class="col-md-3">
     <div class="well">
       <dl class="inline inline-toggle clearfix">
         <dt>Cluster:</dt>
@@ -116,7 +116,7 @@
     </div>
   </div>
 
-  <div class="span9">
+  <div class="col-md-9">
 
     <h3 id="frameworks">Active Tasks</h3>
     <table class="table table-striped table-bordered table-condensed">
@@ -164,7 +164,7 @@
             <span data-ng-show="slaves[task.slave_id]">
               {{slaves[task.slave_id].hostname}}
             </span>
-            <span class="muted" data-ng-show="!slaves[task.slave_id]">
+            <span class="text-muted" data-ng-show="!slaves[task.slave_id]">
               Slave offline
             </span>
           </td>
@@ -172,7 +172,7 @@
             <a data-ng-show="slaves[task.slave_id]" href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
               Sandbox
             </a>
-            <span class="muted" data-ng-show="!slaves[task.slave_id]">
+            <span class="text-muted" data-ng-show="!slaves[task.slave_id]">
               Slave offline
             </span>
           </td>
@@ -236,7 +236,7 @@
                 href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
               {{slaves[task.slave_id].hostname}}
             </a>
-            <span class="muted" data-ng-show="!slaves[task.slave_id]">
+            <span class="text-muted" data-ng-show="!slaves[task.slave_id]">
               Slave offline
             </span>
           </td>
@@ -244,7 +244,7 @@
             <a data-ng-show="slaves[task.slave_id]" href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
               Sandbox
             </a>
-            <span class="muted" data-ng-show="!slaves[task.slave_id]">
+            <span class="text-muted" data-ng-show="!slaves[task.slave_id]">
               Slave offline
             </span>
           </td>

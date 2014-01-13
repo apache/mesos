@@ -1,12 +1,11 @@
-<ul class="breadcrumb">
+<ol class="breadcrumb">
   <li>
     <a class="badge badge-type" href="#">Master</a>
-    <span class="divider">/</span>
   </li>
   <li class="active">
     <span class="badge badge-type">Slaves</span>
   </li>
-</ul>
+</ol>
 
 <h3>Slaves</h3>
 <table class="table table-striped table-bordered table-condensed">
@@ -45,7 +44,7 @@
   <tr ng-repeat="slave in _.values(slaves) | orderBy:tables['slaves'].selected_column:tables['slaves'].reverse">
     <td>
       <a href="#/slaves/{{slave.id}}">{{slave.id | truncateMesosID}}</a>
-      <button class="btn btn-mini btn-toggle"
+      <button class="btn btn-xs btn-default btn-toggle"
           clipboard
           data-clipboard-text="{{slave.id}}"
           tooltip="Copy ID"

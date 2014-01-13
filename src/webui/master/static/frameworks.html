@@ -1,12 +1,9 @@
-<ul class="breadcrumb">
-  <li>
-    <a class="badge badge-type" href="#">Master</a>
-    <span class="divider">/</span>
-  </li>
+<ol class="breadcrumb">
+  <li><a class="badge badge-type" href="#">Master</a></li>
   <li class="active">
     <span class="badge badge-type">Frameworks</span>
   </li>
-</ul>
+</ol>
 
 <h3 id="frameworks">Active Frameworks</h3>
 <table class="table table-striped table-bordered table-condensed">
@@ -55,7 +52,7 @@
       <td>
         <a href="{{'#/frameworks/' + framework.id}}">
           {{(framework.id | truncateMesosID) || framework.name}}</a>
-        <button class="btn btn-mini btn-toggle"
+        <button class="btn btn-xs btn-toggle btn-default"
           clipboard
           data-clipboard-text="{{framework.id}}"
           tooltip="Copy ID"
@@ -111,7 +108,7 @@
       <td>
         <a href="{{'#/frameworks/' + framework.id}}" title="{{framework.id}}">
           {{framework.id | truncateMesosID}}</a>
-        <button class="btn btn-mini btn-toggle"
+        <button class="btn btn-xs btn-toggle btn-default"
           clipboard
           data-clipboard-text="{{framework.id}}"
           tooltip="Copy ID"
