@@ -28,13 +28,16 @@ public:
     settings.on_message_begin = &DataDecoder::on_message_begin;
     settings.on_header_field = &DataDecoder::on_header_field;
     settings.on_header_value = &DataDecoder::on_header_value;
-    settings.on_path = &DataDecoder::on_path;
     settings.on_url = &DataDecoder::on_url;
-    settings.on_fragment = &DataDecoder::on_fragment;
-    settings.on_query_string = &DataDecoder::on_query_string;
     settings.on_body = &DataDecoder::on_body;
     settings.on_headers_complete = &DataDecoder::on_headers_complete;
     settings.on_message_complete = &DataDecoder::on_message_complete;
+
+#if !(HTTP_PARSER_VERSION_MAJOR >= 2)
+    settings.on_path = &DataDecoder::on_path;
+    settings.on_fragment = &DataDecoder::on_fragment;
+    settings.on_query_string = &DataDecoder::on_query_string;
+#endif
 
     http_parser_init(&parser, HTTP_REQUEST);
 
@@ -163,19 +166,48 @@ private:
     return 0;
   }
 
-  static int on_path(http_parser* p, const char* data, size_t length)
-  {
-    DataDecoder* decoder = (DataDecoder*) p->data;
-    assert(decoder->request != NULL);
-    decoder->request->path.append(data, length);
-    return 0;
-  }
-
   static int on_url(http_parser* p, const char* data, size_t length)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
     assert(decoder->request != NULL);
     decoder->request->url.append(data, length);
+    int result = 0;
+
+#if (HTTP_PARSER_VERSION_MAJOR >= 2)
+    // Reworked parsing for version >= 2.0.
+    http_parser_url url;
+    result = http_parser_parse_url(data, length, 0, &url);
+
+    if (result == 0) {
+      if (url.field_set & (1 << UF_PATH)) {
+        decoder->request->path.append(
+            data + url.field_data[UF_PATH].off,
+            url.field_data[UF_PATH].len);
+      }
+
+      if (url.field_set & (1 << UF_FRAGMENT)) {
+        decoder->request->fragment.append(
+            data + url.field_data[UF_FRAGMENT].off,
+            url.field_data[UF_FRAGMENT].len);
+      }
+
+      if (url.field_set & (1 << UF_QUERY)) {
+        decoder->query.append(
+            data + url.field_data[UF_QUERY].off, 
+            url.field_data[UF_QUERY].len);
+      }
+    }
+#endif
+
+    return result;
+  }
+
+#if !(HTTP_PARSER_VERSION_MAJOR >= 2)
+  static int on_path(http_parser* p, const char* data, size_t length)
+  {
+    DataDecoder* decoder = (DataDecoder*) p->data;
+    assert(decoder->request != NULL);
+    decoder->request->path.append(data, length);
     return 0;
   }
 
@@ -194,6 +226,7 @@ private:
     decoder->request->fragment.append(data, length);
     return 0;
   }
+#endif // !(HTTP_PARSER_VERSION_MAJOR >= 2)
 
   static int on_body(http_parser* p, const char* data, size_t length)
   {
@@ -234,13 +267,16 @@ public:
     settings.on_message_begin = &ResponseDecoder::on_message_begin;
     settings.on_header_field = &ResponseDecoder::on_header_field;
     settings.on_header_value = &ResponseDecoder::on_header_value;
-    settings.on_path = &ResponseDecoder::on_path;
     settings.on_url = &ResponseDecoder::on_url;
-    settings.on_fragment = &ResponseDecoder::on_fragment;
-    settings.on_query_string = &ResponseDecoder::on_query_string;
     settings.on_body = &ResponseDecoder::on_body;
     settings.on_headers_complete = &ResponseDecoder::on_headers_complete;
     settings.on_message_complete = &ResponseDecoder::on_message_complete;
+
+#if !(HTTP_PARSER_VERSION_MAJOR >=2)
+    settings.on_path = &ResponseDecoder::on_path;
+    settings.on_fragment = &ResponseDecoder::on_fragment;
+    settings.on_query_string = &ResponseDecoder::on_query_string;
+#endif
 
     http_parser_init(&parser, HTTP_RESPONSE);
 
