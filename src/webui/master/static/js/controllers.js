@@ -3,17 +3,6 @@
 
   var mesosApp = angular.module('mesos');
 
-  // Table Object.
-  //   page:            current page number if the table is paginated.
-  //   reverse:         boolean indicating sort order.
-  //   selected_column: column predicate for the selected column.
-  function Table(selected_column) {
-    this.page = 1;
-    this.reverse = true;
-    this.selected_column = selected_column;
-  }
-
-
   function hasSelectedText() {
     if (window.getSelection) {  // All browsers except IE before version 9.
       var range = window.getSelection();
@@ -21,43 +10,6 @@
     }
     return false;
   }
-
-
-  // Returns a curried function for returning the HTML 'class=' tag
-  // attribute value for sorting table columns in the provided scope.
-  function columnClass($scope) {
-    // For the given table column, this behaves as follows:
-    // Column unselected            : 'unselected'
-    // Column selected / descending : 'descending'
-    // Column selected / ascending  : 'ascending'
-    return function(table, column) {
-      if ($scope.tables[table].selected_column === column) {
-        if ($scope.tables[table].reverse) {
-          return 'descending';
-        } else {
-          return 'ascending';
-        }
-      }
-      return 'unselected';
-    };
-  }
-
-
-  // Returns a curried function to be called when a table column is clicked
-  // in the provided scope.
-  function selectColumn($scope) {
-    // Assigns the given table column as the sort column, flipping the
-    // sort order if the sort column has not changed.
-    return function(table, column) {
-      if ($scope.tables[table].selected_column === column) {
-        $scope.tables[table].reverse = !$scope.tables[table].reverse;
-      } else {
-        $scope.tables[table].reverse = true;
-      }
-      $scope.tables[table].selected_column = column;
-    };
-  }
-
 
   // Invokes the pailer for the specified host and path using the
   // specified window_title.
@@ -99,7 +51,7 @@
       return true; // Continue polling.
     }
 
-    $scope.state = $.parseJSON(data);
+    $scope.state = JSON.parse(data);
 
     // Determine if there is a leader (and redirect if not the leader).
     if ($scope.state.leader) {
@@ -243,7 +195,7 @@
     $scope.idle_mem = $scope.total_mem - ($scope.offered_mem + $scope.used_mem);
 
     $scope.time_since_update = 0;
-    $.event.trigger('state_updated');
+    $scope.$broadcast('state_updated');
 
     return true; // Continue polling.
   }
@@ -256,8 +208,8 @@
   // active controller/view to easily access anything in scope (e.g.,
   // the state).
   mesosApp.controller('MainCntl', [
-      '$scope', '$http', '$location', '$timeout', '$modal', 'paginationConfig',
-      function($scope, $http, $location, $timeout, $modal, paginationConfig) {
+      '$scope', '$http', '$location', '$timeout', '$modal',
+      function($scope, $http, $location, $timeout, $modal) {
     $scope.doneLoading = true;
 
     // Adding bindings into scope so that they can be used from within
@@ -283,10 +235,6 @@
     $scope.delay = 2000;
     $scope.retry = 0;
     $scope.time_since_update = 0;
-
-    // Make pagination config available in all scopes to properly calculate
-    // slices of collections for pagination in views.
-    $scope.itemsPerPage = paginationConfig.itemsPerPage;
 
     // Ordered Array of path => activeTab mappings. On successful route changes,
     // the `pathRegexp` values are matched against the current route. The first
@@ -385,13 +333,6 @@
 
 
   mesosApp.controller('HomeCtrl', function($dialog, $scope) {
-    $scope.tables = {
-      active_tasks: new Table('start_time'),
-      completed_tasks: new Table('finish_time')
-    };
-    $scope.columnClass = columnClass($scope);
-    $scope.selectColumn = selectColumn($scope);
-
     $scope.log = function($event) {
       if (!$scope.state.log_dir) {
         $dialog.messageBox(
@@ -408,33 +349,11 @@
     };
   });
 
+  mesosApp.controller('FrameworksCtrl', function() {});
 
-  mesosApp.controller('FrameworksCtrl', function($scope) {
-    $scope.tables = {};
-    $scope.tables['frameworks'] = new Table('id');
-    $scope.tables['completed_frameworks'] = new Table('id');
-
-    $scope.columnClass = columnClass($scope);
-    $scope.selectColumn = selectColumn($scope);
-  });
-
-
-  mesosApp.controller('OffersCtrl', function($scope) {
-    $scope.tables = {};
-    $scope.tables['offers'] = new Table('id');
-
-    $scope.columnClass = columnClass($scope);
-    $scope.selectColumn = selectColumn($scope);
-  });
+  mesosApp.controller('OffersCtrl', function() {});
 
   mesosApp.controller('FrameworkCtrl', function($scope, $routeParams) {
-    $scope.tables = {};
-    $scope.tables['active_tasks'] = new Table('id');
-    $scope.tables['completed_tasks'] = new Table('id');
-
-    $scope.columnClass = columnClass($scope);
-    $scope.selectColumn = selectColumn($scope);
-
     var update = function() {
       if ($routeParams.id in $scope.completed_frameworks) {
         $scope.framework = $scope.completed_frameworks[$routeParams.id];
@@ -454,31 +373,16 @@
       update();
     }
 
-    $(document).on('state_updated', update);
-    $scope.$on('$routeChangeStart', function() {
-      $(document).off('state_updated', update);
-    });
+    var removeListener = $scope.$on('state_updated', update);
+    $scope.$on('$routeChangeStart', removeListener);
   });
 
 
-  mesosApp.controller('SlavesCtrl', function($scope) {
-    $scope.tables = {};
-    $scope.tables['slaves'] = new Table('id');
-
-    $scope.columnClass = columnClass($scope);
-    $scope.selectColumn = selectColumn($scope);
-  });
+  mesosApp.controller('SlavesCtrl', function() {});
 
 
   mesosApp.controller('SlaveCtrl', function($dialog, $scope, $routeParams, $http, $q) {
     $scope.slave_id = $routeParams.slave_id;
-
-    $scope.tables = {};
-    $scope.tables['frameworks'] = new Table('id');
-    $scope.tables['completed_frameworks'] = new Table('id');
-
-    $scope.columnClass = columnClass($scope);
-    $scope.selectColumn = selectColumn($scope);
 
     var update = function() {
       if (!($routeParams.slave_id in $scope.slaves)) {
@@ -560,23 +464,14 @@
       update();
     }
 
-    $(document).on('state_updated', update);
-    $scope.$on('$routeChangeStart', function() {
-      $(document).off('state_updated', update);
-    });
+    var removeListener = $scope.$on('state_updated', update);
+    $scope.$on('$routeChangeStart', removeListener);
   });
 
 
   mesosApp.controller('SlaveFrameworkCtrl', function($scope, $routeParams, $http, $q) {
     $scope.slave_id = $routeParams.slave_id;
     $scope.framework_id = $routeParams.framework_id;
-
-    $scope.tables = {};
-    $scope.tables['executors'] = new Table('id');
-    $scope.tables['completed_executors'] = new Table('id');
-
-    $scope.columnClass = columnClass($scope);
-    $scope.selectColumn = selectColumn($scope);
 
     var update = function() {
       if (!($routeParams.slave_id in $scope.slaves)) {
@@ -662,10 +557,8 @@
       update();
     }
 
-    $(document).on('state_updated', update);
-    $scope.$on('$routeChangeStart', function() {
-      $(document).off('state_updated', update);
-    });
+    var removeListener = $scope.$on('state_updated', update);
+    $scope.$on('$routeChangeStart', removeListener);
   });
 
 
@@ -673,14 +566,6 @@
     $scope.slave_id = $routeParams.slave_id;
     $scope.framework_id = $routeParams.framework_id;
     $scope.executor_id = $routeParams.executor_id;
-
-    $scope.tables = {};
-    $scope.tables['tasks'] = new Table('id');
-    $scope.tables['queued_tasks'] = new Table('id');
-    $scope.tables['completed_tasks'] = new Table('id');
-
-    $scope.columnClass = columnClass($scope);
-    $scope.selectColumn = selectColumn($scope);
 
     var update = function() {
       if (!($routeParams.slave_id in $scope.slaves)) {
@@ -758,10 +643,8 @@
       update();
     }
 
-    $(document).on('state_updated', update);
-    $scope.$on('$routeChangeStart', function() {
-      $(document).off('state_updated', update);
-    });
+    var removeListener = $scope.$on('state_updated', update);
+    $scope.$on('$routeChangeStart', removeListener);
   });
 
 
@@ -920,9 +803,7 @@
       update();
     }
 
-    $(document).on('state_updated', update);
-    $scope.$on('$routeChangeStart', function() {
-      $(document).off('state_updated', update);
-    });
+    var removeListener = $scope.$on('state_updated', update);
+    $scope.$on('$routeChangeStart', removeListener);
   });
 })();

@@ -91,29 +91,18 @@
 
   <div class="col-md-9">
     <h3>Queued Tasks</h3>
-    <table class="table table-striped table-bordered table-condensed">
+    <table m-table table-content="executor.queued_tasks"
+      class="table table-striped table-bordered table-condensed">
       <thead>
         <tr>
-          <th ng-class="columnClass('queued_tasks', 'id')"
-              ng-click="selectColumn('queued_tasks', 'id')">
-            ID
-          </th>
-          <th ng-class="columnClass('queued_tasks', 'name')"
-              ng-click="selectColumn('queued_tasks', 'name')">
-            Name
-          </th>
-          <th ng-class="columnClass('queued_tasks', 'resources.cpus')"
-              ng-click="selectColumn('queued_tasks', 'resources.cpus')">
-            CPUs
-          </th>
-          <th ng-class="columnClass('queued_tasks', 'resources.mem')"
-              ng-click="selectColumn('queued_tasks', 'resources.mem')">
-            Mem
-          </th>
+          <th data-key="id">ID</th>
+          <th data-key="name">Name</th>
+          <th data-key="resources.cpus">CPUs</th>
+          <th data-key="resources.mem">Mem</th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="queued_task in _.values(executor.queued_tasks) | orderBy:tables['queued_tasks'].selected_column:tables['queued_tasks'].reverse">
+        <tr ng-repeat="queued_task in $data">
           <td>{{queued_task.id}}</td>
           <td>{{queued_task.name}}</td>
           <td>{{queued_task.resources.cpus | number}}</td>
@@ -123,34 +112,20 @@
     </table>
 
     <h3>Tasks</h3>
-    <table class="table table-striped table-bordered table-condensed">
+    <table m-table table-content="executor.tasks"
+      class="table table-striped table-bordered table-condensed">
       <thead>
         <tr>
-          <th ng-class="columnClass('tasks', 'id')"
-              ng-click="selectColumn('tasks', 'id')">
-            ID
-          </th>
-          <th ng-class="columnClass('tasks', 'name')"
-              ng-click="selectColumn('tasks', 'name')">
-            Name
-          </th>
-          <th ng-class="columnClass('tasks', 'state')"
-              ng-click="selectColumn('tasks', 'state')">
-            State
-          </th>
-          <th ng-class="columnClass('tasks', 'resources.cpus')"
-              ng-click="selectColumn('tasks', 'resources.cpus')">
-            CPUs (allocated)
-          </th>
-          <th ng-class="columnClass('tasks', 'resources.mem')"
-              ng-click="selectColumn('tasks', 'resources.mem')">
-            Mem (allocated)
-          </th>
+          <th data-key="id">ID</th>
+          <th data-key="name">Name</th>
+          <th data-key="state">State</th>
+          <th data-key="resources.cpus">CPUs (allocated)</th>
+          <th data-key="resources.mem">Mem (allocated)</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="task in _.values(executor.tasks) | orderBy:tables['tasks'].selected_column:tables['tasks'].reverse">
+        <tr ng-repeat="task in $data">
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
           <td>{{task.state}}</td>
@@ -167,34 +142,20 @@
     </table>
 
     <h3>Completed Tasks</h3>
-    <table class="table table-striped table-bordered table-condensed">
+    <table m-table table-content="executor.completed_tasks"
+      class="table table-striped table-bordered table-condensed">
       <thead>
         <tr>
-          <th ng-class="columnClass('completed_tasks', 'id')"
-              ng-click="selectColumn('completed_tasks', 'id')">
-            ID
-          </th>
-          <th ng-class="columnClass('completed_tasks', 'name')"
-              ng-click="selectColumn('completed_tasks', 'name')">
-            Name
-          </th>
-          <th ng-class="columnClass('completed_tasks', 'state')"
-              ng-click="selectColumn('completed_tasks', 'state')">
-            State
-          </th>
-          <th ng-class="columnClass('completed_tasks', 'resources.cpus')"
-              ng-click="selectColumn('completed_tasks', 'resources.cpus')">
-            CPUs (allocated)
-          </th>
-          <th ng-class="columnClass('completed_tasks', 'resources.mem')"
-              ng-click="selectColumn('completed_tasks', 'resources.mem')">
-            Mem (allocated)
-          </th>
+          <th data-key="id">ID</th>
+          <th data-key="name">Name</th>
+          <th data-key="state">State</th>
+          <th data-key="resources.cpus">CPUs (allocated)</th>
+          <th data-key="resources.mem">Mem (allocated)</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="completed_task in _.values(executor.completed_tasks) | orderBy:tables['completed_tasks'].selected_column:tables['completed_tasks'].reverse">
+        <tr ng-repeat="completed_task in $data">
           <td>{{completed_task.id}}</td>
           <td>{{completed_task.name}}</td>
           <td>{{completed_task.state}}</td>
