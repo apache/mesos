@@ -45,11 +45,9 @@ public:
   // Returns true if successfully withdrawn from the contest (either
   // while contending or has already contended and is watching for
   // membership loss).
-  // It should only be called after contend() is called, otherwise a
-  // failure is returned.
   // A false return value implies that there was no valid group
   // membership to cancel, which may be a result of a race to cancel
-  // an expired membership.
+  // an expired membership or because there is nothing to withdraw.
   // A failed future is returned if the contender is unable to
   // withdraw.
   process::Future<bool> withdraw();
