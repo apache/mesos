@@ -69,6 +69,8 @@ public:
 
   // Returns a Future<Nothing> once the contender has entered the
   // contest (by obtaining a membership) and an error otherwise.
+  // A failed future is returned if this method is called before
+  // initialize().
   // The inner Future returns Nothing when the contender is out of
   // the contest (i.e. its membership is lost).
   //
