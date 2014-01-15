@@ -36,11 +36,14 @@ private:
   void watch(const set<Group::Membership>& expected);
 
   // Invoked when the group memberships have changed.
-  void watched(Future<set<Group::Membership> > memberships);
+  void watched(const Future<set<Group::Membership> >& memberships);
 
   Group* group;
   Option<Group::Membership> leader;
   set<Promise<Option<Group::Membership> >*> promises;
+
+  // Potential non-retryable error.
+  Option<Error> error;
 };
 
 
@@ -67,6 +70,12 @@ void LeaderDetectorProcess::initialize()
 Future<Option<Group::Membership> > LeaderDetectorProcess::detect(
     const Option<Group::Membership>& previous)
 {
+  // Return immediately if the detector is no longer operational due
+  // to the non-retryable error.
+  if (error.isSome()) {
+    return Failure(error.get().message);
+  }
+
   // Return immediately if the incumbent leader is different from the
   // expected.
   if (leader != previous) {
@@ -88,12 +97,17 @@ void LeaderDetectorProcess::watch(const set<Group::Membership>& expected)
 }
 
 
-void LeaderDetectorProcess::watched(Future<set<Group::Membership> > memberships)
+void LeaderDetectorProcess::watched(const Future<set<Group::Membership> >& memberships)
 {
   CHECK(!memberships.isDiscarded());
 
   if (memberships.isFailed()) {
     LOG(ERROR) << "Failed to watch memberships: " << memberships.failure();
+
+    // Setting this error stops the watch loop and the detector
+    // transitions to an erroneous state. Further calls to detect()
+    // will directly fail as a result.
+    error = Error(memberships.failure());
     leader = None();
     foreach (Promise<Option<Group::Membership> >* promise, promises) {
       promise->fail(memberships.failure());
