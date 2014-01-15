@@ -2,6 +2,7 @@
 #define __STOUT_MEMORY_HPP__
 
 #if __cplusplus >= 201103L
+#include <memory>
 namespace memory {
 using std::shared_ptr;
 using std::weak_ptr;

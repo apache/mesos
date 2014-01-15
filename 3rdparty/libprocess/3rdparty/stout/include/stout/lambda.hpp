@@ -2,6 +2,7 @@
 #define __STOUT_LAMBDA_HPP__
 
 #if __cplusplus >= 201103L
+#include <functional>
 namespace lambda {
 using std::bind;
 using std::function;
