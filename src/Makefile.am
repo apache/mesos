@@ -450,7 +450,8 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/slave_framework.html				\
   webui/master/static/slaves.html					\
   webui/master/static/directives/timestamp.html				\
-  webui/master/static/directives/pagination.html
+  webui/master/static/directives/pagination.html			\
+  webui/master/static/directives/tableHeader.html
 
 
 # Need to distribute/install webui images.

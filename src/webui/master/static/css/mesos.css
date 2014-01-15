@@ -133,3 +133,33 @@ a.badge-type:hover {
 .pagination a {
   cursor: pointer;
 }
+
+.input-group-header {
+  margin-top: 20px;
+}
+
+.input-group-addon {
+  -webkit-transition: background-color 0.25s, color 0.25s;
+  transition: background-color 0.25s, color 0.25s;
+}
+
+.input-group-addon-success {
+  background-color: #EFFFF0;
+  color: #3C763D;
+}
+
+.input-group-inner-right {
+  position: absolute;
+  right: 1px;
+  padding: 4px 10px;
+  top: 1px;
+}
+
+.btn-clear {
+  background: transparent;
+}
+
+.btn-clear:active {
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}

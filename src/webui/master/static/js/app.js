@@ -219,20 +219,10 @@
       }
     }])
     .directive('mPagination', function() {
-      return {
-        templateUrl: 'static/directives/pagination.html',
-        link: function(scope, element, attrs) {
-          /* data-ng-if creates a brand new scope. That ends up hiding the
-           * value of page within this directive. The function reference isn't
-           * changing and therefore gets called successfully. The scope here
-           * (because ngIf hasn't run yet) is still correct and changing
-           * pgNum correctly propogates to mTable.
-           */
-          scope.changePage = function(pgNum) {
-            scope.pgNum = pgNum;
-          };
-        }
-      }
+      return { templateUrl: 'static/directives/pagination.html' }
+    })
+    .directive('mTableHeader', function() {
+      return { templateUrl: 'static/directives/tableHeader.html' }
     })
     .directive('mTable', ['$compile', '$filter', function($compile, $filter) {
       /* This directive does not have a template. The DOM doesn't like
@@ -251,7 +241,9 @@
             columnKey: '',
             sortOrder: defaultOrder,
             pgNum: 1,
-            pageLength: 50
+            pageLength: 50,
+            filterTerm: '',
+            headerTitle: attrs.title
           })
           // ---
 
@@ -297,21 +289,31 @@
           });
 
           var setTableData = function() {
+            scope.filteredData = $filter('filter')(scope.originalData, scope.filterTerm)
             scope.$data = $filter('orderBy')(
-              scope.originalData,
+              scope.filteredData,
               scope.columnKey,
               scope.sortOrder).slice(
                 (scope.pgNum - 1) * scope.pageLength,
                 scope.pgNum * scope.pageLength);
           };
 
-          _.each(['originalData', 'columnKey', 'sortOrder', 'pgNum'],
+          // Reset the page number for each new filtering.
+          scope.$watch('filterTerm', function() { scope.pgNum = 1; });
+
+          _.each(['originalData', 'columnKey', 'sortOrder', 'pgNum', 'filterTerm'],
             function(k) { scope.$watch(k, setTableData); });
 
           // --- Pagination controls
           var el = angular.element('<div m-pagination></div>');
           $compile(el)(scope);
           element.after(el);
+          // ---
+
+          // --- Filtering
+          var el = angular.element('<div m-table-header></div>');
+          $compile(el)(scope);
+          element.before(el);
           // ---
         }
       };

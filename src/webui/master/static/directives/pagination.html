@@ -1,7 +1,6 @@
 <pagination
-  data-ng-if="originalData.length > pageLength"
+  data-ng-show="filteredData.length > pageLength"
   max-size="5"
   items-per-page="pageLength"
-  page="page"
-  on-select-page="changePage(page)"
-  total-items="originalData.length"></pagination>
+  page="pgNum"
+  total-items="filteredData.length"></pagination>

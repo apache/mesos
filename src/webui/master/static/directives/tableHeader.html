@@ -1,0 +1,19 @@
+<div class="row">
+  <div class="col-md-8">
+    <h3 id="frameworks">{{headerTitle}}</h3>
+  </div>
+  <div class="col-md-4">
+    <div class="input-group input-group-sm input-group-header">
+      <span class="input-group-addon"
+          ng-class="{ 'input-group-addon-success': filterTerm.length > 0 }">
+        <i class="glyphicon glyphicon-filter"></i>
+      </span>
+      <input type="search" ng-model="filterTerm" placeholder="Find..."
+        class="form-control input-sm">
+      <button ng-click="filterTerm = ''" ng-show="filterTerm.length > 0"
+          class="btn btn-clear btn-xs input-group-inner-right" title="Clear">
+        &times;
+      </button>
+    </div>
+  </div>
+</div>
