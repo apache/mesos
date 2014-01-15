@@ -174,6 +174,10 @@ public:
       const process::UPID& from,
       const process::UPID& pid);
 
+  // Invoked when there is a newly elected leading master.
+  // Made public for testing purposes.
+  void detected(const Future<Option<UPID> >& pid);
+
 protected:
   virtual void initialize();
   virtual void finalize();
@@ -200,9 +204,6 @@ protected:
 
   // Invoked when the contender has lost the candidacy.
   void lostCandidacy(const Future<Nothing>& lost);
-
-  // Invoked when there is a newly elected leading master.
-  void detected(const Future<Option<UPID> >& pid);
 
   // Process a launch tasks request (for a non-cancelled offer) by
   // launching the desired tasks (if the offer contains a valid set of
