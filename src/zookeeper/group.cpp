@@ -848,6 +848,14 @@ void GroupProcess::abort(const string& message)
   fail(&pending.datas, message);
   fail(&pending.watches, message);
 
+  // Set all owned memberships as cancelled.
+  foreachvalue (Promise<bool>* cancelled, owned) {
+    cancelled->set(false); // Since this was not requested.
+    delete cancelled;
+  }
+
+  owned.clear();
+
   // Since we decided to abort, we expire the session to clean up
   // ephemeral ZNodes as necessary.
   delete CHECK_NOTNULL(zk);
