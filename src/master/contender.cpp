@@ -62,7 +62,9 @@ public:
 private:
   Owned<zookeeper::Group> group;
   LeaderContender* contender;
-  PID<Master> master;
+
+  // The master this contender contends on behalf of.
+  Option<PID<Master> > master;
 };
 
 
@@ -115,9 +117,12 @@ void StandaloneMasterContender::initialize(
   initialized = true;
 }
 
+
 Future<Future<Nothing> > StandaloneMasterContender::contend()
 {
-  CHECK(initialized) << "Initialize the contender first";
+  if (!initialized) {
+    return Failure("Initialize the contender first");
+  }
 
   if (promise != NULL) {
     LOG(INFO) << "Withdrawing the previous membership before recontending";
@@ -194,14 +199,16 @@ void ZooKeeperMasterContenderProcess::initialize(
 
 Future<Future<Nothing> > ZooKeeperMasterContenderProcess::contend()
 {
-  CHECK(master) << "Initialize the contender first";
+  if (master.isNone()) {
+    return Failure("Initialize the contender first");
+  }
 
   if (contender != NULL) {
     LOG(INFO) << "Withdrawing the previous membership before recontending";
     delete contender;
   }
 
-  contender = new LeaderContender(group.get(), master);
+  contender = new LeaderContender(group.get(), master.get());
   return contender->contend();
 }
 
