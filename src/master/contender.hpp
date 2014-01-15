@@ -74,9 +74,11 @@ public:
   // The inner Future returns Nothing when the contender is out of
   // the contest (i.e. its membership is lost).
   //
-  // This method can be used to contend again. Each call to this
-  // method causes the previous candidacy to be withdrawn before
-  // re-contending.
+  // This method can be used to contend again after candidacy is
+  // obtained (the outer future satisfied), otherwise the future for
+  // the pending election is returned.
+  // Recontending after candidacy is obtained causes the previous
+  // candidacy to be withdrawn.
   virtual process::Future<process::Future<Nothing> > contend() = 0;
 };
 

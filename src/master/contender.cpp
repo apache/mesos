@@ -62,6 +62,7 @@ private:
 
   // The master this contender contends on behalf of.
   Option<PID<Master> > master;
+  Option<Future<Future<Nothing> > > candidacy;
 };
 
 
@@ -200,13 +201,19 @@ Future<Future<Nothing> > ZooKeeperMasterContenderProcess::contend()
     return Failure("Initialize the contender first");
   }
 
+  // Should not recontend if the last election is still ongoing.
+  if (candidacy.isSome() && candidacy.get().isPending()) {
+    return candidacy.get();
+  }
+
   if (contender != NULL) {
     LOG(INFO) << "Withdrawing the previous membership before recontending";
     delete contender;
   }
 
   contender = new LeaderContender(group.get(), master.get());
-  return contender->contend();
+  candidacy = contender->contend();
+  return candidacy.get();
 }
 
 } // namespace internal {
