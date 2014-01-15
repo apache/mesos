@@ -443,6 +443,7 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/frameworks.html					\
   webui/master/static/home.html						\
   webui/master/static/index.html					\
+  webui/master/static/offers.html					\
   webui/master/static/pailer.html					\
   webui/master/static/slave.html					\
   webui/master/static/slave_executor.html				\
