@@ -296,6 +296,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, NonRetryableFrrors)
   // Fails due to authentication error.
   AWAIT_FAILED(contender.contend());
 
+  // Subsequent call should also fail.
+  AWAIT_FAILED(contender.contend());
+
   // Now test non-retryable failures in detection.
   ZooKeeperTest::TestWatcher watcher;
   ZooKeeper authenticatedZk(server->connectString(), NO_TIMEOUT, &watcher);
@@ -320,6 +323,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, NonRetryableFrrors)
       None()));
 
   ZooKeeperMasterDetector detector(group3);
+  AWAIT_FAILED(detector.detect());
+
+  // Subsequent call should also fail.
   AWAIT_FAILED(detector.detect());
 }
 

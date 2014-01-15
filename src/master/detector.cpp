@@ -81,7 +81,7 @@ public:
 
 private:
   // Invoked when the group leadership has changed.
-  void detected(Future<Option<Group::Membership> > leader);
+  void detected(const Future<Option<Group::Membership> >& leader);
 
   // Invoked when we have fetched the data associated with the leader.
   void fetched(const Future<string>& data);
@@ -92,6 +92,9 @@ private:
   // The leading Master.
   Option<UPID> leader;
   set<Promise<Option<UPID> >*> promises;
+
+  // Potential non-retryable error.
+  Option<Error> error;
 };
 
 
@@ -246,6 +249,12 @@ void ZooKeeperMasterDetectorProcess::initialize()
 Future<Option<UPID> > ZooKeeperMasterDetectorProcess::detect(
     const Option<UPID>& previous)
 {
+  // Return immediately if the detector is no longer operational due
+  // to a non-retryable error.
+  if (error.isSome()) {
+    return Failure(error.get().message);
+  }
+
   if (leader != previous) {
     return leader;
   }
@@ -257,11 +266,17 @@ Future<Option<UPID> > ZooKeeperMasterDetectorProcess::detect(
 
 
 void ZooKeeperMasterDetectorProcess::detected(
-    Future<Option<Group::Membership> > _leader)
+    const Future<Option<Group::Membership> >& _leader)
 {
   CHECK(!_leader.isDiscarded());
 
   if (_leader.isFailed()) {
+    LOG(ERROR) << "Failed to detect the leader: " << _leader.failure();
+
+    // Setting this error stops the detection loop and the detector
+    // transitions to an erroneous state. Further calls to detect()
+    // will directly fail as a result.
+    error = Error(_leader.failure());
     leader = None();
     foreach (Promise<Option<UPID> >* promise, promises) {
       promise->fail(_leader.failure());
