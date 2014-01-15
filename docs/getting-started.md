@@ -56,12 +56,6 @@ If you are building from git repository, you will need to additionally install t
 
 > 2. Mesos is currently being developed/tested/supported on 64 Bit machines only.
 
-> 3. Currently, Mesos does not build with the Clang compiler. Up and until Mac OS X Mountain Lion, `gcc` and `g++` were GNU GCC compiler frontends for LLVM.
-This changed with Mac OS X Mavericks and `gcc` and `g++` are now Clang wrappers which compiles against a new standard C library.
-This unfortunately breaks our current build process, so please follow the separate instructions below to get Mesos building on Mavericks.
-
-> 4. Mesos does not build with automake 1.14. Please make sure an older automake, for example version 1.12, is installed.
-
 
 ## Building Mesos
 
@@ -82,42 +76,6 @@ This unfortunately breaks our current build process, so please follow the separa
 
         # Install (***Optional***).
         $ make install
-
-### Building Mesos on Mac OS X Mavericks
-
-        # Make sure you have the right versions of automake and GCC.
-        # For example:
-        $ automake --version
-        automake (GNU automake) 1.12.6
-        ...
-
-        $ aclocal --version
-        aclocal (GNU automake) 1.12.6
-        ...
-
-        $ gcc-4.8 --version
-        gcc-4.8 (GCC) 4.8.1
-        ...
-
-        # Follow bootstrap steps above.
-
-        # Configure and build.
-        $ mkdir build
-        $ cd build
-
-        # The prepending CC and CXX will select custom compilers to build Mesos with.
-        $ CC=gcc-4.8 CXX=g++-4.8 ../configure
-
-        # Follow make steps above.
-
-***NOTES***
-
-> 1. Link errors might occur if clang versions of `gcc` and `g++` were used to compile some of the object files.
-This happens if configure was run without `CC` and `CXX` set and `make` subsequently failed.
-Make sure the build directory is completely empty before running configure.
-> 2. Python framework test failure is expected on Mavericks.
-This is due to the system Python binary usually being compiled against the new (non-GNU) standard C library.
-Either use a GCC built Python and select it with `PYTHON=<location> CC=gcc-4.8 CXX=g++-4.8 ../configure` or disable Python support with `CC=gcc-4.8 CXX=g++-4.8 ../configure --disable-python`.
 
 ## Examples
 Mesos comes bundled with example frameworks written in `C++`, `Java` and `Python`.
