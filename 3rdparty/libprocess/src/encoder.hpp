@@ -101,9 +101,9 @@ public:
 
   static std::string encode(Message* message)
   {
-    if (message != NULL) {
-      std::ostringstream out;
+    std::ostringstream out;
 
+    if (message != NULL) {
       out << "POST /" << message->to.id << "/" << message->name
           << " HTTP/1.0\r\n"
           << "User-Agent: libprocess/" << message->from << "\r\n"
@@ -119,9 +119,9 @@ public:
       } else {
         out << "\r\n";
       }
-
-      return out.str();
     }
+
+    return out.str();
   }
 
 private:
