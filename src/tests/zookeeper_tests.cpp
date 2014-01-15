@@ -267,11 +267,18 @@ TEST_F(ZooKeeperTest, LeaderContender)
 
   Owned<LeaderContender> contender(
       new LeaderContender(&group, "candidate 1"));
+
+  // Calling withdraw before contending returns 'false' because there
+  // is nothing to withdraw.
+  Future<bool> withdrawn = contender->withdraw();
+  AWAIT_READY(withdrawn);
+  EXPECT_FALSE(withdrawn.get());
+
   contender->contend();
 
   // Immediately withdrawing after contending leads to delayed
   // cancellation.
-  Future<bool> withdrawn = contender->withdraw();
+  withdrawn = contender->withdraw();
   AWAIT_READY(withdrawn);
   EXPECT_TRUE(withdrawn.get());
 
