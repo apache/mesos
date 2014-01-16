@@ -61,6 +61,7 @@ EXTRA_DIST =					\
   include/stout/strings.hpp			\
   include/stout/thread.hpp			\
   include/stout/try.hpp				\
+  include/stout/unreachable.hpp			\
   include/stout/utils.hpp			\
   include/stout/uuid.hpp			\
   tests/bytes_tests.cpp				\
