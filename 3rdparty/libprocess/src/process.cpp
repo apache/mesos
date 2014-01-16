@@ -70,6 +70,7 @@
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 #include <stout/thread.hpp>
+#include <stout/unreachable.hpp>
 
 #include "config.hpp"
 #include "decoder.hpp"
@@ -1845,6 +1846,8 @@ Socket SocketManager::accepted(int s)
   synchronized (this) {
     return sockets[s] = Socket(s);
   }
+
+  return UNREACHABLE(); // Quiet the compiler.
 }
 
 
