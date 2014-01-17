@@ -67,6 +67,7 @@
 #include <stout/lambda.hpp>
 #include <stout/memory.hpp> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <stout/net.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 #include <stout/thread.hpp>
@@ -3616,10 +3617,14 @@ Future<Response> decode(const string& buffer)
   return response;
 }
 
-} // namespace internal {
 
-
-Future<Response> get(const UPID& upid, const string& path, const string& query)
+Future<Response> request(
+    const UPID& upid,
+    const string& method,
+    const string& path,
+    const Option<string>& query,
+    const Option<string>& contentType,
+    const Option<string>& body)
 {
   int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
@@ -3645,19 +3650,30 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
 
   std::ostringstream out;
 
-  if (query.empty()) {
-    out << "GET /" << upid.id << "/" << path << " HTTP/1.1\r\n";
-  } else {
-    out << "GET /" << upid.id << "/" << path << "?" << query << " HTTP/1.1\r\n";
+  out << method << " /" << upid.id << "/" << path;
+  if (query.isSome()) {
+    out << "?" << query.get();
   }
+  out << " HTTP/1.1\r\n";
 
   // Call inet_ntop since inet_ntoa is not thread-safe!
   char ip[INET_ADDRSTRLEN];
   PCHECK(inet_ntop(AF_INET, (in_addr *) &upid.ip, ip, INET_ADDRSTRLEN) != NULL);
 
   out << "Host: " << ip << ":" << upid.port << "\r\n"
-      << "Connection: close\r\n"
-      << "\r\n";
+      << "Connection: close\r\n";
+
+  if (contentType.isSome()) {
+    out << "Content-Type: " << contentType.get() << "\r\n";
+  }
+
+  if (body.isNone()) {
+    out << "\r\n";
+  } else {
+    out << "Content-Length: " << body.get().length() << "\r\n"
+        << "\r\n"
+        << body.get();
+  }
 
   // TODO(bmahler): Use benh's async write when it gets committed.
   const string& data = out.str();
@@ -3687,6 +3703,28 @@ Future<Response> get(const UPID& upid, const string& path, const string& query)
   return io::read(s)
     .then(lambda::bind(&internal::decode, lambda::_1))
     .onAny(lambda::bind(&os::close, s));
+}
+
+} // namespace internal {
+
+
+Future<Response> get(const UPID& upid, const string& path, const Option<string>& query)
+{
+  return internal::request(upid, "GET", path, query, None(), None());
+}
+
+
+// Overload for back-compat.
+Future<Response> get(const UPID& upid, const string& path, const string& query)
+{
+   //In this overload empty string means no query.
+   return get(upid, path, query.empty() ? Option<string>::none() : Some(query));
+}
+
+
+Future<Response> post(const UPID& upid, const string& path, const string& contentType, const string& body)
+{
+  return internal::request(upid, "POST", path, None(), contentType, body);
 }
 
 }  // namespace http {

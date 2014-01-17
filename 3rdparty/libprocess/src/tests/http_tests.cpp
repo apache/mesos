@@ -25,6 +25,8 @@ using namespace process;
 using testing::_;
 using testing::Assign;
 using testing::DoAll;
+using testing::EndsWith;
+using testing::Invoke;
 using testing::Return;
 
 
@@ -35,10 +37,14 @@ public:
   {
     route("/body", None(), &HttpProcess::body);
     route("/pipe", None(), &HttpProcess::pipe);
+    route("/get", None(), &HttpProcess::get);
+    route("/post", None(), &HttpProcess::post);
   }
 
   MOCK_METHOD1(body, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(pipe, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(get, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(post, Future<http::Response>(const http::Request&));
 };
 
 
@@ -177,4 +183,93 @@ TEST(HTTP, PathParse)
 
   EXPECT_ERROR(parse);
   EXPECT_EQ("Not expecting suffix 'foo/bar'", parse.error());
+}
+
+
+http::Response validateGetWithoutQuery(const http::Request& request)
+{
+  EXPECT_EQ("GET", request.method);
+  EXPECT_THAT(request.path, EndsWith("get"));
+  EXPECT_EQ("", request.body);
+  EXPECT_EQ("", request.fragment);
+  EXPECT_TRUE(request.query.empty());
+
+  return http::OK();
+}
+
+
+http::Response validateGetWithQuery(const http::Request& request)
+{
+  EXPECT_EQ("GET", request.method);
+  EXPECT_THAT(request.path, EndsWith("get"));
+  EXPECT_EQ("", request.body);
+  EXPECT_EQ("frag", request.fragment);
+  EXPECT_EQ("bar", request.query.at("foo"));
+  EXPECT_EQ(1, request.query.size());
+
+  return http::OK();
+}
+
+
+TEST(HTTP, Get)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  HttpProcess process;
+
+  spawn(process);
+
+  EXPECT_CALL(process, get(_))
+    .WillOnce(Invoke(validateGetWithoutQuery));
+
+  Future<http::Response> noQueryFuture = http::get(process.self(), "get");
+
+  AWAIT_READY(noQueryFuture);
+  ASSERT_EQ(http::statuses[200], noQueryFuture.get().status);
+
+  EXPECT_CALL(process, get(_))
+    .WillOnce(Invoke(validateGetWithQuery));
+
+  Future<http::Response> queryFuture =
+    http::get(process.self(), "get", Some("foo=bar#frag"));
+
+  AWAIT_READY(queryFuture);
+  ASSERT_EQ(http::statuses[200], queryFuture.get().status);
+
+  terminate(process);
+  wait(process);
+}
+
+
+http::Response validatePost(const http::Request& request)
+{
+  EXPECT_EQ("POST", request.method);
+  EXPECT_THAT(request.path, EndsWith("post"));
+  EXPECT_EQ("This is the payload.", request.body);
+  EXPECT_EQ("", request.fragment);
+  EXPECT_TRUE(request.query.empty());
+
+  return http::OK();
+}
+
+
+TEST(HTTP, Post)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  HttpProcess process;
+
+  spawn(process);
+
+  EXPECT_CALL(process, post(_))
+    .WillOnce(Invoke(validatePost));
+
+  Future<http::Response> future =
+    http::post(process.self(), "post", "text/plain", "This is the payload.");
+
+  AWAIT_READY(future);
+  ASSERT_EQ(http::statuses[200], future.get().status);
+
+  terminate(process);
+  wait(process);
 }
