@@ -297,9 +297,20 @@ libmesos_no_3rdparty_la_LIBADD += libbuild.la
 # Convenience library for building the replicated log in order to
 # include the leveldb headers.
 noinst_LTLIBRARIES += liblog.la
-liblog_la_SOURCES = log/coordinator.cpp log/replica.cpp
-liblog_la_SOURCES += log/coordinator.hpp log/replica.hpp log/log.hpp	\
-  log/network.hpp messages/log.hpp messages/log.proto
+liblog_la_SOURCES =							\
+  log/catchup.cpp							\
+  log/consensus.cpp							\
+  log/coordinator.cpp							\
+  log/replica.cpp
+liblog_la_SOURCES +=							\
+  log/catchup.hpp							\
+  log/consensus.hpp							\
+  log/coordinator.hpp							\
+  log/replica.hpp							\
+  log/log.hpp								\
+  log/network.hpp							\
+  messages/log.hpp							\
+  messages/log.proto
 nodist_liblog_la_SOURCES = $(LOG_PROTOS)
 liblog_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
 

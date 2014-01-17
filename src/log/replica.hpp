@@ -23,11 +23,9 @@
 #include <set>
 #include <string>
 
-#include <process/process.hpp>
 #include <process/protobuf.hpp>
 
 #include <stout/result.hpp>
-#include <stout/try.hpp>
 
 #include "messages/log.hpp"
 
@@ -40,7 +38,6 @@ namespace protocol {
 // Some replica protocol declarations.
 extern Protocol<PromiseRequest, PromiseResponse> promise;
 extern Protocol<WriteRequest, WriteResponse> write;
-extern Protocol<LearnRequest, LearnResponse> learn;
 
 } // namespace protocol {
 
@@ -59,23 +56,31 @@ public:
 
   // Returns all the actions between the specified positions, unless
   // those positions are invalid, in which case returns an error.
-  process::Future<std::list<Action> > read(uint64_t from, uint64_t to);
+  process::Future<std::list<Action> > read(
+      uint64_t from,
+      uint64_t to) const;
+
+  // Returns true if the specified position is missing in the log
+  // (i.e., unlearned or holes).
+  process::Future<bool> missing(uint64_t position) const;
 
   // Returns missing positions in the log (i.e., unlearned or holes)
-  // up to the specified position.
-  process::Future<std::set<uint64_t> > missing(uint64_t position);
+  // within the specified range [from, to].
+  process::Future<std::set<uint64_t> > missing(
+      uint64_t from,
+      uint64_t to) const;
 
   // Returns the beginning position of the log.
-  process::Future<uint64_t> beginning();
+  process::Future<uint64_t> beginning() const;
 
   // Returns the last written position in the log.
-  process::Future<uint64_t> ending();
+  process::Future<uint64_t> ending() const;
 
   // Returns the highest implicit promise this replica has given.
-  process::Future<uint64_t> promised();
+  process::Future<uint64_t> promised() const;
 
   // Returns the PID associated with this replica.
-  process::PID<ReplicaProcess> pid();
+  process::PID<ReplicaProcess> pid() const;
 
 private:
   ReplicaProcess* process;

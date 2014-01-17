@@ -48,7 +48,12 @@ using namespace mesos::internal::log;
 using process::Clock;
 using process::Future;
 using process::Timeout;
+using process::Shared;
 using process::UPID;
+
+using std::list;
+using std::set;
+using std::string;
 
 using testing::_;
 using testing::Eq;
@@ -63,7 +68,7 @@ class ReplicaTest : public TemporaryDirectoryTest {};
 
 TEST_F(ReplicaTest, Promise)
 {
-  const std::string path = os::getcwd() + "/.log";
+  const string path = os::getcwd() + "/.log";
 
   Replica replica(path);
 
@@ -71,7 +76,7 @@ TEST_F(ReplicaTest, Promise)
   PromiseResponse response;
   Future<PromiseResponse> future;
 
-  request.set_id(2);
+  request.set_proposal(2);
 
   future = protocol::promise(replica.pid(), request);
 
@@ -79,12 +84,12 @@ TEST_F(ReplicaTest, Promise)
 
   response = future.get();
   EXPECT_TRUE(response.okay());
-  EXPECT_EQ(2u, response.id());
+  EXPECT_EQ(2u, response.proposal());
   EXPECT_TRUE(response.has_position());
   EXPECT_EQ(0u, response.position());
   EXPECT_FALSE(response.has_action());
 
-  request.set_id(1);
+  request.set_proposal(1);
 
   future = protocol::promise(replica.pid(), request);
 
@@ -92,11 +97,11 @@ TEST_F(ReplicaTest, Promise)
 
   response = future.get();
   EXPECT_FALSE(response.okay());
-  EXPECT_EQ(1u, response.id());
+  EXPECT_EQ(2u, response.proposal()); // Highest proposal seen so far.
   EXPECT_FALSE(response.has_position());
   EXPECT_FALSE(response.has_action());
 
-  request.set_id(3);
+  request.set_proposal(3);
 
   future = protocol::promise(replica.pid(), request);
 
@@ -104,7 +109,7 @@ TEST_F(ReplicaTest, Promise)
 
   response = future.get();
   EXPECT_TRUE(response.okay());
-  EXPECT_EQ(3u, response.id());
+  EXPECT_EQ(3u, response.proposal());
   EXPECT_TRUE(response.has_position());
   EXPECT_EQ(0u, response.position());
   EXPECT_FALSE(response.has_action());
@@ -113,14 +118,14 @@ TEST_F(ReplicaTest, Promise)
 
 TEST_F(ReplicaTest, Append)
 {
-  const std::string path = os::getcwd() + "/.log";
+  const string path = os::getcwd() + "/.log";
 
   Replica replica(path);
 
-  const uint64_t id = 1;
+  const uint64_t proposal = 1;
 
   PromiseRequest request1;
-  request1.set_id(id);
+  request1.set_proposal(proposal);
 
   Future<PromiseResponse> future1 =
     protocol::promise(replica.pid(), request1);
@@ -129,13 +134,13 @@ TEST_F(ReplicaTest, Append)
 
   PromiseResponse response1 = future1.get();
   EXPECT_TRUE(response1.okay());
-  EXPECT_EQ(id, response1.id());
+  EXPECT_EQ(proposal, response1.proposal());
   EXPECT_TRUE(response1.has_position());
   EXPECT_EQ(0u, response1.position());
   EXPECT_FALSE(response1.has_action());
 
   WriteRequest request2;
-  request2.set_id(id);
+  request2.set_proposal(proposal);
   request2.set_position(1);
   request2.set_type(Action::APPEND);
   request2.mutable_append()->set_bytes("hello world");
@@ -147,10 +152,10 @@ TEST_F(ReplicaTest, Append)
 
   WriteResponse response2 = future2.get();
   EXPECT_TRUE(response2.okay());
-  EXPECT_EQ(id, response2.id());
+  EXPECT_EQ(proposal, response2.proposal());
   EXPECT_EQ(1u, response2.position());
 
-  Future<std::list<Action> > actions = replica.read(1, 1);
+  Future<list<Action> > actions = replica.read(1, 1);
 
   AWAIT_READY(actions);
   ASSERT_EQ(1u, actions.get().size());
@@ -172,14 +177,14 @@ TEST_F(ReplicaTest, Append)
 
 TEST_F(ReplicaTest, Recover)
 {
-  const std::string path = os::getcwd() + "/.log";
+  const string path = os::getcwd() + "/.log";
 
   Replica replica1(path);
 
-  const uint64_t id = 1;
+  const uint64_t proposal= 1;
 
   PromiseRequest request1;
-  request1.set_id(id);
+  request1.set_proposal(proposal);
 
   Future<PromiseResponse> future1 =
     protocol::promise(replica1.pid(), request1);
@@ -188,13 +193,13 @@ TEST_F(ReplicaTest, Recover)
 
   PromiseResponse response1 = future1.get();
   EXPECT_TRUE(response1.okay());
-  EXPECT_EQ(id, response1.id());
+  EXPECT_EQ(proposal, response1.proposal());
   EXPECT_TRUE(response1.has_position());
   EXPECT_EQ(0u, response1.position());
   EXPECT_FALSE(response1.has_action());
 
   WriteRequest request2;
-  request2.set_id(id);
+  request2.set_proposal(proposal);
   request2.set_position(1);
   request2.set_type(Action::APPEND);
   request2.mutable_append()->set_bytes("hello world");
@@ -206,10 +211,10 @@ TEST_F(ReplicaTest, Recover)
 
   WriteResponse response2 = future2.get();
   EXPECT_TRUE(response2.okay());
-  EXPECT_EQ(id, response2.id());
+  EXPECT_EQ(proposal, response2.proposal());
   EXPECT_EQ(1u, response2.position());
 
-  Future<std::list<Action> > actions1 = replica1.read(1, 1);
+  Future<list<Action> > actions1 = replica1.read(1, 1);
 
   AWAIT_READY(actions1);
   ASSERT_EQ(1u, actions1.get().size());
@@ -231,7 +236,7 @@ TEST_F(ReplicaTest, Recover)
 
   Replica replica2(path);
 
-  Future<std::list<Action> > actions2 = replica2.read(1, 1);
+  Future<list<Action> > actions2 = replica2.read(1, 1);
 
   AWAIT_READY(actions2);
   ASSERT_EQ(1u, actions2.get().size());
@@ -258,18 +263,19 @@ class CoordinatorTest : public TemporaryDirectoryTest {};
 
 TEST_F(CoordinatorTest, Elect)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Network network;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network.add(replica1.pid());
-  network.add(replica2.pid());
+  Shared<Network> network(new Network(pids));
 
-  Coordinator coord(2, &replica1, &network);
+  Coordinator coord(2, replica1, network);
 
   {
     Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
@@ -278,7 +284,7 @@ TEST_F(CoordinatorTest, Elect)
   }
 
   {
-    Future<std::list<Action> > actions = replica1.read(0, 0);
+    Future<list<Action> > actions = replica1->read(0, 0);
     AWAIT_READY(actions);
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(0u, actions.get().front().position());
@@ -290,18 +296,19 @@ TEST_F(CoordinatorTest, Elect)
 
 TEST_F(CoordinatorTest, AppendRead)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Network network;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network.add(replica1.pid());
-  network.add(replica2.pid());
+  Shared<Network> network(new Network(pids));
 
-  Coordinator coord(2, &replica1, &network);
+  Coordinator coord(2, replica1, network);
 
   {
     Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
@@ -320,7 +327,7 @@ TEST_F(CoordinatorTest, AppendRead)
   }
 
   {
-    Future<std::list<Action> > actions = replica1.read(position, position);
+    Future<list<Action> > actions = replica1->read(position, position);
     AWAIT_READY(actions);
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -333,18 +340,19 @@ TEST_F(CoordinatorTest, AppendRead)
 
 TEST_F(CoordinatorTest, AppendReadError)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Network network;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network.add(replica1.pid());
-  network.add(replica2.pid());
+  Shared<Network> network(new Network(pids));
 
-  Coordinator coord(2, &replica1, &network);
+  Coordinator coord(2, replica1, network);
 
   {
     Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
@@ -364,7 +372,7 @@ TEST_F(CoordinatorTest, AppendReadError)
 
   {
     position += 1;
-    Future<std::list<Action> > actions = replica1.read(position, position);
+    Future<list<Action> > actions = replica1->read(position, position);
     AWAIT_FAILED(actions);
     EXPECT_EQ("Bad read range (past end of log)", actions.failure());
   }
@@ -373,15 +381,16 @@ TEST_F(CoordinatorTest, AppendReadError)
 
 TEST_F(CoordinatorTest, ElectNoQuorum)
 {
-  const std::string path = os::getcwd() + "/.log";
+  const string path = os::getcwd() + "/.log";
 
-  Replica replica(path);
+  Shared<Replica> replica(new Replica(path));
 
-  Network network;
+  set<UPID> pids;
+  pids.insert(replica->pid());
 
-  network.add(replica.pid());
+  Shared<Network> network(new Network(pids));
 
-  Coordinator coord(2, &replica, &network);
+  Coordinator coord(2, replica, network);
 
   Clock::pause();
 
@@ -401,18 +410,19 @@ TEST_F(CoordinatorTest, ElectNoQuorum)
 
 TEST_F(CoordinatorTest, AppendNoQuorum)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Network network;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network.add(replica1.pid());
-  network.add(replica2.pid());
+  Shared<Network> network(new Network(pids));
 
-  Coordinator coord(2, &replica1, &network);
+  Coordinator coord(2, replica1, network);
 
   {
     Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
@@ -420,7 +430,9 @@ TEST_F(CoordinatorTest, AppendNoQuorum)
     EXPECT_EQ(0u, result.get());
   }
 
-  network.remove(replica2.pid());
+  process::terminate(replica2->pid());
+  process::wait(replica2->pid());
+  replica2.reset();
 
   Clock::pause();
 
@@ -440,18 +452,19 @@ TEST_F(CoordinatorTest, AppendNoQuorum)
 
 TEST_F(CoordinatorTest, Failover)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Network network1;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network1.add(replica1.pid());
-  network1.add(replica2.pid());
+  Shared<Network> network1(new Network(pids));
 
-  Coordinator coord1(2, &replica1, &network1);
+  Coordinator coord1(2, replica1, network1);
 
   {
     Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
@@ -469,12 +482,9 @@ TEST_F(CoordinatorTest, Failover)
     EXPECT_EQ(1u, position);
   }
 
-  Network network2;
+  Shared<Network> network2(new Network(pids));
 
-  network2.add(replica1.pid());
-  network2.add(replica2.pid());
-
-  Coordinator coord2(2, &replica2, &network2);
+  Coordinator coord2(2, replica2, network2);
 
   {
     Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
@@ -483,7 +493,7 @@ TEST_F(CoordinatorTest, Failover)
   }
 
   {
-    Future<std::list<Action> > actions = replica2.read(position, position);
+    Future<list<Action> > actions = replica2->read(position, position);
     AWAIT_READY(actions);
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -496,18 +506,19 @@ TEST_F(CoordinatorTest, Failover)
 
 TEST_F(CoordinatorTest, Demoted)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Network network1;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network1.add(replica1.pid());
-  network1.add(replica2.pid());
+  Shared<Network> network1(new Network(pids));
 
-  Coordinator coord1(2, &replica1, &network1);
+  Coordinator coord1(2, replica1, network1);
 
   {
     Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
@@ -525,12 +536,9 @@ TEST_F(CoordinatorTest, Demoted)
     EXPECT_EQ(1u, position);
   }
 
-  Network network2;
+  Shared<Network> network2(new Network(pids));
 
-  network2.add(replica1.pid());
-  network2.add(replica2.pid());
-
-  Coordinator coord2(2, &replica2, &network2);
+  Coordinator coord2(2, replica2, network2);
 
   {
     Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
@@ -554,7 +562,7 @@ TEST_F(CoordinatorTest, Demoted)
   }
 
   {
-    Future<std::list<Action> > actions = replica2.read(position, position);
+    Future<list<Action> > actions = replica2->read(position, position);
     AWAIT_READY(actions);
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -567,19 +575,20 @@ TEST_F(CoordinatorTest, Demoted)
 
 TEST_F(CoordinatorTest, Fill)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
-  const std::string path3 = os::getcwd() + "/.log3";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
+  const string path3 = os::getcwd() + "/.log3";
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Network network1;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network1.add(replica1.pid());
-  network1.add(replica2.pid());
+  Shared<Network> network1(new Network(pids));
 
-  Coordinator coord1(2, &replica1, &network1);
+  Coordinator coord1(2, replica1, network1);
 
   {
     Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
@@ -597,14 +606,15 @@ TEST_F(CoordinatorTest, Fill)
     EXPECT_EQ(1u, position);
   }
 
-  Replica replica3(path3);
+  Shared<Replica> replica3(new Replica(path3));
 
-  Network network2;
+  pids.clear();
+  pids.insert(replica2->pid());
+  pids.insert(replica3->pid());
 
-  network2.add(replica2.pid());
-  network2.add(replica3.pid());
+  Shared<Network> network2(new Network(pids));
 
-  Coordinator coord2(2, &replica3, &network2);
+  Coordinator coord2(2, replica3, network2);
 
   {
     Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
@@ -615,7 +625,7 @@ TEST_F(CoordinatorTest, Fill)
   }
 
   {
-    Future<std::list<Action> > actions = replica3.read(position, position);
+    Future<list<Action> > actions = replica3->read(position, position);
     AWAIT_READY(actions);
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -628,21 +638,24 @@ TEST_F(CoordinatorTest, Fill)
 
 TEST_F(CoordinatorTest, NotLearnedFill)
 {
-  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, _);
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
+  const string path3 = os::getcwd() + "/.log3";
 
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
-  const std::string path3 = os::getcwd() + "/.log3";
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  // Drop messages here in order to obtain the pid of replica2. We
+  // only want to drop learned message sent to replica2.
+  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, Eq(replica2->pid()));
 
-  Network network1;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network1.add(replica1.pid());
-  network1.add(replica2.pid());
+  Shared<Network> network1(new Network(pids));
 
-  Coordinator coord1(2, &replica1, &network1);
+  Coordinator coord1(2, replica1, network1);
 
   {
     Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
@@ -660,14 +673,15 @@ TEST_F(CoordinatorTest, NotLearnedFill)
     EXPECT_EQ(1u, position);
   }
 
-  Replica replica3(path3);
+  Shared<Replica> replica3(new Replica(path3));
 
-  Network network2;
+  pids.clear();
+  pids.insert(replica2->pid());
+  pids.insert(replica3->pid());
 
-  network2.add(replica2.pid());
-  network2.add(replica3.pid());
+  Shared<Network> network2(new Network(pids));
 
-  Coordinator coord2(2, &replica3, &network2);
+  Coordinator coord2(2, replica3, network2);
 
   {
     Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
@@ -678,7 +692,7 @@ TEST_F(CoordinatorTest, NotLearnedFill)
   }
 
   {
-    Future<std::list<Action> > actions = replica3.read(position, position);
+    Future<list<Action> > actions = replica3->read(position, position);
     AWAIT_READY(actions);
     ASSERT_EQ(1u, actions.get().size());
     EXPECT_EQ(position, actions.get().front().position());
@@ -691,18 +705,19 @@ TEST_F(CoordinatorTest, NotLearnedFill)
 
 TEST_F(CoordinatorTest, MultipleAppends)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Network network;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network.add(replica1.pid());
-  network.add(replica2.pid());
+  Shared<Network> network(new Network(pids));
 
-  Coordinator coord(2, &replica1, &network);
+  Coordinator coord(2, replica1, network);
 
   {
     Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
@@ -718,7 +733,7 @@ TEST_F(CoordinatorTest, MultipleAppends)
   }
 
   {
-    Future<std::list<Action> > actions = replica1.read(1, 10);
+    Future<list<Action> > actions = replica1->read(1, 10);
     AWAIT_READY(actions);
     EXPECT_EQ(10u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -732,21 +747,24 @@ TEST_F(CoordinatorTest, MultipleAppends)
 
 TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
 {
-  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, _);
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
+  const string path3 = os::getcwd() + "/.log3";
 
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
-  const std::string path3 = os::getcwd() + "/.log3";
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  // Drop messages here in order to obtain the pid of replica2. We
+  // only want to drop learned message sent to replica2.
+  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, Eq(replica2->pid()));
 
-  Network network1;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network1.add(replica1.pid());
-  network1.add(replica2.pid());
+  Shared<Network> network1(new Network(pids));
 
-  Coordinator coord1(2, &replica1, &network1);
+  Coordinator coord1(2, replica1, network1);
 
   {
     Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
@@ -761,14 +779,15 @@ TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
     EXPECT_EQ(position, result.get());
   }
 
-  Replica replica3(path3);
+  Shared<Replica> replica3(new Replica(path3));
 
-  Network network2;
+  pids.clear();
+  pids.insert(replica2->pid());
+  pids.insert(replica3->pid());
 
-  network2.add(replica2.pid());
-  network2.add(replica3.pid());
+  Shared<Network> network2(new Network(pids));
 
-  Coordinator coord2(2, &replica3, &network2);
+  Coordinator coord2(2, replica3, network2);
 
   {
     Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
@@ -779,7 +798,7 @@ TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
   }
 
   {
-    Future<std::list<Action> > actions = replica3.read(1, 10);
+    Future<list<Action> > actions = replica3->read(1, 10);
     AWAIT_READY(actions);
     EXPECT_EQ(10u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -793,18 +812,19 @@ TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
 
 TEST_F(CoordinatorTest, Truncate)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Network network;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network.add(replica1.pid());
-  network.add(replica2.pid());
+  Shared<Network> network(new Network(pids));
 
-  Coordinator coord(2, &replica1, &network);
+  Coordinator coord(2, replica1, network);
 
   {
     Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
@@ -826,13 +846,13 @@ TEST_F(CoordinatorTest, Truncate)
   }
 
   {
-    Future<std::list<Action> > actions = replica1.read(6, 10);
+    Future<list<Action> > actions = replica1->read(6, 10);
     AWAIT_FAILED(actions);
     EXPECT_EQ("Bad read range (truncated position)", actions.failure());
   }
 
   {
-    Future<std::list<Action> > actions = replica1.read(7, 10);
+    Future<list<Action> > actions = replica1->read(7, 10);
     AWAIT_READY(actions);
     EXPECT_EQ(4u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -846,21 +866,24 @@ TEST_F(CoordinatorTest, Truncate)
 
 TEST_F(CoordinatorTest, TruncateNotLearnedFill)
 {
-  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, _);
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
+  const string path3 = os::getcwd() + "/.log3";
 
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
-  const std::string path3 = os::getcwd() + "/.log3";
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  // Drop messages here in order to obtain the pid of replica2. We
+  // only want to drop learned message sent to replica2.
+  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, Eq(replica2->pid()));
 
-  Network network1;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network1.add(replica1.pid());
-  network1.add(replica2.pid());
+  Shared<Network> network1(new Network(pids));
 
-  Coordinator coord1(2, &replica1, &network1);
+  Coordinator coord1(2, replica1, network1);
 
   {
     Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
@@ -881,14 +904,15 @@ TEST_F(CoordinatorTest, TruncateNotLearnedFill)
     EXPECT_EQ(11u, result.get());
   }
 
-  Replica replica3(path3);
+  Shared<Replica> replica3(new Replica(path3));
 
-  Network network2;
+  pids.clear();
+  pids.insert(replica2->pid());
+  pids.insert(replica3->pid());
 
-  network2.add(replica2.pid());
-  network2.add(replica3.pid());
+  Shared<Network> network2(new Network(pids));
 
-  Coordinator coord2(2, &replica3, &network2);
+  Coordinator coord2(2, replica3, network2);
 
   {
     Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
@@ -899,13 +923,13 @@ TEST_F(CoordinatorTest, TruncateNotLearnedFill)
   }
 
   {
-    Future<std::list<Action> > actions = replica3.read(6, 10);
+    Future<list<Action> > actions = replica3->read(6, 10);
     AWAIT_FAILED(actions);
     EXPECT_EQ("Bad read range (truncated position)", actions.failure());
   }
 
   {
-    Future<std::list<Action> > actions = replica3.read(7, 10);
+    Future<list<Action> > actions = replica3->read(7, 10);
     AWAIT_READY(actions);
     EXPECT_EQ(4u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -919,19 +943,20 @@ TEST_F(CoordinatorTest, TruncateNotLearnedFill)
 
 TEST_F(CoordinatorTest, TruncateLearnedFill)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
-  const std::string path3 = os::getcwd() + "/.log3";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
+  const string path3 = os::getcwd() + "/.log3";
 
-  Replica replica1(path1);
-  Replica replica2(path2);
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
 
-  Network network1;
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
 
-  network1.add(replica1.pid());
-  network1.add(replica2.pid());
+  Shared<Network> network1(new Network(pids));
 
-  Coordinator coord1(2, &replica1, &network1);
+  Coordinator coord1(2, replica1, network1);
 
   {
     Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
@@ -952,14 +977,15 @@ TEST_F(CoordinatorTest, TruncateLearnedFill)
     EXPECT_EQ(11u, result.get());
   }
 
-  Replica replica3(path3);
+  Shared<Replica> replica3(new Replica(path3));
 
-  Network network2;
+  pids.clear();
+  pids.insert(replica2->pid());
+  pids.insert(replica3->pid());
 
-  network2.add(replica2.pid());
-  network2.add(replica3.pid());
+  Shared<Network> network2(new Network(pids));
 
-  Coordinator coord2(2, &replica3, &network2);
+  Coordinator coord2(2, replica3, network2);
 
   {
     Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
@@ -970,13 +996,13 @@ TEST_F(CoordinatorTest, TruncateLearnedFill)
   }
 
   {
-    Future<std::list<Action> > actions = replica3.read(6, 10);
+    Future<list<Action> > actions = replica3->read(6, 10);
     AWAIT_FAILED(actions);
     EXPECT_EQ("Bad read range (truncated position)", actions.failure());
   }
 
   {
-    Future<std::list<Action> > actions = replica3.read(7, 10);
+    Future<list<Action> > actions = replica3->read(7, 10);
     AWAIT_READY(actions);
     EXPECT_EQ(4u, actions.get().size());
     foreach (const Action& action, actions.get()) {
@@ -993,12 +1019,12 @@ class LogTest : public TemporaryDirectoryTest {};
 
 TEST_F(LogTest, WriteRead)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
 
   Replica replica1(path1);
 
-  std::set<UPID> pids;
+  set<UPID> pids;
   pids.insert(replica1.pid());
 
   Log log(2, path2, pids);
@@ -1012,7 +1038,7 @@ TEST_F(LogTest, WriteRead)
 
   Log::Reader reader(&log);
 
-  Result<std::list<Log::Entry> > entries =
+  Result<list<Log::Entry> > entries =
     reader.read(position.get(), position.get(), Timeout::in(Seconds(10)));
 
   ASSERT_SOME(entries);
@@ -1024,12 +1050,12 @@ TEST_F(LogTest, WriteRead)
 
 TEST_F(LogTest, Position)
 {
-  const std::string path1 = os::getcwd() + "/.log1";
-  const std::string path2 = os::getcwd() + "/.log2";
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
 
   Replica replica1(path1);
 
-  std::set<UPID> pids;
+  set<UPID> pids;
   pids.insert(replica1.pid());
 
   Log log(2, path2, pids);

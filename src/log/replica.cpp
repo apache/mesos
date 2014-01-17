@@ -25,7 +25,7 @@
 #include <algorithm>
 
 #include <process/dispatch.hpp>
-#include <process/protobuf.hpp>
+#include <process/id.hpp>
 
 #include <stout/check.hpp>
 #include <stout/error.hpp>
@@ -59,18 +59,17 @@ namespace protocol {
 // Some replica protocol definitions.
 Protocol<PromiseRequest, PromiseResponse> promise;
 Protocol<WriteRequest, WriteResponse> write;
-Protocol<LearnRequest, LearnResponse> learn;
 
 } // namespace protocol {
 
 
 struct State
 {
-  uint64_t coordinator; // Last promise made to a coordinator.
+  uint64_t proposal; // Last promise made.
   uint64_t begin; // Beginning position of the log.
   uint64_t end; // Ending position of the log.
-  std::set<uint64_t> learned; // Positions present and learned
-  std::set<uint64_t> unlearned; // Positions present but unlearned.
+  set<uint64_t> learned; // Positions present and learned
+  set<uint64_t> unlearned; // Positions present but unlearned.
 };
 
 
@@ -237,7 +236,7 @@ Try<State> LevelDBStorage::recover(const string& path)
   LOG(INFO) << "Compacted db in " << stopwatch.elapsed();
 
   State state;
-  state.coordinator = 0;
+  state.proposal = 0;
   state.begin = 0;
   state.end = 0;
 
@@ -277,14 +276,14 @@ Try<State> LevelDBStorage::recover(const string& path)
     switch (record.type()) {
       case Record::METADATA: {
         CHECK(record.has_metadata());
-        state.coordinator = record.metadata().promised();
+        state.proposal = record.metadata().promised();
         break;
       }
 
       // DEPRECATED!
       case Record::PROMISE: {
         CHECK(record.has_promise());
-        state.coordinator = record.promise().id();
+        state.proposal = record.promise().proposal();
         break;
       }
 
@@ -484,7 +483,7 @@ class ReplicaProcess : public ProtobufProcess<ReplicaProcess>
 public:
   // Constructs a new replica process using specified path to a
   // directory for storing the underlying log.
-  ReplicaProcess(const std::string& path);
+  ReplicaProcess(const string& path);
 
   virtual ~ReplicaProcess();
 
@@ -498,11 +497,15 @@ public:
 
   // Returns all the actions between the specified positions, unless
   // those positions are invalid, in which case returns an error.
-  process::Future<std::list<Action> > read(uint64_t from, uint64_t to);
+  Future<list<Action> > read(uint64_t from, uint64_t to);
+
+  // Returns true if the specified position is missing in the log
+  // (i.e., unlearned or holes).
+  bool missing(uint64_t position);
 
   // Returns missing positions in the log (i.e., unlearned or holes)
-  // up to the specified position.
-  std::set<uint64_t> missing(uint64_t position);
+  // within the specified range [from, to].
+  set<uint64_t> missing(uint64_t from, uint64_t to);
 
   // Returns the beginning position of the log.
   uint64_t beginning();
@@ -514,16 +517,12 @@ public:
   uint64_t promised();
 
 private:
-  // Handles a request from a coordinator to promise not to accept
-  // writes from any other coordinator.
+  // Handles a request from a proposer to promise not to accept writes
+  // from any other proposer with lower proposal number.
   void promise(const PromiseRequest& request);
 
-  // Handles a request from a coordinator to write an action.
+  // Handles a request from a proposer to write an action.
   void write(const WriteRequest& request);
-
-  // Handles a request from a coordinator (or replica) to learn the
-  // specified position in the log.
-  void learn(uint64_t position);
 
   // Handles a message notifying of a learned action.
   void learned(const Action& action);
@@ -534,13 +533,13 @@ private:
   bool persist(const Action& action);
 
   // Helper routine to recover log (e.g., on restart).
-  void recover(const std::string& path);
+  void recover(const string& path);
 
   // Underlying storage for the log.
   Storage* storage;
 
-  // Last promise made to a coordinator.
-  uint64_t coordinator;
+  // Last promise made to a proposer.
+  uint64_t proposal;
 
   // Beginning position of log (after *learned* truncations).
   uint64_t begin;
@@ -549,19 +548,21 @@ private:
   uint64_t end;
 
   // Holes in the log.
-  std::set<uint64_t> holes;
+  set<uint64_t> holes;
 
   // Unlearned positions in the log.
-  std::set<uint64_t> unlearned;
+  set<uint64_t> unlearned;
 };
 
 
 ReplicaProcess::ReplicaProcess(const string& path)
-  : coordinator(0),
+  : ProcessBase(ID::generate("log-replica")),
+    proposal(0),
     begin(0),
     end(0)
 {
-  storage = new LevelDBStorage(); // TODO(benh): Factor out and expose storage.
+  // TODO(benh): Factor out and expose storage.
+  storage = new LevelDBStorage();
 
   recover(path);
 
@@ -575,10 +576,6 @@ ReplicaProcess::ReplicaProcess(const string& path)
   install<LearnedMessage>(
       &ReplicaProcess::learned,
       &LearnedMessage::action);
-
-  install<LearnRequest>(
-      &ReplicaProcess::learn,
-      &LearnRequest::position);
 }
 
 
@@ -613,9 +610,7 @@ Result<Action> ReplicaProcess::read(uint64_t position)
 
 // TODO(benh): Make this function actually return a Try once we change
 // the future semantics to not include failures.
-process::Future<list<Action> > ReplicaProcess::read(
-    uint64_t from,
-    uint64_t to)
+Future<list<Action> > ReplicaProcess::read(uint64_t from, uint64_t to)
 {
   if (to < from) {
     process::Promise<list<Action> > promise;
@@ -649,24 +644,44 @@ process::Future<list<Action> > ReplicaProcess::read(
 }
 
 
-set<uint64_t> ReplicaProcess::missing(uint64_t index)
+bool ReplicaProcess::missing(uint64_t position)
 {
-  // Start off with all the unlearned positions.
-  set<uint64_t> positions = unlearned;
+  if (position < begin) {
+    return false; // Truncated positions are treated as learned.
+  } else if (position > end) {
+    return true;
+  } else {
+    if (unlearned.count(position) != 0 || holes.count(position) != 0) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
 
-  // Add in a spoonful of holes.
-  foreach (uint64_t hole, holes) {
-    positions.insert(hole);
+
+set<uint64_t> ReplicaProcess::missing(uint64_t from, uint64_t to)
+{
+  // TODO(jieyu): Optimize the performence for the common case.
+  set<uint64_t> positions;
+
+  // Add unlearned positions.
+  foreach (uint64_t p, unlearned) {
+    if (p >= from && p <= to) {
+      positions.insert(p);
+    }
   }
 
-  // And finally add all the unknown positions beyond our end.
-  for (; index >= end; index--) {
-    positions.insert(index);
-
-    // Don't wrap around 0!
-    if (index == 0) {
-      break;
+  // Add holes.
+  foreach (uint64_t p, holes) {
+    if (p >= from && p <= to) {
+      positions.insert(p);
     }
+  }
+
+  // Add all the unknown positions beyond our end.
+  for (; to > end; to--) {
+    positions.insert(to);
   }
 
   return positions;
@@ -687,54 +702,58 @@ uint64_t ReplicaProcess::ending()
 
 uint64_t ReplicaProcess::promised()
 {
-  return coordinator;
+  return proposal;
 }
 
 
 // Note that certain failures that occur result in returning from the
-// current function but *NOT* sending a 'nack' back to the coordinator
-// because that implies a coordinator has been demoted. Not sending
+// current function but *NOT* sending a NACK back to the proposer
+// because that implies a proposer has been demoted. Not sending
 // anything is equivalent to pretending like the request never made it
 // here. TODO(benh): At some point, however, we might want to actually
 // "fail" more dramatically because there could be something rather
-// seriously wrong on this box that we are ignoring (like a bad
-// disk). This could be accomplished by changing most LOG(ERROR)
-// statements to LOG(FATAL), or by counting the number of errors and
-// after reaching some threshold aborting. In addition, sending the
-// error information back to the coordinator "might" help the
-// debugging procedure.
+// seriously wrong on this box that we are ignoring (like a bad disk).
+// This could be accomplished by changing most LOG(ERROR) statements
+// to LOG(FATAL), or by counting the number of errors and after
+// reaching some threshold aborting. In addition, sending the error
+// information back to the proposer "might" help the debugging
+// procedure.
 
 
 void ReplicaProcess::promise(const PromiseRequest& request)
 {
   if (request.has_position()) {
-    LOG(INFO) << "Replica received explicit promise request for "
-              << request.id() << " for position " << request.position();
+    LOG(INFO) << "Replica received explicit promise request for position "
+              << request.position() << " with proposal " << request.proposal();
 
-    // If the position has been truncated, tell the coordinator that
-    // it's a learned no-op. This can happen when a replica has missed
-    // some truncates and it's coordinator tries to fill some
-    // truncated positions on election. A learned no-op is safe since
-    // the coordinator should eventually learn that this position was
+    // If the position has been truncated, tell the proposer that it's
+    // a learned no-op. This can happen when a replica has missed some
+    // truncates and it's proposer tries to fill some truncated
+    // positions on election. A learned no-op is safe since the
+    // proposer should eventually learn that this position was
     // actually truncated. The action must be _learned_ so that the
-    // coordinator doesn't attempt to run a full Paxos round which
-    // will never succeed because this replica will not permit the
-    // write (because ReplicaProcess::write "ignores" writes on
-    // truncated positions).
+    // proposer doesn't attempt to run a full Paxos round which will
+    // never succeed because this replica will not permit the write
+    // (because ReplicaProcess::write "ignores" writes on truncated
+    // positions).
+    // TODO(jieyu): Think about whether we need to check proposal
+    // number so that we don't reply a proposer whose number is
+    // obviously smaller than most of the proposers in the system.
     if (request.position() < begin) {
       Action action;
       action.set_position(request.position());
-      action.set_promised(coordinator); // Use the last coordinator.
-      action.set_performed(coordinator); // Use the last coordinator.
+      action.set_promised(proposal); // Use the last promised proposal.
+      action.set_performed(proposal); // Use the last promised proposal.
       action.set_learned(true);
       action.set_type(Action::NOP);
       action.mutable_nop()->MergeFrom(Action::Nop());
 
       PromiseResponse response;
       response.set_okay(true);
-      response.set_id(request.id());
+      response.set_proposal(request.proposal());
       response.mutable_action()->MergeFrom(action);
       reply(response);
+      return;
     }
 
     // Need to get the action for the specified position.
@@ -744,63 +763,86 @@ void ReplicaProcess::promise(const PromiseRequest& request)
       LOG(ERROR) << "Error getting log record at " << request.position()
                  << ": " << result.error();
     } else if (result.isNone()) {
-      Action action;
-      action.set_position(request.position());
-      action.set_promised(request.id());
-
-      if (persist(action)) {
-        PromiseResponse response;
-        response.set_okay(true);
-        response.set_id(request.id());
-        response.set_position(request.position());
-        reply(response);
-      }
-    } else {
-      CHECK_SOME(result);
-      Action action = result.get();
-      CHECK(action.position() == request.position());
-
-      if (request.id() < action.promised()) {
+      // This position has been implicitly promised to a proposer.
+      // Therefore, we should no longer give promise to a proposer
+      // with a lower (or equal) proposal number. If not, we may
+      // accept writes from both proposers, causing a potential
+      // inconsistency in the log. For example, there are three
+      // replicas R1, R2 and R3. Assume that log position 1 in all
+      // replicas are implicitly promised to proposer 2. Later,
+      // proposer 1 asks for explicit promises from R2 and R3 for log
+      // position 1. If we don't perform the following check, R2 and
+      // R3 will give their promises to R2 and R3 for log position 1.
+      // As a result, proposer 1 can successfully write a value X to
+      // log position 1 and thinks that X is agreed, while proposer 2
+      // can later write a value Y and also believes that Y is agreed.
+      if (request.proposal() <= proposal) {
+        // If a promise request is rejected because of the proposal
+        // number check, we reply with the currently promised proposal
+        // number so that the proposer can bump its proposal number
+        // and retry if needed to ensure liveness.
         PromiseResponse response;
         response.set_okay(false);
-        response.set_id(request.id());
-        response.set_position(request.position());
+        response.set_proposal(proposal);
         reply(response);
       } else {
-        Action original = action;
-        action.set_promised(request.id());
+        Action action;
+        action.set_position(request.position());
+        action.set_promised(request.proposal());
 
         if (persist(action)) {
           PromiseResponse response;
           response.set_okay(true);
-          response.set_id(request.id());
+          response.set_proposal(request.proposal());
+          response.set_position(request.position());
+          reply(response);
+        }
+      }
+    } else {
+      CHECK_SOME(result);
+      Action action = result.get();
+      CHECK_EQ(action.position(), request.position());
+
+      if (request.proposal() <= action.promised()) {
+        PromiseResponse response;
+        response.set_okay(false);
+        response.set_proposal(action.promised());
+        reply(response);
+      } else {
+        Action original = action;
+        action.set_promised(request.proposal());
+
+        if (persist(action)) {
+          PromiseResponse response;
+          response.set_okay(true);
+          response.set_proposal(request.proposal());
           response.mutable_action()->MergeFrom(original);
           reply(response);
         }
       }
     }
   } else {
-    LOG(INFO) << "Replica received implicit promise request for "
-              << request.id();
+    LOG(INFO) << "Replica received implicit promise request with proposal "
+              << request.proposal();
 
-    if (request.id() <= coordinator) { // Only make an implicit promise once!
-      LOG(INFO) << "Replica denying promise request for "
-                << request.id();
+    if (request.proposal() <= proposal) { // Only make an implicit promise once!
+      LOG(INFO) << "Replica denying promise request with proposal "
+                << request.proposal();
       PromiseResponse response;
       response.set_okay(false);
-      response.set_id(request.id());
+      response.set_proposal(proposal);
       reply(response);
     } else {
       Promise promise;
-      promise.set_id(request.id());
+      promise.set_proposal(request.proposal());
 
       if (persist(promise)) {
-        coordinator = request.id();
+        proposal = request.proposal();
 
         // Return the last position written.
         PromiseResponse response;
         response.set_okay(true);
-        response.set_id(request.id());
+        response.set_proposal(request.proposal());
         response.set_position(end);
         reply(response);
       }
@@ -811,7 +853,8 @@ void ReplicaProcess::promise(const PromiseRequest& request)
 
 void ReplicaProcess::write(const WriteRequest& request)
 {
-  LOG(INFO) << "Replica received write request for position " << request.position();
+  LOG(INFO) << "Replica received write request for position "
+            << request.position();
 
   Result<Action> result = read(request.position());
 
@@ -819,17 +862,17 @@ void ReplicaProcess::write(const WriteRequest& request)
     LOG(ERROR) << "Error getting log record at " << request.position()
                << ": " << result.error();
   } else if (result.isNone()) {
-    if (request.id() < coordinator) {
+    if (request.proposal() < proposal) {
       WriteResponse response;
       response.set_okay(false);
-      response.set_id(request.id());
+      response.set_proposal(proposal);
       response.set_position(request.position());
       reply(response);
     } else {
       Action action;
       action.set_position(request.position());
-      action.set_promised(coordinator);
-      action.set_performed(request.id());
+      action.set_promised(proposal);
+      action.set_performed(request.proposal());
       if (request.has_learned()) action.set_learned(request.learned());
       action.set_type(request.type());
 
@@ -840,11 +883,11 @@ void ReplicaProcess::write(const WriteRequest& request)
           break;
         case Action::APPEND:
           CHECK(request.has_append());
-          action.mutable_append()->MergeFrom(request.append());
+          action.mutable_append()->CopyFrom(request.append());
           break;
         case Action::TRUNCATE:
           CHECK(request.has_truncate());
-          action.mutable_truncate()->MergeFrom(request.truncate());
+          action.mutable_truncate()->CopyFrom(request.truncate());
           break;
         default:
           LOG(FATAL) << "Unknown Action::Type!";
@@ -853,25 +896,42 @@ void ReplicaProcess::write(const WriteRequest& request)
       if (persist(action)) {
         WriteResponse response;
         response.set_okay(true);
-        response.set_id(request.id());
+        response.set_proposal(request.proposal());
         response.set_position(request.position());
         reply(response);
       }
     }
   } else if (result.isSome()) {
     Action action = result.get();
-    CHECK(action.position() == request.position());
+    CHECK_EQ(action.position(), request.position());
 
-    if (request.id() < action.promised()) {
+    if (request.proposal() < action.promised()) {
       WriteResponse response;
       response.set_okay(false);
-      response.set_id(request.id());
+      response.set_proposal(action.promised());
       response.set_position(request.position());
       reply(response);
     } else {
       // TODO(benh): Check if this position has already been learned,
       // and if so, check that we are re-writing the same value!
-      action.set_performed(request.id());
+      //
+      // TODO(jieyu): Interestingly, in the presence of truncations,
+      // we may encounter a situation where this position has already
+      // been learned, but we are re-writing a different value. For
+      // example, assume that there are 5 replicas (R1 ~ R5). First,
+      // an append operation has been agreed at position 5 by R1, R2,
+      // R3 and R4, but only R1 receives a learned message. Later, a
+      // truncate operation has been agreed at position 10 by R1, R2
+      // and R3, but only R1 receives a learned message. Now, a leader
+      // failover happens and R5 is filled with a NOP at position 5
+      // because its coordinator receives a learned NOP at position 5
+      // from R1 (because of its learned truncation at position 10).
+      // Now, another leader failover happens and R4's coordinator
+      // tries to fill position 5. However, it is only able to contact
+      // R2, R3 and R4 during the explicit promise phase. As a result,
+      // it will try to write an append operation at position 5 to R5
+      // while R5 currently have a learned NOP stored at position 5.
+      action.set_performed(request.proposal());
       action.clear_learned();
       if (request.has_learned()) action.set_learned(request.learned());
       action.clear_type();
@@ -887,11 +947,11 @@ void ReplicaProcess::write(const WriteRequest& request)
           break;
         case Action::APPEND:
           CHECK(request.has_append());
-          action.mutable_append()->MergeFrom(request.append());
+          action.mutable_append()->CopyFrom(request.append());
           break;
         case Action::TRUNCATE:
           CHECK(request.has_truncate());
-          action.mutable_truncate()->MergeFrom(request.truncate());
+          action.mutable_truncate()->CopyFrom(request.truncate());
           break;
         default:
           LOG(FATAL) << "Unknown Action::Type!";
@@ -900,7 +960,7 @@ void ReplicaProcess::write(const WriteRequest& request)
       if (persist(action)) {
         WriteResponse response;
         response.set_okay(true);
-        response.set_id(request.id());
+        response.set_proposal(request.proposal());
         response.set_position(request.position());
         reply(response);
       }
@@ -911,38 +971,14 @@ void ReplicaProcess::write(const WriteRequest& request)
 
 void ReplicaProcess::learned(const Action& action)
 {
-  LOG(INFO) << "Replica received learned notice for position " << action.position();
+  LOG(INFO) << "Replica received learned notice for position "
+            << action.position();
 
   CHECK(action.learned());
 
   if (persist(action)) {
-    LOG(INFO) << "Replica learned "
-              << Action::Type_Name(action.type())
+    LOG(INFO) << "Replica learned " << Action::Type_Name(action.type())
               << " action at position " << action.position();
-  }
-}
-
-
-void ReplicaProcess::learn(uint64_t position)
-{
-  LOG(INFO) << "Replica received learn request for position " << position;
-
-  Result<Action> result = read(position);
-
-  if (result.isError()) {
-    LOG(ERROR) << "Error getting log record at " << position
-               << ": " << result.error();
-  } else if (result.isSome() &&
-             result.get().has_learned() &&
-             result.get().learned()) {
-    LearnResponse response;
-    response.set_okay(true);
-    response.mutable_action()->MergeFrom(result.get());
-    reply(response);
-  } else {
-    LearnResponse response;
-    response.set_okay(false);
-    reply(response);
   }
 }
 
@@ -956,7 +992,7 @@ bool ReplicaProcess::persist(const Promise& promise)
     return false;
   }
 
-  LOG(INFO) << "Persisted promise to " << promise.id();
+  LOG(INFO) << "Persisted promise to " << promise.proposal();
 
   return true;
 }
@@ -999,6 +1035,9 @@ bool ReplicaProcess::persist(const Action& action)
       // And update the beginning position.
       begin = std::max(begin, action.truncate().to());
     }
+  } else {
+    // We just introduced an unlearned position.
+    unlearned.insert(action.position());
   }
 
   // Update holes if we just wrote many positions past the last end.
@@ -1020,13 +1059,13 @@ void ReplicaProcess::recover(const string& path)
   CHECK_SOME(state) << "Failed to recover the log";
 
   // Pull out and save some of the state.
-  coordinator = state.get().coordinator;
+  proposal = state.get().proposal;
   begin = state.get().begin;
   end = state.get().end;
   unlearned = state.get().unlearned;
 
   // Only use the learned positions to help determine the holes.
-  const std::set<uint64_t>& learned = state.get().learned;
+  const set<uint64_t>& learned = state.get().learned;
 
   // We need to assume that position 0 is a hole for a brand new log
   // (a coordinator will simply fill it with a no-op when it first
@@ -1050,54 +1089,58 @@ void ReplicaProcess::recover(const string& path)
 }
 
 
-Replica::Replica(const std::string& path)
+Replica::Replica(const string& path)
 {
   process = new ReplicaProcess(path);
-  process::spawn(process);
+  spawn(process);
 }
 
 
 Replica::~Replica()
 {
-  process::terminate(process);
+  terminate(process);
   process::wait(process);
   delete process;
 }
 
 
-process::Future<std::list<Action> > Replica::read(
-    uint64_t from,
-    uint64_t to)
+Future<list<Action> > Replica::read(uint64_t from, uint64_t to) const
 {
-  return process::dispatch(process, &ReplicaProcess::read, from, to);
+  return dispatch(process, &ReplicaProcess::read, from, to);
 }
 
 
-process::Future<std::set<uint64_t> > Replica::missing(uint64_t position)
+Future<bool> Replica::missing(uint64_t position) const
 {
-  return process::dispatch(process, &ReplicaProcess::missing, position);
+  return dispatch(process, &ReplicaProcess::missing, position);
 }
 
 
-process::Future<uint64_t> Replica::beginning()
+Future<set<uint64_t> > Replica::missing(uint64_t from, uint64_t to) const
 {
-  return process::dispatch(process, &ReplicaProcess::beginning);
+  return dispatch(process, &ReplicaProcess::missing, from, to);
 }
 
 
-process::Future<uint64_t> Replica::ending()
+Future<uint64_t> Replica::beginning() const
 {
-  return process::dispatch(process, &ReplicaProcess::ending);
+  return dispatch(process, &ReplicaProcess::beginning);
 }
 
 
-process::Future<uint64_t> Replica::promised()
+Future<uint64_t> Replica::ending() const
 {
-  return process::dispatch(process, &ReplicaProcess::promised);
+  return dispatch(process, &ReplicaProcess::ending);
 }
 
 
-process::PID<ReplicaProcess> Replica::pid()
+Future<uint64_t> Replica::promised() const
+{
+  return dispatch(process, &ReplicaProcess::promised);
+}
+
+
+PID<ReplicaProcess> Replica::pid() const
 {
   return process->self();
 }

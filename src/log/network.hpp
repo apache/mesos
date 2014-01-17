@@ -33,6 +33,7 @@
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
+#include <stout/nothing.hpp>
 
 #include "logging/logging.hpp"
 
@@ -67,13 +68,14 @@ public:
   process::Future<std::set<process::Future<Res> > > broadcast(
       const Protocol<Req, Res>& protocol,
       const Req& req,
-      const std::set<process::UPID>& filter = std::set<process::UPID>());
+      const std::set<process::UPID>& filter = std::set<process::UPID>()) const;
 
-  // Sends a message to each member of the network.
+  // Sends a message to each member of the network. The returned
+  // future is set when the message is broadcasted.
   template <typename M>
-  void broadcast(
+  process::Future<Nothing> broadcast(
       const M& m,
-      const std::set<process::UPID>& filter = std::set<process::UPID>());
+      const std::set<process::UPID>& filter = std::set<process::UPID>()) const;
 
 private:
   // Not copyable, not assignable.
@@ -87,10 +89,18 @@ private:
 class ZooKeeperNetwork : public Network
 {
 public:
-  ZooKeeperNetwork(zookeeper::Group* group);
+  ZooKeeperNetwork(
+      const std::string& servers,
+      const Duration& timeout,
+      const std::string& znode,
+      const Option<zookeeper::Authentication>& auth);
 
 private:
   typedef ZooKeeperNetwork This;
+
+  // Not copyable, not assignable.
+  ZooKeeperNetwork(const ZooKeeperNetwork&);
+  ZooKeeperNetwork& operator = (const ZooKeeperNetwork&);
 
   // Helper that sets up a watch on the group.
   void watch(const std::set<zookeeper::Group::Membership>& expected);
@@ -101,9 +111,13 @@ private:
   // Invoked when group members data has been collected.
   void collected(const process::Future<std::list<std::string> >& datas);
 
-  zookeeper::Group* group;
-  process::Executor executor;
+  zookeeper::Group group;
   process::Future<std::set<zookeeper::Group::Membership> > memberships;
+
+  // NOTE: The declaration order here is important. We want to delete
+  // the 'executor' before we delete the 'group' so that we don't get
+  // spurious fatal errors when the 'group' is being deleted.
+  process::Executor executor;
 };
 
 
@@ -157,7 +171,7 @@ public:
   }
 
   template <typename M>
-  void broadcast(
+  Nothing broadcast(
       const M& m,
       const std::set<process::UPID>& filter)
   {
@@ -168,6 +182,7 @@ public:
         process::post(pid, m);
       }
     }
+    return Nothing();
   }
 
 private:
@@ -223,7 +238,7 @@ template <typename Req, typename Res>
 process::Future<std::set<process::Future<Res> > > Network::broadcast(
     const Protocol<Req, Res>& protocol,
     const Req& req,
-    const std::set<process::UPID>& filter)
+    const std::set<process::UPID>& filter) const
 {
   return process::dispatch(process, &NetworkProcess::broadcast<Req, Res>,
                            protocol, req, filter);
@@ -231,20 +246,24 @@ process::Future<std::set<process::Future<Res> > > Network::broadcast(
 
 
 template <typename M>
-void Network::broadcast(
+process::Future<Nothing> Network::broadcast(
     const M& m,
-    const std::set<process::UPID>& filter)
+    const std::set<process::UPID>& filter) const
 {
   // Need to disambiguate overloaded function.
-  void (NetworkProcess::*broadcast)(const M&, const std::set<process::UPID>&) =
-    &NetworkProcess::broadcast<M>;
+  Nothing (NetworkProcess::*broadcast)(const M&, const std::set<process::UPID>&)
+    = &NetworkProcess::broadcast<M>;
 
-  process::dispatch(process, broadcast, m, filter);
+  return process::dispatch(process, broadcast, m, filter);
 }
 
 
-inline ZooKeeperNetwork::ZooKeeperNetwork(zookeeper::Group* _group)
-  : group(_group)
+inline ZooKeeperNetwork::ZooKeeperNetwork(
+    const std::string& servers,
+    const Duration& timeout,
+    const std::string& znode,
+    const Option<zookeeper::Authentication>& auth)
+  : group(servers, timeout, znode, auth)
 {
   watch(std::set<zookeeper::Group::Membership>());
 }
@@ -253,7 +272,7 @@ inline ZooKeeperNetwork::ZooKeeperNetwork(zookeeper::Group* _group)
 inline void ZooKeeperNetwork::watch(
     const std::set<zookeeper::Group::Membership>& expected)
 {
-  memberships = group->watch(expected);
+  memberships = group.watch(expected);
   memberships
     .onAny(executor.defer(lambda::bind(&This::watched, this, lambda::_1)));
 }
@@ -264,7 +283,7 @@ inline void ZooKeeperNetwork::watched(
 {
   if (memberships.isFailed()) {
     // We can't do much here, we could try creating another Group but
-    // that might just continue indifinitely, so we fail early
+    // that might just continue indefinitely, so we fail early
     // instead. Note that Group handles all retryable/recoverable
     // ZooKeeper errors internally.
     LOG(FATAL) << "Failed to watch ZooKeeper group: " << memberships.failure();
@@ -278,7 +297,7 @@ inline void ZooKeeperNetwork::watched(
   std::list<process::Future<std::string> > futures;
 
   foreach (const zookeeper::Group::Membership& membership, memberships.get()) {
-    futures.push_back(group->data(membership));
+    futures.push_back(group.data(membership));
   }
 
   process::collect(futures, process::Timeout::in(Seconds(5)))

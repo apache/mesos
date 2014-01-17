@@ -23,7 +23,9 @@
 #include <set>
 #include <string>
 
+#include <process/owned.hpp>
 #include <process/process.hpp>
+#include <process/shared.hpp>
 #include <process/timeout.hpp>
 
 #include <stout/check.hpp>
@@ -139,7 +141,7 @@ public:
     Position ending();
 
   private:
-    Replica* replica;
+    process::Shared<Replica> replica;
   };
 
   class Writer
@@ -179,18 +181,18 @@ public:
   Log(int _quorum,
       const std::string& path,
       const std::set<process::UPID>& pids)
-    : group(NULL)
+    : group(NULL),
+      executor(NULL),
+      quorum(_quorum),
+      replica(new Replica(path))
   {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-    quorum = _quorum;
+    // Add our own replica to the network.
+    Network* _network = new Network(pids);
+    _network->add(replica->pid());
 
-    replica = new Replica(path);
-
-    network = new Network(pids);
-
-    // Don't forget to add our own replica!
-    network->add(replica->pid());
+    network.reset(_network);
   }
 
   // Creates a new replicated log that assumes the specified quorum
@@ -203,36 +205,34 @@ public:
       const Duration& timeout,
       const std::string& znode,
       const Option<zookeeper::Authentication>& auth = None())
+    : group(new zookeeper::Group(servers, timeout, znode, auth)),
+      executor(new process::Executor()),
+      quorum(_quorum),
+      replica(new Replica(path)),
+      network(new ZooKeeperNetwork(servers, timeout, znode, auth))
   {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-    quorum = _quorum;
-
-    LOG(INFO) << "Creating a new log replica";
-
-    replica = new Replica(path);
-
-    group = new zookeeper::Group(servers, timeout, znode, auth);
-    network = new ZooKeeperNetwork(group);
 
     // Need to add our replica to the ZooKeeper group!
     LOG(INFO) << "Attempting to join replica to ZooKeeper group";
 
     membership = group->join(replica->pid())
-      .onFailed(executor.defer(lambda::bind(&Log::failed, this, lambda::_1)))
-      .onDiscarded(executor.defer(lambda::bind(&Log::discarded, this)));
+      .onFailed(executor->defer(lambda::bind(&Log::failed, this, lambda::_1)))
+      .onDiscarded(executor->defer(lambda::bind(&Log::discarded, this)));
 
     group->watch()
-      .onReady(executor.defer(lambda::bind(&Log::watch, this, lambda::_1)))
-      .onFailed(executor.defer(lambda::bind(&Log::failed, this, lambda::_1)))
-      .onDiscarded(executor.defer(lambda::bind(&Log::discarded, this)));
+      .onReady(executor->defer(lambda::bind(&Log::watch, this, lambda::_1)))
+      .onFailed(executor->defer(lambda::bind(&Log::failed, this, lambda::_1)))
+      .onDiscarded(executor->defer(lambda::bind(&Log::discarded, this)));
   }
 
   ~Log()
   {
-    delete network;
+    network.own().await();
+    replica.own().await();
+
+    delete executor;
     delete group;
-    delete replica;
   }
 
   // Returns a position based off of the bytes recovered from
@@ -261,14 +261,15 @@ private:
   void failed(const std::string& message) const;
   void discarded() const;
 
+  // We store a Group instance in order to continually renew the
+  // replicas membership (when using ZooKeeper).
   zookeeper::Group* group;
   process::Future<zookeeper::Group::Membership> membership;
-  process::Executor executor;
+  process::Executor* executor;
 
   int quorum;
-
-  Replica* replica;
-  Network* network;
+  process::Shared<Replica> replica;
+  process::Shared<Network> network;
 };
 
 
@@ -420,14 +421,14 @@ void Log::watch(const std::set<zookeeper::Group::Membership>& memberships)
     // Our replica's membership must have expired, join back up.
     LOG(INFO) << "Renewing replica group membership";
     membership = group->join(replica->pid())
-      .onFailed(executor.defer(lambda::bind(&Log::failed, this, lambda::_1)))
-      .onDiscarded(executor.defer(lambda::bind(&Log::discarded, this)));
+      .onFailed(executor->defer(lambda::bind(&Log::failed, this, lambda::_1)))
+      .onDiscarded(executor->defer(lambda::bind(&Log::discarded, this)));
   }
 
   group->watch(memberships)
-    .onReady(executor.defer(lambda::bind(&Log::watch, this, lambda::_1)))
-    .onFailed(executor.defer(lambda::bind(&Log::failed, this, lambda::_1)))
-    .onDiscarded(executor.defer(lambda::bind(&Log::discarded, this)));
+    .onReady(executor->defer(lambda::bind(&Log::watch, this, lambda::_1)))
+    .onFailed(executor->defer(lambda::bind(&Log::failed, this, lambda::_1)))
+    .onDiscarded(executor->defer(lambda::bind(&Log::discarded, this)));
 }
 
 
