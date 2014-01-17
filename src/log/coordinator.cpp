@@ -18,6 +18,12 @@
 
 #include <algorithm>
 
+#include <process/defer.hpp>
+#include <process/dispatch.hpp>
+#include <process/future.hpp>
+#include <process/id.hpp>
+#include <process/process.hpp>
+
 #include <stout/error.hpp>
 #include <stout/none.hpp>
 
@@ -36,67 +42,178 @@ namespace mesos {
 namespace internal {
 namespace log {
 
-Coordinator::Coordinator(
-    size_t _quorum,
-    const Shared<Replica>& _replica,
-    const Shared<Network>& _network)
-  : quorum(_quorum),
-    replica(_replica),
-    network(_network),
-    elected(false),
-    proposal(0),
-    index(0) {}
-
-
-Coordinator::~Coordinator() {}
-
-
-Result<uint64_t> Coordinator::elect(const Timeout& timeout)
+class CoordinatorProcess : public Process<CoordinatorProcess>
 {
-  LOG(INFO) << "Coordinator attempting to get elected within "
-            << timeout.remaining();
+public:
+  CoordinatorProcess(
+      size_t _quorum,
+      const Shared<Replica>& _replica,
+      const Shared<Network>& _network)
+    : ProcessBase(ID::generate("log-coordinator")),
+      quorum(_quorum),
+      replica(_replica),
+      network(_network),
+      state(INITIAL),
+      proposal(0),
+      index(0) {}
 
-  if (elected) {
-    // TODO(benh): No-op instead of error?
-    return Error("Coordinator already elected");
+  virtual ~CoordinatorProcess() {}
+
+  // Handles coordinator election. Returns the last committed log
+  // position if the operation succeeds. Returns none if the election
+  // is not successful, but can be retried.
+  Future<Option<uint64_t> > elect();
+
+  // Handles coordinator demotion. Returns the last committed log
+  // position if the operation succeeds.
+  Future<uint64_t> demote();
+
+  // Appends the specified bytes to the end of the log. Returns the
+  // position of the appended entry if the operation succeeds.
+  Future<uint64_t> append(const string& bytes);
+
+  // Removes all log entries preceding the log entry at the given
+  // position (to). Returns the position at which the truncate
+  // operation is written if the operation succeeds.
+  Future<uint64_t> truncate(uint64_t to);
+
+protected:
+  virtual void finalize()
+  {
+    electing.discard();
+    writing.discard();
   }
 
-  // Get the highest known promise from our local replica.
-  Future<uint64_t> promised = replica->promised();
+private:
+  /////////////////////////////////
+  // Election related functions. //
+  /////////////////////////////////
 
-  if (!promised.await(timeout.remaining())) {
-    promised.discard();
-    return None();
-  } else if (promised.isFailed()) {
-    return Error(promised.failure());
+  Future<uint64_t> getLastProposal();
+  Future<Nothing> updateProposal(uint64_t promised);
+  Future<PromiseResponse> runPromisePhase();
+  Future<Option<uint64_t> > checkPromisePhase(const PromiseResponse& response);
+  Future<set<uint64_t> > getMissingPositions();
+  Future<Nothing> catchupMissingPositions(const set<uint64_t>& positions);
+  Future<Option<uint64_t> > updateIndexAfterElected();
+  void electingFinished(const Option<uint64_t>& position);
+  void electingFailed();
+  void electingAborted();
+
+  /////////////////////////////////
+  // Writing related functions.  //
+  /////////////////////////////////
+
+  Future<uint64_t> write(const Action& action);
+  Future<WriteResponse> runWritePhase(const Action& action);
+  Future<Nothing> checkWritePhase(const WriteResponse& response);
+  Future<Nothing> runLearnPhase(const Action& action);
+  Future<bool> checkLearnPhase(const Action& action);
+  Future<uint64_t> updateIndexAfterWritten(bool missing);
+  void writingFinished();
+  void writingFailed();
+  void writingAborted();
+
+  const size_t quorum;
+  const Shared<Replica> replica;
+  const Shared<Network> network;
+
+  // The current state of the coordinator. A coordinator needs to be
+  // elected first to perform append and truncate operations. If one
+  // tries to do an append or a truncate while the coordinator is not
+  // elected, a failed future will be returned immediately. A
+  // coordinator does not declare itself as elected until it wins the
+  // election and has filled all existing positions. A coordinator is
+  // put in electing state after it decides to go for an election and
+  // before it is elected.
+  enum {
+    INITIAL,
+    ELECTING,
+    ELECTED,
+    WRITING,
+  } state;
+
+  // The current proposal number used by this coordinator.
+  uint64_t proposal;
+
+  // The position to which the next entry will be written.
+  uint64_t index;
+
+  Future<Option<uint64_t> > electing;
+  Future<uint64_t> writing;
+};
+
+
+/////////////////////////////////////////////////
+// Handles elect/demote in CoordinatorProcess.
+/////////////////////////////////////////////////
+
+
+Future<Option<uint64_t> > CoordinatorProcess::elect()
+{
+  if (state == ELECTING) {
+    return Future<Option<uint64_t> >::failed(
+        "Coordinator already being elected");
+  } else if (state == ELECTED) {
+    return Future<Option<uint64_t> >::failed(
+        "Coordinator already elected");
+  } else if (state == WRITING) {
+    return Future<Option<uint64_t> >::failed(
+        "Coordinator already elected, and is currently writing");
   }
 
-  CHECK(promised.isReady()) << "Not expecting a discarded future!";
+  CHECK_EQ(state, INITIAL);
 
-  proposal = std::max(proposal, promised.get()) + 1; // Try the next highest!
+  state = ELECTING;
 
-  // Run the implicit promise phase.
-  Future<PromiseResponse> promising = log::promise(quorum, network, proposal);
+  electing = getLastProposal()
+    .then(defer(self(), &Self::updateProposal, lambda::_1))
+    .then(defer(self(), &Self::runPromisePhase))
+    .then(defer(self(), &Self::checkPromisePhase, lambda::_1))
+    .onReady(defer(self(), &Self::electingFinished, lambda::_1))
+    .onFailed(defer(self(), &Self::electingFailed))
+    .onDiscarded(defer(self(), &Self::electingAborted));
 
-  if (!promising.await(timeout.remaining())) {
-    promising.discard();
-    return None();
-  } else if (promising.isFailed()) {
-    return Error(promising.failure());
-  }
+  return electing;
+}
 
-  CHECK(promising.isReady()) << "Not expecting a discarded future!";
 
-  const PromiseResponse& response = promising.get();
+Future<uint64_t> CoordinatorProcess::getLastProposal()
+{
+  return replica->promised();
+}
+
+
+Future<Nothing> CoordinatorProcess::updateProposal(uint64_t promised)
+{
+  // It is possible that we have already tried an election and lost.
+  // We save the proposal number used in the last election in field
+  // 'proposal', and will try at least the proposal number we had
+  // before or greater in the next election.
+  proposal = std::max(proposal, promised) + 1;
+  return Nothing();
+}
+
+
+Future<PromiseResponse> CoordinatorProcess::runPromisePhase()
+{
+  return log::promise(quorum, network, proposal);
+}
+
+
+Future<Option<uint64_t> > CoordinatorProcess::checkPromisePhase(
+    const PromiseResponse& response)
+{
   if (!response.okay()) {
-    // Lost an election, but can retry.
+    // Lost an election, but can be retried. We save the proposal
+    // number here so that most likely we will have a high enough
+    // proposal number when we retry.
+    CHECK_LE(proposal, response.proposal());
     proposal = response.proposal();
+
     return None();
   } else {
-    LOG(INFO) << "Coordinator elected, attempting to fill missing positions";
-
     CHECK(response.has_position());
-
     index = response.position();
 
     // Need to "catch-up" local replica (i.e., fill in any unlearned
@@ -105,49 +222,90 @@ Result<uint64_t> Coordinator::elect(const Timeout& timeout)
     // position might have been truncated, so we actually need to
     // catch-up the local replica all the way to the end of the log
     // before we can perform any up-to-date local reads.
+    return getMissingPositions()
+      .then(defer(self(), &Self::catchupMissingPositions, lambda::_1))
+      .then(defer(self(), &Self::updateIndexAfterElected));
+   }
+}
 
-    Future<set<uint64_t> > positions = replica->missing(0, index);
 
-    if (!positions.await(timeout.remaining())) {
-      positions.discard();
-      return None();
-    } else if (positions.isFailed()) {
-      return Error(positions.failure());
-    }
+Future<set<uint64_t> > CoordinatorProcess::getMissingPositions()
+{
+  return replica->missing(0, index);
+}
 
-    CHECK(positions.isReady()) << "Not expecting a discarded future!";
 
-    Future<Nothing> catching =
-      log::catchup(quorum, replica, network, proposal, positions.get());
+Future<Nothing> CoordinatorProcess::catchupMissingPositions(
+    const set<uint64_t>& positions)
+{
+  LOG(INFO) << "Coordinator attemping to fill missing position";
 
-    if (!catching.await(timeout.remaining())) {
-      catching.discard();
-      return None();
-    } else if (catching.isFailed()) {
-      return Error(catching.failure());
-    }
+  return log::catchup(quorum, replica, network, proposal, positions);
+}
 
-    CHECK(catching.isReady()) << "Not expecting a discarded future!";
 
-    elected = true;
-    return index++;
+Future<Option<uint64_t> > CoordinatorProcess::updateIndexAfterElected()
+{
+  return Option<uint64_t>(index++);
+}
+
+
+void CoordinatorProcess::electingFinished(const Option<uint64_t>& position)
+{
+  CHECK_EQ(state, ELECTING);
+
+  if (position.isNone()) {
+    state = INITIAL;
+  } else {
+    state = ELECTED;
   }
 }
 
 
-Result<uint64_t> Coordinator::demote()
+void CoordinatorProcess::electingFailed()
 {
-  elected = false;
+  CHECK_EQ(state, ELECTING);
+  state = INITIAL;
+}
+
+
+void CoordinatorProcess::electingAborted()
+{
+  CHECK_EQ(state, ELECTING);
+  state = INITIAL;
+}
+
+
+Future<uint64_t> CoordinatorProcess::demote()
+{
+  if (state == INITIAL) {
+    return Future<uint64_t>::failed("Coordinator is not elected");
+  } else if (state == ELECTING) {
+    return Future<uint64_t>::failed("Coordinator is being elected");
+  } else if (state == WRITING) {
+    return Future<uint64_t>::failed("Coordinator is currently writing");
+  }
+
+  CHECK_EQ(state, ELECTED);
+
+  state = INITIAL;
   return index - 1;
 }
 
 
-Result<uint64_t> Coordinator::append(
-    const string& bytes,
-    const Timeout& timeout)
+/////////////////////////////////////////////////
+// Handles write in CoordinatorProcess.
+/////////////////////////////////////////////////
+
+
+Future<uint64_t> CoordinatorProcess::append(const string& bytes)
 {
-  if (!elected) {
-    return Error("Coordinator not elected");
+  if (state == INITIAL) {
+    return Future<uint64_t>::failed("Coordinator is not elected");
+  } else if (state == ELECTING) {
+    return Future<uint64_t>::failed("Coordinator is being elected");
+  } else if (state == WRITING) {
+    return Future<uint64_t>::failed("Coordinator is currently writing");
   }
 
   Action action;
@@ -158,23 +316,18 @@ Result<uint64_t> Coordinator::append(
   Action::Append* append = action.mutable_append();
   append->set_bytes(bytes);
 
-  Result<uint64_t> result = write(action, timeout);
-
-  if (result.isSome()) {
-    CHECK_EQ(result.get(), index);
-    index++;
-  }
-
-  return result;
+  return write(action);
 }
 
 
-Result<uint64_t> Coordinator::truncate(
-    uint64_t to,
-    const Timeout& timeout)
+Future<uint64_t> CoordinatorProcess::truncate(uint64_t to)
 {
-  if (!elected) {
-    return Error("Coordinator not elected");
+  if (state == INITIAL) {
+    return Future<uint64_t>::failed("Coordinator is not elected");
+  } else if (state == ELECTING) {
+    return Future<uint64_t>::failed("Coordinator is being elected");
+  } else if (state == WRITING) {
+    return Future<uint64_t>::failed("Coordinator is currently writing");
   }
 
   Action action;
@@ -185,84 +338,227 @@ Result<uint64_t> Coordinator::truncate(
   Action::Truncate* truncate = action.mutable_truncate();
   truncate->set_to(to);
 
-  Result<uint64_t> result = write(action, timeout);
-
-  if (result.isSome()) {
-    CHECK_EQ(result.get(), index);
-    index++;
-  }
-
-  return result;
+  return write(action);
 }
 
 
-Result<uint64_t> Coordinator::write(
-    const Action& action,
-    const Timeout& timeout)
+Future<uint64_t> CoordinatorProcess::write(const Action& action)
 {
   LOG(INFO) << "Coordinator attempting to write "
             << Action::Type_Name(action.type())
-            << " action at position " << action.position()
-            << " within " << timeout.remaining();
+            << " action at position " << action.position();
 
-  CHECK(elected);
+  CHECK_EQ(state, ELECTED);
+  CHECK(action.has_performed() && action.has_type());
 
-  CHECK(action.has_performed());
-  CHECK(action.has_type());
+  state = WRITING;
 
-  Future<WriteResponse> writing =
-    log::write(quorum, network, proposal, action);
+  writing = runWritePhase(action)
+    .then(defer(self(), &Self::checkWritePhase, lambda::_1))
+    .then(defer(self(), &Self::runLearnPhase, action))
+    .then(defer(self(), &Self::checkLearnPhase, action))
+    .then(defer(self(), &Self::updateIndexAfterWritten, lambda::_1))
+    .onReady(defer(self(), &Self::writingFinished))
+    .onFailed(defer(self(), &Self::writingFailed))
+    .onDiscarded(defer(self(), &Self::writingAborted));
 
-  if (!writing.await(timeout.remaining())) {
-    writing.discard();
-    return None();
-  } else if (writing.isFailed()) {
-    return Error(writing.failure());
-  }
+  return writing;
+}
 
-  CHECK(writing.isReady()) << "Not expecting a discarded future!";
 
-  const WriteResponse& response = writing.get();
-  if (!response.okay()) {
-    elected = false;
+Future<WriteResponse> CoordinatorProcess::runWritePhase(const Action& action)
+{
+  return log::write(quorum, network, proposal, action);
+}
+
+
+Future<Nothing> CoordinatorProcess::checkWritePhase(
+    const WriteResponse& response)
+{
+   if (!response.okay()) {
+    // Received a NACK. Save the proposal number.
+    CHECK_LE(proposal, response.proposal());
     proposal = response.proposal();
-    return Error("Coordinator demoted");
+
+    return Future<Nothing>::failed("Coordinator demoted");
   } else {
-    // TODO(jieyu): Currently, each log operation (append or truncate)
-    // will write the same log content to the local disk twice: one
-    // from log::write() and one from log::learn(). In the future, we
-    // may want to use checksum to eliminate the duplicate disk write.
-    Future<Nothing> learning = log::learn(network, action);
+    return Nothing();
+  }
+}
 
-    // We need to make sure that learned message has been broadcasted,
-    // thus has been enqueued.  Otherwise, our "missing" check below
-    // will fail sometimes due to race condition.
-    if (!learning.await(timeout.remaining())) {
-      learning.discard();
+
+Future<Nothing> CoordinatorProcess::runLearnPhase(const Action& action)
+{
+  return log::learn(network, action);
+}
+
+
+Future<bool> CoordinatorProcess::checkLearnPhase(const Action& action)
+{
+  // Make sure that the local replica has learned the newly written
+  // log entry. Since messages are delivered and dispatched in order
+  // locally, we should always have the new entry learned by now.
+  return replica->missing(action.position());
+}
+
+
+Future<uint64_t> CoordinatorProcess::updateIndexAfterWritten(bool missing)
+{
+  CHECK(!missing) << "Not expecting local replica to be missing position "
+                  << index << " after the writing is done";
+
+  return index++;
+}
+
+
+void CoordinatorProcess::writingFinished()
+{
+  CHECK_EQ(state, WRITING);
+  state = ELECTED;
+}
+
+
+void CoordinatorProcess::writingFailed()
+{
+  CHECK_EQ(state, WRITING);
+  state = INITIAL;
+}
+
+
+void CoordinatorProcess::writingAborted()
+{
+  CHECK_EQ(state, WRITING);
+  state = ELECTED;
+}
+
+
+/////////////////////////////////////////////////
+// Coordinator implementation.
+/////////////////////////////////////////////////
+
+
+Coordinator::Coordinator(
+    size_t quorum,
+    const Shared<Replica>& replica,
+    const Shared<Network>& network)
+{
+  process = new CoordinatorProcess(quorum, replica, network);
+  spawn(process);
+}
+
+
+Coordinator::~Coordinator()
+{
+  terminate(process);
+  process::wait(process);
+  delete process;
+}
+
+
+Result<uint64_t> Coordinator::elect(const Timeout& timeout)
+{
+  LOG(INFO) << "Coordinator attempting to get elected within "
+            << timeout.remaining();
+
+  Future<Option<uint64_t> > electing =
+    dispatch(process, &CoordinatorProcess::elect);
+
+  electing.await(timeout.remaining());
+
+  CHECK(!electing.isDiscarded());
+
+  if (electing.isPending()) {
+    LOG(INFO) << "Coordinator timed out while trying to get elected";
+
+    electing.discard();
+    return None();
+  } else if (electing.isFailed()) {
+    LOG(ERROR) << "Coordinator failed to get elected: "
+               << electing.failure();
+
+    return Error(electing.failure());
+  } else {
+    if (electing.get().isNone()) {
+      LOG(INFO) << "Coordinator lost an election, but can be retried";
+
       return None();
-    } else if (learning.isFailed()) {
-      return Error(learning.failure());
+    } else {
+      LOG(INFO) << "Coordinator elected with current position "
+                << electing.get().get();
+
+      return electing.get().get();
     }
+  }
+}
 
-    CHECK(learning.isReady()) << "Not expecting a discarded future!";
 
-    // Make sure that the local replica has learned the newly written
-    // log entry. Since messages are delivered and dispatched in order
-    // locally, we should always have the new entry learned by now.
-    Future<bool> checking = replica->missing(action.position());
+Result<uint64_t> Coordinator::demote()
+{
+  Future<uint64_t> demoting =
+    dispatch(process, &CoordinatorProcess::demote);
 
-    if (!checking.await(timeout.remaining())) {
-      checking.discard();
-      return None();
-    } else if (checking.isFailed()) {
-      return Error(checking.failure());
-    }
+  demoting.await(); // TODO(jieyu): Use a timeout.
 
-    CHECK(checking.isReady()) << "Not expecting a discarded future!";
+  CHECK(!demoting.isDiscarded());
 
-    CHECK(!checking.get());
+  if (demoting.isFailed()) {
+    return Error(demoting.failure());
+  } else {
+    return demoting.get();
+  }
+}
 
-    return action.position();
+
+Result<uint64_t> Coordinator::append(
+    const string& bytes,
+    const Timeout& timeout)
+{
+  Future<uint64_t> appending =
+    dispatch(process, &CoordinatorProcess::append, bytes);
+
+  appending.await(timeout.remaining());
+
+  CHECK(!appending.isDiscarded());
+
+  if (appending.isPending()) {
+    LOG(INFO) << "Coordinator timed out while trying to append";
+
+    appending.discard();
+    return None();
+  } else if (appending.isFailed()) {
+    LOG(ERROR) << "Coordinator failed to append the log: "
+               << appending.failure();
+
+    return Error(appending.failure());
+  } else {
+    return appending.get();
+  }
+}
+
+
+Result<uint64_t> Coordinator::truncate(
+    uint64_t to,
+    const Timeout& timeout)
+{
+  Future<uint64_t> truncating =
+    dispatch(process, &CoordinatorProcess::truncate, to);
+
+  truncating.await(timeout.remaining());
+
+  CHECK(!truncating.isDiscarded());
+
+  if (truncating.isPending()) {
+    LOG(INFO) << "Coordinator timed out while trying to truncate";
+
+    truncating.discard();
+    return None();
+  } else if (truncating.isFailed()) {
+    LOG(ERROR) << "Coordinator failed to truncate the log: "
+               << truncating.failure();
+
+    return Error(truncating.failure());
+  } else {
+    return truncating.get();
   }
 }
 

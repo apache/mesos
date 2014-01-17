@@ -35,6 +35,10 @@ namespace mesos {
 namespace internal {
 namespace log {
 
+// Forward declaration.
+class CoordinatorProcess;
+
+
 class Coordinator
 {
 public:
@@ -66,17 +70,7 @@ public:
   Result<uint64_t> truncate(uint64_t to, const process::Timeout& timeout);
 
 private:
-  Result<uint64_t> write(
-      const Action& action,
-      const process::Timeout& timeout);
-
-  const size_t quorum;
-  const process::Shared<Replica> replica;
-  const process::Shared<Network> network;
-
-  bool elected; // True if this coordinator has been elected.
-  uint64_t proposal; // Currently used proposal number.
-  uint64_t index; // Last position written in the log.
+  CoordinatorProcess* process;
 };
 
 } // namespace log {
