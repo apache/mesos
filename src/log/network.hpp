@@ -22,6 +22,7 @@
 // TODO(benh): Eventually move and associate this code with the
 // libprocess protobuf code rather than keep it here.
 
+#include <list>
 #include <set>
 #include <string>
 
@@ -49,6 +50,16 @@ class NetworkProcess;
 class Network
 {
 public:
+  enum WatchMode
+  {
+    EQUAL_TO,
+    NOT_EQUAL_TO,
+    LESS_THAN,
+    LESS_THAN_OR_EQUAL_TO,
+    GREATER_THAN,
+    GREATER_THAN_OR_EQUAL_TO
+  };
+
   Network();
   Network(const std::set<process::UPID>& pids);
   virtual ~Network();
@@ -61,6 +72,14 @@ public:
 
   // Set the PIDs that are part of this network.
   void set(const std::set<process::UPID>& pids);
+
+  // Returns a future which gets set when the network size satisfies
+  // the constraint specified by 'size' and 'mode'. For example, if
+  // 'size' is 2 and 'mode' is GREATER_THAN, then the returned future
+  // will get set when the size of the network is greater than 2.
+  process::Future<size_t> watch(
+      size_t size,
+      WatchMode mode = NOT_EQUAL_TO) const;
 
   // Sends a request to each member of the network and returns a set
   // of futures that represent their responses.
@@ -135,12 +154,18 @@ public:
   {
     link(pid); // Try and keep a socket open (more efficient).
     pids.insert(pid);
+
+    // Update any pending watches.
+    update();
   }
 
   void remove(const process::UPID& pid)
   {
     // TODO(benh): unlink(pid);
     pids.erase(pid);
+
+    // Update any pending watches.
+    update();
   }
 
   void set(const std::set<process::UPID>& _pids)
@@ -149,6 +174,23 @@ public:
     foreach (const process::UPID& pid, _pids) {
       add(pid); // Also does a link.
     }
+
+    // Update any pending watches.
+    update();
+  }
+
+  process::Future<size_t> watch(size_t size, Network::WatchMode mode)
+  {
+    if (satisfied(size, mode)) {
+      return pids.size();
+    }
+
+    Watch* watch = new Watch(size, mode);
+    watches.push_back(watch);
+
+    // TODO(jieyu): Consider deleting 'watch' if the returned future
+    // is discarded by the user.
+    return watch->promise.future();
   }
 
   // Sends a request to each of the groups members and returns a set
@@ -185,12 +227,73 @@ public:
     return Nothing();
   }
 
+protected:
+  virtual void finalize()
+  {
+    foreach (Watch* watch, watches) {
+      watch->promise.fail("Network is being terminated");
+      delete watch;
+    }
+    watches.clear();
+  }
+
 private:
+  struct Watch
+  {
+    Watch(size_t _size, Network::WatchMode _mode)
+      : size(_size), mode(_mode) {}
+
+    size_t size;
+    Network::WatchMode mode;
+    process::Promise<size_t> promise;
+  };
+
   // Not copyable, not assignable.
   NetworkProcess(const NetworkProcess&);
   NetworkProcess& operator = (const NetworkProcess&);
 
+  // Notifies the change of the network.
+  void update()
+  {
+    const size_t size = watches.size();
+    for (size_t i = 0; i < size; i++) {
+      Watch* watch = watches.front();
+      watches.pop_front();
+
+      if (satisfied(watch->size, watch->mode)) {
+        watch->promise.set(pids.size());
+        delete watch;
+      } else {
+        watches.push_back(watch);
+      }
+    }
+  }
+
+  // Returns true if the current size of the network satisfies the
+  // constraint specified by 'size' and 'mode'.
+  bool satisfied(size_t size, Network::WatchMode mode)
+  {
+    switch (mode) {
+      case Network::EQUAL_TO:
+        return pids.size() == size;
+      case Network::NOT_EQUAL_TO:
+        return pids.size() != size;
+      case Network::LESS_THAN:
+        return pids.size() < size;
+      case Network::LESS_THAN_OR_EQUAL_TO:
+        return pids.size() <= size;
+      case Network::GREATER_THAN:
+        return pids.size() > size;
+      case Network::GREATER_THAN_OR_EQUAL_TO:
+        return pids.size() >= size;
+      default:
+        LOG(FATAL) << "Invalid watch mode";
+        break;
+    }
+  }
+
   std::set<process::UPID> pids;
+  std::list<Watch*> watches;
 };
 
 
@@ -231,6 +334,13 @@ inline void Network::remove(const process::UPID& pid)
 inline void Network::set(const std::set<process::UPID>& pids)
 {
   process::dispatch(process, &NetworkProcess::set, pids);
+}
+
+
+inline process::Future<size_t> Network::watch(
+    size_t size, Network::WatchMode mode) const
+{
+  return process::dispatch(process, &NetworkProcess::watch, size, mode);
 }
 
 

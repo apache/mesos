@@ -28,6 +28,7 @@
 #include <process/gtest.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
+#include <process/process.hpp>
 #include <process/protobuf.hpp>
 #include <process/shared.hpp>
 
@@ -66,6 +67,54 @@ using std::string;
 using testing::_;
 using testing::Eq;
 using testing::Return;
+
+
+TEST(NetworkTest, Watch)
+{
+  UPID pid1 = ProcessBase().self();
+  UPID pid2 = ProcessBase().self();
+
+  Network network;
+
+  // Test the default parameter.
+  Future<size_t> future = network.watch(1u);
+  AWAIT_READY(future);
+  EXPECT_EQ(0u, future.get());
+
+  future = network.watch(2u, Network::NOT_EQUAL_TO);
+  AWAIT_READY(future);
+  EXPECT_EQ(0u, future.get());
+
+  future = network.watch(0u, Network::GREATER_THAN_OR_EQUAL_TO);
+  AWAIT_READY(future);
+  EXPECT_EQ(0u, future.get());
+
+  future = network.watch(1u, Network::LESS_THAN);
+  AWAIT_READY(future);
+  EXPECT_EQ(0u, future.get());
+
+  network.add(pid1);
+
+  future = network.watch(1u, Network::EQUAL_TO);
+  AWAIT_READY(future);
+  EXPECT_EQ(1u, future.get());
+
+  future = network.watch(1u, Network::GREATER_THAN);
+  ASSERT_TRUE(future.isPending());
+
+  network.add(pid2);
+
+  AWAIT_READY(future);
+  EXPECT_EQ(2u, future.get());
+
+  future = network.watch(1u, Network::LESS_THAN_OR_EQUAL_TO);
+  ASSERT_TRUE(future.isPending());
+
+  network.remove(pid2);
+
+  AWAIT_READY(future);
+  EXPECT_EQ(1u, future.get());
+}
 
 
 class ReplicaTest : public TemporaryDirectoryTest
