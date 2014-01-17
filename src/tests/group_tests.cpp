@@ -366,7 +366,9 @@ TEST_F(GroupTest, RetryableErrors)
   session = group.session();
   AWAIT_READY(session);
   ASSERT_SOME(session.get());
+  connected = FUTURE_DISPATCH(_, &GroupProcess::connected);
   server->expireSession(session.get().get());
 
   AWAIT_READY(cancellation);
+  AWAIT_READY(connected);
 }
