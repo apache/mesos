@@ -148,6 +148,26 @@ private:
   {
     CHECK_NE(status, Metadata::VOTING);
 
+    // Wait until there are enough (i.e., quorum of) replicas in the
+    // network to avoid unnecessary retries.
+    network->watch(quorum, Network::GREATER_THAN_OR_EQUAL_TO)
+      .onAny(defer(self(), &Self::watched, lambda::_1));
+  }
+
+  void watched(const Future<size_t>& future)
+  {
+    if (!future.isReady()) {
+      promise.fail(
+          future.isFailed() ?
+          future.failure() :
+          "Not expecting discarded future");
+
+      terminate(self());
+      return;
+    }
+
+    CHECK_GE(future.get(), quorum);
+
     // Broadcast recover request to all replicas.
     network->broadcast(protocol::recover, RecoverRequest())
       .onAny(defer(self(), &Self::broadcasted, lambda::_1));
