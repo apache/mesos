@@ -1,9 +1,20 @@
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #ifndef __STOUT_GZIP_HPP__
 #define __STOUT_GZIP_HPP__
 
-#ifdef HAVE_LIBZ
 #include <zlib.h>
-#endif
 
 #include <string>
 
@@ -27,15 +38,8 @@ namespace gzip {
 //   #define Z_DEFAULT_COMPRESSION  (-1)
 inline Try<std::string> compress(
     const std::string& decompressed,
-#ifdef HAVE_LIBZ
     int level = Z_DEFAULT_COMPRESSION)
-#else
-    int level = -1)
-#endif
 {
-#ifndef HAVE_LIBZ
-  return Error("libz is not available");
-#else
   // Verify the level is within range.
   if (!(level == Z_DEFAULT_COMPRESSION ||
       (level >= Z_NO_COMPRESSION && level <= Z_BEST_COMPRESSION))) {
@@ -89,16 +93,12 @@ inline Try<std::string> compress(
     return Error("Failed to clean up zlib: " + std::string(stream.msg));
   }
   return result;
-#endif // HAVE_LIBZ
 }
 
 
 // Returns a gzip decompressed version of the provided string.
 inline Try<std::string> decompress(const std::string& compressed)
 {
-#ifndef HAVE_LIBZ
-  return Error("libz is not available");
-#else
   z_stream_s stream;
   stream.next_in =
     const_cast<Bytef*>(reinterpret_cast<const Bytef*>(compressed.data()));
@@ -142,7 +142,6 @@ inline Try<std::string> decompress(const std::string& compressed)
     return Error("Failed to clean up zlib: " + std::string(stream.msg));
   }
   return result;
-#endif // HAVE_LIBZ
 }
 
 } // namespace gzip {

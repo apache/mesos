@@ -1,3 +1,16 @@
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #ifndef __STOUT_NET_HPP__
 #define __STOUT_NET_HPP__
 
@@ -8,9 +21,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#ifdef HAVE_LIBCURL
 #include <curl/curl.h>
-#endif
 
 #include <string>
 
@@ -26,9 +37,6 @@ namespace net {
 // specified HTTP or FTP URL into a file at the specified path.
 inline Try<int> download(const std::string& url, const std::string& path)
 {
-#ifndef HAVE_LIBCURL
-  return Error("libcurl is not available");
-#else
   Try<int> fd = os::open(
       path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
@@ -70,7 +78,6 @@ inline Try<int> download(const std::string& url, const std::string& path)
   }
 
   return Try<int>::some(code);
-#endif // HAVE_LIBCURL
 }
 
 // Returns a Try of the hostname for the provided IP. If the hostname cannot
