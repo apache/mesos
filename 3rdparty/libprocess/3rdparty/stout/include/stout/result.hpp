@@ -20,6 +20,9 @@
 #include <iostream>
 #include <string>
 
+#include <stout/error.hpp>
+#include <stout/none.hpp>
+#include <stout/some.hpp>
 
 template <typename T>
 class Result
@@ -40,7 +43,25 @@ public:
     return Result<T>(ERROR, NULL, message);
   }
 
-  Result(const T& _t) : state(SOME), t(new T(_t)) {}
+  Result(const T& _t)
+    : state(SOME), t(new T(_t)) {}
+
+  template <typename U>
+  Result(const U& u)
+    : state(SOME), t(new T(u)) {}
+
+  Result(const None& none)
+    : state(NONE), t(NULL) {}
+
+  template <typename U>
+  Result(const _Some<U>& some)
+    : state(SOME), t(new T(some.t)) {}
+
+  Result(const Error& error)
+    : state(ERROR), t(NULL), message(error.message) {}
+
+  Result(const ErrnoError& error)
+    : state(ERROR), t(NULL), message(error.message) {}
 
   Result(const Result<T>& that)
   {

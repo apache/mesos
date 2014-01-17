@@ -18,7 +18,9 @@
 
 #include <algorithm>
 
+#include <stout/none.hpp>
 #include <stout/result.hpp>
+#include <stout/some.hpp>
 
 template <typename T>
 class Option
@@ -37,6 +39,14 @@ public:
   Option() : state(NONE), t(NULL) {}
 
   Option(const T& _t) : state(SOME), t(new T(_t)) {}
+
+  template <typename U>
+  Option(const U& u) : state(SOME), t(new T(u)) {}
+
+  Option(const None& none) : state(NONE), t(NULL) {}
+
+  template <typename U>
+  Option(const _Some<U>& some) : state(SOME), t(new T(some.t)) {}
 
   Option(const Option<T>& that)
   {

@@ -62,13 +62,6 @@ public:
       bool unknowns = false,
       bool duplicates = false);
 
-  Try<Nothing> load(
-      const std::string& prefix,
-      int argc,
-      char** argv,
-      bool unknowns = false,
-      bool duplicates = false);
-
   virtual Try<Nothing> load(
       const std::map<std::string, Option<std::string> >& values,
       bool unknowns = false);
@@ -380,17 +373,6 @@ inline Try<Nothing> FlagsBase::load(
   }
 
   return load(values, unknowns);
-}
-
-
-inline Try<Nothing> FlagsBase::load(
-    const std::string& prefix,
-    int argc,
-    char** argv,
-    bool unknowns,
-    bool duplicates)
-{
-  return load(Some(prefix), argc, argv, unknowns, duplicates);
 }
 
 

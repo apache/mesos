@@ -20,6 +20,7 @@
 #include <iostream>
 #include <string>
 
+#include <stout/error.hpp>
 
 template <typename T>
 class Try
@@ -35,7 +36,18 @@ public:
     return Try<T>(ERROR, NULL, message);
   }
 
-  Try(const T& _t) : state(SOME), t(new T(_t)) {}
+  Try(const T& _t)
+    : state(SOME), t(new T(_t)) {}
+
+  template <typename U>
+  Try(const U& u)
+    : state(SOME), t(new T(u)) {}
+
+  Try(const Error& error)
+    : state(ERROR), t(NULL), message(error.message) {}
+
+  Try(const ErrnoError& error)
+    : state(ERROR), t(NULL), message(error.message) {}
 
   Try(const Try<T>& that)
   {
