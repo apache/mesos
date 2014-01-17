@@ -19,13 +19,15 @@
 #ifndef __LOG_REPLICA_HPP__
 #define __LOG_REPLICA_HPP__
 
+#include <stdint.h>
+
 #include <list>
 #include <set>
 #include <string>
 
+#include <process/future.hpp>
+#include <process/pid.hpp>
 #include <process/protobuf.hpp>
-
-#include <stout/result.hpp>
 
 #include "messages/log.hpp"
 

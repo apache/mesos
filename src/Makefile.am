@@ -301,17 +301,25 @@ liblog_la_SOURCES =							\
   log/catchup.cpp							\
   log/consensus.cpp							\
   log/coordinator.cpp							\
+  log/leveldb.cpp							\
   log/log.cpp								\
   log/recover.cpp							\
-  log/replica.cpp
+  log/replica.cpp							\
+  log/tool/initialize.cpp						\
+  log/tool/read.cpp
 liblog_la_SOURCES +=							\
   log/catchup.hpp							\
   log/consensus.hpp							\
   log/coordinator.hpp							\
-  log/recover.hpp							\
-  log/replica.hpp							\
+  log/leveldb.hpp							\
   log/log.hpp								\
   log/network.hpp							\
+  log/recover.hpp							\
+  log/replica.hpp							\
+  log/storage.hpp							\
+  log/tool.hpp								\
+  log/tool/initialize.hpp						\
+  log/tool/read.hpp							\
   messages/log.hpp							\
   messages/log.proto
 nodist_liblog_la_SOURCES = $(LOG_PROTOS)

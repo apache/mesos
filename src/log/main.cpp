@@ -16,119 +16,89 @@
  * limitations under the License.
  */
 
+#include <string.h>
+
 #include <iostream>
-#include <list>
 #include <string>
 
-#include <process/process.hpp>
+#include <process/owned.hpp>
 
-#include <stout/check.hpp>
-#include <stout/flags.hpp>
 #include <stout/foreach.hpp>
-#include <stout/none.hpp>
-#include <stout/option.hpp>
-#include <stout/os.hpp>
+#include <stout/hashmap.hpp>
 
-#include "log/replica.hpp"
-
-#include "logging/flags.hpp"
-#include "logging/logging.hpp"
+#include "log/tool.hpp"
+#include "log/tool/initialize.hpp"
+#include "log/tool/read.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::log;
 
+using namespace process;
+
 using std::cerr;
-using std::cout;
 using std::endl;
 using std::string;
 
+// All the registered tools.
+static hashmap<string, Owned<tool::Tool> > tools;
 
-void usage(const char* argv0, const flags::FlagsBase& flags)
+
+static void add(const Owned<tool::Tool>& tool)
 {
-  cerr << "Usage: " << os::basename(argv0).get() << " [...] path/to/log"
+  tools[tool->name()] = tool;
+}
+
+
+static void usage(const char* argv0)
+{
+  cerr << "Usage: " << argv0 << " <command> [OPTIONS]" << endl
        << endl
-       << "Supported options:" << endl
-       << flags.usage();
+       << "Available commands:" << endl
+       << "    help" << endl;
+
+  // Get a list of available tools.
+  foreachkey (const string& name, tools) {
+    cerr << "    " << name << endl;
+  }
 }
 
 
 int main(int argc, char** argv)
 {
-  flags::Flags<logging::Flags> flags;
+  // Register log tools.
+  add(Owned<tool::Tool>(new tool::Initialize()));
+  add(Owned<tool::Tool>(new tool::Read()));
 
-  Option<uint64_t> from;
-  flags.add(&from,
-            "from",
-            "Position from which to start reading in the log");
-
-  Option<uint64_t> to;
-  flags.add(&to,
-            "to",
-            "Position from which to stop reading in the log");
-
-  bool help;
-  flags.add(&help,
-            "help",
-            "Prints this help message",
-            false);
-
-  Try<Nothing> load = flags.load(None(), argc, argv);
-
-  if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    exit(1);
+  if (argc < 2) {
+    usage(argv[0]);
+    return 1;
   }
 
-  if (help) {
-    usage(argv[0], flags);
-    exit(1);
+  if (!strcmp(argv[1], "help")) {
+    if (argc == 2) {
+      usage(argv[0]);
+      return 0;
+    }
+
+    // 'mesos-log help command' => 'mesos-log command --help'
+    argv[1] = argv[2];
+    argv[2] = (char*) "--help";
   }
 
-  process::initialize();
+  string command = argv[1];
 
-  logging::initialize(argv[0], flags);
-
-  string path = argv[argc - 1];
-
-  Replica replica(path);
-
-  process::Future<uint64_t> begin = replica.beginning();
-  process::Future<uint64_t> end = replica.ending();
-
-  begin.await();
-  end.await();
-
-  CHECK(begin.isReady());
-  CHECK(end.isReady());
-
-  if (!from.isSome()) {
-    from = begin.get();
+  if (!tools.contains(command)) {
+    cerr << "Cannot find command '" << command << "'" << endl << endl;
+    usage(argv[0]);
+    return 1;
   }
 
-  if (!to.isSome()) {
-    to = end.get();
-  }
-
-  CHECK_SOME(from);
-  CHECK_SOME(to);
-
-  cerr << endl << "Attempting to read the log from "
-       << from.get() << " to " << to.get() << endl << endl;
-
-  process::Future<std::list<Action> > actions =
-    replica.read(from.get(), to.get());
-
-  actions.await();
-
-  CHECK(!actions.isFailed()) << actions.failure();
-
-  CHECK(actions.isReady());
-
-  foreach (const Action& action, actions.get()) {
-    cout << "----------------------------------------------" << endl;
-    action.PrintDebugString();
+  // Execute the command.
+  Try<Nothing> execute = tools[command]->execute(argc, argv);
+  if (execute.isError()) {
+    cerr << execute.error() << endl;
+    return 1;
   }
 
   return 0;
