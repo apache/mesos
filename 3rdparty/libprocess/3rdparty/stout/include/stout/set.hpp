@@ -1,3 +1,6 @@
+#ifndef __STOUT_SET_HPP__
+#define __STOUT_SET_HPP__
+
 #include <algorithm> // For std::set_intersection.
 #include <set>
 #include <vector>
@@ -68,3 +71,5 @@ std::set<T> operator & (const std::set<T>& left, const std::set<T>& right)
       std::inserter(result, result.begin()));
   return result;
 }
+
+#endif // __STOUT_SET_HPP__
