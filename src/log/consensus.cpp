@@ -68,11 +68,11 @@ protected:
     promise.future().onDiscarded(lambda::bind(
         static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
-    request.set_proposal(proposal);
-    request.set_position(position);
-
-    network->broadcast(protocol::promise, request)
-      .onAny(defer(self(), &Self::broadcasted, lambda::_1));
+    // Wait until there are enough (i.e., quorum of) replicas in the
+    // network. This is because if there are less than quorum number
+    // of replicas in the network, the operation will not finish.
+    network->watch(quorum, Network::GREATER_THAN_OR_EQUAL_TO)
+      .onAny(defer(self(), &Self::watched, lambda::_1));
   }
 
   virtual void finalize()
@@ -84,6 +84,27 @@ protected:
   }
 
 private:
+  void watched(const Future<size_t>& future)
+  {
+    if (!future.isReady()) {
+      promise.fail(
+          future.isFailed() ?
+          future.failure() :
+          "Not expecting discarded future");
+
+      terminate(self());
+      return;
+    }
+
+    CHECK_GE(future.get(), quorum);
+
+    request.set_proposal(proposal);
+    request.set_position(position);
+
+    network->broadcast(protocol::promise, request)
+      .onAny(defer(self(), &Self::broadcasted, lambda::_1));
+  }
+
   void broadcasted(const Future<set<Future<PromiseResponse> > >& future)
   {
     if (!future.isReady()) {
@@ -224,10 +245,11 @@ protected:
     promise.future().onDiscarded(lambda::bind(
         static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
-    request.set_proposal(proposal);
-
-    network->broadcast(protocol::promise, request)
-      .onAny(defer(self(), &Self::broadcasted, lambda::_1));
+    // Wait until there are enough (i.e., quorum of) replicas in the
+    // network. This is because if there are less than quorum number
+    // of replicas in the network, the operation will not finish.
+    network->watch(quorum, Network::GREATER_THAN_OR_EQUAL_TO)
+      .onAny(defer(self(), &Self::watched, lambda::_1));
   }
 
   virtual void finalize()
@@ -239,6 +261,26 @@ protected:
   }
 
 private:
+  void watched(const Future<size_t>& future)
+  {
+    if (!future.isReady()) {
+      promise.fail(
+          future.isFailed() ?
+          future.failure() :
+          "Not expecting discarded future");
+
+      terminate(self());
+      return;
+    }
+
+    CHECK_GE(future.get(), quorum);
+
+    request.set_proposal(proposal);
+
+    network->broadcast(protocol::promise, request)
+      .onAny(defer(self(), &Self::broadcasted, lambda::_1));
+  }
+
   void broadcasted(const Future<set<Future<PromiseResponse> > >& future)
   {
     if (!future.isReady()) {
@@ -341,6 +383,36 @@ protected:
     promise.future().onDiscarded(lambda::bind(
         static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
+    // Wait until there are enough (i.e., quorum of) replicas in the
+    // network. This is because if there are less than quorum number
+    // of replicas in the network, the operation will not finish.
+    network->watch(quorum, Network::GREATER_THAN_OR_EQUAL_TO)
+      .onAny(defer(self(), &Self::watched, lambda::_1));
+  }
+
+  virtual void finalize()
+  {
+    // This process will be terminated when we get responses from a
+    // quorum of replicas. In that case, we no longer care about
+    // responses from other replicas, thus discarding them here.
+    discard(responses);
+  }
+
+private:
+  void watched(const Future<size_t>& future)
+  {
+    if (!future.isReady()) {
+      promise.fail(
+          future.isFailed() ?
+          future.failure() :
+          "Not expecting discarded future");
+
+      terminate(self());
+      return;
+    }
+
+    CHECK_GE(future.get(), quorum);
+
     request.set_proposal(proposal);
     request.set_position(action.position());
     request.set_type(action.type());
@@ -365,15 +437,6 @@ protected:
       .onAny(defer(self(), &Self::broadcasted, lambda::_1));
   }
 
-  virtual void finalize()
-  {
-    // This process will be terminated when we get responses from a
-    // quorum of replicas. In that case, we no longer care about
-    // responses from other replicas, thus discarding them here.
-    discard(responses);
-  }
-
-private:
   void broadcasted(const Future<set<Future<WriteResponse> > >& future)
   {
     if (!future.isReady()) {
