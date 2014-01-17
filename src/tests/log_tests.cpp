@@ -1246,7 +1246,7 @@ TEST_F(RecoverTest, RacingCatchup)
   AWAIT_READY(recovering5);
 
   Shared<Replica> shared4 = recovering4.get().share();
-  Coordinator coord2(2, shared4, network2);
+  Coordinator coord2(3, shared4, network2);
 
   {
     Future<Option<uint64_t> > electing = coord2.elect();
