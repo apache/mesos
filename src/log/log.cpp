@@ -16,639 +16,893 @@
  * limitations under the License.
  */
 
-// TODO(benh): Optimize LearnedMessage (and the "commit" stage in
-// general) by figuring out a way to not send the entire action
-// contents a second time (should cut bandwidth used in half).
-
-// TODO(benh): Provide a LearnRequest that requests more than one
-// position at a time, and a LearnResponse that returns as many
-// positions as it knows.
-
-// TODO(benh): Implement background catchup: have a new replica that
-// comes online become part of the group but don't respond to promises
-// or writes until it has caught up! The advantage to becoming part of
-// the group is that the new replica can see where the end of the log
-// is in order to continue to catch up.
-
-// TODO(benh): Add tests that deliberatly put the system in a state of
-// inconsistency by doing funky things to the underlying logs. Figure
-// out ways of bringing new replicas online that seem to check the
-// consistency of the other replicas.
-
-#include <list>
-#include <map>
-#include <set>
-#include <string>
-#include <vector>
-
-#include <boost/lexical_cast.hpp>
-
+#include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
-#include <process/run.hpp>
+#include <process/shared.hpp>
 
 #include <stout/check.hpp>
-#include <stout/duration.hpp>
-#include <stout/fatal.hpp>
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
-#include <stout/os.hpp>
-#include <stout/result.hpp>
-
-#include "zookeeper/zookeeper.hpp"
+#include <stout/lambda.hpp>
+#include <stout/nothing.hpp>
+#include <stout/set.hpp>
 
 #include "log/coordinator.hpp"
+#include "log/log.hpp"
+#include "log/network.hpp"
+#include "log/recover.hpp"
 #include "log/replica.hpp"
-
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::log;
 
 using namespace process;
 
 using std::list;
-using std::map;
-using std::pair;
 using std::set;
 using std::string;
-using std::vector;
 
-
-// class Drop : public Filter
-// {
-// public:
-//   Drop
-//   virtual bool filter(Message* message)
-//   {
-//     return  == message->name;
-//   }
-// };
-
-
-// class PeriodicFilter
-
-
-char** args; // Command line arguments for doing a restart.
-
-
-void restart()
-{
-  LOG(INFO) << "Restarting ...";
-  execv(args[0], args);
-  fatalerror("Failed to exec");
-}
-
-
-bool coordinate(Coordinator* coordinator,
-                uint64_t id,
-                int end,
-                map<int, int> truncations)
-{
-  const int attempts = 3;
-
-  uint64_t index;
-
-  int attempt = 1;
-  while (true) {
-    Result<uint64_t> result = coordinator->elect(id);
-    if (result.isError()) {
-      restart();
-    } else if (result.isNone()) {
-      if (attempt == attempts) {
-        restart();
-      } else {
-        attempt++;
-        os::sleep(Seconds(1));
-      }
-    } else {
-      CHECK_SOME(result);
-      index = result.get();
-      break;
-    }
-  }
-
-  uint64_t value = 0;
-
-  if (index != 0) {
-    attempt = 1;
-    while (true) {
-      Result<list<pair<uint64_t, string> > > result =
-        coordinator->read(index, index);
-      if (result.isError()) {
-        LOG(INFO) << "Restarting due to read error";
-        restart();
-      } else if (result.isNone()) {
-        if (attempt == attempts) {
-          LOG(INFO) << "Restarting after too many attempts";
-          restart();
-        } else {
-          attempt++;
-          os::sleep(Seconds(1));
-        }
-      } else {
-        CHECK_SOME(result);
-        const list<pair<uint64_t, string> >& list = result.get();
-        if (list.size() != 1) {
-          index--;
-        } else {
-          try {
-            value = boost::lexical_cast<uint64_t>(list.front().second);
-          } catch (boost::bad_lexical_cast&) {
-            LOG(INFO) << "Restarting due to conversion error";
-            restart();
-          }
-          break;
-        }
-      }
-    }
-  }
-
-  value++;
-
-  srand(time(NULL));
-
-  int writes = rand() % 500;
-
-  LOG(INFO) << "Attempting to do " << writes << " writes";
-
-  attempt = 1;
-  while (writes > 0 && value <= end) {
-    if (truncations.count(value) > 0) {
-      int to = truncations[value];
-      Result<uint64_t> result = coordinator->truncate(to);
-      if (result.isError()) {
-        LOG(INFO) << "Restarting due to truncate error";
-        restart();
-      } else if (result.isNone()) {
-        if (attempt == attempts) {
-          LOG(INFO) << "Restarting after too many attempts";
-          restart();
-        } else {
-          attempt++;
-          os::sleep(Seconds(1));
-          continue;
-        }
-      } else {
-        CHECK_SOME(result);
-        LOG(INFO) << "Truncated to " << to;
-        os::sleep(Seconds(1));
-        attempt = 1;
-      }
-    }
-
-    Result<uint64_t> result = coordinator->append(stringify(value));
-    if (result.isError()) {
-      LOG(INFO) << "Restarting due to append error";
-      restart();
-    } else if (result.isNone()) {
-      if (attempt == attempts) {
-        LOG(INFO) << "Restarting after too many attempts";
-        restart();
-      } else {
-        attempt++;
-        os::sleep(Seconds(1));
-      }
-    } else {
-      CHECK_SOME(result);
-      LOG(INFO) << "Wrote " << value;
-      os::sleep(Seconds(1));
-      writes--;
-      value++;
-      attempt = 1;
-    }
-  }
-
-  exit(0);
-  return true;
-}
-
+namespace mesos {
+namespace internal {
+namespace log {
 
 class LogProcess : public Process<LogProcess>
 {
 public:
-  LogProcess(int _quorum,
-             const string& _file,
-             const string& _servers,
-             const string& _znode,
-             int _end,
-             const map<int, int>& _truncations);
+  LogProcess(
+      size_t _quorum,
+      const string& path,
+      const set<UPID>& pids);
 
-  virtual ~LogProcess();
+  LogProcess(
+      size_t _quorum,
+      const string& path,
+      const string& servers,
+      const Duration& timeout,
+      const string& znode,
+      const Option<zookeeper::Authentication>& auth);
 
-  // ZooKeeper events. TODO(*): Use a ZooKeeper listener?
-  void connected();
-  void reconnecting();
-  void reconnected();
-  void expired();
-  void updated(const string& path);
+  // Recovers the log by catching up if needed. Returns a shared
+  // pointer to the local replica if the recovery succeeds.
+  Future<Shared<Replica> > recover();
 
 protected:
-  virtual void initialze();
+  virtual void initialize();
+  virtual void finalize();
 
 private:
-  // Updates the group.
-  void regroup();
+  friend class LogReaderProcess;
+  friend class LogWriterProcess;
 
-  // Runs an election.
-  void elect();
+  // Continuations.
+  void _recover();
 
-  // ZooKeeper bits and pieces.
-  string servers;
-  string znode;
-  ZooKeeper* zk;
-  Watcher* watcher;
+  // TODO(benh): Factor this out into "membership renewer".
+  void watch(
+      const UPID& pid,
+      const set<zookeeper::Group::Membership>& memberships);
 
-  // Size of quorum.
-  int quorum;
+  void failed(const string& message);
+  void discarded();
 
-  // Log file.
-  string file;
+  const size_t quorum;
+  Shared<Replica> replica;
+  Shared<Network> network;
 
-  // Termination value (when to stop writing to the log).
-  int end;
+  // For replica recovery.
+  Option<Future<Owned<Replica> > > recovering;
+  process::Promise<Nothing> recovered;
+  list<process::Promise<Shared<Replica> >*> promises;
 
-  // Truncation points.
-  map<int, int> truncations;
-
-  // Coordinator id.
-  uint64_t id;
-
-  // Whether or not the coordinator has been elected.
-  bool elected;
-
-  // Group members.
-  set<UPID> members;
-
-  ReplicaProcess* replica;
-  GroupProcess* group;
-  Coordinator* coordinator;
+  // For renewing membership. We store a Group instance in order to
+  // continually renew the replicas membership (when using ZooKeeper).
+  zookeeper::Group* group;
+  Future<zookeeper::Group::Membership> membership;
 };
 
 
-class LogProcessWatcher : public Watcher
+class LogReaderProcess : public Process<LogReaderProcess>
 {
 public:
-  LogProcessWatcher(const PID<LogProcess>& _pid)
-    : pid(_pid), reconnect(false) {}
+  LogReaderProcess(Log* log);
 
-  virtual ~LogProcessWatcher() {}
+  Future<Log::Position> beginning();
+  Future<Log::Position> ending();
 
-  virtual void process(ZooKeeper* zk, int type, int state, const string& path)
-  {
-    if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_SESSION_EVENT)) {
-      // Check if this is a reconnect.
-      if (!reconnect) {
-        // Initial connect.
-        dispatch(pid, &LogProcess::connected);
-      } else {
-        // Reconnected.
-        dispatch(pid, &LogProcess::reconnected);
-      }
-    } else if ((state == ZOO_CONNECTING_STATE) &&
-               (type == ZOO_SESSION_EVENT)) {
-      // The client library automatically reconnects, taking into
-      // account failed servers in the connection string,
-      // appropriately handling the "herd effect", etc.
-      reconnect = true;
-      dispatch(pid, &LogProcess::reconnecting);
-    } else if ((state == ZOO_EXPIRED_SESSION_STATE) &&
-               (type == ZOO_SESSION_EVENT)) {
-      dispatch(pid, &LogProcess::expired);
+  Future<list<Log::Entry> > read(
+      const Log::Position& from,
+      const Log::Position& to);
 
-      // If this watcher is reused, the next connect won't be a reconnect.
-      reconnect = false;
-    } else if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_CHILD_EVENT)) {
-      dispatch(pid, &LogProcess::updated, path);
-    } else if ((state == ZOO_CONNECTED_STATE) && (type == ZOO_CHANGED_EVENT)) {
-      dispatch(pid, &LogProcess::updated, path);
-    } else {
-      LOG(FATAL) << "Unimplemented ZooKeeper event: (state is "
-                 << state << " and type is " << type << ")";
+protected:
+  virtual void initialize();
+  virtual void finalize();
+
+private:
+  // Returns a position from a raw value.
+  static Log::Position position(uint64_t value);
+
+  // Returns a future which gets set when the log recovery has
+  // finished (either succeeded or failed).
+  Future<Nothing> recover();
+
+  // Continuations.
+  void _recover();
+
+  Future<Log::Position> _beginning();
+  Future<Log::Position> _ending();
+
+  Future<list<Log::Entry> > _read(
+      const Log::Position& from,
+      const Log::Position& to);
+
+  Future<list<Log::Entry> > __read(
+      const Log::Position& from,
+      const Log::Position& to,
+      const list<Action>& actions);
+
+  Future<Shared<Replica> > recovering;
+  list<process::Promise<Nothing>*> promises;
+};
+
+
+class LogWriterProcess : public Process<LogWriterProcess>
+{
+public:
+  LogWriterProcess(Log* log);
+
+  Future<Option<Log::Position> > elect();
+  Future<Log::Position> append(const string& bytes);
+  Future<Log::Position> truncate(const Log::Position& to);
+
+protected:
+  virtual void initialize();
+  virtual void finalize();
+
+private:
+  // Returns a position from a raw value.
+  static Log::Position position(uint64_t value);
+
+  // Returns a future which gets set when the log recovery has
+  // finished (either succeeded or failed).
+  Future<Nothing> recover();
+
+  // Continuations.
+  void _recover();
+
+  Future<Option<Log::Position> > _elect();
+  Option<Log::Position> __elect(const Option<uint64_t>& result);
+
+  void failed(const string& message);
+
+  const size_t quorum;
+  const Shared<Network> network;
+
+  Future<Shared<Replica> > recovering;
+  list<process::Promise<Nothing>*> promises;
+
+  Coordinator* coordinator;
+  Option<string> error;
+};
+
+
+/////////////////////////////////////////////////
+// Implementation of LogProcess.
+/////////////////////////////////////////////////
+
+
+LogProcess::LogProcess(
+    size_t _quorum,
+    const string& path,
+    const set<UPID>& pids)
+  : ProcessBase(ID::generate("log")),
+    quorum(_quorum),
+    replica(new Replica(path)),
+    network(new Network(pids + (UPID) replica->pid())),
+    group(NULL) {}
+
+
+LogProcess::LogProcess(
+    size_t _quorum,
+    const string& path,
+    const string& servers,
+    const Duration& timeout,
+    const string& znode,
+    const Option<zookeeper::Authentication>& auth)
+  : ProcessBase(ID::generate("log")),
+    quorum(_quorum),
+    replica(new Replica(path)),
+    network(new ZooKeeperNetwork(servers, timeout, znode, auth)),
+    group(new zookeeper::Group(servers, timeout, znode, auth)) {}
+
+
+void LogProcess::initialize()
+{
+  if (group != NULL) {
+    // Need to add our replica to the ZooKeeper group!
+    LOG(INFO) << "Attempting to join replica to ZooKeeper group";
+
+    membership = group->join(replica->pid())
+      .onFailed(defer(self(), &Self::failed, lambda::_1))
+      .onDiscarded(defer(self(), &Self::discarded));
+
+    // We save and pass the pid of the replica to the 'watch' function
+    // because the field member 'replica' is not available during
+    // recovery. We need the pid to renew the replicas membership.
+    group->watch()
+      .onReady(defer(self(), &Self::watch, replica->pid(), lambda::_1))
+      .onFailed(defer(self(), &Self::failed, lambda::_1))
+      .onDiscarded(defer(self(), &Self::discarded));
+  }
+
+  // Start the recovery.
+  recover();
+}
+
+
+void LogProcess::finalize()
+{
+  if (recovering.isSome()) {
+    // Stop the recovery if it is still pending.
+    recovering.get().discard();
+  }
+
+  // If there exist operations that are gated by the recovery, we fail
+  // all of them because the log is being deleted.
+  foreach (process::Promise<Shared<Replica> >* promise, promises) {
+    promise->fail("Log is being deleted");
+    delete promise;
+  }
+  promises.clear();
+
+  delete group;
+
+  // Wait for the shared pointers 'network' and 'replica' to become
+  // unique (i.e., no other reference to them). These calls should not
+  // be blocking for too long because at this moment, all operations
+  // should have been cancelled or are being cancelled. We do this
+  // because we want to make sure that after the log is deleted, all
+  // operations associated with this log are terminated.
+  network.own().await();
+  replica.own().await();
+}
+
+
+Future<Shared<Replica> > LogProcess::recover()
+{
+  // The future 'recovered' is used to mark the success (or the
+  // failure) of the recovery. We do not use the future 'recovering'
+  // to do that because it can be set in other process and thus has a
+  // race condition which we want to avoid. We deliberately do not
+  // save replica in 'recovered' because it will complicate our
+  // deleting logic (see 'finalize').
+  Future<Nothing> future = recovered.future();
+
+  if (future.isDiscarded()) {
+    return Failure("Not expecting discarded future");
+  } else if (future.isFailed()) {
+    return Failure(future.failure());
+  } else if (future.isReady()) {
+    return replica;
+  }
+
+  // Recovery has not finished yet. Create a promise and queue it such
+  // that it can get notified once the recovery has finished (either
+  // succeeded or failed).
+  process::Promise<Shared<Replica> >* promise =
+    new process::Promise<Shared<Replica> >();
+
+  promises.push_back(promise);
+
+  if (recovering.isNone()) {
+    // TODO(jieyu): At this moment, we haven't shared 'replica' to
+    // others yet. Therefore, the following 'replica.own()' call
+    // should not be blocking. In the future, we may wanna support
+    // 'release' in Shared which will provide this CHECK internally.
+    CHECK(replica.unique());
+
+    recovering = log::recover(quorum, replica.own().get(), network)
+      .onAny(defer(self(), &Self::_recover));
+  }
+
+  return promise->future();
+}
+
+
+void LogProcess::_recover()
+{
+  CHECK_SOME(recovering);
+
+  Future<Owned<Replica> > future = recovering.get();
+
+  if (!future.isReady()) {
+    // The 'future' here can only be discarded in 'finalize'.
+    string failure = future.isFailed() ?
+      future.failure() :
+      "The future 'recovering' is unexpectedly discarded";
+
+    // Mark the failure of the recovery.
+    recovered.fail(failure);
+
+    foreach (process::Promise<Shared<Replica> >* promise, promises) {
+      promise->fail(failure);
+      delete promise;
+    }
+    promises.clear();
+  } else {
+    replica = future.get().share();
+
+    // Mark the success of the recovery.
+    recovered.set(Nothing());
+
+    foreach (process::Promise<Shared<Replica> >* promise, promises) {
+      promise->set(replica);
+      delete promise;
+    }
+    promises.clear();
+  }
+}
+
+
+void LogProcess::watch(
+    const UPID& pid,
+    const set<zookeeper::Group::Membership>& memberships)
+{
+  if (membership.isReady() && memberships.count(membership.get()) == 0) {
+    // Our replica's membership must have expired, join back up.
+    LOG(INFO) << "Renewing replica group membership";
+
+    membership = group->join(pid)
+      .onFailed(defer(self(), &Self::failed, lambda::_1))
+      .onDiscarded(defer(self(), &Self::discarded));
+  }
+
+  group->watch(memberships)
+    .onReady(defer(self(), &Self::watch, pid, lambda::_1))
+    .onFailed(defer(self(), &Self::failed, lambda::_1))
+    .onDiscarded(defer(self(), &Self::discarded));
+}
+
+
+void LogProcess::failed(const string& message)
+{
+  LOG(FATAL) << "Failed to participate in ZooKeeper group: " << message;
+}
+
+
+void LogProcess::discarded()
+{
+  LOG(FATAL) << "Not expecting future to get discarded!";
+}
+
+
+/////////////////////////////////////////////////
+// Implementation of LogReaderProcess.
+/////////////////////////////////////////////////
+
+
+LogReaderProcess::LogReaderProcess(Log* log)
+  : ProcessBase(ID::generate("log-reader")),
+    recovering(dispatch(log->process, &LogProcess::recover)) {}
+
+
+void LogReaderProcess::initialize()
+{
+  recovering.onAny(defer(self(), &Self::_recover));
+}
+
+
+void LogReaderProcess::finalize()
+{
+  foreach (process::Promise<Nothing>* promise, promises) {
+    promise->fail("Log reader is being deleted");
+    delete promise;
+  }
+  promises.clear();
+}
+
+
+Future<Nothing> LogReaderProcess::recover()
+{
+  if (recovering.isReady()) {
+    return Nothing();
+  } else if (recovering.isFailed()) {
+    return Failure(recovering.failure());
+  } else if (recovering.isDiscarded()) {
+    return Failure("The future 'recovering' is unexpectedly discarded");
+  }
+
+  // At this moment, the future 'recovering' should most likely be
+  // pending. But it is also likely that it gets set after the above
+  // checks. Either way, we know that the continuation '_recover' has
+  // not been called yet (otherwise, we should not be able to reach
+  // here). The promise we are creating below will be properly
+  // set/failed when '_recover' is called.
+  process::Promise<Nothing>* promise = new process::Promise<Nothing>();
+  promises.push_back(promise);
+  return promise->future();
+}
+
+
+void LogReaderProcess::_recover()
+{
+  if (!recovering.isReady()) {
+    foreach (process::Promise<Nothing>* promise, promises) {
+      promise->fail(
+          recovering.isFailed() ?
+          recovering.failure() :
+          "The future 'recovering' is unexpectedly discarded");
+      delete promise;
+    }
+    promises.clear();
+  } else {
+    foreach (process::Promise<Nothing>* promise, promises) {
+      promise->set(Nothing());
+      delete promise;
+    }
+    promises.clear();
+  }
+}
+
+
+Future<Log::Position> LogReaderProcess::beginning()
+{
+  return recover().then(defer(self(), &Self::_beginning));
+}
+
+
+Future<Log::Position> LogReaderProcess::_beginning()
+{
+  CHECK(recovering.isReady());
+
+  return recovering.get()->beginning()
+    .then(lambda::bind(&Self::position, lambda::_1));
+}
+
+
+Future<Log::Position> LogReaderProcess::ending()
+{
+  return recover().then(defer(self(), &Self::_ending));
+}
+
+
+Future<Log::Position> LogReaderProcess::_ending()
+{
+  CHECK(recovering.isReady());
+
+  return recovering.get()->ending()
+    .then(lambda::bind(&Self::position, lambda::_1));
+}
+
+
+Future<list<Log::Entry> > LogReaderProcess::read(
+    const Log::Position& from,
+    const Log::Position& to)
+{
+  return recover().then(defer(self(), &Self::_read, from, to));
+}
+
+
+Future<list<Log::Entry> > LogReaderProcess::_read(
+    const Log::Position& from,
+    const Log::Position& to)
+{
+  CHECK(recovering.isReady());
+
+  return recovering.get()->read(from.value, to.value)
+    .then(defer(self(), &Self::__read, from, to, lambda::_1));
+}
+
+
+Future<list<Log::Entry> > LogReaderProcess::__read(
+    const Log::Position& from,
+    const Log::Position& to,
+    const list<Action>& actions)
+{
+  list<Log::Entry> entries;
+
+  uint64_t position = from.value;
+
+  foreach (const Action& action, actions) {
+    // Ensure read range is valid.
+    if (!action.has_performed() ||
+        !action.has_learned() ||
+        !action.learned()) {
+      return Failure("Bad read range (includes pending entries)");
+    } else if (position++ != action.position()) {
+      return Failure("Bad read range (includes missing entries)");
+    }
+
+    // And only return appends.
+    CHECK(action.has_type());
+    if (action.type() == Action::APPEND) {
+      entries.push_back(Log::Entry(action.position(), action.append().bytes()));
     }
   }
 
-private:
-  const PID<LogProcess> pid;
-  bool reconnect;
-};
+  return entries;
+}
 
 
-LogProcess::LogProcess(int _quorum,
-                       const string& _file,
-                       const string& _servers,
-                       const string& _znode,
-                       int _end,
-                       const map<int, int>& _truncations)
-  : quorum(_quorum),
-    file(_file),
-    servers(_servers),
-    znode(_znode),
-    end(_end),
-    truncations(_truncations),
-    id(0),
-    elected(false),
-    replica(NULL),
-    group(NULL),
-    coordinator(NULL) {}
-
-
-LogProcess::~LogProcess()
+Log::Position LogReaderProcess::position(uint64_t value)
 {
-  delete zk;
-  delete watcher;
-  delete replica;
-  delete group;
+  return Log::Position(value);
+}
+
+
+/////////////////////////////////////////////////
+// Implementation of LogWriterProcess.
+/////////////////////////////////////////////////
+
+
+LogWriterProcess::LogWriterProcess(Log* log)
+  : ProcessBase(ID::generate("log-writer")),
+    quorum(log->process->quorum),
+    network(log->process->network),
+    recovering(dispatch(log->process, &LogProcess::recover)),
+    coordinator(NULL),
+    error(None()) {}
+
+
+void LogWriterProcess::initialize()
+{
+  recovering.onAny(defer(self(), &Self::_recover));
+}
+
+
+void LogWriterProcess::finalize()
+{
+  foreach (process::Promise<Nothing>* promise, promises) {
+    promise->fail("Log writer is being deleted");
+    delete promise;
+  }
+  promises.clear();
+
   delete coordinator;
 }
 
 
-void LogProcess::connected()
+Future<Nothing> LogWriterProcess::recover()
 {
-  LOG(INFO) << "Log connected to ZooKeeper";
+  if (recovering.isReady()) {
+    return Nothing();
+  } else if (recovering.isFailed()) {
+    return Failure(recovering.failure());
+  } else if (recovering.isDiscarded()) {
+    return Failure("The future 'recovering' is unexpectedly discarded");
+  }
 
-  int ret;
-  string result;
+  // At this moment, the future 'recovering' should most likely be
+  // pending. But it is also likely that it gets set after the above
+  // checks. Either way, we know that the continuation '_recover' has
+  // not been called yet (otherwise, we should not be able to reach
+  // here). The promise we are creating below will be properly
+  // set/failed when '_recover' is called.
+  process::Promise<Nothing>* promise = new process::Promise<Nothing>();
+  promises.push_back(promise);
+  return promise->future();
+}
 
-  // Assume the znode that was created does not end with a "/".
-  CHECK(znode.size() == 0 || znode.at(znode.size() - 1) != '/');
 
-  // Create directory path znodes as necessary.
-  size_t index = znode.find("/", 0);
-
-  while (index < string::npos) {
-    // Get out the prefix to create.
-    index = znode.find("/", index + 1);
-    string prefix = znode.substr(0, index);
-
-    LOG(INFO) << "Log trying to create znode '"
-              << prefix << "' in ZooKeeper";
-
-    // Create the node (even if it already exists).
-    ret = zk->create(
-        prefix,
-        "",
-        ZOO_OPEN_ACL_UNSAFE,
-        // ZOO_CREATOR_ALL_ACL, // needs authentication
-        0,
-        &result);
-
-    if (ret != ZOK && ret != ZNODEEXISTS) {
-      LOG(FATAL) << "Failed to create '" << prefix
-                 << "' in ZooKeeper: " << zk->message(ret);
+void LogWriterProcess::_recover()
+{
+  if (!recovering.isReady()) {
+    foreach (process::Promise<Nothing>* promise, promises) {
+      promise->fail(
+          recovering.isFailed() ?
+          recovering.failure() :
+          "The future 'recovering' is unexpectedly discarded");
+      delete promise;
     }
-  }
-
-  // Now create the "replicas" znode.
-  LOG(INFO) << "Log trying to create znode '" << znode
-            << "/replicas" << "' in ZooKeeper";
-
-  // Create the node (even if it already exists).
-  ret = zk->create(znode + "/replicas", "", ZOO_OPEN_ACL_UNSAFE,
-                   // ZOO_CREATOR_ALL_ACL, // needs authentication
-                   0, &result);
-
-  if (ret != ZOK && ret != ZNODEEXISTS) {
-    LOG(FATAL) << "Failed to create '" << znode << "/replicas"
-               << "' in ZooKeeper: " << zk->message(ret);
-  }
-
-  // Now create the "coordinators" znode.
-  LOG(INFO) << "Log trying to create znode '" << znode
-            << "/coordinators" << "' in ZooKeeper";
-
-  // Create the node (even if it already exists).
-  ret = zk->create(znode + "/coordinators", "", ZOO_OPEN_ACL_UNSAFE,
-                   // ZOO_CREATOR_ALL_ACL, // needs authentication
-                   0, &result);
-
-  if (ret != ZOK && ret != ZNODEEXISTS) {
-    LOG(FATAL) << "Failed to create '" << znode << "/coordinators"
-               << "' in ZooKeeper: " << zk->message(ret);
-  }
-
-  // Okay, create our replica, group, and coordinator.
-  replica = new ReplicaProcess(file);
-  spawn(replica);
-
-  group = new GroupProcess();
-  spawn(group);
-
-  coordinator = new Coordinator(quorum, replica, group);
-
-  // Set a watch on the replicas.
-  ret = zk->getChildren(znode + "/replicas", true, NULL);
-
-  if (ret != ZOK) {
-    LOG(FATAL) << "Failed to set a watch on '" << znode << "/replicas"
-               << "' in ZooKeeper: " << zk->message(ret);
-  }
-
-  // Set a watch on the coordinators.
-  ret = zk->getChildren(znode + "/coordinators", true, NULL);
-
-  if (ret != ZOK) {
-    LOG(FATAL) << "Failed to set a watch on '" << znode << "/replicas"
-               << "' in ZooKeeper: " << zk->message(ret);
-  }
-
-  // Add an ephemeral znode for our replica and coordinator.
-  ret = zk->create(znode + "/replicas/", replica->self(), ZOO_OPEN_ACL_UNSAFE,
-                   // ZOO_CREATOR_ALL_ACL, // needs authentication
-                   ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
-
-  if (ret != ZOK) {
-    LOG(FATAL) << "Failed to create an ephmeral node at '" << znode
-               << "/replica/" << "' in ZooKeeper: " << zk->message(ret);
-  }
-
-  ret = zk->create(znode + "/coordinators/", "", ZOO_OPEN_ACL_UNSAFE,
-                   // ZOO_CREATOR_ALL_ACL, // needs authentication
-                   ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
-
-  if (ret != ZOK) {
-    LOG(FATAL) << "Failed to create an ephmeral node at '" << znode
-               << "/replica/" << "' in ZooKeeper: " << zk->message(ret);
-  }
-
-  // Save the sequence id but only grab the basename, e.g.,
-  // "/path/to/znode/000000131" => "000000131".
-  result = utils::os::basename(result);
-
-  try {
-    id = boost::lexical_cast<uint64_t>(result);
-  } catch (boost::bad_lexical_cast&) {
-    LOG(FATAL) << "Failed to convert '" << result << "' into an integer";
-  }
-
-  // Run an election!
-  elect();
-}
-
-
-void LogProcess::reconnecting()
-{
-  LOG(INFO) << "Reconnecting to ZooKeeper";
-}
-
-
-void LogProcess::reconnected()
-{
-  LOG(INFO) << "Reconnected to ZooKeeper";
-}
-
-
-void LogProcess::expired()
-{
-  restart();
-}
-
-
-void LogProcess::updated(const string& path)
-{
-  if (znode + "/replicas" == path) {
-
-    regroup();
-
-    // Reset a watch on the replicas.
-    int ret = zk->getChildren(znode + "/replicas", true, NULL);
-
-    if (ret != ZOK) {
-      LOG(FATAL) << "Failed to set a watch on '" << znode << "/replicas"
-                 << "' in ZooKeeper: " << zk->message(ret);
-    }
+    promises.clear();
   } else {
-    CHECK(znode + "/coordinators" == path);
-
-    elect();
-
-    // Reset a watch on the coordinators.
-    int ret = zk->getChildren(znode + "/coordinators", true, NULL);
-
-    if (ret != ZOK) {
-      LOG(FATAL) << "Failed to set a watch on '" << znode << "/replicas"
-                 << "' in ZooKeeper: " << zk->message(ret);
+    foreach (process::Promise<Nothing>* promise, promises) {
+      promise->set(Nothing());
+      delete promise;
     }
+    promises.clear();
   }
 }
 
 
-void LogProcess::initalize()
+Future<Option<Log::Position> > LogWriterProcess::elect()
 {
-  // TODO(benh): Real testing requires injecting a ZooKeeper instance.
-  watcher = new LogProcessWatcher(self());
-  zk = new ZooKeeper(servers, 10000, watcher);
+  return recover().then(defer(self(), &Self::_elect));
 }
 
 
-void LogProcess::regroup()
+Future<Option<Log::Position> > LogWriterProcess::_elect()
 {
-  vector<string> results;
+  // We delete the existing coordinator (if exists) and create a new
+  // coordinator each time 'elect' is called.
+  delete coordinator;
+  error = None();
 
-  int ret = zk->getChildren(znode + "/replicas", false, &results);
+  CHECK(recovering.isReady());
 
-  if (ret != ZOK) {
-    LOG(FATAL) << "Failed to get children of '" << znode << "/replicas"
-               << "' in ZooKeeper: " << zk->message(ret);
-  }
+  coordinator = new Coordinator(quorum, recovering.get(), network);
 
-  set<UPID> current;
-  set<UPID> added;
-  set<UPID> removed;
-
-  foreach (const string& result, results) {
-    string s;
-    int ret = zk->get(znode + "/replicas/" + result, false, &s, NULL);
-    UPID pid = s;
-    current.insert(pid);
-  }
-
-  foreach (const UPID& pid, current) {
-    if (members.count(pid) == 0) {
-      added.insert(pid);
-    }
-  }
-
-  foreach (const UPID& pid, members) {
-    if (current.count(pid) == 0) {
-      removed.insert(pid);
-    }
-  }
-
-  foreach (const UPID& pid, added) {
-    dispatch(group, &GroupProcess::add, pid);
-    members.insert(pid);
-  }
-
-  foreach (const UPID& pid, removed) {
-    dispatch(group, &GroupProcess::remove, pid);
-    members.erase(pid);
-  }
+  return coordinator->elect()
+    .then(defer(self(), &Self::__elect, lambda::_1))
+    .onFailed(defer(self(), &Self::failed, lambda::_1));
 }
 
 
-void LogProcess::elect()
+Option<Log::Position> LogWriterProcess::__elect(const Option<uint64_t>& result)
 {
-  vector<string> results;
-
-  int ret = zk->getChildren(znode + "/coordinators", false, &results);
-
-  if (ret != ZOK) {
-    LOG(FATAL) << "Failed to get children of '" << znode << "/coordinators"
-               << "' in ZooKeeper: " << zk->message(ret);
-  }
-
-  // "Elect" the minimum ephemeral znode.
-  uint64_t min = LONG_MAX;
-  foreach (const string& result, results) {
-    try {
-      min = std::min(min, boost::lexical_cast<uint64_t>(result));
-    } catch (boost::bad_lexical_cast&) {
-      LOG(FATAL) << "Failed to convert '" << result << "' into an integer";
-    }
-  }
-
-  if (id == min && !elected) {
-    elected = true;
-    process::run(&coordinate, coordinator, id, end, truncations);
-  } else if (elected) {
-    LOG(INFO) << "Restarting due to demoted";
-    restart();
+  if (result.isNone()) {
+    return None();
+  } else {
+    return position(result.get());
   }
 }
 
 
-int main(int argc, char** argv)
+Future<Log::Position> LogWriterProcess::append(const string& bytes)
 {
-  if (argc < 6) {
-    fatal("Usage: %s <quorum> <file> <servers> <znode> <end> <at> <to> ...",
-          argv[0]);
+  if (coordinator == NULL) {
+    return Failure("No election has been performed");
   }
 
-  args = argv;
+  if (error.isSome()) {
+    return Failure(error.get());
+  }
 
-  int quorum = atoi(argv[1]);
-  string file = argv[2];
-  string servers = argv[3];
-  string znode = argv[4];
-  int end = atoi(argv[5]);
+  return coordinator->append(bytes)
+    .then(lambda::bind(&Self::position, lambda::_1))
+    .onFailed(defer(self(), &Self::failed, lambda::_1));
+}
 
-  map<int, int> truncations;
 
-  for (int i = 6; argv[i] != NULL; i += 2) {
-    if (argv[i + 1] == NULL) {
-      fatal("Expecting 'to' argument for truncation");
+Future<Log::Position> LogWriterProcess::truncate(const Log::Position& to)
+{
+  if (coordinator == NULL) {
+    return Failure("No election has been performed");
+  }
+
+  if (error.isSome()) {
+    return Failure(error.get());
+  }
+
+  return coordinator->truncate(to.value)
+    .then(lambda::bind(&Self::position, lambda::_1))
+    .onFailed(defer(self(), &Self::failed, lambda::_1));
+}
+
+
+void LogWriterProcess::failed(const string& message)
+{
+  error = message;
+}
+
+
+Log::Position LogWriterProcess::position(uint64_t value)
+{
+  return Log::Position(value);
+}
+
+
+/////////////////////////////////////////////////
+// Public interfaces for Log.
+/////////////////////////////////////////////////
+
+
+Log::Log(
+    int quorum,
+    const string& path,
+    const set<UPID>& pids)
+{
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  process = new LogProcess(quorum, path, pids);
+  spawn(process);
+}
+
+Log::Log(
+    int quorum,
+    const string& path,
+    const string& servers,
+    const Duration& timeout,
+    const string& znode,
+    const Option<zookeeper::Authentication>& auth)
+{
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  process = new LogProcess(quorum, path, servers, timeout, znode, auth);
+  spawn(process);
+}
+
+
+Log::~Log()
+{
+  terminate(process);
+  process::wait(process);
+  delete process;
+}
+
+
+/////////////////////////////////////////////////
+// Public interfaces for Log::Reader.
+/////////////////////////////////////////////////
+
+
+Log::Reader::Reader(Log* log)
+{
+  process = new LogReaderProcess(log);
+  spawn(process);
+}
+
+
+Log::Reader::~Reader()
+{
+  terminate(process);
+  process::wait(process);
+  delete process;
+}
+
+
+Result<list<Log::Entry> > Log::Reader::read(
+    const Log::Position& from,
+    const Log::Position& to,
+    const Timeout& timeout)
+{
+  Future<list<Log::Entry> > future =
+    dispatch(process, &LogReaderProcess::read, from, to);
+
+  if (!future.await(timeout.remaining())) {
+    LOG(INFO) << "Timed out while trying to read the log";
+
+    future.discard();
+    return None();
+  } else {
+    if (!future.isReady()) {
+      string failure =
+        future.isFailed() ?
+        future.failure() :
+        "Not expecting discarded future";
+
+      LOG(ERROR) << "Failed to read the log: " << failure;
+
+      return Error(failure);
+    } else {
+      return future.get();
+    }
+  }
+}
+
+
+Log::Position Log::Reader::beginning()
+{
+  // TODO(benh): Take a timeout and return an Option.
+  return dispatch(process, &LogReaderProcess::beginning).get();
+}
+
+
+Log::Position Log::Reader::ending()
+{
+  // TODO(benh): Take a timeout and return an Option.
+  return dispatch(process, &LogReaderProcess::ending).get();
+}
+
+
+/////////////////////////////////////////////////
+// Public interfaces for Log::Writer.
+/////////////////////////////////////////////////
+
+
+Log::Writer::Writer(Log* log, const Duration& timeout, int retries)
+{
+  process = new LogWriterProcess(log);
+  spawn(process);
+
+  // Trying to get elected.
+  for (;;) {
+    LOG(INFO) << "Attempting to get elected within " << timeout;
+
+    Future<Option<Log::Position> > future =
+      dispatch(process, &LogWriterProcess::elect);
+
+    if (!future.await(timeout)) {
+      LOG(INFO) << "Timed out while trying to get elected";
+
+      // Cancel the election. It is likely that the election is done
+      // right after the timeout has been reached. In that case, we
+      // may unnecessarily rerun the election, but it is safe.
+      future.discard();
+    } else {
+      if (!future.isReady()) {
+        string failure =
+          future.isFailed() ?
+          future.failure() :
+          "Not expecting discarded future";
+
+        LOG(ERROR) << "Failed to get elected: " << failure;
+        break;
+      } else if (future.get().isNone()) {
+        LOG(INFO) << "Lost an election, but can be retried";
+      } else {
+        LOG(INFO) << "Elected with current position "
+                  << future.get().get().value;
+        return;
+      }
     }
 
-    int at = atoi(argv[i]);
-    int to = atoi(argv[i + 1]);
-
-    truncations[at] = to;
+    if (--retries < 0) {
+      LOG(ERROR) << "Retry limit has been reached during election";
+      break;
+    }
   }
-
-  process::initialize();
-
-  LogProcess log(quorum, file, servers, znode, end, truncations);
-  spawn(log);
-  wait(log);
-
-  return 0;
 }
+
+
+Log::Writer::~Writer()
+{
+  terminate(process);
+  process::wait(process);
+  delete process;
+}
+
+
+Result<Log::Position> Log::Writer::append(
+    const string& data,
+    const Timeout& timeout)
+{
+  LOG(INFO) << "Attempting to append " << data.size() << " bytes to the log";
+
+  Future<Log::Position> future =
+    dispatch(process, &LogWriterProcess::append, data);
+
+  if (!future.await(timeout.remaining())) {
+    LOG(INFO) << "Timed out while trying to append the log";
+
+    future.discard();
+    return None();
+  } else {
+    if (!future.isReady()) {
+      string failure =
+        future.isFailed() ?
+        future.failure() :
+        "Not expecting discarded future";
+
+      LOG(ERROR) << "Failed to append the log: " << failure;
+
+      return Error(failure);
+    } else {
+      return future.get();
+    }
+  }
+}
+
+
+Result<Log::Position> Log::Writer::truncate(
+    const Log::Position& to,
+    const Timeout& timeout)
+{
+  LOG(INFO) << "Attempting to truncate the log to " << to.value;
+
+  Future<Log::Position> future =
+    dispatch(process, &LogWriterProcess::truncate, to);
+
+  if (!future.await(timeout.remaining())) {
+    LOG(INFO) << "Timed out while trying to truncate the log";
+
+    future.discard();
+    return None();
+  } else {
+    if (!future.isReady()) {
+      string failure =
+        future.isFailed() ?
+        future.failure() :
+        "Not expecting discarded future";
+
+      LOG(ERROR) << "Failed to truncate the log: " << failure;
+
+      return Error(failure);
+    } else {
+      return future.get();
+    }
+  }
+}
+
+} // namespace log {
+} // namespace internal {
+} // namespace mesos {

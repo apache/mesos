@@ -28,21 +28,22 @@
 #include <process/shared.hpp>
 #include <process/timeout.hpp>
 
-#include <stout/check.hpp>
-#include <stout/error.hpp>
-#include <stout/foreach.hpp>
+#include <stout/duration.hpp>
 #include <stout/none.hpp>
+#include <stout/option.hpp>
 #include <stout/result.hpp>
-#include <stout/try.hpp>
-
-#include "log/coordinator.hpp"
-#include "log/replica.hpp"
 
 #include "zookeeper/group.hpp"
 
 namespace mesos {
 namespace internal {
 namespace log {
+
+// Forward declarations.
+class LogProcess;
+class LogReaderProcess;
+class LogWriterProcess;
+
 
 class Log
 {
@@ -98,9 +99,12 @@ public:
 
   private:
     friend class Log;
-    friend class Reader;
     friend class Writer;
+    friend class LogReaderProcess;
+    friend class LogWriterProcess;
+
     Position(uint64_t _value) : value(_value) {}
+
     uint64_t value;
   };
 
@@ -111,8 +115,8 @@ public:
     std::string data;
 
   private:
-    friend class Reader;
-    friend class Writer;
+    friend class LogReaderProcess;
+
     Entry(const Position& _position, const std::string& _data)
       : position(_position), data(_data) {}
   };
@@ -125,9 +129,10 @@ public:
 
     // Returns all entries between the specified positions, unless
     // those positions are invalid, in which case returns an error.
-    Result<std::list<Entry> > read(const Position& from,
-                                   const Position& to,
-                                   const process::Timeout& timeout);
+    Result<std::list<Entry> > read(
+        const Position& from,
+        const Position& to,
+        const process::Timeout& timeout);
 
     // Returns the beginning position of the log from the perspective
     // of the local replica (which may be out of date if the log has
@@ -141,7 +146,7 @@ public:
     Position ending();
 
   private:
-    process::Shared<Replica> replica;
+    LogReaderProcess* process;
   };
 
   class Writer
@@ -171,69 +176,28 @@ public:
         const process::Timeout& timeout);
 
   private:
-    Option<std::string> error;
-    Coordinator coordinator;
+    LogWriterProcess* process;
   };
 
   // Creates a new replicated log that assumes the specified quorum
-  // size, is backed by a file at the specified path, and coordiantes
+  // size, is backed by a file at the specified path, and coordinates
   // with other replicas via the set of process PIDs.
-  Log(int _quorum,
+  Log(int quorum,
       const std::string& path,
-      const std::set<process::UPID>& pids)
-    : group(NULL),
-      executor(NULL),
-      quorum(_quorum),
-      replica(new Replica(path))
-  {
-    GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-    // Add our own replica to the network.
-    Network* _network = new Network(pids);
-    _network->add(replica->pid());
-
-    network.reset(_network);
-  }
+      const std::set<process::UPID>& pids);
 
   // Creates a new replicated log that assumes the specified quorum
-  // size, is backed by a file at the specified path, and coordiantes
+  // size, is backed by a file at the specified path, and coordinates
   // with other replicas associated with the specified ZooKeeper
   // servers, timeout, and znode.
-  Log(int _quorum,
+  Log(int quorum,
       const std::string& path,
       const std::string& servers,
       const Duration& timeout,
       const std::string& znode,
-      const Option<zookeeper::Authentication>& auth = None())
-    : group(new zookeeper::Group(servers, timeout, znode, auth)),
-      executor(new process::Executor()),
-      quorum(_quorum),
-      replica(new Replica(path)),
-      network(new ZooKeeperNetwork(servers, timeout, znode, auth))
-  {
-    GOOGLE_PROTOBUF_VERIFY_VERSION;
+      const Option<zookeeper::Authentication>& auth = None());
 
-    // Need to add our replica to the ZooKeeper group!
-    LOG(INFO) << "Attempting to join replica to ZooKeeper group";
-
-    membership = group->join(replica->pid())
-      .onFailed(executor->defer(lambda::bind(&Log::failed, this, lambda::_1)))
-      .onDiscarded(executor->defer(lambda::bind(&Log::discarded, this)));
-
-    group->watch()
-      .onReady(executor->defer(lambda::bind(&Log::watch, this, lambda::_1)))
-      .onFailed(executor->defer(lambda::bind(&Log::failed, this, lambda::_1)))
-      .onDiscarded(executor->defer(lambda::bind(&Log::discarded, this)));
-  }
-
-  ~Log()
-  {
-    network.own().await();
-    replica.own().await();
-
-    delete executor;
-    delete group;
-  }
+  ~Log();
 
   // Returns a position based off of the bytes recovered from
   // Position.identity().
@@ -252,196 +216,13 @@ public:
       ((uint64_t) (bytes[7] & 0xff));
     return Position(value);
   }
+
 private:
-  friend class Reader;
-  friend class Writer;
+  friend class LogReaderProcess;
+  friend class LogWriterProcess;
 
-  // TODO(benh): Factor this out into some sort of "membership renewer".
-  void watch(const std::set<zookeeper::Group::Membership>& memberships);
-  void failed(const std::string& message) const;
-  void discarded() const;
-
-  // We store a Group instance in order to continually renew the
-  // replicas membership (when using ZooKeeper).
-  zookeeper::Group* group;
-  process::Future<zookeeper::Group::Membership> membership;
-  process::Executor* executor;
-
-  int quorum;
-  process::Shared<Replica> replica;
-  process::Shared<Network> network;
+  LogProcess* process;
 };
-
-
-Log::Reader::Reader(Log* log)
-  : replica(log->replica) {}
-
-
-Log::Reader::~Reader() {}
-
-
-Result<std::list<Log::Entry> > Log::Reader::read(
-    const Log::Position& from,
-    const Log::Position& to,
-    const process::Timeout& timeout)
-{
-  process::Future<std::list<Action> > actions =
-    replica->read(from.value, to.value);
-
-  if (!actions.await(timeout.remaining())) {
-    return None();
-  } else if (actions.isFailed()) {
-    return Error(actions.failure());
-  }
-
-  CHECK(actions.isReady()) << "Not expecting discarded future!";
-
-  std::list<Log::Entry> entries;
-
-  uint64_t position = from.value;
-
-  foreach (const Action& action, actions.get()) {
-    // Ensure read range is valid.
-    if (!action.has_performed() ||
-        !action.has_learned() ||
-        !action.learned()) {
-      return Error("Bad read range (includes pending entries)");
-    } else if (position++ != action.position()) {
-      return Error("Bad read range (includes missing entries)");
-    }
-
-    // And only return appends.
-    CHECK(action.has_type());
-    if (action.type() == Action::APPEND) {
-      entries.push_back(Entry(action.position(), action.append().bytes()));
-    }
-  }
-
-  return entries;
-}
-
-
-Log::Position Log::Reader::beginning()
-{
-  // TODO(benh): Take a timeout and return an Option.
-  process::Future<uint64_t> value = replica->beginning();
-  value.await();
-  CHECK(value.isReady()) << "Not expecting a failed or discarded future!";
-  return Log::Position(value.get());
-}
-
-
-Log::Position Log::Reader::ending()
-{
-  // TODO(benh): Take a timeout and return an Option.
-  process::Future<uint64_t> value = replica->ending();
-  value.await();
-  CHECK(value.isReady()) << "Not expecting a failed or discarded future!";
-  return Log::Position(value.get());
-}
-
-
-Log::Writer::Writer(Log* log, const Duration& timeout, int retries)
-  : error(None()),
-    coordinator(log->quorum, log->replica, log->network)
-{
-  do {
-    Result<uint64_t> result = coordinator.elect(process::Timeout::in(timeout));
-    if (result.isNone()) {
-      retries--;
-    } else if (result.isSome()) {
-      break;
-    } else {
-      error = result.error();
-      break;
-    }
-  } while (retries > 0);
-}
-
-
-Log::Writer::~Writer()
-{
-  coordinator.demote();
-}
-
-
-Result<Log::Position> Log::Writer::append(
-    const std::string& data,
-    const process::Timeout& timeout)
-{
-  if (error.isSome()) {
-    return Error(error.get());
-  }
-
-  LOG(INFO) << "Attempting to append " << data.size() << " bytes to the log";
-
-  Result<uint64_t> result = coordinator.append(data, timeout);
-
-  if (result.isError()) {
-    error = result.error();
-    return Error(error.get());
-  } else if (result.isNone()) {
-    return None();
-  }
-
-  CHECK_SOME(result);
-
-  return Log::Position(result.get());
-}
-
-
-Result<Log::Position> Log::Writer::truncate(
-    const Log::Position& to,
-    const process::Timeout& timeout)
-{
-  if (error.isSome()) {
-    return Error(error.get());
-  }
-
-  LOG(INFO) << "Attempting to truncate the log to " << to.value;
-
-  Result<uint64_t> result = coordinator.truncate(to.value, timeout);
-
-  if (result.isError()) {
-    error = result.error();
-    return Error(error.get());
-  } else if (result.isNone()) {
-    return None();
-  }
-
-  CHECK_SOME(result);
-
-  return Log::Position(result.get());
-}
-
-
-void Log::watch(const std::set<zookeeper::Group::Membership>& memberships)
-{
-  if (membership.isReady() && memberships.count(membership.get()) == 0) {
-    // Our replica's membership must have expired, join back up.
-    LOG(INFO) << "Renewing replica group membership";
-    membership = group->join(replica->pid())
-      .onFailed(executor->defer(lambda::bind(&Log::failed, this, lambda::_1)))
-      .onDiscarded(executor->defer(lambda::bind(&Log::discarded, this)));
-  }
-
-  group->watch(memberships)
-    .onReady(executor->defer(lambda::bind(&Log::watch, this, lambda::_1)))
-    .onFailed(executor->defer(lambda::bind(&Log::failed, this, lambda::_1)))
-    .onDiscarded(executor->defer(lambda::bind(&Log::discarded, this)));
-}
-
-
-void Log::failed(const std::string& message) const
-{
-  LOG(FATAL) << "Failed to participate in ZooKeeper group: " << message;
-}
-
-
-void Log::discarded() const
-{
-  LOG(FATAL) << "Not expecting future to get discarded!";
-}
 
 } // namespace log {
 } // namespace internal {

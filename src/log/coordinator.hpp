@@ -23,10 +23,10 @@
 
 #include <string>
 
+#include <process/future.hpp>
 #include <process/shared.hpp>
-#include <process/timeout.hpp>
 
-#include <stout/result.hpp>
+#include <stout/option.hpp>
 
 #include "log/network.hpp"
 #include "log/replica.hpp"
@@ -49,25 +49,25 @@ public:
 
   ~Coordinator();
 
-  // Handles coordinator election/demotion. A result of none means the
-  // coordinator failed to achieve a quorum (e.g., due to timeout) but
-  // can be retried. A some result returns the last committed log
-  // position.
-  Result<uint64_t> elect(const process::Timeout& timeout);
-  Result<uint64_t> demote();
+  // Handles coordinator election. Returns the last committed (a.k.a.,
+  // learned) log position if the operation succeeds. Returns none if
+  // the election is not successful, but can be retried.
+  process::Future<Option<uint64_t> > elect();
 
-  // Returns the result of trying to append the specified bytes. A
-  // result of none means the append failed (e.g., due to timeout),
-  // but can be retried.
-  Result<uint64_t> append(
-      const std::string& bytes,
-      const process::Timeout& timeout);
+  // Handles coordinator demotion. Returns the last committed (a.k.a.,
+  // learned) log position if the operation succeeds. One should only
+  // call this function if the coordinator has been elected, and no
+  // write (append or truncate) is in progress.
+  process::Future<uint64_t> demote();
 
-  // Returns the result of trying to truncate the log (from the
-  // beginning to the specified position exclusive). A result of
-  // none means the truncate failed (e.g., due to timeout), but can be
-  // retried.
-  Result<uint64_t> truncate(uint64_t to, const process::Timeout& timeout);
+  // Appends the specified bytes to the end of the log. Returns the
+  // position of the appended entry if the operation succeeds.
+  process::Future<uint64_t> append(const std::string& bytes);
+
+  // Removes all log entries preceding the log entry at the given
+  // position (to). Returns the position at which the truncate
+  // operation is written if the operation succeeds.
+  process::Future<uint64_t> truncate(uint64_t to);
 
 private:
   CoordinatorProcess* process;

@@ -38,6 +38,7 @@ namespace protocol {
 // Some replica protocol declarations.
 extern Protocol<PromiseRequest, PromiseResponse> promise;
 extern Protocol<WriteRequest, WriteResponse> write;
+extern Protocol<RecoverRequest, RecoverResponse> recover;
 
 } // namespace protocol {
 
@@ -50,7 +51,11 @@ class Replica
 {
 public:
   // Constructs a new replica process using specified path to a
-  // directory for storing the underlying log.
+  // directory for storing the underlying log. If a replica starts
+  // with an empty log, it will not be allowed to vote (i.e., cannot
+  // reply to any request except the recover request). The recover
+  // process will later decide if this replica can be re-allowed to
+  // vote depending on the status of other replicas.
   Replica(const std::string& path);
   ~Replica();
 
@@ -76,8 +81,14 @@ public:
   // Returns the last written position in the log.
   process::Future<uint64_t> ending() const;
 
+  // Returns the current status of this replica.
+  process::Future<Metadata::Status> status() const;
+
   // Returns the highest implicit promise this replica has given.
   process::Future<uint64_t> promised() const;
+
+  // Updates the status of this replica.
+  process::Future<bool> update(const Metadata::Status& status);
 
   // Returns the PID associated with this replica.
   process::PID<ReplicaProcess> pid() const;

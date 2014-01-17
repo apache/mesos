@@ -30,6 +30,7 @@
 
 #include "common/attributes.hpp"
 
+#include "messages/log.hpp"
 #include "messages/messages.hpp"
 
 // This file includes definitions for operators on protobuf classes
@@ -370,5 +371,29 @@ inline std::ostream& operator << (
 }
 
 }} // namespace mesos { namespace internal {
+
+
+namespace mesos {
+namespace internal {
+namespace log {
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const Action::Type& type)
+{
+  return stream << Action::Type_Name(type);
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const Metadata::Status& status)
+{
+  return stream << Metadata::Status_Name(status);
+}
+
+} // namespace log {
+} // namespace internal {
+} // namespace mesos
 
 #endif // __TYPE_UTILS_HPP__

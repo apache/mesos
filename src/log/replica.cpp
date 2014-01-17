@@ -36,6 +36,8 @@
 #include <stout/stopwatch.hpp>
 #include <stout/utils.hpp>
 
+#include "common/type_utils.hpp"
+
 #include "log/replica.hpp"
 
 #include "logging/logging.hpp"
@@ -59,13 +61,14 @@ namespace protocol {
 // Some replica protocol definitions.
 Protocol<PromiseRequest, PromiseResponse> promise;
 Protocol<WriteRequest, WriteResponse> write;
+Protocol<RecoverRequest, RecoverResponse> recover;
 
 } // namespace protocol {
 
 
 struct State
 {
-  uint64_t proposal; // Last promise made.
+  Metadata metadata; // The metadata for the replica.
   uint64_t begin; // Beginning position of the log.
   uint64_t end; // Ending position of the log.
   set<uint64_t> learned; // Positions present and learned
@@ -78,8 +81,8 @@ class Storage
 {
 public:
   virtual ~Storage() {}
-  virtual Try<State> recover(const string& path) = 0;
-  virtual Try<Nothing> persist(const Promise& promise) = 0;
+  virtual Try<State> restore(const string& path) = 0;
+  virtual Try<Nothing> persist(const Metadata& metadata) = 0;
   virtual Try<Nothing> persist(const Action& action) = 0;
   virtual Try<Action> read(uint64_t position) = 0;
 };
@@ -92,8 +95,8 @@ public:
   LevelDBStorage();
   virtual ~LevelDBStorage();
 
-  virtual Try<State> recover(const string& path);
-  virtual Try<Nothing> persist(const Promise& promise);
+  virtual Try<State> restore(const string& path);
+  virtual Try<Nothing> persist(const Metadata& metadata);
   virtual Try<Nothing> persist(const Action& action);
   virtual Try<Action> read(uint64_t position);
 
@@ -137,7 +140,8 @@ private:
 
   // Returns a string representing the specified position. Note that
   // we adjust the actual position by incrementing it by 1 because we
-  // reserve 0 for storing the promise record (Record::Promise).
+  // reserve 0 for storing the promise record (Record::Promise,
+  // DEPRECATED!), or the metadata (Record::Metadata).
   static string encode(uint64_t position, bool adjust = true)
   {
     // Adjusted stringified represenation is plus 1 of actual position.
@@ -194,7 +198,7 @@ LevelDBStorage::~LevelDBStorage()
 }
 
 
-Try<State> LevelDBStorage::recover(const string& path)
+Try<State> LevelDBStorage::restore(const string& path)
 {
   leveldb::Options options;
   options.create_if_missing = true;
@@ -236,7 +240,6 @@ Try<State> LevelDBStorage::recover(const string& path)
   LOG(INFO) << "Compacted db in " << stopwatch.elapsed();
 
   State state;
-  state.proposal = 0;
   state.begin = 0;
   state.end = 0;
 
@@ -276,14 +279,18 @@ Try<State> LevelDBStorage::recover(const string& path)
     switch (record.type()) {
       case Record::METADATA: {
         CHECK(record.has_metadata());
-        state.proposal = record.metadata().promised();
+        state.metadata.CopyFrom(record.metadata());
         break;
       }
 
       // DEPRECATED!
       case Record::PROMISE: {
         CHECK(record.has_promise());
-        state.proposal = record.promise().proposal();
+        // This replica is in old format. Set its status to VOTING
+        // since there is no catch-up logic in the old code and this
+        // replica is obviously not empty.
+        state.metadata.set_status(Metadata::VOTING);
+        state.metadata.set_promised(record.promise().proposal());
         break;
       }
 
@@ -332,7 +339,7 @@ Try<State> LevelDBStorage::recover(const string& path)
 }
 
 
-Try<Nothing> LevelDBStorage::persist(const Promise& promise)
+Try<Nothing> LevelDBStorage::persist(const Metadata& metadata)
 {
   Stopwatch stopwatch;
   stopwatch.start();
@@ -341,8 +348,8 @@ Try<Nothing> LevelDBStorage::persist(const Promise& promise)
   options.sync = true;
 
   Record record;
-  record.set_type(Record::PROMISE);
-  record.mutable_promise()->MergeFrom(promise);
+  record.set_type(Record::METADATA);
+  record.mutable_metadata()->CopyFrom(metadata);
 
   string value;
 
@@ -356,7 +363,7 @@ Try<Nothing> LevelDBStorage::persist(const Promise& promise)
     return Error(status.ToString());
   }
 
-  LOG(INFO) << "Persisting promise (" << value.size()
+  LOG(INFO) << "Persisting metadata (" << value.size()
             << " bytes) to leveldb took " << stopwatch.elapsed();
 
   return Nothing();
@@ -513,8 +520,15 @@ public:
   // Returns the last written position in the log.
   uint64_t ending();
 
+  // Returns the current status of the this replica.
+  Metadata::Status status();
+
   // Returns the highest implicit promise this replica has given.
   uint64_t promised();
+
+  // Updates the status of this replica. The update will persisted on
+  // the disk. Returns true on success and false otherwise.
+  bool update(const Metadata::Status& status);
 
 private:
   // Handles a request from a proposer to promise not to accept writes
@@ -524,22 +538,30 @@ private:
   // Handles a request from a proposer to write an action.
   void write(const WriteRequest& request);
 
+  // Handles a request from a recover process.
+  void recover(const RecoverRequest& request);
+
   // Handles a message notifying of a learned action.
   void learned(const Action& action);
 
   // Helper routines that write a record corresponding to the
   // specified argument. Returns true on success and false otherwise.
-  bool persist(const Promise& promise);
   bool persist(const Action& action);
 
-  // Helper routine to recover log (e.g., on restart).
-  void recover(const string& path);
+  // Helper routines that update metadata corresponding to the
+  // specified argument. The update will be persisted on the disk.
+  // Returns true on success and false otherwise.
+  bool update(uint64_t promised);
+
+  // Helper routine to restore log (e.g., on restart).
+  void restore(const string& path);
 
   // Underlying storage for the log.
   Storage* storage;
 
-  // Last promise made to a proposer.
-  uint64_t proposal;
+  // The cached metadata for this replica. It includes the current
+  // status of the replica and the last promise it made.
+  Metadata metadata;
 
   // Beginning position of log (after *learned* truncations).
   uint64_t begin;
@@ -557,14 +579,13 @@ private:
 
 ReplicaProcess::ReplicaProcess(const string& path)
   : ProcessBase(ID::generate("log-replica")),
-    proposal(0),
     begin(0),
     end(0)
 {
   // TODO(benh): Factor out and expose storage.
   storage = new LevelDBStorage();
 
-  recover(path);
+  restore(path);
 
   // Install protobuf handlers.
   install<PromiseRequest>(
@@ -572,6 +593,9 @@ ReplicaProcess::ReplicaProcess(const string& path)
 
   install<WriteRequest>(
       &ReplicaProcess::write);
+
+  install<RecoverRequest>(
+      &ReplicaProcess::recover);
 
   install<LearnedMessage>(
       &ReplicaProcess::learned,
@@ -700,9 +724,59 @@ uint64_t ReplicaProcess::ending()
 }
 
 
+Metadata::Status ReplicaProcess::status()
+{
+  return metadata.status();
+}
+
+
 uint64_t ReplicaProcess::promised()
 {
-  return proposal;
+  return metadata.promised();
+}
+
+
+bool ReplicaProcess::update(const Metadata::Status& status)
+{
+  Metadata metadata_;
+  metadata_.set_status(status);
+  metadata_.set_promised(promised());
+
+  Try<Nothing> persisted = storage->persist(metadata_);
+
+  if (persisted.isError()) {
+    LOG(ERROR) << "Error writing to log: " << persisted.error();
+    return false;
+  }
+
+  LOG(INFO) << "Persisted replica status to " << status;
+
+  // Update the cached metadata.
+  metadata.set_status(status);
+
+  return true;
+}
+
+
+bool ReplicaProcess::update(uint64_t promised)
+{
+  Metadata metadata_;
+  metadata_.set_status(status());
+  metadata_.set_promised(promised);
+
+  Try<Nothing> persisted = storage->persist(metadata_);
+
+  if (persisted.isError()) {
+    LOG(ERROR) << "Error writing to log: " << persisted.error();
+    return false;
+  }
+
+  LOG(INFO) << "Persisted promised to " << promised;
+
+  // Update the cached metadata.
+  metadata.set_promised(promised);
+
+  return true;
 }
 
 
@@ -722,6 +796,13 @@ uint64_t ReplicaProcess::promised()
 
 void ReplicaProcess::promise(const PromiseRequest& request)
 {
+  // Ignore promise requests if this replica is not in VOTING status.
+  if (status() != Metadata::VOTING) {
+    LOG(INFO) << "Replica ignoring promise request as it is in "
+              << status() << " status";
+    return;
+  }
+
   if (request.has_position()) {
     LOG(INFO) << "Replica received explicit promise request for position "
               << request.position() << " with proposal " << request.proposal();
@@ -742,8 +823,8 @@ void ReplicaProcess::promise(const PromiseRequest& request)
     if (request.position() < begin) {
       Action action;
       action.set_position(request.position());
-      action.set_promised(proposal); // Use the last promised proposal.
-      action.set_performed(proposal); // Use the last promised proposal.
+      action.set_promised(promised()); // Use the last promised proposal.
+      action.set_performed(promised()); // Use the last promised proposal.
       action.set_learned(true);
       action.set_type(Action::NOP);
       action.mutable_nop()->MergeFrom(Action::Nop());
@@ -776,14 +857,14 @@ void ReplicaProcess::promise(const PromiseRequest& request)
       // As a result, proposer 1 can successfully write a value X to
       // log position 1 and thinks that X is agreed, while proposer 2
       // can later write a value Y and also believes that Y is agreed.
-      if (request.proposal() <= proposal) {
+      if (request.proposal() <= promised()) {
         // If a promise request is rejected because of the proposal
         // number check, we reply with the currently promised proposal
         // number so that the proposer can bump its proposal number
         // and retry if needed to ensure liveness.
         PromiseResponse response;
         response.set_okay(false);
-        response.set_proposal(proposal);
+        response.set_proposal(promised());
         reply(response);
       } else {
         Action action;
@@ -825,20 +906,16 @@ void ReplicaProcess::promise(const PromiseRequest& request)
     LOG(INFO) << "Replica received implicit promise request with proposal "
               << request.proposal();
 
-    if (request.proposal() <= proposal) { // Only make an implicit promise once!
+    if (request.proposal() <= promised()) {
+      // Only make an implicit promise once!
       LOG(INFO) << "Replica denying promise request with proposal "
                 << request.proposal();
       PromiseResponse response;
       response.set_okay(false);
-      response.set_proposal(proposal);
+      response.set_proposal(promised());
       reply(response);
     } else {
-      Promise promise;
-      promise.set_proposal(request.proposal());
-
-      if (persist(promise)) {
-        proposal = request.proposal();
-
+      if (update(request.proposal())) {
         // Return the last position written.
         PromiseResponse response;
         response.set_okay(true);
@@ -853,6 +930,13 @@ void ReplicaProcess::promise(const PromiseRequest& request)
 
 void ReplicaProcess::write(const WriteRequest& request)
 {
+  // Ignore write requests if this replica is not in VOTING status.
+  if (status() != Metadata::VOTING) {
+    LOG(INFO) << "Replica ignoring write request as it is in "
+              << status() << " status";
+    return;
+  }
+
   LOG(INFO) << "Replica received write request for position "
             << request.position();
 
@@ -862,16 +946,16 @@ void ReplicaProcess::write(const WriteRequest& request)
     LOG(ERROR) << "Error getting log record at " << request.position()
                << ": " << result.error();
   } else if (result.isNone()) {
-    if (request.proposal() < proposal) {
+    if (request.proposal() < promised()) {
       WriteResponse response;
       response.set_okay(false);
-      response.set_proposal(proposal);
+      response.set_proposal(promised());
       response.set_position(request.position());
       reply(response);
     } else {
       Action action;
       action.set_position(request.position());
-      action.set_promised(proposal);
+      action.set_promised(promised());
       action.set_performed(request.proposal());
       if (request.has_learned()) action.set_learned(request.learned());
       action.set_type(request.type());
@@ -969,6 +1053,23 @@ void ReplicaProcess::write(const WriteRequest& request)
 }
 
 
+void ReplicaProcess::recover(const RecoverRequest& request)
+{
+  LOG(INFO) << "Replica in " << status()
+            << " status received a broadcasted recover request";
+
+  RecoverResponse response;
+  response.set_status(status());
+
+  if (status() == Metadata::VOTING) {
+    response.set_begin(begin);
+    response.set_end(end);
+  }
+
+  reply(response);
+}
+
+
 void ReplicaProcess::learned(const Action& action)
 {
   LOG(INFO) << "Replica received learned notice for position "
@@ -977,24 +1078,9 @@ void ReplicaProcess::learned(const Action& action)
   CHECK(action.learned());
 
   if (persist(action)) {
-    LOG(INFO) << "Replica learned " << Action::Type_Name(action.type())
+    LOG(INFO) << "Replica learned " << action.type()
               << " action at position " << action.position();
   }
-}
-
-
-bool ReplicaProcess::persist(const Promise& promise)
-{
-  Try<Nothing> persisted = storage->persist(promise);
-
-  if (persisted.isError()) {
-    LOG(ERROR) << "Error writing to log: " << persisted.error();
-    return false;
-  }
-
-  LOG(INFO) << "Persisted promise to " << promise.proposal();
-
-  return true;
 }
 
 
@@ -1052,14 +1138,14 @@ bool ReplicaProcess::persist(const Action& action)
 }
 
 
-void ReplicaProcess::recover(const string& path)
+void ReplicaProcess::restore(const string& path)
 {
-  Try<State> state = storage->recover(path);
+  Try<State> state = storage->restore(path);
 
   CHECK_SOME(state) << "Failed to recover the log";
 
   // Pull out and save some of the state.
-  proposal = state.get().proposal;
+  metadata = state.get().metadata;
   begin = state.get().begin;
   end = state.get().end;
   unlearned = state.get().unlearned;
@@ -1134,9 +1220,25 @@ Future<uint64_t> Replica::ending() const
 }
 
 
+Future<Metadata::Status> Replica::status() const
+{
+  return dispatch(process, &ReplicaProcess::status);
+}
+
+
 Future<uint64_t> Replica::promised() const
 {
   return dispatch(process, &ReplicaProcess::promised);
+}
+
+
+Future<bool> Replica::update(const Metadata::Status& status)
+{
+  // Need to disambiguate overloaded function.
+  bool (ReplicaProcess::*update)(const Metadata::Status& status) =
+    &ReplicaProcess::update;
+
+  return dispatch(process, update, status);
 }
 
 

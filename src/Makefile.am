@@ -301,11 +301,14 @@ liblog_la_SOURCES =							\
   log/catchup.cpp							\
   log/consensus.cpp							\
   log/coordinator.cpp							\
+  log/log.cpp								\
+  log/recover.cpp							\
   log/replica.cpp
 liblog_la_SOURCES +=							\
   log/catchup.hpp							\
   log/consensus.hpp							\
   log/coordinator.hpp							\
+  log/recover.hpp							\
   log/replica.hpp							\
   log/log.hpp								\
   log/network.hpp							\

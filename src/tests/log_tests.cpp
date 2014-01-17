@@ -18,6 +18,7 @@
 
 #include <gmock/gmock.h>
 
+#include <list>
 #include <set>
 #include <string>
 
@@ -25,31 +26,32 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/protobuf.hpp>
-#include <process/timeout.hpp>
+#include <process/shared.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
-
-#include "common/type_utils.hpp"
+#include <stout/path.hpp>
+#include <stout/try.hpp>
 
 #include "log/coordinator.hpp"
 #include "log/log.hpp"
+#include "log/network.hpp"
+#include "log/recover.hpp"
 #include "log/replica.hpp"
 
-#include "messages/messages.hpp"
+#include "tests/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::log;
+using namespace mesos::internal::tests;
 
-using process::Clock;
-using process::Future;
-using process::Timeout;
-using process::Shared;
-using process::UPID;
+using namespace process;
 
 using std::list;
 using std::set;
@@ -59,9 +61,6 @@ using testing::_;
 using testing::Eq;
 using testing::Return;
 
-#include "tests/utils.hpp"
-
-using namespace mesos::internal::tests;
 
 class ReplicaTest : public TemporaryDirectoryTest {};
 
@@ -175,7 +174,7 @@ TEST_F(ReplicaTest, Append)
 }
 
 
-TEST_F(ReplicaTest, Recover)
+TEST_F(ReplicaTest, Restore)
 {
   const string path = os::getcwd() + "/.log";
 
@@ -278,9 +277,10 @@ TEST_F(CoordinatorTest, Elect)
   Coordinator coord(2, replica1, network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   {
@@ -311,18 +311,18 @@ TEST_F(CoordinatorTest, AppendRead)
   Coordinator coord(2, replica1, network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   uint64_t position;
 
   {
-    Result<uint64_t> result2 =
-      coord.append("hello world", Timeout::in(Seconds(10)));
-    ASSERT_SOME(result2);
-    position = result2.get();
+    Future<uint64_t> appending = coord.append("hello world");
+    AWAIT_READY_FOR(appending, Seconds(10));
+    position = appending.get();
     EXPECT_EQ(1u, position);
   }
 
@@ -355,18 +355,18 @@ TEST_F(CoordinatorTest, AppendReadError)
   Coordinator coord(2, replica1, network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   uint64_t position;
 
   {
-    Result<uint64_t> result2 =
-      coord.append("hello world", Timeout::in(Seconds(10)));
-    ASSERT_SOME(result2);
-    position = result2.get();
+    Future<uint64_t> appending = coord.append("hello world");
+    AWAIT_READY_FOR(appending, Seconds(10));
+    position = appending.get();
     EXPECT_EQ(1u, position);
   }
 
@@ -394,15 +394,12 @@ TEST_F(CoordinatorTest, ElectNoQuorum)
 
   Clock::pause();
 
-  // Create a timeout here so that we can advance time.
-  Timeout timeout = Timeout::in(Seconds(10));
+  Future<Option<uint64_t> > electing = coord.elect();
 
   Clock::advance(Seconds(10));
+  Clock::settle();
 
-  {
-    Result<uint64_t> result = coord.elect(timeout);
-    EXPECT_TRUE(result.isNone());
-  }
+  EXPECT_TRUE(electing.isPending());
 
   Clock::resume();
 }
@@ -425,9 +422,10 @@ TEST_F(CoordinatorTest, AppendNoQuorum)
   Coordinator coord(2, replica1, network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   process::terminate(replica2->pid());
@@ -436,15 +434,12 @@ TEST_F(CoordinatorTest, AppendNoQuorum)
 
   Clock::pause();
 
-  // Create a timeout here so that we can advance time.
-  Timeout timeout = Timeout::in(Seconds(10));
+  Future<uint64_t> appending = coord.append("hello world");
 
   Clock::advance(Seconds(10));
+  Clock::settle();
 
-  {
-    Result<uint64_t> result = coord.append("hello world", timeout);
-    EXPECT_TRUE(result.isNone());
-  }
+  EXPECT_TRUE(appending.isPending());
 
   Clock::resume();
 }
@@ -467,18 +462,18 @@ TEST_F(CoordinatorTest, Failover)
   Coordinator coord1(2, replica1, network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord1.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   uint64_t position;
 
   {
-    Result<uint64_t> result =
-      coord1.append("hello world", Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    position = result.get();
+    Future<uint64_t> appending = coord1.append("hello world");
+    AWAIT_READY_FOR(appending, Seconds(10));
+    position = appending.get();
     EXPECT_EQ(1u, position);
   }
 
@@ -487,9 +482,10 @@ TEST_F(CoordinatorTest, Failover)
   Coordinator coord2(2, replica2, network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(position, result.get());
+    Future<Option<uint64_t> > electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(position, electing.get().get());
   }
 
   {
@@ -521,18 +517,18 @@ TEST_F(CoordinatorTest, Demoted)
   Coordinator coord1(2, replica1, network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord1.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   uint64_t position;
 
   {
-    Result<uint64_t> result =
-      coord1.append("hello world", Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    position = result.get();
+    Future<uint64_t> appending = coord1.append("hello world");
+    AWAIT_READY_FOR(appending, Seconds(10));
+    position = appending.get();
     EXPECT_EQ(1u, position);
   }
 
@@ -541,23 +537,22 @@ TEST_F(CoordinatorTest, Demoted)
   Coordinator coord2(2, replica2, network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(position, result.get());
+    Future<Option<uint64_t> > electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(position, electing.get().get());
   }
 
   {
-    Result<uint64_t> result =
-      coord1.append("hello moto", Timeout::in(Seconds(10)));
-    ASSERT_TRUE(result.isError());
-    EXPECT_EQ("Coordinator demoted", result.error());
+    Future<uint64_t> appending = coord1.append("hello moto");
+    AWAIT_FAILED(appending);
+    EXPECT_EQ("Coordinator demoted", appending.failure());
   }
 
   {
-    Result<uint64_t> result =
-      coord2.append("hello hello", Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    position = result.get();
+    Future<uint64_t> appending = coord2.append("hello hello");
+    AWAIT_READY_FOR(appending, Seconds(10));
+    position = appending.get();
     EXPECT_EQ(2u, position);
   }
 
@@ -591,18 +586,18 @@ TEST_F(CoordinatorTest, Fill)
   Coordinator coord1(2, replica1, network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord1.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   uint64_t position;
 
   {
-    Result<uint64_t> result =
-      coord1.append("hello world", Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    position = result.get();
+    Future<uint64_t> appending = coord1.append("hello world");
+    AWAIT_READY_FOR(appending, Seconds(10));
+    position = appending.get();
     EXPECT_EQ(1u, position);
   }
 
@@ -617,11 +612,14 @@ TEST_F(CoordinatorTest, Fill)
   Coordinator coord2(2, replica3, network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_TRUE(result.isNone());
-    result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(position, result.get());
+    Future<Option<uint64_t> > electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_NONE(electing.get());
+
+    electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(position, electing.get().get());
   }
 
   {
@@ -658,18 +656,18 @@ TEST_F(CoordinatorTest, NotLearnedFill)
   Coordinator coord1(2, replica1, network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord1.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   uint64_t position;
 
   {
-    Result<uint64_t> result =
-      coord1.append("hello world", Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    position = result.get();
+    Future<uint64_t> appending = coord1.append("hello world");
+    AWAIT_READY_FOR(appending, Seconds(10));
+    position = appending.get();
     EXPECT_EQ(1u, position);
   }
 
@@ -684,11 +682,14 @@ TEST_F(CoordinatorTest, NotLearnedFill)
   Coordinator coord2(2, replica3, network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_TRUE(result.isNone());
-    result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(position, result.get());
+    Future<Option<uint64_t> > electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_NONE(electing.get());
+
+    electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(position, electing.get().get());
   }
 
   {
@@ -720,16 +721,16 @@ TEST_F(CoordinatorTest, MultipleAppends)
   Coordinator coord(2, replica1, network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Result<uint64_t> result =
-      coord.append(stringify(position), Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(position, result.get());
+    Future<uint64_t> appending = coord.append(stringify(position));
+    AWAIT_READY_FOR(appending, Seconds(10));
+    EXPECT_EQ(position, appending.get());
   }
 
   {
@@ -767,16 +768,16 @@ TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
   Coordinator coord1(2, replica1, network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord1.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Result<uint64_t> result =
-      coord1.append(stringify(position), Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(position, result.get());
+    Future<uint64_t> appending = coord1.append(stringify(position));
+    AWAIT_READY_FOR(appending, Seconds(10));
+    EXPECT_EQ(position, appending.get());
   }
 
   Shared<Replica> replica3(new Replica(path3));
@@ -790,11 +791,14 @@ TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
   Coordinator coord2(2, replica3, network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_TRUE(result.isNone());
-    result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(10u, result.get());
+    Future<Option<uint64_t> > electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_NONE(electing.get());
+
+    electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(10u, electing.get().get());
   }
 
   {
@@ -827,22 +831,22 @@ TEST_F(CoordinatorTest, Truncate)
   Coordinator coord(2, replica1, network);
 
   {
-    Result<uint64_t> result = coord.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Result<uint64_t> result =
-      coord.append(stringify(position), Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(position, result.get());
+    Future<uint64_t> appending = coord.append(stringify(position));
+    AWAIT_READY_FOR(appending, Seconds(10));
+    EXPECT_EQ(position, appending.get());
   }
 
   {
-    Result<uint64_t> result = coord.truncate(7, Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(11u, result.get());
+    Future<uint64_t> truncating = coord.truncate(7);
+    AWAIT_READY_FOR(truncating, Seconds(10));
+    EXPECT_EQ(11u, truncating.get());
   }
 
   {
@@ -886,22 +890,22 @@ TEST_F(CoordinatorTest, TruncateNotLearnedFill)
   Coordinator coord1(2, replica1, network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord1.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Result<uint64_t> result =
-      coord1.append(stringify(position), Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(position, result.get());
+    Future<uint64_t> appending = coord1.append(stringify(position));
+    AWAIT_READY_FOR(appending, Seconds(10));
+    EXPECT_EQ(position, appending.get());
   }
 
   {
-    Result<uint64_t> result = coord1.truncate(7, Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(11u, result.get());
+    Future<uint64_t> truncating = coord1.truncate(7);
+    AWAIT_READY_FOR(truncating, Seconds(10));
+    EXPECT_EQ(11u, truncating.get());
   }
 
   Shared<Replica> replica3(new Replica(path3));
@@ -915,11 +919,14 @@ TEST_F(CoordinatorTest, TruncateNotLearnedFill)
   Coordinator coord2(2, replica3, network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_TRUE(result.isNone());
-    result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(11u, result.get());
+    Future<Option<uint64_t> > electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_NONE(electing.get());
+
+    electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(11u, electing.get().get());
   }
 
   {
@@ -959,22 +966,22 @@ TEST_F(CoordinatorTest, TruncateLearnedFill)
   Coordinator coord1(2, replica1, network1);
 
   {
-    Result<uint64_t> result = coord1.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(0u, result.get());
+    Future<Option<uint64_t> > electing = coord1.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Result<uint64_t> result =
-      coord1.append(stringify(position), Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(position, result.get());
+    Future<uint64_t> appending = coord1.append(stringify(position));
+    AWAIT_READY_FOR(appending, Seconds(10));
+    EXPECT_EQ(position, appending.get());
   }
 
   {
-    Result<uint64_t> result = coord1.truncate(7, Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(11u, result.get());
+    Future<uint64_t> truncating = coord1.truncate(7);
+    AWAIT_READY_FOR(truncating, Seconds(10));
+    EXPECT_EQ(11u, truncating.get());
   }
 
   Shared<Replica> replica3(new Replica(path3));
@@ -988,11 +995,14 @@ TEST_F(CoordinatorTest, TruncateLearnedFill)
   Coordinator coord2(2, replica3, network2);
 
   {
-    Result<uint64_t> result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_TRUE(result.isNone());
-    result = coord2.elect(Timeout::in(Seconds(10)));
-    ASSERT_SOME(result);
-    EXPECT_EQ(11u, result.get());
+    Future<Option<uint64_t> > electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_NONE(electing.get());
+
+    electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(11u, electing.get().get());
   }
 
   {
@@ -1010,6 +1020,103 @@ TEST_F(CoordinatorTest, TruncateLearnedFill)
       ASSERT_EQ(Action::APPEND, action.type());
       EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
+  }
+}
+
+
+class RecoverTest : public TemporaryDirectoryTest {};
+
+
+// Two logs both need recovery compete with each other.
+TEST_F(RecoverTest, RacingCatchup)
+{
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
+  const string path3 = os::getcwd() + "/.log3";
+  const string path4 = os::getcwd() + "/.log4";
+  const string path5 = os::getcwd() + "/.log5";
+
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
+  Shared<Replica> replica3(new Replica(path3));
+
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
+  pids.insert(replica3->pid());
+
+  Shared<Network> network1(new Network(pids));
+
+  Coordinator coord1(3, replica1, network1);
+
+  {
+    Future<Option<uint64_t> > electing = coord1.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
+  }
+
+  for (uint64_t position = 1; position <= 10; position++) {
+    Future<uint64_t> appending = coord1.append(stringify(position));
+    AWAIT_READY_FOR(appending, Seconds(10));
+    EXPECT_EQ(position, appending.get());
+  }
+
+  // Two replicas both want to recover.
+  Owned<Replica> replica4(new Replica(path4));
+  Owned<Replica> replica5(new Replica(path5));
+
+  pids.insert(replica4->pid());
+  pids.insert(replica5->pid());
+
+  Shared<Network> network2(new Network(pids));
+
+  Future<Owned<Replica> > recovering4 = recover(3, replica4, network2);
+  Future<Owned<Replica> > recovering5 = recover(3, replica5, network2);
+
+  // Wait until recovery is done.
+  AWAIT_READY(recovering4);
+  AWAIT_READY(recovering5);
+
+  Shared<Replica> shared4 = recovering4.get().share();
+  Coordinator coord2(2, shared4, network2);
+
+  {
+    Future<Option<uint64_t> > electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_NONE(electing.get());
+
+    electing = coord2.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(10u, electing.get().get());
+  }
+
+  {
+    Future<list<Action> > actions = shared4->read(1, 10);
+    AWAIT_READY(actions);
+    EXPECT_EQ(10u, actions.get().size());
+    foreach (const Action& action, actions.get()) {
+      ASSERT_TRUE(action.has_type());
+      ASSERT_EQ(Action::APPEND, action.type());
+      EXPECT_EQ(stringify(action.position()), action.append().bytes());
+    }
+  }
+
+  {
+    Future<uint64_t> appending = coord2.append("hello hello");
+    AWAIT_READY_FOR(appending, Seconds(10));
+    EXPECT_EQ(11u, appending.get());
+  }
+
+  {
+    Future<list<Action> > actions = shared4->read(11u, 11u);
+    AWAIT_READY(actions);
+    ASSERT_EQ(1u, actions.get().size());
+    EXPECT_EQ(11u, actions.get().front().position());
+    ASSERT_TRUE(actions.get().front().has_type());
+    ASSERT_EQ(Action::APPEND, actions.get().front().type());
+    EXPECT_EQ("hello hello", actions.get().front().append().bytes());
   }
 }
 

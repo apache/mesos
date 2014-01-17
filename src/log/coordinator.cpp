@@ -20,12 +20,12 @@
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
-#include <process/future.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
 
-#include <stout/error.hpp>
 #include <stout/none.hpp>
+
+#include "common/type_utils.hpp"
 
 #include "log/catchup.hpp"
 #include "log/consensus.hpp"
@@ -59,22 +59,10 @@ public:
 
   virtual ~CoordinatorProcess() {}
 
-  // Handles coordinator election. Returns the last committed log
-  // position if the operation succeeds. Returns none if the election
-  // is not successful, but can be retried.
+  // See comments in 'coordinator.hpp'.
   Future<Option<uint64_t> > elect();
-
-  // Handles coordinator demotion. Returns the last committed log
-  // position if the operation succeeds.
   Future<uint64_t> demote();
-
-  // Appends the specified bytes to the end of the log. Returns the
-  // position of the appended entry if the operation succeeds.
   Future<uint64_t> append(const string& bytes);
-
-  // Removes all log entries preceding the log entry at the given
-  // position (to). Returns the position at which the truncate
-  // operation is written if the operation succeeds.
   Future<uint64_t> truncate(uint64_t to);
 
 protected:
@@ -344,8 +332,7 @@ Future<uint64_t> CoordinatorProcess::truncate(uint64_t to)
 
 Future<uint64_t> CoordinatorProcess::write(const Action& action)
 {
-  LOG(INFO) << "Coordinator attempting to write "
-            << Action::Type_Name(action.type())
+  LOG(INFO) << "Coordinator attempting to write " << action.type()
             << " action at position " << action.position();
 
   CHECK_EQ(state, ELECTED);
@@ -455,111 +442,27 @@ Coordinator::~Coordinator()
 }
 
 
-Result<uint64_t> Coordinator::elect(const Timeout& timeout)
+Future<Option<uint64_t> > Coordinator::elect()
 {
-  LOG(INFO) << "Coordinator attempting to get elected within "
-            << timeout.remaining();
-
-  Future<Option<uint64_t> > electing =
-    dispatch(process, &CoordinatorProcess::elect);
-
-  electing.await(timeout.remaining());
-
-  CHECK(!electing.isDiscarded());
-
-  if (electing.isPending()) {
-    LOG(INFO) << "Coordinator timed out while trying to get elected";
-
-    electing.discard();
-    return None();
-  } else if (electing.isFailed()) {
-    LOG(ERROR) << "Coordinator failed to get elected: "
-               << electing.failure();
-
-    return Error(electing.failure());
-  } else {
-    if (electing.get().isNone()) {
-      LOG(INFO) << "Coordinator lost an election, but can be retried";
-
-      return None();
-    } else {
-      LOG(INFO) << "Coordinator elected with current position "
-                << electing.get().get();
-
-      return electing.get().get();
-    }
-  }
+  return dispatch(process, &CoordinatorProcess::elect);
 }
 
 
-Result<uint64_t> Coordinator::demote()
+Future<uint64_t> Coordinator::demote()
 {
-  Future<uint64_t> demoting =
-    dispatch(process, &CoordinatorProcess::demote);
-
-  demoting.await(); // TODO(jieyu): Use a timeout.
-
-  CHECK(!demoting.isDiscarded());
-
-  if (demoting.isFailed()) {
-    return Error(demoting.failure());
-  } else {
-    return demoting.get();
-  }
+  return dispatch(process, &CoordinatorProcess::demote);
 }
 
 
-Result<uint64_t> Coordinator::append(
-    const string& bytes,
-    const Timeout& timeout)
+Future<uint64_t> Coordinator::append(const string& bytes)
 {
-  Future<uint64_t> appending =
-    dispatch(process, &CoordinatorProcess::append, bytes);
-
-  appending.await(timeout.remaining());
-
-  CHECK(!appending.isDiscarded());
-
-  if (appending.isPending()) {
-    LOG(INFO) << "Coordinator timed out while trying to append";
-
-    appending.discard();
-    return None();
-  } else if (appending.isFailed()) {
-    LOG(ERROR) << "Coordinator failed to append the log: "
-               << appending.failure();
-
-    return Error(appending.failure());
-  } else {
-    return appending.get();
-  }
+  return dispatch(process, &CoordinatorProcess::append, bytes);
 }
 
 
-Result<uint64_t> Coordinator::truncate(
-    uint64_t to,
-    const Timeout& timeout)
+Future<uint64_t> Coordinator::truncate(uint64_t to)
 {
-  Future<uint64_t> truncating =
-    dispatch(process, &CoordinatorProcess::truncate, to);
-
-  truncating.await(timeout.remaining());
-
-  CHECK(!truncating.isDiscarded());
-
-  if (truncating.isPending()) {
-    LOG(INFO) << "Coordinator timed out while trying to truncate";
-
-    truncating.discard();
-    return None();
-  } else if (truncating.isFailed()) {
-    LOG(ERROR) << "Coordinator failed to truncate the log: "
-               << truncating.failure();
-
-    return Error(truncating.failure());
-  } else {
-    return truncating.get();
-  }
+  return dispatch(process, &CoordinatorProcess::truncate, to);
 }
 
 } // namespace log {

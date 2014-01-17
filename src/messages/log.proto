@@ -79,8 +79,8 @@ message Metadata {
   enum Status {
     VOTING = 1;      // Normal voting member in Paxos group.
     RECOVERING = 2;  // In the process of catching up.
-    STARTING = 3;    // Transient state between EMPTY and RECOVERING.
-    EMPTY = 4;       // Initial state if start with an empty log.
+    STARTING = 3;    // The log has been initialized.
+    EMPTY = 4;       // The log is empty and is not initialized.
   }
 
   required Status status = 1 [default = EMPTY];
@@ -178,4 +178,18 @@ message WriteResponse {
 // been agreed upon (reached consensus).
 message LearnedMessage {
   required Action action = 1;
+}
+
+
+// Represents a recover request. A recover request is used to initiate
+// the recovery (by broadcasting it).
+message RecoverRequest {}
+
+
+// When a replica receives a RecoverRequest, it will reply with its
+// current status, and the begin and the end of its current log.
+message RecoverResponse {
+  required Metadata.Status status = 1;
+  optional uint64 begin = 2;
+  optional uint64 end = 3;
 }
