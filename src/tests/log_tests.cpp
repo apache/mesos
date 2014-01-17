@@ -43,8 +43,14 @@
 #include "log/network.hpp"
 #include "log/recover.hpp"
 #include "log/replica.hpp"
+#include "log/tool/initialize.hpp"
 
+#include "tests/environment.hpp"
 #include "tests/utils.hpp"
+
+#ifdef MESOS_HAS_JAVA
+#include "tests/zookeeper.hpp"
+#endif
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -62,12 +68,19 @@ using testing::Eq;
 using testing::Return;
 
 
-class ReplicaTest : public TemporaryDirectoryTest {};
+class ReplicaTest : public TemporaryDirectoryTest
+{
+protected:
+  // For initializing the log.
+  tool::Initialize initializer;
+};
 
 
 TEST_F(ReplicaTest, Promise)
 {
   const string path = os::getcwd() + "/.log";
+  initializer.flags.path = path;
+  initializer.execute();
 
   Replica replica(path);
 
@@ -118,6 +131,8 @@ TEST_F(ReplicaTest, Promise)
 TEST_F(ReplicaTest, Append)
 {
   const string path = os::getcwd() + "/.log";
+  initializer.flags.path = path;
+  initializer.execute();
 
   Replica replica(path);
 
@@ -177,6 +192,8 @@ TEST_F(ReplicaTest, Append)
 TEST_F(ReplicaTest, Restore)
 {
   const string path = os::getcwd() + "/.log";
+  initializer.flags.path = path;
+  initializer.execute();
 
   Replica replica1(path);
 
@@ -257,13 +274,23 @@ TEST_F(ReplicaTest, Restore)
 }
 
 
-class CoordinatorTest : public TemporaryDirectoryTest {};
+class CoordinatorTest : public TemporaryDirectoryTest
+{
+protected:
+  // For initializing the log.
+  tool::Initialize initializer;
+};
 
 
 TEST_F(CoordinatorTest, Elect)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -297,7 +324,12 @@ TEST_F(CoordinatorTest, Elect)
 TEST_F(CoordinatorTest, AppendRead)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -341,7 +373,12 @@ TEST_F(CoordinatorTest, AppendRead)
 TEST_F(CoordinatorTest, AppendReadError)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -382,6 +419,8 @@ TEST_F(CoordinatorTest, AppendReadError)
 TEST_F(CoordinatorTest, ElectNoQuorum)
 {
   const string path = os::getcwd() + "/.log";
+  initializer.flags.path = path;
+  initializer.execute();
 
   Shared<Replica> replica(new Replica(path));
 
@@ -408,7 +447,12 @@ TEST_F(CoordinatorTest, ElectNoQuorum)
 TEST_F(CoordinatorTest, AppendNoQuorum)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -448,7 +492,12 @@ TEST_F(CoordinatorTest, AppendNoQuorum)
 TEST_F(CoordinatorTest, Failover)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -503,7 +552,12 @@ TEST_F(CoordinatorTest, Failover)
 TEST_F(CoordinatorTest, Demoted)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -571,8 +625,16 @@ TEST_F(CoordinatorTest, Demoted)
 TEST_F(CoordinatorTest, Fill)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
+
   const string path3 = os::getcwd() + "/.log3";
+  initializer.flags.path = path3;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -637,8 +699,16 @@ TEST_F(CoordinatorTest, Fill)
 TEST_F(CoordinatorTest, NotLearnedFill)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
+
   const string path3 = os::getcwd() + "/.log3";
+  initializer.flags.path = path3;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -707,7 +777,12 @@ TEST_F(CoordinatorTest, NotLearnedFill)
 TEST_F(CoordinatorTest, MultipleAppends)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -749,8 +824,16 @@ TEST_F(CoordinatorTest, MultipleAppends)
 TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
+
   const string path3 = os::getcwd() + "/.log3";
+  initializer.flags.path = path3;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -817,7 +900,12 @@ TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
 TEST_F(CoordinatorTest, Truncate)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -871,8 +959,16 @@ TEST_F(CoordinatorTest, Truncate)
 TEST_F(CoordinatorTest, TruncateNotLearnedFill)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
+
   const string path3 = os::getcwd() + "/.log3";
+  initializer.flags.path = path3;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -951,8 +1047,16 @@ TEST_F(CoordinatorTest, TruncateNotLearnedFill)
 TEST_F(CoordinatorTest, TruncateLearnedFill)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
+
   const string path3 = os::getcwd() + "/.log3";
+  initializer.flags.path = path3;
+  initializer.execute();
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -1024,15 +1128,29 @@ TEST_F(CoordinatorTest, TruncateLearnedFill)
 }
 
 
-class RecoverTest : public TemporaryDirectoryTest {};
+class RecoverTest : public TemporaryDirectoryTest
+{
+protected:
+  // For initializing the log.
+  tool::Initialize initializer;
+};
 
 
 // Two logs both need recovery compete with each other.
 TEST_F(RecoverTest, RacingCatchup)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
+
   const string path3 = os::getcwd() + "/.log3";
+  initializer.flags.path = path3;
+  initializer.execute();
+
   const string path4 = os::getcwd() + "/.log4";
   const string path5 = os::getcwd() + "/.log5";
 
@@ -1121,13 +1239,23 @@ TEST_F(RecoverTest, RacingCatchup)
 }
 
 
-class LogTest : public TemporaryDirectoryTest {};
+class LogTest : public TemporaryDirectoryTest
+{
+protected:
+  // For initializing the log.
+  tool::Initialize initializer;
+};
 
 
 TEST_F(LogTest, WriteRead)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
 
   Replica replica1(path1);
 
@@ -1158,7 +1286,12 @@ TEST_F(LogTest, WriteRead)
 TEST_F(LogTest, Position)
 {
   const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
   const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
 
   Replica replica1(path1);
 
@@ -1176,6 +1309,88 @@ TEST_F(LogTest, Position)
 
   ASSERT_EQ(position.get(), log.position(position.get().identity()));
 }
+
+
+#ifdef MESOS_HAS_JAVA
+// TODO(jieyu): We copy the code from TemporaryDirectoryTest here
+// because we cannot inherit from two test fixtures. In this future,
+// we need a way to compose multiple test fixtures together.
+class LogZooKeeperTest : public ZooKeeperTest
+{
+protected:
+  virtual void SetUp()
+  {
+    ZooKeeperTest::SetUp();
+
+    // Save the current working directory.
+    cwd = os::getcwd();
+
+    // Create a temporary directory for the test.
+    Try<string> directory = environment->mkdtemp();
+
+    ASSERT_SOME(directory) << "Failed to mkdtemp";
+
+    sandbox = directory.get();
+
+    LOG(INFO) << "Using temporary directory '" << sandbox.get() << "'";
+
+    // Run the test out of the temporary directory we created.
+    ASSERT_TRUE(os::chdir(sandbox.get()))
+      << "Failed to chdir into '" << sandbox.get() << "'";
+  }
+
+  virtual void TearDown()
+  {
+    // Return to previous working directory and cleanup the sandbox.
+    ASSERT_TRUE(os::chdir(cwd));
+
+    if (sandbox.isSome()) {
+      ASSERT_SOME(os::rmdir(sandbox.get()));
+    }
+  }
+
+  // For initializing the log.
+  tool::Initialize initializer;
+
+private:
+  string cwd;
+  Option<string> sandbox;
+};
+
+
+TEST_F(LogZooKeeperTest, WriteRead)
+{
+  const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
+  const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
+
+  string servers = server->connectString();
+
+  Log log1(2, path1, servers, NO_TIMEOUT, "/log/", None());
+  Log log2(2, path2, servers, NO_TIMEOUT, "/log/", None());
+
+  Log::Writer writer(&log2, Seconds(10));
+
+  Result<Log::Position> position =
+    writer.append("hello world", Timeout::in(Seconds(10)));
+
+  ASSERT_SOME(position);
+
+  Log::Reader reader(&log2);
+
+  Result<list<Log::Entry> > entries =
+    reader.read(position.get(), position.get(), Timeout::in(Seconds(10)));
+
+  ASSERT_SOME(entries);
+  ASSERT_EQ(1u, entries.get().size());
+  EXPECT_EQ(position.get(), entries.get().front().position);
+  EXPECT_EQ("hello world", entries.get().front().data);
+}
+#endif // MESOS_HAS_JAVA
 
 
 TEST_F(CoordinatorTest, RacingElect) {}
