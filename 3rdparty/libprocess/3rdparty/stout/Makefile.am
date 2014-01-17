@@ -28,6 +28,7 @@ EXTRA_DIST =					\
   include/stout/json.hpp			\
   include/stout/lambda.hpp			\
   include/stout/linkedhashmap.hpp		\
+  include/stout/list.hpp			\
   include/stout/memory.hpp			\
   include/stout/multihashmap.hpp		\
   include/stout/multimap.hpp			\
