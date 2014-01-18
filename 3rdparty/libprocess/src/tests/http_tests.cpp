@@ -231,7 +231,7 @@ TEST(HTTP, Get)
     .WillOnce(Invoke(validateGetWithQuery));
 
   Future<http::Response> queryFuture =
-    http::get(process.self(), "get", Some("foo=bar#frag"));
+    http::get(process.self(), "get", "foo=bar#frag");
 
   AWAIT_READY(queryFuture);
   ASSERT_EQ(http::statuses[200], queryFuture.get().status);
@@ -261,11 +261,17 @@ TEST(HTTP, Post)
 
   spawn(process);
 
+  // Test the case where there is a content type but no body.
+  Future<http::Response> future =
+    http::post(process.self(), "post", None(), "text/plain");
+
+  AWAIT_EXPECT_FAILED(future);
+
   EXPECT_CALL(process, post(_))
     .WillOnce(Invoke(validatePost));
 
-  Future<http::Response> future =
-    http::post(process.self(), "post", "text/plain", "This is the payload.");
+  future =
+    http::post(process.self(), "post", "This is the payload.", "text/plain");
 
   AWAIT_READY(future);
   ASSERT_EQ(http::statuses[200], future.get().status);
