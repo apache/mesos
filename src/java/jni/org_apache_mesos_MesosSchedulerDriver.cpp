@@ -23,6 +23,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/result.hpp>
 #include <stout/try.hpp>
 
 #include "jvm/jvm.hpp"

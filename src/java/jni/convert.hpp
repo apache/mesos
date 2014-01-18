@@ -21,7 +21,7 @@
 
 #include <jni.h>
 
-#include <stout/try.hpp>
+#include <stout/result.hpp>
 
 template <typename T>
 jobject convert(JNIEnv* env, const T& t);
