@@ -51,6 +51,9 @@ class Promise;
 template <typename T>
 class WeakFuture;
 
+// Forward declaration of Failure.
+struct Failure;
+
 
 // Definition of a "shared" future. A future can hold any
 // copy-constructible value. A future is considered "shared" because
@@ -63,8 +66,16 @@ public:
   static Future<T> failed(const std::string& message);
 
   Future();
+
   Future(const T& _t);
+
+  template <typename U>
+  Future(const U& u);
+
+  Future(const Failure& failure);
+
   Future(const Future<T>& that);
+
   ~Future();
 
   // Futures are assignable (and copyable). This results in the
@@ -490,31 +501,15 @@ void discard(WeakFuture<T> reference)
 
 } // namespace internal {
 
-// Helper for creating failed futures.
-struct _Failure
-{
-  _Failure(const std::string& _message) : message(_message) {}
 
-  template <typename T>
-  operator Future<T> () const
-  {
-    return Future<T>::failed(message);
-  }
+// Helper for creating failed futures.
+struct Failure
+{
+  Failure(const std::string& _message) : message(_message) {}
+  Failure(const Error& error) : message(error.message) {}
 
   const std::string message;
 };
-
-
-inline _Failure Failure(const std::string& message)
-{
-  return _Failure(message);
-}
-
-
-inline _Failure Failure(const Error& error)
-{
-  return _Failure(error.message);
-}
 
 
 // TODO(benh): Make Promise a subclass of Future?
@@ -797,6 +792,23 @@ Future<T>::Future(const T& _t)
   : data(new Data())
 {
   set(_t);
+}
+
+
+template <typename T>
+template <typename U>
+Future<T>::Future(const U& u)
+  : data(new Data())
+{
+  set(u);
+}
+
+
+template <typename T>
+Future<T>::Future(const Failure& failure)
+  : data(new Data())
+{
+  fail(failure.message);
 }
 
 
