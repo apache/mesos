@@ -140,14 +140,11 @@ private:
 Future<Option<uint64_t> > CoordinatorProcess::elect()
 {
   if (state == ELECTING) {
-    return Future<Option<uint64_t> >::failed(
-        "Coordinator already being elected");
+    return Failure("Coordinator already being elected");
   } else if (state == ELECTED) {
-    return Future<Option<uint64_t> >::failed(
-        "Coordinator already elected");
+    return Failure("Coordinator already elected");
   } else if (state == WRITING) {
-    return Future<Option<uint64_t> >::failed(
-        "Coordinator already elected, and is currently writing");
+    return Failure("Coordinator already elected, and is currently writing");
   }
 
   CHECK_EQ(state, INITIAL);
@@ -267,11 +264,11 @@ void CoordinatorProcess::electingAborted()
 Future<uint64_t> CoordinatorProcess::demote()
 {
   if (state == INITIAL) {
-    return Future<uint64_t>::failed("Coordinator is not elected");
+    return Failure("Coordinator is not elected");
   } else if (state == ELECTING) {
-    return Future<uint64_t>::failed("Coordinator is being elected");
+    return Failure("Coordinator is being elected");
   } else if (state == WRITING) {
-    return Future<uint64_t>::failed("Coordinator is currently writing");
+    return Failure("Coordinator is currently writing");
   }
 
   CHECK_EQ(state, ELECTED);
@@ -289,11 +286,11 @@ Future<uint64_t> CoordinatorProcess::demote()
 Future<uint64_t> CoordinatorProcess::append(const string& bytes)
 {
   if (state == INITIAL) {
-    return Future<uint64_t>::failed("Coordinator is not elected");
+    return Failure("Coordinator is not elected");
   } else if (state == ELECTING) {
-    return Future<uint64_t>::failed("Coordinator is being elected");
+    return Failure("Coordinator is being elected");
   } else if (state == WRITING) {
-    return Future<uint64_t>::failed("Coordinator is currently writing");
+    return Failure("Coordinator is currently writing");
   }
 
   Action action;
@@ -311,11 +308,11 @@ Future<uint64_t> CoordinatorProcess::append(const string& bytes)
 Future<uint64_t> CoordinatorProcess::truncate(uint64_t to)
 {
   if (state == INITIAL) {
-    return Future<uint64_t>::failed("Coordinator is not elected");
+    return Failure("Coordinator is not elected");
   } else if (state == ELECTING) {
-    return Future<uint64_t>::failed("Coordinator is being elected");
+    return Failure("Coordinator is being elected");
   } else if (state == WRITING) {
-    return Future<uint64_t>::failed("Coordinator is currently writing");
+    return Failure("Coordinator is currently writing");
   }
 
   Action action;
@@ -367,7 +364,7 @@ Future<Nothing> CoordinatorProcess::checkWritePhase(
     CHECK_LE(proposal, response.proposal());
     proposal = response.proposal();
 
-    return Future<Nothing>::failed("Coordinator demoted");
+    return Failure("Coordinator demoted");
   } else {
     return Nothing();
   }
