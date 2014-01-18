@@ -481,26 +481,17 @@ inline Try<std::string> decode(const std::string& s)
 // on the read stream, rather than parsing the full string response at the end.
 Future<Response> get(
     const UPID& upid,
-    const std::string& path = "",
+    const Option<std::string>& path = None(),
     const Option<std::string>& query = None());
-
-
-// Backwards compatible wrapper for the above.
-// There are clients who pass in string literals to query that cannot be
-// converted automatically to Option<string>.
-Future<Response> get(
-    const UPID& upid,
-    const std::string& path,
-    const std::string& query);
 
 
 // Sends a blocking HTTP POST request to the process with the given upid.
 // Returns the HTTP response from the process, read asyncronously.
 Future<Response> post(
     const UPID& upid,
-    const std::string& path,
-    const std::string& contentType,
-    const std::string& body);
+    const Option<std::string>& path = None(),
+    const Option<std::string>& body = None(),
+    const Option<std::string>& contentType = None());
 
 
 // Status code reason strings, from the HTTP1.1 RFC:

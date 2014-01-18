@@ -3622,10 +3622,10 @@ Future<Response> decode(const string& buffer)
 Future<Response> request(
     const UPID& upid,
     const string& method,
-    const string& path,
+    const Option<string>& path,
     const Option<string>& query,
-    const Option<string>& contentType,
-    const Option<string>& body)
+    const Option<string>& body,
+    const Option<string>& contentType)
 {
   int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
@@ -3651,10 +3651,16 @@ Future<Response> request(
 
   std::ostringstream out;
 
-  out << method << " /" << upid.id << "/" << path;
+  out << method << " /" << upid.id;
+
+  if (path.isSome()) {
+    out << "/" << path.get();
+  }
+
   if (query.isSome()) {
     out << "?" << query.get();
   }
+
   out << " HTTP/1.1\r\n";
 
   // Call inet_ntop since inet_ntoa is not thread-safe!
@@ -3663,6 +3669,11 @@ Future<Response> request(
 
   out << "Host: " << ip << ":" << upid.port << "\r\n"
       << "Connection: close\r\n";
+
+  if (body.isNone() && contentType.isSome()) {
+    os::close(s);
+    return Failure("Attempted to do a POST with a Content-Type but no body");
+  }
 
   if (contentType.isSome()) {
     out << "Content-Type: " << contentType.get() << "\r\n";
@@ -3709,23 +3720,22 @@ Future<Response> request(
 } // namespace internal {
 
 
-Future<Response> get(const UPID& upid, const string& path, const Option<string>& query)
+Future<Response> get(
+    const UPID& upid,
+    const Option<string>& path,
+    const Option<string>& query)
 {
   return internal::request(upid, "GET", path, query, None(), None());
 }
 
 
-// Overload for back-compat.
-Future<Response> get(const UPID& upid, const string& path, const string& query)
+Future<Response> post(
+    const UPID& upid,
+    const Option<string>& path,
+    const Option<string>& body,
+    const Option<string>& contentType)
 {
-   //In this overload empty string means no query.
-   return get(upid, path, query.empty() ? Option<string>::none() : Some(query));
-}
-
-
-Future<Response> post(const UPID& upid, const string& path, const string& contentType, const string& body)
-{
-  return internal::request(upid, "POST", path, None(), contentType, body);
+  return internal::request(upid, "POST", path, None(), body, contentType);
 }
 
 }  // namespace http {
