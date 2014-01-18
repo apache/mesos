@@ -3635,6 +3635,7 @@ Future<Response> request(
 
   Try<Nothing> cloexec = os::cloexec(s);
   if (!cloexec.isSome()) {
+    os::close(s);
     return Failure("Failed to cloexec: " + cloexec.error());
   }
 
