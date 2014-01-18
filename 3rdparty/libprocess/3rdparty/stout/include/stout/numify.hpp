@@ -36,6 +36,13 @@ Try<T> numify(const std::string& s)
 
 
 template <typename T>
+Try<T> numify(const char* s)
+{
+  return numify<T>(std::string(s));
+}
+
+
+template <typename T>
 Result<T> numify(const Option<std::string>& s)
 {
   if (s.isSome()) {
