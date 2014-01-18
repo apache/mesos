@@ -1688,17 +1688,17 @@ TEST_F(LogTest, WriteRead)
 
   Log::Writer writer(&log, Seconds(10));
 
-  Result<Log::Position> position =
-    writer.append("hello world", Timeout::in(Seconds(10)));
+  Future<Log::Position> position = writer.append("hello world");
 
-  ASSERT_SOME(position);
+  AWAIT_READY(position);
 
   Log::Reader reader(&log);
 
-  Result<list<Log::Entry> > entries =
-    reader.read(position.get(), position.get(), Timeout::in(Seconds(10)));
+  Future<list<Log::Entry> > entries =
+    reader.read(position.get(), position.get());
 
-  ASSERT_SOME(entries);
+  AWAIT_READY(entries);
+
   ASSERT_EQ(1u, entries.get().size());
   EXPECT_EQ(position.get(), entries.get().front().position);
   EXPECT_EQ("hello world", entries.get().front().data);
@@ -1724,10 +1724,9 @@ TEST_F(LogTest, Position)
 
   Log::Writer writer(&log, Seconds(10));
 
-  Result<Log::Position> position =
-    writer.append("hello world", Timeout::in(Seconds(10)));
+  Future<Log::Position> position = writer.append("hello world");
 
-  ASSERT_SOME(position);
+  AWAIT_READY(position);
 
   ASSERT_EQ(position.get(), log.position(position.get().identity()));
 }
@@ -1797,17 +1796,17 @@ TEST_F(LogZooKeeperTest, WriteRead)
 
   Log::Writer writer(&log2, Seconds(10));
 
-  Result<Log::Position> position =
-    writer.append("hello world", Timeout::in(Seconds(10)));
+  Future<Log::Position> position = writer.append("hello world");
 
-  ASSERT_SOME(position);
+  AWAIT_READY(position);
 
   Log::Reader reader(&log2);
 
-  Result<list<Log::Entry> > entries =
-    reader.read(position.get(), position.get(), Timeout::in(Seconds(10)));
+  Future<list<Log::Entry> > entries =
+    reader.read(position.get(), position.get());
 
-  ASSERT_SOME(entries);
+  AWAIT_READY(entries);
+
   ASSERT_EQ(1u, entries.get().size());
   EXPECT_EQ(position.get(), entries.get().front().position);
   EXPECT_EQ("hello world", entries.get().front().data);

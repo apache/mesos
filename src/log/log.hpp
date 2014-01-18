@@ -25,6 +25,7 @@
 #include <set>
 #include <string>
 
+#include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/shared.hpp>
@@ -33,7 +34,6 @@
 #include <stout/duration.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
-#include <stout/result.hpp>
 
 #include "zookeeper/group.hpp"
 
@@ -131,21 +131,20 @@ public:
 
     // Returns all entries between the specified positions, unless
     // those positions are invalid, in which case returns an error.
-    Result<std::list<Entry> > read(
+    process::Future<std::list<Entry> > read(
         const Position& from,
-        const Position& to,
-        const process::Timeout& timeout);
+        const Position& to);
 
     // Returns the beginning position of the log from the perspective
     // of the local replica (which may be out of date if the log has
     // been opened and truncated while this replica was partitioned).
-    Position beginning();
+    process::Future<Position> beginning();
 
     // Returns the ending (i.e., last) position of the log from the
     // perspective of the local replica (which may be out of date if
     // the log has been opened and appended to while this replica was
     // partitioned).
-    Position ending();
+    process::Future<Position> ending();
 
   private:
     LogReaderProcess* process;
@@ -165,17 +164,13 @@ public:
     // means the operation timed out, otherwise the new ending
     // position of the log is returned or an error. Upon error a new
     // Writer must be created.
-    Result<Position> append(
-        const std::string& data,
-        const process::Timeout& timeout);
+    process::Future<Position> append(const std::string& data);
 
     // Attempts to truncate the log up to but not including the
     // specificed position. A none result means the operation timed
     // out, otherwise the new ending position of the log is returned
     // or an error. Upon error a new Writer must be created.
-    Result<Position> truncate(
-        const Position& to,
-        const process::Timeout& timeout);
+    process::Future<Position> truncate(const Position& to);
 
   private:
     LogWriterProcess* process;

@@ -20,6 +20,7 @@
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/future.hpp>
 #include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -650,6 +651,8 @@ Option<Log::Position> LogWriterProcess::__elect(const Option<uint64_t>& result)
 
 Future<Log::Position> LogWriterProcess::append(const string& bytes)
 {
+  LOG(INFO) << "Attempting to append " << bytes.size() << " bytes to the log";
+
   if (coordinator == NULL) {
     return Failure("No election has been performed");
   }
@@ -666,6 +669,8 @@ Future<Log::Position> LogWriterProcess::append(const string& bytes)
 
 Future<Log::Position> LogWriterProcess::truncate(const Log::Position& to)
 {
+  LOG(INFO) << "Attempting to truncate the log to " << to.value;
+
   if (coordinator == NULL) {
     return Failure("No election has been performed");
   }
@@ -751,47 +756,23 @@ Log::Reader::~Reader()
 }
 
 
-Result<list<Log::Entry> > Log::Reader::read(
+Future<list<Log::Entry> > Log::Reader::read(
     const Log::Position& from,
-    const Log::Position& to,
-    const Timeout& timeout)
+    const Log::Position& to)
 {
-  Future<list<Log::Entry> > future =
-    dispatch(process, &LogReaderProcess::read, from, to);
-
-  if (!future.await(timeout.remaining())) {
-    LOG(INFO) << "Timed out while trying to read the log";
-
-    future.discard();
-    return None();
-  } else {
-    if (!future.isReady()) {
-      string failure =
-        future.isFailed() ?
-        future.failure() :
-        "Not expecting discarded future";
-
-      LOG(ERROR) << "Failed to read the log: " << failure;
-
-      return Error(failure);
-    } else {
-      return future.get();
-    }
-  }
+  return dispatch(process, &LogReaderProcess::read, from, to);
 }
 
 
-Log::Position Log::Reader::beginning()
+Future<Log::Position> Log::Reader::beginning()
 {
-  // TODO(benh): Take a timeout and return an Option.
-  return dispatch(process, &LogReaderProcess::beginning).get();
+  return dispatch(process, &LogReaderProcess::beginning);
 }
 
 
-Log::Position Log::Reader::ending()
+Future<Log::Position> Log::Reader::ending()
 {
-  // TODO(benh): Take a timeout and return an Option.
-  return dispatch(process, &LogReaderProcess::ending).get();
+  return dispatch(process, &LogReaderProcess::ending);
 }
 
 
@@ -853,65 +834,15 @@ Log::Writer::~Writer()
 }
 
 
-Result<Log::Position> Log::Writer::append(
-    const string& data,
-    const Timeout& timeout)
+Future<Log::Position> Log::Writer::append(const string& data)
 {
-  LOG(INFO) << "Attempting to append " << data.size() << " bytes to the log";
-
-  Future<Log::Position> future =
-    dispatch(process, &LogWriterProcess::append, data);
-
-  if (!future.await(timeout.remaining())) {
-    LOG(INFO) << "Timed out while trying to append the log";
-
-    future.discard();
-    return None();
-  } else {
-    if (!future.isReady()) {
-      string failure =
-        future.isFailed() ?
-        future.failure() :
-        "Not expecting discarded future";
-
-      LOG(ERROR) << "Failed to append the log: " << failure;
-
-      return Error(failure);
-    } else {
-      return future.get();
-    }
-  }
+  return dispatch(process, &LogWriterProcess::append, data);
 }
 
 
-Result<Log::Position> Log::Writer::truncate(
-    const Log::Position& to,
-    const Timeout& timeout)
+Future<Log::Position> Log::Writer::truncate(const Log::Position& to)
 {
-  LOG(INFO) << "Attempting to truncate the log to " << to.value;
-
-  Future<Log::Position> future =
-    dispatch(process, &LogWriterProcess::truncate, to);
-
-  if (!future.await(timeout.remaining())) {
-    LOG(INFO) << "Timed out while trying to truncate the log";
-
-    future.discard();
-    return None();
-  } else {
-    if (!future.isReady()) {
-      string failure =
-        future.isFailed() ?
-        future.failure() :
-        "Not expecting discarded future";
-
-      LOG(ERROR) << "Failed to truncate the log: " << failure;
-
-      return Error(failure);
-    } else {
-      return future.get();
-    }
-  }
+  return dispatch(process, &LogWriterProcess::truncate, to);
 }
 
 } // namespace log {
