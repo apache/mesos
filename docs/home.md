@@ -6,10 +6,11 @@ layout: documentation
 
 ## Users Documentation
 
+* [Mesos Configuration](configuration.md) command-line arguments
 * [Deploy Scripts](deploy-scripts.md) for launching a Mesos cluster on a set of machines.
 * [EC2 scripts](ec2-scripts.md) for launching a Mesos cluster on Amazon EC2.
 * [Logging and Debugging](logging-and-debugging.md) -- viewing Mesos and framework logs.
-* [High Availability](high-availability) for running multiple masters simultaneously.
+* [High Availability](high-availability.md) for running multiple masters simultaneously.
 * [Slave Recovery](slave-recovery.md)
 * [Using Mesos Submit Tool](using-the-mesos-submit-tool.md) for launching a framework with a single task.
 
