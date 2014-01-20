@@ -15,12 +15,13 @@ layout: documentation
 
 ## Running Mesos Frameworks
 
+* [Running Aurora on Mesos](https://github.com/apache/incubator-aurora/blob/master/docs/tutorial.md)
+* [Running Chronos on Mesos](https://github.com/airbnb/chronos)
 * [Running Hadoop on Mesos](https://github.com/mesos/hadoop)
+* [Running Jenkins on Mesos](https://github.com/jenkinsci/mesos-plugin)
+* [Running Marathon on Mesos](https://github.com/mesosphere/marathon)
 * [Running Spark on Mesos](http://spark.incubator.apache.org/docs/latest/running-on-mesos.html)
 * [Running Torque or MPI on Mesos](running-torque-or-mpi-on-mesos.md)
-* [Running Jenkins on Mesos](https://github.com/jenkinsci/mesos-plugin)
-* [Running Chronos on Mesos](https://github.com/airbnb/chronos)
-* [Running Marathon on Mesos](https://github.com/mesosphere/marathon)
 * [Using Mesos with Hypertable on EC2](https://code.google.com/p/hypertable/wiki/Mesos)
 
 ## Developing Mesos Frameworks and Applications
