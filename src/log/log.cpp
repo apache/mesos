@@ -162,9 +162,6 @@ protected:
   virtual void finalize();
 
 private:
-  // Returns a position from a raw value.
-  static Log::Position position(uint64_t value);
-
   // Returns a future which gets set when the log recovery has
   // finished (either succeeded or failed).
   Future<Nothing> recover();
@@ -173,7 +170,10 @@ private:
   void _recover();
 
   Future<Option<Log::Position> > _elect();
-  Option<Log::Position> __elect(const Option<uint64_t>& result);
+  Option<Log::Position> __elect(const Option<uint64_t>& position);
+
+  static Future<Log::Position> _append(const Option<uint64_t>& position);
+  static Future<Log::Position> _truncate(const Option<uint64_t>& position);
 
   void failed(const string& message);
 
@@ -639,13 +639,14 @@ Future<Option<Log::Position> > LogWriterProcess::_elect()
 }
 
 
-Option<Log::Position> LogWriterProcess::__elect(const Option<uint64_t>& result)
+Option<Log::Position> LogWriterProcess::__elect(
+    const Option<uint64_t>& position)
 {
-  if (result.isNone()) {
+  if (position.isNone()) {
     return None();
-  } else {
-    return position(result.get());
   }
+
+  return Log::Position(position.get());
 }
 
 
@@ -662,10 +663,20 @@ Future<Log::Position> LogWriterProcess::append(const string& bytes)
   }
 
   return coordinator->append(bytes)
-    .then(lambda::bind(&Self::position, lambda::_1))
+    .then(lambda::bind(&Self::_append, lambda::_1))
     .onFailed(defer(self(), &Self::failed, lambda::_1));
 }
 
+
+Future<Log::Position> LogWriterProcess::_append(
+    const Option<uint64_t>& position)
+{
+  if (position.isNone()) {
+    return Failure("Lost exclusive write access while appending");
+  }
+
+  return Log::Position(position.get());
+}
 
 Future<Log::Position> LogWriterProcess::truncate(const Log::Position& to)
 {
@@ -680,20 +691,25 @@ Future<Log::Position> LogWriterProcess::truncate(const Log::Position& to)
   }
 
   return coordinator->truncate(to.value)
-    .then(lambda::bind(&Self::position, lambda::_1))
+    .then(lambda::bind(&Self::_truncate, lambda::_1))
     .onFailed(defer(self(), &Self::failed, lambda::_1));
+}
+
+
+Future<Log::Position> LogWriterProcess::_truncate(
+    const Option<uint64_t>& position)
+{
+  if (position.isNone()) {
+    return Failure("Lost exclusive write access while truncating");
+  }
+
+  return Log::Position(position.get());
 }
 
 
 void LogWriterProcess::failed(const string& message)
 {
   error = message;
-}
-
-
-Log::Position LogWriterProcess::position(uint64_t value)
-{
-  return Log::Position(value);
 }
 
 

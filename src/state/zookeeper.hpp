@@ -39,8 +39,7 @@ public:
       const std::string& servers,
       const Duration& timeout,
       const std::string& znode,
-      const Option<zookeeper::Authentication>& auth =
-      Option<zookeeper::Authentication>());
+      const Option<zookeeper::Authentication>& auth = None());
   virtual ~ZooKeeperStorage();
 
   // Storage implementation.

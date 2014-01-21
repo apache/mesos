@@ -160,17 +160,17 @@ public:
     Writer(Log* log, const Duration& timeout, int retries = 3);
     ~Writer();
 
-    // Attempts to append the specified data to the log. A none result
-    // means the operation timed out, otherwise the new ending
-    // position of the log is returned or an error. Upon error a new
-    // Writer must be created.
-    process::Future<Position> append(const std::string& data);
+    // Attempts to append the specified data to the log. Returns the
+    // new ending position of the log or 'none' if this writer has
+    // lost it's promise to exclusively write (which can be reacquired
+    // by invoking Writer::start).
+    process::Future<Option<Position> > append(const std::string& data);
 
     // Attempts to truncate the log up to but not including the
-    // specificed position. A none result means the operation timed
-    // out, otherwise the new ending position of the log is returned
-    // or an error. Upon error a new Writer must be created.
-    process::Future<Position> truncate(const Position& to);
+    // specificed position. Returns the new ending position of the log
+    // or 'none' if this writer has lost it's promise to exclusively
+    // write (which can be reacquired by invoking Writer::start).
+    process::Future<Option<Position> > truncate(const Position& to);
 
   private:
     LogWriterProcess* process;

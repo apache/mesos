@@ -61,13 +61,15 @@ public:
   process::Future<uint64_t> demote();
 
   // Appends the specified bytes to the end of the log. Returns the
-  // position of the appended entry if the operation succeeds.
-  process::Future<uint64_t> append(const std::string& bytes);
+  // position of the appended entry if the operation succeeds or none
+  // if the coordinator was demoted.
+  process::Future<Option<uint64_t> > append(const std::string& bytes);
 
   // Removes all log entries preceding the log entry at the given
   // position (to). Returns the position at which the truncate
-  // operation is written if the operation succeeds.
-  process::Future<uint64_t> truncate(uint64_t to);
+  // operation is written if the operation succeeds or none if the
+  // coordinator was demoted.
+  process::Future<Option<uint64_t> > truncate(uint64_t to);
 
 private:
   CoordinatorProcess* process;

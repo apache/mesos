@@ -642,9 +642,10 @@ TEST_F(CoordinatorTest, AppendRead)
   uint64_t position;
 
   {
-    Future<uint64_t> appending = coord.append("hello world");
+    Future<Option<uint64_t> > appending = coord.append("hello world");
     AWAIT_READY_FOR(appending, Seconds(10));
-    position = appending.get();
+    ASSERT_SOME(appending.get());
+    position = appending.get().get();
     EXPECT_EQ(1u, position);
   }
 
@@ -691,9 +692,10 @@ TEST_F(CoordinatorTest, AppendReadError)
   uint64_t position;
 
   {
-    Future<uint64_t> appending = coord.append("hello world");
+    Future<Option<uint64_t> > appending = coord.append("hello world");
     AWAIT_READY_FOR(appending, Seconds(10));
-    position = appending.get();
+    ASSERT_SOME(appending.get());
+    position = appending.get().get();
     EXPECT_EQ(1u, position);
   }
 
@@ -739,7 +741,7 @@ TEST_F(CoordinatorTest, AppendDiscarded)
   replica2.reset();
 
   {
-    Future<uint64_t> appending = coord.append("hello world");
+    Future<Option<uint64_t> > appending = coord.append("hello world");
     ASSERT_TRUE(appending.isPending());
 
     appending.discard();
@@ -747,10 +749,10 @@ TEST_F(CoordinatorTest, AppendDiscarded)
   }
 
   {
-    Future<uint64_t> appending = coord.append("hello moto");
-    AWAIT_FAILED(appending);
+    Future<Option<uint64_t> > appending = coord.append("hello moto");
+    AWAIT_SOME(appending);
 
-    EXPECT_EQ("Coordinator is not elected", appending.failure());
+    EXPECT_NONE(appending.get());
   }
 }
 
@@ -817,7 +819,7 @@ TEST_F(CoordinatorTest, AppendNoQuorum)
 
   Clock::pause();
 
-  Future<uint64_t> appending = coord.append("hello world");
+  Future<Option<uint64_t> > appending = coord.append("hello world");
 
   Clock::advance(Seconds(10));
   Clock::settle();
@@ -859,9 +861,10 @@ TEST_F(CoordinatorTest, Failover)
   uint64_t position;
 
   {
-    Future<uint64_t> appending = coord1.append("hello world");
+    Future<Option<uint64_t> > appending = coord1.append("hello world");
     AWAIT_READY_FOR(appending, Seconds(10));
-    position = appending.get();
+    ASSERT_SOME(appending.get());
+    position = appending.get().get();
     EXPECT_EQ(1u, position);
   }
 
@@ -919,9 +922,10 @@ TEST_F(CoordinatorTest, Demoted)
   uint64_t position;
 
   {
-    Future<uint64_t> appending = coord1.append("hello world");
+    Future<Option<uint64_t> > appending = coord1.append("hello world");
     AWAIT_READY_FOR(appending, Seconds(10));
-    position = appending.get();
+    ASSERT_SOME(appending.get());
+    position = appending.get().get();
     EXPECT_EQ(1u, position);
   }
 
@@ -937,15 +941,16 @@ TEST_F(CoordinatorTest, Demoted)
   }
 
   {
-    Future<uint64_t> appending = coord1.append("hello moto");
-    AWAIT_FAILED(appending);
-    EXPECT_EQ("Coordinator demoted", appending.failure());
+    Future<Option<uint64_t> > appending = coord1.append("hello moto");
+    AWAIT_READY_FOR(appending, Seconds(10));
+    EXPECT_NONE(appending.get());
   }
 
   {
-    Future<uint64_t> appending = coord2.append("hello hello");
+    Future<Option<uint64_t> > appending = coord2.append("hello hello");
     AWAIT_READY_FOR(appending, Seconds(10));
-    position = appending.get();
+    ASSERT_SOME(appending.get());
+    position = appending.get().get();
     EXPECT_EQ(2u, position);
   }
 
@@ -996,9 +1001,10 @@ TEST_F(CoordinatorTest, Fill)
   uint64_t position;
 
   {
-    Future<uint64_t> appending = coord1.append("hello world");
+    Future<Option<uint64_t> > appending = coord1.append("hello world");
     AWAIT_READY_FOR(appending, Seconds(10));
-    position = appending.get();
+    ASSERT_SOME(appending.get());
+    position = appending.get().get();
     EXPECT_EQ(1u, position);
   }
 
@@ -1074,9 +1080,10 @@ TEST_F(CoordinatorTest, NotLearnedFill)
   uint64_t position;
 
   {
-    Future<uint64_t> appending = coord1.append("hello world");
+    Future<Option<uint64_t> > appending = coord1.append("hello world");
     AWAIT_READY_FOR(appending, Seconds(10));
-    position = appending.get();
+    ASSERT_SOME(appending.get());
+    position = appending.get().get();
     EXPECT_EQ(1u, position);
   }
 
@@ -1142,9 +1149,10 @@ TEST_F(CoordinatorTest, MultipleAppends)
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Future<uint64_t> appending = coord.append(stringify(position));
+    Future<Option<uint64_t> > appending = coord.append(stringify(position));
     AWAIT_READY_FOR(appending, Seconds(10));
-    EXPECT_EQ(position, appending.get());
+    ASSERT_SOME(appending.get());
+    EXPECT_EQ(position, appending.get().get());
   }
 
   {
@@ -1197,9 +1205,10 @@ TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Future<uint64_t> appending = coord1.append(stringify(position));
+    Future<Option<uint64_t> > appending = coord1.append(stringify(position));
     AWAIT_READY_FOR(appending, Seconds(10));
-    EXPECT_EQ(position, appending.get());
+    ASSERT_SOME(appending.get());
+    EXPECT_EQ(position, appending.get().get());
   }
 
   Shared<Replica> replica3(new Replica(path3));
@@ -1265,15 +1274,17 @@ TEST_F(CoordinatorTest, Truncate)
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Future<uint64_t> appending = coord.append(stringify(position));
+    Future<Option<uint64_t> > appending = coord.append(stringify(position));
     AWAIT_READY_FOR(appending, Seconds(10));
-    EXPECT_EQ(position, appending.get());
+    ASSERT_SOME(appending.get());
+    EXPECT_EQ(position, appending.get().get());
   }
 
   {
-    Future<uint64_t> truncating = coord.truncate(7);
+    Future<Option<uint64_t> > truncating = coord.truncate(7);
     AWAIT_READY_FOR(truncating, Seconds(10));
-    EXPECT_EQ(11u, truncating.get());
+    ASSERT_SOME(truncating.get());
+    EXPECT_EQ(11u, truncating.get().get());
   }
 
   {
@@ -1332,15 +1343,17 @@ TEST_F(CoordinatorTest, TruncateNotLearnedFill)
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Future<uint64_t> appending = coord1.append(stringify(position));
+    Future<Option<uint64_t> > appending = coord1.append(stringify(position));
     AWAIT_READY_FOR(appending, Seconds(10));
-    EXPECT_EQ(position, appending.get());
+    ASSERT_SOME(appending.get());
+    EXPECT_EQ(position, appending.get().get());
   }
 
   {
-    Future<uint64_t> truncating = coord1.truncate(7);
+    Future<Option<uint64_t> > truncating = coord1.truncate(7);
     AWAIT_READY_FOR(truncating, Seconds(10));
-    EXPECT_EQ(11u, truncating.get());
+    ASSERT_SOME(truncating.get());
+    EXPECT_EQ(11u, truncating.get().get());
   }
 
   Shared<Replica> replica3(new Replica(path3));
@@ -1416,15 +1429,17 @@ TEST_F(CoordinatorTest, TruncateLearnedFill)
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Future<uint64_t> appending = coord1.append(stringify(position));
+    Future<Option<uint64_t> > appending = coord1.append(stringify(position));
     AWAIT_READY_FOR(appending, Seconds(10));
-    EXPECT_EQ(position, appending.get());
+    ASSERT_SOME(appending.get());
+    EXPECT_EQ(position, appending.get().get());
   }
 
   {
-    Future<uint64_t> truncating = coord1.truncate(7);
+    Future<Option<uint64_t> > truncating = coord1.truncate(7);
     AWAIT_READY_FOR(truncating, Seconds(10));
-    EXPECT_EQ(11u, truncating.get());
+    ASSERT_SOME(truncating.get());
+    EXPECT_EQ(11u, truncating.get().get());
   }
 
   Shared<Replica> replica3(new Replica(path3));
@@ -1514,9 +1529,10 @@ TEST_F(RecoverTest, RacingCatchup)
   }
 
   for (uint64_t position = 1; position <= 10; position++) {
-    Future<uint64_t> appending = coord1.append(stringify(position));
+    Future<Option<uint64_t> > appending = coord1.append(stringify(position));
     AWAIT_READY_FOR(appending, Seconds(10));
-    EXPECT_EQ(position, appending.get());
+    ASSERT_SOME(appending.get());
+    EXPECT_EQ(position, appending.get().get());
   }
 
   // Two replicas both want to recover.
@@ -1562,9 +1578,10 @@ TEST_F(RecoverTest, RacingCatchup)
   }
 
   {
-    Future<uint64_t> appending = coord2.append("hello hello");
+    Future<Option<uint64_t> > appending = coord2.append("hello hello");
     AWAIT_READY_FOR(appending, Seconds(10));
-    EXPECT_EQ(11u, appending.get());
+    ASSERT_SOME(appending.get());
+    EXPECT_EQ(11u, appending.get().get());
   }
 
   {
