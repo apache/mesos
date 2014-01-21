@@ -143,9 +143,9 @@ private:
 Future<Option<uint64_t> > CoordinatorProcess::elect()
 {
   if (state == ELECTING) {
-    return Failure("Coordinator already being elected");
+    return electing;
   } else if (state == ELECTED) {
-    return Failure("Coordinator already elected");
+    return index - 1; // The last learned position!
   } else if (state == WRITING) {
     return Failure("Coordinator already elected, and is currently writing");
   }
@@ -288,10 +288,8 @@ Future<uint64_t> CoordinatorProcess::demote()
 
 Future<Option<uint64_t> > CoordinatorProcess::append(const string& bytes)
 {
-  if (state == INITIAL) {
+  if (state == INITIAL || state == ELECTING) {
     return None();
-  } else if (state == ELECTING) {
-    return Failure("Coordinator is being elected");
   } else if (state == WRITING) {
     return Failure("Coordinator is currently writing");
   }
@@ -310,10 +308,8 @@ Future<Option<uint64_t> > CoordinatorProcess::append(const string& bytes)
 
 Future<Option<uint64_t> > CoordinatorProcess::truncate(uint64_t to)
 {
-  if (state == INITIAL) {
+  if (state == INITIAL || state == ELECTING) {
     return None();
-  } else if (state == ELECTING) {
-    return Failure("Coordinator is being elected");
   } else if (state == WRITING) {
     return Failure("Coordinator is currently writing");
   }
