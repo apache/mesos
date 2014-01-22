@@ -125,12 +125,6 @@ AC_ARG_ENABLE([optimize],
                              [don't try to compile with optimizations]),
               [], [enable_optimize=yes])
 
-AC_ARG_WITH([curl],
-            AS_HELP_STRING([--without-curl],
-                           [builds Mesos assuming libcurl
-                           (and its dependencies) are available]),
-             [], [with_curl=yes])
-
 AC_ARG_WITH([included-zookeeper],
             AS_HELP_STRING([--without-included-zookeeper],
                            [excludes building and using the included ZooKeeper
@@ -583,44 +577,19 @@ fi
 
 AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
 
+AC_CHECK_LIB([z], [gzread], [],
+             [AC_MSG_ERROR([cannot find libz
+-------------------------------------------------------------------
+libz is required for mesos to build.
+-------------------------------------------------------------------
+])])
 
-# Check if we should/can build with libcurl.
-if test "x$with_curl" = "xyes"; then
-  AC_CHECK_LIB([z], [gzread], [],
-               [AC_MSG_ERROR([cannot find libz
-  -------------------------------------------------------------------
-  We need libz for libcurl; you can avoid this with --without-curl,
-  but it will mean executor and task resources cannot be downloaded
-  over http.
-  -------------------------------------------------------------------
-  ])])
-
-  AC_CHECK_LIB([crypto], [BN_init], [],
-               [AC_MSG_ERROR([cannot find libcrypto
-  -------------------------------------------------------------------
-  We need libcrypto for libcurl; you can avoid this with
-  --without-curl, but it will mean executor and task resources cannot
-  be downloaded over http.
-  -------------------------------------------------------------------
-  ])])
-
-  AC_CHECK_LIB([ssl], [SSL_accept], [],
-               [AC_MSG_ERROR([cannot find libssl
-  -------------------------------------------------------------------
-  We need libssl for libcurl; you can avoid this with --without-curl,
-  but it will mean executor and task resources cannot be downloaded
-  over http.
-  -------------------------------------------------------------------
-  ])])
-
-  AC_CHECK_LIB([curl], [curl_global_init], [],
-               [AC_MSG_ERROR([cannot find libcurl
-  -------------------------------------------------------------------
-  You can avoid this with --without-curl, but it will mean executor
-  and task resources cannot be downloaded over http.
-  -------------------------------------------------------------------
-  ])])
-fi
+AC_CHECK_LIB([curl], [curl_global_init], [],
+             [AC_MSG_ERROR([cannot find libcurl
+-------------------------------------------------------------------
+libcurl is required for mesos to build.
+-------------------------------------------------------------------
+])])
 
 
 AM_CONDITIONAL([WITH_INCLUDED_ZOOKEEPER],
