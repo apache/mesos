@@ -178,6 +178,10 @@ public:
   // Made public for testing purposes.
   void detected(const Future<Option<UPID> >& pid);
 
+  // Invoked when the contender has lost the candidacy.
+  // Made public for testing purposes.
+  void lostCandidacy(const Future<Nothing>& lost);
+
 protected:
   virtual void initialize();
   virtual void finalize();
@@ -201,9 +205,6 @@ protected:
 
   // Invoked when the contender has entered the contest.
   void contended(const Future<Future<Nothing> >& candidacy);
-
-  // Invoked when the contender has lost the candidacy.
-  void lostCandidacy(const Future<Nothing>& lost);
 
   // Process a launch tasks request (for a non-cancelled offer) by
   // launching the desired tasks (if the offer contains a valid set of
