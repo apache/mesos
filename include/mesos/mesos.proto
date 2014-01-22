@@ -160,6 +160,7 @@ message MasterInfo {
   required string id = 1;
   required uint32 ip = 2;
   required uint32 port = 3 [default = 5050];
+  optional string pid = 4;
 }
 
 

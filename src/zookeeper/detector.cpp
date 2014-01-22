@@ -133,7 +133,7 @@ void LeaderDetectorProcess::watched(const Future<set<Group::Membership> >& membe
   if (current != leader) {
     LOG(INFO) << "Detected a new leader: "
               << (current.isSome()
-                  ? "'(id='" + stringify(current.get().id()) + "')"
+                  ? "(id='" + stringify(current.get().id()) + "')"
                   : "None");
 
     foreach (Promise<Option<Group::Membership> >* promise, promises) {
