@@ -3,13 +3,16 @@
 
 #include <map>
 #include <set>
+#include <string>
 
 #include "process/future.hpp"
 #include "process/timer.hpp"
 
+#include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+#include <stout/try.hpp>
 
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/url.hpp"
@@ -85,10 +88,13 @@ public:
   private:
     friend class GroupProcess; // Creates and manages memberships.
 
-    Membership(int32_t _sequence, const process::Future<bool>& cancelled)
-      : sequence(_sequence), cancelled_(cancelled) {}
+    Membership(int32_t _sequence,
+               const Option<std::string>& _label,
+               const process::Future<bool>& cancelled)
+      : sequence(_sequence), label(_label), cancelled_(cancelled) {}
 
     const int32_t sequence;
+    const Option<std::string> label;
     process::Future<bool> cancelled_;
   };
 
@@ -103,13 +109,16 @@ public:
 
   ~Group();
 
-  // Returns the result of trying to join a "group" in ZooKeeper. If
-  // succesful, an "owned" membership will be returned whose
-  // retrievable data will be a copy of the specified parameter. A
-  // membership is not "renewed" in the event of a ZooKeeper session
-  // expiration. Instead, a client should watch the group memberships
-  // and rejoin the group as appropriate.
-  process::Future<Membership> join(const std::string& data);
+  // Returns the result of trying to join a "group" in ZooKeeper.
+  // If "label" is provided the newly created znode contains "label_"
+  // as the prefix. If join is successful, an "owned" membership will
+  // be returned whose retrievable data will be a copy of the
+  // specified parameter. A membership is not "renewed" in the event
+  // of a ZooKeeper session expiration. Instead, a client should watch
+  // the group memberships and rejoin the group as appropriate.
+  process::Future<Membership> join(
+      const std::string& data,
+      const Option<std::string>& label = None());
 
   // Returns the result of trying to cancel a membership. Note that
   // only memberships that are "owned" (see join) can be canceled.
@@ -150,8 +159,14 @@ public:
 
   static const Duration RETRY_INTERVAL;
 
+  // Helper function that returns the basename of the znode of
+  // the membership.
+  static std::string zkBasename(const Group::Membership& membership);
+
   // Group implementation.
-  process::Future<Group::Membership> join(const std::string& data);
+  process::Future<Group::Membership> join(
+      const std::string& data,
+      const Option<std::string>& label);
   process::Future<bool> cancel(const Group::Membership& membership);
   process::Future<std::string> data(const Group::Membership& membership);
   process::Future<std::set<Group::Membership> > watch(
@@ -167,7 +182,9 @@ public:
   void deleted(const std::string& path);
 
 private:
-  Result<Group::Membership> doJoin(const std::string& data);
+  Result<Group::Membership> doJoin(
+      const std::string& data,
+      const Option<std::string>& label);
   Result<bool> doCancel(const Group::Membership& membership);
   Result<std::string> doData(const Group::Membership& membership);
 
@@ -234,8 +251,10 @@ private:
 
   struct Join
   {
-    Join(const std::string& _data) : data(_data) {}
+    Join(const std::string& _data, const Option<std::string>& _label)
+      : data(_data), label(_label) {}
     std::string data;
+    const Option<std::string> label;
     process::Promise<Group::Membership> promise;
   };
 

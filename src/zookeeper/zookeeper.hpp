@@ -187,12 +187,13 @@ public:
    * ZINVALIDSTATE - state is ZOO_SESSION_EXPIRED_STATE or ZOO_AUTH_FAILED_STATE
    * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
    */
-  int create(const std::string &path,
-	     const std::string &data,
-	     const ACL_vector &acl,
-	     int flags,
-	     std::string *result,
-	     bool recursive = false);
+  int create(
+      const std::string &path,
+      const std::string &data,
+      const ACL_vector &acl,
+      int flags,
+      std::string *result,
+      bool recursive = false);
 
   /**
    * \brief delete a node in zookeeper synchronously.
@@ -253,10 +254,11 @@ public:
    * ZINVALIDSTATE - state is ZOO_SESSION_EXPIRED_STATE or ZOO_AUTH_FAILED_STATE
    * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
    */
-  int get(const std::string &path,
-	  bool watch,
-	  std::string *result,
-	  Stat *stat);
+  int get(
+      const std::string &path,
+      bool watch,
+      std::string *result,
+      Stat *stat);
 
   /**
    * \brief lists the children of a node synchronously.
@@ -274,9 +276,10 @@ public:
    * ZINVALIDSTATE - state is ZOO_SESSION_EXPIRED_STATE or ZOO_AUTH_FAILED_STATE
    * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
    */
-  int getChildren(const std::string &path,
-		  bool watch,
-		  std::vector<std::string> *results);
+  int getChildren(
+      const std::string &path,
+      bool watch,
+      std::vector<std::string> *results);
 
   /**
    * \brief sets the data associated with a node.
