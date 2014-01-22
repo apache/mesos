@@ -29,7 +29,8 @@ public:
   // A failed future is returned if the detector is unable to detect
   // the leading master due to a non-retryable error.
   // Note that the detector transparently tries to recover from
-  // retryable errors.
+  // retryable errors until the group session expires, in which case
+  // the Future returns None.
   // The future is never discarded unless it stays pending when the
   // detector destructs.
   //

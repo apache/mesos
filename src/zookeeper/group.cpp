@@ -430,7 +430,7 @@ void GroupProcess::timedout(int64_t sessionId)
     // The timer can be reset or replaced and 'zk' can be replaced
     // since this method was dispatched.
     LOG(WARNING) << "Timed out waiting to reconnect to ZooKeeper "
-                     << "(sessionId=" << std::hex << sessionId << ")";
+                 << "(sessionId=" << std::hex << sessionId << ")";
 
     // Locally determine that the current session has expired.
     expired();
@@ -450,7 +450,19 @@ void GroupProcess::expired()
     timer = None();
   }
 
-  // Invalidate the cache.
+  // From the group's local perspective all the memberships are
+  // gone so we need to update the watches.
+  // If the memberships still exist on ZooKeeper, they will be
+  // restored in group after the group reconnects to ZK.
+  // This is a precaution against the possibility that ZK connection
+  // is lost right after we recreate the ZK instance below or the
+  // entire ZK cluster goes down. The outage can last for a long time
+  // but the clients watching the group should be informed sooner.
+  memberships = set<Group::Membership>();
+  update();
+
+  // Invalidate the cache so that we'll sync with ZK after
+  // reconnection.
   memberships = None();
 
   // Set all owned memberships as cancelled.

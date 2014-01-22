@@ -418,7 +418,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
 
   // We may need to advance multiple times because we could have
   // advanced the clock before the timer in Group starts.
-  while (lostCandidacy.isPending()) {
+  while (lostCandidacy.isPending() || leader.isPending()) {
     Clock::advance(MASTER_CONTENDER_ZK_SESSION_TIMEOUT);
     Clock::settle();
   }
@@ -426,9 +426,11 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
   // Local timeout does not fail the future but rather deems the
   // session has timed out and the candidacy is lost.
   EXPECT_TRUE(lostCandidacy.isReady());
+  EXPECT_NONE(leader.get());
 
-  // Re-contend (and continue detecting).
+  // Re-contend and re-detect.
   contended = contender.contend();
+  leader = detector.detect(leader.get());
 
   // Things will not change until the server restarts.
   Clock::advance(Minutes(1));
@@ -540,19 +542,23 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
 
   Clock::pause();
 
-  // We know when the groups have timed out when the contenders are
-  // informed of the candidacy loss.
   // We may need to advance multiple times because we could have
   // advanced the clock before the timer in Group starts.
-  while (leaderLostCandidacy.isPending() || followerLostCandidacy.isPending()) {
+  while (leaderDetected.isPending() ||
+         followerDetected.isPending() ||
+         nonContenderDetected.isPending() ||
+         leaderLostCandidacy.isPending() ||
+         followerLostCandidacy.isPending()) {
     Clock::advance(sessionTimeout);
     Clock::settle();
   }
 
-  // Detection is not interrupted.
-  EXPECT_TRUE(leaderDetected.isPending());
-  EXPECT_TRUE(followerDetected.isPending());
-  EXPECT_TRUE(nonContenderDetected.isPending());
+  EXPECT_NONE(leaderDetected.get());
+  EXPECT_NONE(followerDetected.get());
+  EXPECT_NONE(nonContenderDetected.get());
+
+  EXPECT_TRUE(leaderLostCandidacy.isReady());
+  EXPECT_TRUE(followerLostCandidacy.isReady());
 
   Clock::resume();
 }
@@ -670,18 +676,18 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorExpireSlaveZKSession)
   Future<Option<int64_t> > session = group->session();
   AWAIT_READY(session);
 
-  Future<Nothing> connected = FUTURE_DISPATCH(
-      group->process->self(),
-      &GroupProcess::connected);
-
   server->expireSession(session.get().get());
 
-  // When connected is called, the leader has already expired and
-  // reconnected.
-  AWAIT_READY(connected);
+  // Session expiration causes detector to assume all membership are
+  // lost.
+  AWAIT_READY(detected);
+  EXPECT_NONE(detected.get());
 
-  // Still pending because there is no leader change.
-  EXPECT_TRUE(detected.isPending());
+  detected = slaveDetector.detect(detected.get());
+
+  // The detector is able re-detect the master.
+  AWAIT_READY(detected);
+  EXPECT_SOME_EQ(master, detected.get());
 }
 
 
@@ -758,9 +764,14 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   server->expireSession(slaveSession.get().get());
   server->expireSession(masterSession.get().get());
 
-  // Wait for session expiration and ensure a new master is detected.
+  // Wait for session expiration and the detector will first receive
+  // a "no master detected" event.
   AWAIT_READY(detected);
+  EXPECT_NONE(detected.get());
 
+  // nonContenderDetector can now re-detect the new master.
+  detected = nonContenderDetector.detect(detected.get());
+  AWAIT_READY(detected);
   EXPECT_SOME_EQ(follower, detected.get());
 }
 

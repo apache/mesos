@@ -107,6 +107,9 @@ public:
   virtual ~ZooKeeperMasterDetector();
 
   // MasterDetector implementation.
+  // The detector transparently tries to recover from retryable
+  // errors until the group session expires, in which case the Future
+  // returns None.
   virtual process::Future<Option<process::UPID> > detect(
       const Option<process::UPID>& previous = None());
 

@@ -49,6 +49,10 @@
 #include "tests/isolator.hpp"
 #include "tests/mesos.hpp"
 
+#ifdef MESOS_HAS_JAVA
+#include "tests/zookeeper.hpp"
+#endif
+
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
@@ -1023,6 +1027,7 @@ TEST_F(MasterTest, MasterLost)
   Shutdown();
 }
 
+
 // Test sends different state than current and expects an update with
 // the current state of task.
 //
@@ -1099,3 +1104,110 @@ TEST_F(MasterTest, ReconcileTaskTest)
 
   Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
+
+
+#ifdef MESOS_HAS_JAVA
+class MasterZooKeeperTest : public MesosTest
+{
+public:
+  static void SetUpTestCase()
+  {
+    // Make sure the JVM is created.
+    ZooKeeperTest::SetUpTestCase();
+
+    // Launch the ZooKeeper test server.
+    server = new ZooKeeperTestServer();
+    server->startNetwork();
+
+    Try<zookeeper::URL> parse = zookeeper::URL::parse(
+        "zk://" + server->connectString() + "/znode");
+    ASSERT_SOME(parse);
+
+    url = parse.get();
+  }
+
+  static void TearDownTestCase()
+  {
+    delete server;
+    server = NULL;
+  }
+
+protected:
+  MasterZooKeeperTest() : MesosTest(url) {}
+
+  static ZooKeeperTestServer* server;
+  static Option<zookeeper::URL> url;
+};
+
+
+ZooKeeperTestServer* MasterZooKeeperTest::server = NULL;
+
+
+Option<zookeeper::URL> MasterZooKeeperTest::url;
+
+
+// This test verifies that when the ZooKeeper cluster is lost,
+// master, slave & scheduler all get informed.
+TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
+{
+  ASSERT_SOME(StartMaster());
+  ASSERT_SOME(StartSlave());
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, stringify(url.get()), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return()); // Ignore offers.
+
+  Future<process::Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+  Future<process::Message> slaveRegisteredMessage =
+    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+
+  driver.start();
+
+  // Wait for the "registered" messages so that we know the master is
+  // detected by everyone.
+  AWAIT_READY(frameworkRegisteredMessage);
+  AWAIT_READY(slaveRegisteredMessage);
+
+  Future<Nothing> schedulerDisconnected;
+  EXPECT_CALL(sched, disconnected(&driver))
+    .WillOnce(FutureSatisfy(&schedulerDisconnected));
+
+  // Need to drop these two dispatches because otherwise the master
+  // will EXIT.
+  Future<Nothing> masterDetected = DROP_DISPATCH(_, &Master::detected);
+  DROP_DISPATCH(_, &Master::lostCandidacy);
+
+  Future<Nothing> slaveDetected = FUTURE_DISPATCH(_, &Slave::detected);
+
+  server->shutdownNetwork();
+
+  Clock::pause();
+
+  while (schedulerDisconnected.isPending() ||
+         masterDetected.isPending() ||
+         slaveDetected.isPending()) {
+    Clock::advance(MASTER_CONTENDER_ZK_SESSION_TIMEOUT);
+    Clock::settle();
+  }
+
+  Clock::resume();
+
+  // Master, slave and scheduler all lose the leading master.
+  AWAIT_READY(schedulerDisconnected);
+  AWAIT_READY(masterDetected);
+  AWAIT_READY(slaveDetected);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+#endif // MESOS_HAS_JAVA
