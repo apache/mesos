@@ -27,6 +27,8 @@
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 
+#include "messages/messages.hpp"
+
 #include "zookeeper/contender.hpp"
 #include "zookeeper/group.hpp"
 #include "zookeeper/url.hpp"
@@ -63,9 +65,9 @@ public:
   // to be cancelled during destruction.
   virtual ~MasterContender() = 0;
 
-  // Initializes the contender with the PID of the master it contends
-  // on behalf of.
-  virtual void initialize(const process::PID<master::Master>& master) = 0;
+  // Initializes the contender with the MasterInfo of the master it
+  // contends on behalf of.
+  virtual void initialize(const MasterInfo& masterInfo) = 0;
 
   // Returns a Future<Nothing> once the contender has entered the
   // contest (by obtaining a membership) and an error otherwise.
@@ -94,7 +96,7 @@ public:
   virtual ~StandaloneMasterContender();
 
   // MasterContender implementation.
-  virtual void initialize(const process::PID<master::Master>& master);
+  virtual void initialize(const MasterInfo& masterInfo);
 
   // In this basic implementation the outer Future directly returns
   // and inner Future stays pending because there is only one
@@ -118,7 +120,7 @@ public:
   virtual ~ZooKeeperMasterContender();
 
   // MasterContender implementation.
-  virtual void initialize(const process::PID<master::Master>& master);
+  virtual void initialize(const MasterInfo& masterInfo);
   virtual process::Future<process::Future<Nothing> > contend();
 
 private:

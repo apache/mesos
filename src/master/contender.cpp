@@ -22,6 +22,7 @@
 #include <stout/check.hpp>
 #include <stout/lambda.hpp>
 
+#include "master/constants.hpp"
 #include "master/contender.hpp"
 #include "master/master.hpp"
 
@@ -54,7 +55,7 @@ public:
   // Explicitely use 'initialize' since we're overloading below.
   using process::ProcessBase::initialize;
 
-  void initialize(const PID<Master>& master);
+  void initialize(const MasterInfo& masterInfo);
 
   // MasterContender implementation.
   virtual Future<Future<Nothing> > contend();
@@ -64,7 +65,7 @@ private:
   LeaderContender* contender;
 
   // The master this contender contends on behalf of.
-  Option<PID<Master> > master;
+  Option<MasterInfo> masterInfo;
   Option<Future<Future<Nothing> > > candidacy;
 };
 
@@ -109,8 +110,7 @@ StandaloneMasterContender::~StandaloneMasterContender()
 }
 
 
-void StandaloneMasterContender::initialize(
-    const PID<master::Master>& master)
+void StandaloneMasterContender::initialize(const MasterInfo& masterInfo)
 {
   // We don't really need to store the master in this basic
   // implementation so we just restore an 'initialized' flag to make
@@ -161,10 +161,9 @@ ZooKeeperMasterContender::~ZooKeeperMasterContender()
 }
 
 
-void ZooKeeperMasterContender::initialize(
-    const PID<master::Master>& master)
+void ZooKeeperMasterContender::initialize(const MasterInfo& masterInfo)
 {
-  process->initialize(master);
+  process->initialize(masterInfo);
 }
 
 
@@ -191,16 +190,15 @@ ZooKeeperMasterContenderProcess::~ZooKeeperMasterContenderProcess()
   delete contender;
 }
 
-void ZooKeeperMasterContenderProcess::initialize(
-    const PID<Master>& _master)
+void ZooKeeperMasterContenderProcess::initialize(const MasterInfo& _masterInfo)
 {
-  master = _master;
+  masterInfo = _masterInfo;
 }
 
 
 Future<Future<Nothing> > ZooKeeperMasterContenderProcess::contend()
 {
-  if (master.isNone()) {
+  if (masterInfo.isNone()) {
     return Failure("Initialize the contender first");
   }
 
@@ -214,7 +212,13 @@ Future<Future<Nothing> > ZooKeeperMasterContenderProcess::contend()
     delete contender;
   }
 
-  contender = new LeaderContender(group.get(), master.get());
+  // Serialize the MasterInfo to string.
+  string data;
+  if (!masterInfo.get().SerializeToString(&data)) {
+    return Failure("Failed to serialize data to MasterInfo");
+  }
+
+  contender = new LeaderContender(group.get(), data, master::MASTER_INFO_LABEL);
   candidacy = contender->contend();
   return candidacy.get();
 }

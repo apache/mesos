@@ -294,6 +294,7 @@ void Master::initialize()
   info.set_id(id.get());
   info.set_ip(self().ip);
   info.set_port(self().port);
+  info.set_pid(self());
 
   LOG(INFO) << "Master ID: " << info.id();
 
@@ -543,7 +544,7 @@ void Master::initialize()
     }
   }
 
-  contender->initialize(self());
+  contender->initialize(info);
 
   // Start contending to be a leading master and detecting the current
   // leader.

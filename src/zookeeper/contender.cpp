@@ -8,6 +8,7 @@
 #include <stout/check.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
+#include <stout/some.hpp>
 
 #include "zookeeper/contender.hpp"
 #include "zookeeper/detector.hpp"
@@ -23,7 +24,11 @@ namespace zookeeper {
 class LeaderContenderProcess : public Process<LeaderContenderProcess>
 {
 public:
-  LeaderContenderProcess(Group* group, const std::string& data);
+  LeaderContenderProcess(
+      Group* group,
+      const string& data,
+      const Option<string>& label);
+
   virtual ~LeaderContenderProcess();
 
   // LeaderContender implementation.
@@ -45,6 +50,7 @@ private:
 
   Group* group;
   const string data;
+  const Option<string> label;
 
   // The contender's state transitions from contending -> watching ->
   // withdrawing or contending -> withdrawing. Each state is
@@ -70,9 +76,9 @@ private:
 
 LeaderContenderProcess::LeaderContenderProcess(
     Group* _group,
-    const string& _data)
-  : group(_group),
-    data(_data) {}
+    const string& _data,
+    const Option<string>& _label)
+  : group(_group), data(_data), label(_label) {}
 
 
 LeaderContenderProcess::~LeaderContenderProcess()
@@ -118,8 +124,8 @@ Future<Future<Nothing> > LeaderContenderProcess::contend()
     return Failure("Cannot contend more than once");
   }
 
-  LOG(INFO) << "Joining the ZK group with data: '" << data << "'";
-  candidacy = group->join(data);
+  LOG(INFO) << "Joining the ZK group";
+  candidacy = group->join(data, label);
   candidacy
     .onAny(defer(self(), &Self::joined));
 
@@ -234,8 +240,8 @@ void LeaderContenderProcess::joined()
     return;
   }
 
-  LOG(INFO) << "New candidate (id='" << candidacy.get().id() << "', data='"
-            << data << "') has entered the contest for leadership";
+  LOG(INFO) << "New candidate (id='" << candidacy.get().id()
+            << "') has entered the contest for leadership";
 
   // Transition to 'watching' state.
   watching = new Promise<Nothing>();
@@ -250,9 +256,12 @@ void LeaderContenderProcess::joined()
 }
 
 
-LeaderContender::LeaderContender(Group* group, const string& data)
+LeaderContender::LeaderContender(
+    Group* group,
+    const string& data,
+    const Option<string>& label)
 {
-  process = new LeaderContenderProcess(group, data);
+  process = new LeaderContenderProcess(group, data, label);
   spawn(process);
 }
 

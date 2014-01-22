@@ -29,6 +29,8 @@
 #include <stout/gtest.hpp>
 #include <stout/strings.hpp>
 
+#include "master/constants.hpp"
+
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/contender.hpp"
 #include "zookeeper/detector.hpp"
@@ -274,7 +276,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
   Group group(server->connectString(), timeout, "/test/");
 
   Owned<LeaderContender> contender(
-      new LeaderContender(&group, "candidate 1"));
+      new LeaderContender(&group, "candidate 1", master::MASTER_INFO_LABEL));
 
   // Calling withdraw before contending returns 'false' because there
   // is nothing to withdraw.
@@ -292,7 +294,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
 
   // Normal workflow.
   contender = Owned<LeaderContender>(
-      new LeaderContender(&group, "candidate 1"));
+      new LeaderContender(&group, "candidate 1", master::MASTER_INFO_LABEL));
 
   Future<Future<Nothing> > candidated = contender->contend();
   AWAIT_READY(candidated);
@@ -320,7 +322,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
 
   // Contend again.
   contender = Owned<LeaderContender>(
-      new LeaderContender(&group, "candidate 1"));
+      new LeaderContender(&group, "candidate 1", master::MASTER_INFO_LABEL));
   candidated = contender->contend();
 
   AWAIT_READY(connected);
@@ -344,7 +346,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
 
   // Contend (3) and shutdown the network this time.
   contender = Owned<LeaderContender>(
-      new LeaderContender(&group, "candidate 1"));
+      new LeaderContender(&group, "candidate 1", master::MASTER_INFO_LABEL));
   candidated = contender->contend();
   AWAIT_READY(candidated);
   lostCandidacy = candidated.get();
@@ -369,7 +371,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
 
   // Contend again (4).
   contender = Owned<LeaderContender>(
-      new LeaderContender(&group, "candidate 1"));
+      new LeaderContender(&group, "candidate 1", master::MASTER_INFO_LABEL));
   candidated = contender->contend();
   AWAIT_READY(candidated);
 }

@@ -6,6 +6,7 @@
 #include <process/future.hpp>
 
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 
 #include "zookeeper/group.hpp"
 
@@ -25,8 +26,11 @@ class LeaderContender
 public:
   // The specified 'group' is expected to outlive the contender. The
   // specified 'data' is associated with the group membership created
-  // by this contender.
-  LeaderContender(Group* group, const std::string& data);
+  // by this contender. 'label' indicates the label for the znode that
+  // stores the 'data'.
+  LeaderContender(Group* group,
+                  const std::string& data,
+                  const Option<std::string>& label);
 
   // Note that the contender's membership, if obtained, is scheduled
   // to be cancelled during destruction.

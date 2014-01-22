@@ -80,6 +80,19 @@ using testing::AtMost;
 using testing::Return;
 
 
+// Helper function that creates a MasterInfo from PID<Master>.
+static MasterInfo createMasterInfo(const PID<Master>& master)
+{
+  MasterInfo masterInfo;
+  masterInfo.set_id(UUID::random().toString());
+  masterInfo.set_ip(master.ip);
+  masterInfo.set_port(master.port);
+  masterInfo.set_pid(master);
+
+  return masterInfo;
+}
+
+
 class MasterContenderDetectorTest : public MesosTest {};
 
 
@@ -133,7 +146,7 @@ TEST(BasicMasterContenderDetectorTest, Contender)
 
   MasterContender* contender = new StandaloneMasterContender();
 
-  contender->initialize(master);
+  contender->initialize(createMasterInfo(master));
 
   Future<Future<Nothing> > contended = contender->contend();
   AWAIT_READY(contended);
@@ -190,7 +203,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
   master.ip = 10000000;
   master.port = 10000;
 
-  contender->initialize(master);
+  contender->initialize(createMasterInfo(master));
   Future<Future<Nothing> > contended = contender->contend();
   AWAIT_READY(contended);
 
@@ -228,7 +241,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderPendingElection)
   master.ip = 10000000;
   master.port = 10000;
 
-  contender.initialize(master);
+  contender.initialize(createMasterInfo(master));
 
   // Drop Group::join so that 'contended' will stay pending.
   Future<Nothing> join = DROP_DISPATCH(_, &GroupProcess::join);
@@ -281,7 +294,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
   master1.ip = 10000000;
   master1.port = 10000;
 
-  contender1->initialize(master1);
+  contender1->initialize(createMasterInfo(master1));
 
   Future<Future<Nothing> > contended1 = contender1->contend();
   AWAIT_READY(contended1);
@@ -298,7 +311,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
   master2.ip = 10000001;
   master2.port = 10001;
 
-  contender2.initialize(master2);
+  contender2.initialize(createMasterInfo(master2));
 
   Future<Future<Nothing> > contended2 = contender2.contend();
   AWAIT_READY(contended2);
@@ -343,7 +356,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, NonRetryableFrrors)
       "/mesos",
       zookeeper::Authentication("digest", "member:wrongpass")));
   ZooKeeperMasterContender contender(group2);
-  contender.initialize(master);
+  contender.initialize(createMasterInfo(master));
 
   // Fails due to authentication error.
   AWAIT_FAILED(contender.contend());
@@ -399,7 +412,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
   master.ip = 10000000;
   master.port = 10000;
 
-  contender.initialize(master);
+  contender.initialize(createMasterInfo(master));
 
   Future<Future<Nothing> > contended = contender.contend();
   AWAIT_READY(contended);
@@ -474,7 +487,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   leader.ip = 10000000;
   leader.port = 10000;
 
-  leaderContender.initialize(leader);
+  leaderContender.initialize(createMasterInfo(leader));
 
   Future<Future<Nothing> > contended = leaderContender.contend();
   AWAIT_READY(contended);
@@ -494,7 +507,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   follower.ip = 10000001;
   follower.port = 10001;
 
-  followerContender.initialize(follower);
+  followerContender.initialize(createMasterInfo(follower));
 
   contended = followerContender.contend();
   AWAIT_READY(contended);
@@ -586,7 +599,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 
   ZooKeeperMasterContender leaderContender(group);
 
-  leaderContender.initialize(leader);
+  leaderContender.initialize(createMasterInfo(leader));
 
   Future<Future<Nothing> > leaderContended = leaderContender.contend();
   AWAIT_READY(leaderContended);
@@ -610,7 +623,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 
   ZooKeeperMasterDetector followerDetector(url.get());
   ZooKeeperMasterContender followerContender(url.get());
-  followerContender.initialize(follower);
+  followerContender.initialize(createMasterInfo(follower));
 
   Future<Future<Nothing> > followerContended = followerContender.contend();
   AWAIT_READY(followerContended);
@@ -655,7 +668,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorExpireSlaveZKSession)
   master.port = 10000;
 
   ZooKeeperMasterContender masterContender(url.get());
-  masterContender.initialize(master);
+  masterContender.initialize(createMasterInfo(master));
 
   Future<Future<Nothing> > leaderContended = masterContender.contend();
   AWAIT_READY(leaderContended);
@@ -714,7 +727,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   leader.ip = 10000000;
   leader.port = 10000;
 
-  leaderContender.initialize(leader);
+  leaderContender.initialize(createMasterInfo(leader));
 
   Future<Future<Nothing> > contended = leaderContender.contend();
   AWAIT_READY(contended);
@@ -733,7 +746,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   follower.ip = 10000001;
   follower.port = 10001;
 
-  followerContender.initialize(follower);
+  followerContender.initialize(createMasterInfo(follower));
 
   contended = followerContender.contend();
   AWAIT_READY(contended);
