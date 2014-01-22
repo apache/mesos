@@ -74,6 +74,11 @@ public:
       return sequence;
     }
 
+    Option<std::string> label() const
+    {
+      return label_;
+    }
+
     // Returns a future that is only satisfied once this membership
     // has been cancelled. In which case, the value of the future is
     // true if you own this membership and cancelled it by invoking
@@ -91,10 +96,10 @@ public:
     Membership(int32_t _sequence,
                const Option<std::string>& _label,
                const process::Future<bool>& cancelled)
-      : sequence(_sequence), label(_label), cancelled_(cancelled) {}
+      : sequence(_sequence), label_(_label), cancelled_(cancelled) {}
 
     const int32_t sequence;
-    const Option<std::string> label;
+    const Option<std::string> label_;
     process::Future<bool> cancelled_;
   };
 

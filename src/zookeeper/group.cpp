@@ -898,8 +898,8 @@ string GroupProcess::zkBasename(const Group::Membership& membership)
   Try<string> sequence = strings::format("%.*d", 10, membership.sequence);
   CHECK_SOME(sequence);
 
-  return membership.label.isSome()
-      ? (membership.label.get() + "_" + sequence.get())
+  return membership.label_.isSome()
+      ? (membership.label_.get() + "_" + sequence.get())
       : sequence.get();
 }
 

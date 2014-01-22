@@ -29,7 +29,10 @@
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 
+#include "master/constants.hpp"
 #include "master/detector.hpp"
+
+#include "messages/messages.hpp"
 
 #include "zookeeper/detector.hpp"
 #include "zookeeper/group.hpp"
@@ -45,7 +48,6 @@ namespace mesos {
 namespace internal {
 
 const Duration MASTER_DETECTOR_ZK_SESSION_TIMEOUT = Seconds(10);
-
 
 class StandaloneMasterDetectorProcess
   : public Process<StandaloneMasterDetectorProcess>
@@ -81,7 +83,7 @@ private:
   void detected(const Future<Option<Group::Membership> >& leader);
 
   // Invoked when we have fetched the data associated with the leader.
-  void fetched(const Future<string>& data);
+  void fetched(const Group::Membership& membership, const Future<string>& data);
 
   Owned<Group> group;
   LeaderDetector detector;
@@ -294,7 +296,7 @@ void ZooKeeperMasterDetectorProcess::detected(
   } else {
     // Fetch the data associated with the leader.
     group->data(_leader.get().get())
-      .onAny(defer(self(), &Self::fetched, lambda::_1));
+      .onAny(defer(self(), &Self::fetched, _leader.get().get(), lambda::_1));
   }
 
   // Keep trying to detect leadership changes.
@@ -303,7 +305,9 @@ void ZooKeeperMasterDetectorProcess::detected(
 }
 
 
-void ZooKeeperMasterDetectorProcess::fetched(const Future<string>& data)
+void ZooKeeperMasterDetectorProcess::fetched(
+    const Group::Membership& membership,
+    const Future<string>& data)
 {
   CHECK(!data.isDiscarded());
 
@@ -317,8 +321,33 @@ void ZooKeeperMasterDetectorProcess::fetched(const Future<string>& data)
     return;
   }
 
-  // Cache the master for subsequent requests.
-  leader = UPID(data.get());
+  // Parse the data based on the membership label and cache the
+  // leader for subsequent requests.
+  Option<string> label = membership.label();
+  if (label.isNone()) {
+    leader = UPID(data.get());
+  } else if (label.isSome() && label.get() == master::MASTER_INFO_LABEL) {
+    MasterInfo info;
+    if (!info.ParseFromString(data.get())) {
+      leader = None();
+      foreach (Promise<Option<UPID> >* promise, promises) {
+        promise->fail("Failed to parse data into MasterInfo");
+        delete promise;
+      }
+      promises.clear();
+      return;
+    }
+    leader = UPID(info.pid());
+  } else {
+    leader = None();
+    foreach (Promise<Option<UPID> >* promise, promises) {
+      promise->fail("Failed to parse data of unknown label " + label.get());
+      delete promise;
+    }
+    promises.clear();
+    return;
+  }
+
   LOG(INFO) << "A new leading master (UPID=" << leader.get() << ") is detected";
 
   foreach (Promise<Option<UPID> >* promise, promises) {

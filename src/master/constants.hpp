@@ -21,6 +21,8 @@
 
 #include <stdint.h>
 
+#include <string>
+
 #include <stout/duration.hpp>
 
 namespace mesos {
@@ -64,6 +66,9 @@ extern const Duration WHITELIST_WATCH_INTERVAL;
 
 // Default number of tasks (limit) for /master/tasks.json endpoint
 extern const uint32_t TASK_LIMIT;
+
+// Label used by the Leader Contender and Detector.
+extern const std::string MASTER_INFO_LABEL;
 
 } // namespace mesos {
 } // namespace internal {
