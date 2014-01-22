@@ -14,14 +14,13 @@
 using namespace process;
 
 
-// Overload for testing time series equality.
-bool operator == (const List<double>& list, const TimeSeries<double>& series)
+List<double> toList(const TimeSeries<double>& series)
 {
   List<double> result;
   foreach (const TimeSeries<double>::Value& value, series.get()) {
     result.push_back(value.data);
   }
-  return list == result;
+  return result;
 }
 
 
@@ -46,7 +45,7 @@ TEST(Statistics, set)
   EXPECT_GE(Clock::now(), values.get().get().begin()->time);
   EXPECT_DOUBLE_EQ(3.0, values.get().get().begin()->data);
 
-  EXPECT_EQ(List<double>(3.0, 4.0), values.get());
+  EXPECT_EQ(List<double>(3.0, 4.0), toList(values.get()));
 }
 
 
@@ -58,17 +57,17 @@ TEST(Statistics, increment)
   statistics.increment("test", "statistic");
   values = statistics.timeseries("test", "statistic");
   AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(1.0), values.get());
+  EXPECT_EQ(List<double>(1.0), toList(values.get()));
 
   statistics.increment("test", "statistic");
   values = statistics.timeseries("test", "statistic");
   AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(1.0, 2.0), values.get());
+  EXPECT_EQ(List<double>(1.0, 2.0), toList(values.get()));
 
   statistics.increment("test", "statistic");
   values = statistics.timeseries("test", "statistic");
   AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(1.0, 2.0, 3.0), values.get());
+  EXPECT_EQ(List<double>(1.0, 2.0, 3.0), toList(values.get()));
 }
 
 
@@ -80,15 +79,15 @@ TEST(Statistics, decrement)
   statistics.decrement("test", "statistic");
   values = statistics.timeseries("test", "statistic");
   AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(-1.0), values.get());
+  EXPECT_EQ(List<double>(-1.0), toList(values.get()));
 
   statistics.decrement("test", "statistic");
   values = statistics.timeseries("test", "statistic");
   AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(-1.0, -2.0), values.get());
+  EXPECT_EQ(List<double>(-1.0, -2.0), toList(values.get()));
 
   statistics.decrement("test", "statistic");
   values = statistics.timeseries("test", "statistic");
   AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(-1.0, -2.0, -3.0), values.get());
+  EXPECT_EQ(List<double>(-1.0, -2.0, -3.0), toList(values.get()));
 }
