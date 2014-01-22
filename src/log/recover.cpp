@@ -332,6 +332,10 @@ private:
     uint64_t begin = lowestBeginPosition.get();
     uint64_t end = highestEndPosition.get();
 
+    LOG(INFO) << "Starting catch-up from position "
+              << lowestBeginPosition.get() << " to "
+              << highestEndPosition.get();
+
     set<uint64_t> positions;
     for (uint64_t p = begin; p <= end; ++p) {
       positions.insert(p);
