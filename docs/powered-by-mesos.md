@@ -17,6 +17,7 @@ layout: documentation
 * [OpenTable](http://www.opentable.com)
 * [Pinkbike](http://www.pinkbike.com)
 * [Sharethrough](http://www.sharethrough.com)
+* [Shopify](http://www.shopify.com)
 * [Sigmoid Analytics](http://www.sigmoidanalytics.com/)
 * [Twitter](http://www.twitter.com)
 * [UCSF](http://www.ucsf.edu)
