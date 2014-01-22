@@ -13,6 +13,7 @@
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/result.hpp>
 #include <stout/some.hpp>
 #include <stout/strings.hpp>
@@ -127,12 +128,14 @@ void GroupProcess::initialize()
 }
 
 
-Future<Group::Membership> GroupProcess::join(const string& data)
+Future<Group::Membership> GroupProcess::join(
+    const string& data,
+    const Option<string>& label)
 {
   if (error.isSome()) {
     return Failure(error.get());
   } else if (state != READY) {
-    Join* join = new Join(data);
+    Join* join = new Join(data, label);
     pending.joins.push(join);
     return join->promise.future();
   }
@@ -145,14 +148,14 @@ Future<Group::Membership> GroupProcess::join(const string& data)
   // client can assume a happens-before ordering of operations (i.e.,
   // the first request will happen before the second, etc).
 
-  Result<Group::Membership> membership = doJoin(data);
+  Result<Group::Membership> membership = doJoin(data, label);
 
   if (membership.isNone()) { // Try again later.
     if (!retrying) {
       delay(RETRY_INTERVAL, self(), &GroupProcess::retry, RETRY_INTERVAL);
       retrying = true;
     }
-    Join* join = new Join(data);
+    Join* join = new Join(data, label);
     pending.joins.push(join);
     return join->promise.future();
   } else if (membership.isError()) {
@@ -526,7 +529,9 @@ void GroupProcess::deleted(const string& path)
 }
 
 
-Result<Group::Membership> GroupProcess::doJoin(const string& data)
+Result<Group::Membership> GroupProcess::doJoin(
+    const string& data,
+    const Option<string>& label)
 {
   CHECK_EQ(state, READY);
 
@@ -534,8 +539,12 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
   // the specified data as it's contents.
   string result;
 
-  int code = zk->create(znode + "/", data, acl,
-                        ZOO_SEQUENCE | ZOO_EPHEMERAL, &result);
+  int code = zk->create(
+      znode + "/" + (label.isSome() ? (label.get() + "_") : ""),
+      data,
+      acl,
+      ZOO_SEQUENCE | ZOO_EPHEMERAL,
+      &result);
 
   if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK_NE(zk->getState(), ZOO_AUTH_FAILED_STATE);
@@ -551,19 +560,24 @@ Result<Group::Membership> GroupProcess::doJoin(const string& data)
   memberships = None();
 
   // Save the sequence number but only grab the basename. Example:
-  // "/path/to/znode/0000000131" => "0000000131".
+  // "/path/to/znode/label_0000000131" => "0000000131".
   Try<string> basename = os::basename(result);
   if (basename.isError()) {
     return Error("Failed to get the sequence number: " + basename.error());
   }
 
-  Try<int32_t> sequence = numify<int32_t>(basename.get());
+  // Strip the label before grabbing the sequence number.
+  string node = label.isSome()
+      ? strings::remove(basename.get(), label.get() + "_")
+      : basename.get();
+
+  Try<int32_t> sequence = numify<int32_t>(node);
   CHECK_SOME(sequence);
 
   Promise<bool>* cancelled = new Promise<bool>();
   owned[sequence.get()] = cancelled;
 
-  return Group::Membership(sequence.get(), cancelled->future());
+  return Group::Membership(sequence.get(), label, cancelled->future());
 }
 
 
@@ -571,11 +585,7 @@ Result<bool> GroupProcess::doCancel(const Group::Membership& membership)
 {
   CHECK_EQ(state, READY);
 
-  Try<string> sequence = strings::format("%.*d", 10, membership.sequence);
-
-  CHECK_SOME(sequence);
-
-  string path = znode + "/" + sequence.get();
+  string path = path::join(znode, zkBasename(membership));
 
   LOG(INFO) << "Trying to remove '" << path << "' in ZooKeeper";
 
@@ -614,11 +624,7 @@ Result<string> GroupProcess::doData(const Group::Membership& membership)
 {
   CHECK_EQ(state, READY);
 
-  Try<string> sequence = strings::format("%.*d", 10, membership.sequence);
-
-  CHECK_SOME(sequence);
-
-  string path = znode + "/" + sequence.get();
+  string path = path::join(znode, zkBasename(membership));
 
   LOG(INFO) << "Trying to get '" << path << "' in ZooKeeper";
 
@@ -654,15 +660,21 @@ Try<bool> GroupProcess::cache()
     CHECK_NE(zk->getState(), ZOO_AUTH_FAILED_STATE);
     return false;
   } else if (code != ZOK) {
-    return Error("Non-retryable error attempting to get children of '" + znode +
-                 "' in ZooKeeper: " + zk->message(code));
+    return Error("Non-retryable error attempting to get children of '" + znode
+                 + "' in ZooKeeper: " + zk->message(code));
   }
 
-  // Convert results to sequence numbers.
-  set<int32_t> sequences;
+  // Convert results to sequence numbers and (optionally) labels.
+  hashmap<int32_t, Option<string> > sequences;
 
   foreach (const string& result, results) {
-    Try<int32_t> sequence = numify<int32_t>(result);
+    vector<string> tokens = strings::tokenize(result, "_");
+    Option<string> label = None();
+    if (tokens.size() > 1) {
+      label = tokens[0];
+    }
+
+    Try<int32_t> sequence = numify<int32_t>(tokens.back());
 
     // Skip it if it couldn't be converted to a number.
     if (sequence.isError()) {
@@ -671,39 +683,43 @@ Try<bool> GroupProcess::cache()
       continue;
     }
 
-    sequences.insert(sequence.get());
+    sequences[sequence.get()] = label;
   }
 
   // Cache current memberships, cancelling those that are now missing.
   set<Group::Membership> current;
 
   foreachpair (int32_t sequence, Promise<bool>* cancelled, utils::copy(owned)) {
-    if (sequences.count(sequence) == 0) {
+    if (!sequences.contains(sequence)) {
       cancelled->set(false);
       owned.erase(sequence); // Okay since iterating over a copy.
       delete cancelled;
     } else {
-      current.insert(Group::Membership(sequence, cancelled->future()));
+      current.insert(Group::Membership(
+          sequence, sequences[sequence], cancelled->future()));
+
       sequences.erase(sequence);
     }
   }
 
   foreachpair (int32_t sequence, Promise<bool>* cancelled, utils::copy(unowned)) {
-    if (sequences.count(sequence) == 0) {
+    if (!sequences.contains(sequence)) {
       cancelled->set(false);
       unowned.erase(sequence); // Okay since iterating over a copy.
       delete cancelled;
     } else {
-      current.insert(Group::Membership(sequence, cancelled->future()));
+      current.insert(Group::Membership(
+          sequence, sequences[sequence], cancelled->future()));
+
       sequences.erase(sequence);
     }
   }
 
   // Add any remaining (i.e., unexpected) sequences.
-  foreach (int32_t sequence, sequences) {
+  foreachpair (int32_t sequence, const Option<string>& label, sequences) {
     Promise<bool>* cancelled = new Promise<bool>();
     unowned[sequence] = cancelled;
-    current.insert(Group::Membership(sequence, cancelled->future()));
+    current.insert(Group::Membership(sequence, label, cancelled->future()));
   }
 
   memberships = current;
@@ -759,7 +775,7 @@ Try<bool> GroupProcess::sync()
   // Do joins.
   while (!pending.joins.empty()) {
     Join* join = pending.joins.front();
-    Result<Group::Membership> membership = doJoin(join->data);
+    Result<Group::Membership> membership = doJoin(join->data, join->label);
     if (membership.isNone()) {
       return false; // Try again later.
     } else if (membership.isError()) {
@@ -877,6 +893,17 @@ void GroupProcess::abort(const string& message)
 }
 
 
+string GroupProcess::zkBasename(const Group::Membership& membership)
+{
+  Try<string> sequence = strings::format("%.*d", 10, membership.sequence);
+  CHECK_SOME(sequence);
+
+  return membership.label.isSome()
+      ? (membership.label.get() + "_" + sequence.get())
+      : sequence.get();
+}
+
+
 Group::Group(const string& servers,
              const Duration& timeout,
              const string& znode,
@@ -903,9 +930,11 @@ Group::~Group()
 }
 
 
-Future<Group::Membership> Group::join(const string& data)
+Future<Group::Membership> Group::join(
+    const string& data,
+    const Option<string>& label)
 {
-  return dispatch(process, &GroupProcess::join, data);
+  return dispatch(process, &GroupProcess::join, data, label);
 }
 
 

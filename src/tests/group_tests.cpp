@@ -372,3 +372,37 @@ TEST_F(GroupTest, RetryableErrors)
   AWAIT_READY(cancellation);
   AWAIT_READY(connected);
 }
+
+
+TEST_F(GroupTest, LabelledGroup)
+{
+  Group group(server->connectString(), NO_TIMEOUT, "/test/");
+
+  // Join a group with label.
+  Future<Group::Membership> membership = group.join(
+      "hello world", std::string("testlabel"));
+
+  AWAIT_READY(membership);
+
+  Future<std::set<Group::Membership> > memberships = group.watch();
+
+  AWAIT_READY(memberships);
+  EXPECT_EQ(1u, memberships.get().size());
+  EXPECT_EQ(1u, memberships.get().count(membership.get()));
+
+  Future<std::string> data = group.data(membership.get());
+
+  AWAIT_EXPECT_EQ("hello world", data);
+
+  Future<bool> cancellation = group.cancel(membership.get());
+
+  AWAIT_EXPECT_EQ(true, cancellation);
+
+  memberships = group.watch(memberships.get());
+
+  AWAIT_READY(memberships);
+  EXPECT_EQ(0u, memberships.get().size());
+
+  ASSERT_TRUE(membership.get().cancelled().isReady());
+  ASSERT_TRUE(membership.get().cancelled().get());
+}
