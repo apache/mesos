@@ -35,6 +35,11 @@ class Flags : public logging::Flags
 public:
   Flags()
   {
+    add(&Flags::hostname,
+        "hostname",
+        "The hostname the master should advertise in ZooKeeper.\n"
+        "If left unset, system hostname will be used (recommended).");
+
     add(&Flags::root_submissions,
         "root_submissions",
         "Can root submit frameworks?",
@@ -115,6 +120,7 @@ public:
         "Path could be of the form 'file:///path/to/file' or '/path/to/file'");
   }
 
+  Option<std::string> hostname;
   bool root_submissions;
   std::string work_dir;
   std::string registry;

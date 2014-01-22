@@ -297,7 +297,25 @@ void Master::initialize()
   info.set_port(self().port);
   info.set_pid(self());
 
-  LOG(INFO) << "Master ID: " << info.id();
+  // Determine our hostname or use the hostname provided.
+  string hostname;
+
+  if (flags.hostname.isNone()) {
+    Try<string> result = os::hostname();
+
+    if (result.isError()) {
+      LOG(FATAL) << "Failed to get hostname: " << result.error();
+    }
+
+    hostname = result.get();
+  } else {
+    hostname = flags.hostname.get();
+  }
+
+  info.set_hostname(hostname);
+
+  LOG(INFO) << "Master ID: '" << info.id()
+            << "' Hostname: '" << info.hostname() << "'";
 
   if (flags.authenticate) {
     LOG(INFO) << "Master only allowing authenticated frameworks to register!";

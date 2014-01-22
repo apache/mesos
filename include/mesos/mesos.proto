@@ -161,6 +161,7 @@ message MasterInfo {
   required uint32 ip = 2;
   required uint32 port = 3 [default = 5050];
   optional string pid = 4;
+  optional string hostname = 5;
 }
 
 

@@ -409,6 +409,7 @@ Future<Response> Master::Http::state(const Request& request)
   object.values["start_time"] = master.startTime.secs();
   object.values["id"] = master.info.id();
   object.values["pid"] = string(master.self());
+  object.values["hostname"] = master.info.hostname();
   object.values["activated_slaves"] = master.slaves.size();
   object.values["deactivated_slaves"] = master.deactivatedSlaves.size();
   object.values["staged_tasks"] = master.stats.tasks[TASK_STAGING];

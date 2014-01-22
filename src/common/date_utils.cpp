@@ -30,7 +30,7 @@ bool DateUtils::useMockDate = false;
 string DateUtils::mockDate = "";
 
 
-// Get the current date in the format used for Mesos IDs (YYYYMMDDhhmm).
+// Get the current date in the format used for Mesos IDs (YYYYMMDDhhmmss).
 string DateUtils::currentDate()
 {
   if (useMockDate) {
@@ -41,7 +41,7 @@ string DateUtils::currentDate()
     time(&rawtime);
     timeinfo = localtime(&rawtime);
     char date[32];
-    strftime(date, sizeof(date), "%Y%m%d%H%M", timeinfo);
+    strftime(date, sizeof(date), "%Y-%m-%d-%H:%M:%S", timeinfo);
     return date;
   }
 }
