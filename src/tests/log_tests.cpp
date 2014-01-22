@@ -323,6 +323,49 @@ TEST_F(ReplicaTest, Restore)
 }
 
 
+// This test verifies that a non-VOTING replica does not reply to
+// promise or write requests.
+TEST_F(ReplicaTest, NonVoting)
+{
+  const string path = os::getcwd() + "/.log";
+
+  Replica replica(path);
+
+  PromiseRequest promiseRequest;
+  promiseRequest.set_proposal(2);
+
+  Future<PromiseResponse> promiseResponse =
+    protocol::promise(replica.pid(), promiseRequest);
+
+  // Flush the event queue to make sure that if the replica could
+  // reply to the promise request, the future 'promiseResponse' would
+  // be satisfied before the pending check below.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  EXPECT_TRUE(promiseResponse.isPending());
+
+  WriteRequest writeRequest;
+  writeRequest.set_proposal(3);
+  writeRequest.set_position(1);
+  writeRequest.set_type(Action::APPEND);
+  writeRequest.mutable_append()->set_bytes("hello world");
+
+  Future<WriteResponse> writeResponse =
+    protocol::write(replica.pid(), writeRequest);
+
+  // Flush the event queue to make sure that if the replica could
+  // reply to the write request, the future 'writeResponse' would be
+  // satisfied before the pending check below.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  EXPECT_TRUE(writeResponse.isPending());
+}
+
+
 class CoordinatorTest : public TemporaryDirectoryTest
 {
 protected:
