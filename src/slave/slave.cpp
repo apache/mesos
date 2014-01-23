@@ -550,15 +550,6 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
         // Create the slave meta directory.
         paths::createSlaveDirectory(metaDir, slaveId);
 
-        // Checkpoint boot ID.
-        Try<string> bootId = os::bootId();
-        if (bootId.isError()) {
-          LOG(ERROR) << "Could not retrieve boot id: " << bootId.error();
-        } else {
-          const string& path = paths::getBootIdPath(metaDir, slaveId);
-          CHECK_SOME(state::checkpoint(path, bootId.get()));
-        }
-
         // Checkpoint slave info.
         const string& path = paths::getSlaveInfoPath(metaDir, slaveId);
 
@@ -2629,12 +2620,7 @@ void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
 Future<Nothing> Slave::recover(const Result<SlaveState>& _state)
 {
   if (_state.isError()) {
-    EXIT(1)
-      << "Failed to recover slave state: " << _state.error() << "\n"
-      << "To remedy this try the following:\n"
-      << (flags.strict
-          ? "Restart the slave with '--no-strict' flag (partial recovery)"
-          : "rm '" + paths::getLatestSlavePath(metaDir) + "' (no recovery)");
+    return Failure(_state.error());
   }
 
   // Convert Result<SlaveState> to Option<SlaveState> for convenience.
@@ -2651,17 +2637,14 @@ Future<Nothing> Slave::recover(const Result<SlaveState>& _state)
     // the recovered info.
     info.mutable_id()->CopyFrom(state.get().id);
     if (flags.recover == "reconnect" && !(info == state.get().info.get())) {
-      EXIT(1)
-        << "Incompatible slave info detected.\n"
-        << "------------------------------------------------------------\n"
-        << "Old slave info:\n" << state.get().info.get() << "\n"
-        << "------------------------------------------------------------\n"
-        << "New slave info:\n" << info << "\n"
-        << "------------------------------------------------------------\n"
-        << "To properly upgrade the slave do as follows:\n"
-        << "Step 1: Start the slave with --recover=cleanup.\n"
-        << "Step 2: Wait till the slave kills all executors and shuts down.\n"
-        << "Step 3: Start the upgraded slave with --recover=reconnect.\n";
+      return Failure(strings::join(
+          "\n",
+          "Incompatible slave info detected.",
+          "------------------------------------------------------------",
+          "Old slave info:\n" + stringify(state.get().info.get()),
+          "------------------------------------------------------------",
+          "New slave info:\n" + stringify(info),
+          "------------------------------------------------------------"));
     }
 
     info = state.get().info.get(); // Recover the slave info.
@@ -2770,6 +2753,15 @@ void Slave::__recover(const Future<Nothing>& future)
 
   CHECK_EQ(RECOVERING, state);
   state = DISCONNECTED;
+
+  // Checkpoint boot ID.
+  Try<string> bootId = os::bootId();
+  if (bootId.isError()) {
+    LOG(ERROR) << "Could not retrieve boot id: " << bootId.error();
+  } else {
+    const string& path = paths::getBootIdPath(metaDir);
+    CHECK_SOME(state::checkpoint(path, bootId.get()));
+  }
 
   // Schedule all old slave directories for garbage collection.
   // TODO(vinod): Do this as part of recovery. This needs a fix

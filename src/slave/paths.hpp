@@ -62,7 +62,7 @@ const std::string LATEST_SLAVE_PATH =
 const std::string SLAVE_PATH =
   path::join(ROOT_PATH, "slaves", "%s");
 const std::string BOOT_ID_PATH =
-  path::join(SLAVE_PATH, BOOT_ID_FILE);
+  path::join(ROOT_PATH, BOOT_ID_FILE);
 const std::string SLAVE_INFO_PATH =
   path::join(SLAVE_PATH, SLAVE_INFO_FILE);
 const std::string FRAMEWORK_PATH =
@@ -113,11 +113,9 @@ inline std::string getLatestSlavePath(const std::string& rootDir)
 }
 
 
-inline std::string getBootIdPath(
-    const std::string& rootDir,
-    const SlaveID& slaveId)
+inline std::string getBootIdPath(const std::string& rootDir)
 {
-  return strings::format(BOOT_ID_PATH, rootDir, slaveId).get();
+  return strings::format(BOOT_ID_PATH, rootDir).get();
 }
 
 

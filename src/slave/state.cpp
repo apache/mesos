@@ -39,6 +39,20 @@ Result<SlaveState> recover(const string& rootDir, bool strict)
     return None();
   }
 
+  // Did the machine reboot?
+  if (os::exists(paths::getBootIdPath(rootDir))) {
+    Try<string> read = os::read(paths::getBootIdPath(rootDir));
+    if (read.isSome()) {
+      Try<string> id = os::bootId();
+      CHECK_SOME(id);
+
+      if (id.get() != strings::trim(read.get())) {
+        LOG(INFO) << "Slave host rebooted";
+        return None();
+      }
+    }
+  }
+
   const std::string& latest = paths::getLatestSlavePath(rootDir);
 
   // Check if the "latest" symlink to a slave directory exists.
@@ -60,19 +74,6 @@ Result<SlaveState> recover(const string& rootDir, bool strict)
 
   SlaveID slaveId;
   slaveId.set_value(os::basename(directory.get()).get());
-
-  // Did the machine reboot?
-  if (os::exists(paths::getBootIdPath(rootDir, slaveId))) {
-    Try<string> read = os::read(paths::getBootIdPath(rootDir, slaveId));
-    if (read.isSome()) {
-      Try<string> id = os::bootId();
-      CHECK_SOME(id);
-
-      if (id.get() != strings::trim(read.get())) {
-        return None(); // Machine rebooted!
-      }
-    }
-  }
 
   Try<SlaveState> state = SlaveState::recover(rootDir, slaveId, strict);
   if (state.isError()) {
