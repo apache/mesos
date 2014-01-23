@@ -5,6 +5,17 @@ layout: documentation
 # Upgrading Mesos
 This document serves as a guide for users who wish to upgrade an existing mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
+## Upgrading from 0.15.0 to 0.16.0.
+
+In order to upgrade a running cluster:
+
+* Install the new master binaries and restart the masters.
+* Upgrade the schedulers by linking the latest native library and mesos jar (if necessary).
+* Restart the schedulers.
+* Install the new slave binaries and restart the slaves.
+* Upgrade the executors by linking the latest native library and mesos jar (if necessary).
+
+
 ## Upgrading from 0.14.0 to 0.15.0.
 
 In order to upgrade a running cluster:
