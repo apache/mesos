@@ -18,6 +18,10 @@
 
 #include <gtest/gtest.h>
 
+#include <sys/wait.h>
+
+#include <string.h>
+
 #include <list>
 #include <string>
 
@@ -235,6 +239,14 @@ void Environment::TearDown()
     }
   }
   directories.clear();
+
+  // Make sure we haven't left any child processes lying around.
+  Try<os::ProcessTree> pstree = os::pstree(0);
+
+  if (pstree.isSome() && !pstree.get().children.empty()) {
+    FAIL() << "Tests completed with child processes remaining:\n"
+           << pstree.get();
+  }
 }
 
 

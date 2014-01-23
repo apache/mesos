@@ -178,7 +178,6 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/http.cpp							\
 	slave/isolator.cpp						\
 	slave/process_isolator.cpp					\
-	slave/reaper.cpp						\
 	slave/status_update_manager.cpp					\
 	launcher/launcher.cpp						\
 	exec/exec.cpp							\
@@ -239,7 +238,6 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	slave/paths.hpp slave/state.hpp					\
 	slave/status_update_manager.hpp					\
 	slave/process_isolator.hpp					\
-        slave/reaper.hpp						\
 	slave/slave.hpp							\
 	tests/environment.hpp tests/script.hpp				\
 	tests/zookeeper.hpp tests/flags.hpp tests/utils.hpp		\
@@ -857,7 +855,6 @@ mesos_tests_SOURCES =				\
   tests/monitor_tests.cpp			\
   tests/paths_tests.cpp				\
   tests/protobuf_io_tests.cpp			\
-  tests/reaper_tests.cpp			\
   tests/registrar_tests.cpp			\
   tests/resource_offers_tests.cpp		\
   tests/resources_tests.cpp			\

@@ -32,6 +32,7 @@
 #include <process/clock.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/reap.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/check.hpp>
@@ -569,7 +570,7 @@ void CgroupsIsolator::launchExecutor(
     // Store the pid of the leading process of the executor.
     info->pid = pid;
 
-    reaper.monitor(pid)
+    process::reap(pid)
       .onAny(defer(PID<CgroupsIsolator>(this),
                    &CgroupsIsolator::reaped,
                    pid,
@@ -901,7 +902,7 @@ Future<Nothing> CgroupsIsolator::recover(
 
         // Add the pid to the reaper to monitor exit status.
         if (run.forkedPid.isSome()) {
-          reaper.monitor(run.forkedPid.get())
+          process::reap(run.forkedPid.get())
             .onAny(defer(PID<CgroupsIsolator>(this),
                          &CgroupsIsolator::reaped,
                          run.forkedPid.get(),

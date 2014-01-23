@@ -52,7 +52,6 @@
 #endif
 #include "slave/paths.hpp"
 #include "slave/process_isolator.hpp"
-#include "slave/reaper.hpp"
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
 

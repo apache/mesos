@@ -41,7 +41,6 @@
 
 #include "slave/flags.hpp"
 #include "slave/isolator.hpp"
-#include "slave/reaper.hpp"
 #include "slave/slave.hpp"
 
 namespace mesos {
@@ -290,7 +289,6 @@ private:
   bool local;
   process::PID<Slave> slave;
   bool initialized;
-  Reaper reaper;
 
   // File descriptor to 'mesos/tasks' file in the cgroup on which we place
   // an advisory lock.

@@ -29,6 +29,7 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
+#include <process/reap.hpp>
 
 #include <stout/check.hpp>
 #include <stout/exit.hpp>
@@ -165,7 +166,7 @@ void ProcessIsolator::launchExecutor(
     // Record the pid (should also be the pgid since we setsid below).
     infos[frameworkId][executorId]->pid = pid;
 
-    reaper.monitor(pid)
+    process::reap(pid)
       .onAny(defer(PID<ProcessIsolator>(this),
                    &ProcessIsolator::reaped,
                    pid,
@@ -358,7 +359,7 @@ Future<Nothing> ProcessIsolator::recover(
 
       // Add the pid to the reaper to monitor exit status.
       if (run.forkedPid.isSome()) {
-        reaper.monitor(run.forkedPid.get())
+        process::reap(run.forkedPid.get())
           .onAny(defer(PID<ProcessIsolator>(this),
                        &ProcessIsolator::reaped,
                        run.forkedPid.get(),

@@ -30,6 +30,7 @@
 #include <process/defer.hpp>
 #include <process/future.hpp>
 #include <process/process.hpp>
+#include <process/reap.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/lambda.hpp>
@@ -39,8 +40,6 @@
 #include "common/type_utils.hpp"
 
 #include "logging/logging.hpp"
-
-#include "slave/reaper.hpp"
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -186,7 +185,7 @@ public:
     std::cout << "Forked command at " << pid << std::endl;
 
     // Monitor this process.
-    reaper.monitor(pid)
+    process::reap(pid)
       .onAny(defer(self(),
                    &Self::reaped,
                    driver,
@@ -294,7 +293,6 @@ private:
   bool launched;
   bool killed;
   pid_t pid;
-  slave::Reaper reaper;
 };
 
 

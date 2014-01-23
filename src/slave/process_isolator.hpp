@@ -34,7 +34,6 @@
 
 #include "slave/flags.hpp"
 #include "slave/isolator.hpp"
-#include "slave/reaper.hpp"
 #include "slave/slave.hpp"
 
 namespace mesos {
@@ -106,7 +105,6 @@ private:
   bool local;
   process::PID<Slave> slave;
   bool initialized;
-  Reaper reaper;
   hashmap<FrameworkID, hashmap<ExecutorID, ProcessInfo*> > infos;
 
   void reaped(pid_t pid, const Future<Option<int> >& status);
