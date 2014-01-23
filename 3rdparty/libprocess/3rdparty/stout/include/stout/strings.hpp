@@ -181,10 +181,34 @@ inline std::string join(const std::string& separator,
 inline std::string join(const std::string& separator,
                         const std::string& s1,
                         const std::string& s2,
-                        const std::string& s4,
-                        const std::string& s3)
+                        const std::string& s3,
+                        const std::string& s4)
 {
   return s1 + separator + s2 + separator + s3 + separator + s4;
+}
+
+
+inline std::string join(const std::string& separator,
+                        const std::string& s1,
+                        const std::string& s2,
+                        const std::string& s3,
+                        const std::string& s4,
+                        const std::string& s5)
+{
+  return s1 + separator + s2 + separator + s3 + separator + s4 + separator + s5;
+}
+
+
+inline std::string join(const std::string& separator,
+                        const std::string& s1,
+                        const std::string& s2,
+                        const std::string& s3,
+                        const std::string& s4,
+                        const std::string& s5,
+                        const std::string& s6)
+{
+  return s1 + separator + s2 + separator + s3 + separator + s4 + separator +
+         s5 + separator + s6;
 }
 
 
