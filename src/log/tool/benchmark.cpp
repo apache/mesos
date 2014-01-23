@@ -24,6 +24,7 @@
 #include <sstream>
 
 #include <process/clock.hpp>
+#include <process/future.hpp>
 #include <process/process.hpp>
 #include <process/time.hpp>
 
@@ -182,7 +183,18 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
       flags.znode.get());
 
   // Create the log writer.
-  Log::Writer writer(&log, Seconds(15), 20);
+  Log::Writer writer(&log);
+
+  Future<Option<Log::Position> > position = writer.start();
+
+  if (!position.await(Seconds(15))) {
+    return Error("Failed to start a log writer: timed out");
+  } else if (!position.isReady()) {
+    return Error("Failed to start a log writer: " +
+                 (position.isFailed()
+                  ? position.failure()
+                  : "Discarded future"));
+  }
 
   // Statistics to output.
   vector<Bytes> sizes;
@@ -227,13 +239,17 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
     Stopwatch stopwatch;
     stopwatch.start();
 
-    Result<Log::Position> position =
-      writer.append(data[i], Timeout::in(Seconds(10)));
+    position = writer.append(data[i]);
 
-    if (position.isError()) {
-      return Error("Failed to append: " + position.error());
-    } else if (position.isNone()) {
-      return Error("Timed out while appending");
+    if (position.await(Seconds(10))) {
+      return Error("Failed to append: timed out");
+    } else if (!position.isReady()) {
+      return Error("Failed to append: " +
+                   (position.isFailed()
+                    ? position.failure()
+                    : "Discarded future"));
+    } else if (position.get().isNone()) {
+      return Error("Failed to append: exclusive write promise lost");
     }
 
     durations.push_back(stopwatch.elapsed());

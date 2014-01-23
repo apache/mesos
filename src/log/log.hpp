@@ -154,11 +154,19 @@ public:
   {
   public:
     // Creates a new writer associated with the specified log. Only
-    // one writer (local and remote) is valid at a time. A writer
-    // becomes invalid if any operation returns an error, and a new
-    // writer must be created in order perform subsequent operations.
-    Writer(Log* log, const Duration& timeout, int retries = 3);
+    // one writer (local or remote) can be valid at any point in
+    // time. A writer becomes invalid if either Writer::append or
+    // Writer::truncate return None, in which case, the writer (or
+    // another writer) must be restarted.
+    Writer(Log* log);
     ~Writer();
+
+    // Attempts to get a promise (from the log's replicas) for
+    // exclusive writes, i.e., no other writer's will be able to
+    // perform append and truncate operations. Returns the ending
+    // position of the log or none if the promise to exclusively write
+    // could not be attained but may be retried.
+    process::Future<Option<Position> > start();
 
     // Attempts to append the specified data to the log. Returns the
     // new ending position of the log or 'none' if this writer has

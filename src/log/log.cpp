@@ -153,7 +153,7 @@ class LogWriterProcess : public Process<LogWriterProcess>
 public:
   LogWriterProcess(Log* log);
 
-  Future<Option<Log::Position> > elect();
+  Future<Option<Log::Position> > start();
   Future<Log::Position> append(const string& bytes);
   Future<Log::Position> truncate(const Log::Position& to);
 
@@ -169,13 +169,13 @@ private:
   // Continuations.
   void _recover();
 
-  Future<Option<Log::Position> > _elect();
-  Option<Log::Position> __elect(const Option<uint64_t>& position);
+  Future<Option<Log::Position> > _start();
+  Option<Log::Position> __start(const Option<uint64_t>& position);
 
   static Future<Log::Position> _append(const Option<uint64_t>& position);
   static Future<Log::Position> _truncate(const Option<uint64_t>& position);
 
-  void failed(const string& message);
+  void failed(const string& message, const string& reason);
 
   const size_t quorum;
   const Shared<Network> network;
@@ -616,16 +616,17 @@ void LogWriterProcess::_recover()
 }
 
 
-Future<Option<Log::Position> > LogWriterProcess::elect()
+Future<Option<Log::Position> > LogWriterProcess::start()
 {
-  return recover().then(defer(self(), &Self::_elect));
+  return recover().then(defer(self(), &Self::_start));
 }
 
 
-Future<Option<Log::Position> > LogWriterProcess::_elect()
+Future<Option<Log::Position> > LogWriterProcess::_start()
 {
   // We delete the existing coordinator (if exists) and create a new
-  // coordinator each time 'elect' is called.
+  // coordinator each time 'start' is called.
+  // TODO(benh): We shouldn't need to delete the coordinator everytime.
   delete coordinator;
   error = None();
 
@@ -633,18 +634,23 @@ Future<Option<Log::Position> > LogWriterProcess::_elect()
 
   coordinator = new Coordinator(quorum, recovering.get(), network);
 
+  LOG(INFO) << "Attempting to start the writer";
+
   return coordinator->elect()
-    .then(defer(self(), &Self::__elect, lambda::_1))
-    .onFailed(defer(self(), &Self::failed, lambda::_1));
+    .then(defer(self(), &Self::__start, lambda::_1))
+    .onFailed(defer(self(), &Self::failed, "Failed to start", lambda::_1));
 }
 
 
-Option<Log::Position> LogWriterProcess::__elect(
+Option<Log::Position> LogWriterProcess::__start(
     const Option<uint64_t>& position)
 {
   if (position.isNone()) {
+    LOG(INFO) << "Could not start the writer, but can be retried";
     return None();
   }
+
+  LOG(INFO) << "Writer started with ending position " << position.get();
 
   return Log::Position(position.get());
 }
@@ -664,7 +670,7 @@ Future<Log::Position> LogWriterProcess::append(const string& bytes)
 
   return coordinator->append(bytes)
     .then(lambda::bind(&Self::_append, lambda::_1))
-    .onFailed(defer(self(), &Self::failed, lambda::_1));
+    .onFailed(defer(self(), &Self::failed, "Failed to append", lambda::_1));
 }
 
 
@@ -692,7 +698,7 @@ Future<Log::Position> LogWriterProcess::truncate(const Log::Position& to)
 
   return coordinator->truncate(to.value)
     .then(lambda::bind(&Self::_truncate, lambda::_1))
-    .onFailed(defer(self(), &Self::failed, lambda::_1));
+    .onFailed(defer(self(), &Self::failed, "Failed to truncate", lambda::_1));
 }
 
 
@@ -707,9 +713,9 @@ Future<Log::Position> LogWriterProcess::_truncate(
 }
 
 
-void LogWriterProcess::failed(const string& message)
+void LogWriterProcess::failed(const string& message, const string& reason)
 {
-  error = message;
+  error = message + ": " + reason;
 }
 
 
@@ -797,48 +803,10 @@ Future<Log::Position> Log::Reader::ending()
 /////////////////////////////////////////////////
 
 
-Log::Writer::Writer(Log* log, const Duration& timeout, int retries)
+Log::Writer::Writer(Log* log)
 {
   process = new LogWriterProcess(log);
   spawn(process);
-
-  // Trying to get elected.
-  for (;;) {
-    LOG(INFO) << "Attempting to get elected within " << timeout;
-
-    Future<Option<Log::Position> > future =
-      dispatch(process, &LogWriterProcess::elect);
-
-    if (!future.await(timeout)) {
-      LOG(INFO) << "Timed out while trying to get elected";
-
-      // Cancel the election. It is likely that the election is done
-      // right after the timeout has been reached. In that case, we
-      // may unnecessarily rerun the election, but it is safe.
-      future.discard();
-    } else {
-      if (!future.isReady()) {
-        string failure =
-          future.isFailed() ?
-          future.failure() :
-          "Not expecting discarded future";
-
-        LOG(ERROR) << "Failed to get elected: " << failure;
-        break;
-      } else if (future.get().isNone()) {
-        LOG(INFO) << "Lost an election, but can be retried";
-      } else {
-        LOG(INFO) << "Elected with current position "
-                  << future.get().get().value;
-        return;
-      }
-    }
-
-    if (--retries < 0) {
-      LOG(ERROR) << "Retry limit has been reached during election";
-      break;
-    }
-  }
 }
 
 
@@ -847,6 +815,12 @@ Log::Writer::~Writer()
   terminate(process);
   process::wait(process);
   delete process;
+}
+
+
+Future<Option<Log::Position> > Log::Writer::start()
+{
+  return dispatch(process, &LogWriterProcess::start);
 }
 
 

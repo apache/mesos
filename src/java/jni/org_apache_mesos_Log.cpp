@@ -428,12 +428,29 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_00024Writer_initialize
   int retries = jretries;
 
   // Create the C++ Log::Writer and initialize the __writer variable.
-  Log::Writer* writer = new Log::Writer(log, seconds, retries);
+  Log::Writer* writer = new Log::Writer(log);
 
   clazz = env->GetObjectClass(thiz);
 
   jfieldID __writer = env->GetFieldID(clazz, "__writer", "J");
   env->SetLongField(thiz, __writer, (jlong) writer);
+
+  // Try to start the writer.
+  while (retries-- > 0) {
+    Future<Option<Log::Position> > position = writer->start();
+
+    if (!position.await(seconds)) {
+      // Cancel the pending start. It is likely that we'll retry right
+      // away but that is safe.
+      position.discard();
+    } else if (position.isReady() && position.get().isSome()) {
+      // Started!
+      break;
+    }
+
+    // Either starting failed or was discarded, either way, retry!
+    // TODO(benh): Do we really want to retry on a failure?
+  }
 }
 
 

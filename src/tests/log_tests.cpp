@@ -1703,7 +1703,12 @@ TEST_F(LogTest, WriteRead)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log, Seconds(10));
+  Log::Writer writer(&log);
+
+  Future<Option<Log::Position> > start = writer.start();
+
+  AWAIT_READY(start);
+  ASSERT_SOME(start.get());
 
   Future<Log::Position> position = writer.append("hello world");
 
@@ -1739,7 +1744,12 @@ TEST_F(LogTest, Position)
 
   Log log(2, path2, pids);
 
-  Log::Writer writer(&log, Seconds(10));
+  Log::Writer writer(&log);
+
+  Future<Option<Log::Position> > start = writer.start();
+
+  AWAIT_READY(start);
+  ASSERT_SOME(start.get());
 
   Future<Log::Position> position = writer.append("hello world");
 
@@ -1811,7 +1821,12 @@ TEST_F(LogZooKeeperTest, WriteRead)
   Log log1(2, path1, servers, NO_TIMEOUT, "/log/", None());
   Log log2(2, path2, servers, NO_TIMEOUT, "/log/", None());
 
-  Log::Writer writer(&log2, Seconds(10));
+  Log::Writer writer(&log2);
+
+  Future<Option<Log::Position> > start = writer.start();
+
+  AWAIT_READY(start);
+  ASSERT_SOME(start.get());
 
   Future<Log::Position> position = writer.append("hello world");
 
