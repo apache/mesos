@@ -1406,7 +1406,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
 
   // Modify the boot ID to simulate a reboot.
   ASSERT_SOME(os::write(
-      paths::getBootIdPath(paths::getMetaRootDir(flags.work_dir), slaveId),
+      paths::getBootIdPath(paths::getMetaRootDir(flags.work_dir)),
       "rebooted! ;)"));
 
   Future<RegisterSlaveMessage> registerSlave =
