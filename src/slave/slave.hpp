@@ -206,6 +206,10 @@ public:
   // exited.
   void shutdownExecutor(Framework* framework, Executor* executor);
 
+  // Invoked whenever the detector detects a change in masters.
+  // Made public for testing purposes.
+  void detected(const Future<Option<UPID> >& pid);
+
   enum State {
     RECOVERING,   // Slave is doing recovery.
     DISCONNECTED, // Slave is not connected to the master.
@@ -221,9 +225,6 @@ protected:
   void fileAttached(const Future<Nothing>& result, const std::string& path);
 
   Nothing detachFile(const std::string& path);
-
-  // Invoked whenever the detector detects a change in masters.
-  void detected(const Future<Option<UPID> >& pid);
 
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
