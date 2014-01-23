@@ -1,3 +1,65 @@
+Release Notes - Mesos - Version 0.16.0
+--------------------------------------
+* The primary feature of this release is major refactoring work on the
+  master election and detection process to improve its reliability and
+  flexibility.
+
+** Sub-task
+    * [MESOS-645] - Improve the performance of Future.
+
+** Bug
+    * [MESOS-403] - CoordinatorTest.TruncateLearnedFill test is flaky
+    * [MESOS-455] - ZooKeeperTest.MasterDetectorShutdownNetwork runs forever
+    * [MESOS-463] - Detector ZNode creation failure.
+    * [MESOS-465] - Failures due to ZooKeeper operation timeouts in the master detector.
+    * [MESOS-498] - ZooKeeperTest.MasterDetectorTimedoutSession is flaky
+    * [MESOS-536] - GarbageCollectorTest.Unschedule is flaky
+    * [MESOS-592] - Don't dump a stack trace from bad --zk flag in the detector, use EXIT(1) instead of LOG(FATAL).
+    * [MESOS-624] - Master improperly prints the exit status of the executor
+    * [MESOS-641] - Stout killtree / pstree tests fail on Ubuntu 10.04.
+    * [MESOS-778] - FaultToleranceTest.ReconcileIncompleteTasks test is flaky
+    * [MESOS-782] - Slaves in local cluster should get unique work directories
+    * [MESOS-795] - ZooKeeperTest.MasterDetectorTimedoutSession test is flaky
+    * [MESOS-800] - CHECK failure in cgroups_isolator.
+    * [MESOS-807] - Discard is not propagated in process::dispatch.
+    * [MESOS-811] - Group::cancel can return a failed future if the membership is already cancelled
+    * [MESOS-822] - AllocatorTest/0.SchedulerFailover is flaky
+    * [MESOS-823] - ZooKeeperMasterContenderDetectorTest.ContenderDetectorShutdownNetwork is flaky
+    * [MESOS-826] - Bad 'master' flag in slave should not print a stack trace
+    * [MESOS-828] - CgroupsIsolator BalloonFramework Test is broken.
+    * [MESOS-842] - ZooKeeperMasterContenderDetectorTest.ContenderDetectorShutdownNetwork runs forever
+    * [MESOS-844] - Slave should not recover checkpointed data immediately after reboot
+    * [MESOS-851] - Scheduler Driver does not guarantee that abort() prevents further calls on the Scheduler.
+    * [MESOS-858] - Ignore launch/kill requests in the slave originating from non-leading masters.
+    * [MESOS-859] - Cgroup kill should use cgroup.procs, not tasks
+    * [MESOS-866] - Pailer popup window is not scrollable in Chrome or Safari
+    * [MESOS-867] - ZK Membership IDs are 32 bit signed integers, not 64 bit unsigned integers.
+    * [MESOS-870] - Slave http endpoint can crash the slave when no master is detected.
+    * [MESOS-871] - GroupTest.RetryableErrors is flaky
+    * [MESOS-883] - Group's handling of non-retryable errors and local timeout is incorrect
+    * [MESOS-884] - Incorrect asynchronous detection and contention loops in Master
+    * [MESOS-889] - Bad 'master' string given by scheduler should not print a stack trace
+    * [MESOS-892] - Additional Issues with contender related change
+    * [MESOS-935] - Group should tell MasterDetector "no memberships detected" when it locally times out
+    * [MESOS-940] - Slave should checkpoint bootid after recovery instead of after registration
+
+** Improvement
+    * [MESOS-111] - Add SVN ignore and git ignore info to repository
+    * [MESOS-728] - Masters should seppuku using EXIT instead of abort() when leadership is lost.
+    * [MESOS-756] - Improve release tooling.
+    * [MESOS-760] - Capture memory usage statistics before OOM
+    * [MESOS-761] - Export all memory stats from memory.stat via CgroupsIsolator's usage()
+    * [MESOS-768] - Executor driver stop() should dispatch stop to executor process instead of terminating it
+    * [MESOS-802] - Web UI shows no errors when navigation to slave fails
+    * [MESOS-806] - Allowing converting from an Owned<T> to a Shared<T>.
+    * [MESOS-818] - Bump up the minimum number threads libprocess creates to accommodate new tests
+    * [MESOS-833] - The Status Update Manager should use a back-off mechanism for retried updates.
+    * [MESOS-835] - Reduce the minimum amount of CPUs required to make offers
+    * [MESOS-849] - As a developer I should be able to set the AUTOMAKE and ACLOCAL environment variables for autoconf to pickup when using the bootstrap script.
+    * [MESOS-881] - Tests are slow because the scheduler attempts to authenticate before the master realizes it is elected.
+    * [MESOS-900] - Paginate all tables in the web UI
+
+
 Release Notes - Mesos - Version 0.15.0
 --------------------------------------
 * The primary feature in this release is to add authentication support
