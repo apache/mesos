@@ -1710,19 +1710,20 @@ TEST_F(LogTest, WriteRead)
   AWAIT_READY(start);
   ASSERT_SOME(start.get());
 
-  Future<Log::Position> position = writer.append("hello world");
+  Future<Option<Log::Position> > position = writer.append("hello world");
 
   AWAIT_READY(position);
+  ASSERT_SOME(position.get());
 
   Log::Reader reader(&log);
 
   Future<list<Log::Entry> > entries =
-    reader.read(position.get(), position.get());
+    reader.read(position.get().get(), position.get().get());
 
   AWAIT_READY(entries);
 
   ASSERT_EQ(1u, entries.get().size());
-  EXPECT_EQ(position.get(), entries.get().front().position);
+  EXPECT_EQ(position.get().get(), entries.get().front().position);
   EXPECT_EQ("hello world", entries.get().front().data);
 }
 
@@ -1751,11 +1752,14 @@ TEST_F(LogTest, Position)
   AWAIT_READY(start);
   ASSERT_SOME(start.get());
 
-  Future<Log::Position> position = writer.append("hello world");
+  Future<Option<Log::Position> > position = writer.append("hello world");
 
   AWAIT_READY(position);
+  ASSERT_SOME(position.get());
 
-  ASSERT_EQ(position.get(), log.position(position.get().identity()));
+  ASSERT_EQ(
+      position.get().get(),
+      log.position(position.get().get().identity()));
 }
 
 
@@ -1828,19 +1832,20 @@ TEST_F(LogZooKeeperTest, WriteRead)
   AWAIT_READY(start);
   ASSERT_SOME(start.get());
 
-  Future<Log::Position> position = writer.append("hello world");
+  Future<Option<Log::Position> > position = writer.append("hello world");
 
   AWAIT_READY(position);
+  ASSERT_SOME(position.get());
 
   Log::Reader reader(&log2);
 
   Future<list<Log::Entry> > entries =
-    reader.read(position.get(), position.get());
+    reader.read(position.get().get(), position.get().get());
 
   AWAIT_READY(entries);
 
   ASSERT_EQ(1u, entries.get().size());
-  EXPECT_EQ(position.get(), entries.get().front().position);
+  EXPECT_EQ(position.get().get(), entries.get().front().position);
   EXPECT_EQ("hello world", entries.get().front().data);
 }
 #endif // MESOS_HAS_JAVA

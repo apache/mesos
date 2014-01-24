@@ -154,14 +154,18 @@ public:
   LogWriterProcess(Log* log);
 
   Future<Option<Log::Position> > start();
-  Future<Log::Position> append(const string& bytes);
-  Future<Log::Position> truncate(const Log::Position& to);
+  Future<Option<Log::Position> > append(const string& bytes);
+  Future<Option<Log::Position> > truncate(const Log::Position& to);
 
 protected:
   virtual void initialize();
   virtual void finalize();
 
 private:
+  // Helper for converting an optional position returned from the
+  // coordinator into a Log::Position.
+  static Option<Log::Position> position(const Option<uint64_t>& position);
+
   // Returns a future which gets set when the log recovery has
   // finished (either succeeded or failed).
   Future<Nothing> recover();
@@ -171,9 +175,6 @@ private:
 
   Future<Option<Log::Position> > _start();
   Option<Log::Position> __start(const Option<uint64_t>& position);
-
-  static Future<Log::Position> _append(const Option<uint64_t>& position);
-  static Future<Log::Position> _truncate(const Option<uint64_t>& position);
 
   void failed(const string& message, const string& reason);
 
@@ -656,7 +657,7 @@ Option<Log::Position> LogWriterProcess::__start(
 }
 
 
-Future<Log::Position> LogWriterProcess::append(const string& bytes)
+Future<Option<Log::Position> > LogWriterProcess::append(const string& bytes)
 {
   LOG(INFO) << "Attempting to append " << bytes.size() << " bytes to the log";
 
@@ -669,22 +670,13 @@ Future<Log::Position> LogWriterProcess::append(const string& bytes)
   }
 
   return coordinator->append(bytes)
-    .then(lambda::bind(&Self::_append, lambda::_1))
+    .then(lambda::bind(&Self::position, lambda::_1))
     .onFailed(defer(self(), &Self::failed, "Failed to append", lambda::_1));
 }
 
 
-Future<Log::Position> LogWriterProcess::_append(
-    const Option<uint64_t>& position)
-{
-  if (position.isNone()) {
-    return Failure("Lost exclusive write access while appending");
-  }
-
-  return Log::Position(position.get());
-}
-
-Future<Log::Position> LogWriterProcess::truncate(const Log::Position& to)
+Future<Option<Log::Position> > LogWriterProcess::truncate(
+    const Log::Position& to)
 {
   LOG(INFO) << "Attempting to truncate the log to " << to.value;
 
@@ -697,16 +689,16 @@ Future<Log::Position> LogWriterProcess::truncate(const Log::Position& to)
   }
 
   return coordinator->truncate(to.value)
-    .then(lambda::bind(&Self::_truncate, lambda::_1))
+    .then(lambda::bind(&Self::position, lambda::_1))
     .onFailed(defer(self(), &Self::failed, "Failed to truncate", lambda::_1));
 }
 
 
-Future<Log::Position> LogWriterProcess::_truncate(
+Option<Log::Position> LogWriterProcess::position(
     const Option<uint64_t>& position)
 {
   if (position.isNone()) {
-    return Failure("Lost exclusive write access while truncating");
+    return None();
   }
 
   return Log::Position(position.get());
@@ -824,13 +816,13 @@ Future<Option<Log::Position> > Log::Writer::start()
 }
 
 
-Future<Log::Position> Log::Writer::append(const string& data)
+Future<Option<Log::Position> > Log::Writer::append(const string& data)
 {
   return dispatch(process, &LogWriterProcess::append, data);
 }
 
 
-Future<Log::Position> Log::Writer::truncate(const Log::Position& to)
+Future<Option<Log::Position> > Log::Writer::truncate(const Log::Position& to)
 {
   return dispatch(process, &LogWriterProcess::truncate, to);
 }

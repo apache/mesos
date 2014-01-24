@@ -230,7 +230,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_ending
   Future<Log::Position> position = reader->ending();
 
   // TODO(benh): Don't wait forever for 'position'!
-  return convert(env, position.get());
+  return convert<Log::Position>(env, position.get());
 }
 
 
@@ -308,7 +308,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Future<Log::Position> position = writer->append(data);
+  Future<Option<Log::Position> > position = writer->append(data);
 
   if (!position.await(Seconds(jseconds))) {
     // Timed out while trying to append the log.
@@ -327,11 +327,19 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
          ? position.failure().c_str()
          : "Discarded future"));
     return NULL;
+  } else if (position.get().isNone()) {
+    // Lost exclusive write promise.
+    env->ReleaseByteArrayElements(jdata, temp, 0);
+    clazz = env->FindClass("org/apache/mesos/Log$WriterFailedException");
+    env->ThrowNew(
+        clazz,
+        "Exclusive write promise lost");
+    return NULL;
   }
 
   env->ReleaseByteArrayElements(jdata, temp, 0);
 
-  jobject jposition = convert(env, position.get());
+  jobject jposition = convert<Log::Position>(env, position.get().get());
 
   return jposition;
 }
@@ -366,7 +374,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Future<Log::Position> position = writer->truncate(to);
+  Future<Option<Log::Position> > position = writer->truncate(to);
 
   if (!position.await(Seconds(jseconds))) {
     // Timed out while trying to truncate the log.
@@ -383,9 +391,16 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
          ? position.failure().c_str()
          : "Discarded future"));
     return NULL;
+  } else if (position.get().isNone()) {
+    // Lost exclusive write promise.
+    clazz = env->FindClass("org/apache/mesos/Log$WriterFailedException");
+    env->ThrowNew(
+        clazz,
+        "Exclusive write promise lost");
+    return NULL;
   }
 
-  jobject jposition = convert(env, position.get());
+  jobject jposition = convert<Log::Position>(env, position.get().get());
 
   return jposition;
 }
