@@ -93,6 +93,7 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/shared.hpp			\
   $(top_srcdir)/include/process/socket.hpp			\
   $(top_srcdir)/include/process/statistics.hpp			\
+  $(top_srcdir)/include/process/subprocess.hpp			\
   $(top_srcdir)/include/process/time.hpp			\
   $(top_srcdir)/include/process/timeout.hpp			\
   $(top_srcdir)/include/process/timer.hpp
@@ -111,6 +112,7 @@ tests_SOURCES =							\
   src/tests/reap_tests.cpp					\
   src/tests/shared_tests.cpp					\
   src/tests/statistics_tests.cpp				\
+  src/tests/subprocess_tests.cpp				\
   src/tests/timeseries_tests.cpp				\
   src/tests/time_tests.cpp
 
