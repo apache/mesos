@@ -73,7 +73,7 @@ popd # build
 
 echo "${GREEN}Creating ${TAG} tag at HEAD...${NORMAL}"
 
-git tag ${TAG}
+git tag ${TAG} || echo "Tag ${TAG} already exists"
 
 echo "${GREEN}Pushing the git tag to the repository...${NORMAL}"
 
