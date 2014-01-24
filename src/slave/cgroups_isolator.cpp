@@ -703,6 +703,13 @@ void CgroupsIsolator::resourcesChanged(
     return;
   }
 
+  if (info->resources == resources) {
+    // This could happen when 'resourcesChanged()' is called after
+    // launching the first task since the executor includes the
+    // resources for the first task.
+    return;
+  }
+
   info->resources = resources;
 
   LOG(INFO) << "Changing cgroup controls for executor " << executorId

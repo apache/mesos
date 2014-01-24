@@ -448,7 +448,9 @@ struct Framework
 
   ~Framework();
 
-  Executor* launchExecutor(const ExecutorInfo& executorInfo);
+  Executor* launchExecutor(
+      const ExecutorInfo& executorInfo,
+      const TaskInfo& taskInfo);
   void destroyExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const TaskID& taskId);

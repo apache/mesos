@@ -913,7 +913,7 @@ void Slave::_runTask(
   Executor* executor = framework->getExecutor(executorId);
 
   if (executor == NULL) {
-    executor = framework->launchExecutor(executorInfo);
+    executor = framework->launchExecutor(executorInfo, task);
   }
 
   CHECK_NOTNULL(executor);
@@ -2907,7 +2907,9 @@ Framework::~Framework()
 
 
 // Create and launch an executor.
-Executor* Framework::launchExecutor(const ExecutorInfo& executorInfo)
+Executor* Framework::launchExecutor(
+    const ExecutorInfo& executorInfo,
+    const TaskInfo& taskInfo)
 {
   // We create a UUID for the new executor. The UUID uniquely
   // identifies this new instance of the executor across executors
@@ -2939,6 +2941,10 @@ Executor* Framework::launchExecutor(const ExecutorInfo& executorInfo)
                  executor->directory));
 
   // Tell the isolator to launch the executor.
+  // NOTE: We include the task's resources when launching the
+  // executor so that the isolator has non-zero resources to
+  // work with when the executor has no resources. This should
+  // be revisited after MESOS-600.
   dispatch(slave->isolator,
            &Isolator::launchExecutor,
            slave->info.id(),
@@ -2947,7 +2953,7 @@ Executor* Framework::launchExecutor(const ExecutorInfo& executorInfo)
            executor->info,
            executor->uuid,
            executor->directory,
-           executor->resources);
+           executor->resources + taskInfo.resources());
 
   // Make sure the executor registers within the given timeout.
   delay(slave->flags.executor_registration_timeout,
