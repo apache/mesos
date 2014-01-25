@@ -39,6 +39,7 @@
 #include <stout/path.hpp>
 #include <stout/try.hpp>
 
+#include "log/catchup.hpp"
 #include "log/coordinator.hpp"
 #include "log/log.hpp"
 #include "log/network.hpp"
@@ -1328,6 +1329,88 @@ TEST_F(RecoverTest, RacingCatchup)
     ASSERT_EQ(Action::APPEND, actions.get().front().type());
     EXPECT_EQ("hello hello", actions.get().front().append().bytes());
   }
+}
+
+
+TEST_F(RecoverTest, CatchupRetry)
+{
+  const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
+  const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
+
+  const string path3 = os::getcwd() + "/.log3";
+
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
+
+  // Make sure replica2 does not receive learned messages.
+  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, Eq(replica2->pid()));
+
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
+
+  Shared<Network> network1(new Network(pids));
+
+  Coordinator coord(2, replica1, network1);
+
+  {
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
+  }
+
+  set<uint64_t> positions;
+
+  for (uint64_t position = 1; position <= 10; position++) {
+    Future<uint64_t> appending = coord.append(stringify(position));
+    AWAIT_READY_FOR(appending, Seconds(10));
+    EXPECT_EQ(position, appending.get());
+    positions.insert(position);
+  }
+
+  Shared<Replica> replica3(new Replica(path3));
+
+  pids.insert(replica3->pid());
+
+  Shared<Network> network2(new Network(pids));
+
+  // Drop a promise request to replica1 so that the catch-up process
+  // won't be able to get a quorum of explicit promises. Also, since
+  // learned messages are blocked from being sent replica2, the
+  // catch-up process has to wait for a quorum of explicit promises.
+  // If we don't allow retry, the catch-up process will get stuck at
+  // promise phase even if replica1 reemerges later.
+  DROP_MESSAGE(Eq(PromiseRequest().GetTypeName()), _, Eq(replica1->pid()));
+
+  Future<Nothing> catching =
+    catchup(2, replica3, network2, None(), positions, Seconds(10));
+
+  Clock::pause();
+
+  // Wait for the retry timer in 'catchup' to be setup.
+  Clock::settle();
+
+  // Wait for the proposal number to be bumped.
+  Clock::advance(Seconds(1));
+  Clock::settle();
+
+  // Wait for 'catchup' to retry.
+  Clock::advance(Seconds(10));
+  Clock::settle();
+
+  // Wait for another proposal number bump.
+  Clock::advance(Seconds(1));
+  Clock::settle();
+
+  Clock::resume();
+
+  AWAIT_READY(catching);
 }
 
 
