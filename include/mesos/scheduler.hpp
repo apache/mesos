@@ -242,11 +242,17 @@ public:
    * not used by the tasks or their executors) will be considered
    * declined. The specified filters are applied on all unused
    * resources (see mesos.proto for a description of Filters).
+   * Available resources are aggregated when mutiple offers are
+   * provided. Note that all offers must belong to the same slave.
    * Invoking this function with an empty collection of tasks declines
-   * this offer in its entirety (see Scheduler::declineOffer). Note
-   * that currently tasks can only be launched per offer. In the
-   * future, frameworks will be allowed to aggregate offers
-   * (resources) to launch their tasks.
+   * offers in their entirety (see Scheduler::declineOffer).
+   */
+  virtual Status launchTasks(const std::vector<OfferID>& offerIds,
+                             const std::vector<TaskInfo>& tasks,
+                             const Filters& filters = Filters()) = 0;
+
+  /**
+   * DEPRECATED: Use launchTasks(offerIds, tasks, filters) instead.
    */
   virtual Status launchTasks(const OfferID& offerId,
                              const std::vector<TaskInfo>& tasks,
@@ -371,7 +377,16 @@ public:
   virtual Status join();
   virtual Status run();
   virtual Status requestResources(const std::vector<Request>& requests);
+
+  /**
+   * TODO(nnielsen): launchTasks using single offer is deprecated.
+   * Use launchTasks with offer list instead.
+   */
   virtual Status launchTasks(const OfferID& offerId,
+                             const std::vector<TaskInfo>& tasks,
+                             const Filters& filters = Filters());
+
+  virtual Status launchTasks(const std::vector<OfferID>& offerIds,
                              const std::vector<TaskInfo>& tasks,
                              const Filters& filters = Filters());
   virtual Status killTask(const TaskID& taskId);

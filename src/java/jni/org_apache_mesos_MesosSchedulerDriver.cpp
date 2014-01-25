@@ -706,10 +706,10 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_killTask
 /*
  * Class:     org_apache_mesos_MesosSchedulerDriver
  * Method:    launchTasks
- * Signature: (Lorg/apache/mesos/Protos/OfferID;Ljava/util/Collection;Lorg/apache/mesos/Protos/Filters;)Lorg/apache/mesos/Protos/Status;
+ * Signature: (Lorg/apache/mesos/Protos$OfferID;Ljava/util/Collection;Lorg/apache/mesos/Protos$Filters;)Lorg/apache/mesos/Protos/Status;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_launchTasks
-  (JNIEnv* env, jobject thiz, jobject jofferId, jobject jtasks, jobject jfilters)
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_launchTasks__Lorg_apache_mesos_Protos_00024OfferID_2Ljava_util_Collection_2Lorg_apache_mesos_Protos_00024Filters_2
+  (JNIEnv *env, jobject thiz, jobject jofferId, jobject jtasks, jobject jfilters)
 {
   // Construct a C++ OfferID from the Java OfferID.
   const OfferID& offerId = construct<OfferID>(env, jofferId);
@@ -748,7 +748,79 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_launchTasks
   MesosSchedulerDriver* driver =
     (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
 
-  Status status = driver->launchTasks(offerId, tasks, filters);
+  vector<OfferID> offerIds;
+  offerIds.push_back(offerId);
+
+  Status status = driver->launchTasks(offerIds, tasks, filters);
+
+  return convert<Status>(env, status);
+}
+
+
+/*
+ * Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    launchTasks
+ * Signature: (Ljava/util/Collection;Ljava/util/Collection;Lorg/apache/mesos/Protos$Filters;)Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_launchTasks__Ljava_util_Collection_2Ljava_util_Collection_2Lorg_apache_mesos_Protos_00024Filters_2
+  (JNIEnv* env, jobject thiz, jobject jofferIds, jobject jtasks, jobject jfilters)
+{
+  // Construct a C++ OfferID from each Java OfferID.
+  vector<OfferID> offers;
+  jclass clazz = env->GetObjectClass(jofferIds);
+
+  // Iterator iterator = tasks.iterator();
+  jmethodID iterator =
+    env->GetMethodID(clazz, "iterator", "()Ljava/util/Iterator;");
+  jobject jiterator = env->CallObjectMethod(jofferIds, iterator);
+
+  clazz = env->GetObjectClass(jiterator);
+
+  // while (iterator.hasNext()) {
+  jmethodID hasNext = env->GetMethodID(clazz, "hasNext", "()Z");
+
+  jmethodID next = env->GetMethodID(clazz, "next", "()Ljava/lang/Object;");
+
+  while (env->CallBooleanMethod(jiterator, hasNext)) {
+    // Object task = iterator.next();
+    jobject jofferId = env->CallObjectMethod(jiterator, next);
+    const OfferID& offerId = construct<OfferID>(env, jofferId);
+    offers.push_back(offerId);
+  }
+
+  // Construct a C++ TaskInfo from each Java TaskInfo.
+  vector<TaskInfo> tasks;
+  clazz = env->GetObjectClass(jtasks);
+
+  // Iterator iterator = tasks.iterator();
+  iterator = env->GetMethodID(clazz, "iterator", "()Ljava/util/Iterator;");
+  jiterator = env->CallObjectMethod(jtasks, iterator);
+
+  clazz = env->GetObjectClass(jiterator);
+
+  // while (iterator.hasNext()) {
+  hasNext = env->GetMethodID(clazz, "hasNext", "()Z");
+
+  next = env->GetMethodID(clazz, "next", "()Ljava/lang/Object;");
+
+  while (env->CallBooleanMethod(jiterator, hasNext)) {
+    // Object task = iterator.next();
+    jobject jtask = env->CallObjectMethod(jiterator, next);
+    const TaskInfo& task = construct<TaskInfo>(env, jtask);
+    tasks.push_back(task);
+  }
+
+  // Construct a C++ Filters from the Java Filters.
+  const Filters& filters = construct<Filters>(env, jfilters);
+
+  // Now invoke the underlying driver.
+  clazz = env->GetObjectClass(thiz);
+
+  jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
+  MesosSchedulerDriver* driver =
+    (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
+
+  Status status = driver->launchTasks(offers, tasks, filters);
 
   return convert<Status>(env, status);
 }

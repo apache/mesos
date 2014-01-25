@@ -387,20 +387,41 @@ PyObject* MesosSchedulerDriverImpl_launchTasks(MesosSchedulerDriverImpl* self,
     return NULL;
   }
 
-  PyObject* offerIdObj = NULL;
+  PyObject* offerIdsObj = NULL;
   PyObject* tasksObj = NULL;
   PyObject* filtersObj = NULL;
-  OfferID offerId;
+  vector<OfferID> offerIds;
   vector<TaskInfo> tasks;
   Filters filters;
 
-  if (!PyArg_ParseTuple(args, "OO|O", &offerIdObj, &tasksObj, &filtersObj)) {
+  if (!PyArg_ParseTuple(args, "OO|O", &offerIdsObj, &tasksObj, &filtersObj)) {
     return NULL;
   }
 
-  if (!readPythonProtobuf(offerIdObj, &offerId)) {
-    PyErr_Format(PyExc_Exception, "Could not deserialize Python OfferID");
-    return NULL;
+  // Offer argument can be a list of offer ids or a single offer id (for
+  // backward compatibility).
+  if (!PyList_Check(offerIdsObj)) {
+    OfferID offerId;
+    if (!readPythonProtobuf(offerIdsObj, &offerId)) {
+      PyErr_Format(PyExc_Exception, "Could not deserialize Python OfferID");
+      return NULL;
+    }
+    offerIds.push_back(offerId);
+  } else {
+    Py_ssize_t len = PyList_Size(offerIdsObj);
+    for (int i = 0; i < len; i++) {
+      PyObject* offerObj = PyList_GetItem(offerIdsObj, i);
+      if (offerObj == NULL) {
+        return NULL;
+      }
+      OfferID offerId;
+      if (!readPythonProtobuf(offerObj, &offerId)) {
+        PyErr_Format(PyExc_Exception,
+                     "Could not deserialize Python OfferID");
+        return NULL;
+      }
+      offerIds.push_back(offerId);
+    }
   }
 
   if (!PyList_Check(tasksObj)) {
@@ -430,7 +451,7 @@ PyObject* MesosSchedulerDriverImpl_launchTasks(MesosSchedulerDriverImpl* self,
     }
   }
 
-  Status status = self->driver->launchTasks(offerId, tasks, filters);
+  Status status = self->driver->launchTasks(offerIds, tasks, filters);
   return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 

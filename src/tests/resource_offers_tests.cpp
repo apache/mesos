@@ -199,7 +199,7 @@ TEST_F(ResourceOffersTest, TaskUsesInvalidResources)
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
   EXPECT_TRUE(status.get().has_message());
-  EXPECT_EQ("Task uses invalid resources", status.get().message());
+  EXPECT_EQ("Task uses invalid resources: cpus(*):0", status.get().message());
 
   driver.stop();
   driver.join();
@@ -422,7 +422,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
   EXPECT_TRUE(status.get().has_message());
-  EXPECT_EQ("Task uses invalid resources", status.get().message());
+  EXPECT_EQ("Task uses invalid resources: cpus(*):0", status.get().message());
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(

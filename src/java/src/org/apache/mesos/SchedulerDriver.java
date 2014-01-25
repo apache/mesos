@@ -86,22 +86,38 @@ public interface SchedulerDriver {
   Status requestResources(Collection<Request> requests);
 
   /**
-   * Launches the given set of tasks. Any resources remaining (i.e.,
-   * not used by the tasks or their executors) will be considered
-   * declined. The specified filters are applied on all unused
-   * resources (see mesos.proto for a description of Filters).
+   * Launches the given set of tasks on a set of offers. Resources
+   * from offers are aggregated when more then one is provided.
+   * Note that all offers must belong to same slave. Any resources
+   * remaining (i.e., not used by the tasks or their executors) will
+   * be considered declined. The specified filters are applied on all
+   * unused resources (see mesos.proto for a description of Filters).
    * Invoking this function with an empty collection of tasks declines
-   * this offer in its entirety (see {@link #declineOffer}. Note that
-   * currently tasks can only be launched per offer. In the future,
-   * frameworks will be allowed to aggregate offers (resources) to
-   * launch their tasks.
+   * offers in their entirety (see {@link #declineOffer}.
+   */
+  Status launchTasks(Collection<OfferID> offerIds,
+                     Collection<TaskInfo> tasks,
+                     Filters filters);
+
+  /**
+   * Launches the given set of tasks. See above for details.
+   */
+  Status launchTasks(Collection<OfferID> offerIds, Collection<TaskInfo> tasks);
+
+  /**
+   * @deprecated Use launchTasks(
+   *                     Collection<OfferID> offerId,
+   *                     Collection<TaskInfo> tasks,
+   *                     Filters filters) instead.
    */
   Status launchTasks(OfferID offerId,
                      Collection<TaskInfo> tasks,
                      Filters filters);
 
   /**
-   * Launches the given set of tasks. See above for details.
+   * @deprecated Use launchTasks(
+   *                     Collection<OfferID> offerId,
+   *                     Collection<TaskInfo> tasks) instead.
    */
   Status launchTasks(OfferID offerId, Collection<TaskInfo> tasks);
 

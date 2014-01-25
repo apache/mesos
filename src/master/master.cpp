@@ -452,7 +452,8 @@ void Master::initialize()
       &LaunchTasksMessage::framework_id,
       &LaunchTasksMessage::offer_id,
       &LaunchTasksMessage::tasks,
-      &LaunchTasksMessage::filters);
+      &LaunchTasksMessage::filters,
+      &LaunchTasksMessage::offer_ids);
 
   install<ReviveOffersMessage>(
       &Master::reviveOffers,
@@ -1088,18 +1089,336 @@ void Master::resourceRequest(
 }
 
 
+// We use the visitor pattern to abstract the process of performing
+// any validations, aggregations, etc. of tasks that a framework
+// attempts to run within the resources provided by offers. A
+// visitor can return an optional error (typedef'ed as an option of a
+// string) which will cause the master to send a failed status update
+// back to the framework for only that task description. An instance
+// will be reused for each task description from same 'launchTasks()',
+// but not for task descriptions from different offers.
+typedef Option<string> TaskInfoError;
+
+struct TaskInfoVisitor
+{
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
+      const Resources& resources,
+      const Framework& framework,
+      const Slave& slave) = 0;
+
+  virtual ~TaskInfoVisitor() {}
+};
+
+
+// Checks that the slave ID used by a task is correct.
+struct SlaveIDChecker : TaskInfoVisitor
+{
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
+      const Resources& resources,
+      const Framework& framework,
+      const Slave& slave)
+  {
+    if (!(task.slave_id() == slave.id)) {
+      return "Task uses invalid slave " + task.slave_id().value() +
+          " while slave " + slave.id.value() + " is expected";
+    }
+
+    return None();
+  }
+};
+
+
+// Checks that each task uses a unique ID. Regardless of whether a
+// task actually gets launched (for example, another checker may
+// return an error for a task), we always consider it an error when a
+// task tries to re-use an ID.
+struct UniqueTaskIDChecker : TaskInfoVisitor
+{
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
+      const Resources& resources,
+      const Framework& framework,
+      const Slave& slave)
+  {
+    const TaskID& taskId = task.task_id();
+
+    if (ids.contains(taskId) || framework.tasks.contains(taskId)) {
+      return "Task has duplicate ID: " + taskId.value();
+    }
+
+    ids.insert(taskId);
+
+    return None();
+  }
+
+  hashset<TaskID> ids;
+};
+
+
+// Checks that the used resources by a task (and executor if
+// necessary) on each slave does not exceed the total resources
+// offered on that slave
+struct ResourceUsageChecker : TaskInfoVisitor
+{
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
+      const Resources& resources,
+      const Framework& framework,
+      const Slave& slave)
+  {
+    if (task.resources().size() == 0) {
+      return stringify("Task uses no resources");
+    }
+
+    foreach (const Resource& resource, task.resources()) {
+      if (!Resources::isAllocatable(resource)) {
+        return "Task uses invalid resources: " + stringify(resource);
+      }
+    }
+
+    // Check if this task uses more resources than offered.
+    Resources taskResources = task.resources();
+
+    if (!((usedResources + taskResources) <= resources)) {
+      return "Task " + stringify(task.task_id()) + " attempted to use " +
+          stringify(taskResources) + " combined with already used " +
+          stringify(usedResources) + " is greater than offered " +
+          stringify(resources);
+    }
+
+    // Check this task's executor's resources.
+    if (task.has_executor()) {
+      // TODO(benh): Check that the executor uses some resources.
+
+      foreach (const Resource& resource, task.executor().resources()) {
+        if (!Resources::isAllocatable(resource)) {
+          // TODO(benh): Send back the invalid resources?
+          return "Executor for task " + stringify(task.task_id()) +
+              " uses invalid resources " + stringify(resource);
+        }
+      }
+
+      // Check if this task's executor is running, and if not check if
+      // the task + the executor use more resources than offered.
+      if (!executors.contains(task.executor().executor_id())) {
+        if (!slave.hasExecutor(framework.id, task.executor().executor_id())) {
+          taskResources += task.executor().resources();
+          if (!((usedResources + taskResources) <= resources)) {
+            return "Task " + stringify(task.task_id()) + " + executor attempted" +
+                " to use " + stringify(taskResources) + " combined with" +
+                " already used " + stringify(usedResources) + " is greater" +
+                " than offered " + stringify(resources);
+          }
+        }
+        executors.insert(task.executor().executor_id());
+      }
+    }
+
+    usedResources += taskResources;
+
+    return None();
+  }
+
+  Resources usedResources;
+  hashset<ExecutorID> executors;
+};
+
+
+// Checks that tasks that use the "same" executor (i.e., same
+// ExecutorID) have an identical ExecutorInfo.
+struct ExecutorInfoChecker : TaskInfoVisitor
+{
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
+      const Resources& resources,
+      const Framework& framework,
+      const Slave& slave)
+  {
+    if (task.has_executor() == task.has_command()) {
+      return stringify(
+          "Task should have at least one (but not both) of CommandInfo or"
+          " ExecutorInfo present");
+    }
+
+    if (task.has_executor()) {
+      if (slave.hasExecutor(framework.id, task.executor().executor_id())) {
+        const Option<ExecutorInfo> executorInfo =
+          slave.executors.get(framework.id).get().get(task.executor().executor_id());
+
+        if (!(task.executor() == executorInfo.get())) {
+          return "Task has invalid ExecutorInfo (existing ExecutorInfo"
+              " with same ExecutorID is not compatible).\n"
+              "------------------------------------------------------------\n"
+              "Existing ExecutorInfo:\n" +
+              stringify(executorInfo.get()) + "\n"
+              "------------------------------------------------------------\n"
+              "Task's ExecutorInfo:\n" +
+              stringify(task.executor()) + "\n"
+              "------------------------------------------------------------\n";
+        }
+      }
+    }
+
+    return None();
+  }
+};
+
+
+// Checks that a task that asks for checkpointing is not being
+// launched on a slave that has not enabled checkpointing.
+struct CheckpointChecker : TaskInfoVisitor
+{
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
+      const Resources& resources,
+      const Framework& framework,
+      const Slave& slave)
+  {
+    if (framework.info.checkpoint() && !slave.info.checkpoint()) {
+      return "Task asked to be checkpointed but slave " +
+          stringify(slave.id) + " has checkpointing disabled";
+    }
+    return None();
+  }
+};
+
+
+// OfferVisitors are similar to the TaskInfoVisitor pattern and
+// are used for validation and aggregation of offers.
+// The error reporting scheme is also similar to TaskInfoVisitor.
+// However, offer processing (and subsequent task processing) is
+// aborted altogether if offer visitor reports an error.
+typedef Option<string> OfferError;
+
+struct OfferVisitor
+{
+  virtual OfferError operator () (
+      const OfferID& offerId,
+      const Framework& framework,
+      Master* master) = 0;
+
+  virtual ~OfferVisitor() {}
+
+  Slave* getSlave(Master* master, const SlaveID& id) {
+    return master->getSlave(id);
+  }
+
+  Offer* getOffer(Master* master, const OfferID& id) {
+    return master->getOffer(id);
+  }
+};
+
+
+// Checks validity/liveness of an offer.
+struct ValidOfferChecker : OfferVisitor {
+  virtual OfferError operator () (
+      const OfferID& offerId,
+      const Framework& framework,
+      Master* master)
+  {
+    Offer* offer = getOffer(master, offerId);
+    if (offer == NULL) {
+      return "Offer " + stringify(offerId) + " is no longer valid";
+    }
+
+    return None();
+  }
+};
+
+
+// Checks that an offer belongs to the expected framework.
+struct FrameworkChecker : OfferVisitor {
+  virtual OfferError operator () (
+      const OfferID& offerId,
+      const Framework& framework,
+      Master* master)
+  {
+    Offer* offer = getOffer(master, offerId);
+    if (!(framework.id == offer->framework_id())) {
+      return "Offer " + stringify(offer->id()) +
+          " has invalid framework " + stringify(offer->framework_id()) +
+          " while framework " + stringify(framework.id) + " is expected";
+    }
+
+    return None();
+  }
+};
+
+
+// Checks that the slave is valid and ensures that all offers belong to
+// the same slave.
+struct SlaveChecker : OfferVisitor
+{
+  virtual OfferError operator () (
+      const OfferID& offerId,
+      const Framework& framework,
+      Master* master)
+  {
+    Offer* offer = getOffer(master, offerId);
+    Slave* slave = getSlave(master, offer->slave_id());
+    if (slave == NULL) {
+      return "Offer " + stringify(offerId) +
+          " outlived slave " + stringify(offer->slave_id());
+    }
+
+    CHECK(!slave->disconnected)
+      << "Offer " + stringify(offerId)
+      << " outlived disconnected slave " << stringify(slave->id);
+
+    if (slaveId.isNone()) {
+      // Set slave id and use as base case for validation.
+      slaveId = slave->id;
+    } else if (!(slave->id == slaveId.get())) {
+      return "Aggregated offers must belong to one single slave. Offer " +
+          stringify(offerId) + " uses slave " +
+          stringify(slave->id) + " and slave " +
+          stringify(slaveId.get());
+    }
+
+    return None();
+  }
+
+  Option<const SlaveID> slaveId;
+};
+
+
+// Checks that an offer only appears once in offer list.
+struct UniqueOfferIDChecker : OfferVisitor
+{
+  virtual OfferError operator () (
+      const OfferID& offerId,
+      const Framework& framework,
+      Master* master)
+  {
+    if (offers.contains(offerId)) {
+      return "Duplicate offer " + stringify(offerId) + " in offer list";
+    }
+    offers.insert(offerId);
+
+    return None();
+  }
+
+  hashset<OfferID> offers;
+};
+
+
 void Master::launchTasks(
     const UPID& from,
     const FrameworkID& frameworkId,
     const OfferID& offerId,
     const vector<TaskInfo>& tasks,
-    const Filters& filters)
+    const Filters& filters,
+    const vector<OfferID>& _offerIds)
 {
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
     LOG(WARNING)
-      << "Ignoring launch tasks message for offer " << offerId
+      << "Ignoring launch tasks message for offer "
+      << stringify(_offerIds.empty() ? stringify(offerId)
+                                     : stringify(_offerIds))
       << " of framework " << frameworkId
       << " because the framework cannot be found";
     return;
@@ -1107,57 +1426,196 @@ void Master::launchTasks(
 
   if (from != framework->pid) {
     LOG(WARNING)
-      << "Ignoring launch tasks message for offer " << offerId
+      << "Ignoring launch tasks message for offer "
+      << stringify(_offerIds.empty() ? stringify(offerId)
+                                     : stringify(_offerIds))
       << " of framework " << frameworkId << " from '" << from
       << "' because it is not from the registered framework '"
       << framework->pid << "'";
     return;
   }
 
-  // TODO(benh): Support offer "hoarding" and allow multiple offers
-  // *from the same slave* to be used to launch tasks. This can be
-  // accomplished rather easily by collecting and merging all offers
-  // into a mega-offer and passing that offer to
-  // Master::processTasks.
-  Offer* offer = getOffer(offerId);
-  if (offer != NULL) {
-    CHECK_EQ(offer->framework_id(), frameworkId)
-        << "Offer " << offerId
-        << " has invalid frameworkId " << offer->framework_id();
-
-    Slave* slave = getSlave(offer->slave_id());
-    CHECK(slave != NULL)
-      << "Offer " << offerId << " outlived  slave "
-      << slave->id << " (" << slave->info.hostname() << ")";
-
-    // If a slave is disconnected we should've removed its offers.
-    CHECK(!slave->disconnected)
-      << "Offer " << offerId << " outlived disconnected slave "
-      << slave->id << " (" << slave->info.hostname() << ")";
-
-    processTasks(offer, framework, slave, tasks, filters);
+  // Support single offerId for backward compatibility.
+  // OfferIds will be ignored if offerId is set.
+  vector<OfferID> offerIds;
+  if (offerId.has_value()) {
+    offerIds.push_back(offerId);
+  } else if (_offerIds.size() > 0) {
+    offerIds = _offerIds;
   } else {
-    // The offer is gone (possibly rescinded, lost slave, re-reply
-    // to same offer, etc). Report all tasks in it as failed.
-    // TODO: Consider adding a new task state TASK_INVALID for
-    // situations like these.
-    LOG(WARNING) << "Offer " << offerId << " is no longer valid";
-    foreach (const TaskInfo& task, tasks) {
-      StatusUpdateMessage message;
-      StatusUpdate* update = message.mutable_update();
-      update->mutable_framework_id()->MergeFrom(frameworkId);
-      TaskStatus* status = update->mutable_status();
-      status->mutable_task_id()->MergeFrom(task.task_id());
-      status->set_state(TASK_LOST);
-      status->set_message("Task launched with invalid offer");
-      update->set_timestamp(Clock::now().secs());
-      update->set_uuid(UUID::random().toBytes());
+    LOG(WARNING) << "No offers to launch tasks on";
 
-      LOG(INFO) << "Sending status update " << *update
-                << " for launch task attempt on invalid offer " << offerId;
+    foreach (const TaskInfo& task, tasks) {
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          framework->id,
+          task.slave_id(),
+          task.task_id(),
+          TASK_LOST,
+          "Task launched without offers");
+
+      LOG(INFO) << "Sending status update " << update
+                << " for launch task attempt without offers";
+      StatusUpdateMessage message;
+      message.mutable_update()->CopyFrom(update);
+      send(framework->pid, message);
+    }
+    return;
+  }
+
+  // Common slave id for task validation.
+  Option<SlaveID> slaveId;
+
+  // Create offer visitors.
+  list<OfferVisitor*> offerVisitors;
+  offerVisitors.push_back(new ValidOfferChecker());
+  offerVisitors.push_back(new FrameworkChecker());
+  offerVisitors.push_back(new SlaveChecker());
+  offerVisitors.push_back(new UniqueOfferIDChecker());
+
+  // Verify and aggregate all offers.
+  // Abort offer and task processing if any offer validation failed.
+  Resources totalResources;
+  OfferError offerError = None();
+  foreach (const OfferID& offerId, offerIds) {
+    foreach (OfferVisitor* visitor, offerVisitors) {
+      offerError = (*visitor)(offerId, *framework, this);
+      if (offerError.isSome()) {
+        break;
+      }
+    }
+    // Offer validation error needs to be propagated from visitor
+    // loop above.
+    if (offerError.isSome()) {
+      break;
+    }
+
+    // If offer validation succeeds, we need to pass along the common
+    // slave. So optimisticaly, we store the first slave id we see.
+    // In case of invalid offers (different slaves for example), we
+    // report error and return from launchTask before slaveId is used.
+    if (slaveId.isNone()) {
+      slaveId = getOffer(offerId)->slave_id();
+    }
+
+    totalResources += getOffer(offerId)->resources();
+  }
+
+  // Cleanup visitors.
+  while (!offerVisitors.empty()) {
+    OfferVisitor* visitor = offerVisitors.front();
+    offerVisitors.pop_front();
+    delete visitor;
+  };
+
+  // Remove offers.
+  foreach (const OfferID& offerId, offerIds) {
+    Offer* offer = getOffer(offerId);
+    // Explicit check needed if an offerId appears more
+    // than once in offerIds.
+     if (offer != NULL) {
+      removeOffer(offer);
+    }
+  }
+
+  if (offerError.isSome()) {
+    LOG(WARNING) << "Failed to validate offer " << offerId
+                   << " : " << offerError.get();
+
+    foreach (const TaskInfo& task, tasks) {
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          framework->id,
+          task.slave_id(),
+          task.task_id(),
+          TASK_LOST,
+          "Task launched with invalid offers: " + offerError.get());
+
+      LOG(INFO) << "Sending status update " << update
+                << " for launch task attempt on invalid offers: "
+                << stringify(offerIds);
+      StatusUpdateMessage message;
+      message.mutable_update()->CopyFrom(update);
+      send(framework->pid, message);
+    }
+
+    return;
+  }
+
+  CHECK(slaveId.isSome()) << "Slave id not found";
+  Slave* slave = CHECK_NOTNULL(getSlave(slaveId.get()));
+
+  LOG(INFO) << "Processing reply for offers: "
+            << stringify(offerIds)
+            << " on slave " << slave->id
+            << " (" << slave->info.hostname() << ")"
+            << " for framework " << framework->id;
+
+  Resources usedResources; // Accumulated resources used.
+
+  // Create task visitors.
+  list<TaskInfoVisitor*> taskVisitors;
+  taskVisitors.push_back(new SlaveIDChecker());
+  taskVisitors.push_back(new UniqueTaskIDChecker());
+  taskVisitors.push_back(new ResourceUsageChecker());
+  taskVisitors.push_back(new ExecutorInfoChecker());
+  taskVisitors.push_back(new CheckpointChecker());
+
+  // Loop through each task and check it's validity.
+  foreach (const TaskInfo& task, tasks) {
+    // Possible error found while checking task's validity.
+    TaskInfoError error = None();
+
+    // Invoke each visitor.
+    foreach (TaskInfoVisitor* visitor, taskVisitors) {
+      error = (*visitor)(task, totalResources, *framework, *slave);
+      if (error.isSome()) {
+        break;
+      }
+    }
+
+    if (error.isNone()) {
+      // Task looks good, get it running!
+      usedResources += launchTask(task, framework, slave);
+    } else {
+      // Error validating task, send a failed status update.
+      LOG(WARNING) << "Failed to validate task " << task.task_id()
+                   << " : " << error.get();
+
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          framework->id,
+          slave->id,
+          task.task_id(),
+          TASK_LOST,
+          error.get());
+
+      LOG(INFO) << "Sending status update "
+                << update << " for invalid task";
+      StatusUpdateMessage message;
+      message.mutable_update()->CopyFrom(update);
       send(framework->pid, message);
     }
   }
+
+  // All used resources should be allocatable, enforced by our validators.
+  CHECK_EQ(usedResources, usedResources.allocatable());
+
+  // Calculate unused resources.
+  Resources unusedResources = totalResources - usedResources;
+
+  if (unusedResources.allocatable().size() > 0) {
+    // Tell the allocator about the unused (e.g., refused) resources.
+    allocator->resourcesUnused(
+        framework->id,
+        slave->id,
+        unusedResources,
+        filters);
+  }
+
+  // Cleanup visitors.
+  while (!taskVisitors.empty()) {
+    TaskInfoVisitor* visitor = taskVisitors.front();
+    taskVisitors.pop_front();
+    delete visitor;
+  };
 }
 
 
@@ -1906,298 +2364,6 @@ vector<Framework*> Master::getActiveFrameworks() const
     }
   }
   return result;
-}
-
-
-// We use the visitor pattern to abstract the process of performing
-// any validations, aggregations, etc. of tasks that a framework
-// attempts to run within the resources provided by an offer. A
-// visitor can return an optional error (typedef'ed as an option of a
-// string) which will cause the master to send a failed status update
-// back to the framework for only that task description. An instance
-// will be reused for each task description from same offer, but not
-// for task descriptions from different offers.
-typedef Option<string> TaskInfoError;
-
-struct TaskInfoVisitor
-{
-  virtual TaskInfoError operator () (
-      const TaskInfo& task,
-      Offer* offer,
-      Framework* framework,
-      Slave* slave) = 0;
-
-  virtual ~TaskInfoVisitor() {}
-};
-
-
-// Checks that the slave ID used by a task is correct.
-struct SlaveIDChecker : TaskInfoVisitor
-{
-  virtual TaskInfoError operator () (
-      const TaskInfo& task,
-      Offer* offer,
-      Framework* framework,
-      Slave* slave)
-  {
-    if (!(task.slave_id() == slave->id)) {
-      return TaskInfoError::some(
-          "Task uses invalid slave: " + task.slave_id().value());
-    }
-
-    return TaskInfoError::none();
-  }
-};
-
-
-// Checks that each task uses a unique ID. Regardless of whether a
-// task actually gets launched (for example, another checker may
-// return an error for a task), we always consider it an error when a
-// task tries to re-use an ID.
-struct UniqueTaskIDChecker : TaskInfoVisitor
-{
-  virtual TaskInfoError operator () (
-      const TaskInfo& task,
-      Offer* offer,
-      Framework* framework,
-      Slave* slave)
-  {
-    const TaskID& taskId = task.task_id();
-
-    if (ids.contains(taskId) || framework->tasks.contains(taskId)) {
-      return TaskInfoError::some(
-          "Task has duplicate ID: " + taskId.value());
-    }
-
-    ids.insert(taskId);
-
-    return TaskInfoError::none();
-  }
-
-  hashset<TaskID> ids;
-};
-
-
-// Checks that the used resources by a task (and executor if
-// necessary) on each slave does not exceed the total resources
-// offered on that slave
-struct ResourceUsageChecker : TaskInfoVisitor
-{
-  virtual TaskInfoError operator () (
-      const TaskInfo& task,
-      Offer* offer,
-      Framework* framework,
-      Slave* slave)
-  {
-    if (task.resources().size() == 0) {
-      return TaskInfoError::some("Task uses no resources");
-    }
-
-    foreach (const Resource& resource, task.resources()) {
-      if (!Resources::isAllocatable(resource)) {
-        // TODO(benh): Send back the invalid resources?
-        return TaskInfoError::some("Task uses invalid resources");
-      }
-    }
-
-    // Check if this task uses more resources than offered.
-    Resources taskResources = task.resources();
-
-    if (!((usedResources + taskResources) <= offer->resources())) {
-      return TaskInfoError::some(
-          "Task " + stringify(task.task_id()) + " attempted to use " +
-          stringify(taskResources) + " combined with already used " +
-          stringify(usedResources) + " is greater than offered " +
-          stringify(offer->resources()));
-    }
-
-    // Check this task's executor's resources.
-    if (task.has_executor()) {
-      // TODO(benh): Check that the executor uses some resources.
-
-      foreach (const Resource& resource, task.executor().resources()) {
-        if (!Resources::isAllocatable(resource)) {
-          // TODO(benh): Send back the invalid resources?
-          return TaskInfoError::some(
-              "Executor for task " + stringify(task.task_id()) +
-              " uses invalid resources " + stringify(resource));
-        }
-      }
-
-      // Check if this task's executor is running, and if not check if
-      // the task + the executor use more resources than offered.
-      if (!executors.contains(task.executor().executor_id())) {
-        if (!slave->hasExecutor(framework->id, task.executor().executor_id())) {
-          taskResources += task.executor().resources();
-          if (!((usedResources + taskResources) <= offer->resources())) {
-            return TaskInfoError::some(
-                "Task " + stringify(task.task_id()) + " + executor attempted" +
-                " to use " + stringify(taskResources) + " combined with" +
-                " already used " + stringify(usedResources) + " is greater" +
-                " than offered " + stringify(offer->resources()));
-          }
-        }
-        executors.insert(task.executor().executor_id());
-      }
-    }
-
-    usedResources += taskResources;
-
-    return TaskInfoError::none();
-  }
-
-  Resources usedResources;
-  hashset<ExecutorID> executors;
-};
-
-
-// Checks that tasks that use the "same" executor (i.e., same
-// ExecutorID) have an identical ExecutorInfo.
-struct ExecutorInfoChecker : TaskInfoVisitor
-{
-  virtual TaskInfoError operator () (
-      const TaskInfo& task,
-      Offer* offer,
-      Framework* framework,
-      Slave* slave)
-  {
-    if (task.has_executor() == task.has_command()) {
-      return TaskInfoError::some(
-          "Task should have at least one (but not both) of CommandInfo or"
-          " ExecutorInfo present");
-    }
-
-    if (task.has_executor()) {
-      if (slave->hasExecutor(framework->id, task.executor().executor_id())) {
-        const ExecutorInfo& executorInfo =
-          slave->executors[framework->id][task.executor().executor_id()];
-        if (!(task.executor() == executorInfo)) {
-          return TaskInfoError::some(
-              "Task has invalid ExecutorInfo (existing ExecutorInfo"
-              " with same ExecutorID is not compatible).\n"
-              "------------------------------------------------------------\n"
-              "Existing ExecutorInfo:\n" +
-              stringify(executorInfo) + "\n"
-              "------------------------------------------------------------\n"
-              "Task's ExecutorInfo:\n" +
-              stringify(task.executor()) + "\n"
-              "------------------------------------------------------------\n");
-        }
-      }
-    }
-
-    return TaskInfoError::none();
-  }
-};
-
-
-// Checks that a task that asks for checkpointing is not being
-// launched on a slave that has not enabled checkpointing.
-// TODO(vinod): Consider not offering resources for non-checkpointing
-// slaves to frameworks that need checkpointing.
-struct CheckpointChecker : TaskInfoVisitor
-{
-  virtual TaskInfoError operator () (
-      const TaskInfo& task,
-      Offer* offer,
-      Framework* framework,
-      Slave* slave)
-  {
-    if (framework->info.checkpoint() && !slave->info.checkpoint()) {
-      return TaskInfoError::some(
-          "Task asked to be checkpointed but the slave "
-          "has checkpointing disabled");
-    }
-    return TaskInfoError::none();
-  }
-};
-
-
-// Process a resource offer reply (for a non-cancelled offer) by
-// launching the desired tasks (if the offer contains a valid set of
-// tasks) and reporting used resources to the allocator.
-void Master::processTasks(Offer* offer,
-                          Framework* framework,
-                          Slave* slave,
-                          const vector<TaskInfo>& tasks,
-                          const Filters& filters)
-{
-  CHECK_NOTNULL(offer);
-  CHECK_NOTNULL(framework);
-  CHECK_NOTNULL(slave);
-
-  LOG(INFO) << "Processing reply for offer " << offer->id()
-            << " on slave " << slave->id
-            << " (" << slave->info.hostname() << ")"
-            << " for framework " << framework->id;
-
-  Resources usedResources; // Accumulated resources used from this offer.
-
-  // Create task visitors.
-  list<TaskInfoVisitor*> visitors;
-  visitors.push_back(new SlaveIDChecker());
-  visitors.push_back(new UniqueTaskIDChecker());
-  visitors.push_back(new ResourceUsageChecker());
-  visitors.push_back(new ExecutorInfoChecker());
-  visitors.push_back(new CheckpointChecker());
-
-  // Loop through each task and check it's validity.
-  foreach (const TaskInfo& task, tasks) {
-    // Possible error found while checking task's validity.
-    TaskInfoError error = TaskInfoError::none();
-
-    // Invoke each visitor.
-    foreach (TaskInfoVisitor* visitor, visitors) {
-      error = (*visitor)(task, offer, framework, slave);
-      if (error.isSome()) {
-        break;
-      }
-    }
-
-    if (error.isNone()) {
-      // Task looks good, get it running!
-      usedResources += launchTask(task, framework, slave);
-    } else {
-      // Error validating task, send a failed status update.
-      LOG(WARNING) << "Failed to validate task " << task.task_id()
-                   << " : " << error.get();
-
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          framework->id,
-          slave->id,
-          task.task_id(),
-          TASK_LOST,
-          error.get());
-
-      LOG(INFO) << "Sending status update " << update << " for invalid task";
-      StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update);
-      send(framework->pid, message);
-    }
-  }
-
-  // Cleanup visitors.
-  do {
-    TaskInfoVisitor* visitor = visitors.front();
-    visitors.pop_front();
-    delete visitor;
-  } while (!visitors.empty());
-
-  // All used resources should be allocatable, enforced by our validators.
-  CHECK_EQ(usedResources, usedResources.allocatable());
-
-  // Calculate unused resources.
-  Resources unusedResources = offer->resources() - usedResources;
-
-  if (unusedResources.allocatable().size() > 0) {
-    // Tell the allocator about the unused (e.g., refused) resources.
-    allocator->resourcesUnused(offer->framework_id(),
-                               offer->slave_id(),
-                               unusedResources,
-                               filters);
-  }
-
-  removeOffer(offer);
 }
 
 

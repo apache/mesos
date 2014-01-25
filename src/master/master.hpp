@@ -78,6 +78,7 @@ class WhitelistWatcher;
 struct Framework;
 struct Slave;
 struct Role;
+struct OfferVisitor;
 
 
 class Master : public ProtobufProcess<Master>
@@ -116,7 +117,8 @@ public:
       const FrameworkID& frameworkId,
       const OfferID& offerId,
       const std::vector<TaskInfo>& tasks,
-      const Filters& filters);
+      const Filters& filters,
+      const std::vector<OfferID>& offerIds);
   void reviveOffers(
       const process::UPID& from,
       const FrameworkID& frameworkId);
@@ -204,16 +206,6 @@ protected:
 
   // Invoked when the contender has entered the contest.
   void contended(const Future<Future<Nothing> >& candidacy);
-
-  // Process a launch tasks request (for a non-cancelled offer) by
-  // launching the desired tasks (if the offer contains a valid set of
-  // tasks) and reporting any unused resources to the allocator.
-  void processTasks(
-      Offer* offer,
-      Framework* framework,
-      Slave* slave,
-      const std::vector<TaskInfo>& tasks,
-      const Filters& filters);
 
   // Reconciles a re-registering slave's tasks / executors and sends
   // TASK_LOST updates for tasks known to the master but unknown to
@@ -313,6 +305,7 @@ private:
 
   friend struct SlaveRegistrar;
   friend struct SlaveReregistrar;
+  friend struct OfferVisitor;
 
   const Flags flags;
 
@@ -452,10 +445,10 @@ struct Slave
   }
 
   bool hasExecutor(const FrameworkID& frameworkId,
-		   const ExecutorID& executorId)
+		   const ExecutorID& executorId) const
   {
     return executors.contains(frameworkId) &&
-      executors[frameworkId].contains(executorId);
+      executors.get(frameworkId).get().contains(executorId);
   }
 
   void addExecutor(const FrameworkID& frameworkId,

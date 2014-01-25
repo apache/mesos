@@ -1106,6 +1106,305 @@ TEST_F(MasterTest, ReconcileTaskTest)
 }
 
 
+// Test ensures two offers from same slave can be used for single task.
+// This is done by first launching single task which utilize half of the
+// available resources. A subsequent offer for the rest of the available
+// resources will be sent by master. The first task is killed and an offer
+// for the remaining resources will be sent. Which means two offers covering
+// all slave resources and a single task should be able to run on these.
+TEST_F(MasterTest, LaunchCombinedOfferTest)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+
+  // The CPU granularity is 1.0 which means that we need slaves with at least
+  // 2 cpus for a combined offer.
+  Resources halfSlave = Resources::parse("cpus:1;mem:512").get();
+  Resources fullSlave = halfSlave + halfSlave;
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Get 1st offer and use half of the slave resources to get subsequent offer.
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+  Resources resources1(offers1.get()[0].resources());
+  EXPECT_EQ(2, resources1.cpus().get());
+  EXPECT_EQ(Megabytes(1024), resources1.mem().get());
+
+  TaskInfo task1;
+  task1.set_name("");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offers1.get()[0].slave_id());
+  task1.mutable_resources()->MergeFrom(halfSlave);
+  task1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  vector<TaskInfo> tasks1;
+  tasks1.push_back(task1);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1));
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2));
+
+  // We want to be notified immediately with new offer.
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  driver.launchTasks(offers1.get()[0].id(), tasks1, filters);
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  // Await 2nd offer.
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+
+  Resources resources2(offers2.get()[0].resources());
+  EXPECT_EQ(1, resources2.cpus().get());
+  EXPECT_EQ(Megabytes(512), resources2.mem().get());
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  Future<vector<Offer> > offers3;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers3));
+
+  // Kill 1st task.
+  TaskID taskId1 = task1.task_id();
+  driver.killTask(taskId1);
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_KILLED, status2.get().state());
+
+  // Await 3rd offer - 2nd and 3rd offer to same slave are now ready.
+  AWAIT_READY(offers3);
+  EXPECT_NE(0u, offers3.get().size());
+  Resources resources3(offers3.get()[0].resources());
+  EXPECT_EQ(1, resources3.cpus().get());
+  EXPECT_EQ(Megabytes(512), resources3.mem().get());
+
+  TaskInfo task2;
+  task2.set_name("");
+  task2.mutable_task_id()->set_value("2");
+  task2.mutable_slave_id()->MergeFrom(offers2.get()[0].slave_id());
+  task2.mutable_resources()->MergeFrom(fullSlave);
+  task2.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks2;
+  tasks2.push_back(task2);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status3;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status3));
+
+  vector<OfferID> combinedOffers;
+  combinedOffers.push_back(offers2.get()[0].id());
+  combinedOffers.push_back(offers3.get()[0].id());
+
+  driver.launchTasks(combinedOffers, tasks2);
+
+  AWAIT_READY(status3);
+  EXPECT_EQ(TASK_RUNNING, status3.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+}
+
+
+// Test ensures offers for launchTasks cannot span multiple slaves.
+TEST_F(MasterTest, LaunchAcrossSlavesTest)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+
+  // See LaunchCombinedOfferTest() for resource size motivation.
+  Resources fullSlave = Resources::parse("cpus:2;mem:1024").get();
+  Resources twoSlaves = fullSlave + fullSlave;
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  Try<PID<Slave> > slave1 = StartSlave(&isolator, flags);
+  ASSERT_SOME(slave1);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+  Resources resources1(offers1.get()[0].resources());
+  EXPECT_EQ(2, resources1.cpus().get());
+  EXPECT_EQ(Megabytes(1024), resources1.mem().get());
+
+   // Test that offers cannot span multiple slaves.
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2));
+
+  Try<PID<Slave> > slave2 = StartSlave(&isolator, flags);
+  ASSERT_SOME(slave2);
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+  Resources resources2(offers1.get()[0].resources());
+  EXPECT_EQ(2, resources2.cpus().get());
+  EXPECT_EQ(Megabytes(1024), resources2.mem().get());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers1.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(twoSlaves);
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  vector<OfferID> combinedOffers;
+  combinedOffers.push_back(offers1.get()[0].id());
+  combinedOffers.push_back(offers2.get()[0].id());
+
+  driver.launchTasks(combinedOffers, tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_LOST, status.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+}
+
+
+// Test ensures that an offer cannot appear more than once in offers
+// for launchTasks.
+TEST_F(MasterTest, LaunchDuplicateOfferTest)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestingIsolator isolator(&exec);
+
+  // See LaunchCombinedOfferTest() for resource size motivation.
+  Resources fullSlave = Resources::parse("cpus:2;mem:1024").get();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Test that same offers cannot be used more than once.
+  // Kill 2nd task and get offer for full slave.
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+  Resources resources(offers.get()[0].resources());
+  EXPECT_EQ(2, resources.cpus().get());
+  EXPECT_EQ(Megabytes(1024), resources.mem().get());
+
+  vector<OfferID> combinedOffers;
+  combinedOffers.push_back(offers.get()[0].id());
+  combinedOffers.push_back(offers.get()[0].id());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(fullSlave);
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(combinedOffers, tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_LOST, status.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+}
+
+
 #ifdef MESOS_HAS_JAVA
 class MasterZooKeeperTest : public MesosTest
 {

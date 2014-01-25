@@ -20,8 +20,10 @@ package org.apache.mesos;
 
 import org.apache.mesos.Protos.*;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 
@@ -146,12 +148,27 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   public native Status requestResources(Collection<Request> requests);
 
+  /**
+   * @deprecated Replaced by launchTasks using offer list.
+   */
   public Status launchTasks(OfferID offerId,
                             Collection<TaskInfo> tasks) {
     return launchTasks(offerId, tasks, Filters.newBuilder().build());
   }
 
+  /**
+   * @deprecated Replaced by launchTasks using offer list.
+   */
   public native Status launchTasks(OfferID offerId,
+                                   Collection<TaskInfo> tasks,
+                                   Filters filters);
+
+  public Status launchTasks(Collection<OfferID> offerIds,
+                            Collection<TaskInfo> tasks) {
+    return launchTasks(offerIds, tasks, Filters.newBuilder().build());
+  }
+
+  public native Status launchTasks(Collection<OfferID> offerIds,
                                    Collection<TaskInfo> tasks,
                                    Filters filters);
 

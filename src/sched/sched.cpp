@@ -789,7 +789,7 @@ protected:
     send(master.get(), message);
   }
 
-  void launchTasks(const OfferID& offerId,
+  void launchTasks(const vector<OfferID>& offerIds,
                    const vector<TaskInfo>& tasks,
                    const Filters& filters)
   {
@@ -871,28 +871,42 @@ protected:
 
     LaunchTasksMessage message;
     message.mutable_framework_id()->MergeFrom(framework.id());
-    message.mutable_offer_id()->MergeFrom(offerId);
     message.mutable_filters()->MergeFrom(filters);
 
-    foreach (const TaskInfo& task, result) {
-      // Keep only the slave PIDs where we run tasks so we can send
-      // framework messages directly.
-      if (savedOffers.count(offerId) > 0) {
-        if (savedOffers[offerId].count(task.slave_id()) > 0) {
-          savedSlavePids[task.slave_id()] =
-            savedOffers[offerId][task.slave_id()];
-        } else {
-          VLOG(1) << "Attempting to launch a task with the wrong slave id";
-        }
-      } else {
-        VLOG(1) << "Attempting to launch a task with an unknown offer";
-      }
+    foreach (const OfferID& offerId, offerIds) {
+      message.add_offer_ids()->MergeFrom(offerId);
 
-      message.add_tasks()->MergeFrom(task);
+      foreach (const TaskInfo& task, result) {
+        // Keep only the slave PIDs where we run tasks so we can send
+        // framework messages directly.
+        if (savedOffers.count(offerId) > 0) {
+          if (savedOffers[offerId].count(task.slave_id()) > 0) {
+            savedSlavePids[task.slave_id()] =
+              savedOffers[offerId][task.slave_id()];
+          } else {
+            VLOG(1) << "Attempting to launch task " << task.task_id()
+                    << " with the wrong slave id " << task.slave_id();
+          }
+        } else {
+          VLOG(1) << "Attempting to launch task " << task.task_id()
+                  << " with an unknown offer " << offerId;
+        }
+
+        // Remove the offer since we saved all the PIDs we might use.
+        savedOffers.erase(offerId);
+      }
     }
 
-    // Remove the offer since we saved all the PIDs we might use.
-    savedOffers.erase(offerId);
+    // During upgrade, frameworks using new driver could send new
+    // launch tasks protobufs to old masters. To ensure support in
+    // this period, we set the offer id field.
+    if (offerIds.size() == 1) {
+      message.mutable_offer_id()->MergeFrom(offerIds[0]);
+    }
+
+    foreach (const TaskInfo& task, result) {
+      message.add_tasks()->MergeFrom(task);
+    }
 
     CHECK_SOME(master);
     send(master.get(), message);
@@ -1334,6 +1348,18 @@ Status MesosSchedulerDriver::launchTasks(
     const vector<TaskInfo>& tasks,
     const Filters& filters)
 {
+  vector<OfferID> offerIds;
+  offerIds.push_back(offerId);
+
+  return launchTasks(offerIds, tasks, filters);
+}
+
+
+Status MesosSchedulerDriver::launchTasks(
+    const vector<OfferID>& offerIds,
+    const vector<TaskInfo>& tasks,
+    const Filters& filters)
+{
   Lock lock(&mutex);
 
   if (status != DRIVER_RUNNING) {
@@ -1342,7 +1368,7 @@ Status MesosSchedulerDriver::launchTasks(
 
   CHECK(process != NULL);
 
-  dispatch(process, &SchedulerProcess::launchTasks, offerId, tasks, filters);
+  dispatch(process, &SchedulerProcess::launchTasks, offerIds, tasks, filters);
 
   return status;
 }
@@ -1352,7 +1378,10 @@ Status MesosSchedulerDriver::declineOffer(
     const OfferID& offerId,
     const Filters& filters)
 {
-  return launchTasks(offerId, vector<TaskInfo>(), filters);
+  vector<OfferID> offerIds;
+  offerIds.push_back(offerId);
+
+  return launchTasks(offerIds, vector<TaskInfo>(), filters);
 }
 
 
