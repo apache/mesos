@@ -19,7 +19,6 @@
 #include <algorithm>
 
 #include <stout/none.hpp>
-#include <stout/result.hpp>
 #include <stout/some.hpp>
 
 template <typename T>
@@ -61,15 +60,6 @@ public:
   ~Option()
   {
     delete t;
-  }
-
-  operator Result<T> () const
-  {
-    if (isNone()) {
-      return Result<T>::none();
-    }
-
-    return Result<T>::some(get());
   }
 
   Option<T>& operator = (const Option<T>& that)

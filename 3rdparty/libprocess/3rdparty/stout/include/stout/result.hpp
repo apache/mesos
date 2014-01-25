@@ -22,6 +22,7 @@
 
 #include <stout/error.hpp>
 #include <stout/none.hpp>
+#include <stout/option.hpp>
 #include <stout/some.hpp>
 
 template <typename T>
@@ -49,6 +50,10 @@ public:
   template <typename U>
   Result(const U& u)
     : state(SOME), t(new T(u)) {}
+
+  Result(const Option<T>& option)
+    : state(option.isSome() ? SOME : NONE),
+      t(option.isSome() ? new T(option.get()) : NULL) {}
 
   Result(const None& none)
     : state(NONE), t(NULL) {}
