@@ -351,10 +351,12 @@ noinst_LTLIBRARIES += libstate.la
 libstate_la_SOURCES =							\
   state/in_memory.cpp							\
   state/leveldb.cpp							\
+  state/log.cpp								\
   state/zookeeper.cpp
 libstate_la_SOURCES +=							\
   state/in_memory.hpp							\
   state/leveldb.hpp							\
+  state/log.hpp								\
   state/protobuf.hpp							\
   state/state.hpp							\
   state/storage.hpp							\

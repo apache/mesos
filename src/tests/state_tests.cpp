@@ -26,6 +26,7 @@
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/protobuf.hpp>
+#include <process/pid.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/option.hpp>
@@ -34,14 +35,20 @@
 
 #include "common/type_utils.hpp"
 
+#include "log/log.hpp"
+#include "log/replica.hpp"
+#include "log/tool/initialize.hpp"
+
 #include "master/registry.hpp"
 
 #include "state/in_memory.hpp"
 #include "state/leveldb.hpp"
+#include "state/log.hpp"
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 #include "state/zookeeper.hpp"
 
+#include "tests/utils.hpp"
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"
 #endif
@@ -62,6 +69,11 @@ using state::ZooKeeperStorage;
 
 using state::protobuf::State;
 using state::protobuf::Variable;
+
+using std::set;
+using std::string;
+
+using mesos::internal::tests::TemporaryDirectoryTest;
 
 typedef mesos::internal::Registry::Slaves Slaves;
 typedef mesos::internal::Registry::Slave Slave;
@@ -400,7 +412,7 @@ protected:
   State* state;
 
 private:
-  const std::string path;
+  const string path;
 };
 
 
@@ -443,6 +455,151 @@ TEST_F(LevelDBStateTest, FetchAndStoreAndExpungeAndStoreAndFetch)
 TEST_F(LevelDBStateTest, Names)
 {
   Names(state);
+}
+
+
+class LogStateTest : public TemporaryDirectoryTest
+{
+public:
+  LogStateTest()
+    : storage(NULL),
+      state(NULL),
+      replica2(NULL),
+      log(NULL) {}
+
+protected:
+  virtual void SetUp()
+  {
+    TemporaryDirectoryTest::SetUp();
+
+    // For initializing the replicas.
+    log::tool::Initialize initializer;
+
+    string path1 = os::getcwd() + "/.log1";
+    string path2 = os::getcwd() + "/.log2";
+
+    initializer.flags.path = path1;
+    initializer.execute();
+
+    initializer.flags.path = path2;
+    initializer.execute();
+
+    // Only create the replica for 'path2' (i.e., the second replica)
+    // as the first replica will be created when we create a Log.
+    replica2 = new log::Replica(path2);
+
+    set<UPID> pids;
+    pids.insert(replica2->pid());
+
+    log = new log::Log(2, path1, pids);
+    storage = new state::LogStorage(log);
+    state = new State(storage);
+  }
+
+  virtual void TearDown()
+  {
+    delete state;
+    delete storage;
+    delete log;
+
+    delete replica2;
+
+    TemporaryDirectoryTest::TearDown();
+  }
+
+  state::Storage* storage;
+  State* state;
+
+  log::Replica* replica2;
+  log::Log* log;
+};
+
+
+TEST_F(LogStateTest, FetchAndStoreAndFetch)
+{
+  FetchAndStoreAndFetch(state);
+}
+
+
+TEST_F(LogStateTest, FetchAndStoreAndStoreAndFetch)
+{
+  FetchAndStoreAndStoreAndFetch(state);
+}
+
+
+TEST_F(LogStateTest, FetchAndStoreAndStoreFailAndFetch)
+{
+  FetchAndStoreAndStoreFailAndFetch(state);
+}
+
+
+TEST_F(LogStateTest, FetchAndStoreAndExpungeAndFetch)
+{
+  FetchAndStoreAndExpungeAndFetch(state);
+}
+
+
+TEST_F(LogStateTest, FetchAndStoreAndExpungeAndExpunge)
+{
+  FetchAndStoreAndExpungeAndExpunge(state);
+}
+
+
+TEST_F(LogStateTest, FetchAndStoreAndExpungeAndStoreAndFetch)
+{
+  FetchAndStoreAndExpungeAndStoreAndFetch(state);
+}
+
+
+TEST_F(LogStateTest, Names)
+{
+  Names(state);
+}
+
+
+Future<Option<Variable<Slaves> > > timeout(
+    Future<Option<Variable<Slaves> > > future)
+{
+  future.discard();
+  return Failure("Timeout");
+}
+
+
+TEST_F(LogStateTest, Timeout)
+{
+  Clock::pause();
+
+  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
+  AWAIT_READY(future1);
+
+  Variable<Slaves> variable = future1.get();
+
+  Slaves slaves1 = variable.get();
+  EXPECT_TRUE(slaves1.slaves().size() == 0);
+
+  Slave* slave = slaves1.add_slaves();
+  slave->mutable_info()->set_hostname("localhost");
+
+  variable = variable.mutate(slaves1);
+
+  // Now terminate the replica so the store will timeout.
+  terminate(replica2->pid());
+  wait(replica2->pid());
+
+  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
+
+  Future<Option<Variable<Slaves> > > future3 =
+    future2.after(Seconds(5), lambda::bind(&timeout, lambda::_1));
+
+  ASSERT_TRUE(future2.isPending());
+  ASSERT_TRUE(future3.isPending());
+
+  Clock::advance(Seconds(5));
+
+  AWAIT_DISCARDED(future2);
+  AWAIT_FAILED(future3);
+
+  Clock::resume();
 }
 
 

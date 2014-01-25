@@ -24,3 +24,26 @@ message Entry {
   required bytes uuid = 2;
   required bytes value = 3;
 }
+
+
+// Describes an operation used in the log storage implementation.
+message Operation {
+  enum Type {
+    SNAPSHOT = 1;
+    EXPUNGE = 2;
+  }
+
+  // Describes a "snapshot" operation.
+  message Snapshot {
+    required Entry entry = 1;
+  }
+
+  // Describes an "expunge" operation.
+  message Expunge {
+    required string name = 1;
+  }
+
+  required Type type = 1;
+  optional Snapshot snapshot = 2;
+  optional Expunge expunge = 3;
+}
