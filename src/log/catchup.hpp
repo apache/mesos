@@ -27,6 +27,7 @@
 #include <process/shared.hpp>
 
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 
 #include "log/network.hpp"
 #include "log/replica.hpp"
@@ -39,12 +40,12 @@ namespace log {
 // this function can provide a hint on the proposal number that will
 // be used for Paxos. This could potentially save us a few Paxos
 // rounds. However, if the user has no idea what proposal number to
-// use, he can just use an arbitrary proposal number (e.g., 0).
+// use, he can just use none.
 extern process::Future<Nothing> catchup(
     size_t quorum,
     const process::Shared<Replica>& replica,
     const process::Shared<Network>& network,
-    uint64_t proposal,
+    const Option<uint64_t>& proposal,
     const std::set<uint64_t>& positions);
 
 } // namespace log {

@@ -347,9 +347,9 @@ private:
     Shared<Replica> shared = replica.share();
 
     // Since we do not know what proposal number to use (the log is
-    // empty), we use proposal number 0 and leave log::catchup to
-    // automatically bump the proposal number.
-    catching = log::catchup(quorum, shared, network, 0, positions);
+    // empty), we use none and leave log::catchup to automatically
+    // bump the proposal number.
+    catching = log::catchup(quorum, shared, network, None(), positions);
     catching.onAny(defer(self(), &Self::caughtup, shared, lambda::_1));
   }
 

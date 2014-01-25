@@ -265,7 +265,7 @@ Future<Nothing> catchup(
     size_t quorum,
     const Shared<Replica>& replica,
     const Shared<Network>& network,
-    uint64_t proposal,
+    const Option<uint64_t>& proposal,
     const set<uint64_t>& positions)
 {
   BulkCatchUpProcess* process =
@@ -273,7 +273,7 @@ Future<Nothing> catchup(
         quorum,
         replica,
         network,
-        proposal,
+        proposal.get(0),
         positions);
 
   Future<Nothing> future = process->future();
