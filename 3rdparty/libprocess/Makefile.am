@@ -93,6 +93,7 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/protobuf.hpp			\
   $(top_srcdir)/include/process/reap.hpp			\
   $(top_srcdir)/include/process/run.hpp				\
+  $(top_srcdir)/include/process/sequence.hpp			\
   $(top_srcdir)/include/process/shared.hpp			\
   $(top_srcdir)/include/process/socket.hpp			\
   $(top_srcdir)/include/process/statistics.hpp			\
@@ -115,6 +116,7 @@ tests_SOURCES =							\
   src/tests/owned_tests.cpp					\
   src/tests/process_tests.cpp					\
   src/tests/reap_tests.cpp					\
+  src/tests/sequence_tests.cpp					\
   src/tests/shared_tests.cpp					\
   src/tests/statistics_tests.cpp				\
   src/tests/subprocess_tests.cpp				\
