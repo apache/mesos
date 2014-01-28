@@ -325,6 +325,9 @@ Future<Response> Master::Http::stats(const Request& request)
   object.values["active_schedulers"] = master.getActiveFrameworks().size();
   object.values["activated_slaves"] = master.slaves.size();
   object.values["deactivated_slaves"] = master.deactivatedSlaves.size();
+  object.values["outstanding_offers"] = master.offers.size();
+
+  // NOTE: These are monotonically increasing counters.
   object.values["staged_tasks"] = master.stats.tasks[TASK_STAGING];
   object.values["started_tasks"] = master.stats.tasks[TASK_STARTING];
   object.values["finished_tasks"] = master.stats.tasks[TASK_FINISHED];
@@ -333,7 +336,16 @@ Future<Response> Master::Http::stats(const Request& request)
   object.values["lost_tasks"] = master.stats.tasks[TASK_LOST];
   object.values["valid_status_updates"] = master.stats.validStatusUpdates;
   object.values["invalid_status_updates"] = master.stats.invalidStatusUpdates;
-  object.values["outstanding_offers"] = master.offers.size();
+
+  // Get a count of all active tasks in the cluster i.e., the tasks
+  // that are launched (TASK_STAGING, TASK_STARTING, TASK_RUNNING) but
+  // haven't reached terminal state yet.
+  // NOTE: This is a gauge representing an instantaneous value.
+  int active_tasks = 0;
+  foreachvalue (Framework* framework, master.frameworks) {
+    active_tasks += framework->tasks.size();
+  }
+  object.values["active_tasks_gauge"] = active_tasks;
 
   // Get total and used (note, not offered) resources in order to
   // compute capacity of scalar resources.
