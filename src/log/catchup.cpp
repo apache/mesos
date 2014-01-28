@@ -207,6 +207,11 @@ protected:
   }
 
 private:
+  static void timedout(Future<uint64_t> catching)
+  {
+    catching.discard();
+  }
+
   void catchup()
   {
     if (it == positions.end()) {
@@ -222,7 +227,7 @@ private:
       .onFailed(defer(self(), &Self::failed))
       .onReady(defer(self(), &Self::succeeded));
 
-    Timer::create(timeout, lambda::bind(&Future<uint64_t>::discard, catching));
+    Timer::create(timeout, lambda::bind(&Self::timedout, catching));
   }
 
   void discarded()
