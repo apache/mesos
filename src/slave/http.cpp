@@ -285,6 +285,10 @@ Future<Response> Slave::Http::stats(const Request& request)
   JSON::Object object;
   object.values["uptime"] = (Clock::now() - slave.startTime).secs();
   object.values["total_frameworks"] = slave.frameworks.size();
+  object.values["registered"] = slave.master.isSome() ? "1" : "0";
+  object.values["recovery_errors"] = slave.recoveryErrors;
+
+  // NOTE: These are monotonically increasing counters.
   object.values["staged_tasks"] = slave.stats.tasks[TASK_STAGING];
   object.values["started_tasks"] = slave.stats.tasks[TASK_STARTING];
   object.values["finished_tasks"] = slave.stats.tasks[TASK_FINISHED];
@@ -293,8 +297,24 @@ Future<Response> Slave::Http::stats(const Request& request)
   object.values["lost_tasks"] = slave.stats.tasks[TASK_LOST];
   object.values["valid_status_updates"] = slave.stats.validStatusUpdates;
   object.values["invalid_status_updates"] = slave.stats.invalidStatusUpdates;
-  object.values["registered"] = slave.master.isSome() ? "1" : "0";
-  object.values["recovery_errors"] = slave.recoveryErrors;
+
+  // NOTE: These are gauges representing instantaneous values.
+
+  // Queued waiting for executor to register.
+  int queued_tasks = 0;
+
+  // Sent to executor (TASK_STAGING, TASK_STARTING, TASK_RUNNING).
+  int launched_tasks = 0;
+
+  foreachvalue (Framework* framework, slave.frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      queued_tasks += executor->queuedTasks.size();
+      launched_tasks += executor->launchedTasks.size();
+    }
+  }
+
+  object.values["queued_tasks_gauge"] = queued_tasks;
+  object.values["launched_tasks_gauge"] = launched_tasks;
 
   return OK(object, request.query.get("jsonp"));
 }
