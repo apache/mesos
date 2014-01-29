@@ -2922,7 +2922,7 @@ Future<Response> ProcessManager::__processes__(const Request&)
   JSON::Array array;
 
   synchronized (processes) {
-    foreachvalue (const ProcessBase* process, process_manager->processes) {
+    foreachvalue (ProcessBase* process, process_manager->processes) {
       JSON::Object object;
       object.values["id"] = process->pid.id;
 
@@ -2984,9 +2984,13 @@ Future<Response> ProcessManager::__processes__(const Request&)
         JSON::Array* events;
       } visitor(&events);
 
-      foreach (Event* event, process->events) {
-        event->visit(&visitor);
+      process->lock();
+      {
+        foreach (Event* event, process->events) {
+          event->visit(&visitor);
+        }
       }
+      process->unlock();
 
       object.values["events"] = events;
       array.values.push_back(object);
