@@ -31,6 +31,7 @@
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
+#include <process/time.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/check.hpp>
@@ -2858,9 +2859,14 @@ Future<Nothing> Slave::garbageCollect(const string& path)
     return Failure(mtime.error());
   }
 
+  // It is unsafe for testing to use unix time directly, we must use
+  // Time::create to convert into a Time object that reflects the
+  // possibly advanced state state of the libprocess Clock.
+  Try<Time> time = Time::create(mtime.get());
+  CHECK_SOME(time);
+
   // GC based on the modification time.
-  Duration delay =
-    flags.gc_delay - (Clock::now().duration() - Seconds(mtime.get()));
+  Duration delay = flags.gc_delay - (Clock::now() - time.get());
 
   return gc.schedule(delay, path);
 }
