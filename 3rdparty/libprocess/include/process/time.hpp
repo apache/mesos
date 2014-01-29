@@ -21,15 +21,7 @@ public:
   static Time EPOCH;
   static Time MAX;
 
-  static Try<Time> create(double secs)
-  {
-    Try<Duration> duration = Duration::create(secs);
-    if (duration.isSome()) {
-      return Time(duration.get());
-    } else {
-      return Error("Argument too large for Time: " + duration.error());
-    }
-  }
+  static Try<Time> create(double seconds);
 
   Duration duration() const { return sinceEpoch; }
 

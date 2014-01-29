@@ -605,6 +605,8 @@ map<ProcessBase*, Time>* currents = new map<ProcessBase*, Time>();
 Time initial = Time::EPOCH;
 Time current = Time::EPOCH;
 
+Duration advanced = Duration::zero();
+
 bool paused = false;
 
 } // namespace clock {
@@ -640,7 +642,7 @@ Time Clock::now(ProcessBase* process)
 
   // TODO(benh): Versus ev_now()?
   double d = ev_time();
-  Try<Time> time = Time::create(d);
+  Try<Time> time = Time::create(d); // Compensates for clock::advanced.
 
   // TODO(xujyan): Move CHECK_SOME to libprocess and add CHECK_SOME
   // here.
@@ -696,6 +698,7 @@ void Clock::advance(const Duration& duration)
 {
   synchronized (timeouts) {
     if (clock::paused) {
+      clock::advanced += duration;
       clock::current += duration;
       VLOG(2) << "Clock advanced ("  << duration << ") to " << clock::current;
       if (!update_timer) {
@@ -726,6 +729,7 @@ void Clock::update(const Time& time)
   synchronized (timeouts) {
     if (clock::paused) {
       if (clock::current < time) {
+        clock::advanced += (time - clock::current);
         clock::current = Time(time);
         VLOG(2) << "Clock updated to " << clock::current;
         if (!update_timer) {
@@ -761,6 +765,18 @@ void Clock::settle()
 {
   CHECK(clock::paused); // TODO(benh): Consider returning a bool instead.
   process_manager->settle();
+}
+
+
+Try<Time> Time::create(double seconds)
+{
+  Try<Duration> duration = Duration::create(seconds);
+  if (duration.isSome()) {
+    // In production code, clock::advanced will always be zero!
+    return Time(duration.get() + clock::advanced);
+  } else {
+    return Error("Argument too large for Time: " + duration.error());
+  }
 }
 
 
