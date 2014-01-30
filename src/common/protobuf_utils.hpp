@@ -19,10 +19,16 @@
 #ifndef __PROTOBUF_UTILS_HPP__
 #define __PROTOBUF_UTILS_HPP__
 
+#include <string>
+
+#include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/net.hpp>
 #include <stout/none.hpp>
+#include <stout/stringify.hpp>
+#include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/type_utils.hpp"
@@ -90,6 +96,23 @@ inline Task createTask(const TaskInfo& task,
   }
 
   return t;
+}
+
+// Helper function that creates a MasterInfo from UPID.
+inline MasterInfo createMasterInfo(const process::UPID& pid)
+{
+  MasterInfo info;
+  info.set_id(stringify(pid) + "-" + UUID::random().toString());
+  info.set_ip(pid.ip);
+  info.set_port(pid.port);
+  info.set_pid(pid);
+
+  Try<std::string> hostname = net::getHostname(pid.ip);
+  if (hostname.isSome()) {
+    info.set_hostname(hostname.get());
+  }
+
+  return info;
 }
 
 } // namespace protobuf

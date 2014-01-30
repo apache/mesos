@@ -98,6 +98,14 @@ inline std::ostream& operator << (
 }
 
 
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const MasterInfo& master)
+{
+  return stream << master.DebugString();
+}
+
+
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() == right.value();
@@ -292,6 +300,18 @@ inline bool operator == (const SlaveInfo& left, const SlaveInfo& right)
     (!left.has_id() || (left.id() == right.id())) &&
     left.has_checkpoint() == right.has_checkpoint() &&
     (!left.has_checkpoint() || (left.checkpoint() == right.checkpoint()));
+}
+
+
+inline bool operator == (const MasterInfo& left, const MasterInfo& right)
+{
+  return left.id() == right.id() &&
+    left.ip() == right.ip() &&
+    left.port() == right.port() &&
+    left.has_pid() == right.has_pid() &&
+    (!left.has_pid() || (left.pid() == right.pid())) &&
+    left.has_hostname() == right.has_hostname() &&
+    (!left.has_hostname() || (left.hostname() == right.hostname()));
 }
 
 
