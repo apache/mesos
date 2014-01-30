@@ -177,11 +177,16 @@ public:
 
   // Invoked when there is a newly elected leading master.
   // Made public for testing purposes.
-  void detected(const Future<Option<UPID> >& pid);
+  void detected(const Future<Option<MasterInfo> >& pid);
 
   // Invoked when the contender has lost the candidacy.
   // Made public for testing purposes.
   void lostCandidacy(const Future<Nothing>& lost);
+
+  MasterInfo info() const
+  {
+    return info_;
+  }
 
 protected:
   virtual void initialize();
@@ -309,10 +314,13 @@ private:
 
   const Flags flags;
 
-  Option<UPID> leader; // Current leading master.
+  Option<MasterInfo> leader; // Current leading master.
 
   // Whether we are the current leading master.
-  bool elected() const { return leader.isSome() && leader.get() == self(); }
+  bool elected() const
+  {
+    return leader.isSome() && leader.get() == info_;
+  }
 
   allocator::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;
@@ -322,7 +330,7 @@ private:
   MasterContender* contender;
   MasterDetector* detector;
 
-  MasterInfo info;
+  MasterInfo info_;
 
   hashmap<FrameworkID, Framework*> frameworks;
 
@@ -616,7 +624,7 @@ struct Framework
   }
 
 
-  const FrameworkID id; // TODO(benh): Store this in 'info.
+  const FrameworkID id; // TODO(benh): Store this in 'info'.
   const FrameworkInfo info;
 
   UPID pid;

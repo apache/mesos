@@ -1,3 +1,4 @@
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -23,14 +24,18 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/logging.hpp>
+#include <process/pid.hpp>
 #include <process/process.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "master/constants.hpp"
 #include "master/detector.hpp"
+#include "master/master.hpp"
 
 #include "messages/messages.hpp"
 
@@ -49,21 +54,22 @@ namespace internal {
 
 const Duration MASTER_DETECTOR_ZK_SESSION_TIMEOUT = Seconds(10);
 
+
 class StandaloneMasterDetectorProcess
   : public Process<StandaloneMasterDetectorProcess>
 {
 public:
   StandaloneMasterDetectorProcess() {}
-  StandaloneMasterDetectorProcess(const UPID& _leader)
+  StandaloneMasterDetectorProcess(const MasterInfo& _leader)
     : leader(_leader) {}
   ~StandaloneMasterDetectorProcess();
 
-  void appoint(const Option<UPID>& leader);
-  Future<Option<UPID> > detect(const Option<UPID>& previous = None());
+  void appoint(const Option<MasterInfo>& leader);
+  Future<Option<MasterInfo> > detect(const Option<MasterInfo>& previous = None());
 
 private:
-  Option<UPID> leader; // The appointed master.
-  set<Promise<Option<UPID> >*> promises;
+  Option<MasterInfo> leader; // The appointed master.
+  set<Promise<Option<MasterInfo> >*> promises;
 };
 
 
@@ -76,7 +82,7 @@ public:
   ~ZooKeeperMasterDetectorProcess();
 
   virtual void initialize();
-  Future<Option<UPID> > detect(const Option<UPID>& previous);
+  Future<Option<MasterInfo> > detect(const Option<MasterInfo>& previous);
 
 private:
   // Invoked when the group leadership has changed.
@@ -89,8 +95,8 @@ private:
   LeaderDetector detector;
 
   // The leading Master.
-  Option<UPID> leader;
-  set<Promise<Option<UPID> >*> promises;
+  Option<MasterInfo> leader;
+  set<Promise<Option<MasterInfo> >*> promises;
 
   // Potential non-retryable error.
   Option<Error> error;
@@ -131,7 +137,7 @@ Try<MasterDetector*> MasterDetector::create(const string& master)
         "Failed to parse '" + master + "'");
   }
 
-  return new StandaloneMasterDetector(pid);
+  return new StandaloneMasterDetector(protobuf::createMasterInfo(pid));
 }
 
 
@@ -140,7 +146,7 @@ MasterDetector::~MasterDetector() {}
 
 StandaloneMasterDetectorProcess::~StandaloneMasterDetectorProcess()
 {
-  foreach (Promise<Option<UPID> >* promise, promises) {
+  foreach (Promise<Option<MasterInfo> >* promise, promises) {
     promise->future().discard();
     delete promise;
   }
@@ -148,12 +154,11 @@ StandaloneMasterDetectorProcess::~StandaloneMasterDetectorProcess()
 }
 
 
-void StandaloneMasterDetectorProcess::appoint(
-    const Option<process::UPID>& _leader)
+void StandaloneMasterDetectorProcess::appoint(const Option<MasterInfo>& _leader)
 {
   leader = _leader;
 
-  foreach (Promise<Option<UPID> >* promise, promises) {
+  foreach (Promise<Option<MasterInfo> >* promise, promises) {
     promise->set(leader);
     delete promise;
   }
@@ -161,14 +166,14 @@ void StandaloneMasterDetectorProcess::appoint(
 }
 
 
-Future<Option<UPID> > StandaloneMasterDetectorProcess::detect(
-    const Option<UPID>& previous)
+Future<Option<MasterInfo> > StandaloneMasterDetectorProcess::detect(
+    const Option<MasterInfo>& previous)
 {
   if (leader != previous) {
     return leader;
   }
 
-  Promise<Option<UPID> >* promise = new Promise<Option<UPID> >();
+  Promise<Option<MasterInfo> >* promise = new Promise<Option<MasterInfo> >();
   promises.insert(promise);
   return promise->future();
 }
@@ -181,9 +186,18 @@ StandaloneMasterDetector::StandaloneMasterDetector()
 }
 
 
-StandaloneMasterDetector::StandaloneMasterDetector(const UPID& leader)
+StandaloneMasterDetector::StandaloneMasterDetector(const MasterInfo& leader)
 {
   process = new StandaloneMasterDetectorProcess(leader);
+  spawn(process);
+}
+
+
+StandaloneMasterDetector::StandaloneMasterDetector(const UPID& leader)
+{
+  process =
+    new StandaloneMasterDetectorProcess(protobuf::createMasterInfo(leader));
+
   spawn(process);
 }
 
@@ -196,14 +210,22 @@ StandaloneMasterDetector::~StandaloneMasterDetector()
 }
 
 
-void StandaloneMasterDetector::appoint(const Option<process::UPID>& leader)
+void StandaloneMasterDetector::appoint(const Option<MasterInfo>& leader)
 {
-  return dispatch(process, &StandaloneMasterDetectorProcess::appoint, leader);
+  dispatch(process, &StandaloneMasterDetectorProcess::appoint, leader);
 }
 
 
-Future<Option<UPID> > StandaloneMasterDetector::detect(
-    const Option<UPID>& previous)
+void StandaloneMasterDetector::appoint(const UPID& leader)
+{
+  dispatch(process,
+           &StandaloneMasterDetectorProcess::appoint,
+           protobuf::createMasterInfo(leader));
+}
+
+
+Future<Option<MasterInfo> > StandaloneMasterDetector::detect(
+    const Option<MasterInfo>& previous)
 {
   return dispatch(process, &StandaloneMasterDetectorProcess::detect, previous);
 }
@@ -230,7 +252,7 @@ ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
 
 ZooKeeperMasterDetectorProcess::~ZooKeeperMasterDetectorProcess()
 {
-  foreach (Promise<Option<UPID> >* promise, promises) {
+  foreach (Promise<Option<MasterInfo> >* promise, promises) {
     promise->future().discard();
     delete promise;
   }
@@ -245,8 +267,8 @@ void ZooKeeperMasterDetectorProcess::initialize()
 }
 
 
-Future<Option<UPID> > ZooKeeperMasterDetectorProcess::detect(
-    const Option<UPID>& previous)
+Future<Option<MasterInfo> > ZooKeeperMasterDetectorProcess::detect(
+    const Option<MasterInfo>& previous)
 {
   // Return immediately if the detector is no longer operational due
   // to a non-retryable error.
@@ -258,7 +280,7 @@ Future<Option<UPID> > ZooKeeperMasterDetectorProcess::detect(
     return leader;
   }
 
-  Promise<Option<UPID> >* promise = new Promise<Option<UPID> >();
+  Promise<Option<MasterInfo> >* promise = new Promise<Option<MasterInfo> >();
   promises.insert(promise);
   return promise->future();
 }
@@ -277,7 +299,7 @@ void ZooKeeperMasterDetectorProcess::detected(
     // will directly fail as a result.
     error = Error(_leader.failure());
     leader = None();
-    foreach (Promise<Option<UPID> >* promise, promises) {
+    foreach (Promise<Option<MasterInfo> >* promise, promises) {
       promise->fail(_leader.failure());
       delete promise;
     }
@@ -288,7 +310,7 @@ void ZooKeeperMasterDetectorProcess::detected(
   if (_leader.get().isNone()) {
     leader = None();
 
-    foreach (Promise<Option<UPID> >* promise, promises) {
+    foreach (Promise<Option<MasterInfo> >* promise, promises) {
       promise->set(leader);
       delete promise;
     }
@@ -313,7 +335,7 @@ void ZooKeeperMasterDetectorProcess::fetched(
 
   if (data.isFailed()) {
     leader = None();
-    foreach (Promise<Option<UPID> >* promise, promises) {
+    foreach (Promise<Option<MasterInfo> >* promise, promises) {
       promise->fail(data.failure());
       delete promise;
     }
@@ -325,22 +347,26 @@ void ZooKeeperMasterDetectorProcess::fetched(
   // leader for subsequent requests.
   Option<string> label = membership.label();
   if (label.isNone()) {
-    leader = UPID(data.get());
+    // If we are here it means some masters are still creating znodes
+    // with the old format.
+    UPID pid = UPID(data.get());
+    LOG(WARNING) << "Leading master " << pid << " has data in old format";
+    leader = protobuf::createMasterInfo(pid);
   } else if (label.isSome() && label.get() == master::MASTER_INFO_LABEL) {
     MasterInfo info;
     if (!info.ParseFromString(data.get())) {
       leader = None();
-      foreach (Promise<Option<UPID> >* promise, promises) {
+      foreach (Promise<Option<MasterInfo> >* promise, promises) {
         promise->fail("Failed to parse data into MasterInfo");
         delete promise;
       }
       promises.clear();
       return;
     }
-    leader = UPID(info.pid());
+    leader = info;
   } else {
     leader = None();
-    foreach (Promise<Option<UPID> >* promise, promises) {
+    foreach (Promise<Option<MasterInfo> >* promise, promises) {
       promise->fail("Failed to parse data of unknown label " + label.get());
       delete promise;
     }
@@ -348,9 +374,10 @@ void ZooKeeperMasterDetectorProcess::fetched(
     return;
   }
 
-  LOG(INFO) << "A new leading master (UPID=" << leader.get() << ") is detected";
+  LOG(INFO) << "A new leading master (UPID="
+            << UPID(leader.get().pid()) << ") is detected";
 
-  foreach (Promise<Option<UPID> >* promise, promises) {
+  foreach (Promise<Option<MasterInfo> >* promise, promises) {
     promise->set(leader);
     delete promise;
   }
@@ -380,8 +407,8 @@ ZooKeeperMasterDetector::~ZooKeeperMasterDetector()
 }
 
 
-Future<Option<UPID> > ZooKeeperMasterDetector::detect(
-    const Option<UPID>& previous)
+Future<Option<MasterInfo> > ZooKeeperMasterDetector::detect(
+    const Option<MasterInfo>& previous)
 {
   return dispatch(process, &ZooKeeperMasterDetectorProcess::detect, previous);
 }

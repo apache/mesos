@@ -482,7 +482,7 @@ Nothing Slave::detachFile(const string& path)
 }
 
 
-void Slave::detected(const Future<Option<UPID> >& pid)
+void Slave::detected(const Future<Option<MasterInfo> >& _master)
 {
   CHECK(state == DISCONNECTED ||
         state == RUNNING ||
@@ -492,13 +492,17 @@ void Slave::detected(const Future<Option<UPID> >& pid)
     state = DISCONNECTED;
   }
 
-  CHECK(!pid.isDiscarded());
+  CHECK(!_master.isDiscarded());
 
-  if (pid.isFailed()) {
-    EXIT(1) << "Failed to detect a master: " << pid.failure();
+  if (_master.isFailed()) {
+    EXIT(1) << "Failed to detect a master: " << _master.failure();
   }
 
-  master = pid.get();
+  if (_master.get().isSome()) {
+    master = UPID(_master.get().get().pid());
+  } else {
+    master = None();
+  }
 
   if (master.isSome()) {
     LOG(INFO) << "New master detected at " << master.get();
@@ -527,7 +531,7 @@ void Slave::detected(const Future<Option<UPID> >& pid)
 
   // Keep detecting masters.
   LOG(INFO) << "Detecting new master";
-  detector->detect(master)
+  detector->detect(_master.get())
     .onAny(defer(self(), &Slave::detected, lambda::_1));
 }
 
@@ -2814,7 +2818,7 @@ void Slave::__recover(const Future<Nothing>& future)
   }
 
   // Start detecting masters.
-  detector->detect(master)
+  detector->detect()
     .onAny(defer(self(), &Slave::detected, lambda::_1));
 }
 

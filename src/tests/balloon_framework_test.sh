@@ -104,7 +104,7 @@ if [[ ${STATUS} -ne 0 ]]; then
 fi
 
 # The main event!
-${BALLOON_FRAMEWORK} localhost:5432 1024
+${BALLOON_FRAMEWORK} 127.0.0.1:5432 1024
 STATUS=${?}
 
 # Make sure the balloon framework "failed".

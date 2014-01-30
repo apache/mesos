@@ -282,7 +282,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   if (url.isNone()) {
     // This means we are using the StandaloneMasterDetector.
     dynamic_cast<StandaloneMasterDetector*>(master.detector)->appoint(
-        master.master->self());
+        master.master->info());
   }
 
   process::PID<master::Master> pid = process::spawn(master.master);
@@ -342,7 +342,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   if (url.isNone()) {
     // This means we are using the StandaloneMasterDetector.
     dynamic_cast<StandaloneMasterDetector*>(master.detector)->appoint(
-        master.master->self());
+        master.master->info());
   }
 
   process::PID<master::Master> pid = process::spawn(master.master);

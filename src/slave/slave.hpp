@@ -206,7 +206,7 @@ public:
 
   // Invoked whenever the detector detects a change in masters.
   // Made public for testing purposes.
-  void detected(const Future<Option<UPID> >& pid);
+  void detected(const Future<Option<MasterInfo> >& pid);
 
   enum State {
     RECOVERING,   // Slave is doing recovery.

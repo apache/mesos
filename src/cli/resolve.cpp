@@ -31,6 +31,8 @@
 
 #include "master/detector.hpp"
 
+#include "messages/messages.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 
@@ -124,25 +126,25 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  Future<Option<UPID> > pid = detector.get()->detect();
+  Future<Option<MasterInfo> > masterInfo = detector.get()->detect();
 
-  if (!pid.await(timeout)) {
+  if (!masterInfo.await(timeout)) {
     cerr << "Failed to detect master from '" << master.get()
          << "' within " << timeout << endl;
     return -1;
   } else {
-    CHECK(!pid.isDiscarded());
+    CHECK(!masterInfo.isDiscarded());
 
-    if (pid.isFailed()) {
+    if (masterInfo.isFailed()) {
       cerr << "Failed to detect master from '" << master.get()
-           << "': " << pid.failure() << endl;
+           << "': " << masterInfo.failure() << endl;
       return -1;
     }
   }
 
   // The future is not satisfied unless the result is Some.
-  CHECK_SOME(pid.get());
-  cout << strings::remove(pid.get().get(), "master@") << endl;
+  CHECK_SOME(masterInfo.get());
+  cout << strings::remove(masterInfo.get().get().pid(), "master@") << endl;
 
   return 0;
 }

@@ -25,6 +25,8 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "local.hpp"
 
 #include "logging/flags.hpp"
@@ -131,7 +133,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     detector = new StandaloneMasterDetector();
     master =
       new Master(_allocator, registrar, files, contender, detector, flags);
-    detector->appoint(master->self());
+
+    detector->appoint(master->info());
   }
 
   PID<Master> pid = process::spawn(master);

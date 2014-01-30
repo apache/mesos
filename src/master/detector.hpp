@@ -19,12 +19,16 @@
 #ifndef __MASTER_DETECTOR_HPP__
 #define __MASTER_DETECTOR_HPP__
 
+#include <string>
+
 #include <process/future.hpp>
 #include <process/owned.hpp>
-#include <process/pid.hpp>
 
 #include <stout/option.hpp>
+#include <stout/stringify.hpp>
 #include <stout/try.hpp>
+
+#include "messages/messages.hpp"
 
 #include "zookeeper/detector.hpp"
 #include "zookeeper/group.hpp"
@@ -55,11 +59,11 @@ public:
   static Try<MasterDetector*> create(const std::string& master);
   virtual ~MasterDetector() = 0;
 
-  // Returns some PID after an election has occurred and the elected
-  // PID is different than that specified (if any), or NONE if an
-  // election occurs and no PID is elected (e.g., all PIDs are lost).
-  // A failed future is returned if the detector is unable to detect
-  // the leading master due to a non-retryable error.
+  // Returns MasterInfo after an election has occurred and the elected
+  // master is different than that specified (if any), or NONE if an
+  // election occurs and no master is elected (e.g., all masters are
+  // lost). A failed future is returned if the detector is unable to
+  // detect the leading master due to a non-retryable error.
   // Note that the detector transparently tries to recover from
   // retryable errors.
   // The future is never discarded unless it stays pending when the
@@ -68,8 +72,8 @@ public:
   // The 'previous' result (if any) should be passed back if this
   // method is called repeatedly so the detector only returns when it
   // gets a different result.
-  virtual process::Future<Option<process::UPID> > detect(
-      const Option<process::UPID>& previous = None()) = 0;
+  virtual process::Future<Option<MasterInfo> > detect(
+      const Option<MasterInfo>& previous = None()) = 0;
 };
 
 
@@ -82,14 +86,21 @@ public:
   StandaloneMasterDetector();
   // Use this constructor if the leader is known beforehand so it is
   // unnecessary to call 'appoint()' separately.
+  StandaloneMasterDetector(const MasterInfo& leader);
+
+  // Same as above but takes UPID as the parameter.
   StandaloneMasterDetector(const process::UPID& leader);
+
   virtual ~StandaloneMasterDetector();
 
   // Appoint the leading master so it can be *detected*.
-  void appoint(const Option<process::UPID>& leader);
+  void appoint(const Option<MasterInfo>& leader);
 
-  virtual process::Future<Option<process::UPID> > detect(
-      const Option<process::UPID>& previous = None());
+  // Same as above but takes 'UPID' as the parameter.
+  void appoint(const process::UPID& leader);
+
+  virtual process::Future<Option<MasterInfo> > detect(
+      const Option<MasterInfo>& previous = None());
 
 private:
   StandaloneMasterDetectorProcess* process;
@@ -110,8 +121,8 @@ public:
   // The detector transparently tries to recover from retryable
   // errors until the group session expires, in which case the Future
   // returns None.
-  virtual process::Future<Option<process::UPID> > detect(
-      const Option<process::UPID>& previous = None());
+  virtual process::Future<Option<MasterInfo> > detect(
+      const Option<MasterInfo>& previous = None());
 
 private:
   ZooKeeperMasterDetectorProcess* process;

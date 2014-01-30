@@ -168,24 +168,28 @@ protected:
         &FrameworkErrorMessage::message);
 
     // Start detecting masters.
-    detector->detect(master)
+    detector->detect()
       .onAny(defer(self(), &SchedulerProcess::detected, lambda::_1));
   }
 
-  void detected(const Future<Option<UPID> >& pid)
+  void detected(const Future<Option<MasterInfo> >& _master)
   {
     if (aborted) {
       VLOG(1) << "Ignoring the master change because the driver is aborted!";
       return;
     }
 
-    CHECK(!pid.isDiscarded());
+    CHECK(!_master.isDiscarded());
 
-    if (pid.isFailed()) {
-      EXIT(1) << "Failed to detect a master: " << pid.failure();
+    if (_master.isFailed()) {
+      EXIT(1) << "Failed to detect a master: " << _master.failure();
     }
 
-    master = pid.get();
+    if (_master.get().isSome()) {
+      master = UPID(_master.get().get().pid());
+    } else {
+      master = None();
+    }
 
     if (connected) {
       // There are three cases here:
@@ -228,7 +232,7 @@ protected:
 
     // Keep detecting masters.
     LOG(INFO) << "Detecting new master";
-    detector->detect(master)
+    detector->detect(_master.get())
       .onAny(defer(self(), &SchedulerProcess::detected, lambda::_1));
   }
 

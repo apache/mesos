@@ -202,7 +202,44 @@ Master::Master(
     files(_files),
     contender(_contender),
     detector(_detector),
-    completedFrameworks(MAX_COMPLETED_FRAMEWORKS) {}
+    completedFrameworks(MAX_COMPLETED_FRAMEWORKS)
+{
+  // NOTE: We populate 'info_' here instead of inside 'initialize()'
+  // because 'StandaloneMasterDetector' needs access to the info.
+
+  // The master ID is currently comprised of the current date, the IP
+  // address and port from self() and the OS PID.
+  Try<string> id =
+    strings::format("%s-%u-%u-%d", DateUtils::currentDate(),
+                    self().ip, self().port, getpid());
+
+  CHECK(!id.isError()) << id.error();
+
+  info_.set_id(id.get());
+  info_.set_ip(self().ip);
+  info_.set_port(self().port);
+  info_.set_pid(self());
+
+  // Determine our hostname or use the hostname provided.
+  string hostname;
+
+  if (flags.hostname.isNone()) {
+    Try<string> result = net::getHostname(self().ip);
+
+    if (result.isError()) {
+      LOG(FATAL) << "Failed to get hostname: " << result.error();
+    }
+
+    hostname = result.get();
+  } else {
+    hostname = flags.hostname.get();
+  }
+
+  info_.set_hostname(hostname);
+
+  LOG(INFO) << "Master ID: " << info_.id()
+            << " Hostname: " << info_.hostname();
+}
 
 
 Master::~Master()
@@ -283,39 +320,6 @@ Master::~Master()
 void Master::initialize()
 {
   LOG(INFO) << "Master started on " << string(self()).substr(7);
-
-  // The master ID is currently comprised of the current date, the IP
-  // address and port from self() and the OS PID.
-  Try<string> id =
-    strings::format("%s-%u-%u-%d", DateUtils::currentDate(),
-                    self().ip, self().port, getpid());
-
-  CHECK(!id.isError()) << id.error();
-
-  info.set_id(id.get());
-  info.set_ip(self().ip);
-  info.set_port(self().port);
-  info.set_pid(self());
-
-  // Determine our hostname or use the hostname provided.
-  string hostname;
-
-  if (flags.hostname.isNone()) {
-    Try<string> result = net::getHostname(self().ip);
-
-    if (result.isError()) {
-      LOG(FATAL) << "Failed to get hostname: " << result.error();
-    }
-
-    hostname = result.get();
-  } else {
-    hostname = flags.hostname.get();
-  }
-
-  info.set_hostname(hostname);
-
-  LOG(INFO) << "Master ID: " << info.id()
-            << " Hostname: " << info.hostname();
 
   if (flags.authenticate) {
     LOG(INFO) << "Master only allowing authenticated frameworks to register!";
@@ -567,7 +571,7 @@ void Master::initialize()
     }
   }
 
-  contender->initialize(info);
+  contender->initialize(info_);
 
   // Start contending to be a leading master and detecting the current
   // leader.
@@ -741,7 +745,7 @@ void Master::lostCandidacy(const Future<Nothing>& lost)
 }
 
 
-void Master::detected(const Future<Option<UPID> >& _leader)
+void Master::detected(const Future<Option<MasterInfo> >& _leader)
 {
   CHECK(!_leader.isDiscarded());
 
@@ -754,7 +758,9 @@ void Master::detected(const Future<Option<UPID> >& _leader)
   leader = _leader.get();
 
   LOG(INFO) << "The newly elected leader is "
-            << (leader.isSome() ? stringify(leader.get()) : "None");
+            << (leader.isSome()
+                ? (leader.get().pid() + " with id " + leader.get().id())
+                : "None");
 
   if (wasElected && !elected()) {
     EXIT(1) << "Lost leadership... committing suicide!";
@@ -818,7 +824,7 @@ void Master::registerFramework(
                 << ") already registered, resending acknowledgement";
       FrameworkRegisteredMessage message;
       message.mutable_framework_id()->MergeFrom(framework->id);
-      message.mutable_master_info()->MergeFrom(info);
+      message.mutable_master_info()->MergeFrom(info_);
       send(from, message);
       return;
     }
@@ -950,7 +956,7 @@ void Master::reregisterFramework(
 
       FrameworkReregisteredMessage message;
       message.mutable_framework_id()->MergeFrom(frameworkInfo.id());
-      message.mutable_master_info()->MergeFrom(info);
+      message.mutable_master_info()->MergeFrom(info_);
       send(from, message);
       return;
     }
@@ -2605,7 +2611,7 @@ void Master::addFramework(Framework* framework)
 
   FrameworkRegisteredMessage message;
   message.mutable_framework_id()->MergeFrom(framework->id);
-  message.mutable_master_info()->MergeFrom(info);
+  message.mutable_master_info()->MergeFrom(info_);
   send(framework->pid, message);
 
   allocator->frameworkAdded(
@@ -2651,7 +2657,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   {
     FrameworkRegisteredMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id);
-    message.mutable_master_info()->MergeFrom(info);
+    message.mutable_master_info()->MergeFrom(info_);
     send(newPid, message);
   }
 
@@ -3083,7 +3089,7 @@ FrameworkID Master::newFrameworkId()
 {
   std::ostringstream out;
 
-  out << info.id() << "-" << std::setw(4)
+  out << info_.id() << "-" << std::setw(4)
       << std::setfill('0') << nextFrameworkId++;
 
   FrameworkID frameworkId;
@@ -3096,7 +3102,7 @@ FrameworkID Master::newFrameworkId()
 OfferID Master::newOfferId()
 {
   OfferID offerId;
-  offerId.set_value(info.id() + "-" + stringify(nextOfferId++));
+  offerId.set_value(info_.id() + "-" + stringify(nextOfferId++));
   return offerId;
 }
 
@@ -3104,7 +3110,7 @@ OfferID Master::newOfferId()
 SlaveID Master::newSlaveId()
 {
   SlaveID slaveId;
-  slaveId.set_value(info.id() + "-" + stringify(nextSlaveId++));
+  slaveId.set_value(info_.id() + "-" + stringify(nextSlaveId++));
   return slaveId;
 }
 

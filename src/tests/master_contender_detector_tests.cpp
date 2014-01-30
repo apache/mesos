@@ -41,6 +41,8 @@
 #include <stout/path.hpp>
 #include <stout/try.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "master/contender.hpp"
 #include "master/detector.hpp"
 #include "master/master.hpp"
@@ -78,19 +80,6 @@ using std::vector;
 using testing::_;
 using testing::AtMost;
 using testing::Return;
-
-
-// Helper function that creates a MasterInfo from PID<Master>.
-static MasterInfo createMasterInfo(const PID<Master>& master)
-{
-  MasterInfo masterInfo;
-  masterInfo.set_id(UUID::random().toString());
-  masterInfo.set_ip(master.ip);
-  masterInfo.set_port(master.port);
-  masterInfo.set_pid(master);
-
-  return masterInfo;
-}
 
 
 class MasterContenderDetectorTest : public MesosTest {};
@@ -146,7 +135,7 @@ TEST(BasicMasterContenderDetectorTest, Contender)
 
   MasterContender* contender = new StandaloneMasterContender();
 
-  contender->initialize(createMasterInfo(master));
+  contender->initialize(internal::protobuf::createMasterInfo(master));
 
   Future<Future<Nothing> > contended = contender->contend();
   AWAIT_READY(contended);
@@ -171,7 +160,7 @@ TEST(BasicMasterContenderDetectorTest, Detector)
 
   StandaloneMasterDetector detector;
 
-  Future<Option<UPID> > detected = detector.detect();
+  Future<Option<MasterInfo> > detected = detector.detect();
 
   // No one has appointed the leader so we are pending.
   EXPECT_TRUE(detected.isPending());
@@ -199,17 +188,18 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
 
   ZooKeeperMasterContender* contender = new ZooKeeperMasterContender(group);
 
-  PID<Master> master;
-  master.ip = 10000000;
-  master.port = 10000;
+  PID<Master> pid;
+  pid.ip = 10000000;
+  pid.port = 10000;
+  MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
-  contender->initialize(createMasterInfo(master));
+  contender->initialize(master);
   Future<Future<Nothing> > contended = contender->contend();
   AWAIT_READY(contended);
 
   ZooKeeperMasterDetector detector(url.get());
 
-  Future<Option<UPID> > leader = detector.detect();
+  Future<Option<MasterInfo> > leader = detector.detect();
   EXPECT_SOME_EQ(master, leader.get());
   Future<Nothing> lostCandidacy = contended.get();
   leader = detector.detect(leader.get());
@@ -237,11 +227,12 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderPendingElection)
 
   ZooKeeperMasterContender contender(url.get());
 
-  PID<Master> master;
-  master.ip = 10000000;
-  master.port = 10000;
+  PID<Master> pid;
+  pid.ip = 10000000;
+  pid.port = 10000;
+  MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
-  contender.initialize(createMasterInfo(master));
+  contender.initialize(master);
 
   // Drop Group::join so that 'contended' will stay pending.
   Future<Nothing> join = DROP_DISPATCH(_, &GroupProcess::join);
@@ -290,34 +281,36 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
   ZooKeeperMasterContender* contender1 =
     new ZooKeeperMasterContender(url.get());
 
-  PID<Master> master1;
-  master1.ip = 10000000;
-  master1.port = 10000;
+  PID<Master> pid1;
+  pid1.ip = 10000000;
+  pid1.port = 10000;
+  MasterInfo master1 = internal::protobuf::createMasterInfo(pid1);
 
-  contender1->initialize(createMasterInfo(master1));
+  contender1->initialize(master1);
 
   Future<Future<Nothing> > contended1 = contender1->contend();
   AWAIT_READY(contended1);
 
   ZooKeeperMasterDetector detector1(url.get());
 
-  Future<Option<UPID> > leader1 = detector1.detect();
+  Future<Option<MasterInfo> > leader1 = detector1.detect();
   AWAIT_READY(leader1);
   EXPECT_SOME_EQ(master1, leader1.get());
 
   ZooKeeperMasterContender contender2(url.get());
 
-  PID<Master> master2;
-  master2.ip = 10000001;
-  master2.port = 10001;
+  PID<Master> pid2;
+  pid2.ip = 10000001;
+  pid2.port = 10001;
+  MasterInfo master2 = internal::protobuf::createMasterInfo(pid2);
 
-  contender2.initialize(createMasterInfo(master2));
+  contender2.initialize(master2);
 
   Future<Future<Nothing> > contended2 = contender2.contend();
   AWAIT_READY(contended2);
 
   ZooKeeperMasterDetector detector2(url.get());
-  Future<Option<UPID> > leader2 = detector2.detect();
+  Future<Option<MasterInfo> > leader2 = detector2.detect();
   AWAIT_READY(leader2);
   EXPECT_SOME_EQ(master1, leader2.get());
 
@@ -326,7 +319,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
   // Destroying detector1 (below) causes leadership change.
   delete contender1;
 
-  Future<Option<UPID> > leader3 = detector2.detect(master1);
+  Future<Option<MasterInfo> > leader3 = detector2.detect(master1);
   AWAIT_READY(leader3);
   EXPECT_SOME_EQ(master2, leader3.get());
 }
@@ -345,9 +338,10 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, NonRetryableFrrors)
       zookeeper::Authentication("digest", "member:member"));
   AWAIT_READY(group1.join("data"));
 
-  PID<Master> master;
-  master.ip = 10000000;
-  master.port = 10000;
+  PID<Master> pid;
+  pid.ip = 10000000;
+  pid.port = 10000;
+  MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
   // group2's password is wrong and operations on it will fail.
   Owned<zookeeper::Group> group2(new Group(
@@ -356,7 +350,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, NonRetryableFrrors)
       "/mesos",
       zookeeper::Authentication("digest", "member:wrongpass")));
   ZooKeeperMasterContender contender(group2);
-  contender.initialize(createMasterInfo(master));
+  contender.initialize(master);
 
   // Fails due to authentication error.
   AWAIT_FAILED(contender.contend());
@@ -408,11 +402,12 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
 
   ZooKeeperMasterContender contender(url.get());
 
-  PID<Master> master;
-  master.ip = 10000000;
-  master.port = 10000;
+  PID<Master> pid;
+  pid.ip = 10000000;
+  pid.port = 10000;
+  MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
-  contender.initialize(createMasterInfo(master));
+  contender.initialize(master);
 
   Future<Future<Nothing> > contended = contender.contend();
   AWAIT_READY(contended);
@@ -420,7 +415,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
 
   ZooKeeperMasterDetector detector(url.get());
 
-  Future<Option<UPID> > leader = detector.detect();
+  Future<Option<MasterInfo> > leader = detector.detect();
   AWAIT_READY(leader);
   EXPECT_SOME_EQ(master, leader.get());
 
@@ -483,11 +478,12 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   // 1. Simulate a leading contender.
   ZooKeeperMasterContender leaderContender(leaderGroup);
 
-  PID<Master> leader;
-  leader.ip = 10000000;
-  leader.port = 10000;
+  PID<Master> pid;
+  pid.ip = 10000000;
+  pid.port = 10000;
+  MasterInfo leader = internal::protobuf::createMasterInfo(pid);
 
-  leaderContender.initialize(createMasterInfo(leader));
+  leaderContender.initialize(leader);
 
   Future<Future<Nothing> > contended = leaderContender.contend();
   AWAIT_READY(contended);
@@ -495,7 +491,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
 
   ZooKeeperMasterDetector leaderDetector(leaderGroup);
 
-  Future<Option<UPID> > detected = leaderDetector.detect();
+  Future<Option<MasterInfo> > detected = leaderDetector.detect();
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(leader, detected.get());
 
@@ -503,11 +499,12 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   Owned<zookeeper::Group> followerGroup(new Group(url.get(), sessionTimeout));
   ZooKeeperMasterContender followerContender(followerGroup);
 
-  PID<Master> follower;
-  follower.ip = 10000001;
-  follower.port = 10001;
+  PID<Master> pid2;
+  pid2.ip = 10000001;
+  pid2.port = 10001;
+  MasterInfo follower = internal::protobuf::createMasterInfo(pid2);
 
-  followerContender.initialize(createMasterInfo(follower));
+  followerContender.initialize(follower);
 
   contended = followerContender.contend();
   AWAIT_READY(contended);
@@ -548,9 +545,11 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   AWAIT_READY(nonContenderReconnecting);
 
   // Now the detectors re-detect.
-  Future<Option<UPID> > leaderDetected = leaderDetector.detect(leader);
-  Future<Option<UPID> > followerDetected = followerDetector.detect(leader);
-  Future<Option<UPID> > nonContenderDetected =
+  Future<Option<MasterInfo> > leaderDetected =
+    leaderDetector.detect(leader);
+  Future<Option<MasterInfo> > followerDetected =
+    followerDetector.detect(leader);
+  Future<Option<MasterInfo> > nonContenderDetected =
     nonContenderDetector.detect(leader);
 
   Clock::pause();
@@ -589,9 +588,10 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 
   ASSERT_SOME(url);
 
-  PID<Master> leader;
-  leader.ip = 10000000;
-  leader.port = 10000;
+  PID<Master> pid;
+  pid.ip = 10000000;
+  pid.port = 10000;
+  MasterInfo leader = internal::protobuf::createMasterInfo(pid);
 
   // Create the group instance so we can expire its session.
   Owned<zookeeper::Group> group(
@@ -599,7 +599,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 
   ZooKeeperMasterContender leaderContender(group);
 
-  leaderContender.initialize(createMasterInfo(leader));
+  leaderContender.initialize(leader);
 
   Future<Future<Nothing> > leaderContended = leaderContender.contend();
   AWAIT_READY(leaderContended);
@@ -608,22 +608,23 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 
   ZooKeeperMasterDetector leaderDetector(url.get());
 
-  Future<Option<UPID> > detected = leaderDetector.detect();
+  Future<Option<MasterInfo> > detected = leaderDetector.detect();
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(leader, detected.get());
 
   // Keep detecting.
-  Future<Option<UPID> > newLeaderDetected =
+  Future<Option<MasterInfo> > newLeaderDetected =
     leaderDetector.detect(detected.get());
 
   // Simulate a following master.
-  PID<Master> follower;
-  follower.ip = 10000001;
-  follower.port = 10001;
+  PID<Master> pid2;
+  pid2.ip = 10000001;
+  pid2.port = 10001;
+  MasterInfo follower = internal::protobuf::createMasterInfo(pid2);
 
   ZooKeeperMasterDetector followerDetector(url.get());
   ZooKeeperMasterContender followerContender(url.get());
-  followerContender.initialize(createMasterInfo(follower));
+  followerContender.initialize(follower);
 
   Future<Future<Nothing> > followerContended = followerContender.contend();
   AWAIT_READY(followerContended);
@@ -663,12 +664,13 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorExpireSlaveZKSession)
 
   ASSERT_SOME(url);
 
-  PID<Master> master;
-  master.ip = 10000000;
-  master.port = 10000;
+  PID<Master> pid;
+  pid.ip = 10000000;
+  pid.port = 10000;
+  MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
   ZooKeeperMasterContender masterContender(url.get());
-  masterContender.initialize(createMasterInfo(master));
+  masterContender.initialize(master);
 
   Future<Future<Nothing> > leaderContended = masterContender.contend();
   AWAIT_READY(leaderContended);
@@ -679,7 +681,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorExpireSlaveZKSession)
 
   ZooKeeperMasterDetector slaveDetector(group);
 
-  Future<Option<UPID> > detected = slaveDetector.detect();
+  Future<Option<MasterInfo> > detected = slaveDetector.detect();
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(master, detected.get());
 
@@ -723,16 +725,17 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   ZooKeeperMasterContender leaderContender(leaderGroup);
   ZooKeeperMasterDetector leaderDetector(leaderGroup);
 
-  PID<Master> leader;
-  leader.ip = 10000000;
-  leader.port = 10000;
+  PID<Master> pid;
+  pid.ip = 10000000;
+  pid.port = 10000;
+  MasterInfo leader = internal::protobuf::createMasterInfo(pid);
 
-  leaderContender.initialize(createMasterInfo(leader));
+  leaderContender.initialize(leader);
 
   Future<Future<Nothing> > contended = leaderContender.contend();
   AWAIT_READY(contended);
 
-  Future<Option<UPID> > detected = leaderDetector.detect(None());
+  Future<Option<MasterInfo> > detected = leaderDetector.detect(None());
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(leader, detected.get());
 
@@ -742,11 +745,12 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   ZooKeeperMasterContender followerContender(followerGroup);
   ZooKeeperMasterDetector followerDetector(followerGroup);
 
-  PID<Master> follower;
-  follower.ip = 10000001;
-  follower.port = 10001;
+  PID<Master> pid2;
+  pid2.ip = 10000001;
+  pid2.port = 10001;
+  MasterInfo follower = internal::protobuf::createMasterInfo(pid2);
 
-  followerContender.initialize(createMasterInfo(follower));
+  followerContender.initialize(follower);
 
   contended = followerContender.contend();
   AWAIT_READY(contended);

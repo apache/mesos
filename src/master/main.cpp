@@ -29,6 +29,7 @@
 #include <stout/try.hpp>
 
 #include "common/build.hpp"
+#include "common/protobuf_utils.hpp"
 
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
@@ -180,7 +181,7 @@ int main(int argc, char** argv)
   if (zk == "") {
     // It means we are using the standalone detector so we need to
     // appoint this Master as the leader.
-    dynamic_cast<StandaloneMasterDetector*>(detector)->appoint(master->self());
+    dynamic_cast<StandaloneMasterDetector*>(detector)->appoint(master->info());
   }
 
   process::spawn(master);
