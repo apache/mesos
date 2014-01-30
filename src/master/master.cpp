@@ -301,7 +301,7 @@ void Master::initialize()
   string hostname;
 
   if (flags.hostname.isNone()) {
-    Try<string> result = os::hostname();
+    Try<string> result = net::getHostname(self().ip);
 
     if (result.isError()) {
       LOG(FATAL) << "Failed to get hostname: " << result.error();
@@ -314,8 +314,8 @@ void Master::initialize()
 
   info.set_hostname(hostname);
 
-  LOG(INFO) << "Master ID: '" << info.id()
-            << "' Hostname: '" << info.hostname() << "'";
+  LOG(INFO) << "Master ID: " << info.id()
+            << " Hostname: " << info.hostname();
 
   if (flags.authenticate) {
     LOG(INFO) << "Master only allowing authenticated frameworks to register!";

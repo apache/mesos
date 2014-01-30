@@ -219,7 +219,7 @@ void Slave::initialize()
   string hostname;
 
   if (flags.hostname.isNone()) {
-    Try<string> result = os::hostname();
+    Try<string> result = net::getHostname(self().ip);
 
     if (result.isError()) {
       LOG(FATAL) << "Failed to get hostname: " << result.error();
@@ -236,6 +236,9 @@ void Slave::initialize()
   info.mutable_resources()->MergeFrom(resources);
   info.mutable_attributes()->MergeFrom(attributes);
   info.set_checkpoint(flags.checkpoint);
+
+  LOG(INFO) << "Slave hostname: " << info.hostname();
+  LOG(INFO) << "Slave checkpoint: " << stringify(flags.checkpoint);
 
   // The required 'webui_hostname' field has been deprecated and
   // changed to optional for now, but we still need to set it for
