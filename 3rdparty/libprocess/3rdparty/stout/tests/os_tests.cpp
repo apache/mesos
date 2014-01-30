@@ -487,7 +487,24 @@ TEST_F(OsTest, killtree)
     tree.get().children.front().children.front().children.front();
 
   // Now wait for the grandchild to exit splitting the process tree.
-  os::sleep(Milliseconds(50));
+  Duration elapsed = Duration::zero();
+  while (true) {
+    Result<os::Process> process = os::process(grandchild);
+
+    ASSERT_FALSE(process.isError());
+
+    if (process.isNone() || process.get().zombie) {
+      break;
+    }
+
+    if (elapsed > Seconds(10)) {
+      FAIL() << "Granchild process '" << process.get().pid << "' "
+             << "(" << process.get().command << ") did not terminate";
+    }
+
+    os::sleep(Milliseconds(5));
+    elapsed += Milliseconds(5);
+  }
 
   // Kill the process tree and follow sessions and groups to make sure
   // we cross the broken link due to the grandchild.
@@ -518,8 +535,27 @@ TEST_F(OsTest, killtree)
     }
   }
 
-  // There is a delay for processes to move into the zombie state.
-  os::sleep(Milliseconds(50));
+  // All processes should be reaped since we've killed everything.
+  // The direct child must be reaped by us below.
+  elapsed = Duration::zero();
+  while (true) {
+    Result<os::Process> _child = os::process(child);
+    ASSERT_SOME(_child);
+
+    if (os::process(greatGreatGrandchild).isNone() &&
+        os::process(greatGrandchild).isNone() &&
+        os::process(grandchild).isNone() &&
+        _child.get().zombie) {
+      break;
+    }
+
+    if (elapsed > Seconds(10)) {
+      FAIL() << "Processes were not reaped after killtree invocation";
+    }
+
+    os::sleep(Milliseconds(5));
+    elapsed += Milliseconds(5);
+  }
 
   // Expect the pids to be wiped!
   EXPECT_NONE(os::process(greatGreatGrandchild));
