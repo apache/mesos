@@ -57,6 +57,13 @@ Future<size_t> write(int fd, void* data, size_t size);
 // written or an error occured in which case a failure is returned.
 Future<Nothing> write(int fd, const std::string& data);
 
+
+// Splices data from one file descriptor to another. Returns when
+// end-of-file is reached on the input file descriptor or returns a
+// failure if an error occurred while reading or writing. Note that
+// both the 'from' and 'to' file descriptors must be non-blocking.
+Future<Nothing> splice(int from, int to, size_t chunk = 4096);
+
 } // namespace io {
 } // namespace process {
 

@@ -3775,6 +3775,36 @@ Future<Nothing> _write(
 }
 #endif // __cplusplus >= 201103L
 
+
+#if __cplusplus >= 201103L
+void _splice(
+    int from,
+    int to,
+    size_t chunk,
+    const boost::shared_array<char>& data,
+    Owned<Promise<Nothing>> promise)
+{
+  // Note that only one of io::read or io::write is outstanding at any
+  // one point in time thus the reuse of 'data' for both operations.
+  io::read(from, data.get(), chunk)
+    .onReady([=] (size_t size) {
+      if (size == 0) { // EOF.
+        promise->set(Nothing());
+      } else {
+        io::write(to, string(data.get(), size))
+          .onReady([=] () {
+            _splice(from, to, chunk, data, promise);
+          })
+          .onFailed([=] (const string& message) { promise->fail(message); })
+          .onDiscarded([=] () { promise->future().discard(); });
+      }
+    })
+    .onFailed([=] (const string& message) { promise->fail(message); })
+    .onDiscarded([=] () { promise->future().discard(); });
+}
+#else
+#endif // __cplusplus >= 201103L
+
 } // namespace internal
 
 
@@ -3796,6 +3826,24 @@ Future<Nothing> write(int fd, const std::string& data)
   process::initialize();
 
   return internal::_write(fd, Owned<string>(new string(data)), 0);
+}
+
+
+Future<Nothing> splice(int from, int to, size_t chunk)
+{
+  boost::shared_array<char> data(new char[chunk]);
+
+  // Rather than having internal::_splice return a future and
+  // implementing internal::_splice as a chain of io::read and
+  // io::write calls, we use an explicit promise that we pass around
+  // so that we don't increase memory usage the longer that we splice.
+  Owned<Promise<Nothing> > promise(new Promise<Nothing>());
+
+  Future<Nothing> future = promise->future();
+
+  internal::_splice(from, to, chunk, data, promise);
+
+  return future;
 }
 
 } // namespace io {
