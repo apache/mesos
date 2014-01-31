@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# This script should be used to tag the current HEAD as a release
-# candidate and publish the tag to the mesos repo. In addition this
-# script also publishes the corresponding mesos jar to a Maven repo.
+# This script should be used to publish a local tag of the release
+# candidate to the Apache mesos repo. In addition this script also
+# publishes the corresponding mesos jar to a Maven repo.
 
 set -e
 
@@ -19,7 +19,7 @@ VERSION=${1}
 CANDIDATE=${2}
 TAG="${VERSION}-rc${CANDIDATE}"
 
-echo "${GREEN}Tagging the HEAD as ${TAG}${NORMAL}"
+echo "${GREEN}Tagging ${TAG}${NORMAL}"
 
 read -p "Hit enter to continue ... "
 
@@ -32,7 +32,7 @@ MESOS_GIT_LOCAL=$(cd "$(dirname $0)"/..; pwd)
 pushd ${WORK_DIR}
 
 # Make a shallow clone from the local git repository.
-git clone --shared ${MESOS_GIT_LOCAL} mesos
+git clone --shared ${MESOS_GIT_LOCAL} --branch ${TAG} mesos
 
 pushd mesos
 
@@ -47,16 +47,15 @@ sed -i '' "s/\[mesos\], \[.*\]/[mesos], [${TAG}]/" configure.ac
 mkdir build
 pushd build
 ../configure --disable-optimize
-make -j3 check
 
-# Build the distribution.
-# TODO(vinod): Also upload the distribution to svn dev repo?
-# Currently this is tricky because support/vote.sh uploads the
-# distribution in svn dev repo under mesos-${TAG} directory.
-make -j3 dist
+# First build the protobuf compiler.
+# TODO(vinod): This is short term fix for MESOS-959.
+pushd 3rdparty/libprocess/3rdparty
+make -j3
+popd
 
 # Build and deploy the jar.
-make maven-install
+make -j3 maven-install
 mvn deploy -f src/java/mesos.pom
 
 echo "${GREEN}Successfully deployed the jar to staging maven repository ...${NORMAL}"
@@ -70,10 +69,6 @@ while [ ! ${input:-n} = "y" ]; do
 done
 
 popd # build
-
-echo "${GREEN}Creating ${TAG} tag at HEAD...${NORMAL}"
-
-git tag ${TAG} || echo "Tag ${TAG} already exists"
 
 echo "${GREEN}Pushing the git tag to the repository...${NORMAL}"
 

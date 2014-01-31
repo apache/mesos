@@ -45,10 +45,15 @@ grep "\[mesos\], \[${VERSION}\]" configure.ac
 mkdir build
 pushd build
 ../configure --disable-optimize
-make -j3 check
+
+# First build the protobuf compiler.
+# TODO(vinod): This is short term fix for MESOS-959.
+pushd 3rdparty/libprocess/3rdparty
+make -j3
+popd
 
 # Build and deploy the jar.
-make maven-install
+make -j3 maven-install
 mvn deploy -f src/java/mesos.pom
 
 echo "${GREEN}Successfully deployed the jar to staging maven repository ...${NORMAL}"
@@ -125,16 +130,16 @@ https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=
 --------------------------------------------------------------------------------
 
 The candidate for Mesos ${VERSION} release is available at:
-${SVN_DEV_REPO}/mesos-${TAG}/${TARBALL}
+${SVN_DEV_REPO}/${TAG}/${TARBALL}
 
 The tag to be voted on is ${TAG}:
 https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=commit;h=${TAG}
 
 The MD5 checksum of the tarball can be found at:
-${SVN_DEV_REPO}/mesos-${TAG}/${TARBALL}.md5
+${SVN_DEV_REPO}/${TAG}/${TARBALL}.md5
 
 The signature of the tarball can be found at:
-${SVN_DEV_REPO}/mesos-${TAG}/${TARBALL}.asc
+${SVN_DEV_REPO}/${TAG}/${TARBALL}.asc
 
 The PGP key used to sign the release is here:
 https://dist.apache.org/repos/dist/release/mesos/KEYS
