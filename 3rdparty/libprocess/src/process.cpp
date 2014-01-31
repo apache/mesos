@@ -3702,8 +3702,7 @@ Future<string> _read(
 
 
 Future<string> __read(
-    const size_t& size,
-    // TODO(benh): Remove 'const &' after fixing libprocess.
+    size_t size,
     int fd,
     const memory::shared_ptr<string>& buffer,
     const boost::shared_array<char>& data,
@@ -3744,6 +3743,35 @@ Future<Nothing> _write(
       }
       return _write(fd, data, index + length);
     });
+}
+#else
+// Forward declaration.
+Future<Nothing> _write(
+    int fd,
+    Owned<string> data,
+    size_t index);
+
+
+Future<Nothing> __write(
+    int fd,
+    Owned<string> data,
+    size_t index,
+    size_t length)
+{
+  if (index + length == data->size()) {
+    return Nothing();
+  }
+  return _write(fd, data, index + length);
+}
+
+
+Future<Nothing> _write(
+    int fd,
+    Owned<string> data,
+    size_t index)
+{
+  return io::write(fd, (void*) (data->data() + index), data->size() - index)
+    .then(lambda::bind(&__write, fd, data, index, lambda::_1));
 }
 #endif // __cplusplus >= 201103L
 
@@ -3875,12 +3903,12 @@ Future<Response> request(
     return Failure("Failed to set nonblock: " + nonblock.error());
   }
 
+  // Need to disambiguate the io::read we want when binding below.
+  Future<string> (*read)(int) = io::read;
+
   return io::write(s, out.str())
-    .then([=] () {
-      // Decode once the async read completes.
-      return io::read(s)
-        .then(lambda::bind(&internal::decode, lambda::_1));
-    })
+    .then(lambda::bind(read, s))
+    .then(lambda::bind(&internal::decode, lambda::_1))
     .onAny(lambda::bind(&os::close, s));
 }
 
