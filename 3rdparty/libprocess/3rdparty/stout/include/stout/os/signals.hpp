@@ -38,6 +38,7 @@ inline bool pending(int signal)
 inline bool block(int signal)
 {
   sigset_t set;
+  sigemptyset(&set);
   sigaddset(&set, signal);
 
   sigset_t oldset;
@@ -56,6 +57,7 @@ inline bool block(int signal)
 inline bool unblock(int signal)
 {
   sigset_t set;
+  sigemptyset(&set);
   sigaddset(&set, signal);
 
   sigset_t oldset;
