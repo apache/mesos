@@ -28,9 +28,13 @@ layout: documentation
 
 ## Software projects built on Mesos
 
-* [Spark](http://spark.incubator.apache.org/) cluster computing framework
-Spark
+* [Aurora](http://aurora.incubator.apache.org)
 * [Chronos](https://github.com/airbnb/chronos)
+* [Hadoop](https://github.com/mesos/hadoop)
+* [Hypertable](https://code.google.com/p/hypertable/wiki/Mesos)
+* [Jenkins](https://github.com/jenkinsci/mesos-plugin)
 * [Marathon](https://github.com/mesosphere/marathon)
+* [Spark](http://spark.incubator.apache.org/)
+* [Torque](http://mesos.apache.org/documentation/latest/running-torque-or-mpi-on-mesos/)
 
 If you're using Mesos, please add yourself to the list above, or email user@mesos.apache.org and we'll add you!
