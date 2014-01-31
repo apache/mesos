@@ -61,7 +61,7 @@ TEST(IO, Read)
   ASSERT_SOME(os::nonblock(pipes[1]));
 
   // Test reading nothing.
-  AWAIT_EXPECT_FAILED(io::read(pipes[0], data, 0));
+  AWAIT_EXPECT_EQ(0, io::read(pipes[0], data, 0));
 
   // Test successful read.
   Future<size_t> future = io::read(pipes[0], data, 3);
@@ -161,4 +161,109 @@ TEST(IO, BufferedRead)
   close(pipes[0]);
 
   ASSERT_SOME(os::rm("file"));
+}
+
+
+TEST(IO, Write)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  int pipes[2];
+
+  // Create a blocking pipe.
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  // Test on a blocking file descriptor.
+  AWAIT_EXPECT_FAILED(io::write(pipes[1], (void*) "hi", 2));
+
+  close(pipes[0]);
+  close(pipes[1]);
+
+  // Test on a closed file descriptor.
+  AWAIT_EXPECT_FAILED(io::write(pipes[1], (void*) "hi", 2));
+
+  // Create a nonblocking pipe.
+  ASSERT_NE(-1, ::pipe(pipes));
+  ASSERT_SOME(os::nonblock(pipes[0]));
+  ASSERT_SOME(os::nonblock(pipes[1]));
+
+  // Test writing nothing.
+  AWAIT_EXPECT_EQ(0, io::write(pipes[1], (void*) "hi", 0));
+
+  // Test successful write.
+  AWAIT_EXPECT_EQ(2, io::write(pipes[1], (void*) "hi", 2));
+
+  char data[2];
+  AWAIT_EXPECT_EQ(2, io::read(pipes[0], data, 2));
+  EXPECT_EQ("hi", string(data, 2));
+
+  // Test write to broken pipe.
+  close(pipes[0]);
+  AWAIT_EXPECT_FAILED(io::write(pipes[1], (void*) "hi", 2));
+
+  close(pipes[1]);
+}
+
+
+TEST(IO, BlockingWrite)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  int pipes[2];
+
+  // Create a nonblocking pipe.
+  ASSERT_NE(-1, ::pipe(pipes));
+  ASSERT_SOME(os::nonblock(pipes[0]));
+  ASSERT_SOME(os::nonblock(pipes[1]));
+
+  // Determine the pipe buffer size by writing until we block.
+  size_t size = 0;
+  ssize_t length = 0;
+  while ((length = ::write(pipes[1], "data", 4)) >= 0) {
+    size += length;
+  }
+
+  ASSERT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
+
+  close(pipes[0]);
+  close(pipes[1]);
+
+  // Recreate a nonblocking pipe.
+  ASSERT_NE(-1, ::pipe(pipes));
+  ASSERT_SOME(os::nonblock(pipes[0]));
+  ASSERT_SOME(os::nonblock(pipes[1]));
+
+  // Create 8 pipe buffers worth of data. Try and write all the data
+  // at once. Check that the future is pending after doing the
+  // write. Then read 128 bytes and make sure the write remains
+  // pending.
+
+  string data = "data"; // 4 Bytes.
+  ASSERT_EQ(4u, data.size());
+
+  while (data.size() < (8 * size)) {
+    data.append(data);
+  }
+
+  Future<Nothing> future = io::write(pipes[1], data);
+
+  ASSERT_TRUE(future.isPending());
+
+  // Check after reading some data the write remains pending.
+  char temp[128];
+  AWAIT_EXPECT_EQ(128, io::read(pipes[0], temp, 128));
+
+  ASSERT_TRUE(future.isPending());
+
+  length = 128;
+
+  while (length < data.size()) {
+    AWAIT_EXPECT_EQ(128, io::read(pipes[0], temp, 128));
+    length += 128;
+  }
+
+  AWAIT_EXPECT_READY(future);
+
+  close(pipes[0]);
+  close(pipes[1]);
 }

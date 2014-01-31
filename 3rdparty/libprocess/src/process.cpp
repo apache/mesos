@@ -3443,14 +3443,20 @@ namespace io {
 
 namespace internal {
 
-void read(int fd,
-          void* data,
-          size_t size,
-          const memory::shared_ptr<Promise<size_t> >& promise,
-          const Future<short>& future)
+void read(
+    int fd,
+    void* data,
+    size_t size,
+    const memory::shared_ptr<Promise<size_t> >& promise,
+    const Future<short>& future)
 {
   // Ignore this function if the read operation has been cancelled.
   if (promise->future().isDiscarded()) {
+    return;
+  }
+
+  if (size == 0) {
+    promise->set(0);
     return;
   }
 
@@ -3467,12 +3473,105 @@ void read(int fd,
       if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
         // Restart the read operation.
         poll(fd, process::io::READ).onAny(
-            lambda::bind(&internal::read, fd, data, size, promise, lambda::_1));
+            lambda::bind(&internal::read,
+                         fd,
+                         data,
+                         size,
+                         promise,
+                         lambda::_1));
       } else {
         // Error occurred.
         promise->fail(strerror(errno));
       }
     } else {
+      promise->set(length);
+    }
+  }
+}
+
+
+void write(
+    int fd,
+    void* data,
+    size_t size,
+    const memory::shared_ptr<Promise<size_t> >& promise,
+    const Future<short>& future)
+{
+  // Ignore this function if the write operation has been cancelled.
+  if (promise->future().isDiscarded()) {
+    return;
+  }
+
+  if (size == 0) {
+    promise->set(0);
+    return;
+  }
+
+  // Since promise->future() will be discarded before future is
+  // discarded, we should never see a discarded future here because of
+  // the check in the beginning of this function.
+  CHECK(!future.isDiscarded());
+
+  if (future.isFailed()) {
+    promise->fail(future.failure());
+  } else {
+    // Do a write but ignore SIGPIPE so we can return an error when
+    // writing to a pipe or socket where the reading end is closed.
+    // TODO(benh): The 'suppress' macro failed to work on OS X as it
+    // appears that signal delivery was happening asynchronously.
+    // That is, the signal would not appear to be pending when the
+    // 'suppress' block was closed thus the destructor for
+    // 'Suppressor' was not waiting/removing the signal via 'sigwait'.
+    // It also appeared that the signal would be delivered to another
+    // thread even if it remained blocked in this thiread. The
+    // workaround here is to check explicitly for EPIPE and then do
+    // 'sigwait' regardless of what 'os::signals::pending' returns. We
+    // don't have that luxury with 'Suppressor' and arbitrary signals
+    // because we don't always have something like EPIPE to tell us
+    // that a signal is (or will soon be) pending.
+    bool pending = os::signals::pending(SIGPIPE);
+    bool unblock = !pending ? os::signals::block(SIGPIPE) : false;
+
+    ssize_t length = ::write(fd, data, size);
+
+    // Save the errno so we can restore it after doing sig* functions
+    // below.
+    int errno_ = errno;
+
+    if (length < 0 && errno == EPIPE && !pending) {
+      sigset_t mask;
+      sigemptyset(&mask);
+      sigaddset(&mask, SIGPIPE);
+
+      int result;
+      do {
+        int ignored;
+        result = sigwait(&mask, &ignored);
+      } while (result == -1 && errno == EINTR);
+    }
+
+    if (unblock) {
+      os::signals::unblock(SIGPIPE);
+    }
+
+    errno = errno_;
+
+    if (length < 0) {
+      if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+        // Restart the write operation.
+        poll(fd, process::io::WRITE).onAny(
+            lambda::bind(&internal::write,
+                         fd,
+                         data,
+                         size,
+                         promise,
+                         lambda::_1));
+      } else {
+        // Error occurred.
+        promise->fail(strerror(errno));
+      }
+    } else {
+      // TODO(benh): Retry if 'length' is 0?
       promise->set(length);
     }
   }
@@ -3518,39 +3617,71 @@ Future<size_t> read(int fd, void* data, size_t size)
   // Check the file descriptor.
   Try<bool> nonblock = os::isNonblock(fd);
   if (nonblock.isError()) {
-    // The file descriptor is not valid (e.g. fd has been closed).
-    promise->fail(string("Failed to check O_NONBLOCK") + strerror(errno));
+    // The file descriptor is not valid (e.g., has been closed).
+    promise->fail(
+        "Failed to check if file descriptor was non-blocking: " +
+        string(strerror(errno)));
     return promise->future();
   } else if (!nonblock.get()) {
-    // The fd is not opened with O_NONBLOCK set.
-    promise->fail("Please use a fd opened with O_NONBLOCK set");
-    return promise->future();
-  }
-
-  if (size == 0) {
-    promise->fail("Try to read nothing");
+    // The file descriptor is not non-blocking.
+    promise->fail("Expected a non-blocking file descriptor");
     return promise->future();
   }
 
   // Because the file descriptor is non-blocking, we call read()
-  // immediately. The read may in turn call poll if needed, avoiding
-  // unnecessary polling. We also observed that for some combination
-  // of libev and Linux kernel versions, the poll would block for
-  // non-deterministically long periods of time. This may be fixed in
-  // a newer version of libev (we use 3.8 at the time of writing this
-  // comment).
+  // immediately. The read may in turn call poll if necessary,
+  // avoiding unnecessary polling. We also observed that for some
+  // combination of libev and Linux kernel versions, the poll would
+  // block for non-deterministically long periods of time. This may be
+  // fixed in a newer version of libev (we use 3.8 at the time of
+  // writing this comment).
   internal::read(fd, data, size, promise, io::READ);
 
   return promise->future();
 }
 
+
+Future<size_t> write(int fd, void* data, size_t size)
+{
+  process::initialize();
+
+  memory::shared_ptr<Promise<size_t> > promise(new Promise<size_t>());
+
+  // Check the file descriptor.
+  Try<bool> nonblock = os::isNonblock(fd);
+  if (nonblock.isError()) {
+    // The file descriptor is not valid (e.g., has been closed).
+    promise->fail(
+        "Failed to check if file descriptor was non-blocking: " +
+        string(strerror(errno)));
+    return promise->future();
+  } else if (!nonblock.get()) {
+    // The file descriptor is not non-blocking.
+    promise->fail("Expected a non-blocking file descriptor");
+    return promise->future();
+  }
+
+  // Because the file descriptor is non-blocking, we call write()
+  // immediately. The write may in turn call poll if necessary,
+  // avoiding unnecessary polling. We also observed that for some
+  // combination of libev and Linux kernel versions, the poll would
+  // block for non-deterministically long periods of time. This may be
+  // fixed in a newer version of libev (we use 3.8 at the time of
+  // writing this comment).
+  internal::write(fd, data, size, promise, io::WRITE);
+
+  return promise->future();
+}
+
+
 namespace internal {
 
 #if __cplusplus >= 201103L
-Future<string> _read(int fd,
-                     const memory::shared_ptr<string>& buffer,
-                     const boost::shared_array<char>& data,
-                     size_t length)
+Future<string> _read(
+    int fd,
+    const memory::shared_ptr<string>& buffer,
+    const boost::shared_array<char>& data,
+    size_t length)
 {
   return io::read(fd, data.get(), length)
     .then([=] (size_t size) -> Future<string> {
@@ -3563,10 +3694,11 @@ Future<string> _read(int fd,
 }
 #else
 // Forward declataion.
-Future<string> _read(int fd,
-                     const memory::shared_ptr<string>& buffer,
-                     const boost::shared_array<char>& data,
-                     size_t length);
+Future<string> _read(
+    int fd,
+    const memory::shared_ptr<string>& buffer,
+    const boost::shared_array<char>& data,
+    size_t length);
 
 
 Future<string> __read(
@@ -3587,13 +3719,31 @@ Future<string> __read(
 }
 
 
-Future<string> _read(int fd,
-                     const memory::shared_ptr<string>& buffer,
-                     const boost::shared_array<char>& data,
-                     size_t length)
+Future<string> _read(
+    int fd,
+    const memory::shared_ptr<string>& buffer,
+    const boost::shared_array<char>& data,
+    size_t length)
 {
   return io::read(fd, data.get(), length)
     .then(lambda::bind(&__read, lambda::_1, fd, buffer, data, length));
+}
+#endif // __cplusplus >= 201103L
+
+
+#if __cplusplus >= 201103L
+Future<Nothing> _write(
+    int fd,
+    Owned<string> data,
+    size_t index)
+{
+  return io::write(fd, (void*) (data->data() + index), data->size() - index)
+    .then([=] (size_t length) -> Future<Nothing> {
+      if (index + length == data->size()) {
+        return Nothing();
+      }
+      return _write(fd, data, index + length);
+    });
 }
 #endif // __cplusplus >= 201103L
 
@@ -3612,6 +3762,13 @@ Future<string> read(int fd)
   return internal::_read(fd, buffer, data, BUFFERED_READ_SIZE);
 }
 
+
+Future<Nothing> write(int fd, const std::string& data)
+{
+  process::initialize();
+
+  return internal::_write(fd, Owned<string>(new string(data)), 0);
+}
 
 } // namespace io {
 
@@ -3712,33 +3869,18 @@ Future<Response> request(
         << body.get();
   }
 
-  // TODO(bmahler): Use benh's async write when it gets committed.
-  const string& data = out.str();
-  int remaining = data.size();
-
-  while (remaining > 0) {
-    int n = write(s, data.data() + (data.size() - remaining), remaining);
-
-    if (n < 0) {
-      if (errno == EINTR) {
-        continue;
-      }
-      os::close(s);
-      return Failure(string("Failed to write: ") + strerror(errno));
-    }
-
-    remaining -= n;
-  }
-
   Try<Nothing> nonblock = os::nonblock(s);
   if (!nonblock.isSome()) {
     os::close(s);
     return Failure("Failed to set nonblock: " + nonblock.error());
   }
 
-  // Decode once the async read completes.
-  return io::read(s)
-    .then(lambda::bind(&internal::decode, lambda::_1))
+  return io::write(s, out.str())
+    .then([=] () {
+      // Decode once the async read completes.
+      return io::read(s)
+        .then(lambda::bind(&internal::decode, lambda::_1));
+    })
     .onAny(lambda::bind(&os::close, s));
 }
 
