@@ -16,7 +16,7 @@ layout: documentation
 
 ## Running Mesos Frameworks
 
-* [Running Aurora on Mesos](https://github.com/apache/incubator-aurora/blob/master/docs/tutorial.md)
+* [Running Aurora on Mesos](https://github.com/apache/incubator-aurora/tree/master/docs)
 * [Running Chronos on Mesos](https://github.com/airbnb/chronos)
 * [Running Hadoop on Mesos](https://github.com/mesos/hadoop)
 * [Running Jenkins on Mesos](https://github.com/jenkinsci/mesos-plugin)
