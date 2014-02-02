@@ -27,6 +27,7 @@ include ../3rdparty/libprocess/3rdparty/versions.am
 DISTRIBUTE = 3rdparty/distribute-$(DISTRIBUTE_VERSION)
 LEVELDB = 3rdparty/leveldb
 ZOOKEEPER = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/src/c
+ZOOKEEPER_JAR = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/zookeeper-$(ZOOKEEPER_VERSION).jar
 LIBPROCESS = 3rdparty/libprocess
 STOUT = $(LIBPROCESS)/3rdparty/stout
 BOOST = $(LIBPROCESS)/3rdparty/boost-$(BOOST_VERSION)
@@ -555,7 +556,8 @@ EXAMPLES_SOURCE =							\
 	$(srcdir)/examples/java/TestExceptionFramework.java		\
 	$(srcdir)/examples/java/TestExecutor.java			\
 	$(srcdir)/examples/java/TestFramework.java			\
-	$(srcdir)/examples/java/TestMultipleExecutorsFramework.java
+	$(srcdir)/examples/java/TestMultipleExecutorsFramework.java	\
+	$(srcdir)/examples/java/TestLog.java
 EXTRA_DIST += $(EXAMPLES_SOURCE)
 
 
@@ -696,7 +698,7 @@ $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
 	$(MKDIR_P) examples/java
 	$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6			\
-          -cp $(PROTOBUF_JAR):$(MESOS_JAR):$(srcdir)/examples/java	\
+          -cp ../$(ZOOKEEPER_JAR):$(PROTOBUF_JAR):$(MESOS_JAR):$(srcdir)/examples/java	\
           -sourcepath $(srcdir)/examples/java -d examples/java	        \
           $(srcdir)/examples/java/*.java
 	$(JAVA_HOME)/bin/jar cf $@ -C examples/java .
@@ -905,7 +907,8 @@ if HAS_JAVA
   EXAMPLESSCRIPTSJAVA = examples/java/test-framework			\
 			examples/java/test-executor			\
 			examples/java/test-exception-framework		\
-			examples/java/test-multiple-executors-framework
+			examples/java/test-multiple-executors-framework \
+			examples/java/test-log
 
   check_SCRIPTS += $(EXAMPLESCRIPTSJAVA)
   mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSJAVA)
@@ -933,6 +936,7 @@ dist_check_SCRIPTS +=							\
   tests/no_executor_framework_test.sh					\
   tests/java_exception_test.sh						\
   tests/java_framework_test.sh						\
+  tests/java_log_test.sh						\
   tests/python_framework_test.sh
 
 # We use a check-local target for now to avoid the parallel test

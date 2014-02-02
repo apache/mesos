@@ -28,6 +28,7 @@ TEST_SCRIPT(ExamplesTest, NoExecutorFramework, "no_executor_framework_test.sh")
 #ifdef MESOS_HAS_JAVA
 TEST_SCRIPT(ExamplesTest, JavaFramework, "java_framework_test.sh")
 TEST_SCRIPT(ExamplesTest, JavaException, "java_exception_test.sh")
+TEST_SCRIPT(ExamplesTest, JavaLog, "java_log_test.sh")
 #endif
 
 #ifdef MESOS_HAS_PYTHON

@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+# This script uses MESOS_SOURCE_DIR and MESOS_BUILD_DIR which come
+# from configuration substitutions.
+MESOS_SOURCE_DIR=@abs_top_srcdir@
+MESOS_BUILD_DIR=@abs_top_builddir@
+
+# Locate Java from environment or use configure discovered location.
+JAVA_HOME=${JAVA_HOME-@JAVA_HOME@}
+JAVA=${JAVA-${JAVA_HOME}/bin/java}
+
+# Use colors for errors.
+. ${MESOS_SOURCE_DIR}/support/colors.sh
+
+# TODO(vinod): Deduce the protobuf version.
+PROTOBUF_JAR=${MESOS_BUILD_DIR}/protobuf-2.5.0.jar
+
+test ! -e ${PROTOBUF_JAR} && \
+  echo "${RED}Failed to find ${PROTOBUF_JAR}${NORMAL}" && \
+  exit 1
+
+# TODO(vinod): Deduce the zookeeper version.
+ZOOKEEPER=${MESOS_BUILD_DIR}/3rdparty/zookeeper-3.4.5
+ZOOKEEPER_JAR=${ZOOKEEPER}/zookeeper-3.4.5.jar
+
+test ! -e ${ZOOKEEPER_JAR} && \
+  echo "${RED}Failed to find ${ZOOKEEPER_JAR}${NORMAL}" && \
+  exit 1
+
+MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos-@PACKAGE_VERSION@.jar
+
+test ! -e ${MESOS_JAR} && \
+  echo "${RED}Failed to find ${MESOS_JAR}${NORMAL}" && \
+  exit 1
+
+EXAMPLES_JAR=${MESOS_BUILD_DIR}/src/examples.jar
+
+test ! -e ${EXAMPLES_JAR} && \
+  echo "${RED}Failed to find ${EXAMPLES_JAR}${NORMAL}" && \
+  exit 1
+
+exec ${JAVA} -cp "${PROTOBUF_JAR}:${MESOS_JAR}:${EXAMPLES_JAR}:${ZOOKEEPER_JAR}:${ZOOKEEPER}/lib/*" \
+  -Djava.library.path=${MESOS_BUILD_DIR}/src/.libs \
+  TestLog "${@}"
