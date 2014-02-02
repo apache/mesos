@@ -133,9 +133,9 @@ def countMPDs():
 
 
 def parseIpPort(s):
-  ba = re.search("_([^ ]*) \(([^)]*)\)", s)
-  ip = ba.group(2)
-  port = ba.group(1)
+  ba = re.search("([^_]*)_([0-9]*)", s)
+  ip = ba.group(1)
+  port = ba.group(2)
   return (ip, port)
 
 

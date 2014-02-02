@@ -1,5 +1,7 @@
 #!/bin/sh
-
+#
+# This is a wrapper script for the MPI launcher framework.
+#
 # This script uses MESOS_SOURCE_DIR and MESOS_BUILD_DIR which come
 # from configuration substitutions.
 MESOS_SOURCE_DIR=@abs_top_srcdir@
@@ -14,13 +16,13 @@ test ! -z "${PYTHON}" && \
 
 PYTHON=@PYTHON@
 
-DISTRIBUTE_EGG=`echo ${MESOS_BUILD_DIR}/third_party/distribute-*/dist/*.egg`
+DISTRIBUTE_EGG=`echo ${MESOS_BUILD_DIR}/3rdparty/distribute-*/dist/*.egg`
 
 test ! -e ${DISTRIBUTE_EGG} && \
   echo "${RED}Failed to find ${DISTRIBUTE_EGG}${NORMAL}" && \
   exit 1
 
-PROTOBUF=${MESOS_BUILD_DIR}/third_party/protobuf-2.4.1
+PROTOBUF=${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-*
 PROTOBUF_EGG=`echo ${PROTOBUF}/python/dist/protobuf*.egg`
 
 test ! -e ${PROTOBUF_EGG} && \
@@ -33,7 +35,7 @@ test ! -e ${MESOS_EGG} && \
   echo "${RED}Failed to find ${MESOS_EGG}${NORMAL}" && \
   exit 1
 
-SCRIPT=`dirname ${0}`/mpiexec-mesos.py
+SCRIPT=${MESOS_SOURCE_DIR}/mpi/mpiexec-mesos.py
 
 test ! -e ${SCRIPT} && \
   echo "${RED}Failed to find ${SCRIPT}${NORMAL}" && \

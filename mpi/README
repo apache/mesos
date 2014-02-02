@@ -8,8 +8,12 @@ Table of Contents:
 =====================
 1) INSTALLING MPICH2:
 =====================
-- This framework was developed for MPICH2 1.2(mpd was deprecated
+- This framework was developed for MPICH2 1.2 (mpd was deprecated
   starting 1.3) on Linux(Ubuntu 11.10) and OS X Lion.
+  WARNING: MPICH2 later than 1.2 may not run on Mesos.
+  (You can configure newer version to include mpd,
+   but then mpdtrace may still be missing and
+   the executor script used for Mesos relies on it.)
 
 - You can install MPICH2 from scratch. You can get MPICH2 as well as
   installation directions here:
