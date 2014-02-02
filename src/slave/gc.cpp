@@ -44,7 +44,7 @@ namespace slave {
 GarbageCollectorProcess::~GarbageCollectorProcess()
 {
   foreachvalue (const PathInfo& info, paths) {
-    info.promise->future().discard();
+    info.promise->discard();
   }
 }
 
@@ -93,8 +93,8 @@ bool GarbageCollectorProcess::unschedule(const string& path)
   // Locate the path.
   foreach (const PathInfo& info, paths.get(timeout)) {
     if (info.path == path) {
-      // Discard the future.
-      info.promise->future().discard();
+      // Discard the promise.
+      info.promise->discard();
 
       // Clean up the maps.
       CHECK(paths.remove(timeout, info));

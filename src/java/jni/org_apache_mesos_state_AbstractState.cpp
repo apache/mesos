@@ -78,12 +78,11 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1
 {
   Future<Variable>* future = (Future<Variable>*) jfuture;
 
-  if (!future->isDiscarded()) {
-    future->discard();
-    return (jboolean) future->isDiscarded();
-  }
+  // We'll initiate a discard but we won't consider it cancelled since
+  // we don't know if/when the future will get discarded.
+  future->discard();
 
-  return (jboolean) true;
+  return (jboolean) false;
 }
 
 
@@ -95,9 +94,12 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1
 JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1is_1cancelled
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Variable>* future = (Future<Variable>*) jfuture;
-
-  return (jboolean) future->isDiscarded();
+  // We always return false since while we might discard the future in
+  // 'cancel' we don't know if it has really been discarded and we
+  // don't want this function to block. We choose to be deterministic
+  // here and always return false rather than sometimes returning true
+  // if the future has completed (been discarded or otherwise).
+  return (jboolean) false;
 }
 
 
@@ -111,7 +113,7 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1
 {
   Future<Variable>* future = (Future<Variable>*) jfuture;
 
-  return (jboolean) !future->isPending();
+  return (jboolean) !future->isPending() || future->hasDiscard();
 }
 
 
@@ -132,6 +134,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1g
     env->ThrowNew(clazz, future->failure().c_str());
     return NULL;
   } else if (future->isDiscarded()) {
+    // TODO(benh): Consider throwing an ExecutionException since we
+    // never return true for 'isCancelled'.
     jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
     env->ThrowNew(clazz, "Future was discarded");
     return NULL;
@@ -179,6 +183,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1g
       env->ThrowNew(clazz, future->failure().c_str());
       return NULL;
     } else if (future->isDiscarded()) {
+      // TODO(benh): Consider throwing an ExecutionException since we
+      // never return true for 'isCancelled'.
       clazz = env->FindClass("java/util/concurrent/CancellationException");
       env->ThrowNew(clazz, "Future was discarded");
       return NULL;
@@ -257,12 +263,11 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1
 {
   Future<Option<Variable> >* future = (Future<Option<Variable> >*) jfuture;
 
-  if (!future->isDiscarded()) {
-    future->discard();
-    return (jboolean) future->isDiscarded();
-  }
+  // We'll initiate a discard but we won't consider it cancelled since
+  // we don't know if/when the future will get discarded.
+  future->discard();
 
-  return (jboolean) true;
+  return (jboolean) false;
 }
 
 
@@ -274,9 +279,12 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1
 JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1is_1cancelled
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<Option<Variable> >* future = (Future<Option<Variable> >*) jfuture;
-
-  return (jboolean) future->isDiscarded();
+  // We always return false since while we might discard the future in
+  // 'cancel' we don't know if it has really been discarded and we
+  // don't want this function to block. We choose to be deterministic
+  // here and always return false rather than sometimes returning true
+  // if the future has completed (been discarded or otherwise).
+  return (jboolean) false;
 }
 
 
@@ -290,7 +298,7 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1
 {
   Future<Option<Variable> >* future = (Future<Option<Variable> >*) jfuture;
 
-  return (jboolean) !future->isPending();
+  return (jboolean) !future->isPending() || future->hasDiscard();
 }
 
 
@@ -311,6 +319,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1g
     env->ThrowNew(clazz, future->failure().c_str());
     return NULL;
   } else if (future->isDiscarded()) {
+    // TODO(benh): Consider throwing an ExecutionException since we
+    // never return true for 'isCancelled'.
     jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
     env->ThrowNew(clazz, "Future was discarded");
     return NULL;
@@ -362,6 +372,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1g
       env->ThrowNew(clazz, future->failure().c_str());
       return NULL;
     } else if (future->isDiscarded()) {
+      // TODO(benh): Consider throwing an ExecutionException since we
+      // never return true for 'isCancelled'.
       clazz = env->FindClass("java/util/concurrent/CancellationException");
       env->ThrowNew(clazz, "Future was discarded");
       return NULL;
@@ -444,12 +456,11 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge
 {
   Future<bool>* future = (Future<bool>*) jfuture;
 
-  if (!future->isDiscarded()) {
-    future->discard();
-    return (jboolean) future->isDiscarded();
-  }
+  // We'll initiate a discard but we won't consider it cancelled since
+  // we don't know if/when the future will get discarded.
+  future->discard();
 
-  return (jboolean) true;
+  return (jboolean) false;
 }
 
 
@@ -461,9 +472,12 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge
 JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_1is_1cancelled
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<bool>* future = (Future<bool>*) jfuture;
-
-  return (jboolean) future->isDiscarded();
+  // We always return false since while we might discard the future in
+  // 'cancel' we don't know if it has really been discarded and we
+  // don't want this function to block. We choose to be deterministic
+  // here and always return false rather than sometimes returning true
+  // if the future has completed (been discarded or otherwise).
+  return (jboolean) false;
 }
 
 
@@ -477,7 +491,7 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge
 {
   Future<bool>* future = (Future<bool>*) jfuture;
 
-  return (jboolean) !future->isPending();
+  return (jboolean) !future->isPending() || future->hasDiscard();
 }
 
 
@@ -498,6 +512,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_
     env->ThrowNew(clazz, future->failure().c_str());
     return NULL;
   } else if (future->isDiscarded()) {
+    // TODO(benh): Consider throwing an ExecutionException since we
+    // never return true for 'isCancelled'.
     jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
     env->ThrowNew(clazz, "Future was discarded");
     return NULL;
@@ -542,6 +558,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_
       env->ThrowNew(clazz, future->failure().c_str());
       return NULL;
     } else if (future->isDiscarded()) {
+      // TODO(benh): Consider throwing an ExecutionException since we
+      // never return true for 'isCancelled'.
       clazz = env->FindClass("java/util/concurrent/CancellationException");
       env->ThrowNew(clazz, "Future was discarded");
       return NULL;
@@ -612,12 +630,11 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1
 {
   Future<vector<string> >* future = (Future<vector<string> >*) jfuture;
 
-  if (!future->isDiscarded()) {
-    future->discard();
-    return (jboolean) future->isDiscarded();
-  }
+  // We'll initiate a discard but we won't consider it cancelled since
+  // we don't know if/when the future will get discarded.
+  future->discard();
 
-  return (jboolean) true;
+  return (jboolean) false;
 }
 
 /*
@@ -628,9 +645,12 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1
 JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1is_1cancelled
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<vector<string> >* future = (Future<vector<string> >*) jfuture;
-
-  return (jboolean) future->isDiscarded();
+  // We always return false since while we might discard the future in
+  // 'cancel' we don't know if it has really been discarded and we
+  // don't want this function to block. We choose to be deterministic
+  // here and always return false rather than sometimes returning true
+  // if the future has completed (been discarded or otherwise).
+  return (jboolean) false;
 }
 
 
@@ -644,7 +664,7 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1
 {
   Future<vector<string> >* future = (Future<vector<string> >*) jfuture;
 
-  return (jboolean) !future->isPending();
+  return (jboolean) !future->isPending() || future->hasDiscard();
 }
 
 
@@ -665,6 +685,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
     env->ThrowNew(clazz, future->failure().c_str());
     return NULL;
   } else if (future->isDiscarded()) {
+    // TODO(benh): Consider throwing an ExecutionException since we
+    // never return true for 'isCancelled'.
     jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
     env->ThrowNew(clazz, "Future was discarded");
     return NULL;
@@ -719,6 +741,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
       env->ThrowNew(clazz, future->failure().c_str());
       return NULL;
     } else if (future->isDiscarded()) {
+      // TODO(benh): Consider throwing an ExecutionException since we
+      // never return true for 'isCancelled'.
       clazz = env->FindClass("java/util/concurrent/CancellationException");
       env->ThrowNew(clazz, "Future was discarded");
       return NULL;

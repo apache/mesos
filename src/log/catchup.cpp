@@ -64,7 +64,7 @@ protected:
   virtual void initialize()
   {
     // Stop when no one cares.
-    promise.future().onDiscarded(lambda::bind(
+    promise.future().onDiscard(lambda::bind(
         static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
     check();
@@ -74,6 +74,10 @@ protected:
   {
     checking.discard();
     filling.discard();
+
+    // TODO(benh): Discard our promise only after 'checking' and
+    // 'filling' have completed (ready, failed, or discarded).
+    promise.discard();
   }
 
 private:
@@ -192,7 +196,7 @@ protected:
   virtual void initialize()
   {
     // Stop when no one cares.
-    promise.future().onDiscarded(lambda::bind(
+    promise.future().onDiscard(lambda::bind(
         static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
     // Catch-up sequentially.
@@ -204,6 +208,10 @@ protected:
   virtual void finalize()
   {
     catching.discard();
+
+    // TODO(benh): Discard our promise only after 'catching' has
+    // completed (ready, failed, or discarded).
+    promise.discard();
   }
 
 private:
@@ -229,6 +237,7 @@ private:
 
     Timer::create(timeout, lambda::bind(&Self::timedout, catching));
   }
+
 
   void discarded()
   {

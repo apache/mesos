@@ -84,19 +84,19 @@ LeaderContenderProcess::LeaderContenderProcess(
 LeaderContenderProcess::~LeaderContenderProcess()
 {
   if (contending.isSome()) {
-    contending.get()->future().discard();
+    contending.get()->discard();
     delete contending.get();
     contending = None();
   }
 
   if (watching.isSome()) {
-    watching.get()->future().discard();
+    watching.get()->discard();
     delete watching.get();
     watching = None();
   }
 
   if (withdrawing.isSome()) {
-    withdrawing.get()->future().discard();
+    withdrawing.get()->discard();
     delete withdrawing.get();
     withdrawing = None();
   }

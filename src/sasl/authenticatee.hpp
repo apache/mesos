@@ -23,6 +23,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <process/defer.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
 #include <process/once.hpp>
@@ -51,7 +52,10 @@ public:
   // Returns true if successfully authenticated otherwise false or an
   // error. Note that we distinguish authentication failure (false)
   // from a failed future in the event the future failed due to a
-  // transient error and authentication can (should) be retried.
+  // transient error and authentication can (should) be
+  // retried. Discarding the future will cause the future to fail if
+  // it hasn't already completed since we have already started the
+  // authentication procedure and can't reliably cancel.
   process::Future<bool> authenticate(const process::UPID& pid);
 
 private:
@@ -171,6 +175,9 @@ public:
     send(pid, message);
 
     status = STARTING;
+
+    // Stop authenticating if nobody cares.
+    promise.future().onDiscard(defer(self(), &Self::discarded));
 
     return promise.future();
   }
@@ -313,6 +320,12 @@ protected:
     promise.fail("Authentication error: " + error);
   }
 
+  void discarded()
+  {
+    status = DISCARDED;
+    promise.fail("Authentication discarded");
+  }
+
 private:
   static int user(
       void* context,
@@ -354,7 +367,8 @@ private:
     STEPPING,
     COMPLETED,
     FAILED,
-    ERROR
+    ERROR,
+    DISCARDED
   } status;
 
   sasl_conn_t* connection;

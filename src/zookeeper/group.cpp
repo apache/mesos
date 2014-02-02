@@ -62,7 +62,7 @@ void discard(queue<T*>* queue)
   while (!queue->empty()) {
     T* t = queue->front();
     queue->pop();
-    t->promise.future().discard();
+    t->promise.discard();
     delete t;
   }
 }

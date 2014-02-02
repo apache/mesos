@@ -103,7 +103,7 @@ protected:
     LOG(INFO) << "Start recovering a replica";
 
     // Stop when no one cares.
-    promise.future().onDiscarded(lambda::bind(
+    promise.future().onDiscard(lambda::bind(
           static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
     // Check the current status of the local replica and decide if
@@ -119,6 +119,10 @@ protected:
     // Cancel all operations if they are still pending.
     discard(responses);
     catching.discard();
+
+    // TODO(benh): Discard our promise only after 'catching' has
+    // completed (ready, failed, or discarded).
+    promise.discard();
   }
 
 private:

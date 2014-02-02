@@ -147,7 +147,7 @@ MasterDetector::~MasterDetector() {}
 StandaloneMasterDetectorProcess::~StandaloneMasterDetectorProcess()
 {
   foreach (Promise<Option<MasterInfo> >* promise, promises) {
-    promise->future().discard();
+    promise->discard();
     delete promise;
   }
   promises.clear();
@@ -253,7 +253,7 @@ ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
 ZooKeeperMasterDetectorProcess::~ZooKeeperMasterDetectorProcess()
 {
   foreach (Promise<Option<MasterInfo> >* promise, promises) {
-    promise->future().discard();
+    promise->discard();
     delete promise;
   }
   promises.clear();

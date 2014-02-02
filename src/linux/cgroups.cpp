@@ -1181,7 +1181,7 @@ protected:
     // Stop the listener if no one cares. Note that here we explicitly specify
     // the type of the terminate function because it is an overloaded function.
     // The compiler complains if we do not do it.
-    promise.future().onDiscarded(lambda::bind(
+    promise.future().onDiscard(lambda::bind(
         static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
     // Register an eventfd "notifier" for the given control.
@@ -1215,6 +1215,10 @@ protected:
         LOG(ERROR) << "Failed to unregistering eventfd: " << unregister.error();
       }
     }
+
+    // TODO(benh): Discard our promise only after 'reading' has
+    // completed (ready, failed, or discarded).
+    promise.discard();
   }
 
 private:
@@ -1222,24 +1226,14 @@ private:
   // result, either because the event has happened, or an error has occurred.
   void notified(const Future<size_t>&)
   {
-    // Ignore this function if the promise is no longer pending.
-    if (!promise.future().isPending()) {
-      return;
-    }
-
-    // Since the future reading can only be discarded when the promise is no
-    // longer pending, we shall never see a discarded reading here because of
-    // the check in the beginning of the function.
-    CHECK(!reading.isDiscarded());
-
-    if (reading.isFailed()) {
+    if (reading.isDiscarded()) {
+      promise.discard();
+    } else if (reading.isFailed()) {
       promise.fail("Failed to read eventfd: " + reading.failure());
+    } else if (reading.get() == sizeof(data)) {
+      promise.set(data);
     } else {
-      if (reading.get() == sizeof(data)) {
-        promise.set(data);
-      } else {
-        promise.fail("Read less than expected");
-      }
+      promise.fail("Read less than expected");
     }
 
     terminate(self());
@@ -1304,7 +1298,7 @@ protected:
   virtual void initialize()
   {
     // Stop the process if no one cares.
-    promise.future().onDiscarded(lambda::bind(
+    promise.future().onDiscard(lambda::bind(
         static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
     CHECK(interval >= Seconds(0));
@@ -1316,6 +1310,11 @@ protected:
     } else if (action == "THAW") {
       thaw();
     }
+  }
+
+  virtual void finalize()
+  {
+    promise.discard();
   }
 
 private:
@@ -1562,12 +1561,17 @@ protected:
   virtual void initialize()
   {
     // Stop when no one cares.
-    promise.future().onDiscarded(lambda::bind(
+    promise.future().onDiscard(lambda::bind(
         static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
     CHECK(interval >= Seconds(0));
 
     check();
+  }
+
+  virtual void finalize()
+  {
+    promise.discard();
   }
 
 private:
@@ -1624,7 +1628,7 @@ protected:
   virtual void initialize()
   {
     // Stop when no one cares.
-    promise.future().onDiscarded(lambda::bind(
+    promise.future().onDiscard(lambda::bind(
           static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
     CHECK(interval >= Seconds(0));
@@ -1635,8 +1639,12 @@ protected:
   virtual void finalize()
   {
     // Cancel the chain of operations if the user discards the future.
-    if (promise.future().isDiscarded()) {
+    if (promise.future().hasDiscard()) {
       chain.discard();
+
+      // TODO(benh): Discard our promise only after 'chain' has
+      // completed (ready, failed, or discarded).
+      promise.discard();
     }
   }
 
@@ -1689,8 +1697,10 @@ private:
 
   void finished(const Future<bool>& empty)
   {
-    CHECK(!empty.isPending() && !empty.isDiscarded());
-    if (empty.isFailed()) {
+    if (empty.isDiscarded()) {
+      promise.discard();
+      terminate(self());
+    } else if (empty.isFailed()) {
       promise.fail(empty.failure());
       terminate(self());
     } else if (empty.get()) {
@@ -1731,7 +1741,7 @@ protected:
   virtual void initialize()
   {
     // Stop when no one cares.
-    promise.future().onDiscarded(lambda::bind(
+    promise.future().onDiscard(lambda::bind(
           static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
     CHECK(interval >= Seconds(0));
@@ -1752,17 +1762,23 @@ protected:
   virtual void finalize()
   {
     // Cancel the operation if the user discards the future.
-    if (promise.future().isDiscarded()) {
+    if (promise.future().hasDiscard()) {
       discard<bool>(killers);
+
+      // TODO(benh): Discard our promise only after all 'killers' have
+      // completed (ready, failed, or discarded).
+      promise.discard();
     }
   }
 
 private:
   void killed(const Future<list<bool> >& kill)
   {
-    CHECK(!kill.isPending() && !kill.isDiscarded());
     if (kill.isReady()) {
       remove();
+    } else if (kill.isDiscarded()) {
+      promise.discard();
+      terminate(self());
     } else if (kill.isFailed()) {
       promise.fail("Failed to kill tasks in nested cgroups: " + kill.failure());
       terminate(self());

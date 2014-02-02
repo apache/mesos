@@ -330,7 +330,8 @@ void RegistrarProcess::update()
     // Perform the store! Save the future so we can associate it with
     // the mutations that are part of this update.
     Future<bool> future =
-      state->store(variable).then(defer(self(), &Self::_update, lambda::_1));
+      state->store(variable)
+        .then(defer(self(), &Self::_update, lambda::_1));
 
     // TODO(benh): Add a timeout so we don't wait forever.
 
