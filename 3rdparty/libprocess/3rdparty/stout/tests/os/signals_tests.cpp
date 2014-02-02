@@ -16,6 +16,7 @@ class OsSignalsTest : public ::testing::Test {};
 TEST_F(OsSignalsTest, suppress)
 {
   int pipes[2];
+
   ASSERT_NE(-1, pipe(pipes));
 
   ASSERT_SOME(os::close(pipes[0]));

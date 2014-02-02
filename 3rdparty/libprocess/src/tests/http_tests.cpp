@@ -82,7 +82,7 @@ TEST(HTTP, Endpoints)
   EXPECT_CALL(process, body(_))
     .WillOnce(Return(http::OK()));
 
-   ASSERT_SOME(os::write(s, data));
+  ASSERT_SOME(os::write(s, data));
 
   string response = "HTTP/1.1 200 OK";
 

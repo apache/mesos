@@ -23,12 +23,16 @@ TEST(IO, Poll)
   int pipes[2];
   ASSERT_NE(-1, pipe(pipes));
 
+  // Test discard when polling.
   Future<short> future = io::poll(pipes[0], io::READ);
+  EXPECT_TRUE(future.isPending());
+  future.discard();
+  AWAIT_DISCARDED(future);
 
-  EXPECT_FALSE(future.isReady());
-
+  // Test successful polling.
+  future = io::poll(pipes[0], io::READ);
+  EXPECT_TRUE(future.isPending());
   ASSERT_EQ(3, write(pipes[1], "hi", 3));
-
   AWAIT_EXPECT_EQ(io::READ, future);
 
   close(pipes[0]);
@@ -63,8 +67,14 @@ TEST(IO, Read)
   // Test reading nothing.
   AWAIT_EXPECT_EQ(0, io::read(pipes[0], data, 0));
 
-  // Test successful read.
+  // Test discarded read.
   Future<size_t> future = io::read(pipes[0], data, 3);
+  EXPECT_TRUE(future.isPending());
+  future.discard();
+  AWAIT_DISCARDED(future);
+
+  // Test successful read.
+  future = io::read(pipes[0], data, 3);
   ASSERT_FALSE(future.isReady());
 
   ASSERT_EQ(2, write(pipes[1], "hi", 2));
@@ -81,7 +91,7 @@ TEST(IO, Read)
 
   ASSERT_EQ(3, write(pipes[1], "omg", 3));
 
-  AWAIT_ASSERT_EQ(3u, io::read(pipes[0], data, 3));
+  AWAIT_ASSERT_EQ(3u, io::read(pipes[0], data, 3)) << string(data, 2);
   EXPECT_EQ('o', data[0]);
   EXPECT_EQ('m', data[1]);
   EXPECT_EQ('g', data[2]);
@@ -245,24 +255,35 @@ TEST(IO, DISABLED_BlockingWrite)
     data.append(data);
   }
 
-  Future<Nothing> future = io::write(pipes[1], data);
+  Future<Nothing> future1 = io::write(pipes[1], data);
 
-  ASSERT_TRUE(future.isPending());
+  EXPECT_TRUE(future1.isPending());
 
-  // Check after reading some data the write remains pending.
+  // Check that a subsequent write remains pending and can be
+  // discarded.
+  Future<Nothing> future2 = io::write(pipes[1], "hello world");
+  EXPECT_TRUE(future2.isPending());
+  future2.discard();
+  AWAIT_DISCARDED(future2);
+
+  // Check after reading some data the first write remains pending.
+  ASSERT_LT(128, size);
   char temp[128];
   AWAIT_EXPECT_EQ(128, io::read(pipes[0], temp, 128));
 
-  ASSERT_TRUE(future.isPending());
+  EXPECT_TRUE(future1.isPending());
 
-  length = 128;
-
+  // Now read all the data we wrote the first time and expect the
+  // first future to succeed since the second future should have been
+  // completely discarded.
+  length = 128; // To account for io::read above.
   while (length < data.size()) {
-    AWAIT_EXPECT_EQ(128, io::read(pipes[0], temp, 128));
-    length += 128;
+    Future<size_t> read = io::read(pipes[0], temp, 128);
+    AWAIT_READY(read);
+    length += read.get();
   }
 
-  AWAIT_EXPECT_READY(future);
+  AWAIT_EXPECT_READY(future1);
 
   close(pipes[0]);
   close(pipes[1]);
@@ -315,8 +336,13 @@ TEST(IO, splice)
   ASSERT_SOME(os::nonblock(pipes[0]));
   ASSERT_SOME(os::nonblock(pipes[1]));
 
-  // Now write data to the pipe and splice to the file.
+  // Test discard.
+  Future<Nothing> splice = io::splice(pipes[0], fd.get());
+  EXPECT_TRUE(splice.isPending());
+  splice.discard();
+  AWAIT_DISCARDED(splice);
 
+  // Now write data to the pipe and splice to the file.
   string data =
     "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do "
     "eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim "
@@ -331,15 +357,15 @@ TEST(IO, splice)
     data.append(data);
   }
 
-  Future<Nothing> spliced = io::splice(pipes[0], fd.get());
+  splice = io::splice(pipes[0], fd.get());
 
   AWAIT_READY(io::write(pipes[1], data));
 
   // Closing the write pipe should cause an EOF on the read end, thus
-  // completing 'spliced'.
+  // completing 'splice'.
   close(pipes[1]);
 
-  AWAIT_READY(spliced);
+  AWAIT_READY(splice);
 
   close(pipes[0]);
 

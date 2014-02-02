@@ -9,6 +9,7 @@
 #include <set>
 #include <vector>
 
+#include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
@@ -687,13 +688,15 @@ public:
       install<Res>(&ReqResProcess<Req, Res>::response);
   }
 
+  virtual ~ReqResProcess()
+  {
+    // Discard the promise
+    promise.discard();
+  }
+
   process::Future<Res> run()
   {
-    // Terminate this process if no one cares about the response
-    // (note, we need to disambiguate the process::terminate).
-    void (*terminate)(const process::UPID&, bool) = &process::terminate;
-    promise.future().onDiscarded(
-        lambda::bind(terminate, process::ProcessBase::self(), true));
+    promise.future().onDiscard(defer(this, &ReqResProcess::discarded));
 
     ProtobufProcess<ReqResProcess<Req, Res> >::send(pid, req);
 
@@ -701,10 +704,16 @@ public:
   }
 
 private:
+  void discarded()
+  {
+    promise.discard();
+    process::terminate(this);
+  }
+
   void response(const Res& res)
   {
     promise.set(res);
-    process::terminate(process::ProcessBase::self());
+    process::terminate(this);
   }
 
   const process::UPID pid;

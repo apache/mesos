@@ -286,6 +286,15 @@ private:
       delete future;
     }
 
+    // Helper for cleaning up a response (i.e., closing any open pipes
+    // in the event Response::type is PIPE).
+    static void cleanup(const Response& response)
+    {
+      if (response.type == Response::PIPE) {
+        os::close(response.pipe);
+      }
+    }
+
     const Request request; // Make a copy.
     Future<Response>* future;
   };
@@ -1620,13 +1629,10 @@ HttpProxy::~HttpProxy()
     // Attempt to discard the future.
     item->future->discard();
 
-    // But it might have already been ready ...
-    if (item->future->isReady()) {
-      const Response& response = item->future->get();
-      if (response.type == Response::PIPE) {
-        os::close(response.pipe);
-      }
-    }
+    // But it might have already been ready. In general, we need to
+    // wait until this future is potentially ready in order to attempt
+    // to close a pipe if one exists.
+    item->future->onReady(lambda::bind(&Item::cleanup, lambda::_1));
 
     items.pop();
     delete item;
@@ -3445,8 +3451,9 @@ void read(
     const memory::shared_ptr<Promise<size_t> >& promise,
     const Future<short>& future)
 {
-  // Ignore this function if the read operation has been cancelled.
-  if (promise->future().isDiscarded()) {
+  // Ignore this function if the read operation has been discarded.
+  if (promise->future().hasDiscard()) {
+    promise->discard();
     return;
   }
 
@@ -3455,25 +3462,28 @@ void read(
     return;
   }
 
-  // Since promise->future() will be discarded before future is
-  // discarded, we should never see a discarded future here because of
-  // the check in the beginning of this function.
-  CHECK(!future.isDiscarded());
-
-  if (future.isFailed()) {
+  if (future.isDiscarded()) {
+    promise->fail("Failed to poll: discarded future");
+  } else if (future.isFailed()) {
     promise->fail(future.failure());
   } else {
     ssize_t length = ::read(fd, data, size);
     if (length < 0) {
       if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
         // Restart the read operation.
-        poll(fd, process::io::READ).onAny(
-            lambda::bind(&internal::read,
-                         fd,
-                         data,
-                         size,
-                         promise,
-                         lambda::_1));
+        Future<short> future =
+          poll(fd, process::io::READ).onAny(
+              lambda::bind(&internal::read,
+                           fd,
+                           data,
+                           size,
+                           promise,
+                           lambda::_1));
+
+        // Stop polling if a discard occurs on our future.
+        promise->future().onDiscard(
+            lambda::bind(&process::internal::discard<short>,
+                         WeakFuture<short>(future)));
       } else {
         // Error occurred.
         promise->fail(strerror(errno));
@@ -3492,8 +3502,9 @@ void write(
     const memory::shared_ptr<Promise<size_t> >& promise,
     const Future<short>& future)
 {
-  // Ignore this function if the write operation has been cancelled.
-  if (promise->future().isDiscarded()) {
+  // Ignore this function if the write operation has been discarded.
+  if (promise->future().hasDiscard()) {
+    promise->discard();
     return;
   }
 
@@ -3502,12 +3513,9 @@ void write(
     return;
   }
 
-  // Since promise->future() will be discarded before future is
-  // discarded, we should never see a discarded future here because of
-  // the check in the beginning of this function.
-  CHECK(!future.isDiscarded());
-
-  if (future.isFailed()) {
+  if (future.isDiscarded()) {
+    promise->fail("Failed to poll: discarded future");
+  } else if (future.isFailed()) {
     promise->fail(future.failure());
   } else {
     // Do a write but ignore SIGPIPE so we can return an error when
@@ -3554,13 +3562,19 @@ void write(
     if (length < 0) {
       if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
         // Restart the write operation.
-        poll(fd, process::io::WRITE).onAny(
-            lambda::bind(&internal::write,
-                         fd,
-                         data,
-                         size,
-                         promise,
-                         lambda::_1));
+        Future<short> future =
+          poll(fd, process::io::WRITE).onAny(
+              lambda::bind(&internal::write,
+                           fd,
+                           data,
+                           size,
+                           promise,
+                           lambda::_1));
+
+        // Stop polling if a discard occurs on our future.
+        promise->future().onDiscard(
+            lambda::bind(&process::internal::discard<short>,
+                         WeakFuture<short>(future)));
       } else {
         // Error occurred.
         promise->fail(strerror(errno));
@@ -3585,6 +3599,18 @@ Future<short> poll(int fd, short events)
 
   // Get a copy of the future to avoid any races with the event loop.
   Future<short> future = promise->future();
+
+  // Make sure we stop polling if a discard occurs on our future.
+  // TODO(benh): This is actually insuffient in as much as we need to
+  // interrupt the libev event loop and stop and remove the
+  // watcher. This has been left as a TODO since (a) it's a
+  // non-trivial change (i.e., updating 'handle_async' to also remove
+  // watchers) and (b) it's most likely that the file descriptor being
+  // polled will be closed after the promise is discarded which will
+  // invoke 'polled' which will then cause the watcher to be stopped
+  // and deleted. Note that we needed to make Promise<T>::discard a
+  // 'friend' which should be removed once we clean this up.
+  future.onDiscard(lambda::bind(&process::internal::discarded<short>, future));
 
   ev_io* watcher = new ev_io();
   watcher->data = promise;
@@ -3776,26 +3802,46 @@ void _splice(
     int from,
     int to,
     size_t chunk,
-    const boost::shared_array<char>& data,
+    boost::shared_array<char> data,
     memory::shared_ptr<Promise<Nothing>> promise)
 {
+  // Stop splicing if a discard occured on our future.
+  if (promise->future().hasDiscard()) {
+    // TODO(benh): Consider returning the number of bytes already
+    // spliced on discarded, or a failure. Same for the 'onDiscarded'
+    // callbacks below.
+    promise->discard();
+    return;
+  }
+
   // Note that only one of io::read or io::write is outstanding at any
   // one point in time thus the reuse of 'data' for both operations.
-  io::read(from, data.get(), chunk)
+
+  Future<size_t> read = io::read(from, data.get(), chunk);
+
+  // Stop reading (or potentially indefinitely polling) if a discard
+  // occcurs on our future.
+  promise->future().onDiscard(
+      lambda::bind(&process::internal::discard<size_t>,
+                   WeakFuture<size_t>(read)));
+
+  read
     .onReady([=] (size_t size) {
       if (size == 0) { // EOF.
         promise->set(Nothing());
       } else {
+        // Note that we always try and complete the write, even if a
+        // discard has occured on our future, in order to provide
+        // semantics where everything read is written. The promise
+        // will eventually be discarded in the next read.
         io::write(to, string(data.get(), size))
-          .onReady([=] () {
-            _splice(from, to, chunk, data, promise);
-          })
+          .onReady([=] () { _splice(from, to, chunk, data, promise); })
           .onFailed([=] (const string& message) { promise->fail(message); })
-          .onDiscarded([=] () { promise->future().discard(); });
+          .onDiscarded([=] () { promise->discard(); });
       }
     })
     .onFailed([=] (const string& message) { promise->fail(message); })
-    .onDiscarded([=] () { promise->future().discard(); });
+    .onDiscarded([=] () { promise->discard(); });
 }
 #else
 // Forward declarations.
@@ -3811,6 +3857,9 @@ void ___splice(
     memory::shared_ptr<Promise<Nothing> > promise,
     const string& message);
 
+void ____splice(
+    memory::shared_ptr<Promise<Nothing> > promise);
+
 
 void _splice(
     int from,
@@ -3819,10 +3868,27 @@ void _splice(
     boost::shared_array<char> data,
     memory::shared_ptr<Promise<Nothing> > promise)
 {
-  io::read(from, data.get(), chunk)
+  // Stop splicing if a discard occured on our future.
+  if (promise->future().hasDiscard()) {
+    // TODO(benh): Consider returning the number of bytes already
+    // spliced on discarded, or a failure. Same for the 'onDiscarded'
+    // callbacks below.
+    promise->discard();
+    return;
+  }
+
+  Future<size_t> read = io::read(from, data.get(), chunk);
+
+  // Stop reading (or potentially indefinitely polling) if a discard
+  // occurs on our future.
+  promise->future().onDiscard(
+      lambda::bind(&process::internal::discard<size_t>,
+                   WeakFuture<size_t>(read)));
+
+  read
     .onReady(lambda::bind(&__splice, from, to, chunk, data, promise, lambda::_1))
     .onFailed(lambda::bind(&___splice, promise, lambda::_1))
-    .onDiscarded(lambda::bind(&Future<Nothing>::discard, promise->future()));
+    .onDiscarded(lambda::bind(&____splice, promise));
 }
 
 
@@ -3837,10 +3903,14 @@ void __splice(
   if (size == 0) { // EOF.
     promise->set(Nothing());
   } else {
+    // Note that we always try and complete the write, even if a
+    // discard has occured on our future, in order to provide
+    // semantics where everything read is written. The promise will
+    // eventually be discarded in the next read.
     io::write(to, string(data.get(), size))
       .onReady(lambda::bind(&_splice, from, to, chunk, data, promise))
       .onFailed(lambda::bind(&___splice, promise, lambda::_1))
-      .onDiscarded(lambda::bind(&Future<Nothing>::discard, promise->future()));
+      .onDiscarded(lambda::bind(&____splice, promise));
   }
 }
 
@@ -3850,6 +3920,13 @@ void ___splice(
     const string& message)
 {
   promise->fail(message);
+}
+
+
+void ____splice(
+    memory::shared_ptr<Promise<Nothing> > promise)
+{
+  promise->discard();
 }
 #endif // __cplusplus >= 201103L
 

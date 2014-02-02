@@ -75,9 +75,10 @@ TEST(Process, associate)
   EXPECT_TRUE(promise1.future().get());
 
   Promise<bool> promise2;
-  Future<bool> future2;
+  Promise<bool> promise2_;
+  Future<bool> future2 = promise2_.future();
   promise2.associate(future2);
-  future2.discard();
+  promise2_.discard();
   ASSERT_TRUE(promise2.future().isDiscarded());
 
   Promise<bool> promise3;
@@ -87,13 +88,19 @@ TEST(Process, associate)
   ASSERT_TRUE(promise3.future().isFailed());
   EXPECT_EQ("associate", promise3.future().failure());
 
-  // Test that 'discard' is associated in both directions.
+  // Test 'discard' versus 'discarded' after association.
   Promise<bool> promise5;
   Future<bool> future3;
   promise5.associate(future3);
   EXPECT_FALSE(future3.isDiscarded());
   promise5.future().discard();
-  EXPECT_TRUE(future3.isDiscarded());
+  EXPECT_TRUE(future3.hasDiscard());
+
+  Promise<bool> promise6;
+  Promise<bool> promise7;
+  promise6.associate(promise7.future());
+  promise7.discard();
+  EXPECT_TRUE(promise6.future().isDiscarded());
 }
 
 
@@ -163,9 +170,9 @@ Future<bool> failedFuture()
 }
 
 
-Future<bool> pendingFuture(Future<bool>* future)
+Future<bool> pendingFuture(const Future<bool>& future)
 {
-  return *future; // Keep it pending.
+  return future; // Keep it pending.
 }
 
 
@@ -183,8 +190,6 @@ Future<string> third(const string& s)
 
 TEST(Process, chain)
 {
-  Promise<int*> promise;
-
   Future<string> s = readyFuture()
     .then(lambda::bind(&second, lambda::_1))
     .then(lambda::bind(&third, lambda::_1));
@@ -202,20 +207,155 @@ TEST(Process, chain)
 
   ASSERT_TRUE(s.isFailed());
 
-  Future<bool> future;
+  Promise<bool> promise;
 
-  s = pendingFuture(&future)
+  s = pendingFuture(promise.future())
     .then(lambda::bind(&second, lambda::_1))
     .then(lambda::bind(&third, lambda::_1));
 
   ASSERT_TRUE(s.isPending());
+
+  promise.discard();
+
+  AWAIT_DISCARDED(s);
+}
+
+
+Future<bool> inner1(const Future<bool>& future)
+{
+  return future;
+}
+
+
+Future<int> inner2(volatile bool* executed, const Future<int>& future)
+{
+  *executed = true;
+  return future;
+}
+
+
+// Tests that Future::discard does not complete the future unless
+// Promise::discard is invoked.
+TEST(Process, discard1)
+{
+  Promise<bool> promise1;
+  Promise<int> promise2;
+
+  volatile bool executed = false;
+
+  Future<int> future = Future<string>("hello world")
+    .then(lambda::bind(&inner1, promise1.future()))
+    .then(lambda::bind(&inner2, &executed, promise2.future()));
+
   ASSERT_TRUE(future.isPending());
 
-  s.discard();
+  future.discard();
 
-  future.await();
+  // The future should remain pending, even though we discarded it.
+  ASSERT_TRUE(future.hasDiscard());
+  ASSERT_TRUE(future.isPending());
 
-  ASSERT_TRUE(future.isDiscarded());
+  // The future associated with the lambda already executed in the
+  // first 'then' should have the discard propagated to it.
+  ASSERT_TRUE(promise1.future().hasDiscard());
+
+  // But the future assocaited with the lambda that hasn't yet been
+  // executed should not have the discard propagated to it.
+  ASSERT_FALSE(promise2.future().hasDiscard());
+
+  // Now discarding the promise should cause the outer future to be
+  // discarded also.
+  ASSERT_TRUE(promise1.discard());
+
+  AWAIT_DISCARDED(future);
+
+  // And the final lambda should never have executed.
+  ASSERT_FALSE(executed);
+  ASSERT_TRUE(promise2.future().isPending());
+}
+
+
+// Tests that Future::discard does not complete the future and
+// Promise::set can still be invoked to complete the future.
+TEST(Process, discard2)
+{
+  Promise<bool> promise1;
+  Promise<int> promise2;
+
+  volatile bool executed = false;
+
+  Future<int> future = Future<string>("hello world")
+    .then(lambda::bind(&inner1, promise1.future()))
+    .then(lambda::bind(&inner2, &executed, promise2.future()));
+
+  ASSERT_TRUE(future.isPending());
+
+  future.discard();
+
+  // The future should remain pending, even though we discarded it.
+  ASSERT_TRUE(future.hasDiscard());
+  ASSERT_TRUE(future.isPending());
+
+  // The future associated with the lambda already executed in the
+  // first 'then' should have the discard propagated to it.
+  ASSERT_TRUE(promise1.future().hasDiscard());
+
+  // But the future assocaited with the lambda that hasn't yet been
+  // executed should not have the discard propagated to it.
+  ASSERT_FALSE(promise2.future().hasDiscard());
+
+  // Now setting the promise should cause the outer future to be
+  // discarded rather than executing the last lambda because the
+  // implementation of Future::then does not continue the chain once a
+  // discard occurs.
+  ASSERT_TRUE(promise1.set(true));
+
+  AWAIT_DISCARDED(future);
+
+  // And the final lambda should never have executed.
+  ASSERT_FALSE(executed);
+  ASSERT_TRUE(promise2.future().isPending());
+}
+
+
+// Tests that Future::discard does not complete the future and
+// Promise::fail can still be invoked to complete the future.
+TEST(Process, discard3)
+{
+  Promise<bool> promise1;
+  Promise<int> promise2;
+
+  volatile bool executed = false;
+
+  Future<int> future = Future<string>("hello world")
+    .then(lambda::bind(&inner1, promise1.future()))
+    .then(lambda::bind(&inner2, &executed, promise2.future()));
+
+  ASSERT_TRUE(future.isPending());
+
+  future.discard();
+
+  // The future should remain pending, even though we discarded it.
+  ASSERT_TRUE(future.hasDiscard());
+  ASSERT_TRUE(future.isPending());
+
+  // The future associated with the lambda already executed in the
+  // first 'then' should have the discard propagated to it.
+  ASSERT_TRUE(promise1.future().hasDiscard());
+
+  // But the future assocaited with the lambda that hasn't yet been
+  // executed should not have the discard propagated to it.
+  ASSERT_FALSE(promise2.future().hasDiscard());
+
+  // Now failing the promise should cause the outer future to be
+  // failed also.
+  ASSERT_TRUE(promise1.fail("failure message"));
+
+  AWAIT_FAILED(future);
+
+  // And the final lambda should never have executed.
+  ASSERT_FALSE(executed);
+  ASSERT_TRUE(promise2.future().isPending());
 }
 
 

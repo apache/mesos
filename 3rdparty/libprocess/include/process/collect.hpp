@@ -61,7 +61,7 @@ public:
   virtual void initialize()
   {
     // Stop this nonsense if nobody cares.
-    promise->future().onDiscarded(defer(this, &CollectProcess::discarded));
+    promise->future().onDiscard(defer(this, &CollectProcess::discarded));
 
     // Only wait as long as requested.
     if (timeout.isSome()) {
@@ -77,6 +77,7 @@ public:
 private:
   void discarded()
   {
+    promise->discard();
     terminate(this);
   }
 
@@ -144,7 +145,7 @@ public:
   virtual void initialize()
   {
     // Stop this nonsense if nobody cares.
-    promise->future().onDiscarded(defer(this, &AwaitProcess::discarded));
+    promise->future().onDiscard(defer(this, &AwaitProcess::discarded));
 
     // Only wait as long as requested.
     if (timeout.isSome()) {
@@ -160,6 +161,7 @@ public:
 private:
   void discarded()
   {
+    promise->discard();
     terminate(this);
   }
 
