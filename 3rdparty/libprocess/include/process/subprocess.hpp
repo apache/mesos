@@ -154,9 +154,12 @@ inline Try<Subprocess> subprocess(const std::string& command)
     // implemented in an unsafe manner:
     // http://austingroupbugs.net/view.php?id=692
     const char* message = "Failed to execl '/bin sh -c ";
-    write(STDERR_FILENO, message, strlen(message));
-    write(STDERR_FILENO, command.c_str(), command.size());
-    write(STDERR_FILENO, "'\n", strlen("'\n"));
+    while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
+           errno == EINTR);
+    while (write(STDERR_FILENO, command.c_str(), command.size()) == -1 &&
+           errno == EINTR);
+    while (write(STDERR_FILENO, "'\n", strlen("'\n")) == -1 &&
+           errno == EINTR);
 
     _exit(1);
   }
