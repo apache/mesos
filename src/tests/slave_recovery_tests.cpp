@@ -2015,7 +2015,9 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   EXPECT_CALL(allocator, frameworkAdded(_, _, _));
 
-  EXPECT_CALL(sched, registered(_, _, _));
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
 
   Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
@@ -2052,7 +2054,28 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   string frameworkPath = paths::getFrameworkPath(
       paths::getMetaRootDir(flags.work_dir),
       offers1.get()[0].slave_id(),
-      frameworkInfo.id());
+      frameworkId.get());
+
+  // Kill the forked pid, so that we don't leak a child process.
+  // Construct the executor id from the task id, since this test
+  // uses a command executor.
+  ExecutorID executorId;
+  executorId.set_value(task.task_id().value());
+
+  string executorPath = paths::getExecutorLatestRunPath(
+        paths::getMetaRootDir(flags.work_dir),
+        offers1.get()[0].slave_id(),
+        frameworkId.get(),
+        executorId);
+
+  Try<string> read = os::read(
+      path::join(executorPath, "pids", paths::FORKED_PID_FILE));
+  ASSERT_SOME(read);
+
+  Try<pid_t> pid = numify<pid_t>(read.get());
+  ASSERT_SOME(pid);
+
+  ASSERT_SOME(os::killtree(pid.get(), SIGKILL));
 
   // Remove the framework meta directory, so that the slave will not
   // recover the task.
