@@ -68,6 +68,7 @@ using state::RunState;
 
 ProcessIsolator::ProcessIsolator()
   : ProcessBase(ID::generate("process-isolator")),
+    local(false),
     initialized(false) {}
 
 

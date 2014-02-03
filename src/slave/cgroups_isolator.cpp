@@ -194,6 +194,7 @@ std::ostream& operator << (std::ostream& out, const Cpuset& cpuset)
 
 CgroupsIsolator::CgroupsIsolator()
   : ProcessBase(ID::generate("cgroups-isolator")),
+    local(false),
     initialized(false),
     lockFile(None()) {}
 
