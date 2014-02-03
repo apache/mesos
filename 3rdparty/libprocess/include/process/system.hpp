@@ -46,6 +46,12 @@ private:
       object.values["cpus_total"] = cpus.get();
     }
 
+    Try<os::Memory> memory = os::memory();
+    if (memory.isSome()) {
+      object.values["mem_total_bytes"] = memory.get().total.bytes();
+      object.values["mem_free_bytes"] = memory.get().free.bytes();
+    }
+
     return http::OK(object, request.query.get("jsonp"));
   }
 };
