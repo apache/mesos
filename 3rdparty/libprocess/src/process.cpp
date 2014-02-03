@@ -59,6 +59,7 @@
 #include <process/profiler.hpp>
 #include <process/socket.hpp>
 #include <process/statistics.hpp>
+#include <process/system.hpp>
 #include <process/time.hpp>
 #include <process/timer.hpp>
 
@@ -1550,6 +1551,9 @@ void initialize(const string& delegate)
 
   // Create the global profiler process.
   spawn(new Profiler(), true);
+
+  // Create the global system statistics process.
+  spawn(new System(), true);
 
   // Create the global statistics.
   value = getenv("LIBPROCESS_STATISTICS_WINDOW");

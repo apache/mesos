@@ -93,6 +93,7 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/shared.hpp			\
   $(top_srcdir)/include/process/socket.hpp			\
   $(top_srcdir)/include/process/statistics.hpp			\
+  $(top_srcdir)/include/process/system.hpp			\
   $(top_srcdir)/include/process/subprocess.hpp			\
   $(top_srcdir)/include/process/time.hpp			\
   $(top_srcdir)/include/process/timeout.hpp			\
