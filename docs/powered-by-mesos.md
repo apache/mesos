@@ -14,6 +14,7 @@ layout: documentation
 * [HubSpot](http://www.hubspot.com)
 * [Ignidata](http://www.ignidata.com)
 * [iQIYI](http://www.iqiyi.com/)
+* [Medidata Solutions](http://www.mdsol.com)
 * [MediaCrossing](http://www.mediacrossing.com)
 * [OpenTable](http://www.opentable.com)
 * [Pinkbike](http://www.pinkbike.com)
