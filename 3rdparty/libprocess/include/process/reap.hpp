@@ -3,6 +3,8 @@
 
 #include <sys/types.h>
 
+#include <process/future.hpp>
+
 #include <stout/option.hpp>
 
 namespace process {
