@@ -187,3 +187,47 @@ TEST(Subprocess, input)
 
   Clock::resume();
 }
+
+
+TEST(Subprocess, splice)
+{
+  Clock::pause();
+
+  Try<Subprocess> s = subprocess("echo 'hello world'");
+
+  ASSERT_SOME(s);
+
+  // Create a temporary file for splicing into.
+  Try<string> path = os::mktemp();
+  ASSERT_SOME(path);
+
+  Try<int> fd = os::open(
+      path.get(),
+      O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  ASSERT_SOME(fd);
+  ASSERT_SOME(os::nonblock(fd.get()));
+
+  ASSERT_SOME(os::nonblock(s.get().out()));
+
+  AWAIT_READY(io::splice(s.get().out(), fd.get()));
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+  int status = s.get().status().get().get();
+
+  ASSERT_TRUE(WIFEXITED(status));
+  ASSERT_EQ(0, WEXITSTATUS(status));
+
+  // Now make sure all the data is there!
+  Try<string> read = os::read(path.get());
+  ASSERT_SOME(read);
+  EXPECT_EQ("hello world\n", read.get());
+
+  Clock::resume();
+}
