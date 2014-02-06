@@ -125,6 +125,14 @@ int main(int argc, char** argv)
 
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
 
+  if (build::GIT_TAG.isSome()) {
+    LOG(INFO) << "Git TAG: " << build::GIT_TAG.get();
+  }
+
+  if (build::GIT_SHA.isSome()) {
+    LOG(INFO) << "Git SHA: " << build::GIT_SHA.get();
+  }
+
   allocator::AllocatorProcess* allocatorProcess =
     new allocator::HierarchicalDRFAllocatorProcess();
   allocator::Allocator* allocator =
