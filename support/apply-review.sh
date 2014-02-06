@@ -42,12 +42,11 @@ ${SUMMARY}
 
 ${DESCRIPTION}
 
-From: ${REVIEWER} <${REVIEWER_EMAIL}>
 Review: ${REVIEW_URL}
 __EOF__
 )
 
-git commit -am "${MESSAGE}" || \
+git commit --author="${REVIEWER} <${REVIEWER_EMAIL}>" -am "${MESSAGE}" || \
   { echo "${RED}Failed to commit patch${NORMAL}"; exit 1; }
 
 git commit --amend
