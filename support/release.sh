@@ -103,7 +103,7 @@ following votes.
 There were no 0 or -1 votes.
 
 Please find the release at:
-${SVN_RELEASE_REPO}/mesos-${VERSION}
+${SVN_RELEASE_REPO}/${VERSION}
 
 It is recommended to use a mirror to download the release:
 http://www.apache.org/dyn/closer.cgi
