@@ -192,7 +192,7 @@ TEST_F(GroupTest, GroupWatchWithSessionExpiration)
   AWAIT_READY(memberships);
   EXPECT_EQ(0u, memberships.get().size());
 
-  ASSERT_TRUE(membership.get().cancelled().isReady());
+  AWAIT_READY(membership.get().cancelled());
   ASSERT_FALSE(membership.get().cancelled().get());
 }
 
