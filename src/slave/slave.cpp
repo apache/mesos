@@ -432,7 +432,7 @@ void Slave::shutdown(const UPID& from)
   if (from && master != from) {
     LOG(WARNING) << "Ignoring shutdown message from " << from
                  << " because it is not from the registered master: "
-                 << (master.isSome() ? master.get() : "None");
+                 << (master.isSome() ? stringify(master.get()) : "None");
     return;
   }
 
@@ -534,7 +534,7 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
   if (master != from) {
     LOG(WARNING) << "Ignoring registration message from " << from
                  << " because it is not the expected master: "
-                 << (master.isSome() ? master.get() : "None");
+                 << (master.isSome() ? stringify(master.get()) : "None");
     return;
   }
 
@@ -584,7 +584,7 @@ void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
   if (master != from) {
     LOG(WARNING) << "Ignoring re-registration message from " << from
                  << " because it is not the expected master: "
-                 << (master.isSome() ? master.get() : "None");
+                 << (master.isSome() ? stringify(master.get()) : "None");
     return;
   }
 
@@ -722,7 +722,7 @@ void Slave::runTask(
   if (master != from) {
     LOG(WARNING) << "Ignoring run task message from " << from
                  << " because it is not the expected master: "
-                 << (master.isSome() ? master.get() : "None");
+                 << (master.isSome() ? stringify(master.get()) : "None");
     return;
   }
 
@@ -999,7 +999,7 @@ void Slave::killTask(
   if (master != from) {
     LOG(WARNING) << "Ignoring kill task message from " << from
                  << " because it is not the expected master: "
-                 << (master.isSome() ? master.get() : "None");
+                 << (master.isSome() ? stringify(master.get()) : "None");
     return;
   }
 
@@ -1128,7 +1128,7 @@ void Slave::shutdownFramework(
     LOG(WARNING) << "Ignoring shutdown framework message for " << frameworkId
                  << " from " << from
                  << " because it is not from the registered master ("
-                 << (master.isSome() ? master.get() : "None") << ")";
+                 << (master.isSome() ? stringify(master.get()) : "None") << ")";
     return;
   }
 

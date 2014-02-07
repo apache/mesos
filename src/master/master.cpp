@@ -33,6 +33,7 @@
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/stringify.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
@@ -732,7 +733,7 @@ void Master::detected(const Future<Option<UPID> >& _leader)
   leader = _leader.get();
 
   LOG(INFO) << "The newly elected leader is "
-            << (leader.isSome() ? leader.get() : "None");
+            << (leader.isSome() ? stringify(leader.get()) : "None");
 
   if (wasElected && !elected()) {
     EXIT(1) << "Lost leadership... committing suicide!";
