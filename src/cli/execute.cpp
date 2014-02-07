@@ -97,6 +97,11 @@ public:
         "overwrite",
         "Overwrite the package in HDFS if it already exists",
         false);
+
+    add(&checkpoint,
+        "checkpoint",
+        "Enable checkpointing for the framework (requires slave checkpointing)",
+        false);
   }
 
   Option<string> master;
@@ -107,6 +112,7 @@ public:
   string hdfs;
   Option<string> package;
   bool overwrite;
+  bool checkpoint;
 };
 
 
@@ -329,6 +335,7 @@ int main(int argc, char** argv)
   FrameworkInfo framework;
   framework.set_user(os::user());
   framework.set_name("");
+  framework.set_checkpoint(flags.checkpoint);
 
   MesosSchedulerDriver driver(&scheduler, framework, flags.master.get());
 
