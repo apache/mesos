@@ -369,19 +369,19 @@ Try<bool> GroupProcess::create()
   int code = zk->create(znode, "", acl, 0, NULL, true);
 
   // We fail all non-retryable return codes except ZNONODEEXISTS (
-  // since that means the path we were trying to create exists) and
-  // ZNOAUTH (since it's possible that the ACLs on 'dirname(znode)'
-  // don't allow us to create a child znode but we are allowed to
-  // create children of 'znode' itself, which will be determined
-  // when we first do a Group::join). Note that it's also possible
-  // we got back a ZNONODE because we could not create one of the
-  // intermediate znodes (in which case we'll abort in the 'else'
-  // below since ZNONODE is non-retryable). TODO(benh): Need to
-  // check that we also can put a watch on the children of 'znode'.
+  // since that means the path we were trying to create exists). Note
+  // that it's also possible we got back a ZNONODE because we could
+  // not create one of the intermediate znodes (in which case we'll
+  // abort in the 'else if' below since ZNONODE is non-retryable).
+  // Also note that it's possible that the intermediate path exists
+  // but we don't have permission to know it, in this case we abort
+  // as well to be on the safe side
+  // TODO(benh): Need to check that we also can put a watch on the
+  // children of 'znode'.
   if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK_NE(zk->getState(), ZOO_AUTH_FAILED_STATE);
     return false;
-  } else if (code != ZOK && code != ZNODEEXISTS && code != ZNOAUTH) {
+  } else if (code != ZOK && code != ZNODEEXISTS) {
     return Error(
         "Failed to create '" + znode + "' in ZooKeeper: " + zk->message(code));
   }
@@ -870,6 +870,8 @@ void GroupProcess::abort(const string& message)
 {
   // Set the error variable so that the group becomes unfunctional.
   error = Error(message);
+
+  LOG(ERROR) << "Group aborting: " << message;
 
   fail(&pending.joins, message);
   fail(&pending.cancels, message);
