@@ -39,6 +39,23 @@ using process::Once;
 
 using std::string;
 
+// Captures the stack trace and exits when a pure virtual method is
+// called.
+// This interface is part of C++ ABI.
+//   -Linux c++abi:
+//    http://refspecs.linuxbase.org/cxxabi-1.83.html#vcall
+//      "This routine will only be called if the user calls a
+//       non-overridden pure virtual function, which has undefined
+//       behavior according to the C++ Standard".
+//   -OSX libc++abi:
+//    http://libcxxabi.llvm.org/spec.html
+// This usage has been tested on Linux & OSX and on gcc & clang.
+extern "C" void __cxa_pure_virtual()
+{
+  RAW_LOG(FATAL, "Pure virtual method called");
+}
+
+
 namespace mesos {
 namespace internal {
 namespace logging {
