@@ -604,10 +604,14 @@ AM_CONDITIONAL([WITH_INCLUDED_ZOOKEEPER],
 if test "x$with_cxx11" = "xyes"; then
   AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 
-   # If we're using clang, we need to pass -stdlib=libc++ too.
-  if test "x$CLANG" = "xyes"; then
-    CXXFLAGS="$CXXFLAGS -stdlib=libc++"
-  fi
+  case "$host_os" in
+  darwin* )
+    # If we're using clang, we need to pass -stdlib=libc++ too.
+    if test "x$CLANG" = "xyes"; then
+      CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+    fi
+    ;;
+  esac
 
   # Force gtest to use it's own tuple implementation since 'tr1/tuple'
   # might not exist (for example, if building with clang).
