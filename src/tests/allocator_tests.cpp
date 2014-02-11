@@ -1561,10 +1561,14 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Option<string>("cpus:2;mem:1024");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  Try<string> hostname = os::hostname();
+  ASSERT_SOME(hostname);
+  flags.hostname = hostname.get();
 
   Try<PID<Slave> > slave = this->StartSlave(flags);
   ASSERT_SOME(slave);
@@ -1599,8 +1603,6 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
 
   // Update the whitelist to include the slave, so that
   // the allocator will start making allocations.
-  Try<string> hostname = os::hostname();
-  ASSERT_SOME(hostname);
   hosts = hostname.get() + "\n" + "dummy-slave";
 
   EXPECT_CALL(this->allocator, updateWhitelist(_));

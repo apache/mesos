@@ -959,7 +959,9 @@ TEST_F(WhitelistTest, WhitelistSlave)
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.hostname = hostname.get();
+  Try<PID<Slave> > slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
