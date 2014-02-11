@@ -117,8 +117,10 @@ int main(int argc, char** argv)
 
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
 
+  LOG(INFO) << "Version: " << MESOS_VERSION;
+
   if (build::GIT_TAG.isSome()) {
-    LOG(INFO) << "Git TAG: " << build::GIT_TAG.get();
+    LOG(INFO) << "Git tag: " << build::GIT_TAG.get();
   }
 
   if (build::GIT_SHA.isSome()) {

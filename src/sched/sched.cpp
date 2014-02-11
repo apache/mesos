@@ -30,6 +30,7 @@
 #include <string>
 #include <sstream>
 
+#include <mesos/mesos.hpp>
 #include <mesos/scheduler.hpp>
 
 #include <process/defer.hpp>
@@ -116,7 +117,9 @@ public:
       authenticating(None()),
       authenticated(false),
       reauthenticate(false)
-  {}
+  {
+    LOG(INFO) << "Version: " << MESOS_VERSION;
+  }
 
   virtual ~SchedulerProcess()
   {

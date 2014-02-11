@@ -25,6 +25,7 @@
 #include <sstream>
 
 #include <mesos/executor.hpp>
+#include <mesos/mesos.hpp>
 
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
@@ -127,6 +128,8 @@ public:
       checkpoint(_checkpoint),
       recoveryTimeout(_recoveryTimeout)
   {
+    LOG(INFO) << "Version: " << MESOS_VERSION;
+
     install<ExecutorRegisteredMessage>(
         &ExecutorProcess::registered,
         &ExecutorRegisteredMessage::executor_info,
