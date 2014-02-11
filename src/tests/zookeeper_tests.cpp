@@ -213,16 +213,23 @@ TEST_F(ZooKeeperTest, LeaderDetectorTimeoutHandling)
 
   leader = detector.detect(leader.get());
 
+  Future<Nothing> reconnecting = FUTURE_DISPATCH(
+      group.process->self(),
+      &GroupProcess::reconnecting);
+
   server->shutdownNetwork();
+
+  AWAIT_READY(reconnecting);
 
   Clock::pause();
 
-  // We may need to advance multiple times because we could have
-  // advanced the clock before the timer in Group starts.
-  while (leader.isPending()) {
-    Clock::advance(timeout);
-    Clock::settle();
-  }
+  // Settle to make sure 'reconnecting' schedules the timeout before
+  // we advance.
+  Clock::settle();
+  Clock::advance(timeout);
+
+  AWAIT_READY(leader);
+
   Clock::resume();
 
   // The detect operation times out.
@@ -351,16 +358,20 @@ TEST_F(ZooKeeperTest, LeaderContender)
   AWAIT_READY(candidated);
   lostCandidacy = candidated.get();
 
+  Future<Nothing> reconnecting = FUTURE_DISPATCH(
+      group.process->self(),
+      &GroupProcess::reconnecting);
+
   server->shutdownNetwork();
+
+  AWAIT_READY(reconnecting);
 
   Clock::pause();
 
-  // We may need to advance multiple times because we could have
-  // advanced the clock before the timer in Group starts.
-  while (lostCandidacy.isPending()) {
-    Clock::advance(timeout);
-    Clock::settle();
-  }
+  // Settle to make sure 'reconnecting()' schedules the timeout
+  // before we advance.
+  Clock::settle();
+  Clock::advance(timeout);
 
   // Server failure results in candidacy loss.
   AWAIT_READY(lostCandidacy);
