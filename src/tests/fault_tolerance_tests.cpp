@@ -1426,6 +1426,9 @@ TEST_F(FaultToleranceTest, IgnoreKillTaskFromUnregisteredFramework)
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
     .WillOnce(FutureArg<1>(&status));
 
+  Future<StatusUpdateAcknowledgementMessage> statusUpdateAcknowledgementMessage
+    = FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
+
   ExecutorDriver* execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(SaveArg<0>(&execDriver));
@@ -1437,6 +1440,11 @@ TEST_F(FaultToleranceTest, IgnoreKillTaskFromUnregisteredFramework)
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Wait for the status update acknowledgement to be sent. This
+  // ensures the slave doesn't resend the TASK_RUNNING update to the
+  // failed over scheduler (below).
+  AWAIT_READY(statusUpdateAcknowledgementMessage);
 
   // Now start the second failed over scheduler.
   MockScheduler sched2;
