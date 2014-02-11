@@ -1481,7 +1481,7 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
   // Need to drop these two dispatches because otherwise the master
   // will EXIT.
   Future<Nothing> masterDetected = DROP_DISPATCH(_, &Master::detected);
-  DROP_DISPATCH(_, &Master::lostCandidacy);
+  Future<Nothing> lostCandidacy = DROP_DISPATCH(_, &Master::lostCandidacy);
 
   Future<Nothing> slaveDetected = FUTURE_DISPATCH(_, &Slave::detected);
 
@@ -1491,7 +1491,8 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
 
   while (schedulerDisconnected.isPending() ||
          masterDetected.isPending() ||
-         slaveDetected.isPending()) {
+         slaveDetected.isPending() ||
+         lostCandidacy.isPending()) {
     Clock::advance(MASTER_CONTENDER_ZK_SESSION_TIMEOUT);
     Clock::settle();
   }
@@ -1501,6 +1502,7 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
   // Master, slave and scheduler all lose the leading master.
   AWAIT_READY(schedulerDisconnected);
   AWAIT_READY(masterDetected);
+  AWAIT_READY(lostCandidacy);
   AWAIT_READY(slaveDetected);
 
   driver.stop();
