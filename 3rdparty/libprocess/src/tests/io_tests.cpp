@@ -205,7 +205,7 @@ TEST(IO, Write)
 }
 
 
-TEST(IO, BlockingWrite)
+TEST(IO, DISABLED_BlockingWrite)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
