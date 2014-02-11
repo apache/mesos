@@ -11,6 +11,8 @@
 
 #include <stout/duration.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
+#include <stout/stopwatch.hpp>
 
 namespace process {
 
@@ -37,7 +39,47 @@ private:
   ClockTestEventListener() {}
 };
 
+
+namespace internal {
+
+// Returns true if the future becomes ready, discarded, or failed
+// after the wait.
+template <typename T>
+bool await(const process::Future<T>& future, const Duration& duration)
+{
+  if (!process::Clock::paused()) {
+    return future.await(duration);
+  }
+
+  // If the clock is paused, no new timers will expire.
+  // Future::await(duration) may hang forever because it depends on
+  // a timer to expire after 'duration'. We instead ensure all
+  // expired timers are flushed and check if the future is satisfied.
+  Stopwatch stopwatch;
+  stopwatch.start();
+
+  // Settle to make sure all expired timers are executed (not
+  // necessarily finished, see below).
+  process::Clock::settle();
+
+  while (future.isPending() && stopwatch.elapsed() < duration) {
+    // Synchronous operations and asynchronous process::Process
+    // operations should finish when the above 'settle()' returns.
+    // Other types of async operations such as io::write() may not.
+    // Therefore we wait the specified duration for it to complete.
+    // Note that nothing prevents the operations to schedule more
+    // timeouts for some time in the future. These timeouts will
+    // never be executed due to the paused process::Clock. In this
+    // case we return after the stopwatch (system clock) runs out.
+    os::sleep(Milliseconds(10));
+  }
+
+  return !future.isPending();
+}
+
+} // namespace internal {
 } // namespace process {
+
 
 template <typename T>
 ::testing::AssertionResult AwaitAssertReady(
@@ -46,7 +88,7 @@ template <typename T>
     const process::Future<T>& actual,
     const Duration& duration)
 {
-  if (!actual.await(duration)) {
+  if (!process::internal::await(actual, duration)) {
     return ::testing::AssertionFailure()
       << "Failed to wait " << duration << " for " << expr;
   } else if (actual.isDiscarded()) {
@@ -68,7 +110,7 @@ template <typename T>
     const process::Future<T>& actual,
     const Duration& duration)
 {
-  if (!actual.await(duration)) {
+  if (!process::internal::await(actual, duration)) {
     return ::testing::AssertionFailure()
       << "Failed to wait " << duration << " for " << expr;
   } else if (actual.isDiscarded()) {
@@ -90,7 +132,7 @@ template <typename T>
     const process::Future<T>& actual,
     const Duration& duration)
 {
-  if (!actual.await(duration)) {
+  if (!process::internal::await(actual, duration)) {
     return ::testing::AssertionFailure()
       << "Failed to wait " << duration << " for " << expr;
   } else if (actual.isFailed()) {
