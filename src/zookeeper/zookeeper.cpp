@@ -47,116 +47,6 @@ using std::string;
 using std::vector;
 
 
-// Singleton instance of WatcherProcessManager.
-class WatcherProcessManager;
-
-WatcherProcessManager* manager;
-
-
-// In order to make callbacks on Watcher, we create a proxy
-// WatcherProcess. The ZooKeeperImpl (defined below) dispatches
-// "events" to the WatcherProcess which then invokes
-// Watcher::process. The major benefit of this approach is that a
-// WatcherProcess lifetime can precisely match the lifetime of a
-// Watcher, so the ZooKeeperImpl won't end up calling into an object
-// that has been deleted. In the worst case, the ZooKeeperImpl will
-// dispatch to a dead WatcherProcess, which will just get dropped on
-// the floor. In addition, the callbacks in the Watcher can manipulate
-// the ZooKeeper object freely, calling delete on it if necessary
-// (e.g., after a session expiration). We wanted to keep the Watcher
-// interface clean and simple, so rather than add a member in Watcher
-// that points to a WatcherProcess instance (or points to a
-// WatcherImpl), we choose to create a WatcherProcessManager that
-// stores the Watcher and WatcherProcess associations. The
-// WatcherProcessManager is akin to having a shared dictionary or
-// hashtable and using locks to access it rather then sending and
-// receiving messages. Their is probably a performance hit here, but
-// it would be interesting to see how bad the perforamnce is across a
-// range of low and high-contention states.
-class WatcherProcess : public Process<WatcherProcess>
-{
-public:
-  WatcherProcess(Watcher* watcher) : watcher(watcher) {}
-
-  void event(ZooKeeper* zk, int type, int state, const string& path)
-  {
-    watcher->process(zk, type, state, path);
-  }
-
-private:
-  Watcher* watcher;
-};
-
-
-class WatcherProcessManager : public Process<WatcherProcessManager>
-{
-public:
-  WatcherProcess* create(Watcher* watcher)
-  {
-    WatcherProcess* process = new WatcherProcess(watcher);
-    spawn(process);
-    processes[watcher] = process;
-    return process;
-  }
-
-  bool destroy(Watcher* watcher)
-  {
-   if (processes.count(watcher) > 0) {
-      WatcherProcess* process = processes[watcher];
-      processes.erase(watcher);
-      process::terminate(process->self());
-      process::wait(process->self());
-      delete process;
-      return true;
-    }
-
-    return false;
-  }
-
-  PID<WatcherProcess> lookup(Watcher* watcher)
-  {
-    if (processes.count(watcher) > 0) {
-      return processes[watcher]->self();
-    }
-
-    return PID<WatcherProcess>();
-  }
-
-private:
-  map<Watcher*, WatcherProcess*> processes;
-};
-
-
-Watcher::Watcher()
-{
-  // Confirm we have created the WatcherProcessManager.
-  static process::Once* initialize = new process::Once();
-
-  // Confirm everything is initialized.
-  if (!initialize->once()) {
-    manager = new WatcherProcessManager();
-    process::spawn(manager);
-    initialize->done();
-  }
-
-  WatcherProcess* process =
-    process::dispatch(manager->self(),
-                      &WatcherProcessManager::create,
-                      this).get();
-
-  if (process == NULL) {
-    fatal("failed to initialize Watcher");
-  }
-}
-
-
-Watcher::~Watcher()
-{
-  process::dispatch(manager->self(), &WatcherProcessManager::destroy, this)
-    .await();
-}
-
-
 class ZooKeeperImpl
 {
 public:
@@ -171,17 +61,6 @@ public:
     if (watcher == NULL) {
       LOG(FATAL) << "Cannot instantiate ZooKeeper with NULL watcher";
     }
-
-    // Lookup PID of the WatcherProcess associated with the Watcher.
-    pid = process::dispatch(manager->self(),
-                            &WatcherProcessManager::lookup,
-                            watcher).get();
-
-    // N.B. The Watcher and thus WatcherProcess may already be gone,
-    // in which case, each dispatch to the WatcherProcess that we do
-    // will just get dropped on the floor.
-
-    // TODO(benh): Link with WatcherProcess PID?
 
     zh = zookeeper_init(
         servers.c_str(),
@@ -351,6 +230,8 @@ public:
   }
 
 private:
+  // This method is registered as a watcher callback function and is
+  // invoked by a single ZooKeeper event thread.
   static void event(
       zhandle_t* zh,
       int type,
@@ -359,13 +240,7 @@ private:
       void* ctx)
   {
     ZooKeeperImpl* impl = static_cast<ZooKeeperImpl*>(ctx);
-    process::dispatch(
-        impl->pid,
-        &WatcherProcess::event,
-        impl->zk,
-        type,
-        state,
-        string(path));
+    impl->watcher->process(impl->zk, type, state, string(path));
   }
 
 
@@ -490,7 +365,6 @@ private:
   zhandle_t* zh; // ZooKeeper connection handle.
 
   Watcher* watcher; // Associated Watcher instance.
-  PID<WatcherProcess> pid; // PID of WatcherProcess that invokes Watcher.
 };
 
 

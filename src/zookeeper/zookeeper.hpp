@@ -45,19 +45,20 @@ class ZooKeeperImpl;
  * a client handles these events by registering a callback object with
  * the client. The callback object is expected to be an instance of a
  * class that implements Watcher interface.
+ *
+ * Note that the watcher is invoked by ZooKeeper from a single thread.
+ * See http://zookeeper.apache.org/doc/trunk/zookeeperProgrammers.html#C+Binding
  */
 class Watcher
 {
 public:
-  virtual void process(ZooKeeper *zk,
-		       int type,
-		       int state,
-		       const std::string &path) = 0;
+  virtual void process(
+      ZooKeeper *zk,
+      int type,
+      int state,
+      const std::string &path) = 0;
 
-  Watcher();
-  virtual ~Watcher();
-  Watcher(const Watcher &that);
-  Watcher & operator = (const Watcher &that);
+  virtual ~Watcher() {}
 };
 
 
