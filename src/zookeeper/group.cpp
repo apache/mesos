@@ -82,7 +82,7 @@ GroupProcess::GroupProcess(
         : ZOO_OPEN_ACL_UNSAFE),
     watcher(NULL),
     zk(NULL),
-    state(CONNECTING),
+    state(DISCONNECTED),
     retrying(false)
 {}
 
@@ -101,7 +101,7 @@ GroupProcess::GroupProcess(
         : ZOO_OPEN_ACL_UNSAFE),
     watcher(NULL),
     zk(NULL),
-    state(CONNECTING),
+    state(DISCONNECTED),
     retrying(false)
 {}
 
@@ -310,7 +310,22 @@ void GroupProcess::connected(bool reconnect)
   LOG(INFO) << "Group process (" << self() << ") "
             << (reconnect ? "reconnected" : "connected") << " to ZooKeeper";
 
-  state = CONNECTED;
+  if (!reconnect) {
+    // This is the first time the ZooKeeper client connects to
+    // ZooKeeper service. (It could be also the first time for the
+    // group or after session expiration which causes a new ZooKeeper
+    // client instance to be created.)
+    CHECK_EQ(state, CONNECTING);
+    state = CONNECTED;
+  } else {
+    // This means we are reconnecting within the same ZooKeeper
+    // session. We could have completed authenticate() or create()
+    // before we lost the connection (thus the state can be the any
+    // of the following three) so 'sync()' below will check the state
+    // and only execute necessary operations accordingly.
+    CHECK(state == CONNECTED || state == AUTHENTICATED || state == READY)
+      << state;
+  }
 
   // Cancel and cleanup the reconnect timer (if necessary).
   if (timer.isSome()) {
@@ -399,7 +414,10 @@ void GroupProcess::reconnecting()
 
   LOG(INFO) << "Lost connection to ZooKeeper, attempting to reconnect ...";
 
-  state = CONNECTING;
+  // Set 'retrying' to false to prevent retry() from executing sync()
+  // before the group reconnects to ZooKeeper. The group will sync
+  // with ZooKeeper after it is connected.
+  retrying = false;
 
   // ZooKeeper won't tell us of a session expiration until we
   // reconnect, which could occur much much later than the session was
@@ -447,6 +465,9 @@ void GroupProcess::expired()
     return;
   }
 
+  // Cancel the retries. Group will sync() after it reconnects to ZK.
+  retrying = false;
+
   // Cancel and cleanup the reconnect timer (if necessary).
   if (timer.isSome()) {
     Timer::cancel(timer.get());
@@ -482,12 +503,14 @@ void GroupProcess::expired()
   // then. We could imagine doing this for owned memberships too, but
   // for now we proactively cancel them above.
 
-  state = CONNECTING;
+  state = DISCONNECTED;
 
   delete CHECK_NOTNULL(zk);
   delete CHECK_NOTNULL(watcher);
   watcher = new ProcessWatcher<GroupProcess>(self());
   zk = new ZooKeeper(servers, timeout, watcher);
+
+  state = CONNECTING;
 }
 
 
@@ -754,9 +777,12 @@ Try<bool> GroupProcess::sync()
     << pending.joins.size() << ", " << pending.cancels.size() << ", "
     << pending.datas.size() << ")";
 
-  CHECK_NE(state, CONNECTING);
+  // The state may be CONNECTED or AUTHENTICATED if Group setup has
+  // not finished.
+  CHECK(state == CONNECTED || state == AUTHENTICATED || state == READY)
+    << state;
 
-  // Authenticate with ZK if not already created.
+  // Authenticate with ZK if not already authenticated.
   if (state == CONNECTED) {
     Try<bool> authenticated = authenticate();
     if (authenticated.isError() || !authenticated.get()) {
@@ -840,17 +866,20 @@ Try<bool> GroupProcess::sync()
 
 void GroupProcess::retry(const Duration& duration)
 {
-  CHECK(retrying);
+  if (!retrying) {
+    // Retry could be cancelled before it is scheduled.
+    return;
+  }
+
+  // We cancel the retries when the group aborts and when its ZK
+  // session expires so 'retrying' should be false in the condition
+  // check above.
+  CHECK(error.isNone());
+  CHECK(state == CONNECTED || state == CONNECTING || state == READY)
+    << state;
 
   // Will reset it to true if another retry is necessary.
   retrying = false;
-
-  if (error.isSome() || state == CONNECTING) {
-    // The delayed retry can be invoked while group has aborted or
-    // is trying to (re)connect to ZK. In this case we directly
-    // return and we will sync when group is connected to ZK.
-    return;
-  }
 
   Try<bool> synced = sync();
 
@@ -872,6 +901,9 @@ void GroupProcess::abort(const string& message)
   error = Error(message);
 
   LOG(ERROR) << "Group aborting: " << message;
+
+  // Cancel the retries.
+  retrying = false;
 
   fail(&pending.joins, message);
   fail(&pending.cancels, message);

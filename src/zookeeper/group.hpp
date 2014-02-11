@@ -246,7 +246,17 @@ private:
   Watcher* watcher;
   ZooKeeper* zk;
 
-  enum State {     // Group connection state.
+  // Group connection state.
+  // Normal state transitions:
+  //   DISCONNECTED -> CONNECTING -> CONNECTED -> AUTHENTICATED
+  //   -> READY.
+  // Reconnection does not change the current state and the state is
+  // only reset to DISCONNECTED after session expiration. Therefore
+  // the client's "progress" in setting up the group is preserved
+  // across reconnections. This means authenticate() and create() are
+  // only successfully executed once in one ZooKeeper session.
+  enum State {
+    DISCONNECTED,  // The initial state.
     CONNECTING,    // ZooKeeper connecting.
     CONNECTED,     // ZooKeeper connected but before group setup.
     AUTHENTICATED, // ZooKeeper connected and authenticated.
