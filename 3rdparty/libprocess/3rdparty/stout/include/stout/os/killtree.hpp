@@ -63,7 +63,9 @@ inline Try<std::list<ProcessTree> > killtree(
   Result<Process> process = os::process(pid, processes.get());
 
   if (process.isNone()) {
-    return Error("Failed to find process " + stringify(pid));
+    // We do not consider it an error if the process is not present since it
+    // can exit at any time.
+    return std::list<ProcessTree>();
   }
 
   struct {
