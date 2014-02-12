@@ -26,6 +26,8 @@
 #include <mesos/resources.hpp>
 
 #include <process/future.hpp>
+#include <process/owned.hpp>
+#include <process/reap.hpp>
 
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -34,13 +36,19 @@
 #include "master/detector.hpp"
 
 #include "slave/flags.hpp"
-#ifdef __linux__
-#include "slave/cgroups_isolator.hpp"
-#endif
-#include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
+#include "slave/containerizer/isolator.hpp"
+#include "slave/containerizer/launcher.hpp"
+
+#include "slave/containerizer/isolators/posix.hpp"
+#ifdef __linux__
+#include "slave/containerizer/isolators/cgroups/cpushare.hpp"
+#include "slave/containerizer/isolators/cgroups/mem.hpp"
+#endif // __linux__
+
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -49,13 +57,17 @@ using namespace mesos::internal::tests;
 using namespace process;
 
 using mesos::internal::master::Master;
-
 #ifdef __linux__
-using mesos::internal::slave::CgroupsIsolator;
-#endif
+using mesos::internal::slave::CgroupsCpushareIsolatorProcess;
+using mesos::internal::slave::CgroupsMemIsolatorProcess;
+#endif // __linux__
 using mesos::internal::slave::Isolator;
-using mesos::internal::slave::ProcessIsolator;
-using mesos::internal::slave::Slave;
+using mesos::internal::slave::IsolatorProcess;
+using mesos::internal::slave::Launcher;
+using mesos::internal::slave::PosixLauncher;
+using mesos::internal::slave::PosixCpuIsolatorProcess;
+using mesos::internal::slave::PosixMemIsolatorProcess;
+using mesos::internal::slave::Flags;
 
 using std::string;
 using std::vector;
@@ -66,139 +78,348 @@ using testing::Return;
 using testing::SaveArg;
 
 
-#ifdef __linux__
-typedef ::testing::Types<ProcessIsolator, CgroupsIsolator> IsolatorTypes;
-#else
-typedef ::testing::Types<ProcessIsolator> IsolatorTypes;
-#endif
-
-TYPED_TEST_CASE(IsolatorTest, IsolatorTypes);
-
-TYPED_TEST(IsolatorTest, Usage)
+int execute(const std::string& command, int pipes[2])
 {
-  Try<PID<Master> > master = this->StartMaster();
-  ASSERT_SOME(master);
+  // In child process
+  ::close(pipes[1]);
 
-  TypeParam isolator;
+  // Wait until the parent signals us to continue.
+  int buf;
+  ::read(pipes[0], &buf, sizeof(buf));
+  ::close(pipes[0]);
 
-  slave::Flags flags = this->CreateSlaveFlags();
+  execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
-  ASSERT_SOME(slave);
+  std::cerr << "Should not reach here!" << std::endl;
+  abort();
+}
 
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
+template <typename T>
+class CpuIsolatorTest : public MesosTest {};
 
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(frameworkId);
-  AWAIT_READY(offers);
-
-  EXPECT_NE(0u, offers.get().size());
-
-  TaskInfo task;
-  task.set_name("isolator_test");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
-
-  Resources resources(offers.get()[0].resources());
-  Option<Bytes> mem = resources.mem();
-  ASSERT_SOME(mem);
-  Option<double> cpus = resources.cpus();
-  ASSERT_SOME(cpus);
-
-  const std::string& file = path::join(flags.work_dir, "ready");
-
-  // This task induces user/system load in a child process by
-  // running top in a child process for ten seconds.
-  task.mutable_command()->set_value(
-#ifdef __APPLE__
-      // Use logging mode with 30,000 samples with no interval.
-      "top -l 30000 -s 0 2>&1 > /dev/null & "
+#ifdef __linux__
+typedef ::testing::Types<PosixCpuIsolatorProcess,
+                         CgroupsCpushareIsolatorProcess> CpuIsolatorTypes;
 #else
-      // Batch mode, with 30,000 samples with no interval.
-      "top -b -d 0 -n 30000 2>&1 > /dev/null & "
-#endif
-      "touch " + file +  "; " // Signals that the top command is running.
-      "sleep 60");
+typedef ::testing::Types<PosixCpuIsolatorProcess> CpuIsolatorTypes;
+#endif // __linux__
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
+TYPED_TEST_CASE(CpuIsolatorTest, CpuIsolatorTypes);
 
-  Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
+{
+  Flags flags;
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  Try<Isolator*> isolator = TypeParam::create(flags);
+  CHECK_SOME(isolator);
 
-  AWAIT_READY(status);
+  // A PosixLauncher is sufficient even when testing a cgroups isolator.
+  Try<Launcher*> launcher = PosixLauncher::create(flags);
 
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:1.0").get());
 
-  // Wait for the task to begin inducing cpu time.
+  ContainerID containerId;
+  containerId.set_value("user_cpu_usage");
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+
+  Try<string> dir = os::mkdtemp();
+  ASSERT_SOME(dir);
+  const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
+
+  // Max out a single core in userspace. This will run for at most one second.
+  string command = "while true ; do true ; done &"
+    "touch " + file + "; " // Signals the command is running.
+    "sleep 60";
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  lambda::function<int()> inChild = lambda::bind(&execute, command, pipes);
+
+  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  ASSERT_SOME(pid);
+
+  // Reap the forked child.
+  Future<Option<int> > status = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+
+  // Now signal the child to continue.
+  int buf;
+  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
+  ::close(pipes[1]);
+
+  // Wait for the command to start.
   while (!os::exists(file));
 
-  ExecutorID executorId;
-  executorId.set_value(task.task_id().value());
-
-  // We'll wait up to 10 seconds for the child process to induce
-  // 1/8 of a second of user and system cpu time in total.
-  // TODO(bmahler): Also induce rss memory consumption, by re-using
-  // the balloon framework.
+  // Wait up to 1 second for the child process to induce 1/8 of a second of
+  // user cpu time.
   ResourceStatistics statistics;
   Duration waited = Duration::zero();
   do {
-    Future<ResourceStatistics> usage =
-      process::dispatch(
-          (Isolator*) &isolator, // TODO(benh): Fix after reaper changes.
-          &Isolator::usage,
-          frameworkId.get(),
-          executorId);
-
+    Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
     AWAIT_READY(usage);
 
     statistics = usage.get();
 
     // If we meet our usage expectations, we're done!
-    if (statistics.cpus_user_time_secs() >= 0.125 &&
-        statistics.cpus_system_time_secs() >= 0.125 &&
-        statistics.mem_rss_bytes() >= 1024u) {
+    if (statistics.cpus_user_time_secs() >= 0.125) {
       break;
     }
 
-    os::sleep(Milliseconds(100));
-    waited += Milliseconds(100);
-  } while (waited < Seconds(10));
+    os::sleep(Milliseconds(200));
+    waited += Milliseconds(200);
+  } while (waited < Seconds(1));
 
+  EXPECT_LE(0.125, statistics.cpus_user_time_secs());
 
-  EXPECT_GE(statistics.cpus_user_time_secs(), 0.125);
-  EXPECT_GE(statistics.cpus_system_time_secs(), 0.125);
-  EXPECT_EQ(statistics.cpus_limit(), cpus.get());
-  EXPECT_GE(statistics.mem_rss_bytes(), 1024u);
-  EXPECT_EQ(statistics.mem_limit_bytes(), mem.get().bytes());
+  // Shouldn't be any appreciable system time.
+  EXPECT_GT(0.025, statistics.cpus_system_time_secs());
 
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+  // Ensure all processes are killed.
+  AWAIT_READY(launcher.get()->destroy(containerId));
 
-  driver.killTask(task.task_id());
-
+  // Make sure the child was reaped.
   AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  // Let the isolator clean up.
+  AWAIT_READY(isolator.get()->cleanup(containerId));
 
-  driver.stop();
-  driver.join();
+  delete isolator.get();
+  delete launcher.get();
 
-  this->Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  CHECK_SOME(os::rmdir(dir.get()));
+}
+
+
+TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
+{
+  Flags flags;
+
+  Try<Isolator*> isolator = TypeParam::create(flags);
+  CHECK_SOME(isolator);
+
+  // A PosixLauncher is sufficient even when testing a cgroups isolator.
+  Try<Launcher*> launcher = PosixLauncher::create(flags);
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:1.0").get());
+
+  ContainerID containerId;
+  containerId.set_value("system_cpu_usage");
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+
+  Try<string> dir = os::mkdtemp();
+  ASSERT_SOME(dir);
+  const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
+
+  // Generating random numbers is done by the kernel and will max out a single
+  // core and run almost exclusively in the kernel, i.e., system time.
+  string command = "cat /dev/urandom > /dev/null & "
+    "touch " + file + "; " // Signals the command is running.
+    "sleep 60";
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  lambda::function<int()> inChild = lambda::bind(&execute, command, pipes);
+
+  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  ASSERT_SOME(pid);
+
+  // Reap the forked child.
+  Future<Option<int> > status = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+
+  // Now signal the child to continue.
+  int buf;
+  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
+  ::close(pipes[1]);
+
+  // Wait for the command to start.
+  while (!os::exists(file));
+
+  // Wait up to 1 second for the child process to induce 1/8 of a second of
+  // system cpu time.
+  ResourceStatistics statistics;
+  Duration waited = Duration::zero();
+  do {
+    Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+    AWAIT_READY(usage);
+
+    statistics = usage.get();
+
+    // If we meet our usage expectations, we're done!
+    if (statistics.cpus_system_time_secs() >= 0.125) {
+      break;
+    }
+
+    os::sleep(Milliseconds(200));
+    waited += Milliseconds(200);
+  } while (waited < Seconds(1));
+
+  EXPECT_LE(0.125, statistics.cpus_system_time_secs());
+
+  // Shouldn't be any appreciable user time.
+  EXPECT_GT(0.025, statistics.cpus_user_time_secs());
+
+  // Ensure all processes are killed.
+  AWAIT_READY(launcher.get()->destroy(containerId));
+
+  // Make sure the child was reaped.
+  AWAIT_READY(status);
+
+  // Let the isolator clean up.
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete isolator.get();
+  delete launcher.get();
+
+  CHECK_SOME(os::rmdir(dir.get()));
+}
+
+
+template <typename T>
+class MemIsolatorTest : public MesosTest {};
+
+#ifdef __linux__
+typedef ::testing::Types<PosixMemIsolatorProcess,
+                         CgroupsMemIsolatorProcess> MemIsolatorTypes;
+#else
+typedef ::testing::Types<PosixMemIsolatorProcess> MemIsolatorTypes;
+#endif // __linux__
+
+TYPED_TEST_CASE(MemIsolatorTest, MemIsolatorTypes);
+
+
+// This function should be async-signal-safe but it isn't: at least
+// posix_memalign, mlock, memset and perror are not safe.
+int consumeMemory(const Bytes& _size, const Duration& duration, int pipes[2])
+{
+  // In child process
+  ::close(pipes[1]);
+
+  int buf;
+  // Wait until the parent signals us to continue.
+  ::read(pipes[0], &buf, sizeof(buf));
+  ::close(pipes[0]);
+
+  size_t size = static_cast<size_t>(_size.bytes());
+  void* buffer = NULL;
+
+  if (posix_memalign(&buffer, getpagesize(), size) != 0) {
+    perror("Failed to allocate page-aligned memory, posix_memalign");
+    abort();
+  }
+
+  // We use mlock and memset here to make sure that the memory
+  // actually gets paged in and thus accounted for.
+  if (mlock(buffer, size) != 0) {
+    perror("Failed to lock memory, mlock");
+    abort();
+  }
+
+  if (memset(buffer, 1, size) != buffer) {
+    perror("Failed to fill memory, memset");
+    abort();
+  }
+
+  os::sleep(duration);
+
+  return 0;
+}
+
+
+TYPED_TEST(MemIsolatorTest, MemUsage)
+{
+  Flags flags;
+
+  Try<Isolator*> isolator = TypeParam::create(flags);
+  CHECK_SOME(isolator);
+
+  // A PosixLauncher is sufficient even when testing a cgroups isolator.
+  Try<Launcher*> launcher = PosixLauncher::create(flags);
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(
+      Resources::parse("mem:1024").get());
+
+  ContainerID containerId;
+  containerId.set_value("memory_usage");
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  lambda::function<int()> inChild = lambda::bind(
+      &consumeMemory,
+      Megabytes(256),
+      Seconds(10),
+      pipes);
+
+  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  ASSERT_SOME(pid);
+
+  // Set up the reaper to wait on the forked child.
+  Future<Option<int> > status = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+
+  // Now signal the child to continue.
+  int buf;
+  ASSERT_LT(0, ::write(pipes[1], &buf, sizeof(buf)));
+  ::close(pipes[1]);
+
+  // Wait up to 5 seconds for the child process to consume 256 MB of memory;
+  ResourceStatistics statistics;
+  Bytes threshold = Megabytes(256);
+  Duration waited = Duration::zero();
+  do {
+    Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+    AWAIT_READY(usage);
+
+    statistics = usage.get();
+
+    // If we meet our usage expectations, we're done!
+    if (statistics.mem_rss_bytes() >= threshold.bytes()) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < Seconds(5));
+
+  EXPECT_LE(threshold.bytes(), statistics.mem_rss_bytes());
+
+  // Ensure all processes are killed.
+  AWAIT_READY(launcher.get()->destroy(containerId));
+
+  // Make sure the child was reaped.
+  AWAIT_READY(status);
+
+  // Let the isolator clean up.
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete isolator.get();
+  delete launcher.get();
 }

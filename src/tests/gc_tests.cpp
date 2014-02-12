@@ -49,11 +49,10 @@
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
-#include "slave/isolator.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
-#include "tests/isolator.hpp"
+#include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
@@ -65,7 +64,6 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::GarbageCollector;
 using mesos::internal::slave::GarbageCollectorProcess;
-using mesos::internal::slave::Isolator;
 using mesos::internal::slave::Slave;
 
 using process::Clock;
@@ -472,14 +470,14 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  TestingIsolator isolator(&exec);
+  TestContainerizer containerizer(&exec);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -537,10 +535,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
     .Times(AtMost(1)); // Ignore TASK_LOST from killed executor.
 
   // Kill the executor and inform the slave.
-  dispatch(isolator,
-           &Isolator::killExecutor,
-           frameworkId.get(),
-           DEFAULT_EXECUTOR_ID);
+  containerizer.destroy(frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
   AWAIT_READY(schedule);
 
@@ -574,14 +569,14 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  TestingIsolator isolator(&exec);
+  TestContainerizer containerizer(&exec);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -639,10 +634,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
     .Times(AtMost(1)); // Ignore TASK_LOST from killed executor.
 
   // Kill the executor and inform the slave.
-  dispatch(isolator,
-           &Isolator::killExecutor,
-           frameworkId.get(),
-           DEFAULT_EXECUTOR_ID);
+  containerizer.destroy(frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
   AWAIT_READY(schedule);
 
@@ -698,15 +690,15 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   MockExecutor exec1(executor1.executor_id());
   MockExecutor exec2(executor2.executor_id());
 
-  map<ExecutorID, Executor*> execs;
+  hashmap<ExecutorID, Executor*> execs;
   execs[executor1.executor_id()] = &exec1;
   execs[executor2.executor_id()] = &exec2;
 
-  TestingIsolator isolator(execs);
+  TestContainerizer containerizer(execs);
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegistered);
@@ -784,11 +776,7 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   Clock::pause();
 
   // Kill the first executor.
-  process::dispatch(
-      isolator,
-      &Isolator::killExecutor,
-      frameworkId.get(),
-      exec1.id);
+  containerizer.destroy(frameworkId.get(), exec1.id);
 
   AWAIT_READY(scheduleExecutorRunWork);
   AWAIT_READY(scheduleExecutorWork);

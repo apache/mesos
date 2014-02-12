@@ -25,6 +25,7 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
@@ -35,7 +36,7 @@
 #include "slave/constants.hpp"
 #include "slave/monitor.hpp"
 
-#include "tests/isolator.hpp"
+#include "tests/containerizer.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -64,6 +65,9 @@ TEST(MonitorTest, Collection)
 
   ExecutorID executorId;
   executorId.set_value("executor");
+
+  ContainerID containerId;
+  containerId.set_value("container");
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_executor_id()->CopyFrom(executorId);
@@ -95,12 +99,10 @@ TEST(MonitorTest, Collection)
   statistics3.set_timestamp(
       statistics3.timestamp() + slave::RESOURCE_MONITORING_INTERVAL.secs());
 
-  TestingIsolator isolator;
-
-  process::spawn(isolator);
+  TestContainerizer containerizer;
 
   Future<Nothing> usage1, usage2, usage3;
-  EXPECT_CALL(isolator, usage(frameworkId, executorId))
+  EXPECT_CALL(containerizer, usage(containerId))
     .WillOnce(DoAll(FutureSatisfy(&usage1),
                     Return(statistics1)))
     .WillOnce(DoAll(FutureSatisfy(&usage2),
@@ -108,20 +110,19 @@ TEST(MonitorTest, Collection)
     .WillOnce(DoAll(FutureSatisfy(&usage3),
                     Return(statistics3)));
 
-  slave::ResourceMonitor monitor(&isolator);
+  slave::ResourceMonitor monitor(&containerizer);
 
   // We pause the clock first in order to make sure that we can
   // advance time below to force the 'delay' in
-  // ResourceMonitorProcess::watch to execute.
+  // ResourceMonitorProcess::start to execute.
   process::Clock::pause();
 
-  monitor.watch(
-      frameworkId,
-      executorId,
+  monitor.start(
+      containerId,
       executorInfo,
       slave::RESOURCE_MONITORING_INTERVAL);
 
-  // Now wait for ResouorceMonitorProcess::watch to finish so we can
+  // Now wait for ResouorceMonitorProcess::start to finish so we can
   // advance time to cause collection to begin.
   process::Clock::settle();
 
@@ -130,7 +131,7 @@ TEST(MonitorTest, Collection)
 
   AWAIT_READY(usage1);
 
-  // Wait until the isolator has finished returning the statistics.
+  // Wait until the containerizer has finished returning the statistics.
   process::Clock::settle();
 
   // Expect a second collection to occur after the interval.
@@ -139,7 +140,7 @@ TEST(MonitorTest, Collection)
 
   AWAIT_READY(usage2);
 
-  // Wait until the isolator has finished returning the statistics.
+  // Wait until the containerizer has finished returning the statistics.
   process::Clock::settle();
 
   // Expect a third collection to occur after the interval.
@@ -148,17 +149,17 @@ TEST(MonitorTest, Collection)
 
   AWAIT_READY(usage3);
 
-  // Wait until the isolator has finished returning the statistics.
+  // Wait until the containerize has finished returning the statistics.
   process::Clock::settle();
 
   // Ensure the monitor stops polling the isolator.
-  monitor.unwatch(frameworkId, executorId);
+  monitor.stop(containerId);
 
-  // Wait until ResourceMonitorProcess::unwatch has completed.
+  // Wait until ResourceMonitorProcess::stop has completed.
   process::Clock::settle();
 
-  // This time, Isolator::usage should not get called.
-  EXPECT_CALL(isolator, usage(frameworkId, executorId))
+  // This time, Containerizer::usage should not get called.
+  EXPECT_CALL(containerizer, usage(containerId))
     .Times(0);
 
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
@@ -173,6 +174,9 @@ TEST(MonitorTest, Statistics)
 
   ExecutorID executorId;
   executorId.set_value("executor");
+
+  ContainerID containerId;
+  containerId.set_value("container");
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_executor_id()->CopyFrom(executorId);
@@ -194,24 +198,21 @@ TEST(MonitorTest, Statistics)
   statistics.set_mem_limit_bytes(2048);
   statistics.set_timestamp(0);
 
-  TestingIsolator isolator;
-
-  process::spawn(isolator);
+  TestContainerizer containerizer;
 
   Future<Nothing> usage;
-  EXPECT_CALL(isolator, usage(frameworkId, executorId))
+  EXPECT_CALL(containerizer, usage(containerId))
     .WillOnce(DoAll(FutureSatisfy(&usage),
                     Return(statistics)));
 
-  slave::ResourceMonitor monitor(&isolator);
+  slave::ResourceMonitor monitor(&containerizer);
 
   // We pause the clock first to ensure unexpected collections
   // are avoided.
   process::Clock::pause();
 
-  monitor.watch(
-      frameworkId,
-      executorId,
+  monitor.start(
+      containerId,
       executorInfo,
       slave::RESOURCE_MONITORING_INTERVAL);
 
@@ -274,13 +275,13 @@ TEST(MonitorTest, Statistics)
       response);
 
   // Ensure the monitor stops polling the isolator.
-  monitor.unwatch(frameworkId, executorId);
+  monitor.stop(containerId);
 
-  // Wait until ResourceMonitorProcess::unwatch has completed.
+  // Wait until ResourceMonitorProcess::stop has completed.
   process::Clock::settle();
 
-  // This time, Isolator::usage should not get called.
-  EXPECT_CALL(isolator, usage(frameworkId, executorId))
+  // This time, Containerizer::usage should not get called.
+  EXPECT_CALL(containerizer, usage(containerId))
     .Times(0);
 
   response = process::http::get(upid, "statistics.json");

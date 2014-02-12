@@ -51,7 +51,6 @@
 
 #include "slave/slave.hpp"
 
-#include "tests/isolator.hpp"
 #include "tests/mesos.hpp"
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"

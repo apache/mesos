@@ -41,12 +41,12 @@
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/gc.hpp"
 #include "slave/flags.hpp"
-#include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 
-#include "tests/isolator.hpp"
+#include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
 #ifdef MESOS_HAS_JAVA
@@ -60,9 +60,9 @@ using namespace mesos::internal::tests;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::GarbageCollectorProcess;
-using mesos::internal::slave::Isolator;
-using mesos::internal::slave::ProcessIsolator;
 using mesos::internal::slave::Slave;
+using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::MesosContainerizerProcess;
 
 using process::Clock;
 using process::Future;
@@ -89,9 +89,10 @@ TEST_F(MasterTest, TaskRunning)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&isolator);
+  TestContainerizer containerizer(&exec);
+
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -127,10 +128,12 @@ TEST_F(MasterTest, TaskRunning)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  Future<Nothing> resourcesChanged;
-  EXPECT_CALL(isolator,
-              resourcesChanged(_, _, Resources(offers.get()[0].resources())))
-    .WillOnce(FutureSatisfy(&resourcesChanged));
+  Future<Nothing> resourcesUpdated;
+  Future<Nothing> update;
+  EXPECT_CALL(containerizer,
+              update(_, Resources(offers.get()[0].resources())))
+    .WillOnce(DoAll(FutureSatisfy(&resourcesUpdated),
+                    Return(update)));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -141,7 +144,7 @@ TEST_F(MasterTest, TaskRunning)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  AWAIT_READY(resourcesChanged);
+  AWAIT_READY(resourcesUpdated);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -149,7 +152,7 @@ TEST_F(MasterTest, TaskRunning)
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -159,12 +162,13 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
+
+  TestContainerizer containerizer(&exec);
 
   slave::Flags flags = CreateSlaveFlags();
   flags.executor_shutdown_grace_period = Seconds(0);
 
-  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -200,10 +204,12 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  Future<Nothing> resourcesChanged;
-  EXPECT_CALL(isolator,
-              resourcesChanged(_, _, Resources(offers.get()[0].resources())))
-    .WillOnce(FutureSatisfy(&resourcesChanged));
+  Future<Nothing> resourcesUpdated;
+  Future<Nothing> update;
+  EXPECT_CALL(containerizer,
+              update(_, Resources(offers.get()[0].resources())))
+    .WillOnce(DoAll(FutureSatisfy(&resourcesUpdated),
+                    Return(update)));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -214,7 +220,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  AWAIT_READY(resourcesChanged);
+  AWAIT_READY(resourcesUpdated);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -222,7 +228,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -376,13 +382,14 @@ TEST_F(MasterTest, RecoverResources)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
+
+  TestContainerizer containerizer(&exec);
 
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>(
       "cpus:2;mem:1024;disk:1024;ports:[1-10, 20-30]");
 
-  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -470,10 +477,7 @@ TEST_F(MasterTest, RecoverResources)
     .Times(AtMost(1));
 
   // Now kill the executor, scheduler should get an offer it's resources.
-  dispatch(isolator,
-           &Isolator::killExecutor,
-           offer.framework_id(),
-           executorInfo.executor_id());
+  containerizer.destroy(offer.framework_id(), executorInfo.executor_id());
 
   // TODO(benh): We can't do driver.reviveOffers() because we need to
   // wait for the killed executors resources to get aggregated! We
@@ -488,7 +492,7 @@ TEST_F(MasterTest, RecoverResources)
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -588,13 +592,13 @@ TEST_F(MasterTest, MultipleExecutors)
   MockExecutor exec1(executor1.executor_id());
   MockExecutor exec2(executor2.executor_id());
 
-  map<ExecutorID, Executor*> execs;
+  hashmap<ExecutorID, Executor*> execs;
   execs[executor1.executor_id()] = &exec1;
   execs[executor2.executor_id()] = &exec2;
 
-  TestingIsolator isolator(execs);
+  TestContainerizer containerizer(execs);
 
-  Try<PID<Slave> > slave = StartSlave(&isolator);
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -676,7 +680,7 @@ TEST_F(MasterTest, MultipleExecutors)
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -685,12 +689,15 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  ProcessIsolator isolator;
-
   // Need flags for 'executor_registration_timeout'.
   slave::Flags flags = CreateSlaveFlags();
+  // Set the isolation flag so we know a MesoContainerizer will be created.
+  flags.isolation = "posix/cpu,posix/mem";
 
-  Try<PID<Slave> > slave = StartSlave(&isolator);
+  Try<Containerizer*> containerizer = Containerizer::create(flags, false);
+  CHECK_SOME(containerizer);
+
+  Try<PID<Slave> > slave = StartSlave(containerizer.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -740,14 +747,14 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
     .WillOnce(FutureArg<1>(&status));
 
   // Ensure that the slave times out and kills the executor.
-  Future<Nothing> killExecutor =
-    FUTURE_DISPATCH(_, &Isolator::killExecutor);
+  Future<Nothing> destroyExecutor =
+    FUTURE_DISPATCH(_, &MesosContainerizerProcess::destroy);
 
   Clock::advance(flags.executor_registration_timeout);
 
-  AWAIT_READY(killExecutor);
+  AWAIT_READY(destroyExecutor);
 
-  Clock::settle(); // Wait for ProcessIsolator::killExecutor to complete.
+  Clock::settle(); // Wait for Containerizer::destroy to complete.
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
@@ -763,7 +770,7 @@ TEST_F(MasterTest, ShutdownUnregisteredExecutor)
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -775,9 +782,10 @@ TEST_F(MasterTest, RemoveUnregisteredTerminatedExecutor)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&isolator);
+  TestContainerizer containerizer(&exec);
+
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -823,10 +831,7 @@ TEST_F(MasterTest, RemoveUnregisteredTerminatedExecutor)
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
   // Now kill the executor.
-  dispatch(isolator,
-           &Isolator::killExecutor,
-           offers.get()[0].framework_id(),
-           DEFAULT_EXECUTOR_ID);
+  containerizer.destroy(offers.get()[0].framework_id(), DEFAULT_EXECUTOR_ID);
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
@@ -841,7 +846,7 @@ TEST_F(MasterTest, RemoveUnregisteredTerminatedExecutor)
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -1043,9 +1048,10 @@ TEST_F(MasterTest, ReconcileTaskTest)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&isolator);
+  TestContainerizer containerizer(&exec);
+
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1104,7 +1110,7 @@ TEST_F(MasterTest, ReconcileTaskTest)
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -1120,7 +1126,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
+  TestContainerizer containerizer(&exec);
 
   // The CPU granularity is 1.0 which means that we need slaves with at least
   // 2 cpus for a combined offer.
@@ -1130,7 +1136,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>(stringify(fullSlave));
 
-  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1248,7 +1254,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -1259,7 +1265,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
+  TestContainerizer containerizer(&exec);
 
   // See LaunchCombinedOfferTest() for resource size motivation.
   Resources fullSlave = Resources::parse("cpus:2;mem:1024").get();
@@ -1268,7 +1274,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>(stringify(fullSlave));
 
-  Try<PID<Slave> > slave1 = StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave1 = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave1);
 
   MockScheduler sched;
@@ -1294,7 +1300,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers2));
 
-  Try<PID<Slave> > slave2 = StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave2 = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
@@ -1331,7 +1337,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -1343,7 +1349,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestingIsolator isolator(&exec);
+  TestContainerizer containerizer(&exec);
 
   // See LaunchCombinedOfferTest() for resource size motivation.
   Resources fullSlave = Resources::parse("cpus:2;mem:1024").get();
@@ -1351,7 +1357,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>(stringify(fullSlave));
 
-  Try<PID<Slave> > slave = StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1403,7 +1409,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'isolator' gets deallocated.
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 

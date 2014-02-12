@@ -39,21 +39,15 @@
 
 #include "common/protobuf_utils.hpp"
 
-#ifdef __linux__
-#include "linux/cgroups.hpp"
-#endif
-
 #include "master/detector.hpp"
 #include "master/master.hpp"
 
 #include "slave/gc.hpp"
-#ifdef __linux__
-#include "slave/cgroups_isolator.hpp"
-#endif
 #include "slave/paths.hpp"
-#include "slave/process_isolator.hpp"
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
+
+#include "slave/containerizer/containerizer.hpp"
 
 #include "messages/messages.hpp"
 
@@ -70,10 +64,7 @@ using namespace process;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::GarbageCollectorProcess;
-#ifdef __linux__
-using mesos::internal::slave::CgroupsIsolator;
-#endif
-using mesos::internal::slave::ProcessIsolator;
+using mesos::internal::slave::Containerizer;
 
 using std::map;
 using std::string;
@@ -115,14 +106,13 @@ TEST_F(SlaveStateTest, CheckpointString)
   ASSERT_SOME_EQ(expected, os::read(file));
 }
 
-
 template <typename T>
-class SlaveRecoveryTest : public IsolatorTest<T>
+class SlaveRecoveryTest : public ContainerizerTest<T>
 {
 public:
   virtual slave::Flags CreateSlaveFlags()
   {
-    slave::Flags flags = IsolatorTest<T>::CreateSlaveFlags();
+    slave::Flags flags = ContainerizerTest<T>::CreateSlaveFlags();
 
     // Setup recovery slave flags.
     flags.checkpoint = true;
@@ -133,15 +123,12 @@ public:
   }
 };
 
+// Note: Although these tests are typed it is Containerizer::create() that
+// decides which Containerizer to create based on the flags - see
+// SlaveRecoveryTest.
+typedef ::testing::Types<slave::MesosContainerizer> ContainerizerTypes;
 
-#ifdef __linux__
-typedef ::testing::Types<ProcessIsolator, CgroupsIsolator> IsolatorTypes;
-#else
-typedef ::testing::Types<ProcessIsolator> IsolatorTypes;
-#endif
-
-TYPED_TEST_CASE(SlaveRecoveryTest, IsolatorTypes);
-
+TYPED_TEST_CASE(SlaveRecoveryTest, ContainerizerTypes);
 
 // Enable checkpointing on the slave and ensure recovery works.
 TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
@@ -149,11 +136,12 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -244,21 +232,21 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   ASSERT_TRUE(state.frameworks[frameworkId].executors.contains(executorId));
 
   // Check executor id and pids.
-  const Option<UUID>& uuid=
+  const Option<ContainerID>& containerId =
       state.frameworks[frameworkId].executors[executorId].latest;
-  ASSERT_SOME(uuid);
+  ASSERT_SOME(containerId);
 
   ASSERT_TRUE(state
                 .frameworks[frameworkId]
                 .executors[executorId]
-                .runs.contains(uuid.get()));
+                .runs.contains(containerId.get()));
 
   ASSERT_SOME_EQ(
       libprocessPid,
       state
         .frameworks[frameworkId]
         .executors[executorId]
-        .runs[uuid.get()]
+        .runs[containerId.get()]
         .libprocessPid);
 
 
@@ -266,7 +254,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   ASSERT_TRUE(state
                 .frameworks[frameworkId]
                 .executors[executorId]
-                .runs[uuid.get()]
+                .runs[containerId.get()]
                 .tasks.contains(task.task_id()));
 
   const Task& t = mesos::internal::protobuf::createTask(
@@ -277,7 +265,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
       state
         .frameworks[frameworkId]
         .executors[executorId]
-        .runs[uuid.get()]
+        .runs[containerId.get()]
         .tasks[task.task_id()]
         .info);
 
@@ -287,7 +275,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
       state
         .frameworks[frameworkId]
         .executors[executorId]
-        .runs[uuid.get()]
+        .runs[containerId.get()]
         .tasks[task.task_id()]
         .updates.size());
 
@@ -296,14 +284,14 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
       state
         .frameworks[frameworkId]
         .executors[executorId]
-        .runs[uuid.get()]
+        .runs[containerId.get()]
         .tasks[task.task_id()]
         .updates.front().uuid());
 
   ASSERT_TRUE(state
                 .frameworks[frameworkId]
                 .executors[executorId]
-                .runs[uuid.get()]
+                .runs[containerId.get()]
                 .tasks[task.task_id()]
                 .acks.contains(UUID::fromBytes(ack.get().uuid())));
 
@@ -314,7 +302,9 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+
+  delete containerizer.get();
 }
 
 
@@ -325,11 +315,12 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -376,16 +367,18 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   AWAIT_READY(update);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(status);
@@ -400,7 +393,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -412,11 +406,12 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -455,6 +450,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   AWAIT_READY(statusUpdate);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   Future<Message> reregisterExecutorMessage =
     FUTURE_MESSAGE(Eq(ReregisterExecutorMessage().GetTypeName()), _, _);
@@ -464,10 +460,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   // Ensure the executor re-registers.
@@ -496,7 +493,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -508,11 +506,12 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -551,6 +550,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   UPID executorPid = registerExecutor.get().from;
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -559,15 +559,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -601,7 +602,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -614,11 +616,12 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -664,6 +667,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   AWAIT_READY(ack);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -674,15 +678,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -716,7 +721,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -732,14 +738,15 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   // Set a short recovery timeout, as we can't control the executor
   // driver time when using the process / cgroups isolators.
   slave::Flags flags = this->CreateSlaveFlags();
   flags.recovery_timeout = Milliseconds(1);
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -779,6 +786,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   AWAIT_READY(_statusUpdateAcknowledgement);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -790,10 +798,11 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -812,7 +821,8 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -825,11 +835,12 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -873,19 +884,21 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   AWAIT_READY(schedule);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   Future<Nothing> schedule2 = FUTURE_DISPATCH(
       _, &GarbageCollectorProcess::schedule);
 
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   // We use 'gc.schedule' as a proxy for the cleanup of the executor.
@@ -899,7 +912,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -911,11 +925,12 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -955,6 +970,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   AWAIT_READY(ack);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   // Slave in cleanup mode shouldn't reregister with slave and hence
   // no offers should be made by the master.
@@ -968,11 +984,12 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
   // Restart the slave in 'cleanup' recovery mode with a new isolator.
-  TypeParam isolator2;
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
   flags.recover = "cleanup";
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -996,7 +1013,8 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -1007,9 +1025,12 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator;
+  slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator);
+  Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1069,6 +1090,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
     .WillOnce(FutureArg<1>(&status2));
 
   this->Stop(slave.get());
+  delete containerizer.get();
 
   // Scheduler should receive the TASK_LOST updates.
   AWAIT_READY(status1);
@@ -1080,7 +1102,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
 }
 
 
@@ -1091,11 +1113,12 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1161,7 +1184,8 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer.get();
 }
 
 
@@ -1172,8 +1196,6 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator;
-
   // Disable checkpointing for the slave.
   slave::Flags flags = this->CreateSlaveFlags();
   flags.checkpoint = false;
@@ -1183,7 +1205,10 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   Future<RegisterSlaveMessage> registerSlaveMessage =
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlaveMessage);
@@ -1215,9 +1240,9 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer.get();
 }
-
 
 // Scheduler asks a restarted slave to kill a task that has been
 // running before the slave restarted. This test ensures that a
@@ -1228,11 +1253,12 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1272,6 +1298,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   AWAIT_READY(ack);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
@@ -1279,9 +1306,10 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -1329,7 +1357,8 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -1340,12 +1369,13 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
   flags.strict = false;
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1398,6 +1428,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   AWAIT_READY(status);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   // Shut down the executor manually so that it doesn't hang around
   // after the test finishes.
@@ -1411,15 +1442,16 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   Future<RegisterSlaveMessage> registerSlave =
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlave);
@@ -1432,7 +1464,8 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -1445,12 +1478,13 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
   flags.strict = false;
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1503,6 +1537,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   AWAIT_READY(status);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   // Shut down the executor manually so that it doesn't hang around
   // after the test finishes.
@@ -1522,14 +1557,15 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -1573,7 +1609,8 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -1584,11 +1621,12 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1659,16 +1697,18 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   Clock::resume();
 
   this->Stop(slave.get(), true); // Send a "shut down".
+  delete containerizer1.get();
 
   Future<vector<Offer> > offers3;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers3))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  // Now restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Now restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   // Ensure that the slave registered with a new id.
@@ -1686,7 +1726,8 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -1701,11 +1742,12 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   Future<RegisterSlaveMessage> registerSlaveMessage =
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
-  TypeParam isolator;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlaveMessage);
@@ -1784,7 +1826,8 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer.get();
 }
 
 
@@ -1799,11 +1842,12 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   Future<RegisterSlaveMessage> registerSlaveMessage =
       FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlaveMessage);
@@ -1848,6 +1892,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   AWAIT_READY(_statusUpdateAcknowledgement);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   // Now send a KillTask message to the master. This will not be
   // received by the slave because it is down.
@@ -1857,15 +1902,16 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status));
 
-  // Now restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Now restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   // Scheduler should get a TASK_KILLED message.
@@ -1880,7 +1926,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -1895,11 +1942,12 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   Future<RegisterSlaveMessage> registerSlaveMessage =
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlaveMessage);
@@ -1945,6 +1993,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   AWAIT_READY(_statusUpdateAcknowledgement);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   Future<UnregisterFrameworkMessage> unregisterFrameworkMessage =
     FUTURE_PROTOBUF(UnregisterFrameworkMessage(), _, _);
@@ -1962,10 +2011,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   Future<Nothing> executorTerminated =
     FUTURE_DISPATCH(_, &Slave::executorTerminated);
 
-  // Now restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Now restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   // Slave should get a ShutdownFrameworkMessage.
@@ -1974,7 +2024,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   // Ensure that the executor is terminated.
   AWAIT_READY(executorTerminated);
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -1994,13 +2045,14 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   Try<PID<Master> > master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
   EXPECT_CALL(allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2049,6 +2101,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   EXPECT_CALL(allocator, slaveDisconnected(_));
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   // Construct the framework meta directory that needs wiping.
   string frameworkPath = paths::getFrameworkPath(
@@ -2099,10 +2152,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -2143,7 +2197,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -2156,10 +2211,12 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   // Launch the first (i.e., failing) scheduler.
@@ -2202,6 +2259,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   AWAIT_READY(_statusUpdateAcknowledgement);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   // Now launch the second (i.e., failover) scheduler using the
   // framework id recorded from the first scheduler.
@@ -2233,10 +2291,11 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   Future<ReregisterSlaveMessage> reregisterSlaveMessage =
       FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -2287,7 +2346,8 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   driver1.stop();
   driver1.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -2309,10 +2369,12 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   // Drop all the PONGs to simulate slave partition.
   DROP_MESSAGES(Eq("PONG"), _, _);
 
-  TypeParam isolator1;
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   // Enable checkpointing for the framework.
@@ -2404,14 +2466,16 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   Clock::settle();
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   Future<RegisterSlaveMessage> registerSlaveMessage =
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlaveMessage);
@@ -2421,7 +2485,8 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -2434,11 +2499,12 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2483,6 +2549,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   AWAIT_READY(_statusUpdateAcknowledgement);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   // Step 2. Simulate failed over master by restarting the master.
   this->Stop(master.get());
@@ -2508,9 +2575,10 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -2558,7 +2626,8 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
 
 
@@ -2571,11 +2640,12 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
 
-  TypeParam isolator1;
-
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator1, flags);
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
 
   // Framework 1.
@@ -2661,16 +2731,18 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   AWAIT_READY(_statusUpdateAcknowledgement2);
 
   this->Stop(slave.get());
+  delete containerizer1.get();
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<ReregisterSlaveMessage> reregisterSlaveMessage =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
-  // Restart the slave (use same flags) with a new isolator.
-  TypeParam isolator2;
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(&isolator2, flags);
+  slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -2727,39 +2799,14 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   driver2.stop();
   driver2.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer2.get();
 }
-
-
-// Create a test fixture for those slave recovery tests that only work
-// when ProcessIsolator is used.
-// TODO(jieyu): We use typed test here because it magically allows us
-// to access protected members in Slave (e.g. Slave::reconnect).
-template <typename T>
-class SlaveRecoveryProcessIsolatorTest : public IsolatorTest<T>
-{
-public:
-  virtual slave::Flags CreateSlaveFlags()
-  {
-    slave::Flags flags = IsolatorTest<T>::CreateSlaveFlags();
-
-    // Setup recovery slave flags.
-    flags.checkpoint = true;
-    flags.recover = "reconnect";
-    flags.strict = true;
-
-    return flags;
-  }
-};
-
-
-TYPED_TEST_CASE(SlaveRecoveryProcessIsolatorTest,
-                ::testing::Types<ProcessIsolator>);
 
 
 // This test verifies that slave recovery works properly even if
 // multiple slaves are co-located on the same host.
-TYPED_TEST(SlaveRecoveryProcessIsolatorTest, MultipleSlaves)
+TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 {
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
@@ -2783,9 +2830,10 @@ TYPED_TEST(SlaveRecoveryProcessIsolatorTest, MultipleSlaves)
 
   // Start the first slave.
   slave::Flags flags1 = this->CreateSlaveFlags();
-  slave::ProcessIsolator isolator1;
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags1, true);
+  ASSERT_SOME(containerizer1);
 
-  Try<PID<Slave> > slave1 = this->StartSlave(&isolator1, flags1);
+  Try<PID<Slave> > slave1 = this->StartSlave(containerizer1.get(), flags1);
   ASSERT_SOME(slave1);
 
   AWAIT_READY(offers1);
@@ -2813,9 +2861,10 @@ TYPED_TEST(SlaveRecoveryProcessIsolatorTest, MultipleSlaves)
 
   // Start the second slave.
   slave::Flags flags2 = this->CreateSlaveFlags();
-  slave::ProcessIsolator isolator2;
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags2, true);
+  ASSERT_SOME(containerizer2);
 
-  Try<PID<Slave> > slave2 = this->StartSlave(&isolator2, flags2);
+  Try<PID<Slave> > slave2 = this->StartSlave(containerizer2.get(), flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
@@ -2838,7 +2887,9 @@ TYPED_TEST(SlaveRecoveryProcessIsolatorTest, MultipleSlaves)
   AWAIT_READY(_statusUpdateAcknowledgement2);
 
   this->Stop(slave1.get());
+  delete containerizer1.get();
   this->Stop(slave2.get());
+  delete containerizer2.get();
 
   Future<Nothing> _recover1 = FUTURE_DISPATCH(_, &Slave::_recover);
   Future<Nothing> _recover2 = FUTURE_DISPATCH(_, &Slave::_recover);
@@ -2848,15 +2899,17 @@ TYPED_TEST(SlaveRecoveryProcessIsolatorTest, MultipleSlaves)
   Future<ReregisterSlaveMessage> reregisterSlave2 =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
-  // Restart both slaves using the same flags with new isolators.
-  slave::ProcessIsolator isolator3;
+  // Restart both slaves using the same flags with new containerizers.
+  Try<Containerizer*> containerizer3 = Containerizer::create(flags1, true);
+  ASSERT_SOME(containerizer3);
 
-  slave1 = this->StartSlave(&isolator3, flags1);
+  slave1 = this->StartSlave(containerizer3.get(), flags1);
   ASSERT_SOME(slave1);
 
-  slave::ProcessIsolator isolator4;
+  Try<Containerizer*> containerizer4 = Containerizer::create(flags2, true);
+  ASSERT_SOME(containerizer4);
 
-  slave2 = this->StartSlave(&isolator4, flags2);
+  slave2 = this->StartSlave(containerizer4.get(), flags2);
   ASSERT_SOME(slave2);
 
   Clock::pause();
@@ -2910,5 +2963,7 @@ TYPED_TEST(SlaveRecoveryProcessIsolatorTest, MultipleSlaves)
   driver.stop();
   driver.join();
 
-  this->Shutdown(); // Shutdown before isolator(s) get deallocated.
+  this->Shutdown();
+  delete containerizer3.get();
+  delete containerizer4.get();
 }

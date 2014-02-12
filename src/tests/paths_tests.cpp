@@ -42,12 +42,12 @@ class PathsTest : public ::testing::Test
 {
 public:
   PathsTest()
-    : uuid(UUID::random())
   {
     slaveId.set_value("slave1");
     frameworkId.set_value("framework1");
     executorId.set_value("executor1");
     taskId.set_value("task1");
+    containerId.set_value(UUID::random().toString());
 
     Try<string> path = os::mkdtemp();
     CHECK_SOME(path) << "Failed to mkdtemp";
@@ -64,7 +64,7 @@ protected:
   FrameworkID frameworkId;
   ExecutorID executorId;
   TaskID taskId;
-  UUID uuid;
+  ContainerID containerId;
   string rootDir;
 };
 
@@ -72,12 +72,12 @@ protected:
 TEST_F(PathsTest, CreateExecutorDirectory)
 {
   const string& result = paths::createExecutorDirectory(
-      rootDir, slaveId, frameworkId, executorId, uuid);
+      rootDir, slaveId, frameworkId, executorId, containerId);
 
   // Expected directory layout.
   string dir = rootDir + "/slaves/" + slaveId.value() + "/frameworks/"
                + frameworkId.value() + "/executors/" + executorId.value()
-               + "/runs/" + uuid.toString();
+               + "/runs/" + containerId.value();
 
   ASSERT_EQ(dir, result);
 }
@@ -97,13 +97,13 @@ TEST_F(PathsTest, format)
   ASSERT_EQ(dir, paths::getExecutorPath(
       rootDir, slaveId, frameworkId, executorId));
 
-  dir += "/runs/" + uuid.toString();
+  dir += "/runs/" + containerId.value();
   ASSERT_EQ(dir, paths::getExecutorRunPath(
-      rootDir, slaveId, frameworkId, executorId, uuid));
+      rootDir, slaveId, frameworkId, executorId, containerId));
 
   dir += "/tasks/" + taskId.value();
   ASSERT_EQ(dir, paths::getTaskPath(
-      rootDir, slaveId, frameworkId, executorId, uuid, taskId));
+      rootDir, slaveId, frameworkId, executorId, containerId, taskId));
 }
 
 } // namespace paths {

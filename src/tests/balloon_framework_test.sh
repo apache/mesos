@@ -6,8 +6,13 @@
 source ${MESOS_SOURCE_DIR}/support/colors.sh
 source ${MESOS_SOURCE_DIR}/support/atexit.sh
 
-# TODO(benh): Look for an existing hierarchy first.
-TEST_CGROUP_HIERARCHY=/tmp/mesos_test_cgroup
+EXISTING_FREEZER_HIERARCHY=$(cat /proc/mounts | grep ^freezer | cut -f 2 -d ' ')
+if [[ -n ${EXISTING_FREEZER_HIERARCHY} ]]; then
+  # Strip off the subsystem component.
+  TEST_CGROUP_HIERARCHY=${EXISTING_FREEZER_HIERARCHY%/*}
+else
+  TEST_CGROUP_HIERARCHY=/tmp/mesos_test_cgroup
+fi
 TEST_CGROUP_ROOT=mesos_test
 
 # Check if the hierarchy exists. If it doesn't, we want to make sure we
@@ -63,7 +68,7 @@ BALLOON_FRAMEWORK=${MESOS_BUILD_DIR}/src/balloon-framework
 # to correspond to flags, so we unset these here.
 unset MESOS_BUILD_DIR
 unset MESOS_SOURCE_DIR
-unset MESOS_LAUNCHER_DIR
+#unset MESOS_LAUNCHER_DIR # leave this so we can find mesos-fetcher.
 unset MESOS_VERBOSE
 
 # Launch master.

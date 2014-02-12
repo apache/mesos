@@ -105,6 +105,13 @@ public:
         resource->set_type(Value::SCALAR);
         resource->mutable_scalar()->set_value(mem - EXECUTOR_MEMORY_MB);
 
+        // And all the CPU.
+        double cpus = getScalarResource(offer, "cpus");
+        resource = task.add_resources();
+        resource->set_name("cpus");
+        resource->set_type(Value::SCALAR);
+        resource->mutable_scalar()->set_value(cpus);
+
         tasks.push_back(task);
         driver->launchTasks(offer.id(), tasks);
 

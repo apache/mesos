@@ -3,14 +3,18 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/result.hpp>
+#include <stout/uuid.hpp>
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif
 
+#include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/mesos_containerizer.hpp"
+
+#include "tests/containerizer.hpp"
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
-#include "tests/isolator.hpp"
 #include "tests/mesos.hpp"
 
 using namespace process;
@@ -120,16 +124,16 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
 Try<process::PID<slave::Slave> > MesosTest::StartSlave(
     const Option<slave::Flags>& flags)
 {
-  TestingIsolator* isolator = new TestingIsolator();
+  slave::Containerizer* containerizer = new TestContainerizer();
 
-  Try<process::PID<slave::Slave> > pid = StartSlave(isolator, flags);
+  Try<process::PID<slave::Slave> > pid = StartSlave(containerizer, flags);
 
   if (pid.isError()) {
-    delete isolator;
+    delete containerizer;
     return pid;
   }
 
-  isolators[pid.get()] = isolator;
+  containerizers[pid.get()] = containerizer;
 
   return pid;
 }
@@ -139,37 +143,39 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
     MockExecutor* executor,
     const Option<slave::Flags>& flags)
 {
-  TestingIsolator* isolator = new TestingIsolator(executor);
-    
-  Try<process::PID<slave::Slave> > pid = StartSlave(isolator, flags);
+  slave::Containerizer* containerizer = new TestContainerizer(executor);
+
+  Try<process::PID<slave::Slave> > pid = StartSlave(containerizer, flags);
 
   if (pid.isError()) {
-    delete isolator;
+    delete containerizer;
     return pid;
   }
 
-  isolators[pid.get()] = isolator;
+  containerizers[pid.get()] = containerizer;
 
   return pid;
 }
 
 
 Try<process::PID<slave::Slave> > MesosTest::StartSlave(
-    slave::Isolator* isolator,
+    slave::Containerizer* containerizer,
     const Option<slave::Flags>& flags)
 {
   return cluster.slaves.start(
-      isolator, flags.isNone() ? CreateSlaveFlags() : flags.get());
+      containerizer, flags.isNone() ? CreateSlaveFlags() : flags.get());
 }
 
 
 Try<process::PID<slave::Slave> > MesosTest::StartSlave(
-    slave::Isolator* isolator,
+    slave::Containerizer* containerizer,
     Owned<MasterDetector> detector,
     const Option<slave::Flags>& flags)
 {
   return cluster.slaves.start(
-      isolator, detector, flags.isNone() ? CreateSlaveFlags() : flags.get());
+      containerizer,
+      detector,
+      flags.isNone() ? CreateSlaveFlags() : flags.get());
 }
 
 
@@ -187,17 +193,19 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
     Owned<MasterDetector> detector,
     const Option<slave::Flags>& flags)
 {
-  TestingIsolator* isolator = new TestingIsolator(executor);
+  slave::Containerizer* containerizer = new TestContainerizer(executor);
 
   Try<process::PID<slave::Slave> > pid = cluster.slaves.start(
-      isolator, detector, flags.isNone() ? CreateSlaveFlags() : flags.get());
+      containerizer,
+      detector,
+      flags.isNone() ? CreateSlaveFlags() : flags.get());
 
   if (pid.isError()) {
-    delete isolator;
+    delete containerizer;
     return pid;
   }
 
-  isolators[pid.get()] = isolator;
+  containerizers[pid.get()] = containerizer;
 
   return pid;
 }
@@ -212,10 +220,10 @@ void MesosTest::Stop(const process::PID<master::Master>& pid)
 void MesosTest::Stop(const process::PID<slave::Slave>& pid, bool shutdown)
 {
   cluster.slaves.stop(pid, shutdown);
-  if (isolators.count(pid) > 0) {
-    TestingIsolator* isolator = isolators[pid];
-    isolators.erase(pid);
-    delete isolator;
+  if (containerizers.count(pid) > 0) {
+    slave::Containerizer* containerizer = containerizers[pid];
+    containerizers.erase(pid);
+    delete containerizer;
   }
 }
 
@@ -237,10 +245,10 @@ void MesosTest::ShutdownSlaves()
 {
   cluster.slaves.shutdown();
 
-  foreachvalue (TestingIsolator* isolator, isolators) {
-    delete isolator;
+  foreachvalue (slave::Containerizer* containerizer, containerizers) {
+    delete containerizer;
   }
-  isolators.clear();
+  containerizers.clear();
 }
 
 
@@ -251,71 +259,114 @@ void MesosTest::TearDown()
 }
 
 
-#ifdef __linux__
-void IsolatorTest<slave::CgroupsIsolator>::SetUpTestCase()
-{
-  // Clean up the testing hierarchy, in case it wasn't cleaned up
-  // properly from previous tests.
-  AWAIT_READY(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
-}
-
-
-void IsolatorTest<slave::CgroupsIsolator>::TearDownTestCase()
-{
-  AWAIT_READY(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
-}
-
-
-slave::Flags IsolatorTest<slave::CgroupsIsolator>::CreateSlaveFlags()
+slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 {
   slave::Flags flags = MesosTest::CreateSlaveFlags();
 
-  flags.cgroups_hierarchy = hierarchy;
-
-  // TODO(benh): Create a different cgroups root for each slave.
-  flags.cgroups_root = TEST_CGROUPS_ROOT;
+#ifdef __linux__
+  flags.isolation = "cgroups/cpu,cgroups/mem";
+  flags.cgroups_hierarchy = baseHierarchy;
+  flags.cgroups_root = TEST_CGROUPS_ROOT + "_" + UUID::random().toString();
+#else
+  flags.isolation = "posix/cpu,posix/mem";
+#endif
 
   return flags;
 }
 
 
-void IsolatorTest<slave::CgroupsIsolator>::SetUp()
+#ifdef __linux__
+void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 {
-  MesosTest::SetUp();
-
-  const std::string subsystems = "cpu,cpuacct,memory,freezer";
-  Result<std::string> hierarchy_ = cgroups::hierarchy(subsystems);
-  ASSERT_FALSE(hierarchy_.isError());
-  if (hierarchy_.isNone()) {
-    // Try to mount a hierarchy for testing.
-    ASSERT_SOME(cgroups::mount(TEST_CGROUPS_HIERARCHY, subsystems))
-      << "-------------------------------------------------------------\n"
-      << "We cannot run any cgroups tests that require\n"
-      << "a hierarchy with subsystems '" << subsystems << "'\n"
-      << "because we failed to find an existing hierarchy\n"
-      << "or create a new one. You can either remove all existing\n"
-      << "hierarchies, or disable this test case\n"
-      << "(i.e., --gtest_filter=-"
-      << ::testing::UnitTest::GetInstance()
-           ->current_test_info()
-           ->test_case_name() << ".*).\n"
-      << "-------------------------------------------------------------";
-
-    hierarchy = TEST_CGROUPS_HIERARCHY;
-  } else {
-    hierarchy = hierarchy_.get();
+  // Clean up any testing hierarchies.
+  Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+  ASSERT_SOME(hierarchies);
+  foreach (const std::string& hierarchy, hierarchies.get()) {
+    if (strings::startsWith(hierarchy, TEST_CGROUPS_HIERARCHY)) {
+      AWAIT_READY(cgroups::cleanup(hierarchy));
+    }
   }
 }
 
 
-void IsolatorTest<slave::CgroupsIsolator>::TearDown()
+void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
+{
+  // Clean up any testing hierarchies.
+  Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+  ASSERT_SOME(hierarchies);
+  foreach (const std::string& hierarchy, hierarchies.get()) {
+    if (strings::startsWith(hierarchy, TEST_CGROUPS_HIERARCHY)) {
+      AWAIT_READY(cgroups::cleanup(hierarchy));
+    }
+  }
+}
+
+
+void ContainerizerTest<slave::MesosContainerizer>::SetUp()
+{
+  MesosTest::SetUp();
+
+  subsystems.insert("cpu");
+  subsystems.insert("cpuacct");
+  subsystems.insert("memory");
+  subsystems.insert("freezer");
+
+  foreach (const std::string& subsystem, subsystems) {
+    // Establish the base hierarchy if this is the first subsystem checked.
+    if (baseHierarchy.empty()) {
+      Result<std::string> hierarchy = cgroups::hierarchy(subsystem);
+      ASSERT_FALSE(hierarchy.isError());
+
+      if (hierarchy.isNone()) {
+        baseHierarchy = TEST_CGROUPS_HIERARCHY;
+      } else {
+        // Strip the subsystem to get the base hierarchy.
+        baseHierarchy = strings::remove(
+            hierarchy.get(),
+            subsystem,
+            strings::SUFFIX);
+      }
+    }
+
+    // Mount the subsystem if necessary.
+    std::string hierarchy = path::join(baseHierarchy, subsystem);
+    Try<bool> mounted = cgroups::mounted(hierarchy, subsystem);
+    ASSERT_SOME(mounted);
+    if (!mounted.get()) {
+      ASSERT_SOME(cgroups::mount(hierarchy, subsystem))
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any cgroups tests that require\n"
+        << "a hierarchy with subsystem '" << subsystem << "'\n"
+        << "because we failed to find an existing hierarchy\n"
+        << "or create a new one (tried '" << hierarchy << "').\n"
+        << "You can either remove all existing\n"
+        << "hierarchies, or disable this test case\n"
+        << "(i.e., --gtest_filter=-"
+        << ::testing::UnitTest::GetInstance()
+            ->current_test_info()
+            ->test_case_name() << ".*).\n"
+        << "-------------------------------------------------------------";
+    }
+  }
+}
+
+
+void ContainerizerTest<slave::MesosContainerizer>::TearDown()
 {
   MesosTest::TearDown();
 
-  Try<bool> exists = cgroups::exists(hierarchy, TEST_CGROUPS_ROOT);
-  ASSERT_SOME(exists);
-  if (exists.get()) {
-    AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+  foreach (const std::string& subsystem, subsystems) {
+    std::string hierarchy = path::join(baseHierarchy, subsystem);
+
+    Try<std::vector<std::string> > cgroups = cgroups::get(hierarchy);
+    CHECK_SOME(cgroups);
+
+    foreach (const std::string& cgroup, cgroups.get()) {
+      // Remove any cgroups that start with TEST_CGROUPS_ROOT
+      if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
+        AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
+      }
+    }
   }
 }
 #endif // __linux__

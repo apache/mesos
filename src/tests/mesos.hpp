@@ -48,10 +48,8 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#ifdef __linux__
-#include "slave/cgroups_isolator.hpp"
-#endif
-#include "slave/isolator.hpp"
+#include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/cluster.hpp"
@@ -62,7 +60,6 @@ namespace tests {
 
 // Forward declarations.
 class MockExecutor;
-class TestingIsolator;
 
 
 class MesosTest : public ::testing::Test
@@ -108,14 +105,14 @@ protected:
       MockExecutor* executor,
       const Option<slave::Flags>& flags = None());
 
-  // Starts a slave with the specified isolator and flags.
+  // Starts a slave with the specified containerizer and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
-      slave::Isolator* isolator,
+      slave::Containerizer* containerizer,
       const Option<slave::Flags>& flags = None());
 
-  // Starts a slave with the specified isolator, detector and flags.
+  // Starts a slave with the specified containerizer, detector and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
-      slave::Isolator* isolator,
+      slave::Containerizer* containerizer,
       process::Owned<MasterDetector> detector,
       const Option<slave::Flags>& flags = None());
 
@@ -151,15 +148,13 @@ protected:
 
   Cluster cluster;
 
-  // TestingIsolator(s) created during test that we need to cleanup.
-  std::map<process::PID<slave::Slave>, TestingIsolator*> isolators;
+  // Containerizer(s) created during test that we need to cleanup.
+  std::map<process::PID<slave::Slave>, slave::Containerizer*> containerizers;
 };
 
 
-
 template <typename T>
-class IsolatorTest : public MesosTest {};
-
+class ContainerizerTest : public MesosTest {};
 
 #ifdef __linux__
 // Cgroups hierarchy used by the cgroups related tests.
@@ -170,7 +165,7 @@ const static std::string TEST_CGROUPS_ROOT = "mesos_test";
 
 
 template <>
-class IsolatorTest<slave::CgroupsIsolator> : public MesosTest
+class ContainerizerTest<slave::MesosContainerizer> : public MesosTest
 {
 public:
   static void SetUpTestCase();
@@ -182,7 +177,21 @@ protected:
   virtual void TearDown();
 
 private:
-  std::string hierarchy;
+  // Base hierarchy for separately mounted cgroup controllers, e.g., if the
+  // base hierachy is /sys/fs/cgroup then each controller will be mounted to
+  // /sys/fs/cgroup/{controller}/.
+  std::string baseHierarchy;
+
+  // Set of cgroup subsystems used by the cgroups related tests.
+  hashset<std::string> subsystems;
+
+};
+#else
+template<>
+class ContainerizerTest<slave::MesosContainerizer> : public MesosTest
+{
+protected:
+  virtual slave::Flags CreateSlaveFlags();
 };
 #endif // __linux__
 

@@ -44,8 +44,7 @@
 #include "master/registrar.hpp"
 
 #include "slave/flags.hpp"
-#include "slave/isolator.hpp"
-#include "slave/process_isolator.hpp"
+#include "slave/containerizer/containerizer.hpp"
 #include "slave/slave.hpp"
 
 #include "state/leveldb.hpp"
@@ -142,7 +141,7 @@ public:
     // The isolator is expected to outlive the launched slave (i.e.,
     // until it is stopped via Slaves::stop).
     Try<process::PID<slave::Slave> > start(
-        slave::Isolator* isolator,
+        slave::Containerizer* containerizer,
         const slave::Flags& flags = slave::Flags());
 
     // Start and manage a new slave injecting the specified Master
@@ -153,7 +152,7 @@ public:
         const slave::Flags& flags = slave::Flags());
 
     Try<process::PID<slave::Slave> > start(
-        slave::Isolator* isolator,
+        slave::Containerizer* containerizer,
         process::Owned<MasterDetector> detector,
         const slave::Flags& flags = slave::Flags());
 
@@ -176,13 +175,13 @@ public:
     struct Slave
     {
       Slave()
-        : isolator(NULL),
+        : containerizer(NULL),
           slave(NULL),
           detector(NULL) {}
 
-      // Only register the isolator here if it is created within the
+      // Only register the containerizer here if it is created within the
       // Cluster.
-      slave::Isolator* isolator;
+      slave::Containerizer* containerizer;
       slave::Slave* slave;
       process::Owned<MasterDetector> detector;
     };
@@ -424,15 +423,18 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
   Slave slave;
 
-  // Create a new process isolator for this slave.
-  slave.isolator = new slave::ProcessIsolator();
-  process::spawn(slave.isolator);
+  // Create a new containerizer for this slave.
+  Try<slave::Containerizer*> containerizer =
+    slave::Containerizer::create(flags, true);
+  CHECK_SOME(containerizer);
+
+  slave.containerizer = containerizer.get();
 
   // Get a detector for the master(s).
   slave.detector = masters->detector();
 
-  slave.slave = new slave::Slave(flags, true, slave.detector.get(), slave.isolator,
-      &cluster->files);
+  slave.slave = new slave::Slave(
+      flags, slave.detector.get(), slave.containerizer, &cluster->files);
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 
   slaves[pid] = slave;
@@ -442,10 +444,10 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
 
 inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    slave::Isolator* isolator,
+    slave::Containerizer* containerizer,
     const slave::Flags& flags)
 {
-  return start(isolator, masters->detector(), flags);
+  return start(containerizer, masters->detector(), flags);
 }
 
 
@@ -453,12 +455,32 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
     process::Owned<MasterDetector> detector,
     const slave::Flags& flags)
 {
-  return start(new slave::ProcessIsolator(), detector, flags);
+  // TODO(benh): Create a work directory if using the default.
+
+  Slave slave;
+
+  // Create a new containerizer for this slave.
+  Try<slave::Containerizer*> containerizer =
+    slave::Containerizer::create(flags, true);
+  CHECK_SOME(containerizer);
+
+  slave.containerizer = containerizer.get();
+
+  // Get a detector for the master(s).
+  slave.detector = detector;
+
+  slave.slave = new slave::Slave(
+      flags, slave.detector.get(), slave.containerizer, &cluster->files);
+  process::PID<slave::Slave> pid = process::spawn(slave.slave);
+
+  slaves[pid] = slave;
+
+  return pid;
 }
 
 
 inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    slave::Isolator* isolator,
+    slave::Containerizer* containerizer,
     process::Owned<MasterDetector> detector,
     const slave::Flags& flags)
 {
@@ -469,8 +491,8 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
   // Get a detector for the master(s).
   slave.detector = detector;
 
-  slave.slave = new slave::Slave(flags, true, slave.detector.get(),
-      isolator, &cluster->files);
+  slave.slave = new slave::Slave(
+      flags, slave.detector.get(), containerizer, &cluster->files);
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 
   slaves[pid] = slave;
@@ -497,7 +519,7 @@ inline Try<Nothing> Cluster::Slaves::stop(
   process::wait(slave.slave);
   delete slave.slave;
 
-  delete slave.isolator; // May be NULL.
+  delete slave.containerizer; // May be NULL.
 
   slaves.erase(pid);
 

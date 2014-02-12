@@ -235,7 +235,8 @@ Future<Nothing> MesosContainerizerProcess::_recover(
 void asyncSafeFatal(const char* message)
 {
   // Ignore the return value from write() to silence compiler warning.
-  (void) write(STDERR_FILENO, message, strlen(message));
+  while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
+      errno == EINTR);
   _exit(1);
 }
 

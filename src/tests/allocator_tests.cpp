@@ -35,7 +35,7 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include "tests/isolator.hpp"
+#include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
 using namespace mesos;
@@ -1089,11 +1089,11 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   MockExecutor exec1(executor1.executor_id());
   MockExecutor exec2(executor2.executor_id());
 
-  map<ExecutorID, Executor*> execs;
+  hashmap<ExecutorID, Executor*> execs;
   execs[executor1.executor_id()] = &exec1;
   execs[executor2.executor_id()] = &exec2;
 
-  TestingIsolator isolator(execs);
+  TestContainerizer containerizer(execs);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
@@ -1101,7 +1101,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 
   EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&isolator, flags);
+  Try<PID<Slave> > slave = this->StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched1;

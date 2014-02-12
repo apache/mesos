@@ -109,55 +109,65 @@ public:
 protected:
   virtual void SetUp()
   {
-    Result<std::string> hierarchy_ = cgroups::hierarchy(subsystems);
-    ASSERT_FALSE(hierarchy_.isError());
-    if (hierarchy_.isNone()) {
-      // Try to mount a hierarchy for testing, retrying as necessary since the
-      // previous unmount might not have taken effect yet due to a bug in
-      // Ubuntu 12.04.
-      ASSERT_SOME(cgroups::mount(TEST_CGROUPS_HIERARCHY, subsystems, 10))
-        << "-------------------------------------------------------------\n"
-        << "We cannot run any cgroups tests that require\n"
-        << "a hierarchy with subsystems '" << subsystems << "'\n"
-        << "because we failed to find an existing hierarchy\n"
-        << "or create a new one. You can either remove all existing\n"
-        << "hierarchies, or disable this test case\n"
-        << "(i.e., --gtest_filter=-"
-        << ::testing::UnitTest::GetInstance()
-             ->current_test_info()
-             ->test_case_name() << ".*).\n"
-        << "-------------------------------------------------------------";
+    foreach (const std::string& subsystem, strings::tokenize(subsystems, ",")) {
+      // Establish the base hierarchy if this is the first subsystem checked.
+      if (baseHierarchy.empty()) {
+        Result<std::string> hierarchy = cgroups::hierarchy(subsystem);
+        ASSERT_FALSE(hierarchy.isError());
 
-      hierarchy = TEST_CGROUPS_HIERARCHY;
-    } else {
-      hierarchy = hierarchy_.get();
-    }
+        if (hierarchy.isNone()) {
+          baseHierarchy = TEST_CGROUPS_HIERARCHY;
+        } else {
+          // Strip the subsystem to get the base hierarchy.
+          baseHierarchy = strings::remove(
+              hierarchy.get(),
+              subsystem,
+              strings::SUFFIX);
+        }
+      }
 
-    // Create a cgroup (removing first if necessary) for the tests to use.
-    Try<bool> exists = cgroups::exists(hierarchy, TEST_CGROUPS_ROOT);
-    ASSERT_SOME(exists);
-    if (exists.get()) {
-     AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+      // Mount the subsystem if necessary.
+      std::string hierarchy = path::join(baseHierarchy, subsystem);
+      Try<bool> mounted = cgroups::mounted(hierarchy, subsystem);
+      ASSERT_SOME(mounted);
+      if (!mounted.get()) {
+        ASSERT_SOME(cgroups::mount(hierarchy, subsystem))
+          << "-------------------------------------------------------------\n"
+          << "We cannot run any cgroups tests that require\n"
+          << "a hierarchy with subsystem '" << subsystem << "'\n"
+          << "because we failed to find an existing hierarchy\n"
+          << "or create a new one (tried '" << hierarchy << "').\n"
+          << "You can either remove all existing\n"
+          << "hierarchies, or disable this test case\n"
+          << "(i.e., --gtest_filter=-"
+          << ::testing::UnitTest::GetInstance()
+              ->current_test_info()
+              ->test_case_name() << ".*).\n"
+          << "-------------------------------------------------------------";
+      }
     }
-    ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
   }
 
   virtual void TearDown()
   {
     // Remove all *our* cgroups.
-    Try<bool> exists = cgroups::exists(hierarchy, TEST_CGROUPS_ROOT);
-    ASSERT_SOME(exists);
-    if (exists.get()) {
-     AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
-    }
+    foreach (const std::string& subsystem, strings::tokenize(subsystems, ",")) {
+      std::string hierarchy = path::join(baseHierarchy, subsystem);
 
-    // And cleanup TEST_CGROUPS_HIERARCHY in the event it is needed
-    // to be created.
-    AWAIT_READY(cgroups::cleanup(TEST_CGROUPS_HIERARCHY));
+      Try<std::vector<std::string> > cgroups = cgroups::get(hierarchy);
+      CHECK_SOME(cgroups);
+
+      foreach (const std::string& cgroup, cgroups.get()) {
+        // Remove any cgroups that start with TEST_CGROUPS_ROOT.
+        if (cgroup == TEST_CGROUPS_ROOT) {
+          AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
+        }
+      }
+    }
   }
 
   const std::string subsystems; // Subsystems required to run tests.
-  std::string hierarchy; // Path to the hierarchy being used.
+  std::string baseHierarchy; // Path to the hierarchy being used.
 };
 
 
@@ -227,7 +237,9 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Subsystems)
 
 TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_SubsystemsHierarchy)
 {
-  Try<std::set<std::string> > names = cgroups::subsystems(hierarchy);
+  std::string cpuHierarchy = path::join(baseHierarchy, "cpu");
+
+  Try<std::set<std::string> > names = cgroups::subsystems(cpuHierarchy);
   ASSERT_SOME(names);
 
   Option<std::string> cpu;
@@ -241,6 +253,22 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_SubsystemsHierarchy)
   }
 
   EXPECT_SOME(cpu);
+  EXPECT_NONE(memory);
+
+  std::string memoryHierarchy = path::join(baseHierarchy, "memory");
+  names = cgroups::subsystems(memoryHierarchy);
+  ASSERT_SOME(names);
+
+  cpu = None();
+  memory = None();
+  foreach (const std::string& name, names.get()) {
+    if (name == "cpu") {
+      cpu = name;
+    } else if (name == "memory") {
+      memory = name;
+    }
+  }
+  EXPECT_NONE(cpu);
   EXPECT_SOME(memory);
 }
 
@@ -264,9 +292,8 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Mounted)
 {
   EXPECT_SOME_FALSE(cgroups::mounted("/tmp-nonexist"));
   EXPECT_SOME_FALSE(cgroups::mounted("/tmp"));
-  EXPECT_SOME_FALSE(cgroups::mounted(hierarchy + "/not_expected"));
-  EXPECT_SOME_TRUE(cgroups::mounted(hierarchy));
-  EXPECT_SOME_TRUE(cgroups::mounted(hierarchy + "/"));
+  EXPECT_SOME_FALSE(cgroups::mounted(baseHierarchy + "/not_expected"));
+  EXPECT_SOME_TRUE(cgroups::mounted(baseHierarchy + "/cpu"));
 }
 
 
@@ -276,25 +303,30 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_MountedSubsystems)
   EXPECT_SOME_FALSE(cgroups::mounted("/tmp", "cpu,memory"));
   EXPECT_SOME_FALSE(cgroups::mounted("/tmp", "cpu"));
   EXPECT_SOME_FALSE(cgroups::mounted("/tmp", "invalid"));
-  EXPECT_SOME_TRUE(cgroups::mounted(hierarchy, "cpu,memory"));
-  EXPECT_SOME_TRUE(cgroups::mounted(hierarchy, "memory"));
-  EXPECT_SOME_FALSE(cgroups::mounted(hierarchy, "invalid"));
-  EXPECT_SOME_FALSE(cgroups::mounted(hierarchy + "/not_expected", "cpu"));
+  EXPECT_SOME_TRUE(cgroups::mounted(path::join(baseHierarchy, "cpu"), "cpu"));
+  EXPECT_SOME_TRUE(cgroups::mounted(
+        path::join(baseHierarchy, "memory"), "memory"));
+  EXPECT_SOME_FALSE(cgroups::mounted(baseHierarchy, "invalid"));
+  EXPECT_SOME_FALSE(cgroups::mounted(baseHierarchy + "/not_expected", "cpu"));
 }
 
 
 TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_CreateRemove)
 {
   EXPECT_ERROR(cgroups::create("/tmp", "test"));
-  EXPECT_ERROR(cgroups::create(hierarchy, "mesos_test_missing/1"));
-  ASSERT_SOME(cgroups::create(hierarchy, "mesos_test_missing"));
-  EXPECT_ERROR(cgroups::remove(hierarchy, "invalid"));
-  ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test_missing"));
+  EXPECT_ERROR(cgroups::create(baseHierarchy, "mesos_test_missing/1"));
+  ASSERT_SOME(cgroups::create(
+        path::join(baseHierarchy, "cpu"), "mesos_test_missing"));
+  EXPECT_ERROR(cgroups::remove(baseHierarchy, "invalid"));
+  ASSERT_SOME(cgroups::remove(
+        path::join(baseHierarchy, "cpu"), "mesos_test_missing"));
 }
 
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
 {
+  std::string hierarchy = path::join(baseHierarchy, "cpu");
+
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test1"));
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test2"));
 
@@ -303,7 +335,6 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
 
   EXPECT_EQ(cgroups.get()[0], "mesos_test2");
   EXPECT_EQ(cgroups.get()[1], "mesos_test1");
-  EXPECT_EQ(cgroups.get()[2], TEST_CGROUPS_ROOT);
 
   ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test1"));
   ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test2"));
@@ -312,6 +343,8 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
 {
+  std::string hierarchy = path::join(baseHierarchy, "cpu");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
   ASSERT_SOME(cgroups::create(hierarchy, path::join(TEST_CGROUPS_ROOT, "1")))
     << "-------------------------------------------------------------\n"
     << "We cannot run this test because it appears you do not have\n"
@@ -338,6 +371,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Tasks)
 {
+  std::string hierarchy = path::join(baseHierarchy, "cpu");
   Try<std::set<pid_t> > pids = cgroups::processes(hierarchy, "/");
   ASSERT_SOME(pids);
   EXPECT_NE(0u, pids.get().count(1));
@@ -347,6 +381,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Tasks)
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Read)
 {
+  std::string hierarchy = path::join(baseHierarchy, "cpu");
   EXPECT_ERROR(cgroups::read(hierarchy, TEST_CGROUPS_ROOT, "invalid"));
 
   std::string pid = stringify(::getpid());
@@ -359,11 +394,14 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Read)
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
 {
+  std::string hierarchy = path::join(baseHierarchy, "cpu");
   EXPECT_ERROR(
       cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "invalid", "invalid"));
 
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
+
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
 
   if (pid > 0) {
     // In parent process.
@@ -405,17 +443,19 @@ public:
 
 TEST_F(CgroupsAnyHierarchyWithCpuAcctMemoryTest, ROOT_CGROUPS_Stat)
 {
-  EXPECT_ERROR(cgroups::stat(hierarchy, TEST_CGROUPS_ROOT, "invalid"));
+  EXPECT_ERROR(cgroups::stat(baseHierarchy, TEST_CGROUPS_ROOT, "invalid"));
 
   Try<hashmap<std::string, uint64_t> > result =
-    cgroups::stat(hierarchy, "/", "cpuacct.stat");
+    cgroups::stat(
+        path::join(baseHierarchy, "cpuacct"), "/", "cpuacct.stat");
   ASSERT_SOME(result);
   EXPECT_TRUE(result.get().contains("user"));
   EXPECT_TRUE(result.get().contains("system"));
   EXPECT_GT(result.get()["user"], 0llu);
   EXPECT_GT(result.get()["system"], 0llu);
 
-  result = cgroups::stat(hierarchy, "/", "memory.stat");
+  result = cgroups::stat(
+      path::join(baseHierarchy, "memory"), "/", "memory.stat");
   ASSERT_SOME(result);
   EXPECT_TRUE(result.get().contains("rss"));
   EXPECT_GT(result.get()["rss"], 0llu);
@@ -424,6 +464,8 @@ TEST_F(CgroupsAnyHierarchyWithCpuAcctMemoryTest, ROOT_CGROUPS_Stat)
 
 TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
 {
+  std::string hierarchy = path::join(baseHierarchy, "memory");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
   ASSERT_SOME(
       cgroups::exists(hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control"))
     << "-------------------------------------------------------------\n"
@@ -519,6 +561,9 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Freeze)
   int dummy;
   ASSERT_NE(-1, ::pipe(pipes));
 
+  std::string hierarchy = path::join(baseHierarchy, "freezer");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
@@ -586,6 +631,9 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Kill)
   int dummy;
   ASSERT_NE(-1, ::pipe(pipes));
 
+  std::string hierarchy = path::join(baseHierarchy, "freezer");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
@@ -648,6 +696,9 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Destroy)
   int pipes[2];
   int dummy;
   ASSERT_NE(-1, ::pipe(pipes));
+
+  std::string hierarchy = path::join(baseHierarchy, "freezer");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
 
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
