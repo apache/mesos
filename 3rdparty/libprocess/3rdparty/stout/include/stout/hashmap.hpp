@@ -53,6 +53,7 @@ public:
         return true;
       }
     }
+    return false;
   }
 
   // Inserts a key, value pair into the map replacing an old value

@@ -23,3 +23,16 @@ TEST(HashMapTest, Insert)
   ASSERT_SOME_EQ(4, map.get("def"));
   ASSERT_EQ(2, map.size());
 }
+
+
+TEST(HashMapTest, Contains)
+{
+  hashmap<string, int> map;
+  map["abc"] = 1;
+
+  ASSERT_TRUE(map.contains("abc"));
+  ASSERT_TRUE(map.containsValue(1));
+
+  ASSERT_FALSE(map.contains("def"));
+  ASSERT_FALSE(map.containsValue(2));
+}
