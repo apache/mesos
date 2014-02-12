@@ -67,12 +67,6 @@ int main(int argc, char** argv)
   uint16_t port;
   flags.add(&port, "port", "Port to listen on", SlaveInfo().port());
 
-  string isolation;
-  flags.add(&isolation,
-            "isolation",
-            "Isolation mechanism, may be one of: process, cgroups",
-            "process");
-
   Option<string> master;
   flags.add(&master,
             "master",
@@ -127,11 +121,10 @@ int main(int argc, char** argv)
     LOG(INFO) << "Git SHA: " << build::GIT_SHA.get();
   }
 
-  LOG(INFO) << "Creating \"" << isolation << "\" isolator";
-
-  Isolator* isolator = Isolator::create(isolation);
-  if (isolator == NULL) {
-    EXIT(1) << "Unrecognized isolation type: " << isolation;
+  Try<Containerizer*> containerizer = Containerizer::create(flags, false);
+  if (containerizer.isError()) {
+    EXIT(1) << "Failed to create a containerizer: "
+            << containerizer.error();
   }
 
   Try<MasterDetector*> detector = MasterDetector::create(master.get());
@@ -142,14 +135,15 @@ int main(int argc, char** argv)
   LOG(INFO) << "Starting Mesos slave";
 
   Files files;
-  Slave* slave = new Slave(flags, false,  detector.get(), isolator, &files);
+  Slave* slave = new Slave(flags, detector.get(), containerizer.get(), &files);
   process::spawn(slave);
 
   process::wait(slave->self());
   delete slave;
 
   delete detector.get();
-  Isolator::destroy(isolator);
+
+  delete containerizer.get();
 
   return 0;
 }

@@ -126,8 +126,8 @@ struct ExecutorState
 
   ExecutorID id;
   Option<ExecutorInfo> info;
-  Option<UUID> latest;
-  hashmap<UUID, RunState> runs;
+  Option<ContainerID> latest;
+  hashmap<ContainerID, RunState> runs;
   unsigned int errors;
 };
 
@@ -141,10 +141,10 @@ struct RunState
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const UUID& uuid,
+      const ContainerID& containerId,
       bool strict);
 
-  Option<UUID> id;
+  Option<ContainerID> id;
   hashmap<TaskID, TaskState> tasks;
   Option<pid_t> forkedPid;
   Option<process::UPID> libprocessPid;
@@ -162,7 +162,7 @@ struct TaskState
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const UUID& uuid,
+      const ContainerID& containerId,
       const TaskID& taskId,
       bool strict);
 

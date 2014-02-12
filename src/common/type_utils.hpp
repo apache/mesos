@@ -72,6 +72,14 @@ inline std::ostream& operator << (
 }
 
 
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const ContainerID& containerId)
+{
+  return stream << containerId.value();
+}
+
+
 inline std::ostream& operator << (std::ostream& stream, const TaskState& state)
 {
   return stream << TaskState_descriptor()->FindValueByNumber(state)->name();
@@ -150,6 +158,18 @@ inline bool operator == (const ExecutorID& left, const ExecutorID& right)
 }
 
 
+inline bool operator == (const ContainerID& left, const ContainerID& right)
+{
+  return left.value() == right.value();
+}
+
+
+inline bool operator != (const ContainerID& left, const ContainerID& right)
+{
+  return left.value() != right.value();
+}
+
+
 inline bool operator == (const FrameworkID& left, const std::string& right)
 {
   return left.value() == right;
@@ -180,6 +200,12 @@ inline bool operator == (const ExecutorID& left, const std::string& right)
 }
 
 
+inline bool operator == (const ContainerID& left, const std::string& right)
+{
+  return left.value() == right;
+}
+
+
 inline bool operator < (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() < right.value();
@@ -205,6 +231,12 @@ inline bool operator < (const TaskID& left, const TaskID& right)
 
 
 inline bool operator < (const ExecutorID& left, const ExecutorID& right)
+{
+  return left.value() < right.value();
+}
+
+
+inline bool operator < (const ContainerID& left, const ContainerID& right)
 {
   return left.value() < right.value();
 }
@@ -351,6 +383,14 @@ inline std::size_t hash_value(const ExecutorID& executorId)
 {
   size_t seed = 0;
   boost::hash_combine(seed, executorId.value());
+  return seed;
+}
+
+
+inline std::size_t hash_value(const ContainerID& containerId)
+{
+  size_t seed = 0;
+  boost::hash_combine(seed, containerId.value());
   return seed;
 }
 

@@ -92,7 +92,7 @@ public:
       const StatusUpdate& update,
       const SlaveID& slaveId,
       const ExecutorID& executorId,
-      const UUID& uuid);
+      const ContainerID& containerId);
 
   // Retries the update to the master (as long as the slave is
   // alive), but does not checkpoint the update.
@@ -148,7 +148,7 @@ struct StatusUpdateStream
                      const Flags& _flags,
                      bool _checkpoint,
                      const Option<ExecutorID>& executorId,
-                     const Option<UUID>& uuid)
+                     const Option<ContainerID>& containerId)
     : checkpoint(_checkpoint),
       terminated(false),
       taskId(_taskId),
@@ -159,14 +159,14 @@ struct StatusUpdateStream
   {
     if (checkpoint) {
       CHECK_SOME(executorId);
-      CHECK_SOME(uuid);
+      CHECK_SOME(containerId);
 
       path = paths::getTaskUpdatesPath(
           paths::getMetaRootDir(flags.work_dir),
           slaveId,
           frameworkId,
           executorId.get(),
-          uuid.get(),
+          containerId.get(),
           taskId);
 
       // Create the base updates directory, if it doesn't exist.

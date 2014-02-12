@@ -49,6 +49,12 @@ public:
         "Total consumable resources per slave, in\n"
         "the form 'name(role):value;name(role):value...'.");
 
+    add(&Flags::isolation,
+        "isolation",
+        "Isolation mechanisms to use, e.g., 'posix/cpu,posix/mem'\n"
+        "or 'cgroups/cpu,cgroups/mem'.",
+        "posix/cpu,posix/mem");
+
     add(&Flags::default_role,
         "default_role",
         "Any resources in the --resources flag that\n"
@@ -167,7 +173,7 @@ public:
     add(&Flags::cgroups_hierarchy,
         "cgroups_hierarchy",
         "The path to the cgroups hierarchy root\n",
-        "/cgroup");
+        "/sys/fs/cgroup");
 
     add(&Flags::cgroups_root,
         "cgroups_root",
@@ -176,8 +182,8 @@ public:
 
     add(&Flags::cgroups_subsystems,
         "cgroups_subsystems",
-        "List of subsystems to enable (e.g., 'cpu,freezer')\n",
-        "cpu,memory,freezer");
+        "This flag has been deprecated and is no longer used,\n"
+        "please update your flags");
 
     add(&Flags::cgroups_enable_cfs,
         "cgroups_enable_cfs",
@@ -189,6 +195,7 @@ public:
 
   Option<std::string> hostname;
   Option<std::string> resources;
+  std::string isolation;
   std::string default_role;
   Option<std::string> attributes;
   std::string work_dir;
@@ -208,7 +215,7 @@ public:
 #ifdef __linux__
   std::string cgroups_hierarchy;
   std::string cgroups_root;
-  std::string cgroups_subsystems;
+  Option<std::string> cgroups_subsystems;
   bool cgroups_enable_cfs;
 #endif
 };

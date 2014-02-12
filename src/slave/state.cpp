@@ -336,21 +336,25 @@ Try<ExecutorState> ExecutorState::recover(
              : "No such file or directory"));
       }
 
-      // Store the UUID of the latest executor run.
-      state.latest = UUID::fromString(os::basename(latest.get()).get());
+      // Store the ContainerID of the latest executor run.
+      ContainerID containerId;
+      containerId.set_value(os::basename(latest.get()).get());
+      state.latest = containerId;
     } else {
-      const UUID& uuid = UUID::fromString(os::basename(path).get());
+      ContainerID containerId;
+      containerId.set_value(os::basename(path).get());
 
       const Try<RunState>& run = RunState::recover(
-          rootDir, slaveId, frameworkId, executorId, uuid, strict);
+          rootDir, slaveId, frameworkId, executorId, containerId, strict);
 
       if (run.isError()) {
-        return Error("Failed to recover run " + uuid.toString() +
-                     " of executor '" + executorId.value() +
-                     "': " + run.error());
+        return Error(
+            "Failed to recover run " + containerId.value() +
+            " of executor '" + executorId.value() +
+            "': " + run.error());
       }
 
-      state.runs[uuid] = run.get();
+      state.runs[containerId] = run.get();
       state.errors += run.get().errors;
     }
   }
@@ -373,11 +377,11 @@ Try<RunState> RunState::recover(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& uuid,
+    const ContainerID& containerId,
     bool strict)
 {
   RunState state;
-  state.id = uuid;
+  state.id = containerId;
   string message;
 
   // Find the tasks.
@@ -387,12 +391,13 @@ Try<RunState> RunState::recover(
       slaveId,
       frameworkId,
       executorId,
-      uuid.toString(),
+      containerId,
       "*").get());
 
   if (tasks.isError()) {
-    return Error("Failed to find tasks for executor run " + uuid.toString() +
-                 ": " + tasks.error());
+    return Error(
+        "Failed to find tasks for executor run " + containerId.value() +
+        ": " + tasks.error());
   }
 
   // Recover tasks.
@@ -401,7 +406,7 @@ Try<RunState> RunState::recover(
     taskId.set_value(os::basename(path).get());
 
     const Try<TaskState>& task = TaskState::recover(
-        rootDir, slaveId, frameworkId, executorId, uuid, taskId, strict);
+        rootDir, slaveId, frameworkId, executorId, containerId, taskId, strict);
 
     if (task.isError()) {
       return Error(
@@ -414,7 +419,7 @@ Try<RunState> RunState::recover(
 
   // Read the forked pid.
   string path = paths::getForkedPidPath(
-      rootDir, slaveId, frameworkId, executorId, uuid);
+      rootDir, slaveId, frameworkId, executorId, containerId);
   if (!os::exists(path)) {
     // This could happen if the slave died before the isolator
     // checkpointed the forked pid.
@@ -454,7 +459,7 @@ Try<RunState> RunState::recover(
 
   // Read the libprocess pid.
   path = paths::getLibprocessPidPath(
-      rootDir, slaveId, frameworkId, executorId, uuid);
+      rootDir, slaveId, frameworkId, executorId, containerId);
 
   if (!os::exists(path)) {
     // This could happen if the slave died before the executor
@@ -490,7 +495,7 @@ Try<RunState> RunState::recover(
 
   // See if the sentinel file exists.
   path = paths::getExecutorSentinelPath(
-      rootDir, slaveId, frameworkId, executorId, uuid);
+      rootDir, slaveId, frameworkId, executorId, containerId);
 
   state.completed = os::exists(path);
 
@@ -503,7 +508,7 @@ Try<TaskState> TaskState::recover(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& uuid,
+    const ContainerID& containerId,
     const TaskID& taskId,
     bool strict)
 {
@@ -513,7 +518,7 @@ Try<TaskState> TaskState::recover(
 
   // Read the task info.
   string path = paths::getTaskInfoPath(
-      rootDir, slaveId, frameworkId, executorId, uuid, taskId);
+      rootDir, slaveId, frameworkId, executorId, containerId, taskId);
   if (!os::exists(path)) {
     // This could happen if the slave died after creating the task
     // directory but before it checkpointed the task info.
@@ -546,7 +551,7 @@ Try<TaskState> TaskState::recover(
 
   // Read the status updates.
   path = paths::getTaskUpdatesPath(
-      rootDir, slaveId, frameworkId, executorId, uuid, taskId);
+      rootDir, slaveId, frameworkId, executorId, containerId, taskId);
   if (!os::exists(path)) {
     // This could happen if the slave died before it checkpointed
     // any status updates for this task.

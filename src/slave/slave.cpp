@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <list>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -61,6 +62,7 @@
 #include "slave/status_update_manager.hpp"
 
 using std::list;
+using std::map;
 using std::string;
 using std::vector;
 
@@ -73,20 +75,18 @@ namespace slave {
 using namespace state;
 
 Slave::Slave(const slave::Flags& _flags,
-             bool _local,
              MasterDetector* _detector,
-             Isolator* _isolator,
+             Containerizer* _containerizer,
              Files* _files)
   : ProcessBase(ID::generate("slave")),
     state(RECOVERING),
     http(*this),
     flags(_flags),
-    local(_local),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     detector(_detector),
-    isolator(_isolator),
+    containerizer(_containerizer),
     files(_files),
-    monitor(_isolator),
+    monitor(containerizer),
     statusUpdateManager(new StatusUpdateManager()),
     metaDir(paths::getMetaRootDir(flags.work_dir)),
     recoveryErrors(0) {}
@@ -115,101 +115,11 @@ void Slave::initialize()
   CHECK_SOME(os::mkdir(flags.work_dir))
     << "Failed to create slave work directory '" << flags.work_dir << "'";
 
-  // Properly set up resources.
-  // TODO(benh): Move this computation into Flags as the "default".
-  // TODO(vinod): Move some of this computation into Resources.
-  Try<Resources> parse = Resources::parse(
-      flags.resources.isSome() ? flags.resources.get() : "",
-      flags.default_role);
-  CHECK_SOME(parse);
-  resources = parse.get();
-
-  if (!resources.cpus().isSome()) {
-    double cpus;
-
-    Try<long> cpus_ = os::cpus();
-    if (!cpus_.isSome()) {
-      LOG(WARNING) << "Failed to auto-detect the number of cpus to use: '"
-                   << cpus_.error()
-                   << "' ; defaulting to " << DEFAULT_CPUS;
-      cpus = DEFAULT_CPUS;
-    } else {
-      cpus = cpus_.get();
-    }
-
-    Resource r = Resources::parse(
-        "cpus",
-        stringify(cpus),
-        flags.default_role).get();
-    resources += r;
+  Try<Resources> _resources = Containerizer::resources(flags);
+  if (_resources.isError()) {
+    EXIT(1) << "Failed to determine slave resources: " << _resources.error();
   }
-
-
-  if (!resources.mem().isSome()) {
-    Bytes mem;
-
-    Try<os::Memory> mem_ = os::memory();
-    if (!mem_.isSome()) {
-      LOG(WARNING) << "Failed to auto-detect the size of main memory: '"
-                   << mem_.error()
-                   << "' ; defaulting to " << DEFAULT_MEM;
-      mem = DEFAULT_MEM;
-    } else {
-      mem = mem_.get().total;
-
-      // Leave 1 GB free if we have more than 1 GB, otherwise, use all!
-      // TODO(benh): Have better default scheme (e.g., % of mem not
-      // greater than 1 GB?)
-      if (mem > Gigabytes(1)) {
-        mem = mem - Gigabytes(1);
-      }
-    }
-
-    Resource r = Resources::parse(
-        "mem",
-        stringify(mem.megabytes()),
-        flags.default_role).get();
-    resources += r;
-  }
-
-  if (!resources.disk().isSome()) {
-    Bytes disk;
-
-    // NOTE: We calculate disk size of the file system on
-    // which the slave work directory is mounted.
-    Try<Bytes> disk_ = fs::size(flags.work_dir);
-    if (!disk_.isSome()) {
-      LOG(WARNING) << "Failed to auto-detect the disk space: '"
-                   << disk_.error()
-                   << "' ; defaulting to " << DEFAULT_DISK;
-      disk = DEFAULT_DISK;
-    } else {
-      disk = disk_.get();
-
-      // Leave 5 GB free if we have more than 10 GB, otherwise, use all!
-      // TODO(benh): Have better default scheme (e.g., % of disk not
-      // greater than 10 GB?)
-      if (disk > Gigabytes(10)) {
-        disk = disk - Gigabytes(5);
-      }
-    }
-
-    Resource r = Resources::parse(
-        "disk",
-        stringify(disk.megabytes()),
-        flags.default_role).get();
-    resources += r;
-  }
-
-  if (!resources.ports().isSome()) {
-    Resource r = Resources::parse(
-        "ports",
-        stringify(DEFAULT_PORTS),
-        flags.default_role).get();
-    resources += r;
-  }
-
-  LOG(INFO) << "Slave resources: " << resources;
+  LOG(INFO) << "Slave resources: " << _resources.get();
 
   if (flags.attributes.isSome()) {
     attributes = Attributes::parse(flags.attributes.get());
@@ -233,8 +143,8 @@ void Slave::initialize()
   // Initialize slave info.
   info.set_hostname(hostname);
   info.set_port(self().port);
-  info.mutable_resources()->MergeFrom(resources);
-  info.mutable_attributes()->MergeFrom(attributes);
+  info.mutable_resources()->CopyFrom(_resources.get());
+  info.mutable_attributes()->CopyFrom(attributes);
   info.set_checkpoint(flags.checkpoint);
 
   LOG(INFO) << "Slave hostname: " << info.hostname();
@@ -246,23 +156,6 @@ void Slave::initialize()
   // executor on an older release).
   // TODO(benh): Remove this after the deprecation cycle.
   info.set_webui_hostname(hostname);
-
-  // Spawn and initialize the isolator.
-  // TODO(benh): Seems like the isolator should really be
-  // spawned before being passed to the slave.
-  spawn(isolator);
-
-  // TODO(vinod): Also pass SlaveID here. Currently it is tricky
-  // because SlaveID is only known either after recovery (if previous
-  // state exists) or after the slave registers with the master. We
-  // cannot delay initialize until after (re-)registration because
-  // during recovery (but before re-registration), the isolator needs
-  // to be initialized before accepting any messages
-  // (e.g., killExecutor) from the slave.
-  dispatch(isolator, &Isolator::initialize, flags, resources, local, self());
-
-  // TODO(vinod): Also pass SlaveID here. The reason that this is
-  // tricky is due to similar reasons described in the above comment.
   statusUpdateManager->initialize(flags, self());
 
   // Start disk monitoring.
@@ -420,10 +313,6 @@ void Slave::finalize()
       CHECK_SOME(os::rm(paths::getLatestSlavePath(metaDir)));
     }
   }
-
-  // Stop the isolator.
-  terminate(isolator);
-  wait(isolator);
 }
 
 
@@ -971,11 +860,8 @@ void Slave::_runTask(
       // Update the resources.
       // TODO(Charles Reiss): The isolator is not guaranteed to update
       // the resources before the executor acts on its RunTaskMessage.
-      dispatch(isolator,
-               &Isolator::resourcesChanged,
-               framework->id,
-               executor->id,
-               executor->resources);
+      // TODO(idownes): Wait until this completes.
+      containerizer->update(executor->containerId, executor->resources);
 
       LOG(INFO) << "Sending task '" << task.task_id()
                 << "' to executor '" << executorId
@@ -1089,8 +975,7 @@ void Slave::killTask(
         LOG(WARNING) << "Killing the unregistered executor '" << executor->id
                      << "' of framework " << framework->id
                      << " because it has no tasks";
-        dispatch(
-            isolator, &Isolator::killExecutor, framework->id, executor->id);
+        containerizer->destroy(executor->containerId);
       }
       break;
     }
@@ -1511,7 +1396,7 @@ void Slave::registerExecutor(
             info.id(),
             executor->frameworkId,
             executor->id,
-            executor->uuid);
+            executor->containerId);
 
         LOG(INFO) << "Checkpointing executor pid '"
                   << executor->pid << "' to '" << path << "'";
@@ -1531,11 +1416,8 @@ void Slave::registerExecutor(
       // TODO(Charles Reiss): We don't actually have a guarantee
       // that this will be delivered or (where necessary) acted on
       // before the executor gets its RunTaskMessages.
-      dispatch(isolator,
-               &Isolator::resourcesChanged,
-               framework->id,
-               executor->id,
-               executor->resources);
+      // TODO(idownes): Wait until this completes.
+      containerizer->update(executor->containerId, executor->resources);
 
       // Tell executor it's registered and give it any queued tasks.
       ExecutorRegisteredMessage message;
@@ -1651,12 +1533,9 @@ void Slave::reregisterExecutor(
         statusUpdate(update, executor->pid);
       }
 
-      // Tell the isolator to update the resources.
-      dispatch(isolator,
-               &Isolator::resourcesChanged,
-               frameworkId,
-               executorId,
-               executor->resources);
+      // Tell the containerizer to update the resources.
+      // TODO(idownes): Wait until this completes.
+      containerizer->update(executor->containerId, executor->resources);
 
       hashmap<TaskID, TaskInfo> unackedTasks;
       foreach (const TaskInfo& task, tasks) {
@@ -1733,8 +1612,7 @@ void Slave::reregisterExecutorTimeout()
 
           executor->state = Executor::TERMINATING;
 
-          dispatch(
-              isolator, &Isolator::killExecutor, framework->id, executor->id);
+          containerizer->destroy(executor->containerId);
           break;
         default:
           LOG(FATAL) << "Executor '" << executor->id
@@ -1843,16 +1721,17 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
     executor->terminateTask(status.task_id(), status.state());
 
     // Tell the isolator to update the resources.
-    dispatch(isolator,
-             &Isolator::resourcesChanged,
-             framework->id,
-             executor->id,
-             executor->resources);
+    // TODO(idownes): Wait until this completes.
+    containerizer->update(executor->containerId, executor->resources);
   }
 
   if (executor->checkpoint) {
     // Ask the status update manager to checkpoint and reliably send the update.
-    statusUpdateManager->update(update, info.id(), executor->id, executor->uuid)
+    statusUpdateManager->update(
+        update,
+        info.id(),
+        executor->id,
+        executor->containerId)
       .onAny(defer(self(),
                    &Slave::_statusUpdate,
                    lambda::_1,
@@ -2032,12 +1911,6 @@ ExecutorInfo Slave::getExecutorInfo(
           "'; exit 1");
     }
 
-    // TODO(benh): Set some resources for the executor so that a task
-    // doesn't end up getting killed because the amount of resources
-    // of the executor went over those allocated. Note that this might
-    // mean that the number of resources on the machine will actually
-    // be slightly oversubscribed, so we'll need to reevaluate with
-    // respect to resources that can't be oversubscribed.
     return executor;
   }
 
@@ -2045,23 +1918,41 @@ ExecutorInfo Slave::getExecutorInfo(
 }
 
 
-void _watch(
-    const Future<Nothing>& watch,
+void _monitor(
+    const Future<Nothing>& monitor,
     const FrameworkID& frameworkId,
-    const ExecutorID& executorId);
+    const ExecutorID& executorId,
+    const ContainerID& containerId)
+{
+  if (!monitor.isReady()) {
+    LOG(ERROR) << "Failed to monitor container '" << containerId
+               << "' for executor '" << executorId
+               << "' of framework '" << frameworkId
+               << ":" << (monitor.isFailed() ? monitor.failure() : "discarded");
+  }
+}
 
-
-// N.B. When the slave is running in "local" mode then the pid is
-// uninteresting (and possibly could cause bugs).
 void Slave::executorStarted(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    pid_t pid)
+    const ContainerID& containerId,
+    const Future<Nothing>& future)
 {
+  if (!future.isReady()) {
+    // The containerizer will clean up if the launch fails we'll just log this
+    // and leave the executor registration to timeout.
+    LOG(ERROR) << "Container '" << containerId
+               << "' for executor '" << executorId
+               << "' of framework '" << frameworkId
+               << "' failed to start: "
+               << (future.isFailed() ? future.failure() : " future discarded");
+    return;
+  }
+
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
-    LOG(WARNING) << "Framework " << frameworkId
-                 << " for executor '" << executorId
+    LOG(WARNING) << "Framework '" << frameworkId
+                 << "' for executor '" << executorId
                  << "' is no longer valid";
     return;
   }
@@ -2074,61 +1965,52 @@ void Slave::executorStarted(
     LOG(WARNING) << "Killing executor '" << executorId
                  << "' of framework '" << frameworkId
                  << "' because the framework is terminating";
-    dispatch(isolator, &Isolator::killExecutor, frameworkId, executorId);
+    containerizer->destroy(containerId);
     return;
   }
 
   Executor* executor = framework->getExecutor(executorId);
   if (executor == NULL) {
     LOG(WARNING) << "Killing unknown executor '" << executorId
-                 << "' of framework " << frameworkId;
-    dispatch(isolator, &Isolator::killExecutor, frameworkId, executorId);
+                 << "' of framework '" << frameworkId << "'";
+    containerizer->destroy(containerId);
     return;
   }
 
   switch (executor->state) {
     case Executor::TERMINATING:
       LOG(WARNING) << "Killing executor '" << executorId
-                   << "' of framework " << frameworkId
-                   << " because the executor is terminating";
-      dispatch(isolator, &Isolator::killExecutor, frameworkId, executorId);
+                   << "' of framework '" << frameworkId
+                   << "' because the executor is terminating";
+      containerizer->destroy(containerId);
       break;
     case Executor::REGISTERING:
     case Executor::RUNNING:
-      LOG(INFO) << "Monitoring executor " << executorId
-                << " of framework " << frameworkId
-                << " forked at pid " << pid;
-      monitor.watch(
-          frameworkId,
-          executorId,
+      LOG(INFO) << "Monitoring executor '" << executorId
+                << "' of framework '" << frameworkId
+                << "' in container '" << containerId << "'";
+      // Start monitoring the container's resources.
+      monitor.start(
+          containerId,
           executor->info,
           flags.resource_monitoring_interval)
-        .onAny(lambda::bind(_watch, lambda::_1, frameworkId, executorId));
+        .onAny(lambda::bind(_monitor,
+                            lambda::_1,
+                            frameworkId,
+                            executorId,
+                            containerId));
       break;
     case Executor::TERMINATED:
     default:
       LOG(FATAL) << " Executor '" << executorId
-                 << "' of framework " << frameworkId
-                 << "is in unexpected state " << executor->state;
+                 << "' of framework '" << frameworkId
+                 << "' is in an unexpected state " << executor->state;
       break;
   }
 }
 
 
-void _watch(
-    const Future<Nothing>& watch,
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId)
-{
-  if (!watch.isReady()) {
-    LOG(ERROR) << "Failed to watch executor " << executorId
-               << " of framework " << frameworkId
-               << ": " << (watch.isFailed() ? watch.failure() : "discarded");
-  }
-}
-
-
-void _unwatch(
+void _unmonitor(
     const Future<Nothing>& watch,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId);
@@ -2138,19 +2020,30 @@ void _unwatch(
 void Slave::executorTerminated(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const Option<int>& status_,
-    bool destroyed,
-    const string& message)
+    const Future<Containerizer::Termination>& termination)
 {
   int status;
-  if (status_.isNone()) {
+  // A termination failure indicates the containerizer could not destroy a
+  // container.
+  // TODO(idownes): This is a serious error so consider aborting the slave if
+  // this occurs.
+  if (!termination.isReady()) {
+    LOG(ERROR) << "Termination of executor '" << executorId
+               << "' of framework '" << frameworkId
+               << "' failed: "
+               << (termination.isFailed()
+                   ? termination.failure()
+                   : "discarded");
+    // Set a special status for failure.
+    status = -1;
+  } else if (termination.get().status.isNone()) {
     LOG(INFO) << "Executor '" << executorId
               << "' of framework " << frameworkId
               << " has terminated with unknown status";
     // Set a special status for None.
     status = -1;
   } else {
-    status = status_.get();
+    status = termination.get().status.get();
     LOG(INFO) << "Executor '" << executorId
               << "' of framework " << frameworkId
               << (WIFEXITED(status)
@@ -2187,12 +2080,12 @@ void Slave::executorTerminated(
     case Executor::TERMINATING: {
       executor->state = Executor::TERMINATED;
 
-      // Stop monitoring this executor.
-      monitor.unwatch(frameworkId, executorId)
-        .onAny(lambda::bind(_unwatch, lambda::_1, frameworkId, executorId));
+      // Stop monitoring the executor's container.
+      monitor.stop(executor->containerId)
+        .onAny(lambda::bind(_unmonitor, lambda::_1, frameworkId, executorId));
 
       // Transition all live tasks to TASK_LOST/TASK_FAILED.
-      // If the isolator destroyed the executor (e.g., due to OOM event)
+      // If the containerizer killed  the executor (e.g., due to OOM event)
       // or if this is a command executor, we send TASK_FAILED status updates
       // instead of TASK_LOST.
       // NOTE: We don't send updates if the framework is terminating
@@ -2209,7 +2102,8 @@ void Slave::executorTerminated(
         foreach (Task* task, executor->launchedTasks.values()) {
           if (!protobuf::isTerminalState(task->state())) {
             mesos::TaskState taskState;
-            if (destroyed || executor->commandExecutor) {
+            if ((termination.isReady() && termination.get().killed) ||
+                 executor->commandExecutor) {
               taskState = TASK_FAILED;
             } else {
               taskState = TASK_LOST;
@@ -2219,7 +2113,8 @@ void Slave::executorTerminated(
                 info.id(),
                 task->task_id(),
                 taskState,
-                message,
+                termination.isReady() ? termination.get().message :
+                                        "Abnormal executor termination",
                 executorId),
                 UPID());
           }
@@ -2230,7 +2125,8 @@ void Slave::executorTerminated(
         // supports it.
         foreach (const TaskInfo& task, executor->queuedTasks.values()) {
           mesos::TaskState taskState;
-          if (destroyed || executor->commandExecutor) {
+          if ((termination.isReady() && termination.get().killed) ||
+               executor->commandExecutor) {
             taskState = TASK_FAILED;
           } else {
             taskState = TASK_LOST;
@@ -2240,7 +2136,8 @@ void Slave::executorTerminated(
               info.id(),
               task.task_id(),
               taskState,
-              message,
+              termination.isReady() ? termination.get().message :
+                                      "Abnormal executor termination",
               executorId),
               UPID());
         }
@@ -2305,7 +2202,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   // is completed.
   if (executor->checkpoint) {
     const string& path = paths::getExecutorSentinelPath(
-        metaDir, info.id(), framework->id, executor->id, executor->uuid);
+        metaDir, info.id(), framework->id, executor->id, executor->containerId);
     CHECK_SOME(os::touch(path));
   }
 
@@ -2314,7 +2211,11 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
 
   // Schedule the executor run work directory to get garbage collected.
   const string& path = paths::getExecutorRunPath(
-      flags.work_dir, info.id(), framework->id, executor->id, executor->uuid);
+      flags.work_dir,
+      info.id(),
+      framework->id,
+      executor->id,
+      executor->containerId);
 
   os::utime(path); // Update the modification time.
   garbageCollect(path)
@@ -2333,7 +2234,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   if (executor->checkpoint) {
     // Schedule the executor run meta directory to get garbage collected.
     const string& path = paths::getExecutorRunPath(
-        metaDir, info.id(), framework->id, executor->id, executor->uuid);
+        metaDir, info.id(), framework->id, executor->id, executor->containerId);
 
     os::utime(path); // Update the modification time.
     garbageCollect(path);
@@ -2410,15 +2311,15 @@ void Slave::removeFramework(Framework* framework)
 }
 
 
-void _unwatch(
-    const Future<Nothing>& unwatch,
+void _unmonitor(
+    const Future<Nothing>& unmonitor,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
-  if (!unwatch.isReady()) {
-    LOG(ERROR) << "Failed to unwatch executor " << executorId
+  if (!unmonitor.isReady()) {
+    LOG(ERROR) << "Failed to unmonitor container for executor " << executorId
                << " of framework " << frameworkId << ": "
-               << (unwatch.isFailed() ? unwatch.failure() : "discarded");
+               << (unmonitor.isFailed() ? unmonitor.failure() : "discarded");
   }
 }
 
@@ -2452,14 +2353,14 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
         &Slave::shutdownExecutorTimeout,
         framework->id,
         executor->id,
-        executor->uuid);
+        executor->containerId);
 }
 
 
 void Slave::shutdownExecutorTimeout(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& uuid)
+    const ContainerID& containerId)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
@@ -2481,12 +2382,12 @@ void Slave::shutdownExecutorTimeout(
     return;
   }
 
-  if (executor->uuid != uuid ) { // Make sure this timeout is valid.
+  if (executor->containerId != containerId) { // Make sure this timeout is valid.
     LOG(INFO) << "A new executor '" << executorId
               << "' of framework " << frameworkId
-              << " with run " << executor->uuid
+              << " with run " << executor->containerId
               << " seems to be active. Ignoring the shutdown timeout"
-              << " for the old executor run " << uuid;
+              << " for the old executor run " << containerId;
     return;
   }
 
@@ -2500,7 +2401,7 @@ void Slave::shutdownExecutorTimeout(
       LOG(INFO) << "Killing executor '" << executor->id
                 << "' of framework " << framework->id;
 
-      dispatch(isolator, &Isolator::killExecutor, framework->id, executor->id);
+      containerizer->destroy(executor->containerId);
       break;
     default:
       LOG(FATAL) << "Executor '" << executor->id
@@ -2514,7 +2415,7 @@ void Slave::shutdownExecutorTimeout(
 void Slave::registerExecutorTimeout(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& uuid)
+    const ContainerID& containerId)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
@@ -2543,12 +2444,12 @@ void Slave::registerExecutorTimeout(
     return;
   }
 
-  if (executor->uuid != uuid ) {
+  if (executor->containerId != containerId ) {
     LOG(INFO) << "A new executor '" << executorId
               << "' of framework " << frameworkId
-              << " with run " << executor->uuid
+              << " with run " << executor->containerId
               << " seems to be active. Ignoring the registration timeout"
-              << " for the old executor run " << uuid;
+              << " for the old executor run " << containerId;
     return;
   }
 
@@ -2567,7 +2468,7 @@ void Slave::registerExecutorTimeout(
       executor->state = Executor::TERMINATING;
 
       // Immediately kill the executor.
-      dispatch(isolator, &Isolator::killExecutor, framework->id, executor->id);
+      containerizer->destroy(executor->containerId);
       break;
     default:
       LOG(FATAL) << "Executor '" << executor->id
@@ -2670,7 +2571,14 @@ Future<Nothing> Slave::recover(const Result<SlaveState>& _state)
   }
 
   return statusUpdateManager->recover(metaDir, state)
-    .then(defer(isolator, &Isolator::recover, state));
+    .then(defer(self(), &Slave::_recoverContainerizer, state));
+}
+
+
+Future<Nothing> Slave::_recoverContainerizer(
+    const Option<state::SlaveState>& state)
+{
+  return containerizer->recover(state);
 }
 
 
@@ -2678,22 +2586,25 @@ Future<Nothing> Slave::_recover()
 {
   foreachvalue (Framework* framework, frameworks) {
     foreachvalue (Executor* executor, framework->executors) {
-      // If the executor is already terminating/terminated don't
-      // bother reconnecting or killing it. This could happen if
-      // the recovered isolator sent a 'ExecutorTerminated' message
-      // before the slave is here.
-      if (executor->state == Executor::TERMINATING ||
-          executor->state == Executor::TERMINATED) {
-        continue;
-      }
-
       // Monitor the executor.
-      monitor.watch(
-          framework->id,
-          executor->id,
+      monitor.start(
+          executor->containerId,
           executor->info,
           flags.resource_monitoring_interval)
-        .onAny(lambda::bind(_watch, lambda::_1, framework->id, executor->id));
+        .onAny(lambda::bind(_monitor,
+                            lambda::_1,
+                            framework->id,
+                            executor->id,
+                            executor->containerId));
+
+      // Set up callback for executor termination.
+      containerizer->wait(executor->containerId)
+        .onAny(defer(self(),
+                     &Self::executorTerminated,
+                     framework->id,
+                     executor->id,
+                     lambda::_1));
+
 
       if (flags.recover == "reconnect") {
         if (executor->pid) {
@@ -2722,8 +2633,7 @@ Future<Nothing> Slave::_recover()
                     << "' of framework " << framework->id
                     << " because no libprocess PID was found";
 
-          dispatch(
-              isolator, &Isolator::killExecutor, framework->id, executor->id);
+          containerizer->destroy(executor->containerId);
         }
       }
     }
@@ -2924,12 +2834,12 @@ Executor* Framework::launchExecutor(
     const ExecutorInfo& executorInfo,
     const TaskInfo& taskInfo)
 {
-  // We create a UUID for the new executor. The UUID uniquely
-  // identifies this new instance of the executor across executors
-  // sharing the same executorID that may have previously run. It
-  // also provides a means for the executor to have a unique
-  // directory.
-  UUID uuid = UUID::random();
+  // Generate an ID for the executor's container.
+  // TODO(idownes) This should be done by the containerizer but we need the
+  // ContainerID to create the executor's directory and to set up monitoring.
+  // Fix this when 'launchExecutor()' is handled asynchronously.
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
 
   // Create a directory for the executor.
   const string& directory = paths::createExecutorDirectory(
@@ -2937,10 +2847,10 @@ Executor* Framework::launchExecutor(
       slave->info.id(),
       id,
       executorInfo.executor_id(),
-      uuid);
+      containerId);
 
   Executor* executor = new Executor(
-      slave, id, executorInfo, uuid, directory, info.checkpoint());
+      slave, id, executorInfo, containerId, directory, info.checkpoint());
 
   CHECK(!executors.contains(executorInfo.executor_id()))
     << "Unknown executor " << executorInfo.executor_id();
@@ -2953,20 +2863,37 @@ Executor* Framework::launchExecutor(
                  lambda::_1,
                  executor->directory));
 
-  // Tell the isolator to launch the executor.
-  // NOTE: We include the task's resources when launching the
-  // executor so that the isolator has non-zero resources to
-  // work with when the executor has no resources. This should
-  // be revisited after MESOS-600.
-  dispatch(slave->isolator,
-           &Isolator::launchExecutor,
-           slave->info.id(),
-           id,
-           info,
-           executor->info,
-           executor->uuid,
-           executor->directory,
-           executor->resources + taskInfo.resources());
+  // Tell the containerizer to launch the executor.
+  // NOTE: We modify the ExecutorInfo to include the task's
+  // resources when launching the executor so that the containerizer
+  // has non-zero resources to work with when the executor has
+  // no resources. This should be revisited after MESOS-600.
+  ExecutorInfo executorInfo_ = executor->info;
+  executorInfo_.mutable_resources()->MergeFrom(taskInfo.resources());
+
+  // Launch the container.
+  slave->containerizer->launch(
+      containerId,
+      executorInfo_, // modified to include the task's resources
+      executor->directory,
+      slave->flags.switch_user ? Option<string>(info.user()) : None(),
+      slave->info.id(),
+      slave->self(),
+      info.checkpoint())
+    .onAny(defer(slave,
+                 &Slave::executorStarted,
+                 id,
+                 executor->id,
+                 containerId,
+                 lambda::_1));
+
+  // Set up callback for executor termination.
+  slave->containerizer->wait(containerId)
+    .onAny(defer(slave,
+                 &Slave::executorTerminated,
+                 id,
+                 executor->id,
+                 lambda::_1));
 
   // Make sure the executor registers within the given timeout.
   delay(slave->flags.executor_registration_timeout,
@@ -2974,7 +2901,7 @@ Executor* Framework::launchExecutor(
         &Slave::registerExecutorTimeout,
         id,
         executor->id,
-        executor->uuid);
+        containerId);
 
   return executor;
 }
@@ -3043,11 +2970,11 @@ void Framework::recoverExecutor(const ExecutorState& state)
   // NOTE: We don't schedule the top level executor work and meta
   // directories for GC here, because they will be scheduled when
   // the latest executor run terminates.
-  const UUID& uuid = state.latest.get();
+  const ContainerID& latest = state.latest.get();
   foreachvalue (const RunState& run, state.runs) {
     CHECK_SOME(run.id);
-    const UUID& runId = run.id.get();
-    if (uuid != runId) {
+    const ContainerID& runId = run.id.get();
+    if (latest != runId) {
       // GC the executor run's work directory.
       // TODO(vinod): Expose this directory to webui by recovering the
       // tasks and doing a 'files->attach()'.
@@ -3060,18 +2987,18 @@ void Framework::recoverExecutor(const ExecutorState& state)
     }
   }
 
-  CHECK(state.runs.contains(uuid))
-    << "Cannot find latest run " << uuid << " for executor " << state.id
+  CHECK(state.runs.contains(latest))
+    << "Cannot find latest run " << latest << " for executor " << state.id
     << " of framework " << id;
 
-  const RunState& run = state.runs.get(uuid).get();
+  const RunState& run = state.runs.get(latest).get();
 
   // Create executor.
   const string& directory = paths::getExecutorRunPath(
-      slave->flags.work_dir, slave->info.id(), id, state.id, uuid);
+      slave->flags.work_dir, slave->info.id(), id, state.id, latest);
 
   Executor* executor = new Executor(
-      slave, id, state.info.get(), uuid, directory, info.checkpoint());
+      slave, id, state.info.get(), latest, directory, info.checkpoint());
 
   // Recover the libprocess PID if possible.
   if (run.libprocessPid.isSome()) {
@@ -3109,7 +3036,7 @@ void Framework::recoverExecutor(const ExecutorState& state)
     executor->state = Executor::TERMINATED;
 
     CHECK_SOME(run.id);
-    const UUID& runId = run.id.get();
+    const ContainerID& runId = run.id.get();
 
     // GC the executor run's work directory.
     const string& path = paths::getExecutorRunPath(
@@ -3142,7 +3069,7 @@ Executor::Executor(
     Slave* _slave,
     const FrameworkID& _frameworkId,
     const ExecutorInfo& _info,
-    const UUID& _uuid,
+    const ContainerID& _containerId,
     const string& _directory,
     bool _checkpoint)
   : state(REGISTERING),
@@ -3150,7 +3077,7 @@ Executor::Executor(
     id(_info.executor_id()),
     info(_info),
     frameworkId(_frameworkId),
-    uuid(_uuid),
+    containerId(_containerId),
     directory(_directory),
     checkpoint(_checkpoint),
     commandExecutor(strings::contains(
@@ -3161,6 +3088,7 @@ Executor::Executor(
     completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR)
 {
   CHECK_NOTNULL(slave);
+
   if (checkpoint && slave->state != slave->RECOVERING) {
     // Checkpoint the executor info.
     const string& path = paths::getExecutorInfoPath(
@@ -3172,7 +3100,7 @@ Executor::Executor(
     // Create the meta executor directory.
     // NOTE: This creates the 'latest' symlink in the meta directory.
     paths::createExecutorDirectory(
-        slave->metaDir, slave->info.id(), frameworkId, id, uuid);
+        slave->metaDir, slave->info.id(), frameworkId, id, containerId);
   }
 }
 
@@ -3252,7 +3180,12 @@ void Executor::checkpointTask(const TaskInfo& task)
 
     const Task& t = protobuf::createTask(task, TASK_STAGING, id, frameworkId);
     const string& path = paths::getTaskInfoPath(
-        slave->metaDir, slave->info.id(), frameworkId, id, uuid, t.task_id());
+        slave->metaDir,
+        slave->info.id(),
+        frameworkId,
+        id,
+        containerId,
+        t.task_id());
 
     LOG(INFO) << "Checkpointing TaskInfo to '" << path << "'";
     CHECK_SOME(state::checkpoint(path, t));

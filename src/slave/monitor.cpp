@@ -36,7 +36,7 @@
 #include <stout/lambda.hpp>
 #include <stout/protobuf.hpp>
 
-#include "slave/isolator.hpp"
+#include "slave/containerizer/containerizer.hpp"
 #include "slave/monitor.hpp"
 
 using namespace process;
@@ -60,123 +60,116 @@ const size_t MONITORING_TIME_SERIES_CAPACITY = 1000;
 const size_t MONITORING_ARCHIVED_TIME_SERIES = 25;
 
 
-Future<Nothing> ResourceMonitorProcess::watch(
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
+Future<Nothing> ResourceMonitorProcess::start(
+    const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const Duration& interval)
 {
-  if (executors.contains(frameworkId) &&
-      executors[frameworkId].contains(executorId)) {
-    return Failure("Already watched");
+  if (monitored.contains(containerId)) {
+    return Failure("Already monitored");
   }
 
-  executors[frameworkId][executorId] =
+  monitored[containerId] =
       MonitoringInfo(executorInfo,
                      MONITORING_TIME_SERIES_WINDOW,
                      MONITORING_TIME_SERIES_CAPACITY);
 
   // Schedule the resource collection.
-  delay(interval, self(), &Self::collect, frameworkId, executorId, interval);
+  delay(interval, self(), &Self::collect, containerId, interval);
 
   return Nothing();
 }
 
 
-Future<Nothing> ResourceMonitorProcess::unwatch(
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId)
+Future<Nothing> ResourceMonitorProcess::stop(
+    const ContainerID& containerId)
 {
-  if (!executors.contains(frameworkId) ||
-      !executors[frameworkId].contains(executorId)) {
-    return Failure("Not watched");
+  if (!monitored.contains(containerId)) {
+    return Failure("Not monitored");
   }
 
   // Add the monitoring information to the archive.
-  archive.push_back(executors[frameworkId][executorId]);
-  executors[frameworkId].erase(executorId);
-
-  if (executors[frameworkId].empty()) {
-    executors.erase(frameworkId);
-  }
+  archive.push_back(monitored[containerId]);
+  monitored.erase(containerId);
 
   return Nothing();
 }
 
 
 void ResourceMonitorProcess::collect(
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
+    const ContainerID& containerId,
     const Duration& interval)
 {
-  // Has the executor been unwatched?
-  if (!executors.contains(frameworkId) ||
-      !executors[frameworkId].contains(executorId)) {
+  // Has monitoring stopped?
+  if (!monitored.contains(containerId)) {
     return;
   }
 
-  dispatch(isolator, &Isolator::usage, frameworkId, executorId)
+  containerizer->usage(containerId)
     .onAny(defer(self(),
                  &Self::_collect,
                  lambda::_1,
-                 frameworkId,
-                 executorId,
+                 containerId,
                  interval));
 }
 
 
 void ResourceMonitorProcess::_collect(
     const Future<ResourceStatistics>& statistics,
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
+    const ContainerID& containerId,
     const Duration& interval)
 {
-  // Has the executor been unwatched?
-  if (!executors.contains(frameworkId) ||
-      !executors[frameworkId].contains(executorId)) {
+  // Has monitoring been stopped?
+  if (!monitored.contains(containerId)) {
     return;
   }
 
+  const ExecutorID& executorId =
+    monitored[containerId].executorInfo.executor_id();
+  const FrameworkID& frameworkId =
+    monitored[containerId].executorInfo.framework_id();
+
   if (statistics.isDiscarded()) {
-    // Note that the isolator may have terminated, causing pending
-    // dispatches to be deleted.
-    VLOG(1) << "Ignoring discarded future collecting resource usage for "
-            << "executor '" << executorId
+    VLOG(1) << "Ignoring discarded future collecting resource usage for"
+            << " container '" << containerId
+            << "' for executor '" << executorId
             << "' of framework '" << frameworkId << "'";
   } else if (statistics.isFailed()) {
-    // TODO(bmahler): Have the Isolators discard the result when the
+    // TODO(bmahler): Have the Containerizer discard the result when the
     // executor was killed or completed.
     VLOG(1)
-      << "Failed to collect resource usage for executor '" << executorId
+      << "Failed to collect resource usage for"
+      << " container '" << containerId
+      << "' for executor '" << executorId
       << "' of framework '" << frameworkId << "': " << statistics.failure();
   } else {
     Try<Time> time = Time::create(statistics.get().timestamp());
 
     if (time.isError()) {
       LOG(ERROR) << "Invalid timestamp " << statistics.get().timestamp()
-                 << " for executor '" << executorId
+                 << " for container '" << containerId
+                 << "' for executor '" << executorId
                  << "' of framework '" << frameworkId << ": " << time.error();
     } else {
       // Add the statistics to the time series.
-      executors[frameworkId][executorId].statistics.set(
+      monitored[containerId].statistics.set(
           statistics.get(), time.get());
     }
   }
 
   // Schedule the next collection.
-  delay(interval, self(), &Self::collect, frameworkId, executorId, interval);
+  delay(interval, self(), &Self::collect, containerId, interval);
 }
 
 
 ResourceMonitorProcess::Usage ResourceMonitorProcess::usage(
-    const FrameworkID& frameworkId,
+    const ContainerID& containerId,
     const ExecutorInfo& executorInfo)
 {
   Usage usage;
-  usage.frameworkId = frameworkId;
+  usage.containerId = containerId;
   usage.executorInfo = executorInfo;
-  usage.statistics = dispatch(
-      isolator, &Isolator::usage, frameworkId, executorInfo.executor_id());
+  usage.statistics = containerizer->usage(containerId);
 
   return usage;
 }
@@ -196,12 +189,12 @@ Future<http::Response> ResourceMonitorProcess::_statistics(
   list<Usage> usages;
   list<Future<ResourceStatistics> > futures;
 
-  foreachkey (const FrameworkID& frameworkId, executors) {
-    foreachvalue (const MonitoringInfo& info, executors[frameworkId]) {
-      // TODO(bmahler): Consider a batch usage API on the Isolator.
-      usages.push_back(usage(frameworkId, info.executorInfo));
-      futures.push_back(usages.back().statistics);
-    }
+  foreachpair (const ContainerID& containerId,
+               const MonitoringInfo& info,
+               monitored) {
+    // TODO(bmahler): Consider a batch usage API on the Containerizer.
+    usages.push_back(usage(containerId, info.executorInfo));
+    futures.push_back(usages.back().statistics);
   }
 
   return process::await(futures)
@@ -217,9 +210,10 @@ Future<http::Response> ResourceMonitorProcess::__statistics(
 
   foreach (const Usage& usage, usages) {
     if (usage.statistics.isFailed()) {
-      LOG(WARNING) << "Failed to get resource usage for executor "
-                   << usage.executorInfo.executor_id()
-                   << " of framework " << usage.frameworkId
+      LOG(WARNING) << "Failed to get resource usage for "
+                   << " container " << usage.containerId
+                   << " for executor " << usage.executorInfo.executor_id()
+                   << " of framework " << usage.executorInfo.framework_id()
                    << ": " << usage.statistics.failure();
       continue;
     } else if (usage.statistics.isDiscarded()) {
@@ -227,7 +221,7 @@ Future<http::Response> ResourceMonitorProcess::__statistics(
     }
 
     JSON::Object entry;
-    entry.values["framework_id"] = usage.frameworkId.value();
+    entry.values["framework_id"] = usage.executorInfo.framework_id().value();
     entry.values["executor_id"] = usage.executorInfo.executor_id().value();
     entry.values["executor_name"] = usage.executorInfo.name();
     entry.values["source"] = usage.executorInfo.source();
@@ -246,7 +240,7 @@ const string ResourceMonitorProcess::STATISTICS_HELP = HELP(
     USAGE(
         "/statistics.json"),
     DESCRIPTION(
-        "Returns the current resource consumption data for executors",
+        "Returns the current resource consumption data for containers",
         "running under this slave.",
         "",
         "Example:",
@@ -276,9 +270,9 @@ const string ResourceMonitorProcess::STATISTICS_HELP = HELP(
         "```"));
 
 
-ResourceMonitor::ResourceMonitor(Isolator* isolator)
+ResourceMonitor::ResourceMonitor(Containerizer* containerizer)
 {
-  process = new ResourceMonitorProcess(isolator);
+  process = new ResourceMonitorProcess(containerizer);
   spawn(process);
 }
 
@@ -291,28 +285,24 @@ ResourceMonitor::~ResourceMonitor()
 }
 
 
-Future<Nothing> ResourceMonitor::watch(
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
+Future<Nothing> ResourceMonitor::start(
+    const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const Duration& interval)
 {
   return dispatch(
       process,
-      &ResourceMonitorProcess::watch,
-      frameworkId,
-      executorId,
+      &ResourceMonitorProcess::start,
+      containerId,
       executorInfo,
       interval);
 }
 
 
-Future<Nothing> ResourceMonitor::unwatch(
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId)
+Future<Nothing> ResourceMonitor::stop(
+    const ContainerID& containerId)
 {
-  return dispatch(
-      process, &ResourceMonitorProcess::unwatch, frameworkId, executorId);
+  return dispatch(process, &ResourceMonitorProcess::stop, containerId);
 }
 
 } // namespace slave {

@@ -192,7 +192,7 @@ inline std::string getExecutorRunPath(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& executorUUID)
+    const ContainerID& containerId)
 {
   return strings::format(
       EXECUTOR_RUN_PATH,
@@ -200,7 +200,7 @@ inline std::string getExecutorRunPath(
       slaveId,
       frameworkId,
       executorId,
-      executorUUID.toString()).get();
+      containerId).get();
 }
 
 
@@ -209,7 +209,7 @@ inline std::string getExecutorSentinelPath(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& executorUUID)
+    const ContainerID& containerId)
 {
   return strings::format(
       EXECUTOR_SENTINEL_PATH,
@@ -217,7 +217,7 @@ inline std::string getExecutorSentinelPath(
       slaveId,
       frameworkId,
       executorId,
-      executorUUID.toString()).get();
+      containerId).get();
 }
 
 
@@ -241,7 +241,7 @@ inline std::string getLibprocessPidPath(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& executorUUID)
+    const ContainerID& containerId)
 {
   return strings::format(
       LIBPROCESS_PID_PATH,
@@ -249,7 +249,7 @@ inline std::string getLibprocessPidPath(
       slaveId,
       frameworkId,
       executorId,
-      executorUUID.toString()).get();
+      containerId).get();
 }
 
 
@@ -258,7 +258,7 @@ inline std::string getForkedPidPath(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& executorUUID)
+    const ContainerID& containerId)
 {
   return strings::format(
       FORKED_PID_PATH,
@@ -266,7 +266,7 @@ inline std::string getForkedPidPath(
       slaveId,
       frameworkId,
       executorId,
-      executorUUID.toString()).get();
+      containerId).get();
 }
 
 
@@ -275,7 +275,7 @@ inline std::string getTaskPath(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& executorUUID,
+    const ContainerID& containerId,
     const TaskID& taskId)
 {
   return strings::format(
@@ -284,7 +284,7 @@ inline std::string getTaskPath(
       slaveId,
       frameworkId,
       executorId,
-      executorUUID.toString(),
+      containerId,
       taskId).get();
 }
 
@@ -294,7 +294,7 @@ inline std::string getTaskInfoPath(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& executorUUID,
+    const ContainerID& containerId,
     const TaskID& taskId)
 {
   return strings::format(
@@ -303,7 +303,7 @@ inline std::string getTaskInfoPath(
       slaveId,
       frameworkId,
       executorId,
-      executorUUID.toString(),
+      containerId,
       taskId).get();
 }
 
@@ -313,7 +313,7 @@ inline std::string getTaskUpdatesPath(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& executorUUID,
+    const ContainerID& containerId,
     const TaskID& taskId)
 {
   return strings::format(
@@ -322,7 +322,7 @@ inline std::string getTaskUpdatesPath(
       slaveId,
       frameworkId,
       executorId,
-      executorUUID.toString(),
+      containerId,
       taskId).get();
 }
 
@@ -332,10 +332,10 @@ inline std::string createExecutorDirectory(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const UUID& executorUUID)
+    const ContainerID& containerId)
 {
   std::string directory =
-    getExecutorRunPath(rootDir, slaveId, frameworkId, executorId, executorUUID);
+    getExecutorRunPath(rootDir, slaveId, frameworkId, executorId, containerId);
 
   Try<Nothing> mkdir = os::mkdir(directory);
 

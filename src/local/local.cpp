@@ -40,7 +40,7 @@
 #include "master/master.hpp"
 #include "master/registrar.hpp"
 
-#include "slave/process_isolator.hpp"
+#include "slave/containerizer/containerizer.hpp"
 #include "slave/slave.hpp"
 
 #include "state/leveldb.hpp"
@@ -57,9 +57,8 @@ using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
 using mesos::internal::master::Master;
 using mesos::internal::master::Registrar;
 
+using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Slave;
-using mesos::internal::slave::Isolator;
-using mesos::internal::slave::ProcessIsolator;
 
 using process::PID;
 using process::UPID;
@@ -80,7 +79,7 @@ static state::Storage* storage = NULL;
 static state::protobuf::State* state = NULL;
 static Registrar* registrar = NULL;
 static Master* master = NULL;
-static map<Isolator*, Slave*> slaves;
+static map<Containerizer*, Slave*> slaves;
 static StandaloneMasterDetector* detector = NULL;
 static MasterContender* contender = NULL;
 static Files* files = NULL;
@@ -142,9 +141,6 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   vector<UPID> pids;
 
   for (int i = 0; i < flags.num_slaves; i++) {
-    // TODO(benh): Create a local isolator?
-    ProcessIsolator* isolator = new ProcessIsolator();
-
     slave::Flags flags;
     Try<Nothing> load = flags.load("MESOS_");
     if (load.isError()) {
@@ -152,13 +148,18 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
               << "slave flags from the environment: " << load.error();
     }
 
+    Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+    if (containerizer.isError()) {
+      EXIT(1) << "Failed to create a containerizer: " << containerizer.error();
+    }
+
     // Use a different work directory for each slave.
     flags.work_dir = path::join(flags.work_dir, stringify(i));
 
     // NOTE: At this point detector is already initialized by the
     // Master.
-    Slave* slave = new Slave(flags, true, detector, isolator, files);
-    slaves[isolator] = slave;
+    Slave* slave = new Slave(flags, detector, containerizer.get(), files);
+    slaves[containerizer.get()] = slave;
     pids.push_back(process::spawn(slave));
   }
 
@@ -182,10 +183,10 @@ void shutdown()
     // isolator, we can't delete the isolator until we have stopped
     // the slave.
 
-    foreachpair (Isolator* isolator, Slave* slave, slaves) {
+    foreachpair (Containerizer* containerizer, Slave* slave, slaves) {
       process::terminate(slave->self());
       process::wait(slave->self());
-      delete isolator;
+      delete containerizer;
       delete slave;
     }
 

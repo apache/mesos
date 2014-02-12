@@ -46,9 +46,9 @@
 #include "master/detector.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/containerizer/containerizer.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
-#include "slave/isolator.hpp"
 #include "slave/monitor.hpp"
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
@@ -79,9 +79,8 @@ class Slave : public ProtobufProcess<Slave>
 {
 public:
   Slave(const Flags& flags,
-        bool local,
         MasterDetector* detector,
-        Isolator* isolator,
+        Containerizer* containerizer,
         Files* files);
 
   virtual ~Slave();
@@ -179,14 +178,13 @@ public:
   void executorStarted(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      pid_t pid);
+      const ContainerID& containerId,
+      const Future<Nothing>& future);
 
   void executorTerminated(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const Option<int>& status,
-      bool destroyed,
-      const std::string& message);
+      const Future<Containerizer::Termination>& termination);
 
   // NOTE: Pulled these to public to make it visible for testing.
   // TODO(vinod): Make tests friends to this class instead.
@@ -241,13 +239,13 @@ public:
   void shutdownExecutorTimeout(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const UUID& uuid);
+      const ContainerID& containerId);
 
   // Shuts down the executor if it did not register yet.
   void registerExecutorTimeout(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const UUID& uuid);
+      const ContainerID& containerId);
 
   // Cleans up all un-reregistered executors during recovery.
   void reregisterExecutorTimeout();
@@ -262,10 +260,15 @@ public:
   // Recovers the slave, status update manager and isolator.
   Future<Nothing> recover(const Result<state::SlaveState>& state);
 
-  // This is called after 'recoveR()'. If 'flags.reconnect' is
+  // This is called after 'recover()'. If 'flags.reconnect' is
   // 'reconnect', the slave attempts to reconnect to any old live
   // executors. Otherwise, the slave attempts to shutdown/kill them.
   Future<Nothing> _recover();
+
+  // This is a helper to call recover() on the containerizer at the end of
+  // recover() and before __recover().
+  // TODO(idownes): Remove this when we support defers to objects.
+  Future<Nothing> _recoverContainerizer(const Option<state::SlaveState>& state);
 
   // This is called when recovery finishes.
   void __recover(const Future<Nothing>& future);
@@ -316,8 +319,6 @@ private:
 
   const Flags flags;
 
-  bool local;
-
   SlaveInfo info;
 
   Option<UPID> master;
@@ -331,7 +332,8 @@ private:
 
   MasterDetector* detector;
 
-  Isolator* isolator;
+  Containerizer* containerizer;
+
   Files* files;
 
   // Statistics (initialized in Slave::initialize).
@@ -369,7 +371,7 @@ struct Executor
       Slave* slave,
       const FrameworkID& frameworkId,
       const ExecutorInfo& info,
-      const UUID& uuid,
+      const ContainerID& containerId,
       const std::string& directory,
       bool checkpoint);
 
@@ -402,7 +404,7 @@ struct Executor
 
   const FrameworkID frameworkId;
 
-  const UUID uuid; // Distinguishes executor instances with same ExecutorID.
+  const ContainerID containerId;
 
   const std::string directory;
 

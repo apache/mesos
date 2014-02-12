@@ -83,6 +83,17 @@ message ExecutorID {
 
 
 /**
+ * A slave generated ID to distinguish a container. The ID must be unique
+ * between any active or completed containers on the slave. In particular,
+ * containers for different runs of the same (framework, executor) pair must be
+ * unique.
+ */
+message ContainerID {
+  required string value = 1;
+}
+
+
+/**
  * Describes a framework. If the user field is set to an empty string
  * Mesos will automagically set it to the current user. Note that the
  * ID is only available after a framework has registered, however, it
@@ -109,13 +120,13 @@ message FrameworkInfo {
 
 
 /**
- * Describes a command, executed via: '/bin/sh -c value'. Any uri's
- * specified are fetched before executing the command.
- * If executable field for an uri is set, executable file permission 
- * is set on the downloaded file. Also, if the downloaded file has ".tgz" 
- * extension it is extracted into the executor's working directory.
- * In addition, any environment variables are set before executing 
- * the command (so they can be used to "parameterize" your command).
+ * Describes a command, executed via: '/bin/sh -c value'. Any URIs specified
+ * are fetched before executing the command.  If the executable field for an
+ * uri is set, executable file permission is set on the downloaded file.
+ * Otherwise, if the downloaded file has a recognized archive extension
+ * (currently [compressed] tar and zip) it is extracted into the executor's
+ * working directory.  In addition, any environment variables are set before
+ * executing the command (so they can be used to "parameterize" your command).
  */
 message CommandInfo {
   message URI {
