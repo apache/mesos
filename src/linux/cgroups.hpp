@@ -58,6 +58,19 @@ const unsigned int EMPTY_WATCHER_RETRIES = 50;
 // Control   -  A control file in a cgroup (e.g. tasks, cpu.shares).
 
 
+// TODO(idownes): Rework all functions in this file to better support
+// separately mounted subsystems.
+
+// Prepare a hierarchy which has the specified subsystem (and only that
+// subsystem) mounted and also has the specified cgroup created. Returns the
+// hierarchy. Checks are made to ensure that cgroups are supported and that
+// nested cgroups can be created.
+Try<std::string> prepare(
+    const std::string& baseHierarchy,
+    const std::string& subsystem,
+    const std::string& cgroup);
+
+
 // Check whether cgroups module is enabled on the current machine.
 // @return  True if cgroups module is enabled.
 //          False if cgroups module is not available.

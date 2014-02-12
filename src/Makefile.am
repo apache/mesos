@@ -177,6 +177,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/slave.cpp							\
 	slave/http.cpp							\
 	slave/containerizer/containerizer.cpp				\
+	slave/containerizer/launcher.cpp				\
 	slave/containerizer/mesos_containerizer.cpp			\
 	slave/status_update_manager.cpp					\
 	exec/exec.cpp							\
@@ -204,6 +205,7 @@ nodist_pkginclude_HEADERS = ../include/mesos/mesos.hpp mesos.pb.h
 
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/container/cgroups_launcher.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/fs.cpp
 else
   EXTRA_DIST += linux/cgroups.cpp
@@ -229,7 +231,9 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	master/registrar.hpp						\
 	master/master.hpp master/sorter.hpp				\
 	messages/messages.hpp slave/constants.hpp			\
+	slave/containerizer/cgroups_launcher.hpp			\
 	slave/containerizer/containerizer.hpp				\
+	slave/containerizer/launcher.hpp				\
 	slave/containerizer/mesos_containerizer.hpp			\
 	slave/flags.hpp slave/gc.hpp slave/monitor.hpp			\
 	slave/paths.hpp slave/state.hpp					\
