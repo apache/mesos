@@ -85,7 +85,7 @@ int execute(const std::string& command, int pipes[2])
 
   // Wait until the parent signals us to continue.
   int buf;
-  ::read(pipes[0], &buf, sizeof(buf));
+  while (::read(pipes[0], &buf, sizeof(buf)) == -1 && errno == EINTR);
   ::close(pipes[0]);
 
   execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
@@ -316,7 +316,7 @@ int consumeMemory(const Bytes& _size, const Duration& duration, int pipes[2])
 
   int buf;
   // Wait until the parent signals us to continue.
-  ::read(pipes[0], &buf, sizeof(buf));
+  while (::read(pipes[0], &buf, sizeof(buf)) == -1 && errno == EINTR);
   ::close(pipes[0]);
 
   size_t size = static_cast<size_t>(_size.bytes());
