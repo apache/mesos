@@ -1,3 +1,53 @@
+Release Notes - Mesos - Version 0.18.0
+--------------------------------------
+
+** Bug
+    * [MESOS-422] - Master leader election should be more robust to
+    * stale ephemeral nodes
+    * [MESOS-537] -
+    * ZooKeeperMasterDetectorTest.MasterDetectorExpireSlaveZKSessionNewMaster
+    * is flaky
+    * [MESOS-672] - Web UI redirection does not work for hosts whose
+    * ip addresses are not publicly accessible
+    * [MESOS-837] - AWAIT_READY should not depend on process::Clock
+    * [MESOS-904] - Check for libcxx is missing in configure.ac
+    * [MESOS-912] - Slave sometimes crashes with SIGPIPE
+    * [MESOS-927] - OsTest.killtree is flaky
+    * [MESOS-937] - Fix "pure virtual method called" bug in
+    * zookeeper::ProcessWatcher
+    * [MESOS-952] - Clock::resume should adjust timeouts that were
+    * created in a paused/advanced Clock context.
+    * [MESOS-954] - The /__processes__ endpoint in libprocess is
+    * missing a needed lock acquisition.
+    * [MESOS-958] - Group should not ignore the ZNOAUTH error in
+    * creating the parent path for the group
+    * [MESOS-965] - GroupTest.GroupWatchWithSessionExpiration is flaky
+    * [MESOS-966] - symbolize.cc:235:58: error: invalid suffix on
+    * literal; C++11 requires a space between literal and identifier
+    * [MESOS-977] - MasterZooKeeperTest.LostZooKeeperCluster is flaky
+    * [MESOS-985] -
+    * FaultToleranceTest.IgnoreKillTaskFromUnregisteredFramework is
+    * flaky
+    * [MESOS-989] - Flaky whitelist tests
+    * [MESOS-991] - hashmap.hpp error: control reaches end of non-void
+    * function
+    * [MESOS-993] - Performance issue during replicated log catch-up
+    * when the initial log position is large
+
+** Documentation
+    * [MESOS-926] - Document change to separate cgroup mounts
+
+** Improvement
+    * [MESOS-903] - Store MasterInfo in ZK to enable master web UI
+    * redirection etc.
+    * [MESOS-943] - Provide an abstraction for asynchronous launching
+    * of subprocesses.
+    * [MESOS-975] - Show git tag info in master and slave log output
+
+** New Feature
+    * [MESOS-600] - Rework Isolator abstraction
+
+
 Release Notes - Mesos - Version 0.17.0
 --------------------------------------
 * The primary feature of this release is to add recovery support for
