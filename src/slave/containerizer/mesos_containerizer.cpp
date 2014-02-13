@@ -217,7 +217,7 @@ Future<Nothing> MesosContainerizerProcess::_recover(
     CHECK_SOME(run.forkedPid);
     Future<Option<int > > status = process::reap(run.forkedPid.get());
     statuses[containerId] = status;
-    status.onAny(defer(self(), &Self::exited, containerId));
+    status.onAny(defer(self(), &Self::reaped, containerId));
 
     foreach (const Owned<Isolator>& isolator, isolators) {
       isolator->watch(containerId)
@@ -325,8 +325,8 @@ int execute(
   // If we get here, the execv call failed.
   asyncSafeFatal("Failed to execute command");
 
-  // Silence end of non-void function warning.
-  return UNREACHABLE();
+  // This should not be reached.
+  return -1;
 }
 
 
@@ -614,7 +614,7 @@ Future<pid_t> MesosContainerizerProcess::fork(
   // again during container destroy.
   Future<Option<int> > status = process::reap(pid);
   statuses.put(containerId, status);
-  status.onAny(defer(self(), &Self::exited, containerId));
+  status.onAny(defer(self(), &Self::reaped, containerId));
 
   return pid;
 }
@@ -815,7 +815,7 @@ void MesosContainerizerProcess::_destroy(
   if (!future.isReady()) {
     promises[containerId]->fail(
         "Failed to destroy container: " +
-        future.isFailed() ? future.failure() : "discarded future");
+        (future.isFailed() ? future.failure() : "discarded future"));
     return;
   }
 
@@ -865,7 +865,7 @@ void MesosContainerizerProcess::__destroy(
 }
 
 
-void MesosContainerizerProcess::exited(const ContainerID& containerId)
+void MesosContainerizerProcess::reaped(const ContainerID& containerId)
 {
   if (!promises.contains(containerId)) {
     return;

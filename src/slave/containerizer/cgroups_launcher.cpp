@@ -160,44 +160,7 @@ Try<pid_t> CgroupsLauncher::fork(
     return ErrnoError("Failed to fork");
   }
 
-  if (pid > 0) {
-    // In parent.
-    os::close(pipes[0]);
-
-    // Move the child into the freezer cgroup. Any grandchildren will also be
-    // contained in the cgroup.
-    Try<Nothing> assign = cgroups::assign(hierarchy, cgroup(containerId), pid);
-
-    if (assign.isError()) {
-      LOG(ERROR) << "Failed to assign process " << pid
-                 << " of container '" << containerId << "'"
-                 << " to its freezer cgroup: " << assign.error();
-      kill(pid, SIGKILL);
-      return Error("Failed to contain process");
-    }
-
-    // Now that we've contained the child we can signal it to continue by
-    // writing to the pipe.
-    int buf;
-    ssize_t len;
-    while ((len = write(pipes[1], &buf, sizeof(buf))) == -1 && errno == EINTR);
-
-    if (len != sizeof(buf)) {
-      // Ensure the child is killed.
-      kill(pid, SIGKILL);
-      os::close(pipes[1]);
-      return Error("Failed to synchronize child process");
-    }
-    os::close(pipes[1]);
-
-    // Store the pid (session id and process group id) if this is the first
-    // process forked for this container.
-    if (!pids.contains(containerId)) {
-      pids.put(containerId, pid);
-    }
-
-    return pid;
-  } else {
+  if (pid == 0) {
     // In child.
     os::close(pipes[1]);
 
@@ -237,8 +200,49 @@ Try<pid_t> CgroupsLauncher::fork(
     // This function should exec() and therefore not return.
     inChild();
 
-    return UNREACHABLE();
+    const char* message = "Child failed to exec";
+    while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
+        errno == EINTR);
+
+    _exit(1);
   }
+
+  // Parent.
+  os::close(pipes[0]);
+
+  // Move the child into the freezer cgroup. Any grandchildren will also be
+  // contained in the cgroup.
+  Try<Nothing> assign = cgroups::assign(hierarchy, cgroup(containerId), pid);
+
+  if (assign.isError()) {
+    LOG(ERROR) << "Failed to assign process " << pid
+                << " of container '" << containerId << "'"
+                << " to its freezer cgroup: " << assign.error();
+    kill(pid, SIGKILL);
+    return Error("Failed to contain process");
+  }
+
+  // Now that we've contained the child we can signal it to continue by
+  // writing to the pipe.
+  int buf;
+  ssize_t len;
+  while ((len = write(pipes[1], &buf, sizeof(buf))) == -1 && errno == EINTR);
+
+  if (len != sizeof(buf)) {
+    // Ensure the child is killed.
+    kill(pid, SIGKILL);
+    os::close(pipes[1]);
+    return Error("Failed to synchronize child process");
+  }
+  os::close(pipes[1]);
+
+  // Store the pid (session id and process group id) if this is the first
+  // process forked for this container.
+  if (!pids.contains(containerId)) {
+    pids.put(containerId, pid);
+  }
+
+  return pid;
 }
 
 

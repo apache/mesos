@@ -94,15 +94,7 @@ Try<pid_t> PosixLauncher::fork(
     return ErrnoError("Failed to fork");
   }
 
-  if (pid > 0) {
-    // In parent.
-    LOG(INFO) << "Forked child with pid '" << pid
-              << "' for container '" << containerId << "'";
-    // Store the pid (session id and process group id).
-    pids.put(containerId, pid);
-
-    return pid;
-  } else {
+  if (pid == 0) {
     // In child.
     // POSIX guarantees a forked child's pid does not match any existing
     // process group id so only a single setsid() is required and the session
@@ -117,8 +109,20 @@ Try<pid_t> PosixLauncher::fork(
     // This function should exec() and therefore not return.
     inChild();
 
-    return UNREACHABLE();
+    const char* message = "Child failed to exec";
+    while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
+        errno == EINTR);
+
+    _exit(1);
   }
+
+  // parent.
+  LOG(INFO) << "Forked child with pid '" << pid
+            << "' for container '" << containerId << "'";
+  // Store the pid (session id and process group id).
+  pids.put(containerId, pid);
+
+  return pid;
 }
 
 

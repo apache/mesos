@@ -171,7 +171,7 @@ private:
 
   // Call back for when the executor exits. This will trigger container
   // destroy.
-  void exited(const ContainerID& containerId);
+  void reaped(const ContainerID& containerId);
 
   const Flags flags;
   const bool local;
