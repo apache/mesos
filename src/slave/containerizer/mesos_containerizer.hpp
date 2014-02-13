@@ -135,7 +135,7 @@ private:
   process::Future<pid_t> fork(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
-      lambda::function<int()>& inChild,
+      const lambda::function<int()>& inChild,
       const SlaveID& slaveId,
       bool checkpoint,
       int pipeRead);
