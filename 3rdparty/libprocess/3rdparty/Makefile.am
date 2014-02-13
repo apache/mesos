@@ -37,7 +37,7 @@ EXTRA_DIST =			\
   $(RY_HTTP_PARSER).tar.gz
 
 # We need to patch glog in order to deal with a compilation issue when
-# compiling with clang (and C++11); see MESOS-860.
+# compiling with clang (and C++11); see MESOS-860, MESOS-966.
 EXTRA_DIST +=			\
   $(GLOG).patch
 
