@@ -34,7 +34,7 @@
 using namespace process;
 
 using std::list;
-using std::set;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -174,7 +174,7 @@ public:
       const Shared<Replica>& _replica,
       const Shared<Network>& _network,
       uint64_t _proposal,
-      const set<uint64_t>& _positions,
+      const vector<uint64_t>& _positions,
       const Duration& _timeout)
     : ProcessBase(ID::generate("log-bulk-catch-up")),
       quorum(_quorum),
@@ -195,7 +195,7 @@ protected:
     promise.future().onDiscarded(lambda::bind(
         static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
-    // Catch-up each position in the set sequentially.
+    // Catch-up sequentially.
     it = positions.begin();
 
     catchup();
@@ -264,11 +264,11 @@ private:
   const size_t quorum;
   const Shared<Replica> replica;
   const Shared<Network> network;
-  const set<uint64_t> positions;
+  const vector<uint64_t> positions;
   const Duration timeout;
 
   uint64_t proposal;
-  set<uint64_t>::iterator it;
+  vector<uint64_t>::const_iterator it;
 
   process::Promise<Nothing> promise;
   Future<uint64_t> catching;
@@ -285,7 +285,7 @@ Future<Nothing> catchup(
     const Shared<Replica>& replica,
     const Shared<Network>& network,
     const Option<uint64_t>& proposal,
-    const set<uint64_t>& positions,
+    const vector<uint64_t>& positions,
     const Duration& timeout)
 {
   BulkCatchUpProcess* process =

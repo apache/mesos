@@ -19,6 +19,7 @@
 #include <stdlib.h>
 
 #include <set>
+#include <vector>
 
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -41,6 +42,7 @@
 using namespace process;
 
 using std::set;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -336,9 +338,9 @@ private:
               << lowestBeginPosition.get() << " to "
               << highestEndPosition.get();
 
-    set<uint64_t> positions;
+    vector<uint64_t> positions;
     for (uint64_t p = begin; p <= end; ++p) {
-      positions.insert(p);
+      positions.push_back(p);
     }
 
     // Share the ownership of the replica. From this point until the

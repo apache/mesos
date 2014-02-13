@@ -22,8 +22,8 @@
 #include <stdint.h>
 
 #include <list>
-#include <set>
 #include <string>
+#include <vector>
 
 #include <process/future.hpp>
 #include <process/pid.hpp>
@@ -73,7 +73,7 @@ public:
 
   // Returns missing positions in the log (i.e., unlearned or holes)
   // within the specified range [from, to].
-  process::Future<std::set<uint64_t> > missing(
+  process::Future<std::vector<uint64_t> > missing(
       uint64_t from,
       uint64_t to) const;
 
