@@ -35,8 +35,8 @@
 
 using namespace process;
 
-using std::set;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -81,8 +81,8 @@ private:
   Future<Nothing> updateProposal(uint64_t promised);
   Future<PromiseResponse> runPromisePhase();
   Future<Option<uint64_t> > checkPromisePhase(const PromiseResponse& response);
-  Future<set<uint64_t> > getMissingPositions();
-  Future<Nothing> catchupMissingPositions(const set<uint64_t>& positions);
+  Future<vector<uint64_t> > getMissingPositions();
+  Future<Nothing> catchupMissingPositions(const vector<uint64_t>& positions);
   Future<Option<uint64_t> > updateIndexAfterElected();
   void electingFinished(const Option<uint64_t>& position);
   void electingFailed();
@@ -217,14 +217,14 @@ Future<Option<uint64_t> > CoordinatorProcess::checkPromisePhase(
 }
 
 
-Future<set<uint64_t> > CoordinatorProcess::getMissingPositions()
+Future<vector<uint64_t> > CoordinatorProcess::getMissingPositions()
 {
   return replica->missing(0, index);
 }
 
 
 Future<Nothing> CoordinatorProcess::catchupMissingPositions(
-    const set<uint64_t>& positions)
+    const vector<uint64_t>& positions)
 {
   LOG(INFO) << "Coordinator attemping to fill missing position";
 

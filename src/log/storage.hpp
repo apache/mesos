@@ -21,8 +21,9 @@
 
 #include <stdint.h>
 
-#include <set>
 #include <string>
+
+#include <boost/icl/interval_set.hpp>
 
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
@@ -42,8 +43,12 @@ public:
     Metadata metadata; // The metadata for the replica.
     uint64_t begin; // Beginning position of the log.
     uint64_t end; // Ending position of the log.
-    std::set<uint64_t> learned; // Positions present and learned
-    std::set<uint64_t> unlearned; // Positions present but unlearned.
+
+    // Note that here we use boost interval set to store learned and
+    // unlearned positions in a more compact way. Adjacent positions
+    // will be merged and represented using an interval.
+    boost::icl::interval_set<uint64_t> learned;
+    boost::icl::interval_set<uint64_t> unlearned;
   };
 
   virtual ~Storage() {}

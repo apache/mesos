@@ -18,6 +18,9 @@
 
 #include <algorithm>
 
+#include <boost/icl/interval.hpp>
+#include <boost/icl/interval_set.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
@@ -36,11 +39,13 @@
 #include "log/replica.hpp"
 #include "log/storage.hpp"
 
+using namespace boost::icl;
+
 using namespace process;
 
 using std::list;
-using std::set;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -83,7 +88,7 @@ public:
 
   // Returns missing positions in the log (i.e., unlearned or holes)
   // within the specified range [from, to].
-  set<uint64_t> missing(uint64_t from, uint64_t to);
+  vector<uint64_t> missing(uint64_t from, uint64_t to);
 
   // Returns the beginning position of the log.
   uint64_t beginning();
@@ -141,10 +146,10 @@ private:
   uint64_t end;
 
   // Holes in the log.
-  set<uint64_t> holes;
+  interval_set<uint64_t> holes;
 
   // Unlearned positions in the log.
-  set<uint64_t> unlearned;
+  interval_set<uint64_t> unlearned;
 };
 
 
@@ -186,7 +191,7 @@ Result<Action> ReplicaProcess::read(uint64_t position)
     return Error("Attempted to read truncated position");
   } else if (end < position) {
     return None(); // These semantics are assumed above!
-  } else if (holes.count(position) > 0) {
+  } else if (contains(holes, position)) {
     return None();
   }
 
@@ -246,7 +251,7 @@ bool ReplicaProcess::missing(uint64_t position)
   } else if (position > end) {
     return true;
   } else {
-    if (unlearned.count(position) != 0 || holes.count(position) != 0) {
+    if (contains(unlearned, position) || contains(holes, position)) {
       return true;
     } else {
       return false;
@@ -255,31 +260,30 @@ bool ReplicaProcess::missing(uint64_t position)
 }
 
 
-set<uint64_t> ReplicaProcess::missing(uint64_t from, uint64_t to)
+vector<uint64_t> ReplicaProcess::missing(uint64_t from, uint64_t to)
 {
-  // TODO(jieyu): Optimize the performence for the common case.
-  set<uint64_t> positions;
+  if (from > to) {
+    return vector<uint64_t>();
+  }
+
+  interval_set<uint64_t> positions;
 
   // Add unlearned positions.
-  foreach (uint64_t p, unlearned) {
-    if (p >= from && p <= to) {
-      positions.insert(p);
-    }
-  }
+  positions += unlearned;
 
   // Add holes.
-  foreach (uint64_t p, holes) {
-    if (p >= from && p <= to) {
-      positions.insert(p);
-    }
-  }
+  positions += holes;
 
   // Add all the unknown positions beyond our end.
-  for (; to > end; to--) {
-    positions.insert(to);
+  if (to > end) {
+    positions += interval<uint64_t>::closed(end + 1, to);
   }
 
-  return positions;
+  // Do not consider positions outside [from, to].
+  positions &= interval<uint64_t>::closed(from, to);
+
+  // Generate the resultant vector.
+  return vector<uint64_t>(elements_begin(positions), elements_end(positions));
 }
 
 
@@ -667,39 +671,31 @@ bool ReplicaProcess::persist(const Action& action)
   LOG(INFO) << "Persisted action at " << action.position();
 
   // No longer a hole here (if there even was one).
-  holes.erase(action.position());
+  holes -= action.position();
 
   // Update unlearned positions and deal with truncation actions.
   if (action.has_learned() && action.learned()) {
-    unlearned.erase(action.position());
+    unlearned -= action.position();
     if (action.has_type() && action.type() == Action::TRUNCATE) {
       // No longer consider truncated positions as holes (so that a
       // coordinator doesn't try and fill them).
-      foreach (uint64_t position, utils::copy(holes)) {
-        if (position < action.truncate().to()) {
-          holes.erase(position);
-        }
-      }
+      holes -= interval<uint64_t>::open(0, action.truncate().to());
 
       // No longer consider truncated positions as unlearned (so that
       // a coordinator doesn't try and fill them).
-      foreach (uint64_t position, utils::copy(unlearned)) {
-        if (position < action.truncate().to()) {
-          unlearned.erase(position);
-        }
-      }
+      unlearned -= interval<uint64_t>::open(0, action.truncate().to());
 
       // And update the beginning position.
       begin = std::max(begin, action.truncate().to());
     }
   } else {
     // We just introduced an unlearned position.
-    unlearned.insert(action.position());
+    unlearned += action.position();
   }
 
   // Update holes if we just wrote many positions past the last end.
-  for (uint64_t position = end + 1; position < action.position(); position++) {
-    holes.insert(position);
+  if (action.position() > end) {
+    holes += interval<uint64_t>::open(end, action.position());
   }
 
   // And update the end position.
@@ -722,27 +718,21 @@ void ReplicaProcess::restore(const string& path)
   unlearned = state.get().unlearned;
 
   // Only use the learned positions to help determine the holes.
-  const set<uint64_t>& learned = state.get().learned;
+  const interval_set<uint64_t>& learned = state.get().learned;
 
-  // We need to assume that position 0 is a hole for a brand new log
-  // (a coordinator will simply fill it with a no-op when it first
-  // gets elected), unless the position was found during recovery or
-  // it has been truncated.
-  if (learned.count(0) == 0 && unlearned.count(0) == 0 && begin == 0) {
-    holes.insert(0);
-  }
-
-  // Now determine the rest of the holes.
-  for (uint64_t position = begin; position < end; position++) {
-    if (learned.count(position) == 0 && unlearned.count(position) == 0) {
-      holes.insert(position);
-    }
-  }
+  // Holes are those positions in [begin, end] that are not in both
+  // learned and unlearned sets. In the case of a brand new log (begin
+  // and end are 0, and learned and unlearned are empty), we assume
+  // position 0 is a hole, and a coordinator will simply fill it with
+  // a no-op when it first gets elected.
+  holes += interval<uint64_t>::closed(begin, end);
+  holes -= learned;
+  holes -= unlearned;
 
   LOG(INFO) << "Replica recovered with log positions "
             << begin << " -> " << end
-            << " and holes " << stringify(holes)
-            << " and unlearned " << stringify(unlearned);
+            << " with " << holes.size() << " holes"
+            << " and " << unlearned.size() << " unlearned";
 }
 
 
@@ -773,7 +763,7 @@ Future<bool> Replica::missing(uint64_t position) const
 }
 
 
-Future<set<uint64_t> > Replica::missing(uint64_t from, uint64_t to) const
+Future<vector<uint64_t> > Replica::missing(uint64_t from, uint64_t to) const
 {
   return dispatch(process, &ReplicaProcess::missing, from, to);
 }

@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 
-#include <set>
+#include <vector>
 
 #include <process/future.hpp>
 #include <process/shared.hpp>
@@ -50,7 +50,7 @@ extern process::Future<Nothing> catchup(
     const process::Shared<Replica>& replica,
     const process::Shared<Network>& network,
     const Option<uint64_t>& proposal,
-    const std::set<uint64_t>& positions,
+    const std::vector<uint64_t>& positions,
     const Duration& timeout = Seconds(10));
 
 } // namespace log {

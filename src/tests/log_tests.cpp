@@ -64,6 +64,7 @@ using namespace process;
 using std::list;
 using std::set;
 using std::string;
+using std::vector;
 
 using testing::_;
 using testing::Eq;
@@ -1365,13 +1366,13 @@ TEST_F(RecoverTest, CatchupRetry)
     EXPECT_EQ(0u, electing.get().get());
   }
 
-  set<uint64_t> positions;
+  vector<uint64_t> positions;
 
   for (uint64_t position = 1; position <= 10; position++) {
     Future<uint64_t> appending = coord.append(stringify(position));
     AWAIT_READY_FOR(appending, Seconds(10));
     EXPECT_EQ(position, appending.get());
-    positions.insert(position);
+    positions.push_back(position);
   }
 
   Shared<Replica> replica3(new Replica(path3));
