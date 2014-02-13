@@ -6,10 +6,10 @@
 source ${MESOS_SOURCE_DIR}/support/colors.sh
 source ${MESOS_SOURCE_DIR}/support/atexit.sh
 
-EXISTING_FREEZER_HIERARCHY=$(cat /proc/mounts | grep ^freezer | cut -f 2 -d ' ')
-if [[ -n ${EXISTING_FREEZER_HIERARCHY} ]]; then
+EXISTING_MEMORY_HIERARCHY=$(cat /proc/mounts | grep memory | cut -f 2 -d ' ')
+if [[ -n ${EXISTING_MEMORY_HIERARCHY} ]]; then
   # Strip off the subsystem component.
-  TEST_CGROUP_HIERARCHY=${EXISTING_FREEZER_HIERARCHY%/*}
+  TEST_CGROUP_HIERARCHY=${EXISTING_MEMORY_HIERARCHY%/*}
 else
   TEST_CGROUP_HIERARCHY=/tmp/mesos_test_cgroup
 fi
@@ -92,7 +92,7 @@ SLAVE_WORK_DIR=`mktemp -d -t mesos-XXXXXX`
 ${SLAVE} \
     --work_dir=${SLAVE_WORK_DIR} \
     --master=127.0.0.1:5432 \
-    --isolation=cgroups \
+    --isolation=cgroups/mem \
     --cgroups_hierarchy=${TEST_CGROUP_HIERARCHY} \
     --cgroups_root=${TEST_CGROUP_ROOT} \
     --resources="cpus:1;mem:96" &
