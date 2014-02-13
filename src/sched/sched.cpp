@@ -214,7 +214,7 @@ protected:
     connected = false;
 
     if (master.isSome()) {
-      VLOG(1) << "New master detected at " << master.get();
+      LOG(INFO) << "New master detected at " << master.get();
       link(master.get());
 
       if (credential.isSome()) {
@@ -230,11 +230,10 @@ protected:
     } else {
       // In this case, we don't actually invoke Scheduler::error
       // since we might get reconnected to a master imminently.
-      VLOG(1) << "No master detected";
+      LOG(INFO) << "No master detected";
     }
 
     // Keep detecting masters.
-    LOG(INFO) << "Detecting new master";
     detector->detect(_master.get())
       .onAny(defer(self(), &SchedulerProcess::detected, lambda::_1));
   }
@@ -320,7 +319,7 @@ protected:
     }
 
     if (reauthenticate || !future.isReady()) {
-      LOG(WARNING)
+      LOG(INFO)
         << "Failed to authenticate with master " << master.get() << ": "
         << (reauthenticate ? "master changed" :
            (future.isFailed() ? future.failure() : "future discarded"));
@@ -382,13 +381,14 @@ protected:
     }
 
     if (master != from) {
-      VLOG(1) << "Ignoring framework registered message because it was sent "
-              << "from '" << from << "' instead of the leading master '"
-              << (master.isSome() ? master.get() : UPID()) << "'";
+      LOG(WARNING)
+        << "Ignoring framework registered message because it was sent "
+        << "from '" << from << "' instead of the leading master '"
+        << (master.isSome() ? master.get() : UPID()) << "'";
       return;
     }
 
-    VLOG(1) << "Framework registered with " << frameworkId;
+    LOG(INFO) << "Framework registered with " << frameworkId;
 
     framework.mutable_id()->MergeFrom(frameworkId);
 
@@ -423,13 +423,14 @@ protected:
     }
 
     if (master != from) {
-      VLOG(1) << "Ignoring framework re-registered message because it was sent "
-              << "from '" << from << "' instead of the leading master '"
-              << (master.isSome() ? master.get() : UPID()) << "'";
+      LOG(WARNING)
+        << "Ignoring framework re-registered message because it was sent "
+        << "from '" << from << "' instead of the leading master '"
+        << (master.isSome() ? master.get() : UPID()) << "'";
       return;
     }
 
-    VLOG(1) << "Framework re-registered with " << frameworkId;
+    LOG(INFO) << "Framework re-registered with " << frameworkId;
 
     CHECK(framework.id() == frameworkId);
 
@@ -455,6 +456,8 @@ protected:
     if (credential.isSome() && !authenticated) {
       return;
     }
+
+    VLOG(1) << "Sending registration request to " << master.get();
 
     if (!framework.has_id() || framework.id() == "") {
       // Touched for the very first time.
@@ -708,7 +711,7 @@ protected:
       return;
     }
 
-    VLOG(1) << "Got error '" << message << "'";
+    LOG(INFO) << "Got error '" << message << "'";
 
     driver->abort();
 
@@ -724,7 +727,7 @@ protected:
 
   void stop(bool failover)
   {
-    VLOG(1) << "Stopping framework '" << framework.id() << "'";
+    LOG(INFO) << "Stopping framework '" << framework.id() << "'";
 
     // Whether or not we send an unregister message, we want to
     // terminate this process.
@@ -749,7 +752,7 @@ protected:
   // SchedulerProcess::stop.
   void abort()
   {
-    VLOG(1) << "Aborting framework '" << framework.id() << "'";
+    LOG(INFO) << "Aborting framework '" << framework.id() << "'";
 
     CHECK(aborted);
 
@@ -891,12 +894,12 @@ protected:
             savedSlavePids[task.slave_id()] =
               savedOffers[offerId][task.slave_id()];
           } else {
-            VLOG(1) << "Attempting to launch task " << task.task_id()
-                    << " with the wrong slave id " << task.slave_id();
+            LOG(WARNING) << "Attempting to launch task " << task.task_id()
+                         << " with the wrong slave id " << task.slave_id();
           }
         } else {
-          VLOG(1) << "Attempting to launch task " << task.task_id()
-                  << " with an unknown offer " << offerId;
+          LOG(WARNING) << "Attempting to launch task " << task.task_id()
+                       << " with an unknown offer " << offerId;
         }
 
         // Remove the offer since we saved all the PIDs we might use.
