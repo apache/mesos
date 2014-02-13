@@ -264,9 +264,15 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
   slave::Flags flags = MesosTest::CreateSlaveFlags();
 
 #ifdef __linux__
-  flags.isolation = "cgroups/cpu,cgroups/mem";
-  flags.cgroups_hierarchy = baseHierarchy;
-  flags.cgroups_root = TEST_CGROUPS_ROOT + "_" + UUID::random().toString();
+  // Use cgroup isolators if they're available and we're root.
+  // TODO(idownes): Refactor the cgroups/non-cgroups code.
+  if (os::exists("/proc/cgroups") && os::user() == "root") {
+    flags.isolation = "cgroups/cpu,cgroups/mem";
+    flags.cgroups_hierarchy = baseHierarchy;
+    flags.cgroups_root = TEST_CGROUPS_ROOT + "_" + UUID::random().toString();
+  } else {
+    flags.isolation = "posix/cpu,posix/mem";
+  }
 #else
   flags.isolation = "posix/cpu,posix/mem";
 #endif
@@ -278,12 +284,14 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 #ifdef __linux__
 void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 {
-  // Clean up any testing hierarchies.
-  Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
-  ASSERT_SOME(hierarchies);
-  foreach (const std::string& hierarchy, hierarchies.get()) {
-    if (strings::startsWith(hierarchy, TEST_CGROUPS_HIERARCHY)) {
-      AWAIT_READY(cgroups::cleanup(hierarchy));
+  if (os::exists("/proc/cgroups") && os::user() == "root") {
+    // Clean up any testing hierarchies.
+    Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+    ASSERT_SOME(hierarchies);
+    foreach (const std::string& hierarchy, hierarchies.get()) {
+      if (strings::startsWith(hierarchy, TEST_CGROUPS_HIERARCHY)) {
+        AWAIT_READY(cgroups::cleanup(hierarchy));
+      }
     }
   }
 }
@@ -291,12 +299,14 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 
 void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
 {
-  // Clean up any testing hierarchies.
-  Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
-  ASSERT_SOME(hierarchies);
-  foreach (const std::string& hierarchy, hierarchies.get()) {
-    if (strings::startsWith(hierarchy, TEST_CGROUPS_HIERARCHY)) {
-      AWAIT_READY(cgroups::cleanup(hierarchy));
+  if (os::exists("/proc/cgroups") && os::user() == "root") {
+    // Clean up any testing hierarchies.
+    Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+    ASSERT_SOME(hierarchies);
+    foreach (const std::string& hierarchy, hierarchies.get()) {
+      if (strings::startsWith(hierarchy, TEST_CGROUPS_HIERARCHY)) {
+        AWAIT_READY(cgroups::cleanup(hierarchy));
+      }
     }
   }
 }
@@ -311,41 +321,43 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
   subsystems.insert("memory");
   subsystems.insert("freezer");
 
-  foreach (const std::string& subsystem, subsystems) {
-    // Establish the base hierarchy if this is the first subsystem checked.
-    if (baseHierarchy.empty()) {
-      Result<std::string> hierarchy = cgroups::hierarchy(subsystem);
-      ASSERT_FALSE(hierarchy.isError());
+  if (os::exists("/proc/cgroups") && os::user() == "root") {
+    foreach (const std::string& subsystem, subsystems) {
+      // Establish the base hierarchy if this is the first subsystem checked.
+      if (baseHierarchy.empty()) {
+        Result<std::string> hierarchy = cgroups::hierarchy(subsystem);
+        ASSERT_FALSE(hierarchy.isError());
 
-      if (hierarchy.isNone()) {
-        baseHierarchy = TEST_CGROUPS_HIERARCHY;
-      } else {
-        // Strip the subsystem to get the base hierarchy.
-        baseHierarchy = strings::remove(
-            hierarchy.get(),
-            subsystem,
-            strings::SUFFIX);
+        if (hierarchy.isNone()) {
+          baseHierarchy = TEST_CGROUPS_HIERARCHY;
+        } else {
+          // Strip the subsystem to get the base hierarchy.
+          baseHierarchy = strings::remove(
+              hierarchy.get(),
+              subsystem,
+              strings::SUFFIX);
+        }
       }
-    }
 
-    // Mount the subsystem if necessary.
-    std::string hierarchy = path::join(baseHierarchy, subsystem);
-    Try<bool> mounted = cgroups::mounted(hierarchy, subsystem);
-    ASSERT_SOME(mounted);
-    if (!mounted.get()) {
-      ASSERT_SOME(cgroups::mount(hierarchy, subsystem))
-        << "-------------------------------------------------------------\n"
-        << "We cannot run any cgroups tests that require\n"
-        << "a hierarchy with subsystem '" << subsystem << "'\n"
-        << "because we failed to find an existing hierarchy\n"
-        << "or create a new one (tried '" << hierarchy << "').\n"
-        << "You can either remove all existing\n"
-        << "hierarchies, or disable this test case\n"
-        << "(i.e., --gtest_filter=-"
-        << ::testing::UnitTest::GetInstance()
-            ->current_test_info()
-            ->test_case_name() << ".*).\n"
-        << "-------------------------------------------------------------";
+      // Mount the subsystem if necessary.
+      std::string hierarchy = path::join(baseHierarchy, subsystem);
+      Try<bool> mounted = cgroups::mounted(hierarchy, subsystem);
+      ASSERT_SOME(mounted);
+      if (!mounted.get()) {
+        ASSERT_SOME(cgroups::mount(hierarchy, subsystem))
+          << "-------------------------------------------------------------\n"
+          << "We cannot run any cgroups tests that require\n"
+          << "a hierarchy with subsystem '" << subsystem << "'\n"
+          << "because we failed to find an existing hierarchy\n"
+          << "or create a new one (tried '" << hierarchy << "').\n"
+          << "You can either remove all existing\n"
+          << "hierarchies, or disable this test case\n"
+          << "(i.e., --gtest_filter=-"
+          << ::testing::UnitTest::GetInstance()
+              ->current_test_info()
+              ->test_case_name() << ".*).\n"
+          << "-------------------------------------------------------------";
+      }
     }
   }
 }
@@ -355,16 +367,18 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
 {
   MesosTest::TearDown();
 
-  foreach (const std::string& subsystem, subsystems) {
-    std::string hierarchy = path::join(baseHierarchy, subsystem);
+  if (os::exists("/proc/cgroups") && os::user() == "root") {
+    foreach (const std::string& subsystem, subsystems) {
+      std::string hierarchy = path::join(baseHierarchy, subsystem);
 
-    Try<std::vector<std::string> > cgroups = cgroups::get(hierarchy);
-    CHECK_SOME(cgroups);
+      Try<std::vector<std::string> > cgroups = cgroups::get(hierarchy);
+      CHECK_SOME(cgroups);
 
-    foreach (const std::string& cgroup, cgroups.get()) {
-      // Remove any cgroups that start with TEST_CGROUPS_ROOT
-      if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
-        AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
+      foreach (const std::string& cgroup, cgroups.get()) {
+        // Remove any cgroups that start with TEST_CGROUPS_ROOT
+        if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
+          AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
+        }
       }
     }
   }
