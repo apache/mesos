@@ -1109,7 +1109,7 @@ TEST(Process, remote)
 
   spawn(process);
 
-  int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  int s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
   ASSERT_LE(0, s);
 

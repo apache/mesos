@@ -1427,7 +1427,7 @@ void initialize(const string& delegate)
   }
 
   // Create a "server" socket for communicating with other nodes.
-  if ((__s__ = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+  if ((__s__ = ::socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     PLOG(FATAL) << "Failed to initialize, socket";
   }
 
@@ -1891,12 +1891,13 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
     // Check if node is remote and there isn't a persistant link.
     if ((node.ip != __ip__ || node.port != __port__)
         && persists.count(node) == 0) {
-      // Okay, no link, lets create a socket.
-      int s;
-
-      if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        PLOG(FATAL) << "Failed to link, socket";
+      // Okay, no link, let's create a socket.
+      Try<int> socket = process::socket(AF_INET, SOCK_STREAM, 0);
+      if (socket.isError()) {
+        LOG(FATAL) << "Failed to link, socket: " << socket.error();
       }
+
+      int s = socket.get();
 
       Try<Nothing> nonblock = os::nonblock(s);
       if (nonblock.isError()) {
@@ -2057,13 +2058,14 @@ void SocketManager::send(Message* message)
       CHECK(sockets.count(s) > 0);
       send(new MessageEncoder(sockets[s], message), persist);
     } else {
-      // No peristant or temporary socket to the node currently
+      // No peristent or temporary socket to the node currently
       // exists, so we create a temporary one.
-      int s;
-
-      if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        PLOG(FATAL) << "Failed to send, socket";
+      Try<int> socket = process::socket(AF_INET, SOCK_STREAM, 0);
+      if (socket.isError()) {
+        LOG(FATAL) << "Failed to send, socket: " << socket.error();
       }
+
+      int s = socket.get();
 
       Try<Nothing> nonblock = os::nonblock(s);
       if (nonblock.isError()) {
@@ -3937,11 +3939,13 @@ Future<Response> request(
     const Option<string>& body,
     const Option<string>& contentType)
 {
-  int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> socket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
-  if (s < 0) {
-    return Failure(string("Failed to create socket: ") + strerror(errno));
+  if (socket.isError()) {
+    return Failure("Failed to create socket: " + socket.error());
   }
+
+  int s = socket.get();
 
   Try<Nothing> cloexec = os::cloexec(s);
   if (!cloexec.isSome()) {
