@@ -102,6 +102,12 @@ static bool enable(const ::testing::TestInfo& test)
         return false;
       }
     }
+
+    // On Linux non-privileged users are limited to 64k of locked memory so we
+    // cannot run the MemIsolatorTest.Usage.
+    if (strings::contains(name, "MemIsolatorTest") && os::user() != "root") {
+      return false;
+    }
 #endif
   }
 
