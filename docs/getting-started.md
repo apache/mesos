@@ -2,7 +2,7 @@
 layout: documentation
 ---
 
-# Getting Started
+# Getting Started with Apache Mesos
 
 ## Downloading Mesos
 
@@ -19,7 +19,7 @@ There are different ways you can get Mesos:
 
 ## System Requirements
 
--  Mesos runs on Linux and Mac OSX.
+-  Mesos runs on Linux (64 Bit) and Mac OSX (64 Bit).
 
 -  Following are the instructions for stock Ubuntu 12.04 64 Bit. If you are using a different OS please install the packages accordingly.
 
@@ -49,12 +49,6 @@ If you are building from git repository, you will need to additionally install t
 
         # Install libtool.
         $ sudo apt-get install libtool
-
-***NOTES***
-
-> 1. The build process attempts to guess where your Java include directory is, but if you have set the `$JAVA_HOME` environment variable, it will use `$JAVA_HOME/include`, which may not be correct (or exist) on your machine (in which case you will see an error such as: `configure: error: failed to build against JDK (using libtool)`). If this is the case, we suggest you unset the `JAVA_HOME` environment variable.
-
-> 2. Mesos is currently being developed/tested/supported on 64 Bit machines only.
 
 
 ## Building Mesos
