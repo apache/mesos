@@ -18,15 +18,24 @@
 
 import "mesos.proto";
 
-package mesos.internal.registry;
+package mesos.internal;
 
-message Slave {
-  // TODO(benh): Add other information here that is internal to Mesos
-  // and shouldn't be exposed in SlaveInfo.
-  required SlaveInfo info = 1;
-}
+message Registry {
+  message Master {
+    required MasterInfo info = 1;
+  }
 
+  message Slave {
+    required SlaveInfo info = 1;
+  }
 
-message Slaves {
-  repeated Slave slaves = 1;
+  message Slaves {
+    repeated Slave slaves = 1;
+  }
+
+  // Most recent leading master.
+  optional Master master = 1;
+
+  // All admitted slaves.
+  optional Slaves slaves = 2;
 }

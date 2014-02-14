@@ -51,9 +51,6 @@ using namespace mesos::internal;
 
 using namespace process;
 
-using mesos::internal::registry::Slaves;
-using mesos::internal::registry::Slave;
-
 using state::LevelDBStorage;
 using state::Storage;
 #ifdef MESOS_HAS_JAVA
@@ -63,6 +60,8 @@ using state::ZooKeeperStorage;
 using state::protobuf::State;
 using state::protobuf::Variable;
 
+typedef mesos::internal::Registry::Slaves Slaves;
+typedef mesos::internal::Registry::Slave Slave;
 
 void FetchAndStoreAndFetch(State* state)
 {

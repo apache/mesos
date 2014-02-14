@@ -48,6 +48,7 @@ using process::spawn;
 using process::terminate;
 using process::wait; // Necessary on some OS's to disambiguate.
 
+using std::deque;
 using std::string;
 
 namespace mesos {
@@ -59,11 +60,8 @@ class RegistrarProcess : public Process<RegistrarProcess>
 public:
   RegistrarProcess(State* _state)
     : ProcessBase("registrar"),
-      state(_state)
-  {
-    slaves.variable = None();
-    slaves.updating = false;
-  }
+      updating(false),
+      state(_state) {}
 
   virtual ~RegistrarProcess() {}
 
@@ -79,24 +77,24 @@ private:
     virtual Try<T> apply(T t) = 0;
   };
 
-  struct Admit : Mutation<registry::Slaves>
+  struct Admit : Mutation<Registry>
   {
     Admit(const SlaveInfo& _info) : info(_info) {}
 
-    virtual Try<registry::Slaves> apply(registry::Slaves slaves)
+    virtual Try<Registry> apply(Registry registry)
     {
       // Check and see if this slave already exists.
-      foreach (const registry::Slave& slave, slaves.slaves()) {
+      foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
         if (slave.info().id() == info.id()) {
           set(false);
-          return slaves; // No mutation.
+          return registry; // No mutation.
         }
       }
 
       // Okay, add the slave!
-      registry::Slave* slave = slaves.add_slaves();
+      Registry::Slave* slave = registry.mutable_slaves()->add_slaves();
       slave->mutable_info()->CopyFrom(info);
-      return slaves;
+      return registry;
     }
 
     const SlaveInfo info;
@@ -105,54 +103,52 @@ private:
   // NOTE: Even though re-admission does not mutate the state, we
   // model it as a mutation so that it is performed in sequence with
   // other mutations.
-  struct Readmit : Mutation<registry::Slaves>
+  struct Readmit : Mutation<Registry>
   {
     Readmit(const SlaveInfo& _info) : info(_info) {}
 
-    virtual Try<registry::Slaves> apply(registry::Slaves slaves)
+    virtual Try<Registry> apply(Registry registry)
     {
-      foreach (const registry::Slave& slave, slaves.slaves()) {
+      foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
         if (slave.info().id() == info.id()) {
           set(true);
-          return slaves;
+          return registry;
         }
       }
       set(false);
-      return slaves;
+      return registry;
     }
 
     const SlaveInfo info;
   };
 
-  struct Remove : Mutation<registry::Slaves>
+  struct Remove : Mutation<Registry>
   {
     Remove(const SlaveInfo& _info) : info(_info) {}
 
-    virtual Try<registry::Slaves> apply(registry::Slaves slaves)
+    virtual Try<Registry> apply(Registry registry)
     {
-      for (int i = 0; i < slaves.slaves().size(); i++) {
-        const registry::Slave& slave = slaves.slaves(i);
+      for (int i = 0; i < registry.slaves().slaves().size(); i++) {
+        const Registry::Slave& slave = registry.slaves().slaves(i);
         if (slave.info().id() == info.id()) {
-          for (int j = i + 1; j < slaves.slaves().size(); j++) {
-            slaves.mutable_slaves()->SwapElements(j-1, j);
+          for (int j = i + 1; j < registry.slaves().slaves().size(); j++) {
+            registry.mutable_slaves()->mutable_slaves()->SwapElements(j - 1, j);
           }
-          slaves.mutable_slaves()->RemoveLast();
-          return slaves;
+          registry.mutable_slaves()->mutable_slaves()->RemoveLast();
+          return registry;
         }
       }
 
       set(false);
-      return slaves;
+      return registry;
     }
 
     const SlaveInfo info;
   };
 
-  struct {
-    Option<Variable<registry::Slaves> > variable;
-    std::deque<Mutation<registry::Slaves>*> mutations;
-    bool updating; // Used to signify fetching (recovering) or storing.
-  } slaves;
+  Option<Variable<Registry> > variable;
+  deque<Mutation<Registry>*> mutations;
+  bool updating; // Used to signify fetching (recovering) or storing.
 
   // Continuations.
   Future<bool> _admit(const SlaveInfo& info);
@@ -161,11 +157,11 @@ private:
 
   // Helper for recovering state (performing fetch).
   Future<Nothing> recover();
-  void _recover(const Future<Variable<registry::Slaves> >& recovery);
+  void _recover(const Future<Variable<Registry> >& recovery);
 
   // Helper for updating state (performing store).
   void update();
-  Future<bool> _update(const Option<Variable<registry::Slaves> >& variable);
+  Future<bool> _update(const Option<Variable<Registry> >& variable);
   void __update(const string& message);
 
   State* state;
@@ -179,12 +175,11 @@ Future<Nothing> RegistrarProcess::recover()
 {
   LOG(INFO) << "Recovering registrar";
 
-  // "Recover" the 'slaves' variable by fetching it from the state.
-  if (slaves.variable.isNone() && !slaves.updating) {
+  if (variable.isNone() && !updating) {
     // TODO(benh): Don't wait forever to recover?
-    state->fetch<registry::Slaves>("slaves")
+    state->fetch<Registry>("registry")
       .onAny(defer(self(), &Self::_recover, lambda::_1));
-    slaves.updating = true;
+    updating = true;
   }
 
   return recovered.future();
@@ -192,9 +187,9 @@ Future<Nothing> RegistrarProcess::recover()
 
 
 void RegistrarProcess::_recover(
-    const Future<Variable<registry::Slaves> >& recovery)
+    const Future<Variable<Registry> >& recovery)
 {
-  slaves.updating = false;
+  updating = false;
 
   CHECK(!recovery.isPending());
 
@@ -205,8 +200,8 @@ void RegistrarProcess::_recover(
   } else {
     LOG(INFO) << "Successfully recovered registrar";
 
-    // Save the slaves variable.
-    slaves.variable = recovery.get();
+    // Save the registry.
+    variable = recovery.get();
 
     // Signal the recovery is complete.
     recovered.set(Nothing());
@@ -227,11 +222,11 @@ Future<bool> RegistrarProcess::admit(const SlaveInfo& info)
 
 Future<bool> RegistrarProcess::_admit(const SlaveInfo& info)
 {
-  CHECK_SOME(slaves.variable);
-  Mutation<registry::Slaves>* mutation = new Admit(info);
-  slaves.mutations.push_back(mutation);
+  CHECK_SOME(variable);
+  Mutation<Registry>* mutation = new Admit(info);
+  mutations.push_back(mutation);
   Future<bool> future = mutation->future();
-  if (!slaves.updating) {
+  if (!updating) {
     update();
   }
   return future;
@@ -252,16 +247,16 @@ Future<bool> RegistrarProcess::readmit(const SlaveInfo& info)
 Future<bool> RegistrarProcess::_readmit(
     const SlaveInfo& info)
 {
-  CHECK_SOME(slaves.variable);
+  CHECK_SOME(variable);
 
   if (!info.has_id()) {
     return Failure("Expecting SlaveInfo to have a SlaveID");
   }
 
-  Mutation<registry::Slaves>* mutation = new Readmit(info);
-  slaves.mutations.push_back(mutation);
+  Mutation<Registry>* mutation = new Readmit(info);
+  mutations.push_back(mutation);
   Future<bool> future = mutation->future();
-  if (!slaves.updating) {
+  if (!updating) {
     update();
   }
   return future;
@@ -282,16 +277,16 @@ Future<bool> RegistrarProcess::remove(const SlaveInfo& info)
 Future<bool> RegistrarProcess::_remove(
     const SlaveInfo& info)
 {
-  CHECK_SOME(slaves.variable);
+  CHECK_SOME(variable);
 
   if (!info.has_id()) {
     return Failure("Expecting SlaveInfo to have a SlaveID");
   }
 
-  Mutation<registry::Slaves>* mutation = new Remove(info);
-  slaves.mutations.push_back(mutation);
+  Mutation<Registry>* mutation = new Remove(info);
+  mutations.push_back(mutation);
   Future<bool> future = mutation->future();
-  if (!slaves.updating) {
+  if (!updating) {
     update();
   }
   return future;
@@ -300,32 +295,32 @@ Future<bool> RegistrarProcess::_remove(
 
 void RegistrarProcess::update()
 {
-  if (slaves.mutations.empty()) {
+  if (mutations.empty()) {
     return; // No-op.
   }
 
-  CHECK(!slaves.updating);
+  CHECK(!updating);
 
-  slaves.updating = true;
+  updating = true;
 
-  LOG(INFO) << "Attempting to update 'slaves'";
+  LOG(INFO) << "Attempting to update 'registry'";
 
-  CHECK_SOME(slaves.variable);
+  CHECK_SOME(variable);
 
-  Variable<registry::Slaves> variable = slaves.variable.get();
+  Variable<Registry> variable_ = variable.get();
 
-  foreach (Mutation<registry::Slaves>* mutation, slaves.mutations) {
-    Try<registry::Slaves> slaves = mutation->apply(variable.get());
-    if (slaves.isError()) {
-      mutation->fail("Failed to mutate 'slaves': " + slaves.error());
+  foreach (Mutation<Registry>* mutation, mutations) {
+    Try<Registry> registry = mutation->apply(variable_.get());
+    if (registry.isError()) {
+      mutation->fail("Failed to mutate 'registry': " + registry.error());
     } else {
-      variable = variable.mutate(slaves.get());
+      variable_ = variable_.mutate(registry.get());
     }
   }
 
   // Perform the store! Save the future so we can associate it with
   // the mutations that are part of this update.
-  Future<bool> future = state->store(variable)
+  Future<bool> future = state->store(variable_)
     .then(defer(self(), &Self::_update, lambda::_1));
 
   // TODO(benh): Add a timeout so we don't wait forever.
@@ -336,9 +331,9 @@ void RegistrarProcess::update()
     .onFailed(defer(self(), &Self::__update, lambda::_1));
 
   // Now associate the store with all the mutations.
-  while (!slaves.mutations.empty()) {
-    Mutation<registry::Slaves>* mutation = slaves.mutations.front();
-    slaves.mutations.pop_front();
+  while (!mutations.empty()) {
+    Mutation<Registry>* mutation = mutations.front();
+    mutations.pop_front();
     mutation->associate(future); // No-op if already failed above.
     delete mutation;
   }
@@ -346,20 +341,20 @@ void RegistrarProcess::update()
 
 
 Future<bool> RegistrarProcess::_update(
-    const Option<Variable<registry::Slaves> >& variable)
+    const Option<Variable<Registry> >& variable_)
 {
-  slaves.updating = false;
+  updating = false;
 
-  if (variable.isNone()) {
-    LOG(WARNING) << "Failed to update 'slaves': version mismatch";
-    return Failure("Failed to update 'slaves': version mismatch");
+  if (variable_.isNone()) {
+    LOG(WARNING) << "Failed to update 'registry': version mismatch";
+    return Failure("Failed to update 'registry': version mismatch");
   }
 
-  LOG(INFO) << "Successfully updated 'slaves'";
+  LOG(INFO) << "Successfully updated 'registry'";
 
-  slaves.variable = variable.get();
+  variable = variable_.get();
 
-  if (!slaves.mutations.empty()) {
+  if (!mutations.empty()) {
     update();
   }
 
@@ -369,8 +364,8 @@ Future<bool> RegistrarProcess::_update(
 
 void RegistrarProcess::__update(const string& message)
 {
-  LOG(WARNING) << "Failed to update 'slaves': " << message;
-  slaves.updating = false;
+  LOG(WARNING) << "Failed to update 'registry': " << message;
+  updating = false;
 }
 
 
