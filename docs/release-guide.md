@@ -1,5 +1,5 @@
 ---
-layout: release-guide
+layout: documentation
 ---
 
 # Release Guide
