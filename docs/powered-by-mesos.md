@@ -6,6 +6,7 @@ layout: documentation
 
 ## Organizations using Mesos
 
+* [Atigeo](http://www.atigeo.com)
 * [Airbnb](http://www.airbnb.com)
 * [Categorize](http://categorize.co)
 * [CloudPhysics](http://cloudphysics.com)
