@@ -462,16 +462,19 @@ void Master::initialize()
   route("/health",
         Http::HEALTH_HELP,
         lambda::bind(&Http::health, http, lambda::_1));
+  route("/observe",
+        Http::OBSERVE_HELP,
+        lambda::bind(&Http::observe, http, lambda::_1));
   route("/redirect",
         Http::REDIRECT_HELP,
         lambda::bind(&Http::redirect, http, lambda::_1));
-  route("/stats.json",
+  route("/roles.json",
         None(),
-        lambda::bind(&Http::stats, http, lambda::_1));
+        lambda::bind(&Http::roles, http, lambda::_1));
   route("/state.json",
         None(),
         lambda::bind(&Http::state, http, lambda::_1));
-  route("/roles.json",
+  route("/stats.json",
         None(),
         lambda::bind(&Http::roles, http, lambda::_1));
 

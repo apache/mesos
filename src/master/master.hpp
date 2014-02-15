@@ -280,20 +280,24 @@ private:
     process::Future<process::http::Response> health(
         const process::http::Request& request);
 
+    // /master/observe
+    process::Future<process::http::Response> observe(
+        const process::http::Request& request);
+
     // /master/redirect
     process::Future<process::http::Response> redirect(
         const process::http::Request& request);
 
-    // /master/stats.json
-    process::Future<process::http::Response> stats(
+    // /master/roles.json
+    process::Future<process::http::Response> roles(
         const process::http::Request& request);
 
     // /master/state.json
     process::Future<process::http::Response> state(
         const process::http::Request& request);
 
-    // /master/roles.json
-    process::Future<process::http::Response> roles(
+    // /master/stats.json
+    process::Future<process::http::Response> stats(
         const process::http::Request& request);
 
     // /master/tasks.json
@@ -301,6 +305,7 @@ private:
         const process::http::Request& request);
 
     const static std::string HEALTH_HELP;
+    const static std::string OBSERVE_HELP;
     const static std::string REDIRECT_HELP;
     const static std::string TASKS_HELP;
 

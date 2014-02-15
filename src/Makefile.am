@@ -870,6 +870,7 @@ mesos_tests_SOURCES =				\
   tests/paths_tests.cpp				\
   tests/protobuf_io_tests.cpp			\
   tests/registrar_tests.cpp			\
+  tests/repair_tests.cpp			\
   tests/resource_offers_tests.cpp		\
   tests/resources_tests.cpp			\
   tests/sasl_tests.cpp				\

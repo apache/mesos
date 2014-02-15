@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+#include <boost/array.hpp>
+
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
@@ -276,6 +278,103 @@ const string Master::Http::HEALTH_HELP = HELP(
 Future<Response> Master::Http::health(const Request& request)
 {
   return OK();
+}
+
+const static string HOSTS_KEY = "hosts";
+const static string LEVEL_KEY = "level";
+const static string MONITOR_KEY = "monitor";
+
+const string Master::Http::OBSERVE_HELP = HELP(
+    TLDR(
+        "Observe a monitor health state for host(s)."),
+    USAGE(
+        "/master/observe"),
+    DESCRIPTION(
+        "This endpoint receives information indicating host(s) ",
+        "health."
+        "",
+        "The following fields should be supplied in a POST:",
+        "1. " + MONITOR_KEY + " - name of the monitor that is being reported",
+        "2. " + HOSTS_KEY + " - comma seperated list of hosts",
+        "3. " + LEVEL_KEY + " - OK for healthy, anything else for unhealthy"));
+
+
+Try<string> getFormValue(
+    const string& key,
+    const hashmap<string, string>& values)
+{
+  Option<string> value = values.get(key);
+
+  if (value.isNone()) {
+    return Error("Missing value for '" + key + "'.");
+  }
+
+  // HTTP decode the value.
+  Try<string> decodedValue = http::decode(value.get());
+  if (decodedValue.isError()) {
+    return decodedValue;
+  }
+
+  // Treat empty string as an error.
+  if (decodedValue.isSome() && decodedValue.get().empty()) {
+    return Error("Empty string for '" + key + "'.");
+  }
+
+  return decodedValue.get();
+}
+
+
+Future<Response> Master::Http::observe(const Request& request)
+{
+  LOG(INFO) << "HTTP request for '" << request.path << "'";
+
+  hashmap<string, string> values =
+    process::http::query::parse(request.body);
+
+  // Build up a JSON object of the values we recieved and send them back
+  // down the wire as JSON for validation / confirmation.
+  JSON::Object response;
+
+  // TODO(ccarson):  As soon as RepairCoordinator is introduced it will
+  // consume these values. We should revisit if we still want to send the
+  // JSON down the wire at that point.
+
+  // Add 'monitor'.
+  Try<string> monitor = getFormValue(MONITOR_KEY, values);
+  if (monitor.isError()) {
+    return BadRequest(monitor.error());
+  }
+  response.values[MONITOR_KEY] = monitor.get();
+
+  // Add 'hosts'.
+  Try<string> hostsString = getFormValue(HOSTS_KEY, values);
+  if (hostsString.isError()) {
+    return BadRequest(hostsString.error());
+  }
+
+  vector<string> hosts = strings::split(hostsString.get(), ",");
+  JSON::Array hostArray;
+  hostArray.values.assign(hosts.begin(), hosts.end());
+
+  response.values[HOSTS_KEY] = hostArray;
+
+  // Add 'isHealthy'.
+  Try<string> level = getFormValue(LEVEL_KEY, values);
+  if (level.isError()) {
+    return BadRequest(level.error());
+  }
+
+  bool isHealthy = strings::upper(level.get()) == "OK";
+
+  // TODO(ccarson): This is a workaround b/c currently a bool is coerced
+  // into a JSON::Double instead of a JSON::True or JSON::False when
+  // you assign to a JSON::Value.
+  //
+  // SEE: https://issues.apache.org/jira/browse/MESOS-939
+  response.values["isHealthy"] =
+    (isHealthy ? JSON::Value(JSON::True()) : JSON::False());
+
+  return OK(response);
 }
 
 
