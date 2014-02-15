@@ -95,10 +95,18 @@ AC_CONFIG_FILES([bin/gdb-mesos-master.sh], [chmod +x bin/gdb-mesos-master.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-slave.sh], [chmod +x bin/gdb-mesos-slave.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-tests.sh], [chmod +x bin/gdb-mesos-tests.sh])
 AC_CONFIG_FILES([bin/lldb-mesos-local.sh], [chmod +x bin/lldb-mesos-local.sh])
-AC_CONFIG_FILES([bin/lldb-mesos-master.sh], [chmod +x bin/lldb-mesos-master.sh])
+AC_CONFIG_FILES([bin/lldb-mesos-master.sh],
+		[chmod +x bin/lldb-mesos-master.sh])
 AC_CONFIG_FILES([bin/lldb-mesos-slave.sh], [chmod +x bin/lldb-mesos-slave.sh])
 AC_CONFIG_FILES([bin/lldb-mesos-tests.sh], [chmod +x bin/lldb-mesos-tests.sh])
-
+AC_CONFIG_FILES([bin/valgrind-mesos-local.sh],
+		[chmod +x bin/valgrind-mesos-local.sh])
+AC_CONFIG_FILES([bin/valgrind-mesos-slave.sh],
+		[chmod +x bin/valgrind-mesos-slave.sh])
+AC_CONFIG_FILES([bin/valgrind-mesos-master.sh],
+		[chmod +x bin/valgrind-mesos-master.sh])
+AC_CONFIG_FILES([bin/valgrind-mesos-tests.sh],
+		[chmod +x bin/valgrind-mesos-tests.sh])
 AC_CONFIG_FILES([src/deploy/mesos-daemon.sh])
 AC_CONFIG_FILES([src/deploy/mesos-start-cluster.sh])
 AC_CONFIG_FILES([src/deploy/mesos-start-masters.sh])
