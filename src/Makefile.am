@@ -312,7 +312,8 @@ liblog_la_SOURCES =							\
   log/recover.cpp							\
   log/replica.cpp							\
   log/tool/initialize.cpp						\
-  log/tool/read.cpp
+  log/tool/read.cpp							\
+  log/tool/replica.cpp
 liblog_la_SOURCES +=							\
   log/catchup.hpp							\
   log/consensus.hpp							\
@@ -326,6 +327,7 @@ liblog_la_SOURCES +=							\
   log/tool.hpp								\
   log/tool/initialize.hpp						\
   log/tool/read.hpp							\
+  log/tool/replica.hpp							\
   messages/log.hpp							\
   messages/log.proto
 nodist_liblog_la_SOURCES = $(LOG_PROTOS)
