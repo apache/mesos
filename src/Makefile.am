@@ -311,6 +311,7 @@ liblog_la_SOURCES =							\
   log/log.cpp								\
   log/recover.cpp							\
   log/replica.cpp							\
+  log/tool/benchmark.cpp						\
   log/tool/initialize.cpp						\
   log/tool/read.cpp							\
   log/tool/replica.cpp
@@ -325,6 +326,7 @@ liblog_la_SOURCES +=							\
   log/replica.hpp							\
   log/storage.hpp							\
   log/tool.hpp								\
+  log/tool/benchmark.hpp						\
   log/tool/initialize.hpp						\
   log/tool/read.hpp							\
   log/tool/replica.hpp							\
