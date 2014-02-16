@@ -3622,7 +3622,7 @@ Future<size_t> read(int fd, void* data, size_t size)
     // The file descriptor is not valid (e.g., has been closed).
     promise->fail(
         "Failed to check if file descriptor was non-blocking: " +
-        string(strerror(errno)));
+        nonblock.error());
     return promise->future();
   } else if (!nonblock.get()) {
     // The file descriptor is not non-blocking.
@@ -3655,7 +3655,7 @@ Future<size_t> write(int fd, void* data, size_t size)
     // The file descriptor is not valid (e.g., has been closed).
     promise->fail(
         "Failed to check if file descriptor was non-blocking: " +
-        string(strerror(errno)));
+        nonblock.error());
     return promise->future();
   } else if (!nonblock.get()) {
     // The file descriptor is not non-blocking.

@@ -22,6 +22,8 @@
 
 using namespace process;
 
+using std::string;
+
 using testing::_;
 using testing::Assign;
 using testing::DoAll;
@@ -75,18 +77,18 @@ TEST(HTTP, Endpoints)
       << "Connection: Keep-Alive\r\n"
       << "\r\n";
 
-  const std::string& data = out.str();
+  const string& data = out.str();
 
   EXPECT_CALL(process, body(_))
     .WillOnce(Return(http::OK()));
 
    ASSERT_SOME(os::write(s, data));
 
-  std::string response = "HTTP/1.1 200 OK";
+  string response = "HTTP/1.1 200 OK";
 
   char temp[response.size()];
   ASSERT_LT(0, ::read(s, temp, response.size()));
-  ASSERT_EQ(response, std::string(temp, response.size()));
+  ASSERT_EQ(response, string(temp, response.size()));
 
   ASSERT_EQ(0, close(s));
 
@@ -122,10 +124,10 @@ TEST(HTTP, Endpoints)
 
 TEST(HTTP, Encode)
 {
-  std::string unencoded = "a$&+,/:;=?@ \"<>#%{}|\\^~[]`\x19\x80\xFF";
-  unencoded += std::string("\x00", 1); // Add a null byte to the end.
+  string unencoded = "a$&+,/:;=?@ \"<>#%{}|\\^~[]`\x19\x80\xFF";
+  unencoded += string("\x00", 1); // Add a null byte to the end.
 
-  std::string encoded = http::encode(unencoded);
+  string encoded = http::encode(unencoded);
 
   EXPECT_EQ("a%24%26%2B%2C%2F%3A%3B%3D%3F%40%20%22%3C%3E%23"
             "%25%7B%7D%7C%5C%5E%7E%5B%5D%60%19%80%FF%00",
@@ -142,32 +144,32 @@ TEST(HTTP, Encode)
 
 TEST(HTTP, PathParse)
 {
-  const std::string pattern = "/books/{isbn}/chapters/{chapter}";
+  const string pattern = "/books/{isbn}/chapters/{chapter}";
 
-  Try<hashmap<std::string, std::string> > parse =
+  Try<hashmap<string, string> > parse =
     http::path::parse(pattern, "/books/0304827484/chapters/3");
 
   ASSERT_SOME(parse);
   EXPECT_EQ(4, parse.get().size());
-  EXPECT_EQ("books", parse.get()["books"]);
-  EXPECT_EQ("0304827484", parse.get()["isbn"]);
-  EXPECT_EQ("chapters", parse.get()["chapters"]);
-  EXPECT_EQ("3", parse.get()["chapter"]);
+  EXPECT_SOME_EQ("books", parse.get().get("books"));
+  EXPECT_SOME_EQ("0304827484", parse.get().get("isbn"));
+  EXPECT_SOME_EQ("chapters", parse.get().get("chapters"));
+  EXPECT_SOME_EQ("3", parse.get().get("chapter"));
 
   parse = http::path::parse(pattern, "/books/0304827484");
 
   ASSERT_SOME(parse);
   EXPECT_EQ(2, parse.get().size());
-  EXPECT_EQ("books", parse.get()["books"]);
-  EXPECT_EQ("0304827484", parse.get()["isbn"]);
+  EXPECT_SOME_EQ("books", parse.get().get("books"));
+  EXPECT_SOME_EQ("0304827484", parse.get().get("isbn"));
 
   parse = http::path::parse(pattern, "/books/0304827484/chapters");
 
   ASSERT_SOME(parse);
   EXPECT_EQ(3, parse.get().size());
-  EXPECT_EQ("books", parse.get()["books"]);
-  EXPECT_EQ("0304827484", parse.get()["isbn"]);
-  EXPECT_EQ("chapters", parse.get()["chapters"]);
+  EXPECT_SOME_EQ("books", parse.get().get("books"));
+  EXPECT_SOME_EQ("0304827484", parse.get().get("isbn"));
+  EXPECT_SOME_EQ("chapters", parse.get().get("chapters"));
 
   parse = http::path::parse(pattern, "/foo/0304827484/chapters");
 
