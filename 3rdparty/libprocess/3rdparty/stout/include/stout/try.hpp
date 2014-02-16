@@ -60,6 +60,8 @@ public:
     message = that.message;
   }
 
+  // TODO(bmahler): Add move constructor.
+
   ~Try()
   {
     delete t;
@@ -84,7 +86,7 @@ public:
   bool isSome() const { return state == SOME; }
   bool isError() const { return state == ERROR; }
 
-  T get() const
+  const T& get() const
   {
     if (state != SOME) {
       std::cerr << "Try::get() but state == ERROR: " << error() << std::endl;
@@ -93,6 +95,7 @@ public:
     return *t;
   }
 
+  // TODO(bmahler): Consider returning const string& to eliminate copy.
   std::string error() const { assert(state == ERROR); return message; }
 
 private:
