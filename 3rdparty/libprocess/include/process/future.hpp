@@ -98,6 +98,7 @@ public:
 
   // Comparision operators useful for using futures in collections.
   bool operator == (const Future<T>& that) const;
+  bool operator != (const Future<T>& that) const;
   bool operator < (const Future<T>& that) const;
 
   // Helpers to get the current state of this future.
@@ -972,6 +973,13 @@ template <typename T>
 bool Future<T>::operator == (const Future<T>& that) const
 {
   return data == that.data;
+}
+
+
+template <typename T>
+bool Future<T>::operator != (const Future<T>& that) const
+{
+  return !(*this == that);
 }
 
 
