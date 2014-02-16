@@ -25,6 +25,7 @@
 
 #include <string>
 
+#include <stout/error.hpp>
 #include <stout/try.hpp>
 
 #include "messages/messages.pb.h"
@@ -39,8 +40,7 @@ Try<T> deserialize(const std::string& value)
 
   google::protobuf::io::ArrayInputStream stream(value.data(), value.size());
   if (!t.ParseFromZeroCopyStream(&stream)) {
-    return Try<T>::error(
-        "Failed to deserialize " + t.GetDescriptor()->full_name());
+    return Error("Failed to deserialize " + t.GetDescriptor()->full_name());
   }
   return t;
 }
@@ -53,8 +53,7 @@ Try<std::string> serialize(const T& t)
 
   std::string value;
   if (!t.SerializeToString(&value)) {
-    return Try<std::string>::error(
-        "Failed to serialize " + t.GetDescriptor()->full_name());
+    return Error("Failed to serialize " + t.GetDescriptor()->full_name());
   }
   return value;
 }

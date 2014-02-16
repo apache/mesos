@@ -36,7 +36,7 @@ master::Flags MesosTest::CreateMasterFlags()
   flags.authenticate = true;
 
   // Create a temporary work directory (removed by Environment).
-  const Try<std::string>& directory = environment->mkdtemp();
+  Try<std::string> directory = environment->mkdtemp();
   CHECK_SOME(directory) << "Failed to create temporary directory";
 
   flags.work_dir = directory.get();

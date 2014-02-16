@@ -77,10 +77,10 @@ Try<MasterContender*> MasterContender::create(const string& zk)
   } else if (strings::startsWith(zk, "zk://")) {
     Try<zookeeper::URL> url = URL::parse(zk);
     if (url.isError()) {
-      return Try<MasterContender*>::error(url.error());
+      return Error(url.error());
     }
     if (url.get().path == "/") {
-      return Try<MasterContender*>::error(
+      return Error(
           "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
     }
     return new ZooKeeperMasterContender(url.get());
@@ -94,7 +94,7 @@ Try<MasterContender*> MasterContender::create(const string& zk)
     return create(strings::trim(read.get()));
   }
 
-  return Try<MasterContender*>::error("Failed to parse '" + zk + "'");
+  return Error("Failed to parse '" + zk + "'");
 }
 
 

@@ -451,14 +451,14 @@ TEST_F(CgroupsAnyHierarchyWithCpuAcctMemoryTest, ROOT_CGROUPS_Stat)
   ASSERT_SOME(result);
   EXPECT_TRUE(result.get().contains("user"));
   EXPECT_TRUE(result.get().contains("system"));
-  EXPECT_GT(result.get()["user"], 0llu);
-  EXPECT_GT(result.get()["system"], 0llu);
+  EXPECT_GT(result.get().get("user").get(), 0llu);
+  EXPECT_GT(result.get().get("system").get(), 0llu);
 
   result = cgroups::stat(
       path::join(baseHierarchy, "memory"), "/", "memory.stat");
   ASSERT_SOME(result);
   EXPECT_TRUE(result.get().contains("rss"));
-  EXPECT_GT(result.get()["rss"], 0llu);
+  EXPECT_GT(result.get().get("rss").get(), 0llu);
 }
 
 

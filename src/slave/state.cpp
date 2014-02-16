@@ -125,7 +125,7 @@ Try<SlaveState> SlaveState::recover(
   state.info = slaveInfo.get();
 
   // Find the frameworks.
-  const Try<list<string> >& frameworks = os::glob(
+  Try<list<string> > frameworks = os::glob(
       strings::format(paths::FRAMEWORK_PATH, rootDir, slaveId, "*").get());
 
   if (frameworks.isError()) {
@@ -138,7 +138,7 @@ Try<SlaveState> SlaveState::recover(
     FrameworkID frameworkId;
     frameworkId.set_value(os::basename(path).get());
 
-    const Try<FrameworkState>& framework =
+    Try<FrameworkState> framework =
       FrameworkState::recover(rootDir, slaveId, frameworkId, strict);
 
     if (framework.isError()) {
@@ -208,7 +208,7 @@ Try<FrameworkState> FrameworkState::recover(
     return state;
   }
 
-  const Try<string>& pid = os::read(path);
+  Try<string> pid = os::read(path);
 
   if (pid.isError()) {
     message =
@@ -233,7 +233,7 @@ Try<FrameworkState> FrameworkState::recover(
   state.pid = process::UPID(pid.get());
 
   // Find the executors.
-  const Try<list<string> >& executors = os::glob(strings::format(
+  Try<list<string> > executors = os::glob(strings::format(
       paths::EXECUTOR_PATH, rootDir, slaveId, frameworkId, "*").get());
 
   if (executors.isError()) {
@@ -247,7 +247,7 @@ Try<FrameworkState> FrameworkState::recover(
     ExecutorID executorId;
     executorId.set_value(os::basename(path).get());
 
-    const Try<ExecutorState>& executor =
+    Try<ExecutorState> executor =
       ExecutorState::recover(rootDir, slaveId, frameworkId, executorId, strict);
 
     if (executor.isError()) {
@@ -310,7 +310,7 @@ Try<ExecutorState> ExecutorState::recover(
   state.info = executorInfo.get();
 
   // Find the runs.
-  const Try<list<string> >& runs = os::glob(strings::format(
+  Try<list<string> > runs = os::glob(strings::format(
       paths::EXECUTOR_RUN_PATH,
       rootDir,
       slaveId,
@@ -344,7 +344,7 @@ Try<ExecutorState> ExecutorState::recover(
       ContainerID containerId;
       containerId.set_value(os::basename(path).get());
 
-      const Try<RunState>& run = RunState::recover(
+      Try<RunState> run = RunState::recover(
           rootDir, slaveId, frameworkId, executorId, containerId, strict);
 
       if (run.isError()) {
@@ -385,7 +385,7 @@ Try<RunState> RunState::recover(
   string message;
 
   // Find the tasks.
-  const Try<list<string> >& tasks = os::glob(strings::format(
+  Try<list<string> > tasks = os::glob(strings::format(
       paths::TASK_PATH,
       rootDir,
       slaveId,
@@ -405,7 +405,7 @@ Try<RunState> RunState::recover(
     TaskID taskId;
     taskId.set_value(os::basename(path).get());
 
-    const Try<TaskState>& task = TaskState::recover(
+    Try<TaskState> task = TaskState::recover(
         rootDir, slaveId, frameworkId, executorId, containerId, taskId, strict);
 
     if (task.isError()) {
@@ -560,7 +560,7 @@ Try<TaskState> TaskState::recover(
   }
 
   // Open the status updates file for reading and writing (for truncating).
-  const Try<int>& fd = os::open(path, O_RDWR);
+  Try<int> fd = os::open(path, O_RDWR);
 
   if (fd.isError()) {
     message = "Failed to open status updates file '" + path +
@@ -616,7 +616,7 @@ Try<TaskState> TaskState::recover(
   }
 
   // Close the updates file.
-  const Try<Nothing>& close = os::close(fd.get());
+  Try<Nothing> close = os::close(fd.get());
 
   if (close.isError()) {
     message = "Failed to close status updates file '" + path +

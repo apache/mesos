@@ -2503,7 +2503,7 @@ void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
     LOG(ERROR) << "Failed to get disk usage: "
                << (usage.isFailed() ? usage.failure() : "future discarded");
   } else {
-    const Try<double>& result = usage.get();
+    Try<double> result = usage.get();
 
     if (result.isSome()) {
       double use = result.get();

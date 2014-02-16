@@ -383,11 +383,12 @@ Future<ResourceStatistics> CgroupsCpushareIsolatorProcess::usage(
 
   // TODO(bmahler): Add namespacing to cgroups to enforce the expected
   // structure, e.g., cgroups::cpuacct::stat.
-  if (stat.get().contains("user") && stat.get().contains("system")) {
-    result.set_cpus_user_time_secs(
-        (double) stat.get()["user"] / (double) ticks);
-    result.set_cpus_system_time_secs(
-        (double) stat.get()["system"] / (double) ticks);
+  Option<uint64_t> user = stat.get().get("user");
+  Option<uint64_t> system = stat.get().get("system");
+
+  if (user.isSome() && system.isSome()) {
+    result.set_cpus_user_time_secs((double) user.get() / (double) ticks);
+    result.set_cpus_system_time_secs((double) system.get() / (double) ticks);
   }
 
   // Add the cpu.stat information.
@@ -397,19 +398,20 @@ Future<ResourceStatistics> CgroupsCpushareIsolatorProcess::usage(
     return Failure("Failed to read cpu.stat: " + stat.error());
   }
 
-  if (stat.get().contains("nr_periods")) {
-    result.set_cpus_nr_periods(
-        (uint32_t) stat.get()["nr_periods"]);
+  Option<uint64_t> nr_periods = stat.get().get("nr_periods");
+  if (nr_periods.isSome()) {
+    result.set_cpus_nr_periods(nr_periods.get());
   }
 
-  if (stat.get().contains("nr_throttled")) {
-    result.set_cpus_nr_throttled(
-        (uint32_t) stat.get()["nr_throttled"]);
+  Option<uint64_t> nr_throttled = stat.get().get("nr_throttled");
+  if (nr_throttled.isSome()) {
+    result.set_cpus_nr_throttled(nr_throttled.get());
   }
 
-  if (stat.get().contains("throttled_time")) {
+  Option<uint64_t> throttled_time = stat.get().get("throttled_time");
+  if (throttled_time.isSome()) {
     result.set_cpus_throttled_time_secs(
-        Nanoseconds(stat.get()["throttled_time"]).secs());
+        Nanoseconds(throttled_time.get()).secs());
   }
 
   return result;

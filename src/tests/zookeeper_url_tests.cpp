@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+#include <stout/gtest.hpp>
 #include <stout/try.hpp>
 
 #include "zookeeper/url.hpp"
@@ -26,13 +27,13 @@ TEST(ZooKeeper, URL)
 {
   Try<zookeeper::URL> url =
     zookeeper::URL::parse("zk://host1:port1");
-  EXPECT_FALSE(url.isError());
+  EXPECT_SOME(url);
   EXPECT_TRUE(url.get().authentication.isNone());
   EXPECT_EQ("host1:port1", url.get().servers);
   EXPECT_EQ("/", url.get().path);
 
   url = zookeeper::URL::parse("zk://jake:1@host1:port1");
-  EXPECT_FALSE(url.isError());
+  EXPECT_SOME(url);
   EXPECT_FALSE(url.get().authentication.isNone());
   EXPECT_EQ("digest", url.get().authentication.get().scheme);
   EXPECT_EQ("jake:1", url.get().authentication.get().credentials);
@@ -40,7 +41,7 @@ TEST(ZooKeeper, URL)
   EXPECT_EQ("/", url.get().path);
 
   url = zookeeper::URL::parse("zk://jake:1@host1:port1/");
-  EXPECT_FALSE(url.isError());
+  EXPECT_SOME(url);
   EXPECT_FALSE(url.get().authentication.isNone());
   EXPECT_EQ("digest", url.get().authentication.get().scheme);
   EXPECT_EQ("jake:1", url.get().authentication.get().credentials);
@@ -48,7 +49,7 @@ TEST(ZooKeeper, URL)
   EXPECT_EQ("/", url.get().path);
 
   url = zookeeper::URL::parse("zk://jake:1@host1:port1,host2:port2");
-  EXPECT_FALSE(url.isError());
+  EXPECT_SOME(url);
   EXPECT_FALSE(url.get().authentication.isNone());
   EXPECT_EQ("digest", url.get().authentication.get().scheme);
   EXPECT_EQ("jake:1", url.get().authentication.get().credentials);
@@ -56,7 +57,7 @@ TEST(ZooKeeper, URL)
   EXPECT_EQ("/", url.get().path);
 
   url = zookeeper::URL::parse("zk://jake:1@host1:port1,host2:port2/");
-  EXPECT_FALSE(url.isError());
+  EXPECT_SOME(url);
   EXPECT_FALSE(url.get().authentication.isNone());
   EXPECT_EQ("digest", url.get().authentication.get().scheme);
   EXPECT_EQ("jake:1", url.get().authentication.get().credentials);
@@ -65,7 +66,7 @@ TEST(ZooKeeper, URL)
 
   url =
     zookeeper::URL::parse("zk://jake:1@host1:port1,host2:port2/path/to/znode");
-  EXPECT_FALSE(url.isError());
+  EXPECT_SOME(url);
   EXPECT_FALSE(url.get().authentication.isNone());
   EXPECT_EQ("digest", url.get().authentication.get().scheme);
   EXPECT_EQ("jake:1", url.get().authentication.get().credentials);

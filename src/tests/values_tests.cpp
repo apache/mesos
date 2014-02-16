@@ -23,6 +23,7 @@
 
 #include <mesos/values.hpp>
 
+#include <stout/gtest.hpp>
 #include <stout/try.hpp>
 
 #include "master/master.hpp"
@@ -71,18 +72,14 @@ TEST(ValuesTest, ValidInput)
 TEST(ValuesTest, InvalidInput)
 {
   // Test when '{' doesn't match.
-  Try<Value> result1 = parse("{aa,b}}");
-  ASSERT_TRUE(result1.isError());
+  EXPECT_ERROR(parse("{aa,b}}"));
 
   // Test when '[' doesn't match.
-  Try<Value> result2 = parse("[1-2]]");
-  ASSERT_TRUE(result2.isError());
+  EXPECT_ERROR(parse("[1-2]]"));
 
   // Test when range is not numeric.
-  Try<Value> result3 = parse("[1-2b]");
-  ASSERT_TRUE(result3.isError());
+  EXPECT_ERROR(parse("[1-2b]"));
 
   // Test when giving empty string.
-  Try<Value> result6 = parse("  ");
-  ASSERT_TRUE(result6.isError());
+  EXPECT_ERROR(parse("  "));
 }
