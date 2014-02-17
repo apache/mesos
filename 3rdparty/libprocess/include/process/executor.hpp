@@ -13,12 +13,14 @@
 
 namespace process {
 
+namespace internal {
+
 // Underlying "process" which handles invoking actual callbacks
 // created through an Executor.
 class ExecutorProcess : public Process<ExecutorProcess>
 {
 private:
-  friend class Executor;
+  friend class process::Executor;
 
   ExecutorProcess() : ProcessBase(ID::generate("__executor__")) {}
   virtual ~ExecutorProcess() {}
@@ -43,6 +45,8 @@ private:
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
 };
+
+} // namespace internal {
 
 
 // Provides an abstraction that can take a standard function object
@@ -222,30 +226,30 @@ private:
   Executor& operator = (const Executor&);
 
   static void dispatcher(
-      const PID<ExecutorProcess>& pid,
+      const PID<internal::ExecutorProcess>& pid,
       const std::tr1::function<void(void)>& f)
   {
     // TODO(benh): Why not just use internal::dispatch?
-    dispatch(pid, &ExecutorProcess::invoke, f);
+    dispatch(pid, &internal::ExecutorProcess::invoke, f);
   }
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename A)>                                 \
   static void CAT(dispatcher, N)(                                       \
-      const PID<ExecutorProcess>& pid,                                  \
+      const PID<internal::ExecutorProcess>& pid,                        \
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f,             \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
   {                                                                     \
     dispatch(                                                           \
         pid,                                                            \
-        &ExecutorProcess::CAT(invoke, N)<ENUM_PARAMS(N, A)>,            \
+        &internal::ExecutorProcess::CAT(invoke, N)<ENUM_PARAMS(N, A)>,  \
         f, ENUM_PARAMS(N, a));                                          \
   }
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
 
-  ExecutorProcess process;
+  internal::ExecutorProcess process;
 };
 
 
