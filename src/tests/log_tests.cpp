@@ -37,12 +37,15 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/stopwatch.hpp>
 #include <stout/try.hpp>
 
 #include "log/catchup.hpp"
 #include "log/coordinator.hpp"
+#include "log/leveldb.hpp"
 #include "log/log.hpp"
 #include "log/network.hpp"
+#include "log/storage.hpp"
 #include "log/recover.hpp"
 #include "log/replica.hpp"
 #include "log/tool/initialize.hpp"
@@ -116,6 +119,198 @@ TEST(NetworkTest, Watch)
 
   AWAIT_READY(future);
   EXPECT_EQ(1u, future.get());
+}
+
+
+template <typename T>
+class LogStorageTest : public TemporaryDirectoryTest {};
+
+
+typedef ::testing::Types<LevelDBStorage> LogStorageTypes;
+
+
+TYPED_TEST_CASE(LogStorageTest, LogStorageTypes);
+
+
+TYPED_TEST(LogStorageTest, Truncate)
+{
+  TypeParam storage;
+
+  Try<Storage::State> state = storage.restore(os::getcwd() + "/.log");
+  ASSERT_SOME(state);
+
+  EXPECT_EQ(Metadata::EMPTY, state.get().metadata.status());
+  EXPECT_EQ(0u, state.get().metadata.promised());
+  EXPECT_EQ(0u, state.get().begin);
+  EXPECT_EQ(0u, state.get().end);
+
+  // Append from position 0 to position 9.
+  for (uint64_t i = 0; i < 10; i++) {
+    Action action;
+    action.set_position(i);
+    action.set_promised(1);
+    action.set_performed(1);
+    action.set_learned(true);
+    action.set_type(Action::APPEND);
+    action.mutable_append()->set_bytes(stringify(i));
+
+    ASSERT_SOME(storage.persist(action));
+  }
+
+  for (uint64_t i = 0; i < 10; i++) {
+    Try<Action> action = storage.read(i);
+    ASSERT_SOME(action);
+
+    EXPECT_EQ(i, action.get().position());
+    EXPECT_EQ(1u, action.get().promised());
+    EXPECT_EQ(1u, action.get().performed());
+    EXPECT_TRUE(action.get().learned());
+    EXPECT_EQ(Action::APPEND, action.get().type());
+    ASSERT_TRUE(action.get().has_append());
+    EXPECT_EQ(stringify(i), action.get().append().bytes());
+  }
+
+  // Truncate to position 3 (at position 10).
+  Action truncate;
+  truncate.set_position(10);
+  truncate.set_promised(1);
+  truncate.set_performed(1);
+  truncate.set_learned(true);
+  truncate.set_type(Action::TRUNCATE);
+  truncate.mutable_truncate()->set_to(3);
+
+  ASSERT_SOME(storage.persist(truncate));
+
+  for (uint64_t i = 0; i < 11; i++) {
+    Try<Action> action = storage.read(i);
+
+    if (i < 3) {
+      // Position 0, 1 and 2 have been truncated.
+      EXPECT_ERROR(action);
+    } else if (i == 10) {
+      // Position 10 is a truncate.
+      EXPECT_EQ(i, action.get().position());
+      EXPECT_EQ(1u, action.get().promised());
+      EXPECT_EQ(1u, action.get().performed());
+      EXPECT_TRUE(action.get().learned());
+      EXPECT_EQ(Action::TRUNCATE, action.get().type());
+      ASSERT_TRUE(action.get().has_truncate());
+      EXPECT_EQ(3u, action.get().truncate().to());
+    } else {
+      EXPECT_EQ(i, action.get().position());
+      EXPECT_EQ(1u, action.get().promised());
+      EXPECT_EQ(1u, action.get().performed());
+      EXPECT_TRUE(action.get().learned());
+      EXPECT_EQ(Action::APPEND, action.get().type());
+      ASSERT_TRUE(action.get().has_append());
+      EXPECT_EQ(stringify(i), action.get().append().bytes());
+    }
+  }
+
+  // Truncate to position 10 (at position 11).
+  truncate.set_position(11);
+  truncate.set_promised(1);
+  truncate.set_performed(1);
+  truncate.set_learned(true);
+  truncate.set_type(Action::TRUNCATE);
+  truncate.mutable_truncate()->set_to(10);
+
+  ASSERT_SOME(storage.persist(truncate));
+
+  for (uint64_t i = 0; i < 12; i++) {
+    Try<Action> action = storage.read(i);
+
+    if (i < 10) {
+      // Position 0 to 9 have been truncated.
+      EXPECT_ERROR(action);
+    } else if (i == 10) {
+      // Position 10 is a truncate (to position 3).
+      EXPECT_EQ(i, action.get().position());
+      EXPECT_EQ(1u, action.get().promised());
+      EXPECT_EQ(1u, action.get().performed());
+      EXPECT_TRUE(action.get().learned());
+      EXPECT_EQ(Action::TRUNCATE, action.get().type());
+      ASSERT_TRUE(action.get().has_truncate());
+      EXPECT_EQ(3u, action.get().truncate().to());
+    } else if (i == 11) {
+      // Position 11 is a truncate (to position 10).
+      EXPECT_EQ(i, action.get().position());
+      EXPECT_EQ(1u, action.get().promised());
+      EXPECT_EQ(1u, action.get().performed());
+      EXPECT_TRUE(action.get().learned());
+      EXPECT_EQ(Action::TRUNCATE, action.get().type());
+      ASSERT_TRUE(action.get().has_truncate());
+      EXPECT_EQ(10u, action.get().truncate().to());
+    }
+  }
+}
+
+
+TYPED_TEST(LogStorageTest, TruncateWithEmptyLog)
+{
+  TypeParam storage;
+
+  Try<Storage::State> state = storage.restore(os::getcwd() + "/.log");
+  ASSERT_SOME(state);
+
+  Action truncate;
+  truncate.set_position(1);
+  truncate.set_promised(1);
+  truncate.set_performed(1);
+  truncate.set_learned(true);
+  truncate.set_type(Action::TRUNCATE);
+  truncate.mutable_truncate()->set_to(0);
+
+  ASSERT_SOME(storage.persist(truncate));
+
+  Try<Action> action0 = storage.read(0);
+  EXPECT_ERROR(action0);
+
+  Try<Action> action1 = storage.read(1);
+  EXPECT_EQ(1u, action1.get().position());
+  EXPECT_EQ(1u, action1.get().promised());
+  EXPECT_EQ(1u, action1.get().performed());
+  EXPECT_TRUE(action1.get().learned());
+  EXPECT_EQ(Action::TRUNCATE, action1.get().type());
+  ASSERT_TRUE(action1.get().has_truncate());
+  EXPECT_EQ(0u, action1.get().truncate().to());
+}
+
+
+TYPED_TEST(LogStorageTest, TruncateWithManyHoles)
+{
+  TypeParam storage;
+
+  Try<Storage::State> state = storage.restore(os::getcwd() + "/.log");
+  ASSERT_SOME(state);
+
+  Action truncate;
+  truncate.set_position(600020000);
+  truncate.set_promised(1);
+  truncate.set_performed(1);
+  truncate.set_learned(true);
+  truncate.set_type(Action::TRUNCATE);
+  truncate.mutable_truncate()->set_to(600000000);
+
+  // Measure the time taken for the truncation.
+  Stopwatch stopwatch;
+  stopwatch.start();
+
+  ASSERT_SOME(storage.persist(truncate));
+
+  // This truncation should not take much time because no position is
+  // actually being truncated.
+  EXPECT_GT(Seconds(1), stopwatch.elapsed());
+
+  Try<Action> action = storage.read(600020000);
+
+  EXPECT_EQ(600020000u, action.get().position());
+  EXPECT_EQ(1u, action.get().promised());
+  EXPECT_EQ(1u, action.get().performed());
+  EXPECT_TRUE(action.get().learned());
+  EXPECT_EQ(Action::TRUNCATE, action.get().type());
+  ASSERT_TRUE(action.get().has_truncate());
+  EXPECT_EQ(600000000u, action.get().truncate().to());
 }
 
 
