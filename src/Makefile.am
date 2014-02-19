@@ -82,6 +82,7 @@ MESOS_CPPFLAGS += -I../include
 MESOS_CPPFLAGS += -I../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(GLOG)/src
+MESOS_CPPFLAGS += -I../$(LEVELDB)/include
 
 if WITH_INCLUDED_ZOOKEEPER
   MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/include
@@ -328,7 +329,7 @@ liblog_la_SOURCES +=							\
   messages/log.hpp							\
   messages/log.proto
 nodist_liblog_la_SOURCES = $(LOG_PROTOS)
-liblog_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
+liblog_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
 libmesos_no_3rdparty_la_LIBADD += liblog.la
 
@@ -346,7 +347,7 @@ libstate_la_SOURCES +=							\
   messages/state.hpp							\
   messages/state.proto
 nodist_libstate_la_SOURCES = $(STATE_PROTOS)
-libstate_la_CPPFLAGS = -I../$(LEVELDB)/include $(MESOS_CPPFLAGS)
+libstate_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
 libmesos_no_3rdparty_la_LIBADD += libstate.la
 
