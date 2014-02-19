@@ -31,6 +31,7 @@ libprocess_la_SOURCES =		\
   src/decoder.hpp		\
   src/encoder.hpp		\
   src/gate.hpp			\
+  src/http.cpp			\
   src/latch.cpp			\
   src/pid.cpp			\
   src/process.cpp		\
