@@ -103,23 +103,27 @@ static string encode(uint64_t position, bool adjust = true)
 // Returns the position as represented in the specified slice
 // (performing a decrement as necessary to determine the actual
 // position represented).
-static uint64_t decode(const leveldb::Slice& s)
-{
-  // TODO(benh): Use varint decoding for VarInt64Comparator!
-  // uint64_t position;
-  // google::protobuf::io::ArrayInputStream _stream(s.data(), s.size());
-  // google::protobuf::io::CodedInputStream stream(&_stream);
-  // bool success = stream.ReadVarint64(&position);
-  // CHECK(success);
-  // return position - 1; // Actual position is less 1 of stringified.
-  Try<uint64_t> position = numify<uint64_t>(string(s.data(), s.size()));
-  CHECK_SOME(position);
-  return position.get() - 1; // Actual position is less 1 of stringified.
-}
+// TODO(jieyu): This function is not used (see RB-18252). However, we
+// still want to keep this function in case we need it in the future.
+// We comment it out to silence the warning (unused static function)
+// from the compiler.
+// static uint64_t decode(const leveldb::Slice& s)
+// {
+//   // TODO(benh): Use varint decoding for VarInt64Comparator!
+//   // uint64_t position;
+//   // google::protobuf::io::ArrayInputStream _stream(s.data(), s.size());
+//   // google::protobuf::io::CodedInputStream stream(&_stream);
+//   // bool success = stream.ReadVarint64(&position);
+//   // CHECK(success);
+//   // return position - 1; // Actual position is less 1 of stringified.
+//   Try<uint64_t> position = numify<uint64_t>(string(s.data(), s.size()));
+//   CHECK_SOME(position);
+//   return position.get() - 1; // Actual position is less 1 of stringified.
+// }
 
 
 LevelDBStorage::LevelDBStorage()
-  : db(NULL), first(0)
+  : db(NULL), first(None())
 {
   // Nothing to see here.
 }
@@ -241,6 +245,14 @@ Try<LevelDBStorage::State> LevelDBStorage::restore(const string& path)
           state.unlearned.insert(action.position());
         }
         state.end = std::max(state.end, action.position());
+
+        // Cache the first position in this replica so during a
+        // truncation, we can attempt to delete all positions from the
+        // first position up to the truncate position. Note that this
+        // is not the beginning position of the log, but rather the
+        // first position that remains (i.e., hasn't been deleted) in
+        // leveldb.
+        first = min(first, action.position());
         break;
       }
 
@@ -254,17 +266,6 @@ Try<LevelDBStorage::State> LevelDBStorage::restore(const string& path)
 
   LOG(INFO) << "Iterated through " << keys
             << " keys in the db in " << stopwatch.elapsed();
-
-  // Determine the first position still in leveldb so during a
-  // truncation we can attempt to delete all positions from the first
-  // position up to the truncate position. Note that this is not the
-  // beginning position of the log, but rather the first position that
-  // remains (i.e., hasn't been deleted) in leveldb.
-  iterator->Seek(encode(0));
-
-  if (iterator->Valid()) {
-    first = decode(iterator->key());
-  }
 
   delete iterator;
 
@@ -327,6 +328,12 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
     return Error(status.ToString());
   }
 
+  // Updated the first position. Notice that we use 'min' here instead
+  // of checking 'isNone()' because it's likely that log entries are
+  // written out of order during catch-up (e.g. if a random bulk
+  // catch-up policy is used).
+  first = min(first, action.position());
+
   LOG(INFO) << "Persisting action (" << value.size()
             << " bytes) to leveldb took " << stopwatch.elapsed();
 
@@ -356,11 +363,19 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
 
     leveldb::WriteBatch batch;
 
+    CHECK_SOME(first);
+
     // Add positions up to (but excluding) the truncate position to
-    // the batch starting at the first position still in leveldb.
+    // the batch starting at the first position still in leveldb. It's
+    // likely that the first position is greater than the truncate
+    // position (e.g., during catch-up). In that case, we do nothing
+    // because there is nothing we can truncate.
+    // TODO(jieyu): We might miss a truncation if we do random (i.e.,
+    // out of order) bulk catch-up and the truncate operation is
+    // caught up first.
     uint64_t index = 0;
-    while ((first + index) < action.truncate().to()) {
-      batch.Delete(encode(first + index));
+    while ((first.get() + index) < action.truncate().to()) {
+      batch.Delete(encode(first.get() + index));
       index++;
     }
 
@@ -373,7 +388,9 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
         LOG(WARNING) << "Ignoring leveldb batch delete failure: "
                      << status.ToString();
       } else {
-        first = action.truncate().to(); // Save the new first position!
+        // Save the new first position!
+        CHECK_LT(first.get(), action.truncate().to());
+        first = action.truncate().to();
 
         LOG(INFO) << "Deleting ~" << index
                   << " keys from leveldb took " << stopwatch.elapsed();
