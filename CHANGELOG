@@ -9,26 +9,19 @@ Release Notes - Mesos - Version 0.17.0
     * [MESOS-902] - add post to libprocess
 
 ** Bug
-    * [MESOS-280] - ExecutorDriver methods' javadocs should not be
-    * refering to SchedulerDriver methods
-    * [MESOS-533] - SlaveRecoveryTest/0.CleanupExecutor is flaky on
-    * Jenkins.
+    * [MESOS-280] - ExecutorDriver methods' javadocs should not be refering to SchedulerDriver methods
+    * [MESOS-533] - SlaveRecoveryTest/0.CleanupExecutor is flaky on Jenkins.
     * [MESOS-789] - Make link to times in the webui clickable
     * [MESOS-799] - Mesos python egg is faulty on OS X Mavericks
     * [MESOS-831] - script-without-shebang
-    * [MESOS-861] - FaultToleranceTest.FrameworkReliableRegistration
-    * could hang
-    * [MESOS-875] - A recovering slave should not ignore valid status
-    * updates.
-    * [MESOS-877] - Future::then and Promise::associate have memory
-    * leaks.
+    * [MESOS-861] - FaultToleranceTest.FrameworkReliableRegistration could hang
+    * [MESOS-875] - A recovering slave should not ignore valid status updates.
+    * [MESOS-877] - Future::then and Promise::associate have memory leaks.
     * [MESOS-897] - Cleanup of stout headers from fedora review
     * [MESOS-913] - Help endpoint does not work on slaves.
-    * [MESOS-916] - add .gitignore-template file for ./bootstrap
-    * generated files
+    * [MESOS-916] - add .gitignore-template file for ./bootstrap generated files
     * [MESOS-925] - remove --without-curl from libprocess
-    * [MESOS-941] - Memory limit not correctly set when no memory
-    * resource set on executor level
+    * [MESOS-941] - Memory limit not correctly set when no memory resource set on executor level
     * [MESOS-951] - Build failure: in log/catchup.cpp on Clang
 
 ** Documentation
@@ -37,22 +30,17 @@ Release Notes - Mesos - Version 0.17.0
 ** Improvement
     * [MESOS-749] - Add support for multiple offers in launchTasks
     * [MESOS-772] - expose count of running tasks
-    * [MESOS-827] - Create LOOP_FOR(duration) macro to guard testing
-    * loop from running indefinitely
-    * [MESOS-860] - Get mesos' libprocess dependency glog to compile
-    * with clang and libc++
-    * [MESOS-863] - Get mesos' libprocess dependency protobuf to
-    * compile with clang and libc++
-    * [MESOS-864] - Eliminate the use of internal stdlibc++ templates
-    * for achieving libc++ compatiblity
+    * [MESOS-827] - Create LOOP_FOR(duration) macro to guard testing loop from running indefinitely
+    * [MESOS-860] - Get mesos' libprocess dependency glog to compile with clang and libc++
+    * [MESOS-863] - Get mesos' libprocess dependency protobuf to compile with clang and libc++
+    * [MESOS-864] - Eliminate the use of internal stdlibc++ templates for achieving libc++ compatiblity
     * [MESOS-896] - Enable newer versions of http_parser.
 
 ** New Feature
     * [MESOS-736] - Support catch-up replicated log
 
 ** Task
-    * [MESOS-323] - Get mesos compiling with clang to open up path
-    * forward to c++11
+    * [MESOS-323] - Get mesos compiling with clang to open up path forward to c++11
     * [MESOS-519] - Deprecate and remove old monitoring endpoint.
 
 
