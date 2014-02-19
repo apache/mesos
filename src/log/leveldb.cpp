@@ -131,11 +131,11 @@ LevelDBStorage::LevelDBStorage()
 
 LevelDBStorage::~LevelDBStorage()
 {
-  delete db; // Might be null if open failed in LevelDBStorage::recover.
+  delete db; // Might be null if open failed in LevelDBStorage::restore.
 }
 
 
-Try<LevelDBStorage::State> LevelDBStorage::restore(const string& path)
+Try<Storage::State> LevelDBStorage::restore(const string& path)
 {
   leveldb::Options options;
   options.create_if_missing = true;
