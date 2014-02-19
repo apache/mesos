@@ -520,11 +520,18 @@ struct TaskComparator
 {
   static bool ascending(const Task* lhs, const Task* rhs)
   {
-    if (lhs->statuses().size() == 0) {
+    size_t lhsSize = lhs->statuses().size();
+    size_t rhsSize = rhs->statuses().size();
+
+    if ((lhsSize == 0) && (rhsSize == 0)) {
+      return false;
+    }
+
+    if (lhsSize == 0) {
       return true;
     }
 
-    if (rhs->statuses().size() == 0) {
+    if (rhsSize == 0) {
       return false;
     }
 
@@ -533,7 +540,22 @@ struct TaskComparator
 
   static bool descending(const Task* lhs, const Task* rhs)
   {
-    return !ascending(lhs, rhs);
+    size_t lhsSize = lhs->statuses().size();
+    size_t rhsSize = rhs->statuses().size();
+
+    if ((lhsSize == 0) && (rhsSize == 0)) {
+      return false;
+    }
+
+    if (rhsSize == 0) {
+      return true;
+    }
+
+    if (lhsSize == 0) {
+      return false;
+    }
+
+    return (lhs->statuses(0).timestamp() > rhs->statuses(0).timestamp());
   }
 };
 

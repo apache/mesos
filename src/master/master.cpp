@@ -546,12 +546,9 @@ void Master::initialize()
   route("/roles.json",
         None(),
         lambda::bind(&Http::roles, http, lambda::_1));
-
-  // TODO(vinod): This route has been temporarily disabled due to
-  // MESOS-979.
-//  route("/tasks.json",
-//        Http::TASKS_HELP,
-//        lambda::bind(&Http::tasks, http, lambda::_1));
+  route("/tasks.json",
+        Http::TASKS_HELP,
+        lambda::bind(&Http::tasks, http, lambda::_1));
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the
