@@ -52,13 +52,14 @@ struct False;
 struct Null;
 
 
-typedef boost::variant<boost::recursive_wrapper<String>,
+// Null needs to be first so that it is the default value.
+typedef boost::variant<boost::recursive_wrapper<Null>,
+                       boost::recursive_wrapper<String>,
                        boost::recursive_wrapper<Number>,
                        boost::recursive_wrapper<Object>,
                        boost::recursive_wrapper<Array>,
                        boost::recursive_wrapper<True>,
-                       boost::recursive_wrapper<False>,
-                       boost::recursive_wrapper<Null> > Value;
+                       boost::recursive_wrapper<False> > Value;
 
 
 struct String

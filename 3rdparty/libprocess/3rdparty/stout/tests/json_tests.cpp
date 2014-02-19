@@ -10,6 +10,13 @@
 using std::string;
 
 
+TEST(JsonTest, DefaultValueIsNull)
+{
+  JSON::Value v;
+  EXPECT_EQ("null", stringify(v));
+}
+
+
 TEST(JsonTest, BinaryData)
 {
   JSON::String s(string("\"\\/\b\f\n\r\t\x00\x19 !#[]\x7F\xFF", 17));
