@@ -16,5 +16,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cd "`dirname $0`"
+cd "$(dirname $0)"
+
+#alias python="python26"
+
+#check for the proper python version 
+v=$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+
+
+if [ $( echo "$v -lt 2.6" | bc ) ]; then
+    echo "mesos requiers python 2.6 or higher"
+    exit 2
+fi
+
 PYTHONPATH="$PYTHONPATH:../third_party/boto-2.0b2.zip/boto-2.0b2" python ./mesos_ec2.py $@
