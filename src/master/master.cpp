@@ -190,6 +190,7 @@ private:
 Master::Master(
     Allocator* _allocator,
     Registrar* _registrar,
+    Repairer* _repairer,
     Files* _files,
     MasterContender* _contender,
     MasterDetector* _detector,
@@ -199,6 +200,7 @@ Master::Master(
     flags(_flags),
     allocator(_allocator),
     registrar(_registrar),
+    repairer(_repairer),
     files(_files),
     contender(_contender),
     detector(_detector),

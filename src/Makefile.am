@@ -172,6 +172,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/registry.hpp						\
 	master/registry.proto                                           \
 	master/registrar.cpp						\
+	master/repairer.cpp						\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
 	slave/monitor.cpp						\

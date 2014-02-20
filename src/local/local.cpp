@@ -39,6 +39,7 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
+#include "master/repairer.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/slave.hpp"
@@ -56,6 +57,7 @@ using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
 
 using mesos::internal::master::Master;
 using mesos::internal::master::Registrar;
+using mesos::internal::master::Repairer;
 
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Slave;
@@ -78,6 +80,7 @@ static AllocatorProcess* allocatorProcess = NULL;
 static state::Storage* storage = NULL;
 static state::protobuf::State* state = NULL;
 static Registrar* registrar = NULL;
+static Repairer* repairer = NULL;
 static Master* master = NULL;
 static map<Containerizer*, Slave*> slaves;
 static StandaloneMasterDetector* detector = NULL;
@@ -127,12 +130,19 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     state = new state::protobuf::State(storage);
     registrar = new Registrar(state);
+    repairer = new Repairer();
 
     contender = new StandaloneMasterContender();
     detector = new StandaloneMasterDetector();
     master =
-      new Master(_allocator, registrar, files, contender, detector, flags);
-
+      new Master(
+        _allocator,
+        registrar,
+        repairer,
+        files,
+        contender,
+        detector,
+        flags);
     detector->appoint(master->info());
   }
 
@@ -203,6 +213,9 @@ void shutdown()
 
     delete registrar;
     registrar = NULL;
+
+    delete repairer;
+    repairer = NULL;
 
     delete state;
     state = NULL;

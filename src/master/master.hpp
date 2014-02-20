@@ -72,6 +72,7 @@ class Allocator;
 
 }
 
+class Repairer;
 class SlaveObserver;
 class WhitelistWatcher;
 
@@ -86,6 +87,7 @@ class Master : public ProtobufProcess<Master>
 public:
   Master(allocator::Allocator* allocator,
          Registrar* registrar,
+         Repairer* repairer,
          Files* files,
          MasterContender* contender,
          MasterDetector* detector,
@@ -333,6 +335,7 @@ private:
   allocator::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;
   Registrar* registrar;
+  Repairer* repairer;
   Files* files;
 
   MasterContender* contender;

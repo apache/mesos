@@ -42,6 +42,7 @@
 #include "master/flags.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
+#include "master/repairer.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/containerizer/containerizer.hpp"
@@ -115,6 +116,7 @@ public:
       state::Storage* storage;
       state::protobuf::State* state;
       master::Registrar* registrar;
+      master::Repairer* repairer;
       MasterContender* contender;
       MasterDetector* detector;
     };
@@ -261,6 +263,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 
   master.state = new state::protobuf::State(master.storage);
   master.registrar = new master::Registrar(master.state);
+  master.repairer = new master::Repairer();
 
   if (url.isSome()) {
     master.contender = new ZooKeeperMasterContender(url.get());
@@ -273,6 +276,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   master.master = new master::Master(
       master.allocator,
       master.registrar,
+      master.repairer,
       &cluster->files,
       master.contender,
       master.detector,
@@ -321,6 +325,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 
   master.state = new state::protobuf::State(master.storage);
   master.registrar = new master::Registrar(master.state);
+  master.repairer = new master::Repairer();
 
   if (url.isSome()) {
     master.contender = new ZooKeeperMasterContender(url.get());
@@ -333,6 +338,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   master.master = new master::Master(
       master.allocator,
       master.registrar,
+      master.repairer,
       &cluster->files,
       master.contender,
       master.detector,
@@ -369,6 +375,7 @@ inline Try<Nothing> Cluster::Masters::stop(
   delete master.allocatorProcess; // May be NULL.
 
   delete master.registrar;
+  delete master.repairer;
   delete master.state;
   delete master.storage;
 

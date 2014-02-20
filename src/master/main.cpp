@@ -41,6 +41,7 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
+#include "master/repairer.hpp"
 
 #include "state/leveldb.hpp"
 #include "state/protobuf.hpp"
@@ -157,6 +158,7 @@ int main(int argc, char** argv)
 
   state::protobuf::State* state = new state::protobuf::State(storage);
   Registrar* registrar = new Registrar(state);
+  Repairer* repairer = new Repairer();
 
   Files files;
 
@@ -177,8 +179,15 @@ int main(int argc, char** argv)
 
   LOG(INFO) << "Starting Mesos master";
 
-  Master* master = new Master(
-      allocator, registrar, &files, contender, detector, flags);
+  Master* master =
+    new Master(
+      allocator,
+      registrar,
+      repairer,
+      &files,
+      contender,
+      detector,
+      flags);
 
   if (zk == "") {
     // It means we are using the standalone detector so we need to
@@ -194,6 +203,7 @@ int main(int argc, char** argv)
   delete allocatorProcess;
 
   delete registrar;
+  delete repairer;
   delete state;
   delete storage;
 
