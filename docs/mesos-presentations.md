@@ -5,6 +5,10 @@ layout: documentation
 # Video and Slides of Mesos Presentations
 _(Listed in date descending order)_
 
+### Apache Mesos as an SDK for Building Distributed Frameworks ([Slides](http://www.slideshare.net/pacoid/strata-sc-2014-apache-mesos-as-an-sdk-for-building-distributed-frameworks))
+Paco Nathan
+Presented February 13th, 2014 at [Strata](http://strataconf.com/)
+
 ### Run your data center like Google's with Apache Mesos ([Video + Demo](https://www.youtube.com/watch?v=2YWVGMuMTrg)) 
 Abhishek Parolkar
 Presented November 14th, 2013 at [Cloud Expo Asia 2013](http://www.cloudexpoasia.com/)
