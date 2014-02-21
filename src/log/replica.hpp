@@ -23,11 +23,12 @@
 
 #include <list>
 #include <string>
-#include <vector>
 
 #include <process/future.hpp>
 #include <process/pid.hpp>
 #include <process/protobuf.hpp>
+
+#include <stout/interval.hpp>
 
 #include "messages/log.hpp"
 
@@ -72,8 +73,9 @@ public:
   process::Future<bool> missing(uint64_t position) const;
 
   // Returns missing positions in the log (i.e., unlearned or holes)
-  // within the specified range [from, to].
-  process::Future<std::vector<uint64_t> > missing(
+  // within the specified range [from, to]. We use interval set, a
+  // more compact representation of set, to store missing positions.
+  process::Future<IntervalSet<uint64_t> > missing(
       uint64_t from,
       uint64_t to) const;
 

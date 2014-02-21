@@ -23,8 +23,7 @@
 
 #include <string>
 
-#include <boost/icl/interval_set.hpp>
-
+#include <stout/interval.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
@@ -44,11 +43,11 @@ public:
     uint64_t begin; // Beginning position of the log.
     uint64_t end; // Ending position of the log.
 
-    // Note that here we use boost interval set to store learned and
-    // unlearned positions in a more compact way. Adjacent positions
-    // will be merged and represented using an interval.
-    boost::icl::interval_set<uint64_t> learned;
-    boost::icl::interval_set<uint64_t> unlearned;
+    // Note that we use interval set here to store learned/unlearned
+    // positions in a more compact way. Adjacent positions will be
+    // merged and represented using an interval.
+    IntervalSet<uint64_t> learned;
+    IntervalSet<uint64_t> unlearned;
   };
 
   virtual ~Storage() {}

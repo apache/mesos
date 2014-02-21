@@ -21,12 +21,11 @@
 
 #include <stdint.h>
 
-#include <vector>
-
 #include <process/future.hpp>
 #include <process/shared.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/interval.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 
@@ -50,7 +49,7 @@ extern process::Future<Nothing> catchup(
     const process::Shared<Replica>& replica,
     const process::Shared<Network>& network,
     const Option<uint64_t>& proposal,
-    const std::vector<uint64_t>& positions,
+    const IntervalSet<uint64_t>& positions,
     const Duration& timeout = Seconds(10));
 
 } // namespace log {

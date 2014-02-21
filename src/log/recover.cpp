@@ -20,7 +20,6 @@
 #include <stdlib.h>
 
 #include <set>
-#include <vector>
 
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -43,7 +42,6 @@
 using namespace process;
 
 using std::set;
-using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -336,17 +334,13 @@ private:
     CHECK(highestEndPosition.isSome());
     CHECK_LE(lowestBeginPosition.get(), highestEndPosition.get());
 
-    uint64_t begin = lowestBeginPosition.get();
-    uint64_t end = highestEndPosition.get();
-
     LOG(INFO) << "Starting catch-up from position "
               << lowestBeginPosition.get() << " to "
               << highestEndPosition.get();
 
-    vector<uint64_t> positions;
-    for (uint64_t p = begin; p <= end; ++p) {
-      positions.push_back(p);
-    }
+    IntervalSet<uint64_t> positions(
+        Bound<uint64_t>::closed(lowestBeginPosition.get()),
+        Bound<uint64_t>::closed(highestEndPosition.get()));
 
     // Share the ownership of the replica. From this point until the
     // point where the ownership of the replica is regained, we should

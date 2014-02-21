@@ -36,7 +36,6 @@
 using namespace process;
 
 using std::list;
-using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -180,7 +179,7 @@ public:
       const Shared<Replica>& _replica,
       const Shared<Network>& _network,
       uint64_t _proposal,
-      const vector<uint64_t>& _positions,
+      const Interval<uint64_t>& _positions,
       const Duration& _timeout)
     : ProcessBase(ID::generate("log-bulk-catch-up")),
       quorum(_quorum),
@@ -202,7 +201,7 @@ protected:
         static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
     // Catch-up sequentially.
-    it = positions.begin();
+    current = positions.lower();
 
     catchup();
   }
@@ -224,7 +223,9 @@ private:
 
   void catchup()
   {
-    if (it == positions.end()) {
+    if (current >= positions.upper()) {
+      // Stop the process if there is nothing left to catch-up. This
+      // also handles the case where the input interval is empty.
       promise.set(Nothing());
       terminate(self());
       return;
@@ -232,7 +233,7 @@ private:
 
     // Store the future so that we can discard it if the user wants to
     // cancel the catch-up operation.
-    catching = log::catchup(quorum, replica, network, proposal, *it)
+    catching = log::catchup(quorum, replica, network, proposal, current)
       .onDiscarded(defer(self(), &Self::discarded))
       .onFailed(defer(self(), &Self::failed))
       .onReady(defer(self(), &Self::succeeded));
@@ -243,7 +244,7 @@ private:
 
   void discarded()
   {
-    LOG(INFO) << "Unable to catch-up position " << *it
+    LOG(INFO) << "Unable to catch-up position " << current
               << " in " << timeout << ", retrying";
 
     catchup();
@@ -252,7 +253,7 @@ private:
   void failed()
   {
     promise.fail(
-        "Failed to catch-up position " + stringify(*it) +
+        "Failed to catch-up position " + stringify(current) +
         ": " + catching.failure());
 
     terminate(self());
@@ -260,7 +261,7 @@ private:
 
   void succeeded()
   {
-    ++it;
+    ++current;
 
     // The single position catch-up function: 'log::catchup' will
     // return the highest proposal number seen so far. We use this
@@ -275,28 +276,23 @@ private:
   const size_t quorum;
   const Shared<Replica> replica;
   const Shared<Network> network;
-  const vector<uint64_t> positions;
+  const Interval<uint64_t> positions;
   const Duration timeout;
 
   uint64_t proposal;
-  vector<uint64_t>::const_iterator it;
+  uint64_t current;
 
   process::Promise<Nothing> promise;
   Future<uint64_t> catching;
 };
 
 
-/////////////////////////////////////////////////
-// Public interfaces below.
-/////////////////////////////////////////////////
-
-
-Future<Nothing> catchup(
+static Future<Nothing> catchup(
     size_t quorum,
     const Shared<Replica>& replica,
     const Shared<Network>& network,
     const Option<uint64_t>& proposal,
-    const vector<uint64_t>& positions,
+    const Interval<uint64_t>& positions,
     const Duration& timeout)
 {
   BulkCatchUpProcess* process =
@@ -310,6 +306,46 @@ Future<Nothing> catchup(
 
   Future<Nothing> future = process->future();
   spawn(process, true);
+  return future;
+}
+
+
+/////////////////////////////////////////////////
+// Public interfaces below.
+/////////////////////////////////////////////////
+
+
+Future<Nothing> catchup(
+    size_t quorum,
+    const Shared<Replica>& replica,
+    const Shared<Network>& network,
+    const Option<uint64_t>& proposal,
+    const IntervalSet<uint64_t>& positions,
+    const Duration& timeout)
+{
+  // Necessary to disambiguate overloaded functions.
+  Future<Nothing> (*f)(
+      size_t quorum,
+      const Shared<Replica>& replica,
+      const Shared<Network>& network,
+      const Option<uint64_t>& proposal,
+      const Interval<uint64_t>& positions,
+      const Duration& timeout) = &catchup;
+
+  Future<Nothing> future = Nothing();
+
+  foreach (const Interval<uint64_t>& interval, positions) {
+    future = future.then(
+        lambda::bind(
+            f,
+            quorum,
+            replica,
+            network,
+            proposal,
+            interval,
+            timeout));
+  }
+
   return future;
 }
 
