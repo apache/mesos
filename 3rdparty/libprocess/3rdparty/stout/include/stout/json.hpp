@@ -21,6 +21,8 @@
 #include <map>
 #include <string>
 
+#include <boost/type_traits/is_arithmetic.hpp>
+#include <boost/utility/enable_if.hpp>
 #include <boost/variant.hpp>
 
 #include <stout/foreach.hpp>
@@ -43,23 +45,17 @@ namespace JSON {
 // (although, this does pay a 2x cost when compiling thanks to all the
 // extra template instantiations).
 
+// Note that all of these forward declarations are not necessary
+// but it serves to document the set of types which are available.
 struct String;
 struct Number;
 struct Object;
 struct Array;
 struct True;
 struct False;
+struct Boolean;
 struct Null;
-
-
-// Null needs to be first so that it is the default value.
-typedef boost::variant<boost::recursive_wrapper<Null>,
-                       boost::recursive_wrapper<String>,
-                       boost::recursive_wrapper<Number>,
-                       boost::recursive_wrapper<Object>,
-                       boost::recursive_wrapper<Array>,
-                       boost::recursive_wrapper<True>,
-                       boost::recursive_wrapper<False> > Value;
+struct Value;
 
 
 struct String
@@ -91,13 +87,76 @@ struct Array
 };
 
 
-struct True {};
+struct Boolean
+{
+  Boolean() : value(false) {}
+  Boolean(bool _value) : value(_value) {}
+  bool value;
+};
 
 
-struct False {};
+// This is a helper so you can say JSON::True() instead of
+// JSON::Boolean(true).
+struct True : Boolean
+{
+  True() : Boolean(true) {};
+};
+
+
+// This is a helper so you can say JSON::False() instead of
+// JSON::Boolean(false).
+struct False : Boolean
+{
+  False() : Boolean(false) {}
+};
 
 
 struct Null {};
+
+
+namespace internal {
+
+
+// Only Object and Array require recursive_wrapper, not sure
+// if there is a reason to wrap the others or not.
+// Null needs to be first so that it is the default value.
+typedef boost::variant<boost::recursive_wrapper<Null>,
+                       boost::recursive_wrapper<String>,
+                       boost::recursive_wrapper<Number>,
+                       boost::recursive_wrapper<Object>,
+                       boost::recursive_wrapper<Array>,
+                       boost::recursive_wrapper<Boolean> > Variant;
+
+} // namespace internal {
+
+
+struct Value : internal::Variant
+{
+  // Empty constructur gets the variant default.
+  Value() {}
+
+  // bool creates a JSON::Boolean explicitly.
+  Value(bool value) : internal::Variant(JSON::Boolean(value)) {}
+
+  // CStrings create a JSON::String explicitly.
+  Value(char* value) : internal::Variant(JSON::String(value)) {}
+  Value(const char* value) : internal::Variant(JSON::String(value)) {}
+
+  // Arithmetic types are specifically routed through Number because
+  // there would be ambiguity between JSON::Bool and JSON::Number otherwise.
+  template <typename T>
+  Value(
+      const T& value,
+      typename boost::enable_if<boost::is_arithmetic<T>, int>::type = 0)
+      : internal::Variant(Number(value)) {}
+
+  // Non-arithmetic types are passed to the default constructor of Variant.
+  template <typename T>
+  Value(
+      const T& value,
+      typename boost::disable_if<boost::is_arithmetic<T>, int>::type = 0)
+      : internal::Variant(value) {}
+};
 
 
 // Implementation of rendering JSON objects built above using standard
@@ -182,14 +241,9 @@ struct Renderer : boost::static_visitor<>
     out << "]";
   }
 
-  void operator () (const True&) const
+  void operator() (const Boolean& boolean) const
   {
-    out << "true";
-  }
-
-  void operator () (const False&) const
-  {
-    out << "false";
+    out << (boolean.value ? "true" : "false");
   }
 
   void operator () (const Null&) const
