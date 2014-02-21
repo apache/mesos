@@ -72,26 +72,47 @@ public:
 
 private:
   template <typename T>
-  struct Mutation : process::Promise<bool>
+  struct Operation : process::Promise<bool>
   {
-    virtual Try<T> apply(T t) = 0;
+    Operation() : success(false) {}
+
+    // Attempts to invoke the operation on 't'.
+    // Returns Some if the operation mutates 't'.
+    // Returns None if the operation does not mutate 't'.
+    // Returns Error if the operation cannot be performed on 't'.
+    Result<T> operator () (T t)
+    {
+      const Result<T>& result = perform(t);
+
+      success = !result.isError();
+
+      return result;
+    }
+
+    // Sets the promise based on whether the operation was successful.
+    bool set() { return Promise<bool>::set(success); }
+
+  protected:
+    virtual Result<T> perform(T t) = 0;
+
+  private:
+    bool success;
   };
 
-  struct Admit : Mutation<Registry>
+  struct Admit : Operation<Registry>
   {
     Admit(const SlaveInfo& _info) : info(_info) {}
 
-    virtual Try<Registry> apply(Registry registry)
+  protected:
+    virtual Result<Registry> perform(Registry registry)
     {
       // Check and see if this slave already exists.
       foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
         if (slave.info().id() == info.id()) {
-          set(false);
-          return registry; // No mutation.
+          return Error("Slave already admitted");
         }
       }
 
-      // Okay, add the slave!
       Registry::Slave* slave = registry.mutable_slaves()->add_slaves();
       slave->mutable_info()->CopyFrom(info);
       return registry;
@@ -100,33 +121,31 @@ private:
     const SlaveInfo info;
   };
 
-  // NOTE: Even though re-admission does not mutate the state, we
-  // model it as a mutation so that it is performed in sequence with
-  // other mutations.
-  struct Readmit : Mutation<Registry>
+  struct Readmit : Operation<Registry>
   {
     Readmit(const SlaveInfo& _info) : info(_info) {}
 
-    virtual Try<Registry> apply(Registry registry)
+  protected:
+    virtual Result<Registry> perform(Registry registry)
     {
       foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
         if (slave.info().id() == info.id()) {
-          set(true);
-          return registry;
+          return None();
         }
       }
-      set(false);
-      return registry;
+
+      return Error("Slave not yet admitted");
     }
 
     const SlaveInfo info;
   };
 
-  struct Remove : Mutation<Registry>
+  struct Remove : Operation<Registry>
   {
     Remove(const SlaveInfo& _info) : info(_info) {}
 
-    virtual Try<Registry> apply(Registry registry)
+  protected:
+    virtual Result<Registry> perform(Registry registry)
     {
       for (int i = 0; i < registry.slaves().slaves().size(); i++) {
         const Registry::Slave& slave = registry.slaves().slaves(i);
@@ -139,15 +158,14 @@ private:
         }
       }
 
-      set(false);
-      return registry;
+      return Error("Slave not yet admitted");
     }
 
     const SlaveInfo info;
   };
 
   Option<Variable<Registry> > variable;
-  deque<Mutation<Registry>*> mutations;
+  deque<Operation<Registry>*> operations;
   bool updating; // Used to signify fetching (recovering) or storing.
 
   // Continuations.
@@ -161,8 +179,9 @@ private:
 
   // Helper for updating state (performing store).
   void update();
-  Future<bool> _update(const Option<Variable<Registry> >& variable);
-  void __update(const string& message);
+  void _update(
+      const Future<Option<Variable<Registry> > >& store,
+      deque<Operation<Registry>*> operations);
 
   State* state;
 
@@ -223,9 +242,9 @@ Future<bool> RegistrarProcess::admit(const SlaveInfo& info)
 Future<bool> RegistrarProcess::_admit(const SlaveInfo& info)
 {
   CHECK_SOME(variable);
-  Mutation<Registry>* mutation = new Admit(info);
-  mutations.push_back(mutation);
-  Future<bool> future = mutation->future();
+  Operation<Registry>* operation = new Admit(info);
+  operations.push_back(operation);
+  Future<bool> future = operation->future();
   if (!updating) {
     update();
   }
@@ -253,9 +272,9 @@ Future<bool> RegistrarProcess::_readmit(
     return Failure("Expecting SlaveInfo to have a SlaveID");
   }
 
-  Mutation<Registry>* mutation = new Readmit(info);
-  mutations.push_back(mutation);
-  Future<bool> future = mutation->future();
+  Operation<Registry>* operation = new Readmit(info);
+  operations.push_back(operation);
+  Future<bool> future = operation->future();
   if (!updating) {
     update();
   }
@@ -283,9 +302,9 @@ Future<bool> RegistrarProcess::_remove(
     return Failure("Expecting SlaveInfo to have a SlaveID");
   }
 
-  Mutation<Registry>* mutation = new Remove(info);
-  mutations.push_back(mutation);
-  Future<bool> future = mutation->future();
+  Operation<Registry>* operation = new Remove(info);
+  operations.push_back(operation);
+  Future<bool> future = operation->future();
   if (!updating) {
     update();
   }
@@ -295,7 +314,7 @@ Future<bool> RegistrarProcess::_remove(
 
 void RegistrarProcess::update()
 {
-  if (mutations.empty()) {
+  if (operations.empty()) {
     return; // No-op.
   }
 
@@ -303,69 +322,71 @@ void RegistrarProcess::update()
 
   updating = true;
 
-  LOG(INFO) << "Attempting to update 'registry'";
+  LOG(INFO) << "Attempting to update the 'registry'";
 
   CHECK_SOME(variable);
 
   Variable<Registry> variable_ = variable.get();
 
-  foreach (Mutation<Registry>* mutation, mutations) {
-    Try<Registry> registry = mutation->apply(variable_.get());
-    if (registry.isError()) {
-      mutation->fail("Failed to mutate 'registry': " + registry.error());
-    } else {
+  foreach (Operation<Registry>* operation, operations) {
+    const Result<Registry>& registry = (*operation)(variable_.get());
+    if (registry.isSome()) {
       variable_ = variable_.mutate(registry.get());
     }
   }
 
-  // Perform the store! Save the future so we can associate it with
-  // the mutations that are part of this update.
-  Future<bool> future = state->store(variable_)
-    .then(defer(self(), &Self::_update, lambda::_1));
-
   // TODO(benh): Add a timeout so we don't wait forever.
 
-  // Toggle 'updating' if the store fails or is discarded.
-  future
-    .onDiscarded(defer(self(), &Self::__update, "discarded"))
-    .onFailed(defer(self(), &Self::__update, lambda::_1));
+  // Perform the store!
+  state->store(variable_)
+    .onAny(defer(self(), &Self::_update, lambda::_1, operations));
 
-  // Now associate the store with all the mutations.
-  while (!mutations.empty()) {
-    Mutation<Registry>* mutation = mutations.front();
-    mutations.pop_front();
-    mutation->associate(future); // No-op if already failed above.
-    delete mutation;
-  }
+  // Clear the operations, _update will transition the Promises!
+  operations.clear();
 }
 
 
-Future<bool> RegistrarProcess::_update(
-    const Option<Variable<Registry> >& variable_)
+void RegistrarProcess::_update(
+    const Future<Option<Variable<Registry> > >& store,
+    deque<Operation<Registry>*> operations)
 {
   updating = false;
 
-  if (variable_.isNone()) {
+  // Set the variable if the storage operation succeeded.
+  if (!store.isReady()) {
+    LOG(ERROR) << "Failed to update 'registry': "
+               << (store.isFailed() ? store.failure() : "discarded");
+  } else if (store.get().isNone()) {
     LOG(WARNING) << "Failed to update 'registry': version mismatch";
-    return Failure("Failed to update 'registry': version mismatch");
+  } else {
+    LOG(INFO) << "Successfully updated 'registry'";
+    variable = store.get().get();
   }
 
-  LOG(INFO) << "Successfully updated 'registry'";
+  // Remove the operations.
+  while (!operations.empty()) {
+    Operation<Registry>* operation = operations.front();
+    operations.pop_front();
 
-  variable = variable_.get();
+    if (!store.isReady()) {
+      operation->fail("Failed to update 'registry': " +
+          (store.isFailed() ? store.failure() : "discarded"));
+    } else {
+      if (store.get().isNone()) {
+        operation->fail("Failed to update 'registry': version mismatch");
+      } else {
+        operation->set();
+      }
+    }
 
-  if (!mutations.empty()) {
+    delete operation;
+  }
+
+  operations.clear();
+
+  if (!this->operations.empty()) {
     update();
   }
-
-  return true;
-}
-
-
-void RegistrarProcess::__update(const string& message)
-{
-  LOG(WARNING) << "Failed to update 'registry': " << message;
-  updating = false;
 }
 
 
