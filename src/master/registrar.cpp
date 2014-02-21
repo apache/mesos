@@ -48,6 +48,8 @@ using process::spawn;
 using process::terminate;
 using process::wait; // Necessary on some OS's to disambiguate.
 
+using std::string;
+
 namespace mesos {
 namespace internal {
 namespace master {
@@ -66,7 +68,7 @@ public:
   virtual ~RegistrarProcess() {}
 
   // Registrar implementation.
-  Future<bool> admit(const SlaveID& id, const SlaveInfo& info);
+  Future<bool> admit(const SlaveInfo& info);
   Future<bool> readmit(const SlaveInfo& info);
   Future<bool> remove(const SlaveInfo& info);
 
@@ -79,14 +81,13 @@ private:
 
   struct Admit : Mutation<registry::Slaves>
   {
-    Admit(const SlaveID& _id, const SlaveInfo& _info)
-      : id(_id), info(_info) {}
+    Admit(const SlaveInfo& _info) : info(_info) {}
 
     virtual Try<registry::Slaves> apply(registry::Slaves slaves)
     {
       // Check and see if this slave already exists.
       foreach (const registry::Slave& slave, slaves.slaves()) {
-        if (slave.info().id() == id) {
+        if (slave.info().id() == info.id()) {
           set(false);
           return slaves; // No mutation.
         }
@@ -95,33 +96,28 @@ private:
       // Okay, add the slave!
       registry::Slave* slave = slaves.add_slaves();
       slave->mutable_info()->CopyFrom(info);
-      slave->mutable_info()->mutable_id()->MergeFrom(id);
       return slaves;
     }
 
-    const SlaveID id;
     const SlaveInfo info;
   };
 
-  // NOTE: even thought readmission does not mutate the state we model
-  // it as a mutation so that it is performed in sequence with other
-  // mutations.
+  // NOTE: Even though re-admission does not mutate the state, we
+  // model it as a mutation so that it is performed in sequence with
+  // other mutations.
   struct Readmit : Mutation<registry::Slaves>
   {
-    Readmit(const SlaveInfo& _info) : info(_info) { CHECK(info.has_id()); }
+    Readmit(const SlaveInfo& _info) : info(_info) {}
 
     virtual Try<registry::Slaves> apply(registry::Slaves slaves)
     {
-      bool found = false;
       foreach (const registry::Slave& slave, slaves.slaves()) {
         if (slave.info().id() == info.id()) {
           set(true);
-          found = true;
+          return slaves;
         }
       }
-      if (!found) {
-        set(false);
-      }
+      set(false);
       return slaves;
     }
 
@@ -130,26 +126,23 @@ private:
 
   struct Remove : Mutation<registry::Slaves>
   {
-    Remove(const SlaveInfo& _info) : info(_info) { CHECK(info.has_id()); }
+    Remove(const SlaveInfo& _info) : info(_info) {}
 
     virtual Try<registry::Slaves> apply(registry::Slaves slaves)
     {
-      bool removed = false;
       for (int i = 0; i < slaves.slaves().size(); i++) {
         const registry::Slave& slave = slaves.slaves(i);
         if (slave.info().id() == info.id()) {
           for (int j = i + 1; j < slaves.slaves().size(); j++) {
-            slaves.mutable_slaves()->SwapElements(i, j);
+            slaves.mutable_slaves()->SwapElements(j-1, j);
           }
           slaves.mutable_slaves()->RemoveLast();
-          removed = true;
-          break;
+          return slaves;
         }
       }
-      if (!removed) {
-        set(false);
-      }
-      return slaves; // May or may not have been mutated.
+
+      set(false);
+      return slaves;
     }
 
     const SlaveInfo info;
@@ -162,7 +155,7 @@ private:
   } slaves;
 
   // Continuations.
-  Future<bool> _admit(const SlaveID& id, const SlaveInfo& info);
+  Future<bool> _admit(const SlaveInfo& info);
   Future<bool> _readmit(const SlaveInfo& info);
   Future<bool> _remove(const SlaveInfo& info);
 
@@ -173,7 +166,7 @@ private:
   // Helper for updating state (performing store).
   void update();
   Future<bool> _update(const Option<Variable<registry::Slaves> >& variable);
-  void __update();
+  void __update(const string& message);
 
   State* state;
 
@@ -188,13 +181,11 @@ Future<Nothing> RegistrarProcess::recover()
 
   // "Recover" the 'slaves' variable by fetching it from the state.
   if (slaves.variable.isNone() && !slaves.updating) {
+    // TODO(benh): Don't wait forever to recover?
     state->fetch<registry::Slaves>("slaves")
       .onAny(defer(self(), &Self::_recover, lambda::_1));
-
-    // TODO(benh): Don't wait forever to recover?
+    slaves.updating = true;
   }
-
-  // TODO(benh): Recover other variables too.
 
   return recovered.future();
 }
@@ -208,9 +199,8 @@ void RegistrarProcess::_recover(
   CHECK(!recovery.isPending());
 
   if (recovery.isFailed() || recovery.isDiscarded()) {
-    LOG(WARNING)
-      << "Failed to recover registrar: "
-      << (recovery.isFailed() ? recovery.failure() : "future discarded");
+    LOG(WARNING) << "Failed to recover registrar: "
+                 << (recovery.isFailed() ? recovery.failure() : "discarded");
     recover(); // Retry! TODO(benh): Don't retry forever?
   } else {
     LOG(INFO) << "Successfully recovered registrar";
@@ -224,21 +214,21 @@ void RegistrarProcess::_recover(
 }
 
 
-Future<bool> RegistrarProcess::admit(
-    const SlaveID& id,
-    const SlaveInfo& info)
+Future<bool> RegistrarProcess::admit(const SlaveInfo& info)
 {
+  if (!info.has_id()) {
+    return Failure("SlaveInfo is missing the 'id' field");
+  }
+
   return recover()
-    .then(defer(self(), &Self::_admit, id, info));
+    .then(defer(self(), &Self::_admit, info));
 }
 
 
-Future<bool> RegistrarProcess::_admit(
-    const SlaveID& id,
-    const SlaveInfo& info)
+Future<bool> RegistrarProcess::_admit(const SlaveInfo& info)
 {
   CHECK_SOME(slaves.variable);
-  Mutation<registry::Slaves>* mutation = new Admit(id, info);
+  Mutation<registry::Slaves>* mutation = new Admit(info);
   slaves.mutations.push_back(mutation);
   Future<bool> future = mutation->future();
   if (!slaves.updating) {
@@ -250,6 +240,10 @@ Future<bool> RegistrarProcess::_admit(
 
 Future<bool> RegistrarProcess::readmit(const SlaveInfo& info)
 {
+  if (!info.has_id()) {
+    return Failure("SlaveInfo is missing the 'id' field");
+  }
+
   return recover()
     .then(defer(self(), &Self::_readmit, info));
 }
@@ -276,6 +270,10 @@ Future<bool> RegistrarProcess::_readmit(
 
 Future<bool> RegistrarProcess::remove(const SlaveInfo& info)
 {
+  if (!info.has_id()) {
+    return Failure("SlaveInfo is missing the 'id' field");
+  }
+
   return recover()
     .then(defer(self(), &Self::_remove, info));
 }
@@ -302,51 +300,47 @@ Future<bool> RegistrarProcess::_remove(
 
 void RegistrarProcess::update()
 {
-  if (!slaves.mutations.empty()) {
-    CHECK(!slaves.updating);
+  if (slaves.mutations.empty()) {
+    return; // No-op.
+  }
 
-    slaves.updating = true;
+  CHECK(!slaves.updating);
 
-    LOG(INFO) << "Attempting to update 'slaves'";
+  slaves.updating = true;
 
-    CHECK_SOME(slaves.variable);
+  LOG(INFO) << "Attempting to update 'slaves'";
 
-    Variable<registry::Slaves> variable = slaves.variable.get();
+  CHECK_SOME(slaves.variable);
 
-    foreach (Mutation<registry::Slaves>* mutation, slaves.mutations) {
-      Try<registry::Slaves> slaves = mutation->apply(variable.get());
-      if (slaves.isError()) {
-        mutation->fail("Failed to mutate 'slaves': " + slaves.error());
-      } else {
-        Try<Variable<registry::Slaves> > v = variable.mutate(slaves.get());
-        if (v.isError()) {
-          mutation->fail("Failed to mutate 'slaves': " + v.error());
-        } else {
-          variable = v.get();
-        }
-      }
+  Variable<registry::Slaves> variable = slaves.variable.get();
+
+  foreach (Mutation<registry::Slaves>* mutation, slaves.mutations) {
+    Try<registry::Slaves> slaves = mutation->apply(variable.get());
+    if (slaves.isError()) {
+      mutation->fail("Failed to mutate 'slaves': " + slaves.error());
+    } else {
+      variable = variable.mutate(slaves.get());
     }
+  }
 
-    // Perform the store! Save the future so we can associate it with
-    // the mutations that are part of this update.
-    Future<bool> future =
-      state->store(variable)
-        .then(defer(self(), &Self::_update, lambda::_1));
+  // Perform the store! Save the future so we can associate it with
+  // the mutations that are part of this update.
+  Future<bool> future = state->store(variable)
+    .then(defer(self(), &Self::_update, lambda::_1));
 
-    // TODO(benh): Add a timeout so we don't wait forever.
+  // TODO(benh): Add a timeout so we don't wait forever.
 
-    // Toggle 'updating' if the store fails or is discarded.
-    future
-      .onDiscarded(defer(self(), &Self::__update))
-      .onFailed(defer(self(), &Self::__update));
+  // Toggle 'updating' if the store fails or is discarded.
+  future
+    .onDiscarded(defer(self(), &Self::__update, "discarded"))
+    .onFailed(defer(self(), &Self::__update, lambda::_1));
 
-    // Now associate the store with all the mutations.
-    while (!slaves.mutations.empty()) {
-      Mutation<registry::Slaves>* mutation = slaves.mutations.front();
-      slaves.mutations.pop_front();
-      mutation->associate(future); // No-op if already failed above.
-      delete mutation;
-    }
+  // Now associate the store with all the mutations.
+  while (!slaves.mutations.empty()) {
+    Mutation<registry::Slaves>* mutation = slaves.mutations.front();
+    slaves.mutations.pop_front();
+    mutation->associate(future); // No-op if already failed above.
+    delete mutation;
   }
 }
 
@@ -373,9 +367,9 @@ Future<bool> RegistrarProcess::_update(
 }
 
 
-void RegistrarProcess::__update()
+void RegistrarProcess::__update(const string& message)
 {
-  LOG(WARNING) << "Failed to update 'slaves'";
+  LOG(WARNING) << "Failed to update 'slaves': " << message;
   slaves.updating = false;
 }
 
@@ -394,11 +388,9 @@ Registrar::~Registrar()
 }
 
 
-Future<bool> Registrar::admit(
-    const SlaveID& id,
-    const SlaveInfo& info)
+Future<bool> Registrar::admit(const SlaveInfo& info)
 {
-  return dispatch(process, &RegistrarProcess::admit, id, info);
+  return dispatch(process, &RegistrarProcess::admit, info);
 }
 
 
