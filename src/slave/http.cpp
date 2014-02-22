@@ -21,9 +21,6 @@
 #include <string>
 #include <vector>
 
-#include <mesos/mesos.hpp>
-#include <mesos/resources.hpp>
-
 #include <process/help.hpp>
 #include <process/owned.hpp>
 
@@ -36,13 +33,19 @@
 
 #include "common/attributes.hpp"
 #include "common/build.hpp"
+#include "common/http.hpp"
 #include "common/type_utils.hpp"
+
+#include "mesos/mesos.hpp"
+#include "mesos/resources.hpp"
 
 #include "slave/slave.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
+
+using mesos::internal::model;
 
 using process::Future;
 using process::HELP;
@@ -60,59 +63,6 @@ using std::vector;
 
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON Conversion (when
 // in becomes available).
-
-// Returns a JSON object modeled on a Resources.
-JSON::Object model(const Resources& resources)
-{
-  JSON::Object object;
-
-  foreach (const Resource& resource, resources) {
-    switch (resource.type()) {
-      case Value::SCALAR:
-        object.values[resource.name()] = resource.scalar().value();
-        break;
-      case Value::RANGES:
-        object.values[resource.name()] = stringify(resource.ranges());
-        break;
-      case Value::SET:
-        object.values[resource.name()] = stringify(resource.set());
-        break;
-      default:
-        LOG(FATAL) << "Unexpected Value type: " << resource.type();
-        break;
-    }
-  }
-
-  return object;
-}
-
-
-JSON::Object model(const Attributes& attributes)
-{
-  JSON::Object object;
-
-  foreach (const Attribute& attribute, attributes) {
-    switch (attribute.type()) {
-      case Value::SCALAR:
-        object.values[attribute.name()] = attribute.scalar().value();
-        break;
-      case Value::RANGES:
-        object.values[attribute.name()] = stringify(attribute.ranges());
-        break;
-      case Value::SET:
-        object.values[attribute.name()] = stringify(attribute.set());
-        break;
-      case Value::TEXT:
-        object.values[attribute.name()] = attribute.text().value();
-        break;
-      default:
-        LOG(FATAL) << "Unexpected Value type: " << attribute.type();
-        break;
-    }
-  }
-
-  return object;
-}
 
 
 JSON::Object model(const CommandInfo& command)
@@ -157,20 +107,6 @@ JSON::Object model(const ExecutorInfo& executorInfo)
   object.values["framework_id"] = executorInfo.framework_id().value();
   object.values["command"] = model(executorInfo.command());
   object.values["resources"] = model(executorInfo.resources());
-  return object;
-}
-
-
-JSON::Object model(const Task& task)
-{
-  JSON::Object object;
-  object.values["id"] = task.task_id().value();
-  object.values["name"] = task.name();
-  object.values["executor_id"] = task.executor_id().value();
-  object.values["framework_id"] = task.framework_id().value();
-  object.values["slave_id"] = task.slave_id().value();
-  object.values["state"] = TaskState_Name(task.state());
-  object.values["resources"] = model(task.resources());
   return object;
 }
 

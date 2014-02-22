@@ -186,6 +186,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/status_update_manager.cpp					\
 	exec/exec.cpp							\
 	common/lock.cpp							\
+	common/http.cpp							\
 	common/date_utils.cpp						\
 	common/resources.cpp						\
 	common/attributes.cpp						\
@@ -221,6 +222,7 @@ endif
 libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
 	common/protobuf_utils.hpp					\
+	common/http.hpp							\
 	common/lock.hpp							\
 	common/type_utils.hpp common/thread.hpp				\
 	examples/utils.hpp files/files.hpp				\

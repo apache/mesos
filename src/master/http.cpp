@@ -24,9 +24,6 @@
 
 #include <boost/array.hpp>
 
-#include <mesos/mesos.hpp>
-#include <mesos/resources.hpp>
-
 #include <process/help.hpp>
 
 #include <stout/foreach.hpp>
@@ -40,16 +37,22 @@
 
 #include "common/attributes.hpp"
 #include "common/build.hpp"
-#include "common/type_utils.hpp"
+#include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
+#include "common/type_utils.hpp"
 
 #include "logging/logging.hpp"
 
 #include "master/master.hpp"
 
+#include "mesos/mesos.hpp"
+#include "mesos/resources.hpp"
+
 namespace mesos {
 namespace internal {
 namespace master {
+
+using mesos::internal::model;
 
 using process::Future;
 using process::HELP;
@@ -70,93 +73,6 @@ using std::vector;
 
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON Conversion (when
 // it becomes available).
-
-// Returns a JSON object modeled on a Resources.
-JSON::Object model(const Resources& resources)
-{
-  JSON::Object object;
-
-  foreach (const Resource& resource, resources) {
-    switch (resource.type()) {
-      case Value::SCALAR:
-        object.values[resource.name()] = resource.scalar().value();
-        break;
-      case Value::RANGES:
-        object.values[resource.name()] = stringify(resource.ranges());
-        break;
-      case Value::SET:
-        object.values[resource.name()] = stringify(resource.set());
-        break;
-      default:
-        LOG(FATAL) << "Unexpected Value type: " << resource.type();
-        break;
-    }
-  }
-
-  return object;
-}
-
-
-JSON::Object model(const Attributes& attributes)
-{
-  JSON::Object object;
-
-  foreach (const Attribute& attribute, attributes) {
-    switch (attribute.type()) {
-      case Value::SCALAR:
-        object.values[attribute.name()] = attribute.scalar().value();
-        break;
-      case Value::RANGES:
-        object.values[attribute.name()] = stringify(attribute.ranges());
-        break;
-      case Value::SET:
-        object.values[attribute.name()] = stringify(attribute.set());
-        break;
-      case Value::TEXT:
-        object.values[attribute.name()] = attribute.text().value();
-        break;
-      default:
-        LOG(FATAL) << "Unexpected Value type: " << attribute.type();
-        break;
-    }
-  }
-
-  return object;
-}
-
-
-// Returns a JSON object modeled on a TaskStatus.
-JSON::Object model(const TaskStatus& status)
-{
-  JSON::Object object;
-  object.values["state"] = TaskState_Name(status.state());
-  object.values["timestamp"] = status.timestamp();
-
-  return object;
-}
-
-
-// Returns a JSON object modeled on a Task.
-// TODO(bmahler): Expose the executor name / source.
-JSON::Object model(const Task& task)
-{
-  JSON::Object object;
-  object.values["id"] = task.task_id().value();
-  object.values["name"] = task.name();
-  object.values["framework_id"] = task.framework_id().value();
-  object.values["executor_id"] = task.executor_id().value();
-  object.values["slave_id"] = task.slave_id().value();
-  object.values["state"] = TaskState_Name(task.state());
-  object.values["resources"] = model(task.resources());
-
-  JSON::Array array;
-  foreach (const TaskStatus& status, task.statuses()) {
-    array.values.push_back(model(status));
-  }
-  object.values["statuses"] = array;
-
-  return object;
-}
 
 
 // Returns a JSON object modeled on an Offer.
@@ -393,7 +309,6 @@ const string Master::Http::REDIRECT_HELP = HELP(
         "running multiple Masters.",
         "2. This is broken currently \"on the cloud\" (e.g. EC2) as",
         "this will attempt to redirect to the private IP address."));
-
 
 
 Future<Response> Master::Http::redirect(const Request& request)
