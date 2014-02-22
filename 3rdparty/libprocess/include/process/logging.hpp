@@ -101,6 +101,7 @@ private:
     }
   }
 
+  // TODO(dhamon): Convert to static function.
   static const std::string TOGGLE_HELP;
 
   Timeout timeout;

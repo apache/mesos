@@ -86,10 +86,10 @@ struct TimeSeries
     }
 
     typename std::map<Time, T>::const_iterator lower = values.lower_bound(
-        start.isSome() ? start.get() : Time::EPOCH);
+        start.isSome() ? start.get() : Time::epoch());
 
     typename std::map<Time, T>::const_iterator upper = values.upper_bound(
-        stop.isSome() ? stop.get() : Time::MAX);
+        stop.isSome() ? stop.get() : Time::max());
 
     std::vector<Value> values;
     while (lower != upper) {

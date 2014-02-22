@@ -14,17 +14,18 @@ using namespace process;
 
 TEST(TimeTest, Arithmetic)
 {
-  Time t = Time::EPOCH + Weeks(1000);
+  Time t = Time::epoch() + Weeks(1000);
   t -= Weeks(1);
-  EXPECT_EQ(Time::EPOCH + Weeks(999), t);
+  EXPECT_EQ(Time::epoch() + Weeks(999), t);
 
   t += Weeks(2);
-  EXPECT_EQ(Time::EPOCH + Weeks(1001), t);
+  EXPECT_EQ(Time::epoch() + Weeks(1001), t);
 
-  EXPECT_EQ(t, Time::EPOCH + Weeks(1000) + Weeks(1));
-  EXPECT_EQ(t, Time::EPOCH + Weeks(1002) - Weeks(1));
+  EXPECT_EQ(t, Time::epoch() + Weeks(1000) + Weeks(1));
+  EXPECT_EQ(t, Time::epoch() + Weeks(1002) - Weeks(1));
 
-  EXPECT_EQ(Weeks(1), (Time::EPOCH + Weeks(1000)) - (Time::EPOCH + Weeks(999)));
+  EXPECT_EQ(Weeks(1),
+            (Time::epoch() + Weeks(1000)) - (Time::epoch() + Weeks(999)));
 }
 
 
@@ -38,9 +39,10 @@ TEST(TimeTest, Now)
 
 TEST(TimeTest, Output)
 {
-  EXPECT_EQ("1989-03-02 00:00:00+00:00", stringify(Time::EPOCH + Weeks(1000)));
+  EXPECT_EQ("1989-03-02 00:00:00+00:00",
+            stringify(Time::epoch() + Weeks(1000)));
   EXPECT_EQ("1989-03-02 00:00:00.000000001+00:00",
-            stringify(Time::EPOCH + Weeks(1000) + Nanoseconds(1)));
+            stringify(Time::epoch() + Weeks(1000) + Nanoseconds(1)));
   EXPECT_EQ("1989-03-02 00:00:00.000001000+00:00",
-            stringify(Time::EPOCH + Weeks(1000) + Microseconds(1)));
+            stringify(Time::epoch() + Weeks(1000) + Microseconds(1)));
 }

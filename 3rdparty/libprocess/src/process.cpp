@@ -136,12 +136,12 @@ namespace ID {
 
 string generate(const string& prefix)
 {
-  static map<string, int> prefixes;
+  static map<string, int>* prefixes = new map<string, int>();
   static synchronizable(prefixes) = SYNCHRONIZED_INITIALIZER;
 
   int id;
   synchronized (prefixes) {
-    int& _id = prefixes[prefix];
+    int& _id = (*prefixes)[prefix];
     _id += 1;
     id = _id;
   }
@@ -561,8 +561,7 @@ static synchronizable(watchers) = SYNCHRONIZED_INITIALIZER;
 // We store the timers in a map of lists indexed by the timeout of the
 // timer so that we can have two timers that have the same timeout. We
 // exploit that the map is SORTED!
-static map<Time, list<Timer> >* timeouts =
-  new map<Time, list<Timer> >();
+static map<Time, list<Timer> >* timeouts = new map<Time, list<Timer> >();
 static synchronizable(timeouts) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
 
 // For supporting Clock::settle(), true if timers have been removed
@@ -605,20 +604,16 @@ namespace clock {
 
 map<ProcessBase*, Time>* currents = new map<ProcessBase*, Time>();
 
-Time initial = Time::EPOCH;
-Time current = Time::EPOCH;
+// TODO(dhamon): These static non-POD instances should be replaced by pointers
+// or functions.
+Time initial = Time::epoch();
+Time current = Time::epoch();
 
 Duration advanced = Duration::zero();
 
 bool paused = false;
 
 } // namespace clock {
-
-
-Time Time::EPOCH = Time(Duration::zero());
-
-
-Time Time::MAX = Time(Duration::max());
 
 
 Time Clock::now()

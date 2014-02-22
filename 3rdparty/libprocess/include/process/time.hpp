@@ -18,8 +18,8 @@ public:
   // empty values.
   Time() : sinceEpoch(Duration::zero()) {}
 
-  static Time EPOCH;
-  static Time MAX;
+  static Time epoch();
+  static Time max();
 
   static Try<Time> create(double seconds);
 
@@ -73,6 +73,9 @@ private:
   // create a new time instance.
   Time(const Duration& _sinceEpoch) : sinceEpoch(_sinceEpoch) {}
 };
+
+inline Time Time::epoch() { return Time(Duration::zero()); }
+inline Time Time::max() { return Time(Duration::max()); }
 
 
 // Outputs the time in RFC 3339 Format.
