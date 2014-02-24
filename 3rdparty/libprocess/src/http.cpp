@@ -1,5 +1,7 @@
 #include <arpa/inet.h>
 
+#include <stdint.h>
+
 #include <cstring>
 #include <deque>
 #include <iostream>

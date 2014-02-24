@@ -1,6 +1,7 @@
 #ifndef __PROCESS_TUPLES_HPP__
 #define __PROCESS_TUPLES_HPP__
 
+#include <stdint.h>
 #include <stdlib.h>
 
 #include <arpa/inet.h>

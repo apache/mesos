@@ -1,13 +1,14 @@
 #ifndef __PROCESS_HTTP_HPP__
 #define __PROCESS_HTTP_HPP__
 
+#include <limits.h>
+#include <stdint.h>
+
 #include <cctype>
 #include <cstdlib>
 #include <iomanip>
 #include <sstream>
 #include <string>
-
-#include <limits.h>
 
 #include <process/future.hpp>
 #include <process/pid.hpp>

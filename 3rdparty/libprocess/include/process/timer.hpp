@@ -1,6 +1,7 @@
 #ifndef __PROCESS_TIMER_HPP__
 #define __PROCESS_TIMER_HPP__
 
+#include <stdint.h>
 #include <stdlib.h> // For abort.
 
 #include <process/timeout.hpp>
