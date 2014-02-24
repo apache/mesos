@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
+
 #include <algorithm>
 
 #include <boost/icl/interval.hpp>

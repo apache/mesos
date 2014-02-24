@@ -19,6 +19,8 @@
 #ifndef __SLAVE_HPP__
 #define __SLAVE_HPP__
 
+#include <stdint.h>
+
 #include <list>
 #include <string>
 #include <vector>

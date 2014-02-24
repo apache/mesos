@@ -17,6 +17,7 @@
  */
 
 #include <stdarg.h>
+#include <stdint.h>
 
 #include <gmock/gmock.h>
 

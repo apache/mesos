@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <fts.h>
 #include <signal.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #include <sys/syscall.h>

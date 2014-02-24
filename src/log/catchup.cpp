@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
+
 #include <list>
 
 #include <process/collect.hpp>

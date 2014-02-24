@@ -19,6 +19,8 @@
 #ifndef __LOG_HPP__
 #define __LOG_HPP__
 
+#include <stdint.h>
+
 #include <list>
 #include <set>
 #include <string>

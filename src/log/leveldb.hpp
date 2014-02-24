@@ -21,6 +21,8 @@
 
 #include <leveldb/db.h>
 
+#include <stdint.h>
+
 #include <stout/option.hpp>
 
 #include "log/storage.hpp"

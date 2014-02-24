@@ -18,6 +18,8 @@
 
 #include <gmock/gmock.h>
 
+#include <stdint.h>
+
 #include <list>
 #include <set>
 #include <string>

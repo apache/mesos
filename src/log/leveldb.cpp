@@ -21,6 +21,8 @@
 #include <leveldb/comparator.h>
 #include <leveldb/write_batch.h>
 
+#include <stdint.h>
+
 #include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/numify.hpp>

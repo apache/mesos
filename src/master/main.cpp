@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
+
 #include <mesos/mesos.hpp>
 
 #include <stout/check.hpp>

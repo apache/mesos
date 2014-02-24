@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>

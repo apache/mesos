@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
+
 #include <algorithm>
 
 #include <process/defer.hpp>

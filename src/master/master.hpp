@@ -19,6 +19,8 @@
 #ifndef __MASTER_HPP__
 #define __MASTER_HPP__
 
+#include <stdint.h>
+
 #include <list>
 #include <string>
 #include <vector>

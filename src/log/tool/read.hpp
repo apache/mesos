@@ -19,6 +19,8 @@
 #ifndef __LOG_TOOL_READ_HPP__
 #define __LOG_TOOL_READ_HPP__
 
+#include <stdint.h>
+
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/option.hpp>

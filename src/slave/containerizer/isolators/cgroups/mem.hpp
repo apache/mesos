@@ -19,6 +19,8 @@
 #ifndef __MEM_ISOLATOR_HPP__
 #define __MEM_ISOLATOR_HPP__
 
+#include <stdint.h>
+
 #include <mesos/resources.hpp>
 
 #include <process/future.hpp>

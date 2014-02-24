@@ -17,6 +17,7 @@
  */
 
 #include <jni.h>
+#include <stdint.h>
 
 #include <process/timeout.hpp>
 

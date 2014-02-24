@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
+
 #include <string>
 
 #include <stout/bytes.hpp>

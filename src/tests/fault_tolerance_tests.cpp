@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
 #include <unistd.h>
 
 #include <gmock/gmock.h>
