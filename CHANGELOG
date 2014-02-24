@@ -23,6 +23,8 @@ Release Notes - Mesos - Version 0.17.0
     * [MESOS-925] - remove --without-curl from libprocess
     * [MESOS-941] - Memory limit not correctly set when no memory resource set on executor level
     * [MESOS-951] - Build failure: in log/catchup.cpp on Clang
+    * [MESOS-993] - Performance issue during replicated log catch-up when the initial log position is large
+    * [MESOS-1014] - Log truncation takes a long time during catch-up if the initial position is very large
 
 ** Documentation
     * [MESOS-929] - Aurora not added to the framework docs
