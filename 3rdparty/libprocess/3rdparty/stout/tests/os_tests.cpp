@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <stdint.h>
+
 #ifndef __linux__
 #include <sys/time.h> // For gettimeofday.
 #endif

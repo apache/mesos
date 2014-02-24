@@ -2,6 +2,8 @@
 
 #include <gmock/gmock.h>
 
+#include <stdint.h>
+
 #include <sys/stat.h>
 
 #include <string>

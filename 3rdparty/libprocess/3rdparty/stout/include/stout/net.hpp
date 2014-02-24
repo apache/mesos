@@ -15,6 +15,7 @@
 #define __STOUT_NET_HPP__
 
 #include <netdb.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #include <sys/param.h>

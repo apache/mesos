@@ -14,6 +14,7 @@
 #ifndef __STOUT_STOPWATCH_HPP__
 #define __STOUT_STOPWATCH_HPP__
 
+#include <stdint.h>
 #include <time.h>
 
 #ifdef __MACH__
