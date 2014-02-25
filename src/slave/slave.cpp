@@ -66,7 +66,14 @@ using std::map;
 using std::string;
 using std::vector;
 
+using process::async;
 using process::wait; // Necessary on some OS's to disambiguate.
+using process::Clock;
+using process::Failure;
+using process::Future;
+using process::Owned;
+using process::Time;
+using process::UPID;
 
 namespace mesos {
 namespace internal {
@@ -78,7 +85,7 @@ Slave::Slave(const slave::Flags& _flags,
              MasterDetector* _detector,
              Containerizer* _containerizer,
              Files* _files)
-  : ProcessBase(ID::generate("slave")),
+  : ProcessBase(process::ID::generate("slave")),
     state(RECOVERING),
     http(*this),
     flags(_flags),

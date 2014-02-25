@@ -63,7 +63,6 @@ class Authenticator; // Forward declaration.
 
 namespace master {
 
-using namespace process; // Included to make code easier to read.
 
 // Forward declarations.
 namespace allocator {
@@ -147,7 +146,7 @@ public:
       const SlaveID& slaveId);
   void statusUpdate(
       const StatusUpdate& update,
-      const UPID& pid);
+      const process::UPID& pid);
   void exitedExecutor(
       const process::UPID& from,
       const SlaveID& slaveId,
@@ -162,7 +161,7 @@ public:
   // framework instance, rather than relying on re-registration time.
   void frameworkFailoverTimeout(
       const FrameworkID& frameworkId,
-      const Time& reregisteredTime);
+      const process::Time& reregisteredTime);
 
   void offer(
       const FrameworkID& framework,
@@ -179,11 +178,11 @@ public:
 
   // Invoked when there is a newly elected leading master.
   // Made public for testing purposes.
-  void detected(const Future<Option<MasterInfo> >& pid);
+  void detected(const process::Future<Option<MasterInfo> >& pid);
 
   // Invoked when the contender has lost the candidacy.
   // Made public for testing purposes.
-  void lostCandidacy(const Future<Nothing>& lost);
+  void lostCandidacy(const process::Future<Nothing>& lost);
 
   MasterInfo info() const
   {
@@ -193,26 +192,27 @@ public:
 protected:
   virtual void initialize();
   virtual void finalize();
-  virtual void exited(const UPID& pid);
+  virtual void exited(const process::UPID& pid);
 
   void deactivate(Framework* framework);
 
   // 'promise' is used to signal finish of authentication.
   // 'future' is the future returned by the authenticator.
   void _authenticate(
-      const UPID& pid,
-      const Owned<Promise<Nothing> >& promise,
-      const Future<bool>& future);
+      const process::UPID& pid,
+      const process::Owned<process::Promise<Nothing> >& promise,
+      const process::Future<bool>& future);
 
-  void authenticationTimeout(Future<bool> future);
+  void authenticationTimeout(process::Future<bool> future);
 
-  void fileAttached(const Future<Nothing>& result, const std::string& path);
+  void fileAttached(const process::Future<Nothing>& result,
+                    const std::string& path);
 
   // Return connected frameworks that are not in the process of being removed
   std::vector<Framework*> getActiveFrameworks() const;
 
   // Invoked when the contender has entered the contest.
-  void contended(const Future<Future<Nothing> >& candidacy);
+  void contended(const process::Future<process::Future<Nothing> >& candidacy);
 
   // Reconciles a re-registering slave's tasks / executors and sends
   // TASK_LOST updates for tasks known to the master but unknown to
@@ -227,7 +227,7 @@ protected:
 
   // Replace the scheduler for a framework with a new process ID, in
   // the event of a scheduler failover.
-  void failoverFramework(Framework* framework, const UPID& newPid);
+  void failoverFramework(Framework* framework, const process::UPID& newPid);
 
   // Kill all of a framework's tasks, delete the framework object, and
   // reschedule offers that were assigned to this framework.
@@ -257,7 +257,7 @@ protected:
   void removeTask(Task* task);
 
   // Forwards the update to the framework.
-  Try<Nothing> forward(const StatusUpdate& update, const UPID& pid);
+  Try<Nothing> forward(const StatusUpdate& update, const process::UPID& pid);
 
   // Remove an offer and optionally rescind the offer as well.
   void removeOffer(Offer* offer, bool rescind = false);
@@ -352,7 +352,7 @@ private:
   // set. After deactivation, the same slave machine can register with
   // the same. Using PIDs allows us to remove the deactivated
   // slave PID once any slave registers with the same PID!
-  hashset<UPID> deactivatedSlaves;
+  hashset<process::UPID> deactivatedSlaves;
 
   hashmap<OfferID, Offer*> offers;
 
@@ -361,12 +361,12 @@ private:
   // Frameworks that are currently in the process of authentication.
   // 'authenticating' future for a framework is ready when it is
   // authenticated.
-  hashmap<UPID, Future<Nothing> > authenticating;
+  hashmap<process::UPID, process::Future<Nothing> > authenticating;
 
-  hashmap<UPID, Owned<sasl::Authenticator> > authenticators;
+  hashmap<process::UPID, process::Owned<sasl::Authenticator> > authenticators;
 
   // Authenticated frameworks keyed by framework's PID.
-  hashset<UPID> authenticated;
+  hashset<process::UPID> authenticated;
 
   boost::circular_buffer<memory::shared_ptr<Framework> > completedFrameworks;
 
@@ -383,7 +383,7 @@ private:
     uint64_t invalidFrameworkMessages;
   } stats;
 
-  Time startTime; // Start time used to calculate uptime.
+  process::Time startTime; // Start time used to calculate uptime.
 };
 
 
@@ -392,8 +392,8 @@ struct Slave
 {
   Slave(const SlaveInfo& _info,
         const SlaveID& _id,
-        const UPID& _pid,
-        const Time& time)
+        const process::UPID& _pid,
+        const process::Time& time)
     : id(_id),
       info(_info),
       pid(_pid),
@@ -499,10 +499,10 @@ struct Slave
   const SlaveID id;
   const SlaveInfo info;
 
-  UPID pid;
+  process::UPID pid;
 
-  Time registeredTime;
-  Option<Time> reregisteredTime;
+  process::Time registeredTime;
+  Option<process::Time> reregisteredTime;
 
   // We mark a slave 'disconnected' when it has checkpointing
   // enabled because we expect it reregister after recovery.
@@ -540,8 +540,8 @@ struct Framework
 {
   Framework(const FrameworkInfo& _info,
             const FrameworkID& _id,
-            const UPID& _pid,
-            const Time& time)
+            const process::UPID& _pid,
+            const process::Time& time)
     : id(_id),
       info(_info),
       pid(_pid),
@@ -636,12 +636,12 @@ struct Framework
 
   const FrameworkInfo info;
 
-  UPID pid;
+  process::UPID pid;
 
   bool active; // Turns false when framework is being removed.
-  Time registeredTime;
-  Time reregisteredTime;
-  Time unregisteredTime;
+  process::Time registeredTime;
+  process::Time reregisteredTime;
+  process::Time unregisteredTime;
 
   hashmap<TaskID, Task*> tasks;
 

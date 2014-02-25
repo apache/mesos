@@ -77,7 +77,7 @@ public:
 
   void initialize(
       const Flags& flags,
-      const PID<Slave>& slave);
+      const process::PID<Slave>& slave);
 
   // TODO(vinod): Come up with better names/signatures for the
   // checkpointing and non-checkpointing 'update()' functions.
@@ -118,7 +118,7 @@ public:
       const Option<state::SlaveState>& state);
 
   // TODO(vinod): Remove this hack once the new leader detector code is merged.
-  void newMasterDetected(const UPID& pid);
+  void newMasterDetected(const process::UPID& pid);
 
   // Resend all the pending updates right away.
   // This is useful when the updates were pending because there was
@@ -321,7 +321,7 @@ struct StatusUpdateStream
   // TODO(vinod): Explore semantics to make these private.
   const bool checkpoint;
   bool terminated;
-  Option<Timeout> timeout; // Timeout for resending status update.
+  Option<process::Timeout> timeout; // Timeout for resending status update.
   std::queue<StatusUpdate> pending;
 
 private:

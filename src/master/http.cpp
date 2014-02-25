@@ -48,12 +48,8 @@
 #include "mesos/mesos.hpp"
 #include "mesos/resources.hpp"
 
-namespace mesos {
-namespace internal {
-namespace master {
-
-using mesos::internal::model;
-
+using process::Clock;
+using process::DESCRIPTION;
 using process::Future;
 using process::HELP;
 using process::TLDR;
@@ -64,12 +60,23 @@ using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::OK;
 using process::http::TemporaryRedirect;
-using process::http::Response;
-using process::http::Request;
 
 using std::map;
 using std::string;
 using std::vector;
+
+
+namespace mesos {
+namespace internal {
+namespace master {
+
+// Pull in model overrides from common.
+using mesos::internal::model;
+
+// Pull in definitions from process.
+using process::http::Response;
+using process::http::Request;
+
 
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON Conversion (when
 // it becomes available).
@@ -226,7 +233,7 @@ Try<string> getFormValue(
   }
 
   // HTTP decode the value.
-  Try<string> decodedValue = http::decode(value.get());
+  Try<string> decodedValue = process::http::decode(value.get());
   if (decodedValue.isError()) {
     return decodedValue;
   }

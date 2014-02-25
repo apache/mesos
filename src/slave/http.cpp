@@ -41,12 +41,9 @@
 
 #include "slave/slave.hpp"
 
-namespace mesos {
-namespace internal {
-namespace slave {
 
-using mesos::internal::model;
-
+using process::Clock;
+using process::DESCRIPTION;
 using process::Future;
 using process::HELP;
 using process::Owned;
@@ -54,12 +51,24 @@ using process::TLDR;
 using process::USAGE;
 
 using process::http::OK;
-using process::http::Response;
-using process::http::Request;
 
 using std::map;
 using std::string;
 using std::vector;
+
+
+namespace mesos {
+namespace internal {
+namespace slave {
+
+
+// Pull in defnitions from common.
+using mesos::internal::model;
+
+// Pull in the process definitions.
+using process::http::Response;
+using process::http::Request;
+
 
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON Conversion (when
 // in becomes available).

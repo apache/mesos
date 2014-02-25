@@ -40,6 +40,11 @@
 using std::string;
 
 using process::wait; // Necessary on some OS's to disambiguate.
+using process::Failure;
+using process::Future;
+using process::PID;
+using process::Timeout;
+using process::UPID;
 
 namespace mesos {
 namespace internal {

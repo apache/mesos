@@ -207,7 +207,7 @@ protected:
   bool initialized;
 
   Flags flags;
-  PID<Master> master;
+  process::PID<Master> master;
 
   // Contains all frameworks.
   hashmap<FrameworkID, Framework> frameworks;
@@ -245,7 +245,7 @@ public:
   RefusedFilter(
       const SlaveID& _slaveId,
       const Resources& _resources,
-      const Timeout& _timeout)
+      const process::Timeout& _timeout)
     : slaveId(_slaveId), resources(_resources), timeout(_timeout) {}
 
   virtual bool filter(const SlaveID& slaveId, const Resources& resources)
@@ -257,13 +257,13 @@ public:
 
   const SlaveID slaveId;
   const Resources resources;
-  const Timeout timeout;
+  const process::Timeout timeout;
 };
 
 
 template <class RoleSorter, class FrameworkSorter>
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::HierarchicalAllocatorProcess()
-  : ProcessBase(ID::generate("hierarchical-allocator")),
+  : ProcessBase(process::ID::generate("hierarchical-allocator")),
     initialized(false) {}
 
 
@@ -593,7 +593,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesUnused(
 
     // Create a new filter and delay it's expiration.
     Filter* filter =
-      new RefusedFilter(slaveId, resources, Timeout::in(seconds));
+      new RefusedFilter(slaveId, resources, process::Timeout::in(seconds));
 
     frameworks[frameworkId].filters.insert(filter);
 

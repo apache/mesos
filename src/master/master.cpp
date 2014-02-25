@@ -55,6 +55,14 @@ using std::string;
 using std::vector;
 
 using process::wait; // Necessary on some OS's to disambiguate.
+using process::Clock;
+using process::Future;
+using process::Owned;
+using process::PID;
+using process::Process;
+using process::Promise;
+using process::Time;
+using process::UPID;
 
 using memory::shared_ptr;
 
@@ -68,7 +76,7 @@ using allocator::Allocator;
 class WhitelistWatcher : public Process<WhitelistWatcher> {
 public:
   WhitelistWatcher(const string& _path, Allocator* _allocator)
-  : ProcessBase(ID::generate("whitelist")),
+  : ProcessBase(process::ID::generate("whitelist")),
     path(_path),
     allocator(_allocator) {}
 
@@ -133,7 +141,7 @@ public:
                 const SlaveInfo& _slaveInfo,
                 const SlaveID& _slaveId,
                 const PID<Master>& _master)
-    : ProcessBase(ID::generate("slave-observer")),
+    : ProcessBase(process::ID::generate("slave-observer")),
       slave(_slave),
       slaveInfo(_slaveInfo),
       slaveId(_slaveId),
