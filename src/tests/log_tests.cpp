@@ -707,6 +707,55 @@ TEST_F(CoordinatorTest, AppendReadError)
 }
 
 
+TEST_F(CoordinatorTest, AppendDiscarded)
+{
+  const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
+  const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
+
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
+
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
+
+  Shared<Network> network(new Network(pids));
+
+  Coordinator coord(2, replica1, network);
+
+  {
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY_FOR(electing, Seconds(10));
+    ASSERT_SOME(electing.get());
+    EXPECT_EQ(0u, electing.get().get());
+  }
+
+  process::terminate(replica2->pid());
+  process::wait(replica2->pid());
+  replica2.reset();
+
+  {
+    Future<uint64_t> appending = coord.append("hello world");
+    ASSERT_TRUE(appending.isPending());
+
+    appending.discard();
+    AWAIT_DISCARDED(appending);
+  }
+
+  {
+    Future<uint64_t> appending = coord.append("hello moto");
+    AWAIT_FAILED(appending);
+
+    EXPECT_EQ("Coordinator is not elected", appending.failure());
+  }
+}
+
+
 TEST_F(CoordinatorTest, ElectNoQuorum)
 {
   const string path = os::getcwd() + "/.log";
