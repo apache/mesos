@@ -450,8 +450,9 @@ void GroupProcess::timedout(int64_t sessionId)
       zk->getSessionId() == sessionId) {
     // The timer can be reset or replaced and 'zk' can be replaced
     // since this method was dispatched.
-    LOG(WARNING) << "Timed out waiting to reconnect to ZooKeeper "
-                 << "(sessionId=" << std::hex << sessionId << ")";
+    LOG(WARNING) << "Timed out waiting to reconnect to ZooKeeper."
+                 << " Forcing ZooKeeper session "
+                 << "(sessionId=" << std::hex << sessionId << ") expiration";
 
     // Locally determine that the current session has expired.
     expired();
@@ -464,6 +465,8 @@ void GroupProcess::expired()
   if (error.isSome()) {
     return;
   }
+
+  LOG(INFO) << "ZooKeeper session expired";
 
   // Cancel the retries. Group will sync() after it reconnects to ZK.
   retrying = false;
