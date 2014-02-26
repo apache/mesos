@@ -1032,6 +1032,63 @@ private:
 } // namespace mesos {
 
 
+void MesosSchedulerDriver::initialize() {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  // Load any flags from the environment (we use local::Flags in the
+  // event we run in 'local' mode, since it inherits logging::Flags).
+  // In the future, just as the TODO in local/main.cpp discusses,
+  // we'll probably want a way to load master::Flags and slave::Flags
+  // as well.
+  local::Flags flags;
+
+  Try<Nothing> load = flags.load("MESOS_");
+
+  if (load.isError()) {
+    status = DRIVER_ABORTED;
+    scheduler->error(this, load.error());
+    return;
+  }
+
+  // Initialize libprocess.
+  process::initialize();
+
+  // TODO(benh): Replace whitespace in framework.name() with '_'?
+  logging::initialize(framework.name(), flags);
+
+  // Initialize mutex and condition variable. TODO(benh): Consider
+  // using a libprocess Latch rather than a pthread mutex and
+  // condition variable for signaling.
+  pthread_mutexattr_t attr;
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&mutex, &attr);
+  pthread_mutexattr_destroy(&attr);
+  pthread_cond_init(&cond, 0);
+
+  // TODO(benh): Check the user the framework wants to run tasks as,
+  // see if the current user can switch to that user, or via an
+  // authentication module ensure this is acceptable.
+
+  // See FrameWorkInfo in include/mesos/mesos.proto:
+  if (framework.user().empty()) {
+    framework.set_user(os::user());
+  }
+  if (framework.hostname().empty()) {
+    framework.set_hostname(os::hostname().get());
+  }
+
+  // Launch a local cluster if necessary.
+  Option<UPID> pid;
+  if (master == "local") {
+    pid = local::launch(flags);
+  }
+
+  CHECK(process == NULL);
+
+  url = pid.isSome() ? static_cast<string>(pid.get()) : master;
+}
+
 // Implementation of C++ API.
 //
 // Notes:
@@ -1058,57 +1115,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     credential(NULL),
     detector(NULL)
 {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  // Load any flags from the environment (we use local::Flags in the
-  // event we run in 'local' mode, since it inherits logging::Flags).
-  // In the future, just as the TODO in local/main.cpp discusses,
-  // we'll probably want a way to load master::Flags and slave::Flags
-  // as well.
-  local::Flags flags;
-
-  Try<Nothing> load = flags.load("MESOS_");
-
-  if (load.isError()) {
-    status = DRIVER_ABORTED;
-    scheduler->error(this, load.error());
-    return;
-  }
-
-  // Initialize libprocess.
-  process::initialize();
-
-  // TODO(benh): Replace whitespace in framework.name() with '_'?
-  logging::initialize(framework.name(), flags);
-
-  // Initialize mutex and condition variable. TODO(benh): Consider
-  // using a libprocess Latch rather than a pthread mutex and
-  // condition variable for signaling.
-  pthread_mutexattr_t attr;
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(&mutex, &attr);
-  pthread_mutexattr_destroy(&attr);
-  pthread_cond_init(&cond, 0);
-
-  // TODO(benh): Check the user the framework wants to run tasks as,
-  // see if the current user can switch to that user, or via an
-  // authentication module ensure this is acceptable.
-
-  // If no user specified, just use the current user.
-  if (framework.user() == "") {
-    framework.set_user(os::user());
-  }
-
-  // Launch a local cluster if necessary.
-  Option<UPID> pid;
-  if (master == "local") {
-    pid = local::launch(flags);
-  }
-
-  CHECK(process == NULL);
-
-  url = pid.isSome() ? static_cast<string>(pid.get()) : master;
+  initialize();
 }
 
 
@@ -1127,57 +1134,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     credential(new Credential(_credential)),
     detector(NULL)
 {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  // Load any flags from the environment (we use local::Flags in the
-  // event we run in 'local' mode, since it inherits logging::Flags).
-  // In the future, just as the TODO in local/main.cpp discusses,
-  // we'll probably want a way to load master::Flags and slave::Flags
-  // as well.
-  local::Flags flags;
-
-  Try<Nothing> load = flags.load("MESOS_");
-
-  if (load.isError()) {
-    status = DRIVER_ABORTED;
-    scheduler->error(this, load.error());
-    return;
-  }
-
-  // Initialize libprocess.
-  process::initialize();
-
-  // TODO(benh): Replace whitespace in framework.name() with '_'?
-  logging::initialize(framework.name(), flags);
-
-  // Initialize mutex and condition variable. TODO(benh): Consider
-  // using a libprocess Latch rather than a pthread mutex and
-  // condition variable for signaling.
-  pthread_mutexattr_t attr;
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(&mutex, &attr);
-  pthread_mutexattr_destroy(&attr);
-  pthread_cond_init(&cond, 0);
-
-  // TODO(benh): Check the user the framework wants to run tasks as,
-  // see if the current user can switch to that user, or via an
-  // authentication module ensure this is acceptable.
-
-  // If no user specified, just use the current user.
-  if (framework.user() == "") {
-    framework.set_user(os::user());
-  }
-
-  // Launch a local cluster if necessary.
-  Option<UPID> pid;
-  if (master == "local") {
-    pid = local::launch(flags);
-  }
-
-  CHECK(process == NULL);
-
-  url = pid.isSome() ? static_cast<string>(pid.get()) : master;
+  initialize();
 }
 
 

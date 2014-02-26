@@ -108,6 +108,7 @@ JSON::Object model(const Framework& framework)
   object.values["unregistered_time"] = framework.unregisteredTime.secs();
   object.values["active"] = framework.active;
   object.values["resources"] = model(framework.resources);
+  object.values["hostname"] = framework.info.hostname();
 
   // TODO(benh): Consider making reregisteredTime an Option.
   if (framework.registeredTime != framework.reregisteredTime) {

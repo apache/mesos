@@ -108,6 +108,8 @@ message ContainerID {
  * and recover status updates, at the cost of disk I/O.
  * The role field is used to group frameworks for allocation decisions,
  * depending on the allocation policy being used.
+ * If the hostname field is set to an empty string Mesos will
+ * automagically set it to the current hostname.
  */
 message FrameworkInfo {
   required string user = 1;
@@ -116,6 +118,7 @@ message FrameworkInfo {
   optional double failover_timeout = 4 [default = 0.0];
   optional bool checkpoint = 5 [default = false];
   optional string role = 6 [default = "*"];
+  optional string hostname = 7;
 }
 
 

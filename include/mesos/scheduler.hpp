@@ -421,6 +421,8 @@ private:
 
   const Credential* credential;
 
+  void initialize();
+
 protected:
   // Used to detect (i.e., choose) the master.
   internal::MasterDetector* detector;

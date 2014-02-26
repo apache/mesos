@@ -190,6 +190,7 @@ JSON::Object model(const Framework& framework)
   object.values["failover_timeout"] = framework.info.failover_timeout();
   object.values["checkpoint"] = framework.info.checkpoint();
   object.values["role"] = framework.info.role();
+  object.values["hostname"] = framework.info.hostname();
 
   JSON::Array executors;
   foreachvalue (Executor* executor, framework.executors) {
