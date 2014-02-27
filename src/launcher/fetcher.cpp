@@ -34,7 +34,7 @@ using std::string;
 // Try to extract filename into directory. If filename is recognized as an
 // archive it will be extracted and true returned; if not recognized then false
 // will be returned. An Error is returned if the extraction command fails.
-Try<Nothing> extract(const string& filename, const string& directory)
+Try<bool> extract(const string& filename, const string& directory)
 {
   string command;
   // Extract any .tgz, tar.gz, tar.bz2 or zip files.
@@ -48,7 +48,7 @@ Try<Nothing> extract(const string& filename, const string& directory)
   } else if (strings::endsWith(filename, ".zip")) {
     command = "unzip -d '" + directory + "'";
   } else {
-    return Error("Could not extract file with unrecognized extension");
+    return false;
   }
 
   command += " '" + filename + "'";
@@ -61,7 +61,7 @@ Try<Nothing> extract(const string& filename, const string& directory)
   LOG(INFO) << "Extracted resource '" << filename
             << "' into '" << directory << "'";
 
-  return Nothing();
+  return true;
 }
 
 
@@ -222,7 +222,7 @@ int main(int argc, char* argv[])
     } else {
       //TODO(idownes): Consider removing the archive once extracted.
       // Try to extract the file if it's recognized as an archive.
-      Try<Nothing> extracted = extract(fetched.get(), directory);
+      Try<bool> extracted = extract(fetched.get(), directory);
       if (extracted.isError()) {
         EXIT(1) << "Failed to extract "
                 << fetched.get() << ":" << extracted.error();
