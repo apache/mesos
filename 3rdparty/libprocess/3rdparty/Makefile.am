@@ -25,6 +25,7 @@ GTEST = $(GMOCK)/gtest
 RY_HTTP_PARSER = ry-http-parser-$(RY_HTTP_PARSER_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
+PICOJSON = picojson-$(PICOJSON_VERSION)
 
 
 EXTRA_DIST =			\
@@ -34,7 +35,8 @@ EXTRA_DIST =			\
   $(GPERFTOOLS).tar.gz		\
   $(LIBEV).tar.gz		\
   $(PROTOBUF).tar.gz		\
-  $(RY_HTTP_PARSER).tar.gz
+  $(RY_HTTP_PARSER).tar.gz	\
+  $(PICOJSON).zip
 
 # We need to patch glog in order to deal with a compilation issue when
 # compiling with clang (and C++11); see MESOS-860, MESOS-966.
@@ -52,7 +54,8 @@ CLEAN_EXTRACTED =	\
   $(GPERFTOOLS)		\
   $(LIBEV)		\
   $(PROTOBUF)		\
-  $(RY_HTTP_PARSER)
+  $(RY_HTTP_PARSER)	\
+  $(PICOJSON)
 
 
 # This is where the magic happens: we use stamp files as dependencies
@@ -91,8 +94,6 @@ BUILT_SOURCES += $(nodist_libgmock_la_SOURCES)
 $(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
 $(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
 
-
-$(BOOST)/boost: $(BOOST)-stamp
 
 # NOTE: We explicitely set GTEST_CONFIG=no so that we don't attempt to
 # build glog against a system installed gtest (there's no reason to
@@ -167,6 +168,7 @@ stout_tests_CPPFLAGS =				\
   -I$(GTEST)/include				\
   -I$(GMOCK)/include				\
   -I$(PROTOBUF)/src				\
+  -I$(PICOJSON)					\
   $(AM_CPPFLAGS)
 
 stout_tests_LDADD =			\
@@ -188,7 +190,8 @@ ALL_LOCAL =				\
   $(GLOG)/libglog.la			\
   $(LIBEV)/libev.la			\
   $(PROTOBUF)/src/libprotobuf.la	\
-  $(PROTOBUF)/src/protoc
+  $(PROTOBUF)/src/protoc		\
+  $(PICOJSON)-stamp
 
 if HAS_GPERFTOOLS
  ALL_LOCAL += $(GPERFTOOLS)/libprofiler.la
