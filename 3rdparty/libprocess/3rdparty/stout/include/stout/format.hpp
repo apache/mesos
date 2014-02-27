@@ -46,7 +46,7 @@ namespace strings {
 namespace internal {
 
 Try<std::string> format(const std::string& fmt, va_list args);
-Try<std::string> format(const std::string& fmt, ...);
+Try<std::string> format(const std::string fmt, ...);
 
 template <typename T, bool b>
 struct stringify;
@@ -396,7 +396,7 @@ inline Try<std::string> format(const std::string& fmt, va_list args)
 }
 
 
-inline Try<std::string> format(const std::string& fmt, ...)
+inline Try<std::string> format(const std::string fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
