@@ -398,37 +398,40 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
   EXPECT_ERROR(
       cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "invalid", "invalid"));
 
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
-  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
-
-  if (pid > 0) {
-    // In parent process.
-    ASSERT_SOME(
-        cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "tasks", stringify(pid)));
-
-    Try<std::set<pid_t> > pids = cgroups::processes(hierarchy, TEST_CGROUPS_ROOT);
-    ASSERT_SOME(pids);
-
-    EXPECT_NE(0u, pids.get().count(pid));
-
-    // Kill the child process.
-    ASSERT_NE(-1, ::kill(pid, SIGKILL));
-
-    // Wait for the child process.
-    int status;
-    EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-    ASSERT_TRUE(WIFSIGNALED(status));
-    EXPECT_EQ(SIGKILL, WTERMSIG(status));
-  } else {
+  if (pid == 0) {
     // In child process, wait for kill signal.
-    while (true);
+    while (true) { sleep(1); }
 
     // Should not reach here.
-    std::cerr << "Reach an unreachable statement!" << std::endl;
-    abort();
+    const char* message = "Error, child should be killed before reaching here";
+    while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
+           errno == EINTR);
+
+    _exit(1);
   }
+
+  // In parent process.
+  ASSERT_SOME(
+      cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "cgroup.procs", stringify(pid)));
+
+  Try<std::set<pid_t> > pids = cgroups::processes(hierarchy, TEST_CGROUPS_ROOT);
+  ASSERT_SOME(pids);
+
+  EXPECT_NE(0u, pids.get().count(pid));
+
+  // Kill the child process.
+  ASSERT_NE(-1, ::kill(pid, SIGKILL));
+
+  // Wait for the child process.
+  int status;
+  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
+  ASSERT_TRUE(WIFSIGNALED(status));
+  EXPECT_EQ(SIGKILL, WTERMSIG(status));
 }
 
 
