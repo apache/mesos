@@ -69,13 +69,7 @@ string stringify(const JsonResponse& response)
   hosts.values.assign(response.hosts.begin(), response.hosts.end());
   object.values["hosts"] = hosts;
 
-  // TODO(ccarson): This is a workaround b/c currently a bool is coerced
-  // into a JSON::Double instead of a JSON::True or JSON::False when
-  // you assign to a JSON::Value.
-  //
-  // SEE: https://issues.apache.org/jira/browse/MESOS-939
-  object.values["isHealthy"] =
-    response.isHealthy ? JSON::Value(JSON::True()) : JSON::False();
+  object.values["isHealthy"] = response.isHealthy;
 
   return stringify(object);
 }

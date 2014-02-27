@@ -290,13 +290,7 @@ Future<Response> Master::Http::observe(const Request& request)
 
   bool isHealthy = strings::upper(level.get()) == "OK";
 
-  // TODO(ccarson): This is a workaround b/c currently a bool is coerced
-  // into a JSON::Double instead of a JSON::True or JSON::False when
-  // you assign to a JSON::Value.
-  //
-  // SEE: https://issues.apache.org/jira/browse/MESOS-939
-  response.values["isHealthy"] =
-    (isHealthy ? JSON::Value(JSON::True()) : JSON::False());
+  response.values["isHealthy"] = isHealthy;
 
   return OK(response);
 }
