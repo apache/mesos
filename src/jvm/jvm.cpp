@@ -308,7 +308,7 @@ Jvm::Field Jvm::findStaticField(
 }
 
 
-jobject Jvm::invoke(const Constructor& ctor, ...)
+jobject Jvm::invoke(const Constructor ctor, ...)
 {
   Env env;
   va_list args;
@@ -817,7 +817,7 @@ void Jvm::check(JNIEnv* env)
 // they use (i.e., Jvm::invokeV<void>, Jvm::invokeStaticV<void>).
 
 template <>
-void Jvm::invoke<void>(const jobject receiver, const Method& method, ...)
+void Jvm::invoke<void>(const jobject receiver, const Method method, ...)
 {
   va_list args;
   va_start(args, method);
@@ -827,7 +827,7 @@ void Jvm::invoke<void>(const jobject receiver, const Method& method, ...)
 
 
 template <>
-void Jvm::invokeStatic<void>(const Method& method, ...)
+void Jvm::invokeStatic<void>(const Method method, ...)
 {
   va_list args;
   va_start(args, method);
