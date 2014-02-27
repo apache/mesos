@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#ifndef __MESSAGE_STATE_HPP__
+#ifndef __MESSAGES_STATE_HPP__
 #define __MESSAGES_STATE_HPP__
 
 #include "messages/state.pb.h"

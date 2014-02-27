@@ -412,13 +412,13 @@ public:
   // calls. Possibly a way to do this with typelists, type
   // concatenation and unwinding builder inheritance.
 
-  jobject invoke(const Constructor& ctor, ...);
+  jobject invoke(const Constructor ctor, ...);
 
   template <typename T>
-  T invoke(const jobject receiver, const Method& method, ...);
+  T invoke(const jobject receiver, const Method method, ...);
 
   template <typename T>
-  T invokeStatic(const Method& method, ...);
+  T invokeStatic(const Method method, ...);
 
   template <typename T>
   void setField(jobject receiver, const Field& field, T t);
@@ -463,11 +463,11 @@ private:
 
 
 template <>
-void Jvm::invoke<void>(const jobject receiver, const Method& method, ...);
+void Jvm::invoke<void>(const jobject receiver, const Method method, ...);
 
 
 template <typename T>
-T Jvm::invoke(const jobject receiver, const Method& method, ...)
+T Jvm::invoke(const jobject receiver, const Method method, ...)
 {
   va_list args;
   va_start(args, method);
@@ -478,11 +478,11 @@ T Jvm::invoke(const jobject receiver, const Method& method, ...)
 
 
 template <>
-void Jvm::invokeStatic<void>(const Method& method, ...);
+void Jvm::invokeStatic<void>(const Method method, ...);
 
 
 template <typename T>
-T Jvm::invokeStatic(const Method& method, ...)
+T Jvm::invokeStatic(const Method method, ...)
 {
   va_list args;
   va_start(args, method);
