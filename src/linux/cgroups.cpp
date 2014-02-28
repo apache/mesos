@@ -19,6 +19,8 @@
 #include <errno.h>
 #include <fts.h>
 #include <signal.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <sys/syscall.h>
@@ -1928,6 +1930,63 @@ Try<hashmap<string, uint64_t> > stat(
 
   return result;
 }
+
+
+namespace cpu {
+
+Try<Nothing> shares(
+    const string& hierarchy,
+    const string& cgroup,
+    size_t shares)
+{
+  return cgroups::write(
+      hierarchy,
+      cgroup,
+      "cpu.shares",
+      stringify(shares));
+}
+
+
+Try<Nothing> cfs_period_us(
+    const string& hierarchy,
+    const string& cgroup,
+    const Duration& duration)
+{
+  return cgroups::write(
+      hierarchy,
+      cgroup,
+      "cpu.cfs_period_us",
+      stringify(static_cast<uint64_t>(duration.us())));
+}
+
+
+Try<Duration> cfs_quota_us(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  Try<string> read = cgroups::read(hierarchy, cgroup, "cpu.cfs_quota_us");
+
+  if (read.isError()) {
+    return Error(read.error());
+  }
+
+  return Duration::parse(strings::trim(read.get()) + "us");
+}
+
+
+Try<Nothing> cfs_quota_us(
+    const string& hierarchy,
+    const string& cgroup,
+    const Duration& duration)
+{
+  return cgroups::write(
+      hierarchy,
+      cgroup,
+      "cpu.cfs_quota_us",
+      stringify(static_cast<int64_t>(duration.us())));
+}
+
+} // namespace cpu {
 
 
 namespace memory {

@@ -435,6 +435,21 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
 }
 
 
+TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Cfs_Big_Quota)
+{
+  std::string hierarchy = path::join(baseHierarchy, "cpu");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  Duration quota = Seconds(100); // Big quota.
+  ASSERT_SOME(cgroups::cpu::cfs_quota_us(hierarchy, TEST_CGROUPS_ROOT, quota));
+
+  // Ensure we can read back the correct quota.
+  ASSERT_SOME_EQ(
+      quota,
+      cgroups::cpu::cfs_quota_us(hierarchy, TEST_CGROUPS_ROOT));
+}
+
+
 class CgroupsAnyHierarchyWithCpuAcctMemoryTest
   : public CgroupsAnyHierarchyTest
 {

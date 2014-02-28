@@ -54,6 +54,7 @@ namespace internal {
 namespace slave {
 
 // CPU subsystem constants.
+// TODO(vinod): Use uint64_t instead of size_t for shares.
 const size_t CPU_SHARES_PER_CPU = 1024;
 const size_t MIN_CPU_SHARES = 10;
 const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
@@ -304,6 +305,12 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::update(
     return Failure("Unknown container");
   }
 
+  const Option<string>& hierarchy = hierarchies.get("cpu");
+
+  if (hierarchy.isNone()) {
+    return Failure("No 'cpu' hierarchy");
+  }
+
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
   double cpus = resources.cpus().get();
@@ -312,8 +319,8 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::update(
   size_t shares =
     std::max((size_t) (CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
 
-  Try<Nothing> write = cgroups::write(
-      hierarchies["cpu"], info->cgroup, "cpu.shares", stringify(shares));
+  Try<Nothing> write = cgroups::cpu::shares(
+      hierarchy.get(), info->cgroup, shares);
 
   if (write.isError()) {
     return Failure("Failed to update 'cpu.shares': " + write.error());
@@ -325,24 +332,17 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::update(
 
   // Set cfs quota if enabled.
   if (flags.cgroups_enable_cfs) {
-    write = cgroups::write(
-        hierarchies["cpu"],
-        info->cgroup,
-        "cpu.cfs_period_us",
-        stringify(static_cast<size_t>(CPU_CFS_PERIOD.us())));
+    write = cgroups::cpu::cfs_period_us(
+        hierarchy.get(), info->cgroup, CPU_CFS_PERIOD);
+
     if (write.isError()) {
       return Failure("Failed to update 'cpu.cfs_period_us': " + write.error());
     }
 
-    Duration desired = Microseconds(
-        static_cast<int64_t>(CPU_CFS_PERIOD.us() * cpus));
-    Duration quota = std::max(desired, MIN_CPU_CFS_QUOTA);
+    Duration quota = std::max(CPU_CFS_PERIOD * cpus, MIN_CPU_CFS_QUOTA);
 
-    write = cgroups::write(
-        hierarchies["cpu"],
-        info->cgroup,
-        "cpu.cfs_quota_us",
-        stringify(static_cast<size_t>(quota.us())));
+    write = cgroups::cpu::cfs_quota_us(hierarchy.get(), info->cgroup, quota);
+
     if (write.isError()) {
       return Failure("Failed to update 'cpu.cfs_quota_us': " + write.error());
     }
