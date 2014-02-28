@@ -513,10 +513,10 @@ __EOF__
   # settings are propagated to distutils.
   CXX="$CXX" CC="$CC" CXXFLAGS="$CXXFLAGS" CFLAGS="$CFLAGS" \
     LDFLAGS="$LDFLAGS" $PYTHON setup.py build_ext --inplace \
-    --build-temp ./ 2>1 >/dev/null
+    --build-temp ./ 2>&1 >/dev/null
 
   # Run a test-script that makes use of the Python egg.
-  pyeggtest=`$PYTHON -c "import minimal; print(minimal.test())" 2>1`
+  pyeggtest=`$PYTHON -c "import minimal; print(minimal.test())" 2>&1`
 
   # Validate the test-script output.
   AS_IF([test "x$pyeggtest" = "x42"], [pyeggbuild=yes])
