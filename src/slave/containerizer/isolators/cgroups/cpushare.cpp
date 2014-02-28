@@ -329,7 +329,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::update(
         hierarchies["cpu"],
         info->cgroup,
         "cpu.cfs_period_us",
-        stringify(CPU_CFS_PERIOD.us()));
+        stringify(static_cast<size_t>(CPU_CFS_PERIOD.us())));
     if (write.isError()) {
       return Failure("Failed to update 'cpu.cfs_period_us': " + write.error());
     }
@@ -342,7 +342,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::update(
         hierarchies["cpu"],
         info->cgroup,
         "cpu.cfs_quota_us",
-        stringify(quota.us()));
+        stringify(static_cast<size_t>(quota.us())));
     if (write.isError()) {
       return Failure("Failed to update 'cpu.cfs_quota_us': " + write.error());
     }
