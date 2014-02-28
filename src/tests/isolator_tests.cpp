@@ -359,7 +359,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
   ::close(pipes[1]);
 
   // Wait for the command to complete.
-  AWAIT_READY(process::reap(pid.get()));
+  AWAIT_READY(status);
 
   Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
   AWAIT_READY(usage);
@@ -384,6 +384,72 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
   delete isolator.get();
   delete launcher.get();
 }
+
+
+// This test verifies that we can successfully launch a container with
+// a big (>= 10 cpus) cpu quota. This is to catch the regression
+// observed in MESOS-1049.
+// TODO(vinod): Revisit this if/when the isolator restricts the number
+// of cpus that an executor can use based on the slave cpus.
+TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
+{
+  Flags flags;
+
+  // Enable CFS to cap CPU utilization.
+  flags.cgroups_enable_cfs = true;
+
+  Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
+  CHECK_SOME(isolator);
+
+  Try<Launcher*> launcher = CgroupsLauncher::create(flags);
+  CHECK_SOME(launcher);
+
+  // Set the executor's resources to 100.5 cpu.
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:100.5").get());
+
+  ContainerID containerId;
+  containerId.set_value("mesos_test_cfs_big_cpu_limit");
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  lambda::function<int()> inChild = lambda::bind(&execute, "exit 0", pipes);
+
+  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  ASSERT_SOME(pid);
+
+  // Reap the forked child.
+  Future<Option<int> > status = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+
+  // Now signal the child to continue.
+  int buf;
+  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
+  ::close(pipes[1]);
+
+  // Wait for the command to complete successfully.
+  AWAIT_READY(status);
+  ASSERT_SOME_EQ(0, status.get());
+
+  // Ensure all processes are killed.
+  AWAIT_READY(launcher.get()->destroy(containerId));
+
+  // Let the isolator clean up.
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete isolator.get();
+  delete launcher.get();
+}
+
 #endif // __linux__
 
 
