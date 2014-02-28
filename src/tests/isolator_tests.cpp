@@ -38,6 +38,9 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
+#ifdef __linux__
+#include "slave/containerizer/cgroups_launcher.hpp"
+#endif // __linux__
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
 
@@ -59,6 +62,7 @@ using namespace process;
 using mesos::internal::master::Master;
 #ifdef __linux__
 using mesos::internal::slave::CgroupsCpushareIsolatorProcess;
+using mesos::internal::slave::CgroupsLauncher;
 using mesos::internal::slave::CgroupsMemIsolatorProcess;
 #endif // __linux__
 using mesos::internal::slave::Isolator;
@@ -90,8 +94,11 @@ int execute(const std::string& command, int pipes[2])
 
   execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
 
-  std::cerr << "Should not reach here!" << std::endl;
-  abort();
+  const char* message = "Child failed to exec";
+  while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
+         errno == EINTR);
+
+  _exit(1);
 }
 
 
@@ -292,6 +299,92 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
 
   CHECK_SOME(os::rmdir(dir.get()));
 }
+
+
+#ifdef __linux__
+class LimitedCpuIsolatorTest : public MesosTest {};
+
+TEST_F(LimitedCpuIsolatorTest, CgroupsCfs)
+{
+  Flags flags;
+
+  // Enable CFS to cap CPU utilization.
+  flags.cgroups_enable_cfs = true;
+
+  Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
+  CHECK_SOME(isolator);
+
+  Try<Launcher*> launcher = CgroupsLauncher::create(flags);
+  CHECK_SOME(launcher);
+
+  // Set the executor's resources to 0.5 cpu.
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:0.5").get());
+
+  ContainerID containerId;
+  containerId.set_value("mesos_test_cfs_cpu_limit");
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+
+  // Generate random numbers to max out a single core. We'll run this for 0.5
+  // seconds of wall time so it should consume approximately 250 ms of total
+  // cpu time when limited to 0.5 cpu. We use /dev/urandom to prevent blocking
+  // on Linux when there's insufficient entropy.
+  string command = "cat /dev/urandom > /dev/null & "
+    "export MESOS_TEST_PID=$! && "
+    "sleep 0.5 && "
+    "kill $MESOS_TEST_PID";
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  lambda::function<int()> inChild = lambda::bind(&execute, command, pipes);
+
+  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  ASSERT_SOME(pid);
+
+  // Reap the forked child.
+  Future<Option<int> > status = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+
+  // Now signal the child to continue.
+  int buf;
+  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
+  ::close(pipes[1]);
+
+  // Wait for the command to complete.
+  AWAIT_READY(process::reap(pid.get()));
+
+  Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+  AWAIT_READY(usage);
+
+  // Expect that no more than 300 ms of cpu time has been consumed. We also
+  // check that at least 50 ms of cpu time has been consumed so this test will
+  // fail if the host system is very heavily loaded. This behavior is correct
+  // because under such conditions we aren't actually testing the CFS cpu
+  // limiter.
+  double cpuTime = usage.get().cpus_system_time_secs() +
+                   usage.get().cpus_user_time_secs();
+
+  EXPECT_GE(0.30, cpuTime);
+  EXPECT_LE(0.05, cpuTime);
+
+  // Ensure all processes are killed.
+  AWAIT_READY(launcher.get()->destroy(containerId));
+
+  // Let the isolator clean up.
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete isolator.get();
+  delete launcher.get();
+}
+#endif // __linux__
 
 
 template <typename T>
