@@ -20,6 +20,7 @@
 #define __CGROUPS_HPP__
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <set>
 #include <string>
@@ -394,6 +395,38 @@ Try<hashmap<std::string, uint64_t> > stat(
     const std::string& file);
 
 
+// Cpu controls.
+namespace cpu {
+
+// Sets the cpu shares using cpu.shares.
+Try<Nothing> shares(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    size_t shares);
+
+
+// Sets the cfs period using cpu.cfs_period_us.
+Try<Nothing> cfs_period_us(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Duration& duration);
+
+
+// Returns the cfs quota from cpu.cfs_quota_us.
+Try<Duration> cfs_quota_us(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Sets the cfs quota using cpu.cfs_quota_us.
+Try<Nothing> cfs_quota_us(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Duration& duration);
+
+} // namespace cpu {
+
+
 // Memory controls.
 namespace memory {
 
@@ -402,16 +435,19 @@ Try<Bytes> limit_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
 
+
 // Sets the memory limit using memory.limit_in_bytes.
 Try<Nothing> limit_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup,
     const Bytes& limit);
 
+
 // Returns the soft memory limit from memory.soft_limit_in_bytes.
 Try<Bytes> soft_limit_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
+
 
 // Sets the soft memory limit using memory.soft_limit_in_bytes.
 Try<Nothing> soft_limit_in_bytes(
@@ -419,10 +455,12 @@ Try<Nothing> soft_limit_in_bytes(
     const std::string& cgroup,
     const Bytes& limit);
 
+
 // Returns the memory usage from memory.usage_in_bytes.
 Try<Bytes> usage_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
+
 
 // Returns the max memory usage from memory.max_usage_in_bytes.
 Try<Bytes> max_usage_in_bytes(
