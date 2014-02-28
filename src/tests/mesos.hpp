@@ -224,22 +224,30 @@ protected:
         credential; })
 
 
-#define DEFAULT_EXECUTOR_ID						\
+#define DEFAULT_EXECUTOR_ID           \
       DEFAULT_EXECUTOR_INFO.executor_id()
 
 
 inline TaskInfo createTask(
     const Offer& offer,
     const std::string& command,
+    const Option<mesos::ExecutorID>& executorId = None(),
     const std::string& name = "test-task",
     const std::string& id = UUID::random().toString())
 {
   TaskInfo task;
   task.set_name(name);
   task.mutable_task_id()->set_value(id);
-  task.mutable_slave_id()->MergeFrom(offer.slave_id());
-  task.mutable_resources()->MergeFrom(offer.resources());
-  task.mutable_command()->set_value(command);
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+  if (executorId.isSome()) {
+    ExecutorInfo executor;
+    executor.mutable_executor_id()->CopyFrom(executorId.get());
+    executor.mutable_command()->set_value(command);
+    task.mutable_executor()->CopyFrom(executor);
+  } else {
+    task.mutable_command()->set_value(command);
+  }
 
   return task;
 }
@@ -651,18 +659,18 @@ public:
     : cpus(_cpus), mem(_mem) {}
 
   virtual bool MatchAndExplain(const std::vector<Offer>& offers,
-			       ::testing::MatchResultListener* listener) const
+                               ::testing::MatchResultListener* listener) const
   {
     double totalCpus = 0;
     double totalMem = 0;
 
     foreach (const Offer& offer, offers) {
       foreach (const Resource& resource, offer.resources()) {
-	if (resource.name() == "cpus") {
-	  totalCpus += resource.scalar().value();
-	} else if (resource.name() == "mem") {
-	  totalMem += resource.scalar().value();
-	}
+        if (resource.name() == "cpus") {
+          totalCpus += resource.scalar().value();
+        } else if (resource.name() == "mem") {
+          totalMem += resource.scalar().value();
+        }
       }
     }
 

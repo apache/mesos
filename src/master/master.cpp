@@ -443,7 +443,8 @@ void Master::initialize()
       &ReregisterSlaveMessage::slave_id,
       &ReregisterSlaveMessage::slave,
       &ReregisterSlaveMessage::executor_infos,
-      &ReregisterSlaveMessage::tasks);
+      &ReregisterSlaveMessage::tasks,
+      &ReregisterSlaveMessage::completed_frameworks);
 
   install<UnregisterSlaveMessage>(
       &Master::unregisterSlave,
@@ -1003,7 +1004,7 @@ void Master::reregisterFramework(
       }
     }
 
-    // N.B. Need to add the framwwork _after_ we add it's tasks
+    // N.B. Need to add the framework _after_ we add its tasks
     // (above) so that we can properly determine the resources it's
     // currently using!
     addFramework(framework);
@@ -1866,7 +1867,8 @@ void Master::reregisterSlave(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
     const vector<ExecutorInfo>& executorInfos,
-    const vector<Task>& tasks)
+    const vector<Task>& tasks,
+    const vector<Archive::Framework>& completedFrameworks_)
 {
   if (!elected()) {
     LOG(WARNING) << "Ignoring re-register slave message from "
@@ -1951,7 +1953,7 @@ void Master::reregisterSlave(
     LOG(INFO) << "Attempting to re-register slave " << slave->id << " at "
         << slave->pid << " (" << slave->info.hostname() << ")";
 
-    readdSlave(slave, executorInfos, tasks);
+    readdSlave(slave, executorInfos, tasks, completedFrameworks_);
   }
 
   // Send the latest framework pids to the slave.
@@ -2876,7 +2878,8 @@ void Master::addSlave(Slave* slave, bool reregister)
 
 void Master::readdSlave(Slave* slave,
     const vector<ExecutorInfo>& executorInfos,
-    const vector<Task>& tasks)
+    const vector<Task>& tasks,
+    const vector<Archive::Framework>& completedFrameworks_)
 {
   CHECK_NOTNULL(slave);
 
@@ -2941,7 +2944,44 @@ void Master::readdSlave(Slave* slave,
     resources[task.framework_id()] += task.resources();
   }
 
+  foreach (const Archive::Framework& completedFramework_,
+           completedFrameworks_) {
+    LOG(INFO) << "Re-add completed framework "
+              << completedFramework_.framework_info().id()
+              << " from slave " << slave->id << " ("
+              << slave->info.hostname() << ")";
+    readdCompletedFramework(completedFramework_);
+  }
+
   allocator->slaveAdded(slave->id, slave->info, resources);
+}
+
+
+void Master::readdCompletedFramework(
+    const Archive::Framework& completedFramework_)
+{
+  const FrameworkInfo& frameworkInfo = completedFramework_.framework_info();
+  Option<shared_ptr<Framework> > framework = None();
+  foreach (const shared_ptr<Framework>& completedFramework,
+           completedFrameworks) {
+    if (completedFramework->id == frameworkInfo.id()) {
+      framework = completedFramework;
+      break;
+    }
+  }
+
+  if (framework.isNone()) {
+    UPID pid = completedFramework_.pid();
+    framework = shared_ptr<Framework>(
+        new Framework(frameworkInfo, frameworkInfo.id(), pid));
+    VLOG(1) << "Re-adding completed framework " << framework.get()->id;
+    completedFrameworks.push_back(framework.get());
+  }
+
+  foreach (const Task& task, completedFramework_.tasks()) {
+    VLOG(2) << "Re-adding completed task " << task.task_id();
+    framework.get()->addCompletedTask(task);
+  }
 }
 
 

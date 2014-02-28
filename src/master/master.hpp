@@ -143,7 +143,9 @@ public:
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
       const std::vector<ExecutorInfo>& executorInfos,
-      const std::vector<Task>& tasks);
+      const std::vector<Task>& tasks,
+      const std::vector<Archive::Framework>& completedFrameworks);
+
   void unregisterSlave(
       const SlaveID& slaveId);
   void statusUpdate(
@@ -243,8 +245,11 @@ protected:
   void addSlave(Slave* slave, bool reregister = false);
 
   void readdSlave(Slave* slave,
-		  const std::vector<ExecutorInfo>& executorInfos,
-		  const std::vector<Task>& tasks);
+      const std::vector<ExecutorInfo>& executorInfos,
+      const std::vector<Task>& tasks,
+      const std::vector<Archive::Framework>& completedFrameworks);
+
+  void readdCompletedFramework(const Archive::Framework& completedFramework);
 
   // Lose all of a slave's tasks and delete the slave object
   void removeSlave(Slave* slave);
@@ -465,7 +470,7 @@ struct Slave
   }
 
   bool hasExecutor(const FrameworkID& frameworkId,
-		   const ExecutorID& executorId) const
+                   const ExecutorID& executorId) const
   {
     return executors.contains(frameworkId) &&
       executors.get(frameworkId).get().contains(executorId);
@@ -543,7 +548,7 @@ struct Framework
   Framework(const FrameworkInfo& _info,
             const FrameworkID& _id,
             const process::UPID& _pid,
-            const process::Time& time)
+            const process::Time& time = process::Clock::now())
     : id(_id),
       info(_info),
       pid(_pid),
@@ -582,6 +587,12 @@ struct Framework
     completedTasks.push_back(memory::shared_ptr<Task>(new Task(*task)));
     tasks.erase(task->task_id());
     resources -= task->resources();
+  }
+
+  void addCompletedTask(const Task& task)
+  {
+    // TODO(adam-mesos): Check if completed task already exists.
+    completedTasks.push_back(memory::shared_ptr<Task>(new Task(task)));
   }
 
   void addOffer(Offer* offer)

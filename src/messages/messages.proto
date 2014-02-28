@@ -228,6 +228,7 @@ message ReregisterSlaveMessage {
   required SlaveInfo slave = 2;
   repeated ExecutorInfo executor_infos = 4;
   repeated Task tasks = 3;
+  repeated Archive.Framework completed_frameworks = 5;
 }
 
 
@@ -362,5 +363,19 @@ message AuthenticationFailedMessage {}
 
 message AuthenticationErrorMessage {
   optional string error = 1;
+}
+
+
+// TODO(adam-mesos): Move this to an 'archive' package.
+/**
+ * Describes Completed Frameworks, etc. for archival.
+ */
+message Archive {
+  message Framework {
+    required FrameworkInfo framework_info = 1;
+    optional string pid = 2;
+    repeated Task tasks = 3;
+  }
+  repeated Framework frameworks = 1;
 }
 

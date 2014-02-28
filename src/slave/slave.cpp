@@ -554,7 +554,7 @@ void Slave::doReliableRegistration()
     message.mutable_slave()->CopyFrom(info);
     message.mutable_slave()->mutable_id()->CopyFrom(info.id());
 
-    foreachvalue (Framework* framework, frameworks){
+    foreachvalue (Framework* framework, frameworks) {
       foreachvalue (Executor* executor, framework->executors) {
         // Ignore terminated executors because they do not consume
         // any resources.
@@ -592,6 +592,39 @@ void Slave::doReliableRegistration()
           // framework id is set in ExecutorInfo, effectively making
           // it a required field.
           executorInfo->mutable_framework_id()->MergeFrom(framework->id);
+        }
+      }
+    }
+
+    // Add completed frameworks.
+    foreach (const Owned<Framework>& completedFramework, completedFrameworks) {
+      VLOG(1) << "Reregistering completed framework "
+                << completedFramework->id;
+      Archive::Framework* completedFramework_ =
+        message.add_completed_frameworks();
+      FrameworkInfo* frameworkInfo =
+        completedFramework_->mutable_framework_info();
+      frameworkInfo->CopyFrom(completedFramework->info);
+
+      // TODO(adam-mesos): Needed because FrameworkInfo doesn't have the id.
+      frameworkInfo->mutable_id()->CopyFrom(completedFramework->id);
+
+      completedFramework_->set_pid(completedFramework->pid);
+
+      foreach (const Owned<Executor>& executor,
+               completedFramework->completedExecutors) {
+        VLOG(2) << "Reregistering completed executor " << executor->id
+                << " with " << executor->terminatedTasks.size()
+                << " terminated tasks, " << executor->completedTasks.size()
+                << " completed tasks";
+        foreach (const Task* task, executor->terminatedTasks.values()) {
+          VLOG(2) << "Reregistering terminated task " << task->task_id();
+          completedFramework_->add_tasks()->CopyFrom(*task);
+        }
+        foreach (const memory::shared_ptr<Task>& task,
+                 executor->completedTasks) {
+          VLOG(2) << "Reregistering completed task " << task->task_id();
+          completedFramework_->add_tasks()->CopyFrom(*task);
         }
       }
     }

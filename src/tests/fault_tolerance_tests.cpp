@@ -31,6 +31,7 @@
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
@@ -63,6 +64,8 @@ using process::Message;
 using process::Owned;
 using process::PID;
 using process::UPID;
+using process::http::OK;
+using process::http::Response;
 
 using std::string;
 using std::map;
@@ -655,6 +658,169 @@ TEST_F(FaultToleranceTest, MasterFailover)
 }
 
 
+// TODO(adam-mesos): Use real JSON parser (see stout/json.hpp TODOs).
+bool isJsonValueEmpty(const string& text, const string& key)
+{
+  string sub = text.substr(text.find(key));
+  size_t index = sub.find(":") + 1;
+  // This will not retrieve the entire value if the value is
+  // an object/array since it will stop at the first comma,
+  // but this is good enough to figure out if the value is empty.
+  return (sub.substr(index, sub.find(",") - index) == "[]");
+}
+
+
+// This test ensures that a recovering master recovers completed frameworks
+// and tasks from a slave's re-registration.
+TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
+{
+  // Step 1. Start Master and Slave.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor executor(DEFAULT_EXECUTOR_ID);
+  StandaloneMasterDetector* detector =
+    new StandaloneMasterDetector(master.get());
+
+  Try<PID<Slave> > slave =
+    StartSlave(&executor, Owned<MasterDetector>(detector));
+  ASSERT_SOME(slave);
+
+  // Verify master/slave have 0 completed/running frameworks.
+  Future<Response> masterState = process::http::get(master.get(), "state.json");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
+      "application/json",
+      "Content-Type",
+      masterState);
+  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
+  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+
+  // Step 2. Create/start framework.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+  EXPECT_NE("", frameworkId.get().value());
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Step 3. Create/launch a task.
+  TaskInfo task = createTask(offers.get()[0], "exit 1", DEFAULT_EXECUTOR_ID);
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Short-lived task.
+
+  EXPECT_CALL(executor, registered(_, _, _, _));
+  EXPECT_CALL(executor, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  // Verify master and slave recognize the running task/framework.
+  masterState = process::http::get(master.get(), "state.json");
+  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
+  EXPECT_FALSE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+
+  Future<Response> slaveState = process::http::get(slave.get(), "state.json");
+  EXPECT_TRUE(isJsonValueEmpty(slaveState.get().body, "completed_frameworks"));
+  EXPECT_FALSE(isJsonValueEmpty(slaveState.get().body, "\"frameworks\""));
+
+  // Step 4. Kill task.
+  EXPECT_CALL(executor, killTask(_, _))
+    .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
+
+  Future<TaskStatus> statusKilled;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(statusKilled);
+  ASSERT_EQ(TASK_KILLED, statusKilled.get().state());
+
+  masterState = process::http::get(master.get(), "state.json");
+  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
+  EXPECT_FALSE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+
+  slaveState = process::http::get(slave.get(), "state.json");
+  EXPECT_TRUE(isJsonValueEmpty(slaveState.get().body, "completed_frameworks"));
+  EXPECT_FALSE(isJsonValueEmpty(slaveState.get().body, "\"frameworks\""));
+
+  // Step 5. Stop the framework, shutdown executor.
+  Future<Nothing> shutdown;
+  EXPECT_CALL(executor, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(executorTerminated);
+  AWAIT_READY(shutdown);
+
+  // Verify master sees completed framework.
+  masterState = process::http::get(master.get(), "state.json");
+  EXPECT_FALSE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
+  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+
+  // Slave received message to shutdown the framework,
+  // need to wait for it to actually happen.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  // Verify slave sees completed framework.
+  slaveState = process::http::get(slave.get(), "state.json");
+  EXPECT_FALSE(isJsonValueEmpty(slaveState.get().body, "completed_frameworks"));
+  EXPECT_TRUE(isJsonValueEmpty(slaveState.get().body, "\"frameworks\""));
+
+  // Step 6. Simulate failed over master by restarting the master.
+  Stop(master.get());
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Verify new master knows of no running/completed frameworks.
+  masterState = process::http::get(master.get(), "state.json");
+  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
+  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Simulate a new master detected message to the slave.
+  detector->appoint(master.get());
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Verify completed framework/task in new Master.
+  masterState = process::http::get(master.get(), "state.json");
+  EXPECT_FALSE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
+  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+
+  Shutdown();
+}
+
+
 TEST_F(FaultToleranceTest, SchedulerFailover)
 {
   Try<PID<Master> > master = StartMaster();
@@ -1038,7 +1204,9 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   // Drop the first status update message
   // between master and the scheduler.
   Future<StatusUpdateMessage> statusUpdateMessage =
-    DROP_PROTOBUF(StatusUpdateMessage(), _, Not(AnyOf(Eq(master.get()), Eq(slave.get()))));
+    DROP_PROTOBUF(StatusUpdateMessage(),
+                  _,
+                  Not(AnyOf(Eq(master.get()), Eq(slave.get()))));
 
   driver1.launchTasks(offers.get()[0].id(), tasks);
 
