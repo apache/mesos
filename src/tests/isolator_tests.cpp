@@ -304,7 +304,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
 #ifdef __linux__
 class LimitedCpuIsolatorTest : public MesosTest {};
 
-TEST_F(LimitedCpuIsolatorTest, CgroupsCfs)
+TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
 {
   Flags flags;
 
