@@ -200,6 +200,7 @@ AC_PROG_CC([gcc])
 # '-dumpversion' works for clang as well but as of clang 3.3 it
 # reports version 4.2.1 (for gcc backwards compatibility).
 GCC_VERSION="`${CC} -dumpversion`"
+AC_MSG_NOTICE([GCC version: $GCC_VERSION])
 test $? = 0 || AC_MSG_ERROR([failed to determine version of gcc])
 case  "${GCC_VERSION}" in
   4.4*)
