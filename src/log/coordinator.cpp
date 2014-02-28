@@ -415,7 +415,12 @@ void CoordinatorProcess::writingFailed()
 void CoordinatorProcess::writingAborted()
 {
   CHECK_EQ(state, WRITING);
-  state = ELECTED;
+
+  // Demote the coordinator if a write operation is discarded since we
+  // don't actually know the write was successful or not and we really
+  // need to "catch-up" that position before we try and do another
+  // write (see MESOS-1038 for more details).
+  state = INITIAL;
 }
 
 
