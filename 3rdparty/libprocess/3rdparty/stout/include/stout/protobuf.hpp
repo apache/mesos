@@ -177,6 +177,255 @@ inline Result<T> read(const std::string& path)
   return result;
 }
 
+
+namespace internal {
+
+inline Try<Nothing> parse(
+    google::protobuf::Message* message,
+    const JSON::Object& object)
+{
+  struct Visitor : boost::static_visitor<Try<Nothing> >
+  {
+    Visitor(google::protobuf::Message* _message,
+            const google::protobuf::FieldDescriptor* _field)
+      : message(_message),
+        reflection(message->GetReflection()),
+        field(_field) {}
+
+    Try<Nothing> operator () (const JSON::Object& object) const
+    {
+      switch (field->type()) {
+        case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
+          if (field->is_repeated()) {
+            parse(reflection->AddMessage(message, field), object);
+          } else {
+            parse(reflection->MutableMessage(message, field), object);
+          }
+          break;
+        default:
+          return Error("Not expecting a JSON object for field '" +
+                       field->name() + "'");
+      }
+      return Nothing();
+    }
+
+    Try<Nothing> operator () (const JSON::String& string) const
+    {
+      switch (field->type()) {
+        case google::protobuf::FieldDescriptor::TYPE_STRING:
+        case google::protobuf::FieldDescriptor::TYPE_BYTES:
+          if (field->is_repeated()) {
+            reflection->AddString(message, field, string.value);
+          } else {
+            reflection->SetString(message, field, string.value);
+          }
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_ENUM:
+          if (field->is_repeated()) {
+            reflection->AddEnum(
+                message,
+                field,
+                field->enum_type()->FindValueByName(
+                    strings::upper(string.value)));
+          } else {
+            reflection->SetEnum(
+                message,
+                field,
+                field->enum_type()->FindValueByName(
+                    strings::upper(string.value)));
+          }
+          break;
+        default:
+          return Error("Not expecting a JSON string for field '" +
+                       field->name() + "'");
+      }
+      return Nothing();
+    }
+
+    Try<Nothing> operator () (const JSON::Number& number) const
+    {
+      switch (field->type()) {
+        case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
+          if (field->is_repeated()) {
+            reflection->AddDouble(message, field, number.value);
+          } else {
+            reflection->SetDouble(message, field, number.value);
+          }
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_FLOAT:
+          if (field->is_repeated()) {
+            reflection->AddFloat(
+                message,
+                field,
+                static_cast<float>(number.value));
+          } else {
+            reflection->SetFloat(
+                message,
+                field,
+                static_cast<float>(number.value));
+          }
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_INT64:
+        case google::protobuf::FieldDescriptor::TYPE_SINT64:
+        case google::protobuf::FieldDescriptor::TYPE_SFIXED64:
+          if (field->is_repeated()) {
+            reflection->AddInt64(
+                message,
+                field,
+                static_cast<int64_t>(number.value));
+          } else {
+            reflection->SetInt64(
+                message,
+                field,
+                static_cast<int64_t>(number.value));
+          }
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_UINT64:
+        case google::protobuf::FieldDescriptor::TYPE_FIXED64:
+          if (field->is_repeated()) {
+            reflection->AddUInt64(
+                message,
+                field,
+                static_cast<uint64_t>(number.value));
+          } else {
+            reflection->SetUInt64(
+                message,
+                field,
+                static_cast<uint64_t>(number.value));
+          }
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_INT32:
+        case google::protobuf::FieldDescriptor::TYPE_SINT32:
+        case google::protobuf::FieldDescriptor::TYPE_SFIXED32:
+          if (field->is_repeated()) {
+            reflection->AddInt32(
+                message,
+                field,
+                static_cast<int32_t>(number.value));
+          } else {
+            reflection->SetInt32(
+                message,
+                field,
+                static_cast<int32_t>(number.value));
+          }
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_UINT32:
+        case google::protobuf::FieldDescriptor::TYPE_FIXED32:
+          if (field->is_repeated()) {
+            reflection->AddUInt32(
+                message,
+                field,
+                static_cast<uint32_t>(number.value));
+          } else {
+            reflection->SetUInt32(
+                message,
+                field,
+                static_cast<uint32_t>(number.value));
+          }
+          break;
+        default:
+          return Error("Not expecting a JSON number for field '" +
+                       field->name() + "'");
+      }
+      return Nothing();
+    }
+
+    Try<Nothing> operator () (const JSON::Array& array) const
+    {
+      if (!field->is_repeated()) {
+        return Error("Not expecting a JSON array for field '" +
+                     field->name() + "'");
+      }
+
+      foreach (const JSON::Value& value, array.values) {
+        Try<Nothing> apply =
+          boost::apply_visitor(Visitor(message, field), value);
+
+        if (apply.isError()) {
+          return Error(apply.error());
+        }
+      }
+
+      return Nothing();
+    }
+
+    Try<Nothing> operator () (const JSON::Boolean& boolean) const
+    {
+      switch (field->type()) {
+        case google::protobuf::FieldDescriptor::TYPE_BOOL:
+          if (field->is_repeated()) {
+            reflection->AddBool(message, field, boolean.value);
+          } else {
+            reflection->SetBool(message, field, boolean.value);
+          }
+          break;
+        default:
+          return Error("Not expecting a JSON boolean for field '" +
+                       field->name() + "'");
+      }
+      return Nothing();
+    }
+
+    Try<Nothing> operator () (const JSON::Null&) const
+    {
+      return Error("Not expecting a JSON null");
+    }
+
+  private:
+    google::protobuf::Message* message;
+    const google::protobuf::Reflection* reflection;
+    const google::protobuf::FieldDescriptor* field;
+  };
+
+  foreachpair (
+      const std::string& name, const JSON::Value& value, object.values) {
+    // Look for a field by this name.
+    const google::protobuf::FieldDescriptor* field =
+      message->GetDescriptor()->FindFieldByName(name);
+
+    if (field != NULL) {
+      Try<Nothing> apply =
+        boost::apply_visitor(Visitor(message, field), value);
+
+      if (apply.isError()) {
+        return Error(apply.error());
+      }
+    }
+  }
+
+  return Nothing();
+}
+
+} // namespace internal {
+
+
+template <typename T>
+Try<T> parse(const JSON::Value& value)
+{
+  { google::protobuf::Message* message = (T*) NULL; (void) message; }
+
+  const JSON::Object* object = boost::get<JSON::Object>(&value);
+
+  if (object == NULL) {
+    return Error("Expecting a JSON object");
+  }
+
+  T message;
+
+  Try<Nothing> parse = internal::parse(&message, *object);
+
+  if (parse.isError()) {
+    return Error(parse.error());
+  }
+
+  if (!message.IsInitialized()) {
+    return Error("Missing required fields: " +
+                 message.InitializationErrorString());
+  }
+
+  return message;
+}
+
 } // namespace protobuf {
 
 namespace JSON {

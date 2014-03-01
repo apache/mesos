@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include <stout/gtest.hpp>
 #include <stout/json.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
@@ -92,4 +93,10 @@ TEST(ProtobufTest, JSON)
   JSON::Object object = JSON::Protobuf(message);
 
   EXPECT_EQ(expected, stringify(object));
+
+  // Test parsing too.
+  Try<tests::Message> parse = protobuf::parse<tests::Message>(object);
+  ASSERT_SOME(parse);
+
+  EXPECT_EQ(object, JSON::Protobuf(parse.get()));
 }
