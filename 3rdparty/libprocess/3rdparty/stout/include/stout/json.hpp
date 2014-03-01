@@ -14,6 +14,8 @@
 #ifndef __STOUT_JSON__
 #define __STOUT_JSON__
 
+#include <picojson.h>
+
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -25,11 +27,11 @@
 #include <boost/utility/enable_if.hpp>
 #include <boost/variant.hpp>
 
+#include <stout/check.hpp>
 #include <stout/foreach.hpp>
+#include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
-// TODO(jsirois): Implement parsing that constructs JSON objects.
-
-// TODO(bmahler): Evaluate picojson / JSON_Spirit.
 namespace JSON {
 
 // Implementation of the JavaScript Object Notation (JSON) grammar
@@ -116,7 +118,6 @@ struct Null {};
 
 namespace internal {
 
-
 // Only Object and Array require recursive_wrapper, not sure
 // if there is a reason to wrap the others or not.
 // Null needs to be first so that it is the default value.
@@ -148,15 +149,88 @@ struct Value : internal::Variant
   Value(
       const T& value,
       typename boost::enable_if<boost::is_arithmetic<T>, int>::type = 0)
-      : internal::Variant(Number(value)) {}
+    : internal::Variant(Number(value)) {}
 
   // Non-arithmetic types are passed to the default constructor of Variant.
   template <typename T>
   Value(
       const T& value,
       typename boost::disable_if<boost::is_arithmetic<T>, int>::type = 0)
-      : internal::Variant(value) {}
+    : internal::Variant(value) {}
+
+  template <typename T>
+  bool is() const
+  {
+    const T* t = boost::get<T>(this);
+    return t != NULL;
+  }
+
+  template <typename T>
+  const T& as() const
+  {
+    return *CHECK_NOTNULL(boost::get<T>(this));
+  }
 };
+
+
+inline bool operator == (const Value& lhs, const Value& rhs)
+{
+  struct Visitor : boost::static_visitor<bool>
+  {
+    Visitor(const Value& _value)
+      : value(_value) {}
+
+    bool operator () (const Object& object) const
+    {
+      if (value.is<Object>()) {
+        return value.as<Object>().values == object.values;
+      }
+      return false;
+    }
+
+    bool operator () (const String& string) const
+    {
+      if (value.is<String>()) {
+        return value.as<String>().value == string.value;
+      }
+      return false;
+    }
+
+    bool operator () (const Number& number) const
+    {
+      if (value.is<Number>()) {
+        return value.as<Number>().value == number.value;
+      }
+      return false;
+    }
+
+    bool operator () (const Array& array) const
+    {
+      if (value.is<Array>()) {
+        return value.as<Array>().values == array.values;
+      }
+      return false;
+    }
+
+    bool operator () (const Boolean& boolean) const
+    {
+      if (value.is<Boolean>()) {
+        return value.as<Boolean>().value == boolean.value;
+      }
+      return false;
+    }
+
+    bool operator () (const Null&) const
+    {
+      return value.is<Null>();
+    }
+
+  private:
+    const Value& value;
+  };
+
+  return boost::apply_visitor(Visitor(lhs), rhs);
+}
 
 
 // Implementation of rendering JSON objects built above using standard
@@ -241,7 +315,7 @@ struct Renderer : boost::static_visitor<>
     out << "]";
   }
 
-  void operator() (const Boolean& boolean) const
+  void operator () (const Boolean& boolean) const
   {
     out << (boolean.value ? "true" : "false");
   }
@@ -262,10 +336,83 @@ inline void render(std::ostream& out, const Value& value)
 }
 
 
-inline std::ostream& operator<<(std::ostream& out, const JSON::Value& value)
+inline std::ostream& operator << (std::ostream& out, const Value& value)
 {
-  JSON::render(out, value);
+  render(out, value);
   return out;
+}
+
+
+namespace internal {
+
+inline Value convert(const picojson::value& value)
+{
+  if (value.is<picojson::null>()) {
+    return Null();
+  } else if (value.is<bool>()) {
+    return Boolean(value.get<bool>());
+  } else if (value.is<picojson::value::object>()) {
+    Object object;
+    foreachpair (const std::string& name,
+                 const picojson::value& value,
+                 value.get<picojson::value::object>()) {
+      object.values[name] = convert(value);
+    }
+    return object;
+  } else if (value.is<picojson::value::array>()) {
+    Array array;
+    foreach (const picojson::value& value,
+             value.get<picojson::value::array>()) {
+      array.values.push_back(convert(value));
+    }
+    return array;
+  } else if (value.is<double>()) {
+    return Number(value.get<double>());
+  } else if (value.is<std::string>()) {
+    return String(value.get<std::string>());
+  }
+  return Null();
+}
+
+} // namespace internal {
+
+
+inline Try<Value> parse(const std::string& s)
+{
+  picojson::value value;
+  std::string error;
+
+  picojson::parse(value, s.c_str(), s.c_str() + s.size(), &error);
+
+  if (!error.empty()) {
+    return Error(error);
+  }
+
+  return internal::convert(value);
+}
+
+
+template <typename T>
+Try<T> parse(const std::string& s)
+{
+  Try<Value> value = parse(s);
+
+  if (value.isError()) {
+    return Error(value.error());
+  }
+
+  if (!value.get().is<T>()) {
+    return Error("Unexpected JSON type parsed");
+  }
+
+  return value.get().as<T>();
+}
+
+
+template <>
+inline Try<Value> parse(const std::string& s)
+{
+  return parse(s);
 }
 
 } // namespace JSON {

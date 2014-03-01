@@ -8,8 +8,10 @@
 
 #include <string>
 
+#include <stout/gtest.hpp>
 #include <stout/json.hpp>
 #include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 
 using std::string;
 
@@ -143,4 +145,33 @@ TEST(JsonTest, NumericAssignment)
   d = i;
   EXPECT_EQ(get<JSON::Number>(v).value, 7.0);
   EXPECT_EQ(d.value, 7.0);
+}
+
+
+TEST(JsonTest, parse)
+{
+  JSON::Object object;
+
+  object.values["strings"] = "string";
+  object.values["integer1"] = 1;
+  object.values["integer2"] = -1;
+  object.values["double1"] = 1;
+  object.values["double2"] = -1;
+  object.values["double3"] = -1.42;
+
+  JSON::Object nested;
+  nested.values["string"] = "string";
+
+  EXPECT_SOME_EQ(nested, JSON::parse<JSON::Object>(stringify(nested)));
+
+  object.values["nested"] = nested;
+
+  JSON::Array array;
+  array.values.push_back(nested);
+
+  EXPECT_SOME_EQ(array, JSON::parse<JSON::Array>(stringify(array)));
+
+  object.values["array"] = array;
+
+  EXPECT_SOME_EQ(object, JSON::parse(stringify(object)));
 }
