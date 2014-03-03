@@ -17,6 +17,7 @@ GPERFTOOLS = 3rdparty/gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
 RY_HTTP_PARSER = 3rdparty/ry-http-parser-$(RY_HTTP_PARSER_VERSION)
 LIBEV = 3rdparty/libev-$(LIBEV_VERSION)
+PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
 
 
 # Library. It is not installable presently because most people link
@@ -44,8 +45,9 @@ libprocess_la_CPPFLAGS =		\
   -I$(srcdir)/$(STOUT)/include		\
   -I$(BOOST)				\
   -I$(GLOG)/src				\
-  -I$(LIBEV)				\
   -I$(RY_HTTP_PARSER)			\
+  -I$(LIBEV)				\
+  -I$(PICOJSON)				\
   $(AM_CPPFLAGS)
 
 libprocess_la_LIBADD =			\
