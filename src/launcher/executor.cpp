@@ -218,7 +218,7 @@ public:
       std::cout << "Killing process tree at pid " << pid << std::endl;
 
       Try<std::list<os::ProcessTree> > trees =
-        os::killtree(pid, SIGTERM, true, true);
+        os::killtree(pid, SIGKILL, true, true);
 
       if (trees.isError()) {
         std::cerr << "Failed to kill the process tree rooted at pid "
