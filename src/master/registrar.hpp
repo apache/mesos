@@ -23,6 +23,8 @@
 
 #include <process/future.hpp>
 
+#include "master/registry.hpp"
+
 #include "state/protobuf.hpp"
 
 namespace mesos {
@@ -38,8 +40,21 @@ public:
   Registrar(state::protobuf::State* state);
   ~Registrar();
 
-  // Returns the future for slave admission into the Registry. The
-  // SlaveInfo must contain an 'id', otherwise a Failure will result.
+  // Recovers the Registry, persisting the new Master information.
+  // The Registrar must be recovered to allow other operations to
+  // proceed.
+  // TODO(bmahler): Consider a "factory" for constructing the
+  // Registrar, to eliminate the need for passing 'MasterInfo'.
+  // This is required as the Registrar is injected into the Master,
+  // and therefore MasterInfo is unknown during construction.
+  process::Future<Registry> recover(const MasterInfo& info);
+
+  // The following are operations that can be performed on the
+  // Registry for a slave. Returns:
+  //   true if the operation is permitted.
+  //   false if the operation is not permitted.
+  //   Failure if the operation fails (possibly lost log leadership),
+  //     recovery failed, or if 'info' is missing an ID.
   process::Future<bool> admit(const SlaveInfo& info);
   process::Future<bool> readmit(const SlaveInfo& info);
   process::Future<bool> remove(const SlaveInfo& info);

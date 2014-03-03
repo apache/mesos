@@ -24,6 +24,8 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include "common/type_utils.hpp"
+
 #include "master/registrar.hpp"
 
 #include "state/leveldb.hpp"
@@ -76,9 +78,48 @@ private:
 };
 
 
+TEST_F(RegistrarTest, recover)
+{
+  Registrar registrar(state);
+
+  SlaveInfo slave;
+  slave.set_hostname("localhost");
+  SlaveID id;
+  id.set_value("1");
+  slave.mutable_id()->CopyFrom(id);
+
+  // Operations preceding recovery will fail.
+  AWAIT_EXPECT_FAILED(registrar.admit(slave));
+  AWAIT_EXPECT_FAILED(registrar.readmit(slave));
+  AWAIT_EXPECT_FAILED(registrar.remove(slave));
+
+  MasterInfo info;
+  info.set_id("foobar");
+  info.set_ip(0);
+  info.set_port(5050);
+  info.set_pid("0:5050");
+
+  Future<Registry> registry = registrar.recover(info);
+
+  // Before waiting for the recovery to complete, invoke some
+  // operations to ensure they do not fail.
+  Future<bool> admit = registrar.admit(slave);
+  Future<bool> readmit = registrar.readmit(slave);
+  Future<bool> remove = registrar.remove(slave);
+
+  AWAIT_READY(registry);
+  EXPECT_EQ(info, registry.get().master().info());
+
+  AWAIT_EQ(true, admit);
+  AWAIT_EQ(true, readmit);
+  AWAIT_EQ(true, remove);
+}
+
+
 TEST_F(RegistrarTest, admit)
 {
   Registrar registrar(state);
+  AWAIT_READY(registrar.recover(MasterInfo()));
 
   SlaveInfo info1;
   info1.set_hostname("localhost");
@@ -98,6 +139,7 @@ TEST_F(RegistrarTest, admit)
 TEST_F(RegistrarTest, readmit)
 {
   Registrar registrar(state);
+  AWAIT_READY(registrar.recover(MasterInfo()));
 
   SlaveInfo info1;
   info1.set_hostname("localhost");
@@ -127,6 +169,7 @@ TEST_F(RegistrarTest, readmit)
 TEST_F(RegistrarTest, remove)
 {
   Registrar registrar(state);
+  AWAIT_READY(registrar.recover(MasterInfo()));
 
   SlaveInfo info1;
   info1.set_hostname("localhost");
