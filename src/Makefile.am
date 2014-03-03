@@ -35,6 +35,7 @@ GLOG = $(LIBPROCESS)/3rdparty/glog-$(GLOG_VERSION)
 GMOCK = $(LIBPROCESS)/3rdparty/gmock-$(GMOCK_VERSION)
 GTEST = $(GMOCK)/gtest
 PROTOBUF = $(LIBPROCESS)/3rdparty/protobuf-$(PROTOBUF_VERSION)
+PICOJSON = $(LIBPROCESS)/3rdparty/picojson-$(PICOJSON_VERSION)
 
 
 # Unfortunatley, 'pkglibexecdir' and 'pkglocalstatedir' are not set
@@ -82,6 +83,7 @@ MESOS_CPPFLAGS += -I$(top_srcdir)/$(STOUT)/include
 MESOS_CPPFLAGS += -I../include
 MESOS_CPPFLAGS += -I../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
+MESOS_CPPFLAGS += -I../$(PICOJSON)
 MESOS_CPPFLAGS += -I../$(GLOG)/src
 MESOS_CPPFLAGS += -I../$(LEVELDB)/include
 
