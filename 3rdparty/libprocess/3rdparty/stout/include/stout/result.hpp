@@ -71,11 +71,7 @@ public:
   Result(const Result<T>& that)
   {
     state = that.state;
-    if (that.t != NULL) {
-      t = new T(*that.t);
-    } else {
-      t = NULL;
-    }
+    t = (that.t == NULL ? NULL : new T(*that.t));
     message = that.message;
   }
 
@@ -89,11 +85,7 @@ public:
     if (this != &that) {
       delete t;
       state = that.state;
-      if (that.t != NULL) {
-        t = new T(*that.t);
-      } else {
-        t = NULL;
-      }
+      t = (that.t == NULL ? NULL : new T(*that.t));
       message = that.message;
     }
 
@@ -104,8 +96,9 @@ public:
   bool isNone() const { return state == NONE; }
   bool isError() const { return state == ERROR; }
 
-  T get() const
+  const T& get() const
   {
+    // TODO(dhamon): Switch this to fatal() once that calls abort().
     if (state != SOME) {
       if (state == ERROR) {
         std::cerr << "Result::get() but state == ERROR: "
@@ -118,6 +111,7 @@ public:
     return *t;
   }
 
+  // TODO(dhamon): Return const std::string& to remove copy.
   std::string error() const { assert(state == ERROR); return message; }
 
 private:
