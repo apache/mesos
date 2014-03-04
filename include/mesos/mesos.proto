@@ -94,20 +94,21 @@ message ContainerID {
 
 
 /**
- * Describes a framework. If the user field is set to an empty string
- * Mesos will automagically set it to the current user. Note that the
- * ID is only available after a framework has registered, however, it
- * is included here in order to facilitate scheduler failover (i.e.,
- * if it is set then the MesosSchedulerDriver expects the scheduler is
- * performing failover). The amount of time that the master will wait
- * for the scheduler to failover before removing the framework is
- * specified by failover_timeout.
- * If checkpoint is set, framework pid, executor pids and status updates
- * are checkpointed to disk by the slaves.
- * Checkpointing allows a restarted slave to reconnect with old executors
- * and recover status updates, at the cost of disk I/O.
- * The role field is used to group frameworks for allocation decisions,
- * depending on the allocation policy being used.
+ * Describes a framework. The user field is used to determine the
+ * Unix user that an executor/task should be launched as. If the user
+ * field is set to an empty string Mesos will automagically set it
+ * to the current user. Note that the ID is only available after a
+ * framework has registered, however, it is included here in order to
+ * facilitate scheduler failover (i.e., if it is set then the
+ * MesosSchedulerDriver expects the scheduler is performing failover).
+ * The amount of time that the master will wait for the scheduler to
+ * failover before removing the framework is specified by
+ * failover_timeout. If checkpoint is set, framework pid, executor
+ * pids and status updates are checkpointed to disk by the slaves.
+ * Checkpointing allows a restarted slave to reconnect with old
+ * executors and recover status updates, at the cost of disk I/O.
+ * The role field is used to group frameworks for allocation
+ * decisions, depending on the allocation policy being used.
  * If the hostname field is set to an empty string Mesos will
  * automagically set it to the current hostname.
  */
@@ -562,4 +563,90 @@ message Parameters {
 message Credential {
   required string principal = 1;
   optional bytes secret = 2;
+}
+
+
+/**
+ * ACLs used for authorization.
+ */
+message ACL {
+
+  // Entity is used to describe a subject(s) or an object(s) of an ACL.
+  // NOTE:
+  // To allow everyone access to an Entity set its type to 'ANY'.
+  // To deny access to an Entity set its type to 'NONE'.
+  message Entity {
+    enum Type {
+      SOME = 0;
+      ANY = 1;
+      NONE = 2;
+    }
+    optional Type type = 1 [default = SOME];
+    repeated string values = 2; // Ignored for ANY/NONE.
+  }
+
+  // ACLs.
+  message RunTasks {
+    // Subjects.
+    required Entity principals = 1; // Framework principals.
+
+    // Objects.
+    required Entity users = 2; // Users to run the tasks/executors as.
+  }
+
+  message ReceiveOffers {
+    // Subjects.
+    required Entity principals = 1; // Framework principals.
+
+    // Objects.
+    required Entity roles = 2; // Resource roles that can be offered.
+  }
+
+  message HTTPGet {
+    // Subjects (At least one of these should be set).
+    optional Entity usernames = 1; // HTTP authentication based usernames.
+    optional Entity ips = 2;
+    optional Entity hostnames = 3;
+
+    // Objects.
+    required Entity urls = 4;
+  }
+
+  message HTTPPut {
+    // Subjects (At least one of these should be set).
+    optional Entity usernames = 1; // HTTP authentication based usernames.
+    optional Entity ips = 2;
+    optional Entity hostnames = 3;
+
+    // Objects.
+    required Entity urls = 4;
+  }
+}
+
+
+/*
+ * Collection of ACL.
+ *
+ * Each authorization request is evaluated against the ACLs in the order
+ * they are defined.
+ *
+ * For simplicity, the ACLs for a given action are not aggregated even
+ * when they have the same subjects or objects. The first ACL that
+ * matches the request determines whether that request should be
+ * permitted or not. An ACL matches iff both the subjects
+ * (e.g., clients, principals) and the objects (e.g., urls, users,
+ * roles) of the ACL match the request.
+ *
+ * If none of the ACLs match the request, the 'permissive' field
+ * determines whether the request should be permitted or not.
+ *
+ * TODO(vinod): Do aggregation of ACLs when possible.
+ *
+ */
+message ACLs {
+  required bool permissive = 1 [default = true];
+  repeated ACL.RunTasks run_tasks = 2;
+  repeated ACL.ReceiveOffers receive_offers = 3;
+  repeated ACL.HTTPGet http_get = 4;
+  repeated ACL.HTTPPut http_put = 5;
 }

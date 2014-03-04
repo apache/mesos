@@ -368,7 +368,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, NonRetryableFrrors)
 
   // Creator of the base path restricts the all accesses to be
   // itself.
-  ACL onlyCreatorCanAccess[] = {{ ZOO_PERM_ALL, ZOO_AUTH_IDS }};
+  ::ACL onlyCreatorCanAccess[] = {{ ZOO_PERM_ALL, ZOO_AUTH_IDS }};
   authenticatedZk.create("/test",
                          "42",
                          (ACL_vector) {1, onlyCreatorCanAccess},

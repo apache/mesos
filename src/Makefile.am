@@ -186,6 +186,7 @@ nodist_libmesos_no_3rdparty_la_SOURCES =				\
   $(REGISTRY_PROTOS)
 
 libmesos_no_3rdparty_la_SOURCES =					\
+	authorizer/authorizer.hpp					\
 	sasl/authenticatee.hpp						\
 	sasl/authenticator.hpp						\
 	sasl/auxprop.hpp						\
@@ -887,6 +888,7 @@ mesos_tests_SOURCES =				\
   tests/allocator_tests.cpp			\
   tests/attributes_tests.cpp			\
   tests/authentication_tests.cpp		\
+  tests/authorization_tests.cpp		        \
   tests/containerizer.cpp			\
   tests/containerizer_tests.cpp			\
   tests/environment.cpp				\
