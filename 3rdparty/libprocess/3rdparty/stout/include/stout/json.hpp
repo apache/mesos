@@ -173,63 +173,64 @@ struct Value : internal::Variant
 };
 
 
+struct Comparator : boost::static_visitor<bool>
+{
+  Comparator(const Value& _value)
+    : value(_value) {}
+
+  bool operator () (const Object& object) const
+  {
+    if (value.is<Object>()) {
+      return value.as<Object>().values == object.values;
+    }
+    return false;
+  }
+
+  bool operator () (const String& string) const
+  {
+    if (value.is<String>()) {
+      return value.as<String>().value == string.value;
+    }
+    return false;
+  }
+
+  bool operator () (const Number& number) const
+  {
+    if (value.is<Number>()) {
+      return value.as<Number>().value == number.value;
+    }
+    return false;
+  }
+
+  bool operator () (const Array& array) const
+  {
+    if (value.is<Array>()) {
+      return value.as<Array>().values == array.values;
+    }
+    return false;
+  }
+
+  bool operator () (const Boolean& boolean) const
+  {
+    if (value.is<Boolean>()) {
+      return value.as<Boolean>().value == boolean.value;
+    }
+    return false;
+  }
+
+  bool operator () (const Null&) const
+  {
+    return value.is<Null>();
+  }
+
+private:
+  const Value& value;
+};
+
+
 inline bool operator == (const Value& lhs, const Value& rhs)
 {
-  struct Visitor : boost::static_visitor<bool>
-  {
-    Visitor(const Value& _value)
-      : value(_value) {}
-
-    bool operator () (const Object& object) const
-    {
-      if (value.is<Object>()) {
-        return value.as<Object>().values == object.values;
-      }
-      return false;
-    }
-
-    bool operator () (const String& string) const
-    {
-      if (value.is<String>()) {
-        return value.as<String>().value == string.value;
-      }
-      return false;
-    }
-
-    bool operator () (const Number& number) const
-    {
-      if (value.is<Number>()) {
-        return value.as<Number>().value == number.value;
-      }
-      return false;
-    }
-
-    bool operator () (const Array& array) const
-    {
-      if (value.is<Array>()) {
-        return value.as<Array>().values == array.values;
-      }
-      return false;
-    }
-
-    bool operator () (const Boolean& boolean) const
-    {
-      if (value.is<Boolean>()) {
-        return value.as<Boolean>().value == boolean.value;
-      }
-      return false;
-    }
-
-    bool operator () (const Null&) const
-    {
-      return value.is<Null>();
-    }
-
-  private:
-    const Value& value;
-  };
-
-  return boost::apply_visitor(Visitor(lhs), rhs);
+  return boost::apply_visitor(Comparator(lhs), rhs);
 }
 
 
