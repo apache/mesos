@@ -1536,7 +1536,8 @@ TEST_F(RecoverTest, RacingCatchup)
   AWAIT_READY(recovering4);
   AWAIT_READY(recovering5);
 
-  Shared<Replica> shared4 = recovering4.get().share();
+  Owned<Replica> shared4_ = recovering4.get();
+  Shared<Replica> shared4 = shared4_.share();
   Coordinator coord2(3, shared4, network2);
 
   {

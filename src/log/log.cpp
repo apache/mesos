@@ -333,7 +333,8 @@ void LogProcess::_recover()
     }
     promises.clear();
   } else {
-    replica = future.get().share();
+    Owned<Replica> replica_ = future.get();
+    replica = replica_.share();
 
     // Mark the success of the recovery.
     recovered.set(Nothing());
