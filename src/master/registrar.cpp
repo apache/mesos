@@ -80,12 +80,11 @@ private:
     Operation() : success(false) {}
 
     // Attempts to invoke the operation on 't'.
-    // Returns Some if the operation mutates 't'.
-    // Returns None if the operation does not mutate 't'.
-    // Returns Error if the operation cannot be performed on 't'.
-    Result<T> operator () (T t)
+    // Returns whether the operation mutates 't', or an error if the
+    // operation cannot be applied successfully.
+    Try<bool> operator () (T* t)
     {
-      const Result<T>& result = perform(t);
+      const Try<bool>& result = perform(t);
 
       success = !result.isError();
 
@@ -96,7 +95,7 @@ private:
     bool set() { return Promise<bool>::set(success); }
 
   protected:
-    virtual Result<T> perform(T t) = 0;
+    virtual Try<bool> perform(T* t) = 0;
 
   private:
     bool success;
@@ -108,10 +107,10 @@ private:
     Recover(const MasterInfo& _info) : info(_info) {}
 
   protected:
-    virtual Result<Registry> perform(Registry registry)
+    virtual Try<bool> perform(Registry* registry)
     {
-      registry.mutable_master()->mutable_info()->CopyFrom(info);
-      return registry;
+      registry->mutable_master()->mutable_info()->CopyFrom(info);
+      return true;
     }
 
     const MasterInfo info;
@@ -123,18 +122,18 @@ private:
     Admit(const SlaveInfo& _info) : info(_info) {}
 
   protected:
-    virtual Result<Registry> perform(Registry registry)
+    virtual Try<bool> perform(Registry* registry)
     {
       // Check and see if this slave already exists.
-      foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
+      foreach (const Registry::Slave& slave, registry->slaves().slaves()) {
         if (slave.info().id() == info.id()) {
           return Error("Slave already admitted");
         }
       }
 
-      Registry::Slave* slave = registry.mutable_slaves()->add_slaves();
+      Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
       slave->mutable_info()->CopyFrom(info);
-      return registry;
+      return true;
     }
 
     const SlaveInfo info;
@@ -146,11 +145,11 @@ private:
     Readmit(const SlaveInfo& _info) : info(_info) {}
 
   protected:
-    virtual Result<Registry> perform(Registry registry)
+    virtual Try<bool> perform(Registry* registry)
     {
-      foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
+      foreach (const Registry::Slave& slave, registry->slaves().slaves()) {
         if (slave.info().id() == info.id()) {
-          return None();
+          return false;
         }
       }
 
@@ -166,16 +165,17 @@ private:
     Remove(const SlaveInfo& _info) : info(_info) {}
 
   protected:
-    virtual Result<Registry> perform(Registry registry)
+    virtual Try<bool> perform(Registry* registry)
     {
-      for (int i = 0; i < registry.slaves().slaves().size(); i++) {
-        const Registry::Slave& slave = registry.slaves().slaves(i);
+      for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+        const Registry::Slave& slave = registry->slaves().slaves(i);
         if (slave.info().id() == info.id()) {
-          for (int j = i + 1; j < registry.slaves().slaves().size(); j++) {
-            registry.mutable_slaves()->mutable_slaves()->SwapElements(j - 1, j);
+          for (int j = i + 1; j < registry->slaves().slaves().size(); j++) {
+            registry->
+                mutable_slaves()->mutable_slaves()->SwapElements(j - 1, j);
           }
-          registry.mutable_slaves()->mutable_slaves()->RemoveLast();
-          return registry;
+          registry->mutable_slaves()->mutable_slaves()->RemoveLast();
+          return true;
         }
       }
 
@@ -379,19 +379,17 @@ void RegistrarProcess::update()
 
   CHECK_SOME(variable);
 
-  Variable<Registry> variable_ = variable.get();
+  Registry registry = variable.get().get();
 
   foreach (Operation<Registry>* operation, operations) {
-    const Result<Registry>& registry = (*operation)(variable_.get());
-    if (registry.isSome()) {
-      variable_ = variable_.mutate(registry.get());
-    }
+    // No need to process the result of the operation.
+    (*operation)(&registry);
   }
 
   // TODO(benh): Add a timeout so we don't wait forever.
 
   // Perform the store!
-  state->store(variable_)
+  state->store(variable.get().mutate(registry))
     .onAny(defer(self(), &Self::_update, lambda::_1, operations));
 
   // Clear the operations, _update will transition the Promises!
