@@ -199,6 +199,13 @@ class Message : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
+  // required bool b = 26;
+  inline bool has_b() const;
+  inline void clear_b();
+  static const int kBFieldNumber = 26;
+  inline bool b() const;
+  inline void set_b(bool value);
+
   // required string str = 1;
   inline bool has_str() const;
   inline void clear_str();
@@ -294,6 +301,18 @@ class Message : public ::google::protobuf::Message {
   inline ::tests::Nested* mutable_nested();
   inline ::tests::Nested* release_nested();
   inline void set_allocated_nested(::tests::Nested* nested);
+
+  // repeated bool repeated_bool = 27;
+  inline int repeated_bool_size() const;
+  inline void clear_repeated_bool();
+  static const int kRepeatedBoolFieldNumber = 27;
+  inline bool repeated_bool(int index) const;
+  inline void set_repeated_bool(int index, bool value);
+  inline void add_repeated_bool(bool value);
+  inline const ::google::protobuf::RepeatedField< bool >&
+      repeated_bool() const;
+  inline ::google::protobuf::RepeatedField< bool >*
+      mutable_repeated_bool();
 
   // repeated string repeated_string = 13;
   inline int repeated_string_size() const;
@@ -463,6 +482,8 @@ class Message : public ::google::protobuf::Message {
 
   // @@protoc_insertion_point(class_scope:tests.Message)
  private:
+  inline void set_has_b();
+  inline void clear_has_b();
   inline void set_has_str();
   inline void clear_has_str();
   inline void set_has_bytes();
@@ -491,16 +512,19 @@ class Message : public ::google::protobuf::Message {
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::std::string* str_;
+  bool b_;
+  ::google::protobuf::int32 int32_;
   ::std::string* bytes_;
   ::google::protobuf::int64 int64_;
-  ::google::protobuf::int32 int32_;
   ::google::protobuf::uint32 uint32_;
+  ::google::protobuf::int32 sint32_;
   ::google::protobuf::uint64 uint64_;
   ::google::protobuf::int64 sint64_;
-  ::google::protobuf::int32 sint32_;
   float f_;
+  int e_;
   double d_;
   ::tests::Nested* nested_;
+  ::google::protobuf::RepeatedField< bool > repeated_bool_;
   ::google::protobuf::RepeatedPtrField< ::std::string> repeated_string_;
   ::google::protobuf::RepeatedPtrField< ::std::string> repeated_bytes_;
   ::google::protobuf::RepeatedField< ::google::protobuf::int32 > repeated_int32_;
@@ -514,10 +538,9 @@ class Message : public ::google::protobuf::Message {
   ::google::protobuf::RepeatedField<int> repeated_enum_;
   ::google::protobuf::RepeatedPtrField< ::tests::Nested > repeated_nested_;
   ::google::protobuf::RepeatedPtrField< ::std::string> empty_;
-  int e_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(25 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(27 + 31) / 32];
 
   friend void  protobuf_AddDesc_protobuf_5ftests_2eproto();
   friend void protobuf_AssignDesc_protobuf_5ftests_2eproto();
@@ -607,15 +630,37 @@ inline void Nested::set_allocated_str(::std::string* str) {
 
 // Message
 
-// required string str = 1;
-inline bool Message::has_str() const {
+// required bool b = 26;
+inline bool Message::has_b() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void Message::set_has_str() {
+inline void Message::set_has_b() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void Message::clear_has_str() {
+inline void Message::clear_has_b() {
   _has_bits_[0] &= ~0x00000001u;
+}
+inline void Message::clear_b() {
+  b_ = false;
+  clear_has_b();
+}
+inline bool Message::b() const {
+  return b_;
+}
+inline void Message::set_b(bool value) {
+  set_has_b();
+  b_ = value;
+}
+
+// required string str = 1;
+inline bool Message::has_str() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Message::set_has_str() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Message::clear_has_str() {
+  _has_bits_[0] &= ~0x00000002u;
 }
 inline void Message::clear_str() {
   if (str_ != &::google::protobuf::internal::kEmptyString) {
@@ -679,13 +724,13 @@ inline void Message::set_allocated_str(::std::string* str) {
 
 // required bytes bytes = 2;
 inline bool Message::has_bytes() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
+  return (_has_bits_[0] & 0x00000004u) != 0;
 }
 inline void Message::set_has_bytes() {
-  _has_bits_[0] |= 0x00000002u;
+  _has_bits_[0] |= 0x00000004u;
 }
 inline void Message::clear_has_bytes() {
-  _has_bits_[0] &= ~0x00000002u;
+  _has_bits_[0] &= ~0x00000004u;
 }
 inline void Message::clear_bytes() {
   if (bytes_ != &::google::protobuf::internal::kEmptyString) {
@@ -749,13 +794,13 @@ inline void Message::set_allocated_bytes(::std::string* bytes) {
 
 // optional int32 int32 = 3;
 inline bool Message::has_int32() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
+  return (_has_bits_[0] & 0x00000008u) != 0;
 }
 inline void Message::set_has_int32() {
-  _has_bits_[0] |= 0x00000004u;
+  _has_bits_[0] |= 0x00000008u;
 }
 inline void Message::clear_has_int32() {
-  _has_bits_[0] &= ~0x00000004u;
+  _has_bits_[0] &= ~0x00000008u;
 }
 inline void Message::clear_int32() {
   int32_ = 0;
@@ -771,13 +816,13 @@ inline void Message::set_int32(::google::protobuf::int32 value) {
 
 // optional int64 int64 = 4;
 inline bool Message::has_int64() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
+  return (_has_bits_[0] & 0x00000010u) != 0;
 }
 inline void Message::set_has_int64() {
-  _has_bits_[0] |= 0x00000008u;
+  _has_bits_[0] |= 0x00000010u;
 }
 inline void Message::clear_has_int64() {
-  _has_bits_[0] &= ~0x00000008u;
+  _has_bits_[0] &= ~0x00000010u;
 }
 inline void Message::clear_int64() {
   int64_ = GOOGLE_LONGLONG(0);
@@ -793,13 +838,13 @@ inline void Message::set_int64(::google::protobuf::int64 value) {
 
 // optional uint32 uint32 = 5;
 inline bool Message::has_uint32() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
+  return (_has_bits_[0] & 0x00000020u) != 0;
 }
 inline void Message::set_has_uint32() {
-  _has_bits_[0] |= 0x00000010u;
+  _has_bits_[0] |= 0x00000020u;
 }
 inline void Message::clear_has_uint32() {
-  _has_bits_[0] &= ~0x00000010u;
+  _has_bits_[0] &= ~0x00000020u;
 }
 inline void Message::clear_uint32() {
   uint32_ = 0u;
@@ -815,13 +860,13 @@ inline void Message::set_uint32(::google::protobuf::uint32 value) {
 
 // optional uint64 uint64 = 6;
 inline bool Message::has_uint64() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
+  return (_has_bits_[0] & 0x00000040u) != 0;
 }
 inline void Message::set_has_uint64() {
-  _has_bits_[0] |= 0x00000020u;
+  _has_bits_[0] |= 0x00000040u;
 }
 inline void Message::clear_has_uint64() {
-  _has_bits_[0] &= ~0x00000020u;
+  _has_bits_[0] &= ~0x00000040u;
 }
 inline void Message::clear_uint64() {
   uint64_ = GOOGLE_ULONGLONG(0);
@@ -837,13 +882,13 @@ inline void Message::set_uint64(::google::protobuf::uint64 value) {
 
 // optional sint32 sint32 = 7;
 inline bool Message::has_sint32() const {
-  return (_has_bits_[0] & 0x00000040u) != 0;
+  return (_has_bits_[0] & 0x00000080u) != 0;
 }
 inline void Message::set_has_sint32() {
-  _has_bits_[0] |= 0x00000040u;
+  _has_bits_[0] |= 0x00000080u;
 }
 inline void Message::clear_has_sint32() {
-  _has_bits_[0] &= ~0x00000040u;
+  _has_bits_[0] &= ~0x00000080u;
 }
 inline void Message::clear_sint32() {
   sint32_ = 0;
@@ -859,13 +904,13 @@ inline void Message::set_sint32(::google::protobuf::int32 value) {
 
 // optional sint64 sint64 = 8;
 inline bool Message::has_sint64() const {
-  return (_has_bits_[0] & 0x00000080u) != 0;
+  return (_has_bits_[0] & 0x00000100u) != 0;
 }
 inline void Message::set_has_sint64() {
-  _has_bits_[0] |= 0x00000080u;
+  _has_bits_[0] |= 0x00000100u;
 }
 inline void Message::clear_has_sint64() {
-  _has_bits_[0] &= ~0x00000080u;
+  _has_bits_[0] &= ~0x00000100u;
 }
 inline void Message::clear_sint64() {
   sint64_ = GOOGLE_LONGLONG(0);
@@ -881,13 +926,13 @@ inline void Message::set_sint64(::google::protobuf::int64 value) {
 
 // required float f = 9;
 inline bool Message::has_f() const {
-  return (_has_bits_[0] & 0x00000100u) != 0;
+  return (_has_bits_[0] & 0x00000200u) != 0;
 }
 inline void Message::set_has_f() {
-  _has_bits_[0] |= 0x00000100u;
+  _has_bits_[0] |= 0x00000200u;
 }
 inline void Message::clear_has_f() {
-  _has_bits_[0] &= ~0x00000100u;
+  _has_bits_[0] &= ~0x00000200u;
 }
 inline void Message::clear_f() {
   f_ = 0;
@@ -903,13 +948,13 @@ inline void Message::set_f(float value) {
 
 // required double d = 10;
 inline bool Message::has_d() const {
-  return (_has_bits_[0] & 0x00000200u) != 0;
+  return (_has_bits_[0] & 0x00000400u) != 0;
 }
 inline void Message::set_has_d() {
-  _has_bits_[0] |= 0x00000200u;
+  _has_bits_[0] |= 0x00000400u;
 }
 inline void Message::clear_has_d() {
-  _has_bits_[0] &= ~0x00000200u;
+  _has_bits_[0] &= ~0x00000400u;
 }
 inline void Message::clear_d() {
   d_ = 0;
@@ -925,13 +970,13 @@ inline void Message::set_d(double value) {
 
 // required .tests.Enum e = 11;
 inline bool Message::has_e() const {
-  return (_has_bits_[0] & 0x00000400u) != 0;
+  return (_has_bits_[0] & 0x00000800u) != 0;
 }
 inline void Message::set_has_e() {
-  _has_bits_[0] |= 0x00000400u;
+  _has_bits_[0] |= 0x00000800u;
 }
 inline void Message::clear_has_e() {
-  _has_bits_[0] &= ~0x00000400u;
+  _has_bits_[0] &= ~0x00000800u;
 }
 inline void Message::clear_e() {
   e_ = 1;
@@ -948,13 +993,13 @@ inline void Message::set_e(::tests::Enum value) {
 
 // required .tests.Nested nested = 12;
 inline bool Message::has_nested() const {
-  return (_has_bits_[0] & 0x00000800u) != 0;
+  return (_has_bits_[0] & 0x00001000u) != 0;
 }
 inline void Message::set_has_nested() {
-  _has_bits_[0] |= 0x00000800u;
+  _has_bits_[0] |= 0x00001000u;
 }
 inline void Message::clear_has_nested() {
-  _has_bits_[0] &= ~0x00000800u;
+  _has_bits_[0] &= ~0x00001000u;
 }
 inline void Message::clear_nested() {
   if (nested_ != NULL) nested_->::tests::Nested::Clear();
@@ -982,6 +1027,31 @@ inline void Message::set_allocated_nested(::tests::Nested* nested) {
   } else {
     clear_has_nested();
   }
+}
+
+// repeated bool repeated_bool = 27;
+inline int Message::repeated_bool_size() const {
+  return repeated_bool_.size();
+}
+inline void Message::clear_repeated_bool() {
+  repeated_bool_.Clear();
+}
+inline bool Message::repeated_bool(int index) const {
+  return repeated_bool_.Get(index);
+}
+inline void Message::set_repeated_bool(int index, bool value) {
+  repeated_bool_.Set(index, value);
+}
+inline void Message::add_repeated_bool(bool value) {
+  repeated_bool_.Add(value);
+}
+inline const ::google::protobuf::RepeatedField< bool >&
+Message::repeated_bool() const {
+  return repeated_bool_;
+}
+inline ::google::protobuf::RepeatedField< bool >*
+Message::mutable_repeated_bool() {
+  return &repeated_bool_;
 }
 
 // repeated string repeated_string = 13;

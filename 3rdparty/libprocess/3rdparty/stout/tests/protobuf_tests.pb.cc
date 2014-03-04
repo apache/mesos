@@ -53,7 +53,8 @@ void protobuf_AssignDesc_protobuf_5ftests_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Nested));
   Message_descriptor_ = file->message_type(1);
-  static const int Message_offsets_[25] = {
+  static const int Message_offsets_[27] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, b_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, str_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, bytes_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, int32_),
@@ -66,6 +67,7 @@ void protobuf_AssignDesc_protobuf_5ftests_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, d_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, e_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, nested_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, repeated_bool_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, repeated_string_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, repeated_bytes_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, repeated_int32_),
@@ -127,21 +129,22 @@ void protobuf_AddDesc_protobuf_5ftests_2eproto() {
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\024protobuf_tests.proto\022\005tests\"\025\n\006Nested\022"
-    "\013\n\003str\030\001 \001(\t\"\241\004\n\007Message\022\013\n\003str\030\001 \002(\t\022\r\n"
-    "\005bytes\030\002 \002(\014\022\r\n\005int32\030\003 \001(\005\022\r\n\005int64\030\004 \001"
-    "(\003\022\016\n\006uint32\030\005 \001(\r\022\016\n\006uint64\030\006 \001(\004\022\016\n\006si"
-    "nt32\030\007 \001(\021\022\016\n\006sint64\030\010 \001(\022\022\t\n\001f\030\t \002(\002\022\t\n"
-    "\001d\030\n \002(\001\022\026\n\001e\030\013 \002(\0162\013.tests.Enum\022\035\n\006nest"
-    "ed\030\014 \002(\0132\r.tests.Nested\022\027\n\017repeated_stri"
-    "ng\030\r \003(\t\022\026\n\016repeated_bytes\030\016 \003(\014\022\026\n\016repe"
-    "ated_int32\030\017 \003(\005\022\026\n\016repeated_int64\030\020 \003(\003"
-    "\022\027\n\017repeated_uint32\030\021 \003(\r\022\027\n\017repeated_ui"
-    "nt64\030\022 \003(\004\022\027\n\017repeated_sint32\030\023 \003(\021\022\027\n\017r"
-    "epeated_sint64\030\024 \003(\022\022\026\n\016repeated_float\030\025"
-    " \003(\002\022\027\n\017repeated_double\030\026 \003(\001\022\"\n\rrepeate"
-    "d_enum\030\027 \003(\0162\013.tests.Enum\022&\n\017repeated_ne"
-    "sted\030\030 \003(\0132\r.tests.Nested\022\r\n\005empty\030\031 \003(\t"
-    "*\030\n\004Enum\022\007\n\003ONE\020\001\022\007\n\003TWO\020\002", 626);
+    "\013\n\003str\030\001 \001(\t\"\303\004\n\007Message\022\t\n\001b\030\032 \002(\010\022\013\n\003s"
+    "tr\030\001 \002(\t\022\r\n\005bytes\030\002 \002(\014\022\r\n\005int32\030\003 \001(\005\022\r"
+    "\n\005int64\030\004 \001(\003\022\016\n\006uint32\030\005 \001(\r\022\016\n\006uint64\030"
+    "\006 \001(\004\022\016\n\006sint32\030\007 \001(\021\022\016\n\006sint64\030\010 \001(\022\022\t\n"
+    "\001f\030\t \002(\002\022\t\n\001d\030\n \002(\001\022\026\n\001e\030\013 \002(\0162\013.tests.E"
+    "num\022\035\n\006nested\030\014 \002(\0132\r.tests.Nested\022\025\n\rre"
+    "peated_bool\030\033 \003(\010\022\027\n\017repeated_string\030\r \003"
+    "(\t\022\026\n\016repeated_bytes\030\016 \003(\014\022\026\n\016repeated_i"
+    "nt32\030\017 \003(\005\022\026\n\016repeated_int64\030\020 \003(\003\022\027\n\017re"
+    "peated_uint32\030\021 \003(\r\022\027\n\017repeated_uint64\030\022"
+    " \003(\004\022\027\n\017repeated_sint32\030\023 \003(\021\022\027\n\017repeate"
+    "d_sint64\030\024 \003(\022\022\026\n\016repeated_float\030\025 \003(\002\022\027"
+    "\n\017repeated_double\030\026 \003(\001\022\"\n\rrepeated_enum"
+    "\030\027 \003(\0162\013.tests.Enum\022&\n\017repeated_nested\030\030"
+    " \003(\0132\r.tests.Nested\022\r\n\005empty\030\031 \003(\t*\030\n\004En"
+    "um\022\007\n\003ONE\020\001\022\007\n\003TWO\020\002", 660);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "protobuf_tests.proto", &protobuf_RegisterTypes);
   Nested::default_instance_ = new Nested();
@@ -400,6 +403,7 @@ void Nested::Swap(Nested* other) {
 // ===================================================================
 
 #ifndef _MSC_VER
+const int Message::kBFieldNumber;
 const int Message::kStrFieldNumber;
 const int Message::kBytesFieldNumber;
 const int Message::kInt32FieldNumber;
@@ -412,6 +416,7 @@ const int Message::kFFieldNumber;
 const int Message::kDFieldNumber;
 const int Message::kEFieldNumber;
 const int Message::kNestedFieldNumber;
+const int Message::kRepeatedBoolFieldNumber;
 const int Message::kRepeatedStringFieldNumber;
 const int Message::kRepeatedBytesFieldNumber;
 const int Message::kRepeatedInt32FieldNumber;
@@ -444,6 +449,7 @@ Message::Message(const Message& from)
 
 void Message::SharedCtor() {
   _cached_size_ = 0;
+  b_ = false;
   str_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   bytes_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   int32_ = 0;
@@ -498,6 +504,7 @@ Message* Message::New() const {
 
 void Message::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    b_ = false;
     if (has_str()) {
       if (str_ != &::google::protobuf::internal::kEmptyString) {
         str_->clear();
@@ -513,9 +520,9 @@ void Message::Clear() {
     uint32_ = 0u;
     uint64_ = GOOGLE_ULONGLONG(0);
     sint32_ = 0;
-    sint64_ = GOOGLE_LONGLONG(0);
   }
   if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
+    sint64_ = GOOGLE_LONGLONG(0);
     f_ = 0;
     d_ = 0;
     e_ = 1;
@@ -523,6 +530,7 @@ void Message::Clear() {
       if (nested_ != NULL) nested_->::tests::Nested::Clear();
     }
   }
+  repeated_bool_.Clear();
   repeated_string_.Clear();
   repeated_bytes_.Clear();
   repeated_int32_.Clear();
@@ -1008,6 +1016,44 @@ bool Message::MergePartialFromCodedStream(
           goto handle_uninterpreted;
         }
         if (input->ExpectTag(202)) goto parse_empty;
+        if (input->ExpectTag(208)) goto parse_b;
+        break;
+      }
+
+      // required bool b = 26;
+      case 26: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_b:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
+                 input, &b_)));
+          set_has_b();
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(216)) goto parse_repeated_bool;
+        break;
+      }
+
+      // repeated bool repeated_bool = 27;
+      case 27: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_repeated_bool:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadRepeatedPrimitive<
+                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
+                 2, 216, input, this->mutable_repeated_bool())));
+        } else if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag)
+                   == ::google::protobuf::internal::WireFormatLite::
+                      WIRETYPE_LENGTH_DELIMITED) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPackedPrimitiveNoInline<
+                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
+                 input, this->mutable_repeated_bool())));
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(216)) goto parse_repeated_bool;
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -1181,6 +1227,17 @@ void Message::SerializeWithCachedSizes(
       25, this->empty(i), output);
   }
 
+  // required bool b = 26;
+  if (has_b()) {
+    ::google::protobuf::internal::WireFormatLite::WriteBool(26, this->b(), output);
+  }
+
+  // repeated bool repeated_bool = 27;
+  for (int i = 0; i < this->repeated_bool_size(); i++) {
+    ::google::protobuf::internal::WireFormatLite::WriteBool(
+      27, this->repeated_bool(i), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -1344,6 +1401,17 @@ void Message::SerializeWithCachedSizes(
       WriteStringToArray(25, this->empty(i), target);
   }
 
+  // required bool b = 26;
+  if (has_b()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(26, this->b(), target);
+  }
+
+  // repeated bool repeated_bool = 27;
+  for (int i = 0; i < this->repeated_bool_size(); i++) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteBoolToArray(27, this->repeated_bool(i), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -1355,6 +1423,11 @@ int Message::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required bool b = 26;
+    if (has_b()) {
+      total_size += 2 + 1;
+    }
+
     // required string str = 1;
     if (has_str()) {
       total_size += 1 +
@@ -1404,6 +1477,8 @@ int Message::ByteSize() const {
           this->sint32());
     }
 
+  }
+  if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
     // optional sint64 sint64 = 8;
     if (has_sint64()) {
       total_size += 1 +
@@ -1411,8 +1486,6 @@ int Message::ByteSize() const {
           this->sint64());
     }
 
-  }
-  if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
     // required float f = 9;
     if (has_f()) {
       total_size += 1 + 4;
@@ -1437,6 +1510,13 @@ int Message::ByteSize() const {
     }
 
   }
+  // repeated bool repeated_bool = 27;
+  {
+    int data_size = 0;
+    data_size = 1 * this->repeated_bool_size();
+    total_size += 2 * this->repeated_bool_size() + data_size;
+  }
+
   // repeated string repeated_string = 13;
   total_size += 1 * this->repeated_string_size();
   for (int i = 0; i < this->repeated_string_size(); i++) {
@@ -1575,6 +1655,7 @@ void Message::MergeFrom(const ::google::protobuf::Message& from) {
 
 void Message::MergeFrom(const Message& from) {
   GOOGLE_CHECK_NE(&from, this);
+  repeated_bool_.MergeFrom(from.repeated_bool_);
   repeated_string_.MergeFrom(from.repeated_string_);
   repeated_bytes_.MergeFrom(from.repeated_bytes_);
   repeated_int32_.MergeFrom(from.repeated_int32_);
@@ -1589,6 +1670,9 @@ void Message::MergeFrom(const Message& from) {
   repeated_nested_.MergeFrom(from.repeated_nested_);
   empty_.MergeFrom(from.empty_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_b()) {
+      set_b(from.b());
+    }
     if (from.has_str()) {
       set_str(from.str());
     }
@@ -1610,11 +1694,11 @@ void Message::MergeFrom(const Message& from) {
     if (from.has_sint32()) {
       set_sint32(from.sint32());
     }
+  }
+  if (from._has_bits_[8 / 32] & (0xffu << (8 % 32))) {
     if (from.has_sint64()) {
       set_sint64(from.sint64());
     }
-  }
-  if (from._has_bits_[8 / 32] & (0xffu << (8 % 32))) {
     if (from.has_f()) {
       set_f(from.f());
     }
@@ -1644,13 +1728,14 @@ void Message::CopyFrom(const Message& from) {
 }
 
 bool Message::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000f03) != 0x00000f03) return false;
+  if ((_has_bits_[0] & 0x00001e07) != 0x00001e07) return false;
 
   return true;
 }
 
 void Message::Swap(Message* other) {
   if (other != this) {
+    std::swap(b_, other->b_);
     std::swap(str_, other->str_);
     std::swap(bytes_, other->bytes_);
     std::swap(int32_, other->int32_);
@@ -1663,6 +1748,7 @@ void Message::Swap(Message* other) {
     std::swap(d_, other->d_);
     std::swap(e_, other->e_);
     std::swap(nested_, other->nested_);
+    repeated_bool_.Swap(&other->repeated_bool_);
     repeated_string_.Swap(&other->repeated_string_);
     repeated_bytes_.Swap(&other->repeated_bytes_);
     repeated_int32_.Swap(&other->repeated_int32_);

@@ -22,6 +22,8 @@ message Nested {
 
 // An elaborate message for testing Proto->JSON conversion.
 message Message {
+  required bool b = 26;
+
   required string str = 1;
 
   required bytes bytes = 2;
@@ -39,6 +41,8 @@ message Message {
   required Enum e = 11;
 
   required Nested nested = 12;
+
+  repeated bool repeated_bool = 27;
 
   repeated string repeated_string = 13;
 
@@ -60,4 +64,3 @@ message Message {
 
   repeated string empty = 25;
 }
-
