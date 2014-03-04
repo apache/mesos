@@ -113,9 +113,9 @@ TEST(HTTP, Endpoints)
   ASSERT_SOME(os::close(pipes[1]));
 
   AWAIT_READY(future);
-  ASSERT_EQ(http::statuses[200], future.get().status);
-  ASSERT_EQ("chunked", future.get().headers["Transfer-Encoding"]);
-  ASSERT_EQ("Hello World\n", future.get().body);
+  EXPECT_EQ(http::statuses[200], future.get().status);
+  EXPECT_SOME_EQ("chunked", future.get().headers.get("Transfer-Encoding"));
+  EXPECT_EQ("Hello World\n", future.get().body);
 
   terminate(process);
   wait(process);

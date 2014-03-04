@@ -128,7 +128,7 @@ public:
 
   // Return the value associated with this future, waits indefinitely
   // until a value gets associated or until the future is discarded.
-  T get() const;
+  const T& get() const;
 
   // Returns the failure message associated with this future.
   std::string failure() const;
@@ -742,6 +742,7 @@ struct unwrap<Future<X> >
 
 inline void acquire(int* lock)
 {
+  // TODO(dhamon): std::atomic when C++11 rolls out.
   while (!__sync_bool_compare_and_swap(lock, 0, 1)) {
     asm volatile ("pause");
   }
@@ -750,6 +751,7 @@ inline void acquire(int* lock)
 
 inline void release(int* lock)
 {
+  // TODO(dhamon): std::atomic when C++11 rolls out.
   // Unlock via a compare-and-swap so we get a memory barrier too.
   bool unlocked = __sync_bool_compare_and_swap(lock, 1, 0);
   assert(unlocked);
@@ -1079,7 +1081,7 @@ bool Future<T>::await(const Duration& duration) const
 
 
 template <typename T>
-T Future<T>::get() const
+const T& Future<T>::get() const
 {
   if (!isReady()) {
     await();
