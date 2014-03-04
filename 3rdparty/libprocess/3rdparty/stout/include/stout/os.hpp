@@ -49,7 +49,6 @@
 
 #include <list>
 #include <set>
-#include <sstream>
 #include <string>
 
 #include <stout/bytes.hpp>
@@ -77,6 +76,7 @@
 #include <stout/os/pstree.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/sendfile.hpp>
+#include <stout/os/shell.hpp>
 #include <stout/os/signals.hpp>
 #ifdef __APPLE__
 #include <stout/os/sysctl.hpp>
@@ -718,52 +718,6 @@ inline Try<std::string> hostname()
   std::string hostname = hep->h_name;
   delete[] temp;
   return hostname;
-}
-
-
-// Runs a shell command formatted with varargs and return the return value
-// of the command. Optionally, the output is returned via an argument.
-// TODO(vinod): Pass an istream object that can provide input to the command.
-inline Try<int> shell(std::ostream* os, const std::string fmt, ...)
-{
-  va_list args;
-  va_start(args, fmt);
-
-  const Try<std::string>& cmdline = strings::internal::format(fmt, args);
-
-  va_end(args);
-
-  if (cmdline.isError()) {
-    return Error(cmdline.error());
-  }
-
-  FILE* file;
-
-  if ((file = popen(cmdline.get().c_str(), "r")) == NULL) {
-    return Error("Failed to run '" + cmdline.get() + "'");
-  }
-
-  char line[1024];
-  // NOTE(vinod): Ideally the if and while loops should be interchanged. But
-  // we get a broken pipe error if we don't read the output and simply close.
-  while (fgets(line, sizeof(line), file) != NULL) {
-    if (os != NULL) {
-      *os << line ;
-    }
-  }
-
-  if (ferror(file) != 0) {
-    ErrnoError error("Error reading output of '" + cmdline.get() + "'");
-    pclose(file); // Ignoring result since we already have an error.
-    return error;
-  }
-
-  int status;
-  if ((status = pclose(file)) == -1) {
-    return Error("Failed to get status of '" + cmdline.get() + "'");
-  }
-
-  return status;
 }
 
 
