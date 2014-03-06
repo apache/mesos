@@ -59,7 +59,7 @@ TEST(IntervalTest, Interval)
 }
 
 
-TEST(IntervalTest, InvalidInterval)
+TEST(IntervalTest, EmptyInterval)
 {
   Interval<int> i1 = (Bound<int>::closed(1), Bound<int>::open(0));
 
@@ -70,6 +70,16 @@ TEST(IntervalTest, InvalidInterval)
 
   EXPECT_EQ(2, i2.lower());
   EXPECT_EQ(1, i2.upper());
+
+  Interval<int> i3 = (Bound<int>::open(0), Bound<int>::open(0));
+
+  EXPECT_EQ(1, i3.lower());
+  EXPECT_EQ(0, i3.upper());
+
+  Interval<int> i4 = (Bound<int>::closed(3), Bound<int>::closed(2));
+
+  EXPECT_EQ(3, i4.lower());
+  EXPECT_EQ(3, i4.upper());
 
   IntervalSet<int> set;
 
@@ -82,6 +92,29 @@ TEST(IntervalTest, InvalidInterval)
 
   EXPECT_TRUE(set.empty());
   EXPECT_EQ(0u, set.intervalCount());
+
+  set += i3;
+
+  EXPECT_TRUE(set.empty());
+  EXPECT_EQ(0u, set.intervalCount());
+
+  set += i4;
+
+  EXPECT_TRUE(set.empty());
+  EXPECT_EQ(0u, set.intervalCount());
+
+  set += (Bound<int>::closed(2), Bound<int>::closed(2));
+
+  EXPECT_TRUE(set.contains(2));
+  EXPECT_EQ(1u, set.size());
+  EXPECT_EQ(1u, set.intervalCount());
+
+  set += (Bound<int>::closed(0), Bound<int>::open(1));
+
+  EXPECT_TRUE(set.contains(0));
+  EXPECT_TRUE(set.contains(2));
+  EXPECT_EQ(2u, set.size());
+  EXPECT_EQ(2u, set.intervalCount());
 }
 
 
