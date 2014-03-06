@@ -1,0 +1,30 @@
+diff --git a/build_detect_platform b/build_detect_platform
+index b71bf02..864e5fb 100755
+--- a/build_detect_platform
++++ b/build_detect_platform
+@@ -128,24 +128,8 @@ EOF
+         COMMON_FLAGS="$COMMON_FLAGS -DLEVELDB_PLATFORM_POSIX"
+     fi
+ 
+-    # Test whether Snappy library is installed
+-    # http://code.google.com/p/snappy/
+-    $CXX $CFLAGS -x c++ - -o /dev/null 2>/dev/null  <<EOF
+-      #include <snappy.h>
+-      int main() {}
+-EOF
+-    if [ "$?" = 0 ]; then
+-        COMMON_FLAGS="$COMMON_FLAGS -DSNAPPY"
+-        PLATFORM_LDFLAGS="$PLATFORM_LDFLAGS -lsnappy"
+-    fi
++# Removed tests for TCMALLOC and SNAPPY to prevent additional dependencies.
+ 
+-    # Test whether tcmalloc is available
+-    $CXX $CFLAGS -x c++ - -o /dev/null -ltcmalloc 2>/dev/null  <<EOF
+-      int main() {}
+-EOF
+-    if [ "$?" = 0 ]; then
+-        PLATFORM_LDFLAGS="$PLATFORM_LDFLAGS -ltcmalloc"
+-    fi
+ fi
+ 
+ PLATFORM_CCFLAGS="$PLATFORM_CCFLAGS $COMMON_FLAGS"
