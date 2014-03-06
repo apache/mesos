@@ -18,6 +18,8 @@
 
 #include <stdint.h>
 
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iomanip>
 #include <list>
@@ -1158,20 +1160,16 @@ struct TaskIDChecker : TaskInfoVisitor
       const Framework& framework,
       const Slave& slave)
   {
-    const std::string& id = task.task_id().value();
+    const string& id = task.task_id().value();
 
-    if (id.size() > PATH_MAX) {
-      return "Task ID '" + id + "' is too long";
-    }
-
-    if (std::count_if(id.begin(), id.end(), isInvalid) != 0) {
-      return "Task ID '" + id + "' contains invalid characters.";
+    if (std::count_if(id.begin(), id.end(), invalid) > 0) {
+      return "TaskID '" + id + "' contains invalid characters";
     }
 
     return None();
   }
 
-  static bool isInvalid(int c)
+  static bool invalid(char c)
   {
     return iscntrl(c) || c == '/' || c == '\\';
   }
