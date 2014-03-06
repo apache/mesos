@@ -1149,6 +1149,34 @@ struct TaskInfoVisitor
   virtual ~TaskInfoVisitor() {}
 };
 
+// Checks that a task id is valid, i.e., contains only valid characters.
+struct TaskIDChecker : TaskInfoVisitor
+{
+  virtual TaskInfoError operator () (
+      const TaskInfo& task,
+      const Resources& resources,
+      const Framework& framework,
+      const Slave& slave)
+  {
+    const std::string& id = task.task_id().value();
+
+    if (id.size() > PATH_MAX) {
+      return "Task ID '" + id + "' is too long";
+    }
+
+    if (std::count_if(id.begin(), id.end(), isInvalid) != 0) {
+      return "Task ID '" + id + "' contains invalid characters.";
+    }
+
+    return None();
+  }
+
+  static bool isInvalid(int c)
+  {
+    return iscntrl(c) || c == '/' || c == '\\';
+  }
+};
+
 
 // Checks that the slave ID used by a task is correct.
 struct SlaveIDChecker : TaskInfoVisitor
@@ -1592,6 +1620,7 @@ void Master::launchTasks(
 
   // Create task visitors.
   list<TaskInfoVisitor*> taskVisitors;
+  taskVisitors.push_back(new TaskIDChecker());
   taskVisitors.push_back(new SlaveIDChecker());
   taskVisitors.push_back(new UniqueTaskIDChecker());
   taskVisitors.push_back(new ResourceUsageChecker());
