@@ -16,8 +16,6 @@
 
 #include <boost/foreach.hpp>
 
-#include <boost/tuple/tuple.hpp>
-
 namespace __foreach__ {
 
 // NOTE: This is a copied from Boost
