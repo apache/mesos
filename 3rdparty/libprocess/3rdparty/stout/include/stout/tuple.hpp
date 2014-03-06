@@ -17,7 +17,7 @@
 #if __cplusplus >= 201103L
 #include <tuple>
 #else
-#include <boost/tuple/tuple.hpp>
+#include <tr1/tuple>
 #endif // __cplusplus >= 201103L
 
 namespace tuples {
@@ -27,9 +27,9 @@ using std::tuple;
 using std::make_tuple;
 using std::get;
 #else // __cplusplus >= 201103L
-using boost::tuples::tuple;
-using boost::tuples::make_tuple;
-using boost::get;
+using std::tr1::tuple;
+using std::tr1::make_tuple;
+using std::tr1::get;
 #endif // __cplusplus >= 201103L
 
 } // namespace tuples
