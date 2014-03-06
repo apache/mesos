@@ -63,6 +63,7 @@ endif
 # Headers.
 libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/async.hpp			\
+  $(top_srcdir)/include/process/check.hpp			\
   $(top_srcdir)/include/process/clock.hpp			\
   $(top_srcdir)/include/process/collect.hpp			\
   $(top_srcdir)/include/process/defer.hpp			\

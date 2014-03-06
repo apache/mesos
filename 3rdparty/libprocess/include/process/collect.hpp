@@ -5,6 +5,7 @@
 
 #include <list>
 
+#include <process/check.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/future.hpp>
@@ -104,7 +105,7 @@ private:
       promise->fail("Collect failed: future discarded");
       terminate(this);
     } else {
-      assert(future.isReady());
+      CHECK_READY(future);
       ready += 1;
       if (ready == futures.size()) {
         std::list<T> values;

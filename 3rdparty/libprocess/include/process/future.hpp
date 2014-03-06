@@ -1088,15 +1088,10 @@ const T& Future<T>::get() const
   }
 
   CHECK(!isPending()) << "Future was in PENDING after await()";
-
+  // We can't use CHECK_READY here due to check.hpp depending on future.hpp.
   if (!isReady()) {
-    if (isFailed()) {
-      std::cerr << "Future::get() but state == FAILED: "
-                << failure()  << std::endl;
-    } else if (isDiscarded()) {
-      std::cerr << "Future::get() but state == DISCARDED" << std::endl;
-    }
-    abort();
+    CHECK(!isFailed()) << "Future::get() but state == FAILED: " << failure();
+    CHECK(!isDiscarded()) << "Future::get() but state == DISCARDED";
   }
 
   assert(data->t != NULL);

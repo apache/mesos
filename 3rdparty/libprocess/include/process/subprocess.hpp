@@ -148,20 +148,7 @@ inline Try<Subprocess> subprocess(const std::string& command)
 
     execl("/bin/sh", "sh", "-c", command.c_str(), (char *) NULL);
 
-    // Write the failure message in an async-signal safe manner,
-    // assuming strlen is async-signal safe or optimized out.
-    // In fact, it is highly unlikely that strlen would be
-    // implemented in an unsafe manner:
-    // http://austingroupbugs.net/view.php?id=692
-    const char* message = "Failed to execl '/bin sh -c ";
-    while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
-           errno == EINTR);
-    while (write(STDERR_FILENO, command.c_str(), command.size()) == -1 &&
-           errno == EINTR);
-    while (write(STDERR_FILENO, "'\n", strlen("'\n")) == -1 &&
-           errno == EINTR);
-
-    _exit(1);
+    ABORT("Failed to execl '/bin sh -c ", command.c_str(), "'\n");
   }
 
   // Parent.
