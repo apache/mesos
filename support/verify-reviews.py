@@ -107,7 +107,10 @@ def verify_review(review_request):
         # Make sure build succeeds.
         shell("./bootstrap")
         shell("./configure")
-        shell("make -j3 check >/dev/null")
+        shell("make -j3 check GTEST_FILTER='' >/dev/null")
+
+	# Make sure tests pass.
+        shell("make check")
 
         # Success!
         post_review(
