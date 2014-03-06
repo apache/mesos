@@ -25,10 +25,8 @@
 #include <sys/uio.h>
 #endif // __APPLE__
 
-#ifdef __linux__
-#include <stout/fatal.hpp>
-#endif // __linux__
 #include <stout/os/signals.hpp>
+#include <stout/unreachable.hpp>
 
 namespace os {
 
@@ -46,8 +44,7 @@ inline ssize_t sendfile(int s, int fd, off_t offset, size_t length)
     // This will set errno to EPIPE if a SIGPIPE occurs.
     return ::sendfile(s, fd, &offset, length);
   }
-  fatal("Unreachable statement");
-  return -1;
+  return UNREACHABLE();
 #elif defined __APPLE__
   // On OS X, sendfile does not need to have SIGPIPE suppressed.
   off_t _length = static_cast<off_t>(length);

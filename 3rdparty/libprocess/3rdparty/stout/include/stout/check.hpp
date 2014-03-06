@@ -18,8 +18,9 @@
 #include <sstream>
 #include <string>
 
-#include <glog/logging.h> // Includes LOG(*), PLOG(*), CHECK, etc.
+#include <glog/logging.h>
 
+#include <stout/abort.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
@@ -29,10 +30,11 @@
 // Provides a CHECK_SOME macro, akin to CHECK.
 // This appends the error if possible to the end of the log message, so there's
 // no need to append the error message explicitly.
-#define CHECK_SOME(expression)                                           \
-  for (const Option<std::string>& _error = _check(expression);           \
-       _error.isSome();)                                                 \
-    _CheckSome(__FILE__, __LINE__, #expression, _error.get()).stream()  \
+#define CHECK_SOME(expression)                                          \
+  for (const Option<std::string>& _error = _check(expression);          \
+       _error.isSome();)                                                \
+    _CheckFatal(__FILE__, __LINE__, "CHECK_SOME",                       \
+                #expression, _error.get()).stream()
 
 // Private structs/functions used for CHECK_SOME.
 
@@ -68,23 +70,21 @@ Option<std::string> _check(const Result<T>& r)
 }
 
 
-struct _CheckSome
+struct _CheckFatal
 {
-  _CheckSome(const char* _file,
+  _CheckFatal(const char* _file,
               int _line,
-              const char* _expression,
-              const std::string& _error)
-    : file(_file),
-      line(_line),
-      expression(_expression),
-      error(_error)
+              const char* type,
+              const char* expression,
+              const std::string& error)
+      : file(_file),
+        line(_line)
   {
-    out << "CHECK_SOME(" << expression << "): ";
+    out << type << "(" << expression << "): " << error;
   }
 
-  ~_CheckSome()
+  ~_CheckFatal()
   {
-    out << error;
     google::LogMessageFatal(file.c_str(), line).stream() << out.str();
   }
 
@@ -95,8 +95,6 @@ struct _CheckSome
 
   const std::string file;
   const int line;
-  const std::string expression;
-  const std::string error;
   std::ostringstream out;
 };
 
