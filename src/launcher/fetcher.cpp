@@ -44,7 +44,7 @@ Try<Nothing> extract(const string& filename, const string& directory)
       strings::endsWith(filename, ".tar.bz2") ||
       strings::endsWith(filename, ".txz") ||
       strings::endsWith(filename, ".tar.xz")) {
-    command = "tar -C '" + directory + "' xJf";
+    command = "tar -C '" + directory + "' -xf";
   } else if (strings::endsWith(filename, ".zip")) {
     command = "unzip -d '" + directory + "'";
   } else {
