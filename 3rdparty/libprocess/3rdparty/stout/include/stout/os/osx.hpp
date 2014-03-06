@@ -60,6 +60,10 @@ inline Result<Process> process(pid_t pid)
   // proc_pidpath() instead.
   Option<std::string> command = None();
 
+  // Alternative implemenations using KERN_PROCARGS2:
+  // https://bitbucket.org/flub/psi-win32/src/d38f288de3b8/src/arch/macosx/macosx_process.c#cl-552
+  // https://gist.github.com/nonowarn/770696
+
 #ifdef KERN_PROCARGS2
   // Looking at the source code of XNU (the Darwin kernel for OS X:
   // www.opensource.apple.com/source/xnu/xnu-1699.24.23/bsd/kern/kern_sysctl.c),
@@ -100,7 +104,16 @@ inline Result<Process> process(pid_t pid)
             // code will end up just keeping 'command' None (i.e.,
             // tokens.size() will be <= 0).
             tokens.erase(tokens.begin()); // Remove path.
-            tokens.erase(tokens.begin() + argc, tokens.end());
+
+            // In practice it appeared that we might get an 'argc'
+            // which is greater than 'tokens.size()' which caused us
+            // to get an invalid iterator from 'tokens.begin() +
+            // argc', thus we now check that condition here.
+            if (argc <= static_cast<int>(tokens.size())) {
+              tokens.erase(tokens.begin() + argc, tokens.end());
+            }
+
+            // If any tokens are left, consider them the command!
             if (tokens.size() > 0) {
               command = strings::join(" ", tokens);
             }
