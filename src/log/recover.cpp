@@ -212,7 +212,7 @@ private:
   void received(const Future<RecoverResponse>& future)
   {
     // Enforced by the select semantics.
-    CHECK(future.isReady());
+    CHECK_READY(future);
 
     // Remove this future from 'responses' so that we do not listen on
     // it the next time we invoke select.

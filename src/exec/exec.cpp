@@ -645,9 +645,7 @@ Status MesosExecutorDriver::start()
   // Get slave PID from environment.
   value = os::getenv("MESOS_SLAVE_PID");
   slave = UPID(value);
-  if (!slave) {
-    fatal("Cannot parse MESOS_SLAVE_PID '%s'", value.c_str());
-  }
+  CHECK(slave) << "Cannot parse MESOS_SLAVE_PID '" << value << "'";
 
   // Get slave ID from environment.
   value = os::getenv("MESOS_SLAVE_ID");
@@ -683,11 +681,9 @@ Status MesosExecutorDriver::start()
     if (!value.empty()) {
       Try<Duration> _recoveryTimeout = Duration::parse(value);
 
-      if (_recoveryTimeout.isError()) {
-        fatal("Cannot parse MESOS_RECOVERY_TIMEOUT '%s': %s",
-              value.c_str(),
-              _recoveryTimeout.error().c_str());
-      }
+      CHECK_SOME(_recoveryTimeout)
+          << "Cannot parse MESOS_RECOVERY_TIMEOUT '" << value << "': "
+          << _recoveryTimeout.error();
 
       recoveryTimeout = _recoveryTimeout.get();
     }

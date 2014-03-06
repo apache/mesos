@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-#include <unistd.h>
-
 #include <vector>
 
+#include <stout/abort.hpp>
 #include <stout/hashset.hpp>
 #include <stout/path.hpp>
 #include <stout/unreachable.hpp>
@@ -187,12 +186,8 @@ Try<pid_t> CgroupsLauncher::fork(
     while ((len = read(pipes[0], &buf, sizeof(buf))) == -1 && errno == EINTR);
 
     if (len != sizeof(buf)) {
-      const char* message = "Failed to synchronize with parent";
-      // Ignore the return value from write() to silence compiler warning.
-      while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
-          errno == EINTR);
       os::close(pipes[0]);
-      _exit(1);
+      ABORT("Failed to synchronize with parent");
     }
 
     os::close(pipes[0]);
@@ -200,11 +195,7 @@ Try<pid_t> CgroupsLauncher::fork(
     // This function should exec() and therefore not return.
     inChild();
 
-    const char* message = "Child failed to exec";
-    while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
-        errno == EINTR);
-
-    _exit(1);
+    ABORT("Child failed to exec");
   }
 
   // Parent.

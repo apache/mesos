@@ -109,11 +109,7 @@ Try<pid_t> PosixLauncher::fork(
     // This function should exec() and therefore not return.
     inChild();
 
-    const char* message = "Child failed to exec";
-    while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
-        errno == EINTR);
-
-    _exit(1);
+    ABORT("Child failed to exec");
   }
 
   // parent.

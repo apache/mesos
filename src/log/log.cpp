@@ -460,7 +460,7 @@ Future<Log::Position> LogReaderProcess::beginning()
 
 Future<Log::Position> LogReaderProcess::_beginning()
 {
-  CHECK(recovering.isReady());
+  CHECK_READY(recovering);
 
   return recovering.get()->beginning()
     .then(lambda::bind(&Self::position, lambda::_1));
@@ -475,7 +475,7 @@ Future<Log::Position> LogReaderProcess::ending()
 
 Future<Log::Position> LogReaderProcess::_ending()
 {
-  CHECK(recovering.isReady());
+  CHECK_READY(recovering);
 
   return recovering.get()->ending()
     .then(lambda::bind(&Self::position, lambda::_1));
@@ -494,7 +494,7 @@ Future<list<Log::Entry> > LogReaderProcess::_read(
     const Log::Position& from,
     const Log::Position& to)
 {
-  CHECK(recovering.isReady());
+  CHECK_READY(recovering);
 
   return recovering.get()->read(from.value, to.value)
     .then(defer(self(), &Self::__read, from, to, lambda::_1));
@@ -628,7 +628,7 @@ Future<Option<Log::Position> > LogWriterProcess::_elect()
   delete coordinator;
   error = None();
 
-  CHECK(recovering.isReady());
+  CHECK_READY(recovering);
 
   coordinator = new Coordinator(quorum, recovering.get(), network);
 

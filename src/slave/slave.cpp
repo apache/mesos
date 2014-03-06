@@ -28,6 +28,7 @@
 #include <vector>
 
 #include <process/async.hpp>
+#include <process/check.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
@@ -1794,11 +1795,7 @@ void Slave::_statusUpdate(
     const StatusUpdate& update,
     const UPID& pid)
 {
-  if (!future.isReady()) {
-    LOG(FATAL) << "Failed to handle status update " << update << ": "
-               << (future.isFailed() ? future.failure() : "future discarded");
-    return;
-  }
+  CHECK_READY(future) << "Failed to handle status update " << update;
 
   VLOG(1) << "Status update manager successfully handled status update "
           << update;

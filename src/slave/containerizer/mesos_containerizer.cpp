@@ -229,18 +229,6 @@ Future<Nothing> MesosContainerizerProcess::_recover(
 }
 
 
-// Log the message and then exit(1) in an async-signal-safe manner.
-// TODO(idownes): Move this into stout, possibly replacing its fatal(), and
-// support multiple messages to write out.
-void asyncSafeFatal(const char* message)
-{
-  // Ignore the return value from write() to silence compiler warning.
-  while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
-      errno == EINTR);
-  _exit(1);
-}
-
-
 // This function is executed by the forked child and should be
 // async-signal-safe.
 // TODO(idownes): Several functions used here are not actually
@@ -267,7 +255,7 @@ int execute(
 
   if (len != sizeof(buf)) {
     os::close(pipeRead);
-    asyncSafeFatal("Failed to synchronize with parent");
+    ABORT("Failed to synchronize with parent");
   }
   os::close(pipeRead);
 
@@ -275,18 +263,18 @@ int execute(
   if (user.isSome()) {
     Try<Nothing> chown = os::chown(user.get(), directory);
     if (chown.isError()) {
-      asyncSafeFatal("Failed to chown work directory");
+      ABORT("Failed to chown work directory");
     }
   }
 
   // Change user if provided.
   if (user.isSome() && !os::su(user.get())) {
-    asyncSafeFatal("Failed to change user");
+    ABORT("Failed to change user");
   }
 
   // Enter working directory.
   if (os::chdir(directory) < 0) {
-    asyncSafeFatal("Failed to chdir into work directory");
+    ABORT("Failed to chdir into work directory");
   }
 
   // First set up any additional environment variables.
@@ -312,10 +300,10 @@ int execute(
   // directly.
   if (redirectIO) {
     if (freopen("stdout", "a", stdout) == NULL) {
-      asyncSafeFatal("freopen failed");
+      ABORT("freopen failed");
     }
     if (freopen("stderr", "a", stderr) == NULL) {
-      asyncSafeFatal("freopen failed");
+      ABORT("freopen failed");
     }
   }
 
@@ -323,7 +311,7 @@ int execute(
   execl("/bin/sh", "sh", "-c", command.value().c_str(), (char*) NULL);
 
   // If we get here, the execv call failed.
-  asyncSafeFatal("Failed to execute command");
+  ABORT("Failed to execute command");
 
   // This should not be reached.
   return -1;

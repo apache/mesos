@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include <process/check.hpp>
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
@@ -141,7 +142,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1g
     return NULL;
   }
 
-  CHECK(future->isReady());
+  CHECK_READY(*future);
 
   Variable* variable = new Variable(future->get());
 
@@ -190,7 +191,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1g
       return NULL;
     }
 
-    CHECK(future->isReady());
+    CHECK_READY(*future);
     Variable* variable = new Variable(future->get());
 
     // Variable variable = new Variable();
@@ -326,7 +327,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1g
     return NULL;
   }
 
-  CHECK(future->isReady());
+  CHECK_READY(*future);
 
   if (future->get().isSome()) {
     Variable* variable = new Variable(future->get().get());
@@ -379,7 +380,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1g
       return NULL;
     }
 
-    CHECK(future->isReady());
+    CHECK_READY(*future);
 
     if (future->get().isSome()) {
       Variable* variable = new Variable(future->get().get());
@@ -519,7 +520,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_
     return NULL;
   }
 
-  CHECK(future->isReady());
+  CHECK_READY(*future);
 
   if (future->get()) {
     jclass clazz = env->FindClass("java/lang/Boolean");
@@ -565,7 +566,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_
       return NULL;
     }
 
-    CHECK(future->isReady());
+    CHECK_READY(*future);
 
     if (future->get()) {
       jclass clazz = env->FindClass("java/lang/Boolean");
@@ -692,7 +693,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
     return NULL;
   }
 
-  CHECK(future->isReady());
+  CHECK_READY(*future);
 
   // List names = new ArrayList();
   jclass clazz = env->FindClass("java/util/ArrayList");
@@ -748,7 +749,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
       return NULL;
     }
 
-    CHECK(future->isReady());
+    CHECK_READY(*future);
 
     // List names = new ArrayList();
     clazz = env->FindClass("java/util/ArrayList");

@@ -18,6 +18,8 @@
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
+#include <glog/logging.h>
+
 #include <leveldb/comparator.h>
 #include <leveldb/write_batch.h>
 
