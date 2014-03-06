@@ -75,16 +75,20 @@ public:
     void shutdown();
 
     // Start and manage a new master using the specified flags.
+    // This overload is shorthand to specify that you want default
+    // master objects and is equivalent to passing None to all of
+    // the required arguments of the other overload.
     Try<process::PID<master::Master> > start(
         const master::Flags& flags = master::Flags());
 
-    // Start and manage a new master injecting the specified allocator
-    // process and using the specified flags. The allocator process is
-    // expected to outlive the launched master (i.e., until it is
-    // stopped via Masters::stop).
+    // Start and manage a new master using the specified flags.
+    // An allocator process may be specified in which case it will outlive
+    // the launched master.  If no allocator process is specified then
+    // the default allocator will be instantiated.
     Try<process::PID<master::Master> > start(
-        master::allocator::AllocatorProcess* allocatorProcess,
+        Option<master::allocator::AllocatorProcess*> allocatorProcess,
         const master::Flags& flags = master::Flags());
+
 
     // Stops and cleans up a master at the specified PID.
     Try<Nothing> stop(const process::PID<master::Master>& pid);
@@ -101,9 +105,9 @@ public:
     Option<zookeeper::URL> url;
 
     // Encapsulates a single master's dependencies.
-    struct Master
+    struct MasterInfo
     {
-      Master()
+      MasterInfo()
         : master(NULL),
           allocator(NULL),
           allocatorProcess(NULL),
@@ -121,7 +125,7 @@ public:
       MasterDetector* detector;
     };
 
-    std::map<process::PID<master::Master>, Master> masters;
+    std::map<process::PID<master::Master>, MasterInfo> masters;
   };
 
   // Abstracts the slaves of a cluster.
@@ -227,7 +231,7 @@ inline Cluster::Masters::~Masters()
 inline void Cluster::Masters::shutdown()
 {
   // TODO(benh): Use utils::copy from stout once namespaced.
-  std::map<process::PID<master::Master>, Master> copy(masters);
+  std::map<process::PID<master::Master>, MasterInfo> copy(masters);
   foreachkey (const process::PID<master::Master>& pid, copy) {
     stop(pid);
   }
@@ -238,121 +242,75 @@ inline void Cluster::Masters::shutdown()
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const master::Flags& flags)
 {
-  // Disallow multiple masters when not using ZooKeeper.
-  if (!masters.empty() && url.isNone()) {
-    return Error("Can not start multiple masters when not using ZooKeeper");
-  }
-
-  Master master;
-
-  master.allocatorProcess = new master::allocator::HierarchicalDRFAllocatorProcess();
-  master.allocator = new master::allocator::Allocator(master.allocatorProcess);
-
-  if (strings::startsWith(flags.registry, "zk://")) {
-    // TODO(benh):
-    return Error("ZooKeeper based registry unimplemented");
-  } else if (flags.registry == "local") {
-    master.storage = new state::LevelDBStorage(
-        path::join(flags.work_dir, "registry"));
-  } else {
-    return Error("'" + flags.registry + "' is not a supported"
-                 " option for registry persistence");
-  }
-
-  CHECK_NOTNULL(master.storage);
-
-  master.state = new state::protobuf::State(master.storage);
-  master.registrar = new master::Registrar(master.state);
-  master.repairer = new master::Repairer();
-
-  if (url.isSome()) {
-    master.contender = new ZooKeeperMasterContender(url.get());
-    master.detector = new ZooKeeperMasterDetector(url.get());
-  } else {
-    master.contender = new StandaloneMasterContender();
-    master.detector = new StandaloneMasterDetector();
-  }
-
-  master.master = new master::Master(
-      master.allocator,
-      master.registrar,
-      master.repairer,
-      &cluster->files,
-      master.contender,
-      master.detector,
-      flags);
-
-  if (url.isNone()) {
-    // This means we are using the StandaloneMasterDetector.
-    dynamic_cast<StandaloneMasterDetector*>(master.detector)->appoint(
-        master.master->info());
-  }
-
-  process::PID<master::Master> pid = process::spawn(master.master);
-
-  masters[pid] = master;
-
-  return pid;
+  return start(None(), flags);
 }
 
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
-  master::allocator::AllocatorProcess* allocatorProcess,
-  const master::Flags& flags)
+    Option<master::allocator::AllocatorProcess*> allocatorProcess,
+    const master::Flags& flags)
 {
   // Disallow multiple masters when not using ZooKeeper.
   if (!masters.empty() && url.isNone()) {
     return Error("Can not start multiple masters when not using ZooKeeper");
   }
 
-  Master master;
+  MasterInfo masterInfo;
 
-  master.allocatorProcess = NULL;
-  master.allocator = new master::allocator::Allocator(allocatorProcess);
+  if (allocatorProcess.isNone()) {
+    masterInfo.allocatorProcess =
+        new master::allocator::HierarchicalDRFAllocatorProcess();
+    masterInfo.allocator =
+        new master::allocator::Allocator(masterInfo.allocatorProcess);
+  } else {
+    masterInfo.allocatorProcess = NULL;
+    masterInfo.allocator =
+        new master::allocator::Allocator(allocatorProcess.get());
+  }
 
   if (strings::startsWith(flags.registry, "zk://")) {
     // TODO(benh):
     return Error("ZooKeeper based registry unimplemented");
   } else if (flags.registry == "local") {
-    master.storage = new state::LevelDBStorage(
+    masterInfo.storage = new state::LevelDBStorage(
         path::join(flags.work_dir, "registry"));
   } else {
     return Error("'" + flags.registry + "' is not a supported"
                  " option for registry persistence");
   }
 
-  CHECK_NOTNULL(master.storage);
+  CHECK_NOTNULL(masterInfo.storage);
 
-  master.state = new state::protobuf::State(master.storage);
-  master.registrar = new master::Registrar(master.state);
-  master.repairer = new master::Repairer();
+  masterInfo.state = new state::protobuf::State(masterInfo.storage);
+  masterInfo.registrar = new master::Registrar(masterInfo.state);
+  masterInfo.repairer = new master::Repairer();
 
   if (url.isSome()) {
-    master.contender = new ZooKeeperMasterContender(url.get());
-    master.detector = new ZooKeeperMasterDetector(url.get());
+    masterInfo.contender = new ZooKeeperMasterContender(url.get());
+    masterInfo.detector = new ZooKeeperMasterDetector(url.get());
   } else {
-    master.contender = new StandaloneMasterContender();
-    master.detector = new StandaloneMasterDetector();
+    masterInfo.contender = new StandaloneMasterContender();
+    masterInfo.detector = new StandaloneMasterDetector();
   }
 
-  master.master = new master::Master(
-      master.allocator,
-      master.registrar,
-      master.repairer,
+  masterInfo.master = new master::Master(
+      masterInfo.allocator,
+      masterInfo.registrar,
+      masterInfo.repairer,
       &cluster->files,
-      master.contender,
-      master.detector,
+      masterInfo.contender,
+      masterInfo.detector,
       flags);
 
   if (url.isNone()) {
     // This means we are using the StandaloneMasterDetector.
-    dynamic_cast<StandaloneMasterDetector*>(master.detector)->appoint(
-        master.master->info());
+    CHECK_NOTNULL(dynamic_cast<StandaloneMasterDetector*>(masterInfo.detector))
+        ->appoint(masterInfo.master->info());
   }
 
-  process::PID<master::Master> pid = process::spawn(master.master);
+  process::PID<master::Master> pid = process::spawn(masterInfo.master);
 
-  masters[pid] = master;
+  masters[pid] = masterInfo;
 
   return pid;
 }
@@ -365,22 +323,22 @@ inline Try<Nothing> Cluster::Masters::stop(
     return Error("No master found to stop");
   }
 
-  Master master = masters[pid];
+  MasterInfo masterInfo = masters[pid];
 
-  process::terminate(master.master);
-  process::wait(master.master);
-  delete master.master;
+  process::terminate(masterInfo.master);
+  process::wait(masterInfo.master);
+  delete masterInfo.master;
 
-  delete master.allocator; // Terminates and waits for allocator process.
-  delete master.allocatorProcess; // May be NULL.
+  delete masterInfo.allocator; // Terminates and waits for allocator process.
+  delete masterInfo.allocatorProcess; // May be NULL.
 
-  delete master.registrar;
-  delete master.repairer;
-  delete master.state;
-  delete master.storage;
+  delete masterInfo.registrar;
+  delete masterInfo.repairer;
+  delete masterInfo.state;
+  delete masterInfo.storage;
 
-  delete master.contender;
-  delete master.detector;
+  delete masterInfo.contender;
+  delete masterInfo.detector;
 
   masters.erase(pid);
 
