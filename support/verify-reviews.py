@@ -107,7 +107,7 @@ def verify_review(review_request):
         # Make sure build succeeds.
         shell("./bootstrap")
         shell("./configure")
-        shell("make check")
+        shell("make -j3 check >/dev/null")
 
         # Success!
         post_review(
