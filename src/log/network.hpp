@@ -35,6 +35,7 @@
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
+#include <stout/unreachable.hpp>
 
 #include "logging/logging.hpp"
 
@@ -288,7 +289,7 @@ private:
         return pids.size() >= size;
       default:
         LOG(FATAL) << "Invalid watch mode";
-        break;
+        return UNREACHABLE();
     }
   }
 
