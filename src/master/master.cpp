@@ -3024,9 +3024,7 @@ void Master::removeSlave(Slave* slave)
 
   // We do this first, to make sure any of the resources recovered
   // below (e.g., removeTask()) are ignored by the allocator.
-  if (!slave->disconnected) {
-    allocator->slaveRemoved(slave->id);
-  }
+  allocator->slaveRemoved(slave->id);
 
   // Remove pointers to slave's tasks in frameworks, and send status
   // updates.
