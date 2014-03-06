@@ -14,13 +14,19 @@ from datetime import datetime, timedelta
 
 REVIEWBOARD_URL = "https://reviews.apache.org"
 
+# TODO(vinod): Use 'argparse' module.
 # Get the user and password from command line.
 if len(sys.argv) < 3:
-    print "Usage: ./verify-reviews.py <user> <password> [query-params]"
+    print "Usage: ./verify-reviews.py <user> <password> [num-reviews] [query-params]"
     sys.exit(1)
 
 USER = sys.argv[1]
 PASSWORD = sys.argv[2]
+
+# Number of reviews to verify.
+NUM_REVIEWS = -1 # All possible reviews.
+if len(sys.argv) >= 4:
+    NUM_REVIEWS = int(sys.argv[3])
 
 # Unless otherwise specified consider pending review requests to Mesos updated
 # since 03/01/2014.
@@ -28,8 +34,8 @@ GROUP = "mesos"
 LAST_UPDATED = "2014-03-01T00:00:00"
 QUERY_PARAMS = "?to-groups=%s&status=pending&last-updated-from=%s" \
     % (GROUP, LAST_UPDATED)
-if len(sys.argv) >= 4:
-    QUERY_PARAMS = sys.argv[3]
+if len(sys.argv) >= 5:
+    QUERY_PARAMS = sys.argv[4]
 
 
 def shell(command):
@@ -164,6 +170,9 @@ if __name__=="__main__":
     review_requests_url = "%s/api/review-requests/%s" % (REVIEWBOARD_URL, QUERY_PARAMS)
 
     review_requests = api(review_requests_url)
+    num_reviews = 0
     for review_request in review_requests["review_requests"]:
-        if needs_verification(review_request):
+        if (NUM_REVIEWS == -1 or num_reviews < NUM_REVIEWS) and \
+            needs_verification(review_request):
             verify_review(review_request)
+            num_reviews += 1
