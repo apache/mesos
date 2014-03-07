@@ -109,7 +109,7 @@ inline Result<Process> process(pid_t pid)
             // which is greater than 'tokens.size()' which caused us
             // to get an invalid iterator from 'tokens.begin() +
             // argc', thus we now check that condition here.
-            if (argc <= tokens.size()) {
+            if (static_cast<size_t>(argc) <= tokens.size()) {
               tokens.erase(tokens.begin() + argc, tokens.end());
             }
 
