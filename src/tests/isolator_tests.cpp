@@ -188,9 +188,6 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
 
   EXPECT_LE(0.125, statistics.cpus_user_time_secs());
 
-  // Shouldn't be any appreciable system time.
-  EXPECT_GT(0.075, statistics.cpus_system_time_secs());
-
   // Ensure all processes are killed.
   AWAIT_READY(launcher.get()->destroy(containerId));
 
@@ -281,9 +278,6 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   } while (waited < Seconds(1));
 
   EXPECT_LE(0.125, statistics.cpus_system_time_secs());
-
-  // Shouldn't be any appreciable user time.
-  EXPECT_GT(0.025, statistics.cpus_user_time_secs());
 
   // Ensure all processes are killed.
   AWAIT_READY(launcher.get()->destroy(containerId));
