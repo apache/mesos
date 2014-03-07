@@ -16,11 +16,11 @@ layout: documentation
 * A code review request should be created for every JIRA that involves a change to the codebase.
 
 ### Before you submit
-1. Check out the code from the Apache repository via Git or SVN. Instructions are on the [Getting Started](http://mesos.apache.org/gettingstarted/) page.
+1. Check out the code from the Apache repository via Git. Instructions are on the [Getting Started](http://mesos.apache.org/gettingstarted/) page.
 
 1. Join the dev@mesos.apache.org mailing list by sending an email to dev-subscribe@mesos.apache.org
 
-1. Find a JIRA that is currently unassigned that you want to work on at http://issues.apache.org/jira/browse/MESOS, or create your own (you'll need a JIRA account for this, see below)!
+1. Find a JIRA that is currently unassigned that you want to work on at [JIRA issue tracker](https://issues.apache.org/jira/browse/MESOS), or create your own (you'll need a JIRA account for this, see below)!
     2. This could be a JIRA representing a bug (possibly a bug that you encountered and reported, e.g. when trying to build) or a new feature
 
 1. Assign the JIRA to yourself. To do this, you will need:
@@ -51,7 +51,7 @@ layout: documentation
 
 ### Submit your patch
 1. You're ready to submit your patch for review!
-	2. Log in or create an account at ]Apache Review Board](http://reviews.apache.org)
+	2. Log in or create an account at [Apache Review Board](http://reviews.apache.org)
     2. The easiest (and recommended) way to submit reviews is through `post-reviews.py` a wrapper around post-review.
 	2. First, install post-review. [See Instructions](http://www.reviewboard.org/docs/manual/dev/users/tools/post-review/)
 	2. From your local branch run `support/post-reviews.py`.
