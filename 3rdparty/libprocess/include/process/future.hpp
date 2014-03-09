@@ -11,6 +11,7 @@
 
 #include <glog/logging.h>
 
+#include <process/internal.hpp>
 #include <process/latch.hpp>
 #include <process/pid.hpp>
 
@@ -739,24 +740,6 @@ struct unwrap<Future<X> >
 {
   typedef X type;
 };
-
-
-inline void acquire(int* lock)
-{
-  // TODO(dhamon): std::atomic when C++11 rolls out.
-  while (!__sync_bool_compare_and_swap(lock, 0, 1)) {
-    asm volatile ("pause");
-  }
-}
-
-
-inline void release(int* lock)
-{
-  // TODO(dhamon): std::atomic when C++11 rolls out.
-  // Unlock via a compare-and-swap so we get a memory barrier too.
-  bool unlocked = __sync_bool_compare_and_swap(lock, 1, 0);
-  assert(unlocked);
-}
 
 
 template <typename T>

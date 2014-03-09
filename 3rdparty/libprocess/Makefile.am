@@ -80,12 +80,14 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/help.hpp			\
   $(top_srcdir)/include/process/http.hpp			\
   $(top_srcdir)/include/process/id.hpp				\
+  $(top_srcdir)/include/process/internal.hpp			\
   $(top_srcdir)/include/process/io.hpp				\
   $(top_srcdir)/include/process/latch.hpp			\
   $(top_srcdir)/include/process/limiter.hpp			\
   $(top_srcdir)/include/process/logging.hpp			\
   $(top_srcdir)/include/process/message.hpp			\
   $(top_srcdir)/include/process/mime.hpp			\
+  $(top_srcdir)/include/process/mutex.hpp			\
   $(top_srcdir)/include/process/once.hpp			\
   $(top_srcdir)/include/process/owned.hpp			\
   $(top_srcdir)/include/process/pid.hpp				\
@@ -114,6 +116,7 @@ tests_SOURCES =							\
   src/tests/http_tests.cpp					\
   src/tests/io_tests.cpp					\
   src/tests/main.cpp						\
+  src/tests/mutex_tests.cpp					\
   src/tests/owned_tests.cpp					\
   src/tests/process_tests.cpp					\
   src/tests/reap_tests.cpp					\
