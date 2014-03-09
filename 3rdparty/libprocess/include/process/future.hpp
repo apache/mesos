@@ -13,6 +13,7 @@
 
 #include <process/internal.hpp>
 #include <process/latch.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/duration.hpp>
@@ -470,7 +471,6 @@ private:
     ~Data();
 
     int lock;
-    Latch* latch;
     State state;
     bool discard;
     T* t;
@@ -849,9 +849,6 @@ bool Promise<T>::discard(Future<T> future)
   {
     if (data->state == Future<T>::PENDING) {
       data->state = Future<T>::DISCARDED;
-      if (data->latch != NULL) {
-        data->latch->trigger();
-      }
       result = true;
     }
   }
@@ -890,7 +887,6 @@ Future<T> Future<T>::failed(const std::string& message)
 template <typename T>
 Future<T>::Data::Data()
   : lock(0),
-    latch(NULL),
     state(PENDING),
     discard(false),
     t(NULL),
@@ -900,7 +896,6 @@ Future<T>::Data::Data()
 template <typename T>
 Future<T>::Data::~Data()
 {
-  delete latch;
   delete t;
   delete message;
 }
@@ -1040,24 +1035,32 @@ bool Future<T>::hasDiscard() const
 }
 
 
+namespace internal {
+
+inline void awaited(const Owned<Latch>& latch)
+{
+  latch->trigger();
+}
+
+} // namespace internal {
+
+
 template <typename T>
 bool Future<T>::await(const Duration& duration) const
 {
-  bool await = false;
+  Owned<Latch> latch;
 
   internal::acquire(&data->lock);
   {
     if (data->state == PENDING) {
-      if (data->latch == NULL) {
-        data->latch = new Latch();
-      }
-      await = true;
+      latch.reset(new Latch());
+      data->onAnyCallbacks.push(lambda::bind(&internal::awaited, latch));
     }
   }
   internal::release(&data->lock);
 
-  if (await) {
-    return data->latch->await(duration);
+  if (latch.get() != NULL) {
+    return latch->await(duration);
   }
 
   return true;
@@ -1428,9 +1431,6 @@ bool Future<T>::set(const T& _t)
     if (data->state == PENDING) {
       data->t = new T(_t);
       data->state = READY;
-      if (data->latch != NULL) {
-        data->latch->trigger();
-      }
       result = true;
     }
   }
@@ -1467,9 +1467,6 @@ bool Future<T>::fail(const std::string& _message)
     if (data->state == PENDING) {
       data->message = new std::string(_message);
       data->state = FAILED;
-      if (data->latch != NULL) {
-        data->latch->trigger();
-      }
       result = true;
     }
   }
