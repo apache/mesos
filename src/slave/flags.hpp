@@ -43,6 +43,11 @@ public:
         "The hostname the slave should report.\n"
         "If left unset, system hostname will be used (recommended).");
 
+    add(&Flags::version,
+        "version",
+        "Show version and exit.",
+        false);
+
     // TODO(benh): Is there a way to specify units for the resources?
     add(&Flags::resources,
         "resources",
@@ -193,6 +198,7 @@ public:
 #endif
   }
 
+  bool version;
   Option<std::string> hostname;
   Option<std::string> resources;
   std::string isolation;

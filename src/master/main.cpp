@@ -59,6 +59,7 @@ using namespace zookeeper;
 using mesos::MasterInfo;
 
 using std::cerr;
+using std::cout;
 using std::endl;
 using std::string;
 
@@ -69,6 +70,12 @@ void usage(const char* argv0, const flags::FlagsBase& flags)
        << endl
        << "Supported options:" << endl
        << flags.usage();
+}
+
+
+void version()
+{
+  cout << "mesos" << " " << MESOS_VERSION << endl;
 }
 
 
@@ -109,6 +116,11 @@ int main(int argc, char** argv)
     cerr << load.error() << endl;
     usage(argv[0], flags);
     exit(1);
+  }
+
+  if (flags.version) {
+    version();
+    exit(0);
   }
 
   if (help) {

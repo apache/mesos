@@ -35,6 +35,11 @@ class Flags : public logging::Flags
 public:
   Flags()
   {
+    add(&Flags::version,
+        "version",
+        "Show version and exit.",
+        false);
+
     add(&Flags::hostname,
         "hostname",
         "The hostname the master should advertise in ZooKeeper.\n"
@@ -120,6 +125,7 @@ public:
         "Path could be of the form 'file:///path/to/file' or '/path/to/file'");
   }
 
+  bool version;
   Option<std::string> hostname;
   bool root_submissions;
   std::string work_dir;

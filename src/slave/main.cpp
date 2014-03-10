@@ -41,6 +41,7 @@ using namespace mesos::internal::slave;
 using mesos::SlaveInfo;
 
 using std::cerr;
+using std::cout;
 using std::endl;
 using std::string;
 
@@ -51,6 +52,12 @@ void usage(const char* argv0, const flags::FlagsBase& flags)
        << endl
        << "Supported options:" << endl
        << flags.usage();
+}
+
+
+void version()
+{
+  cout << "mesos" << " " << MESOS_VERSION << endl;
 }
 
 
@@ -94,6 +101,11 @@ int main(int argc, char** argv)
   if (help) {
     usage(argv[0], flags);
     EXIT(1);
+  }
+
+  if (flags.version) {
+    version();
+    exit(0);
   }
 
   if (master.isNone()) {
