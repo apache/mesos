@@ -473,6 +473,7 @@ private:
     int lock;
     State state;
     bool discard;
+    bool associated;
     T* t;
     std::string* message; // Message associated with failure.
     std::queue<DiscardCallback> onDiscardCallbacks;
@@ -639,14 +640,20 @@ Promise<T>::~Promise()
 template <typename T>
 bool Promise<T>::discard()
 {
-  return discard(f);
+  if (!f.data->associated) {
+    return discard(f);
+  }
+  return false;
 }
 
 
 template <typename T>
 bool Promise<T>::set(const T& t)
 {
-  return f.set(t);
+  if (!f.data->associated) {
+    return f.set(t);
+  }
+  return false;
 }
 
 
@@ -660,47 +667,59 @@ bool Promise<T>::set(const Future<T>& future)
 template <typename T>
 bool Promise<T>::associate(const Future<T>& future)
 {
-  // Don't associate if this promise has completed. Note that this
-  // does not include if Future::discard was called on this future
-  // since in that case that would still leave the future PENDING
-  // (note that we cover that case below).
-  if (!f.isPending()) {
-    return false;
+  bool associated = false;
+
+  internal::acquire(&f.data->lock);
+  {
+    // Don't associate if this promise has completed. Note that this
+    // does not include if Future::discard was called on this future
+    // since in that case that would still leave the future PENDING
+    // (note that we cover that case below).
+    if (f.data->state == Future<T>::PENDING && !f.data->associated) {
+      associated = f.data->associated = true;
+
+      // After this point we don't allow 'f' to be completed via the
+      // promise since we've set 'associated' but Future::discard on
+      // 'f' might get called which will get propagated via the
+      // 'f.onDiscard' below. Note that we currently don't propagate a
+      // discard from 'future.onDiscard' but these semantics might
+      // change if/when we make 'f' and 'future' true aliases of one
+      // another.
+    }
+  }
+  internal::release(&f.data->lock);
+
+  // Note that we do the actual associating after releasing the lock
+  // above to avoid deadlocking by attempting to require the lock
+  // within from invoking 'f.onDiscard' and/or 'f.set/fail' via the
+  // bind statements from doing 'future.onReady/onFailed'.
+  if (associated) {
+    // TODO(jieyu): Make 'f' a true alias of 'future'. Currently, only
+    // 'discard' is associated in both directions. In other words, if
+    // a future gets discarded, the other future will also get
+    // discarded.  For 'set' and 'fail', they are associated only in
+    // one direction.  In other words, calling 'set' or 'fail' on this
+    // promise will not affect the result of the future that we
+    // associated.
+    f.onDiscard(lambda::bind(&internal::discard<T>, WeakFuture<T>(future)));
+
+    future
+      .onReady(lambda::bind(&Future<T>::set, f, lambda::_1))
+      .onFailed(lambda::bind(&Future<T>::fail, f, lambda::_1))
+      .onDiscarded(lambda::bind(&internal::discarded<T>, f));
   }
 
-  // TODO(jieyu): Make 'f' a true alias of 'future'. Currently, only
-  // 'discard' is associated in both directions. In other words, if a
-  // future gets discarded, the other future will also get discarded.
-  // For 'set' and 'fail', they are associated only in one direction.
-  // In other words, calling 'set' or 'fail' on this promise will not
-  // affect the result of the future that we associated. To avoid
-  // cyclic dependencies, we keep a weak future in the callback.
-  f.onDiscard(lambda::bind(&internal::discard<T>, WeakFuture<T>(future)));
-
-  // Note that we currently don't propagate a discard from
-  // 'future.onDiscard' but these semantics might change if/when we
-  // make 'f' and 'future' true aliases of one another.
-
-  // TODO(benh): Note that Promise::discard shouldn't get called after
-  // this point in time since the promise has been associated, but
-  // Future::discard on this promise's future might get called which
-  // will get propagated above. We should really try and keep
-  // Promise::set, Promise::fail, Promise::discard from getting called
-  // after an associate!
-
-  future
-    .onReady(lambda::bind(&Future<T>::set, f, lambda::_1))
-    .onFailed(lambda::bind(&Future<T>::fail, f, lambda::_1))
-    .onDiscarded(lambda::bind(&internal::discarded<T>, f));
-
-  return true;
+  return associated;
 }
 
 
 template <typename T>
 bool Promise<T>::fail(const std::string& message)
 {
-  return f.fail(message);
+  if (!f.data->associated) {
+    return f.fail(message);
+  }
+  return false;
 }
 
 
@@ -889,6 +908,7 @@ Future<T>::Data::Data()
   : lock(0),
     state(PENDING),
     discard(false),
+    associated(false),
     t(NULL),
     message(NULL) {}
 
