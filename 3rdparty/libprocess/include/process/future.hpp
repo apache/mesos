@@ -8,13 +8,21 @@
 #include <list>
 #include <queue>
 #include <set>
+#if  __cplusplus >= 201103L
+#include <type_traits>
+#endif // __cplusplus >= 201103L
 
 #include <glog/logging.h>
+
+#if  __cplusplus < 201103L
+#include <boost/type_traits.hpp>
+#endif // __cplusplus < 201103L
 
 #include <process/internal.hpp>
 #include <process/latch.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
+#include <process/timer.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
@@ -41,10 +49,6 @@ struct _Deferred;
 template <typename T>
 class Future;
 
-// More forward declarations necessary due to circular dependencies.
-namespace io {
-Future<short> poll(int fd, short events);
-} // namespace io {
 
 namespace internal {
 
@@ -451,6 +455,58 @@ public:
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
+#endif // __cplusplus >= 201103L
+
+  // Invokes the specified function after some duration if this future
+  // has not been completed (set, failed, or discarded). Note that
+  // this function is agnostic of discard semantics and while it will
+  // propagate discarding "up the chain" it will still invoke the
+  // specified callback after the specified duration even if 'discard'
+  // was called on the returned future.
+  Future<T> after(
+      const Duration& duration,
+      const lambda::function<Future<T>(const Future<T>&)>& f) const;
+
+  // TODO(benh): Add overloads of 'after' that don't require passing
+  // in a function that takes the 'const Future<T>&' parameter and use
+  // Prefer/LessPrefer to disambiguate.
+
+#if __cplusplus >= 201103L
+  template <typename F>
+  Future<T> after(
+      const Duration& duration,
+      _Deferred<F>&& f,
+      typename std::enable_if<std::is_convertible<_Deferred<F>, std::function<Future<T>(const Future<T>&)>>::value>::type* = NULL) const
+  {
+    return after(duration, std::function<Future<T>(const Future<T>&)>(f));
+  }
+
+  template <typename F>
+  Future<T> after(
+      const Duration& duration,
+      _Deferred<F>&& f,
+      typename std::enable_if<std::is_convertible<_Deferred<F>, std::function<Future<T>()>>::value>::type* = NULL) const
+  {
+    return after(duration, std::function<Future<T>(const Future<T>&)>(std::bind(f)));
+  }
+#else
+  template <typename F>
+  Future<T> after(
+      const Duration& duration,
+      const _Defer<F>& f,
+      typename boost::enable_if<boost::is_convertible<_Defer<F>, std::tr1::function<Future<T>(const Future<T>&)> > >::type* = NULL) const
+  {
+    return after(duration, std::tr1::function<Future<T>(const Future<T>&)>(f));
+  }
+
+  template <typename F>
+  Future<T> after(
+      const Duration& duration,
+      const _Defer<F>& f,
+      typename boost::enable_if<boost::is_convertible<_Defer<F>, std::tr1::function<Future<T>()> > >::type* = NULL) const
+  {
+    return after(duration, std::tr1::function<Future<T>(const Future<T>&)>(std::tr1::bind(f)));
+  }
 #endif // __cplusplus >= 201103L
 
 private:
@@ -1398,6 +1454,41 @@ void then(const memory::shared_ptr<Promise<X> >& promise,
   }
 }
 
+
+template <typename T>
+void expired(
+    const lambda::function<Future<T>(const Future<T>&)>& f,
+    const memory::shared_ptr<Latch>& latch,
+    const memory::shared_ptr<Promise<T> >& promise,
+    const Future<T>& future)
+{
+  if (latch->trigger()) {
+    // Note that we don't bother checking if 'future' has been
+    // discarded (i.e., 'future.isDiscarded()' returns true) since
+    // there is a race between when we make that check and when we
+    // would invoke 'f(future)' so the callee 'f' should ALWAYS check
+    // if the future has been discarded and rather than hiding a
+    // non-deterministic bug we always call 'f' if the timer has
+    // expired.
+    promise->associate(f(future));
+  }
+}
+
+
+template <typename T>
+void after(
+    const memory::shared_ptr<Latch>& latch,
+    const memory::shared_ptr<Promise<T> >& promise,
+    const Timer& timer,
+    const Future<T>& future)
+{
+  CHECK(!future.isPending());
+  if (latch->trigger()) {
+    Timer::cancel(timer);
+    promise->associate(future);
+  }
+}
+
 } // namespace internal {
 
 
@@ -1431,6 +1522,36 @@ Future<X> Future<T>::then(const lambda::function<X(const T&)>& f) const
     lambda::bind(&internal::then<T, X>, promise, f, lambda::_1);
 
   onAny(then);
+
+  // Propagate discarding up the chain. To avoid cyclic dependencies,
+  // we keep a weak future in the callback.
+  promise->future().onDiscard(
+      lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
+
+  return promise->future();
+}
+
+
+template <typename T>
+Future<T> Future<T>::after(
+    const Duration& duration,
+    const lambda::function<Future<T>(const Future<T>&)>& f) const
+{
+  // TODO(benh): Using a Latch here but Once might be cleaner.
+  // Unfortunately, Once depends on Future so we can't easily use it
+  // from here.
+  memory::shared_ptr<Latch> latch(new Latch());
+  memory::shared_ptr<Promise<T> > promise(new Promise<T>());
+
+  // Set up a timer to invoke the callback if this future has not
+  // completed. Note that we do not pass a weak reference for this
+  // future as we don't want the future to get cleaned up and then
+  // have the timer expire.
+  Timer timer = Timer::create(
+      duration,
+      lambda::bind(&internal::expired<T>, f, latch, promise, *this));
+
+  onAny(lambda::bind(&internal::after<T>, latch, promise, timer, lambda::_1));
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.

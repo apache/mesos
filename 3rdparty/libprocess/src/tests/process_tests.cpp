@@ -159,6 +159,91 @@ TEST(Process, then)
 }
 
 
+Future<Nothing> after(volatile bool* executed, const Future<Nothing>& future)
+{
+  EXPECT_TRUE(future.hasDiscard());
+  *executed = true;
+  return Failure("Failure");
+}
+
+
+// Checks that the 'after' callback gets executed if the future is not
+// completed.
+TEST(Process, after1)
+{
+  Clock::pause();
+
+  volatile bool executed = false;
+
+  Future<Nothing> future = Future<Nothing>()
+    .after(Hours(42), lambda::bind(&after, &executed, lambda::_1));
+
+  // A pending future should stay pending until 'after' is executed.
+  EXPECT_TRUE(future.isPending());
+
+  // Only advanced halfway, future should remain pending.
+  Clock::advance(Hours(21));
+
+  EXPECT_TRUE(future.isPending());
+
+  // Even doing a discard on the future should keep it pending.
+  future.discard();
+
+  EXPECT_TRUE(future.isPending());
+
+  // After advancing all the way the future should now fail because
+  // the 'after' callback gets executed.
+  Clock::advance(Hours(21));
+
+  AWAIT_FAILED(future);
+
+  EXPECT_TRUE(executed);
+
+  Clock::resume();
+}
+
+
+// Checks that completing a promise will keep the 'after' callback
+// from executing.
+TEST(Process, after2)
+{
+  Clock::pause();
+
+  volatile bool executed = false;
+
+  Promise<Nothing> promise;
+
+  Future<Nothing> future = promise.future()
+    .after(Hours(42), lambda::bind(&after, &executed, lambda::_1));
+
+  EXPECT_TRUE(future.isPending());
+
+  // Only advanced halfway, future should remain pending.
+  Clock::advance(Hours(21));
+
+  EXPECT_TRUE(future.isPending());
+
+  // Even doing a discard on the future should keep it pending.
+  future.discard();
+
+  EXPECT_TRUE(future.isPending());
+
+  // Now set the promise, the 'after' timer should be cancelled and
+  // the pending future should be completed.
+  promise.set(Nothing());
+
+  AWAIT_READY(future);
+
+  // Advancing time the rest of the way should not cause the 'after'
+  // callback to execute.
+  Clock::advance(Hours(21));
+
+  EXPECT_FALSE(executed);
+
+  Clock::resume();
+}
+
+
 Future<bool> readyFuture()
 {
   return true;

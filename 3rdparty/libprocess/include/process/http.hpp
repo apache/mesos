@@ -10,19 +10,24 @@
 #include <sstream>
 #include <string>
 
-#include <process/future.hpp>
 #include <process/pid.hpp>
 
 #include <stout/error.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
 #include <stout/none.hpp>
+#include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 namespace process {
+
+// Forward declaration to break cyclic dependency.
+template <typename T>
+class Future;
+
 namespace http {
 
 struct Request
