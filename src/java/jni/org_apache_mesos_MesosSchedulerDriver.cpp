@@ -904,7 +904,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_requestReso
 
   jmethodID next = env->GetMethodID(clazz, "next", "()Ljava/lang/Object;");
 
-  while (env->CallBooleanMethod(jrequests, hasNext)) {
+  while (env->CallBooleanMethod(jiterator, hasNext)) {
     // Object task = iterator.next();
     jobject jrequest = env->CallObjectMethod(jiterator, next);
     const Request& request = construct<Request>(env, jrequest);
