@@ -24,6 +24,7 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
 
 #include "master/registrar.hpp"
@@ -61,6 +62,7 @@ protected:
     os::rmdir(path);
     storage = new state::LevelDBStorage(path);
     state = new state::protobuf::State(storage);
+    master.CopyFrom(protobuf::createMasterInfo(UPID("master@127.0.0.1:5050")));
   }
 
   virtual void TearDown()
@@ -72,6 +74,7 @@ protected:
 
   state::Storage* storage;
   state::protobuf::State* state;
+  MasterInfo master;
 
 private:
   const std::string path;
@@ -93,13 +96,7 @@ TEST_F(RegistrarTest, recover)
   AWAIT_EXPECT_FAILED(registrar.readmit(slave));
   AWAIT_EXPECT_FAILED(registrar.remove(slave));
 
-  MasterInfo info;
-  info.set_id("foobar");
-  info.set_ip(0);
-  info.set_port(5050);
-  info.set_pid("0:5050");
-
-  Future<Registry> registry = registrar.recover(info);
+  Future<Registry> registry = registrar.recover(master);
 
   // Before waiting for the recovery to complete, invoke some
   // operations to ensure they do not fail.
@@ -108,7 +105,7 @@ TEST_F(RegistrarTest, recover)
   Future<bool> remove = registrar.remove(slave);
 
   AWAIT_READY(registry);
-  EXPECT_EQ(info, registry.get().master().info());
+  EXPECT_EQ(master, registry.get().master().info());
 
   AWAIT_EQ(true, admit);
   AWAIT_EQ(true, readmit);
@@ -119,7 +116,7 @@ TEST_F(RegistrarTest, recover)
 TEST_F(RegistrarTest, admit)
 {
   Registrar registrar(state);
-  AWAIT_READY(registrar.recover(MasterInfo()));
+  AWAIT_READY(registrar.recover(master));
 
   SlaveInfo info1;
   info1.set_hostname("localhost");
@@ -139,7 +136,7 @@ TEST_F(RegistrarTest, admit)
 TEST_F(RegistrarTest, readmit)
 {
   Registrar registrar(state);
-  AWAIT_READY(registrar.recover(MasterInfo()));
+  AWAIT_READY(registrar.recover(master));
 
   SlaveInfo info1;
   info1.set_hostname("localhost");
@@ -169,7 +166,7 @@ TEST_F(RegistrarTest, readmit)
 TEST_F(RegistrarTest, remove)
 {
   Registrar registrar(state);
-  AWAIT_READY(registrar.recover(MasterInfo()));
+  AWAIT_READY(registrar.recover(master));
 
   SlaveInfo info1;
   info1.set_hostname("localhost");
