@@ -30,12 +30,14 @@ Latch::~Latch()
 }
 
 
-void Latch::trigger()
+bool Latch::trigger()
 {
-  if (!triggered) {
+  // TODO(benh): Use std::atomic when C++11 rolls out.
+  if (__sync_bool_compare_and_swap(&triggered, false, true)) {
     terminate(pid);
-    triggered = true;
+    return true;
   }
+  return false;
 }
 
 

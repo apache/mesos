@@ -16,7 +16,12 @@ public:
   bool operator == (const Latch& that) const { return pid == that.pid; }
   bool operator < (const Latch& that) const { return pid < that.pid; }
 
-  void trigger();
+  // Returns true if the latch was triggered, false if the latch had
+  // already been triggered.
+  bool trigger();
+
+  // Returns true if the latch was triggered within the specified
+  // duration, otherwise false.
   bool await(const Duration& duration = Seconds(-1));
 
 private:
