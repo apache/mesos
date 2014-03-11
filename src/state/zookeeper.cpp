@@ -43,6 +43,103 @@ namespace mesos {
 namespace internal {
 namespace state {
 
+
+class ZooKeeperStorageProcess : public Process<ZooKeeperStorageProcess>
+{
+public:
+  ZooKeeperStorageProcess(
+      const string& servers,
+      const Duration& timeout,
+      const string& znode,
+      const Option<Authentication>& auth);
+  virtual ~ZooKeeperStorageProcess();
+
+  virtual void initialize();
+
+  // Storage implementation.
+  Future<Option<Entry> > get(const string& name);
+  Future<bool> set(const Entry& entry, const UUID& uuid);
+  virtual Future<bool> expunge(const Entry& entry);
+  Future<vector<string> > names();
+
+  // ZooKeeper events.
+  void connected(bool reconnect);
+  void reconnecting();
+  void expired();
+  void updated(const string& path);
+  void created(const string& path);
+  void deleted(const string& path);
+
+private:
+  // Helpers for getting the names, fetching, and swapping.
+  Result<vector<string> > doNames();
+  Result<Option<Entry> > doGet(const string& name);
+  Result<bool> doSet(const Entry& entry, const UUID& uuid);
+  Result<bool> doExpunge(const Entry& entry);
+
+  const string servers;
+
+  // The session timeout requested by the client.
+  const Duration timeout;
+
+  const string znode;
+
+  Option<Authentication> auth; // ZooKeeper authentication.
+
+  const ACL_vector acl; // Default ACL to use.
+
+  Watcher* watcher;
+  ZooKeeper* zk;
+
+  enum State { // ZooKeeper connection state.
+    DISCONNECTED,
+    CONNECTING,
+    CONNECTED,
+  } state;
+
+  struct Names
+  {
+    Promise<vector<string> > promise;
+  };
+
+  struct Get
+  {
+    Get(const string& _name) : name(_name) {}
+
+    string name;
+    Promise<Option<Entry> > promise;
+  };
+
+  struct Set
+  {
+    Set(const Entry& _entry, const UUID& _uuid) : entry(_entry), uuid(_uuid) {}
+
+    Entry entry;
+    UUID uuid;
+    Promise<bool> promise;
+  };
+
+  struct Expunge
+  {
+    Expunge(const Entry& _entry) : entry(_entry) {}
+
+    Entry entry;
+    Promise<bool> promise;
+  };
+
+  // TODO(benh): Make pending a single queue of "operations" that can
+  // be "invoked" (C++11 lambdas would help).
+  struct {
+    queue<Names*> names;
+    queue<Get*> gets;
+    queue<Set*> sets;
+    queue<Expunge*> expunges;
+  } pending;
+
+  Option<string> error;
+};
+
+
 // Helper for failing a queue of promises.
 template <typename T>
 void fail(queue<T*>* queue, const string& message)
@@ -490,6 +587,49 @@ Result<bool> ZooKeeperStorageProcess::doExpunge(const Entry& entry)
   }
 
   return true;
+}
+
+
+ZooKeeperStorage::ZooKeeperStorage(
+    const string& servers,
+    const Duration& timeout,
+    const string& znode,
+    const Option<Authentication>& auth)
+{
+  process = new ZooKeeperStorageProcess(servers, timeout, znode, auth);
+  spawn(process);
+}
+
+
+ZooKeeperStorage::~ZooKeeperStorage()
+{
+  terminate(process);
+  wait(process);
+  delete process;
+}
+
+
+Future<Option<Entry> > ZooKeeperStorage::get(const string& name)
+{
+  return dispatch(process, &ZooKeeperStorageProcess::get, name);
+}
+
+
+Future<bool> ZooKeeperStorage::set(const Entry& entry, const UUID& uuid)
+{
+  return dispatch(process, &ZooKeeperStorageProcess::set, entry, uuid);
+}
+
+
+Future<bool> ZooKeeperStorage::expunge(const Entry& entry)
+{
+  return dispatch(process, &ZooKeeperStorageProcess::expunge, entry);
+}
+
+
+Future<vector<string> > ZooKeeperStorage::names()
+{
+  return dispatch(process, &ZooKeeperStorageProcess::names);
 }
 
 } // namespace state {

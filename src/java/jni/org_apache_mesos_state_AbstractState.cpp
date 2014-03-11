@@ -7,8 +7,8 @@
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/foreach.hpp>
 
-#include "state/leveldb.hpp"
 #include "state/state.hpp"
 
 #include "construct.hpp"
