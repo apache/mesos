@@ -347,8 +347,12 @@ libmesos_no_3rdparty_la_LIBADD += liblog.la
 # Convenience library for building "state" abstraction in order to
 # include the leveldb headers.
 noinst_LTLIBRARIES += libstate.la
-libstate_la_SOURCES = state/leveldb.cpp state/zookeeper.cpp
+libstate_la_SOURCES =							\
+  state/in_memory.cpp							\
+  state/leveldb.cpp							\
+  state/zookeeper.cpp
 libstate_la_SOURCES +=							\
+  state/in_memory.hpp							\
   state/leveldb.hpp							\
   state/protobuf.hpp							\
   state/state.hpp							\
