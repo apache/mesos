@@ -222,21 +222,21 @@ struct Parser : boost::static_visitor<Try<Nothing> >
           reflection->SetString(message, field, string.value);
         }
         break;
-      case google::protobuf::FieldDescriptor::TYPE_ENUM:
+      case google::protobuf::FieldDescriptor::TYPE_ENUM: {
+        const google::protobuf::EnumValueDescriptor* descriptor =
+          field->enum_type()->FindValueByName(string.value);
+
+        if (descriptor == NULL) {
+          return Error("Failed to find enum for '" + string.value + "'");
+        }
+
         if (field->is_repeated()) {
-          reflection->AddEnum(
-              message,
-              field,
-              field->enum_type()->FindValueByName(
-                  strings::upper(string.value)));
+          reflection->AddEnum(message, field, descriptor);
         } else {
-          reflection->SetEnum(
-              message,
-              field,
-              field->enum_type()->FindValueByName(
-                  strings::upper(string.value)));
+          reflection->SetEnum(message, field, descriptor);
         }
         break;
+      }
       default:
         return Error("Not expecting a JSON string for field '" +
                      field->name() + "'");
