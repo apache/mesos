@@ -231,3 +231,50 @@ TEST(Subprocess, splice)
 
   Clock::resume();
 }
+
+
+TEST(Subprocess, env)
+{
+  Clock::pause();
+
+  // Simple envvar
+  Try<Subprocess> s =
+      subprocess("/usr/bin/env MESSAGE=hello bash -c 'echo $MESSAGE'");
+  ASSERT_SOME(s);
+  ASSERT_SOME(os::nonblock(s.get().out()));
+  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out()));
+
+  // Advance time until the reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+  int status = s.get().status().get().get();
+
+  ASSERT_TRUE(WIFEXITED(status));
+  ASSERT_EQ(0, WEXITSTATUS(status));
+
+
+  // Spaces and quotes
+  s = subprocess(
+      "/usr/bin/env MESSAGE=\"hello world\" bash -c 'echo $MESSAGE'");
+  ASSERT_SOME(s);
+  ASSERT_SOME(os::nonblock(s.get().out()));
+  AWAIT_EXPECT_EQ("hello world\n", io::read(s.get().out()));
+
+  // Advance time until the reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+  status = s.get().status().get().get();
+
+  ASSERT_TRUE(WIFEXITED(status));
+  ASSERT_EQ(0, WEXITSTATUS(status));
+}
