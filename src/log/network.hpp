@@ -29,7 +29,6 @@
 #include <process/collect.hpp>
 #include <process/executor.hpp>
 #include <process/protobuf.hpp>
-#include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
@@ -117,6 +116,15 @@ public:
 
 private:
   typedef ZooKeeperNetwork This;
+
+  // Helper for handling time outs when collecting membership
+  // data. For now, a timeout is treated as a failure.
+  static process::Future<std::list<std::string> > timedout(
+      process::Future<std::list<std::string> > datas)
+  {
+    datas.discard();
+    return process::Failure("Timed out");
+  }
 
   // Not copyable, not assignable.
   ZooKeeperNetwork(const ZooKeeperNetwork&);
@@ -411,7 +419,8 @@ inline void ZooKeeperNetwork::watched(
     futures.push_back(group.data(membership));
   }
 
-  process::collect(futures, process::Timeout::in(Seconds(5)))
+  process::collect(futures)
+    .after(Seconds(5), lambda::bind(&This::timedout, lambda::_1))
     .onAny(executor.defer(lambda::bind(&This::collected, this, lambda::_1)));
 }
 
