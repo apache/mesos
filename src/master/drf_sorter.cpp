@@ -30,12 +30,13 @@ namespace internal {
 namespace master {
 namespace allocator {
 
-bool DRFComparator::operator () (
-    const Client& client1,
-    const Client& client2)
+bool DRFComparator::operator () (const Client& client1, const Client& client2)
 {
   if (client1.share == client2.share) {
-    return client1.name < client2.name;
+    if (client1.allocations == client2.allocations) {
+      return client1.name < client2.name;
+    }
+    return client1.allocations < client2.allocations;
   }
   return client1.share < client2.share;
 }
@@ -43,9 +44,7 @@ bool DRFComparator::operator () (
 
 void DRFSorter::add(const string& name, double weight)
 {
-  Client client;
-  client.name = name;
-  client.share = 0;
+  Client client(name, 0, 0);
   clients.insert(client);
 
   allocations[name] = Resources();
@@ -70,9 +69,7 @@ void DRFSorter::activate(const string& name)
 {
   CHECK(allocations.contains(name));
 
-  Client client;
-  client.name = name;
-  client.share = calculateShare(name);
+  Client client(name, calculateShare(name), 0);
   clients.insert(client);
 }
 
@@ -82,6 +79,10 @@ void DRFSorter::deactivate(const string& name)
   set<Client, DRFComparator>::iterator it = find(name);
 
   if (it != clients.end()) {
+    // TODO(benh): Removing the client is an unfortuante strategy
+    // because we lose information such as the number of allocations
+    // for this client which means the fairness can be gamed by a
+    // framework disconnecting and reconnecting.
     clients.erase(it);
   }
 }
@@ -91,6 +92,20 @@ void DRFSorter::allocated(
     const string& name,
     const Resources& resources)
 {
+  set<Client, DRFComparator>::iterator it = find(name);
+
+  if (it != clients.end()) { // TODO(benh): This should really be a CHECK.
+    // TODO(benh): Refactor 'update' to be able to reuse it here.
+    Client client(*it);
+
+    // Update the 'allocations' to reflect the allocator decision.
+    client.allocations++;
+
+    // Remove and reinsert it to update the ordering appropriately.
+    clients.erase(it);
+    clients.insert(client);
+  }
+
   allocations[name] += resources;
 
   // If the total resources have changed, we're going to
@@ -147,23 +162,25 @@ list<string> DRFSorter::sort()
 
     set<Client, DRFComparator>::iterator it;
     for (it = clients.begin(); it != clients.end(); it++) {
-      Client client;
-      client.name = (*it).name;
-      client.share = calculateShare((*it).name);
+      Client client(*it);
+
+      // Update the 'share' to get proper sorting.
+      client.share = calculateShare(client.name);
+
       temp.insert(client);
     }
 
     clients = temp;
   }
 
-  list<string> ret;
+  list<string> result;
 
   set<Client, DRFComparator>::iterator it;
   for (it = clients.begin(); it != clients.end(); it++) {
-    ret.push_back((*it).name);
+    result.push_back((*it).name);
   }
 
-  return ret;
+  return result;
 }
 
 
@@ -178,17 +195,19 @@ int DRFSorter::count()
   return allocations.size();
 }
 
+
 void DRFSorter::update(const string& name)
 {
-  set<Client, DRFComparator>::iterator it;
-  it = find(name);
+  set<Client, DRFComparator>::iterator it = find(name);
 
   if (it != clients.end()) {
-    clients.erase(it);
+    Client client(*it);
 
-    Client client;
-    client.name = name;
-    client.share = calculateShare(name);
+    // Update the 'share' to get proper sorting.
+    client.share = calculateShare(client.name);
+
+    // Remove and reinsert it to update the ordering appropriately.
+    clients.erase(it);
     clients.insert(client);
   }
 }

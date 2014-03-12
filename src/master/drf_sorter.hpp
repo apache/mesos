@@ -36,20 +36,28 @@ namespace allocator {
 
 struct Client
 {
+  Client(const std::string& _name, double _share, uint64_t _allocations)
+    : name(_name), share(_share), allocations(_allocations) {}
+
   std::string name;
   double share;
+
+  // We store the number of times this client has been chosen for
+  // allocation so that we can fairly share the resources across
+  // clients that have the same share. Note that this information is
+  // not persisted across master failovers, but since the point is to
+  // equalize the 'allocations' across clients of the same 'share'
+  // having allocations restart at 0 after a master failover should be
+  // sufficient (famous last words.)
+  uint64_t allocations;
 };
 
 
 struct DRFComparator
 {
   virtual ~DRFComparator() {}
-  virtual bool operator () (const Client& client1,
-                            const Client& client2);
+  virtual bool operator () (const Client& client1, const Client& client2);
 };
-
-
-typedef std::set<Client, DRFComparator> drfSet;
 
 
 class DRFSorter : public Sorter
