@@ -76,7 +76,7 @@ AC_CONFIG_COMMANDS_POST([ac_configure_args="$ac_configure_args_post"])
 
 AC_CONFIG_SUBDIRS([3rdparty/libprocess])
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile mesos.pc])
 AC_CONFIG_FILES([ec2/Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
@@ -586,6 +586,12 @@ There are two possible workarounds for this issue:
   AC_SUBST([PYTHON]) # Used by the example shell scripts and src/Makefile.am.
 
   AC_DEFINE([MESOS_HAS_PYTHON])
+
+  AC_PYTHON_MODULE([boto], [no],
+		   AC_MSG_WARN([can not find python-boto
+-------------------------------------------------------------------
+mesos-ec2 services will not function.
+-------------------------------------------------------------------]))
 
   has_python=yes
 fi

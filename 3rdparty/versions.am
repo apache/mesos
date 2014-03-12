@@ -19,6 +19,5 @@
 # third-party packages in exactly one place. For now, however, we
 # still need to update version numbers in src/python/setup.py.in too!
 
-BOTO_VERSION = 2.0b2
 DISTRIBUTE_VERSION = 0.6.26
 ZOOKEEPER_VERSION = 3.4.5

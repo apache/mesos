@@ -32,20 +32,17 @@ CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
 
 include versions.am
 
-BOTO = boto-$(BOTO_VERSION)
 DISTRIBUTE = distribute-$(DISTRIBUTE_VERSION)
 LEVELDB = leveldb
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
 
 
 EXTRA_DIST =		\
-  $(BOTO).zip		\
   $(DISTRIBUTE).tar.gz	\
   $(LEVELDB).tar.gz	\
   $(ZOOKEEPER).tar.gz
 
 CLEAN_EXTRACTED =	\
-  $(BOTO)		\
   $(DISTRIBUTE)		\
   $(LEVELDB)		\
   $(ZOOKEEPER)

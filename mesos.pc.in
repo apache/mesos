@@ -1,0 +1,13 @@
+################################
+# Pkg-Config file for mesos    #
+################################
+
+Name: mesos
+Description: Cluster manager for sharing distributed application frameworks
+URL: http://mesos.apache.org/
+Version: @VERSION@
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+libdir=@libdir@

@@ -17,4 +17,4 @@
 # limitations under the License.
 
 cd "`dirname $0`"
-PYTHONPATH="$PYTHONPATH:../third_party/boto-2.0b2.zip/boto-2.0b2" python ./mesos_ec2.py $@
+python ./mesos_ec2.py $@
