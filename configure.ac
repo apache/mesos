@@ -139,9 +139,9 @@ AC_ARG_WITH([included-zookeeper],
              [], [with_included_zookeeper=yes])
 
 AC_ARG_WITH([cxx11],
-            AS_HELP_STRING([--with-cxx11],
-                           [builds Mesos using C++11]),
-            [], [with_cxx11=no])
+            AS_HELP_STRING([--without-cxx11],
+                           [builds Mesos without C++11 support (deprecated)]),
+            [], [with_cxx11=yes])
 
 # TODO(benh): Support --without-included-protobuf,
 # --without-included-glog, etc. Doing this for protobuf is
