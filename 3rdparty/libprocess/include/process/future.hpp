@@ -241,7 +241,7 @@ private:
   const Future<T>& onAny(F&& f, Prefer) const
   {
     return onAny(std::function<void(const Future<T>&)>(
-        [=] (const Future<T>& future) {
+        [=] (const Future<T>& future) mutable {
           f(future);
         }));
   }
