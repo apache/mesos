@@ -32,6 +32,7 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/stopwatch.hpp>
+#include <stout/tuple.hpp>
 
 #include "encoder.hpp"
 
@@ -1033,7 +1034,7 @@ TEST(Process, collect)
 }
 
 
-TEST(Process, await)
+TEST(Process, await1)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1073,6 +1074,58 @@ TEST(Process, await)
     ASSERT_TRUE(result.isReady());
     ASSERT_EQ(i++, result.get());
   }
+}
+
+
+TEST(Process, await2)
+{
+  Promise<int> promise1;
+  Promise<bool> promise2;
+
+  Future<tuples::tuple<Future<int>, Future<bool> > > future =
+    await(promise1.future(), promise2.future());
+  ASSERT_TRUE(future.isPending());
+
+  promise1.set(42);
+
+  ASSERT_TRUE(future.isPending());
+
+  promise2.fail("failure message");
+
+  AWAIT_READY(future);
+
+  tuples::tuple<Future<int>, Future<bool> > futures = future.get();
+
+  ASSERT_TRUE(tuples::get<0>(futures).isReady());
+  ASSERT_EQ(42, tuples::get<0>(futures).get());
+
+  ASSERT_TRUE(tuples::get<1>(futures).isFailed());
+}
+
+
+TEST(Process, await3)
+{
+  Promise<int> promise1;
+  Promise<bool> promise2;
+
+  Future<tuples::tuple<Future<int>, Future<bool> > > future =
+    await(promise1.future(), promise2.future());
+  ASSERT_TRUE(future.isPending());
+
+  promise1.set(42);
+
+  ASSERT_TRUE(future.isPending());
+
+  promise2.discard();
+
+  AWAIT_READY(future);
+
+  tuples::tuple<Future<int>, Future<bool> > futures = future.get();
+
+  ASSERT_TRUE(tuples::get<0>(futures).isReady());
+  ASSERT_EQ(42, tuples::get<0>(futures).get());
+
+  ASSERT_TRUE(tuples::get<1>(futures).isDiscarded());
 }
 
 
