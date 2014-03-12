@@ -1714,3 +1714,9 @@ TYPED_TEST(AllocatorTest, RoleTest)
 
   this->Shutdown();
 }
+
+
+// TODO(benh): Add a DRF allocator test which ensures that frameworks
+// that have the same share get an equal number of allocations over
+// time (rather than the same framework getting all the allocations
+// because it's name is lexicographically ordered first.
