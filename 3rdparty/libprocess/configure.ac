@@ -158,12 +158,13 @@ if test "x$with_cxx11" = "xyes"; then
     if test "x$CLANG" = "xyes"; then
       CXXFLAGS="$CXXFLAGS -stdlib=libc++"
     fi
+
+    # GTEST on OSX needs its own tr1 tuple.
+    # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when in
+    # c++11 mode.
+    CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1"
     ;;
   esac
-
-  # Force gtest to use it's own tuple implementation since 'tr1/tuple'
-  # might not exist (for example, if building with clang).
-  CXXFLAGS="-DGTEST_USE_OWN_TR1_TUPLE=1 $CXXFLAGS"
 
   # Also pass the flags to 3rdparty libraries.
   CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
