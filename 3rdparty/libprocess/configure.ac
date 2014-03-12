@@ -70,9 +70,9 @@ AC_ARG_WITH([zlib],
             [], [with_zlib=yes])
 
 AC_ARG_WITH([cxx11],
-            AS_HELP_STRING([--with-cxx11],
-                           [builds libprocess using C++11]),
-            [], [with_cxx11=no])
+            AS_HELP_STRING([--without-cxx11],
+                           [builds libprocess without C++11 support (deprecated)]),
+            [], [with_cxx11=yes])
 
 
 # Do some OS specific setup.
