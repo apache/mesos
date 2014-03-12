@@ -133,7 +133,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     CHECK_NOTNULL(storage);
 
     state = new state::protobuf::State(storage);
-    registrar = new Registrar(state);
+    registrar = new Registrar(flags, state);
     repairer = new Repairer();
 
     contender = new StandaloneMasterContender();

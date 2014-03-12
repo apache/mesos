@@ -57,12 +57,33 @@ namespace mesos {
 namespace internal {
 namespace master {
 
+// TODO(bmahler): Consider an implementation that pushes the
+// operations to the caller to simplify the interface:
+//
+// In this design, operations can be maintained in a separate
+// header and added independently of the Registrar logic. However,
+// we would need to ensure that all Operations can be generalized
+// to result in a Future<bool>.
+//
+// Registrar
+// {
+//   Future<Registrar> recover(const MasterInfo&);
+//   Future<bool> apply(const Operation&);
+// }
+//
+// Registrar registrar(flags, state);
+//
+// Future<bool> admit = registrar.apply(Admit(slaveInfo));
+// Future<bool> readmit = registrar.apply(Redmit(slaveInfo));
+// Future<bool> remove = registrar.apply(Remove(slaveInfo));
+
 class RegistrarProcess : public Process<RegistrarProcess>
 {
 public:
-  RegistrarProcess(State* _state)
+  RegistrarProcess(const Flags& _flags, State* _state)
     : ProcessBase("registrar"),
       updating(false),
+      flags(_flags),
       state(_state) {}
 
   virtual ~RegistrarProcess() {}
@@ -82,9 +103,9 @@ private:
     // Attempts to invoke the operation on 't'.
     // Returns whether the operation mutates 't', or an error if the
     // operation cannot be applied successfully.
-    Try<bool> operator () (T* t)
+    Try<bool> operator () (T* t, bool strict)
     {
-      const Try<bool>& result = perform(t);
+      const Try<bool>& result = perform(t, strict);
 
       success = !result.isError();
 
@@ -95,7 +116,7 @@ private:
     bool set() { return Promise<bool>::set(success); }
 
   protected:
-    virtual Try<bool> perform(T* t) = 0;
+    virtual Try<bool> perform(T* t, bool strict) = 0;
 
   private:
     bool success;
@@ -107,7 +128,7 @@ private:
     Recover(const MasterInfo& _info) : info(_info) {}
 
   protected:
-    virtual Try<bool> perform(Registry* registry)
+    virtual Try<bool> perform(Registry* registry, bool strict)
     {
       registry->mutable_master()->mutable_info()->CopyFrom(info);
       return true;
@@ -122,18 +143,22 @@ private:
     Admit(const SlaveInfo& _info) : info(_info) {}
 
   protected:
-    virtual Try<bool> perform(Registry* registry)
+    virtual Try<bool> perform(Registry* registry, bool strict)
     {
       // Check and see if this slave already exists.
       foreach (const Registry::Slave& slave, registry->slaves().slaves()) {
         if (slave.info().id() == info.id()) {
-          return Error("Slave already admitted");
+          if (strict) {
+            return Error("Slave already admitted");
+          } else {
+            return false; // No mutation.
+          }
         }
       }
 
       Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
       slave->mutable_info()->CopyFrom(info);
-      return true;
+      return true; // Mutation.
     }
 
     const SlaveInfo info;
@@ -145,15 +170,21 @@ private:
     Readmit(const SlaveInfo& _info) : info(_info) {}
 
   protected:
-    virtual Try<bool> perform(Registry* registry)
+    virtual Try<bool> perform(Registry* registry, bool strict)
     {
       foreach (const Registry::Slave& slave, registry->slaves().slaves()) {
         if (slave.info().id() == info.id()) {
-          return false;
+          return false; // No mutation.
         }
       }
 
-      return Error("Slave not yet admitted");
+      if (strict) {
+        return Error("Slave not yet admitted");
+      } else {
+        Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
+        slave->mutable_info()->CopyFrom(info);
+        return true; // Mutation.
+      }
     }
 
     const SlaveInfo info;
@@ -165,7 +196,7 @@ private:
     Remove(const SlaveInfo& _info) : info(_info) {}
 
   protected:
-    virtual Try<bool> perform(Registry* registry)
+    virtual Try<bool> perform(Registry* registry, bool strict)
     {
       for (int i = 0; i < registry->slaves().slaves().size(); i++) {
         const Registry::Slave& slave = registry->slaves().slaves(i);
@@ -179,7 +210,11 @@ private:
         }
       }
 
-      return Error("Slave not yet admitted");
+      if (strict) {
+        return Error("Slave not yet admitted");
+      } else {
+        return false; // No mutation.
+      }
     }
 
     const SlaveInfo info;
@@ -204,6 +239,7 @@ private:
       const Future<Option<Variable<Registry> > >& store,
       deque<Operation<Registry>*> operations);
 
+  const Flags flags;
   State* state;
 
   // Used to compose our operations with recovery.
@@ -320,8 +356,7 @@ Future<bool> RegistrarProcess::readmit(const SlaveInfo& info)
 }
 
 
-Future<bool> RegistrarProcess::_readmit(
-    const SlaveInfo& info)
+Future<bool> RegistrarProcess::_readmit(const SlaveInfo& info)
 {
   CHECK_SOME(variable);
 
@@ -350,8 +385,7 @@ Future<bool> RegistrarProcess::remove(const SlaveInfo& info)
 }
 
 
-Future<bool> RegistrarProcess::_remove(
-    const SlaveInfo& info)
+Future<bool> RegistrarProcess::_remove(const SlaveInfo& info)
 {
   CHECK_SOME(variable);
 
@@ -383,7 +417,7 @@ void RegistrarProcess::update()
 
   foreach (Operation<Registry>* operation, operations) {
     // No need to process the result of the operation.
-    (*operation)(&registry);
+    (*operation)(&registry, flags.registry_strict);
   }
 
   // TODO(benh): Add a timeout so we don't wait forever.
@@ -441,9 +475,9 @@ void RegistrarProcess::_update(
 }
 
 
-Registrar::Registrar(State* state)
+Registrar::Registrar(const Flags& flags, State* state)
 {
-  process = new RegistrarProcess(state);
+  process = new RegistrarProcess(flags, state);
   spawn(process);
 }
 

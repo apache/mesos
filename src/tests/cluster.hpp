@@ -286,7 +286,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   CHECK_NOTNULL(masterInfo.storage);
 
   masterInfo.state = new state::protobuf::State(masterInfo.storage);
-  masterInfo.registrar = new master::Registrar(masterInfo.state);
+  masterInfo.registrar = new master::Registrar(flags, masterInfo.state);
   masterInfo.repairer = new master::Repairer();
 
   if (url.isSome()) {

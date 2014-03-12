@@ -27,6 +27,7 @@
 #include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
 
+#include "master/flags.hpp"
 #include "master/registrar.hpp"
 
 #include "state/leveldb.hpp"
@@ -48,7 +49,7 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-class RegistrarTest : public ::testing::Test
+class RegistrarTest : public ::testing::TestWithParam<bool>
 {
 public:
   RegistrarTest()
@@ -60,9 +61,12 @@ protected:
   virtual void SetUp()
   {
     os::rmdir(path);
+    // TODO(bmahler): Only use LevelDBStorage or LogStorage for
+    // performance testing, otherwise just use InMemoryStorage.
     storage = new state::LevelDBStorage(path);
     state = new state::protobuf::State(storage);
     master.CopyFrom(protobuf::createMasterInfo(UPID("master@127.0.0.1:5050")));
+    flags.registry_strict = GetParam();
   }
 
   virtual void TearDown()
@@ -75,15 +79,20 @@ protected:
   state::Storage* storage;
   state::protobuf::State* state;
   MasterInfo master;
+  Flags flags;
 
 private:
   const std::string path;
 };
 
 
-TEST_F(RegistrarTest, recover)
+// The Registrar tests are parameterized by "strictness".
+INSTANTIATE_TEST_CASE_P(Strict, RegistrarTest, ::testing::Bool());
+
+
+TEST_P(RegistrarTest, recover)
 {
-  Registrar registrar(state);
+  Registrar registrar(flags, state);
 
   SlaveInfo slave;
   slave.set_hostname("localhost");
@@ -113,9 +122,9 @@ TEST_F(RegistrarTest, recover)
 }
 
 
-TEST_F(RegistrarTest, admit)
+TEST_P(RegistrarTest, admit)
 {
-  Registrar registrar(state);
+  Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
   SlaveInfo info1;
@@ -129,13 +138,18 @@ TEST_F(RegistrarTest, admit)
   info1.mutable_id()->CopyFrom(id1);
 
   AWAIT_EQ(true, registrar.admit(info1));
-  AWAIT_EQ(false, registrar.admit(info1));
+
+  if (flags.registry_strict) {
+    AWAIT_EQ(false, registrar.admit(info1));
+  } else {
+    AWAIT_EQ(true, registrar.admit(info1));
+  }
 }
 
 
-TEST_F(RegistrarTest, readmit)
+TEST_P(RegistrarTest, readmit)
 {
-  Registrar registrar(state);
+  Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
   SlaveInfo info1;
@@ -159,13 +173,17 @@ TEST_F(RegistrarTest, readmit)
 
   AWAIT_EQ(true, registrar.readmit(info1));
 
-  AWAIT_EQ(false, registrar.readmit(info2));
+  if (flags.registry_strict) {
+    AWAIT_EQ(false, registrar.readmit(info2));
+  } else {
+    AWAIT_EQ(true, registrar.readmit(info2));
+  }
 }
 
 
-TEST_F(RegistrarTest, remove)
+TEST_P(RegistrarTest, remove)
 {
-  Registrar registrar(state);
+  Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
   SlaveInfo info1;
@@ -197,15 +215,70 @@ TEST_F(RegistrarTest, remove)
   AWAIT_EQ(true, registrar.admit(info3));
 
   AWAIT_EQ(true, registrar.remove(info1));
-  AWAIT_EQ(false, registrar.remove(info1));
+
+  if (flags.registry_strict) {
+    AWAIT_EQ(false, registrar.remove(info1));
+  } else {
+    AWAIT_EQ(true, registrar.remove(info1));
+  }
 
   AWAIT_EQ(true, registrar.admit(info1));
 
   AWAIT_EQ(true, registrar.remove(info2));
-  AWAIT_EQ(false, registrar.remove(info2));
+
+  if (flags.registry_strict) {
+    AWAIT_EQ(false, registrar.remove(info2));
+  } else {
+    AWAIT_EQ(true, registrar.remove(info2));
+  }
 
   AWAIT_EQ(true, registrar.remove(info3));
-  AWAIT_EQ(false, registrar.remove(info3));
+
+  if (flags.registry_strict) {
+    AWAIT_EQ(false, registrar.remove(info3));
+  } else {
+    AWAIT_EQ(true, registrar.remove(info3));
+  }
+}
+
+
+TEST_P(RegistrarTest, bootstrap)
+{
+  SlaveID id;
+  id.set_value("1");
+
+  SlaveInfo info;
+  info.set_hostname("localhost");
+  info.mutable_id()->CopyFrom(id);
+
+  // Run 1 readmits a slave that is not present.
+  {
+    Registrar registrar(flags, state);
+    AWAIT_READY(registrar.recover(master));
+
+    // If not strict, we should be allowed to readmit the slave.
+    if (flags.registry_strict) {
+      AWAIT_EQ(false, registrar.readmit(info));
+    } else {
+      AWAIT_EQ(true, registrar.readmit(info));
+    }
+  }
+
+  // Run 2 should see the slave if not strict.
+  {
+    Registrar registrar(flags, state);
+
+    Future<Registry> registry = registrar.recover(master);
+
+    AWAIT_READY(registry);
+
+    if (flags.registry_strict) {
+      EXPECT_EQ(0, registry.get().slaves().slaves().size());
+    } else {
+      ASSERT_EQ(1, registry.get().slaves().slaves().size());
+      EXPECT_EQ(info, registry.get().slaves().slaves(0).info());
+    }
+  }
 }
 
 } // namespace master {

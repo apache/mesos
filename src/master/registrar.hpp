@@ -23,6 +23,7 @@
 
 #include <process/future.hpp>
 
+#include "master/flags.hpp"
 #include "master/registry.hpp"
 
 #include "state/protobuf.hpp"
@@ -37,7 +38,9 @@ class RegistrarProcess;
 class Registrar
 {
 public:
-  Registrar(state::protobuf::State* state);
+  // If flags.registry_strict is true, all operations will be
+  // permitted.
+  Registrar(const Flags& flags, state::protobuf::State* state);
   ~Registrar();
 
   // Recovers the Registry, persisting the new Master information.
