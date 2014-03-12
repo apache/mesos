@@ -1,5 +1,10 @@
 Release Notes - Mesos - Version 0.18.0
 --------------------------------------
+* The primary feature of this release is a refactor of the isolation
+  abstraction to make it easy to add pluggable isolators/containerizers.
+
+** Sub-task
+    * [MESOS-1043] - Change configure.ac to use C++11 by default.
 
 ** Bug
     * [MESOS-422] - Master leader election should be more robust to stale ephemeral nodes
@@ -15,12 +20,16 @@ Release Notes - Mesos - Version 0.18.0
     * [MESOS-958] - Group should not ignore the ZNOAUTH error in creating the parent path for the group
     * [MESOS-965] - GroupTest.GroupWatchWithSessionExpiration is flaky
     * [MESOS-966] - symbolize.cc:235:58: error: invalid suffix on literal; C++11 requires a space between literal and identifier
+    * [MESOS-967] - configure: error: cannot find libsasl2
     * [MESOS-977] - MasterZooKeeperTest.LostZooKeeperCluster is flaky
     * [MESOS-985] - FaultToleranceTest.IgnoreKillTaskFromUnregisteredFramework is flaky
     * [MESOS-989] - Flaky whitelist tests
     * [MESOS-991] - hashmap.hpp error: control reaches end of non-void function
-    * [MESOS-993] - Performance issue during replicated log catch-up when the initial log position is large
-		* [MESOS-1014] - Log truncation takes a long time during catch-up if the initial position is very large
+    * [MESOS-1038] - Log coordinator should demote itself after a write is discarded.
+    * [MESOS-1045] - Unrecognized file extension in CommandInfo.URI causes executor to exit
+    * [MESOS-1049] - Cpu Isolator incorrectly writes double values when writing cpu.cfs_quota_us.
+    * [MESOS-1050] - Containerizer broke getting hadoop binary from $HADOOP_HOME and $PATH
+    * [MESOS-1063] - Containerizer fails when fetching more than one URL
 
 ** Documentation
     * [MESOS-926] - Document change to separate cgroup mounts
