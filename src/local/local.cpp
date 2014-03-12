@@ -44,6 +44,7 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/slave.hpp"
 
+#include "state/in_memory.hpp"
 #include "state/leveldb.hpp"
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
@@ -119,12 +120,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       EXIT(1) << "Cannot run with --registry_strict; currently not supported";
     }
 
-    if (strings::startsWith(flags.registry, "zk://")) {
-      // TODO(benh):
-      EXIT(1) << "ZooKeeper based registry unimplemented";
-    } else if (flags.registry == "local") {
-      storage = new state::LevelDBStorage(
-          path::join(flags.work_dir, "registry"));
+    if (flags.registry == "in_memory") {
+      storage = new state::InMemoryStorage();
     } else {
       EXIT(1) << "'" << flags.registry << "' is not a supported"
               << " option for registry persistence";

@@ -45,7 +45,7 @@
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
 
-#include "state/leveldb.hpp"
+#include "state/in_memory.hpp"
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 
@@ -162,11 +162,8 @@ int main(int argc, char** argv)
 
   state::Storage* storage = NULL;
 
-  if (strings::startsWith(flags.registry, "zk://")) {
-    // TODO(benh):
-    EXIT(1) << "ZooKeeper based registry unimplemented";
-  } else if (flags.registry == "local") {
-    storage = new state::LevelDBStorage(path::join(flags.work_dir, "registry"));
+  if (flags.registry == "in_memory") {
+    storage = new state::InMemoryStorage();
   } else {
     EXIT(1) << "'" << flags.registry << "' is not a supported"
             << " option for registry persistence";

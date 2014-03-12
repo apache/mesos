@@ -55,12 +55,12 @@ public:
         "Where to store master specific files\n",
         "/tmp/mesos");
 
+    // TODO(bmahler): Add replicated log backed registry.
     add(&Flags::registry,
         "registry",
         "Persistence strategy for the registry;\n"
-        "available options are 'local' or a ZooKeeper\n"
-        "URL (i.e., 'zk://host1:port1,host2:port2,.../path')",
-        "local");
+        "available options are 'in_memory'.",
+        "in_memory");
 
     // TODO(bmahler): Set the default to true in 0.20.0.
     add(&Flags::registry_strict,
