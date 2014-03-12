@@ -53,6 +53,43 @@ using state::RunState;
 Future<Nothing> _nothing() { return Nothing(); }
 
 
+// Helper method to build the command sent to the fetcher.
+std::string buildCommand(
+    const CommandInfo& commandInfo,
+    const std::string& directory,
+    const Option<std::string>& user,
+    const Flags& flags)
+{
+  // Prepare the environment variables to pass to mesos-fetcher.
+  string uris = "";
+  foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
+    uris += uri.value() + "+" +
+            (uri.has_executable() && uri.executable() ? "1" : "0");
+    uris += " ";
+  }
+  // Remove extra space at the end.
+  uris = strings::trim(uris);
+
+  // Use /usr/bin/env to set the environment variables for the fetcher
+  // subprocess because we cannot pollute the slave's environment.
+  // TODO(idownes): Remove this once Subprocess accepts environment variables.
+  string command = "/usr/bin/env";
+  command += " MESOS_EXECUTOR_URIS=\"" + uris + "\"";
+  command += " MESOS_WORK_DIRECTORY=" + directory;
+  if (user.isSome()) {
+    command += " MESOS_USER=" + user.get();
+  }
+  if (!flags.frameworks_home.empty()) {
+    command += " MESOS_FRAMEWORKS_HOME=" + flags.frameworks_home;
+  }
+  if (!flags.hadoop_home.empty()) {
+    command += " HADOOP_HOME=" + flags.hadoop_home;
+  }
+
+  return command;
+}
+
+
 MesosContainerizer::MesosContainerizer(
     const Flags& flags,
     bool local,
@@ -476,27 +513,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     return Failure("Could not fetch URIs: failed to find mesos-fetcher");
   }
 
-  // Prepare the environment variables to pass to mesos-fetcher.
-  string uris = "";
-  foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
-    uris += uri.value() + "+" +
-            (uri.has_executable() && uri.executable() ? "1" : "0");
-    uris += " ";
-  }
-  // Remove extra space at the end.
-  uris = strings::trim(uris);
-
-  // Use /usr/bin/env to set the environment variables for the fetcher
-  // subprocess because we cannot pollute the slave's environment.
-  // TODO(idownes): Remove this once Subprocess accepts environment variables.
-  string command = "/usr/bin/env";
-  command += " MESOS_EXECUTOR_URIS=" + uris;
-  command += " MESOS_WORK_DIRECTORY=" + directory;
-  if (user.isSome()) {
-    command += " MESOS_USER=" + user.get();
-  }
-  command += " MESOS_FRAMEWORKS_HOME=" + flags.frameworks_home;
-  command += " HADOOP_HOME=" + flags.hadoop_home;
+  string command = buildCommand(commandInfo, directory, user, flags);
 
   // Now the actual mesos-fetcher command.
   command += " " + realpath.get();
