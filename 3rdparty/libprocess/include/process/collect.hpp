@@ -1,21 +1,15 @@
 #ifndef __PROCESS_COLLECT_HPP__
 #define __PROCESS_COLLECT_HPP__
 
-#include <assert.h>
-
 #include <list>
 
 #include <process/check.hpp>
 #include <process/defer.hpp>
-#include <process/delay.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
-#include <process/timeout.hpp>
 
 #include <stout/lambda.hpp>
-#include <stout/none.hpp>
-#include <stout/option.hpp>
 #include <stout/tuple.hpp>
 
 // TODO(bmahler): Move these into a futures.hpp header to group Future
@@ -28,17 +22,13 @@ namespace process {
 // the result will be a failure. Likewise, if any future fails then
 // the result future will be a failure.
 template <typename T>
-Future<std::list<T> > collect(
-    const std::list<Future<T> >& futures,
-    const Option<Timeout>& timeout = None());
+Future<std::list<T> > collect(const std::list<Future<T> >& futures);
 
 
 // Waits on each future in the specified set and returns the list of
-// non-pending futures. On timeout, the result will be a failure.
+// non-pending futures.
 template <typename T>
-Future<std::list<Future<T> > > await(
-    const std::list<Future<T> >& futures,
-    const Option<Timeout>& timeout = None());
+Future<std::list<Future<T> > > await(const std::list<Future<T> >& futures);
 
 
 // Waits on each future specified and returns the wrapping future
@@ -57,10 +47,8 @@ class CollectProcess : public Process<CollectProcess<T> >
 public:
   CollectProcess(
       const std::list<Future<T> >& _futures,
-      const Option<Timeout>& _timeout,
       Promise<std::list<T> >* _promise)
     : futures(_futures),
-      timeout(_timeout),
       promise(_promise),
       ready(0) {}
 
@@ -74,11 +62,6 @@ public:
     // Stop this nonsense if nobody cares.
     promise->future().onDiscard(defer(this, &CollectProcess::discarded));
 
-    // Only wait as long as requested.
-    if (timeout.isSome()) {
-      delay(timeout.get().remaining(), this, &CollectProcess::timedout);
-    }
-
     typename std::list<Future<T> >::const_iterator iterator;
     for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
       (*iterator).onAny(defer(this, &CollectProcess::waited, lambda::_1));
@@ -89,20 +72,6 @@ private:
   void discarded()
   {
     promise->discard();
-    terminate(this);
-  }
-
-  void timedout()
-  {
-    // Need to discard all of the futures so any of their associated
-    // resources can get properly cleaned up.
-    typename std::list<Future<T> >::const_iterator iterator;
-    for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-      Future<T> future = *iterator; // Need a non-const copy to discard.
-      future.discard();
-    }
-
-    promise->fail("Collect failed: timed out");
     terminate(this);
   }
 
@@ -129,7 +98,6 @@ private:
   }
 
   const std::list<Future<T> > futures;
-  const Option<Timeout> timeout;
   Promise<std::list<T> >* promise;
   size_t ready;
 };
@@ -141,10 +109,8 @@ class AwaitProcess : public Process<AwaitProcess<T> >
 public:
   AwaitProcess(
       const std::list<Future<T> >& _futures,
-      const Option<Timeout>& _timeout,
       Promise<std::list<Future<T> > >* _promise)
     : futures(_futures),
-      timeout(_timeout),
       promise(_promise),
       ready(0) {}
 
@@ -157,11 +123,6 @@ public:
   {
     // Stop this nonsense if nobody cares.
     promise->future().onDiscard(defer(this, &AwaitProcess::discarded));
-
-    // Only wait as long as requested.
-    if (timeout.isSome()) {
-      delay(timeout.get().remaining(), this, &AwaitProcess::timedout);
-    }
 
     typename std::list<Future<T> >::const_iterator iterator;
     for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
@@ -176,23 +137,9 @@ private:
     terminate(this);
   }
 
-  void timedout()
-  {
-    // Need to discard all of the futures so any of their associated
-    // resources can get properly cleaned up.
-    typename std::list<Future<T> >::const_iterator iterator;
-    for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-      Future<T> future = *iterator; // Need a non-const copy to discard.
-      future.discard();
-    }
-
-    promise->fail("Collect failed: timed out");
-    terminate(this);
-  }
-
   void waited(const Future<T>& future)
   {
-    assert(!future.isPending());
+    CHECK(!future.isPending());
 
     ready += 1;
     if (ready == futures.size()) {
@@ -202,7 +149,6 @@ private:
   }
 
   const std::list<Future<T> > futures;
-  const Option<Timeout> timeout;
   Promise<std::list<Future<T> > >* promise;
   size_t ready;
 };
@@ -233,8 +179,7 @@ Future<tuples::tuple<Future<T1>, Future<T2> > > __await(
 
 template <typename T>
 inline Future<std::list<T> > collect(
-    const std::list<Future<T> >& futures,
-    const Option<Timeout>& timeout)
+    const std::list<Future<T> >& futures)
 {
   if (futures.empty()) {
     return std::list<T>();
@@ -242,15 +187,14 @@ inline Future<std::list<T> > collect(
 
   Promise<std::list<T> >* promise = new Promise<std::list<T> >();
   Future<std::list<T> > future = promise->future();
-  spawn(new internal::CollectProcess<T>(futures, timeout, promise), true);
+  spawn(new internal::CollectProcess<T>(futures, promise), true);
   return future;
 }
 
 
 template <typename T>
 inline Future<std::list<Future<T> > > await(
-    const std::list<Future<T> >& futures,
-    const Option<Timeout>& timeout)
+    const std::list<Future<T> >& futures)
 {
   if (futures.empty()) {
     return futures;
@@ -259,7 +203,7 @@ inline Future<std::list<Future<T> > > await(
   Promise<std::list<Future<T> > >* promise =
     new Promise<std::list<Future<T> > >();
   Future<std::list<Future<T> > > future = promise->future();
-  spawn(new internal::AwaitProcess<T>(futures, timeout, promise), true);
+  spawn(new internal::AwaitProcess<T>(futures, promise), true);
   return future;
 }
 
