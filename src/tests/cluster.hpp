@@ -268,6 +268,10 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
         new master::allocator::Allocator(allocatorProcess.get());
   }
 
+  if (flags.registry_strict) {
+    EXIT(1) << "Cannot run with --registry_strict; currently not supported";
+  }
+
   if (strings::startsWith(flags.registry, "zk://")) {
     // TODO(benh):
     return Error("ZooKeeper based registry unimplemented");

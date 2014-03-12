@@ -115,6 +115,10 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
               << "master flags from the environment: " << load.error();
     }
 
+    if (flags.registry_strict) {
+      EXIT(1) << "Cannot run with --registry_strict; currently not supported";
+    }
+
     if (strings::startsWith(flags.registry, "zk://")) {
       // TODO(benh):
       EXIT(1) << "ZooKeeper based registry unimplemented";
