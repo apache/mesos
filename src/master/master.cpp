@@ -215,8 +215,7 @@ Master::Master(
     repairer(_repairer),
     files(_files),
     contender(_contender),
-    detector(_detector),
-    completedFrameworks(MAX_COMPLETED_FRAMEWORKS)
+    detector(_detector)
 {
   // NOTE: We populate 'info_' here instead of inside 'initialize()'
   // because 'StandaloneMasterDetector' needs access to the info.
@@ -541,7 +540,7 @@ void Master::finalize()
   // Note we are not deleting the pointers to the frameworks from the
   // allocator or the roles because it is unnecessary bookkeeping at
   // this point since we are shutting down.
-  foreachvalue (Framework* framework, frameworks) {
+  foreachvalue (Framework* framework, frameworks.activated) {
     // Remove pointers to the framework's tasks in slaves.
     foreachvalue (Task* task, utils::copy(framework->tasks)) {
       Slave* slave = getSlave(task->slave_id());
@@ -561,11 +560,11 @@ void Master::finalize()
 
     delete framework;
   }
-  frameworks.clear();
+  frameworks.activated.clear();
 
   CHECK_EQ(offers.size(), 0UL);
 
-  foreachvalue (Slave* slave, slaves) {
+  foreachvalue (Slave* slave, slaves.activated) {
     // Remove tasks that are in the slave but not in any framework.
     // This could happen when the framework has yet to re-register
     // after master failover.
@@ -584,7 +583,7 @@ void Master::finalize()
     delete slave->observer;
     delete slave;
   }
-  slaves.clear();
+  slaves.activated.clear();
 
   foreachvalue (Future<Nothing> future, authenticating) {
     // NOTE: This is necessary during tests because a copy of
@@ -611,7 +610,7 @@ void Master::finalize()
 
 void Master::exited(const UPID& pid)
 {
-  foreachvalue (Framework* framework, frameworks) {
+  foreachvalue (Framework* framework, frameworks.activated) {
     if (framework->pid == pid) {
       LOG(INFO) << "Framework " << framework->id << " disconnected";
 
@@ -661,7 +660,7 @@ void Master::exited(const UPID& pid)
   //    2.2) Framework is not-checkpointing: The slave is not removed
   //         but the framework is removed from the slave's structs,
   //         its tasks transitioned to LOST and resources recovered.
-  foreachvalue (Slave* slave, slaves) {
+  foreachvalue (Slave* slave, slaves.activated) {
     if (slave->pid == pid) {
       LOG(INFO) << "Slave " << slave->id << " (" << slave->info.hostname()
                 << ") disconnected";
@@ -839,7 +838,7 @@ void Master::registerFramework(
   LOG(INFO) << "Received registration request from " << from;
 
   // Check if this framework is already registered (because it retries).
-  foreachvalue (Framework* framework, frameworks) {
+  foreachvalue (Framework* framework, frameworks.activated) {
     if (framework->pid == from) {
       LOG(INFO) << "Framework " << framework->id << " (" << framework->pid
                 << ") already registered, resending acknowledgement";
@@ -927,7 +926,7 @@ void Master::reregisterFramework(
   LOG(INFO) << "Re-registering framework " << frameworkInfo.id()
             << " at " << from;
 
-  if (frameworks.count(frameworkInfo.id()) > 0) {
+  if (frameworks.activated.count(frameworkInfo.id()) > 0) {
     // Using the "failover" of the scheduler allows us to keep a
     // scheduler that got partitioned but didn't die (in ZooKeeper
     // speak this means didn't lose their session) and then
@@ -938,7 +937,7 @@ void Master::reregisterFramework(
     // (if necessary) by the master and the master will always
     // know which scheduler is the correct one.
 
-    Framework* framework = frameworks[frameworkInfo.id()];
+    Framework* framework = frameworks.activated[frameworkInfo.id()];
     framework->reregisteredTime = Clock::now();
 
     if (failover) {
@@ -993,7 +992,7 @@ void Master::reregisterFramework(
     // TODO(benh): Check for root submissions like above!
 
     // Add any running tasks reported by slaves for this framework.
-    foreachvalue (Slave* slave, slaves) {
+    foreachvalue (Slave* slave, slaves.activated) {
       foreachkey (const FrameworkID& frameworkId, slave->tasks) {
         foreachvalue (Task* task, slave->tasks[frameworkId]) {
           if (framework->id == task->framework_id()) {
@@ -1020,14 +1019,14 @@ void Master::reregisterFramework(
     addFramework(framework);
   }
 
-  CHECK(frameworks.contains(frameworkInfo.id()))
+  CHECK(frameworks.activated.contains(frameworkInfo.id()))
     << "Unknown framework " << frameworkInfo.id();
 
   // Broadcast the new framework pid to all the slaves. We have to
   // broadcast because an executor might be running on a slave but
   // it currently isn't running any tasks. This could be a
   // potential scalability issue ...
-  foreachvalue (Slave* slave, slaves) {
+  foreachvalue (Slave* slave, slaves.activated) {
     UpdateFrameworkMessage message;
     message.mutable_framework_id()->MergeFrom(frameworkInfo.id());
     message.set_pid(from);
@@ -1865,7 +1864,7 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
   }
 
   // Check if this slave is already registered (because it retries).
-  foreachvalue (Slave* slave, slaves) {
+  foreachvalue (Slave* slave, slaves.activated) {
     if (slave->pid == from) {
       if (slave->disconnected) {
         // The slave was previously disconnected but it is now trying
@@ -1903,7 +1902,7 @@ void Master::reregisterSlave(
     const SlaveInfo& slaveInfo,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
-    const vector<Archive::Framework>& completedFrameworks_)
+    const vector<Archive::Framework>& completedFrameworks)
 {
   if (!elected()) {
     LOG(WARNING) << "Ignoring re-register slave message from "
@@ -1918,7 +1917,7 @@ void Master::reregisterSlave(
     return;
   }
 
-  if (deactivatedSlaves.contains(from)) {
+  if (slaves.deactivated.contains(from)) {
     // We disallow deactivated slaves from re-registering. This is
     // to ensure that when a master deactivates a slave that was
     // partitioned, we don't allow the slave to re-register, as we've
@@ -1988,7 +1987,7 @@ void Master::reregisterSlave(
     LOG(INFO) << "Attempting to re-register slave " << slave->id << " at "
         << slave->pid << " (" << slave->info.hostname() << ")";
 
-    readdSlave(slave, executorInfos, tasks, completedFrameworks_);
+    readdSlave(slave, executorInfos, tasks, completedFrameworks);
   }
 
   // Send the latest framework pids to the slave.
@@ -2032,7 +2031,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
   Slave* slave = getSlave(update.slave_id());
   if (slave == NULL) {
-    if (deactivatedSlaves.contains(pid)) {
+    if (slaves.deactivated.contains(pid)) {
       // If the slave is deactivated, we have already informed
       // frameworks that its tasks were LOST, so the slave should
       // shut down.
@@ -2050,7 +2049,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     return;
   }
 
-  CHECK(!deactivatedSlaves.contains(pid))
+  CHECK(!slaves.deactivated.contains(pid))
     << "Received status update " << update << " from " << pid
     << " which is deactivated slave " << update.slave_id()
     << "(" << slave->info.hostname() << ")";
@@ -2121,7 +2120,7 @@ void Master::exitedExecutor(
   // The TASK_LOST updates are handled by the slave.
   Slave* slave = getSlave(slaveId);
   if (slave == NULL) {
-    if (deactivatedSlaves.contains(from)) {
+    if (slaves.deactivated.contains(from)) {
       // If the slave is deactivated, we have already informed
       // frameworks that its tasks were LOST, so the slave should
       // shut down.
@@ -2138,7 +2137,7 @@ void Master::exitedExecutor(
     return;
   }
 
-  CHECK(!deactivatedSlaves.contains(from))
+  CHECK(!slaves.deactivated.contains(from))
     << "Received exited message for executor " << executorId << " from " << from
     << " which is the deactivated slave " << slaveId
     << "(" << slave->info.hostname() << ")";
@@ -2181,14 +2180,14 @@ void Master::exitedExecutor(
 
 void Master::deactivateSlave(const SlaveID& slaveId)
 {
-  if (!slaves.contains(slaveId)) {
+  if (!slaves.activated.contains(slaveId)) {
     // Possible when the SlaveObserver dispatched to deactivate a slave,
     // but exited() was already called for this slave.
     LOG(WARNING) << "Unable to deactivate unknown slave " << slaveId;
     return;
   }
 
-  Slave* slave = slaves[slaveId];
+  Slave* slave = slaves.activated[slaveId];
   CHECK_NOTNULL(slave);
 
   LOG(WARNING) << "Removing slave " << slave->id << " at " << slave->pid
@@ -2269,7 +2268,8 @@ void Master::frameworkFailoverTimeout(const FrameworkID& frameworkId,
 void Master::offer(const FrameworkID& frameworkId,
                    const hashmap<SlaveID, Resources>& resources)
 {
-  if (!frameworks.contains(frameworkId) || !frameworks[frameworkId]->active) {
+  if (!frameworks.activated.contains(frameworkId) ||
+      !frameworks.activated[frameworkId]->active) {
     LOG(WARNING) << "Master returning resources offered to framework "
                  << frameworkId << " because the framework"
                  << " has terminated or is inactive";
@@ -2283,9 +2283,9 @@ void Master::offer(const FrameworkID& frameworkId,
   // Create an offer for each slave and add it to the message.
   ResourceOffersMessage message;
 
-  Framework* framework = frameworks[frameworkId];
+  Framework* framework = frameworks.activated[frameworkId];
   foreachpair (const SlaveID& slaveId, const Resources& offered, resources) {
-    if (!slaves.contains(slaveId)) {
+    if (!slaves.activated.contains(slaveId)) {
       LOG(WARNING) << "Master returning resources offered to framework "
                    << frameworkId << " because slave " << slaveId
                    << " is not valid";
@@ -2294,7 +2294,7 @@ void Master::offer(const FrameworkID& frameworkId,
       continue;
     }
 
-    Slave* slave = slaves[slaveId];
+    Slave* slave = slaves.activated[slaveId];
 
     CHECK(slave->info.checkpoint() || !framework->info.checkpoint())
         << "Resources of non checkpointing slave " << slaveId
@@ -2363,7 +2363,7 @@ void Master::authenticate(const UPID& from, const UPID& pid)
   }
 
   // Deactivate the framework if it's already registered.
-  foreachvalue (Framework* framework, frameworks) {
+  foreachvalue (Framework* framework, frameworks.activated) {
     if (framework->pid == pid) {
       deactivate(framework);
       break;
@@ -2453,7 +2453,7 @@ void Master::authenticationTimeout(Future<bool> future)
 vector<Framework*> Master::getActiveFrameworks() const
 {
   vector <Framework*> result;
-  foreachvalue (Framework* framework, frameworks) {
+  foreachvalue (Framework* framework, frameworks.activated) {
     if (framework->active) {
       result.push_back(framework);
     }
@@ -2612,8 +2612,9 @@ void Master::reconcile(
 
         slave->removeExecutor(frameworkId, executorId);
 
-        if (frameworks.contains(frameworkId)) {
-          frameworks[frameworkId]->removeExecutor(slave->id, executorId);
+        if (frameworks.activated.contains(frameworkId)) {
+          frameworks.activated[frameworkId]->removeExecutor(
+              slave->id, executorId);
         }
       }
     }
@@ -2641,11 +2642,11 @@ void Master::reconcile(
   // This could happen if the message wasn't received by the slave
   // (e.g., slave was down, partitioned).
   // NOTE: This is a short-term hack because this information is lost
-  // when the master fails over. Also, 'completedFrameworks' has a
-  // limited capacity.
+  // when the master fails over. Also, we only store a limited number
+  // of completed frameworks.
   // TODO(vinod): Revisit this when registrar is in place. It would
   // likely involve storing this information in the registrar.
-  foreach (const shared_ptr<Framework>& framework, completedFrameworks) {
+  foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
     if (slaveTasks.contains(framework->id)) {
       LOG(WARNING)
         << "Slave " << slave->id << " (" << slave->info.hostname()
@@ -2662,10 +2663,10 @@ void Master::reconcile(
 
 void Master::addFramework(Framework* framework)
 {
-  CHECK(!frameworks.contains(framework->id))
+  CHECK(!frameworks.activated.contains(framework->id))
     << "Framework " << framework->id << "already exists!";
 
-  frameworks[framework->id] = framework;
+  frameworks.activated[framework->id] = framework;
 
   link(framework->pid);
 
@@ -2754,7 +2755,7 @@ void Master::removeFramework(Framework* framework)
   }
 
   // Tell slaves to shutdown the framework.
-  foreachvalue (Slave* slave, slaves) {
+  foreachvalue (Slave* slave, slaves.activated) {
     ShutdownFrameworkMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id);
     send(slave->pid, message);
@@ -2803,7 +2804,7 @@ void Master::removeFramework(Framework* framework)
   framework->unregisteredTime = Clock::now();
 
   // The completedFramework buffer now owns the framework pointer.
-  completedFrameworks.push_back(shared_ptr<Framework>(framework));
+  frameworks.completed.push_back(shared_ptr<Framework>(framework));
 
   CHECK(roles.contains(framework->info.role()))
     << "Unknown role " << framework->info.role()
@@ -2816,7 +2817,7 @@ void Master::removeFramework(Framework* framework)
   authenticated.erase(framework->pid);
 
   // Remove it.
-  frameworks.erase(framework->id);
+  frameworks.activated.erase(framework->id);
   allocator->frameworkRemoved(framework->id);
 }
 
@@ -2878,8 +2879,8 @@ void Master::addSlave(Slave* slave, bool reregister)
             << " at " << slave->info.hostname()
             << " with " << slave->info.resources();
 
-  deactivatedSlaves.erase(slave->pid);
-  slaves[slave->id] = slave;
+  slaves.deactivated.erase(slave->pid);
+  slaves.activated[slave->id] = slave;
 
   link(slave->pid);
 
@@ -2914,7 +2915,7 @@ void Master::addSlave(Slave* slave, bool reregister)
 void Master::readdSlave(Slave* slave,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
-    const vector<Archive::Framework>& completedFrameworks_)
+    const vector<Archive::Framework>& completedFrameworks)
 {
   CHECK_NOTNULL(slave);
 
@@ -2979,13 +2980,12 @@ void Master::readdSlave(Slave* slave,
     resources[task.framework_id()] += task.resources();
   }
 
-  foreach (const Archive::Framework& completedFramework_,
-           completedFrameworks_) {
+  foreach (const Archive::Framework& completedFramework, completedFrameworks) {
     LOG(INFO) << "Re-add completed framework "
-              << completedFramework_.framework_info().id()
+              << completedFramework.framework_info().id()
               << " from slave " << slave->id << " ("
               << slave->info.hostname() << ")";
-    readdCompletedFramework(completedFramework_);
+    readdCompletedFramework(completedFramework);
   }
 
   allocator->slaveAdded(slave->id, slave->info, resources);
@@ -2998,7 +2998,7 @@ void Master::readdCompletedFramework(
   const FrameworkInfo& frameworkInfo = completedFramework_.framework_info();
   Option<shared_ptr<Framework> > framework = None();
   foreach (const shared_ptr<Framework>& completedFramework,
-           completedFrameworks) {
+           frameworks.completed) {
     if (completedFramework->id == frameworkInfo.id()) {
       framework = completedFramework;
       break;
@@ -3010,7 +3010,7 @@ void Master::readdCompletedFramework(
     framework = shared_ptr<Framework>(
         new Framework(frameworkInfo, frameworkInfo.id(), pid));
     VLOG(1) << "Re-adding completed framework " << framework.get()->id;
-    completedFrameworks.push_back(framework.get());
+    frameworks.completed.push_back(framework.get());
   }
 
   foreach (const Task& task, completedFramework_.tasks()) {
@@ -3088,7 +3088,7 @@ void Master::removeSlave(Slave* slave)
 
   // Send lost-slave message to all frameworks (this helps them re-run
   // previously finished tasks whose output was on the lost slave).
-  foreachvalue (Framework* framework, frameworks) {
+  foreachvalue (Framework* framework, frameworks.activated) {
     LostSlaveMessage message;
     message.mutable_slave_id()->MergeFrom(slave->id);
     send(framework->pid, message);
@@ -3108,8 +3108,8 @@ void Master::removeSlave(Slave* slave)
   // TODO(benh): unlink(slave->pid);
 
   // Mark the slave as deactivated.
-  deactivatedSlaves.insert(slave->pid);
-  slaves.erase(slave->id);
+  slaves.deactivated.insert(slave->pid);
+  slaves.activated.erase(slave->id);
   delete slave;
 }
 
@@ -3166,19 +3166,25 @@ void Master::removeOffer(Offer* offer, bool rescind)
   delete offer;
 }
 
-
+// TODO(bmahler): Consider killing this.
 Framework* Master::getFramework(const FrameworkID& frameworkId)
 {
-  return frameworks.contains(frameworkId) ? frameworks[frameworkId] : NULL;
+  return frameworks.activated.contains(frameworkId)
+    ? frameworks.activated[frameworkId]
+    : NULL;
 }
 
 
+// TODO(bmahler): Consider killing this.
 Slave* Master::getSlave(const SlaveID& slaveId)
 {
-  return slaves.contains(slaveId) ? slaves[slaveId] : NULL;
+  return slaves.activated.contains(slaveId)
+    ? slaves.activated[slaveId]
+    : NULL;
 }
 
 
+// TODO(bmahler): Consider killing this.
 Offer* Master::getOffer(const OfferID& offerId)
 {
   return offers.contains(offerId) ? offers[offerId] : NULL;

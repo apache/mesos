@@ -350,16 +350,24 @@ private:
 
   MasterInfo info_;
 
-  hashmap<FrameworkID, Framework*> frameworks;
-
-  hashmap<SlaveID, Slave*> slaves;
-
   // Ideally we could use SlaveIDs to track deactivated slaves.
   // However, we would not know when to remove the SlaveID from this
   // set. After deactivation, the same slave machine can register with
   // the same. Using PIDs allows us to remove the deactivated
   // slave PID once any slave registers with the same PID!
-  hashset<process::UPID> deactivatedSlaves;
+  struct Slaves
+  {
+    hashmap<SlaveID, Slave*> activated;
+    hashset<process::UPID> deactivated;
+  } slaves;
+
+  struct Frameworks
+  {
+    Frameworks() : completed(MAX_COMPLETED_FRAMEWORKS) {}
+
+    hashmap<FrameworkID, Framework*> activated;
+    boost::circular_buffer<memory::shared_ptr<Framework> > completed;
+  } frameworks;
 
   hashmap<OfferID, Offer*> offers;
 
@@ -374,8 +382,6 @@ private:
 
   // Authenticated frameworks keyed by framework's PID.
   hashset<process::UPID> authenticated;
-
-  boost::circular_buffer<memory::shared_ptr<Framework> > completedFrameworks;
 
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.
