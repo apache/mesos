@@ -13,7 +13,7 @@ Configuration values are searched for first in the environment, then on the comm
 
 **Important Options**
 
-If you have special compilation requirements, please refer to `./configure --help` when configuring Mesos. Additionally, the documentation lists only a subset of the options. A definitive source for which flags your version of Mesos supports can be found by running the binary with the flag `--help`, for example `bin/mesos-master --help`.
+If you have special compilation requirements, please refer to `./configure --help` when configuring Mesos. Additionally, the documentation lists only a subset of the options. A definitive source for which flags your version of Mesos supports can be found by running the binary with the flag `--help`, for example `mesos-master --help`.
 
 ## Master and Slave Options
 
