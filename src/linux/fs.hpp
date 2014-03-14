@@ -60,7 +60,7 @@ struct MountTable {
     // Check whether a given mount option exists in a mount table entry.
     // @param   option    The given mount option.
     // @return  Whether the given mount option exists.
-    bool hasOption(const std::string& option);
+    bool hasOption(const std::string& option) const;
 
     std::string fsname; // Device or server for filesystem.
     std::string dir;    // Directory mounted on.

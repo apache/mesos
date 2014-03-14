@@ -3024,11 +3024,10 @@ void Framework::recoverExecutor(const ExecutorState& state)
     }
   }
 
-  CHECK(state.runs.contains(latest))
-    << "Cannot find latest run " << latest << " for executor " << state.id
-    << " of framework " << id;
-
-  const RunState& run = state.runs.get(latest).get();
+  Option<RunState> run = state.runs.get(latest);
+  CHECK_SOME(run)
+      << "Cannot find latest run " << latest << " for executor " << state.id
+      << " of framework " << id;
 
   // Create executor.
   const string& directory = paths::getExecutorRunPath(
@@ -3038,21 +3037,21 @@ void Framework::recoverExecutor(const ExecutorState& state)
       slave, id, state.info.get(), latest, directory, info.checkpoint());
 
   // Recover the libprocess PID if possible.
-  if (run.libprocessPid.isSome()) {
+  if (run.get().libprocessPid.isSome()) {
     // When recovering in non-strict mode, the assumption is that the
     // slave can die after checkpointing the forked pid but before the
     // libprocess pid. So, it is not possible for the libprocess pid
     // to exist but not the forked pid. If so, it is a really bad
     // situation (e.g., disk corruption).
-    CHECK_SOME(run.forkedPid)
+    CHECK_SOME(run.get().forkedPid)
       << "Failed to get forked pid for executor " << state.id
       << " of framework " << id;
 
-    executor->pid = run.libprocessPid.get();
+    executor->pid = run.get().libprocessPid.get();
   }
 
   // And finally recover all the executor's tasks.
-  foreachvalue (const TaskState& taskState, run.tasks) {
+  foreachvalue (const TaskState& taskState, run.get().tasks) {
     executor->recoverTask(taskState);
   }
 
@@ -3069,11 +3068,11 @@ void Framework::recoverExecutor(const ExecutorState& state)
   // If the latest run of the executor was completed (i.e., terminated
   // and all updates are acknowledged) in the previous run, we
   // transition its state to 'TERMINATED' and gc the directories.
-  if (run.completed) {
+  if (run.get().completed) {
     executor->state = Executor::TERMINATED;
 
-    CHECK_SOME(run.id);
-    const ContainerID& runId = run.id.get();
+    CHECK_SOME(run.get().id);
+    const ContainerID& runId = run.get().id.get();
 
     // GC the executor run's work directory.
     const string& path = paths::getExecutorRunPath(

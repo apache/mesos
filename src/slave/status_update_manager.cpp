@@ -219,10 +219,10 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
 
       // We are only interested in the latest run of the executor!
       const ContainerID& latest = executor.latest.get();
-      CHECK(executor.runs.contains(latest));
-      const RunState& run  = executor.runs.get(latest).get();
+      Option<RunState> run = executor.runs.get(latest);
+      CHECK_SOME(run);
 
-      if (run.completed) {
+      if (run.get().completed) {
         VLOG(1) << "Skipping recovering updates of"
                 << " executor '" << executor.id
                 << "' of framework " << framework.id
@@ -231,7 +231,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
         continue;
       }
 
-      foreachvalue (const TaskState& task, run.tasks) {
+      foreachvalue (const TaskState& task, run.get().tasks) {
         // No updates were ever received for this task!
         // This means either:
         // 1) the executor never received this task or

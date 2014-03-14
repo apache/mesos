@@ -194,18 +194,18 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
         // We are only interested in the latest run of the executor!
         const ContainerID& containerId = executor.latest.get();
-        CHECK(executor.runs.contains(containerId));
-        const RunState& run = executor.runs.get(containerId).get();
+        Option<RunState> run = executor.runs.get(containerId);
+        CHECK_SOME(run);
 
         // We need the pid so the reaper can monitor the executor so skip this
         // executor if it's not present. This is not an error because the slave
         // will try to wait on the container which will return a failed
         // Termination and everything will get cleaned up.
-        if (!run.forkedPid.isSome()) {
+        if (!run.get().forkedPid.isSome()) {
           continue;
         }
 
-        if (run.completed) {
+        if (run.get().completed) {
           VLOG(1) << "Skipping recovery of executor '" << executor.id
                   << "' of framework " << framework.id
                   << " because its latest run "
@@ -217,7 +217,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
                   << "' for executor '" << executor.id
                   << "' of framework " << framework.id;
 
-        recoverable.push_back(run);
+        recoverable.push_back(run.get());
       }
     }
   }

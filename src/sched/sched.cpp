@@ -259,7 +259,8 @@ protected:
       // are here, making the 'discard' here a no-op. This is ok
       // because we set 'reauthenticate' here which enforces a retry
       // in '_authenticate'.
-      authenticating.get().discard();
+      Future<bool> authenticating_ = authenticating.get();
+      authenticating_.discard();
       reauthenticate = true;
       return;
     }

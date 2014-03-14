@@ -34,7 +34,7 @@ namespace internal {
 namespace fs {
 
 
-bool MountTable::Entry::hasOption(const std::string& option)
+bool MountTable::Entry::hasOption(const std::string& option) const
 {
   struct mntent mntent;
   mntent.mnt_fsname = const_cast<char*>(fsname.c_str());
