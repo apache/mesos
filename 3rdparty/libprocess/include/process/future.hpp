@@ -598,7 +598,8 @@ void discard(WeakFuture<T> reference)
 {
   Option<Future<T> > future = reference.get();
   if (future.isSome()) {
-    future.get().discard();
+    Future<T> future_ = future.get();
+    future_.discard();
   }
 }
 
