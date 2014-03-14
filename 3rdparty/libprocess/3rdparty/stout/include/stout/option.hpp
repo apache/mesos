@@ -101,8 +101,9 @@ public:
   bool isSome() const { return state == SOME; }
   bool isNone() const { return state == NONE; }
 
-  T get() const { assert(state == SOME); return *t; }
+  const T& get() const { assert(state == SOME); return *t; }
 
+  // This must return a copy to avoid returning a reference to a temporary.
   T get(const T& _t) const { return state == NONE ? _t : *t; }
 
 private:
