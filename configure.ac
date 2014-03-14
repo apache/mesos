@@ -570,6 +570,18 @@ There are two possible workarounds for this issue:
                   [chmod +x src/examples/python/test-framework])
   AC_CONFIG_FILES([src/python/setup.py])
 
+  # When clang is being used, make sure that the distutils python-
+  # config cflags extraction does not cause build errors (MESOS-1079).
+  # TODO(tillt): Remove this once Apple distributed an updated Python.
+  PYTHON_CFLAGS="$CFLAGS"
+  PYTHON_CPPFLAGS="$CPPFLAGS"
+
+  AS_IF([test "x$CLANG" = "xyes"],
+	[PYTHON_CFLAGS="$PYTHON_CFLAGS -Qunused-arguments"
+	 PYTHON_CPPFLAGS="$PYTHON_CPPFLAGS -Qunused-arguments"])
+
+  AC_SUBST([PYTHON_CFLAGS])
+  AC_SUBST([PYTHON_CPPFLAGS])
   AC_SUBST([PYTHON_EGG_POSTFIX])
   AC_SUBST([PYTHON_EGG_PUREPY_POSTFIX])
   AC_SUBST([PYTHON]) # Used by the example shell scripts and src/Makefile.am.
