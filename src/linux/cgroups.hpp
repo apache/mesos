@@ -402,7 +402,7 @@ namespace cpu {
 Try<Nothing> shares(
     const std::string& hierarchy,
     const std::string& cgroup,
-    size_t shares);
+    uint64_t shares);
 
 
 // Sets the cfs period using cpu.cfs_period_us.

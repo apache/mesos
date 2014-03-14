@@ -1953,7 +1953,7 @@ namespace cpu {
 Try<Nothing> shares(
     const string& hierarchy,
     const string& cgroup,
-    size_t shares)
+    uint64_t shares)
 {
   return cgroups::write(
       hierarchy,

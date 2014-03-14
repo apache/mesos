@@ -56,9 +56,8 @@ namespace internal {
 namespace slave {
 
 // CPU subsystem constants.
-// TODO(vinod): Use uint64_t instead of size_t for shares.
-const size_t CPU_SHARES_PER_CPU = 1024;
-const size_t MIN_CPU_SHARES = 10;
+const uint64_t CPU_SHARES_PER_CPU = 1024;
+const uint64_t MIN_CPU_SHARES = 10;
 const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
 const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
 
@@ -318,8 +317,8 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::update(
   double cpus = resources.cpus().get();
 
   // Always set cpu.shares.
-  size_t shares =
-    std::max((size_t) (CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
+  uint64_t shares =
+    std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
 
   Try<Nothing> write = cgroups::cpu::shares(
       hierarchy.get(), info->cgroup, shares);
