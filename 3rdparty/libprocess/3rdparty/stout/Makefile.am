@@ -51,6 +51,7 @@ EXTRA_DIST =					\
   include/stout/os/sendfile.hpp			\
   include/stout/os/shell.hpp			\
   include/stout/os/signals.hpp			\
+  include/stout/os/permissions.hpp		\
   include/stout/os/pstree.hpp			\
   include/stout/os/sysctl.hpp			\
   include/stout/path.hpp			\

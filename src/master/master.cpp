@@ -278,12 +278,10 @@ void Master::initialize()
   if (flags.credentials.isSome()) {
     vector<Credential> credentials;
 
-    const std::string& path = flags.credentials.get();
+    const std::string& path =
+      strings::remove(flags.credentials.get(), "file://", strings::PREFIX);
 
-    // TODO(vinod): Warn if the credentials file has bad file
-    // permissions (e.g., world readable!).
-    Try<string> read = os::read(
-        strings::remove(path, "file://", strings::PREFIX));
+    Try<string> read = os::read(path);
     if (read.isError()) {
       EXIT(1) << "Failed to read credentials file '" << path
               << "': " << read.error();
@@ -291,6 +289,16 @@ void Master::initialize()
       LOG(WARNING) << "Empty credentials file '" << path << "'. "
                    << "!!No frameworks will be allowed to register!!";
     } else {
+      Try<os::Permissions> permissions = os::permissions(path);
+      if (permissions.isError()) {
+	LOG(WARNING) << "Failed to stat credentials file '" << path
+		     << "': " << permissions.error();
+      } else if (permissions.get().others.rwx) {
+	LOG(WARNING) << "Permissions on credentials file '" << path
+		     << "' are too open. It is recommended that your "
+		     << "credentials file is NOT accessible by others.";
+      }
+
       foreach (const string& line, strings::tokenize(read.get(), "\n")) {
         const vector<string>& pairs = strings::tokenize(line, " ");
         if (pairs.size() != 2) {

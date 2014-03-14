@@ -73,6 +73,7 @@
 #ifdef __APPLE__
 #include <stout/os/osx.hpp>
 #endif // __APPLE__
+#include <stout/os/permissions.hpp>
 #include <stout/os/pstree.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/sendfile.hpp>
