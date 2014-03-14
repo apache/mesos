@@ -72,7 +72,7 @@ private:
 namespace internal {
 
 // See the comment below as to why subprocess is passed to cleanup.
-void cleanup(
+inline void cleanup(
     const Future<Option<int> >& result,
     Promise<Option<int> >* promise,
     const Subprocess& subprocess)
