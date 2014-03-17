@@ -63,10 +63,10 @@ There are different ways you can get Mesos:
         $ mkdir build
         $ cd build
         $ ../configure
-        $ make -j
+        $ make
 
         # Run test suite.
-        $ make -j check
+        $ make check
 
         # Install (***Optional***).
         $ make install
