@@ -110,11 +110,11 @@ Try<MasterDetector*> MasterDetector::create(const string& master)
   } else if (master.find("zk://") == 0) {
     Try<URL> url = URL::parse(master);
     if (url.isError()) {
-      return Try<MasterDetector*>::error(url.error());
+      return Error(url.error());
     }
     if (url.get().path == "/") {
-      return Try<MasterDetector*>::error(
-          "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
+      return Error(
+	  "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
     }
     return new ZooKeeperMasterDetector(url.get());
   } else if (master.find("file://") == 0) {
@@ -133,8 +133,7 @@ Try<MasterDetector*> MasterDetector::create(const string& master)
     : UPID("master@" + master);
 
   if (!pid) {
-    return Try<MasterDetector*>::error(
-        "Failed to parse '" + master + "'");
+    return Error("Failed to parse '" + master + "'");
   }
 
   return new StandaloneMasterDetector(protobuf::createMasterInfo(pid));
