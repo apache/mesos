@@ -49,6 +49,8 @@ public class MesosNativeLibrary {
       if (path != null) {
         System.load(path);
       } else {
+        // TODO(tillt): Change the default fallback to JNI specific library
+        // once libmesos has been split.
         System.loadLibrary("mesos");
       }
     } catch (UnsatisfiedLinkError error) {
@@ -61,7 +63,20 @@ public class MesosNativeLibrary {
   }
 
   public static void load() {
-    load(System.getenv("MESOS_NATIVE_LIBRARY"));
+    // Try to get the JNI specific library path from the environment.
+    String path = System.getenv("MESOS_NATIVE_JAVA_LIBRARY");
+
+    // As a fallback, use deprecated environment variable to extract that path.
+    if (path == null) {
+      path = System.getenv("MESOS_NATIVE_LIBRARY");
+      if (path != null) {
+        System.out.println("Warning: MESOS_NATIVE_LIBRARY is deprecated, " +
+            "use MESOS_NATIVE_JAVA_LIBRARY instead. Future releases will " +
+            "not support JNI bindings via MESOS_NATIVE_LIBRARY.");
+      }
+    }
+
+    load(path);
   }
 
   public static final String VERSION = "@PACKAGE_VERSION@";

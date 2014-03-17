@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,11 +18,20 @@
 
 export MESOS_LAUNCHER_DIR=@abs_top_builddir@/src
 
-# Add the native library so we can run JVM based executors without
-# them needing to figure this out for themselves.
+# Add the JNI library so we can run JVM based executors without them
+# needing to figure this out for themselves.
+# NOTE: MESOS_NATIVE_LIBRARY is deprecated for use on JVM based
+# frameworks, use MESOS_NATIVE_JAVA_LIBRARY instead as that is
+# the JNI specific library binding. Future releases of libmesos
+# will not contain JNI bindings.
+# TODO(tillt): Point MESOS_NATIVE_JAVA_LIBRARY towards the JNI
+# specific library once libmesos has been split.
 if test $(uname) = 'Darwin'; then
+  MESOS_NATIVE_JAVA_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.dylib
   MESOS_NATIVE_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.dylib
 else
+  MESOS_NATIVE_JAVA_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.so
   MESOS_NATIVE_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.so
 fi
 export MESOS_NATIVE_LIBRARY
+export MESOS_NATIVE_JAVA_LIBRARY

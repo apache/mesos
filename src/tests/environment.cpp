@@ -207,15 +207,17 @@ void Environment::SetUp()
     }
   }
 
-  // Set the path to the native library for running JVM tests.
-  if (!os::hasenv("MESOS_NATIVE_LIBRARY")) {
+  // Set the path to the native JNI library for running JVM tests.
+  // TODO(tillt): Adapt library towards JNI specific name once libmesos
+  // has been split.
+  if (!os::hasenv("MESOS_NATIVE_JAVA_LIBRARY")) {
     string path = path::join(tests::flags.build_dir, "src", ".libs");
 #ifdef __APPLE__
     path = path::join(path, "libmesos-" VERSION ".dylib");
 #else
     path = path::join(path, "libmesos-" VERSION ".so");
 #endif
-    os::setenv("MESOS_NATIVE_LIBRARY", path);
+    os::setenv("MESOS_NATIVE_JAVA_LIBRARY", path);
   }
 
   if (!GTEST_IS_THREADSAFE) {

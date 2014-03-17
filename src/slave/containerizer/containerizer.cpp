@@ -235,9 +235,26 @@ map<string, string> executorEnvironment(
   // the environment variables below in case it is included.
   env["LIBPROCESS_PORT"] = "0";
 
-  // Also add MESOS_NATIVE_LIBRARY if it's not already present (and
+  // Also add MESOS_NATIVE_JAVA_LIBRARY if it's not already present (and
   // like above, we do this before the environment variables below in
   // case the framework wants to override).
+  // TODO(tillt): Adapt library towards JNI specific name once libmesos
+  // has been split.
+  if (!os::hasenv("MESOS_NATIVE_JAVA_LIBRARY")) {
+    string path =
+#ifdef __APPLE__
+      LIBDIR "/libmesos-" VERSION ".dylib";
+#else
+      LIBDIR "/libmesos-" VERSION ".so";
+#endif
+    if (os::exists(path)) {
+      env["MESOS_NATIVE_JAVA_LIBRARY"] = path;
+    }
+  }
+
+  // Also add MESOS_NATIVE_LIBRARY if it's not already present.
+  // This environment variable is kept for offering non JVM-based
+  // frameworks a more compact and JNI independent library.
   if (!os::hasenv("MESOS_NATIVE_LIBRARY")) {
     string path =
 #ifdef __APPLE__
