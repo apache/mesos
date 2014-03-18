@@ -45,7 +45,7 @@ public:
   typedef boost::unordered_map<
     Key, std::pair<Value, typename list::iterator> > map;
 
-  explicit Cache(int _capacity) : capacity(_capacity) {}
+  explicit Cache(size_t _capacity) : capacity(_capacity) {}
 
   void put(const Key& key, const Value& value)
   {
@@ -69,6 +69,22 @@ public:
 
     return None();
   }
+
+  Option<Value> erase(const Key& key)
+  {
+    typename map::iterator i = values.find(key);
+
+    if (i != values.end()) {
+      Value value = i->second.first;
+      keys.erase(i->second.second);
+      values.erase(i);
+      return value;
+    }
+
+    return None();
+  }
+
+  size_t size() const { return keys.size(); }
 
 private:
   // Not copyable, not assignable.
@@ -114,7 +130,7 @@ private:
   }
 
   // Size of the cache.
-  int capacity;
+  const size_t capacity;
 
   // Cache of values and "pointers" into the least-recently used list.
   map values;
