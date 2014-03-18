@@ -61,6 +61,7 @@ using std::vector;
 using process::wait; // Necessary on some OS's to disambiguate.
 using process::Clock;
 using process::Future;
+using process::MessageEvent;
 using process::Owned;
 using process::PID;
 using process::Process;
@@ -713,6 +714,19 @@ void Master::exited(const UPID& pid)
 }
 
 
+void Master::visit(const MessageEvent& event)
+{
+  // All messages are filtered when non-leading.
+  if (!elected()) {
+    LOG(WARNING) << "Dropping '" << event.message->name << "' message since "
+                 << "not elected yet";
+    return;
+  }
+
+  ProtobufProcess<Master>::visit(event);
+}
+
+
 void Master::fileAttached(const Future<Nothing>& result, const string& path)
 {
   if (result.isReady()) {
@@ -809,12 +823,6 @@ void Master::registerFramework(
     return;
   }
 
-  if (!elected()) {
-    LOG(WARNING) << "Ignoring register framework message from " << from
-                 << " since not elected yet";
-    return;
-  }
-
   if (flags.authenticate && !authenticated.contains(from)) {
     // This could happen if another authentication request came
     // through before we are here or if a framework tried to register
@@ -886,12 +894,6 @@ void Master::reregisterFramework(
                      from,
                      frameworkInfo,
                      failover));
-    return;
-  }
-
-  if (!elected()) {
-    LOG(WARNING) << "Ignoring re-register framework message from " << from
-                 << " since not elected yet";
     return;
   }
 
@@ -1857,12 +1859,6 @@ void Master::schedulerMessage(
 
 void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
 {
-  if (!elected()) {
-    LOG(WARNING) << "Ignoring register slave message from "
-                 << slaveInfo.hostname() << " since not elected yet";
-    return;
-  }
-
   // Check if this slave is already registered (because it retries).
   foreachvalue (Slave* slave, slaves.activated) {
     if (slave->pid == from) {
@@ -1904,12 +1900,6 @@ void Master::reregisterSlave(
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks)
 {
-  if (!elected()) {
-    LOG(WARNING) << "Ignoring re-register slave message from "
-                 << slaveInfo.hostname() << " since not elected yet";
-    return;
-  }
-
   if (slaveId == "") {
     LOG(ERROR) << "Shutting down slave " << from << " that re-registered "
                << "without an id!";
@@ -2356,12 +2346,6 @@ void Master::offer(const FrameworkID& frameworkId,
 // 'authenticate' message doesn't contain the 'FrameworkID'.
 void Master::authenticate(const UPID& from, const UPID& pid)
 {
-  if (!elected()) {
-    LOG(WARNING) << "Ignoring authenticate message from " << from
-                 << " since not elected yet";
-    return;
-  }
-
   // Deactivate the framework if it's already registered.
   foreachvalue (Framework* framework, frameworks.activated) {
     if (framework->pid == pid) {

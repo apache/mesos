@@ -197,6 +197,7 @@ protected:
   virtual void initialize();
   virtual void finalize();
   virtual void exited(const process::UPID& pid);
+  virtual void visit(const process::MessageEvent& event);
 
   void deactivate(Framework* framework);
 
