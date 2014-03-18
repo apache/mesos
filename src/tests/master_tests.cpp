@@ -46,10 +46,11 @@
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/gc.hpp"
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
+
+#include "slave/containerizer/mesos_containerizer.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
@@ -134,12 +135,11 @@ TEST_F(MasterTest, TaskRunning)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  Future<Nothing> resourcesUpdated;
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
               update(_, Resources(offers.get()[0].resources())))
-    .WillOnce(DoAll(FutureSatisfy(&resourcesUpdated),
-                    Return(update)));
+    .WillOnce(DoAll(FutureSatisfy(&update),
+                    Return(Future<Nothing>())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -150,7 +150,7 @@ TEST_F(MasterTest, TaskRunning)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  AWAIT_READY(resourcesUpdated);
+  AWAIT_READY(update);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -210,12 +210,11 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  Future<Nothing> resourcesUpdated;
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
               update(_, Resources(offers.get()[0].resources())))
-    .WillOnce(DoAll(FutureSatisfy(&resourcesUpdated),
-                    Return(update)));
+    .WillOnce(DoAll(FutureSatisfy(&update),
+                    Return(Future<Nothing>())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -226,7 +225,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  AWAIT_READY(resourcesUpdated);
+  AWAIT_READY(update);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

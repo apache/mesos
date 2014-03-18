@@ -110,19 +110,26 @@ endif
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 
 CONTAINERIZER_PROTO =							\
-	$(top_srcdir)/include/mesos/containerizer/containerizer.proto
+  $(top_srcdir)/include/mesos/containerizer/containerizer.proto
+
+SCHEDULER_PROTO =							\
+  $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 
 CXX_PROTOS =								\
-	mesos.pb.cc mesos.pb.h						\
-	containerizer/containerizer.pb.cc containerizer/containerizer.pb.h
+  mesos.pb.cc								\
+  mesos.pb.h								\
+  containerizer/containerizer.pb.cc					\
+  containerizer/containerizer.pb.h					\
+  scheduler/scheduler.pb.cc						\
+  scheduler/scheduler.pb.h
 
 JAVA_PROTOS =								\
-	java/generated/org/apache/mesos/Protos.java			\
-	java/generated/org/apache/mesos/containerizer/Protos.java
+  java/generated/org/apache/mesos/Protos.java				\
+  java/generated/org/apache/mesos/containerizer/Protos.java
 
 PYTHON_PROTOS =								\
-	python/src/mesos_pb2.py						\
-	python/src/containerizer_pb2.py
+  python/src/mesos_pb2.py						\
+  python/src/containerizer_pb2.py
 
 BUILT_SOURCES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
 CLEANFILES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
@@ -156,6 +163,10 @@ containerizer/%.pb.cc containerizer/%.pb.h: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
+scheduler/%.pb.cc scheduler/%.pb.h: $(SCHEDULER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
+
 %.pb.cc %.pb.h: %.proto
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
@@ -169,6 +180,10 @@ java/generated/org/apache/mesos/containerizer/Protos.java:		\
 	$(MKDIR_P)  $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
+java/generated/org/apache/mesos/scheduler/Protos.java: $(SCHEDULER_PROTO)
+	$(MKDIR_P)  $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
 python/src/mesos_pb2.py: $(MESOS_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --python_out=python/src $^
@@ -176,6 +191,11 @@ python/src/mesos_pb2.py: $(MESOS_PROTO)
 python/src/containerizer_pb2.py: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/containerizer		\
+		$(PROTOCFLAGS) --python_out=python/src $^
+
+python/src/scheduler_pb2.py: $(SCHEDULER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/scheduler		\
 		$(PROTOCFLAGS) --python_out=python/src $^
 
 # We even use a convenience library for most of Mesos so that we can
@@ -196,6 +216,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	sasl/auxprop.hpp						\
 	sasl/auxprop.cpp						\
 	sched/sched.cpp							\
+	scheduler/scheduler.cpp						\
 	local/local.cpp							\
 	master/contender.cpp						\
 	master/constants.cpp						\
@@ -253,8 +274,15 @@ containerizer_HEADERS =							\
   $(top_srcdir)/include/mesos/containerizer/containerizer.hpp		\
   $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 
-nodist_containerizer_HEADERS =						\
-  containerizer/containerizer.pb.h
+nodist_containerizer_HEADERS = containerizer/containerizer.pb.h
+
+schedulerdir = $(pkgincludedir)/scheduler
+
+scheduler_HEADERS =							\
+  $(top_srcdir)/include/mesos/scheduler/scheduler.hpp			\
+  $(top_srcdir)/include/mesos/scheduler/scheduler.proto
+
+nodist_scheduler_HEADERS = scheduler/scheduler.pb.h
 
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
@@ -453,7 +481,7 @@ libmesos_no_3rdparty_la_LIBADD += libstate.la
 lib_LTLIBRARIES += libmesos.la
 
 # Include as part of the distribution.
-libmesos_la_SOURCES = $(MESOS_PROTO) $(CONTAINERIZER_PROTO)
+libmesos_la_SOURCES = $(MESOS_PROTO) $(CONTAINERIZER_PROTO) $(SCHEDULER_PROTO)
 
 libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 

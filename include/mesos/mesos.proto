@@ -494,6 +494,8 @@ enum TaskState {
   TASK_FAILED = 3;   // TERMINAL.
   TASK_KILLED = 4;   // TERMINAL.
   TASK_LOST = 5;     // TERMINAL.
+
+  // TODO(benh): TASK_ERROR = 7; // TERMINAL.
 }
 
 
@@ -506,6 +508,7 @@ message TaskStatus {
   optional string message = 4; // Possible message explaining state.
   optional bytes data = 3;
   optional SlaveID slave_id = 5;
+  optional ExecutorID executor_id = 7; // TODO(benh): Use in master/slave.
   optional double timestamp = 6;
 }
 
@@ -629,7 +632,7 @@ message ACL {
 }
 
 
-/*
+/**
  * Collection of ACL.
  *
  * Each authorization request is evaluated against the ACLs in the order

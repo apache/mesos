@@ -56,6 +56,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
+#include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
 #include "sasl/authenticatee.hpp"
@@ -86,6 +87,7 @@ using std::vector;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
+using utils::copy;
 
 namespace mesos {
 namespace internal {
@@ -264,8 +266,7 @@ protected:
       // are here, making the 'discard' here a no-op. This is ok
       // because we set 'reauthenticate' here which enforces a retry
       // in '_authenticate'.
-      Future<bool> authenticating_ = authenticating.get();
-      authenticating_.discard();
+      copy(authenticating.get()).discard();
       reauthenticate = true;
       return;
     }
