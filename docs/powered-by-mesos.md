@@ -6,6 +6,7 @@ layout: documentation
 
 ## Organizations using Mesos
 
+* [Atlassian](http://www.atlassian.com)
 * [Atigeo](http://www.atigeo.com)
 * [Airbnb](http://www.airbnb.com)
 * [Categorize](http://categorize.co)
