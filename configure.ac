@@ -157,20 +157,14 @@ AC_ARG_VAR([JAVA_LDFLAGS], [linker flags for JNI])
 
 AC_ARG_VAR([PYTHON], [which Python interpreter to use])
 
-
+AC_MSG_NOTICE([Setting up build environment for ${target_cpu} ${target_os}])
 # Determine the current OS (TODO(benh): Does autotools do this for us?).
 case "${target_os}" in
   linux*)
-    echo ===========================================================
-    echo Setting up build environment for ${target_cpu} ${target_os}
-    echo ===========================================================
     OS_NAME=linux
     LIBS="$LIBS -lrt"
     ;;
   darwin*)
-    echo ===========================================================
-    echo Setting up build environment for ${target_cpu} ${target_os}
-    echo ===========================================================
     OS_NAME=darwin
     ;;
   *)
@@ -186,34 +180,6 @@ AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 # that are also present with clang).
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
-
-
-# Check the version of gcc and add any flags as appropriate. Note that
-# '-dumpversion' works for clang as well but as of clang 3.3 it
-# reports version 4.2.1 (for gcc backwards compatibility).
-GCC_VERSION="`${CC} -dumpversion`"
-test $? = 0 || AC_MSG_ERROR([failed to determine version of gcc])
-case  "${GCC_VERSION}" in
-  4.4*)
-    echo ===========================================================
-    echo Setting up CXXFLAGS for gcc 4.4.*
-    echo ===========================================================
-    # We fail to build some protobuf generated code with gcc 4.4
-    # without setting -fno-strict-aliasing.
-    CFLAGS="$CFLAGS -fno-strict-aliasing"
-    CXXFLAGS="$CXXFLAGS -fno-strict-aliasing"
-  ;;
-  4.8*)
-    echo ===========================================================
-    echo Setting up CXXFLAGS for gcc 4.8.*
-    echo ===========================================================
-    # Boost 1.53.0 won't compile with GCC 4.8 without -Wno-unused-local-typedefs,
-    # and automake doesn't recognize the flag.
-    # TODO(brenden): Remove this when Boost has a resolution.
-    CFLAGS="${CFLAGS} -Wno-unused-local-typedefs"
-    CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedefs"
-  ;;
-esac
 
 
 # Check if we should try and enable optimizations.
@@ -241,9 +207,55 @@ AC_LANG_POP([C++])
 AC_MSG_RESULT([$CLANG])
 AC_SUBST([CLANG])
 
-# Force C++11 if we're using clang.
+# Force enable C++11 if compiling with clang.
+# Force disable C++11 if compiling with g++-4.7.
 if test "x$CLANG" = "xyes"; then
+  if test "x$with_cxx11" != "xyes"; then
+    AC_MSG_WARN([Force enabling C++11 for Clang build])
+  fi
   with_cxx11=yes
+else
+  # Check the version of gcc and add any flags as appropriate. Note
+  # that '-dumpversion' works for clang as well but as of clang 3.3 it
+  # reports version 4.2.1 (for gcc backwards compatibility).
+  GCC_VERSION="`${CC} -dumpversion`"
+  AC_MSG_NOTICE([GCC version: $GCC_VERSION])
+  test $? = 0 || AC_MSG_ERROR([failed to determine version of gcc])
+
+  # Check for GCC version 4.4.
+  AX_COMPARE_VERSION([$GCC_VERSION], [eq2], [4.4],
+                     [is_gxx44=yes], [is_gxx44=no])
+  if test "x$is_gxx44" = "xyes"; then
+    AC_MSG_NOTICE([Setting up CXXFLAGS for g++-4.4])
+    # We fail to build some protobuf generated code with gcc 4.4
+    # without setting -fno-strict-aliasing.
+    CFLAGS="$CFLAGS -fno-strict-aliasing"
+    CXXFLAGS="$CXXFLAGS -fno-strict-aliasing"
+  fi
+
+  # Check for GCC version 4.8.
+  AX_COMPARE_VERSION([$GCC_VERSION], [eq2], [4.8],
+                     [is_gxx48=yes], [is_gxx48=no])
+  if test "x$is_gxx48" = "xyes"; then
+    AC_MSG_NOTICE([Setting up CXXFLAGS for g++-4.8])
+    # Boost 1.53.0 fails to compile with GCC 4.8 without
+    # -Wno-unused-local-typedefs, and automake does not recognize the
+    # flag.
+    # TODO(brenden): Remove this when Boost has a resolution.
+    CFLAGS="${CFLAGS} -Wno-unused-local-typedefs"
+    CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedefs"
+  fi
+
+  # Check for GCC version == 4.7 and disable C++11. The C++11 version
+  # of libprocess' Future uses features that 4.7 doesn't support. The
+  # non-C++11 version of libprocess' Future uses std::tr1 code that is
+  # only available without-cxx11.
+  AX_COMPARE_VERSION([$GCC_VERSION], [eq2], [4.7],
+                     [is_gxx47=yes], [is_gxx47=no])
+  if test "x$is_gxx47" = "xyes"; then
+    AC_MSG_WARN([Force disabling C++11 for g++-4.7 build])
+    with_cxx11=no
+  fi
 fi
 
 
