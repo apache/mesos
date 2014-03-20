@@ -100,13 +100,11 @@ Try<Resources> Containerizer::resources(const Flags& flags)
                     << "' ; defaulting to DEFAULT_MEM";
       mem = DEFAULT_MEM;
     } else {
-      mem = mem_.get().total;
-
-      // Leave 1 GB free if we have more than 1 GB, otherwise, use all!
-      // TODO(benh): Have better default scheme (e.g., % of mem not greater
-      // than 1 GB?)
-      if (mem > Gigabytes(1)) {
-        mem = mem - Gigabytes(1);
+      Bytes total = mem_.get().total;
+      if (total >= Gigabytes(2)) {
+        mem = total - Gigabytes(1); // Leave 1GB free.
+      } else {
+        mem = Bytes(total.bytes() / 2); // Use 50% of the memory.
       }
     }
 
