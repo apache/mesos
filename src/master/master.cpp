@@ -498,7 +498,7 @@ void Master::initialize()
         lambda::bind(&Http::state, http, lambda::_1));
   route("/stats.json",
         None(),
-        lambda::bind(&Http::roles, http, lambda::_1));
+        lambda::bind(&Http::stats, http, lambda::_1));
   route("/tasks.json",
         Http::TASKS_HELP,
         lambda::bind(&Http::tasks, http, lambda::_1));
