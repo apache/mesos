@@ -111,8 +111,7 @@ public:
     return *t;
   }
 
-  // TODO(dhamon): Return const std::string& to remove copy.
-  std::string error() const { assert(state == ERROR); return message; }
+  const std::string& error() const { assert(state == ERROR); return message; }
 
 private:
   enum State {

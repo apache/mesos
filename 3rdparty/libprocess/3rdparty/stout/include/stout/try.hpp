@@ -95,8 +95,7 @@ public:
     return *t;
   }
 
-  // TODO(bmahler): Consider returning const string& to eliminate copy.
-  std::string error() const { assert(state == ERROR); return message; }
+  const std::string& error() const { assert(state == ERROR); return message; }
 
 private:
   enum State {
