@@ -128,12 +128,11 @@ Try<Resources> Containerizer::resources(const Flags& flags)
                    << "' ; defaulting to " << DEFAULT_DISK;
       disk = DEFAULT_DISK;
     } else {
-      disk = disk_.get();
-      // Leave 5 GB free if we have more than 10 GB, otherwise, use all!
-      // TODO(benh): Have better default scheme (e.g., % of disk not
-      // greater than 10 GB?)
-      if (disk > Gigabytes(10)) {
-        disk = disk - Gigabytes(5);
+      Bytes total = disk_.get();
+      if (total >= Gigabytes(10)) {
+        disk = total - Gigabytes(5); // Leave 5GB free.
+      } else {
+        disk = Bytes(total.bytes() / 2); // Use 50% of the disk.
       }
     }
 
