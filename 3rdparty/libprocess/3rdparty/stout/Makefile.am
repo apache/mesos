@@ -83,6 +83,7 @@ EXTRA_DIST =					\
   tests/linkedhashmap_tests.cpp			\
   tests/main.cpp				\
   tests/multimap_tests.cpp			\
+  tests/net_tests.cpp				\
   tests/none_tests.cpp				\
   tests/option_tests.cpp			\
   tests/os_tests.cpp				\

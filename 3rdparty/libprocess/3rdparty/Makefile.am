@@ -143,6 +143,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/linkedhashmap_tests.cpp	\
   $(STOUT)/tests/main.cpp			\
   $(STOUT)/tests/multimap_tests.cpp		\
+  $(STOUT)/tests/net_tests.cpp			\
   $(STOUT)/tests/none_tests.cpp			\
   $(STOUT)/tests/option_tests.cpp		\
   $(STOUT)/tests/os_tests.cpp			\

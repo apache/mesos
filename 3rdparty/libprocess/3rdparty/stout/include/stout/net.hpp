@@ -14,9 +14,22 @@
 #ifndef __STOUT_NET_HPP__
 #define __STOUT_NET_HPP__
 
+#if defined(__linux__) || defined(__APPLE__)
+#include <ifaddrs.h>
+#endif
 #include <netdb.h>
 #include <stdint.h>
 #include <stdio.h>
+
+#ifdef __linux__
+#include <linux/if_packet.h>
+#endif
+
+#include <net/if.h>
+#ifdef __APPLE__
+#include <net/if_dl.h>
+#include <net/if_types.h>
+#endif
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -24,10 +37,16 @@
 
 #include <curl/curl.h>
 
+#include <iostream>
+#include <set>
 #include <string>
 
+#include "abort.hpp"
 #include "error.hpp"
+#include "none.hpp"
 #include "os.hpp"
+#include "result.hpp"
+#include "stringify.hpp"
 #include "try.hpp"
 
 
@@ -81,6 +100,7 @@ inline Try<int> download(const std::string& url, const std::string& path)
   return Try<int>::some(code);
 }
 
+
 // Returns a Try of the hostname for the provided IP. If the hostname cannot
 // be resolved, then a string version of the IP address is returned.
 inline Try<std::string> getHostname(uint32_t ip)
@@ -103,6 +123,159 @@ inline Try<std::string> getHostname(uint32_t ip)
   }
 
   return std::string(hostname);
+}
+
+
+// Returns the names of all the link devices in the system.
+inline Try<std::set<std::string> > links()
+{
+#if !defined(__linux__) && !defined(__APPLE__)
+  return Error("Not implemented");
+#else
+  struct ifaddrs* ifaddr = NULL;
+  if (getifaddrs(&ifaddr) == -1) {
+    return ErrnoError();
+  }
+
+  std::set<std::string> names;
+  for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+    if (ifa->ifa_name != NULL) {
+      names.insert(ifa->ifa_name);
+    }
+  }
+
+  freeifaddrs(ifaddr);
+  return names;
+#endif
+}
+
+
+// Represents a MAC address. A MAC address is a 48-bit unique
+// identifier assigned to a network interface for communications on
+// the physical network segment. We use a byte array (in network
+// order) to represent a MAC address. For example, for a MAC address
+// 01:23:34:67:89:ab, the format is shown as follows:
+//
+//    MSB                                          LSB
+//     |                                            |
+//     v                                            v
+// +--------+--------+--------+--------+--------+--------+
+// |bytes[0]|bytes[1]|bytes[2]|bytes[3]|bytes[4]|bytes[5]|
+// +--------+--------+--------+--------+--------+--------+
+//
+//     01   :   23   :   45   :   67   :   89   :   ab
+class MAC
+{
+public:
+  // Returns the byte at the given index. For example, for a MAC
+  // address 01:23:45:67:89:ab, mac[0] = 01, mac[1] = 23 and etc.
+  uint8_t operator [] (size_t index) const
+  {
+    if (index >= 6) {
+      ABORT("Invalid index specified in MAC::operator []\n");
+    }
+
+    return bytes[index];
+  }
+
+private:
+  friend std::ostream& operator << (std::ostream& stream, const MAC& mac);
+  friend Result<MAC> mac(const std::string& name);
+
+  explicit MAC(uint8_t* _bytes)
+  {
+    for (size_t i = 0; i < 6; i++) {
+      bytes[i] = _bytes[i];
+    }
+  }
+
+  // Byte array of this MAC address (in network order).
+  uint8_t bytes[6];
+};
+
+
+// Returns the standard string format (IEEE 802) of the given MAC
+// address, which contains six groups of two hexadecimal digits,
+// separated by colons, in network order (e.g., 01:23:45:67:89:ab).
+inline std::ostream& operator << (std::ostream& stream, const MAC& mac)
+{
+  char buffer[18];
+
+  sprintf(
+      buffer,
+      "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+      mac.bytes[0],
+      mac.bytes[1],
+      mac.bytes[2],
+      mac.bytes[3],
+      mac.bytes[4],
+      mac.bytes[5]);
+
+  return stream << buffer;
+}
+
+
+// Returns the MAC address of a given link device. The link device is
+// specified using its name (e.g., eth0). Returns error if the link
+// device is not found. Returns none if the link device is found, but
+// does not have a MAC address (e.g., loopback).
+inline Result<MAC> mac(const std::string& name)
+{
+#if !defined(__linux__) && !defined(__APPLE__)
+  return Error("Not implemented");
+#else
+  struct ifaddrs* ifaddr = NULL;
+  if (getifaddrs(&ifaddr) == -1) {
+    return ErrnoError();
+  }
+
+  // Indicates whether the link device is found or not.
+  bool found = false;
+
+  for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+    if (ifa->ifa_name != NULL && !strcmp(ifa->ifa_name, name.c_str())) {
+      found = true;
+
+# if defined(__linux__)
+     if (ifa->ifa_addr != NULL && ifa->ifa_addr->sa_family == AF_PACKET) {
+        struct sockaddr_ll* link = (struct sockaddr_ll*) ifa->ifa_addr;
+
+        if (link->sll_halen == 6) {
+          MAC mac((uint8_t*) link->sll_addr);
+
+          // Ignore if the address is 0 so that the results are
+          // consistent on both OSX and Linux.
+          if (stringify(mac) == "00:00:00:00:00:00") {
+            continue;
+          }
+
+          freeifaddrs(ifaddr);
+          return mac;
+        }
+      }
+# elif defined(__APPLE__)
+      if (ifa->ifa_addr != NULL && ifa->ifa_addr->sa_family == AF_LINK) {
+        struct sockaddr_dl* link = (struct sockaddr_dl*) ifa->ifa_addr;
+
+        if (link->sdl_type == IFT_ETHER && link->sdl_alen == 6) {
+          MAC mac((uint8_t*) LLADDR(link));
+
+          freeifaddrs(ifaddr);
+          return mac;
+        }
+      }
+# endif
+    }
+  }
+
+  freeifaddrs(ifaddr);
+
+  if (!found) {
+    return Error("Cannot find the link device");
+  }
+
+  return None();
+#endif
 }
 
 } // namespace net {
