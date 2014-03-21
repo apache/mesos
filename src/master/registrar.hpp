@@ -22,6 +22,7 @@
 #include <mesos/mesos.hpp>
 
 #include <process/future.hpp>
+#include <process/owned.hpp>
 
 #include "master/flags.hpp"
 #include "master/registry.hpp"
@@ -34,6 +35,36 @@ namespace master {
 
 // Forward declaration.
 class RegistrarProcess;
+
+// Defines an abstraction for operations that can be applied on the
+// Registry.
+class Operation : public process::Promise<bool>
+{
+public:
+  Operation() : success(false) {}
+
+  // Attempts to invoke the operation on 't'.
+  // Returns whether the operation mutates 't', or an error if the
+  // operation cannot be applied successfully.
+  Try<bool> operator () (Registry* registry, bool strict)
+  {
+    const Try<bool>& result = perform(registry, strict);
+
+    success = !result.isError();
+
+    return result;
+  }
+
+  // Sets the promise based on whether the operation was successful.
+  bool set() { return process::Promise<bool>::set(success); }
+
+protected:
+  virtual Try<bool> perform(Registry* registry, bool strict) = 0;
+
+private:
+  bool success;
+};
+
 
 class Registrar
 {
@@ -52,15 +83,13 @@ public:
   // and therefore MasterInfo is unknown during construction.
   process::Future<Registry> recover(const MasterInfo& info);
 
-  // The following are operations that can be performed on the
-  // Registry for a slave. Returns:
+  // Applies an operation on the Registry.
+  // Returns:
   //   true if the operation is permitted.
   //   false if the operation is not permitted.
   //   Failure if the operation fails (possibly lost log leadership),
-  //     recovery failed, or if 'info' is missing an ID.
-  process::Future<bool> admit(const SlaveInfo& info);
-  process::Future<bool> readmit(const SlaveInfo& info);
-  process::Future<bool> remove(const SlaveInfo& info);
+  //     or recovery failed.
+  process::Future<bool> apply(process::Owned<Operation> operation);
 
 private:
   RegistrarProcess* process;

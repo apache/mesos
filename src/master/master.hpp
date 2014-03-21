@@ -713,6 +713,107 @@ struct Role
   hashmap<FrameworkID, Framework*> frameworks;
 };
 
+
+// Implementation of slave admission Registrar operation.
+class AdmitSlave : public Operation
+{
+public:
+  AdmitSlave(const SlaveInfo& _info) : info(_info)
+  {
+    CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
+  }
+
+protected:
+  virtual Try<bool> perform(Registry* registry, bool strict)
+  {
+    // Check and see if this slave already exists.
+    foreach (const Registry::Slave& slave, registry->slaves().slaves()) {
+      if (slave.info().id() == info.id()) {
+        if (strict) {
+          return Error("Slave already admitted");
+        } else {
+          return false; // No mutation.
+        }
+      }
+    }
+
+    Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
+    slave->mutable_info()->CopyFrom(info);
+    return true; // Mutation.
+  }
+
+private:
+  const SlaveInfo info;
+};
+
+
+// Implementation of slave readmission Registrar operation.
+class ReadmitSlave : public Operation
+{
+public:
+  ReadmitSlave(const SlaveInfo& _info) : info(_info)
+  {
+    CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
+  }
+
+protected:
+  virtual Try<bool> perform(Registry* registry, bool strict)
+  {
+    foreach (const Registry::Slave& slave, registry->slaves().slaves()) {
+      if (slave.info().id() == info.id()) {
+        return false; // No mutation.
+      }
+    }
+
+    if (strict) {
+      return Error("Slave not yet admitted");
+    } else {
+      Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
+      slave->mutable_info()->CopyFrom(info);
+      return true; // Mutation.
+    }
+  }
+
+private:
+  const SlaveInfo info;
+};
+
+
+// Implementation of slave removal Registrar operation.
+class RemoveSlave : public Operation
+{
+public:
+  RemoveSlave(const SlaveInfo& _info) : info(_info)
+  {
+    CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
+  }
+
+protected:
+  virtual Try<bool> perform(Registry* registry, bool strict)
+  {
+    for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+      const Registry::Slave& slave = registry->slaves().slaves(i);
+      if (slave.info().id() == info.id()) {
+        for (int j = i + 1; j < registry->slaves().slaves().size(); j++) {
+          registry->
+              mutable_slaves()->mutable_slaves()->SwapElements(j - 1, j);
+        }
+        registry->mutable_slaves()->mutable_slaves()->RemoveLast();
+        return true; // Mutation.
+      }
+    }
+
+    if (strict) {
+      return Error("Slave not yet admitted");
+    } else {
+      return false; // No mutation.
+    }
+  }
+
+private:
+  const SlaveInfo info;
+};
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

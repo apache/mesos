@@ -57,26 +57,6 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-// TODO(bmahler): Consider an implementation that pushes the
-// operations to the caller to simplify the interface:
-//
-// In this design, operations can be maintained in a separate
-// header and added independently of the Registrar logic. However,
-// we would need to ensure that all Operations can be generalized
-// to result in a Future<bool>.
-//
-// Registrar
-// {
-//   Future<Registrar> recover(const MasterInfo&);
-//   Future<bool> apply(const Operation&);
-// }
-//
-// Registrar registrar(flags, state);
-//
-// Future<bool> admit = registrar.apply(Admit(slaveInfo));
-// Future<bool> readmit = registrar.apply(Redmit(slaveInfo));
-// Future<bool> remove = registrar.apply(Remove(slaveInfo));
-
 class RegistrarProcess : public Process<RegistrarProcess>
 {
 public:
@@ -90,138 +70,28 @@ public:
 
   // Registrar implementation.
   Future<Registry> recover(const MasterInfo& info);
-  Future<bool> admit(const SlaveInfo& info);
-  Future<bool> readmit(const SlaveInfo& info);
-  Future<bool> remove(const SlaveInfo& info);
+  Future<bool> apply(Owned<Operation> operation);
 
 private:
-  template <typename T>
-  struct Operation : process::Promise<bool>
-  {
-    Operation() : success(false) {}
-
-    // Attempts to invoke the operation on 't'.
-    // Returns whether the operation mutates 't', or an error if the
-    // operation cannot be applied successfully.
-    Try<bool> operator () (T* t, bool strict)
-    {
-      const Try<bool>& result = perform(t, strict);
-
-      success = !result.isError();
-
-      return result;
-    }
-
-    // Sets the promise based on whether the operation was successful.
-    bool set() { return Promise<bool>::set(success); }
-
-  protected:
-    virtual Try<bool> perform(T* t, bool strict) = 0;
-
-  private:
-    bool success;
-  };
-
   // The 'Recover' operation adds the latest MasterInfo.
-  struct Recover : Operation<Registry>
+  class Recover : public Operation
   {
+  public:
     Recover(const MasterInfo& _info) : info(_info) {}
 
   protected:
     virtual Try<bool> perform(Registry* registry, bool strict)
     {
       registry->mutable_master()->mutable_info()->CopyFrom(info);
-      return true;
-    }
-
-    const MasterInfo info;
-  };
-
-  // Slave Admission.
-  struct Admit : Operation<Registry>
-  {
-    Admit(const SlaveInfo& _info) : info(_info) {}
-
-  protected:
-    virtual Try<bool> perform(Registry* registry, bool strict)
-    {
-      // Check and see if this slave already exists.
-      foreach (const Registry::Slave& slave, registry->slaves().slaves()) {
-        if (slave.info().id() == info.id()) {
-          if (strict) {
-            return Error("Slave already admitted");
-          } else {
-            return false; // No mutation.
-          }
-        }
-      }
-
-      Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
-      slave->mutable_info()->CopyFrom(info);
       return true; // Mutation.
     }
 
-    const SlaveInfo info;
-  };
-
-  // Slave Readmission.
-  struct Readmit : Operation<Registry>
-  {
-    Readmit(const SlaveInfo& _info) : info(_info) {}
-
-  protected:
-    virtual Try<bool> perform(Registry* registry, bool strict)
-    {
-      foreach (const Registry::Slave& slave, registry->slaves().slaves()) {
-        if (slave.info().id() == info.id()) {
-          return false; // No mutation.
-        }
-      }
-
-      if (strict) {
-        return Error("Slave not yet admitted");
-      } else {
-        Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
-        slave->mutable_info()->CopyFrom(info);
-        return true; // Mutation.
-      }
-    }
-
-    const SlaveInfo info;
-  };
-
-  // Slave Removal.
-  struct Remove : Operation<Registry>
-  {
-    Remove(const SlaveInfo& _info) : info(_info) {}
-
-  protected:
-    virtual Try<bool> perform(Registry* registry, bool strict)
-    {
-      for (int i = 0; i < registry->slaves().slaves().size(); i++) {
-        const Registry::Slave& slave = registry->slaves().slaves(i);
-        if (slave.info().id() == info.id()) {
-          for (int j = i + 1; j < registry->slaves().slaves().size(); j++) {
-            registry->
-                mutable_slaves()->mutable_slaves()->SwapElements(j - 1, j);
-          }
-          registry->mutable_slaves()->mutable_slaves()->RemoveLast();
-          return true;
-        }
-      }
-
-      if (strict) {
-        return Error("Slave not yet admitted");
-      } else {
-        return false; // No mutation.
-      }
-    }
-
-    const SlaveInfo info;
+  private:
+    const MasterInfo info;
   };
 
   Option<Variable<Registry> > variable;
-  deque<Operation<Registry>*> operations;
+  deque<Owned<Operation> > operations;
   bool updating; // Used to signify fetching (recovering) or storing.
 
   // Continuations.
@@ -229,15 +99,13 @@ private:
       const MasterInfo& info,
       const Future<Variable<Registry> >& recovery);
   void __recover(const Future<bool>& recover);
-  Future<bool> _admit(const SlaveInfo& info);
-  Future<bool> _readmit(const SlaveInfo& info);
-  Future<bool> _remove(const SlaveInfo& info);
+  Future<bool> _apply(Owned<Operation> operation);
 
   // Helper for updating state (performing store).
   void update();
   void _update(
       const Future<Option<Variable<Registry> > >& store,
-      deque<Operation<Registry>*> operations);
+      deque<Owned<Operation> > operations);
 
   const Flags flags;
   State* state;
@@ -281,7 +149,7 @@ void RegistrarProcess::_recover(
     variable = recovery.get();
 
     // Perform the Recover operation to add the new MasterInfo.
-    Operation<Registry>* operation = new Recover(info);
+    Owned<Operation> operation(new Recover(info));
     operations.push_back(operation);
     operation->future()
       .onAny(defer(self(), &Self::__recover, lambda::_1));
@@ -312,84 +180,21 @@ void RegistrarProcess::__recover(const Future<bool>& recover)
 }
 
 
-Future<bool> RegistrarProcess::admit(const SlaveInfo& info)
+Future<bool> RegistrarProcess::apply(Owned<Operation> operation)
 {
-  if (!info.has_id()) {
-    return Failure("SlaveInfo is missing the 'id' field");
-  }
-
   if (recovered.isNone()) {
-    return Failure("Attempted to admit slave before recovering");
+    return Failure("Attempted to apply the operation before recovering");
   }
 
   return recovered.get()->future()
-    .then(defer(self(), &Self::_admit, info));
+    .then(defer(self(), &Self::_apply, operation));
 }
 
 
-Future<bool> RegistrarProcess::_admit(const SlaveInfo& info)
+Future<bool> RegistrarProcess::_apply(Owned<Operation> operation)
 {
   CHECK_SOME(variable);
 
-  Operation<Registry>* operation = new Admit(info);
-  operations.push_back(operation);
-  Future<bool> future = operation->future();
-  if (!updating) {
-    update();
-  }
-  return future;
-}
-
-
-Future<bool> RegistrarProcess::readmit(const SlaveInfo& info)
-{
-  if (!info.has_id()) {
-    return Failure("SlaveInfo is missing the 'id' field");
-  }
-
-  if (recovered.isNone()) {
-    return Failure("Attempted to readmit slave before recovering");
-  }
-
-  return recovered.get()->future()
-    .then(defer(self(), &Self::_readmit, info));
-}
-
-
-Future<bool> RegistrarProcess::_readmit(const SlaveInfo& info)
-{
-  CHECK_SOME(variable);
-
-  Operation<Registry>* operation = new Readmit(info);
-  operations.push_back(operation);
-  Future<bool> future = operation->future();
-  if (!updating) {
-    update();
-  }
-  return future;
-}
-
-
-Future<bool> RegistrarProcess::remove(const SlaveInfo& info)
-{
-  if (!info.has_id()) {
-    return Failure("SlaveInfo is missing the 'id' field");
-  }
-
-  if (recovered.isNone()) {
-    return Failure("Attempted to remove slave before recovering");
-  }
-
-  return recovered.get()->future()
-    .then(defer(self(), &Self::_remove, info));
-}
-
-
-Future<bool> RegistrarProcess::_remove(const SlaveInfo& info)
-{
-  CHECK_SOME(variable);
-
-  Operation<Registry>* operation = new Remove(info);
   operations.push_back(operation);
   Future<bool> future = operation->future();
   if (!updating) {
@@ -415,7 +220,7 @@ void RegistrarProcess::update()
 
   Registry registry = variable.get().get();
 
-  foreach (Operation<Registry>* operation, operations) {
+  foreach (Owned<Operation> operation, operations) {
     // No need to process the result of the operation.
     (*operation)(&registry, flags.registry_strict);
   }
@@ -433,7 +238,7 @@ void RegistrarProcess::update()
 
 void RegistrarProcess::_update(
     const Future<Option<Variable<Registry> > >& store,
-    deque<Operation<Registry>*> operations)
+    deque<Owned<Operation> > applied)
 {
   updating = false;
 
@@ -449,9 +254,9 @@ void RegistrarProcess::_update(
   }
 
   // Remove the operations.
-  while (!operations.empty()) {
-    Operation<Registry>* operation = operations.front();
-    operations.pop_front();
+  while (!applied.empty()) {
+    Owned<Operation> operation = applied.front();
+    applied.pop_front();
 
     if (!store.isReady()) {
       operation->fail("Failed to update 'registry': " +
@@ -463,13 +268,11 @@ void RegistrarProcess::_update(
         operation->set();
       }
     }
-
-    delete operation;
   }
 
-  operations.clear();
+  applied.clear();
 
-  if (!this->operations.empty()) {
+  if (!operations.empty()) {
     update();
   }
 }
@@ -495,21 +298,9 @@ Future<Registry> Registrar::recover(const MasterInfo& info)
 }
 
 
-Future<bool> Registrar::admit(const SlaveInfo& info)
+Future<bool> Registrar::apply(Owned<Operation> operation)
 {
-  return dispatch(process, &RegistrarProcess::admit, info);
-}
-
-
-Future<bool> Registrar::readmit(const SlaveInfo& info)
-{
-  return dispatch(process, &RegistrarProcess::readmit, info);
-}
-
-
-Future<bool> Registrar::remove(const SlaveInfo& info)
-{
-  return dispatch(process, &RegistrarProcess::remove, info);
+  return dispatch(process, &RegistrarProcess::apply, operation);
 }
 
 } // namespace master {

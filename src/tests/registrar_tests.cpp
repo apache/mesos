@@ -28,6 +28,7 @@
 #include "common/type_utils.hpp"
 
 #include "master/flags.hpp"
+#include "master/master.hpp"
 #include "master/registrar.hpp"
 
 #include "state/leveldb.hpp"
@@ -101,17 +102,23 @@ TEST_P(RegistrarTest, recover)
   slave.mutable_id()->CopyFrom(id);
 
   // Operations preceding recovery will fail.
-  AWAIT_EXPECT_FAILED(registrar.admit(slave));
-  AWAIT_EXPECT_FAILED(registrar.readmit(slave));
-  AWAIT_EXPECT_FAILED(registrar.remove(slave));
+  AWAIT_EXPECT_FAILED(
+      registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+  AWAIT_EXPECT_FAILED(
+      registrar.apply(Owned<Operation>(new ReadmitSlave(slave))));
+  AWAIT_EXPECT_FAILED(
+      registrar.apply(Owned<Operation>(new RemoveSlave(slave))));
 
   Future<Registry> registry = registrar.recover(master);
 
   // Before waiting for the recovery to complete, invoke some
   // operations to ensure they do not fail.
-  Future<bool> admit = registrar.admit(slave);
-  Future<bool> readmit = registrar.readmit(slave);
-  Future<bool> remove = registrar.remove(slave);
+  Future<bool> admit = registrar.apply(
+      Owned<Operation>(new AdmitSlave(slave)));
+  Future<bool> readmit = registrar.apply(
+      Owned<Operation>(new ReadmitSlave(slave)));
+  Future<bool> remove = registrar.apply(
+      Owned<Operation>(new RemoveSlave(slave)));
 
   AWAIT_READY(registry);
   EXPECT_EQ(master, registry.get().master().info());
@@ -130,19 +137,16 @@ TEST_P(RegistrarTest, admit)
   SlaveInfo info1;
   info1.set_hostname("localhost");
 
-  // Missing ID results in a Failure.
-  AWAIT_EXPECT_FAILED(registrar.admit(info1));
-
   SlaveID id1;
   id1.set_value("1");
   info1.mutable_id()->CopyFrom(id1);
 
-  AWAIT_EQ(true, registrar.admit(info1));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.admit(info1));
+    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
   } else {
-    AWAIT_EQ(true, registrar.admit(info1));
+    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
   }
 }
 
@@ -155,9 +159,6 @@ TEST_P(RegistrarTest, readmit)
   SlaveInfo info1;
   info1.set_hostname("localhost");
 
-  // Missing ID results in a failure.
-  AWAIT_EXPECT_FAILED(registrar.readmit(info1));
-
   SlaveID id1;
   id1.set_value("1");
   info1.mutable_id()->CopyFrom(id1);
@@ -169,14 +170,14 @@ TEST_P(RegistrarTest, readmit)
   info2.set_hostname("localhost");
   info2.mutable_id()->CopyFrom(id2);
 
-  AWAIT_EQ(true, registrar.admit(info1));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
 
-  AWAIT_EQ(true, registrar.readmit(info1));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new ReadmitSlave(info1))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.readmit(info2));
+    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new ReadmitSlave(info2))));
   } else {
-    AWAIT_EQ(true, registrar.readmit(info2));
+    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new ReadmitSlave(info2))));
   }
 }
 
@@ -188,9 +189,6 @@ TEST_P(RegistrarTest, remove)
 
   SlaveInfo info1;
   info1.set_hostname("localhost");
-
-  // Missing ID results in a Failure.
-  AWAIT_EXPECT_FAILED(registrar.remove(info1));
 
   SlaveID id1;
   id1.set_value("1");
@@ -210,34 +208,34 @@ TEST_P(RegistrarTest, remove)
   info3.set_hostname("localhost");
   info3.mutable_id()->CopyFrom(id3);
 
-  AWAIT_EQ(true, registrar.admit(info1));
-  AWAIT_EQ(true, registrar.admit(info2));
-  AWAIT_EQ(true, registrar.admit(info3));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info2))));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info3))));
 
-  AWAIT_EQ(true, registrar.remove(info1));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.remove(info1));
+    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
   } else {
-    AWAIT_EQ(true, registrar.remove(info1));
+    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
   }
 
-  AWAIT_EQ(true, registrar.admit(info1));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
 
-  AWAIT_EQ(true, registrar.remove(info2));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.remove(info2));
+    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
   } else {
-    AWAIT_EQ(true, registrar.remove(info2));
+    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
   }
 
-  AWAIT_EQ(true, registrar.remove(info3));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.remove(info3));
+    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
   } else {
-    AWAIT_EQ(true, registrar.remove(info3));
+    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
   }
 }
 
@@ -258,9 +256,11 @@ TEST_P(RegistrarTest, bootstrap)
 
     // If not strict, we should be allowed to readmit the slave.
     if (flags.registry_strict) {
-      AWAIT_EQ(false, registrar.readmit(info));
+      AWAIT_EQ(false,
+               registrar.apply(Owned<Operation>(new ReadmitSlave(info))));
     } else {
-      AWAIT_EQ(true, registrar.readmit(info));
+      AWAIT_EQ(true,
+               registrar.apply(Owned<Operation>(new ReadmitSlave(info))));
     }
   }
 
