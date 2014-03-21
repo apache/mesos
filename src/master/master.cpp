@@ -944,6 +944,16 @@ void Master::reregisterFramework(
       LOG(INFO) << "Allowing the Framework " << frameworkInfo.id()
                 << " to re-register with an already used id";
 
+      // Make sure we can get offers again.
+      // The framework might have been deactivated if it was doing
+      // authentication.
+      // TODO(vinod): Consider adding 'Master::activate(Framework*)'.
+      // TODO(vinod): Do this after we recover resources below.
+      if (!framework->active) {
+        framework->active = true;
+        allocator->frameworkActivated(framework->id, framework->info);
+      }
+
       // Remove any offers sent to this framework.
       // NOTE: We need to do this because the scheduler might have
       // replied to the offers but the driver might have dropped
@@ -1081,10 +1091,7 @@ void Master::deactivate(Framework* framework)
   // Remove the framework's offers.
   foreach (Offer* offer, utils::copy(framework->offers)) {
     allocator->resourcesRecovered(
-        offer->framework_id(),
-        offer->slave_id(),
-        Resources(offer->resources()));
-
+        offer->framework_id(), offer->slave_id(), offer->resources());
     removeOffer(offer);
   }
 }
@@ -2647,6 +2654,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   link(newPid);
 
   // Make sure we can get offers again.
+  // TODO(vinod): Do this after we recover resources below.
   if (!framework->active) {
     framework->active = true;
     allocator->frameworkActivated(framework->id, framework->info);
@@ -2665,11 +2673,9 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   // We do this after we have updated the pid and sent the framework
   // registered message so that the allocator can immediately re-offer
   // these resources to this framework if it wants.
-  // TODO(benh): Consider just reoffering these to
   foreach (Offer* offer, utils::copy(framework->offers)) {
-    allocator->resourcesRecovered(offer->framework_id(),
-                                  offer->slave_id(),
-                                  Resources(offer->resources()));
+    allocator->resourcesRecovered(
+        offer->framework_id(), offer->slave_id(), offer->resources());
     removeOffer(offer);
   }
 }
@@ -2683,6 +2689,8 @@ void Master::removeFramework(Framework* framework)
 
   if (framework->active) {
     // Tell the allocator to stop allocating resources to this framework.
+    // TODO(vinod): Consider setting  framework->active to false here
+    // or just calling 'deactivate(Framework*)'.
     allocator->frameworkDeactivated(framework->id);
   }
 

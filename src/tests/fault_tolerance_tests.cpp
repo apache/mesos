@@ -885,8 +885,9 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureSatisfy(&registered));
 
+  Future<Nothing> resourceOffers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureSatisfy(&resourceOffers));
 
   Future<process::Message> message =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
@@ -895,6 +896,7 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
 
   AWAIT_READY(message); // Framework registered message, to get the pid.
   AWAIT_READY(registered); // Framework registered call.
+  AWAIT_READY(resourceOffers);
 
   Future<Nothing> disconnected;
   EXPECT_CALL(sched, disconnected(&driver))
@@ -903,6 +905,11 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   Future<Nothing> reregistered;
   EXPECT_CALL(sched, reregistered(&driver, _))
     .WillOnce(FutureSatisfy(&reregistered));
+
+  Future<Nothing> resourceOffers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&resourceOffers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(AtMost(1));
@@ -914,6 +921,9 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   AWAIT_READY(disconnected);
 
   AWAIT_READY(reregistered);
+
+  // The re-registered framework should get offers.
+  AWAIT_READY(resourceOffers2);
 
   driver.stop();
   driver.join();

@@ -899,8 +899,9 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
+  Future<Nothing> resourceOffers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(Return()); // Ignore offers.
+    .WillOnce(FutureSatisfy(&resourceOffers));
 
   Future<process::Message> message =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
@@ -908,6 +909,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   driver.start();
 
   AWAIT_READY(message);
+  AWAIT_READY(resourceOffers);
 
   Future<Nothing> disconnected;
   EXPECT_CALL(sched, disconnected(&driver))
@@ -916,6 +918,11 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   Future<MasterInfo> masterInfo;
   EXPECT_CALL(sched, reregistered(&driver, _))
     .WillOnce(FutureArg<1>(&masterInfo));
+
+  Future<Nothing> resourceOffers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&resourceOffers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Simulate a spurious event (e.g., due to ZooKeeper
   // expiration) at the scheduler.
@@ -926,6 +933,9 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   AWAIT_READY(masterInfo);
   EXPECT_EQ(master.get().port, masterInfo.get().port());
   EXPECT_EQ(master.get().ip, masterInfo.get().ip());
+
+  // The re-registered framework should get offers.
+  AWAIT_READY(resourceOffers2);
 
   driver.stop();
   driver.join();
