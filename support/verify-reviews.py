@@ -83,6 +83,7 @@ def apply_reviews(review_request, applied):
     applied.append(review_request["id"])
     apply_review(review_request["id"])
 
+
 def post_review(review_request, message):
     print "Posting review: %s" % message
 
@@ -164,9 +165,21 @@ def needs_verification(review_request):
             print "Latest review timestamp: %s" % review_time
             break
 
-    # Needs verification if there is a new diff after the last time it
-    # was verified.
-    return not review_time or review_time < diff_time
+    # TODO: Apply this check recursively up the dependency chain.
+    changes_url = review_request["links"]["changes"]["href"]
+    changes = api(changes_url)
+    dependency_time = None
+    for change in changes["changes"]:
+        if "depends_on" in change["fields_changed"]:
+            timestamp = change["timestamp"]
+            dependency_time = datetime.strptime(timestamp, RB_DATE_FORMAT)
+            print "Latest dependency change timestamp: %s" % dependency_time
+            break
+
+    # Needs verification if there is a new diff, or if the dependencies changed,
+    # after the last time it was verified.
+    return not review_time or review_time < diff_time or \
+        (dependency_time and review_time < dependency_time)
 
 
 if __name__=="__main__":
