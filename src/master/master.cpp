@@ -291,12 +291,12 @@ void Master::initialize()
     } else {
       Try<os::Permissions> permissions = os::permissions(path);
       if (permissions.isError()) {
-	LOG(WARNING) << "Failed to stat credentials file '" << path
-		     << "': " << permissions.error();
+        LOG(WARNING) << "Failed to stat credentials file '" << path
+                     << "': " << permissions.error();
       } else if (permissions.get().others.rwx) {
-	LOG(WARNING) << "Permissions on credentials file '" << path
-		     << "' are too open. It is recommended that your "
-		     << "credentials file is NOT accessible by others.";
+        LOG(WARNING) << "Permissions on credentials file '" << path
+                     << "' are too open. It is recommended that your "
+                     << "credentials file is NOT accessible by others.";
       }
 
       foreach (const string& line, strings::tokenize(read.get(), "\n")) {
