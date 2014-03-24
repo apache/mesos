@@ -91,6 +91,51 @@ void handler(int signal)
 }
 
 
+void createLogFile(google::LogSeverity severity)
+{
+  if (severity < google::INFO || severity > google::FATAL) {
+    severity = google::INFO;
+  }
+
+  // Log this message in order to create the log file; also
+  // recreate the file if it has been created on a previous run.
+  string msg = "Logging " + string(google::GetLogSeverityName(severity)) +
+               " level started!";
+  switch(severity) {
+    case 0:
+      LOG(INFO) << msg;
+      break;
+    case 1:
+      LOG(WARNING) << msg;
+      break;
+    case 2:
+      LOG(ERROR) << msg;
+      break;
+  }
+}
+
+
+google::LogSeverity getMinLogLevel(const string& minloglevel)
+{
+  if (minloglevel == "INFO") {
+    return google::INFO;
+  }
+  if (minloglevel == "WARNING") {
+    return google::WARNING;
+  }
+  if (minloglevel == "ERROR") {
+    return google::ERROR;
+  }
+  if (minloglevel == "FATAL") {
+    return google::FATAL;
+  }
+
+  // Return the default value of logging (INFO) if an invalid
+  // value is passed to minloglevel flag.
+  return google::INFO;
+}
+
+
 void initialize(
     const string& _argv0,
     const Flags& flags,
@@ -105,6 +150,8 @@ void initialize(
   argv0 = _argv0;
 
   // Set glog's parameters through Google Flags variables.
+  FLAGS_minloglevel = getMinLogLevel(flags.minloglevel);
+
   if (flags.log_dir.isSome()) {
     Try<Nothing> mkdir = os::mkdir(flags.log_dir.get());
     if (mkdir.isError()) {
@@ -130,12 +177,15 @@ void initialize(
       FLAGS_minloglevel = 3; // FATAL.
     }
   } else {
-    FLAGS_stderrthreshold = 0; // INFO.
+    FLAGS_stderrthreshold = FLAGS_minloglevel;
   }
 
   FLAGS_logbufsecs = flags.logbufsecs;
 
   google::InitGoogleLogging(argv0.c_str());
+  if (flags.log_dir.isSome() && FLAGS_minloglevel != google::FATAL) {
+    createLogFile(FLAGS_minloglevel);
+  }
 
   VLOG(1) << "Logging to " <<
     (flags.log_dir.isSome() ? flags.log_dir.get() : "STDERR");

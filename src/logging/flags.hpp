@@ -38,6 +38,13 @@ public:
         "Disable logging to stderr",
         false);
 
+    add(&Flags::minloglevel,
+        "minloglevel",
+        "Log message at or above this level; if quiet flag\n"
+        "is used, this will affect just the logs from log_dir\n"
+        "(if specified)",
+        "INFO");
+
     add(&Flags::log_dir,
         "log_dir",
         "Location to put log files (no default, nothing\n"
@@ -51,6 +58,7 @@ public:
   }
 
   bool quiet;
+  std::string minloglevel;
   Option<std::string> log_dir;
   int logbufsecs;
 };

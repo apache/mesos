@@ -340,6 +340,13 @@
           "Set the 'log_dir' option if you wish to access the logs.",
           [{label: 'Continue'}]
         ).open();
+      } else if ($scope.state.flags.minloglevel == "FATAL") {
+        $dialog.messageBox(
+          'No FATAL logs yet',
+          "The configured log level is FATAL. For more meaningful logs,\
+          please set 'minloglevel' flag to INFO, WARNING or ERROR.",
+          [{label: 'Continue'}]
+        ).open();
       } else {
         pailer(
             $scope.$location.host() + ':' + $scope.$location.port(),
@@ -403,6 +410,13 @@
           $dialog.messageBox(
             'Logging to a file is not enabled',
             "Set the 'log_dir' option if you wish to access the logs.",
+            [{label: 'Continue'}]
+          ).open();
+        } else if ($scope.state.flags.minloglevel == "FATAL") {
+          $dialog.messageBox(
+            'No FATAL logs yet',
+            "The configured log level is FATAL. For more meaningful logs, please set \
+            'minloglevel' flag to INFO, WARNING or ERROR.",
             [{label: 'Continue'}]
           ).open();
         } else {

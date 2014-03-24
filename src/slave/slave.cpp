@@ -266,8 +266,12 @@ void Slave::initialize()
   route("/stats.json", None(), lambda::bind(&Http::stats, http, lambda::_1));
   route("/state.json", None(), lambda::bind(&Http::state, http, lambda::_1));
 
-  if (flags.log_dir.isSome()) {
-    Try<string> log = logging::getLogFile(google::INFO);
+  // No need to access FATAL log file; if the program
+  // is still running, there definitely haven't been any
+  // FATAL logs yet; a FATAL log will cause the program to crash.
+  google::LogSeverity minloglevel = logging::getMinLogLevel(flags.minloglevel);
+  if (flags.log_dir.isSome() && minloglevel != google::FATAL) {
+    Try<string> log = logging::getLogFile(minloglevel);
     if (log.isError()) {
       LOG(ERROR) << "Slave log file cannot be found: " << log.error();
     } else {

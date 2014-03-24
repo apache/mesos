@@ -39,6 +39,14 @@ void initialize(
 // LogSeverity is one of {INFO, WARNING, ERROR}.
 Try<std::string> getLogFile(google::LogSeverity severity);
 
+
+// Creates the log file for the provided severity.
+void createLogFile(google::LogSeverity severity);
+
+
+// Returns the minimum level of logging as a number.
+google::LogSeverity getMinLogLevel(const std::string& minloglevel);
+
 } // namespace logging {
 } // namespace internal {
 } // namespace mesos {
