@@ -20,6 +20,9 @@
 #include <netdb.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#include <arpa/inet.h>
 
 #ifdef __linux__
 #include <linux/if_packet.h>
@@ -44,6 +47,7 @@
 #include "abort.hpp"
 #include "error.hpp"
 #include "none.hpp"
+#include "option.hpp"
 #include "os.hpp"
 #include "result.hpp"
 #include "stringify.hpp"
@@ -265,6 +269,140 @@ inline Result<MAC> mac(const std::string& name)
         }
       }
 # endif
+    }
+  }
+
+  freeifaddrs(ifaddr);
+
+  if (!found) {
+    return Error("Cannot find the link device");
+  }
+
+  return None();
+#endif
+}
+
+
+// Represents an IPv4 address. Besides the actual IP address, we also
+// store additional information about the address such as the net mask
+// which defines the subnet.
+class IP
+{
+public:
+  // Returns the IP address (in network order).
+  uint32_t address() const { return address_; }
+
+  // Returns the net mask (in network order).
+  Option<uint32_t> netmask() const { return netmask_; }
+
+  // Returns the prefix of the subnet defined by the net mask.
+  Option<size_t> prefix() const
+  {
+    if (netmask_.isNone()) {
+      return None();
+    }
+
+    // Convert the net mask to host order.
+    uint32_t mask = ntohl(netmask_.get());
+
+    size_t value = 0;
+    while (mask != 0) {
+      value += mask & 0x1;
+      mask >>= 1;
+    }
+
+    return value;
+  }
+
+private:
+  friend std::ostream& operator << (std::ostream& stream, const IP& ip);
+  friend Result<IP> ip(const std::string& name);
+
+  explicit IP(uint32_t _address) : address_(_address) {}
+
+  IP(uint32_t _address, uint32_t _netmask)
+    : address_(_address), netmask_(_netmask) {}
+
+  // IP address (in network order).
+  uint32_t address_;
+
+  // The optional net mask (in network order).
+  Option<uint32_t> netmask_;
+};
+
+
+// Returns the string representation of the given IP address using the
+// canonical dot-decimal form with prefix. For example: "10.0.0.1/8".
+inline std::ostream& operator << (std::ostream& stream, const IP& ip)
+{
+  char buffer[INET_ADDRSTRLEN];
+
+  const char* addr = inet_ntop(AF_INET, &ip.address_, buffer, sizeof(buffer));
+  if (addr == NULL) {
+    // We do not expect inet_ntop to fail because all parameters
+    // passed in are valid.
+    std::string message =
+      "inet_ntop returns error for address " + stringify(ip.address());
+
+    perror(message.c_str());
+    abort();
+  }
+
+  stream << addr;
+
+  if (ip.prefix().isSome()) {
+    stream << "/" << ip.prefix().get();
+  }
+
+  return stream;
+}
+
+
+// Returns the first available IPv4 address of a given link device.
+// The link device is specified using its name (e.g., eth0). Returns
+// error if the link device is not found. Returns none if the link
+// device is found, but does not have an IPv4 address.
+// TODO(jieyu): It is uncommon, but likely that a link device has
+// multiple IPv4 addresses. In that case, consider returning the
+// primary IP address instead of the first one.
+inline Result<IP> ip(const std::string& name)
+{
+#if !defined(__linux__) && !defined(__APPLE__)
+  return Error("Not implemented");
+#else
+  struct ifaddrs* ifaddr = NULL;
+  if (getifaddrs(&ifaddr) == -1) {
+    return ErrnoError();
+  }
+
+  // Indicates whether the link device is found or not.
+  bool found = false;
+
+  for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+    if (ifa->ifa_name != NULL && !strcmp(ifa->ifa_name, name.c_str())) {
+      found = true;
+
+      if (ifa->ifa_addr != NULL && ifa->ifa_addr->sa_family == AF_INET) {
+        struct sockaddr_in* addr = (struct sockaddr_in*) ifa->ifa_addr;
+
+        if (ifa->ifa_netmask != NULL &&
+            ifa->ifa_netmask->sa_family == AF_INET) {
+          struct sockaddr_in* netmask = (struct sockaddr_in*) ifa->ifa_netmask;
+
+          IP ip((uint32_t) addr->sin_addr.s_addr,
+                (uint32_t) netmask->sin_addr.s_addr);
+
+          freeifaddrs(ifaddr);
+          return ip;
+        }
+
+        // Note that this is the case where net mask is not specified.
+        // We've seen such cases when VPN is used.
+        IP ip((uint32_t) addr->sin_addr.s_addr);
+
+        freeifaddrs(ifaddr);
+        return ip;
+      }
     }
   }
 
