@@ -20,7 +20,6 @@
 
 #include <gmock/gmock.h>
 
-#include <map>
 #include <string>
 #include <vector>
 
@@ -69,7 +68,6 @@ using process::Future;
 using process::Owned;
 using process::PID;
 
-using std::map;
 using std::string;
 using std::vector;
 
@@ -79,6 +77,9 @@ using testing::DoAll;
 using testing::Eq;
 using testing::Return;
 
+// Those of the overall Mesos master/slave/scheduler/driver tests
+// that seem vaguely more master than slave-related are in this file.
+// The others are in "slave_tests.cpp".
 
 class MasterTest : public MesosTest {};
 
@@ -675,172 +676,6 @@ TEST_F(MasterTest, MultipleExecutors)
     .Times(AtMost(1));
 
   EXPECT_CALL(exec2, shutdown(_))
-    .Times(AtMost(1));
-
-  driver.stop();
-  driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
-}
-
-
-TEST_F(MasterTest, ShutdownUnregisteredExecutor)
-{
-  Try<PID<Master> > master = StartMaster();
-  ASSERT_SOME(master);
-
-  // Need flags for 'executor_registration_timeout'.
-  slave::Flags flags = CreateSlaveFlags();
-  // Set the isolation flag so we know a MesoContainerizer will be created.
-  flags.isolation = "posix/cpu,posix/mem";
-
-  Try<Containerizer*> containerizer = Containerizer::create(flags, false);
-  CHECK_SOME(containerizer);
-
-  Try<PID<Slave> > slave = StartSlave(containerizer.get());
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
-
-  // Launch a task with the command executor.
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
-
-  CommandInfo command;
-  command.set_value("sleep 10");
-
-  task.mutable_command()->MergeFrom(command);
-
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  // Drop the registration message from the executor to the slave.
-  Future<process::Message> registerExecutor =
-    DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
-
-  driver.launchTasks(offers.get()[0].id(), tasks);
-
-  AWAIT_READY(registerExecutor);
-
-  Clock::pause();
-
-  Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
-
-  // Ensure that the slave times out and kills the executor.
-  Future<Nothing> destroyExecutor =
-    FUTURE_DISPATCH(_, &MesosContainerizerProcess::destroy);
-
-  Clock::advance(flags.executor_registration_timeout);
-
-  AWAIT_READY(destroyExecutor);
-
-  Clock::settle(); // Wait for Containerizer::destroy to complete.
-
-  // Now advance time until the reaper reaps the executor.
-  while (status.isPending()) {
-    Clock::advance(Seconds(1));
-    Clock::settle();
-  }
-
-  AWAIT_READY(status);
-  ASSERT_EQ(TASK_FAILED, status.get().state());
-
-  Clock::resume();
-
-  driver.stop();
-  driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
-}
-
-
-// This test verifies that when an executor terminates before
-// registering with slave, it is properly cleaned up.
-TEST_F(MasterTest, RemoveUnregisteredTerminatedExecutor)
-{
-  Try<PID<Master> > master = StartMaster();
-  ASSERT_SOME(master);
-
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
-
-  TestContainerizer containerizer(&exec);
-
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
-  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
-
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  // Drop the registration message from the executor to the slave.
-  Future<process::Message> registerExecutorMessage =
-    DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
-
-  driver.launchTasks(offers.get()[0].id(), tasks);
-
-  AWAIT_READY(registerExecutorMessage);
-
-  Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
-
-  Future<Nothing> schedule =
-    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
-
-  // Now kill the executor.
-  containerizer.destroy(offers.get()[0].framework_id(), DEFAULT_EXECUTOR_ID);
-
-  AWAIT_READY(status);
-  EXPECT_EQ(TASK_LOST, status.get().state());
-
-  // We use 'gc.schedule' as a signal for the executor being cleaned
-  // up by the slave.
-  AWAIT_READY(schedule);
-
-  EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
   driver.stop();
