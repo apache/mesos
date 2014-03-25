@@ -28,9 +28,11 @@
 #include <mesos/executor.hpp>
 
 #include <process/defer.hpp>
+#include <process/delay.hpp>
 #include <process/future.hpp>
 #include <process/process.hpp>
 #include <process/reap.hpp>
+#include <process/timer.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/lambda.hpp>
@@ -40,6 +42,8 @@
 #include "common/type_utils.hpp"
 
 #include "logging/logging.hpp"
+
+#include "slave/constants.hpp"
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -60,7 +64,8 @@ public:
   CommandExecutorProcess()
     : launched(false),
       killed(false),
-      pid(-1) {}
+      pid(-1),
+      escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT) {}
 
   virtual ~CommandExecutorProcess() {}
 
@@ -212,21 +217,31 @@ public:
   {
     std::cout << "Shutting down" << std::endl;
 
-    // TODO(benh): Do kill escalation (begin with SIGTERM, after n
-    // seconds escalate to SIGKILL).
     if (pid > 0 && !killed) {
-      std::cout << "Killing process tree at pid " << pid << std::endl;
+      std::cout << "Sending SIGTERM to process tree at pid "
+                << pid << std::endl;
 
       Try<std::list<os::ProcessTree> > trees =
-        os::killtree(pid, SIGKILL, true, true);
+        os::killtree(pid, SIGTERM, true, true);
 
       if (trees.isError()) {
         std::cerr << "Failed to kill the process tree rooted at pid "
                   << pid << ": " << trees.error() << std::endl;
+
+        // Send SIGTERM directly to process 'pid' as it may not have
+        // received signal before os::killtree() failed.
+        ::kill(pid, SIGTERM);
       } else {
-        std::cout << "Killed the following process trees:\n"
+        std::cout << "Killing the following process trees:\n"
                   << stringify(trees.get()) << std::endl;
       }
+
+      // TODO(nnielsen): Make escalationTimeout configurable through
+      // slave flags and/or per-framework/executor.
+      escalationTimer = delay(
+          escalationTimeout,
+          self(),
+          &Self::escalated);
 
       killed = true;
     }
@@ -243,6 +258,8 @@ private:
   {
     TaskState state;
     string message;
+
+    Timer::cancel(escalationTimer);
 
     if (!status_.isReady()) {
       state = TASK_FAILED;
@@ -290,9 +307,38 @@ private:
     driver->stop();
   }
 
+  void escalated()
+  {
+    std::cout << "Process " << pid << " did not terminate after "
+              << escalationTimeout << ", sending SIGKILL to "
+              << "process tree at " << pid << std::endl;
+
+    // TODO(nnielsen): Sending SIGTERM in the first stage of the
+    // shutdown may leave orphan processes hanging off init. This
+    // scenario will be handled when PID namespace encapsulated
+    // execution is in place.
+    Try<std::list<os::ProcessTree> > trees =
+      os::killtree(pid, SIGKILL, true, true);
+
+    if (trees.isError()) {
+      std::cerr << "Failed to kill the process tree rooted at pid "
+                << pid << ": " << trees.error() << std::endl;
+
+      // Process 'pid' may not have received signal before
+      // os::killtree() failed. To make sure process 'pid' is reaped
+      // we send SIGKILL directly.
+      ::kill(pid, SIGKILL);
+    } else {
+      std::cout << "Killed the following process trees:\n"
+                << stringify(trees.get()) << std::endl;
+    }
+  }
+
   bool launched;
   bool killed;
   pid_t pid;
+  Duration escalationTimeout;
+  Timer escalationTimer;
 };
 
 
