@@ -14,6 +14,8 @@
 #ifndef __STOUT_CACHE_HPP__
 #define __STOUT_CACHE_HPP__
 
+#include <glog/logging.h>
+
 #include <functional>
 #include <iostream>
 #include <list>

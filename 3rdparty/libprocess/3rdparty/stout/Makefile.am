@@ -71,6 +71,7 @@ EXTRA_DIST =					\
   include/stout/utils.hpp			\
   include/stout/uuid.hpp			\
   tests/bytes_tests.cpp				\
+  tests/cache_tests.cpp				\
   tests/duration_tests.cpp			\
   tests/error_tests.cpp				\
   tests/flags_tests.cpp				\
