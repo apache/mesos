@@ -58,7 +58,7 @@ struct Slave
 {
   Slave() {}
 
-  Slave(const SlaveInfo& _info)
+  explicit Slave(const SlaveInfo& _info)
     : available(_info.resources()),
       connected(true),
       whitelisted(false),
@@ -90,7 +90,7 @@ struct Framework
 {
   Framework() {}
 
-  Framework(const FrameworkInfo& _info)
+  explicit Framework(const FrameworkInfo& _info)
     : checkpoint(_info.checkpoint()),
       info(_info) {}
 

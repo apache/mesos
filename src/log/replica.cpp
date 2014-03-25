@@ -62,7 +62,7 @@ class ReplicaProcess : public ProtobufProcess<ReplicaProcess>
 public:
   // Constructs a new replica process using specified path to a
   // directory for storing the underlying log.
-  ReplicaProcess(const string& path);
+  explicit ReplicaProcess(const string& path);
 
   virtual ~ReplicaProcess();
 

@@ -135,7 +135,7 @@ public:
   // The AllocatorProcess object passed to the constructor is
   // spawned and terminated by the allocator. But it is the responsibility
   // of the caller to de-allocate the object, if necessary.
-  Allocator(AllocatorProcess* _process);
+  explicit Allocator(AllocatorProcess* _process);
 
   virtual ~Allocator();
 

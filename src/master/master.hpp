@@ -313,7 +313,7 @@ private:
   class Http
   {
   public:
-    Http(const Master& _master) : master(_master) {}
+    explicit Http(const Master& _master) : master(_master) {}
 
     // /master/health
     process::Future<process::http::Response> health(
@@ -742,7 +742,7 @@ private:
 // Information about an active role.
 struct Role
 {
-  Role(const RoleInfo& _info)
+  explicit Role(const RoleInfo& _info)
     : info(_info) {}
 
   void addFramework(Framework* framework)
@@ -775,7 +775,7 @@ struct Role
 class AdmitSlave : public Operation
 {
 public:
-  AdmitSlave(const SlaveInfo& _info) : info(_info)
+  explicit AdmitSlave(const SlaveInfo& _info) : info(_info)
   {
     CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
   }
@@ -808,7 +808,7 @@ private:
 class ReadmitSlave : public Operation
 {
 public:
-  ReadmitSlave(const SlaveInfo& _info) : info(_info)
+  explicit ReadmitSlave(const SlaveInfo& _info) : info(_info)
   {
     CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
   }
@@ -840,7 +840,7 @@ private:
 class RemoveSlave : public Operation
 {
 public:
-  RemoveSlave(const SlaveInfo& _info) : info(_info)
+  explicit RemoveSlave(const SlaveInfo& _info) : info(_info)
   {
     CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
   }

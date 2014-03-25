@@ -45,7 +45,7 @@ const int32_t MEM_PER_TASK = 32;
 class LongLivedScheduler : public Scheduler
 {
 public:
-  LongLivedScheduler(const ExecutorInfo& _executor)
+  explicit LongLivedScheduler(const ExecutorInfo& _executor)
     : executor(_executor),
       tasksLaunched(0) {}
 

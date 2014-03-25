@@ -107,7 +107,7 @@ private:
 class LogReaderProcess : public Process<LogReaderProcess>
 {
 public:
-  LogReaderProcess(Log* log);
+  explicit LogReaderProcess(Log* log);
 
   Future<Log::Position> beginning();
   Future<Log::Position> ending();
@@ -151,7 +151,7 @@ private:
 class LogWriterProcess : public Process<LogWriterProcess>
 {
 public:
-  LogWriterProcess(Log* log);
+  explicit LogWriterProcess(Log* log);
 
   Future<Option<Log::Position> > start();
   Future<Option<Log::Position> > append(const string& bytes);

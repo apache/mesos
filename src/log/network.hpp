@@ -62,7 +62,7 @@ public:
   };
 
   Network();
-  Network(const std::set<process::UPID>& pids);
+  explicit Network(const std::set<process::UPID>& pids);
   virtual ~Network();
 
   // Adds a PID to this network.
@@ -146,7 +146,7 @@ class NetworkProcess : public ProtobufProcess<NetworkProcess>
 public:
   NetworkProcess() {}
 
-  NetworkProcess(const std::set<process::UPID>& pids)
+  explicit NetworkProcess(const std::set<process::UPID>& pids)
   {
     set(pids);
   }

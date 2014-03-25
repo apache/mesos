@@ -59,7 +59,7 @@ public:
   // reply to any request except the recover request). The recover
   // process will later decide if this replica can be re-allowed to
   // vote depending on the status of other replicas.
-  Replica(const std::string& path);
+  explicit Replica(const std::string& path);
   ~Replica();
 
   // Returns all the actions between the specified positions, unless

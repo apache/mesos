@@ -104,7 +104,7 @@ private:
 
   struct Get
   {
-    Get(const string& _name) : name(_name) {}
+    explicit Get(const string& _name) : name(_name) {}
 
     string name;
     Promise<Option<Entry> > promise;
@@ -121,7 +121,7 @@ private:
 
   struct Expunge
   {
-    Expunge(const Entry& _entry) : entry(_entry) {}
+    explicit Expunge(const Entry& _entry) : entry(_entry) {}
 
     Entry entry;
     Promise<bool> promise;

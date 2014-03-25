@@ -16,7 +16,7 @@ template <typename T>
 class ProcessWatcher : public Watcher
 {
 public:
-  ProcessWatcher(const process::PID<T>& _pid)
+  explicit ProcessWatcher(const process::PID<T>& _pid)
     : pid(_pid), reconnect(false) {}
 
   virtual void process(ZooKeeper* zk,

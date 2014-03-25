@@ -29,7 +29,7 @@ struct HDFS
 {
   // Look for `hadoop' first where proposed, otherwise, look for
   // HADOOP_HOME, otherwise, assume it's on the PATH.
-  HDFS(const std::string& _hadoop)
+  explicit HDFS(const std::string& _hadoop)
     : hadoop(os::exists(_hadoop)
              ? _hadoop
              : (os::hasenv("HADOOP_HOME")

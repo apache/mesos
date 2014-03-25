@@ -39,7 +39,7 @@ struct MesosExecutorDriverImpl;
 class ProxyExecutor : public Executor
 {
 public:
-  ProxyExecutor(MesosExecutorDriverImpl *_impl) : impl(_impl) {}
+  explicit ProxyExecutor(MesosExecutorDriverImpl *_impl) : impl(_impl) {}
 
   virtual ~ProxyExecutor() {}
 

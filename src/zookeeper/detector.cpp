@@ -23,7 +23,7 @@ namespace zookeeper {
 class LeaderDetectorProcess : public Process<LeaderDetectorProcess>
 {
 public:
-  LeaderDetectorProcess(Group* group);
+  explicit LeaderDetectorProcess(Group* group);
   virtual ~LeaderDetectorProcess();
   virtual void initialize();
 

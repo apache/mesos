@@ -105,7 +105,7 @@ public:
     friend class LogReaderProcess;
     friend class LogWriterProcess;
 
-    Position(uint64_t _value) : value(_value) {}
+    /*implicit*/ Position(uint64_t _value) : value(_value) {}
 
     uint64_t value;
   };
@@ -126,7 +126,7 @@ public:
   class Reader
   {
   public:
-    Reader(Log* log);
+    explicit Reader(Log* log);
     ~Reader();
 
     // Returns all entries between the specified positions, unless
@@ -158,7 +158,7 @@ public:
     // time. A writer becomes invalid if either Writer::append or
     // Writer::truncate return None, in which case, the writer (or
     // another writer) must be restarted.
-    Writer(Log* log);
+    explicit Writer(Log* log);
     ~Writer();
 
     // Attempts to get a promise (from the log's replicas) for

@@ -58,7 +58,7 @@ public:
 
   TestContainerizer(const ExecutorID& executorId, Executor* executor);
 
-  TestContainerizer(MockExecutor* executor);
+  explicit TestContainerizer(MockExecutor* executor);
 
   TestContainerizer();
 

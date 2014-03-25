@@ -61,7 +61,7 @@ struct Limitation
 class Isolator
 {
 public:
-  Isolator(process::Owned<IsolatorProcess> process);
+  explicit Isolator(process::Owned<IsolatorProcess> process);
   ~Isolator();
 
   // Recover containers from the run states.

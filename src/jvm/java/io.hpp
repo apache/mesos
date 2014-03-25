@@ -9,7 +9,7 @@ namespace io {
 class File : public Jvm::Object
 {
 public:
-  File(const std::string& pathname)
+  explicit File(const std::string& pathname)
   {
     static Jvm::Constructor constructor = Jvm::get()->findConstructor(
         Jvm::Class::named("java/io/File")

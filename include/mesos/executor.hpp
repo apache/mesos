@@ -238,7 +238,7 @@ public:
    * Creates a new driver that uses the specified Executor. Note, the
    * executor pointer must outlive the driver.
    */
-  MesosExecutorDriver(Executor* executor);
+  explicit MesosExecutorDriver(Executor* executor);
 
   /**
    * This destructor will block indefinitely if

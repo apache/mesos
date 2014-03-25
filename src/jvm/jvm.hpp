@@ -116,7 +116,7 @@ public:
     friend class Class;
     friend class Jvm;
 
-    ConstructorFinder(const Class& clazz);
+    explicit ConstructorFinder(const Class& clazz);
 
     const Class clazz;
     std::vector<Class> parameters;
@@ -230,7 +230,7 @@ public:
   public:
     Object() : object(NULL) {}
 
-    Object(jobject _object)
+    explicit Object(jobject _object)
       : object(Jvm::get()->newGlobalRef(_object)) {}
 
     Object(const Object& that)
@@ -279,7 +279,7 @@ public:
   class Variable
   {
   public:
-    Variable(const Class& _clazz)
+    explicit Variable(const Class& _clazz)
       : clazz(_clazz)
     {
       // Check that T extends Object.
@@ -331,7 +331,7 @@ public:
   class StaticVariable
   {
   public:
-    StaticVariable(const Class& _clazz)
+    explicit StaticVariable(const Class& _clazz)
       : clazz(_clazz)
     {
       // Check that T extends Object.
@@ -365,7 +365,7 @@ public:
   class Env
   {
   public:
-    Env(bool daemon = true);
+    explicit Env(bool daemon = true);
     ~Env();
 
     JNIEnv* operator -> () const { return env; }

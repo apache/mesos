@@ -45,6 +45,7 @@ class Attributes
 public:
   Attributes() {}
 
+  /*implicit*/
   Attributes(const google::protobuf::RepeatedPtrField<Attribute>& _attributes)
   {
     attributes.MergeFrom(_attributes);

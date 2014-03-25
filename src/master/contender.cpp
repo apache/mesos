@@ -48,8 +48,8 @@ class ZooKeeperMasterContenderProcess
   : public Process<ZooKeeperMasterContenderProcess>
 {
 public:
-  ZooKeeperMasterContenderProcess(const zookeeper::URL& url);
-  ZooKeeperMasterContenderProcess(Owned<zookeeper::Group> group);
+  explicit ZooKeeperMasterContenderProcess(const zookeeper::URL& url);
+  explicit ZooKeeperMasterContenderProcess(Owned<zookeeper::Group> group);
   virtual ~ZooKeeperMasterContenderProcess();
 
   // Explicitely use 'initialize' since we're overloading below.

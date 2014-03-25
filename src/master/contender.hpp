@@ -114,8 +114,8 @@ class ZooKeeperMasterContender : public MasterContender
 public:
   // Creates a contender that uses ZooKeeper to determine (i.e.,
   // elect) a leading master.
-  ZooKeeperMasterContender(const zookeeper::URL& url);
-  ZooKeeperMasterContender(process::Owned<zookeeper::Group> group);
+  explicit ZooKeeperMasterContender(const zookeeper::URL& url);
+  explicit ZooKeeperMasterContender(process::Owned<zookeeper::Group> group);
 
   virtual ~ZooKeeperMasterContender();
 

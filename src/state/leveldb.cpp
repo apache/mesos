@@ -38,7 +38,7 @@ namespace state {
 class LevelDBStorageProcess : public Process<LevelDBStorageProcess>
 {
 public:
-  LevelDBStorageProcess(const string& path);
+  explicit LevelDBStorageProcess(const string& path);
   virtual ~LevelDBStorageProcess();
 
   virtual void initialize();

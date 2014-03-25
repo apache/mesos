@@ -77,7 +77,7 @@ private:
   class Recover : public Operation
   {
   public:
-    Recover(const MasterInfo& _info) : info(_info) {}
+    explicit Recover(const MasterInfo& _info) : info(_info) {}
 
   protected:
     virtual Try<bool> perform(Registry* registry, bool strict)

@@ -86,10 +86,10 @@ public:
   StandaloneMasterDetector();
   // Use this constructor if the leader is known beforehand so it is
   // unnecessary to call 'appoint()' separately.
-  StandaloneMasterDetector(const MasterInfo& leader);
+  explicit StandaloneMasterDetector(const MasterInfo& leader);
 
   // Same as above but takes UPID as the parameter.
-  StandaloneMasterDetector(const process::UPID& leader);
+  explicit StandaloneMasterDetector(const process::UPID& leader);
 
   virtual ~StandaloneMasterDetector();
 
@@ -112,9 +112,9 @@ class ZooKeeperMasterDetector : public MasterDetector
 public:
   // Creates a detector which uses ZooKeeper to determine (i.e.,
   // elect) a leading master.
-  ZooKeeperMasterDetector(const zookeeper::URL& url);
+  explicit ZooKeeperMasterDetector(const zookeeper::URL& url);
   // Used for testing purposes.
-  ZooKeeperMasterDetector(process::Owned<zookeeper::Group> group);
+  explicit ZooKeeperMasterDetector(process::Owned<zookeeper::Group> group);
   virtual ~ZooKeeperMasterDetector();
 
   // MasterDetector implementation.

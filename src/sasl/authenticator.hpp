@@ -49,7 +49,7 @@ class AuthenticatorProcess;
 class Authenticator
 {
 public:
-  Authenticator(const process::UPID& pid);
+  explicit Authenticator(const process::UPID& pid);
   ~Authenticator();
 
   // Returns true if successfully authenticated otherwise false or an
@@ -69,7 +69,7 @@ private:
 class AuthenticatorProcess : public ProtobufProcess<AuthenticatorProcess>
 {
 public:
-  AuthenticatorProcess(const process::UPID& _pid)
+  explicit AuthenticatorProcess(const process::UPID& _pid)
     : ProcessBase(process::ID::generate("authenticator")),
       status(READY),
       pid(_pid),

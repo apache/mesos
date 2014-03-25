@@ -28,7 +28,7 @@ namespace internal {
 class Lock
 {
 public:
-  Lock(pthread_mutex_t* _mutex);
+  explicit Lock(pthread_mutex_t* _mutex);
   ~Lock();
 
   void lock();

@@ -20,7 +20,7 @@ class LeaderDetector
 {
 public:
   // The specified 'group' is expected to outlive the detector.
-  LeaderDetector(Group* group);
+  explicit LeaderDetector(Group* group);
   virtual ~LeaderDetector();
 
   // Returns some membership after an election has occurred and a

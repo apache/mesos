@@ -9,7 +9,7 @@ namespace lang {
 class Throwable : public Jvm::Object
 {
 public:
-  Throwable(const std::string& message)
+  explicit Throwable(const std::string& message)
   {
     static Jvm::Constructor constructor = Jvm::get()->findConstructor(
         Jvm::Class::named("java/lang/Throwable")

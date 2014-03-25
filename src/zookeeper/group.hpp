@@ -275,7 +275,7 @@ private:
 
   struct Cancel
   {
-    Cancel(const Group::Membership& _membership)
+    explicit Cancel(const Group::Membership& _membership)
       : membership(_membership) {}
     Group::Membership membership;
     process::Promise<bool> promise;
@@ -283,7 +283,7 @@ private:
 
   struct Data
   {
-    Data(const Group::Membership& _membership)
+    explicit Data(const Group::Membership& _membership)
       : membership(_membership) {}
     Group::Membership membership;
     process::Promise<std::string> promise;
@@ -291,7 +291,7 @@ private:
 
   struct Watch
   {
-    Watch(const std::set<Group::Membership>& _expected)
+    explicit Watch(const std::set<Group::Membership>& _expected)
       : expected(_expected) {}
     std::set<Group::Membership> expected;
     process::Promise<std::set<Group::Membership> > promise;

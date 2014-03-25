@@ -60,7 +60,7 @@ class StandaloneMasterDetectorProcess
 {
 public:
   StandaloneMasterDetectorProcess() {}
-  StandaloneMasterDetectorProcess(const MasterInfo& _leader)
+  explicit StandaloneMasterDetectorProcess(const MasterInfo& _leader)
     : leader(_leader) {}
   ~StandaloneMasterDetectorProcess();
 
@@ -77,8 +77,8 @@ class ZooKeeperMasterDetectorProcess
   : public Process<ZooKeeperMasterDetectorProcess>
 {
 public:
-  ZooKeeperMasterDetectorProcess(const URL& url);
-  ZooKeeperMasterDetectorProcess(Owned<Group> group);
+  explicit ZooKeeperMasterDetectorProcess(const URL& url);
+  explicit ZooKeeperMasterDetectorProcess(Owned<Group> group);
   ~ZooKeeperMasterDetectorProcess();
 
   virtual void initialize();

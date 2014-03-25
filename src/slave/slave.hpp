@@ -295,7 +295,7 @@ private:
   class Http
   {
   public:
-    Http(const Slave& _slave) : slave(_slave) {}
+    explicit Http(const Slave& _slave) : slave(_slave) {}
 
     // /slave/health
     process::Future<process::http::Response> health(

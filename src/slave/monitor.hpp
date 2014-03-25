@@ -69,7 +69,7 @@ const extern size_t MONITORING_ARCHIVED_TIME_SERIES;
 class ResourceMonitor
 {
 public:
-  ResourceMonitor(Containerizer* containerizer);
+  explicit ResourceMonitor(Containerizer* containerizer);
   ~ResourceMonitor();
 
   // Starts monitoring resources for the given container.
@@ -92,7 +92,7 @@ private:
 class ResourceMonitorProcess : public process::Process<ResourceMonitorProcess>
 {
 public:
-  ResourceMonitorProcess(Containerizer* _containerizer)
+  explicit ResourceMonitorProcess(Containerizer* _containerizer)
     : ProcessBase("monitor"),
       containerizer(_containerizer),
       limiter(2, Seconds(1)), // 2 permits per second.

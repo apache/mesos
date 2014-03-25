@@ -39,7 +39,7 @@ struct MesosSchedulerDriverImpl;
 class ProxyScheduler : public Scheduler
 {
 public:
-  ProxyScheduler(MesosSchedulerDriverImpl* _impl) : impl(_impl) {}
+  explicit ProxyScheduler(MesosSchedulerDriverImpl* _impl) : impl(_impl) {}
 
   virtual ~ProxyScheduler() {}
 

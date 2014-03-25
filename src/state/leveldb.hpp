@@ -25,7 +25,7 @@ class LevelDBStorageProcess;
 class LevelDBStorage : public Storage
 {
 public:
-  LevelDBStorage(const std::string& path);
+  explicit LevelDBStorage(const std::string& path);
   virtual ~LevelDBStorage();
 
   // Storage implementation.

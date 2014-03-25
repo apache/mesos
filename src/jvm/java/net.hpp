@@ -9,7 +9,7 @@ namespace net {
 class InetSocketAddress : public Jvm::Object // TODO(benh): Extends SocketAddress.
 {
 public:
-  InetSocketAddress(int port)
+  explicit InetSocketAddress(int port)
   {
     static Jvm::Constructor constructor = Jvm::get()->findConstructor(
         Jvm::Class::named("java/net/InetSocketAddress")

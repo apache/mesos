@@ -77,6 +77,7 @@ class Resources
 public:
   Resources() {}
 
+  /*implicit*/
   Resources(const google::protobuf::RepeatedPtrField<Resource>& _resources)
   {
     resources.MergeFrom(_resources);
