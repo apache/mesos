@@ -1972,7 +1972,7 @@ void _monitor(
   }
 }
 
-void Slave::executorStarted(
+void Slave::executorLaunched(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const ContainerID& containerId,
@@ -2921,7 +2921,7 @@ Executor* Framework::launchExecutor(
       slave->self(),
       info.checkpoint())
     .onAny(defer(slave,
-                 &Slave::executorStarted,
+                 &Slave::executorLaunched,
                  id,
                  executor->id,
                  containerId,

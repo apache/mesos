@@ -177,7 +177,7 @@ public:
       const FrameworkID& frameworkId,
       const UUID& uuid);
 
-  void executorStarted(
+  void executorLaunched(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const ContainerID& containerId,
