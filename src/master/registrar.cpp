@@ -22,6 +22,9 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/help.hpp>
+#include <process/http.hpp>
+#include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
@@ -29,6 +32,7 @@
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
+#include <stout/protobuf.hpp>
 
 #include "common/type_utils.hpp"
 
@@ -41,14 +45,21 @@ using mesos::internal::state::protobuf::State;
 using mesos::internal::state::protobuf::Variable;
 
 using process::dispatch;
-using process::Failure;
-using process::Future;
-using process::Owned;
-using process::Process;
-using process::Promise;
 using process::spawn;
 using process::terminate;
 using process::wait; // Necessary on some OS's to disambiguate.
+
+using process::DESCRIPTION;
+using process::Failure;
+using process::Future;
+using process::HELP;
+using process::Owned;
+using process::Process;
+using process::Promise;
+using process::TLDR;
+using process::USAGE;
+
+using process::http::OK;
 
 using std::deque;
 using std::string;
@@ -57,11 +68,14 @@ namespace mesos {
 namespace internal {
 namespace master {
 
+using process::http::Response;
+using process::http::Request;
+
 class RegistrarProcess : public Process<RegistrarProcess>
 {
 public:
   RegistrarProcess(const Flags& _flags, State* _state)
-    : ProcessBase("registrar"),
+    : ProcessBase(process::ID::generate("registrar")),
       updating(false),
       flags(_flags),
       state(_state) {}
@@ -72,7 +86,18 @@ public:
   Future<Registry> recover(const MasterInfo& info);
   Future<bool> apply(Owned<Operation> operation);
 
+protected:
+  virtual void initialize()
+  {
+    route("/registry", registryHelp(), &RegistrarProcess::registry);
+  }
+
 private:
+  // HTTP handlers.
+  // /registrar(N)/registry
+  Future<Response> registry(const Request& request);
+  static string registryHelp();
+
   // The 'Recover' operation adds the latest MasterInfo.
   class Recover : public Operation
   {
@@ -113,6 +138,75 @@ private:
   // Used to compose our operations with recovery.
   Option<Owned<Promise<Registry> > > recovered;
 };
+
+
+Future<Response> RegistrarProcess::registry(const Request& request)
+{
+  JSON::Object result;
+
+  if (variable.isSome()) {
+    result = JSON::Protobuf(variable.get().get());
+  }
+
+  return OK(result, request.query.get("jsonp"));
+}
+
+
+string RegistrarProcess::registryHelp()
+{
+  return HELP(
+      TLDR(
+          "Returns the current contents of the Registry in JSON."),
+      USAGE(
+          "/registrar(1)/registry"),
+      DESCRIPTION(
+          "Example:"
+          "",
+          "```",
+          "{",
+          "  \"master\":",
+          "  {",
+          "    \"info\":",
+          "    {",
+          "      \"hostname\": \"localhost\",",
+          "      \"id\": \"20140325-235542-1740121354-5050-33357\",",
+          "      \"ip\": 2130706433,",
+          "      \"pid\": \"master@127.0.0.1:5050\",",
+          "      \"port\": 5050",
+          "    }",
+          "  },",
+          "",
+          "  \"slaves\":",
+          "  {",
+          "    \"slaves\":",
+          "    [",
+          "      {",
+          "        \"info\":",
+          "        {",
+          "          \"checkpoint\": true,",
+          "          \"hostname\": \"localhost\",",
+          "          \"id\":",
+          "          { ",
+          "            \"value\": \"20140325-234618-1740121354-5050-29065-0\"",
+          "          },",
+          "          \"port\": 5051,",
+          "          \"resources\":",
+          "          [",
+          "            {",
+          "              \"name\": \"cpus\",",
+          "              \"role\": \"*\",",
+          "              \"scalar\": { \"value\": 24 },",
+          "              \"type\": \"SCALAR\"",
+          "            }",
+          "          ],",
+          "          \"webui_hostname\": \"localhost\"",
+          "        }",
+          "      }",
+          "    ]",
+          "  }",
+          "}",
+          "```"));
+}
 
 
 Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
