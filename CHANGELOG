@@ -18,6 +18,7 @@ Release Notes - Mesos - Version 0.18.0
     * [MESOS-952] - Clock::resume should adjust timeouts that were created in a paused/advanced Clock context.
     * [MESOS-954] - The /__processes__ endpoint in libprocess is missing a needed lock acquisition.
     * [MESOS-958] - Group should not ignore the ZNOAUTH error in creating the parent path for the group
+    * [MESOS-963] - Compile fails on 10.9
     * [MESOS-965] - GroupTest.GroupWatchWithSessionExpiration is flaky
     * [MESOS-966] - symbolize.cc:235:58: error: invalid suffix on literal; C++11 requires a space between literal and identifier
     * [MESOS-967] - configure: error: cannot find libsasl2
@@ -25,11 +26,17 @@ Release Notes - Mesos - Version 0.18.0
     * [MESOS-985] - FaultToleranceTest.IgnoreKillTaskFromUnregisteredFramework is flaky
     * [MESOS-989] - Flaky whitelist tests
     * [MESOS-991] - hashmap.hpp error: control reaches end of non-void function
+    * [MESOS-1009] - src/demangle.cc:170:13: error: comparison between pointer and integer ('const char *' and 'int')
     * [MESOS-1038] - Log coordinator should demote itself after a write is discarded.
     * [MESOS-1045] - Unrecognized file extension in CommandInfo.URI causes executor to exit
     * [MESOS-1049] - Cpu Isolator incorrectly writes double values when writing cpu.cfs_quota_us.
     * [MESOS-1050] - Containerizer broke getting hadoop binary from $HADOOP_HOME and $PATH
     * [MESOS-1063] - Containerizer fails when fetching more than one URL
+    * [MESOS-1079] - Mesos python egg build failure on OS X Mavericks (Xcode 5.1)
+    * [MESOS-1095] - Build failure on OSX when using gcc-4.7
+    * [MESOS-1121] - /usr/include/c++/4.7/type_traits:1834:9: error: no match for call to '(std::_Bind<process::Future<process::http::Response> (*(std::_Placeholder<1>))(const std::basic_string<char>&)>) ()'
+    * [MESOS-1128] - ':' colon in executor work directories is unusual
+    * [MESOS-1135] - A re-registering framework that authenticates with Master might not get any offers
 
 ** Documentation
     * [MESOS-926] - Document change to separate cgroup mounts
