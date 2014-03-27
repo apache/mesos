@@ -114,7 +114,7 @@ Try<MasterDetector*> MasterDetector::create(const string& master)
     }
     if (url.get().path == "/") {
       return Error(
-	  "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
+          "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
     }
     return new ZooKeeperMasterDetector(url.get());
   } else if (master.find("file://") == 0) {
