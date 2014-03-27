@@ -40,6 +40,7 @@ namespace slave {
 
 using state::RunState;
 
+
 Try<Launcher*> PosixLauncher::create(const Flags& flags)
 {
   return new PosixLauncher();
@@ -122,15 +123,8 @@ Try<pid_t> PosixLauncher::fork(
 }
 
 
-Future<Nothing> _destroy(const Future<Option<int> >& future)
-{
-  if (future.isReady()) {
-    return Nothing();
-  } else {
-    return Failure("Failed to kill all processes: " +
-                   (future.isFailed() ? future.failure() : "unknown error"));
-  }
-}
+// Forward declaration.
+Future<Nothing> _destroy(const Future<Option<int> >& future);
 
 
 Future<Nothing> PosixLauncher::destroy(const ContainerID& containerId)
@@ -151,6 +145,17 @@ Future<Nothing> PosixLauncher::destroy(const ContainerID& containerId)
   // completing destroy until we're sure it has been reaped.
   return process::reap(pid)
     .then(lambda::bind(&_destroy, lambda::_1));
+}
+
+
+Future<Nothing> _destroy(const Future<Option<int> >& future)
+{
+  if (future.isReady()) {
+    return Nothing();
+  } else {
+    return Failure("Failed to kill all processes: " +
+                   (future.isFailed() ? future.failure() : "unknown error"));
+  }
 }
 
 
