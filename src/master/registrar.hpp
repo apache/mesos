@@ -21,6 +21,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/hashset.hpp>
+
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
@@ -38,17 +40,25 @@ class RegistrarProcess;
 
 // Defines an abstraction for operations that can be applied on the
 // Registry.
+// TODO(xujyan): Make Operation generic so that we can apply them
+// against a generic "batch operation applier" abstraction, see TODO
+// below for more details.
 class Operation : public process::Promise<bool>
 {
 public:
   Operation() : success(false) {}
+  virtual ~Operation() {}
 
-  // Attempts to invoke the operation on 't'.
-  // Returns whether the operation mutates 't', or an error if the
-  // operation cannot be applied successfully.
-  Try<bool> operator () (Registry* registry, bool strict)
+  // Attempts to invoke the operation on 'registry' (and the
+  // accumulators, in this case 'slaveIDs').
+  // Returns whether the operation mutates 'registry', or an error if
+  // the operation cannot be applied successfully.
+  Try<bool> operator () (
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict)
   {
-    const Try<bool>& result = perform(registry, strict);
+    const Try<bool>& result = perform(registry, slaveIDs, strict);
 
     success = !result.isError();
 
@@ -59,13 +69,30 @@ public:
   bool set() { return process::Promise<bool>::set(success); }
 
 protected:
-  virtual Try<bool> perform(Registry* registry, bool strict) = 0;
+  virtual Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict) = 0;
 
 private:
   bool success;
 };
 
 
+// TODO(xujyan): Add a generic abstraction for applying batches of
+// operations against State Variables. The Registrar and other
+// components could leverage this. This abstraction would be
+// templatized to take the type, along with any accumulators:
+// template <typename T,
+//           typename X = None,
+//           typename Y = None,
+//           typename Z = None>
+// T: the data type that the batch operations can be applied on.
+// X, Y, Z: zero to 3 generic accumulators that facilitate the batch
+// of operations.
+// This allows us to reuse the idea of "doing batches of operations"
+// on other potential new state variables (i.e. repair state, offer
+// reservations, etc).
 class Registrar
 {
 public:

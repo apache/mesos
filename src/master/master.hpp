@@ -785,21 +785,23 @@ public:
   }
 
 protected:
-  virtual Try<bool> perform(Registry* registry, bool strict)
+  virtual Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict)
   {
     // Check and see if this slave already exists.
-    foreach (const Registry::Slave& slave, registry->slaves().slaves()) {
-      if (slave.info().id() == info.id()) {
-        if (strict) {
-          return Error("Slave already admitted");
-        } else {
-          return false; // No mutation.
-        }
+    if (slaveIDs->contains(info.id())) {
+      if (strict) {
+        return Error("Slave already admitted");
+      } else {
+        return false; // No mutation.
       }
     }
 
     Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
     slave->mutable_info()->CopyFrom(info);
+    slaveIDs->insert(info.id());
     return true; // Mutation.
   }
 
@@ -818,12 +820,13 @@ public:
   }
 
 protected:
-  virtual Try<bool> perform(Registry* registry, bool strict)
+  virtual Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict)
   {
-    foreach (const Registry::Slave& slave, registry->slaves().slaves()) {
-      if (slave.info().id() == info.id()) {
-        return false; // No mutation.
-      }
+    if (slaveIDs->contains(info.id())) {
+      return false; // No mutation.
     }
 
     if (strict) {
@@ -831,6 +834,7 @@ protected:
     } else {
       Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
       slave->mutable_info()->CopyFrom(info);
+      slaveIDs->insert(info.id());
       return true; // Mutation.
     }
   }
@@ -850,12 +854,16 @@ public:
   }
 
 protected:
-  virtual Try<bool> perform(Registry* registry, bool strict)
+  virtual Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict)
   {
     for (int i = 0; i < registry->slaves().slaves().size(); i++) {
       const Registry::Slave& slave = registry->slaves().slaves(i);
       if (slave.info().id() == info.id()) {
         registry->mutable_slaves()->mutable_slaves()->DeleteSubrange(i, 1);
+        slaveIDs->erase(info.id());
         return true; // Mutation.
       }
     }

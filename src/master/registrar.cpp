@@ -105,7 +105,10 @@ private:
     explicit Recover(const MasterInfo& _info) : info(_info) {}
 
   protected:
-    virtual Try<bool> perform(Registry* registry, bool strict)
+    virtual Try<bool> perform(
+        Registry* registry,
+        hashset<SlaveID>* slaveIDs,
+        bool strict)
     {
       registry->mutable_master()->mutable_info()->CopyFrom(info);
       return true; // Mutation.
@@ -312,11 +315,18 @@ void RegistrarProcess::update()
 
   CHECK_SOME(variable);
 
+  // Create a snapshot of the current registry.
   Registry registry = variable.get().get();
+
+  // Create the 'slaveIDs' accumulator.
+  hashset<SlaveID> slaveIDs;
+  foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
+    slaveIDs.insert(slave.info().id());
+  }
 
   foreach (Owned<Operation> operation, operations) {
     // No need to process the result of the operation.
-    (*operation)(&registry, flags.registry_strict);
+    (*operation)(&registry, &slaveIDs, flags.registry_strict);
   }
 
   // TODO(benh): Add a timeout so we don't wait forever.
