@@ -113,6 +113,9 @@ def run_lint(source_paths):
         if lint_out_regex.search(line) is not None:
             sys.stdout.write(line)
 
+    p.wait()
+    return p.returncode
+
 
 if __name__ == '__main__':
     # Verify that source roots are accessible from current working directory.
@@ -130,4 +133,4 @@ if __name__ == '__main__':
         for candidate in find_candidates(source_dir):
             candidates.append(candidate)
 
-    run_lint(candidates)
+    sys.exit(run_lint(candidates))

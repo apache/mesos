@@ -105,6 +105,10 @@ def verify_review(review_request):
         applied = []
         apply_reviews(review_request, applied)
 
+        # Make sure the patch is style conformant.
+        # TODO(vinod): Only check files/lines changed by the review.
+        shell("./support/mesos-style.py")
+
         # Make sure build succeeds.
         shell("./bootstrap")
         shell("./configure")
