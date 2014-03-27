@@ -307,7 +307,7 @@ template <typename T1,
           typename T8,
           typename T9,
           typename T10,
-	  typename T11>
+          typename T11>
 Try<std::string> format(const std::string& s,
                         const T1& t1,
                         const T2& t2,
