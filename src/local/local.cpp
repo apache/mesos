@@ -155,12 +155,6 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     slave::Flags flags;
     Try<Nothing> load = flags.load("MESOS_");
 
-#ifdef __linux__
-    // Disable putting slave into cgroup(s) because the example test may use
-    // multiple slaves in the local cluster.
-    flags.slave_subsystems = None();
-#endif // __linux
-
     if (load.isError()) {
       EXIT(1) << "Failed to start a local cluster while loading "
               << "slave flags from the environment: " << load.error();
