@@ -1,0 +1,65 @@
+--- support/cpplint.py	2014-03-14 14:44:03.077741545 -0700
++++ support/cpplint.py2	2014-03-14 14:53:33.053733284 -0700
+@@ -28,6 +28,8 @@
+ # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
++# Modified by Adam B (adam@mesosphere.io) to handle hpp files.
++
+ """Does google-lint on c++ files.
+ 
+ The goal of this script is to identify places in the code that *may*
+@@ -71,7 +73,7 @@
+   suppresses errors of all categories on that line.
+ 
+   The files passed in will be linted; at least one file must be provided.
+-  Default linted extensions are .cc, .cpp, .cu, .cuh and .h.  Change the
++  Default linted extensions are .cc, .cpp, .cu, .cuh, .hpp and .h.  Change the
+   extensions with the --extensions flag.
+ 
+   Flags:
+@@ -449,7 +451,7 @@
+ 
+ # The allowed extensions for file names
+ # This is set by --extensions flag.
+-_valid_extensions = set(['cc', 'h', 'cpp', 'cu', 'cuh'])
++_valid_extensions = set(['cc', 'h', 'cpp', 'cu', 'cuh', 'hpp'])
+ 
+ def ParseNolintSuppressions(filename, raw_line, linenum, error):
+   """Updates the global list of error-suppressions.
+@@ -3400,7 +3402,7 @@
+ 
+   # Check if the line is a header guard.
+   is_header_guard = False
+-  if file_extension == 'h':
++  if (file_extension == 'h' or file_extension == 'hpp'):
+     cppvar = GetHeaderGuardCPPVariable(filename)
+     if (line.startswith('#ifndef %s' % cppvar) or
+         line.startswith('#define %s' % cppvar) or
+@@ -3867,7 +3869,7 @@
+     error(filename, linenum, 'runtime/init', 4,
+           'You seem to be initializing a member variable with itself.')
+ 
+-  if file_extension == 'h':
++  if (file_extension == 'h' or file_extension == 'hpp'):
+     # TODO(unknown): check that 1-arg constructors are explicit.
+     #                How to tell it's a constructor?
+     #                (handled in CheckForNonStandardConstructs for now)
+@@ -4011,7 +4013,7 @@
+   # Check for use of unnamed namespaces in header files.  Registration
+   # macros are typically OK, so we allow use of "namespace {" on lines
+   # that end with backslashes.
+-  if (file_extension == 'h'
++  if ((file_extension == 'h' or file_extension == 'hpp')
+       and Search(r'\bnamespace\s*{', line)
+       and line[-1] != '\\'):
+     error(filename, linenum, 'build/namespaces', 4,
+@@ -4552,7 +4554,7 @@
+ 
+   CheckForCopyright(filename, lines, error)
+ 
+-  if file_extension == 'h':
++  if (file_extension == 'h' or file_extension == 'hpp'):
+     CheckForHeaderGuard(filename, lines, error)
+ 
+   RemoveMultiLineComments(filename, lines, error)
