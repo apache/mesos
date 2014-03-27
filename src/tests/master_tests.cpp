@@ -1117,6 +1117,10 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   Resources twoSlaves = fullSlave + fullSlave;
 
   slave::Flags flags = CreateSlaveFlags();
+#ifdef __linux__
+  // Disable putting slave into cgroup(s) because this is a multi-slave test.
+  flags.slave_subsystems = None();
+#endif // __linux
   flags.resources = Option<string>(stringify(fullSlave));
 
   Try<PID<Slave> > slave1 = StartSlave(&containerizer, flags);

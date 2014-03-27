@@ -145,6 +145,16 @@ protected:
               ->test_case_name() << ".*).\n"
           << "-------------------------------------------------------------";
       }
+
+      Try<std::vector<std::string> > cgroups = cgroups::get(hierarchy);
+      CHECK_SOME(cgroups);
+
+      foreach (const std::string& cgroup, cgroups.get()) {
+        // Remove any cgroups that start with TEST_CGROUPS_ROOT.
+        if (cgroup == TEST_CGROUPS_ROOT) {
+          AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
+        }
+      }
     }
   }
 
@@ -180,12 +190,12 @@ public:
 };
 
 
-class CgroupsAnyHierarchyWithCpuMemoryFreezerTest
+class CgroupsAnyHierarchyWithFreezerTest
   : public CgroupsAnyHierarchyTest
 {
 public:
-  CgroupsAnyHierarchyWithCpuMemoryFreezerTest()
-    : CgroupsAnyHierarchyTest("cpu,memory,freezer") {}
+  CgroupsAnyHierarchyWithFreezerTest()
+    : CgroupsAnyHierarchyTest("freezer") {}
 };
 
 
@@ -573,7 +583,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
 }
 
 
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Freeze)
+TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Freeze)
 {
   int pipes[2];
   int dummy;
@@ -643,7 +653,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Freeze)
 }
 
 
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Kill)
+TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Kill)
 {
   int pipes[2];
   int dummy;
@@ -709,7 +719,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Kill)
 
 
 // TODO(benh): Write a version of this test with nested cgroups.
-TEST_F(CgroupsAnyHierarchyWithCpuMemoryFreezerTest, ROOT_CGROUPS_Destroy)
+TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Destroy)
 {
   int pipes[2];
   int dummy;

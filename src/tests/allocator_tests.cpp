@@ -65,7 +65,22 @@ using testing::Eq;
 using testing::SaveArg;
 
 
-class DRFAllocatorTest : public MesosTest {};
+class DRFAllocatorTest : public MesosTest
+{
+public:
+  virtual slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
+
+#ifdef __linux__
+  // Disable putting slave into cgroup(s) because many of the allocator tests
+  // use multiple slaves.
+  flags.slave_subsystems = None();
+#endif // __linux
+
+  return flags;
+  }
+};
 
 
 // Checks that the DRF allocator implements the DRF algorithm
@@ -319,7 +334,21 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 
 
 class ReservationAllocatorTest : public MesosTest
-{};
+{
+public:
+  virtual slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
+
+#ifdef __linux__
+  // Disable putting slave into cgroup(s) because many of the allocator tests
+  // use multiple slaves.
+  flags.slave_subsystems = None();
+#endif // __linux
+
+  return flags;
+  }
+};
 
 
 // Checks that resources on a slave that are statically reserved to
@@ -626,6 +655,20 @@ template <typename T>
 class AllocatorTest : public MesosTest
 {
 protected:
+  virtual slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
+
+#ifdef __linux__
+  // Disable putting slave into cgroup(s) because many of the allocator tests
+  // use multiple slaves.
+  flags.slave_subsystems = None();
+#endif // __linux
+
+  return flags;
+  }
+
+
   virtual void SetUp()
   {
     MesosTest::SetUp();

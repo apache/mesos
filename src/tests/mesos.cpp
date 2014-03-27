@@ -74,6 +74,13 @@ slave::Flags MesosTest::CreateSlaveFlags()
   flags.resources = Option<std::string>(
       "cpus:2;mem:1024;disk:1024;ports:[31000-32000]");
 
+#ifdef __linux__
+  // Enable putting the slave into memory and cpuacct cgroups.
+  if (os::exists("/proc/cgroups") && os::user() == "root") {
+    flags.slave_subsystems = "memory,cpuacct";
+  }
+#endif // __linux__
+
   return flags;
 }
 

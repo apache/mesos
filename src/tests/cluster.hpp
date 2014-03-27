@@ -31,9 +31,14 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include "files/files.hpp"
+
+#ifdef __linux__
+#include "linux/cgroups.hpp"
+#endif // __linux__
 
 #include "master/allocator.hpp"
 #include "master/contender.hpp"
@@ -190,6 +195,9 @@ public:
       slave::Containerizer* containerizer;
       slave::Slave* slave;
       process::Owned<MasterDetector> detector;
+
+      // Set to the slave::flags used for the slave.
+      slave::Flags flags;
     };
 
     std::map<process::PID<slave::Slave>, Slave> slaves;
@@ -388,6 +396,8 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
   Slave slave;
 
+  slave.flags = flags;
+
   // Create a new containerizer for this slave.
   Try<slave::Containerizer*> containerizer =
     slave::Containerizer::create(flags, true);
@@ -424,6 +434,8 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
   Slave slave;
 
+  slave.flags = flags;
+
   // Create a new containerizer for this slave.
   Try<slave::Containerizer*> containerizer =
     slave::Containerizer::create(flags, true);
@@ -452,6 +464,8 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
   // TODO(benh): Create a work directory if using the default.
 
   Slave slave;
+
+  slave.flags = flags;
 
   // Get a detector for the master(s).
   slave.detector = detector;
@@ -485,6 +499,39 @@ inline Try<Nothing> Cluster::Slaves::stop(
   delete slave.slave;
 
   delete slave.containerizer; // May be NULL.
+
+#ifdef __linux__
+  // Remove all of this processes threads into the root cgroups - this
+  // simulates the slave process terminating and permits a new slave to start
+  // when the --slave_subsystems flag is used.
+  if (slave.flags.slave_subsystems.isSome()) {
+    foreach (const std::string& subsystem,
+            strings::tokenize(slave.flags.slave_subsystems.get(), ",")) {
+
+      std::string hierarchy = path::join(
+          slave.flags.cgroups_hierarchy, subsystem);
+
+      std::string cgroup = path::join(slave.flags.cgroups_root, "slave");
+
+      Try<bool> exists = cgroups::exists(hierarchy, cgroup);
+      if (exists.isError() || !exists.get()) {
+        EXIT(1) << "Failed to find cgroup " << cgroup
+                << " for subsystem " << subsystem
+                << " under hierarchy " << hierarchy
+                << " for slave: " + exists.error();
+      }
+
+      // Move all of our threads into the root cgroup.
+      Try<Nothing> assign = cgroups::assignAllThreads(hierarchy, "", getpid());
+      if (assign.isError()) {
+        EXIT(1) << "Failed to move slave threads into cgroup " << cgroup
+                << " for subsystem " << subsystem
+                << " under hierarchy " << hierarchy
+                << " for slave: " + assign.error();
+      }
+    }
+  }
+#endif // __linux__
 
   slaves.erase(pid);
 

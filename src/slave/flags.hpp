@@ -195,6 +195,14 @@ public:
         "Cgroups feature flag to enable hard limits on CPU resources\n"
         "via the CFS bandwidth limiting subfeature.\n",
         false);
+
+    add(&Flags::slave_subsystems,
+        "slave_subsystems",
+        "List of comma-separated cgroup subsystems to run the slave binary\n"
+        "in, e.g., 'memory,cpuacct'. The default is none.\n"
+        "Present functionality is intended for resource monitoring and\n"
+        "no cgroup limits are set, they are inherited from the root mesos\n"
+        "cgroup.");
 #endif
   }
 
@@ -223,6 +231,7 @@ public:
   std::string cgroups_root;
   Option<std::string> cgroups_subsystems;
   bool cgroups_enable_cfs;
+  Option<std::string> slave_subsystems;
 #endif
 };
 

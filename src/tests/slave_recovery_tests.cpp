@@ -2831,6 +2831,10 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 
   // Start the first slave.
   slave::Flags flags1 = this->CreateSlaveFlags();
+#ifdef __linux__
+  // Disable putting slave into cgroup(s) because this is a multi-slave test.
+  flags1.slave_subsystems = None();
+#endif // __linux
   Try<Containerizer*> containerizer1 = Containerizer::create(flags1, true);
   ASSERT_SOME(containerizer1);
 
@@ -2862,6 +2866,10 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 
   // Start the second slave.
   slave::Flags flags2 = this->CreateSlaveFlags();
+#ifdef __linux__
+  // Disable putting slave into cgroup(s) because this is a multi-slave test.
+  flags2.slave_subsystems = "";
+#endif // __linux
   Try<Containerizer*> containerizer2 = Containerizer::create(flags2, true);
   ASSERT_SOME(containerizer2);
 

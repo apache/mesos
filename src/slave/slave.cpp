@@ -23,6 +23,7 @@
 #include <iomanip>
 #include <list>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -44,11 +45,18 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#ifdef __linux__
+#include <stout/proc.hpp>
+#endif // __linux__
 #include <stout/numify.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/utils.hpp>
+
+#ifdef __linux__
+#include "linux/cgroups.hpp"
+#endif // __linux__
 
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
@@ -64,6 +72,7 @@
 
 using std::list;
 using std::map;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -118,6 +127,84 @@ Slave::~Slave()
 void Slave::initialize()
 {
   LOG(INFO) << "Slave started on " << string(self()).substr(6);
+
+#ifdef __linux__
+  // Move the slave into its own cgroup for each of the specified subsystems.
+  // NOTE: Any subsystem configuration is inherited from the mesos root cgroup
+  // for that subsystem, e.g., by default the memory cgroup will be unlimited.
+  if (flags.slave_subsystems.isSome()) {
+    foreach (const string& subsystem,
+            strings::tokenize(flags.slave_subsystems.get(), ",")) {
+      LOG(INFO) << "Moving slave process into its own cgroup";
+
+      // Ensure the subsystem is mounted and the Mesos root cgroup is present.
+      Try<string> hierarchy = cgroups::prepare(
+          flags.cgroups_hierarchy,
+          subsystem,
+          flags.cgroups_root);
+
+      if (hierarchy.isError()) {
+        EXIT(1) << "Failed to prepare cgroup " << flags.cgroups_root
+                << " for subsystem " << subsystem
+                << " under hierarchy " << hierarchy.get()
+                << " for slave: " + hierarchy.error();
+      }
+
+      // Create a cgroup for the slave.
+      string cgroup = path::join(flags.cgroups_root, "slave");
+
+      Try<bool> exists = cgroups::exists(hierarchy.get(), cgroup);
+
+      if (exists.isError()) {
+        EXIT(1) << "Failed to find cgroup " << cgroup
+                << " for subsystem " << subsystem
+                << " under hierarchy " << hierarchy.get()
+                << " for slave: " + exists.error();
+      }
+
+      if (!exists.get()) {
+        Try<Nothing> create = cgroups::create(hierarchy.get(), cgroup);
+        if (create.isError()) {
+          EXIT(1) << "Failed to create cgroup " << cgroup
+                  << " for subsystem " << subsystem
+                  << " under hierarchy " << hierarchy.get()
+                  << " for slave: " + create.error();
+        }
+      }
+
+      // Exit if there are threads already inside the cgroup - this
+      // indicates a prior slave (or child process) is still running.
+      Try<set<pid_t> > threads = cgroups::threads(hierarchy.get(), cgroup);
+      if (threads.isError()) {
+        EXIT(1) << "Failed to check for existing threads in cgroup " << cgroup
+                << " for subsystem " << subsystem
+                << " under hierarchy " << hierarchy.get()
+                << " for slave: " + threads.error();
+      }
+
+      // TODO(idownes): Re-evaluate this behavior if it's observed, possibly
+      // automatically killing any running processes and moving this code to
+      // during recovery.
+      if (!threads.get().empty()) {
+        EXIT(1) << "A slave (or child process) is still running, "
+                << "please check the thread(s) '"
+                << stringify(threads.get())
+                << "' listed in "
+                << path::join(hierarchy.get(), cgroup, "tasks");
+      }
+
+      // Move all of our threads into the cgroup.
+      Try<Nothing> assign = cgroups::assignAllThreads(
+          hierarchy.get(), cgroup, getpid());
+      if (assign.isError()) {
+        EXIT(1) << "Failed to move slave threads into cgroup " << cgroup
+                << " for subsystem " << subsystem
+                << " under hierarchy " << hierarchy.get()
+                << " for slave: " + assign.error();
+      }
+    }
+  }
+#endif // __linux__
 
   // Ensure slave work directory exists.
   CHECK_SOME(os::mkdir(flags.work_dir))
