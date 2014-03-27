@@ -43,6 +43,8 @@ namespace cgroups {
 const unsigned int FREEZE_RETRIES = 50;
 const unsigned int EMPTY_WATCHER_RETRIES = 50;
 
+// Default number of assign attempts when moving threads to a cgroup.
+const unsigned int THREAD_ASSIGN_RETRIES = 100;
 
 // We use the following notations throughout the cgroups code. The notations
 // here are derived from the kernel documentation. More details can be found in
@@ -277,6 +279,16 @@ Try<std::set<pid_t> > processes(
     const std::string& cgroup);
 
 
+// Return the set of thread IDs in a given cgroup under a given hierarchy. It
+// will return error if the given hierarchy or the given cgroup is not valid.
+// @param   hierarchy   Path to the hierarchy root.
+// @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @return  The set of thread ids.
+Try<std::set<pid_t> > threads(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
 // Assign a given process specified by its pid to a given cgroup. This function
 // will return error if the given hierarchy or the given cgroup is not valid.
 // Also, it will return error if the pid has no process associated with it.
@@ -286,6 +298,23 @@ Try<std::set<pid_t> > processes(
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
 Try<Nothing> assign(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    pid_t pid);
+
+
+// Assign all threads of a given process to a given cgroup. This function will
+// return error if the given hierarchy or the given cgroup is not valid. Also,
+// it will return error if the pid has no process associated with it. The
+// process may create threads during function execution so multiple passes are
+// used but an error will be returned if not all threads can be assigned in
+// THREAD_ASSIGN_RETRIES attempts.
+// @param   hierarchy   Path to the hierarchy root.
+// @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   pid         The pid of the given process.
+// @return  Some if the operation succeeds.
+//          Error if the operation fails.
+Try<Nothing> assignAllThreads(
     const std::string& hierarchy,
     const std::string& cgroup,
     pid_t pid);
