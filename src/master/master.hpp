@@ -851,11 +851,7 @@ protected:
     for (int i = 0; i < registry->slaves().slaves().size(); i++) {
       const Registry::Slave& slave = registry->slaves().slaves(i);
       if (slave.info().id() == info.id()) {
-        for (int j = i + 1; j < registry->slaves().slaves().size(); j++) {
-          registry->
-              mutable_slaves()->mutable_slaves()->SwapElements(j - 1, j);
-        }
-        registry->mutable_slaves()->mutable_slaves()->RemoveLast();
+        registry->mutable_slaves()->mutable_slaves()->DeleteSubrange(i, 1);
         return true; // Mutation.
       }
     }
