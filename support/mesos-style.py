@@ -72,8 +72,7 @@ import sys
 # whitespace/tab
 # whitespace/todo
 
-# Currently, only tabs are checked.
-active_rules = '--filter=-,+whitespace/tab'
+active_rules = ['build/class', 'build/deprecated', 'whitespace/tab']
 
 # Root source paths (will be traversed recursively).
 source_dirs = ['src',
@@ -100,9 +99,11 @@ def find_candidates(root_dir):
                 yield path
 
 def run_lint(source_paths):
-    print 'Checking ' + str(len(source_paths)) + ' files...'
+    rules_filter = '--filter=-,+' + ',+'.join(active_rules)
+    print 'Checking ' + str(len(source_paths)) + ' files using filter ' \
+        + rules_filter
     p = subprocess.Popen(
-        ['python', 'support/cpplint.py', active_rules] + source_paths,
+        ['python', 'support/cpplint.py', rules_filter] + source_paths,
         stderr=subprocess.PIPE,
         close_fds=True)
 
