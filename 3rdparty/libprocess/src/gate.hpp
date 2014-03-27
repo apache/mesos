@@ -46,8 +46,9 @@ public:
     {
       waiters++;
       state_t old = state;
-      while (old == state)
-	pthread_cond_wait(&cond, &mutex);
+      while (old == state) {
+        pthread_cond_wait(&cond, &mutex);
+      }
       waiters--;
     }
     pthread_mutex_unlock(&mutex);
@@ -70,7 +71,7 @@ public:
     pthread_mutex_lock(&mutex);
     {
       while (old == state) {
-	pthread_cond_wait(&cond, &mutex);
+        pthread_cond_wait(&cond, &mutex);
       }
       waiters--;
     }

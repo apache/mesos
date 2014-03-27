@@ -81,13 +81,13 @@ protected:
       len = ::recv(s, buf, bytes, 0);
 
       if (len > 0)
-	return len;
+        return len;
       else if (len < 0 && errno == EWOULDBLOCK)
-	while (!await(s, RDONLY));
+        while (!await(s, RDONLY));
       else if (len == 0)
-	throw runtime_error(string("recv: connection terminated"));
+        throw runtime_error(string("recv: connection terminated"));
       else
-	throw runtime_error(string("recv: ") += strerror(errno));
+        throw runtime_error(string("recv: ") += strerror(errno));
     } while (!(len > 0));
 
     return len;
@@ -100,13 +100,13 @@ protected:
       len = ::recv(s, (char *) buf + offset, bytes - offset, 0);
 
       if (len > 0)
-	offset += len;
+        offset += len;
       else if (len < 0 && errno == EWOULDBLOCK)
-	while (!await(s, RDONLY));
+        while (!await(s, RDONLY));
       else if (len == 0)
-	throw runtime_error(string("recvall: connection terminated"));
+        throw runtime_error(string("recvall: connection terminated"));
       else
-	throw runtime_error(string("recvall: ") += strerror(errno));
+        throw runtime_error(string("recvall: ") += strerror(errno));
     } while (offset != bytes);
 
     return offset;
@@ -117,16 +117,16 @@ protected:
     size_t offset = 0;
     do {
       size_t len =
-	::send(s, (char *) buf + offset, bytes - offset, MSG_NOSIGNAL);
+        ::send(s, (char *) buf + offset, bytes - offset, MSG_NOSIGNAL);
 
       if (len > 0)
-	offset += len;
+        offset += len;
       else if (len < 0 && errno == EWOULDBLOCK)
-	while (!await(s, WRONLY));
+        while (!await(s, WRONLY));
       else if (len == 0)
-	throw runtime_error(string("send: connection terminated"));
+        throw runtime_error(string("send: connection terminated"));
       else
-	throw runtime_error(string("send: ") += strerror(errno));
+        throw runtime_error(string("send: ") += strerror(errno));
     } while (offset != bytes);
   }
 
@@ -137,13 +137,13 @@ protected:
       size_t len = ::sendfile(s, fd, 0, bytes - offset);
 
       if (len > 0)
-	offset += len;
+        offset += len;
       else if (len < 0 && errno == EWOULDBLOCK)
-	while (!await(s, WRONLY));
+        while (!await(s, WRONLY));
       else if (len == 0)
-	throw runtime_error(string("sendfile: connection terminated"));
+        throw runtime_error(string("sendfile: connection terminated"));
       else
-	throw runtime_error(string("sendfile: ") += strerror(errno));
+        throw runtime_error(string("sendfile: ") += strerror(errno));
     } while (offset != bytes);
   }
 
@@ -153,9 +153,9 @@ public:
   {
     int flags = 1;
     if (ioctl(s, FIONBIO, &flags) &&
-	((flags = fcntl(s, F_GETFL, 0)) < 0 ||
-	 fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0))
-	throw runtime_error(string("ioctl/fcntl: ") += strerror(errno));
+        ((flags = fcntl(s, F_GETFL, 0)) < 0 ||
+          fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0))
+      throw runtime_error(string("ioctl/fcntl: ") += strerror(errno));
   }
   ~SocketProcess() { os::close(s); }
 };
@@ -174,14 +174,15 @@ protected:
 
       size_t size = sizeof(struct sockaddr_in);
 
-      c = ::accept(SocketProcess<protocol>::s,
-		       (struct sockaddr *) &addr,
-		       (socklen_t *) &size);
+      c = ::accept(
+          SocketProcess<protocol>::s,
+          (struct sockaddr *) &addr,
+          (socklen_t *) &size);
 
       if (c == 0)
-	throw runtime_error(string("accept: ") += strerror(errno));
+        throw runtime_error(string("accept: ") += strerror(errno));
       else if (c < 0 && (errno != EWOULDBLOCK))
-	throw runtime_error(string("accept: ") += strerror(errno));
+        throw runtime_error(string("accept: ") += strerror(errno));
     } while (!(c > 0));
 
     return c;
