@@ -23,6 +23,7 @@ do
   esac
 done
 
-@sbindir@/mesos-stop-slaves.sh && sleep 1 && @sbindir@/mesos-stop-masters.sh
-
-echo "Everything's stopped!"
+@sbindir@/mesos-stop-slaves.sh && sleep 1 && @sbindir@/mesos-stop-masters.sh && {
+  # TODO(chengwei): see mesos-start-cluster.sh
+  echo "Everything's stopped!"
+}
