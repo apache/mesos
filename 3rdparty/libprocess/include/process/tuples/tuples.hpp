@@ -21,7 +21,7 @@ struct serializer
 {
   std::ostringstream& stream;
 
-  serializer(std::ostringstream& s) : stream(s) {}
+  explicit serializer(std::ostringstream& s) : stream(s) {}
 
   void operator & (const int32_t & i)
   {
@@ -85,7 +85,7 @@ struct deserializer
 {
   std::istringstream &stream;
 
-  deserializer(std::istringstream &s) : stream(s) {}
+  explicit deserializer(std::istringstream &s) : stream(s) {}
 
   void operator & (int32_t &i)
   {

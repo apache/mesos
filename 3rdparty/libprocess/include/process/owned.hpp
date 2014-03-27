@@ -43,7 +43,7 @@ public:
 private:
   struct Data
   {
-    Data(T* t);
+    explicit Data(T* t);
     ~Data();
 
     T* volatile t; // The pointer 't' is volatile.

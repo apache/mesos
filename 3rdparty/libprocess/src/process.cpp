@@ -202,7 +202,7 @@ public:
 private:
   friend class ProcessManager; // For ProcessManager::use.
 
-  ProcessReference(ProcessBase* _process)
+  explicit ProcessReference(ProcessBase* _process)
     : process(_process)
   {
     if (process != NULL) {
@@ -246,7 +246,7 @@ private:
 class HttpProxy : public Process<HttpProxy>
 {
 public:
-  HttpProxy(const Socket& _socket);
+  explicit HttpProxy(const Socket& _socket);
   virtual ~HttpProxy();
 
   // Enqueues the response to be sent once all previously enqueued
@@ -421,7 +421,7 @@ private:
 class ProcessManager
 {
 public:
-  ProcessManager(const string& delegate);
+  explicit ProcessManager(const string& delegate);
   ~ProcessManager();
 
   ProcessReference use(const UPID& pid);
@@ -2569,7 +2569,7 @@ void ProcessManager::resume(ProcessBase* process)
           bool filter = false;
           struct FilterVisitor : EventVisitor
           {
-            FilterVisitor(bool* _filter) : filter(_filter) {}
+            explicit FilterVisitor(bool* _filter) : filter(_filter) {}
 
             virtual void visit(const MessageEvent& event)
             {
@@ -2947,7 +2947,7 @@ Future<Response> ProcessManager::__processes__(const Request&)
 
       struct JSONVisitor : EventVisitor
       {
-        JSONVisitor(JSON::Array* _events) : events(_events) {}
+        explicit JSONVisitor(JSON::Array* _events) : events(_events) {}
 
         virtual void visit(const MessageEvent& event)
         {

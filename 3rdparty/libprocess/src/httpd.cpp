@@ -199,7 +199,7 @@ protected:
   }
 
 public:
-  HttpConnection(int s) : SocketProcess<TCP>(s) {}
+  explicit HttpConnection(int s) : SocketProcess<TCP>(s) {}
   ~HttpConnection() {}
 };
 

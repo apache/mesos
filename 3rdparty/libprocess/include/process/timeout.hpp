@@ -15,7 +15,7 @@ class Timeout
 public:
   Timeout() : timeout(Clock::now()) {}
 
-  Timeout(const Time& time) : timeout(time) {}
+  explicit Timeout(const Time& time) : timeout(time) {}
 
   Timeout(const Timeout& that) : timeout(that.timeout) {}
 

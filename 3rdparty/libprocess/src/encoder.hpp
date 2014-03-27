@@ -34,7 +34,7 @@ extern void send_file(struct ev_loop*, ev_io*, int);
 class Encoder
 {
 public:
-  Encoder(const Socket& _s) : s(_s) {}
+  explicit Encoder(const Socket& _s) : s(_s) {}
   virtual ~Encoder() {}
 
   virtual Sender sender() = 0;

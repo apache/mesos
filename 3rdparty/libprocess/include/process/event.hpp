@@ -43,7 +43,7 @@ struct Event
     bool result = false;
     struct IsVisitor : EventVisitor
     {
-      IsVisitor(bool* _result) : result(_result) {}
+      explicit IsVisitor(bool* _result) : result(_result) {}
       virtual void visit(const T& t) { *result = true; }
       bool* result;
     } visitor(&result);
@@ -57,7 +57,7 @@ struct Event
     const T* result = NULL;
     struct AsVisitor : EventVisitor
     {
-      AsVisitor(const T** _result) : result(_result) {}
+      explicit AsVisitor(const T** _result) : result(_result) {}
       virtual void visit(const T& t) { *result = &t; }
       const T** result;
     } visitor(&result);
@@ -73,7 +73,7 @@ struct Event
 
 struct MessageEvent : Event
 {
-  MessageEvent(Message* _message)
+  explicit MessageEvent(Message* _message)
     : message(_message) {}
 
   virtual ~MessageEvent()
@@ -159,7 +159,7 @@ private:
 
 struct ExitedEvent : Event
 {
-  ExitedEvent(const UPID& _pid)
+  explicit ExitedEvent(const UPID& _pid)
     : pid(_pid) {}
 
   virtual void visit(EventVisitor* visitor) const
@@ -178,7 +178,7 @@ private:
 
 struct TerminateEvent : Event
 {
-  TerminateEvent(const UPID& _from)
+  explicit TerminateEvent(const UPID& _from)
     : from(_from) {}
 
   virtual void visit(EventVisitor* visitor) const

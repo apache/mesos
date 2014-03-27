@@ -119,7 +119,7 @@ struct Response
     : type(NONE)
   {}
 
-  Response(const std::string& _body)
+  explicit Response(const std::string& _body)
     : type(BODY),
       body(_body)
   {
@@ -172,12 +172,12 @@ struct OK : Response
     status = "200 OK";
   }
 
-  OK(const char* body) : Response(std::string(body))
+  explicit OK(const char* body) : Response(std::string(body))
   {
     status = "200 OK";
   }
 
-  OK(const std::string& body) : Response(body)
+  explicit OK(const std::string& body) : Response(body)
   {
     status = "200 OK";
   }
@@ -211,7 +211,7 @@ struct OK : Response
 
 struct TemporaryRedirect : Response
 {
-  TemporaryRedirect(const std::string& url)
+  explicit TemporaryRedirect(const std::string& url)
   {
     status = "307 Temporary Redirect";
     headers["Location"] = url;
@@ -226,7 +226,7 @@ struct BadRequest : Response
     status = "400 Bad Request";
   }
 
-  BadRequest(const std::string& body)
+  explicit BadRequest(const std::string& body)
     : Response(body)
   {
     status = "400 Bad Request";
@@ -241,7 +241,7 @@ struct NotFound : Response
     status = "404 Not Found";
   }
 
-  NotFound(const std::string& body) : Response(body)
+  explicit NotFound(const std::string& body) : Response(body)
   {
     status = "404 Not Found";
   }
@@ -255,7 +255,7 @@ struct InternalServerError : Response
     status = "500 Internal Server Error";
   }
 
-  InternalServerError(const std::string& body) : Response(body)
+  explicit InternalServerError(const std::string& body) : Response(body)
   {
     status = "500 Internal Server Error";
   }
@@ -269,7 +269,7 @@ struct ServiceUnavailable : Response
     status = "503 Service Unavailable";
   }
 
-  ServiceUnavailable(const std::string& body) : Response(body)
+  explicit ServiceUnavailable(const std::string& body) : Response(body)
   {
     status = "503 Service Unavailable";
   }

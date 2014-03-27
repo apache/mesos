@@ -8,10 +8,10 @@ template <MSGID ID> class tuple;
   template <> class tuple<ID> : public boost::tuple<IDENTITY types>     \
   {                                                                     \
   public:                                                               \
-    tuple(const boost::tuple<IDENTITY types> &t)                        \
+    explicit tuple(const boost::tuple<IDENTITY types> &t)               \
       : boost::tuple<IDENTITY types>(t) {}                              \
                                                                         \
-    tuple(const std::string &data)                                      \
+    explicit tuple(const std::string &data)                             \
     {                                                                   \
       std::istringstream is(data);                                      \
       process::tuples::deserializer d(is);                              \

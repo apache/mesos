@@ -22,7 +22,7 @@ namespace process {
 class DataDecoder
 {
 public:
-  DataDecoder(const Socket& _s)
+  explicit DataDecoder(const Socket& _s)
     : s(_s), failure(false), request(NULL)
   {
     settings.on_message_begin = &DataDecoder::on_message_begin;

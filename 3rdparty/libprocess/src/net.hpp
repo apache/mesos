@@ -149,7 +149,7 @@ protected:
 
 public:
   SocketProcess() : s(-1) {}
-  SocketProcess(int _s) : s(_s)
+  explicit SocketProcess(int _s) : s(_s)
   {
     int flags = 1;
     if (ioctl(s, FIONBIO, &flags) &&
@@ -189,7 +189,7 @@ protected:
 
 public:
   Acceptor() {}
-  Acceptor(int s) : SocketProcess<protocol>(s) {}
+  explicit Acceptor(int s) : SocketProcess<protocol>(s) {}
 };
 
 

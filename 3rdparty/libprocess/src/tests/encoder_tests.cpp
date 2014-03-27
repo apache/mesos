@@ -23,7 +23,7 @@ using std::vector;
 TEST(Encoder, Response)
 {
   Request request;
-  const OK& response("body");
+  const OK response("body");
 
   // Encode the response.
   const string& encoded = HttpResponseEncoder::encode(response, request);

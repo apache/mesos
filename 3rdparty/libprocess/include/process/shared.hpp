@@ -46,7 +46,7 @@ public:
 private:
   struct Data
   {
-    Data(T* _t);
+    explicit Data(T* _t);
     ~Data();
 
     T* t;

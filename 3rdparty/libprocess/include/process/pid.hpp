@@ -28,11 +28,11 @@ struct UPID
   UPID(const std::string& id_, uint32_t ip_, uint16_t port_)
     : id(id_), ip(ip_), port(port_) {}
 
-  UPID(const char* s);
+  /*implicit*/ UPID(const char* s);
 
-  UPID(const std::string& s);
+  /*implicit*/ UPID(const std::string& s);
 
-  UPID(const ProcessBase& process);
+  /*implicit*/ UPID(const ProcessBase& process);
 
   operator std::string () const;
 
@@ -87,8 +87,8 @@ struct PID : UPID
 {
   PID() : UPID() {}
 
-  PID(const T* t) : UPID(static_cast<const ProcessBase&>(*t)) {}
-  PID(const T& t) : UPID(static_cast<const ProcessBase&>(t)) {}
+  /*implicit*/ PID(const T* t) : UPID(static_cast<const ProcessBase&>(*t)) {}
+  /*implicit*/ PID(const T& t) : UPID(static_cast<const ProcessBase&>(t)) {}
 
   template <typename Base>
   operator PID<Base> () const

@@ -25,7 +25,7 @@ namespace process {
 class ProcessBase : public EventVisitor
 {
 public:
-  ProcessBase(const std::string& id = "");
+  explicit ProcessBase(const std::string& id = "");
 
   virtual ~ProcessBase();
 

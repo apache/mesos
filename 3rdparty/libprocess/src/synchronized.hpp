@@ -71,7 +71,7 @@ private:
 class Synchronized
 {
 public:
-  Synchronized(Synchronizable *_synchronizable)
+  explicit Synchronized(Synchronizable *_synchronizable)
     : synchronizable(_synchronizable)
   {
     synchronizable->acquire();

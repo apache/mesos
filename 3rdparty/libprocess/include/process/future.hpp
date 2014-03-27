@@ -86,14 +86,14 @@ public:
 
   Future();
 
-  Future(const T& _t);
+  /*implicit*/ Future(const T& _t);
 
   template <typename U>
-  Future(const U& u);
+  /*implicit*/ Future(const U& u);
 
-  Future(const Failure& failure);
+  /*implicit*/ Future(const Failure& failure);
 
-  Future(const Future<T>& that);
+  /*implicit*/ Future(const Future<T>& that);
 
   ~Future();
 
@@ -557,7 +557,7 @@ template <typename T>
 class WeakFuture
 {
 public:
-  WeakFuture(const Future<T>& future);
+  explicit WeakFuture(const Future<T>& future);
 
   // Converts this weak reference to a concrete future. Returns none
   // if the conversion is not successful.
@@ -590,8 +590,8 @@ Option<Future<T> > WeakFuture<T>::get()
 // Helper for creating failed futures.
 struct Failure
 {
-  Failure(const std::string& _message) : message(_message) {}
-  Failure(const Error& error) : message(error.message) {}
+  explicit Failure(const std::string& _message) : message(_message) {}
+  explicit Failure(const Error& error) : message(error.message) {}
 
   const std::string message;
 };
@@ -610,7 +610,7 @@ class Promise
 {
 public:
   Promise();
-  Promise(const T& t);
+  explicit Promise(const T& t);
   virtual ~Promise();
 
   bool discard();

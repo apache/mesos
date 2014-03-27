@@ -48,7 +48,7 @@ protected:
   }
 
 public:
-  Slave(const PID &_master) : master(_master) {}
+  explicit Slave(const PID &_master) : master(_master) {}
 };
 
 

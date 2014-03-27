@@ -860,7 +860,7 @@ TEST(Process, thunk)
 class DelegatorProcess : public Process<DelegatorProcess>
 {
 public:
-  DelegatorProcess(const UPID& delegatee)
+  explicit DelegatorProcess(const UPID& delegatee)
   {
     delegate("func", delegatee);
   }
@@ -1020,7 +1020,7 @@ TEST(Process, donate)
 class ExitedProcess : public Process<ExitedProcess>
 {
 public:
-  ExitedProcess(const UPID& pid) { link(pid); }
+  explicit ExitedProcess(const UPID& pid) { link(pid); }
 
   MOCK_METHOD1(exited, void(const UPID&));
 };
@@ -1502,7 +1502,7 @@ TEST(Process, limiter)
 class FileServer : public Process<FileServer>
 {
 public:
-  FileServer(const string& _path)
+  explicit FileServer(const string& _path)
     : path(_path) {}
 
   virtual void initialize()

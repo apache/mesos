@@ -35,7 +35,7 @@ private:
   friend Deferred<Future<R>(void)>
   defer(const PID<T>& pid, R (T::*method)(void));
 
-  Deferred(const std::function<F>& f) : std::function<F>(f) {}
+  /*implicit*/ Deferred(const std::function<F>& f) : std::function<F>(f) {}
 };
 
 
@@ -258,7 +258,8 @@ private:
 #undef TEMPLATE
 
   _Deferred(const UPID& pid, F f) : pid(pid), f(f) {}
-  _Deferred(F f) : f(f) {}
+
+  /*implicit*/ _Deferred(F f) : f(f) {}
 
   Option<UPID> pid;
   F f;
