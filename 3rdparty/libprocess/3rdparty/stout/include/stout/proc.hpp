@@ -37,6 +37,7 @@
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
+#include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
@@ -308,6 +309,28 @@ inline Try<std::set<pid_t> > pids()
   }
 
   return Error("Failed to determine pids from /proc");
+}
+
+
+// Reads from /proc/<pid>/task/* and returns a list of threads ids for pid.
+inline Try<std::set<pid_t> > threads(pid_t pid)
+{
+  const std::string path = path::join("/proc", stringify(pid), "task");
+
+  std::set<pid_t> threads;
+
+  foreach (const std::string& entry, os::ls(path)) {
+    Try<pid_t> thread = numify<pid_t>(entry);
+    if (thread.isSome()) {
+      threads.insert(thread.get());
+    }
+  }
+
+  if (!threads.empty()) {
+    return threads;
+  }
+
+  return Error("Failed to determine thread ids from /proc");
 }
 
 
