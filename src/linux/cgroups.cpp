@@ -545,7 +545,6 @@ static Option<Error> verify(
   }
 
   if (control != "") {
-    CHECK(cgroup != "");
     if (!os::exists(path::join(hierarchy, cgroup, control))) {
       return Error(
           "'" + control + "' is not a valid control (is subsystem attached?)");
