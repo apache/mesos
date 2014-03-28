@@ -31,6 +31,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/tuple.hpp>
+#include <stout/unreachable.hpp>
 
 #include "zookeeper/zookeeper.hpp"
 
@@ -520,5 +521,6 @@ bool ZooKeeper::retryable(int code)
 
     default:
       LOG(FATAL) << "Unknown ZooKeeper code: " << code;
+      return UNREACHABLE(); // Make compiler happy.
   }
 }
