@@ -3191,43 +3191,35 @@ void Master::readdSlave(
     resources[task.framework_id()] += task.resources();
   }
 
+  // Re-add completed tasks reported by the slave.
+  // Note that a slave considers a framework completed when it has no
+  // tasks/executors running for that framework. But a master considers a
+  // framework completed when the framework is removed after a failover timeout.
+  // TODO(vinod): Reconcile the notion of a completed framework across the
+  // master and slave.
   foreach (const Archive::Framework& completedFramework, completedFrameworks) {
-    LOG(INFO) << "Re-add completed framework "
-              << completedFramework.framework_info().id()
-              << " from slave " << slave->id << " ("
-              << slave->info.hostname() << ")";
-    readdCompletedFramework(completedFramework);
-  }
-
-  allocator->slaveAdded(slave->id, slave->info, resources);
-}
-
-
-void Master::readdCompletedFramework(
-    const Archive::Framework& completedFramework_)
-{
-  const FrameworkInfo& frameworkInfo = completedFramework_.framework_info();
-  Option<shared_ptr<Framework> > framework = None();
-  foreach (const shared_ptr<Framework>& completedFramework,
-           frameworks.completed) {
-    if (completedFramework->id == frameworkInfo.id()) {
-      framework = completedFramework;
-      break;
+    const FrameworkID& frameworkId = completedFramework.framework_info().id();
+    Framework* framework = getFramework(frameworkId);
+    foreach (const Task& task, completedFramework.tasks()) {
+      if (framework != NULL) {
+        VLOG(2) << "Re-adding completed task " << task.task_id()
+                << " of framework " << task.framework_id()
+                << " that ran on slave " << slave->id << " ("
+                << slave->info.hostname() << ")";
+        framework->addCompletedTask(task);
+      } else {
+        // We could be here if the framework hasn't registered yet.
+        // TODO(vinod): Revisit these semantics when we store frameworks'
+        // information in the registrar.
+        LOG(WARNING) << "Possibly orphaned completed task " << task.task_id()
+                     << " of framework " << task.framework_id()
+                     << " that ran on slave " << slave->id << " ("
+                     << slave->info.hostname() << ")";
+      }
     }
   }
 
-  if (framework.isNone()) {
-    UPID pid = completedFramework_.pid();
-    framework = shared_ptr<Framework>(
-        new Framework(frameworkInfo, frameworkInfo.id(), pid));
-    VLOG(1) << "Re-adding completed framework " << framework.get()->id;
-    frameworks.completed.push_back(framework.get());
-  }
-
-  foreach (const Task& task, completedFramework_.tasks()) {
-    VLOG(2) << "Re-adding completed task " << task.task_id();
-    framework.get()->addCompletedTask(task);
-  }
+  allocator->slaveAdded(slave->id, slave->info, resources);
 }
 
 

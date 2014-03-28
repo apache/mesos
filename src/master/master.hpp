@@ -275,8 +275,6 @@ protected:
       const std::vector<Task>& tasks,
       const std::vector<Archive::Framework>& completedFrameworks);
 
-  void readdCompletedFramework(const Archive::Framework& completedFramework);
-
   // Remove the slave from the registrar and from the master's state.
   void removeSlave(Slave* slave);
   void _removeSlave(

@@ -670,8 +670,10 @@ bool isJsonValueEmpty(const string& text, const string& key)
 }
 
 
-// This test ensures that a recovering master recovers completed frameworks
-// and tasks from a slave's re-registration.
+// This test ensures that a failed over master recovers completed tasks
+// from a slave's re-registration when the slave thinks the framework has
+// completed (but the framework has not actually completed yet from master's
+// point of view.
 TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
 {
   // Step 1. Start Master and Slave.
@@ -679,11 +681,12 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   ASSERT_SOME(master);
 
   MockExecutor executor(DEFAULT_EXECUTOR_ID);
-  StandaloneMasterDetector* detector =
-    new StandaloneMasterDetector(master.get());
+  TestContainerizer containerizer(&executor);
 
-  Try<PID<Slave> > slave =
-    StartSlave(&executor, Owned<MasterDetector>(detector));
+  Owned<MasterDetector> slaveDetector(
+      new StandaloneMasterDetector(master.get()));
+
+  Try<PID<Slave> > slave = StartSlave(&containerizer, slaveDetector);
   ASSERT_SOME(slave);
 
   // Verify master/slave have 0 completed/running frameworks.
@@ -697,9 +700,10 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
 
   // Step 2. Create/start framework.
+  StandaloneMasterDetector schedDetector(master.get());
+
   MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+  TestingMesosSchedulerDriver driver(&sched, &schedDetector);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -765,26 +769,18 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   EXPECT_TRUE(isJsonValueEmpty(slaveState.get().body, "completed_frameworks"));
   EXPECT_FALSE(isJsonValueEmpty(slaveState.get().body, "\"frameworks\""));
 
-  // Step 5. Stop the framework, shutdown executor.
-  Future<Nothing> shutdown;
-  EXPECT_CALL(executor, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+  // Step 5. Kill the executor.
   Future<Nothing> executorTerminated =
     FUTURE_DISPATCH(_, &Slave::executorTerminated);
 
-  driver.stop();
-  driver.join();
+  // Induce an ExitedExecutorMessage from the slave.
+  containerizer.destroy(
+      frameworkId.get(), DEFAULT_EXECUTOR_INFO.executor_id());
 
   AWAIT_READY(executorTerminated);
-  AWAIT_READY(shutdown);
 
-  // Verify master sees completed framework.
-  masterState = process::http::get(master.get(), "state.json");
-  EXPECT_FALSE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
-  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
-
-  // Slave received message to shutdown the framework,
-  // need to wait for it to actually happen.
+  // Slave should consider the framework completed after it executes
+  // "executorTerminated".
   Clock::pause();
   Clock::settle();
   Clock::resume();
@@ -799,23 +795,38 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   master = StartMaster();
   ASSERT_SOME(master);
 
-  // Verify new master knows of no running/completed frameworks.
-  masterState = process::http::get(master.get(), "state.json");
-  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
-  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+  // Step 7. Simulate a framework re-registration with a failed over master.
+  EXPECT_CALL(sched, disconnected(&driver));
 
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  schedDetector.appoint(master.get());
+
+  AWAIT_READY(registered);
+
+  // Step 8. Simulate a slave re-registration with a failed over master.
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  // Simulate a new master detected message to the slave.
-  detector->appoint(master.get());
+  dynamic_cast<StandaloneMasterDetector*>(slaveDetector.get())->appoint(
+      master.get());
 
   AWAIT_READY(slaveReregisteredMessage);
 
-  // Verify completed framework/task in new Master.
+  // Verify that the master doesn't add the completed framework
+  // reported by the slave to "frameworks.completed".
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
   masterState = process::http::get(master.get(), "state.json");
-  EXPECT_FALSE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
-  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+  EXPECT_FALSE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
+
+  driver.stop();
+  driver.join();
 
   Shutdown();
 }
