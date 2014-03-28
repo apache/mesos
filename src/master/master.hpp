@@ -204,7 +204,7 @@ protected:
   // Recovers state from the registrar.
   process::Future<Nothing> recover();
   process::Future<Nothing> _recover(const Registry& registry);
-  void __recoverSlaveTimeout(const Registry::Slave& slave);
+  void recoveredSlavesTimeout(const Registry& registry);
 
   void _registerSlave(
       const SlaveInfo& slaveInfo,
@@ -387,10 +387,14 @@ private:
   {
     Slaves() : deactivated(MAX_DEACTIVATED_SLAVES) {}
 
+    // Imposes a time limit for slaves that we recover from the
+    // registry to re-register with the master.
+    Option<process::Timer> recoveredTimer;
+
     // Slaves that have been recovered from the registrar but have yet
-    // to re-register. We keep a Timer for the removal of these slaves
-    // so that we can cancel it to avoid unnecessary dispatches.
-    hashmap<SlaveID, process::Timer> recovered;
+    // to re-register. We keep a "reregistrationTimer" above to ensure
+    // we remove these slaves if they do not re-register.
+    hashset<SlaveID> recovered;
 
     // Slaves that are in the process of registering.
     hashset<process::UPID> registering;

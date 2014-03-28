@@ -609,14 +609,14 @@ void Master::finalize()
   }
   roles.clear();
 
-  foreachvalue (const Timer& timer, slaves.recovered) {
-    // NOTE: This is necessary during tests because we don't want the
-    // timer to fire in a different test and invoke the callback.
-    // The callback would be invoked because the master pid doesn't
-    // change across the tests.
-    // TODO(vinod): This seems to be a bug in libprocess or the
-    // testing infrastructure.
-    Timer::cancel(timer);
+  // NOTE: This is necessary during tests because we don't want the
+  // timer to fire in a different test and invoke the callback.
+  // The callback would be invoked because the master pid doesn't
+  // change across the tests.
+  // TODO(vinod): This seems to be a bug in libprocess or the
+  // testing infrastructure.
+  if (slaves.recoveredTimer.isSome()) {
+    Timer::cancel(slaves.recoveredTimer.get());
   }
 
   terminate(whitelistWatcher);
@@ -747,51 +747,59 @@ Future<Nothing> Master::recover()
 
 Future<Nothing> Master::_recover(const Registry& registry)
 {
-  const Registry::Slaves& slaves = registry.slaves();
-
-  foreach (const Registry::Slave& slave, slaves.slaves()) {
-    // Set up a timeout for this slave to re-register. This timeout
-    // is based on the maximum amount of time the SlaveObserver
-    // allows slaves to not respond to health checks. Re-registration
-    // of the slave will cancel this timer.
-    // XXX: What if there is a ZK issue that delays detection for slaves?
-    //      Should we be more conservative here to avoid a full shutdown?
-    this->slaves.recovered[slave.info().id()] =
-      delay(SLAVE_PING_TIMEOUT * MAX_SLAVE_PING_TIMEOUTS,
-            self(),
-            &Self::__recoverSlaveTimeout,
-            slave);
+  foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
+    slaves.recovered.insert(slave.info().id());
   }
 
+  // Set up a timeout for slaves to re-register. This timeout is based
+  // on the maximum amount of time the SlaveObserver allows slaves to
+  // not respond to health checks.
+  // TODO(bmahler): Consider making this configurable.
+  slaves.recoveredTimer =
+    delay(SLAVE_PING_TIMEOUT * MAX_SLAVE_PING_TIMEOUTS,
+          self(),
+          &Self::recoveredSlavesTimeout,
+          registry);
+
   // Recovery is now complete!
-  LOG(INFO) << "Recovered " << slaves.slaves().size() << " slaves "
-            << " from the Registry (" << Bytes(registry.ByteSize()) << ")";
+  LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " slaves"
+            << " from the Registry (" << Bytes(registry.ByteSize()) << ")"
+            << " ; allowing " << SLAVE_PING_TIMEOUT * MAX_SLAVE_PING_TIMEOUTS
+            << " for slaves to re-register";
 
   return Nothing();
 }
 
 
-void Master::__recoverSlaveTimeout(const Registry::Slave& slave)
+void Master::recoveredSlavesTimeout(const Registry& registry)
 {
   CHECK(elected());
 
-  if (!slaves.recovered.contains(slave.info().id())) {
-    return; // Slave re-registered.
+  // TODO(bmahler): Provide a (configurable) limit on the number of
+  // slaves that can be removed here, e.g. maximum 10% of slaves can
+  // be removed after failover if they do not re-register.
+  // This can serve as a configurable safety net for operators of
+  // production environments.
+
+  foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
+    if (!slaves.recovered.contains(slave.info().id())) {
+      continue; // Slave re-registered.
+    }
+
+    LOG(WARNING) << "Slave " << slave.info().id()
+                 << " (" << slave.info().hostname() << ") did not re-register "
+                 << "within the timeout; removing it from the registrar";
+
+    slaves.recovered.erase(slave.info().id());
+    slaves.removing.insert(slave.info().id());
+
+    registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
+      .onAny(defer(self(),
+                   &Self::_removeSlave,
+                   slave.info(),
+                   vector<StatusUpdate>(), // No TASK_LOST updates to send.
+                   lambda::_1));
   }
-
-  LOG(WARNING) << "Slave " << slave.info().id()
-               << " (" << slave.info().hostname() << ") did not re-register "
-               << "within the timeout; Removing it from the registrar";
-
-  slaves.recovered.erase(slave.info().id());
-  slaves.removing.insert(slave.info().id());
-
-  registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
-    .onAny(defer(self(),
-                 &Self::_removeSlave,
-                 slave.info(),
-                 vector<StatusUpdate>(), // No TASK_LOST updates to send.
-                 lambda::_1));
 }
 
 
@@ -2156,10 +2164,7 @@ void Master::reregisterSlave(
 
   // Ensure we don't remove the slave for not re-registering after
   // we've recovered it from the registry.
-  if (slaves.recovered.contains(slaveInfo.id())) {
-    Timer::cancel(slaves.recovered[slaveInfo.id()]);
-    slaves.recovered.erase(slaveInfo.id());
-  }
+  slaves.recovered.erase(slaveInfo.id());
 
   // If we're already re-registering this slave, then no need to ask
   // the registrar again.
