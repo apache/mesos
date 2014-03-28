@@ -50,7 +50,7 @@ public:
     running = false;
   }
 
-  Nanoseconds elapsed()
+  Nanoseconds elapsed() const
   {
     if (!running) {
       return Nanoseconds(diff(stopped, started));
