@@ -25,11 +25,12 @@
 #include <arpa/inet.h>
 
 #ifdef __linux__
+#include <linux/if.h>
 #include <linux/if_packet.h>
 #endif
 
-#include <net/if.h>
 #ifdef __APPLE__
+#include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #endif
