@@ -53,6 +53,17 @@ extern const Duration SLAVE_PING_TIMEOUT;
 // Maximum number of ping timeouts until slave is considered failed.
 extern const uint32_t MAX_SLAVE_PING_TIMEOUTS;
 
+// Default limit on the percentage of slaves that will be removed
+// after recovering if no re-registration attempts were made.
+// TODO(bmahler): There's no value here that works for all setups.
+// Currently the default is 100% which is favorable to those running
+// small clusters or experimenting with Mesos. However, it's important
+// that we also prevent the catastrophic 100% removal case for
+// production clusters. This TODO is to provide a --production flag
+// which would allow flag defaults that are more appropriate for
+// production use-cases.
+extern const double RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT;
+
 // Maximum number of deactivated slaves to store in the cache.
 extern const size_t MAX_DEACTIVATED_SLAVES;
 

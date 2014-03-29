@@ -26,6 +26,8 @@
 
 #include "logging/flags.hpp"
 
+#include "master/constants.hpp"
+
 namespace mesos {
 namespace internal {
 namespace master {
@@ -71,6 +73,24 @@ public:
         "or removal of a slave. Consequently, 'false' can be used to\n"
         "bootstrap the persistent state on a running cluster.",
         false);
+
+    // TODO(bmahler): Add a 'Percentage' abstraction for flags.
+    // TODO(bmahler): Add a --production flag for production defaults.
+    add(&Flags::recovery_slave_removal_limit,
+        "recovery_slave_removal_limit",
+        "For failovers, limit on the percentage of slaves that can be removed\n"
+        "from the registry *and* shutdown after the re-registration timeout\n"
+        "elapses. If the limit is exceeded, the master will fail over rather\n"
+        "than remove the slaves.\n"
+        "This can be used to provide safety guarantees for production\n"
+        "environments. Production environments may expect that across Master\n"
+        "failovers, at most a certain percentage of slaves will fail\n"
+        "permanently (e.g. due to rack-level failures).\n"
+        "Setting this limit would ensure that a human needs to get\n"
+        "involved should an unexpected widespread failure of slaves occur\n"
+        "in the cluster.\n"
+        "Values: [0%-100%]",
+        stringify(RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT * 100.0) + "%");
 
     add(&Flags::webui_dir,
         "webui_dir",
@@ -141,6 +161,7 @@ public:
   std::string work_dir;
   std::string registry;
   bool registry_strict;
+  std::string recovery_slave_removal_limit;
   std::string webui_dir;
   std::string whitelist;
   std::string user_sorter;

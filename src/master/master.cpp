@@ -35,6 +35,7 @@
 #include <stout/memory.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/nothing.hpp>
+#include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
@@ -252,9 +253,6 @@ Master::Master(
   }
 
   info_.set_hostname(hostname);
-
-  LOG(INFO) << "Master ID: " << info_.id()
-            << " Hostname: " << info_.hostname();
 }
 
 
@@ -263,8 +261,39 @@ Master::~Master() {}
 
 void Master::initialize()
 {
-  LOG(INFO) << "Master started on " << string(self()).substr(7);
+  LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
+            << " started on " << string(self()).substr(7);
 
+  if (flags.registry_strict) {
+    EXIT(1) << "Cannot run with --registry_strict; currently not supported";
+  }
+
+  // Parse the percentage for the slave removal limit.
+  // TODO(bmahler): Add a 'Percentage' abstraction.
+  if (!strings::endsWith(flags.recovery_slave_removal_limit, "%")) {
+    EXIT(1) << "Invalid value '" << flags.recovery_slave_removal_limit << "' "
+            << "for --recovery_slave_removal_percent_limit: " << "missing '%'";
+  }
+
+  Try<double> limit = numify<double>(
+      strings::remove(
+          flags.recovery_slave_removal_limit,
+          "%",
+          strings::SUFFIX));
+
+  if (limit.isError()) {
+    EXIT(1) << "Invalid value '" << flags.recovery_slave_removal_limit << "' "
+            << "for --recovery_slave_removal_percent_limit: " << limit.error();
+
+  }
+
+  if (limit.get() < 0.0 || limit.get() > 100.0) {
+    EXIT(1) << "Invalid value '" << flags.recovery_slave_removal_limit << "' "
+            << "for --recovery_slave_removal_percent_limit: "
+            << "Must be within [0%-100%]";
+  }
+
+  // Validate authentication flags.
   if (flags.authenticate) {
     LOG(INFO) << "Master only allowing authenticated frameworks to register!";
 
@@ -276,7 +305,7 @@ void Master::initialize()
     LOG(INFO) << "Master allowing unauthenticated frameworks to register!!";
   }
 
-
+  // Load credentials.
   if (flags.credentials.isSome()) {
     vector<Credential> credentials;
 
@@ -775,11 +804,33 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
 {
   CHECK(elected());
 
-  // TODO(bmahler): Provide a (configurable) limit on the number of
-  // slaves that can be removed here, e.g. maximum 10% of slaves can
-  // be removed after failover if they do not re-register.
-  // This can serve as a configurable safety net for operators of
-  // production environments.
+  // TODO(bmahler): Add a 'Percentage' abstraction.
+  Try<double> limit_ = numify<double>(
+      strings::remove(
+          flags.recovery_slave_removal_limit,
+          "%",
+          strings::SUFFIX));
+
+  CHECK_SOME(limit_);
+
+  double limit = limit_.get() / 100.0;
+
+  // Compute the percentage of slaves to be removed, if it exceeds the
+  // safety-net limit, bail!
+  double removalPercentage =
+    (1.0 * slaves.recovered.size()) /
+    (1.0 * registry.slaves().slaves().size());
+
+  if (removalPercentage > limit) {
+    EXIT(1) << "Post-recovery slave removal limit exceeded! After "
+            << SLAVE_PING_TIMEOUT * MAX_SLAVE_PING_TIMEOUTS
+            << " there were " << slaves.recovered.size()
+            << " (" << removalPercentage * 100 << "%) slaves recovered from the"
+            << " registry that did not re-register: \n"
+            << stringify(slaves.recovered) << "\n "
+            << " The configured removal limit is " << limit * 100 << "%. Please"
+            << " investigate or increase this limit to proceed further";
+  }
 
   foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
     if (!slaves.recovered.contains(slave.info().id())) {

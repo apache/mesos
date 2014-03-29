@@ -156,10 +156,6 @@ int main(int argc, char** argv)
   allocator::Allocator* allocator =
     new allocator::Allocator(allocatorProcess);
 
-  if (flags.registry_strict) {
-    EXIT(1) << "Cannot run with --registry_strict; currently not supported";
-  }
-
   state::Storage* storage = NULL;
 
   if (flags.registry == "in_memory") {

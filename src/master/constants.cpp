@@ -33,6 +33,7 @@ const double MIN_CPUS = 0.1;
 const Bytes MIN_MEM = Megabytes(32);
 const Duration SLAVE_PING_TIMEOUT = Seconds(15);
 const uint32_t MAX_SLAVE_PING_TIMEOUTS = 5;
+const double RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT = 1.0; // 100%.
 const size_t MAX_DEACTIVATED_SLAVES = 100000;
 const uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
 const uint32_t MAX_COMPLETED_TASKS_PER_FRAMEWORK = 1000;
