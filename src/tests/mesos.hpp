@@ -113,19 +113,19 @@ protected:
   // Starts a slave with the specified containerizer, detector and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
       slave::Containerizer* containerizer,
-      process::Owned<MasterDetector> detector,
+      MasterDetector* detector,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified MasterDetector and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
-      process::Owned<MasterDetector> detector,
+      MasterDetector* detector,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified mock executor, MasterDetector
   // and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
       MockExecutor* executor,
-      process::Owned<MasterDetector> detector,
+      MasterDetector* detector,
       const Option<slave::Flags>& flags = None());
 
   // Stop the specified master.

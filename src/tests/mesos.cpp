@@ -176,7 +176,7 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
 
 Try<process::PID<slave::Slave> > MesosTest::StartSlave(
     slave::Containerizer* containerizer,
-    Owned<MasterDetector> detector,
+    MasterDetector* detector,
     const Option<slave::Flags>& flags)
 {
   return cluster.slaves.start(
@@ -187,7 +187,7 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
 
 
 Try<PID<slave::Slave> > MesosTest::StartSlave(
-    Owned<MasterDetector> detector,
+    MasterDetector* detector,
     const Option<slave::Flags>& flags)
 {
   return cluster.slaves.start(
@@ -197,7 +197,7 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 
 Try<PID<slave::Slave> > MesosTest::StartSlave(
     MockExecutor* executor,
-    Owned<MasterDetector> detector,
+    MasterDetector* detector,
     const Option<slave::Flags>& flags)
 {
   slave::Containerizer* containerizer = new TestContainerizer(executor);

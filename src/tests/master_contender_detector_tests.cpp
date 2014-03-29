@@ -102,7 +102,8 @@ TEST_F(MasterContenderDetectorTest, File)
 
   ASSERT_SOME(detector);
 
-  StartSlave(Owned<MasterDetector>(detector.get()), flags);
+  Try<PID<Slave> > slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -123,6 +124,8 @@ TEST_F(MasterContenderDetectorTest, File)
   driver.join();
 
   Shutdown();
+
+  delete detector.get();
 }
 
 

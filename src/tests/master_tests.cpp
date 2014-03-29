@@ -722,14 +722,13 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  StandaloneMasterDetector* detector =
-    new StandaloneMasterDetector(master.get());
+  StandaloneMasterDetector detector(master.get());
 
-  Try<PID<Slave> > slave = StartSlave(Owned<MasterDetector>(detector));
+  Try<PID<Slave> > slave = StartSlave(&detector);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  TestingMesosSchedulerDriver driver(&sched, detector);
+  TestingMesosSchedulerDriver driver(&sched, &detector);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -761,7 +760,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
 
   // Simulate a spurious event (e.g., due to ZooKeeper
   // expiration) at the scheduler.
-  detector->appoint(master.get());
+  detector.appoint(master.get());
 
   AWAIT_READY(disconnected);
 
@@ -841,15 +840,13 @@ TEST_F(MasterTest, MasterLost)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  Owned<StandaloneMasterDetector> detector(
-      new StandaloneMasterDetector());
-  detector->appoint(master.get());
+  StandaloneMasterDetector detector(master.get());
 
   Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-  TestingMesosSchedulerDriver driver(&sched, detector.get());
+  TestingMesosSchedulerDriver driver(&sched, &detector);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -869,7 +866,7 @@ TEST_F(MasterTest, MasterLost)
     .WillOnce(FutureSatisfy(&disconnected));
 
   // Simulate a spurious event at the scheduler.
-  detector->appoint(None());
+  detector.appoint(None());
 
   AWAIT_READY(disconnected);
 

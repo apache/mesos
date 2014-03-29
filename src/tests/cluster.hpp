@@ -91,9 +91,8 @@ public:
     // the launched master.  If no allocator process is specified then
     // the default allocator will be instantiated.
     Try<process::PID<master::Master> > start(
-        Option<master::allocator::AllocatorProcess*> allocatorProcess,
+        const Option<master::allocator::AllocatorProcess*>& allocatorProcess,
         const master::Flags& flags = master::Flags());
-
 
     // Stops and cleans up a master at the specified PID.
     Try<Nothing> stop(const process::PID<master::Master>& pid);
@@ -110,9 +109,9 @@ public:
     Option<zookeeper::URL> url;
 
     // Encapsulates a single master's dependencies.
-    struct MasterInfo
+    struct Master
     {
-      MasterInfo()
+      Master()
         : master(NULL),
           allocator(NULL),
           allocatorProcess(NULL),
@@ -130,7 +129,7 @@ public:
       MasterDetector* detector;
     };
 
-    std::map<process::PID<master::Master>, MasterInfo> masters;
+    std::map<process::PID<master::Master>, Master> masters;
   };
 
   // Abstracts the slaves of a cluster.
@@ -159,12 +158,12 @@ public:
     // Detector. The detector is expected to outlive the launched
     // slave (i.e., until it is stopped via Slaves::stop).
     Try<process::PID<slave::Slave> > start(
-        process::Owned<MasterDetector> detector,
+        const Option<MasterDetector*>& detector,
         const slave::Flags& flags = slave::Flags());
 
     Try<process::PID<slave::Slave> > start(
         slave::Containerizer* containerizer,
-        process::Owned<MasterDetector> detector,
+        const Option<MasterDetector*>& detector,
         const slave::Flags& flags = slave::Flags());
 
     // Stops and cleans up a slave at the specified PID. If 'shutdown'
@@ -239,7 +238,7 @@ inline Cluster::Masters::~Masters()
 inline void Cluster::Masters::shutdown()
 {
   // TODO(benh): Use utils::copy from stout once namespaced.
-  std::map<process::PID<master::Master>, MasterInfo> copy(masters);
+  std::map<process::PID<master::Master>, Master> copy(masters);
   foreachkey (const process::PID<master::Master>& pid, copy) {
     stop(pid);
   }
@@ -255,7 +254,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
-    Option<master::allocator::AllocatorProcess*> allocatorProcess,
+    const Option<master::allocator::AllocatorProcess*>& allocatorProcess,
     const master::Flags& flags)
 {
   // Disallow multiple masters when not using ZooKeeper.
@@ -263,16 +262,16 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
     return Error("Can not start multiple masters when not using ZooKeeper");
   }
 
-  MasterInfo masterInfo;
+  Master master;
 
   if (allocatorProcess.isNone()) {
-    masterInfo.allocatorProcess =
+    master.allocatorProcess =
         new master::allocator::HierarchicalDRFAllocatorProcess();
-    masterInfo.allocator =
-        new master::allocator::Allocator(masterInfo.allocatorProcess);
+    master.allocator =
+        new master::allocator::Allocator(master.allocatorProcess);
   } else {
-    masterInfo.allocatorProcess = NULL;
-    masterInfo.allocator =
+    master.allocatorProcess = NULL;
+    master.allocator =
         new master::allocator::Allocator(allocatorProcess.get());
   }
 
@@ -281,44 +280,44 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   }
 
   if (flags.registry == "in_memory") {
-    masterInfo.storage = new state::InMemoryStorage();
+    master.storage = new state::InMemoryStorage();
   } else {
     return Error("'" + flags.registry + "' is not a supported"
                  " option for registry persistence");
   }
 
-  CHECK_NOTNULL(masterInfo.storage);
+  CHECK_NOTNULL(master.storage);
 
-  masterInfo.state = new state::protobuf::State(masterInfo.storage);
-  masterInfo.registrar = new master::Registrar(flags, masterInfo.state);
-  masterInfo.repairer = new master::Repairer();
+  master.state = new state::protobuf::State(master.storage);
+  master.registrar = new master::Registrar(flags, master.state);
+  master.repairer = new master::Repairer();
 
   if (url.isSome()) {
-    masterInfo.contender = new ZooKeeperMasterContender(url.get());
-    masterInfo.detector = new ZooKeeperMasterDetector(url.get());
+    master.contender = new ZooKeeperMasterContender(url.get());
+    master.detector = new ZooKeeperMasterDetector(url.get());
   } else {
-    masterInfo.contender = new StandaloneMasterContender();
-    masterInfo.detector = new StandaloneMasterDetector();
+    master.contender = new StandaloneMasterContender();
+    master.detector = new StandaloneMasterDetector();
   }
 
-  masterInfo.master = new master::Master(
-      masterInfo.allocator,
-      masterInfo.registrar,
-      masterInfo.repairer,
+  master.master = new master::Master(
+      master.allocator,
+      master.registrar,
+      master.repairer,
       &cluster->files,
-      masterInfo.contender,
-      masterInfo.detector,
+      master.contender,
+      master.detector,
       flags);
 
   if (url.isNone()) {
     // This means we are using the StandaloneMasterDetector.
-    CHECK_NOTNULL(dynamic_cast<StandaloneMasterDetector*>(masterInfo.detector))
-        ->appoint(masterInfo.master->info());
+    CHECK_NOTNULL(dynamic_cast<StandaloneMasterDetector*>(master.detector))
+        ->appoint(master.master->info());
   }
 
-  process::PID<master::Master> pid = process::spawn(masterInfo.master);
+  process::PID<master::Master> pid = process::spawn(master.master);
 
-  masters[pid] = masterInfo;
+  masters[pid] = master;
 
   return pid;
 }
@@ -331,22 +330,22 @@ inline Try<Nothing> Cluster::Masters::stop(
     return Error("No master found to stop");
   }
 
-  MasterInfo masterInfo = masters[pid];
+  Master master = masters[pid];
 
-  process::terminate(masterInfo.master);
-  process::wait(masterInfo.master);
-  delete masterInfo.master;
+  process::terminate(master.master);
+  process::wait(master.master);
+  delete master.master;
 
-  delete masterInfo.allocator; // Terminates and waits for allocator process.
-  delete masterInfo.allocatorProcess; // May be NULL.
+  delete master.allocator; // Terminates and waits for allocator process.
+  delete master.allocatorProcess; // May be NULL.
 
-  delete masterInfo.registrar;
-  delete masterInfo.repairer;
-  delete masterInfo.state;
-  delete masterInfo.storage;
+  delete master.registrar;
+  delete master.repairer;
+  delete master.state;
+  delete master.storage;
 
-  delete masterInfo.contender;
-  delete masterInfo.detector;
+  delete master.contender;
+  delete master.detector;
 
   masters.erase(pid);
 
@@ -422,12 +421,12 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
     slave::Containerizer* containerizer,
     const slave::Flags& flags)
 {
-  return start(containerizer, masters->detector(), flags);
+  return start(containerizer, None(), flags);
 }
 
 
 inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    process::Owned<MasterDetector> detector,
+    const Option<MasterDetector*>& detector,
     const slave::Flags& flags)
 {
   // TODO(benh): Create a work directory if using the default.
@@ -443,11 +442,17 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
   slave.containerizer = containerizer.get();
 
-  // Get a detector for the master(s).
-  slave.detector = detector;
+  // Get a detector for the master(s) if one wasn't provided.
+  if (detector.isNone()) {
+    slave.detector = masters->detector();
+  }
 
   slave.slave = new slave::Slave(
-      flags, slave.detector.get(), slave.containerizer, &cluster->files);
+      flags,
+      detector.get(slave.detector.get()),
+      slave.containerizer,
+      &cluster->files);
+
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 
   slaves[pid] = slave;
@@ -458,7 +463,7 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
 inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
     slave::Containerizer* containerizer,
-    process::Owned<MasterDetector> detector,
+    const Option<MasterDetector*>& detector,
     const slave::Flags& flags)
 {
   // TODO(benh): Create a work directory if using the default.
@@ -467,11 +472,17 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
   slave.flags = flags;
 
-  // Get a detector for the master(s).
-  slave.detector = detector;
+  // Get a detector for the master(s) if one wasn't provided.
+  if (detector.isNone()) {
+    slave.detector = masters->detector();
+  }
 
   slave.slave = new slave::Slave(
-      flags, slave.detector.get(), containerizer, &cluster->files);
+      flags,
+      detector.get(slave.detector.get()),
+      containerizer,
+      &cluster->files);
+
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 
   slaves[pid] = slave;
