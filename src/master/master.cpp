@@ -2494,40 +2494,65 @@ void Master::reconcileTasks(
   LOG(INFO) << "Performing best-effort task state reconciliation for framework "
             << frameworkId;
 
-  // Verify expected task states and send status updates whenever expectations
-  // are not met. When:
-  //   1) Slave is unknown.*
-  //   2) Task is unknown.*
-  //   3) Task state has changed.
+  // Reconciliation occurs for the following cases:
+  //   (1) If the slave is unknown, we send TASK_LOST.
+  //   (2) If the task is missing on the slave, we send TASK_LOST.
+  //   (3) If the task state differs, we send the latest state.
   //
-  // *) TODO(nnielsen): Missing slaves and tasks are currently treated silently
-  //                    i.e. nothing is sent. To give accurate responses in
-  //                    these cases during master fail-over, we need to leverage
-  //                    the registrar.
+  // (1) is applicable only when operating with a strict registry.
   foreach (const TaskStatus& status, statuses) {
     if (!status.has_slave_id()) {
-      LOG(WARNING) << "Status from task " << status.task_id()
-                   << " does not include slave id";
+      LOG(WARNING) << "Status for task " << status.task_id()
+                   << " from framework " << frameworkId
+                   << " does not include slave id; cannot reconcile";
       continue;
     }
 
-    Slave* slave = getSlave(status.slave_id());
-    if (slave != NULL) {
-      Task* task = slave->getTask(frameworkId, status.task_id());
-      if (task != NULL && task->state() != status.state()) {
-        const StatusUpdate& update = protobuf::createStatusUpdate(
-          frameworkId,
-          task->slave_id(),
-          task->task_id(),
-          task->state(),
-          "Task state changed");
+    Option<StatusUpdate> update;
 
-        statusUpdate(update, UPID());
+    // Check for a removed slave (case 1).
+    if (flags.registry_strict &&
+        !slaves.recovered.contains(status.slave_id()) &&
+        !slaves.reregistering.contains(status.slave_id()) &&
+        !slaves.activated.contains(status.slave_id()) &&
+        !slaves.removing.contains(status.slave_id())) {
+      // Slave is removed!
+      update = protobuf::createStatusUpdate(
+          frameworkId,
+          status.slave_id(),
+          status.task_id(),
+          TASK_LOST,
+          "Reconciliation: Slave is removed");
+    }
+
+    // Check for a known slave / task (cases (2) and (3)).
+    if (slaves.activated.contains(status.slave_id())) {
+      Slave* slave = CHECK_NOTNULL(slaves.activated[status.slave_id()]);
+      Task* task = slave->getTask(frameworkId, status.task_id());
+
+      if (task == NULL) {
+        // Case (2).
+        // TODO(bmahler): Leverage completed tasks if we track these
+        // in the future.
+        update = protobuf::createStatusUpdate(
+            frameworkId,
+            status.slave_id(),
+            status.task_id(),
+            TASK_LOST,
+            "Reconciliation: Task is unknown to the slave");
+      } else if (task->state() != status.state()) {
+        // Case (3).
+        update = protobuf::createStatusUpdate(
+            frameworkId,
+            task->slave_id(),
+            task->task_id(),
+            task->state(),
+            "Reconciliation: Task state changed");
       }
-    } else {
-      // TODO(bmahler): We can answer here if and only if the slave is
-      // *completely* unknown to us. That is, it's not being tracked
-      // in any of our 'slaves' data.
+    }
+
+    if (update.isSome()) {
+      statusUpdate(update.get(), UPID());
     }
   }
 }
