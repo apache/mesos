@@ -1,5 +1,5 @@
+#include <set>
 #include <string>
-#include <vector>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -16,8 +16,9 @@
 
 using namespace process;
 
+// Note that we don't add 'using std::set' here because we need
+// 'std::' to disambiguate the 'set' member.
 using std::string;
-using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -60,10 +61,10 @@ public:
     return true;
   }
 
-  vector<string> names()
+  std::set<string> names() // Use std:: to disambiguate 'set' member.
   {
     const hashset<string>& keys = entries.keys();
-    return vector<string>(keys.begin(), keys.end());
+    return std::set<string>(keys.begin(), keys.end());
   }
 
 private:
@@ -105,7 +106,7 @@ Future<bool> InMemoryStorage::expunge(const Entry& entry)
 }
 
 
-Future<vector<string> > InMemoryStorage::names()
+Future<std::set<string> > InMemoryStorage::names()
 {
   return dispatch(process, &InMemoryStorageProcess::names);
 }

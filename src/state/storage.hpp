@@ -19,8 +19,8 @@
 #ifndef __STATE_STORAGE_HPP__
 #define __STATE_STORAGE_HPP__
 
+#include <set>
 #include <string>
-#include <vector>
 
 #include <process/future.hpp>
 
@@ -50,7 +50,7 @@ public:
   virtual process::Future<bool> expunge(const Entry& entry) = 0;
 
   // Returns the collection of variable names in the state.
-  virtual process::Future<std::vector<std::string> > names() = 0;
+  virtual process::Future<std::set<std::string> > names() = 0;
 };
 
 } // namespace state {

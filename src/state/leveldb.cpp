@@ -4,8 +4,8 @@
 
 #include <google/protobuf/io/zero_copy_stream_impl.h> // For ArrayInputStream.
 
+#include <set>
 #include <string>
-#include <vector>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -27,8 +27,9 @@
 
 using namespace process;
 
+// Note that we don't add 'using std::set' here because we need
+// 'std::' to disambiguate the 'set' member.
 using std::string;
-using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -47,7 +48,7 @@ public:
   Future<Option<Entry> > get(const string& name);
   Future<bool> set(const Entry& entry, const UUID& uuid);
   Future<bool> expunge(const Entry& entry);
-  Future<vector<string> > names();
+  Future<std::set<string> > names();
 
 private:
   // Helpers for interacting with leveldb.
@@ -88,20 +89,20 @@ void LevelDBStorageProcess::initialize()
 }
 
 
-Future<vector<string> > LevelDBStorageProcess::names()
+Future<std::set<string> > LevelDBStorageProcess::names()
 {
   if (error.isSome()) {
     return Failure(error.get());
   }
 
-  vector<string> results;
+  std::set<string> results;
 
   leveldb::Iterator* iterator = db->NewIterator(leveldb::ReadOptions());
 
   iterator->SeekToFirst();
 
   while (iterator->Valid()) {
-    results.push_back(iterator->key().ToString());
+    results.insert(iterator->key().ToString());
     iterator->Next();
   }
 
@@ -287,7 +288,7 @@ Future<bool> LevelDBStorage::expunge(const Entry& entry)
 }
 
 
-Future<vector<string> > LevelDBStorage::names()
+Future<std::set<string> > LevelDBStorage::names()
 {
   return dispatch(process, &LevelDBStorageProcess::names);
 }

@@ -3,6 +3,7 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h> // For ArrayInputStream.
 
 #include <queue>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,8 @@
 
 using namespace process;
 
+// Note that we don't add 'using std::set' here because we need
+// 'std::' to disambiguate the 'set' member.
 using std::queue;
 using std::string;
 using std::vector;
@@ -60,7 +63,7 @@ public:
   Future<Option<Entry> > get(const string& name);
   Future<bool> set(const Entry& entry, const UUID& uuid);
   virtual Future<bool> expunge(const Entry& entry);
-  Future<vector<string> > names();
+  Future<std::set<string> > names();
 
   // ZooKeeper events.
   void connected(bool reconnect);
@@ -72,7 +75,7 @@ public:
 
 private:
   // Helpers for getting the names, fetching, and swapping.
-  Result<vector<string> > doNames();
+  Result<std::set<string> > doNames();
   Result<Option<Entry> > doGet(const string& name);
   Result<bool> doSet(const Entry& entry, const UUID& uuid);
   Result<bool> doExpunge(const Entry& entry);
@@ -99,7 +102,7 @@ private:
 
   struct Names
   {
-    Promise<vector<string> > promise;
+    Promise<std::set<string> > promise;
   };
 
   struct Get
@@ -191,7 +194,7 @@ void ZooKeeperStorageProcess::initialize()
 }
 
 
-Future<vector<string> > ZooKeeperStorageProcess::names()
+Future<std::set<string> > ZooKeeperStorageProcess::names()
 {
   if (error.isSome()) {
     return Failure(error.get());
@@ -201,7 +204,7 @@ Future<vector<string> > ZooKeeperStorageProcess::names()
     return names->promise.future();
   }
 
-  Result<vector<string> > result = doNames();
+  Result<std::set<string> > result = doNames();
 
   if (result.isNone()) { // Try again later.
     Names* names = new Names();
@@ -308,7 +311,7 @@ void ZooKeeperStorageProcess::connected(bool reconnect)
 
   while (!pending.names.empty()) {
     Names* names = pending.names.front();
-    Result<vector<string> > result = doNames();
+    Result<std::set<string> > result = doNames();
     if (result.isNone()) {
       return; // Try again later.
     } else if (result.isError()) {
@@ -385,7 +388,7 @@ void ZooKeeperStorageProcess::deleted(const string& path)
 }
 
 
-Result<vector<string> > ZooKeeperStorageProcess::doNames()
+Result<std::set<string> > ZooKeeperStorageProcess::doNames()
 {
   // Get all children to determine current memberships.
   vector<string> results;
@@ -404,7 +407,7 @@ Result<vector<string> > ZooKeeperStorageProcess::doNames()
   // TODO(benh): It might make sense to "mangle" the names so that we
   // can determine when a znode has incorrectly been added that
   // actually doesn't store an Entry.
-  return results;
+  return std::set<string>(results.begin(), results.end());
 }
 
 
@@ -627,7 +630,7 @@ Future<bool> ZooKeeperStorage::expunge(const Entry& entry)
 }
 
 
-Future<vector<string> > ZooKeeperStorage::names()
+Future<std::set<string> > ZooKeeperStorage::names()
 {
   return dispatch(process, &ZooKeeperStorageProcess::names);
 }

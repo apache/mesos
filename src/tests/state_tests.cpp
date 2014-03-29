@@ -20,7 +20,6 @@
 
 #include <set>
 #include <string>
-#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -51,6 +50,9 @@ using namespace mesos;
 using namespace mesos::internal;
 
 using namespace process;
+
+using std::set;
+using std::string;
 
 using state::LevelDBStorage;
 using state::Storage;
@@ -297,10 +299,10 @@ void Names(State* state)
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  Future<std::vector<std::string> > names = state->names();
+  Future<set<string> > names = state->names();
   AWAIT_READY(names);
   ASSERT_TRUE(names.get().size() == 1);
-  EXPECT_EQ("slaves", names.get()[0]);
+  EXPECT_NE(names.get().find("slaves"), names.get().end());
 }
 
 

@@ -1,7 +1,7 @@
 #include <jni.h>
 
+#include <set>
 #include <string>
-#include <vector>
 
 #include <process/check.hpp>
 #include <process/future.hpp>
@@ -18,8 +18,8 @@ using namespace mesos::internal::state;
 
 using process::Future;
 
+using std::set;
 using std::string;
-using std::vector;
 
 extern "C" {
 
@@ -614,8 +614,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_AbstractState__1_1names
 
   State* state = (State*) env->GetLongField(thiz, __state);
 
-  Future<vector<string> >* future =
-    new Future<vector<string> >(state->names());
+  Future<set<string> >* future =
+    new Future<set<string> >(state->names());
 
   return (jlong) future;
 }
@@ -629,7 +629,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_AbstractState__1_1names
 JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1cancel
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<vector<string> >* future = (Future<vector<string> >*) jfuture;
+  Future<set<string> >* future = (Future<set<string> >*) jfuture;
 
   // We'll initiate a discard but we won't consider it cancelled since
   // we don't know if/when the future will get discarded.
@@ -663,7 +663,7 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1
 JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1is_1done
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<vector<string> >* future = (Future<vector<string> >*) jfuture;
+  Future<set<string> >* future = (Future<set<string> >*) jfuture;
 
   return (jboolean) !future->isPending() || future->hasDiscard();
 }
@@ -677,7 +677,7 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1
 JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1get
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<vector<string> >* future = (Future<vector<string> >*) jfuture;
+  Future<set<string> >* future = (Future<set<string> >*) jfuture;
 
   future->await();
 
@@ -725,7 +725,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
 JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1get_1timeout
   (JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
 {
-  Future<vector<string> >* future = (Future<vector<string> >*) jfuture;
+  Future<set<string> >* future = (Future<set<string> >*) jfuture;
 
   jclass clazz = env->GetObjectClass(junit);
 
@@ -787,7 +787,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
 JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1finalize
   (JNIEnv* env, jobject thiz, jlong jfuture)
 {
-  Future<vector<string> >* future = (Future<vector<string> >*) jfuture;
+  Future<set<string> >* future = (Future<set<string> >*) jfuture;
 
   delete future;
 }
