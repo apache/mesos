@@ -20,6 +20,7 @@ layout: documentation
 * [iQIYI](http://www.iqiyi.com/)
 * [Medidata Solutions](http://www.mdsol.com)
 * [MediaCrossing](http://www.mediacrossing.com)
+* [Mesosphere](http://www.mesosphere.io)
 * [OpenTable](http://www.opentable.com)
 * [PayPal](https://www.paypal.com)
 * [Pinkbike](http://www.pinkbike.com)
