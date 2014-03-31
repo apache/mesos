@@ -610,6 +610,41 @@ TEST_F(CoordinatorTest, Elect)
 }
 
 
+// Verifies that a coordinator can get elected with clock paused (no
+// retry involved) for an empty log.
+TEST_F(CoordinatorTest, ElectWithClockPaused)
+{
+  Clock::pause();
+
+  const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  initializer.execute();
+
+  const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  initializer.execute();
+
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
+
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
+
+  Shared<Network> network(new Network(pids));
+
+  Coordinator coord(2, replica1, network);
+
+  {
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY(electing);
+    EXPECT_SOME_EQ(0u, electing.get());
+  }
+
+  Clock::resume();
+}
+
+
 TEST_F(CoordinatorTest, AppendRead)
 {
   const string path1 = os::getcwd() + "/.log1";

@@ -228,7 +228,15 @@ Future<Nothing> CoordinatorProcess::catchupMissingPositions(
 {
   LOG(INFO) << "Coordinator attemping to fill missing position";
 
-  return log::catchup(quorum, replica, network, proposal, positions);
+  // Notice that here we use "proposal + 1" as the proposal number for
+  // fill operations in order to avoid unnecessary retries for those
+  // log positions that were just implicitly promised to this
+  // coordinator. This is safe because log::catchup would increment
+  // the proposal number automatically after failing to fill
+  // implicitly promised positions and this just shortcuts that
+  // process. See more details in MESOS-1165. We don't update the
+  // class member 'proposal' here as it's for implicit promises.
+  return log::catchup(quorum, replica, network, proposal + 1, positions);
 }
 
 
