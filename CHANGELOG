@@ -41,6 +41,7 @@ Release Notes - Mesos - Version 0.18.0
     * [MESOS-1121] - /usr/include/c++/4.7/type_traits:1834:9: error: no match for call to '(std::_Bind<process::Future<process::http::Response> (*(std::_Placeholder<1>))(const std::basic_string<char>&)>) ()'
     * [MESOS-1128] - ':' colon in executor work directories is unusual
     * [MESOS-1135] - A re-registering framework that authenticates with Master might not get any offers
+    * [MESOS-1176] - make distcheck fails when enabling c++11
 
 ** Documentation
     * [MESOS-926] - Document change to separate cgroup mounts
