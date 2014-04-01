@@ -236,6 +236,7 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	master/contender.hpp						\
 	master/constants.hpp						\
 	master/detector.hpp						\
+	master/repairer.hpp						\
 	master/drf_sorter.hpp master/flags.hpp				\
 	master/hierarchical_allocator_process.hpp			\
 	master/registrar.hpp						\
