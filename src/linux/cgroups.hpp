@@ -289,7 +289,8 @@ Try<std::set<pid_t> > threads(
     const std::string& cgroup);
 
 
-// Assign a given process specified by its pid to a given cgroup. This function
+// Assign a given process specified by its pid to a given cgroup. All threads
+// in the pid's threadgroup will also be moved to the cgroup. This function
 // will return error if the given hierarchy or the given cgroup is not valid.
 // Also, it will return error if the pid has no process associated with it.
 // @param   hierarchy   Path to the hierarchy root.
@@ -298,23 +299,6 @@ Try<std::set<pid_t> > threads(
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
 Try<Nothing> assign(
-    const std::string& hierarchy,
-    const std::string& cgroup,
-    pid_t pid);
-
-
-// Assign all threads of a given process to a given cgroup. This function will
-// return error if the given hierarchy or the given cgroup is not valid. Also,
-// it will return error if the pid has no process associated with it. The
-// process may create threads during function execution so multiple passes are
-// used but an error will be returned if not all threads can be assigned in
-// THREAD_ASSIGN_RETRIES attempts.
-// @param   hierarchy   Path to the hierarchy root.
-// @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   pid         The pid of the given process.
-// @return  Some if the operation succeeds.
-//          Error if the operation fails.
-Try<Nothing> assignAllThreads(
     const std::string& hierarchy,
     const std::string& cgroup,
     pid_t pid);

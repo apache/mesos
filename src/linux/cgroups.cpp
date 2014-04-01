@@ -1070,68 +1070,7 @@ Try<set<pid_t> > threads(const string& hierarchy, const string& cgroup)
 
 Try<Nothing> assign(const string& hierarchy, const string& cgroup, pid_t pid)
 {
-  return cgroups::write(hierarchy, cgroup, "tasks", stringify(pid));
-}
-
-
-Try<Nothing> assignAllThreads(
-    const string& hierarchy,
-    const string& cgroup,
-    pid_t pid)
-{
-  // First move the main thread so new threads will be in the cgroup.
-  Try<Nothing> assign = cgroups::assign(hierarchy, cgroup, pid);
-
-  if (assign.isError()) {
-    return Error(assign.error());
-  }
-
-  // Get a snapshot of threads to move.
-  Try<set<pid_t> > threads = proc::threads(pid);
-  if (threads.isError()) {
-    return Error(threads.error());
-  }
-
-  set<pid_t> move = threads.get();
-  unsigned int attempt = 0;
-
-  while (!move.empty()) {
-    if (attempt++ == THREAD_ASSIGN_RETRIES) {
-      return Error("Failed to move all threads after " +
-                   stringify(THREAD_ASSIGN_RETRIES) + " attempts");
-    }
-
-    // Move each thread into the cgroup.
-    foreach (const pid_t& thread, move) {
-      cgroups::assign(hierarchy, cgroup, thread);
-      // The thread may have since terminated in which case assign will return
-      // Error. We assume the cgroup is still valid since we used it to assign
-      // the pid and so we'll ignore errors for now and catch any problems when
-      // we fail to move all threads after the maximum attempts.
-    }
-
-    // New threads may have been created so get a new snapshot of the pid's
-    // threads and find any that aren't in the cgroup and need to be moved.
-    move.clear();
-
-    Try<set<pid_t> > threads = proc::threads(pid);
-    if (threads.isError()) {
-      return Error(threads.error());
-    }
-
-    Try<set<pid_t> > moved = cgroups::threads(hierarchy, cgroup);
-    if (moved.isError()) {
-      return Error(moved.error());
-    }
-
-    foreach (const pid_t& thread, threads.get()) {
-      if (moved.get().count(thread) == 0) {
-        move.insert(thread);
-      }
-    }
-  }
-
-  return Nothing();
+  return cgroups::write(hierarchy, cgroup, "cgroup.procs", stringify(pid));
 }
 
 

@@ -622,7 +622,7 @@ inline Try<Nothing> Cluster::Slaves::stop(
       }
 
       // Move all of our threads into the root cgroup.
-      Try<Nothing> assign = cgroups::assignAllThreads(hierarchy, "", getpid());
+      Try<Nothing> assign = cgroups::assign(hierarchy, "", getpid());
       if (assign.isError()) {
         EXIT(1) << "Failed to move slave threads into cgroup " << cgroup
                 << " for subsystem " << subsystem

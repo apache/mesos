@@ -39,9 +39,11 @@
 
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/proc.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
@@ -53,6 +55,7 @@ using namespace mesos::internal::tests;
 
 using namespace process;
 
+using std::set;
 
 class CgroupsTest : public ::testing::Test
 {
@@ -786,4 +789,65 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Destroy)
     std::cerr << "Reach an unreachable statement!" << std::endl;
     abort();
   }
+}
+
+
+void* threadFunction(void*)
+{
+  // Newly created threads have PTHREAD_CANCEL_ENABLE and
+  // PTHREAD_CANCEL_DEFERRED so they can be cancelled from the main thread.
+  while (true) { sleep(1); }
+
+  return NULL;
+}
+
+
+TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
+{
+  size_t numThreads = 5;
+
+  pthread_t pthreads[numThreads];
+
+  // Create additional threads.
+  for (size_t i = 0; i < numThreads; i++)
+  {
+    EXPECT_EQ(0, pthread_create(&pthreads[i], NULL, threadFunction, NULL));
+  }
+
+  std::string hierarchy = path::join(baseHierarchy, "freezer");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  // Check the test cgroup is initially empty.
+  Try<set<pid_t> > cgroupThreads =
+    cgroups::threads(hierarchy, TEST_CGROUPS_ROOT);
+  EXPECT_SOME(cgroupThreads);
+  EXPECT_EQ(0u, cgroupThreads.get().size());
+
+  // Assign ourselves to the test cgroup.
+  CHECK_SOME(cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid()));
+
+  // Get our threads (may be more than the numThreads we created if other threads are running).
+  Try<set<pid_t> > threads = proc::threads(::getpid());
+  ASSERT_SOME(threads);
+
+  // Check the test cgroup now only contains all child threads.
+  cgroupThreads = cgroups::threads(hierarchy, TEST_CGROUPS_ROOT);
+  EXPECT_SOME(cgroupThreads);
+  EXPECT_SOME_EQ(threads.get(), cgroupThreads);
+
+  // Terminate the additional threads.
+  for (size_t i = 0; i < numThreads; i++)
+  {
+    EXPECT_EQ(0, pthread_cancel(pthreads[i]));
+    EXPECT_EQ(0, pthread_join(pthreads[i], NULL));
+  }
+
+  // Move ourselves to the root cgroup.
+  CHECK_SOME(cgroups::assign(hierarchy, "", ::getpid()));
+
+  // Destroy the cgroup.
+  Future<bool> future = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
+  future.await(Seconds(5));
+  ASSERT_TRUE(future.isReady());
+  EXPECT_TRUE(future.get());
 }

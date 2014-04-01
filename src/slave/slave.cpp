@@ -183,32 +183,31 @@ void Slave::initialize()
         }
       }
 
-      // Exit if there are threads already inside the cgroup - this
+      // Exit if there are processes running inside the cgroup - this
       // indicates a prior slave (or child process) is still running.
-      Try<set<pid_t> > threads = cgroups::threads(hierarchy.get(), cgroup);
-      if (threads.isError()) {
+      Try<set<pid_t> > processes = cgroups::processes(hierarchy.get(), cgroup);
+      if (processes.isError()) {
         EXIT(1) << "Failed to check for existing threads in cgroup " << cgroup
                 << " for subsystem " << subsystem
                 << " under hierarchy " << hierarchy.get()
-                << " for slave: " + threads.error();
+                << " for slave: " + processes.error();
       }
 
       // TODO(idownes): Re-evaluate this behavior if it's observed, possibly
       // automatically killing any running processes and moving this code to
       // during recovery.
-      if (!threads.get().empty()) {
+      if (!processes.get().empty()) {
         EXIT(1) << "A slave (or child process) is still running, "
-                << "please check the thread(s) '"
-                << stringify(threads.get())
+                << "please check the process(es) '"
+                << stringify(processes.get())
                 << "' listed in "
-                << path::join(hierarchy.get(), cgroup, "tasks");
+                << path::join(hierarchy.get(), cgroup, "cgroups.proc");
       }
 
       // Move all of our threads into the cgroup.
-      Try<Nothing> assign = cgroups::assignAllThreads(
-          hierarchy.get(), cgroup, getpid());
+      Try<Nothing> assign = cgroups::assign(hierarchy.get(), cgroup, getpid());
       if (assign.isError()) {
-        EXIT(1) << "Failed to move slave threads into cgroup " << cgroup
+        EXIT(1) << "Failed to move slave into cgroup " << cgroup
                 << " for subsystem " << subsystem
                 << " under hierarchy " << hierarchy.get()
                 << " for slave: " + assign.error();
