@@ -48,6 +48,14 @@ TEST(NetTest, mac)
 }
 
 
+TEST(NetTest, ConstructMAC)
+{
+  uint8_t bytes[6] = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc};
+
+  EXPECT_EQ("12:34:56:78:9a:bc", stringify(net::MAC(bytes)));
+}
+
+
 TEST(NetTest, ip)
 {
   Try<set<string> > links = net::links();
@@ -81,4 +89,14 @@ TEST(NetTest, ip)
 
   Result<net::IP> ip = net::ip("non-exist");
   EXPECT_ERROR(ip);
+}
+
+
+TEST(NetTest, ConstructIP)
+{
+  uint32_t address = 0x01020304;
+  uint32_t netmask = 0xff000000;
+
+  EXPECT_EQ("1.2.3.4", stringify(net::IP(address)));
+  EXPECT_EQ("1.2.3.4/8", stringify(net::IP(address, netmask)));
 }

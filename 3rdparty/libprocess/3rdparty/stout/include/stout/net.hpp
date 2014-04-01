@@ -29,6 +29,8 @@
 #include <linux/if_packet.h>
 #endif
 
+#include <net/ethernet.h>
+
 #ifdef __APPLE__
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -158,7 +160,7 @@ inline Try<std::set<std::string> > links()
 
 // Represents a MAC address. A MAC address is a 48-bit unique
 // identifier assigned to a network interface for communications on
-// the physical network segment. We use a byte array (in network
+// the physical network segment. We use a byte array (in transmission
 // order) to represent a MAC address. For example, for a MAC address
 // 01:23:34:67:89:ab, the format is shown as follows:
 //
@@ -173,6 +175,14 @@ inline Try<std::set<std::string> > links()
 class MAC
 {
 public:
+  // Constructs a MAC address from a byte array.
+  explicit MAC(const uint8_t (&_bytes)[6])
+  {
+    for (size_t i = 0; i < 6; i++) {
+      bytes[i] = _bytes[i];
+    }
+  }
+
   // Returns the byte at the given index. For example, for a MAC
   // address 01:23:45:67:89:ab, mac[0] = 01, mac[1] = 23 and etc.
   uint8_t operator [] (size_t index) const
@@ -184,25 +194,31 @@ public:
     return bytes[index];
   }
 
-private:
-  friend std::ostream& operator << (std::ostream& stream, const MAC& mac);
-  friend Result<MAC> mac(const std::string& name);
-
-  explicit MAC(uint8_t* _bytes)
+  bool operator == (const MAC& that) const
   {
     for (size_t i = 0; i < 6; i++) {
-      bytes[i] = _bytes[i];
+      if (bytes[i] != that.bytes[i]) {
+        return false;
+      }
     }
+    return true;
   }
 
-  // Byte array of this MAC address (in network order).
+  bool operator != (const MAC& that) const
+  {
+    return !operator == (that);
+  }
+
+private:
+  // Byte array of this MAC address (in transmission order).
   uint8_t bytes[6];
 };
 
 
 // Returns the standard string format (IEEE 802) of the given MAC
 // address, which contains six groups of two hexadecimal digits,
-// separated by colons, in network order (e.g., 01:23:45:67:89:ab).
+// separated by colons, in transmission order (e.g.,
+// 01:23:45:67:89:ab).
 inline std::ostream& operator << (std::ostream& stream, const MAC& mac)
 {
   char buffer[18];
@@ -210,12 +226,12 @@ inline std::ostream& operator << (std::ostream& stream, const MAC& mac)
   sprintf(
       buffer,
       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
-      mac.bytes[0],
-      mac.bytes[1],
-      mac.bytes[2],
-      mac.bytes[3],
-      mac.bytes[4],
-      mac.bytes[5]);
+      mac[0],
+      mac[1],
+      mac[2],
+      mac[3],
+      mac[4],
+      mac[5]);
 
   return stream << buffer;
 }
@@ -247,7 +263,8 @@ inline Result<MAC> mac(const std::string& name)
         struct sockaddr_ll* link = (struct sockaddr_ll*) ifa->ifa_addr;
 
         if (link->sll_halen == 6) {
-          MAC mac((uint8_t*) link->sll_addr);
+          struct ether_addr* addr = (struct ether_addr*) link->sll_addr;
+          MAC mac(addr->ether_addr_octet);
 
           // Ignore if the address is 0 so that the results are
           // consistent on both OSX and Linux.
@@ -264,7 +281,8 @@ inline Result<MAC> mac(const std::string& name)
         struct sockaddr_dl* link = (struct sockaddr_dl*) ifa->ifa_addr;
 
         if (link->sdl_type == IFT_ETHER && link->sdl_alen == 6) {
-          MAC mac((uint8_t*) LLADDR(link));
+          struct ether_addr* addr = (struct ether_addr*) LLADDR(link);
+          MAC mac(addr->octet);
 
           freeifaddrs(ifaddr);
           return mac;
@@ -286,15 +304,23 @@ inline Result<MAC> mac(const std::string& name)
 
 
 // Represents an IPv4 address. Besides the actual IP address, we also
-// store additional information about the address such as the net mask
+// store additional information about the address such as the netmask
 // which defines the subnet.
 class IP
 {
 public:
-  // Returns the IP address (in network order).
+  // Constructs an IP from the given IP address (in host order).
+  explicit IP(uint32_t _address) : address_(_address) {}
+
+  // Constructs an IP from the given IP address and the given netmask
+  // (all in host order).
+  IP(uint32_t _address, uint32_t _netmask)
+    : address_(_address), netmask_(_netmask) {}
+
+  // Returns the IP address (in host order).
   uint32_t address() const { return address_; }
 
-  // Returns the net mask (in network order).
+  // Returns the net mask (in host order).
   Option<uint32_t> netmask() const { return netmask_; }
 
   // Returns the prefix of the subnet defined by the net mask.
@@ -304,8 +330,7 @@ public:
       return None();
     }
 
-    // Convert the net mask to host order.
-    uint32_t mask = ntohl(netmask_.get());
+    uint32_t mask = netmask_.get();
 
     size_t value = 0;
     while (mask != 0) {
@@ -316,19 +341,21 @@ public:
     return value;
   }
 
+  bool operator == (const IP& that) const
+  {
+    return address_ == that.address_ && netmask_ == that.netmask_;
+  }
+
+  bool operator != (const IP& that) const
+  {
+    return !operator == (that);
+  }
+
 private:
-  friend std::ostream& operator << (std::ostream& stream, const IP& ip);
-  friend Result<IP> ip(const std::string& name);
-
-  explicit IP(uint32_t _address) : address_(_address) {}
-
-  IP(uint32_t _address, uint32_t _netmask)
-    : address_(_address), netmask_(_netmask) {}
-
-  // IP address (in network order).
+  // IP address (in host order).
   uint32_t address_;
 
-  // The optional net mask (in network order).
+  // The optional net mask (in host order).
   Option<uint32_t> netmask_;
 };
 
@@ -339,8 +366,11 @@ inline std::ostream& operator << (std::ostream& stream, const IP& ip)
 {
   char buffer[INET_ADDRSTRLEN];
 
-  const char* addr = inet_ntop(AF_INET, &ip.address_, buffer, sizeof(buffer));
-  if (addr == NULL) {
+  struct in_addr addr;
+  addr.s_addr = htonl(ip.address());
+
+  const char* str = inet_ntop(AF_INET, &addr, buffer, sizeof(buffer));
+  if (str == NULL) {
     // We do not expect inet_ntop to fail because all parameters
     // passed in are valid.
     std::string message =
@@ -350,7 +380,7 @@ inline std::ostream& operator << (std::ostream& stream, const IP& ip)
     abort();
   }
 
-  stream << addr;
+  stream << str;
 
   if (ip.prefix().isSome()) {
     stream << "/" << ip.prefix().get();
@@ -391,8 +421,7 @@ inline Result<IP> ip(const std::string& name)
             ifa->ifa_netmask->sa_family == AF_INET) {
           struct sockaddr_in* netmask = (struct sockaddr_in*) ifa->ifa_netmask;
 
-          IP ip((uint32_t) addr->sin_addr.s_addr,
-                (uint32_t) netmask->sin_addr.s_addr);
+          IP ip(ntohl(addr->sin_addr.s_addr), ntohl(netmask->sin_addr.s_addr));
 
           freeifaddrs(ifaddr);
           return ip;
@@ -400,7 +429,7 @@ inline Result<IP> ip(const std::string& name)
 
         // Note that this is the case where net mask is not specified.
         // We've seen such cases when VPN is used.
-        IP ip((uint32_t) addr->sin_addr.s_addr);
+        IP ip(ntohl(addr->sin_addr.s_addr));
 
         freeifaddrs(ifaddr);
         return ip;
