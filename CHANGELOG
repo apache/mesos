@@ -27,12 +27,16 @@ Release Notes - Mesos - Version 0.18.0
     * [MESOS-989] - Flaky whitelist tests
     * [MESOS-991] - hashmap.hpp error: control reaches end of non-void function
     * [MESOS-1009] - src/demangle.cc:170:13: error: comparison between pointer and integer ('const char *' and 'int')
+    * [MESOS-1029] - lib stout compile errors on Ubuntu 13.10 with Clang 3.5
+    * [MESOS-1030] - Mesos compile errors on Ubuntu 13.10 with Clang 3.5: const & ..., header guard
     * [MESOS-1038] - Log coordinator should demote itself after a write is discarded.
     * [MESOS-1045] - Unrecognized file extension in CommandInfo.URI causes executor to exit
     * [MESOS-1049] - Cpu Isolator incorrectly writes double values when writing cpu.cfs_quota_us.
     * [MESOS-1050] - Containerizer broke getting hadoop binary from $HADOOP_HOME and $PATH
+    * [MESOS-1051] - tar command used in fetcher not portable to OS X
     * [MESOS-1063] - Containerizer fails when fetching more than one URL
     * [MESOS-1079] - Mesos python egg build failure on OS X Mavericks (Xcode 5.1)
+    * [MESOS-1086] - DRF allocator should take into account past allocations when determining an ordering so frameworks are not starved.
     * [MESOS-1095] - Build failure on OSX when using gcc-4.7
     * [MESOS-1121] - /usr/include/c++/4.7/type_traits:1834:9: error: no match for call to '(std::_Bind<process::Future<process::http::Response> (*(std::_Placeholder<1>))(const std::basic_string<char>&)>) ()'
     * [MESOS-1128] - ':' colon in executor work directories is unusual
