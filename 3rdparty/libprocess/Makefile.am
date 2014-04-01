@@ -100,6 +100,14 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/timer.hpp			\
   $(top_srcdir)/include/process/timeseries.hpp
 
+# C++11 Headers.
+libprocess_la_SOURCES +=					\
+  $(top_srcdir)/include/process/c++11/defer.hpp			\
+  $(top_srcdir)/include/process/c++11/deferred.hpp		\
+  $(top_srcdir)/include/process/c++11/delay.hpp			\
+  $(top_srcdir)/include/process/c++11/dispatch.hpp		\
+  $(top_srcdir)/include/process/c++11/executor.hpp
+
 # Tests.
 check_PROGRAMS = tests
 
