@@ -159,7 +159,7 @@ public:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       int32_t status);
-  void deactivateSlave(
+  void shutdownSlave(
       const SlaveID& slaveId);
 
   // TODO(bmahler): It would be preferred to use a unique libprocess
@@ -265,6 +265,7 @@ protected:
   void removeFramework(Slave* slave, Framework* framework);
 
   void deactivate(Framework* framework);
+  void disconnect(Slave* slave);
 
   // Add a slave.
   void addSlave(Slave* slave, bool reregister = false);
@@ -456,7 +457,7 @@ private:
 };
 
 
-// A connected slave.
+// A connected (or disconnected, checkpointing) slave.
 struct Slave
 {
   Slave(const SlaveInfo& _info,

@@ -177,7 +177,7 @@ protected:
   {
     if (pinged) { // So we haven't got back a pong yet ...
       if (++timeouts >= MAX_SLAVE_PING_TIMEOUTS) {
-        deactivate();
+        shutdown();
         return;
       }
     }
@@ -187,9 +187,9 @@ protected:
     delay(SLAVE_PING_TIMEOUT, self(), &SlaveObserver::timeout);
   }
 
-  void deactivate()
+  void shutdown()
   {
-    dispatch(master, &Master::deactivateSlave, slaveId);
+    dispatch(master, &Master::shutdownSlave, slaveId);
   }
 
 private:
@@ -682,44 +682,16 @@ void Master::exited(const UPID& pid)
       LOG(INFO) << "Slave " << slave->id << " (" << slave->info.hostname()
                 << ") disconnected";
 
-      // Remove the slave, if it is not checkpointing.
       if (!slave->info.checkpoint()) {
+        // Remove the slave, if it is not checkpointing.
         LOG(INFO) << "Removing disconnected slave " << slave->id
                   << "(" << slave->info.hostname() << ") "
                   << "because it is not checkpointing!";
         removeSlave(slave);
         return;
       } else if (!slave->disconnected) {
-        // Mark the slave as disconnected and remove it from the allocator.
-        slave->disconnected = true;
-
-        allocator->slaveDisconnected(slave->id);
-
-        // If a slave is checkpointing, remove all non-checkpointing
-        // frameworks from the slave.
-        // First, collect all the frameworks running on this slave.
-        hashset<FrameworkID> frameworkIds =
-          slave->tasks.keys() | slave->executors.keys();
-
-        // Now, remove all the non-checkpointing frameworks.
-        foreach (const FrameworkID& frameworkId, frameworkIds) {
-          Framework* framework = getFramework(frameworkId);
-          if (framework != NULL && !framework->info.checkpoint()) {
-            LOG(INFO) << "Removing non-checkpointing framework " << frameworkId
-                      << " from disconnected slave " << slave->id
-                      << "(" << slave->info.hostname() << ")";
-
-            removeFramework(slave, framework);
-          }
-        }
-
-        foreach (Offer* offer, utils::copy(slave->offers)) {
-          allocator->resourcesRecovered(
-              offer->framework_id(), slave->id, offer->resources());
-
-          // Remove and rescind offers.
-          removeOffer(offer, true); // Rescind!
-        }
+        // Checkpointing slaves can just be disconnected.
+        disconnect(slave);
       } else {
         LOG(WARNING) << "Ignoring duplicate exited() notification for "
                      << "checkpointing slave " << slave->id
@@ -1222,6 +1194,44 @@ void Master::deactivate(Framework* framework)
     allocator->resourcesRecovered(
         offer->framework_id(), offer->slave_id(), offer->resources());
     removeOffer(offer);
+  }
+}
+
+
+void Master::disconnect(Slave* slave)
+{
+  CHECK_NOTNULL(slave);
+
+  LOG(INFO) << "Disconnecting slave " << slave->id;
+
+  // Mark the slave as disconnected and remove it from the allocator.
+  slave->disconnected = true;
+  allocator->slaveDisconnected(slave->id);
+
+  // If a slave is checkpointing, remove all non-checkpointing
+  // frameworks from the slave.
+  // First, collect all the frameworks running on this slave.
+  hashset<FrameworkID> frameworkIds =
+    slave->tasks.keys() | slave->executors.keys();
+
+  // Now, remove all the non-checkpointing frameworks.
+  foreach (const FrameworkID& frameworkId, frameworkIds) {
+    Framework* framework = getFramework(frameworkId);
+    if (framework != NULL && !framework->info.checkpoint()) {
+      LOG(INFO) << "Removing non-checkpointing framework " << frameworkId
+                << " from disconnected slave " << slave->id
+                << "(" << slave->info.hostname() << ")";
+
+      removeFramework(slave, framework);
+    }
+  }
+
+  foreach (Offer* offer, utils::copy(slave->offers)) {
+    allocator->resourcesRecovered(
+        offer->framework_id(), slave->id, offer->resources());
+
+    // Remove and rescind offers.
+    removeOffer(offer, true); // Rescind!
   }
 }
 
@@ -2394,20 +2404,19 @@ void Master::exitedExecutor(
 }
 
 
-void Master::deactivateSlave(const SlaveID& slaveId)
+void Master::shutdownSlave(const SlaveID& slaveId)
 {
   if (!slaves.activated.contains(slaveId)) {
-    // Possible when the SlaveObserver dispatched to deactivate a slave,
+    // Possible when the SlaveObserver dispatched to shutdown a slave,
     // but exited() was already called for this slave.
-    LOG(WARNING) << "Unable to deactivate unknown slave " << slaveId;
+    LOG(WARNING) << "Unable to shutdown unknown slave " << slaveId;
     return;
   }
 
   Slave* slave = slaves.activated[slaveId];
   CHECK_NOTNULL(slave);
 
-  LOG(WARNING) << "Removing slave " << slave->id << " at " << slave->pid
-               << " because it has been deactivated";
+  LOG(WARNING) << "Shutting down slave " << slaveId << " at " << slave->pid;
 
   send(slave->pid, ShutdownMessage());
   removeSlave(slave);
@@ -2887,7 +2896,7 @@ void Master::addFramework(Framework* framework)
   // Enforced by Master::registerFramework.
   CHECK(roles.contains(framework->info.role()))
     << "Unknown role " << framework->info.role()
-    << " of framework " << framework->id ;
+    << " of framework " << framework->id;
 
   roles[framework->info.role()]->addFramework(framework);
 
