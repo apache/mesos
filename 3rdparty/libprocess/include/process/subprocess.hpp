@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 
+#include <map>
 #include <string>
 
 #include <process/future.hpp>
@@ -36,7 +37,9 @@ struct Subprocess
 
 private:
   Subprocess() : data(new Data()) {}
-  friend Try<Subprocess> subprocess(const std::string&);
+  friend Try<Subprocess> subprocess(
+      const std::string& command,
+      const std::map<std::string, std::string>& environment);
 
   struct Data
   {
@@ -62,7 +65,13 @@ private:
 };
 
 
-Try<Subprocess> subprocess(const std::string& command);
+// Environment is combined with the OS environment and overrides where
+// necessary.
+// TODO(dhamon): Add an option to not combine the two environments.
+Try<Subprocess> subprocess(
+    const std::string& command,
+    const std::map<std::string, std::string>& environment =
+      std::map<std::string, std::string>());
 
 } // namespace process {
 
