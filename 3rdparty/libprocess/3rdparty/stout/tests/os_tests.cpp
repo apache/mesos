@@ -16,6 +16,7 @@
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
@@ -36,6 +37,7 @@ using os::ProcessTree;
 using std::list;
 using std::set;
 using std::string;
+using std::vector;
 
 
 static hashset<string> listfiles(const string& directory)
@@ -65,6 +67,29 @@ protected:
 
   string tmpdir;
 };
+
+
+TEST_F(OsTest, environment)
+{
+  // Make sure the environment has some entries with '=' in the value.
+  os::setenv("SOME_SPECIAL_FLAG", "--flag=foobar");
+
+  char** environ = os::environ();
+
+  hashmap<string, string> environment = os::environment();
+
+  for (size_t index = 0; environ[index] != NULL; index++) {
+    std::string entry(environ[index]);
+    size_t position = entry.find_first_of('=');
+    if (position == std::string::npos) {
+      continue; // Skip malformed environment entries.
+    }
+    const string& key = entry.substr(0, position);
+    const string& value = entry.substr(position + 1);
+    EXPECT_TRUE(environment.contains(key));
+    EXPECT_EQ(value, environment[key]);
+  }
+}
 
 
 TEST_F(OsTest, rmdir)
@@ -278,7 +303,7 @@ TEST_F(OsTest, sysctl)
   ASSERT_SOME(maxproc);
 
   // Table test.
-  Try<std::vector<kinfo_proc> > processes =
+  Try<vector<kinfo_proc> > processes =
     os::sysctl(CTL_KERN, KERN_PROC, KERN_PROC_ALL).table(maxproc.get());
 
   ASSERT_SOME(processes);

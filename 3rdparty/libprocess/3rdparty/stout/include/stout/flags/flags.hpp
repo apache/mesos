@@ -292,25 +292,18 @@ inline void FlagsBase::add(const Flag& flag)
 inline std::map<std::string, Option<std::string> > FlagsBase::extract(
     const std::string& prefix)
 {
-  char** environ = os::environ();
-
   std::map<std::string, Option<std::string> > values;
 
-  for (int i = 0; environ[i] != NULL; i++) {
-    std::string variable = environ[i];
-    if (variable.find(prefix) == 0) {
-      size_t eq = variable.find_first_of("=");
-      if (eq == std::string::npos) {
-        continue; // Not expecting a missing '=', but ignore anyway.
-      }
-
-      std::string name = variable.substr(prefix.size(), eq - prefix.size());
+  foreachpair (const std::string& key,
+               const std::string& value,
+               os::environment()) {
+    if (key.find(prefix) == 0) {
+      std::string name = key.substr(prefix.size());
       name = strings::lower(name); // Allow PREFIX_NAME or PREFIX_name.
 
       // Only add if it's a known flag.
       if (flags.count(name) > 0 ||
           (name.find("no-") == 0 && flags.count(name.substr(3)) > 0)) {
-        std::string value = variable.substr(eq + 1);
         values[name] = Some(value);
       }
     }

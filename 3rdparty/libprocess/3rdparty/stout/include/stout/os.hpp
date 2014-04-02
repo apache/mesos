@@ -55,6 +55,7 @@
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -108,6 +109,25 @@ inline char** environ()
 #else
   return ::environ;
 #endif
+}
+
+
+inline hashmap<std::string, std::string> environment()
+{
+  char** environ = os::environ();
+
+  hashmap<std::string, std::string> result;
+
+  for (size_t index = 0; environ[index] != NULL; index++) {
+    std::string entry(environ[index]);
+    size_t position = entry.find_first_of('=');
+    if (position == std::string::npos) {
+      continue; // Skip malformed environment entries.
+    }
+    result[entry.substr(0, position)] = entry.substr(position + 1);
+  }
+
+  return result;
 }
 
 
