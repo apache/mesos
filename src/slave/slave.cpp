@@ -678,11 +678,9 @@ void Slave::doReliableRegistration()
           ExecutorInfo* executorInfo = message.add_executor_infos();
           executorInfo->MergeFrom(executor->info);
 
-          // TODO(bmahler): Kill this in 0.15.0, as in 0.14.0 we've
-          // added code into the Scheduler Driver to ensure the
-          // framework id is set in ExecutorInfo, effectively making
-          // it a required field.
-          executorInfo->mutable_framework_id()->MergeFrom(framework->id);
+          // Scheduler Driver will ensure the framework id is set in
+          // ExecutorInfo, effectively making it a required field.
+          CHECK(executorInfo->has_framework_id());
         }
       }
     }
