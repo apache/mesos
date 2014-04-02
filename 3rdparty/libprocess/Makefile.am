@@ -38,6 +38,7 @@ libprocess_la_SOURCES =		\
   src/process.cpp		\
   src/reap.cpp			\
   src/statistics.cpp		\
+  src/subprocess.cpp		\
   src/synchronized.hpp
 
 libprocess_la_CPPFLAGS =		\
