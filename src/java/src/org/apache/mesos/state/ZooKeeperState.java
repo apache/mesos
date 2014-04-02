@@ -50,7 +50,7 @@ public class ZooKeeperState extends AbstractState {
    * @param unit Unit for session timeout.
    * @param znode Path to znode where "state" should be rooted.
    * @param scheme Authentication scheme (e.g., "digest").
-   * @param scheme Authentication credentials (e.g., "user:pass").
+   * @param credentials Authentication credentials (e.g., "user:pass").
    */
   public ZooKeeperState(String servers,
                         long timeout,

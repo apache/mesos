@@ -31,11 +31,15 @@ public interface ExecutorDriver {
   /**
    * Starts the executor driver. This needs to be called before any
    * other driver calls are made.
+   *
+   * @return The state of the driver after the call.
    */
   public Status start();
 
   /**
    * Stops the executor driver.
+   *
+   * @return The state of the driver after the call.
    */
   public Status stop();
 
@@ -47,6 +51,8 @@ public interface ExecutorDriver {
    * and instantiate and start another driver if desired (from within
    * the same process ... although this functionality is currently not
    * supported for executors).
+   *
+   * @return The state of the driver after the call.
    */
   public Status abort();
   
@@ -55,11 +61,15 @@ public interface ExecutorDriver {
    * _blocking_ the current thread indefinitely. The return status of
    * this function can be used to determine if the driver was aborted
    * (see mesos.proto for a description of Status).
+   *
+   * @return The state of the driver after the call.
    */
   public Status join();
   
   /**
    * Starts and immediately joins (i.e., blocks on) the driver.
+   *
+   * @return The state of the driver after the call.
    */
   public Status run();
  
@@ -69,6 +79,9 @@ public interface ExecutorDriver {
    * executor is terminated (in which case, a TASK_LOST status update
    * will be sent). See {@link Scheduler#statusUpdate} for more
    * information about status update acknowledgements.
+   *
+   * @param status The status update to send.
+   * @return The state of the driver after the call.
    */
   public Status sendStatusUpdate(TaskStatus status);
   
@@ -76,6 +89,9 @@ public interface ExecutorDriver {
    * Sends a message to the framework scheduler. These messages are
    * best effort; do not expect a framework message to be
    * retransmitted in any reliable fashion.
+   *
+   * @param data The message data.
+   * @return The state of the driver after the call.
    */
   public Status sendFrameworkMessage(byte[] data);
 }

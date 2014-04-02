@@ -18,16 +18,26 @@
 
 package org.apache.mesos.state;
 
+/**
+ * Represents a key/value pair stored in the {@link State}. Variables
+ * are versioned such that setting a variable in the state will only
+ * succeed if the variable has not changed since last fetched.
+ */
 public class Variable {
   protected Variable() {}
 
   /**
    * Returns the current value of this variable.
+   *
+   * @return The current value.
    */
   public native byte[] value();
 
   /**
    * Updates the current value of this variable.
+   *
+   * @param value The new value.
+   * @return A variable representing the new value.
    */
   public native Variable mutate(byte[] value);
 

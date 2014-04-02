@@ -48,6 +48,9 @@ public interface State {
   /**
    * Returns an immutable "variable" representing the current value
    * from the state associated with the specified name.
+   *
+   * @param name The name of the variable.
+   * @return A future of the variable.
    */
   Future<Variable> fetch(String name);
 
@@ -55,17 +58,26 @@ public interface State {
    * Returns an immutable "variable" representing the current value in
    * the state if updating the specified variable in the state was
    * successful, otherwise returns null.
+   *
+   * @param variable The variable to be stored.
+   * @return A future of a variable with the new value on success,
+   * or null on failure.
    */
   Future<Variable> store(Variable variable);
 
   /**
    * Returns true if successfully expunged the variable from the state
    * or false if the variable did not exist or was no longer valid.
+   *
+   * @param variable The variable to be expunged.
+   * @return A future of true on success, false on failure.
    */
   Future<Boolean> expunge(Variable variable);
 
   /**
    * Returns an iterator of variable names in the state.
+   *
+   * @return A future of an iterator over all variable names in the state.
    */
   Future<Iterator<String>> names();
 }
