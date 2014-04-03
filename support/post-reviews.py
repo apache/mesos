@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# This is a wrapper around the 'post-review' tool provided by
+# This is a wrapper around the 'post-review'/'rbt' tool provided by
 # Review Board. This is currently used by Apache Mesos development.
 #
 # What does this do?
@@ -11,8 +11,8 @@
 # to create logical commits which can be reviewed independently.
 #
 # How do I use it?
-# First install 'post-review' from Review Board.
-# http://www.reviewboard.org/docs/manual/dev/users/tools/post-review/
+# First install 'RBTools' from Review Board.
+# http://www.reviewboard.org/downloads/rbtools/
 #
 # $ cd /path/to/mesos
 # $ [ do some work on your branch off of master, make commit(s) ]
@@ -56,6 +56,16 @@ def execute(command, ignore_errors=False):
 
 # TODO(benh): Make sure this is a git repository, apologize if not.
 
+# Choose 'post-review' if available, otherwise choose 'rbt'.
+post_review = None
+if execute(['type', 'post-review'], ignore_errors=True):
+  post_review = ['post-review']
+elif execute(['type', 'rbt'], ignore_errors=True):
+  post_review = ['rbt', 'post']
+else:
+  print 'Please install RBTools before proceeding'
+  sys.exit(1)
+
 # Don't do anything if people have uncommitted changes.
 diff_stat = execute(['git', 'diff', '--shortstat']).strip()
 
@@ -88,7 +98,7 @@ atexit.register(lambda: execute(['git', 'checkout', branch]))
 merge_base = execute(['git', 'merge-base', parent_branch, branch_ref]).strip()
 
 
-print 'Running post-review across all of ...'
+print 'Running \'%s\' across all of ...' % " ".join(post_review)
 
 call(['git',
       '--no-pager',
@@ -167,16 +177,18 @@ for i in range(len(shas)):
     revision_range = previous + ':' + sha
 
     if review_request_id is None:
-        output = execute(['post-review',
-                          '--repository-url=' + repository,
+        output = execute(post_review +
+                         ['--repository-url=' + repository,
                           '--tracking-branch=' + parent_branch,
-                          '--revision-range=' + revision_range] + sys.argv[1:]).strip()
+                          '--revision-range=' + revision_range] +
+                         sys.argv[1:]).strip()
     else:
-        output = execute(['post-review',
-                          '--review-request-id=' + review_request_id,
+        output = execute(post_review +
+                         ['--review-request-id=' + review_request_id,
                           '--repository-url=' + repository,
                           '--tracking-branch=' + parent_branch,
-                          '--revision-range=' + revision_range] + sys.argv[1:]).strip()
+                          '--revision-range=' + revision_range] +
+                         sys.argv[1:]).strip()
 
     print output
 
