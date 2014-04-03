@@ -100,7 +100,7 @@ int main(int argc, char** argv)
 
   // Instantiate our environment. Note that it will be managed by
   // gtest after we add it via testing::AddGlobalTestEnvironment.
-  environment = new Environment();
+  environment = new Environment(flags);
 
   testing::AddGlobalTestEnvironment(environment);
 

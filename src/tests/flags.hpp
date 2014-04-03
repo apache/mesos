@@ -43,6 +43,11 @@ public:
         "Log all severity levels to stderr",
         false);
 
+    add(&Flags::benchmark,
+        "benchmark",
+        "Run the benchmark tests (and skip other tests)",
+        false);
+
     // We determine the defaults for 'source_dir' and 'build_dir' from
     // preprocessor definitions (at the time this comment was written
     // these were set via '-DSOURCE_DIR=...' and '-DBUILD_DIR=...' in
@@ -63,6 +68,7 @@ public:
   }
 
   bool verbose;
+  bool benchmark;
   std::string source_dir;
   std::string build_dir;
 };

@@ -109,6 +109,20 @@ static bool enable(const ::testing::TestInfo& test)
       return false;
     }
 #endif
+
+    // Filter out benchmark tests when we run 'make check'.
+    if (strings::contains(name, "BENCHMARK_") && !flags.benchmark) {
+      return false;
+    }
+  }
+
+  // Filter out regular tests when we run 'make bench', which
+  // requires us to check both the test case name and the test name
+  // at the same time.
+  if (flags.benchmark &&
+      !strings::contains(test.test_case_name(), "BENCHMARK_") &&
+      !strings::contains(test.name(), "BENCHMARK_")) {
+    return false;
   }
 
   // Now check the type parameter.
@@ -130,7 +144,7 @@ static bool enable(const ::testing::TestInfo& test)
 // should not effect any other filters that have been put in place
 // either on the command line or via an environment variable.
 // N.B. This MUST be done _before_ invoking RUN_ALL_TESTS.
-Environment::Environment()
+Environment::Environment(const Flags& _flags) : flags(_flags)
 {
   // First we split the current filter into enabled and disabled tests
   // (which are separated by a '-').

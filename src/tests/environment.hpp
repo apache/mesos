@@ -26,6 +26,8 @@
 
 #include <stout/try.hpp>
 
+#include "tests/flags.hpp"
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -33,7 +35,7 @@ namespace tests {
 // Used to set up and manage the test environment.
 class Environment : public ::testing::Environment {
 public:
-  Environment();
+  Environment(const Flags& flags);
 
   virtual void SetUp();
 
@@ -49,6 +51,8 @@ public:
 private:
   // Temporary directories that we created and need to remove.
   std::list<std::string> directories;
+
+  const Flags flags;
 };
 
 

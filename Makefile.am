@@ -47,6 +47,26 @@ PHONY_TARGETS += maven-install
 endif
 
 
+# Run benchmark tests.
+# Currently benchmark tests exist only under src/ so the top level
+# 'bench' rule calls the Makefile under src/ directly to run these
+# tests, after it builds the entire program (i.e. 'all') and the test
+# prerequisites (libgmock.la).
+# TODO(xujyan): The use of variable 'MESOS_BENCHMARKS' on the target
+# 'check' is likely going to be replaced by a long-term solution for
+# benchmark testing, for which we should consider separating
+# benchmark tests from the 'mesos-tests' binary (i.e. the
+# 'correctness' tests).
+# TODO(xujyan): Consider using `AM_EXTRA_RECURSIVE_TARGETS` macro
+# (requires Automake >= 1.13) to define 'bench' as a recursive target
+# when we have benchmark tests in multiple subdirs.
+bench: all
+	@cd 3rdparty/libprocess/3rdparty && $(MAKE) $(AM_MAKEFLAGS) libgmock.la
+	@cd src && MESOS_BENCHMARK=1 $(MAKE) $(AM_MAKEFLAGS) check
+
+PHONY_TARGETS += bench
+
+
 # Using LT_OUTPUT in configure.ac creates config.lt that doesn't get
 # cleaned up by distclean-libtool. See this bug patch (which doesn't
 # appear to be in all versions of libtool.m4):
