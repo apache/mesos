@@ -105,7 +105,8 @@ Envp::~Envp()
 // Runs the provided command in a subprocess.
 Try<Subprocess> subprocess(
     const string& command,
-    const map<string, string>& environment)
+    const Option<map<string, string> >& environment,
+    const Option<lambda::function<int()> >& setup)
 {
   // Create pipes for stdin, stdout, stderr.
   // Index 0 is for reading, and index 1 is for writing.
@@ -127,7 +128,12 @@ Try<Subprocess> subprocess(
     return ErrnoError("Failed to create pipe");
   }
 
-  internal::Envp envp(environment);
+  // We need to do this construction before doing the fork as it
+  // might not be async-safe.
+  // TODO(tillt): Consider optimizing this to not pass an empty map
+  // into the constructor or even further to use execl instead of
+  // execle once we have no user supplied environment.
+  internal::Envp envp(environment.get(map<string, string>()));
 
   pid_t pid;
   if ((pid = fork()) == -1) {
@@ -159,6 +165,13 @@ Try<Subprocess> subprocess(
     os::close(stdinPipe[0]);
     os::close(stdoutPipe[1]);
     os::close(stderrPipe[1]);
+
+    if (setup.isSome()) {
+      int status = setup.get()();
+      if (status != 0) {
+        _exit(status);
+      }
+    }
 
     execle("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL, envp());
 

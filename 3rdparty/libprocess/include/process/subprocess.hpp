@@ -8,6 +8,7 @@
 
 #include <process/future.hpp>
 
+#include <stout/lambda.hpp>
 #include <stout/memory.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -39,7 +40,8 @@ private:
   Subprocess() : data(new Data()) {}
   friend Try<Subprocess> subprocess(
       const std::string& command,
-      const std::map<std::string, std::string>& environment);
+      const Option<std::map<std::string, std::string> >& environment,
+      const Option<lambda::function<int()> >& setup);
 
   struct Data
   {
@@ -65,13 +67,19 @@ private:
 };
 
 
-// Environment is combined with the OS environment and overrides where
-// necessary.
+// The Environment is combined with the OS environment and overrides
+// where necessary.
+// The setup function is run after forking but before executing the
+// command. If the return value of that setup function is non-zero,
+// then that is what the subprocess status will be;
+// status = setup && command.
+// NOTE: Take extra care about the design of the setup function as it
+// must not contain any async unsafe code.
 // TODO(dhamon): Add an option to not combine the two environments.
 Try<Subprocess> subprocess(
     const std::string& command,
-    const std::map<std::string, std::string>& environment =
-      std::map<std::string, std::string>());
+    const Option<std::map<std::string, std::string> >& environment = None(),
+    const Option<lambda::function<int()> >& setup = None());
 
 } // namespace process {
 

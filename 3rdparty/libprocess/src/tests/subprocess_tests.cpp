@@ -16,6 +16,7 @@
 #include <stout/gtest.hpp>
 #include <stout/list.hpp>
 #include <stout/os/read.hpp>
+#include <stout/path.hpp>
 
 using namespace process;
 
@@ -378,4 +379,146 @@ TEST(Subprocess, environmentOverride)
 
   ASSERT_TRUE(WIFEXITED(status));
   ASSERT_EQ(0, WEXITSTATUS(status));
+}
+
+
+int setupChdir(const string& directory)
+{
+  // Keep everything async-signal safe.
+  if (::chdir(directory.c_str()) == -1) {
+    return errno;
+  }
+
+  return 0;
+}
+
+
+int setupSetsid(void)
+{
+  // Keep everything async-signal safe.
+  if (::setsid() == -1) {
+    return errno;
+  }
+
+  return 0;
+}
+
+
+TEST(Subprocess, setup)
+{
+  Clock::pause();
+
+  Try<string> directory = os::mkdtemp();
+  ASSERT_SOME(directory);
+
+  // chdir().
+  Try<Subprocess> s = subprocess(
+      "echo hello world > file",
+      None(),
+      lambda::bind(&setupChdir, directory.get()));
+
+  ASSERT_SOME(s);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  // Make sure 'file' is there and contains 'hello world'.
+  const string& path = path::join(directory.get(), "file");
+  EXPECT_TRUE(os::exists(path));
+  EXPECT_SOME_EQ("hello world\n", os::read(path));
+
+  os::rmdir(directory.get());
+
+  // setsid().
+  s = subprocess(
+      "sleep 60",
+      None(),
+      lambda::bind(&setupSetsid));
+
+  ASSERT_SOME(s);
+
+  // Verify the process is in a different session.
+  EXPECT_NE(getsid(0), getsid(s.get().pid()));
+
+  kill(s.get().pid(), SIGTERM);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  int status = s.get().status().get().get();
+  ASSERT_TRUE(WIFSIGNALED(status));
+  ASSERT_EQ(SIGTERM, WTERMSIG(status));
+
+  Clock::resume();
+}
+
+
+int setupStatus(int ret)
+{
+  return ret;
+}
+
+
+TEST(Subprocess, setupStatus)
+{
+  Clock::pause();
+
+  // Exit 0 && setup 1.
+  Try<Subprocess> s = subprocess(
+      "exit 0",
+      None(),
+      lambda::bind(&setupStatus, 1));
+
+  ASSERT_SOME(s);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  int status = s.get().status().get().get();
+
+  // Verify we received the setup returned value instead of the
+  // command status.
+  ASSERT_EQ(1, WEXITSTATUS(status));
+
+  // Exit 1 && setup 0.
+  s = subprocess(
+      "exit 1",
+      None(),
+      lambda::bind(&setupStatus, 0));
+
+  ASSERT_SOME(s);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  status = s.get().status().get().get();
+
+  // Verify we received the command status.
+  ASSERT_EQ(1, WEXITSTATUS(status));
+
+  Clock::resume();
 }
