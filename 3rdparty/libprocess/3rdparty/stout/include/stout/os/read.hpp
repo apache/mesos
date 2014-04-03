@@ -23,16 +23,10 @@
 namespace os {
 
 // Reads 'size' bytes from a file from its current offset.
-// If EOF is encountered before reading size bytes, then the offset
-// is restored and none is returned.
+// If EOF is encountered before reading 'size' bytes then the result
+// will contain the bytes read and a subsequent read will return None.
 inline Result<std::string> read(int fd, size_t size)
 {
-  // Save the current offset.
-  off_t current = lseek(fd, 0, SEEK_CUR);
-  if (current == -1) {
-    return ErrnoError("Failed to lseek to SEEK_CUR");
-  }
-
   char* buffer = new char[size];
   size_t offset = 0;
 
@@ -44,13 +38,17 @@ inline Result<std::string> read(int fd, size_t size)
       if (errno == EINTR) {
         continue;
       }
-      // Attempt to restore the original offset.
-      lseek(fd, current, SEEK_SET);
+      ErrnoError error; // Constructed before 'delete' to capture errno.
       delete[] buffer;
-      return ErrnoError();
+      return error;
     } else if (length == 0) {
-      // Reached EOF before expected! Restore the offset.
-      lseek(fd, current, SEEK_SET);
+      // Reached EOF before expected! Only return as much data as
+      // available or None if we haven't read anything yet.
+      if (offset > 0) {
+        std::string result(buffer, offset);
+        delete[] buffer;
+        return result;
+      }
       delete[] buffer;
       return None();
     }
@@ -58,7 +56,7 @@ inline Result<std::string> read(int fd, size_t size)
     offset += length;
   }
 
-  std::string result = std::string(buffer, size);
+  std::string result(buffer, size);
   delete[] buffer;
   return result;
 }

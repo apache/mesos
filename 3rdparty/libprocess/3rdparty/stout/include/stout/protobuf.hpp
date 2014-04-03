@@ -52,7 +52,7 @@ inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
 
   // First write the size of the protobuf.
   uint32_t size = message.ByteSize();
-  std::string bytes = std::string((char*) &size, sizeof(size));
+  std::string bytes((char*) &size, sizeof(size));
 
   Try<Nothing> result = os::write(fd, bytes);
   if (result.isError()) {
@@ -108,10 +108,19 @@ inline Result<T> read(int fd, bool ignorePartial = false)
   uint32_t size;
   Result<std::string> result = os::read(fd, sizeof(size));
 
-  if (result.isNone()) {
-    return None(); // No more protobufs to read.
-  } else if (result.isError()) {
+  if (result.isError()) {
+    lseek(fd, offset, SEEK_SET);
     return Error("Failed to read size: " + result.error());
+  } else if (result.isNone()) {
+    return None(); // No more protobufs to read.
+  } else if (result.get().size() < sizeof(size)) {
+    // Hit EOF unexpectedly. Restore the offset to before the size read.
+    lseek(fd, offset, SEEK_SET);
+    if (ignorePartial) {
+      return None();
+    }
+    return Error(
+        "Failed to read size: hit EOF unexpectedly, possible corruption");
   }
 
   // Parse the size from the bytes.
@@ -122,7 +131,11 @@ inline Result<T> read(int fd, bool ignorePartial = false)
   // corruption.
   result = os::read(fd, size);
 
-  if (result.isNone()) {
+  if (result.isError()) {
+    // Restore the offset to before the size read.
+    lseek(fd, offset, SEEK_SET);
+    return Error("Failed to read message: " + result.error());
+  } else if (result.isNone() || result.get().size() < size) {
     // Hit EOF unexpectedly. Restore the offset to before the size read.
     lseek(fd, offset, SEEK_SET);
     if (ignorePartial) {
@@ -130,10 +143,6 @@ inline Result<T> read(int fd, bool ignorePartial = false)
     }
     return Error("Failed to read message of size " + stringify(size) +
                  " bytes: hit EOF unexpectedly, possible corruption");
-  } else if (result.isError()) {
-    // Restore the offset to before the size read.
-    lseek(fd, offset, SEEK_SET);
-    return Error("Failed to read message: " + result.error());
   }
 
   // Parse the protobuf from the string.
@@ -142,8 +151,7 @@ inline Result<T> read(int fd, bool ignorePartial = false)
   const std::string& data = result.get();
 
   T message;
-  google::protobuf::io::ArrayInputStream stream(
-      data.data(), data.size());
+  google::protobuf::io::ArrayInputStream stream(data.data(), data.size());
 
   if (!message.ParseFromZeroCopyStream(&stream)) {
     // Restore the offset to before the size read.
