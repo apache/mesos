@@ -8,6 +8,8 @@
 
 #include <stout/abort.hpp>
 #include <stout/gtest.hpp>
+#include <stout/numify.hpp>
+#include <stout/os.hpp>
 #include <stout/proc.hpp>
 #include <stout/try.hpp>
 
@@ -16,6 +18,7 @@ using proc::SystemStatus;
 using proc::ProcessStatus;
 
 using std::set;
+using std::string;
 
 
 TEST(ProcTest, pids)
@@ -112,11 +115,12 @@ TEST(ProcTest, MultipleThreads)
 
     int numThreads = 5;
 
-    // 1 MiB stack for each thread.
-    size_t stackSize = 1024*1024 / sizeof(unsigned long long);
+    // 32 KiB stack (2x the common value for PTHREAD_STACK_MIN) for each thread
+    // is sufficient since they are essentially no-ops.
+    size_t stackSize = 32*1024 / sizeof(unsigned long long);
     unsigned long long stack[numThreads][stackSize];
 
-    std::set<pid_t> threads;
+    set<pid_t> threads;
 
     for (int i = 0; i < numThreads; i++) {
       pid_t thread;
@@ -126,7 +130,7 @@ TEST(ProcTest, MultipleThreads)
       thread = clone(
           threadFunction,
           &(stack[i][stackSize - 1]),
-          CLONE_THREAD | CLONE_SIGHAND | CLONE_VM | CLONE_FILES,
+          CLONE_THREAD | CLONE_SIGHAND | CLONE_VM | CLONE_FILES | SIGCHLD,
           NULL);
 
       EXPECT_NE(-1, thread);
@@ -138,12 +142,7 @@ TEST(ProcTest, MultipleThreads)
     threads.insert(getpid());
 
     // Notify parent of the thread ids.
-    foreach (const pid_t& thread, threads) {
-      ssize_t len;
-      while ((len = ::write(pipes[1], &thread, sizeof(thread))) == -1 && errno == EINTR);
-
-      EXPECT_EQ(sizeof(thread), len);
-    }
+    ASSERT_SOME(os::write(pipes[1], strings::join(",", threads)));
 
     // NOTE: CLONE_FILES ensures the pipe file descriptor will be closed in the
     // threads as well, ensuring the parent gets the EOF.
@@ -159,25 +158,23 @@ TEST(ProcTest, MultipleThreads)
   // In parent process.
   ::close(pipes[1]);
 
-  // Get thread ids from the child.
-  std::set<pid_t> childThreads;
+  // Get thread ids from the child. Read up to the first 1024 characters which
+  // is sufficient for the expected number of stringified pids.
+  Result<string> read = os::read(pipes[0], 1024);
+  ASSERT_SOME(read);
 
-  ssize_t len;
-  do {
-    pid_t thread;
+  set<pid_t> childThreads;
+  foreach (const string& token, strings::tokenize(read.get(), ",")) {
+    Try<pid_t> thread = numify<pid_t>(token);
+    ASSERT_SOME(thread);
 
-    while ((len = ::read(pipes[0], &thread, sizeof(thread))) == -1 && errno == EINTR);
-
-    childThreads.insert(thread);
-  } while (len > 0);
-
-  ::close(pipes[0]);
+    childThreads.insert(thread.get());
+  }
 
   // Read thread ids from /proc for the child.
   Try<set<pid_t> > procThreads = proc::threads(pid);
-  ASSERT_SOME(procThreads);
 
-  //Check we have the expected threads.
+  // Check we have the expected threads.
   ASSERT_SOME_EQ(childThreads, procThreads);
 
   // Kill the child process.
@@ -186,6 +183,6 @@ TEST(ProcTest, MultipleThreads)
   // Wait for the child process.
   int status;
   EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-  ASSERT_TRUE(WIFSIGNALED(status));
+  EXPECT_TRUE(WIFSIGNALED(status));
   EXPECT_EQ(SIGKILL, WTERMSIG(status));
 }
