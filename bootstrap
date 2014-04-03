@@ -41,24 +41,6 @@ else
     AUTOMAKE="$(which automake)"
 fi
 
-# Make sure that we have a version of automake that doesn't force
-# 'subdir-objects'.
-
-AUTOMAKE_VERSION="$($AUTOMAKE --version | head -1 | cut -d' ' -f4)"
-case ${AUTOMAKE_VERSION} in
-  1.14)
-    cat >&2 <<__EOF__
-
-Mesos requires automake < 1.14 due to incompatibility issues
-with the 'subdir-objects' option.
-
-See https://issues.apache.org/jira/browse/MESOS-577 and
-please downgrade your automake installation.
-
-__EOF__
-    exit 1
-  ;;
-esac
 
 # Note that we don't use '--no-recursive' because older versions of
 # autoconf/autoreconf bail with that option. Unfortunately this means
