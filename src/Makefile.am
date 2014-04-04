@@ -289,6 +289,7 @@ if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/cpushare.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/mem.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/perf_event.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/linux_launcher.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/fs.cpp
 else
@@ -355,6 +356,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/isolator.hpp				\
 	slave/containerizer/isolators/cgroups/cpushare.hpp		\
 	slave/containerizer/isolators/cgroups/mem.hpp			\
+	slave/containerizer/isolators/cgroups/perf_event.hpp		\
 	slave/containerizer/isolators/posix.hpp				\
 	slave/containerizer/launcher.hpp				\
 	slave/containerizer/mesos_containerizer.hpp			\
