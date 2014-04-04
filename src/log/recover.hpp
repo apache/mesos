@@ -45,12 +45,17 @@ namespace log {
 // positions are recovered such that if other replicas fail, the
 // remaining replicas can restore all the successfully written log
 // entries; 2) its future votes cannot not contradict its lost votes.
+//
 // This function returns an owned pointer to the recovered replica if
-// the recovery is successful.
+// the recovery is successful. If the auto-initialization flag is set,
+// an empty replica will be allowed to vote if ALL replicas (i.e.,
+// quorum * 2 - 1) are empty. This allows us to bootstrap the
+// replicated log without explicitly using an initialization tool.
 extern process::Future<process::Owned<Replica> > recover(
     size_t quorum,
     const process::Owned<Replica>& replica,
-    const process::Shared<Network>& network);
+    const process::Shared<Network>& network,
+    bool autoInitialize = false);
 
 } // namespace log {
 } // namespace internal {

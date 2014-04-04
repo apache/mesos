@@ -27,6 +27,7 @@
 #include <process/process.hpp>
 
 #include <stout/check.hpp>
+#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
@@ -48,7 +49,6 @@ namespace mesos {
 namespace internal {
 namespace log {
 
-
 // This class is responsible for executing the log recover protocol.
 // Any time a replica in non-VOTING status starts, we will run this
 // protocol. We first broadcast a recover request to all the replicas
@@ -58,9 +58,18 @@ namespace log {
 //
 // A) Broadcast a RecoverRequest to all replicas in the network.
 // B) Collect RecoverResponse from each replica
-//   B1) If a quorum of replicas are found in VOTING status, the local
-//       replica will be in RECOVERING status next.
-//   B2) Otherwise, goto (A).
+//   B1) If a quorum of replicas are found in VOTING status (no matter
+//       what status the local replica is in currently), the local
+//       replica will be put in RECOVERING status next.
+//   B2) If the local replica is in EMPTY status and all replicas are
+//       found in either EMPTY status or STARTING status, the local
+//       replica will be put in STARTING status next.
+//   B3) If the local replica is in STARTING status and all replicas
+//       are found in either STARTING status or VOTING status, the
+//       local replica will be put in VOTING status next.
+//   B4) Otherwise, goto (A).
+//
+//   (B2 and B3 are used to do the two-phase auto initialization.)
 //
 // We re-use RecoverResponse to specify the return value. The 'status'
 // field specifies the next status of the local replica. If the next
@@ -71,10 +80,17 @@ class RecoverProtocolProcess : public Process<RecoverProtocolProcess>
 public:
   RecoverProtocolProcess(
       size_t _quorum,
-      const Shared<Network>& _network)
+      const Shared<Network>& _network,
+      const Metadata::Status& _status,
+      bool _autoInitialize,
+      const Duration& _timeout)
     : ProcessBase(ID::generate("log-recover-protocol")),
       quorum(_quorum),
-      network(_network) {}
+      network(_network),
+      status(_status),
+      autoInitialize(_autoInitialize),
+      timeout(_timeout),
+      terminating(false) {}
 
   Future<RecoverResponse> future() { return promise.future(); }
 
@@ -88,8 +104,25 @@ protected:
   }
 
 private:
+  static Future<Option<RecoverResponse> > timedout(
+      Future<Option<RecoverResponse> > future,
+      const Duration& timeout)
+  {
+    LOG(INFO) << "Unable to finish the recover protocol in "
+              << timeout << ", retrying";
+
+    future.discard();
+
+    // The 'future' will eventually become DISCARDED, at which time we
+    // will re-run the recover protocol. We use the boolean flag
+    // 'terminating' to distinguish between a user initiated discard
+    // and a timeout induced discard.
+    return future;
+  }
+
   void discard()
   {
+    terminating = true;
     chain.discard();
   }
 
@@ -100,6 +133,7 @@ private:
     chain = network->watch(quorum, Network::GREATER_THAN_OR_EQUAL_TO)
       .then(defer(self(), &Self::broadcast))
       .then(defer(self(), &Self::receive))
+      .after(timeout, lambda::bind(&Self::timedout, lambda::_1, timeout))
       .onAny(defer(self(), &Self::finished, lambda::_1));
   }
 
@@ -187,15 +221,88 @@ private:
       return result;
     }
 
+    if (autoInitialize) {
+      // The following code handles the auto-initialization. Our idea
+      // is: we allow a replica in EMPTY status to become VOTING
+      // immediately if it finds ALL (i.e., 2 * quorum - 1) replicas
+      // are in EMPTY status. This is based on the assumption that the
+      // only time ALL replicas are in EMPTY status is during start-up
+      // This may not be true if we have a catastrophic failure in
+      // which all replicas are gone, and that's exactly the reason we
+      // allow users to disable auto-initialization.
+      //
+      // To do auto-initialization, if we use a single phase protocol
+      // and allow a replica to directly transit from EMPTY status to
+      // VOTING status, we may run into a state where we cannot make
+      // progress even if all replicas are in EMPTY status initially.
+      // For example, say the quorum size is 2. All replicas are in
+      // EMPTY status initially. One replica broadcasts a recover
+      // request and becomes VOTING before other replicas start
+      // broadcasting recover requests. In that case, no replica can
+      // make progress. To solve this problem, we use a two-phase
+      // protocol and introduce an intermediate transient status
+      // (STARTING) between EMPTY and VOTING status. A replica in
+      // EMPTY status can transit to STARTING status if it find all
+      // replicas are in either EMPTY or STARTING status. A replica in
+      // STARTING status can transit to VOTING status if it finds all
+      // replicas are in either STARTING or VOTING status. In that
+      // way, in our previous example, all replicas will be in
+      // STARTING status before any of them can transit to VOTING
+      // status.
+
+      // TODO(jieyu): Currently, we simply calculate the size of the
+      // cluster from the quorum size. In the future, we may wanna
+      // allow users to specify the cluster size in case they want to
+      // use a non-standard quorum size (e.g., cluster size = 5,
+      // quorum size = 4).
+      size_t clusterSize = (2 * quorum) - 1;
+
+      switch (status) {
+        case Metadata::EMPTY:
+          if ((responsesReceived[Metadata::EMPTY] +
+               responsesReceived[Metadata::STARTING]) >= clusterSize) {
+            process::discard(responses);
+
+            RecoverResponse result;
+            result.set_status(Metadata::STARTING);
+
+            return result;
+          }
+          break;
+        case Metadata::STARTING:
+          if ((responsesReceived[Metadata::STARTING] +
+               responsesReceived[Metadata::VOTING]) >= clusterSize) {
+            process::discard(responses);
+
+            RecoverResponse result;
+            result.set_status(Metadata::VOTING);
+
+            return result;
+          }
+          break;
+        default:
+          // Ignore all other cases.
+          break;
+      }
+    }
+
     // Handle the next response.
     return receive();
   }
 
   void finished(const Future<Option<RecoverResponse> >& future)
   {
-    if (future.isDiscarded()) {
-      promise.discard();
-      terminate(self());
+   if (future.isDiscarded()) {
+      // We use the boolean flag 'terminating' to distinguish between
+      // a user initiated discard and a timeout induced discard. In
+      // the case of a user initiated discard, the flag 'terminating'
+      // will be set to true in 'Self::discard()'.
+      if (terminating) {
+        promise.discard();
+        terminate(self());
+      } else {
+        start(); // Re-run the recover protocol after timeout.
+      }
     } else if (future.isFailed()) {
       promise.fail(future.failure());
       terminate(self());
@@ -216,24 +323,37 @@ private:
 
   const size_t quorum;
   const Shared<Network> network;
+  const Metadata::Status status;
+  const bool autoInitialize;
+  const Duration timeout;
 
   set<Future<RecoverResponse> > responses;
   hashmap<Metadata::Status, size_t> responsesReceived;
   Option<uint64_t> lowestBeginPosition;
   Option<uint64_t> highestEndPosition;
   Future<Option<RecoverResponse> > chain;
+  bool terminating;
 
   process::Promise<RecoverResponse> promise;
 };
 
 
-// The wrapper for running the recover protocol.
+// The wrapper for running the recover protocol. We will re-run the
+// recover protocol if it cannot be finished within 'timeout'.
 static Future<RecoverResponse> runRecoverProtocol(
     size_t quorum,
-    const Shared<Network>& network)
+    const Shared<Network>& network,
+    const Metadata::Status& status,
+    bool autoInitialize,
+    const Duration& timeout = Seconds(10))
 {
   RecoverProtocolProcess* process =
-    new RecoverProtocolProcess(quorum, network);
+    new RecoverProtocolProcess(
+        quorum,
+        network,
+        status,
+        autoInitialize,
+        timeout);
 
   Future<RecoverResponse> future = process->future();
   spawn(process, true);
@@ -249,7 +369,9 @@ static Future<RecoverResponse> runRecoverProtocol(
 // the next status is determined to be RECOVERING, we will start doing
 // catch-up. Later, if the local replica has caught-up, we will set
 // the status of the local replica to VOTING and terminate the
-// process, indicating the recovery has completed.
+// process, indicating the recovery has completed. If all replicas are
+// in EMPTY status and auto-initialization is enabled, a two-phase
+// protocol will be used to bootstrap the replicated log.
 //
 // Here, we list a few scenarios and show how the recover process will
 // respond in those scenarios. All the examples assume a quorum size
@@ -273,17 +395,27 @@ static Future<RecoverResponse> runRecoverProtocol(
 // 4) Replica A is in VOTING status and B is in EMPTY status. The
 //    operator adds replica C. In that case, C will stay in EMPTY
 //    status forever similar to case 3).
+//
+// 5) Replica A, B and C are all in EMPTY status. Depending on whether
+//    auto-initialization is enabled or not, the replicas will behave
+//    differently. If auto-initialization is enabled, all replicas
+//    will first go into STARTING status. Once *all* replicas have
+//    transitioned out of EMPTY status, the replicas will go into
+//    VOTING status. If auto-initialization is disabled, all replicas
+//    will remain in EMPTY status.
 class RecoverProcess : public Process<RecoverProcess>
 {
 public:
   RecoverProcess(
       size_t _quorum,
       const Owned<Replica>& _replica,
-      const Shared<Network>& _network)
+      const Shared<Network>& _network,
+      bool _autoInitialize)
     : ProcessBase(ID::generate("log-recover")),
       quorum(_quorum),
       replica(_replica),
-      network(_network) {}
+      network(_network),
+      autoInitialize(_autoInitialize) {}
 
   Future<Owned<Replica> > future() { return promise.future(); }
 
@@ -322,20 +454,39 @@ private:
       // No need to do recovery.
       return Nothing();
     } else {
-      return runRecoverProtocol(quorum, network)
+      return runRecoverProtocol(quorum, network, status, autoInitialize)
         .then(defer(self(), &Self::_recover, lambda::_1));
     }
   }
 
   Future<Nothing> _recover(const RecoverResponse& result)
   {
-    if (result.status() == Metadata::RECOVERING) {
-      CHECK(result.has_begin() && result.has_end());
+    switch (result.status()) {
+      case Metadata::STARTING:
+        // This is the auto-initialization case. As mentioned above, we
+        // use a two-phase protocol to bootstrap. When the control
+        // reaches here, the first phase just ended. We start the second
+        // phase by re-running the recover protocol.
+        CHECK(autoInitialize);
 
-      return updateReplicaStatus(Metadata::RECOVERING)
-        .then(defer(self(), &Self::catchup, result.begin(), result.end()));
-    } else {
-      return Failure("Unexpected status returned from the recover protocol");
+        return updateReplicaStatus(Metadata::STARTING)
+          .then(defer(self(), &Self::recover, Metadata::STARTING));
+
+      case Metadata::VOTING:
+        // This is the also the auto-initialization case. When the
+        // control reaches here, the second phase just ended.
+        CHECK(autoInitialize);
+
+        return updateReplicaStatus(Metadata::VOTING);
+
+      case Metadata::RECOVERING:
+        CHECK(result.has_begin() && result.has_end());
+
+        return updateReplicaStatus(Metadata::RECOVERING)
+          .then(defer(self(), &Self::catchup, result.begin(), result.end()));
+
+      default:
+        return Failure("Unexpected status returned from the recover protocol");
     }
   }
 
@@ -410,7 +561,7 @@ private:
 
   Future<Nothing> getReplicaOwnership(Shared<Replica> shared)
   {
-    // Try to regain the ownership of the replica.
+    // Try to re-gain the ownership of the replica.
     return shared.own()
       .then(defer(self(), &Self::_getReplicaOwnership, lambda::_1));
   }
@@ -439,6 +590,7 @@ private:
   const size_t quorum;
   Owned<Replica> replica;
   const Shared<Network> network;
+  const bool autoInitialize;
 
   Future<Nothing> chain;
 
@@ -449,9 +601,16 @@ private:
 Future<Owned<Replica> > recover(
     size_t quorum,
     const Owned<Replica>& replica,
-    const Shared<Network>& network)
+    const Shared<Network>& network,
+    bool autoInitialize)
 {
-  RecoverProcess* process = new RecoverProcess(quorum, replica, network);
+  RecoverProcess* process =
+    new RecoverProcess(
+        quorum,
+        replica,
+        network,
+        autoInitialize);
+
   Future<Owned<Replica> > future = process->future();
   spawn(process, true);
   return future;

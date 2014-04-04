@@ -1698,6 +1698,144 @@ TEST_F(RecoverTest, CatchupRetry)
 }
 
 
+TEST_F(RecoverTest, AutoInitialization)
+{
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
+  const string path3 = os::getcwd() + "/.log3";
+
+  Owned<Replica> replica1(new Replica(path1));
+  Owned<Replica> replica2(new Replica(path2));
+  Owned<Replica> replica3(new Replica(path3));
+
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
+  pids.insert(replica3->pid());
+
+  Shared<Network> network(new Network(pids));
+
+  Future<Owned<Replica> > recovering1 = recover(2, replica1, network, true);
+  Future<Owned<Replica> > recovering2 = recover(2, replica2, network, true);
+
+  // Verifies that replica1 and replica2 cannot transit into VOTING
+  // status because replica3 is still in EMPTY status. We flush the
+  // event queue before checking.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  EXPECT_TRUE(recovering1.isPending());
+  EXPECT_TRUE(recovering2.isPending());
+
+  Future<Owned<Replica> > recovering3 = recover(2, replica3, network, true);
+
+  AWAIT_READY(recovering1);
+  AWAIT_READY(recovering2);
+  AWAIT_READY(recovering3);
+
+  Owned<Replica> shared_ = recovering1.get();
+  Shared<Replica> shared = shared_.share();
+
+  Coordinator coord(2, shared, network);
+
+  {
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY(electing);
+    EXPECT_SOME_EQ(0u, electing.get());
+  }
+
+  {
+    Future<Option<uint64_t> > appending = coord.append("hello world");
+    AWAIT_READY(appending);
+    EXPECT_SOME_EQ(1u, appending.get());
+  }
+
+  {
+    Future<list<Action> > actions = shared->read(1, 1);
+    AWAIT_READY(actions);
+    ASSERT_EQ(1u, actions.get().size());
+    EXPECT_EQ(1u, actions.get().front().position());
+    ASSERT_TRUE(actions.get().front().has_type());
+    ASSERT_EQ(Action::APPEND, actions.get().front().type());
+    EXPECT_EQ("hello world", actions.get().front().append().bytes());
+  }
+}
+
+
+TEST_F(RecoverTest, AutoInitializationRetry)
+{
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
+  const string path3 = os::getcwd() + "/.log3";
+
+  Owned<Replica> replica1(new Replica(path1));
+  Owned<Replica> replica2(new Replica(path2));
+  Owned<Replica> replica3(new Replica(path3));
+
+  set<UPID> pids;
+  pids.insert(replica1->pid());
+  pids.insert(replica2->pid());
+  pids.insert(replica3->pid());
+
+  Shared<Network> network(new Network(pids));
+
+  // Simulate the case where replica3 is temporarily removed.
+  DROP_MESSAGE(Eq(RecoverRequest().GetTypeName()), _, Eq(replica3->pid()));
+  DROP_MESSAGE(Eq(RecoverRequest().GetTypeName()), _, Eq(replica3->pid()));
+
+  Clock::pause();
+
+  Future<Owned<Replica> > recovering1 = recover(2, replica1, network, true);
+  Future<Owned<Replica> > recovering2 = recover(2, replica2, network, true);
+
+  // Flush the event queue.
+  Clock::settle();
+
+  EXPECT_TRUE(recovering1.isPending());
+  EXPECT_TRUE(recovering2.isPending());
+
+  Future<Owned<Replica> > recovering3 = recover(2, replica3, network, true);
+
+  // Replica1 and replica2 will retry recovery after 10 seconds.
+  Clock::advance(Seconds(10));
+  Clock::settle();
+
+  Clock::resume();
+
+  AWAIT_READY(recovering1);
+  AWAIT_READY(recovering2);
+  AWAIT_READY(recovering3);
+
+  Owned<Replica> shared_ = recovering1.get();
+  Shared<Replica> shared = shared_.share();
+
+  Coordinator coord(2, shared, network);
+
+  {
+    Future<Option<uint64_t> > electing = coord.elect();
+    AWAIT_READY(electing);
+    EXPECT_SOME_EQ(0u, electing.get());
+  }
+
+  {
+    Future<Option<uint64_t> > appending = coord.append("hello world");
+    AWAIT_READY(appending);
+    EXPECT_SOME_EQ(1u, appending.get());
+  }
+
+  {
+    Future<list<Action> > actions = shared->read(1, 1);
+    AWAIT_READY(actions);
+    ASSERT_EQ(1u, actions.get().size());
+    EXPECT_EQ(1u, actions.get().front().position());
+    ASSERT_TRUE(actions.get().front().has_type());
+    ASSERT_EQ(Action::APPEND, actions.get().front().type());
+    EXPECT_EQ("hello world", actions.get().front().append().bytes());
+  }
+}
+
+
 class LogTest : public TemporaryDirectoryTest
 {
 protected:

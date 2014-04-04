@@ -189,7 +189,8 @@ public:
   // with other replicas via the set of process PIDs.
   Log(int quorum,
       const std::string& path,
-      const std::set<process::UPID>& pids);
+      const std::set<process::UPID>& pids,
+      bool autoInitialize = false);
 
   // Creates a new replicated log that assumes the specified quorum
   // size, is backed by a file at the specified path, and coordinates
@@ -200,7 +201,8 @@ public:
       const std::string& servers,
       const Duration& timeout,
       const std::string& znode,
-      const Option<zookeeper::Authentication>& auth = None());
+      const Option<zookeeper::Authentication>& auth = None(),
+      bool autoInitialize = false);
 
   ~Log();
 
