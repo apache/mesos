@@ -393,17 +393,6 @@ int setupChdir(const string& directory)
 }
 
 
-int setupSetsid(void)
-{
-  // Keep everything async-signal safe.
-  if (::setsid() == -1) {
-    return errno;
-  }
-
-  return 0;
-}
-
-
 TEST(Subprocess, setup)
 {
   Clock::pause();
@@ -434,32 +423,6 @@ TEST(Subprocess, setup)
   EXPECT_SOME_EQ("hello world\n", os::read(path));
 
   os::rmdir(directory.get());
-
-  // setsid().
-  s = subprocess(
-      "sleep 60",
-      None(),
-      lambda::bind(&setupSetsid));
-
-  ASSERT_SOME(s);
-
-  // Verify the process is in a different session.
-  EXPECT_NE(getsid(0), getsid(s.get().pid()));
-
-  kill(s.get().pid(), SIGTERM);
-
-  // Advance time until the internal reaper reaps the subprocess.
-  while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
-    Clock::settle();
-  }
-
-  AWAIT_ASSERT_READY(s.get().status());
-  ASSERT_SOME(s.get().status().get());
-
-  int status = s.get().status().get().get();
-  ASSERT_TRUE(WIFSIGNALED(status));
-  ASSERT_EQ(SIGTERM, WTERMSIG(status));
 
   Clock::resume();
 }
