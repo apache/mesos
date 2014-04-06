@@ -302,7 +302,9 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	tests/containerizer.hpp						\
 	tests/isolator.hpp						\
 	tests/mesos.hpp							\
-	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
+	tests/zookeeper_test_server.hpp					\
+	usage/usage.hpp							\
+	zookeeper/authentication.hpp					\
 	zookeeper/contender.hpp						\
 	zookeeper/detector.hpp						\
 	zookeeper/group.hpp zookeeper/watcher.hpp			\
@@ -476,6 +478,11 @@ pkglibexec_PROGRAMS += mesos-executor
 mesos_executor_SOURCES = launcher/executor.cpp
 mesos_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_executor_LDADD = libmesos.la
+
+pkglibexec_PROGRAMS += mesos-usage
+mesos_usage_SOURCES = usage/main.cpp
+mesos_usage_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_usage_LDADD = libmesos.la
 
 bin_PROGRAMS += mesos-log
 mesos_log_SOURCES = log/main.cpp
