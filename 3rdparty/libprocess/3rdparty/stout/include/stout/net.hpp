@@ -116,15 +116,16 @@ inline Try<std::string> getHostname(uint32_t ip)
   addr.sin_addr.s_addr = ip;
 
   char hostname[MAXHOSTNAMELEN];
-  if (getnameinfo(
+  int err= getnameinfo(
       (sockaddr*)&addr,
       sizeof(addr),
       hostname,
       MAXHOSTNAMELEN,
       NULL,
       0,
-      0) != 0) {
-    return ErrnoError();
+      0);
+  if (err != 0) {
+    return Error(std::string(gai_strerror(err)));
   }
 
   return std::string(hostname);
