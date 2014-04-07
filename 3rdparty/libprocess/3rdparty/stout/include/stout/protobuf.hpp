@@ -47,7 +47,8 @@ namespace protobuf {
 inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
 {
   if (!message.IsInitialized()) {
-    return Error("Uninitialized protocol buffer");
+    return Error(message.InitializationErrorString() +
+                 " is required but not initialized");
   }
 
   // First write the size of the protobuf.
