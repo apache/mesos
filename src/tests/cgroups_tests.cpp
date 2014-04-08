@@ -516,12 +516,8 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
         hierarchy, TEST_CGROUPS_ROOT));
 
   // Limit the memory usage of the test cgroup to 64MB.
-  size_t limit = 1024 * 1024 * 64;
-  ASSERT_SOME(cgroups::write(
-                  hierarchy,
-                  TEST_CGROUPS_ROOT,
-                  "memory.limit_in_bytes",
-                  stringify(limit)));
+  ASSERT_SOME(cgroups::memory::limit_in_bytes(
+      hierarchy, TEST_CGROUPS_ROOT, Megabytes(64)));
 
   // Listen on oom events for test cgroup.
   Future<Nothing> future =
