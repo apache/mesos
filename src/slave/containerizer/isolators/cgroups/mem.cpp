@@ -425,9 +425,6 @@ void CgroupsMemIsolatorProcess::oomWaited(
     const ContainerID& containerId,
     const Future<uint64_t>& future)
 {
-  LOG(INFO) << "OOM notifier is triggered for container "
-            << containerId;
-
   if (future.isDiscarded()) {
     LOG(INFO) << "Discarded OOM notifier for container "
               << containerId;
@@ -436,6 +433,7 @@ void CgroupsMemIsolatorProcess::oomWaited(
                << containerId << ": " << future.failure();
   } else {
     // Out-of-memory event happened, call the handler.
+    LOG(INFO) << "OOM notifier is triggered for container " << containerId;
     oom(containerId);
   }
 }
