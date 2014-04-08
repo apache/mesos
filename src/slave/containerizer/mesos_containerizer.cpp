@@ -53,8 +53,8 @@ using state::RunState;
 Future<Nothing> _nothing() { return Nothing(); }
 
 
-// Helper method to build the command sent to the fetcher.
-std::string buildCommand(
+// Helper method to build the environment map used to launch fetcher.
+map<string, string> fetcherEnvironment(
     const CommandInfo& commandInfo,
     const std::string& directory,
     const Option<std::string>& user,
@@ -70,23 +70,20 @@ std::string buildCommand(
   // Remove extra space at the end.
   uris = strings::trim(uris);
 
-  // Use /usr/bin/env to set the environment variables for the fetcher
-  // subprocess because we cannot pollute the slave's environment.
-  // TODO(idownes): Remove this once Subprocess accepts environment variables.
-  string command = "/usr/bin/env";
-  command += " MESOS_EXECUTOR_URIS=\"" + uris + "\"";
-  command += " MESOS_WORK_DIRECTORY=" + directory;
+  map<string, string> environment;
+  environment["MESOS_EXECUTOR_URIS"] = uris;
+  environment["MESOS_WORK_DIRECTORY"] = directory;
   if (user.isSome()) {
-    command += " MESOS_USER=" + user.get();
+    environment["MESOS_USER"] = user.get();
   }
   if (!flags.frameworks_home.empty()) {
-    command += " MESOS_FRAMEWORKS_HOME=" + flags.frameworks_home;
+    environment["MESOS_FRAMEWORKS_HOME"] = flags.frameworks_home;
   }
   if (!flags.hadoop_home.empty()) {
-    command += " HADOOP_HOME=" + flags.hadoop_home;
+    environment["HADOOP_HOME"] = flags.hadoop_home;
   }
 
-  return command;
+  return environment;
 }
 
 
@@ -501,15 +498,16 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     return Failure("Could not fetch URIs: failed to find mesos-fetcher");
   }
 
-  string command = buildCommand(commandInfo, directory, user, flags);
+  map<string, string> environment =
+    fetcherEnvironment(commandInfo, directory, user, flags);
 
   // Now the actual mesos-fetcher command.
-  command += " " + realpath.get();
+  string command = realpath.get();
 
   LOG(INFO) << "Fetching URIs for container '" << containerId
             << "' using command '" << command << "'";
 
-  Try<Subprocess> fetcher = subprocess(command);
+  Try<Subprocess> fetcher = subprocess(command, environment);
   if (fetcher.isError()) {
     return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
   }
