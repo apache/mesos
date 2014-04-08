@@ -129,6 +129,19 @@ TEST_F(OsTest, rmdir)
 }
 
 
+TEST_F(OsTest, system)
+{
+  EXPECT_EQ(0, os::system("exit 0"));
+  EXPECT_EQ(0, os::system("sleep 0"));
+  EXPECT_NE(0, os::system("exit 1"));
+  EXPECT_NE(0, os::system("invalid.command"));
+
+  // Note that ::system returns 0 for the following two cases as well.
+  EXPECT_EQ(0, os::system(""));
+  EXPECT_EQ(0, os::system(" "));
+}
+
+
 TEST_F(OsTest, nonblock)
 {
   int pipes[2];
