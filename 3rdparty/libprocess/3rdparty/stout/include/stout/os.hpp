@@ -295,7 +295,7 @@ inline Try<std::string> mktemp(const std::string& path = "/tmp/XXXXXX")
   int fd = ::mkstemp(::strcpy(temp, path.c_str()));
 
   if (fd < 0) {
-    delete temp;
+    delete[] temp;
     return ErrnoError();
   }
 
@@ -305,7 +305,7 @@ inline Try<std::string> mktemp(const std::string& path = "/tmp/XXXXXX")
   os::close(fd);
 
   std::string result(temp);
-  delete temp;
+  delete[] temp;
   return result;
 }
 
