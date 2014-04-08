@@ -1928,42 +1928,50 @@ void Master::killTask(
 
   Task* task = framework->getTask(taskId);
   if (task == NULL) {
-    // TODO(bmahler): If we knew the slaveID here we could reply more
-    // frequently in the presence of recovering slaves or slaves being
-    // removed.
+    // TODO(bmahler): Per MESOS-1200, if we knew the SlaveID here we
+    // could reply more frequently in the presence of slaves in a
+    // transitionary state.
     if (!slaves.recovered.empty()) {
-      LOG(WARNING) << "Cannot kill task " << taskId << " of framework "
-                   << frameworkId << " because the slave containing this task "
-                   << "may not have re-registered yet with this master";
-    } else if (!slaves.removing.empty()) {
-      LOG(WARNING) << "Cannot kill task " << taskId << " of framework "
-                   << frameworkId << " because the slave may be in the process "
-                   << "of being removed from the registrar, it is likely "
-                   << "TASK_LOST updates will occur when the slave is removed";
+      LOG(WARNING)
+        << "Cannot kill task " << taskId << " of framework " << frameworkId
+        << " because the slave containing this task may not have re-registered"
+        << " yet with this master";
     } else if (!slaves.reregistering.empty()) {
-      LOG(WARNING) << "Cannot kill task " << taskId << " of framework "
-                   << frameworkId << " because the slave may be in the process "
-                   << "of being re-admitted by the registrar";
-    } else {
-      // TODO(benh): Once the scheduler has persistence and
-      // high-availability of it's tasks, it will be the one that
-      // determines that this invocation of 'killTask' is silly, and
-      // can just return "locally" (i.e., after hitting only the other
-      // replicas). Unfortunately, it still won't know the slave id.
+      LOG(WARNING)
+        << "Cannot kill task " << taskId << " of framework " << frameworkId
+        << " because the slave may be in the process of being re-admitted by"
+        << " the registrar";
+    } else if (!slaves.removing.empty()) {
+      LOG(WARNING)
+        << "Cannot kill task " << taskId << " of framework " << frameworkId
+        << " because the slave may be in the process of being removed from the"
+        << " registrar, it is likely TASK_LOST updates will occur when the"
+        << " slave is removed";
+    } else if (flags.registry_strict) {
+      // For a strict registry, if there are no slaves transitioning
+      // between states, then this task is definitely unknown!
+      LOG(WARNING)
+        << "Cannot kill task " << taskId << " of framework " << frameworkId
+        << " because it cannot be found; sending TASK_LOST since there are "
+        << " no transitionary slaves";
 
-      LOG(WARNING) << "Cannot kill task " << taskId
-                   << " of framework " << frameworkId
-                   << " because it cannot be found, sending TASK_LOST";
       StatusUpdateMessage message;
       StatusUpdate* update = message.mutable_update();
       update->mutable_framework_id()->MergeFrom(frameworkId);
       TaskStatus* status = update->mutable_status();
       status->mutable_task_id()->MergeFrom(taskId);
       status->set_state(TASK_LOST);
-      status->set_message("Task not found");
+      status->set_message("Attempted to kill an unknown task");
       update->set_timestamp(Clock::now().secs());
       update->set_uuid(UUID::random().toBytes());
       send(framework->pid, message);
+    } else {
+      // For a non-strict registry, the slave holding this task could
+      // be readmitted even if we have no knowledge of it.
+      LOG(WARNING)
+        << "Cannot kill task " << taskId << " of framework " << frameworkId
+        << " because it cannot be found; cannot send TASK_LOST since a"
+        << " non-strict registry is in use";
     }
 
     return;
