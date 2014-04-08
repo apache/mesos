@@ -89,7 +89,7 @@ private:
     process::Promise<Limitation> limitation;
 
     // Used to cancel the OOM listening.
-    process::Future<uint64_t> oomNotifier;
+    process::Future<Nothing> oomNotifier;
   };
 
   // Start listening on OOM events. This function will create an
@@ -100,7 +100,7 @@ private:
   // result.
   void oomWaited(
       const ContainerID& containerId,
-      const process::Future<uint64_t>& future);
+      const process::Future<Nothing>& future);
 
   // This function is invoked when the OOM event happens.
   void oom(const ContainerID& containerId);

@@ -447,6 +447,39 @@ Try<Bytes> max_usage_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
 
+
+// Out-of-memory (OOM) controls.
+namespace oom {
+
+// Listen for an OOM event for the cgroup.
+process::Future<Nothing> listen(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+// OOM killer controls.
+namespace killer {
+
+// Return whether the kernel OOM killer is enabled for the cgroup.
+Try<bool> enabled(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+// Enable the kernel OOM killer for the cgroup. The control file will
+// only be written to if necessary.
+Try<Nothing> enable(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+// Disable the kernel OOM killer. The control file will only be
+// written to if necessary.
+Try<Nothing> disable(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+} // namespace killer {
+
+} // namespace oom {
+
 } // namespace memory {
 
 

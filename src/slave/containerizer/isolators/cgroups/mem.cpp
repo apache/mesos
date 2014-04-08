@@ -80,21 +80,15 @@ Try<Isolator*> CgroupsMemIsolatorProcess::create(const Flags& flags)
     return Error("Failed to create memory cgroup: " + hierarchy.error());
   }
 
-  // Make sure the kernel supports OOM controls.
-  Try<bool> exists = cgroups::exists(
-      hierarchy.get(), flags.cgroups_root, "memory.oom_control");
-  if (exists.isError() || !exists.get()) {
-    return Error("Failed to determine if 'memory.oom_control' control exists");
-  }
-
   // Make sure the kernel OOM-killer is enabled.
   // The Mesos OOM handler, as implemented, is not capable of handling
   // the oom condition by itself safely given the limitations Linux
   // imposes on this code path.
-  Try<Nothing> write = cgroups::write(
-      hierarchy.get(), flags.cgroups_root, "memory.oom_control", "0");
-  if (write.isError()) {
-    return Error("Failed to update memory.oom_control");
+  Try<Nothing> enable = cgroups::memory::oom::killer::enable(
+      hierarchy.get(), flags.cgroups_root);
+
+  if (enable.isError()) {
+    return Error(enable.error());
   }
 
   process::Owned<IsolatorProcess> process(
@@ -418,8 +412,7 @@ void CgroupsMemIsolatorProcess::oomListen(
   CHECK(infos.contains(containerId));
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
-  info->oomNotifier =
-    cgroups::listen(hierarchy, info->cgroup, "memory.oom_control");
+  info->oomNotifier = cgroups::memory::oom::listen(hierarchy, info->cgroup);
 
   // If the listening fails immediately, something very wrong
   // happened.  Therefore, we report a fatal error here.
@@ -442,7 +435,7 @@ void CgroupsMemIsolatorProcess::oomListen(
 
 void CgroupsMemIsolatorProcess::oomWaited(
     const ContainerID& containerId,
-    const Future<uint64_t>& future)
+    const Future<Nothing>& future)
 {
   if (future.isDiscarded()) {
     LOG(INFO) << "Discarded OOM notifier for container "

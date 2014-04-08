@@ -503,7 +503,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
   std::string hierarchy = path::join(baseHierarchy, "memory");
   ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
   ASSERT_SOME(
-      cgroups::exists(hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control"))
+      cgroups::memory::oom::killer::enabled(hierarchy, TEST_CGROUPS_ROOT))
     << "-------------------------------------------------------------\n"
     << "We cannot run this test because it appears you do not have\n"
     << "a modern enough version of the Linux kernel. You won't be\n"
@@ -512,8 +512,8 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
     << "-------------------------------------------------------------";
 
   // Disable oom killer.
-  ASSERT_SOME(
-      cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control", "1"));
+  ASSERT_SOME(cgroups::memory::oom::killer::disable(
+        hierarchy, TEST_CGROUPS_ROOT));
 
   // Limit the memory usage of the test cgroup to 64MB.
   size_t limit = 1024 * 1024 * 64;
@@ -524,15 +524,15 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
                   stringify(limit)));
 
   // Listen on oom events for test cgroup.
-  Future<uint64_t> future = cgroups::listen(
-      hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control");
+  Future<Nothing> future =
+    cgroups::memory::oom::listen(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_FALSE(future.isFailed());
 
   // Test the cancellation.
   future.discard();
 
   // Test the normal operation below.
-  future = cgroups::listen(hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control");
+  future = cgroups::memory::oom::listen(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_FALSE(future.isFailed());
 
   pid_t pid = ::fork();
