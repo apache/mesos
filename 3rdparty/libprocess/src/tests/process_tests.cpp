@@ -32,6 +32,7 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/stopwatch.hpp>
+#include <stout/try.hpp>
 #include <stout/tuple.hpp>
 
 #include "encoder.hpp"
@@ -1691,3 +1692,18 @@ TEST(Process, defers)
       defer(functor));
 }
 #endif // __cplusplus >= 201103L
+
+
+TEST(Future, FromTry)
+{
+  Try<int> t = 1;
+  Future<int> future = t;
+
+  ASSERT_TRUE(future.isReady());
+  EXPECT_EQ(1, future.get());
+
+  t = Error("error");
+  future = t;
+
+  ASSERT_TRUE(future.isFailed());
+}

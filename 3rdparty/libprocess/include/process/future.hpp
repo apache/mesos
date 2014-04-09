@@ -31,6 +31,7 @@
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/preprocessor.hpp>
+#include <stout/try.hpp>
 
 namespace process {
 
@@ -94,6 +95,8 @@ public:
   /*implicit*/ Future(const Failure& failure);
 
   /*implicit*/ Future(const Future<T>& that);
+
+  /*implicit*/ Future(const Try<T>& t);
 
   ~Future();
 
@@ -1010,6 +1013,18 @@ Future<T>::Future(const Failure& failure)
 template <typename T>
 Future<T>::Future(const Future<T>& that)
   : data(that.data) {}
+
+
+template <typename T>
+Future<T>::Future(const Try<T>& t)
+  : data(new Data())
+{
+  if (t.isSome()){
+    set(t.get());
+  } else {
+    fail(t.error());
+  }
+}
 
 
 template <typename T>
