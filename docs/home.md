@@ -18,15 +18,15 @@ layout: documentation
 
 ## Developing Mesos Frameworks and Applications
 
-* [Mesos Architecture](mesos-architecture.md) providing an overview of Mesos concepts.
-* [Mesos Code Internals](mesos-code-internals.md) overview of the codebase and internal organization.
 * [Framework Development Guide](app-framework-development-guide.md) describes how to build applications on top of Mesos.
-* [Mesos Command-Line Flags](configuration.md) detailing various flags that can be set.
+* [Mesos Architecture](mesos-architecture.md) providing an overview of Mesos concepts.
+* [Javadoc](/api/latest/java/) documents the Mesos Java API.
 * [Developer Tools](tools.md) for hacking on Mesos or writing frameworks.
 
 ## Contributing to Mesos
 
 * [Mesos Developers Guide](mesos-developers-guide.md) includes resources for developers contributing to Mesos and the process of submitting patches for review.
+* [Mesos Code Internals](mesos-code-internals.md) overview of the codebase and internal organization.
 * [C++ Style Guide](mesos-c++-style-guide.md)
 * [Release Guide](release-guide.md)
 * [Mesos Development Road Map](mesos-roadmap.md)
