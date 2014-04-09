@@ -2617,34 +2617,26 @@ void Slave::checkDiskUsage()
   // fs::usage() into async.
   // NOTE: We calculate disk usage of the file system on which the
   // slave work directory is mounted.
-  Future<Try<double> >(fs::usage(flags.work_dir))
+  Future<double>(fs::usage(flags.work_dir))
     .onAny(defer(self(), &Slave::_checkDiskUsage, lambda::_1));
 }
 
 
-void Slave::_checkDiskUsage(const Future<Try<double> >& usage)
+void Slave::_checkDiskUsage(const Future<double>& usage)
 {
   if (!usage.isReady()) {
     LOG(ERROR) << "Failed to get disk usage: "
                << (usage.isFailed() ? usage.failure() : "future discarded");
   } else {
-    Try<double> result = usage.get();
+    LOG(INFO) << "Current usage " << std::setiosflags(std::ios::fixed)
+              << std::setprecision(2) << 100 * usage.get() << "%."
+              << " Max allowed age: " << age(usage.get());
 
-    if (result.isSome()) {
-      double use = result.get();
-
-      LOG(INFO) << "Current usage " << std::setiosflags(std::ios::fixed)
-                << std::setprecision(2) << 100 * use << "%."
-                << " Max allowed age: " << age(use);
-
-      // We prune all directories whose deletion time is within
-      // the next 'gc_delay - age'. Since a directory is always
-      // scheduled for deletion 'gc_delay' into the future, only directories
-      // that are at least 'age' old are deleted.
-      gc.prune(flags.gc_delay - age(use));
-    } else {
-      LOG(WARNING) << "Unable to get disk usage: " << result.error();
-    }
+    // We prune all directories whose deletion time is within
+    // the next 'gc_delay - age'. Since a directory is always
+    // scheduled for deletion 'gc_delay' into the future, only directories
+    // that are at least 'age' old are deleted.
+    gc.prune(flags.gc_delay - age(usage.get()));
   }
   delay(flags.disk_watch_interval, self(), &Slave::checkDiskUsage);
 }

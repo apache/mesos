@@ -195,7 +195,7 @@ public:
   // TODO(vinod): Instead of making this function public, we need to
   // mock both GarbageCollector (and pass it through slave's constructor)
   // and os calls.
-  void _checkDiskUsage(const process::Future<Try<double> >& usage);
+  void _checkDiskUsage(const process::Future<double>& usage);
 
   // Shut down an executor. This is a two phase process. First, an
   // executor receives a shut down message (shut down phase), then
