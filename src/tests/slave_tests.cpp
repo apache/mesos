@@ -57,6 +57,7 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
 
 using process::Clock;
@@ -90,7 +91,8 @@ TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
   // Set the isolation flag so we know a MesoContainerizer will be created.
   flags.isolation = "posix/cpu,posix/mem";
 
-  Try<Containerizer*> containerizer = Containerizer::create(flags, false);
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());

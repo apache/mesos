@@ -31,7 +31,19 @@
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
+#ifdef __linux__
+#include "slave/containerizer/linux_launcher.hpp"
+#endif // __linux__
+#include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/isolator.hpp"
+#include "slave/containerizer/launcher.hpp"
 #include "slave/containerizer/mesos_containerizer.hpp"
+
+#include "slave/containerizer/isolators/posix.hpp"
+#ifdef __linux__
+#include "slave/containerizer/isolators/cgroups/cpushare.hpp"
+#include "slave/containerizer/isolators/cgroups/mem.hpp"
+#endif // __linux__
 
 using std::list;
 using std::map;
@@ -85,6 +97,71 @@ map<string, string> fetcherEnvironment(
   }
 
   return environment;
+}
+
+
+Try<MesosContainerizer*> MesosContainerizer::create(
+    const Flags& flags,
+    bool local)
+{
+  string isolation;
+  if (flags.isolation == "process") {
+    LOG(WARNING) << "The 'process' isolation flag is deprecated, "
+                 << "please update your flags to"
+                 << " '--isolation=posix/cpu,posix/mem'.";
+    isolation = "posix/cpu,posix/mem";
+  } else if (flags.isolation == "cgroups") {
+    LOG(WARNING) << "The 'cgroups' isolation flag is deprecated, "
+                 << "please update your flags to"
+                 << " '--isolation=cgroups/cpu,cgroups/mem'.";
+    isolation = "cgroups/cpu,cgroups/mem";
+  } else {
+    isolation = flags.isolation;
+  }
+
+  LOG(INFO) << "Using isolation: " << isolation;
+
+  // Create a MesosContainerizerProcess using isolators and a launcher.
+  hashmap<std::string, Try<Isolator*> (*)(const Flags&)> creators;
+
+  creators["posix/cpu"]   = &PosixCpuIsolatorProcess::create;
+  creators["posix/mem"]   = &PosixMemIsolatorProcess::create;
+#ifdef __linux__
+  creators["cgroups/cpu"] = &CgroupsCpushareIsolatorProcess::create;
+  creators["cgroups/mem"] = &CgroupsMemIsolatorProcess::create;
+#endif // __linux__
+
+  vector<Owned<Isolator> > isolators;
+
+  foreach (const string& type, strings::split(isolation, ",")) {
+    if (creators.contains(type)) {
+      Try<Isolator*> isolator = creators[type](flags);
+      if (isolator.isError()) {
+        return Error(
+            "Could not create isolator " + type + ": " + isolator.error());
+      } else {
+        isolators.push_back(Owned<Isolator>(isolator.get()));
+      }
+    } else {
+      return Error("Unknown or unsupported isolator: " + type);
+    }
+  }
+
+#ifdef __linux__
+  // Use cgroups on Linux if any cgroups isolators are used.
+  Try<Launcher*> launcher = strings::contains(isolation, "cgroups")
+    ? LinuxLauncher::create(flags)
+    : PosixLauncher::create(flags);
+#else
+  Try<Launcher*> launcher = PosixLauncher::create(flags);
+#endif // __linux__
+
+  if (launcher.isError()) {
+    return Error("Failed to create launcher: " + launcher.error());
+  }
+
+  return new MesosContainerizer(
+      flags, local, Owned<Launcher>(launcher.get()), isolators);
 }
 
 

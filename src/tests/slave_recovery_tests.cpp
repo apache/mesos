@@ -126,10 +126,10 @@ public:
   }
 };
 
-// Note: Although these tests are typed it is Containerizer::create() that
-// decides which Containerizer to create based on the flags - see
-// SlaveRecoveryTest.
+
+// Containerizer types to run the tests.
 typedef ::testing::Types<slave::MesosContainerizer> ContainerizerTypes;
+
 
 TYPED_TEST_CASE(SlaveRecoveryTest, ContainerizerTypes);
 
@@ -141,7 +141,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
@@ -320,7 +320,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -378,7 +378,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -405,7 +405,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -458,7 +458,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -499,7 +499,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -551,7 +551,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
@@ -609,7 +609,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -670,7 +670,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
@@ -734,7 +734,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.recovery_timeout = Milliseconds(1);
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -790,7 +790,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -828,7 +828,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -881,7 +881,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
       _, &GarbageCollectorProcess::schedule);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
@@ -918,7 +918,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -975,7 +975,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
   // Restart the slave in 'cleanup' recovery mode with a new isolator.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   flags.recover = "cleanup";
@@ -1018,7 +1018,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
@@ -1122,7 +1122,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
@@ -1212,7 +1212,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   Future<RegisterSlaveMessage> registerSlaveMessage =
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
-  Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
@@ -1262,7 +1262,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -1313,7 +1313,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -1379,7 +1379,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.strict = false;
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -1450,7 +1450,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
@@ -1488,7 +1488,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.strict = false;
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -1564,7 +1564,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
@@ -1630,7 +1630,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -1712,7 +1712,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   // Now restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -1756,7 +1756,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
@@ -1866,7 +1866,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -1925,7 +1925,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
     .WillOnce(FutureArg<1>(&status));
 
   // Now restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   Future<vector<Offer> > offers2;
@@ -1966,7 +1966,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -2034,7 +2034,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
     FUTURE_DISPATCH(_, &Slave::executorTerminated);
 
   // Now restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -2071,7 +2071,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   EXPECT_CALL(allocator, slaveAdded(_, _, _));
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -2175,7 +2175,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -2235,7 +2235,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -2314,7 +2314,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
       FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -2393,7 +2393,7 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -2494,7 +2494,7 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -2523,7 +2523,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -2597,7 +2597,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -2664,7 +2664,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
@@ -2761,7 +2761,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   slave = this->StartSlave(containerizer2.get(), flags);
@@ -2856,7 +2856,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   // Disable putting slave into cgroup(s) because this is a multi-slave test.
   flags1.slave_subsystems = None();
 #endif // __linux
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags1, true);
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags1, true);
   ASSERT_SOME(containerizer1);
 
   Try<PID<Slave> > slave1 = this->StartSlave(containerizer1.get(), flags1);
@@ -2891,7 +2891,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   // Disable putting slave into cgroup(s) because this is a multi-slave test.
   flags2.slave_subsystems = "";
 #endif // __linux
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags2, true);
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags2, true);
   ASSERT_SOME(containerizer2);
 
   Try<PID<Slave> > slave2 = this->StartSlave(containerizer2.get(), flags2);
@@ -2930,13 +2930,13 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Restart both slaves using the same flags with new containerizers.
-  Try<Containerizer*> containerizer3 = Containerizer::create(flags1, true);
+  Try<TypeParam*> containerizer3 = TypeParam::create(flags1, true);
   ASSERT_SOME(containerizer3);
 
   slave1 = this->StartSlave(containerizer3.get(), flags1);
   ASSERT_SOME(slave1);
 
-  Try<Containerizer*> containerizer4 = Containerizer::create(flags2, true);
+  Try<TypeParam*> containerizer4 = TypeParam::create(flags2, true);
   ASSERT_SOME(containerizer4);
 
   slave2 = this->StartSlave(containerizer4.get(), flags2);
@@ -2996,101 +2996,6 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   this->Shutdown();
   delete containerizer3.get();
   delete containerizer4.get();
-}
-
-
-TYPED_TEST(SlaveRecoveryTest, ResourceStatistics)
-{
-  Try<PID<Master> > master = this->StartMaster();
-  ASSERT_SOME(master);
-
-  slave::Flags flags = this->CreateSlaveFlags();
-
-  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
-  ASSERT_SOME(containerizer1);
-
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-
-  // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
-  frameworkInfo.set_checkpoint(true);
-
-  MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
-
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
-  vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task.
-
-  // Message expectations.
-  Future<Message> registerExecutor =
-    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
-
-  driver.launchTasks(offers.get()[0].id(), tasks);
-
-  AWAIT_READY(registerExecutor);
-
-  this->Stop(slave.get());
-  delete containerizer1.get();
-
-  // Set up so we can wait until the new slave updates the container's
-  // resources (this occurs after the executor has re-registered).
-  // TODO(idownes): This assumes the containerizer is a MesosContainerizer.
-  Future<Nothing> update =
-    FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
-
-  // Restart the slave (use same flags) with a new containerizer.
-  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
-  ASSERT_SOME(containerizer2);
-
-  slave = this->StartSlave(containerizer2.get(), flags);
-  ASSERT_SOME(slave);
-
-  // Wait until the containerizer is updated.
-  AWAIT_READY(update);
-
-  Future<hashset<ContainerID> > containers = containerizer2.get()->containers();
-  AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
-
-  ContainerID containerId = *(containers.get().begin());
-
-  Future<ResourceStatistics> usage = containerizer2.get()->usage(containerId);
-  AWAIT_READY(usage);
-
-  // Check the resource limits are set.
-  EXPECT_TRUE(usage.get().has_cpus_limit());
-  EXPECT_TRUE(usage.get().has_mem_limit_bytes());
-
-  Future<containerizer::Termination> wait =
-    containerizer2.get()->wait(containerId);
-
-  containerizer2.get()->destroy(containerId);
-
-  AWAIT_READY(wait);
-
-  driver.stop();
-  driver.join();
-
-  this->Shutdown();
-
-  delete containerizer2.get();
 }
 
 
@@ -3178,4 +3083,106 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 
   this->Shutdown();
   delete containerizer2;
+}
+
+
+// We explicitly instantiate a SlaveRecoveryTest for test cases where
+// we assume we'll only have the MesosContainerizer.
+class MesosContainerizerSlaveRecoveryTest
+  : public SlaveRecoveryTest<MesosContainerizer> {};
+
+
+TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<MesosContainerizer*> containerizer1 =
+    MesosContainerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task.
+
+  // Message expectations.
+  Future<Message> registerExecutor =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(registerExecutor);
+
+  this->Stop(slave.get());
+  delete containerizer1.get();
+
+  // Set up so we can wait until the new slave updates the container's
+  // resources (this occurs after the executor has re-registered).
+  Future<Nothing> update =
+    FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
+
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<MesosContainerizer*> containerizer2 =
+    MesosContainerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
+
+  slave = this->StartSlave(containerizer2.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Wait until the containerizer is updated.
+  AWAIT_READY(update);
+
+  Future<hashset<ContainerID> > containers = containerizer2.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *(containers.get().begin());
+
+  Future<ResourceStatistics> usage = containerizer2.get()->usage(containerId);
+  AWAIT_READY(usage);
+
+  // Check the resource limits are set.
+  EXPECT_TRUE(usage.get().has_cpus_limit());
+  EXPECT_TRUE(usage.get().has_mem_limit_bytes());
+
+  Future<containerizer::Termination> wait =
+    containerizer2.get()->wait(containerId);
+
+  containerizer2.get()->destroy(containerId);
+
+  AWAIT_READY(wait);
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+
+  delete containerizer2.get();
 }

@@ -40,6 +40,8 @@ class MesosContainerizerProcess;
 class MesosContainerizer : public Containerizer
 {
 public:
+  static Try<MesosContainerizer*> create(const Flags& flags, bool local);
+
   MesosContainerizer(
       const Flags& flags,
       bool local,

@@ -299,7 +299,8 @@ public:
 
 
 // The isolator has a prepare command that succeeds.
-TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds) {
+TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
+{
   string directory = os::getcwd(); // We're inside a temporary sandbox.
   string file = path::join(directory, "child.script.executed");
 
@@ -342,7 +343,8 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds) {
 
 
 // The isolator has a prepare command that fails.
-TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails) {
+TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
+{
   string directory = os::getcwd(); // We're inside a temporary sandbox.
   string file = path::join(directory, "child.script.executed");
 
@@ -387,7 +389,8 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails) {
 // There are two isolators, one with a prepare command that succeeds and
 // another that fails. The execution order is not defined but the launch should
 // fail from the failing prepare command.
-TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts) {
+TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
+{
   string directory = os::getcwd(); // We're inside a temporary sandbox.
   string file1 = path::join(directory, "child.script.executed.1");
   string file2 = path::join(directory, "child.script.executed.2");
