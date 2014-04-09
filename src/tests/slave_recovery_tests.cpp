@@ -52,6 +52,7 @@
 
 #include "messages/messages.hpp"
 
+#include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
@@ -73,6 +74,7 @@ using std::vector;
 
 using testing::_;
 using testing::AtMost;
+using testing::DoAll;
 using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
@@ -3086,4 +3088,81 @@ TYPED_TEST(SlaveRecoveryTest, ResourceStatistics)
   this->Shutdown();
 
   delete containerizer2.get();
+}
+
+
+// The slave is stopped after it dispatched Containerizer::launch but
+// before the containerizer has processed the launch. When the slave
+// comes back up it should send a TASK_LOST for the task.
+// NOTE: This is a 'TYPED_TEST' but we don't use 'TypeParam'.
+TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  TestContainerizer* containerizer1 = new TestContainerizer();
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task.
+
+  // Expect the launch but don't do anything.
+  Future<Nothing> launch;
+  EXPECT_CALL(*containerizer1, launch(_, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureSatisfy(&launch),
+                    Return(Future<Nothing>())));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Once we get the launch restart the slave.
+  AWAIT_READY(launch);
+
+  this->Stop(slave.get());
+  delete containerizer1;
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  TestContainerizer* containerizer2 = new TestContainerizer();
+
+  slave = this->StartSlave(containerizer2, flags);
+  ASSERT_SOME(slave);
+
+  // Scheduler should receive an update for the lost task.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_LOST, status.get().state());
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+  delete containerizer2;
 }

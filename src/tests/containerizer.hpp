@@ -64,14 +64,16 @@ public:
 
   virtual ~TestContainerizer();
 
-  virtual process::Future<Nothing> launch(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
-      const process::PID<slave::Slave>& slavePid,
-      bool checkpoint);
+  MOCK_METHOD7(
+      launch,
+      process::Future<Nothing>(
+          const ContainerID&,
+          const ExecutorInfo&,
+          const std::string&,
+          const Option<std::string>&,
+          const SlaveID&,
+          const process::PID<slave::Slave>&,
+          bool checkpoint));
 
   virtual process::Future<Nothing> launch(
       const ContainerID& containerId,
@@ -108,6 +110,16 @@ public:
 
 private:
   void setup();
+
+  // Default 'launch' implementation.
+  process::Future<Nothing> _launch(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const SlaveID& slaveId,
+      const process::PID<slave::Slave>& slavePid,
+      bool checkpoint);
 
   hashmap<ExecutorID, Executor*> executors;
 
