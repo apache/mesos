@@ -114,8 +114,7 @@ https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=
 The mesos-${VERSION}.jar has been released to:
 https://repository.apache.org
 
-The website (http://mesos.apache.org) will be updated shortly to
-reflect this release.
+The website (http://mesos.apache.org) will be updated shortly to reflect this release.
 
 Thanks,
 __EOF__
