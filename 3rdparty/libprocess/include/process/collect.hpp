@@ -29,7 +29,7 @@ namespace process {
 // the result future will be a failure.
 template <typename T>
 Future<std::list<T> > collect(
-    std::list<Future<T> >& futures,
+    const std::list<Future<T> >& futures,
     const Option<Timeout>& timeout = None());
 
 
@@ -37,7 +37,7 @@ Future<std::list<T> > collect(
 // non-pending futures. On timeout, the result will be a failure.
 template <typename T>
 Future<std::list<Future<T> > > await(
-    std::list<Future<T> >& futures,
+    const std::list<Future<T> >& futures,
     const Option<Timeout>& timeout = None());
 
 
@@ -233,7 +233,7 @@ Future<tuples::tuple<Future<T1>, Future<T2> > > __await(
 
 template <typename T>
 inline Future<std::list<T> > collect(
-    std::list<Future<T> >& futures,
+    const std::list<Future<T> >& futures,
     const Option<Timeout>& timeout)
 {
   if (futures.empty()) {
@@ -249,7 +249,7 @@ inline Future<std::list<T> > collect(
 
 template <typename T>
 inline Future<std::list<Future<T> > > await(
-    std::list<Future<T> >& futures,
+    const std::list<Future<T> >& futures,
     const Option<Timeout>& timeout)
 {
   if (futures.empty()) {
