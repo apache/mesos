@@ -34,6 +34,7 @@ libprocess_la_SOURCES =		\
   src/gate.hpp			\
   src/http.cpp			\
   src/latch.cpp			\
+  src/metrics/metrics.cpp	\
   src/pid.cpp			\
   src/process.cpp		\
   src/reap.cpp			\
@@ -87,6 +88,10 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/limiter.hpp			\
   $(top_srcdir)/include/process/logging.hpp			\
   $(top_srcdir)/include/process/message.hpp			\
+  $(top_srcdir)/include/process/metrics/counter.hpp		\
+  $(top_srcdir)/include/process/metrics/gauge.hpp		\
+  $(top_srcdir)/include/process/metrics/metric.hpp		\
+  $(top_srcdir)/include/process/metrics/metrics.hpp		\
   $(top_srcdir)/include/process/mime.hpp			\
   $(top_srcdir)/include/process/mutex.hpp			\
   $(top_srcdir)/include/process/once.hpp			\
@@ -126,6 +131,7 @@ tests_SOURCES =							\
   src/tests/io_tests.cpp					\
   src/tests/main.cpp						\
   src/tests/mutex_tests.cpp					\
+  src/tests/metrics_tests.cpp					\
   src/tests/owned_tests.cpp					\
   src/tests/process_tests.cpp					\
   src/tests/reap_tests.cpp					\
