@@ -488,7 +488,8 @@ inline Try<std::string> decode(const std::string& s)
 Future<Response> get(
     const UPID& upid,
     const Option<std::string>& path = None(),
-    const Option<std::string>& query = None());
+    const Option<std::string>& query = None(),
+    const Option<hashmap<std::string, std::string> >& headers = None());
 
 
 // Sends a blocking HTTP POST request to the process with the given upid.
@@ -496,6 +497,7 @@ Future<Response> get(
 Future<Response> post(
     const UPID& upid,
     const Option<std::string>& path = None(),
+    const Option<hashmap<std::string, std::string> >& headers = None(),
     const Option<std::string>& body = None(),
     const Option<std::string>& contentType = None());
 

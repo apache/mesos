@@ -265,7 +265,7 @@ TEST(HTTP, Post)
 
   // Test the case where there is a content type but no body.
   Future<http::Response> future =
-    http::post(process.self(), "post", None(), "text/plain");
+    http::post(process.self(), "post", None(), None(), "text/plain");
 
   AWAIT_EXPECT_FAILED(future);
 
@@ -273,7 +273,20 @@ TEST(HTTP, Post)
     .WillOnce(Invoke(validatePost));
 
   future =
-    http::post(process.self(), "post", "This is the payload.", "text/plain");
+    http::post(process.self(), "post", None(), "This is the payload.", "text/plain");
+
+  AWAIT_READY(future);
+  ASSERT_EQ(http::statuses[200], future.get().status);
+
+  // Now test passing headers instead.
+  hashmap<string, string> headers;
+  headers["Content-Type"] = "text/plain";
+
+  EXPECT_CALL(process, post(_))
+    .WillOnce(Invoke(validatePost));
+
+  future =
+    http::post(process.self(), "post", headers, "This is the payload.");
 
   AWAIT_READY(future);
   ASSERT_EQ(http::statuses[200], future.get().status);
