@@ -93,6 +93,31 @@ template <typename T1, typename T2>
 }
 
 
+template <typename T1, typename T2>
+::testing::AssertionResult AssertSomeNe(
+    const char* notExpectedExpr,
+    const char* actualExpr,
+    const T1& notExpected,
+    const T2& actual) // Duck typing!
+{
+  const ::testing::AssertionResult result = AssertSome(actualExpr, actual);
+
+  if (result) {
+    if (notExpected == actual.get()) {
+      return ::testing::AssertionFailure()
+        << "    Value of: (" << actualExpr << ").get()\n"
+        << "      Actual: " << ::testing::PrintToString(actual.get()) << "\n"
+        << "Not expected: " << notExpectedExpr << "\n"
+        << "    Which is: " << ::testing::PrintToString(notExpected);
+    } else {
+      return ::testing::AssertionSuccess();
+    }
+  }
+
+  return result;
+}
+
+
 #define ASSERT_SOME(actual)                     \
   ASSERT_PRED_FORMAT1(AssertSome, actual)
 
@@ -107,6 +132,14 @@ template <typename T1, typename T2>
 
 #define EXPECT_SOME_EQ(expected, actual)                \
   EXPECT_PRED_FORMAT2(AssertSomeEq, expected, actual)
+
+
+#define ASSERT_SOME_NE(notExpected, actual)             \
+  ASSERT_PRED_FORMAT2(AssertSomeNe, notExpected, actual)
+
+
+#define EXPECT_SOME_NE(notExpected, actual)             \
+  EXPECT_PRED_FORMAT2(AssertSomeNe, notExpected, actual)
 
 
 #define ASSERT_SOME_TRUE(actual)                        \
