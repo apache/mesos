@@ -87,6 +87,7 @@ using namespace process::metrics::internal;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
+using process::http::Accepted;
 using process::http::BadRequest;
 using process::http::InternalServerError;
 using process::http::NotFound;
@@ -1050,6 +1051,52 @@ void recv_data(struct ev_loop* loop, ev_io* watcher, int revents)
 }
 
 
+// A variant of 'recv_data' that doesn't do anything with the
+// data. Used by sockets created via SocketManager::link as well as
+// SocketManager::send(Message) where we don't care about the data
+// received we mostly just want to know when the socket has been
+// closed.
+void ignore_data(struct ev_loop* loop, ev_io* watcher, int revents)
+{
+  Socket* socket = (Socket*) watcher->data;
+
+  int s = watcher->fd;
+
+  while (true) {
+    const ssize_t size = 80 * 1024;
+    ssize_t length = 0;
+
+    char data[size];
+
+    length = recv(s, data, size, 0);
+
+    if (length < 0 && (errno == EINTR)) {
+      // Interrupted, try again now.
+      continue;
+    } else if (length < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+      // Might block, try again later.
+      break;
+    } else if (length <= 0) {
+      // Socket error or closed.
+      if (length < 0) {
+        const char* error = strerror(errno);
+        VLOG(1) << "Socket error while receiving: " << error;
+      } else {
+        VLOG(1) << "Socket closed while receiving";
+      }
+      socket_manager->close(s);
+      ev_io_stop(loop, watcher);
+      delete socket;
+      delete watcher;
+      break;
+    } else {
+      VLOG(2) << "Ignoring " << length << " bytes of data received "
+              << "on socket used only for sending";
+    }
+  }
+}
+
+
 void send_data(struct ev_loop* loop, ev_io* watcher, int revents)
 {
   DataEncoder* encoder = (DataEncoder*) watcher->data;
@@ -1227,7 +1274,7 @@ void receiving_connect(struct ev_loop* loop, ev_io* watcher, int revents)
   } else {
     // We're connected! Now let's do some receiving.
     ev_io_stop(loop, watcher);
-    ev_io_init(watcher, recv_data, s, EV_READ);
+    ev_io_init(watcher, ignore_data, s, EV_READ);
     ev_io_start(loop, watcher);
   }
 }
@@ -1931,13 +1978,13 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
 
       persists[node] = s;
 
-      // Allocate and initialize the decoder and watcher (we really
-      // only "receive" on this socket so that we can react when it
-      // gets closed and generate appropriate lost events).
-      DataDecoder* decoder = new DataDecoder(sockets[s]);
-
+      // Allocate and initialize a watcher for reading data from this
+      // socket. Note that we don't expect to receive anything other
+      // than HTTP '202 Accepted' responses which we anyway ignore.
+      // We do, however, want to react when it gets closed so we can
+      // generate appropriate lost events (since this is a 'link').
       ev_io* watcher = new ev_io();
-      watcher->data = decoder;
+      watcher->data = new Socket(sockets[s]);
 
       // Try and connect to the node using this socket.
       sockaddr_in addr;
@@ -1954,7 +2001,7 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
         // Wait for socket to be connected.
         ev_io_init(watcher, receiving_connect, s, EV_WRITE);
       } else {
-        ev_io_init(watcher, recv_data, s, EV_READ);
+        ev_io_init(watcher, ignore_data, s, EV_READ);
       }
 
       // Enqueue the watcher.
@@ -2103,8 +2150,21 @@ void SocketManager::send(Message* message)
       // Initialize the outgoing queue.
       outgoing[s];
 
-      // Allocate and initialize the watcher.
+      // Allocate and initialize a watcher for reading data from this
+      // socket. Note that we don't expect to receive anything other
+      // than HTTP '202 Accepted' responses which we anyway ignore.
       ev_io* watcher = new ev_io();
+      watcher->data = new Socket(sockets[s]);
+
+      ev_io_init(watcher, ignore_data, s, EV_READ);
+
+      // Enqueue the watcher.
+      synchronized (watchers) {
+        watchers->push(watcher);
+      }
+
+      // Allocate and initialize a watcher for sending the message.
+      watcher = new ev_io();
       watcher->data = new MessageEncoder(sockets[s], message);
 
       // Try and connect to the node using this socket.
@@ -2250,6 +2310,16 @@ void SocketManager::close(int s)
         proxies.erase(s);
       }
 
+      // We need to stop any 'ignore_data' readers as they may have
+      // the last Socket reference so we shutdown reads but don't do a
+      // full close (since that will be taken care of by ~Socket, see
+      // comment below). Calling 'shutdown' will trigger 'ignore_data'
+      // which will get back a 0 (i.e., EOF) when it tries to read
+      // from the socket. Note we need to do this before we call
+      // 'sockets.erase(s)' to avoid the potential race with the last
+      // reference being in 'sockets'.
+      shutdown(s, SHUT_RD);
+
       dispose.erase(s);
       sockets.erase(s);
     }
@@ -2275,6 +2345,9 @@ void SocketManager::close(int s)
   // on the last reference of our Socket object to close the
   // socket. Note, however, that since socket is no longer in
   // 'sockets' any attempt to send with it will just get ignored.
+  // TODO(benh): Always do a 'shutdown(s, SHUT_RDWR)' since that
+  // should keep the file descriptor valid until the last Socket
+  // reference does a close but force all libev watchers to stop?
 }
 
 
@@ -2380,13 +2453,37 @@ bool ProcessManager::handle(
   if (libprocess(request)) {
     Message* message = parse(request);
     if (message != NULL) {
+      // TODO(benh): Use the sender PID when delivering in order to
+      // capture happens-before timing relationships for testing.
+      bool accepted = deliver(message->to, new MessageEvent(message));
+
+      // Get the HttpProxy pid for this socket.
+      PID<HttpProxy> proxy = socket_manager->proxy(socket);
+
+      // Only send back an HTTP response if this isn't from libprocess
+      // (which we determine by looking at the User-Agent). This is
+      // necessary because older versions of libprocess would try and
+      // read the data and parse it as an HTTP request which would
+      // fail thus causing the socket to get closed (but now
+      // libprocess will ignore responses, see ignore_data).
+      Option<string> agent = request->headers.get("User-Agent");
+      if (agent.get("").find("libprocess/") == string::npos) {
+        if (accepted) {
+          VLOG(2) << "Accepted libprocess message to " << request->path;
+          dispatch(proxy, &HttpProxy::enqueue, Accepted(), *request);
+        } else {
+          VLOG(1) << "Failed to handle libprocess message to "
+                  << request->path << ": not found";
+          dispatch(proxy, &HttpProxy::enqueue, NotFound(), *request);
+        }
+      }
+
       delete request;
-      // TODO(benh): Use the sender PID in order to capture
-      // happens-before timing relationships for testing.
-      return deliver(message->to, new MessageEvent(message));
+
+      return accepted;
     }
 
-    VLOG(1) << "Failed to handle libprocess request: "
+    VLOG(1) << "Failed to handle libprocess message: "
             << request->method << " " << request->path
             << " (User-Agent: " << request->headers["User-Agent"] << ")";
 

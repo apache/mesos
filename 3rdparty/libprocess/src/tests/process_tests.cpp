@@ -1388,13 +1388,11 @@ TEST(Process, remote)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   RemoteProcess process;
-
-  volatile bool handlerCalled = false;
-
-  EXPECT_CALL(process, handler(_, _))
-    .WillOnce(Assign(&handlerCalled, true));
-
   spawn(process);
+
+  Future<Nothing> handler;
+  EXPECT_CALL(process, handler(_, _))
+    .WillOnce(FutureSatisfy(&handler));
 
   int s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
@@ -1419,7 +1417,38 @@ TEST(Process, remote)
 
   ASSERT_EQ(0, close(s));
 
-  while (!handlerCalled);
+  AWAIT_READY(handler);
+
+  terminate(process);
+  wait(process);
+}
+
+
+// Like the 'remote' test but uses http::post.
+TEST(Process, http)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  RemoteProcess process;
+  spawn(process);
+
+  Future<UPID> pid;
+  Future<string> body;
+  EXPECT_CALL(process, handler(_, _))
+    .WillOnce(DoAll(FutureArg<0>(&pid),
+                    FutureArg<1>(&body)));
+
+  hashmap<string, string> headers;
+  headers["User-Agent"] = "libprocess/";
+
+  Future<http::Response> response =
+    http::post(process.self(), "handler", headers, "hello world");
+
+  AWAIT_READY(body);
+  ASSERT_EQ("hello world", body.get());
+
+  AWAIT_READY(pid);
+  ASSERT_EQ(UPID(), pid.get());
 
   terminate(process);
   wait(process);

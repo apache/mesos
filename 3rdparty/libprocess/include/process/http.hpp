@@ -209,6 +209,20 @@ struct OK : Response
 };
 
 
+struct Accepted : Response
+{
+  Accepted()
+  {
+    status = "202 Accepted";
+  }
+
+  explicit Accepted(const std::string& body) : Response(body)
+  {
+    status = "202 Accepted";
+  }
+};
+
+
 struct TemporaryRedirect : Response
 {
   explicit TemporaryRedirect(const std::string& url)
