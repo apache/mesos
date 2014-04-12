@@ -106,8 +106,16 @@ public:
     std::ostringstream out;
 
     if (message != NULL) {
-      out << "POST /" << message->to.id << "/" << message->name
-          << " HTTP/1.0\r\n"
+      out << "POST ";
+      // Nothing keeps the 'id' component of a PID from being an empty
+      // string which would create a malformed path that has two
+      // '//' unless we check for it explicitly.
+      // TODO(benh): Make the 'id' part of a PID optional so when it's
+      // missing it's clear that we're simply addressing an ip:port.
+      if (message->to.id != "") {
+        out << "/" << message->to.id;
+      }
+      out << "/" << message->name << " HTTP/1.0\r\n"
           << "User-Agent: libprocess/" << message->from << "\r\n"
           << "Connection: Keep-Alive\r\n";
 

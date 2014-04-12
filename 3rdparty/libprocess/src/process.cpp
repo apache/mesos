@@ -813,9 +813,12 @@ static void transport(Message* message, ProcessBase* sender = NULL)
 
 static bool libprocess(Request* request)
 {
-  return request->method == "POST" &&
-    request->headers.count("User-Agent") > 0 &&
-    request->headers["User-Agent"].find("libprocess/") == 0;
+  return
+    (request->method == "POST" &&
+     request->headers.contains("User-Agent") &&
+     request->headers["User-Agent"].find("libprocess/") == 0) ||
+    (request->method == "POST" &&
+     request->headers.contains("Libprocess-From"));
 }
 
 
@@ -823,44 +826,54 @@ static Message* parse(Request* request)
 {
   // TODO(benh): Do better error handling (to deal with a malformed
   // libprocess message, malicious or otherwise).
-  const string& agent = request->headers["User-Agent"];
-  const string& identifier = "libprocess/";
-  size_t index = agent.find(identifier);
-  if (index != string::npos) {
-    // Okay, now determine 'from'.
-    const UPID from(agent.substr(index + identifier.size(), agent.size()));
 
-    // Now determine 'to'.
-    index = request->path.find('/', 1);
-    index = index != string::npos ? index - 1 : string::npos;
+  // First try and determine 'from'.
+  Option<UPID> from = None();
 
-    // Decode possible percent-encoded 'to'.
-    Try<string> decode = http::decode(request->path.substr(1, index));
-
-    if (decode.isError()) {
-      VLOG(2) << "Failed to decode URL path: " << decode.get();
-      return NULL;
+  if (request->headers.contains("Libprocess-From")) {
+    from = UPID(strings::trim(request->headers["Libprocess-From"]));
+  } else {
+    // Try and get 'from' from the User-Agent.
+    const string& agent = request->headers["User-Agent"];
+    const string& identifier = "libprocess/";
+    size_t index = agent.find(identifier);
+    if (index != string::npos) {
+      from = UPID(agent.substr(index + identifier.size(), agent.size()));
     }
-
-    const UPID to(decode.get(), __ip__, __port__);
-
-    // And now determine 'name'.
-    index = index != string::npos ? index + 2: request->path.size();
-    const string& name = request->path.substr(index);
-
-    VLOG(2) << "Parsed message name '" << name
-            << "' for " << to << " from " << from;
-
-    Message* message = new Message();
-    message->name = name;
-    message->from = from;
-    message->to = to;
-    message->body = request->body;
-
-    return message;
   }
 
-  return NULL;
+  if (from.isNone()) {
+    return NULL;
+  }
+
+  // Now determine 'to'.
+  size_t index = request->path.find('/', 1);
+  index = index != string::npos ? index - 1 : string::npos;
+
+  // Decode possible percent-encoded 'to'.
+  Try<string> decode = http::decode(request->path.substr(1, index));
+
+  if (decode.isError()) {
+    VLOG(2) << "Failed to decode URL path: " << decode.get();
+    return NULL;
+  }
+
+  const UPID to(decode.get(), __ip__, __port__);
+
+  // And now determine 'name'.
+  index = index != string::npos ? index + 2: request->path.size();
+  const string& name = request->path.substr(index);
+
+  VLOG(2) << "Parsed message name '" << name
+          << "' for " << to << " from " << from.get();
+
+  Message* message = new Message();
+  message->name = name;
+  message->from = from.get();
+  message->to = to;
+  message->body = request->body;
+
+  return message;
 }
 
 

@@ -1425,7 +1425,7 @@ TEST(Process, remote)
 
 
 // Like the 'remote' test but uses http::post.
-TEST(Process, http)
+TEST(Process, http1)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1449,6 +1449,79 @@ TEST(Process, http)
 
   AWAIT_READY(pid);
   ASSERT_EQ(UPID(), pid.get());
+
+  terminate(process);
+  wait(process);
+}
+
+
+// Like 'http1' but using a 'Libprocess-From' header.
+TEST(Process, http2)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  RemoteProcess process;
+  spawn(process);
+
+  // Create a receiving socket so we can get messages back.
+  int s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  ASSERT_LE(0, s);
+
+  // Set up socket.
+  sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = PF_INET;
+  addr.sin_addr.s_addr = INADDR_ANY;
+  addr.sin_port = 0;
+
+  ASSERT_EQ(0, ::bind(s, (sockaddr*) &addr, sizeof(addr)));
+
+  // Create a UPID for 'Libprocess-From' based on the IP and port we
+  // got assigned.
+  socklen_t addrlen = sizeof(addr);
+  ASSERT_EQ(0, getsockname(s, (sockaddr*) &addr, &addrlen));
+
+  UPID from("", addr.sin_addr.s_addr, ntohs(addr.sin_port));
+
+  ASSERT_EQ(0, listen(s, 1));
+
+  Future<UPID> pid;
+  Future<string> body;
+  EXPECT_CALL(process, handler(_, _))
+    .WillOnce(DoAll(FutureArg<0>(&pid),
+                    FutureArg<1>(&body)));
+
+  hashmap<string, string> headers;
+  headers["Libprocess-From"] = stringify(from);
+
+  Future<http::Response> response =
+    http::post(process.self(), "handler", headers, "hello world");
+
+  AWAIT_READY(response);
+  ASSERT_EQ(http::statuses[202], response.get().status);
+
+  AWAIT_READY(body);
+  ASSERT_EQ("hello world", body.get());
+
+  AWAIT_READY(pid);
+  ASSERT_EQ(from, pid.get());
+
+  // Now post a message as though it came from the process.
+  const string name = "reply";
+  post(process.self(), from, name);
+
+  // Accept the incoming connection.
+  memset(&addr, 0, sizeof(addr));
+  addrlen = sizeof(addr);
+
+  int c = ::accept(s, (sockaddr*) &addr, &addrlen);
+  ASSERT_LT(0, c);
+
+  const string data = "POST /" + name + " HTTP/1.0";
+  EXPECT_SOME_EQ(data, os::read(c, data.size()));
+
+  close(c);
+  close(s);
 
   terminate(process);
   wait(process);
