@@ -95,6 +95,10 @@ if WITH_BUNDLED_ZOOKEEPER
   MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/generated
 endif
 
+if WITH_NETWORK_ISOLATOR
+  MESOS_CPPFLAGS += $(LIBNL_CFLAGS)
+endif
+
 # README: we build the Mesos library out of a collection of
 # convenience libraries (that is, libraries that do not get installed
 # but we can use as building blocks to vary compile flags as necessary
@@ -260,6 +264,16 @@ if OS_LINUX
 else
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
+endif
+
+if WITH_NETWORK_ISOLATOR
+  libmesos_no_3rdparty_la_SOURCES +=					\
+	linux/routing/link/link.cpp
+
+  libmesos_no_3rdparty_la_SOURCES +=					\
+	linux/routing/internal.hpp					\
+	linux/routing/link/internal.hpp					\
+	linux/routing/link/link.hpp
 endif
 
 libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
@@ -938,6 +952,10 @@ if OS_LINUX
   mesos_tests_SOURCES += tests/cgroups_isolator_tests.cpp
   mesos_tests_SOURCES += tests/cgroups_tests.cpp
   mesos_tests_SOURCES += tests/fs_tests.cpp
+endif
+
+if WITH_NETWORK_ISOLATOR
+  mesos_tests_SOURCES += tests/routing_tests.cpp
 endif
 
 if HAS_JAVA

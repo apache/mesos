@@ -1,0 +1,86 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef __LINUX_ROUTING_LINK_LINK_HPP__
+#define __LINUX_ROUTING_LINK_LINK_HPP__
+
+#include <stdint.h>
+
+#include <sys/types.h>
+
+#include <string>
+
+#include <stout/hashmap.hpp>
+#include <stout/net.hpp>
+#include <stout/option.hpp>
+#include <stout/result.hpp>
+#include <stout/try.hpp>
+
+namespace routing {
+namespace link {
+
+// Returns true if the link exists.
+Try<bool> exists(const std::string& link);
+
+
+// Creates a pair of virtual network links. The peer link is put in
+// the network namespace represented by 'pid' upon creation if
+// specified. If 'pid' is None, the peer link will be put into
+// caller's network namespace. Returns false if the virtual network
+// links (with the same name) already exist.
+Try<bool> create(
+    const std::string& veth,
+    const std::string& peer,
+    const Option<pid_t>& pid);
+
+
+// Removes a link. Returns false if the link is not found.
+Try<bool> remove(const std::string& link);
+
+
+// Returns the interface index of the link. Returns None if the link
+// is not found.
+Result<int> index(const std::string& link);
+
+
+// Returns the name of the link from its interface index. Returns None
+// if the link with the given interface index is not found.
+Result<std::string> name(int index);
+
+
+// Returns true if the link is up. Returns None if the link is not
+// found.
+Result<bool> isUp(const std::string& link);
+
+
+// Sets the link up (IFF_UP). Returns false if the link is not found.
+Try<bool> setUp(const std::string& link);
+
+
+// Sets the MAC address of the link. Returns false if the link is not
+// found.
+Try<bool> setMAC(const std::string& link, const net::MAC& mac);
+
+
+// Returns the statistics of the link.
+Result<hashmap<std::string, uint64_t> > statistics(const std::string& link);
+
+} // namespace link
+} // namespace routing
+
+#endif // __LINUX_ROUTING_LINK_LINK_HPP__

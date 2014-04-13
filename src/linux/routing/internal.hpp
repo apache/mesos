@@ -1,0 +1,97 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef __LINUX_ROUTING_INTERNAL_HPP__
+#define __LINUX_ROUTING_INTERNAL_HPP__
+
+#include <netlink/cache.h>
+#include <netlink/netlink.h>
+#include <netlink/socket.h>
+
+#include <netlink/route/classifier.h>
+#include <netlink/route/link.h>
+#include <netlink/route/qdisc.h>
+
+#include <stout/error.hpp>
+#include <stout/memory.hpp>
+#include <stout/try.hpp>
+
+namespace routing {
+
+// A helper class for managing netlink objects (e.g., rtnl_link,
+// nl_sock, etc.). It manages the life cycle of a netlink object. It
+// is copyable and assignable, and multiple copies share the same
+// underlying netlink object. A netlink object specific cleanup
+// function will be invoked when the last copy of this wrapper is
+// being deleted (similar to Future<T>). We use this class to simplify
+// our code, especially for error handling.
+template <typename T>
+class Netlink
+{
+public:
+  explicit Netlink(T* object) : data(new Data(object)) {}
+
+  T* get() const { return data->object; }
+
+private:
+  struct Data
+  {
+    explicit Data(T* _object) : object(_object) {}
+
+    ~Data()
+    {
+      if (object != NULL) {
+        cleanup(object);
+      }
+    }
+
+    T* object;
+  };
+
+  memory::shared_ptr<Data> data;
+};
+
+
+// Customized deallocation functions for netlink objects.
+inline void cleanup(struct nl_cache* cache) { nl_cache_free(cache); }
+inline void cleanup(struct nl_sock* sock) { nl_socket_free(sock); }
+inline void cleanup(struct rtnl_cls* cls) { rtnl_cls_put(cls); }
+inline void cleanup(struct rtnl_link* link) { rtnl_link_put(link); }
+inline void cleanup(struct rtnl_qdisc* qdisc) { rtnl_qdisc_put(qdisc); }
+
+
+// Returns a netlink socket for communicating with the kernel. This
+// socket is needed for most of the operations.
+inline Try<Netlink<struct nl_sock> > socket()
+{
+  struct nl_sock* s = nl_socket_alloc();
+  if (s == NULL) {
+    return Error("Failed to allocate netlink socket");
+  }
+
+  Netlink<struct nl_sock> sock(s);
+  if (nl_connect(sock.get(), NETLINK_ROUTE) != 0) {
+    return Error("Failed to connect to routing netlink protocol");
+  }
+
+  return sock;
+}
+
+} // namespace routing {
+
+#endif // __LINUX_ROUTING_INTERNAL_HPP__

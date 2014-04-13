@@ -163,6 +163,11 @@ AC_ARG_WITH([cxx11],
                            [builds Mesos without C++11 support (deprecated)]),
             [], [with_cxx11=yes])
 
+AC_ARG_WITH([network-isolator],
+            AS_HELP_STRING([--with-network-isolator],
+                           [builds the network isolator]),
+            [], [with_network_isolator=no])
+
 # TODO(benh): Support --without-included-protobuf,
 # --without-included-glog, etc. Doing this for protobuf is
 # considerably more tricky because we need to make sure that 'protoc'
@@ -783,6 +788,46 @@ AC_CHECK_LIB([sasl2], [sasl_done], [],
 We need libsasl2 for authentication!
 -------------------------------------------------------------------
 ])])
+
+
+# Perform necessary configuration for network isolator.
+if test "x$with_network_isolator" = "xyes"; then
+  # Check for OS support.
+  AS_IF([test "$OS_NAME" = "linux"],
+        [],
+        [AC_MSG_ERROR([cannot build network isolator
+-------------------------------------------------------------------
+Network isolator is only supported on Linux!
+-------------------------------------------------------------------
+        ])])
+
+  # Check for libnl.
+  AC_CHECK_LIB([nl-3], [nl_connect], [],
+               [AC_MSG_ERROR([cannot find libnl-3
+-------------------------------------------------------------------
+We need libnl-3 for network isolator!
+-------------------------------------------------------------------
+  ])])
+
+  AC_CHECK_LIB([nl-route-3], [rtnl_cls_alloc], [],
+               [AC_MSG_ERROR([cannot find libnl-route-3
+-------------------------------------------------------------------
+We need libnl-route-3 for network isolator!
+-------------------------------------------------------------------
+  ])])
+
+  # TODO(jieyu): Automatically detect the location where the libnl
+  # headers are installed.
+  LIBNL_CFLAGS=-I/usr/include/libnl3
+
+  AC_SUBST([LIBNL_CFLAGS])
+
+  AC_DEFINE([WITH_NETWORK_ISOLATOR])
+fi
+
+
+AM_CONDITIONAL([WITH_NETWORK_ISOLATOR],
+               [test "x$with_network_isolator" = "xyes"])
 
 
 AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
