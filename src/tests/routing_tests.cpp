@@ -33,6 +33,7 @@
 
 #include "linux/routing/utils.hpp"
 
+#include "linux/routing/filter/arp.hpp"
 #include "linux/routing/filter/icmp.hpp"
 
 #include "linux/routing/link/link.hpp"
@@ -289,6 +290,111 @@ TEST_F(RoutingVethTest, ROOT_LinkMTU)
 
   EXPECT_NONE(link::mtu("not-exist"));
   EXPECT_SOME_FALSE(link::setMTU("not-exist", 1500));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_ARPFilterCreate)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  EXPECT_SOME_TRUE(arp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_ARPFilterCreateDuplicated)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  set<string> links;
+  links.insert(TEST_PEER_LINK);
+
+  EXPECT_SOME_TRUE(arp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      None(),
+      action::Mirror(links)));
+
+  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
+
+  EXPECT_SOME_FALSE(arp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_ARPFilterRemove)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  set<string> links;
+  links.insert(TEST_PEER_LINK);
+
+  EXPECT_SOME_TRUE(arp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      None(),
+      action::Mirror(links)));
+
+  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
+  EXPECT_SOME_TRUE(arp::remove(TEST_VETH_LINK, ingress::HANDLE));
+  EXPECT_SOME_FALSE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_ARPFilterUpdate)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  set<string> links;
+  links.insert(TEST_PEER_LINK);
+
+  EXPECT_SOME_FALSE(arp::update(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      action::Mirror(links)));
+
+  EXPECT_SOME_TRUE(arp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
+
+  EXPECT_SOME_TRUE(arp::update(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      action::Mirror(links)));
+
+  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
 }
 
 

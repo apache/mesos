@@ -270,6 +270,7 @@ if WITH_NETWORK_ISOLATOR
   libmesos_no_3rdparty_la_SOURCES +=					\
 	linux/routing/utils.cpp						\
 	linux/routing/link/link.cpp					\
+	linux/routing/filter/arp.cpp					\
 	linux/routing/filter/icmp.cpp					\
 	linux/routing/queueing/handle.cpp				\
 	linux/routing/queueing/ingress.cpp
@@ -278,6 +279,7 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/internal.hpp					\
 	linux/routing/utils.hpp						\
 	linux/routing/filter/action.hpp					\
+	linux/routing/filter/arp.hpp					\
 	linux/routing/filter/filter.hpp					\
 	linux/routing/filter/icmp.hpp					\
 	linux/routing/filter/internal.hpp				\
