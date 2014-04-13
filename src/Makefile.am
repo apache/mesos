@@ -272,6 +272,7 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/link/link.cpp					\
 	linux/routing/filter/arp.cpp					\
 	linux/routing/filter/icmp.cpp					\
+	linux/routing/filter/ip.cpp					\
 	linux/routing/queueing/handle.cpp				\
 	linux/routing/queueing/ingress.cpp
 
@@ -283,6 +284,7 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/filter/filter.hpp					\
 	linux/routing/filter/icmp.hpp					\
 	linux/routing/filter/internal.hpp				\
+	linux/routing/filter/ip.hpp					\
 	linux/routing/filter/priority.hpp				\
 	linux/routing/link/internal.hpp					\
 	linux/routing/link/link.hpp					\

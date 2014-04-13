@@ -35,6 +35,7 @@
 
 #include "linux/routing/filter/arp.hpp"
 #include "linux/routing/filter/icmp.hpp"
+#include "linux/routing/filter/ip.hpp"
 
 #include "linux/routing/link/link.hpp"
 
@@ -91,6 +92,40 @@ protected:
     link::remove(TEST_VETH_LINK);
   }
 };
+
+
+TEST_F(RoutingTest, PortRange)
+{
+  Try<ip::PortRange> ports = ip::PortRange::fromBeginEnd(1, 0);
+  EXPECT_ERROR(ports);
+
+  ports = ip::PortRange::fromBeginEnd(4, 11);
+  EXPECT_ERROR(ports);
+
+  ports = ip::PortRange::fromBeginEnd(4, 7);
+  ASSERT_SOME(ports);
+  EXPECT_EQ(4u, ports.get().begin());
+  EXPECT_EQ(7u, ports.get().end());
+  EXPECT_EQ(0xfffc, ports.get().mask());
+
+  ports = ip::PortRange::fromBeginEnd(10, 10);
+  ASSERT_SOME(ports);
+  EXPECT_EQ(10u, ports.get().begin());
+  EXPECT_EQ(10u, ports.get().end());
+  EXPECT_EQ(0xffff, ports.get().mask());
+
+  ports = ip::PortRange::fromBeginMask(20, 0xffff);
+  ASSERT_SOME(ports);
+  EXPECT_EQ(20u, ports.get().begin());
+  EXPECT_EQ(20u, ports.get().end());
+  EXPECT_EQ(0xffff, ports.get().mask());
+
+  ports = ip::PortRange::fromBeginMask(1024, 0xfff8);
+  ASSERT_SOME(ports);
+  EXPECT_EQ(1024u, ports.get().begin());
+  EXPECT_EQ(1031u, ports.get().end());
+  EXPECT_EQ(0xfff8, ports.get().mask());
+}
 
 
 TEST_F(RoutingTest, LinkIndex)
@@ -586,4 +621,314 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterUpdate)
       TEST_VETH_LINK,
       ingress::HANDLE,
       icmp::Classifier(ip)));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_IPFilterCreate)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  Result<net::MAC> mac = net::mac(TEST_VETH_LINK);
+  ASSERT_SOME(mac);
+
+  net::IP ip = net::IP(0x01020304); // 1.2.3.4
+
+  Try<ip::PortRange> sourcePorts =
+    ip::PortRange::fromBeginEnd(1024, 1027);
+
+  ASSERT_SOME(sourcePorts);
+
+  Try<ip::PortRange> destinationPorts =
+    ip::PortRange::fromBeginEnd(2000, 2000);
+
+  ASSERT_SOME(destinationPorts);
+
+  ip::Classifier classifier =
+    ip::Classifier(
+        mac.get(),
+        ip,
+        sourcePorts.get(),
+        destinationPorts.get());
+
+  EXPECT_SOME_TRUE(ip::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      classifier,
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(ip::exists(TEST_VETH_LINK, ingress::HANDLE, classifier));
+
+  Result<vector<ip::Classifier> > classifiers =
+    ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
+
+  ASSERT_SOME(classifiers);
+  ASSERT_EQ(1u, classifiers.get().size());
+  EXPECT_SOME_EQ(mac.get(), classifiers.get().front().destinationMAC());
+  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP());
+
+  EXPECT_SOME_EQ(
+      sourcePorts.get(),
+      classifiers.get().front().sourcePorts());
+
+  EXPECT_SOME_EQ(
+      destinationPorts.get(),
+      classifiers.get().front().destinationPorts());
+}
+
+
+TEST_F(RoutingVethTest, ROOT_IPFilterCreate2)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  net::IP ip(0x12345678);
+
+  EXPECT_SOME_TRUE(ip::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      ip::Classifier(None(), ip, None(), None()),
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(ip::exists(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      ip::Classifier(None(), ip, None(), None())));
+
+  Result<vector<ip::Classifier> > classifiers =
+    ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
+
+  ASSERT_SOME(classifiers);
+  ASSERT_EQ(1u, classifiers.get().size());
+  EXPECT_NONE(classifiers.get().front().destinationMAC());
+  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP());
+  EXPECT_NONE(classifiers.get().front().sourcePorts());
+  EXPECT_NONE(classifiers.get().front().destinationPorts());
+}
+
+
+TEST_F(RoutingVethTest, ROOT_IPFilterCreateDuplicated)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  Result<net::MAC> mac = net::mac(TEST_VETH_LINK);
+  ASSERT_SOME(mac);
+
+  net::IP ip = net::IP(0x01020304); // 1.2.3.4
+
+  Try<ip::PortRange> sourcePorts =
+    ip::PortRange::fromBeginEnd(1024, 1027);
+
+  ASSERT_SOME(sourcePorts);
+
+  Try<ip::PortRange> destinationPorts =
+    ip::PortRange::fromBeginEnd(2000, 2000);
+
+  ASSERT_SOME(destinationPorts);
+
+  ip::Classifier classifier =
+    ip::Classifier(
+        mac.get(),
+        ip,
+        sourcePorts.get(),
+        destinationPorts.get());
+
+  EXPECT_SOME_TRUE(ip::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      classifier,
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(ip::exists(TEST_VETH_LINK, ingress::HANDLE, classifier));
+
+  EXPECT_SOME_FALSE(ip::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      classifier,
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_IPFilterCreateMultiple)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  Result<net::MAC> mac = net::mac(TEST_VETH_LINK);
+  ASSERT_SOME(mac);
+
+  net::IP ip = net::IP(0x01020304); // 1.2.3.4
+
+  Try<ip::PortRange> sourcePorts1 =
+    ip::PortRange::fromBeginEnd(1024, 1027);
+
+  ASSERT_SOME(sourcePorts1);
+
+  Try<ip::PortRange> destinationPorts1 =
+    ip::PortRange::fromBeginEnd(2000, 2000);
+
+  ASSERT_SOME(destinationPorts1);
+
+  Try<ip::PortRange> sourcePorts2 =
+    ip::PortRange::fromBeginEnd(3024, 3025);
+
+  ASSERT_SOME(sourcePorts2);
+
+  Try<ip::PortRange> destinationPorts2 =
+    ip::PortRange::fromBeginEnd(4000, 4003);
+
+  ASSERT_SOME(destinationPorts2);
+
+  ip::Classifier classifier1 =
+    ip::Classifier(
+        mac.get(),
+        ip,
+        sourcePorts1.get(),
+        destinationPorts1.get());
+
+  ip::Classifier classifier2 =
+    ip::Classifier(
+        mac.get(),
+        ip,
+        sourcePorts2.get(),
+        destinationPorts2.get());
+
+  EXPECT_SOME_TRUE(ip::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      classifier1,
+      Priority(2, 1),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(ip::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      classifier2,
+      Priority(2, 2),
+      action::Redirect(TEST_PEER_LINK)));
+
+  Result<vector<ip::Classifier> > classifiers =
+    ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
+
+  ASSERT_SOME(classifiers);
+  ASSERT_EQ(2u, classifiers.get().size());
+
+  EXPECT_SOME_EQ(mac.get(), classifiers.get().front().destinationMAC());
+  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP());
+
+  EXPECT_SOME_EQ(
+      sourcePorts1.get(),
+      classifiers.get().front().sourcePorts());
+
+  EXPECT_SOME_EQ(
+      destinationPorts1.get(),
+      classifiers.get().front().destinationPorts());
+
+  EXPECT_SOME_EQ(mac.get(), classifiers.get().back().destinationMAC());
+  EXPECT_SOME_EQ(ip, classifiers.get().back().destinationIP());
+
+  EXPECT_SOME_EQ(
+      sourcePorts2.get(),
+      classifiers.get().back().sourcePorts());
+
+  EXPECT_SOME_EQ(
+      destinationPorts2.get(),
+      classifiers.get().back().destinationPorts());
+}
+
+
+TEST_F(RoutingVethTest, ROOT_IPFilterRemove)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  Result<net::MAC> mac = net::mac(TEST_VETH_LINK);
+  ASSERT_SOME(mac);
+
+  net::IP ip = net::IP(0x01020304); // 1.2.3.4
+
+  Try<ip::PortRange> sourcePorts1 =
+    ip::PortRange::fromBeginEnd(1024, 1027);
+
+  ASSERT_SOME(sourcePorts1);
+
+  Try<ip::PortRange> destinationPorts1 =
+    ip::PortRange::fromBeginEnd(2000, 2000);
+
+  ASSERT_SOME(destinationPorts1);
+
+  Try<ip::PortRange> sourcePorts2 =
+    ip::PortRange::fromBeginEnd(3024, 3025);
+
+  ASSERT_SOME(sourcePorts2);
+
+  Try<ip::PortRange> destinationPorts2 =
+    ip::PortRange::fromBeginEnd(4000, 4003);
+
+  ASSERT_SOME(destinationPorts2);
+
+  ip::Classifier classifier1 =
+    ip::Classifier(
+        mac.get(),
+        ip,
+        sourcePorts1.get(),
+        destinationPorts1.get());
+
+  ip::Classifier classifier2 =
+    ip::Classifier(
+        mac.get(),
+        ip,
+        sourcePorts2.get(),
+        destinationPorts2.get());
+
+  EXPECT_SOME_TRUE(ip::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      classifier1,
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(ip::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      classifier2,
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(ip::remove(TEST_VETH_LINK, ingress::HANDLE, classifier1));
+  EXPECT_SOME_FALSE(ip::exists(TEST_VETH_LINK, ingress::HANDLE, classifier1));
+
+  EXPECT_SOME_TRUE(ip::remove(TEST_VETH_LINK, ingress::HANDLE, classifier2));
+  EXPECT_SOME_FALSE(ip::exists(TEST_VETH_LINK, ingress::HANDLE, classifier2));
+
+  Result<vector<ip::Classifier> > classifiers =
+    ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
+
+  ASSERT_SOME(classifiers);
+  EXPECT_EQ(0u, classifiers.get().size());
 }
