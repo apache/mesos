@@ -7,9 +7,7 @@
 
 #include <process/metrics/metric.hpp>
 
-#include <stout/lambda.hpp>
 #include <stout/memory.hpp>
-#include <stout/option.hpp>
 
 namespace process {
 namespace metrics {

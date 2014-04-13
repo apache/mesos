@@ -3,7 +3,7 @@
 
 #include <glog/logging.h>
 
-#include <boost/shared_ptr.hpp>
+#include <stout/memory.hpp>
 
 namespace process {
 
@@ -49,7 +49,7 @@ private:
     T* volatile t; // The pointer 't' is volatile.
   };
 
-  boost::shared_ptr<Data> data;
+  memory::shared_ptr<Data> data;
 };
 
 
