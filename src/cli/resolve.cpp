@@ -19,7 +19,6 @@
 #include <iostream>
 
 #include <process/future.hpp>
-#include <process/pid.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
@@ -37,7 +36,6 @@ using namespace mesos;
 using namespace mesos::internal;
 
 using process::Future;
-using process::UPID;
 
 using std::cerr;
 using std::cout;
