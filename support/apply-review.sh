@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# Provides a tool to "apply" a review from Review Board.
+# Provides a tool to "apply" a review from Review Board or a
+# pull request from Github.
 
 # Use 'atexit' for cleanup.
 . $(dirname ${0})/atexit.sh
@@ -8,13 +9,56 @@
 # Use colors for errors.
 . $(dirname ${0})/colors.sh
 
-test ${#} -eq 1 || \
-  { echo "Usage: `basename ${0}` [review]"; exit 1; }
+JSONURL=$(dirname ${0})/jsonurl.py
+GITHUB_URL="https://github.com/apache/mesos/pull"
+REVIEWBOARD_URL="https://reviews.apache.org/r"
+
+function usage {
+cat <<EOF
+Apache Mesos apply patch tool.
+
+Usage: $0 [-h] [-r | -g] <ID Number>
+
+  -h   Print this help message and exit
+  -r   Apply a patch from Review Board (default)
+  -g   Apply a patch from Github
+EOF
+}
+
+REVIEW_LOCATION='reviewboard'
+while getopts ":hrg" opt; do
+  case $opt in
+    r)
+      REVIEW_LOCATION='reviewboard'
+      ;;
+    g)
+      REVIEW_LOCATION='github'
+      ;;
+    h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: -$OPTARG"
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+shift $(($OPTIND - 1))
+if test ${#} -ne 1; then
+  usage
+  exit 1
+fi
 
 REVIEW=${1}
 
-REVIEW_URL="https://reviews.apache.org/r/${REVIEW}"
-DIFF_URL="${REVIEW_URL}/diff/raw/"
+if [[ "${REVIEW_LOCATION}" == "github" ]]; then
+  DIFF_URL="${GITHUB_URL}/${REVIEW}.patch"
+else
+  DIFF_URL="${REVIEWBOARD_URL}/${REVIEW}/diff/raw/"
+fi
 
 atexit "rm -f ${REVIEW}.patch"
 
@@ -24,29 +68,46 @@ wget --no-check-certificate -O ${REVIEW}.patch ${DIFF_URL} || \
 git apply --index ${REVIEW}.patch || \
   { echo "${RED}Failed to apply patch${NORMAL}"; exit 1; }
 
-API_URL="https://reviews.apache.org/api/review-requests/${REVIEW}/"
+if [[ "${REVIEW_LOCATION}" == "reviewboard" ]]; then
+  API_URL="https://reviews.apache.org/api/review-requests/${REVIEW}/"
 
-JSONURL=$(dirname ${0})/jsonurl.py
+  SUMMARY=$(${JSONURL} ${API_URL} review_request summary)
+  DESCRIPTION=$(${JSONURL} ${API_URL} review_request description)
 
-SUMMARY=$(${JSONURL} ${API_URL} review_request summary)
-DESCRIPTION=$(${JSONURL} ${API_URL} review_request description)
-SUBMITTER=$(${JSONURL} ${API_URL} review_request links submitter title)
+  USERNAME=$(${JSONURL} ${API_URL} review_request links submitter title)
+  USER_URL="https://reviews.apache.org/api/users/${USERNAME}/"
 
-USER_URL="https://reviews.apache.org/api/users/${SUBMITTER}/"
+  AUTHOR_NAME=$(${JSONURL} ${USER_URL} user fullname)
+  AUTHOR_EMAIL=$(${JSONURL} ${USER_URL} user email)
+  AUTHOR="${AUTHOR_NAME} <${AUTHOR_EMAIL}>"
+  REVIEW_URL="${REVIEWBOARD_URL}/${REVIEW}"
 
-REVIEWER=$(${JSONURL} ${USER_URL} user fullname)
-REVIEWER_EMAIL=$(${JSONURL} ${USER_URL} user email)
+elif [[ "${REVIEW_LOCATION}" == "github" ]]; then
+  API_URL="https://api.github.com/repos/apache/mesos/pulls/${REVIEW}"
+
+  SUMMARY=$(${JSONURL} ${API_URL} title)
+  DESCRIPTION=$(${JSONURL} ${API_URL} body)
+
+  AUTHOR=$(head -2 ${REVIEW}.patch | grep "From: " | cut -d ' ' -f3-)
+  REVIEW_URL="${GITHUB_URL}/${REVIEW}"
+  REVIEW_DETAILS=$(cat <<__EOF__
+This closes: #${REVIEW}
+
+__EOF__
+)
+fi
 
 MESSAGE=$(cat <<__EOF__
 ${SUMMARY}
 
 ${DESCRIPTION}
 
+${REVIEW_DETAILS}
 Review: ${REVIEW_URL}
 __EOF__
 )
 
-git commit --author="${REVIEWER} <${REVIEWER_EMAIL}>" -am "${MESSAGE}" || \
+git commit --author="${AUTHOR}" -am "${MESSAGE}" || \
   { echo "${RED}Failed to commit patch${NORMAL}"; exit 1; }
 
 git commit --amend
