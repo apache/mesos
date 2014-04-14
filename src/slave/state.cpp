@@ -578,8 +578,9 @@ Try<TaskState> TaskState::recover(
   // Now, read the updates.
   Result<StatusUpdateRecord> record = None();
   while (true) {
-    // Ignore errors due to partial protobuf read.
-    record = ::protobuf::read<StatusUpdateRecord>(fd.get(), true);
+    // Ignore errors due to partial protobuf read and enable undoing
+    // failed reads by reverting to the previous seek position.
+    record = ::protobuf::read<StatusUpdateRecord>(fd.get(), true, true);
 
     if (!record.isSome()) {
       break;
