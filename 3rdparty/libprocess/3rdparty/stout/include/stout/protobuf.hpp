@@ -96,26 +96,40 @@ inline Try<Nothing> write(
 // the "size" followed by the contents (as written by 'write' above).
 // If 'ignorePartial' is true, None() is returned when we unexpectedly
 // hit EOF while reading the protobuf (e.g., partial write).
+// If 'undoFailed' is true, failed read attempts will restore the file
+// read/write file offset towards the initial callup position.
 template <typename T>
-inline Result<T> read(int fd, bool ignorePartial = false)
+inline Result<T> read(
+    int fd,
+    bool ignorePartial = false,
+    bool undoFailed = false)
 {
-  // Save the offset so we can re-adjust if something goes wrong.
-  off_t offset = lseek(fd, 0, SEEK_CUR);
-  if (offset == -1) {
-    return ErrnoError("Failed to lseek to SEEK_CUR");
+  off_t offset = 0;
+
+  if (undoFailed) {
+    // Save the offset so we can re-adjust if something goes wrong.
+    offset = lseek(fd, 0, SEEK_CUR);
+    if (offset == -1) {
+      return ErrnoError("Failed to lseek to SEEK_CUR");
+    }
   }
 
   uint32_t size;
   Result<std::string> result = os::read(fd, sizeof(size));
 
   if (result.isError()) {
-    lseek(fd, offset, SEEK_SET);
+    if (undoFailed) {
+      lseek(fd, offset, SEEK_SET);
+    }
     return Error("Failed to read size: " + result.error());
   } else if (result.isNone()) {
     return None(); // No more protobufs to read.
   } else if (result.get().size() < sizeof(size)) {
-    // Hit EOF unexpectedly. Restore the offset to before the size read.
-    lseek(fd, offset, SEEK_SET);
+    // Hit EOF unexpectedly.
+    if (undoFailed) {
+      // Restore the offset to before the size read.
+      lseek(fd, offset, SEEK_SET);
+    }
     if (ignorePartial) {
       return None();
     }
@@ -132,12 +146,17 @@ inline Result<T> read(int fd, bool ignorePartial = false)
   result = os::read(fd, size);
 
   if (result.isError()) {
-    // Restore the offset to before the size read.
-    lseek(fd, offset, SEEK_SET);
+    if (undoFailed) {
+      // Restore the offset to before the size read.
+      lseek(fd, offset, SEEK_SET);
+    }
     return Error("Failed to read message: " + result.error());
   } else if (result.isNone() || result.get().size() < size) {
-    // Hit EOF unexpectedly. Restore the offset to before the size read.
-    lseek(fd, offset, SEEK_SET);
+    // Hit EOF unexpectedly.
+    if (undoFailed) {
+      // Restore the offset to before the size read.
+      lseek(fd, offset, SEEK_SET);
+    }
     if (ignorePartial) {
       return None();
     }
@@ -154,8 +173,10 @@ inline Result<T> read(int fd, bool ignorePartial = false)
   google::protobuf::io::ArrayInputStream stream(data.data(), data.size());
 
   if (!message.ParseFromZeroCopyStream(&stream)) {
-    // Restore the offset to before the size read.
-    lseek(fd, offset, SEEK_SET);
+    if (undoFailed) {
+      // Restore the offset to before the size read.
+      lseek(fd, offset, SEEK_SET);
+    }
     return Error("Failed to deserialize message");
   }
 
