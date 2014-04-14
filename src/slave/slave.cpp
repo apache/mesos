@@ -990,7 +990,8 @@ void Slave::_runTask(
       // TODO(Charles Reiss): The isolator is not guaranteed to update
       // the resources before the executor acts on its RunTaskMessage.
       // TODO(idownes): Wait until this completes.
-      containerizer->update(executor->containerId, executor->resources);
+      CHECK_SOME(executor->resources);
+      containerizer->update(executor->containerId, executor->resources.get());
 
       LOG(INFO) << "Sending task '" << task.task_id()
                 << "' to executor '" << executorId
@@ -1546,7 +1547,8 @@ void Slave::registerExecutor(
       // that this will be delivered or (where necessary) acted on
       // before the executor gets its RunTaskMessages.
       // TODO(idownes): Wait until this completes.
-      containerizer->update(executor->containerId, executor->resources);
+      CHECK_SOME(executor->resources);
+      containerizer->update(executor->containerId, executor->resources.get());
 
       // Tell executor it's registered and give it any queued tasks.
       ExecutorRegisteredMessage message;
@@ -1664,7 +1666,8 @@ void Slave::reregisterExecutor(
 
       // Tell the containerizer to update the resources.
       // TODO(idownes): Wait until this completes.
-      containerizer->update(executor->containerId, executor->resources);
+      CHECK_SOME(executor->resources);
+      containerizer->update(executor->containerId, executor->resources.get());
 
       hashmap<TaskID, TaskInfo> unackedTasks;
       foreach (const TaskInfo& task, tasks) {
@@ -1851,7 +1854,8 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
     // Tell the isolator to update the resources.
     // TODO(idownes): Wait until this completes.
-    containerizer->update(executor->containerId, executor->resources);
+    CHECK_SOME(executor->resources);
+    containerizer->update(executor->containerId, executor->resources.get());
   }
 
   if (executor->checkpoint) {
@@ -3246,7 +3250,10 @@ Task* Executor::addTask(const TaskInfo& task)
       protobuf::createTask(task, TASK_STAGING, id, frameworkId));
 
   launchedTasks[task.task_id()] = t;
-  resources += task.resources();
+
+  CHECK_SOME(resources);
+  resources = resources.get() + task.resources();
+
   return t;
 }
 
@@ -3266,8 +3273,9 @@ void Executor::terminateTask(
   } else if (launchedTasks.contains(taskId)) {
     // Update the resources if it's been launched.
     task = launchedTasks[taskId];
+    CHECK_SOME(resources);
     foreach (const Resource& resource, task->resources()) {
-      resources -= resource;
+      resources = resources.get() - resource;
     }
     launchedTasks.erase(taskId);
   }
@@ -3323,7 +3331,8 @@ void Executor::recoverTask(const TaskState& state)
   // slave was down, the executor resources we capture here is an
   // upper-bound. The actual resources needed (for live tasks) by
   // the isolator will be calculated when the executor re-registers.
-  resources += state.info.get().resources();
+  CHECK_SOME(resources);
+  resources = resources.get() + state.info.get().resources();
 
   // Read updates to get the latest state of the task.
   foreach (const StatusUpdate& update, state.updates) {
