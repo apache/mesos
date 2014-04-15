@@ -757,6 +757,12 @@ void Master::visit(const MessageEvent& event)
 }
 
 
+void fail(const string& message, const string& failure)
+{
+  LOG(FATAL) << message << ": " << failure;
+}
+
+
 Future<Nothing> Master::recover()
 {
   if (!elected()) {
@@ -842,21 +848,28 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
                  << "within the timeout; removing it from the registrar";
 
     slaves.recovered.erase(slave.info().id());
-    slaves.removing.insert(slave.info().id());
 
-    registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
-      .onAny(defer(self(),
-                   &Self::_removeSlave,
-                   slave.info(),
-                   vector<StatusUpdate>(), // No TASK_LOST updates to send.
-                   lambda::_1));
+    if (flags.registry_strict) {
+      slaves.removing.insert(slave.info().id());
+
+      registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
+        .onAny(defer(self(),
+                     &Self::_removeSlave,
+                     slave.info(),
+                     vector<StatusUpdate>(), // No TASK_LOST updates to send.
+                     lambda::_1));
+    } else {
+      // When a non-strict registry is in use, we want to ensure the
+      // registry is used in a write-only manner. Therefore we remove
+      // the slave from the registry but we do not inform the
+      // framework.
+      const string& message =
+        "Failed to remove slave " + stringify(slave.info().id());
+
+      registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
+        .onFailed(lambda::bind(fail, message, lambda::_1));
+    }
   }
-}
-
-
-void fail(const string& message, const string& failure)
-{
-  LOG(FATAL) << message << ": " << failure;
 }
 
 
