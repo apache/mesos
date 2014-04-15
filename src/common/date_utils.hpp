@@ -31,7 +31,7 @@ class DateUtils
 {
 public:
   /**
-   * Get the current date in the format used for Mesos IDs (YYYYMMDDhhmmss).
+   * Get the current date in the format used for Mesos IDs (YYYYMMDD-hhmmss).
    */
   static std::string currentDate();
 
