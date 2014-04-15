@@ -1017,6 +1017,7 @@ inline Try<Release> release()
   if (info.isError()) {
     return Error(info.error());
   }
+  char arch[255];
 
   Release r;
   if (::sscanf(
@@ -1024,11 +1025,19 @@ inline Try<Release> release()
           "%d.%d.%d",
           &r.version,
           &r.major,
-          &r.minor) != 3) {
-    return Error("Failed to parse: " + info.get().release);
+          &r.minor) == 3) {
+    return r;
+  } else if (::sscanf(                 
+          info.get().release.c_str(),
+          "%d.%d-%d-%s",
+          &r.version,
+          &r.major,
+          &r.minor, arch) == 4) {
+    // debian : 3.10-1-amd64, Bug : MESOS-1209
+    return r;
+  } else {
+    return Error("Failed to parse os version: " + info.get().release);
   }
-
-  return r;
 }
 
 
