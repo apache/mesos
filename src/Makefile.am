@@ -268,6 +268,7 @@ endif
 
 if WITH_NETWORK_ISOLATOR
   libmesos_no_3rdparty_la_SOURCES +=					\
+	linux/routing/route.cpp						\
 	linux/routing/utils.cpp						\
 	linux/routing/link/link.cpp					\
 	linux/routing/filter/arp.cpp					\
@@ -278,6 +279,7 @@ if WITH_NETWORK_ISOLATOR
 
   libmesos_no_3rdparty_la_SOURCES +=					\
 	linux/routing/internal.hpp					\
+	linux/routing/route.hpp						\
 	linux/routing/utils.hpp						\
 	linux/routing/filter/action.hpp					\
 	linux/routing/filter/arp.hpp					\

@@ -31,6 +31,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/net.hpp>
 
+#include "linux/routing/route.hpp"
 #include "linux/routing/utils.hpp"
 
 #include "linux/routing/filter/arp.hpp"
@@ -125,6 +126,16 @@ TEST_F(RoutingTest, PortRange)
   EXPECT_EQ(1024u, ports.get().begin());
   EXPECT_EQ(1031u, ports.get().end());
   EXPECT_EQ(0xfff8, ports.get().mask());
+}
+
+
+TEST_F(RoutingTest, RouteTable)
+{
+  Try<vector<route::Rule> > table = route::table();
+  EXPECT_SOME(table);
+
+  Result<net::IP> gateway = route::defaultGateway();
+  EXPECT_FALSE(gateway.isError());
 }
 
 
