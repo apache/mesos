@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -32,61 +33,117 @@
 #include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
 
+#include "log/log.hpp"
+#include "log/replica.hpp"
+
+#include "log/tool/initialize.hpp"
+
 #include "master/flags.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
 
-#include "state/in_memory.hpp"
-#include "state/leveldb.hpp"
+#include "state/log.hpp"
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
+
+#include "tests/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
 
 using namespace process;
 
+using state::protobuf::State;
+
 using std::map;
+using std::set;
 using std::string;
 using std::vector;
 
 using testing::_;
 using testing::Eq;
 
+using mesos::internal::tests::TemporaryDirectoryTest;
+
+using ::testing::WithParamInterface;
+
 namespace mesos {
 namespace internal {
 namespace master {
 
-class RegistrarTest : public ::testing::TestWithParam<bool>
+// TODO(xujyan): This class copies code from LogStateTest. It would
+// be nice to find a common location for log related base tests when
+// there are more uses of it.
+class RegistrarTestBase : public TemporaryDirectoryTest
 {
 public:
-  RegistrarTest()
-    : storage(NULL),
-      state(NULL) {}
+  RegistrarTestBase()
+    : log(NULL),
+      storage(NULL),
+      state(NULL),
+      replica2(NULL) {}
 
 protected:
   virtual void SetUp()
   {
-    // We use InMemoryStorage to test Registrar correctness and
-    // LevelDBStorage to test performance.
-    // TODO(xujyan): Use LogStorage to exercise what we're using in
-    // production.
-    storage = new state::InMemoryStorage();
-    state = new state::protobuf::State(storage);
+    TemporaryDirectoryTest::SetUp();
+
+    // For initializing the replicas.
+    log::tool::Initialize initializer;
+
+    string path1 = os::getcwd() + "/.log1";
+    string path2 = os::getcwd() + "/.log2";
+
+    initializer.flags.path = path1;
+    initializer.execute();
+
+    initializer.flags.path = path2;
+    initializer.execute();
+
+    // Only create the replica for 'path2' (i.e., the second replica)
+    // as the first replica will be created when we create a Log.
+    replica2 = new log::Replica(path2);
+
+    set<UPID> pids;
+    pids.insert(replica2->pid());
+
+    log = new log::Log(2, path1, pids);
+    storage = new state::LogStorage(log);
+    state = new State(storage);
+
     master.CopyFrom(protobuf::createMasterInfo(UPID("master@127.0.0.1:5050")));
-    flags.registry_strict = GetParam();
   }
 
   virtual void TearDown()
   {
     delete state;
     delete storage;
+    delete log;
+    delete replica2;
+
+    TemporaryDirectoryTest::TearDown();
   }
 
+  log::Log* log;
   state::Storage* storage;
-  state::protobuf::State* state;
+  State* state;
+
+  log::Replica* replica2;
+
   MasterInfo master;
   Flags flags;
+};
+
+
+class RegistrarTest : public RegistrarTestBase,
+                      public WithParamInterface<bool>
+{
+protected:
+  virtual void SetUp()
+  {
+    RegistrarTestBase::SetUp();
+    flags.registry_strict = GetParam();
+  }
 };
 
 
@@ -285,47 +342,9 @@ TEST_P(RegistrarTest, bootstrap)
 }
 
 
-// We are not inheriting from RegistrarTest because this test fixture
-// derives from a different instantiation of the TestWithParam template.
-class Registrar_BENCHMARK_Test : public ::testing::TestWithParam<size_t>
-{
-public:
-  Registrar_BENCHMARK_Test()
-    : storage(NULL),
-      state(NULL),
-      path(os::getcwd() + "/.state") {}
-
-protected:
-  virtual void SetUp()
-  {
-    os::rmdir(path);
-
-    // We use InMemoryStorage to test Registrar correctness and
-    // LevelDBStorage to test performance.
-    storage = new state::LevelDBStorage(path);
-    state = new state::protobuf::State(storage);
-    master.CopyFrom(protobuf::createMasterInfo(UPID("master@127.0.0.1:5050")));
-
-    // Strictness is not important in our benchmark tests so it's
-    // just set to false here.
-    flags.registry_strict = false;
-  }
-
-  virtual void TearDown()
-  {
-    delete state;
-    delete storage;
-    os::rmdir(path);
-  }
-
-  state::Storage* storage;
-  state::protobuf::State* state;
-  MasterInfo master;
-  Flags flags;
-
-private:
-  const std::string path;
-};
+class Registrar_BENCHMARK_Test : public RegistrarTestBase,
+                                 public WithParamInterface<size_t>
+{};
 
 
 // The Registrar benchmark tests are parameterized by the number of slaves.
