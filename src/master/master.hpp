@@ -190,6 +190,10 @@ public:
   // Made public for testing purposes.
   void lostCandidacy(const process::Future<Nothing>& lost);
 
+  // Continuation of recover().
+  // Made public for testing purposes.
+  process::Future<Nothing> _recover(const Registry& registry);
+
   MasterInfo info() const
   {
     return info_;
@@ -203,7 +207,6 @@ protected:
 
   // Recovers state from the registrar.
   process::Future<Nothing> recover();
-  process::Future<Nothing> _recover(const Registry& registry);
   void recoveredSlavesTimeout(const Registry& registry);
 
   void _registerSlave(
@@ -354,8 +357,6 @@ private:
   Master(const Master&);              // No copying.
   Master& operator = (const Master&); // No assigning.
 
-  friend struct SlaveRegistrar;
-  friend struct SlaveReregistrar;
   friend struct OfferVisitor;
 
   const Flags flags;

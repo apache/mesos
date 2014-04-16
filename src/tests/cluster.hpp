@@ -21,6 +21,8 @@
 
 #include <map>
 
+#include <process/gmock.hpp>
+#include <process/gtest.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
@@ -40,6 +42,10 @@
 #include "linux/cgroups.hpp"
 #endif // __linux__
 
+#include "log/log.hpp"
+
+#include "log/tool/initialize.hpp"
+
 #include "master/allocator.hpp"
 #include "master/contender.hpp"
 #include "master/detector.hpp"
@@ -54,6 +60,7 @@
 #include "slave/slave.hpp"
 
 #include "state/in_memory.hpp"
+#include "state/log.hpp"
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 
@@ -115,12 +122,18 @@ public:
         : master(NULL),
           allocator(NULL),
           allocatorProcess(NULL),
+          log(NULL),
+          storage(NULL),
+          state(NULL),
+          registrar(NULL),
+          repairer(NULL),
           contender(NULL),
           detector(NULL) {}
 
       master::Master* master;
       master::allocator::Allocator* allocator;
       master::allocator::AllocatorProcess* allocatorProcess;
+      log::Log* log;
       state::Storage* storage;
       state::protobuf::State* state;
       master::Registrar* registrar;
@@ -275,12 +288,18 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
         new master::allocator::Allocator(allocatorProcess.get());
   }
 
-  if (flags.registry == "in_memory") {
-    master.storage = new state::InMemoryStorage();
-  } else {
-    return Error("'" + flags.registry + "' is not a supported"
-                 " option for registry persistence");
-  }
+  // TODO(bmahler): Add flag support for the replicated log and then
+  // just construct based on the flags.
+  log::tool::Initialize initializer;
+
+  initializer.flags.path = path::join(flags.work_dir, ".log");
+  initializer.execute();
+
+  master.log = new log::Log(
+      1,
+      initializer.flags.path.get(),
+      std::set<process::UPID>());
+  master.storage = new state::LogStorage(master.log);
 
   CHECK_NOTNULL(master.storage);
 
@@ -314,6 +333,16 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   process::PID<master::Master> pid = process::spawn(master.master);
 
   masters[pid] = master;
+
+  // Speed up the tests by ensuring that the Master is recovered
+  // before the test proceeds. Otherwise, authentication and
+  // registration messages may be dropped, causing delayed retries.
+  process::Future<Nothing> _recover =
+    FUTURE_DISPATCH(pid, &master::Master::_recover);
+
+  if (!_recover.await(Seconds(10))) {
+    LOG(FATAL) << "Failed to wait for _recover";
+  }
 
   return pid;
 }
