@@ -72,6 +72,11 @@ parent_branch = 'master'
 branch_ref = execute(['git', 'symbolic-ref', 'HEAD']).strip()
 branch = branch_ref.replace('refs/heads/', '', 1)
 
+# do not work on master branch
+if branch == "master":
+    print "we're expecting you to be working on another branch from master!"
+    sys.exit(1)
+
 temporary_branch = '_post-reviews_' + branch
 
 # Always delete the temporary branch.
@@ -97,6 +102,10 @@ log = execute(['git',
                '--pretty=oneline',
                '--reverse',
                merge_base + '..HEAD']).strip()
+
+if len(log) <= 0:
+    print "No new change compare with master branch!"
+    sys.exit(1)
 
 shas = []
 
