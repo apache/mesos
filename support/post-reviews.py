@@ -74,7 +74,7 @@ branch = branch_ref.replace('refs/heads/', '', 1)
 
 # do not work on master branch
 if branch == "master":
-    print "we're expecting you to be working on another branch from master!"
+    print "We're expecting you to be working on another branch from master!"
     sys.exit(1)
 
 temporary_branch = '_post-reviews_' + branch
@@ -104,7 +104,7 @@ log = execute(['git',
                merge_base + '..HEAD']).strip()
 
 if len(log) <= 0:
-    print "No new change compare with master branch!"
+    print "No new changes compared with master branch!"
     sys.exit(1)
 
 shas = []
