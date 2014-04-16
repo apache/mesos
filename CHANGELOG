@@ -1,3 +1,13 @@
+Release Notes - Mesos - Version 0.18.1
+--------------------------------------
+* This is a bug fix release.
+
+** Bug
+    * [MESOS-979] - Master segfault when tasks.json endpoint is hit
+    * [MESOS-1045] - Unrecognized file extension in CommandInfo.URI causes executor to exit
+    * [MESOS-1078] - JNI calls hasNext on ArrayList instead of iterator.
+
+
 Release Notes - Mesos - Version 0.18.0
 --------------------------------------
 * The primary feature of this release is a refactor of the isolation
