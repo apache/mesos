@@ -40,8 +40,8 @@ void Lock::lock()
 void Lock::unlock()
 {
   if (locked) {
-    pthread_mutex_unlock(mutex);
     locked = false;
+    pthread_mutex_unlock(mutex);
   }
 }
 
