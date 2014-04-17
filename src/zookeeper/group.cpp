@@ -878,7 +878,9 @@ void GroupProcess::retry(const Duration& duration)
   // session expires so 'retrying' should be false in the condition
   // check above.
   CHECK(error.isNone());
-  CHECK(state == CONNECTED || state == CONNECTING || state == READY)
+
+  // In order to be retrying, we should be at least CONNECTED.
+  CHECK(state == CONNECTED || state == AUTHENTICATED || state == READY)
     << state;
 
   // Will reset it to true if another retry is necessary.
