@@ -301,8 +301,6 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
       std::set<process::UPID>());
   master.storage = new state::LogStorage(master.log);
 
-  CHECK_NOTNULL(master.storage);
-
   master.state = new state::protobuf::State(master.storage);
   master.registrar = new master::Registrar(flags, master.state);
   master.repairer = new master::Repairer();
@@ -364,10 +362,11 @@ inline Try<Nothing> Cluster::Masters::stop(
   delete master.allocator; // Terminates and waits for allocator process.
   delete master.allocatorProcess; // May be NULL.
 
-  delete master.registrar;
   delete master.repairer;
+  delete master.registrar;
   delete master.state;
   delete master.storage;
+  delete master.log;
 
   delete master.contender;
   delete master.detector;
