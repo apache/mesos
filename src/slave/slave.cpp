@@ -3070,10 +3070,11 @@ void Framework::recoverExecutor(const ExecutorState& state)
 
   CHECK_NOTNULL(slave);
 
-  if (state.runs.empty() || state.latest.isNone()) {
+  if (state.runs.empty() || state.latest.isNone() || state.info.isNone()) {
     LOG(WARNING) << "Skipping recovery of executor '" << state.id
                  << "' of framework " << id
-                 << " because its latest run cannot be recovered";
+                 << " because its latest run or executor info"
+                 << " cannot be recovered";
 
     // GC the top level executor work directory.
     slave->garbageCollect(paths::getExecutorPath(
