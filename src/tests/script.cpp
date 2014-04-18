@@ -88,9 +88,10 @@ void execute(const string& script)
     // In child process. DO NOT USE GLOG!
 
     // Start by cd'ing into the temporary directory.
-    if (!os::chdir(directory.get())) {
-      std::cerr << "Failed to chdir to '" << directory.get() << "'"
-                << std::endl;
+    Try<Nothing> chdir = os::chdir(directory.get());
+    if (chdir.isError()) {
+      std::cerr << "Failed to chdir to '" << directory.get() << "': "
+                << chdir.error() << std::endl;
       abort();
     }
 

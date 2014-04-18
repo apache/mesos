@@ -172,18 +172,23 @@ int MesosContainerizerLaunch::execute()
   }
 
   // Enter working directory.
-  if (!os::chdir(flags.directory.get())) {
-    cerr << "Failed to chdir into work directory "
-         << flags.directory.get() << endl;
+  Try<Nothing> chdir = os::chdir(flags.directory.get());
+  if (chdir.isError()) {
+    cerr << "Failed to chdir into work directory '"
+         << flags.directory.get() << "': " << chdir.error() << endl;
     return 1;
   }
 
   // Change user if provided. Note that we do that after executing the
   // preparation commands so that those commands will be run with the
   // same privilege as the mesos-slave.
-  if (flags.user.isSome() && !os::su(flags.user.get())) {
-    cerr << "Failed to change user to " << flags.user.get() << endl;
-    return 1;
+  if (flags.user.isSome()) {
+    Try<Nothing> su = os::su(flags.user.get());
+    if (su.isError()) {
+      cerr << "Failed to change user to '" << flags.user.get() << "': "
+           << su.error() << endl;
+      return 1;
+    }
   }
 
   // Relay the environment variables.

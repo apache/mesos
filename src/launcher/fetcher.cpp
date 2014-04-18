@@ -238,10 +238,10 @@ int main(int argc, char* argv[])
     // Chmod the fetched URI if it's executable, else assume it's an archive
     // that should be extracted.
     if (uri.executable()) {
-      bool chmodded = os::chmod(
+      Try<Nothing> chmod = os::chmod(
           fetched.get(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-      if (!chmodded) {
-        EXIT(1) << "Failed to chmod: " << fetched.get();
+      if (chmod.isError()) {
+        EXIT(1) << "Failed to chmod " << fetched.get() << ": " << chmod.error();
       }
     } else if (uri.extract()) {
       //TODO(idownes): Consider removing the archive once extracted.
