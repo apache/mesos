@@ -236,9 +236,9 @@ pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 
 nodist_pkginclude_HEADERS =						\
-  $(top_srcdir)/include/mesos/mesos.hpp					\
+  ../include/mesos/mesos.hpp						\
   mesos.pb.h								\
-  $(top_srcdir)/include/mesos/containerizer/containerizer.hpp		\
+  ../include/mesos/containerizer/containerizer.hpp			\
   containerizer/containerizer.pb.h
 
 if OS_LINUX
