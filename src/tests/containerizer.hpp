@@ -73,7 +73,7 @@ public:
       const process::PID<slave::Slave>& slavePid,
       bool checkpoint);
 
-  virtual process::Future<slave::Containerizer::Termination> wait(
+  virtual process::Future<containerizer::Termination> wait(
       const ContainerID& containerId);
 
   // Additional destroy method for testing because we won't know the
@@ -102,7 +102,7 @@ private:
   hashmap<std::pair<FrameworkID, ExecutorID>, ContainerID> containers;
   hashmap<ContainerID, process::Owned<MesosExecutorDriver> > drivers;
   hashmap<ContainerID,
-          process::Owned<process::Promise<slave::Containerizer::Termination> > > promises;
+      process::Owned<process::Promise<containerizer::Termination> > > promises;
 };
 
 } // namespace tests {

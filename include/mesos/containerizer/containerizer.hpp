@@ -16,13 +16,10 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_HPP__
-#define __MESOS_HPP__
+#ifndef __CONTAINERIZER_PROTO_HPP__
+#define __CONTAINERIZER_PROTO_HPP__
 
-#include <mesos/mesos.pb.h> // ONLY USEFUL AFTER RUNNING PROTOC.
+// ONLY USEFUL AFTER RUNNING PROTOC.
+#include <mesos/containerizer/containerizer.pb.h>
 
-#define MESOS_VERSION "@PACKAGE_VERSION@"
-
-// TODO(benh): MESOS_MAJOR_VERSION, MESOS_MINOR_VERSION, MESOS_PATCH_VERSION.
-
-#endif // __MESOS_HPP__
+#endif // __CONTAINERIZER_PROTO_HPP__

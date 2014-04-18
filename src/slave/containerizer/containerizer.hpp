@@ -24,6 +24,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
+#include <mesos/containerizer/containerizer.hpp>
+
 #include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -50,26 +52,6 @@ struct SlaveState;
 class Containerizer
 {
 public:
-  // Information about a container termination.
-  struct Termination
-  {
-    Termination(
-        const Option<int>& _status,
-        bool _killed,
-        const std::string& _message)
-      : status(_status),
-        killed(_killed),
-        message(_message) {}
-
-    // Exit status of the executor.
-    const Option<int> status;
-
-    // A container may be killed if it exceeds its resources; this will be
-    // indicated by killed=true and described by the message string.
-    const bool killed;
-    const std::string message;
-  };
-
   // Attempts to create a containerizer as specified by 'isolation' in flags.
   static Try<Containerizer*> create(const Flags& flags, bool local);
 
@@ -111,7 +93,8 @@ public:
   // containerizer should also destroy the containerized context. The future
   // may be failed if an error occurs during termination of the executor or
   // destruction of the container.
-  virtual process::Future<Termination> wait(const ContainerID& containerId) = 0;
+  virtual process::Future<containerizer::Termination> wait(
+      const ContainerID& containerId) = 0;
 
   // Destroy a running container, killing all processes and releasing all
   // resources.

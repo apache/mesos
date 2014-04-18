@@ -67,7 +67,7 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 
-  virtual process::Future<Containerizer::Termination> wait(
+  virtual process::Future<containerizer::Termination> wait(
       const ContainerID& containerId);
 
   virtual void destroy(const ContainerID& containerId);
@@ -111,7 +111,7 @@ public:
   process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 
-  process::Future<Containerizer::Termination> wait(
+  process::Future<containerizer::Termination> wait(
       const ContainerID& containerId);
 
   void destroy(const ContainerID& containerId);
@@ -182,7 +182,7 @@ private:
   // struct.
   // Promises for futures returned from wait().
   hashmap<ContainerID,
-    process::Owned<process::Promise<Containerizer::Termination> > > promises;
+    process::Owned<process::Promise<containerizer::Termination> > > promises;
 
   // We need to keep track of the future exit status for each executor because
   // we'll only get a single notification when the executor exits.

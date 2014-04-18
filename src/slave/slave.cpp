@@ -2149,7 +2149,7 @@ void _unmonitor(
 void Slave::executorTerminated(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const Future<Containerizer::Termination>& termination)
+    const Future<containerizer::Termination>& termination)
 {
   int status;
   // A termination failure indicates the containerizer could not destroy a
@@ -2165,14 +2165,14 @@ void Slave::executorTerminated(
                    : "discarded");
     // Set a special status for failure.
     status = -1;
-  } else if (termination.get().status.isNone()) {
+  } else if (!termination.get().has_status()) {
     LOG(INFO) << "Executor '" << executorId
               << "' of framework " << frameworkId
               << " has terminated with unknown status";
     // Set a special status for None.
     status = -1;
   } else {
-    status = termination.get().status.get();
+    status = termination.get().status();
     LOG(INFO) << "Executor '" << executorId
               << "' of framework " << frameworkId
               << (WIFEXITED(status)
@@ -2231,7 +2231,7 @@ void Slave::executorTerminated(
         foreach (Task* task, executor->launchedTasks.values()) {
           if (!protobuf::isTerminalState(task->state())) {
             mesos::TaskState taskState;
-            if ((termination.isReady() && termination.get().killed) ||
+            if ((termination.isReady() && termination.get().killed()) ||
                  executor->commandExecutor) {
               taskState = TASK_FAILED;
             } else {
@@ -2242,7 +2242,7 @@ void Slave::executorTerminated(
                 info.id(),
                 task->task_id(),
                 taskState,
-                termination.isReady() ? termination.get().message :
+                termination.isReady() ? termination.get().message() :
                                         "Abnormal executor termination",
                 executorId),
                 UPID());
@@ -2254,7 +2254,7 @@ void Slave::executorTerminated(
         // supports it.
         foreach (const TaskInfo& task, executor->queuedTasks.values()) {
           mesos::TaskState taskState;
-          if ((termination.isReady() && termination.get().killed) ||
+          if ((termination.isReady() && termination.get().killed()) ||
                executor->commandExecutor) {
             taskState = TASK_FAILED;
           } else {
@@ -2265,7 +2265,7 @@ void Slave::executorTerminated(
               info.id(),
               task.task_id(),
               taskState,
-              termination.isReady() ? termination.get().message :
+              termination.isReady() ? termination.get().message() :
                                       "Abnormal executor termination",
               executorId),
               UPID());

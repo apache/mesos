@@ -103,9 +103,20 @@ endif
 
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 
-CXX_PROTOS = mesos.pb.cc mesos.pb.h
-JAVA_PROTOS = java/generated/org/apache/mesos/Protos.java
-PYTHON_PROTOS = python/src/mesos_pb2.py
+CONTAINERIZER_PROTO =							\
+	$(top_srcdir)/include/mesos/containerizer/containerizer.proto
+
+CXX_PROTOS =								\
+	mesos.pb.cc mesos.pb.h						\
+	containerizer/containerizer.pb.cc containerizer/containerizer.pb.h
+
+JAVA_PROTOS =								\
+	java/generated/org/apache/mesos/Protos.java			\
+	java/generated/org/apache/mesos/containerizer/Protos.java
+
+PYTHON_PROTOS =								\
+	python/src/mesos_pb2.py						\
+	python/src/containerizer_pb2.py
 
 BUILT_SOURCES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
 CLEANFILES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
@@ -135,17 +146,31 @@ CLEANFILES += $(REGISTRY_PROTOS)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
+containerizer/%.pb.cc containerizer/%.pb.h: $(CONTAINERIZER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
+
 %.pb.cc %.pb.h: %.proto
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
-$(JAVA_PROTOS): $(MESOS_PROTO)
+java/generated/org/apache/mesos/Protos.java: $(MESOS_PROTO)
 	$(MKDIR_P)  $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
-$(PYTHON_PROTOS): $(MESOS_PROTO)
+java/generated/org/apache/mesos/containerizer/Protos.java:		\
+		$(CONTAINERIZER_PROTO)
+	$(MKDIR_P)  $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
+python/src/mesos_pb2.py: $(MESOS_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --python_out=python/src $^
+
+python/src/containerizer_pb2.py: $(CONTAINERIZER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/containerizer		\
+		$(PROTOCFLAGS) --python_out=python/src $^
 
 # We even use a convenience library for most of Mesos so that we can
 # exclude third party libraries so setuptools/distribute can build a
@@ -202,13 +227,19 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	zookeeper/group.cpp						\
 	messages/messages.proto
 
-pkginclude_HEADERS = $(top_srcdir)/include/mesos/executor.hpp	\
-		     $(top_srcdir)/include/mesos/scheduler.hpp	\
-                     $(top_srcdir)/include/mesos/resources.hpp	\
-                     $(top_srcdir)/include/mesos/values.hpp	\
-		     $(top_srcdir)/include/mesos/mesos.proto
+pkginclude_HEADERS =							\
+  $(top_srcdir)/include/mesos/executor.hpp				\
+  $(top_srcdir)/include/mesos/scheduler.hpp				\
+  $(top_srcdir)/include/mesos/resources.hpp				\
+  $(top_srcdir)/include/mesos/values.hpp				\
+  $(top_srcdir)/include/mesos/mesos.proto				\
+  $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 
-nodist_pkginclude_HEADERS = ../include/mesos/mesos.hpp mesos.pb.h
+nodist_pkginclude_HEADERS =						\
+  $(top_srcdir)/include/mesos/mesos.hpp					\
+  mesos.pb.h								\
+  $(top_srcdir)/include/mesos/containerizer/containerizer.hpp		\
+  containerizer/containerizer.pb.h
 
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
@@ -371,7 +402,8 @@ libmesos_no_3rdparty_la_LIBADD += libstate.la
 # The final result!
 lib_LTLIBRARIES += libmesos.la
 
-libmesos_la_SOURCES = $(MESOS_PROTO) # Include as part of the distribution.
+# Include as part of the distribution.
+libmesos_la_SOURCES = $(MESOS_PROTO) $(CONTAINERIZER_PROTO)
 
 libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
@@ -652,7 +684,7 @@ libjava_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libjava_la_CPPFLAGS += $(JAVA_CPPFLAGS)
 libjava_la_CPPFLAGS += -I$(srcdir)/java/jni -Ijava/jni
 
-libjava_la_DEPENDENCIES = $(MESOS_PROTO)
+libjava_la_DEPENDENCIES = $(MESOS_PROTO) $(CONTAINERIZER_PROTO)
 
 libjava_la_LIBADD = $(JAVA_LDFLAGS)
 

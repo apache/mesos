@@ -186,7 +186,7 @@ public:
   void executorTerminated(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const process::Future<Containerizer::Termination>& termination);
+      const process::Future<containerizer::Termination>& termination);
 
   // NOTE: Pulled these to public to make it visible for testing.
   // TODO(vinod): Make tests friends to this class instead.

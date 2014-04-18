@@ -152,7 +152,7 @@ Future<ResourceStatistics> MesosContainerizer::usage(
 }
 
 
-Future<Containerizer::Termination> MesosContainerizer::wait(
+Future<containerizer::Termination> MesosContainerizer::wait(
     const ContainerID& containerId)
 {
   return dispatch(process, &MesosContainerizerProcess::wait, containerId);
@@ -244,8 +244,8 @@ Future<Nothing> MesosContainerizerProcess::_recover(
     CHECK_SOME(run.id);
     const ContainerID& containerId = run.id.get();
 
-    Owned<Promise<Containerizer::Termination> > promise(
-        new Promise<Containerizer::Termination>());
+    Owned<Promise<containerizer::Termination> > promise(
+        new Promise<containerizer::Termination>());
     promises.put(containerId, promise);
 
     CHECK_SOME(run.forkedPid);
@@ -375,8 +375,8 @@ Future<Nothing> MesosContainerizerProcess::launch(
     return Failure("Container already started");
   }
 
-  Owned<Promise<Containerizer::Termination> > promise(
-      new Promise<Containerizer::Termination>());
+  Owned<Promise<containerizer::Termination> > promise(
+      new Promise<containerizer::Termination>());
   promises.put(containerId, promise);
 
   // Store the resources for usage().
@@ -682,7 +682,7 @@ Future<Nothing> MesosContainerizerProcess::exec(
 }
 
 
-Future<Containerizer::Termination> MesosContainerizerProcess::wait(
+Future<containerizer::Termination> MesosContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   if (!promises.contains(containerId)) {
@@ -855,10 +855,14 @@ void MesosContainerizerProcess::__destroy(
     isolator->cleanup(containerId);
   }
 
-  promises[containerId]->set(Containerizer::Termination(
-        status.isReady() ? status.get() : None(),
-        killed,
-        message));
+  containerizer::Termination termination;
+  termination.set_killed(killed);
+  termination.set_message(message);
+  if (status.isReady() && status.get().isSome()) {
+    termination.set_status(status.get().get());
+  }
+
+  promises[containerId]->set(termination);
 
   promises.erase(containerId);
   statuses.erase(containerId);
