@@ -5,6 +5,8 @@
 
 #include <process/metrics/metric.hpp>
 
+#include <stout/memory.hpp>
+
 namespace process {
 namespace metrics {
 
@@ -13,9 +15,15 @@ namespace metrics {
 class Counter : public Metric
 {
 public:
-  explicit Counter(const std::string& name)
-    : Metric(name),
-      data(new Data()) {}
+  // 'name' is the unique name for the instance of Counter being constructed.
+  // This is what will be used as the key in the JSON endpoint.
+  // 'window' is the amount of history to keep for this Metric.
+  Counter(const std::string& name, const Option<Duration>& window = None())
+    : Metric(name, window),
+      data(new Data())
+  {
+    push(data->v);
+  }
 
   virtual ~Counter() {}
 
@@ -26,7 +34,7 @@ public:
 
   void reset()
   {
-    __sync_fetch_and_and(&data->v, 0);
+    push(__sync_and_and_fetch(&data->v, 0));
   }
 
   Counter& operator ++ ()
@@ -43,7 +51,7 @@ public:
 
   Counter& operator += (int64_t v)
   {
-    __sync_fetch_and_add(&data->v, v);
+    push(__sync_add_and_fetch(&data->v, v));
     return *this;
   }
 
@@ -56,10 +64,10 @@ private:
     volatile int64_t v;
   };
 
-  boost::shared_ptr<Data> data;
+  memory::shared_ptr<Data> data;
 };
 
-}  // namespace metrics {
-}  // namespace process {
+} // namespace metrics {
+} // namespace process {
 
-#endif  // __PROCESS_METRICS_COUNTER_HPP__
+#endif // __PROCESS_METRICS_COUNTER_HPP__

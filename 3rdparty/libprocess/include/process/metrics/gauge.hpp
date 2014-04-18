@@ -8,6 +8,8 @@
 #include <process/metrics/metric.hpp>
 
 #include <stout/lambda.hpp>
+#include <stout/memory.hpp>
+#include <stout/option.hpp>
 
 namespace process {
 namespace metrics {
@@ -17,9 +19,12 @@ namespace metrics {
 class Gauge : public Metric
 {
 public:
+  // 'name' is the unique name for the instance of Gauge being constructed.
+  // It will be the key exposed in the JSON endpoint.
+  // 'f' is the deferred object called when the Metric value is requested.
   Gauge(const std::string& name,
         const Deferred<Future<double> (void)>& f)
-    : Metric(name),
+    : Metric(name, None()),
       data(new Data(f)) {}
 
   virtual ~Gauge() {}
@@ -35,10 +40,10 @@ private:
     const Deferred<Future<double> (void)> f;
   };
 
-  boost::shared_ptr<Data> data;
+  memory::shared_ptr<Data> data;
 };
 
-}  // namespace metrics {
-}  // namespace process {
+} // namespace metrics {
+} // namespace process {
 
-#endif  // __PROCESS_METRICS_GAUGE_HPP__
+#endif // __PROCESS_METRICS_GAUGE_HPP__
