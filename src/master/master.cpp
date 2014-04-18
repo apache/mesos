@@ -1415,9 +1415,25 @@ void Master::reregisterFramework(
   if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
     LOG(ERROR) << "Framework re-registering without an id!";
     FrameworkErrorMessage message;
-    message.set_message("Framework reregistered without a framework id");
+    message.set_message("Framework reregistering without a framework id");
     send(from, message);
     return;
+  }
+
+  foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
+    if (framework->id == frameworkInfo.id()) {
+      // This could happen if a framework tries to re-register after
+      // its failover timeout has elapsed or it unregistered itself
+      // by calling 'stop()' on the scheduler driver.
+      // TODO(vinod): Master should persist admitted frameworks to the
+      // registry and remove them from it after failover timeout.
+      LOG(WARNING) << "Completed framework " << framework->id
+                   << " attempted to re-register";
+      FrameworkErrorMessage message;
+      message.set_message("Completed framework attempted to re-register");
+      send(from, message);
+      return;
+    }
   }
 
   LOG(INFO) << "Received re-registration request from framework "

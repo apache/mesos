@@ -42,6 +42,7 @@
 
 #include "common/protobuf_utils.hpp"
 
+#include "master/allocator.hpp"
 #include "master/master.hpp"
 
 #include "slave/slave.hpp"
@@ -936,6 +937,160 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
 
   EXPECT_EQ(DRIVER_ABORTED, driver1.stop());
   EXPECT_EQ(DRIVER_STOPPED, driver1.join());
+
+  Shutdown();
+}
+
+
+// This test verifies that a framework attempting to re-register
+// after its failover timeout has elapsed is disallowed.
+TEST_F(FaultToleranceTest, SchedulerReregisterAfterFailoverTimeout)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Launch the first (i.e., failing) scheduler and wait until
+  // registered gets called to launch the second (i.e., failover)
+  // scheduler.
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<process::Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver1.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+  AWAIT_READY(frameworkId);
+
+  Future<Nothing> frameworkDeactivated = FUTURE_DISPATCH(
+      _, &master::allocator::AllocatorProcess::frameworkDeactivated);
+
+  Future<Nothing> frameworkFailoverTimeout =
+    FUTURE_DISPATCH(_, &Master::frameworkFailoverTimeout);
+
+  // Simulate framework disconnection.
+  ASSERT_TRUE(process::inject::exited(
+      frameworkRegisteredMessage.get().to, master.get()));
+
+  // Wait until master schedules the framework for removal.
+  AWAIT_READY(frameworkDeactivated);
+
+  // Simulate framework failover timeout.
+  Clock::pause();
+  Clock::settle();
+
+  Try<Duration> failoverTimeout =
+    Duration::create(FrameworkInfo().failover_timeout());
+
+  ASSERT_SOME(failoverTimeout);
+  Clock::advance(failoverTimeout.get());
+
+  // Wait until master actually marks the framework as completed.
+  AWAIT_READY(frameworkFailoverTimeout);
+
+  // Now launch the second (i.e., failover) scheduler using the
+  // framework id recorded from the first scheduler.
+  MockScheduler sched2;
+
+  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
+  framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId.get());
+
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
+    .Times(0);
+
+  Future<Nothing> sched2Error;
+  EXPECT_CALL(sched2, error(&driver2, _))
+    .WillOnce(FutureSatisfy(&sched2Error));
+
+  driver2.start();
+
+  // Framework should get 'Error' message because the framework
+  // with this id is marked as completed.
+  AWAIT_READY(sched2Error);
+
+  driver2.stop();
+  driver2.join();
+  driver1.stop();
+  driver1.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that a framework attempting to re-register
+// after it is unregistered is disallowed.
+TEST_F(FaultToleranceTest, SchedulerReregisterAfterUnregistration)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Launch the first (i.e., failing) scheduler and wait until
+  // registered gets called to launch the second (i.e., failover)
+  // scheduler.
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<process::Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver1.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+  AWAIT_READY(frameworkId);
+
+  Future<Nothing> frameworkRemoved = FUTURE_DISPATCH(
+      _, &master::allocator::AllocatorProcess::frameworkRemoved);
+
+  // Unregister the framework.
+  driver1.stop();
+  driver1.join();
+
+  // Wait until master actually marks the framework as completed.
+  AWAIT_READY(frameworkRemoved);
+
+  // Now launch the second (i.e., failover) scheduler using the
+  // framework id recorded from the first scheduler.
+  MockScheduler sched2;
+
+  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
+  framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId.get());
+
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
+    .Times(0);
+
+  Future<Nothing> sched2Error;
+  EXPECT_CALL(sched2, error(&driver2, _))
+    .WillOnce(FutureSatisfy(&sched2Error));
+
+  driver2.start();
+
+  // Framework should get 'Error' message because the framework
+  // with this id is marked as completed.
+  AWAIT_READY(sched2Error);
+
+  driver2.stop();
+  driver2.join();
 
   Shutdown();
 }
