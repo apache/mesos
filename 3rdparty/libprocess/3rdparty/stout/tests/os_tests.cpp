@@ -46,8 +46,11 @@ using std::vector;
 static hashset<string> listfiles(const string& directory)
 {
   hashset<string> fileset;
-  foreach (const string& file, os::ls(directory)) {
-    fileset.insert(file);
+  Try<std::list<std::string> > entries = os::ls(directory);
+  if (entries.isSome()) {
+    foreach (const string& entry, entries.get()) {
+      fileset.insert(entry);
+    }
   }
   return fileset;
 }

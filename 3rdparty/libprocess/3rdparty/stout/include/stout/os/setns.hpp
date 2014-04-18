@@ -46,8 +46,11 @@ namespace os {
 inline std::set<std::string> namespaces()
 {
   std::set<std::string> result;
-  foreach (const std::string& ns, os::ls("/proc/self/ns")) {
-    result.insert(ns);
+  Try<std::list<std::string> > entries = os::ls("/proc/self/ns");
+  if (entries.isSome()) {
+    foreach (const std::string& entry, entries.get()) {
+      result.insert(entry);
+    }
   }
   return result;
 }

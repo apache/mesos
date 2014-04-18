@@ -23,13 +23,12 @@
 
 namespace os {
 
-// TODO(bmahler): Wrap this with a Try.
-inline std::list<std::string> ls(const std::string& directory)
+inline Try<std::list<std::string> > ls(const std::string& directory)
 {
   DIR* dir = opendir(directory.c_str());
 
   if (dir == NULL) {
-    return std::list<std::string>();
+    return ErrnoError("Failed to opendir '" + directory + "'");
   }
 
   // Calculate the size for a "directory entry".
@@ -48,9 +47,10 @@ inline std::list<std::string> ls(const std::string& directory)
   dirent* temp = (dirent*) malloc(size);
 
   if (temp == NULL) {
-    free(temp);
+    // Preserve malloc error.
+    ErrnoError error("Failed to allocate directory entries");
     closedir(dir);
-    return std::list<std::string>();
+    return error;
   }
 
   std::list<std::string> result;
@@ -68,7 +68,8 @@ inline std::list<std::string> ls(const std::string& directory)
   closedir(dir);
 
   if (error != 0) {
-    return std::list<std::string>();
+    errno = error;
+    return ErrnoError("Failed to read directories");
   }
 
   return result;

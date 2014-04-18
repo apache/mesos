@@ -297,10 +297,15 @@ inline Try<std::set<pid_t> > pids()
 {
   std::set<pid_t> pids;
 
-  foreach (const std::string& file, os::ls("/proc")) {
-    Try<pid_t> pid = numify<pid_t>(file);
+  Try<std::list<std::string> > entries = os::ls("/proc");
+  if (entries.isError()) {
+    return Error("Failed to list files in /proc: " + entries.error());
+  }
+
+  foreach (const std::string& entry, entries.get()) {
+    Try<pid_t> pid = numify<pid_t>(entry);
     if (pid.isSome()) {
-      pids.insert(pid.get()); // Ignore files that can't be numified.
+      pids.insert(pid.get()); // Ignore entries that can't be numified.
     }
   }
 
@@ -319,7 +324,12 @@ inline Try<std::set<pid_t> > threads(pid_t pid)
 
   std::set<pid_t> threads;
 
-  foreach (const std::string& entry, os::ls(path)) {
+  Try<std::list<std::string> > entries = os::ls(path);
+  if (entries.isError()) {
+    return Error("Failed to list files in " + path + ": " + entries.error());
+  }
+
+  foreach (const std::string& entry, entries.get()) {
     Try<pid_t> thread = numify<pid_t>(entry);
     if (thread.isSome()) {
       threads.insert(thread.get());

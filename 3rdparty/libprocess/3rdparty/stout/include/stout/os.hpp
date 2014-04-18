@@ -783,20 +783,23 @@ inline Try<std::list<std::string> > find(
     return Error("'" + directory + "' is not a directory");
   }
 
-  foreach (const std::string& entry, ls(directory)) {
-    std::string path = path::join(directory, entry);
-    // If it's a directory, recurse.
-    if (isdir(path) && !islink(path)) {
-      Try<std::list<std::string> > matches = find(path, pattern);
-      if (matches.isError()) {
-        return matches;
-      }
-      foreach (const std::string& match, matches.get()) {
-        results.push_back(match);
-      }
-    } else {
-      if (entry.find(pattern) != std::string::npos) {
-        results.push_back(path); // Matched the file pattern!
+  Try<std::list<std::string> > entries = ls(directory);
+  if (entries.isSome()) {
+    foreach (const std::string& entry, entries.get()) {
+      std::string path = path::join(directory, entry);
+      // If it's a directory, recurse.
+      if (isdir(path) && !islink(path)) {
+        Try<std::list<std::string> > matches = find(path, pattern);
+        if (matches.isError()) {
+          return matches;
+        }
+        foreach (const std::string& match, matches.get()) {
+          results.push_back(match);
+        }
+      } else {
+        if (entry.find(pattern) != std::string::npos) {
+          results.push_back(path); // Matched the file pattern!
+        }
       }
     }
   }
