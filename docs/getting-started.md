@@ -33,7 +33,7 @@ There are different ways you can get Mesos:
         $ sudo apt-get install openjdk-6-jdk
 
         # Install devel python.
-	$ sudo apt-get install python-dev python-boto
+        $ sudo apt-get install python-dev python-boto
 
         # Install devel libcurl
         $ sudo apt-get install libcurl4-nss-dev
