@@ -578,7 +578,6 @@ inline int system(const std::string& command)
 }
 
 
-// TODO(bmahler): Clean these bool functions to return Try<Nothing>.
 // Changes the specified path's user and group ownership to that of
 // the specified user..
 inline Try<Nothing> chown(
@@ -613,25 +612,23 @@ inline Try<Nothing> chown(
 }
 
 
-inline bool chmod(const std::string& path, int mode)
+inline Try<Nothing> chmod(const std::string& path, int mode)
 {
   if (::chmod(path.c_str(), mode) < 0) {
-    PLOG(ERROR) << "Failed to changed the mode of the path '" << path << "'";
-    return false;
+    return ErrnoError();
   }
 
-  return true;
+  return Nothing();
 }
 
 
-inline bool chdir(const std::string& directory)
+inline Try<Nothing> chdir(const std::string& directory)
 {
   if (::chdir(directory.c_str()) < 0) {
-    PLOG(ERROR) << "Failed to change directory";
-    return false;
+    return ErrnoError();
   }
 
-  return true;
+  return Nothing();
 }
 
 
@@ -723,30 +720,25 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
 }
 
 
-// TODO(idownes): Refactor to return a Try and to not log internally.
-inline bool su(const std::string& user)
+inline Try<Nothing> su(const std::string& user)
 {
   Result<gid_t> gid = os::getgid(user);
   if (gid.isError() || gid.isNone()) {
-    LOG(ERROR) << "Failed to set gid: "
-               << (gid.isError() ? gid.error() : "unknown user");
-    return false;
+    return Error("Failed to getgid: " +
+        (gid.isError() ? gid.error() : "unknown user"));
   } else if (::setgid(gid.get())) {
-    PLOG(ERROR) << "Failed to setgid";
-    return false;
+    return ErrnoError("Failed to set gid");
   }
 
   Result<uid_t> uid = os::getuid(user);
   if (uid.isError() || uid.isNone()) {
-    LOG(ERROR) << "Failed to set uid: "
-               << (uid.isError() ? uid.error() : "unknown user");
-    return false;
+    return Error("Failed to getuid: " +
+        (uid.isError() ? uid.error() : "unknown user"));
   } else if (::setuid(uid.get())) {
-    PLOG(ERROR) << "Failed to setuid";
-    return false;
+    return ErrnoError("Failed to setuid");
   }
 
-  return true;
+  return Nothing();
 }
 
 

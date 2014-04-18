@@ -39,14 +39,14 @@ protected:
     sandbox = directory.get();
 
     // Run the test out of the temporary directory we created.
-    ASSERT_TRUE(os::chdir(sandbox.get()))
+    ASSERT_SOME(os::chdir(sandbox.get()))
       << "Failed to chdir into '" << sandbox.get() << "'";
   }
 
   virtual void TearDown()
   {
     // Return to previous working directory and cleanup the sandbox.
-    ASSERT_TRUE(os::chdir(cwd));
+    ASSERT_SOME(os::chdir(cwd));
 
     if (sandbox.isSome()) {
       ASSERT_SOME(os::rmdir(sandbox.get()));

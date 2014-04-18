@@ -720,6 +720,6 @@ TEST_F(OsTest, user)
   EXPECT_NONE(os::getuid(UUID::random().toString()));
   EXPECT_NONE(os::getgid(UUID::random().toString()));
 
-  EXPECT_TRUE(os::su(user.get()));
-  EXPECT_FALSE(os::su(UUID::random().toString()));
+  EXPECT_SOME(os::su(user.get()));
+  EXPECT_ERROR(os::su(UUID::random().toString()));
 }
