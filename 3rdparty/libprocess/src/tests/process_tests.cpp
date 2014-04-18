@@ -1052,6 +1052,30 @@ TEST(Process, exited)
 }
 
 
+TEST(Process, injectExited)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  UPID pid = spawn(new ProcessBase(), true);
+
+  ExitedProcess process(pid);
+
+  volatile bool exitedCalled = false;
+
+  EXPECT_CALL(process, exited(pid))
+    .WillOnce(Assign(&exitedCalled, true));
+
+  spawn(process);
+
+  inject::exited(pid, process.self());
+
+  while (!exitedCalled);
+
+  terminate(process);
+  wait(process);
+}
+
+
 TEST(Process, select)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);

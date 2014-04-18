@@ -4186,6 +4186,20 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
 
 } // namespace io {
 
+
+namespace inject {
+
+bool exited(const UPID& from, const UPID& to)
+{
+  process::initialize();
+
+  ExitedEvent* event = new ExitedEvent(from);
+  return process_manager->deliver(to, event, __process__);
+}
+
+} // namespace inject {
+
+
 namespace internal {
 
 void dispatch(

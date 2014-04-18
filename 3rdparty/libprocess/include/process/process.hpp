@@ -396,6 +396,14 @@ extern ThreadLocal<ProcessBase>* _process_;
 
 #define __process__ (*_process_)
 
+// NOTE: Methods in this namespace should only be used in tests to
+// inject arbitrary events.
+namespace inject {
+// Simulates disconnection of the link between 'from' and 'to' by
+// sending an 'ExitedEvent' to 'to'.
+bool exited(const UPID& from, const UPID& to);
+} // namespace inject {
+
 } // namespace process {
 
 #endif // __PROCESS_PROCESS_HPP__
