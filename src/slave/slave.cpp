@@ -3144,34 +3144,37 @@ void Slave::__recover(const Future<Nothing>& future)
   // in the recovery code, to recover all slaves instead of only
   // the latest slave.
   const string& directory = path::join(flags.work_dir, "slaves");
-  foreach (const string& entry, os::ls(directory)) {
-    string path = path::join(directory, entry);
-    // Ignore non-directory entries.
-    if (!os::isdir(path)) {
-      continue;
-    }
+  Try<list<string> > entries = os::ls(directory);
+  if (entries.isSome()) {
+    foreach (const string& entry, entries.get()) {
+      string path = path::join(directory, entry);
+      // Ignore non-directory entries.
+      if (!os::isdir(path)) {
+        continue;
+      }
 
-    // We garbage collect a directory if either the slave has not
-    // recovered its id (hence going to get a new id when it
-    // registers with the master) or if it is an old work directory.
-    SlaveID slaveId;
-    slaveId.set_value(entry);
-    if (!info.has_id() || !(slaveId == info.id())) {
-      LOG(INFO) << "Garbage collecting old slave " << slaveId;
+      // We garbage collect a directory if either the slave has not
+      // recovered its id (hence going to get a new id when it
+      // registers with the master) or if it is an old work directory.
+      SlaveID slaveId;
+      slaveId.set_value(entry);
+      if (!info.has_id() || !(slaveId == info.id())) {
+        LOG(INFO) << "Garbage collecting old slave " << slaveId;
 
-      // NOTE: We update the modification time of the slave work/meta
-      // directories even though these are old because these
-      // directories might not have been scheduled for gc before.
+        // NOTE: We update the modification time of the slave work/meta
+        // directories even though these are old because these
+        // directories might not have been scheduled for gc before.
 
-      // GC the slave work directory.
-      os::utime(path); // Update the modification time.
-      garbageCollect(path);
-
-      // GC the slave meta directory.
-      path = paths::getSlavePath(metaDir, slaveId);
-      if (os::exists(path)) {
+        // GC the slave work directory.
         os::utime(path); // Update the modification time.
         garbageCollect(path);
+
+        // GC the slave meta directory.
+        path = paths::getSlavePath(metaDir, slaveId);
+        if (os::exists(path)) {
+          os::utime(path); // Update the modification time.
+          garbageCollect(path);
+        }
       }
     }
   }

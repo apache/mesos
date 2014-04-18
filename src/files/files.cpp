@@ -46,6 +46,7 @@ using process::http::OK;
 using process::http::Response;
 using process::http::Request;
 
+using std::list;
 using std::map;
 using std::string;
 using std::vector;
@@ -71,7 +72,7 @@ private:
   // Returns None if the file is not found.
   // Returns Error if we find the file but it cannot be resolved or it breaks
   // out of the chroot.
-  Result<std::string> resolve(const string& path);
+  Result<string> resolve(const string& path);
 
   // HTTP endpoints.
 
@@ -167,16 +168,19 @@ Future<Response> FilesProcess::browse(const Request& request)
   // The result will be a sorted (on path) array of files and dirs:
   // [{"name": "README", "path": "dir/README" "dir":False, "size":42}, ...]
   map<string, JSON::Object> files;
-  foreach (const string& filename, os::ls(resolvedPath.get())) {
-    struct stat s;
-    string fullPath = path::join(resolvedPath.get(), filename);
+  Try<list<string> > entries = os::ls(resolvedPath.get());
+  if (entries.isSome()) {
+    foreach (const string& entry, entries.get()) {
+      struct stat s;
+      string fullPath = path::join(resolvedPath.get(), entry);
 
-    if (stat(fullPath.c_str(), &s) < 0) {
-      PLOG(WARNING) << "Found " << fullPath << " in ls but stat failed";
-      continue;
+      if (stat(fullPath.c_str(), &s) < 0) {
+        PLOG(WARNING) << "Found " << fullPath << " in ls but stat failed";
+        continue;
+      }
+
+      files[fullPath] = jsonFileInfo(path::join(path.get(), entry), s);
     }
-
-    files[fullPath] = jsonFileInfo(path::join(path.get(), filename), s);
   }
 
   JSON::Array listing;
