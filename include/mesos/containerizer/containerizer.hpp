@@ -20,6 +20,6 @@
 #define __CONTAINERIZER_PROTO_HPP__
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
-#include <mesos/containerizer/containerizer.pb.h>
+#include <containerizer/containerizer.pb.h>
 
 #endif // __CONTAINERIZER_PROTO_HPP__
