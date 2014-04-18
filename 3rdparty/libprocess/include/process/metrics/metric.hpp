@@ -35,7 +35,9 @@ protected:
       Time now = Clock::now();
 
       internal::acquire(&data->lock);
-      data->history.get()->set(value, now);
+      {
+        data->history.get()->set(value, now);
+      }
       internal::release(&data->lock);
     }
   }
