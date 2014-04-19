@@ -232,13 +232,19 @@ pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/scheduler.hpp				\
   $(top_srcdir)/include/mesos/resources.hpp				\
   $(top_srcdir)/include/mesos/values.hpp				\
-  $(top_srcdir)/include/mesos/mesos.proto				\
-  $(top_srcdir)/include/mesos/containerizer/containerizer.proto
+  $(top_srcdir)/include/mesos/mesos.proto
 
 nodist_pkginclude_HEADERS =						\
   ../include/mesos/mesos.hpp						\
-  mesos.pb.h								\
-  ../include/mesos/containerizer/containerizer.hpp			\
+  mesos.pb.h
+
+containerizerdir = $(pkgincludedir)/containerizer
+
+containerizer_HEADERS =							\
+  $(top_srcdir)/include/mesos/containerizer/containerizer.hpp		\
+  $(top_srcdir)/include/mesos/containerizer/containerizer.proto
+
+nodist_containerizer_HEADERS =						\
   containerizer/containerizer.pb.h
 
 if OS_LINUX
