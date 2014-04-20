@@ -5,6 +5,36 @@ layout: documentation
 # Video and Slides of Mesos Presentations
 _(Listed in date descending order)_
 
+## Datacenter Computing with Apache Mesos
+([Slides](http://www.slideshare.net/pacoid/datacenter-computing-with-apache-mesos))
+Paco Nathan
+Presented April 15, 2014 at [Big Data DC Meetup](http://www.meetup.com/bigdatadc/events/172610652/)
+
+## Apache Spark at Viadeo (Running on Mesos)
+([Slides](https://speakerdeck.com/ecepoi/apache-spark-at-viadeo), [Video](http://www.youtube.com/watch?v=shaZslr49vQ&t=16m55s))
+Eugen Cepoi
+Presented April 9, 2014 at Paris Hadoop User Group
+
+## Mesos, HubSpot, and Singularity
+([Video](https://www.youtube.com/watch?v=ROn14csiikw))
+Tom Petr
+Presented April 3rd, 2014 at @TwitterOSS #conf
+
+## Building Distributed Frameworks on Mesos
+([Video](https://www.youtube.com/watch?v=n5GT7OFSh58))
+Benjamin Hindman
+Presented March 25th, 2014 at [Aurora and Mesos Frameworks Meetup](https://www.eventbrite.com/e/aurora-and-mesosframeworksmeetup-tickets-10850994617)
+
+## Introduction to Apache Aurora
+([Video](https://www.youtube.com/watch?v=asd_h6VzaJc))
+Bill Farner
+Presented March 25th, 2014 at [Aurora and Mesos Frameworks Meetup](https://www.eventbrite.com/e/aurora-and-mesosframeworksmeetup-tickets-10850994617)
+
+## Improving Resource Efficiency with Apache Mesos
+([Video](https://www.youtube.com/watch?v=YpmElyi94AA))
+Christina Delimitrou
+Presented April 3rd, 2014 at @TwitterOSS #conf
+
 ### Apache Mesos as an SDK for Building Distributed Frameworks ([Slides](http://www.slideshare.net/pacoid/strata-sc-2014-apache-mesos-as-an-sdk-for-building-distributed-frameworks))
 Paco Nathan
 Presented February 13th, 2014 at [Strata](http://strataconf.com/)
