@@ -1070,10 +1070,17 @@ TEST(Process, select)
 
   Future<Future<int> > future = select(futures);
 
-  EXPECT_TRUE(future.await());
-  EXPECT_TRUE(future.isReady());
-  EXPECT_TRUE(future.get().isReady());
+  AWAIT_READY(future);
+  AWAIT_READY(future.get());
   EXPECT_EQ(42, future.get().get());
+
+  futures.erase(promise1.future());
+
+  future = select(futures);
+  EXPECT_TRUE(future.isPending());
+
+  future.discard();
+  AWAIT_DISCARDED(future);
 }
 
 

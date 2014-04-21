@@ -848,6 +848,9 @@ Future<Future<T> > select(const std::set<Future<T> >& futures)
   memory::shared_ptr<Promise<Future<T> > > promise(
       new Promise<Future<T> >());
 
+  promise->future().onDiscard(
+      lambda::bind(&internal::discarded<Future<T> >, promise->future()));
+
 #if __cplusplus >= 201103L
   typename std::set<Future<T>>::iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
