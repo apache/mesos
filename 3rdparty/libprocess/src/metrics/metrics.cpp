@@ -78,30 +78,48 @@ Future<Nothing> MetricsProcess::remove(const std::string& name)
 }
 
 
-// TODO(dhamon): Allow querying by context and context/name.
 Future<http::Response> MetricsProcess::snapshot(const http::Request& request)
 {
   hashmap<string, Future<double> > futures;
+  hashmap<string, Option<Statistics<double> > > statistics;
 
   foreachkey (const string& metric, metrics) {
     CHECK_NOTNULL(metrics[metric].get());
     futures[metric] = metrics[metric]->value();
+    // TODO(dhamon): It would be nice to get these in parallel.
+    statistics[metric] = metrics[metric]->statistics();
   }
 
   return await(futures.values())
-    .then(lambda::bind(_snapshot, request, futures));
+    .then(lambda::bind(_snapshot, request, futures, statistics));
 }
 
 
 Future<http::Response> MetricsProcess::_snapshot(
     const http::Request& request,
-    const hashmap<string, Future<double> >& metrics)
+    const hashmap<string, Future<double> >& metrics,
+    const hashmap<string, Option<Statistics<double> > >& statistics)
 {
   JSON::Object object;
 
   foreachpair (const string& key, const Future<double>& value, metrics) {
+    // Value.
     if (value.isReady()) {
       object.values[key] = value.get();
+    }
+
+    // Statistics.
+    Option<Statistics<double> > statistics_ = statistics.get(key).get();
+
+    if (statistics_.isSome()) {
+      object.values[key + "/min"] = statistics_.get().min;
+      object.values[key + "/max"] = statistics_.get().max;
+      object.values[key + "/p50"] = statistics_.get().p50;
+      object.values[key + "/p90"] = statistics_.get().p90;
+      object.values[key + "/p95"] = statistics_.get().p95;
+      object.values[key + "/p99"] = statistics_.get().p99;
+      object.values[key + "/p999"] = statistics_.get().p999;
+      object.values[key + "/p9999"] = statistics_.get().p9999;
     }
   }
 

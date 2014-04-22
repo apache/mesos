@@ -1,28 +1,25 @@
 #include <gtest/gtest.h>
 
+#include <stout/duration.hpp>
 #include <stout/gtest.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
+#include <process/http.hpp>
 #include <process/process.hpp>
+#include <process/statistics.hpp>
 #include <process/time.hpp>
 
 #include <process/metrics/counter.hpp>
 #include <process/metrics/gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
+using namespace process;
 
-using process::Clock;
-using process::Deferred;
-using process::Failure;
-using process::Future;
-using process::PID;
-using process::Process;
-using process::Time;
+using process::http::OK;
+using process::http::Response;
 
-using process::metrics::add;
-using process::metrics::remove;
 using process::metrics::Counter;
 using process::metrics::Gauge;
 
@@ -30,84 +27,45 @@ using process::metrics::Gauge;
 class GaugeProcess : public Process<GaugeProcess>
 {
 public:
-  double get() { return 42.0; }
-  Future<double> fail() { return Failure("failure"); }
+  double get()
+  {
+    return 42.0;
+  }
+
+  Future<double> fail()
+  {
+    return Failure("failure");
+  }
 };
 
-// TODO(dhamon): Add test for JSON equality.
-// TODO(dhamon): Add tests for JSON access with and without removal.
 
-TEST(MetricsTest, Counter)
+TEST(Metrics, Counter)
 {
-  Counter c("test/counter");
-  AWAIT_READY(add(c));
+  Counter counter("test/counter");
 
-  EXPECT_FLOAT_EQ(0.0, c.value().get());
-  ++c;
-  EXPECT_FLOAT_EQ(1.0, c.value().get());
-  c++;
-  EXPECT_FLOAT_EQ(2.0, c.value().get());
+  AWAIT_READY(metrics::add(counter));
 
-  c.reset();
-  EXPECT_FLOAT_EQ(0.0, c.value().get());
+  AWAIT_EXPECT_EQ(0.0, counter.value());
 
-  c += 42;
-  EXPECT_FLOAT_EQ(42.0, c.value().get());
+  ++counter;
+  AWAIT_EXPECT_EQ(1.0, counter.value());
 
-  AWAIT_READY(remove(c));
+  counter++;
+  AWAIT_EXPECT_EQ(2.0, counter.value());
+
+  counter.reset();
+  AWAIT_EXPECT_EQ(0.0, counter.value());
+
+  counter += 42;
+  AWAIT_EXPECT_EQ(42.0, counter.value());
+
+  EXPECT_NONE(counter.statistics());
+
+  AWAIT_READY(metrics::remove(counter));
 }
 
 
-TEST(MetricsTest, CounterHistory)
-{
-  Clock::pause();
-  Time t0 = Clock::now();
-
-  Counter c("test/counter", process::TIME_SERIES_WINDOW);
-  AWAIT_READY(add(c));
-
-  Clock::advance(Seconds(1));
-  Time t1 = Clock::now();
-  ++c;
-
-  Clock::advance(Seconds(1));
-  Time t2 = Clock::now();
-  ++c;
-
-  // TODO(dhamon): get json/history from metrics process and check
-  // the history.
-
-  AWAIT_READY(remove(c));
-}
-
-
-// TODO(dhamon): Expand benchmarks and enable them.
-// TEST(MetricsTest, CounterBM)
-// {
-//   for (int i = 0; i < 10; ++i) {
-//     Counter c("test/counter", Seconds(1));
-//
-//     // Fill the history
-//     Time t0 = Clock::now();
-//     while (Clock::now() - t0 < Seconds(1)) {
-//       c++;
-//     }
-//
-//     // Run the benchmark
-//     t0 = Clock::now();
-//     int numInc = 0;
-//     while (Clock::now() - t0 < Seconds(1)) {
-//       c++;
-//       ++numInc;
-//     }
-//     std::cout << numInc << "\n";
-//   }
-//
-//   EXPECT_TRUE(true);
-// }
-
-
-TEST(MetricsTest, Gauge)
+TEST(Metrics, Gauge)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -115,20 +73,140 @@ TEST(MetricsTest, Gauge)
   PID<GaugeProcess> pid = spawn(&process);
   ASSERT_TRUE(pid);
 
-  Gauge g("test/gauge", defer(pid, &GaugeProcess::get));
-  Gauge g2("test/failedgauge", defer(pid, &GaugeProcess::fail));
+  // Gauge with a value.
+  Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
 
-  AWAIT_READY(add(g));
-  AWAIT_READY(add(g2));
+  AWAIT_READY(metrics::add(gauge));
 
-  AWAIT_READY(g.value());
-  EXPECT_EQ(42.0, g.value().get());
+  AWAIT_EXPECT_EQ(42.0, gauge.value());
 
-  AWAIT_FAILED(g2.value());
+  AWAIT_READY(metrics::remove(gauge));
 
-  AWAIT_READY(remove(g2));
-  AWAIT_READY(remove(g));
+  // Failing gauge.
+  gauge = Gauge("test/failedgauge", defer(pid, &GaugeProcess::fail));
+
+  AWAIT_READY(metrics::add(gauge));
+
+  AWAIT_EXPECT_FAILED(gauge.value());
+
+  AWAIT_READY(metrics::remove(gauge));
 
   terminate(process);
   wait(process);
+}
+
+
+TEST(Metrics, Statistics)
+{
+  Counter counter("test/counter", process::TIME_SERIES_WINDOW);
+
+  AWAIT_READY(metrics::add(counter));
+
+  for (size_t i = 0; i < 10; ++i) {
+    ++counter;
+  }
+
+  Option<Statistics<double> > statistics = counter.statistics();
+  EXPECT_SOME(statistics);
+
+  EXPECT_FLOAT_EQ(0.0, statistics.get().min);
+  EXPECT_FLOAT_EQ(10.0, statistics.get().max);
+
+  EXPECT_FLOAT_EQ(5.0, statistics.get().p50);
+  EXPECT_FLOAT_EQ(9.0, statistics.get().p90);
+  EXPECT_FLOAT_EQ(9.5, statistics.get().p95);
+  EXPECT_FLOAT_EQ(9.9, statistics.get().p99);
+  EXPECT_FLOAT_EQ(9.99, statistics.get().p999);
+  EXPECT_FLOAT_EQ(9.999, statistics.get().p9999);
+
+  AWAIT_READY(metrics::remove(counter));
+}
+
+
+TEST(Metrics, Snapshot)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  UPID upid("metrics", process::ip(), process::port());
+
+  // Before adding any metrics, the response should be empty.
+  Future<Response> response = http::get(upid, "snapshot");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
+
+  // Add a gauge and a counter.
+  GaugeProcess process;
+  PID<GaugeProcess> pid = spawn(&process);
+  ASSERT_TRUE(pid);
+
+  Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
+  Counter counter("test/counter");
+
+  AWAIT_READY(metrics::add(gauge));
+  AWAIT_READY(metrics::add(counter));
+
+  // Get the snapshot.
+  response = http::get(upid, "snapshot");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  JSON::Object expected;
+  expected.values["test/counter"] = 0.0;
+  expected.values["test/gauge"] = 42.0;
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+
+  // Remove the metrics and ensure they are no longer in the snapshot.
+  AWAIT_READY(metrics::remove(gauge));
+  AWAIT_READY(metrics::remove(counter));
+
+  response = http::get(upid, "snapshot");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
+
+  terminate(process);
+  wait(process);
+}
+
+
+// Ensures that the aggregate statistics are correct in the snapshot.
+TEST(Metrics, SnapshotStatistics)
+{
+  UPID upid("metrics", process::ip(), process::port());
+
+  Future<Response> response = http::get(upid, "snapshot");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
+
+  Clock::pause();
+
+  Counter counter("test/counter", process::TIME_SERIES_WINDOW);
+
+  AWAIT_READY(metrics::add(counter));
+
+  for (size_t i = 0; i < 10; ++i) {
+    Clock::advance(Seconds(1));
+    ++counter;
+  }
+
+  JSON::Object expected;
+
+  expected.values["test/counter"] = 10.0;
+
+  expected.values["test/counter/min"] = 0.0;
+  expected.values["test/counter/max"] = 10.0;
+
+  expected.values["test/counter/p50"] = 5.0;
+  expected.values["test/counter/p90"] = 9.0;
+  expected.values["test/counter/p95"] = 9.5;
+  expected.values["test/counter/p99"] = 9.9;
+  expected.values["test/counter/p999"] = 9.99;
+  expected.values["test/counter/p9999"] = 9.999;
+
+  response = http::get(upid, "snapshot");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+
+  AWAIT_READY(metrics::remove(counter));
 }

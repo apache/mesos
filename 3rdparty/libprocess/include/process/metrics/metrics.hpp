@@ -40,9 +40,11 @@ private:
   MetricsProcess& operator = (const MetricsProcess&);
 
   Future<http::Response> snapshot(const http::Request& request);
+
   static Future<http::Response> _snapshot(
       const http::Request& request,
-      const hashmap<std::string, Future<double> >& metrics);
+      const hashmap<std::string, Future<double> >& metrics,
+      const hashmap<std::string, Option<Statistics<double> > >& statistics);
 
   // The Owned<Metric> is an explicit copy of the Metric passed to 'add'.
   hashmap<std::string, Owned<Metric> > metrics;

@@ -6,6 +6,7 @@
 #include <process/future.hpp>
 #include <process/internal.hpp>
 #include <process/owned.hpp>
+#include <process/statistics.hpp>
 #include <process/timeseries.hpp>
 
 #include <stout/duration.hpp>
@@ -22,7 +23,25 @@ public:
 
   virtual Future<double> value() const = 0;
 
-  const std::string& name() const { return data->name; }
+  const std::string& name() const
+  {
+    return data->name;
+  }
+
+  Option<Statistics<double> > statistics() const
+  {
+    Option<Statistics<double> > statistics = None();
+
+    if (data->history.isSome()) {
+      internal::acquire(&data->lock);
+      {
+        statistics = Statistics<double>::from(*data->history.get());
+      }
+      internal::release(&data->lock);
+    }
+
+    return statistics;
+  }
 
 protected:
   // Only derived classes can construct.
