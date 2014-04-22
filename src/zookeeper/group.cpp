@@ -703,9 +703,13 @@ Try<bool> GroupProcess::cache()
     Try<int32_t> sequence = numify<int32_t>(tokens.back());
 
     // Skip it if it couldn't be converted to a number.
+    // NOTE: This is currently possible when using a log storage
+    // based registry because the log replicas register under
+    // "/log_replicas" at the same path as the masters' ephemeral
+    // znodes.
     if (sequence.isError()) {
-      LOG(WARNING) << "Found non-sequence node '" << result
-                   << "' at '" << znode << "' in ZooKeeper";
+      VLOG(1) << "Found non-sequence node '" << result
+              << "' at '" << znode << "' in ZooKeeper";
       continue;
     }
 

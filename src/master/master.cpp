@@ -264,8 +264,12 @@ void Master::initialize()
   LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
             << " started on " << string(self()).substr(7);
 
-  if (flags.registry_strict) {
-    EXIT(1) << "Cannot run with --registry_strict; currently not supported";
+  // NOTE: We enforce a minimum slave re-register timeout because the
+  // slave bounds its (re-)registration retries based on the minimum.
+  if (flags.slave_reregister_timeout < MIN_SLAVE_REREGISTER_TIMEOUT) {
+    EXIT(1) << "Invalid value '" << flags.slave_reregister_timeout << "' "
+            << "for --slave_reregister_timeout: "
+            << "Must be at least " << MIN_SLAVE_REREGISTER_TIMEOUT;
   }
 
   // Parse the percentage for the slave removal limit.
@@ -791,7 +795,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
   // not respond to health checks.
   // TODO(bmahler): Consider making this configurable.
   slaves.recoveredTimer =
-    delay(SLAVE_PING_TIMEOUT * MAX_SLAVE_PING_TIMEOUTS,
+    delay(flags.slave_reregister_timeout,
           self(),
           &Self::recoveredSlavesTimeout,
           registry);
@@ -799,7 +803,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
   // Recovery is now complete!
   LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " slaves"
             << " from the Registry (" << Bytes(registry.ByteSize()) << ")"
-            << " ; allowing " << SLAVE_PING_TIMEOUT * MAX_SLAVE_PING_TIMEOUTS
+            << " ; allowing " << flags.slave_reregister_timeout
             << " for slaves to re-register";
 
   return Nothing();

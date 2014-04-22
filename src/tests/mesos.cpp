@@ -37,14 +37,14 @@ master::Flags MesosTest::CreateMasterFlags()
 {
   master::Flags flags;
 
-  // Enable authentication.
-  flags.authenticate = true;
-
   // Create a temporary work directory (removed by Environment).
   Try<std::string> directory = environment->mkdtemp();
   CHECK_SOME(directory) << "Failed to create temporary directory";
 
   flags.work_dir = directory.get();
+
+  // Enable authentication.
+  flags.authenticate = true;
 
   // Create a default credentials file.
   const std::string& path = path::join(directory.get(), "credentials");
@@ -56,6 +56,9 @@ master::Flags MesosTest::CreateMasterFlags()
     << "Failed to write credentials to '" << path << "'";
 
   flags.credentials = "file://" + path;
+
+  // Use log storage (without ZooKeeper) by default.
+  flags.registry = "log_storage";
 
   return flags;
 }

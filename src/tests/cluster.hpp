@@ -288,18 +288,49 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
         new master::allocator::Allocator(allocatorProcess.get());
   }
 
-  // TODO(bmahler): Add flag support for the replicated log and then
-  // just construct based on the flags.
-  log::tool::Initialize initializer;
+  if (flags.registry == "in_memory") {
+    if (flags.registry_strict) {
+      return Error(
+          "Cannot use '--registry_strict' when using in-memory storage based"
+          " registry");
+    }
+    master.storage = new state::InMemoryStorage();
+  } else if (flags.registry == "log_storage") {
+    if (flags.work_dir.isNone()) {
+      return Error(
+          "Need to specify --work_dir for log storage based registry");
+    }
 
-  initializer.flags.path = path::join(flags.work_dir, ".log");
-  initializer.execute();
+    if (url.isSome()) {
+      // Use ZooKeeper based log storage.
+      if (flags.quorum.isNone()) {
+        return Error(
+            "Need to specify --quorum for log storage based registry when using"
+            " ZooKeeper");
+      }
+      master.log = new log::Log(
+          flags.quorum.get(),
+          path::join(flags.work_dir.get(), "log_storage"),
+          url.get().servers,
+          flags.zk_session_timeout,
+          path::join(url.get().path, "log_replicas"),
+          url.get().authentication,
+          flags.log_auto_initialize);
+    } else {
+      master.log = new log::Log(
+          1,
+          path::join(flags.work_dir.get(), "log_storage"),
+          std::set<process::UPID>(),
+          flags.log_auto_initialize);
+    }
 
-  master.log = new log::Log(
-      1,
-      initializer.flags.path.get(),
-      std::set<process::UPID>());
-  master.storage = new state::LogStorage(master.log);
+    master.storage = new state::LogStorage(master.log);
+  } else {
+    return Error("'" + flags.registry + "' is not a supported option for"
+                 " registry persistence");
+  }
+
+  CHECK_NOTNULL(master.storage);
 
   master.state = new state::protobuf::State(master.storage);
   master.registrar = new master::Registrar(flags, master.state);

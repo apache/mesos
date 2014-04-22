@@ -9,6 +9,8 @@
 #include <stout/option.hpp>
 #include <stout/uuid.hpp>
 
+#include "log/log.hpp"
+
 #include "messages/state.hpp"
 
 #include "state/storage.hpp"

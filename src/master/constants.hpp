@@ -38,6 +38,9 @@ namespace master {
 // So we've moved these to have external linkage but perhaps in the future
 // we can revert this.
 
+// TODO(vinod): Move constants that are only used in flags to
+// 'master/flags.hpp'.
+
 // Maximum number of slot offers to have outstanding for each framework.
 extern const int MAX_OFFERS_PER_FRAMEWORK;
 
@@ -52,6 +55,11 @@ extern const Duration SLAVE_PING_TIMEOUT;
 
 // Maximum number of ping timeouts until slave is considered failed.
 extern const uint32_t MAX_SLAVE_PING_TIMEOUTS;
+
+// The minimum timeout that can be used by a newly elected leader to
+// allow re-registration of slaves. Any slaves that do not re-register
+// within this timeout will be shutdown.
+extern const Duration MIN_SLAVE_REREGISTER_TIMEOUT;
 
 // Default limit on the percentage of slaves that will be removed
 // after recovering if no re-registration attempts were made.
@@ -83,6 +91,10 @@ extern const uint32_t TASK_LIMIT;
 
 // Label used by the Leader Contender and Detector.
 extern const std::string MASTER_INFO_LABEL;
+
+// Timeout used for ZooKeeper related operations.
+// TODO(vinod): Master detector/contender should use this timeout.
+extern const Duration ZOOKEEPER_SESSION_TIMEOUT;
 
 } // namespace mesos {
 } // namespace internal {

@@ -230,6 +230,17 @@ public:
 protected:
   MesosZooKeeperTest() : MesosTest(url) {}
 
+  virtual master::Flags CreateMasterFlags()
+  {
+    master::Flags flags = MesosTest::CreateMasterFlags();
+
+    // NOTE: Since we are using ZooKeeper with log storage (default
+    // storage in MesosTest) we need to specify a quorum size.
+    flags.quorum = 1;
+
+    return flags;
+  }
+
   static ZooKeeperTestServer* server;
   static Option<zookeeper::URL> url;
 };

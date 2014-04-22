@@ -17,8 +17,11 @@
  */
 
 #include <map>
+#include <set>
 #include <sstream>
 #include <vector>
+
+#include <process/pid.hpp>
 
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
@@ -45,11 +48,12 @@
 #include "slave/slave.hpp"
 
 #include "state/in_memory.hpp"
-#include "state/leveldb.hpp"
+#include "state/log.hpp"
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 
 using namespace mesos::internal;
+using namespace mesos::internal::log;
 
 using mesos::internal::master::allocator::Allocator;
 using mesos::internal::master::allocator::AllocatorProcess;
@@ -67,6 +71,7 @@ using process::PID;
 using process::UPID;
 
 using std::map;
+using std::set;
 using std::string;
 using std::stringstream;
 using std::vector;
@@ -78,6 +83,7 @@ namespace local {
 
 static Allocator* allocator = NULL;
 static AllocatorProcess* allocatorProcess = NULL;
+static Log* log = NULL;
 static state::Storage* storage = NULL;
 static state::protobuf::State* state = NULL;
 static Registrar* registrar = NULL;
@@ -117,7 +123,23 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     }
 
     if (flags.registry == "in_memory") {
+      if (flags.registry_strict) {
+        EXIT(1) << "Cannot use '--registry_strict' when using in-memory storage"
+                << " based registry";
+      }
       storage = new state::InMemoryStorage();
+    } else if (flags.registry == "log_storage") {
+      if (flags.work_dir.isNone()) {
+        EXIT(1) << "Need to specify --work_dir for log storage based registry";
+      }
+
+      // TODO(vinod): Add support for log storage with ZooKeeper.
+      log = new Log(
+          1,
+          path::join(flags.work_dir.get(), "log_storage"),
+          set<UPID>(),
+          flags.log_auto_initialize);
+      storage = new state::LogStorage(log);
     } else {
       EXIT(1) << "'" << flags.registry << "' is not a supported"
               << " option for registry persistence";
@@ -220,6 +242,9 @@ void shutdown()
 
     delete storage;
     storage = NULL;
+
+    delete log;
+    log = NULL;
   }
 }
 

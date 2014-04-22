@@ -106,6 +106,9 @@ void execute(const string& script)
     os::setenv("MESOS_WEBUI_DIR", path::join(flags.source_dir, "src", "webui"));
     os::setenv("MESOS_LAUNCHER_DIR", path::join(flags.build_dir, "src"));
 
+    // Enable log storage based registry.
+    os::setenv("MESOS_REGISTRY", "log_storage");
+
     // Enable authentication.
     os::setenv("MESOS_AUTHENTICATE", "true");
 

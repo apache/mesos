@@ -24,7 +24,7 @@ fi
 
 MASTER_PID=
 SLAVE_PID=
-SLAVE_WORK_DIR=
+MESOS_WORK_DIR=
 
 # This function ensures that we first kill the slave (if present) and
 # then cleanup the cgroups. This is necessary because a running slave
@@ -52,8 +52,8 @@ function cleanup() {
    rmdir ${TEST_CGROUP_HIERARCHY}/${TEST_CGROUP_ROOT} && sleep 1 && umount ${TEST_CGROUP_HIERARCHY} && rmdir ${TEST_CGROUP_HIERARCHY}
   fi
 
-  if [[ -d "${SLAVE_WORK_DIR}" ]]; then
-    rm -rf ${SLAVE_WORK_DIR};
+  if [[ -d "${MESOS_WORK_DIR}" ]]; then
+    rm -rf ${MESOS_WORK_DIR};
   fi
 }
 
@@ -71,8 +71,13 @@ unset MESOS_SOURCE_DIR
 #unset MESOS_LAUNCHER_DIR # leave this so we can find mesos-fetcher.
 unset MESOS_VERBOSE
 
+MESOS_WORK_DIR=`mktemp -d -t mesos-XXXXXX`
+
 # Launch master.
-${MASTER} --ip=127.0.0.1 --port=5432 &
+${MASTER} \
+    --ip=127.0.0.1 \
+    --port=5432 \
+    --work_dir=${MESOS_WORK_DIR} &
 MASTER_PID=${!}
 echo "${GREEN}Launched master at ${MASTER_PID}${NORMAL}"
 sleep 2
@@ -87,10 +92,8 @@ fi
 
 
 # Launch slave.
-SLAVE_WORK_DIR=`mktemp -d -t mesos-XXXXXX`
-
 ${SLAVE} \
-    --work_dir=${SLAVE_WORK_DIR} \
+    --work_dir=${MESOS_WORK_DIR} \
     --master=127.0.0.1:5432 \
     --isolation=cgroups/mem \
     --cgroups_hierarchy=${TEST_CGROUP_HIERARCHY} \

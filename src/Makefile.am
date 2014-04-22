@@ -954,7 +954,8 @@ if HAS_JAVA
                          tests/zookeeper_test_server.cpp		\
                          tests/zookeeper_tests.cpp			\
                          tests/group_tests.cpp				\
-                         tests/allocator_zookeeper_tests.cpp
+                         tests/allocator_zookeeper_tests.cpp		\
+                         tests/registrar_zookeeper_tests.cpp
   mesos_tests_CPPFLAGS += $(JAVA_CPPFLAGS)
   mesos_tests_CPPFLAGS += -DZOOKEEPER_VERSION=\"$(ZOOKEEPER_VERSION)\"
   mesos_tests_LDFLAGS = $(AM_LDFLAGS)

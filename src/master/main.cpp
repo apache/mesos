@@ -18,7 +18,11 @@
 
 #include <stdint.h>
 
+#include <set>
+
 #include <mesos/mesos.hpp>
+
+#include <process/pid.hpp>
 
 #include <stout/check.hpp>
 #include <stout/exit.hpp>
@@ -46,6 +50,7 @@
 #include "master/repairer.hpp"
 
 #include "state/in_memory.hpp"
+#include "state/log.hpp"
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 
@@ -53,14 +58,18 @@
 #include "zookeeper/detector.hpp"
 
 using namespace mesos::internal;
+using namespace mesos::internal::log;
 using namespace mesos::internal::master;
 using namespace zookeeper;
 
 using mesos::MasterInfo;
 
+using process::UPID;
+
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::set;
 using std::string;
 
 
@@ -94,15 +103,14 @@ int main(int argc, char** argv)
   uint16_t port;
   flags.add(&port, "port", "Port to listen on", MasterInfo().port());
 
-  string zk;
+  Option<string> zk;
   flags.add(&zk,
             "zk",
             "ZooKeeper URL (used for leader election amongst masters)\n"
             "May be one of:\n"
             "  zk://host1:port1,host2:port2,.../path\n"
             "  zk://username:password@host1:port1,host2:port2,.../path\n"
-            "  file://path/to/file (where file contains one of the above)",
-            "");
+            "  file://path/to/file (where file contains one of the above)");
 
   bool help;
   flags.add(&help,
@@ -157,9 +165,49 @@ int main(int argc, char** argv)
     new allocator::Allocator(allocatorProcess);
 
   state::Storage* storage = NULL;
+  Log* log = NULL;
 
   if (flags.registry == "in_memory") {
+    if (flags.registry_strict) {
+      EXIT(1) << "Cannot use '--registry_strict' when using in-memory storage"
+              << " based registry";
+    }
     storage = new state::InMemoryStorage();
+  } else if (flags.registry == "log_storage") {
+    if (flags.work_dir.isNone()) {
+      EXIT(1) << "Need to specify --work_dir for log storage based registry";
+    }
+
+    if (zk.isSome()) {
+      // Use log storage with ZooKeeper.
+      if (flags.quorum.isNone()) {
+        EXIT(1) << "Need to specify --quorum for log storage based registry"
+                << " when using ZooKeeper";
+      }
+
+      // TODO(vinod): Add support for "--zk=file://" for log storage.
+      Try<URL> url = URL::parse(zk.get());
+      if (url.isError()) {
+        EXIT(1) << "Error parsing ZooKeeper URL: " << url.error();
+      }
+
+      log = new Log(
+          flags.quorum.get(),
+          path::join(flags.work_dir.get(), "log_storage"),
+          url.get().servers,
+          flags.zk_session_timeout,
+          path::join(url.get().path, "log_replicas"),
+          url.get().authentication,
+          flags.log_auto_initialize);
+    } else {
+      // Use log storage without ZooKeeper.
+      log = new Log(
+          1,
+          path::join(flags.work_dir.get(), "log_storage"),
+          set<UPID>(),
+          flags.log_auto_initialize);
+    }
+    storage = new state::LogStorage(log);
   } else {
     EXIT(1) << "'" << flags.registry << "' is not a supported"
             << " option for registry persistence";
@@ -176,13 +224,17 @@ int main(int argc, char** argv)
   MasterContender* contender;
   MasterDetector* detector;
 
-  Try<MasterContender*> contender_ = MasterContender::create(zk);
+  // TODO(vinod): 'MasterContender::create()' should take
+  // Option<string>.
+  Try<MasterContender*> contender_ = MasterContender::create(zk.get(""));
   if (contender_.isError()) {
     EXIT(1) << "Failed to create a master contender: " << contender_.error();
   }
   contender = contender_.get();
 
-  Try<MasterDetector*> detector_ = MasterDetector::create(zk);
+  // TODO(vinod): 'MasterDetector::create()' should take
+  // Option<string>.
+  Try<MasterDetector*> detector_ = MasterDetector::create(zk.get(""));
   if (detector_.isError()) {
     EXIT(1) << "Failed to create a master detector: " << detector_.error();
   }
@@ -200,7 +252,7 @@ int main(int argc, char** argv)
       detector,
       flags);
 
-  if (zk == "") {
+  if (zk.isNone()) {
     // It means we are using the standalone detector so we need to
     // appoint this Master as the leader.
     dynamic_cast<StandaloneMasterDetector*>(detector)->appoint(master->info());
@@ -217,6 +269,7 @@ int main(int argc, char** argv)
   delete repairer;
   delete state;
   delete storage;
+  delete log;
 
   delete contender;
   delete detector;

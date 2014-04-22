@@ -54,15 +54,26 @@ public:
 
     add(&Flags::work_dir,
         "work_dir",
-        "Where to store master specific files\n",
-        "/tmp/mesos");
+        "Where to store the persistent information stored in the Registry.");
 
-    // TODO(bmahler): Add replicated log backed registry.
     add(&Flags::registry,
         "registry",
         "Persistence strategy for the registry;\n"
-        "available options are 'in_memory'.",
+        "available options are 'in_memory', 'log_storage'.",
         "in_memory");
+
+    // TODO(vinod): Instead of specifying the quorum size consider
+    // specifying the number of masters or the list of masters.
+    add(&Flags::quorum,
+        "quorum",
+        "The size of the quorum of replicas when using 'log_storage' based\n"
+        "Registry. It is imperative to set this value to be a majority of\n"
+        "masters i.e., quorum > (number of masters)/2.");
+
+    add(&Flags::zk_session_timeout,
+        "zk_session_timeout",
+        "ZooKeeper session timeout.",
+        ZOOKEEPER_SESSION_TIMEOUT);
 
     // TODO(bmahler): Set the default to true in 0.20.0.
     add(&Flags::registry_strict,
@@ -71,7 +82,9 @@ public:
         "information stored in the Registry. Setting this to false means\n"
         "that the Registrar will never reject the admission, readmission,\n"
         "or removal of a slave. Consequently, 'false' can be used to\n"
-        "bootstrap the persistent state on a running cluster.",
+        "bootstrap the persistent state on a running cluster.\n"
+        "NOTE: This flag is *experimental* and should not be used in\n"
+        "production yet.",
         false);
 
     add(&Flags::registry_fetch_timeout,
@@ -85,6 +98,23 @@ public:
         "Duration of time to wait in order to store data in the registry\n"
         "after which the operation is considered a failure.",
         Seconds(5));
+
+    add(&Flags::log_auto_initialize,
+        "log_auto_initialize",
+        "Whether to automatically initialize the log storage used by the\n"
+        "Registry. If this is set to false, the log has to be manually\n"
+        "initialized when used for the very first time.",
+        true);
+
+    add(&Flags::slave_reregister_timeout,
+        "slave_reregister_timeout",
+        "The timeout within which all slaves are expected to re-register\n"
+        "when a new master is elected as the leader. Slaves that do not\n"
+        "re-register within the timeout will be removed from the registry\n"
+        "and will be shutdown if they attempt to communicate with master.\n"
+        "NOTE: This value has to be atleast " +
+        stringify(MIN_SLAVE_REREGISTER_TIMEOUT) + ".",
+        MIN_SLAVE_REREGISTER_TIMEOUT);
 
     // TODO(bmahler): Add a 'Percentage' abstraction for flags.
     // TODO(bmahler): Add a --production flag for production defaults.
@@ -113,7 +143,7 @@ public:
         "whitelist",
         "Path to a file with a list of slaves\n"
         "(one per line) to advertise offers for.\n"
-        "Path could be of the form 'file:///path/to/file' or '/path/to/file'",
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'.",
         "*");
 
     add(&Flags::user_sorter,
@@ -127,19 +157,19 @@ public:
         "framework_sorter",
         "Policy to use for allocating resources\n"
         "between a given user's frameworks. Options\n"
-        "are the same as for user_allocator",
+        "are the same as for user_allocator.",
         "drf");
 
     add(&Flags::allocation_interval,
         "allocation_interval",
         "Amount of time to wait between performing\n"
-        " (batch) allocations (e.g., 500ms, 1sec, etc)",
+        " (batch) allocations (e.g., 500ms, 1sec, etc).",
         Seconds(1));
 
     add(&Flags::cluster,
         "cluster",
         "Human readable name for the cluster,\n"
-        "displayed in the webui");
+        "displayed in the webui.");
 
     add(&Flags::roles,
         "roles",
@@ -164,17 +194,21 @@ public:
         "credentials",
         "Path to a file with a list of credentials.\n"
         "Each line contains a 'principal' and 'secret' separated by whitespace.\n"
-        "Path could be of the form 'file:///path/to/file' or '/path/to/file'");
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'.");
   }
 
   bool version;
   Option<std::string> hostname;
   bool root_submissions;
-  std::string work_dir;
+  Option<std::string> work_dir;
   std::string registry;
+  Option<int> quorum;
+  Duration zk_session_timeout;
   bool registry_strict;
   Duration registry_fetch_timeout;
   Duration registry_store_timeout;
+  bool log_auto_initialize;
+  Duration slave_reregister_timeout;
   std::string recovery_slave_removal_limit;
   std::string webui_dir;
   std::string whitelist;
