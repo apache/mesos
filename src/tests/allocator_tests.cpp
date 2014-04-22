@@ -520,14 +520,20 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  EXPECT_CALL(allocator, slaveAdded(_, _, _))
-    .Times(2);
+  Future<Nothing> slaveAdded1 = FUTURE_DISPATCH(
+      allocator.real, &HierarchicalDRFAllocatorProcess::slaveAdded);
 
   slave::Flags flags1 = CreateSlaveFlags();
   flags1.resources = Option<string>("cpus(role1):1;mem(role1):200;cpus(role2):2;"
                                     "mem(role2):600;cpus:1;mem:200;disk:0");
   Try<PID<Slave> > slave1 = StartSlave(&exec, flags1);
   ASSERT_SOME(slave1);
+
+  // Wait until allocator has added slave1.
+  AWAIT_READY(slaveAdded1);
+
+  Future<Nothing> slaveAdded2 = FUTURE_DISPATCH(
+      allocator.real, &HierarchicalDRFAllocatorProcess::slaveAdded);
 
   // This slave's resources will never be offered to anyone,
   // because there is no framework with role3 and the unreserved
@@ -536,6 +542,9 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   flags2.resources = Option<string>("cpus(role3):4;mem:1024;disk:0");
   Try<PID<Slave> > slave2 = StartSlave(flags2);
   ASSERT_SOME(slave2);
+
+  // Wait until allocator has added slave2.
+  AWAIT_READY(slaveAdded2);
 
   FrameworkInfo frameworkInfo1;
   frameworkInfo1.set_user("user1");
