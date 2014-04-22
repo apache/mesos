@@ -55,44 +55,7 @@ using testing::DoDefault;
 
 
 template <typename T = AllocatorProcess>
-class AllocatorZooKeeperTest : public MesosTest
-{
-public:
-  static void SetUpTestCase()
-  {
-    // Make sure the JVM is created.
-    ZooKeeperTest::SetUpTestCase();
-
-    // Launch the ZooKeeper test server.
-    server = new ZooKeeperTestServer();
-    server->startNetwork();
-
-    Try<zookeeper::URL> parse = zookeeper::URL::parse(
-        "zk://" + server->connectString() + "/znode");
-    ASSERT_SOME(parse);
-
-    url = parse.get();
-  }
-
-  static void TearDownTestCase()
-  {
-    delete server;
-    server = NULL;
-  }
-
-protected:
-  AllocatorZooKeeperTest() : MesosTest(url) {}
-
-  static ZooKeeperTestServer* server;
-  static Option<zookeeper::URL> url;
-};
-
-
-template <typename T>
-ZooKeeperTestServer* AllocatorZooKeeperTest<T>::server = NULL;
-
-template <typename T>
-Option<zookeeper::URL> AllocatorZooKeeperTest<T>::url;
+class AllocatorZooKeeperTest : public MesosZooKeeperTest {};
 
 
 // Runs TYPED_TEST(AllocatorZooKeeperTest, ...) on all AllocatorTypes.

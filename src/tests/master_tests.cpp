@@ -53,10 +53,6 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
-#ifdef MESOS_HAS_JAVA
-#include "tests/zookeeper.hpp"
-#endif
-
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
@@ -1299,44 +1295,8 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 
 
 #ifdef MESOS_HAS_JAVA
-class MasterZooKeeperTest : public MesosTest
-{
-public:
-  static void SetUpTestCase()
-  {
-    // Make sure the JVM is created.
-    ZooKeeperTest::SetUpTestCase();
 
-    // Launch the ZooKeeper test server.
-    server = new ZooKeeperTestServer();
-    server->startNetwork();
-
-    Try<zookeeper::URL> parse = zookeeper::URL::parse(
-        "zk://" + server->connectString() + "/znode");
-    ASSERT_SOME(parse);
-
-    url = parse.get();
-  }
-
-  static void TearDownTestCase()
-  {
-    delete server;
-    server = NULL;
-  }
-
-protected:
-  MasterZooKeeperTest() : MesosTest(url) {}
-
-  static ZooKeeperTestServer* server;
-  static Option<zookeeper::URL> url;
-};
-
-
-ZooKeeperTestServer* MasterZooKeeperTest::server = NULL;
-
-
-Option<zookeeper::URL> MasterZooKeeperTest::url;
-
+class MasterZooKeeperTest : public MesosZooKeeperTest {};
 
 // This test verifies that when the ZooKeeper cluster is lost,
 // master, slave & scheduler all get informed.

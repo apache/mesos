@@ -25,6 +25,11 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+#ifdef MESOS_HAS_JAVA
+ZooKeeperTestServer* MesosZooKeeperTest::server = NULL;
+Option<zookeeper::URL> MesosZooKeeperTest::url;
+#endif // MESOS_HAS_JAVA
+
 MesosTest::MesosTest(const Option<zookeeper::URL>& url) : cluster(url) {}
 
 

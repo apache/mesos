@@ -54,6 +54,10 @@
 
 #include "tests/cluster.hpp"
 
+#ifdef MESOS_HAS_JAVA
+#include "tests/zookeeper.hpp"
+#endif // MESOS_HAS_JAVA
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -194,6 +198,43 @@ protected:
   virtual slave::Flags CreateSlaveFlags();
 };
 #endif // __linux__
+
+
+#ifdef MESOS_HAS_JAVA
+
+class MesosZooKeeperTest : public MesosTest
+{
+public:
+  static void SetUpTestCase()
+  {
+    // Make sure the JVM is created.
+    ZooKeeperTest::SetUpTestCase();
+
+    // Launch the ZooKeeper test server.
+    server = new ZooKeeperTestServer();
+    server->startNetwork();
+
+    Try<zookeeper::URL> parse = zookeeper::URL::parse(
+        "zk://" + server->connectString() + "/znode");
+    ASSERT_SOME(parse);
+
+    url = parse.get();
+  }
+
+  static void TearDownTestCase()
+  {
+    delete server;
+    server = NULL;
+  }
+
+protected:
+  MesosZooKeeperTest() : MesosTest(url) {}
+
+  static ZooKeeperTestServer* server;
+  static Option<zookeeper::URL> url;
+};
+
+#endif // MESOS_HAS_JAVA
 
 
 // Macros to get/create (default) ExecutorInfos and FrameworkInfos.
