@@ -38,9 +38,9 @@ libprocess_la_SOURCES =		\
   src/pid.cpp			\
   src/process.cpp		\
   src/reap.cpp			\
-  src/statistics.cpp		\
   src/subprocess.cpp		\
-  src/synchronized.hpp
+  src/synchronized.hpp		\
+  src/timeseries.cpp
 
 libprocess_la_CPPFLAGS =		\
   -I$(srcdir)/include			\

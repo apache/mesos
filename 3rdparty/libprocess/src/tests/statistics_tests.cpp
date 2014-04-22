@@ -1,93 +1,46 @@
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <process/clock.hpp>
-#include <process/future.hpp>
-#include <process/gmock.hpp>
-#include <process/gtest.hpp>
 #include <process/statistics.hpp>
-#include <process/time.hpp>
 
 #include <stout/duration.hpp>
-#include <stout/foreach.hpp>
-#include <stout/list.hpp>
+#include <stout/gtest.hpp>
 
 using namespace process;
 
 
-List<double> toList(const TimeSeries<double>& series)
+TEST(Statistics, empty)
 {
-  List<double> result;
-  foreach (const TimeSeries<double>::Value& value, series.get()) {
-    result.push_back(value.data);
-  }
-  return result;
+  TimeSeries<double> timeseries;
+
+  EXPECT_NONE(Statistics<double>::from(timeseries));
 }
 
 
-TEST(Statistics, set)
+TEST(Statistics, statistics)
 {
-  Statistics statistics(Days(1));
+  // Create a distribution of 10 values from -5 to 4.
+  TimeSeries<double> timeseries;
 
-  // Set one using Clock::now() implicitly.
-  statistics.set("test", "statistic", 3.0);
-
-  // Set one using Clock::now() explicitly.
   Time now = Clock::now();
-  statistics.set("test", "statistic", 4.0, now);
+  timeseries.set(0.0, now);
 
-  Future<TimeSeries<double> > values =
-    statistics.timeseries("test", "statistic");
+  for (int i = -5; i < 5; ++i) {
+    now += Seconds(1);
+    timeseries.set(i, now);
+  }
 
-  AWAIT_ASSERT_READY(values);
+  Option<Statistics<double> > statistics = Statistics<double>::from(timeseries);
 
-  EXPECT_EQ(2, values.get().get().size());
+  EXPECT_SOME(statistics);
 
-  EXPECT_GE(Clock::now(), values.get().get().begin()->time);
-  EXPECT_DOUBLE_EQ(3.0, values.get().get().begin()->data);
+  EXPECT_FLOAT_EQ(-5.0, statistics.get().min);
+  EXPECT_FLOAT_EQ(4.0, statistics.get().max);
 
-  EXPECT_EQ(List<double>(3.0, 4.0), toList(values.get()));
-}
-
-
-TEST(Statistics, increment)
-{
-  Statistics statistics;
-  Future<TimeSeries<double> > values;
-
-  statistics.increment("test", "statistic");
-  values = statistics.timeseries("test", "statistic");
-  AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(1.0), toList(values.get()));
-
-  statistics.increment("test", "statistic");
-  values = statistics.timeseries("test", "statistic");
-  AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(1.0, 2.0), toList(values.get()));
-
-  statistics.increment("test", "statistic");
-  values = statistics.timeseries("test", "statistic");
-  AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(1.0, 2.0, 3.0), toList(values.get()));
-}
-
-
-TEST(Statistics, decrement)
-{
-  Statistics statistics;
-  Future<TimeSeries<double> > values;
-
-  statistics.decrement("test", "statistic");
-  values = statistics.timeseries("test", "statistic");
-  AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(-1.0), toList(values.get()));
-
-  statistics.decrement("test", "statistic");
-  values = statistics.timeseries("test", "statistic");
-  AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(-1.0, -2.0), toList(values.get()));
-
-  statistics.decrement("test", "statistic");
-  values = statistics.timeseries("test", "statistic");
-  AWAIT_ASSERT_READY(values);
-  EXPECT_EQ(List<double>(-1.0, -2.0, -3.0), toList(values.get()));
+  EXPECT_FLOAT_EQ(0.0, statistics.get().p50);
+  EXPECT_FLOAT_EQ(3.0, statistics.get().p90);
+  EXPECT_FLOAT_EQ(3.5, statistics.get().p95);
+  EXPECT_FLOAT_EQ(3.9, statistics.get().p99);
+  EXPECT_FLOAT_EQ(3.99, statistics.get().p999);
+  EXPECT_FLOAT_EQ(3.999, statistics.get().p9999);
 }

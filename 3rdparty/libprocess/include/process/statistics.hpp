@@ -1,76 +1,94 @@
 #ifndef __PROCESS_STATISTICS_HPP__
 #define __PROCESS_STATISTICS_HPP__
 
-#include <process/clock.hpp>
-#include <process/future.hpp>
-#include <process/owned.hpp>
-#include <process/time.hpp>
+#include <glog/logging.h>
+
+#include <algorithm>
+#include <vector>
+
 #include <process/timeseries.hpp>
 
-#include <stout/duration.hpp>
-#include <stout/none.hpp>
-#include <stout/nothing.hpp>
+#include <stout/foreach.hpp>
 #include <stout/option.hpp>
 
 namespace process {
 
-// Forward declarations.
-class Statistics;
-class StatisticsProcess;
-
-// Libprocess statistics handle.
-// To be used from anywhere to manage statistics.
-//
-// Ex: process::statistics->increment("http", "num_requests");
-//     process::statistics->set("http", "response_size", response.size());
-//
-// Statistics are exposed via JSON for external visibility.
-extern Statistics* statistics;
-
-
-// Default statistic configuration variables.
-// TODO(bmahler): It appears there may be a bug with gcc-4.1.2 in
-// which these duration constants were not being initialized when
-// having static linkage. This issue did not manifest in newer gcc's.
-// Specifically, 4.2.1 was ok. So we've moved these to have external
-// linkage but perhaps in the future we can revert this.
-extern const Duration STATISTICS_TRUNCATION_INTERVAL;
-
-
-// Provides a collection of in-memory fixed capacity time series
-// of statistics over some window. Values are truncated when they
-// fall outside the window. "Sparsification" will occur when the
-// capacity of a time series is exceeded inside the window.
-class Statistics
+// Represents statistics for a TimeSeries of data.
+template <typename T>
+struct Statistics
 {
-public:
-  Statistics(const Duration& window = TIME_SERIES_WINDOW,
-             size_t capacity = TIME_SERIES_CAPACITY);
-  ~Statistics();
+  // Returns Statistics for the given TimeSeries, or None() if the
+  // TimeSeries is empty.
+  // TODO(dhamon): Consider adding a histogram abstraction for better
+  // performance.
+  static Option<Statistics<T> > from(const TimeSeries<T>& timeseries)
+  {
+    std::vector<typename TimeSeries<T>::Value> values_ = timeseries.get();
 
-  // Returns the time series of a statistic.
-  process::Future<TimeSeries<double> > timeseries(
-      const std::string& context,
-      const std::string& name);
+    if (values_.empty()) {
+      return None();
+    }
 
-  // Sets the current value of a statistic at the current clock time
-  // or at a specified time.
-  void set(
-      const std::string& context,
-      const std::string& name,
-      double value,
-      const Time& time = Clock::now());
+    std::vector<T> values;
+    values.reserve(values_.size());
 
-  // Increments the current value of a statistic. If no statistic was
-  // previously present, an initial value of 0.0 is used.
-  void increment(const std::string& context, const std::string& name);
+    foreach (const typename TimeSeries<T>::Value& value, values_) {
+      values.push_back(value.data);
+    }
 
-  // Decrements the current value of a statistic. If no statistic was
-  // previously present, an initial value of 0.0 is used.
-  void decrement(const std::string& context, const std::string& name);
+    std::sort(values.begin(), values.end());
+
+    Statistics statistics;
+
+    statistics.min = values.front();
+    statistics.max = values.back();
+
+    statistics.p50 = percentile(values, 0.5);
+    statistics.p90 = percentile(values, 0.90);
+    statistics.p95 = percentile(values, 0.95);
+    statistics.p99 = percentile(values, 0.99);
+    statistics.p999 = percentile(values, 0.999);
+    statistics.p9999 = percentile(values, 0.9999);
+
+    return statistics;
+  }
+
+  T min;
+  T max;
+
+  // TODO(dhamon): Consider making the percentiles we store dynamic.
+  T p50;
+  T p90;
+  T p95;
+  T p99;
+  T p999;
+  T p9999;
 
 private:
-  StatisticsProcess* process;
+  // Returns the requested percentile from the sorted values.
+  // TODO(dhamon): Use a 'Percentage' abstraction.
+  static T percentile(const std::vector<T>& values, double percentile)
+  {
+    CHECK(!values.empty());
+
+    if (percentile <= 0.0) {
+      return values.front();
+    }
+
+    if (percentile >= 1.0) {
+      return values.back();
+    }
+
+    // Use linear interpolation.
+    const double position = percentile * (values.size() - 1);
+    const size_t index = floor(position);
+    const double delta = position - index;
+
+    CHECK_GE(index, 0u);
+    CHECK_LT(index, values.size() - 1);
+
+    return values[index] + delta * (values[index + 1] - values[index]);
+  }
 };
 
 } // namespace process {
