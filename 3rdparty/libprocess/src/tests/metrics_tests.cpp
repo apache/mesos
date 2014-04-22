@@ -14,6 +14,7 @@
 #include <process/metrics/counter.hpp>
 #include <process/metrics/gauge.hpp>
 #include <process/metrics/metrics.hpp>
+#include <process/metrics/timer.hpp>
 
 using namespace process;
 
@@ -22,6 +23,7 @@ using process::http::Response;
 
 using process::metrics::Counter;
 using process::metrics::Gauge;
+using process::metrics::Timer;
 
 
 class GaugeProcess : public Process<GaugeProcess>
@@ -209,4 +211,46 @@ TEST(Metrics, SnapshotStatistics)
   AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   AWAIT_READY(metrics::remove(counter));
+}
+
+
+TEST(MetricsTest, Timer)
+{
+  metrics::Timer timer("test/timer");
+
+  AWAIT_READY(metrics::add(timer));
+
+  // It is not an error to stop a timer that hasn't been started.
+  timer.stop();
+
+  // Time a no-op.
+  Time started = Clock::now();
+
+  timer.start();
+  timer.stop();
+
+  Time stopped = Clock::now();
+
+  Future<double> value = timer.value();
+  AWAIT_READY(value);
+  EXPECT_LE(value.get(), (stopped - started).ms());
+
+  // Make sure that re-starting a timer records the correct value.
+  timer.start();
+
+  started = Clock::now();
+
+  timer.start();
+  timer.stop();
+
+  stopped = Clock::now();
+
+  value = timer.value();
+  AWAIT_READY(value);
+  EXPECT_LE(value.get(), (stopped - started).ms());
+
+  // It is not an error to stop a timer that has already been stopped.
+  timer.stop();
+
+  AWAIT_READY(metrics::remove(timer));
 }

@@ -92,6 +92,7 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/metrics/gauge.hpp		\
   $(top_srcdir)/include/process/metrics/metric.hpp		\
   $(top_srcdir)/include/process/metrics/metrics.hpp		\
+  $(top_srcdir)/include/process/metrics/timer.hpp		\
   $(top_srcdir)/include/process/mime.hpp			\
   $(top_srcdir)/include/process/mutex.hpp			\
   $(top_srcdir)/include/process/once.hpp			\
