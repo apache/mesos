@@ -314,6 +314,7 @@ libbuild_la_CPPFLAGS += $(MESOS_CPPFLAGS)
 libbuild_la_CPPFLAGS += -DBUILD_DATE="\"$$(date '+%Y-%m-%d %H:%M:%S')\""
 libbuild_la_CPPFLAGS += -DBUILD_TIME="\"$$(date '+%s')\""
 libbuild_la_CPPFLAGS += -DBUILD_USER="\"$$USER\""
+libbuild_la_CPPFLAGS += -DBUILD_JAVA_JVM_LIBRARY=\"$(JAVA_JVM_LIBRARY)\"
 
 if GIT_REPO
     BUILD_GIT_SHA=$$(sh -c 'cd $(top_srcdir); \
@@ -692,14 +693,10 @@ libjava_la_CPPFLAGS += -I$(srcdir)/java/jni -Ijava/jni
 
 libjava_la_DEPENDENCIES = $(MESOS_PROTO) $(CONTAINERIZER_PROTO)
 
-libjava_la_LIBADD = $(JAVA_LDFLAGS)
-
 # We don't add libjava.la to libmesos_no_3rdparty.la so we don't
 # include the JNI bindings in the Python egg (but we might want to
-# reconsider this in the future). We also need to add the JAVA_LDFLAGS
-# to libmesos.la so on Linux we set the rpath for libmesos.so.
+# reconsider this in the future).
 libmesos_la_LIBADD += libjava.la
-libmesos_la_LIBADD += $(JAVA_LDFLAGS)
 
 # We need to generate the JNI header files before we build the sources
 # and the easiest way to do that with autotools is with the
@@ -960,7 +957,7 @@ if HAS_JAVA
                          tests/allocator_zookeeper_tests.cpp
   mesos_tests_CPPFLAGS += $(JAVA_CPPFLAGS)
   mesos_tests_CPPFLAGS += -DZOOKEEPER_VERSION=\"$(ZOOKEEPER_VERSION)\"
-  mesos_tests_LDFLAGS = $(JAVA_LDFLAGS) $(AM_LDFLAGS)
+  mesos_tests_LDFLAGS = $(AM_LDFLAGS)
   mesos_tests_DEPENDENCIES += $(EXAMPLES_JAR)
 
   EXAMPLESSCRIPTSJAVA = examples/java/test-framework			\

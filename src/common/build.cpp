@@ -33,6 +33,7 @@ const std::string DATE = BUILD_DATE;
 const double TIME = atof(BUILD_TIME);
 const std::string USER = BUILD_USER;
 const std::string FLAGS = BUILD_FLAGS;
+const std::string JAVA_JVM_LIBRARY = BUILD_JAVA_JVM_LIBRARY;
 
 #ifdef BUILD_GIT_SHA
 const Option<std::string> GIT_SHA = std::string(BUILD_GIT_SHA);

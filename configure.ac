@@ -162,7 +162,7 @@ AC_ARG_VAR([JAVA_HOME], [location of Java Development Kit (JDK)])
 
 AC_ARG_VAR([JAVA_CPPFLAGS], [preprocessor flags for JNI])
 
-AC_ARG_VAR([JAVA_LDFLAGS], [linker flags for JNI])
+AC_ARG_VAR([JAVA_JVM_LIBRARY], [full path to libjvm.so])
 
 AC_ARG_VAR([PYTHON], [which Python interpreter to use])
 
@@ -281,7 +281,7 @@ AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lunwind")
 # sure variable dependencies are handled appropriately).
 
 # A helper for checking whether we can compile and link using JNI with
-# the current JAVA_CPPFLAGS and JAVA_LDFLAGS.
+# the current JAVA_CPPFLAGS.
 # TRY_LINK_JNI([ACTION-SUCCESS], [ACTION-FAILURE])
 AC_DEFUN([TRY_LINK_JNI], [
   cat <<__EOF__ >conftest.cpp [
@@ -297,7 +297,7 @@ __EOF__
 
   # Try to compile and link via libtool (the one we generate).
   ./libtool --tag=CXX --mode=link $CXX -Wall -Werror $JAVA_CPPFLAGS \
-    -o conftest conftest.cpp $JAVA_LDFLAGS >&5
+    -o conftest conftest.cpp $JAVA_TEST_LDFLAGS >&5
 
   if test $? != 0; then
     rm -f conftest # Cleanup after ourselves.
@@ -362,23 +362,23 @@ __EOF__
   fi
 
   # Determine linker flags for Java if not set.
-  if test -z "$JAVA_LDFLAGS"; then
-    if test "$OS_NAME" = "darwin"; then
-      JAVA_LDFLAGS="-framework JavaVM"
-    elif test "$OS_NAME" = "linux"; then
-      JAVA_LDFLAGS=""
-      for arch in amd64 i386; do
-        dir="$JAVA_HOME/jre/lib/$arch/server"
-        if test -e "$dir"; then
-          # Note that these are libtool specific flags.
-          JAVA_LDFLAGS="-L$dir -R$dir -Wl,-ljvm"
-          break;
-          fi
-      done
-    fi
+  if test "$OS_NAME" = "darwin"; then
+    dir="$JAVA_HOME/jre/lib/server"
+    JAVA_TEST_LDFLAGS="-framework JavaVM"
+    JAVA_JVM_LIBRARY=$dir/libjvm.dylib
+  elif test "$OS_NAME" = "linux"; then
+    for arch in amd64 i386; do
+      dir="$JAVA_HOME/jre/lib/$arch/server"
+      if test -e "$dir"; then
+	# Note that these are libtool specific flags.
+	JAVA_JVM_LIBRARY=$dir/libjvm.so
+	JAVA_TEST_LDFLAGS="-L$dir -R$dir -Wl,-ljvm"
+	break;
+      fi
+    done
   fi
 
-  if test -z "$JAVA_LDFLAGS"; then
+  if test -z "$JAVA_TEST_LDFLAGS"; then
     AC_MSG_ERROR([failed to determine linker flags for using Java \
 (bad JAVA_HOME or missing support for your architecture?)])
   fi

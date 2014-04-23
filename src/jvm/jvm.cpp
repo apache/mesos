@@ -1,5 +1,5 @@
-#include <jni.h>
 #include <stdarg.h>
+#include <dlfcn.h>
 
 #include <glog/logging.h>
 
@@ -11,15 +11,14 @@
 
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/os.hpp>
 
+#include "common/build.hpp"
 #include "jvm/jvm.hpp"
-
 #include "jvm/java/lang.hpp"
-
 
 // Static storage and initialization.
 Jvm* Jvm::instance = NULL;
-
 
 Try<Jvm*> Jvm::create(
     const std::vector<std::string>& _options,
@@ -58,8 +57,29 @@ Try<Jvm*> Jvm::create(
 
   JavaVM* jvm = NULL;
   JNIEnv* env = NULL;
+  std::string libJvmPath = os::getenv("JAVA_JVM_LIBRARY", false);
 
-  int result = JNI_CreateJavaVM(&jvm, JNIENV_CAST(&env), &vmArgs);
+  if (libJvmPath.empty()) {
+    libJvmPath = mesos::internal::build::JAVA_JVM_LIBRARY;
+  }
+
+  void* handle = dlopen(libJvmPath.c_str(), RTLD_NOW);
+
+  if (handle == NULL) {
+    return Error(dlerror());
+  }
+
+  // typedef function pointer to JNI.
+  typedef jint (*fnptr_JNI_CreateJavaVM)(JavaVM**, void**, void*);
+
+  fnptr_JNI_CreateJavaVM fn_JNI_CreateJavaVM =
+    (fnptr_JNI_CreateJavaVM)dlsym(handle, "JNI_CreateJavaVM");
+
+  if (fn_JNI_CreateJavaVM == NULL) {
+    return Error(dlerror());
+  }
+
+  int result = fn_JNI_CreateJavaVM(&jvm, JNIENV_CAST(&env), &vmArgs);
 
   if (result == JNI_ERR) {
     return Error("Failed to create JVM!");
