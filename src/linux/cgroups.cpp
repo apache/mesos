@@ -1296,46 +1296,129 @@ Future<uint64_t> listen(
   return future;
 }
 
-
 namespace internal {
 
+namespace freezer {
 
-// The process that freezes or thaws the cgroup.
+Try<string> state(const string& hierarchy, const string& cgroup)
+{
+  Try<string> state = cgroups::read(hierarchy, cgroup, "freezer.state");
+
+  if (state.isError()) {
+    return Error("Failed to read freezer state: " + state.error());
+  }
+
+  return strings::trim(state.get());
+}
+
+
+Try<Nothing> state(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& state)
+{
+  if (state != "FROZEN" && state != "THAWED") {
+    return Error("Invalid freezer state requested: " + state);
+  }
+
+  Try<Nothing> write = cgroups::write(
+      hierarchy, cgroup, "freezer.state", state);
+  if (write.isError()) {
+    return Error("Failed to write '" + state +
+                 "' to control 'freezer.state': " + write.error());
+  } else {
+    return Nothing();
+  }
+}
+
+} // namespace freezer {
+
 class Freezer : public Process<Freezer>
 {
 public:
-  Freezer(const string& _hierarchy,
-          const string& _cgroup,
-          const string& _action,
-          const Duration& _interval,
-          unsigned int _retries = FREEZE_RETRIES)
+  Freezer(
+      const string& _hierarchy,
+      const string& _cgroup)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
-      action(_action),
-      interval(_interval),
-      retries(_retries) {}
+      start(Clock::now()) {}
 
   virtual ~Freezer() {}
 
-  // Return a future indicating the state of the freezer.
-  Future<bool> future() { return promise.future(); }
+  void freeze()
+  {
+    Try<Nothing> freeze =
+      internal::freezer::state(hierarchy, cgroup, "FROZEN");
+    if (freeze.isError()) {
+      promise.fail(freeze.error());
+      terminate(self());
+      return;
+    }
+
+    Try<string> state = internal::freezer::state(hierarchy, cgroup);
+    if (state.isError()) {
+      promise.fail(state.error());
+      terminate(self());
+      return;
+    }
+
+    if (state.get() == "FROZEN") {
+      LOG(INFO) << "Successfullly froze cgroup "
+                << path::join(hierarchy, cgroup)
+                << " after " << (Clock::now() - start);
+      promise.set(Nothing());
+      terminate(self());
+      return;
+    }
+
+    // Attempt to freeze the freezer cgroup again.
+    delay(Milliseconds(100), self(), &Self::freeze);
+  }
+
+  void thaw()
+  {
+    Try<Nothing> thaw = internal::freezer::state(hierarchy, cgroup, "THAWED");
+    if (thaw.isError()) {
+      promise.fail(thaw.error());
+      terminate(self());
+      return;
+    }
+
+    Try<string> state = internal::freezer::state(hierarchy, cgroup);
+    if (state.isError()) {
+      promise.fail(state.error());
+      terminate(self());
+      return;
+    }
+
+    if (state.get() == "THAWED") {
+      LOG(INFO) << "Successfullly thawed cgroup "
+                << path::join(hierarchy, cgroup)
+                << " after " << (Clock::now() - start);
+      promise.set(Nothing());
+      terminate(self());
+      return;
+    }
+
+    // Attempt to thaw the freezer cgroup again.
+    delay(Milliseconds(100), self(), &Self::thaw);
+  }
+
+  Future<Nothing> future() { return promise.future(); }
 
 protected:
   virtual void initialize()
   {
-    // Stop the process if no one cares.
-    promise.future().onDiscard(lambda::bind(
-        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
-
-    CHECK(interval >= Seconds(0));
-
-    // Start the action.
-    CHECK(action == "FREEZE" || action == "THAW");
-    if (action == "FREEZE") {
-      freeze();
-    } else if (action == "THAW") {
-      thaw();
+    Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
+    if (error.isSome()) {
+      promise.fail("Invalid freezer cgroup: " + error.get().message);
+      terminate(self());
+      return;
     }
+
+    // Stop attempting to freeze/thaw if nobody cares.
+    promise.future().onDiscard(lambda::bind(
+          static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
   }
 
   virtual void finalize()
@@ -1344,222 +1427,13 @@ protected:
   }
 
 private:
-  void freeze()
-  {
-    LOG(INFO) << "Trying to freeze cgroup " << path::join(hierarchy, cgroup);
-
-    Try<Nothing> write = internal::write(
-        hierarchy, cgroup, "freezer.state", "FROZEN");
-
-    if (write.isError()) {
-      promise.fail("Failed to write control 'freezer.state': " + write.error());
-      terminate(self());
-    } else {
-      watchFrozen();
-    }
-  }
-
-  void thaw()
-  {
-    LOG(INFO) << "Trying to thaw cgroup " << path::join(hierarchy, cgroup);
-
-    Try<Nothing> write = internal::write(
-        hierarchy, cgroup, "freezer.state", "THAWED");
-
-    if (write.isError()) {
-      promise.fail("Failed to write control 'freezer.state': " + write.error());
-      terminate(self());
-    } else {
-      watchThawed();
-    }
-  }
-
-  void watchFrozen(unsigned int attempt = 0)
-  {
-    Try<string> state = internal::read(hierarchy, cgroup, "freezer.state");
-
-    if (state.isError()) {
-      promise.fail("Failed to read control 'freezer.state': " + state.error());
-      terminate(self());
-      return;
-    }
-
-    if (strings::trim(state.get()) == "FROZEN") {
-      LOG(INFO) << "Successfully froze cgroup " << path::join(hierarchy, cgroup)
-                << " after " << attempt + 1 << " attempts";
-      promise.set(true);
-      terminate(self());
-      return;
-    } else if (strings::trim(state.get()) == "FREEZING") {
-      // The freezer.state is in FREEZING state. This is because not all the
-      // processes in the given cgroup can be frozen at the moment. The main
-      // cause is that some of the processes are in stopped/traced state ('T'
-      // state shown in ps command). It is likely that the freezer.state keeps
-      // in FREEZING state if these stopped/traced processes are not resumed.
-      // Therefore, here we send SIGCONT to those stopped/traced processes to
-      // make sure that the freezer can finish.
-      // TODO(jieyu): This code can be removed in the future as the newer
-      // version of the kernel solves this problem (e.g. Linux-3.2.0).
-      Try<set<pid_t> > pids = processes(hierarchy, cgroup);
-      if (pids.isError()) {
-        promise.fail("Failed to get processes of cgroup: " + pids.error());
-        terminate(self());
-        return;
-      }
-
-      // It appears possible for processes to go away while the cgroup
-      // is in the FREEZING state. We ignore such processes.
-      // See: https://issues.apache.org/jira/browse/MESOS-461
-      foreach (pid_t pid, pids.get()) {
-        Result<proc::ProcessStatus> status = proc::status(pid);
-
-        if (!status.isSome()) {
-          LOG(WARNING)
-            << "Failed to get process status for pid " << pid << ": "
-            << (status.isError() ? status.error() : "pid does not exist");
-          continue;
-        }
-
-        // Check whether the process is in stopped/traced state.
-        if (status.get().state == 'T') {
-          // Send a SIGCONT signal to the process.
-          if (::kill(pid, SIGCONT) == -1) {
-            promise.fail(
-                "Failed to send SIGCONT to process " + stringify(pid) +
-                ": " + string(strerror(errno)));
-            terminate(self());
-            return;
-          }
-        }
-      }
-
-      if (attempt > retries) {
-        LOG(WARNING) << "Unable to freeze " << path::join(hierarchy, cgroup)
-                     << " within " << retries + 1 << " attempts";
-        promise.set(false);
-        terminate(self());
-        return;
-      }
-
-      // Retry the freezing operation.
-      Try<Nothing> write = internal::write(
-          hierarchy, cgroup, "freezer.state", "FROZEN");
-
-      if (write.isError()) {
-        promise.fail(
-            "Failed to write control 'freezer.state': " + write.error());
-        terminate(self());
-        return;
-      }
-
-      // Not done yet, keep watching (and possibly retrying).
-      delay(interval, self(), &Freezer::watchFrozen, attempt + 1);
-    } else {
-      LOG(FATAL) << "Unexpected state: " << strings::trim(state.get())
-                 << " of cgroup " << path::join(hierarchy, cgroup);
-    }
-  }
-
-  void watchThawed()
-  {
-    Try<string> state = internal::read(hierarchy, cgroup, "freezer.state");
-
-    if (state.isError()) {
-      promise.fail("Failed to read control 'freezer.state': " + state.error());
-      terminate(self());
-      return;
-    }
-
-    if (strings::trim(state.get()) == "THAWED") {
-      LOG(INFO) << "Successfully thawed " << path::join(hierarchy, cgroup);
-      promise.set(true);
-      terminate(self());
-    } else if (strings::trim(state.get()) == "FROZEN") {
-      // Not done yet, keep watching.
-      delay(interval, self(), &Freezer::watchThawed);
-    } else {
-      LOG(FATAL) << "Unexpected state: " << strings::trim(state.get())
-                 << " of cgroup " << path::join(hierarchy, cgroup);
-    }
-  }
 
   const string hierarchy;
   const string cgroup;
-  const string action;
-  const Duration interval;
-  const unsigned int retries;
-  Promise<bool> promise;
+  const Time start;
+  Promise<Nothing> promise;
 };
 
-} // namespace internal {
-
-
-Future<bool> freeze(
-    const string& hierarchy,
-    const string& cgroup,
-    const Duration& interval,
-    unsigned int retries)
-{
-  Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
-  if (error.isSome()) {
-    return Failure(error.get());
-  }
-
-  if (interval < Seconds(0)) {
-    return Failure("Interval should be non-negative");
-  }
-
-  // Check the current freezer state.
-  Try<string> state = internal::read(hierarchy, cgroup, "freezer.state");
-  if (state.isError()) {
-    return Failure(
-        "Failed to read control 'freezer.state': " + state.error());
-  } else if (strings::trim(state.get()) == "FROZEN") {
-    // Immediately return success.
-    return true;
-  }
-
-  internal::Freezer* freezer =
-    new internal::Freezer(hierarchy, cgroup, "FREEZE", interval, retries);
-  Future<bool> future = freezer->future();
-  spawn(freezer, true);
-  return future;
-}
-
-
-Future<bool> thaw(
-    const string& hierarchy,
-    const string& cgroup,
-    const Duration& interval)
-{
-  Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
-  if (error.isSome()) {
-    return Failure(error.get());
-  }
-
-  if (interval < Seconds(0)) {
-    return Failure("Interval should be non-negative");
-  }
-
-  // Check the current freezer state.
-  Try<string> state = internal::read(hierarchy, cgroup, "freezer.state");
-  if (state.isError()) {
-    return Failure(
-        "Failed to read control 'freezer.state': " + state.error());
-  } else if (strings::trim(state.get()) == "THAWED") {
-    // Immediately return success.
-    return true;
-  }
-
-  internal::Freezer* freezer =
-    new internal::Freezer(hierarchy, cgroup, "THAW", interval);
-  Future<bool> future = freezer->future();
-  spawn(freezer, true);
-  return future;
-}
-
-
-namespace internal {
 
 // The process used to wait for a cgroup to become empty (no task in it).
 class EmptyWatcher: public Process<EmptyWatcher>
@@ -1701,9 +1575,9 @@ private:
     chain.onAny(defer(self(), &Self::finished, lambda::_1));
   }
 
-  Future<bool> freeze()
+  Future<Nothing> freeze()
   {
-    return cgroups::freeze(hierarchy, cgroup, interval);
+    return cgroups::freezer::freeze(hierarchy, cgroup);
   }
 
   Future<Nothing> kill(const int signal)
@@ -1715,9 +1589,9 @@ private:
     return Nothing();
   }
 
-  Future<bool> thaw()
+  Future<Nothing> thaw()
   {
-    return cgroups::thaw(hierarchy, cgroup, interval);
+    return cgroups::freezer::thaw(hierarchy, cgroup);
   }
 
   Future<bool> empty()
@@ -2113,5 +1987,43 @@ Try<Bytes> max_usage_in_bytes(const string& hierarchy, const string& cgroup)
 }
 
 } // namespace memory {
+
+
+namespace freezer {
+
+Future<Nothing> freeze(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  LOG(INFO) << "Freezing cgroup " << path::join(hierarchy, cgroup);
+
+  internal::Freezer* freezer = new internal::Freezer(hierarchy, cgroup);
+
+  Future<Nothing> future = freezer->future();
+  spawn(freezer, true);
+
+  dispatch(freezer, &internal::Freezer::freeze);
+
+  return future;
+}
+
+
+Future<Nothing> thaw(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  LOG(INFO) << "Thawing cgroup " << path::join(hierarchy, cgroup);
+
+  internal::Freezer* freezer = new internal::Freezer(hierarchy, cgroup);
+
+  Future<Nothing> future = freezer->future();
+  spawn(freezer, true);
+
+  dispatch(freezer, &internal::Freezer::thaw);
+
+  return future;
+}
+
+} // namespace freezer {
 
 } // namespace cgroups {

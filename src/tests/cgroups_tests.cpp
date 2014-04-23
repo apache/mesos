@@ -602,35 +602,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Freeze)
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
-  if (pid > 0) {
-    // In parent process.
-    ::close(pipes[1]);
-
-    // Wait until child has assigned the cgroup.
-    ASSERT_LT(0, ::read(pipes[0], &dummy, sizeof(dummy)));
-    ::close(pipes[0]);
-
-    // Freeze the test cgroup.
-    Future<bool> freeze = cgroups::freeze(hierarchy, TEST_CGROUPS_ROOT);
-    freeze.await(Seconds(5));
-    ASSERT_TRUE(freeze.isReady());
-    EXPECT_EQ(true, freeze.get());
-
-    // Thaw the test cgroup.
-    Future<bool> thaw = cgroups::thaw(hierarchy, TEST_CGROUPS_ROOT);
-    thaw.await(Seconds(5));
-    ASSERT_TRUE(thaw.isReady());
-    EXPECT_EQ(true, thaw.get());
-
-    // Kill the child process.
-    ASSERT_NE(-1, ::kill(pid, SIGKILL));
-
-    // Wait for the child process.
-    int status;
-    EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-    ASSERT_TRUE(WIFSIGNALED(status));
-    EXPECT_EQ(SIGKILL, WTERMSIG(status));
-  } else {
+  if (pid == 0) {
     // In child process.
     ::close(pipes[0]);
 
@@ -657,6 +629,41 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Freeze)
     std::cerr << "Reach an unreachable statement!" << std::endl;
     abort();
   }
+
+  // In parent process.
+  ::close(pipes[1]);
+
+  // Wait until child has assigned the cgroup.
+  ASSERT_LT(0, ::read(pipes[0], &dummy, sizeof(dummy)));
+  ::close(pipes[0]);
+
+  // Freeze the test cgroup.
+  AWAIT_EXPECT_READY(cgroups::freezer::freeze(hierarchy, TEST_CGROUPS_ROOT));
+
+  // Thaw the test cgroup.
+  AWAIT_EXPECT_READY(cgroups::freezer::thaw(hierarchy, TEST_CGROUPS_ROOT));
+
+  // Kill the child process.
+  ASSERT_NE(-1, ::kill(pid, SIGKILL));
+
+  // Wait for the child process.
+  int status;
+  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
+  ASSERT_TRUE(WIFSIGNALED(status));
+  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+}
+
+
+TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_FreezeNonFreezer)
+{
+  std::string hierarchy = path::join(baseHierarchy, "cpu");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  AWAIT_EXPECT_FAILED(cgroups::freezer::freeze(hierarchy, TEST_CGROUPS_ROOT));
+  AWAIT_EXPECT_FAILED(cgroups::freezer::thaw(hierarchy, TEST_CGROUPS_ROOT));
+
+  // The cgroup is empty so we should still be able to destroy it.
+  AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
 }
 
 

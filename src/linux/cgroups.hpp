@@ -29,6 +29,7 @@
 #include <sys/types.h>
 
 #include <process/future.hpp>
+#include <process/timeout.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
@@ -39,8 +40,7 @@
 
 namespace cgroups {
 
-// Default number of retry attempts when trying to freeze a cgroup.
-const unsigned int FREEZE_RETRIES = 50;
+const Duration DESTROY_TIMEOUT = Seconds(60);
 const unsigned int EMPTY_WATCHER_RETRIES = 50;
 
 // Default number of assign attempts when moving threads to a cgroup.
@@ -321,48 +321,6 @@ process::Future<uint64_t> listen(
     const Option<std::string>& args = Option<std::string>::none());
 
 
-// Freeze all the processes in a given cgroup. We try to use the freezer
-// subsystem implemented in cgroups. More detail can be found in
-// <kernel-source>/Documentation/cgroups/freezer-subsystem.txt. This function
-// will return a future which will become ready when all the processes have been
-// frozen (FROZEN). The future can be discarded to cancel the operation. The
-// freezer state after the cancellation is not defined. So the users need to
-// read the control file if they need to know the freezer state after the
-// cancellation. This function will return future failure if the freezer
-// subsystem is not available or it is not attached to the given hierarchy, or
-// the given cgroup is not valid, or the given cgroup has already been frozen.
-// @param   hierarchy   Path to the hierarchy root.
-// @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   interval    The time interval between two state check
-//                      requests (default: 0.1 seconds).
-// @param   retries     Number of retry attempts before giving up. None
-//                      indicates infinite retries. (default: 50 attempts).
-// @return  A future which will become true when all processes are frozen, or
-//          false when all retries have occurred unsuccessfully.
-//          Error if something unexpected happens.
-process::Future<bool> freeze(
-    const std::string& hierarchy,
-    const std::string& cgroup,
-    const Duration& interval = Milliseconds(100),
-    const unsigned int retries = FREEZE_RETRIES);
-
-
-// Thaw the given cgroup. This is a revert operation of freezeCgroup. It will
-// return error if the given cgroup is already thawed. Same as
-// freezeCgroup, this function will return a future which can be discarded to
-// allow users to cancel the operation.
-// @param   hierarchy   Path to the hierarchy root.
-// @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   interval    The time interval between two state check
-//                      requests (default: 0.1 seconds).
-// @return  A future which will become ready when all processes are thawed.
-//          Error if something unexpected happens.
-process::Future<bool> thaw(
-    const std::string& hierarchy,
-    const std::string& cgroup,
-    const Duration& interval = Milliseconds(100));
-
-
 // Destroy a cgroup under a given hierarchy. It will also recursively
 // destroy any sub-cgroups. If the freezer subsystem is attached to
 // the hierarchy, we attempt to kill all tasks in a given cgroup,
@@ -481,6 +439,32 @@ Try<Bytes> max_usage_in_bytes(
     const std::string& cgroup);
 
 } // namespace memory {
+
+
+// Freezer controls.
+// The freezer can be in one of three states:
+// 1. THAWED   : No process in the cgroup is frozen.
+// 2. FREEZING : Freezing is in progress but not all processes are frozen.
+// 3. FROZEN   : All processes are frozen.
+namespace freezer {
+
+// Freeze all processes in the given cgroup. The cgroup must be in a freezer
+// hierarchy. This function will return a future which will become ready when
+// all processes have been frozen (cgroup is in the FROZEN state).
+process::Future<Nothing> freeze(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Thaw all processes in the given cgroup. The cgroup must be in a freezer
+// hierarchy. This is a revert operation of freezer::freeze. This function will
+// return a future which will become ready when all processes have been thawed
+// (cgroup is in the THAWED state).
+process::Future<Nothing> thaw(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+} // namespace freezer {
 
 } // namespace cgroups {
 
