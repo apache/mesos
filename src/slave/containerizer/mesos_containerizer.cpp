@@ -711,7 +711,10 @@ Future<Nothing> MesosContainerizerProcess::update(
     const ContainerID& containerId,
     const Resources& _resources)
 {
-  if (!resources.contains(containerId)) {
+  // The resources hashmap won't initially contain the container's resources
+  // after recovery so we must check the promises hashmap (which is set during
+  // recovery).
+  if (!promises.contains(containerId)) {
     return Failure("Unknown container: " + stringify(containerId));
   }
 

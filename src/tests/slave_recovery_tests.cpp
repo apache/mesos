@@ -2967,3 +2967,97 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   delete containerizer3.get();
   delete containerizer4.get();
 }
+
+
+TYPED_TEST(SlaveRecoveryTest, ResourceStatistics)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<Containerizer*> containerizer1 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task.
+
+  // Message expectations.
+  Future<Message> registerExecutor =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(registerExecutor);
+
+  this->Stop(slave.get());
+  delete containerizer1.get();
+
+  // Set up so we can wait until the new slave updates the container's
+  // resources (this occurs after the executor has re-registered).
+  // TODO(idownes): This assumes the containerizer is a MesosContainerizer.
+  Future<Nothing> update = FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
+
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<Containerizer*> containerizer2 = Containerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
+
+  slave = this->StartSlave(containerizer2.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Wait until the containerizer is updated.
+  AWAIT_READY(update);
+
+  Future<hashset<ContainerID> > containers = containerizer2.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *(containers.get().begin());
+
+  Future<ResourceStatistics> usage = containerizer2.get()->usage(containerId);
+  AWAIT_READY(usage);
+
+  // Check the resource limits are set.
+  EXPECT_TRUE(usage.get().has_cpus_limit());
+  EXPECT_TRUE(usage.get().has_mem_limit_bytes());
+
+  Future<slave::Containerizer::Termination> wait =
+    containerizer2.get()->wait(containerId);
+
+  containerizer2.get()->destroy(containerId);
+
+  AWAIT_READY(wait);
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+
+  delete containerizer2.get();
+}

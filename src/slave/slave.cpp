@@ -1457,6 +1457,21 @@ void Slave::registerExecutor(
 }
 
 
+void _monitor(
+    const Future<Nothing>& monitor,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId)
+{
+  if (!monitor.isReady()) {
+    LOG(ERROR) << "Failed to monitor container '" << containerId
+               << "' for executor '" << executorId
+               << "' of framework '" << frameworkId
+               << ":" << (monitor.isFailed() ? monitor.failure() : "discarded");
+  }
+}
+
+
 void Slave::reregisterExecutor(
     const UPID& from,
     const FrameworkID& frameworkId,
@@ -1536,6 +1551,17 @@ void Slave::reregisterExecutor(
       // Tell the containerizer to update the resources.
       // TODO(idownes): Wait until this completes.
       containerizer->update(executor->containerId, executor->resources);
+
+      // Monitor the executor.
+      monitor.start(
+          executor->containerId,
+          executor->info,
+          flags.resource_monitoring_interval)
+        .onAny(lambda::bind(_monitor,
+                            lambda::_1,
+                            framework->id,
+                            executor->id,
+                            executor->containerId));
 
       hashmap<TaskID, TaskInfo> unackedTasks;
       foreach (const TaskInfo& task, tasks) {
@@ -1917,20 +1943,6 @@ ExecutorInfo Slave::getExecutorInfo(
   return task.executor();
 }
 
-
-void _monitor(
-    const Future<Nothing>& monitor,
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
-    const ContainerID& containerId)
-{
-  if (!monitor.isReady()) {
-    LOG(ERROR) << "Failed to monitor container '" << containerId
-               << "' for executor '" << executorId
-               << "' of framework '" << frameworkId
-               << ":" << (monitor.isFailed() ? monitor.failure() : "discarded");
-  }
-}
 
 void Slave::executorStarted(
     const FrameworkID& frameworkId,
@@ -2586,17 +2598,6 @@ Future<Nothing> Slave::_recover()
 {
   foreachvalue (Framework* framework, frameworks) {
     foreachvalue (Executor* executor, framework->executors) {
-      // Monitor the executor.
-      monitor.start(
-          executor->containerId,
-          executor->info,
-          flags.resource_monitoring_interval)
-        .onAny(lambda::bind(_monitor,
-                            lambda::_1,
-                            framework->id,
-                            executor->id,
-                            executor->containerId));
-
       // Set up callback for executor termination.
       containerizer->wait(executor->containerId)
         .onAny(defer(self(),
@@ -2604,7 +2605,6 @@ Future<Nothing> Slave::_recover()
                      framework->id,
                      executor->id,
                      lambda::_1));
-
 
       if (flags.recover == "reconnect") {
         if (executor->pid) {
