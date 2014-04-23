@@ -35,6 +35,9 @@
 #include <process/protobuf.hpp>
 #include <process/timer.hpp>
 
+#include <process/metrics/counter.hpp>
+#include <process/metrics/metrics.hpp>
+
 #include <stout/cache.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
@@ -449,14 +452,71 @@ private:
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.
   int64_t nextSlaveId;     // Used to give each slave a unique ID.
 
+  // TODO(bmahler): These are deprecated! Please use metrics instead.
   // Statistics (initialized in Master::initialize).
-  struct {
+  struct
+  {
     uint64_t tasks[TaskState_ARRAYSIZE];
     uint64_t validStatusUpdates;
     uint64_t invalidStatusUpdates;
     uint64_t validFrameworkMessages;
     uint64_t invalidFrameworkMessages;
   } stats;
+
+  struct Metrics
+  {
+    Metrics()
+      : dropped_messages(
+            "master/dropped_messages"),
+        framework_registration_messages(
+            "master/framework_registration_messages"),
+        framework_reregistration_messages(
+            "master/framework_reregistration_messages"),
+        slave_registration_messages(
+            "master/slave_registration_messages"),
+        slave_reregistration_messages(
+            "master/slave_reregistration_messages"),
+        recovery_slave_removals(
+            "master/recovery_slave_removals")
+    {
+      process::metrics::add(dropped_messages);
+
+      process::metrics::add(framework_registration_messages);
+      process::metrics::add(framework_reregistration_messages);
+
+      process::metrics::add(slave_registration_messages);
+      process::metrics::add(slave_reregistration_messages);
+
+      process::metrics::add(recovery_slave_removals);
+    }
+
+    ~Metrics()
+    {
+      process::metrics::remove(dropped_messages);
+
+      process::metrics::remove(framework_registration_messages);
+      process::metrics::remove(framework_reregistration_messages);
+
+      process::metrics::remove(slave_registration_messages);
+      process::metrics::remove(slave_reregistration_messages);
+
+      process::metrics::remove(recovery_slave_removals);
+    }
+
+    // Message counters.
+    // TODO(bmahler): Add counters for other messages: kill task,
+    // status update, etc.
+    process::metrics::Counter dropped_messages;
+
+    process::metrics::Counter framework_registration_messages;
+    process::metrics::Counter framework_reregistration_messages;
+
+    process::metrics::Counter slave_registration_messages;
+    process::metrics::Counter slave_reregistration_messages;
+
+    // Recovery counters.
+    process::metrics::Counter recovery_slave_removals;
+  } metrics;
 
   process::Time startTime; // Start time used to calculate uptime.
 };

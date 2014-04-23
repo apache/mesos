@@ -1265,12 +1265,6 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  process::metrics::Counter counter("master/events");
-
-  AWAIT_READY(process::metrics::add(counter));
-
-  counter += 42;
-
   Future<process::http::Response> response =
     process::http::get(master.get(), "stats.json");
 
@@ -1286,9 +1280,20 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 
   JSON::Object stats = parse.get();
 
-  EXPECT_EQ(42, stats.values["master/events"]);
+  EXPECT_EQ(1u, stats.values.count("master/dropped_messages"));
 
-  AWAIT_READY(process::metrics::remove(counter));
+  EXPECT_EQ(1u, stats.values.count("master/framework_registration_messages"));
+  EXPECT_EQ(1u, stats.values.count("master/framework_reregistration_messages"));
+
+  EXPECT_EQ(1u, stats.values.count("master/slave_registration_messages"));
+  EXPECT_EQ(1u, stats.values.count("master/slave_reregistration_messages"));
+
+  EXPECT_EQ(1u, stats.values.count("master/recovery_slave_removals"));
+
+  EXPECT_EQ(1u, stats.values.count("registrar/queued_operations"));
+
+  EXPECT_EQ(1u, stats.values.count("registrar/state_fetch_ms"));
+  EXPECT_EQ(1u, stats.values.count("registrar/state_store_ms"));
 
   Shutdown();
 }

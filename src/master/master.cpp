@@ -741,6 +741,7 @@ void Master::visit(const MessageEvent& event)
   if (!elected()) {
     LOG(WARNING) << "Dropping '" << event.message->name << "' message since "
                  << "not elected yet";
+    ++metrics.dropped_messages;
     return;
   }
 
@@ -754,6 +755,7 @@ void Master::visit(const MessageEvent& event)
   if (!recovered.get().isReady()) {
     LOG(WARNING) << "Dropping '" << event.message->name << "' message since "
                  << "not recovered yet";
+    ++metrics.dropped_messages;
     return;
   }
 
@@ -850,6 +852,8 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
     LOG(WARNING) << "Slave " << slave.info().id()
                  << " (" << slave.info().hostname() << ") did not re-register "
                  << "within the timeout; removing it from the registrar";
+
+    ++metrics.recovery_slave_removals;
 
     slaves.recovered.erase(slave.info().id());
 
@@ -969,6 +973,8 @@ void Master::registerFramework(
     const UPID& from,
     const FrameworkInfo& frameworkInfo)
 {
+  ++metrics.framework_registration_messages;
+
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up registration request from " << from
               << " because authentication is still in progress";
@@ -1039,6 +1045,8 @@ void Master::reregisterFramework(
     const FrameworkInfo& frameworkInfo,
     bool failover)
 {
+  ++metrics.framework_reregistration_messages;
+
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up re-registration request from " << from
               << " because authentication is still in progress";
@@ -2081,6 +2089,8 @@ void Master::schedulerMessage(
 
 void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
 {
+  ++metrics.slave_registration_messages;
+
   // Check if this slave is already registered (because it retries).
   foreachvalue (Slave* slave, slaves.activated) {
     if (slave->pid == from) {
@@ -2167,6 +2177,8 @@ void Master::reregisterSlave(
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks)
 {
+  ++metrics.slave_reregistration_messages;
+
   if (slaves.deactivated.get(slaveInfo.id()).isSome()) {
     // To compensate for the case where a non-strict registrar is
     // being used, we explicitly deny deactivated slaves from

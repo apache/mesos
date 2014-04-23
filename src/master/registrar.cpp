@@ -83,7 +83,7 @@ class RegistrarProcess : public Process<RegistrarProcess>
 public:
   RegistrarProcess(const Flags& _flags, State* _state)
     : ProcessBase(process::ID::generate("registrar")),
-      gauges(*this),
+      metrics(*this),
       updating(false),
       flags(_flags),
       state(_state) {}
@@ -127,43 +127,34 @@ private:
   };
 
   // Metrics.
-  struct Gauges
+  struct Metrics
   {
-    explicit Gauges(const RegistrarProcess& process)
+    explicit Metrics(const RegistrarProcess& process)
       : queued_operations(
           "registrar/queued_operations",
-          defer(&process, &RegistrarProcess::_queued_operations))
-    {
-      process::metrics::add(queued_operations);
-    }
-
-    ~Gauges()
-    {
-      process::metrics::remove(queued_operations);
-    }
-
-    Gauge queued_operations;
-  } gauges;
-
-  struct Timers
-  {
-    Timers()
-      : state_fetch("registrar/state_fetch"),
+          defer(process, &RegistrarProcess::_queued_operations)),
+        state_fetch("registrar/state_fetch"),
         state_store("registrar/state_store", Days(1))
     {
+      process::metrics::add(queued_operations);
+
       process::metrics::add(state_fetch);
       process::metrics::add(state_store);
     }
 
-    ~Timers()
+    ~Metrics()
     {
+      process::metrics::remove(queued_operations);
+
       process::metrics::remove(state_fetch);
       process::metrics::remove(state_store);
     }
 
+    Gauge queued_operations;
+
     Timer state_fetch;
     Timer state_store;
-  } timers;
+  } metrics;
 
   // Gauge handlers
   double _queued_operations()
@@ -284,7 +275,7 @@ Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
   LOG(INFO) << "Recovering registrar";
 
   if (recovered.isNone()) {
-    timers.state_fetch.start();
+    metrics.state_fetch.start();
     state->fetch<Registry>("registry")
       .after(flags.registry_fetch_timeout,
              lambda::bind(
@@ -306,7 +297,7 @@ void RegistrarProcess::_recover(
     const Future<Variable<Registry> >& recovery)
 {
   updating = false;
-  timers.state_fetch.stop();
+  metrics.state_fetch.stop();
 
   CHECK(!recovery.isPending());
 
@@ -404,7 +395,7 @@ void RegistrarProcess::update()
   }
 
   // Perform the store!
-  timers.state_store.start();
+  metrics.state_store.start();
   state->store(variable.get().mutate(registry))
     .after(flags.registry_store_timeout,
            lambda::bind(
@@ -424,7 +415,7 @@ void RegistrarProcess::_update(
     deque<Owned<Operation> > applied)
 {
   updating = false;
-  timers.state_store.stop();
+  metrics.state_store.stop();
 
   // Set the variable if the storage operation succeeded.
   if (!store.isReady()) {
