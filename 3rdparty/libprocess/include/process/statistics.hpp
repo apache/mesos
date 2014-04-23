@@ -81,7 +81,7 @@ private:
 
     // Use linear interpolation.
     const double position = percentile * (values.size() - 1);
-    const size_t index = floor(position);
+    const size_t index = static_cast<size_t>(floor(position));
     const double delta = position - index;
 
     CHECK_GE(index, 0u);
