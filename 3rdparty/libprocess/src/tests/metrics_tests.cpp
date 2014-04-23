@@ -102,9 +102,14 @@ TEST(Metrics, Statistics)
 {
   Counter counter("test/counter", process::TIME_SERIES_WINDOW);
 
+  // We have to pause the clock to ensure the time series
+  // entries are unique.
+  Clock::pause();
+
   AWAIT_READY(metrics::add(counter));
 
   for (size_t i = 0; i < 10; ++i) {
+    Clock::advance(Seconds(1));
     ++counter;
   }
 
@@ -214,7 +219,7 @@ TEST(Metrics, SnapshotStatistics)
 }
 
 
-TEST(MetricsTest, Timer)
+TEST(Metrics, Timer)
 {
   metrics::Timer timer("test/timer");
 
@@ -224,30 +229,13 @@ TEST(MetricsTest, Timer)
   timer.stop();
 
   // Time a no-op.
-  Time started = Clock::now();
-
   timer.start();
+  os::sleep(Microseconds(1));
   timer.stop();
-
-  Time stopped = Clock::now();
 
   Future<double> value = timer.value();
   AWAIT_READY(value);
-  EXPECT_LE(value.get(), (stopped - started).ms());
-
-  // Make sure that re-starting a timer records the correct value.
-  timer.start();
-
-  started = Clock::now();
-
-  timer.start();
-  timer.stop();
-
-  stopped = Clock::now();
-
-  value = timer.value();
-  AWAIT_READY(value);
-  EXPECT_LE(value.get(), (stopped - started).ms());
+  EXPECT_GE(value.get(), Microseconds(1).ms());
 
   // It is not an error to stop a timer that has already been stopped.
   timer.stop();
