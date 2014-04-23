@@ -55,11 +55,9 @@
 
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::log;
 
 using namespace process;
-
-using std::set;
-using std::string;
 
 using state::LevelDBStorage;
 using state::Storage;
@@ -473,7 +471,7 @@ protected:
     TemporaryDirectoryTest::SetUp();
 
     // For initializing the replicas.
-    log::tool::Initialize initializer;
+    tool::Initialize initializer;
 
     string path1 = os::getcwd() + "/.log1";
     string path2 = os::getcwd() + "/.log2";
@@ -486,12 +484,12 @@ protected:
 
     // Only create the replica for 'path2' (i.e., the second replica)
     // as the first replica will be created when we create a Log.
-    replica2 = new log::Replica(path2);
+    replica2 = new Replica(path2);
 
     set<UPID> pids;
     pids.insert(replica2->pid());
 
-    log = new log::Log(2, path1, pids);
+    log = new Log(2, path1, pids);
     storage = new state::LogStorage(log);
     state = new State(storage);
   }
@@ -510,8 +508,8 @@ protected:
   state::Storage* storage;
   State* state;
 
-  log::Replica* replica2;
-  log::Log* log;
+  Replica* replica2;
+  Log* log;
 };
 
 
