@@ -26,8 +26,11 @@
 
 #include <process/help.hpp>
 
+#include <process/metrics/metrics.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
+#include <stout/lambda.hpp>
 #include <stout/memory.hpp>
 #include <stout/net.hpp>
 #include <stout/numify.hpp>
@@ -60,6 +63,8 @@ using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::OK;
 using process::http::TemporaryRedirect;
+
+using process::metrics::internal::MetricsProcess;
 
 using std::map;
 using std::string;
@@ -332,6 +337,13 @@ Future<Response> Master::Http::redirect(const Request& request)
 }
 
 
+// Declaration of 'stats' continuation.
+static Future<Response> _stats(
+    const Request& request,
+    JSON::Object object,
+    const Response& response);
+
+
 Future<Response> Master::Http::stats(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
@@ -397,6 +409,39 @@ Future<Response> Master::Http::stats(const Request& request)
     double percent = used / total;
     object.values[resource.name() + "_percent"] = percent;
   }
+
+  // Include metrics from libprocess metrics while we sunset this
+  // endpoint in favor of libprocess metrics.
+  // TODO(benh): Remove this after transitioning to libprocess metrics.
+  return process::http::get(MetricsProcess::instance()->self(), "snapshot")
+    .then(lambda::bind(&_stats, request, object, lambda::_1));
+}
+
+
+static Future<Response> _stats(
+    const Request& request,
+    JSON::Object object,
+    const Response& response)
+{
+  if (response.status != process::http::statuses[200]) {
+    return InternalServerError("Failed to get metrics: " + response.status);
+  }
+
+  Option<string> type = response.headers.get("Content-Type");
+
+  if (type.isNone() || type.get() != "application/json") {
+    return InternalServerError("Failed to get metrics: expecting JSON");
+  }
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.body);
+
+  if (parse.isError()) {
+    return InternalServerError("Failed to parse metrics: " + parse.error());
+  }
+
+  // Now add all the values from metrics.
+  // TODO(benh): Make sure we're not overwriting any values.
+  object.values.insert(parse.get().values.begin(), parse.get().values.end());
 
   return OK(object, request.query.get("jsonp"));
 }

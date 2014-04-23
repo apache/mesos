@@ -29,9 +29,14 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
+#include <process/metrics/counter.hpp>
+#include <process/metrics/metrics.hpp>
+
+#include <stout/json.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -1256,6 +1261,40 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   driver.join();
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+TEST_F(MasterTest, MetricsInStatsEndpoint)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  process::metrics::Counter counter("master/events");
+
+  AWAIT_READY(process::metrics::add(counter));
+
+  counter += 42;
+
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "stats.json");
+
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(parse);
+
+  JSON::Object stats = parse.get();
+
+  EXPECT_EQ(42, stats.values["master/events"]);
+
+  AWAIT_READY(process::metrics::remove(counter));
+
+  Shutdown();
 }
 
 
