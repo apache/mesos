@@ -80,6 +80,13 @@ Future<Nothing> MetricsProcess::remove(const std::string& name)
 
 Future<http::Response> MetricsProcess::snapshot(const http::Request& request)
 {
+  return limiter.acquire()
+    .then(defer(self(), &Self::_snapshot, request));
+}
+
+
+Future<http::Response> MetricsProcess::_snapshot(const http::Request& request)
+{
   hashmap<string, Future<double> > futures;
   hashmap<string, Option<Statistics<double> > > statistics;
 
@@ -91,11 +98,11 @@ Future<http::Response> MetricsProcess::snapshot(const http::Request& request)
   }
 
   return await(futures.values())
-    .then(lambda::bind(_snapshot, request, futures, statistics));
+    .then(lambda::bind(__snapshot, request, futures, statistics));
 }
 
 
-Future<http::Response> MetricsProcess::_snapshot(
+Future<http::Response> MetricsProcess::__snapshot(
     const http::Request& request,
     const hashmap<string, Future<double> >& metrics,
     const hashmap<string, Option<Statistics<double> > >& statistics)

@@ -5,6 +5,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
@@ -33,21 +34,27 @@ protected:
 private:
   static std::string help();
 
-  MetricsProcess() : ProcessBase("metrics") {}
+  MetricsProcess()
+    : ProcessBase("metrics"),
+      limiter(2, Seconds(1))
+  {}
 
   // Non-copyable, non-assignable.
   MetricsProcess(const MetricsProcess&);
   MetricsProcess& operator = (const MetricsProcess&);
 
   Future<http::Response> snapshot(const http::Request& request);
-
-  static Future<http::Response> _snapshot(
+  Future<http::Response> _snapshot(const http::Request& request);
+  static Future<http::Response> __snapshot(
       const http::Request& request,
       const hashmap<std::string, Future<double> >& metrics,
       const hashmap<std::string, Option<Statistics<double> > >& statistics);
 
   // The Owned<Metric> is an explicit copy of the Metric passed to 'add'.
   hashmap<std::string, Owned<Metric> > metrics;
+
+  // Used to rate limit the endpoint.
+  RateLimiter limiter;
 };
 
 }  // namespace internal {
