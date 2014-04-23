@@ -391,6 +391,9 @@ inline ZooKeeperNetwork::ZooKeeperNetwork(
   : group(servers, timeout, znode, auth),
     base(_base)
 {
+  // PIDs from the base set are in the network from beginning.
+  set(base);
+
   watch(std::set<zookeeper::Group::Membership>());
 }
 
