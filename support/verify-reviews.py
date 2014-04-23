@@ -191,7 +191,7 @@ if __name__=="__main__":
 
     review_requests = api(review_requests_url)
     num_reviews = 0
-    for review_request in review_requests["review_requests"]:
+    for review_request in reversed(review_requests["review_requests"]):
         if (NUM_REVIEWS == -1 or num_reviews < NUM_REVIEWS) and \
             needs_verification(review_request):
             verify_review(review_request)
