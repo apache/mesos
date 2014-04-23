@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <pthread.h>
 #include <unistd.h> // For getpid, getppid.
 
 #include <gmock/gmock.h>
@@ -60,129 +61,50 @@ TEST(ProcTest, ProcessStatus)
 }
 
 
+// NOTE: This test assumes there is a single thread running for the test.
 TEST(ProcTest, SingleThread)
 {
-  pid_t pid = ::fork();
-  ASSERT_NE(-1, pid);
-
-  if (pid == 0) {
-    // In child process, wait until killed.
-    while (true) { sleep(1); }
-
-    // Should not reach here.
-    ABORT("Error, child should be killed before reaching here");
-  }
-
-  // In parent process.
   // Check we have the expected number of threads.
-  Try<set<pid_t> > threads = proc::threads(pid);
+  Try<set<pid_t> > threads = proc::threads(::getpid());
 
   ASSERT_SOME(threads);
   EXPECT_EQ(1u, threads.get().size());
-  EXPECT_EQ(1u, threads.get().count(pid));
-
-  // Kill the child process.
-  ASSERT_NE(-1, ::kill(pid, SIGKILL));
-
-  // Wait for the child process.
-  int status;
-  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-  ASSERT_TRUE(WIFSIGNALED(status));
-  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+  EXPECT_EQ(1u, threads.get().count(::getpid()));
 }
 
 
-int threadFunction(void*)
+void* threadFunction(void*)
 {
+  // Newly created threads have PTHREAD_CANCEL_ENABLE and
+  // PTHREAD_CANCEL_DEFERRED so they can be cancelled from the main thread.
   while (true) { sleep(1); }
-
-  return -1;
 }
 
 
+// NOTE: This test assumes there is only a single thread running for the test.
 TEST(ProcTest, MultipleThreads)
 {
-  int ready;
-  int pipes[2];
-  ASSERT_NE(-1, ::pipe(pipes));
+  size_t numThreads = 5;
 
-  pid_t pid = ::fork();
-  ASSERT_NE(-1, pid);
+  pthread_t pthreads[numThreads];
 
-  if (pid == 0) {
-    // In child process
-    ::close(pipes[0]);
-
-    int numThreads = 5;
-
-    // 32 KiB stack (2x the common value for PTHREAD_STACK_MIN) for each thread
-    // is sufficient since they are essentially no-ops.
-    size_t stackSize = 32*1024 / sizeof(unsigned long long);
-    unsigned long long stack[numThreads][stackSize];
-
-    set<pid_t> threads;
-
-    for (int i = 0; i < numThreads; i++) {
-      pid_t thread;
-
-      // We use clone here to create threads because pthread_create is not
-      // async-signal-safe.
-      thread = clone(
-          threadFunction,
-          &(stack[i][stackSize - 1]),
-          CLONE_THREAD | CLONE_SIGHAND | CLONE_VM | CLONE_FILES | SIGCHLD,
-          NULL);
-
-      EXPECT_NE(-1, thread);
-
-      threads.insert(thread);
-    }
-
-    // Also add our own pid to the set.
-    threads.insert(getpid());
-
-    // Notify parent of the thread ids.
-    ASSERT_SOME(os::write(pipes[1], strings::join(",", threads)));
-
-    // NOTE: CLONE_FILES ensures the pipe file descriptor will be closed in the
-    // threads as well, ensuring the parent gets the EOF.
-    ::close(pipes[1]);
-
-    // Sleep until killed.
-    while (true) { sleep(1); }
-
-    // Should not reach here.
-    ABORT("Error, child should be killed before reaching here");
+  // Create additional threads.
+  for (size_t i = 0; i < numThreads; i++)
+  {
+    EXPECT_EQ(0, pthread_create(&pthreads[i], NULL, threadFunction, NULL));
   }
 
-  // In parent process.
-  ::close(pipes[1]);
+  // Check we have the expected number of threads.
+  Try<set<pid_t> > threads = proc::threads(::getpid());
 
-  // Get thread ids from the child. Read up to the first 1024 characters which
-  // is sufficient for the expected number of stringified pids.
-  Result<string> read = os::read(pipes[0], 1024);
-  ASSERT_SOME(read);
+  ASSERT_SOME(threads);
+  EXPECT_EQ(1u + numThreads, threads.get().size());
+  EXPECT_EQ(1u, threads.get().count(::getpid()));
 
-  set<pid_t> childThreads;
-  foreach (const string& token, strings::tokenize(read.get(), ",")) {
-    Try<pid_t> thread = numify<pid_t>(token);
-    ASSERT_SOME(thread);
-
-    childThreads.insert(thread.get());
+  // Terminate the threads.
+  for (int i = 0; i < numThreads; i++)
+  {
+    EXPECT_EQ(0, pthread_cancel(pthreads[i]));
+    EXPECT_EQ(0, pthread_join(pthreads[i], NULL));
   }
-
-  // Read thread ids from /proc for the child.
-  Try<set<pid_t> > procThreads = proc::threads(pid);
-
-  // Check we have the expected threads.
-  ASSERT_SOME_EQ(childThreads, procThreads);
-
-  // Kill the child process.
-  ASSERT_NE(-1, ::kill(pid, SIGKILL));
-
-  // Wait for the child process.
-  int status;
-  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-  EXPECT_TRUE(WIFSIGNALED(status));
-  EXPECT_EQ(SIGKILL, WTERMSIG(status));
 }
