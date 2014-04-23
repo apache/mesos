@@ -221,7 +221,12 @@ LogProcess::LogProcess(
   : ProcessBase(ID::generate("log")),
     quorum(_quorum),
     replica(new Replica(path)),
-    network(new ZooKeeperNetwork(servers, timeout, znode, auth)),
+    network(new ZooKeeperNetwork(
+        servers,
+        timeout,
+        znode,
+        auth,
+        Set<UPID>((UPID) replica->pid()))),
     autoInitialize(_autoInitialize),
     group(new zookeeper::Group(servers, timeout, znode, auth)) {}
 

@@ -34,6 +34,7 @@
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
+#include <stout/set.hpp>
 #include <stout/unreachable.hpp>
 
 #include "logging/logging.hpp"
@@ -112,7 +113,8 @@ public:
       const std::string& servers,
       const Duration& timeout,
       const std::string& znode,
-      const Option<zookeeper::Authentication>& auth);
+      const Option<zookeeper::Authentication>& auth,
+      const std::set<process::UPID>& base = std::set<process::UPID>());
 
 private:
   typedef ZooKeeperNetwork This;
@@ -141,6 +143,9 @@ private:
 
   zookeeper::Group group;
   process::Future<std::set<zookeeper::Group::Membership> > memberships;
+
+  // The set of PIDs that are always in the network.
+  std::set<process::UPID> base;
 
   // NOTE: The declaration order here is important. We want to delete
   // the 'executor' before we delete the 'group' so that we don't get
@@ -381,8 +386,10 @@ inline ZooKeeperNetwork::ZooKeeperNetwork(
     const std::string& servers,
     const Duration& timeout,
     const std::string& znode,
-    const Option<zookeeper::Authentication>& auth)
-  : group(servers, timeout, znode, auth)
+    const Option<zookeeper::Authentication>& auth,
+    const std::set<process::UPID>& _base)
+  : group(servers, timeout, znode, auth),
+    base(_base)
 {
   watch(std::set<zookeeper::Group::Membership>());
 }
@@ -450,7 +457,9 @@ inline void ZooKeeperNetwork::collected(
 
   LOG(INFO) << "ZooKeeper group PIDs: " << stringify(pids);
 
-  set(pids); // Update the network.
+  // Update the network. We make sure that the PIDs from the base set
+  // are always in the network.
+  set(pids | base);
 
   watch(memberships.get());
 }
