@@ -60,6 +60,16 @@ public:
       const process::PID<Slave>& slavePid,
       bool checkpoint);
 
+  virtual process::Future<Nothing> launch(
+      const ContainerID& containerId,
+      const TaskInfo& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const SlaveID& slaveId,
+      const process::PID<Slave>& slavePid,
+      bool checkpoint);
+
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
       const Resources& resources);
@@ -97,6 +107,16 @@ public:
 
   process::Future<Nothing> launch(
       const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const SlaveID& slaveId,
+      const process::PID<Slave>& slavePid,
+      bool checkpoint);
+
+  process::Future<Nothing> launch(
+      const ContainerID& containerId,
+      const TaskInfo& taskInfo,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& user,

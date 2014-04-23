@@ -134,6 +134,28 @@ Future<Nothing> MesosContainerizer::launch(
 }
 
 
+Future<Nothing> MesosContainerizer::launch(
+    const ContainerID& containerId,
+    const TaskInfo& taskInfo,
+    const ExecutorInfo& executorInfo,
+    const string& directory,
+    const Option<string>& user,
+    const SlaveID& slaveId,
+    const PID<Slave>& slavePid,
+    bool checkpoint)
+{
+  return dispatch(process,
+                  &MesosContainerizerProcess::launch,
+                  containerId,
+                  taskInfo,
+                  executorInfo,
+                  directory,
+                  user,
+                  slaveId,
+                  slavePid,
+                  checkpoint);
+}
+
 Future<Nothing> MesosContainerizer::update(
     const ContainerID& containerId,
     const Resources& resources)
@@ -439,6 +461,26 @@ Future<Nothing> MesosContainerizerProcess::launch(
                     containerId));
 }
 
+
+Future<Nothing> MesosContainerizerProcess::launch(
+    const ContainerID& containerId,
+    const TaskInfo&,
+    const ExecutorInfo& executorInfo,
+    const string& directory,
+    const Option<string>& user,
+    const SlaveID& slaveId,
+    const PID<Slave>& slavePid,
+    bool checkpoint)
+{
+  return launch(
+      containerId,
+      executorInfo,
+      directory,
+      user,
+      slaveId,
+      slavePid,
+      checkpoint);
+}
 
 Future<Nothing> MesosContainerizerProcess::prepare(
     const ContainerID& containerId,

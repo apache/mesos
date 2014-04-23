@@ -137,6 +137,28 @@ Future<Nothing> TestContainerizer::launch(
 }
 
 
+Future<Nothing> TestContainerizer::launch(
+    const ContainerID& containerId,
+    const TaskInfo& taskInfo,
+    const ExecutorInfo& executorInfo,
+    const string& directory,
+    const Option<string>& user,
+    const SlaveID& slaveId,
+    const PID<slave::Slave>& slavePid,
+    bool checkpoint)
+{
+  return launch(
+      containerId,
+      taskInfo,
+      executorInfo,
+      directory,
+      user,
+      slaveId,
+      slavePid,
+      checkpoint);
+}
+
+
 Future<containerizer::Termination> TestContainerizer::wait(
     const ContainerID& containerId)
 {

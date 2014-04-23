@@ -80,6 +80,19 @@ public:
       const process::PID<Slave>& slavePid,
       bool checkpoint) = 0;
 
+  // Launch a containerized task.
+  // TODO(nnielsen): Obsolete the executorInfo argument when the slave
+  // doesn't require executors to run standalone tasks.
+  virtual process::Future<Nothing> launch(
+      const ContainerID& containerId,
+      const TaskInfo& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const SlaveID& slaveId,
+      const process::PID<Slave>& slavePid,
+      bool checkpoint) = 0;
+
   // Update the resources for a container.
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,

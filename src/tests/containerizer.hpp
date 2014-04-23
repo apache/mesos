@@ -73,6 +73,16 @@ public:
       const process::PID<slave::Slave>& slavePid,
       bool checkpoint);
 
+  virtual process::Future<Nothing> launch(
+      const ContainerID& containerId,
+      const TaskInfo& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const SlaveID& slaveId,
+      const process::PID<slave::Slave>& slavePid,
+      bool checkpoint);
+
   virtual process::Future<containerizer::Termination> wait(
       const ContainerID& containerId);
 

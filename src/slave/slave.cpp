@@ -2993,20 +2993,46 @@ Executor* Framework::launchExecutor(
   executorInfo_.mutable_resources()->MergeFrom(taskInfo.resources());
 
   // Launch the container.
-  slave->containerizer->launch(
-      containerId,
-      executorInfo_, // modified to include the task's resources
-      executor->directory,
-      slave->flags.switch_user ? Option<string>(info.user()) : None(),
-      slave->info.id(),
-      slave->self(),
-      info.checkpoint())
-    .onAny(defer(slave,
-                 &Slave::executorLaunched,
-                 id,
-                 executor->id,
-                 containerId,
-                 lambda::_1));
+  Future<Nothing> launch;
+  if (!executor->commandExecutor) {
+    // If the executor is _not_ a command executor, this means that
+    // the task will include the executor to run. The actual task to
+    // run will be enqueued and subsequently handled by the executor
+    // when it has registered to the slave.
+    launch = slave->containerizer->launch(
+        containerId,
+        executorInfo_, // modified to include the task's resources
+        executor->directory,
+        slave->flags.switch_user ? Option<string>(info.user()) : None(),
+        slave->info.id(),
+        slave->self(),
+        info.checkpoint());
+  } else {
+    // An executor has _not_ been provided by the task and will
+    // instead define a command and/or container to run. Right now,
+    // these tasks will require an executor anyway and the slave
+    // creates a command executor. However, it is up to the
+    // containerizer how to execute those tasks and the generated
+    // executor info works as a placeholder.
+    // TODO(nnielsen): Obsolete the requirement for executors to run
+    // one-off tasks.
+    launch = slave->containerizer->launch(
+        containerId,
+        taskInfo,
+        executorInfo_,
+        executor->directory,
+        slave->flags.switch_user ? Option<string>(info.user()) : None(),
+        slave->info.id(),
+        slave->self(),
+        info.checkpoint());
+  }
+
+  launch.onAny(defer(slave,
+               &Slave::executorLaunched,
+               id,
+               executor->id,
+               containerId,
+               lambda::_1));
 
   // Set up callback for executor termination.
   slave->containerizer->wait(containerId)
