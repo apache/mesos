@@ -64,6 +64,8 @@
 #include <process/time.hpp>
 #include <process/timer.hpp>
 
+#include <process/metrics/metrics.hpp>
+
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
@@ -80,6 +82,8 @@
 #include "encoder.hpp"
 #include "gate.hpp"
 #include "synchronized.hpp"
+
+using namespace process::metrics::internal;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -1570,6 +1574,12 @@ void initialize(const string& delegate)
   //   // time window. Or, offload older data to disk, etc.
   //   statistics = new Statistics(LIBPROCESS_STATISTICS_WINDOW);
   // }
+
+  // Ensure metrics process is running.
+  // TODO(bmahler): Consider initializing this consistently with
+  // the other global Processes.
+  MetricsProcess* metricsProcess = MetricsProcess::instance();
+  CHECK_NOTNULL(metricsProcess);
 
   // Initialize the mime types.
   mime::initialize();
