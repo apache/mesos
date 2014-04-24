@@ -71,7 +71,7 @@ private:
   // TODO(dhamon): Use a 'Percentage' abstraction.
   static T percentile(const std::vector<T>& values, double percentile)
   {
-    CHECK_GE(values.size(), 2);
+    CHECK_GE(values.size(), 2u);
 
     if (percentile <= 0.0) {
       return values.front();
