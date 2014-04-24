@@ -473,6 +473,7 @@ Registrar::~Registrar()
 {
   terminate(process);
   wait(process);
+  delete process;
 }
 
 
