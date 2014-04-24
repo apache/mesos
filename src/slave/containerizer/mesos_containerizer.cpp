@@ -187,6 +187,12 @@ void MesosContainerizer::destroy(const ContainerID& containerId)
 }
 
 
+Future<hashset<ContainerID> > MesosContainerizer::containers()
+{
+  return dispatch(process, &MesosContainerizerProcess::containers);
+}
+
+
 Future<Nothing> MesosContainerizerProcess::recover(
     const Option<state::SlaveState>& state)
 {
@@ -954,6 +960,13 @@ void MesosContainerizerProcess::limited(
   // The container has been affected by the limitation so destroy it.
   destroy(containerId);
 }
+
+
+Future<hashset<ContainerID> > MesosContainerizerProcess::containers()
+{
+  return promises.keys();
+}
+
 
 } // namespace slave {
 } // namespace internal {

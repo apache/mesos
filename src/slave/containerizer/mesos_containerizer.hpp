@@ -82,6 +82,8 @@ public:
 
   virtual void destroy(const ContainerID& containerId);
 
+  virtual process::Future<hashset<ContainerID> > containers();
+
 private:
   MesosContainerizerProcess* process;
 };
@@ -135,6 +137,8 @@ public:
       const ContainerID& containerId);
 
   void destroy(const ContainerID& containerId);
+
+  process::Future<hashset<ContainerID> > containers();
 
 private:
   process::Future<Nothing> _recover(
