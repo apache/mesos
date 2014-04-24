@@ -281,7 +281,8 @@ AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lunwind")
 # sure variable dependencies are handled appropriately).
 
 # A helper for checking whether we can compile and link using JNI with
-# the current JAVA_CPPFLAGS.
+# the current JAVA_CPPFLAGS (and JAVA_TEST_LDFLAGS which we setup
+# ourselves below).
 # TRY_LINK_JNI([ACTION-SUCCESS], [ACTION-FAILURE])
 AC_DEFUN([TRY_LINK_JNI], [
   cat <<__EOF__ >conftest.cpp [
@@ -371,8 +372,8 @@ __EOF__
       dir="$JAVA_HOME/jre/lib/$arch/server"
       if test -e "$dir"; then
 	# Note that these are libtool specific flags.
-	JAVA_JVM_LIBRARY=$dir/libjvm.so
 	JAVA_TEST_LDFLAGS="-L$dir -R$dir -Wl,-ljvm"
+	JAVA_JVM_LIBRARY=$dir/libjvm.so
 	break;
       fi
     done
