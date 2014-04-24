@@ -25,23 +25,24 @@ option java_outer_classname = "Protos";
 
 
 /**
- * Information about a containerized task launch, sent by slave to the containerizer.
+ * Encodes the launch command sent to the external containerizer
+ * program.
  */
 message Launch {
   required ContainerID container_id = 1;
-  required TaskInfo task = 2;
-  optional FrameworkID framework_id = 3;
+  optional TaskInfo task_info = 2;
+  optional ExecutorInfo executor_info = 3;
   optional string directory = 4;
   optional string user = 5;
   optional SlaveID slave_id = 6;
   optional string slave_pid = 7;
   optional bool checkpoint = 8;
-  optional string mesos_executor_path = 9;
 }
 
 
 /**
- * Information about a containerizer update, sent by slave to the containerizer.
+ * Encodes the update command sent to the external containerizer
+ * program.
  */
 message Update {
   required ContainerID container_id = 1;
@@ -50,11 +51,39 @@ message Update {
 
 
 /**
- * Information about a container termination, returned by the containerizer to the slave.
+ * Encodes the wait command sent to the external containerizer
+ * program.
+ */
+message Wait {
+  required ContainerID container_id = 1;
+}
+
+
+/**
+ * Encodes the destroy command sent to the external containerizer
+ * program.
+ */
+message Destroy {
+  required ContainerID container_id = 1;
+}
+
+
+/**
+ * Encodes the usage command sent to the external containerizer
+ * program.
+ */
+message Usage {
+  required ContainerID container_id = 1;
+}
+
+
+/**
+ * Information about a container termination, returned by the
+ * containerizer to the slave.
  */
 message Termination {
-  // A container may be killed if it exceeds its resources; this will be
-  // indicated by killed=true and described by the message string.
+  // A container may be killed if it exceeds its resources; this will
+  // be indicated by killed=true and described by the message string.
   required bool killed = 1;
   required string message = 2;
 
