@@ -29,6 +29,7 @@
 
 #include <stout/bytes.hpp>
 #include <stout/stopwatch.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
@@ -37,6 +38,8 @@
 #include "log/replica.hpp"
 
 #include "log/tool/initialize.hpp"
+
+#include "messages/state.hpp"
 
 #include "master/flags.hpp"
 #include "master/master.hpp"
@@ -53,6 +56,13 @@ using namespace mesos::internal;
 
 using namespace process;
 
+using log::Log;
+using log::Replica;
+
+using state::Entry;
+using state::LogStorage;
+using state::Storage;
+
 using state::protobuf::State;
 
 using std::map;
@@ -61,7 +71,9 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::DoAll;
 using testing::Eq;
+using testing::Return;
 
 using mesos::internal::tests::TemporaryDirectoryTest;
 
@@ -102,13 +114,13 @@ protected:
 
     // Only create the replica for 'path2' (i.e., the second replica)
     // as the first replica will be created when we create a Log.
-    replica2 = new log::Replica(path2);
+    replica2 = new Replica(path2);
 
     set<UPID> pids;
     pids.insert(replica2->pid());
 
-    log = new log::Log(2, path1, pids);
-    storage = new state::LogStorage(log);
+    log = new Log(2, path1, pids);
+    storage = new LogStorage(log);
     state = new State(storage);
 
     master.CopyFrom(protobuf::createMasterInfo(UPID("master@127.0.0.1:5050")));
@@ -124,11 +136,11 @@ protected:
     TemporaryDirectoryTest::TearDown();
   }
 
-  log::Log* log;
-  state::Storage* storage;
+  Log* log;
+  Storage* storage;
   State* state;
 
-  log::Replica* replica2;
+  Replica* replica2;
 
   MasterInfo master;
   Flags flags;
@@ -339,6 +351,71 @@ TEST_P(RegistrarTest, bootstrap)
       EXPECT_EQ(info, registry.get().slaves().slaves(0).info());
     }
   }
+}
+
+
+class MockStorage : public Storage
+{
+public:
+  MOCK_METHOD1(get, Future<Option<Entry> >(const string&));
+  MOCK_METHOD2(set, Future<bool>(const Entry&, const UUID&));
+  MOCK_METHOD1(expunge, Future<bool>(const Entry&));
+  MOCK_METHOD0(names, Future<std::set<string> >(void));
+};
+
+
+TEST_P(RegistrarTest, fetchTimeout)
+{
+  Clock::pause();
+
+  MockStorage storage;
+  State state(&storage);
+
+  Future<Nothing> get;
+  EXPECT_CALL(storage, get(_))
+    .WillOnce(DoAll(FutureSatisfy(&get),
+                    Return(Future<Option<Entry> >())));
+
+  Registrar registrar(flags, &state);
+
+  Future<Registry> recover = registrar.recover(master);
+
+  AWAIT_READY(get);
+
+  Clock::advance(flags.registry_fetch_timeout);
+
+  AWAIT_FAILED(recover);
+
+  Clock::resume();
+}
+
+
+TEST_P(RegistrarTest, storeTimeout)
+{
+  Clock::pause();
+
+  MockStorage storage;
+  State state(&storage);
+
+  Registrar registrar(flags, &state);
+
+  EXPECT_CALL(storage, get(_))
+    .WillOnce(Return(None()));
+
+  Future<Nothing> set;
+  EXPECT_CALL(storage, set(_, _))
+    .WillOnce(DoAll(FutureSatisfy(&set),
+                    Return(Future<bool>())));
+
+  Future<Registry> recover = registrar.recover(master);
+
+  AWAIT_READY(set);
+
+  Clock::advance(flags.registry_store_timeout);
+
+  AWAIT_FAILED(recover);
+
+  Clock::resume();
 }
 
 

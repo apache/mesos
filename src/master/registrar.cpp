@@ -196,6 +196,20 @@ private:
 };
 
 
+// Helper for treating State operations that timeout as failures.
+template <typename T>
+Future<T> timeout(
+    const string& operation,
+    const Duration& duration,
+    Future<T> future)
+{
+  future.discard();
+
+  return Failure(
+      "Failed to perform " + operation + " within " + stringify(duration));
+}
+
+
 Future<Response> RegistrarProcess::registry(const Request& request)
 {
   JSON::Object result;
@@ -270,9 +284,14 @@ Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
   LOG(INFO) << "Recovering registrar";
 
   if (recovered.isNone()) {
-    // TODO(benh): Don't wait forever to recover?
     timers.state_fetch.start();
     state->fetch<Registry>("registry")
+      .after(flags.registry_fetch_timeout,
+             lambda::bind(
+                 &timeout<Variable<Registry> >,
+                 "fetch",
+                 flags.registry_fetch_timeout,
+                 lambda::_1))
       .onAny(defer(self(), &Self::_recover, info, lambda::_1));
     updating = true;
     recovered = Owned<Promise<Registry> >(new Promise<Registry>());
@@ -384,11 +403,15 @@ void RegistrarProcess::update()
     (*operation)(&registry, &slaveIDs, flags.registry_strict);
   }
 
-  // TODO(benh): Add a timeout so we don't wait forever.
-
   // Perform the store!
   timers.state_store.start();
   state->store(variable.get().mutate(registry))
+    .after(flags.registry_store_timeout,
+           lambda::bind(
+               &timeout<Option<Variable<Registry> > >,
+               "store",
+               flags.registry_store_timeout,
+               lambda::_1))
     .onAny(defer(self(), &Self::_update, lambda::_1, operations));
 
   // Clear the operations, _update will transition the Promises!

@@ -74,6 +74,18 @@ public:
         "bootstrap the persistent state on a running cluster.",
         false);
 
+    add(&Flags::registry_fetch_timeout,
+        "registry_fetch_timeout",
+        "Duration of time to wait in order to fetch data from the registry\n"
+        "after which the operation is considered a failure.",
+        Seconds(60));
+
+    add(&Flags::registry_store_timeout,
+        "registry_store_timeout",
+        "Duration of time to wait in order to store data in the registry\n"
+        "after which the operation is considered a failure.",
+        Seconds(5));
+
     // TODO(bmahler): Add a 'Percentage' abstraction for flags.
     // TODO(bmahler): Add a --production flag for production defaults.
     add(&Flags::recovery_slave_removal_limit,
@@ -161,6 +173,8 @@ public:
   std::string work_dir;
   std::string registry;
   bool registry_strict;
+  Duration registry_fetch_timeout;
+  Duration registry_store_timeout;
   std::string recovery_slave_removal_limit;
   std::string webui_dir;
   std::string whitelist;
