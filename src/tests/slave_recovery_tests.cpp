@@ -3056,7 +3056,7 @@ TYPED_TEST(SlaveRecoveryTest, ResourceStatistics)
   EXPECT_TRUE(usage.get().has_cpus_limit());
   EXPECT_TRUE(usage.get().has_mem_limit_bytes());
 
-  Future<slave::Containerizer::Termination> wait =
+  Future<containerizer::Termination> wait =
     containerizer2.get()->wait(containerId);
 
   containerizer2.get()->destroy(containerId);
