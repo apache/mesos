@@ -520,6 +520,9 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
+  EXPECT_CALL(allocator, slaveAdded(_, _, _))
+    .Times(2);
+
   Future<Nothing> slaveAdded1 = FUTURE_DISPATCH(
       allocator.real, &HierarchicalDRFAllocatorProcess::slaveAdded);
 
