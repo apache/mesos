@@ -25,7 +25,8 @@ struct Statistics
   {
     std::vector<typename TimeSeries<T>::Value> values_ = timeseries.get();
 
-    if (values_.empty()) {
+    // We need at least 2 values to compute aggregates.
+    if (values_.size() < 2) {
       return None();
     }
 
@@ -66,10 +67,11 @@ struct Statistics
 
 private:
   // Returns the requested percentile from the sorted values.
+  // Note that we need at least two values to compute percentiles!
   // TODO(dhamon): Use a 'Percentage' abstraction.
   static T percentile(const std::vector<T>& values, double percentile)
   {
-    CHECK(!values.empty());
+    CHECK_GE(values.size(), 2);
 
     if (percentile <= 0.0) {
       return values.front();

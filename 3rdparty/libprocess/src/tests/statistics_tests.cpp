@@ -17,6 +17,16 @@ TEST(Statistics, empty)
 }
 
 
+TEST(Statistics, single)
+{
+  TimeSeries<double> timeseries;
+
+  timeseries.set(0);
+
+  EXPECT_NONE(Statistics<double>::from(timeseries));
+}
+
+
 TEST(Statistics, statistics)
 {
   // Create a distribution of 10 values from -5 to 4.
