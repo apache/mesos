@@ -45,6 +45,16 @@ extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;
 extern const Duration RESOURCE_MONITORING_INTERVAL;
 
+// The minimum interval the slave waits before retrying registration.
+extern const Duration REGISTER_RETRY_INTERVAL_MIN;
+
+// The maximum interval the slave waits before retrying registration.
+// Note that this value has to be << 'MIN_SLAVE_REREGISTER_TIMEOUT'
+// declared in 'master/constants.hpp'. This helps the slave to retry
+// (re-)registration multiple times between when the master finishes
+// recovery and when it times out slave re-registration.
+extern const Duration REGISTER_RETRY_INTERVAL_MAX;
+
 // Minimum free disk capacity enforced by the garbage collector.
 extern const double GC_DISK_HEADROOM;
 

@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdlib.h> // For random().
 
 #include <algorithm>
 #include <iomanip>
@@ -620,7 +621,7 @@ void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
 }
 
 
-void Slave::doReliableRegistration()
+void Slave::doReliableRegistration(const Duration& duration)
 {
   if (master.isNone()) {
     LOG(INFO) << "Skipping registration because no master present";
@@ -723,7 +724,17 @@ void Slave::doReliableRegistration()
   }
 
   // Retry registration if necessary.
-  delay(Seconds(1), self(), &Slave::doReliableRegistration);
+  Duration next = std::min(
+      REGISTER_RETRY_INTERVAL_MIN + duration * ((double) ::random() / RAND_MAX),
+      REGISTER_RETRY_INTERVAL_MAX);
+
+  VLOG(1) << "Will retry registration in " << next << " if necessary";
+
+  // Increase next backoff duration exponentially until the maximum
+  // is reached.
+  Duration duration_ = std::min(duration * 2, REGISTER_RETRY_INTERVAL_MAX);
+
+  delay(next, self(), &Slave::doReliableRegistration, duration_);
 }
 
 

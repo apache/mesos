@@ -226,6 +226,7 @@ public:
   std::string recover;
   Duration recovery_timeout;
   bool strict;
+  Duration register_retry_interval_min;
 #ifdef __linux__
   std::string cgroups_hierarchy;
   std::string cgroups_root;
