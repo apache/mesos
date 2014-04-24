@@ -136,6 +136,11 @@ TEST(Metrics, Snapshot)
 
   UPID upid("metrics", process::ip(), process::port());
 
+  Clock::pause();
+
+  // Advance the clock to avoid rate limit.
+  Clock::advance(Seconds(1));
+
   // Before adding any metrics, the response should be empty.
   Future<Response> response = http::get(upid, "snapshot");
 
@@ -153,6 +158,9 @@ TEST(Metrics, Snapshot)
   AWAIT_READY(metrics::add(gauge));
   AWAIT_READY(metrics::add(counter));
 
+  // Advance the clock to avoid rate limit.
+  Clock::advance(Seconds(1));
+
   // Get the snapshot.
   response = http::get(upid, "snapshot");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
@@ -165,6 +173,9 @@ TEST(Metrics, Snapshot)
   // Remove the metrics and ensure they are no longer in the snapshot.
   AWAIT_READY(metrics::remove(gauge));
   AWAIT_READY(metrics::remove(counter));
+
+  // Advance the clock to avoid rate limit.
+  Clock::advance(Seconds(1));
 
   response = http::get(upid, "snapshot");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
@@ -180,6 +191,10 @@ TEST(Metrics, SnapshotStatistics)
 {
   UPID upid("metrics", process::ip(), process::port());
 
+  Clock::pause();
+
+  // Advance the clock to avoid rate limit.
+  Clock::advance(Seconds(1));
   Future<Response> response = http::get(upid, "snapshot");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
