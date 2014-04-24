@@ -403,6 +403,17 @@ Future<Nothing> MesosContainerizerProcess::launch(
     return Failure("Container already started");
   }
 
+  // TODO(tillt): The slave should expose which containerization
+  // mechanisms it supports to avoid scheduling tasks that it cannot
+  // run.
+  const CommandInfo& command = executorInfo.command();
+  if (command.has_container()) {
+    // We return a Failure as this containerizer does not support
+    // handling ContainerInfo. Users have to be made aware of this
+    // lack of support to prevent confusion in the task configuration.
+    return Failure("ContainerInfo is not supported");
+  }
+
   Owned<Promise<containerizer::Termination> > promise(
       new Promise<containerizer::Termination>());
   promises.put(containerId, promise);
