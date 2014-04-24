@@ -29,6 +29,7 @@
 #include <process/process.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/hashset.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -118,6 +119,8 @@ public:
   // NOTE: Containerizers will automatically destroy containers on executor
   // termination and manual destruction is not necessary. See wait().
   virtual void destroy(const ContainerID& containerId) = 0;
+
+  virtual process::Future<hashset<ContainerID> > containers() = 0;
 };
 
 

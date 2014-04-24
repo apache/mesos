@@ -82,6 +82,8 @@ public:
 
   virtual void destroy(const ContainerID& containerId);
 
+  virtual process::Future<hashset<ContainerID> > containers();
+
   MOCK_METHOD1(
       recover,
       process::Future<Nothing>(const Option<slave::state::SlaveState>&));
@@ -99,7 +101,7 @@ private:
 
   hashmap<ExecutorID, Executor*> executors;
 
-  hashmap<std::pair<FrameworkID, ExecutorID>, ContainerID> containers;
+  hashmap<std::pair<FrameworkID, ExecutorID>, ContainerID> containers_;
   hashmap<ContainerID, process::Owned<MesosExecutorDriver> > drivers;
   hashmap<ContainerID,
           process::Owned<process::Promise<slave::Containerizer::Termination> > > promises;

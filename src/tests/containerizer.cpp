@@ -92,7 +92,7 @@ Future<Nothing> TestContainerizer::launch(
   // easy destroy from tests.
   std::pair<FrameworkID, ExecutorID> key(executorInfo.framework_id(),
                                          executorInfo.executor_id());
-  containers[key] = containerId;
+  containers_[key] = containerId;
 
   Executor* executor = executors[executorInfo.executor_id()];
   Owned<MesosExecutorDriver> driver(new MesosExecutorDriver(executor));
@@ -141,7 +141,7 @@ Future<slave::Containerizer::Termination> TestContainerizer::wait(
     const ContainerID& containerId)
 {
   CHECK(promises.contains(containerId))
-    << "Container " << containerId << "not started";
+    << "Container " << containerId << " not started";
 
   return promises[containerId]->future();
 }
@@ -152,12 +152,12 @@ void TestContainerizer::destroy(
     const ExecutorID& executorId)
 {
   std::pair<FrameworkID, ExecutorID> key(frameworkId, executorId);
-  if (!containers.contains(key)) {
+  if (!containers_.contains(key)) {
     LOG(WARNING) << "Ignoring destroy of unknown container for executor '"
                   << executorId << "' of framework '" << frameworkId << "'";
     return;
   }
-  destroy(containers[key]);
+  destroy(containers_[key]);
 }
 
 
@@ -175,6 +175,12 @@ void TestContainerizer::destroy(const ContainerID& containerId)
   promises[containerId]->set(
       slave::Containerizer::Termination(0, false, "Killed executor"));
   promises.erase(containerId);
+}
+
+
+Future<hashset<ContainerID> > TestContainerizer::containers()
+{
+  return promises.keys();
 }
 
 
