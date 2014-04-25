@@ -557,7 +557,10 @@ inline Try<Nothing> Cluster::Slaves::stop(
   Slave slave = slaves[pid];
 
   if (shutdown) {
-    process::dispatch(slave.slave, &slave::Slave::shutdown, process::UPID());
+    process::dispatch(slave.slave,
+                      &slave::Slave::shutdown,
+                      process::UPID(),
+                      "");
   } else {
     process::terminate(slave.slave);
   }

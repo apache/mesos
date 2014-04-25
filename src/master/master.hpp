@@ -163,7 +163,8 @@ public:
       const ExecutorID& executorId,
       int32_t status);
   void shutdownSlave(
-      const SlaveID& slaveId);
+      const SlaveID& slaveId,
+      const std::string& message);
 
   // TODO(bmahler): It would be preferred to use a unique libprocess
   // Process identifier (PID is not sufficient) for identifying the

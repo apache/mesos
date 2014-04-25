@@ -87,7 +87,7 @@ public:
 
   virtual ~Slave();
 
-  void shutdown(const process::UPID& from);
+  void shutdown(const process::UPID& from, const std::string& message);
 
   void registered(const process::UPID& from, const SlaveID& slaveId);
   void reregistered(const process::UPID& from, const SlaveID& slaveId);

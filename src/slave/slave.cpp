@@ -344,7 +344,8 @@ void Slave::initialize()
       &ExecutorToFrameworkMessage::data);
 
   install<ShutdownMessage>(
-      &Slave::shutdown);
+      &Slave::shutdown,
+      &ShutdownMessage::message);
 
   // Install the ping message handler.
   install("PING", &Slave::ping);
@@ -416,7 +417,7 @@ void Slave::finalize()
 }
 
 
-void Slave::shutdown(const UPID& from)
+void Slave::shutdown(const UPID& from, const string& message)
 {
   // Allow shutdown message only if
   // 1) Its a message received from the registered master or
@@ -428,7 +429,8 @@ void Slave::shutdown(const UPID& from)
     return;
   }
 
-  LOG(INFO) << "Slave asked to shut down by " << from;
+  LOG(INFO) << "Slave asked to shut down by " << from
+            << (message.empty() ? "" : " because '" + message + "'");
 
   state = TERMINATING;
 

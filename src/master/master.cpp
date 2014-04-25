@@ -192,7 +192,7 @@ protected:
 
   void shutdown()
   {
-    dispatch(master, &Master::shutdownSlave, slaveId);
+    dispatch(master, &Master::shutdownSlave, slaveId, "health check timed out");
   }
 
 private:
@@ -2127,7 +2127,12 @@ void Master::_registerSlave(
                << " (" << slaveInfo.hostname() << ") was not admitted, "
                << "asking to shut down";
     slaves.deactivated.put(slaveInfo.id(), Nothing());
-    send(pid, ShutdownMessage());
+
+    ShutdownMessage message;
+    message.set_message(
+        "Slave attempted to register but got duplicate slave id " +
+        stringify(slaveInfo.id()));
+    send(pid, message);
   } else {
     Slave* slave = new Slave(slaveInfo, slaveInfo.id(), pid, Clock::now());
 
@@ -2158,7 +2163,10 @@ void Master::reregisterSlave(
     LOG(WARNING) << "Slave " << slaveId << " at " << from
                  << " (" << slaveInfo.hostname() << ") attempted to "
                  << "re-register after deactivation; shutting it down";
-    reply(ShutdownMessage());
+
+    ShutdownMessage message;
+    message.set_message("Slave attempted to re-register after deactivation");
+    reply(message);
     return;
   }
 
@@ -2270,7 +2278,12 @@ void Master::_reregisterSlave(
                  << pid << " (" << slaveInfo.hostname() << ") could not be"
                  << " readmitted; shutting it down";
     slaves.deactivated.put(slaveInfo.id(), Nothing());
-    send(pid, ShutdownMessage());
+
+    ShutdownMessage message;
+    message.set_message(
+        "Slave attempted to re-register with unknown slave id " +
+        stringify(slaveInfo.id()));
+    send(pid, message);
   } else {
     // Re-admission succeeded.
     Slave* slave = new Slave(slaveInfo, slaveInfo.id(), pid, Clock::now());
@@ -2330,7 +2343,11 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
                  << " from deactivated slave " << pid
                  << " with id " << update.slave_id() << " ; asking slave "
                  << " to shutdown";
-    send(pid, ShutdownMessage());
+
+    ShutdownMessage message;
+    message.set_message("Status update from unknown slave");
+    send(pid, message);
+
     stats.invalidStatusUpdates++;
     return;
   }
@@ -2416,7 +2433,10 @@ void Master::exitedExecutor(
                  << "' of framework " << frameworkId
                  << " on deactivated slave " << slaveId
                  << " ; asking slave to shutdown";
-    reply(ShutdownMessage());
+
+    ShutdownMessage message;
+    message.set_message("Executor exited message from unknown slave");
+    reply(message);
     return;
   }
 
@@ -2467,7 +2487,7 @@ void Master::exitedExecutor(
 }
 
 
-void Master::shutdownSlave(const SlaveID& slaveId)
+void Master::shutdownSlave(const SlaveID& slaveId, const string& message)
 {
   if (!slaves.activated.contains(slaveId)) {
     // Possible when the SlaveObserver dispatched to shutdown a slave,
@@ -2481,7 +2501,10 @@ void Master::shutdownSlave(const SlaveID& slaveId)
 
   LOG(WARNING) << "Shutting down slave " << slaveId << " at " << slave->pid;
 
-  send(slave->pid, ShutdownMessage());
+  ShutdownMessage message_;
+  message_.set_message(message);
+  send(slave->pid, message_);
+
   removeSlave(slave);
 }
 
