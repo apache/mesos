@@ -69,7 +69,7 @@ TEST_F(MesosContainerizerProcessTest, Simple) {
 
   EXPECT_STREQ(
       "/usr/bin/env "
-      "MESOS_EXECUTOR_URIS=\"hdfs:///uri+0\" "
+      "MESOS_EXECUTOR_URIS=\"hdfs:///uri+0X\" "
       "MESOS_WORK_DIRECTORY=/tmp/directory "
       "MESOS_USER=user "
       "MESOS_FRAMEWORKS_HOME=/tmp/frameworks "
@@ -99,7 +99,7 @@ TEST_F(MesosContainerizerProcessTest, MultipleURIs) {
 
   EXPECT_STREQ(
       "/usr/bin/env "
-      "MESOS_EXECUTOR_URIS=\"hdfs:///uri1+0 hdfs:///uri2+1\" "
+      "MESOS_EXECUTOR_URIS=\"hdfs:///uri1+0X hdfs:///uri2+1X\" "
       "MESOS_WORK_DIRECTORY=/tmp/directory "
       "MESOS_USER=user "
       "MESOS_FRAMEWORKS_HOME=/tmp/frameworks "
@@ -125,7 +125,7 @@ TEST_F(MesosContainerizerProcessTest, NoUser) {
 
   EXPECT_STREQ(
       "/usr/bin/env "
-      "MESOS_EXECUTOR_URIS=\"hdfs:///uri+0\" "
+      "MESOS_EXECUTOR_URIS=\"hdfs:///uri+0X\" "
       "MESOS_WORK_DIRECTORY=/tmp/directory "
       "MESOS_FRAMEWORKS_HOME=/tmp/frameworks "
       "HADOOP_HOME=/tmp/hadoop",
@@ -151,7 +151,7 @@ TEST_F(MesosContainerizerProcessTest, EmptyHadoop) {
 
   EXPECT_STREQ(
       "/usr/bin/env "
-      "MESOS_EXECUTOR_URIS=\"hdfs:///uri+0\" "
+      "MESOS_EXECUTOR_URIS=\"hdfs:///uri+0X\" "
       "MESOS_WORK_DIRECTORY=/tmp/directory "
       "MESOS_USER=user "
       "MESOS_FRAMEWORKS_HOME=/tmp/frameworks",
@@ -176,9 +176,67 @@ TEST_F(MesosContainerizerProcessTest, NoHadoop) {
 
   EXPECT_STREQ(
       "/usr/bin/env "
-      "MESOS_EXECUTOR_URIS=\"hdfs:///uri+0\" "
+      "MESOS_EXECUTOR_URIS=\"hdfs:///uri+0X\" "
       "MESOS_WORK_DIRECTORY=/tmp/directory "
       "MESOS_USER=user "
       "MESOS_FRAMEWORKS_HOME=/tmp/frameworks",
+      command.c_str());
+}
+
+
+TEST_F(MesosContainerizerProcessTest, NoExtract)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri");
+  uri.set_executable(false);
+  uri.set_extract(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+  Option<string> user = "user";
+
+  Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+  flags.hadoop_home = "/tmp/hadoop";
+
+  string command = buildCommand(commandInfo, directory, user, flags);
+
+  EXPECT_STREQ(
+      "/usr/bin/env "
+      "MESOS_EXECUTOR_URIS=\"hdfs:///uri+0N\" "
+      "MESOS_WORK_DIRECTORY=/tmp/directory "
+      "MESOS_USER=user "
+      "MESOS_FRAMEWORKS_HOME=/tmp/frameworks "
+      "HADOOP_HOME=/tmp/hadoop",
+      command.c_str());
+}
+
+
+TEST_F(MesosContainerizerProcessTest, NoExtractExecutable)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri");
+  uri.set_executable(true);
+  uri.set_extract(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+  Option<string> user = "user";
+
+  Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+  flags.hadoop_home = "/tmp/hadoop";
+
+  string command = buildCommand(commandInfo, directory, user, flags);
+
+  EXPECT_STREQ(
+      "/usr/bin/env "
+      "MESOS_EXECUTOR_URIS=\"hdfs:///uri+1N\" "
+      "MESOS_WORK_DIRECTORY=/tmp/directory "
+      "MESOS_USER=user "
+      "MESOS_FRAMEWORKS_HOME=/tmp/frameworks "
+      "HADOOP_HOME=/tmp/hadoop",
       command.c_str());
 }

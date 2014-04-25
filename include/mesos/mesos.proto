@@ -125,13 +125,15 @@ message FrameworkInfo {
  * uri is set, executable file permission is set on the downloaded file.
  * Otherwise, if the downloaded file has a recognized archive extension
  * (currently [compressed] tar and zip) it is extracted into the executor's
- * working directory.  In addition, any environment variables are set before
- * executing the command (so they can be used to "parameterize" your command).
+ * working directory. This extraction can be disabled by setting `extract` to
+ * false. In addition, any environment variables are set before executing
+ * the command (so they can be used to "parameterize" your command).
  */
 message CommandInfo {
   message URI {
     required string value = 1;
     optional bool executable = 2;
+    optional bool extract = 3 [default = true];
   }
 
   repeated URI uris = 1;
