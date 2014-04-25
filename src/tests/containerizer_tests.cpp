@@ -72,7 +72,7 @@ TEST_F(MesosContainerizerProcessTest, Simple)
   map<string, string> environment =
     fetcherEnvironment(commandInfo, directory, user, flags);
   EXPECT_EQ(5u, environment.size());
-  EXPECT_EQ("hdfs:///uri+0", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
@@ -103,7 +103,7 @@ TEST_F(MesosContainerizerProcessTest, MultipleURIs)
 
   EXPECT_EQ(5u, environment.size());
   EXPECT_EQ(
-      "hdfs:///uri1+0 hdfs:///uri2+1", environment["MESOS_EXECUTOR_URIS"]);
+      "hdfs:///uri1+0X hdfs:///uri2+1X", environment["MESOS_EXECUTOR_URIS"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
@@ -129,7 +129,7 @@ TEST_F(MesosContainerizerProcessTest, NoUser)
     fetcherEnvironment(commandInfo, directory, None(), flags);
 
   EXPECT_EQ(4u, environment.size());
-  EXPECT_EQ("hdfs:///uri+0", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
   EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
@@ -155,7 +155,7 @@ TEST_F(MesosContainerizerProcessTest, EmptyHadoop)
     fetcherEnvironment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(4u, environment.size());
-  EXPECT_EQ("hdfs:///uri+0", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
@@ -180,8 +180,62 @@ TEST_F(MesosContainerizerProcessTest, NoHadoop)
     fetcherEnvironment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(4u, environment.size());
-  EXPECT_EQ("hdfs:///uri+0", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+}
+
+
+TEST_F(MesosContainerizerProcessTest, NoExtract)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri");
+  uri.set_executable(false);
+  uri.set_extract(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+  Option<string> user = "user";
+
+  Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+  flags.hadoop_home = "/tmp/hadoop";
+
+  map<string, string> environment =
+    fetcherEnvironment(commandInfo, directory, user, flags);
+  EXPECT_EQ(5u, environment.size());
+  EXPECT_EQ("hdfs:///uri+0N", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
+  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
+  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+}
+
+
+TEST_F(MesosContainerizerProcessTest, NoExtractExecutable)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri");
+  uri.set_executable(true);
+  uri.set_extract(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+  Option<string> user = "user";
+
+  Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+  flags.hadoop_home = "/tmp/hadoop";
+
+  map<string, string> environment =
+    fetcherEnvironment(commandInfo, directory, user, flags);
+  EXPECT_EQ(5u, environment.size());
+  EXPECT_EQ("hdfs:///uri+1N", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
+  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
+  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
 }

@@ -64,7 +64,8 @@ map<string, string> fetcherEnvironment(
   string uris = "";
   foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
     uris += uri.value() + "+" +
-            (uri.has_executable() && uri.executable() ? "1" : "0");
+            (uri.has_executable() && uri.executable() ? "1" : "0") +
+            (uri.extract() ? "X" : "N");
     uris += " ";
   }
   // Remove extra space at the end.
