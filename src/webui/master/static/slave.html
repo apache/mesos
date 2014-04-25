@@ -27,20 +27,20 @@
               tooltip-placement="right"></i>
           </span>
         </dd>
-        <dt>Master:</dt>
-        <dd>{{state.master_hostname}}</dd>
-        <dt>Started:</dt>
-        <dd>
-          <m-timestamp value="{{state.start_time * 1000}}"></m-timestamp>
-        </dd>
+        <dt>Slave:</dt>
+        <dd>{{state.hostname}}</dd>
+        <dt>Version:</dt>
+        <dd>{{state.version}}</dd>
         <dt>Built:</dt>
         <dd>
           <m-timestamp value="{{state.build_time * 1000}}"></m-timestamp>
         </dd>
-        <dt>Host:</dt>
+        <dt>Started:</dt>
         <dd>
-          {{state.hostname}}
+          <m-timestamp value="{{state.start_time * 1000}}"></m-timestamp>
         </dd>
+        <dt>Master:</dt>
+        <dd>{{state.master_hostname}}</dd>
       </dl>
       <p><a href="" ng-click="log($event)">LOG</a></p>
 
