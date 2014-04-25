@@ -48,6 +48,8 @@
 #include "common/date_utils.hpp"
 #include "common/protobuf_utils.hpp"
 
+#include "credentials/credentials.hpp"
+
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
@@ -297,61 +299,29 @@ void Master::initialize()
             << "Must be within [0%-100%]";
   }
 
-  // Validate authentication flags.
+  // Log authentication state.
   if (flags.authenticate) {
-    LOG(INFO) << "Master only allowing authenticated frameworks to register!";
-
-    if (flags.credentials.isNone()) {
-      EXIT(1) << "Authentication requires a credentials file"
-              << " (see --credentials flag)";
-    }
+    LOG(INFO) << "Master only allowing authenticated frameworks to register";
   } else {
-    LOG(INFO) << "Master allowing unauthenticated frameworks to register!!";
+    LOG(INFO) << "Master allowing unauthenticated frameworks to register";
   }
 
   // Load credentials.
   if (flags.credentials.isSome()) {
-    vector<Credential> credentials;
-
-    const std::string& path =
-      strings::remove(flags.credentials.get(), "file://", strings::PREFIX);
-
-    Try<string> read = os::read(path);
-    if (read.isError()) {
-      EXIT(1) << "Failed to read credentials file '" << path
-              << "': " << read.error();
-    } else if (read.get().empty()) {
-      LOG(WARNING) << "Empty credentials file '" << path << "'. "
-                   << "!!No frameworks will be allowed to register!!";
-    } else {
-      Try<os::Permissions> permissions = os::permissions(path);
-      if (permissions.isError()) {
-        LOG(WARNING) << "Failed to stat credentials file '" << path
-                     << "': " << permissions.error();
-      } else if (permissions.get().others.rwx) {
-        LOG(WARNING) << "Permissions on credentials file '" << path
-                     << "' are too open. It is recommended that your "
-                     << "credentials file is NOT accessible by others.";
-      }
-
-      foreach (const string& line, strings::tokenize(read.get(), "\n")) {
-        const vector<string>& pairs = strings::tokenize(line, " ");
-        if (pairs.size() != 2) {
-          EXIT(1)
-            << "Invalid credential format at line: " << (credentials.size() + 1)
-            << " (see --credentials flag)";
-        }
-
-        // Add the credential.
-        Credential credential;
-        credential.set_principal(pairs[0]);
-        credential.set_secret(pairs[1]);
-
-        credentials.push_back(credential);
-      }
+    const string& path = flags.credentials.get();
+    Result<vector<Credential> > credentials = credentials::read(path);
+    if (credentials.isError()) {
+      EXIT(1) << credentials.error() << " (see --credentials flag)";
+    } else if (credentials.isNone()) {
+      EXIT(1) << "Credentials file must contain at least one credential"
+              << " (see --credentials flag)";
     }
+
     // Give Authenticator access to credentials.
-    sasl::secrets::load(credentials);
+    sasl::secrets::load(credentials.get());
+  } else if (flags.authenticate) {
+    EXIT(1) << "Authentication requires a credentials file"
+            << " (see --credentials flag)";
   }
 
   hashmap<string, RoleInfo> roleInfos;
