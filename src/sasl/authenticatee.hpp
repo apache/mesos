@@ -377,7 +377,7 @@ private:
 };
 
 
-Authenticatee::Authenticatee(
+inline Authenticatee::Authenticatee(
     const Credential& credential,
     const process::UPID& client)
 {
@@ -386,7 +386,7 @@ Authenticatee::Authenticatee(
 }
 
 
-Authenticatee::~Authenticatee()
+inline Authenticatee::~Authenticatee()
 {
   process::terminate(process);
   process::wait(process);
@@ -394,7 +394,8 @@ Authenticatee::~Authenticatee()
 }
 
 
-process::Future<bool> Authenticatee::authenticate(const process::UPID& pid)
+inline process::Future<bool> Authenticatee::authenticate(
+    const process::UPID& pid)
 {
   return process::dispatch(process, &AuthenticateeProcess::authenticate, pid);
 }

@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
@@ -43,8 +61,8 @@ master::Flags MesosTest::CreateMasterFlags()
 
   flags.work_dir = directory.get();
 
-  // Enable authentication.
-  flags.authenticate = true;
+  flags.authenticate_frameworks = true;
+  flags.authenticate_slaves = true;
 
   // Create a default credentials file.
   const std::string& path = path::join(directory.get(), "credentials");
@@ -75,6 +93,17 @@ slave::Flags MesosTest::CreateSlaveFlags()
   flags.work_dir = directory.get();
 
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  // Create a default credential file.
+  const std::string& path = path::join(directory.get(), "credential");
+
+  const std::string& credential =
+    DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
+
+  CHECK_SOME(os::write(path, credential))
+    << "Failed to write slave credential to '" << path << "'";
+
+  flags.credential = "file://" + path;
 
   // TODO(vinod): Consider making this true and fixing the tests.
   flags.checkpoint = false;

@@ -290,7 +290,6 @@ void Master::initialize()
   if (limit.isError()) {
     EXIT(1) << "Invalid value '" << flags.recovery_slave_removal_limit << "' "
             << "for --recovery_slave_removal_percent_limit: " << limit.error();
-
   }
 
   if (limit.get() < 0.0 || limit.get() > 100.0) {
@@ -300,10 +299,15 @@ void Master::initialize()
   }
 
   // Log authentication state.
-  if (flags.authenticate) {
+  if (flags.authenticate_frameworks) {
     LOG(INFO) << "Master only allowing authenticated frameworks to register";
   } else {
     LOG(INFO) << "Master allowing unauthenticated frameworks to register";
+  }
+  if (flags.authenticate_slaves) {
+    LOG(INFO) << "Master only allowing authenticated slaves to register";
+  } else {
+    LOG(INFO) << "Master allowing unauthenticated slaves to register";
   }
 
   // Load credentials.
@@ -319,7 +323,7 @@ void Master::initialize()
 
     // Give Authenticator access to credentials.
     sasl::secrets::load(credentials.get());
-  } else if (flags.authenticate) {
+  } else if (flags.authenticate_frameworks || flags.authenticate_slaves) {
     EXIT(1) << "Authentication requires a credentials file"
             << " (see --credentials flag)";
   }
@@ -954,7 +958,7 @@ void Master::registerFramework(
     return;
   }
 
-  if (flags.authenticate && !authenticated.contains(from)) {
+  if (flags.authenticate_frameworks && !authenticated.contains(from)) {
     // This could happen if another authentication request came
     // through before we are here or if a framework tried to register
     // without authentication.
@@ -1038,12 +1042,12 @@ void Master::reregisterFramework(
     return;
   }
 
-  if (flags.authenticate && !authenticated.contains(from)) {
+  if (flags.authenticate_frameworks && !authenticated.contains(from)) {
     // This could happen if another authentication request came
     // through before we are here or if a framework tried to
     // re-register without authentication.
-    LOG(WARNING) << "Refusing registration of framework at " << from
-                  << " because it is not authenticated";
+    LOG(WARNING) << "Refusing re-registration of framework at " << from
+                 << " because it is not authenticated";
     FrameworkErrorMessage message;
     message.set_message("Framework '" + frameworkInfo.id().value() + "' at " +
                         stringify(from) + " is not authenticated.");
@@ -1261,6 +1265,10 @@ void Master::disconnect(Slave* slave)
   // Mark the slave as disconnected and remove it from the allocator.
   slave->disconnected = true;
   allocator->slaveDisconnected(slave->id);
+
+  // Remove the slave from authenticated. This is safe because
+  // a slave will always reauthenticate before (re-)registering.
+  authenticated.erase(slave->pid);
 
   // If a slave is checkpointing, remove all non-checkpointing
   // frameworks from the slave.
@@ -1494,9 +1502,10 @@ struct ExecutorInfoChecker : TaskInfoVisitor
     }
 
     if (task.has_executor()) {
-      if (slave.hasExecutor(framework.id, task.executor().executor_id())) {
+      const ExecutorID& executorId = task.executor().executor_id();
+      if (slave.hasExecutor(framework.id, executorId)) {
         const Option<ExecutorInfo> executorInfo =
-          slave.executors.get(framework.id).get().get(task.executor().executor_id());
+          slave.executors.get(framework.id).get().get(executorId);
 
         if (!(task.executor() == executorInfo.get())) {
           return "Task has invalid ExecutorInfo (existing ExecutorInfo"
@@ -2061,6 +2070,27 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
 {
   ++metrics.slave_registration_messages;
 
+  if (authenticating.contains(from)) {
+    LOG(INFO) << "Queuing up registration request from " << from
+              << " because authentication is still in progress";
+
+    authenticating[from]
+      .onReady(defer(self(), &Self::registerSlave, from, slaveInfo));
+    return;
+  }
+
+  if (flags.authenticate_slaves && !authenticated.contains(from)) {
+    // This could happen if another authentication request came
+    // through before we are here or if a slave tried to register
+    // without authentication.
+    LOG(WARNING) << "Refusing registration of slave at " << from
+                 << " because it is not authenticated";
+    ShutdownMessage message;
+    message.set_message("Slave is not authenticated");
+    send(from, message);
+    return;
+  }
+
   // Check if this slave is already registered (because it retries).
   foreachvalue (Slave* slave, slaves.activated) {
     if (slave->pid == from) {
@@ -2153,6 +2183,35 @@ void Master::reregisterSlave(
     const vector<Archive::Framework>& completedFrameworks)
 {
   ++metrics.slave_reregistration_messages;
+
+  if (authenticating.contains(from)) {
+    LOG(INFO) << "Queuing up re-registration request from " << from
+              << " because authentication is still in progress";
+
+    authenticating[from]
+      .onReady(defer(self(),
+                     &Self::reregisterSlave,
+                     from,
+                     slaveId,
+                     slaveInfo,
+                     executorInfos,
+                     tasks,
+                     completedFrameworks));
+    return;
+  }
+
+  if (flags.authenticate_slaves && !authenticated.contains(from)) {
+    // This could happen if another authentication request came
+    // through before we are here or if a slave tried to
+    // re-register without authentication.
+    LOG(WARNING) << "Refusing re-registration of slave at " << from
+                 << " because it is not authenticated";
+    ShutdownMessage message;
+    message.set_message("Slave is not authenticated");
+    send(from, message);
+    return;
+  }
+
 
   if (slaves.deactivated.get(slaveInfo.id()).isSome()) {
     // To compensate for the case where a non-strict registrar is
@@ -2696,11 +2755,23 @@ void Master::offer(const FrameworkID& frameworkId,
 // 'authenticate' message doesn't contain the 'FrameworkID'.
 void Master::authenticate(const UPID& from, const UPID& pid)
 {
-  // Deactivate the framework if it's already registered.
+  // Deactivate the framework/slave if it's already registered.
+  // TODO(adam-mesos): MESOS-1081: Do not deactivate the current
+  // framework/slave before we find out if the new one is legit.
+  bool found = false;
   foreachvalue (Framework* framework, frameworks.activated) {
     if (framework->pid == pid) {
       deactivate(framework);
+      found = true;
       break;
+    }
+  }
+  if (!found) {
+    foreachvalue (Slave* slave, slaves.activated) {
+      if (slave->pid == pid) {
+        disconnect(slave);
+        break;
+      }
     }
   }
 
@@ -2721,7 +2792,7 @@ void Master::authenticate(const UPID& from, const UPID& pid)
     return;
   }
 
-  LOG(INFO) << "Authenticating framework at " << pid;
+  LOG(INFO) << "Authenticating " << pid;
 
   // Create a promise to capture the entire "authenticating"
   // procedure. We'll set this _after_ we finish _authenticate.
@@ -2756,12 +2827,12 @@ void Master::_authenticate(
         ? "Refused authentication"
         : (future.isFailed() ? future.failure() : "future discarded");
 
-    LOG(WARNING) << "Failed to authenticate framework at " << pid
+    LOG(WARNING) << "Failed to authenticate " << pid
                  << ": " << error;
 
     promise->fail(error);
   } else {
-    LOG(INFO) << "Successfully authenticated framework at " << pid;
+    LOG(INFO) << "Successfully authenticated " << pid;
 
     promise->set(Nothing());
     authenticated.insert(pid);
@@ -3147,7 +3218,6 @@ void Master::removeFramework(Framework* framework)
 
   roles[framework->info.role()]->removeFramework(framework);
 
-
   // Remove the framework from authenticated.
   authenticated.erase(framework->pid);
 
@@ -3408,6 +3478,7 @@ void Master::removeSlave(Slave* slave)
   slaves.removing.insert(slave->id);
   slaves.activated.erase(slave->id);
   slaves.deactivated.put(slave->id, Nothing());
+  authenticated.erase(slave->pid);
 
   // Kill the slave observer.
   terminate(slave->observer);
@@ -3415,7 +3486,6 @@ void Master::removeSlave(Slave* slave)
   delete slave->observer;
 
   // TODO(benh): unlink(slave->pid);
-
 
   // Remove this slave from the registrar. Once this is completed, we
   // can forward the LOST task updates to the frameworks and notify

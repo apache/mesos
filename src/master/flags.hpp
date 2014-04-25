@@ -183,11 +183,18 @@ public:
         "of the form 'role=weight,role=weight'. Weights\n"
         "are used to indicate forms of priority.");
 
-    add(&Flags::authenticate,
+    // TODO(adam-mesos): Deprecate --authenticate for --authenticate_frameworks.
+    add(&Flags::authenticate_frameworks,
         "authenticate",
         "If authenticate is 'true' only authenticated frameworks are allowed\n"
         "to register. If 'false' unauthenticated frameworks are also\n"
         "allowed to register.",
+        false);
+
+    add(&Flags::authenticate_slaves,
+        "authenticate_slaves",
+        "If 'true' only authenticated slaves are allowed to register.\n"
+        "If 'false' unauthenticated slaves are also allowed to register.",
         false);
 
     add(&Flags::credentials,
@@ -218,7 +225,8 @@ public:
   Option<std::string> cluster;
   Option<std::string> roles;
   Option<std::string> weights;
-  bool authenticate;
+  bool authenticate_frameworks;
+  bool authenticate_slaves;
   Option<std::string> credentials;
 };
 

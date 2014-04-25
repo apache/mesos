@@ -1737,7 +1737,12 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 // all the tasks of the old slave to LOST.
 TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  master::Flags masterFlags = this->CreateMasterFlags();
+
+  // Disable authentication so the spoofed re-registration below works.
+  masterFlags.authenticate_slaves = false;
+
+  Try<PID<Master> > master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<RegisterSlaveMessage> registerSlaveMessage =

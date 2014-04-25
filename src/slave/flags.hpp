@@ -204,6 +204,12 @@ public:
         "no cgroup limits are set, they are inherited from the root mesos\n"
         "cgroup.");
 #endif
+
+    add(&Flags::credential,
+        "credential",
+        "Path to a file containing a single line with\n"
+        "the 'principal' and 'secret' separated by whitespace.\n"
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'");
   }
 
   bool version;
@@ -234,6 +240,7 @@ public:
   bool cgroups_enable_cfs;
   Option<std::string> slave_subsystems;
 #endif
+  Option<std::string> credential;
 };
 
 } // namespace mesos {

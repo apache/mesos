@@ -63,7 +63,11 @@
 #include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
 
+#include "credentials/credentials.hpp"
+
 #include "logging/logging.hpp"
+
+#include "sasl/authenticatee.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
@@ -107,7 +111,12 @@ Slave::Slave(const slave::Flags& _flags,
     monitor(containerizer),
     statusUpdateManager(new StatusUpdateManager()),
     metaDir(paths::getMetaRootDir(flags.work_dir)),
-    recoveryErrors(0) {}
+    recoveryErrors(0),
+    credential(None()),
+    authenticatee(NULL),
+    authenticating(None()),
+    authenticated(false),
+    reauthenticate(false) {}
 
 
 Slave::~Slave()
@@ -121,6 +130,7 @@ Slave::~Slave()
     delete framework;
   }
 
+  delete authenticatee;
   delete statusUpdateManager;
 }
 
@@ -206,6 +216,22 @@ void Slave::initialize()
     }
   }
 #endif // __linux__
+
+  if (flags.credential.isSome()) {
+    const string& path = flags.credential.get();
+    Result<vector<Credential> > credentials = credentials::read(path);
+    if (credentials.isError()) {
+      EXIT(1) << credentials.error() << " (see --credential flag)";
+    } else if (credentials.isNone()) {
+      EXIT(1) << "Empty credential file " << path << " (see --credential flag)";
+    } else if (credentials.get().size() != 1) {
+      EXIT(1) << "Not expecting multiple credentials (see --credential flag)";
+    } else {
+      credential = credentials.get()[0];
+      LOG(INFO) << "Slave using credential for: "
+                << credential.get().principal();
+    }
+  }
 
   // Ensure slave work directory exists.
   CHECK_SOME(os::mkdir(flags.work_dir))
@@ -515,7 +541,15 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
       return;
     }
 
-    doReliableRegistration();
+    if (credential.isSome()) {
+      // Authenticate with the master.
+      authenticate();
+    } else {
+      // Proceed with registration without authentication.
+      LOG(INFO) << "No credentials provided."
+                << " Attempting to register without authentication";
+      doReliableRegistration();
+    }
   } else {
     LOG(INFO) << "Lost leading master";
   }
@@ -524,6 +558,105 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
   LOG(INFO) << "Detecting new master";
   detector->detect(_master.get())
     .onAny(defer(self(), &Slave::detected, lambda::_1));
+}
+
+
+void Slave::authenticate()
+{
+  authenticated = false;
+
+  if (master.isNone()) {
+    return;
+  }
+
+  if (authenticating.isSome()) {
+    // Authentication is in progress. Try to cancel it.
+    // Note that it is possible that 'authenticating' is ready
+    // and the dispatch to '_authenticate' is enqueued when we
+    // are here, making the 'discard' here a no-op. This is ok
+    // because we set 'reauthenticate' here which enforces a retry
+    // in '_authenticate'.
+    Future<bool> authenticating_ = authenticating.get();
+    authenticating_.discard();
+    reauthenticate = true;
+    return;
+  }
+
+  LOG(INFO) << "Authenticating with master " << master.get();
+
+  CHECK_SOME(credential);
+
+  CHECK(authenticatee == NULL);
+  authenticatee = new sasl::Authenticatee(credential.get(), self());
+
+  authenticating = authenticatee->authenticate(master.get())
+    .onAny(defer(self(), &Self::_authenticate));
+
+  delay(Seconds(5),
+        self(),
+        &Self::authenticationTimeout,
+        authenticating.get());
+}
+
+
+void Slave::_authenticate()
+{
+  delete CHECK_NOTNULL(authenticatee);
+  authenticatee = NULL;
+
+  CHECK_SOME(authenticating);
+  const Future<bool>& future = authenticating.get();
+
+  if (master.isNone()) {
+    LOG(INFO) << "Ignoring _authenticate because the master is lost";
+    authenticating = None();
+    // Set it to false because we do not want further retries until
+    // a new master is detected.
+    // We obviously do not need to reauthenticate either even if
+    // 'reauthenticate' is currently true because the master is
+    // lost.
+    reauthenticate = false;
+    return;
+  }
+
+  if (reauthenticate || !future.isReady()) {
+    LOG(WARNING)
+      << "Failed to authenticate with master " << master.get() << ": "
+      << (reauthenticate ? "master changed" :
+         (future.isFailed() ? future.failure() : "future discarded"));
+
+    authenticating = None();
+    reauthenticate = false;
+
+    // TODO(vinod): Add a limit on number of retries.
+    dispatch(self(), &Self::authenticate); // Retry.
+    return;
+  }
+
+  if (!future.get()) {
+    LOG(ERROR) << "Master " << master.get() << " refused authentication";
+    shutdown(UPID(), "Master refused authentication");
+    return;
+  }
+
+  LOG(INFO) << "Successfully authenticated with master " << master.get();
+
+  authenticated = true;
+  authenticating = None();
+
+  doReliableRegistration(); // Proceed with registration.
+}
+
+
+void Slave::authenticationTimeout(Future<bool> future)
+{
+  // NOTE: Discarded future results in a retry in '_authenticate()'.
+  // Also note that a 'discard' here is safe even if another
+  // authenticator is in progress because this copy of the future
+  // corresponds to the original authenticator that started the timer.
+  if (future.discard()) { // This is a no-op if the future is already ready.
+    LOG(WARNING) << "Authentication timed out";
+  }
 }
 
 
@@ -627,6 +760,11 @@ void Slave::doReliableRegistration(const Duration& duration)
 {
   if (master.isNone()) {
     LOG(INFO) << "Skipping registration because no master present";
+    return;
+  }
+
+  if (credential.isSome() && !authenticated) {
+    LOG(INFO) << "Skipping registration because not authenticated";
     return;
   }
 
@@ -768,8 +906,9 @@ void Slave::runTask(
             << " for framework " << frameworkId;
 
   if (!(task.slave_id() == info.id())) {
-    LOG(WARNING) << "Slave " << info.id() << " ignoring task " << task.task_id()
-                 << " because it was intended for old slave " << task.slave_id();
+    LOG(WARNING)
+      << "Slave " << info.id() << " ignoring task " << task.task_id()
+      << " because it was intended for old slave " << task.slave_id();
     return;
   }
 

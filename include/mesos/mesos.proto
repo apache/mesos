@@ -487,8 +487,8 @@ message Parameters {
 /**
  * Credential used for authentication.
  *
- * NOTE: The 'principal' is used for authenticating the framework with
- * the master. This is different from 'FrameworkInfo.user'
+ * NOTE: The 'principal' is used for authenticating the framework or slave
+ * with the master. This is different from 'FrameworkInfo.user'
  * which is used to determine the user under which the framework's
  * executors/tasks are run.
  */

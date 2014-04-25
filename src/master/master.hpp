@@ -271,6 +271,7 @@ protected:
   // remove its offers and reallocate its resources.
   void removeFramework(Slave* slave, Framework* framework);
 
+  // TODO(adam-mesos): Rename deactivate to disconnect, or v.v.
   void deactivate(Framework* framework);
   void disconnect(Slave* slave);
 
@@ -439,14 +440,14 @@ private:
 
   hashmap<std::string, Role*> roles;
 
-  // Frameworks that are currently in the process of authentication.
-  // 'authenticating' future for a framework is ready when it is
+  // Frameworks/slaves that are currently in the process of authentication.
+  // 'authenticating' future for an authenticatee is ready when it is
   // authenticated.
   hashmap<process::UPID, process::Future<Nothing> > authenticating;
 
   hashmap<process::UPID, process::Owned<sasl::Authenticator> > authenticators;
 
-  // Authenticated frameworks keyed by framework's PID.
+  // Authenticated frameworks/slaves keyed by PID.
   hashset<process::UPID> authenticated;
 
   int64_t nextFrameworkId; // Used to give each framework a unique ID.

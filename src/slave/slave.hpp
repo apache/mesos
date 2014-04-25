@@ -68,6 +68,10 @@ namespace internal {
 
 class MasterDetector; // Forward declaration.
 
+namespace sasl {
+class Authenticatee;
+} // namespace sasl {
+
 namespace slave {
 
 using namespace process;
@@ -229,6 +233,8 @@ public:
 
   Nothing detachFile(const std::string& path);
 
+  void authenticate();
+
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
 
@@ -291,6 +297,9 @@ public:
   Future<Nothing> garbageCollect(const std::string& path);
 
 private:
+  void _authenticate();
+  void authenticationTimeout(process::Future<bool> future);
+
   // Inner class used to namespace HTTP route handlers (see
   // slave/http.cpp for implementations).
   class Http
@@ -366,6 +375,19 @@ private:
 
   // Indicates the number of errors ignored in "--no-strict" recovery mode.
   unsigned int recoveryErrors;
+
+  Option<Credential> credential;
+
+  sasl::Authenticatee* authenticatee;
+
+  // Indicates if an authentication attempt is in progress.
+  Option<Future<bool> > authenticating;
+
+  // Indicates if the authentication is successful.
+  bool authenticated;
+
+  // Indicates if a new authentication attempt should be enforced.
+  bool reauthenticate;
 };
 
 
