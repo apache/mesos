@@ -94,33 +94,37 @@
       </resource>
     </resources>
     <plugins>
-      <!-- Skip compile:compile by re-binding it to a non-standard (made-up)
-           phase. -->
+      <!-- Add generated sources -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>1.8</version>
+        <executions>
+          <execution>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>@abs_top_builddir@/src/java/generated</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
+          <source>1.6</source>
           <target>1.6</target>
         </configuration>
-        <executions>
-          <execution>
-            <id>default-compile</id>
-            <phase>never</phase>
-          </execution>
-        </executions>
       </plugin>
       <!-- Skip tests entirely -->
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <skip>true</skip>
-        </configuration>
-      </plugin>
-      <!-- Build the jar from the classes that the Make build system
-           compiled for us from source -->
-      <plugin>
-        <artifactId>maven-jar-plugin</artifactId>
-        <configuration>
-          <finalName>${project.name}-${project.version}</finalName>
         </configuration>
       </plugin>
       <!-- Build and attach javadoc -->
@@ -167,6 +171,64 @@
             <goals>
               <goal>sign</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Shade protobuf dependency. -->
+      <plugin>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.2</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>shaded-protobuf</shadedClassifierName>
+              <artifactSet>
+                <includes>
+                  <include>com.google.protobuf:protobuf-java</include>
+                </includes>
+              </artifactSet>
+              <filters>
+                <filter>
+                  <!-- Remove the source to keep the result smaller. -->
+                  <artifact>com.google.protobuf:protobuf-java</artifact>
+                  <excludes>
+                    <exclude>**/*.java</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+              <relocations>
+                <relocation>
+                  <pattern>com.google.protobuf</pattern>
+                  <shadedPattern>org.apache.mesos.protobuf</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Copy dependencies to target so we can use them in tests -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>2.8</version>
+        <executions>
+          <execution>
+            <id>copy-dependencies</id>
+            <phase>package</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+              <overWriteReleases>false</overWriteReleases>
+              <overWriteSnapshots>false</overWriteSnapshots>
+              <overWriteIfNewer>true</overWriteIfNewer>
+            </configuration>
           </execution>
         </executions>
       </plugin>

@@ -13,7 +13,7 @@ JAVA=${JAVA-${JAVA_HOME}/bin/java}
 . ${MESOS_SOURCE_DIR}/support/colors.sh
 
 # TODO(vinod): Deduce the protobuf version.
-PROTOBUF_JAR=${MESOS_BUILD_DIR}/protobuf-2.5.0.jar
+PROTOBUF_JAR=${MESOS_BUILD_DIR}/src/java/target/protobuf-java-2.5.0.jar
 
 test ! -e ${PROTOBUF_JAR} && \
   echo "${RED}Failed to find ${PROTOBUF_JAR}${NORMAL}" && \
@@ -27,7 +27,7 @@ test ! -e ${ZOOKEEPER_JAR} && \
   echo "${RED}Failed to find ${ZOOKEEPER_JAR}${NORMAL}" && \
   exit 1
 
-MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos-@PACKAGE_VERSION@.jar
+MESOS_JAR=${MESOS_BUILD_DIR}/src/java/target/mesos-@PACKAGE_VERSION@.jar
 
 test ! -e ${MESOS_JAR} && \
   echo "${RED}Failed to find ${MESOS_JAR}${NORMAL}" && \

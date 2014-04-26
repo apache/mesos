@@ -437,6 +437,12 @@ __EOF__
   AC_DEFINE([MESOS_HAS_JAVA])
 
   has_java=yes
+
+  # Test for Maven so we can build the jar.
+  AC_CHECK_PROG(MVN_CHECK, mvn, yes)
+  if test x"$MVN_CHECK" != x"yes"; then
+    AC_MSG_ERROR([Unable to find mvn on your path.])
+  fi
 fi
 
 AM_CONDITIONAL([HAS_JAVA], [test "x$has_java" = "xyes"])
