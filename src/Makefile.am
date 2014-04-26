@@ -85,13 +85,15 @@ MESOS_CPPFLAGS += -I../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(PICOJSON)
 MESOS_CPPFLAGS += -I../$(GLOG)/src
-MESOS_CPPFLAGS += -I../$(LEVELDB)/include
 
-if WITH_INCLUDED_ZOOKEEPER
+if WITH_BUNDLED_LEVELDB
+  MESOS_CPPFLAGS += -I../$(LEVELDB)/include
+endif
+
+if WITH_BUNDLED_ZOOKEEPER
   MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/include
   MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/generated
 endif
-
 
 # README: we build the Mesos library out of a collection of
 # convenience libraries (that is, libraries that do not get installed
@@ -428,17 +430,23 @@ libmesos_la_LIBADD = libmesos_no_3rdparty.la
 libmesos_la_LIBADD += ../$(PROTOBUF)/src/libprotobuf.la
 libmesos_la_LIBADD += ../$(GLOG)/libglog.la
 
+if WITH_BUNDLED_LEVELDB
 # We need to directly include the leveldb library in order to avoid
 # the installed libmesos.la file to include leveldb in
 # 'dependency_libs' (via '-L../3rdparty/leveldb -lleveldb').
-libmesos_la_LIBADD += ../$(LEVELDB)/libleveldb.a
 
-if WITH_INCLUDED_ZOOKEEPER
+  libmesos_la_LIBADD += ../$(LEVELDB)/libleveldb.a
+else
+  libmesos_la_LIBADD += -lleveldb
+endif
+
+if WITH_BUNDLED_ZOOKEEPER
   libmesos_la_LIBADD += ../$(ZOOKEEPER)/libzookeeper_mt.la
+else
+  libmesos_la_LIBADD += -lzookeeper_mt
 endif
 
 libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
-
 
 # Binaries.
 sbin_PROGRAMS += mesos-master
@@ -803,6 +811,7 @@ $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py		\
 	fi
 	@LIBS="$(LIBS)" CC="$(CC)" CXX="$(CXX)"				\
 	CFLAGS="$(PYTHON_CFLAGS)" CPPFLAGS="$(PYTHON_CPPFLAGS)"		\
+	LDFLAGS="$(PYTHON_LDFLAGS)"					\
 	PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) python/setup.py bdist_egg
 
 CLEANFILES += $(MESOS_EGG) python/build/temp.*/native/*.o python/build/lib.*/*

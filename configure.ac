@@ -138,17 +138,28 @@ AC_ARG_ENABLE([optimize],
                              [don't try to compile with optimizations]),
               [], [enable_optimize=yes])
 
-AC_ARG_WITH([included-zookeeper],
-            AS_HELP_STRING([--without-included-zookeeper],
-                           [excludes building and using the included ZooKeeper
-                           package in lieu of a system installed version (note,
-                           however, that no attempt is made to find the package
-                           and explicitly setting CPPFLAGS and LDFLAGS as
-                           appropriate may be necessary)]),
-             [], [with_included_zookeeper=yes])
+AC_ARG_ENABLE([bundled],
+	      AS_HELP_STRING([--disable-bundled],
+			     [build against preinstalled dependencies instead
+			     of bundled libraries]),
+	      [enable_bundled=no], [enable_bundled=yes])
+
+AC_ARG_WITH([zookeeper],
+	    AS_HELP_STRING([--with-zookeeper@<:@=DIR@:>@],
+			   [excludes building and using the bundled ZooKeeper
+			   package in lieu of an installed version at a
+			   location prefixed by the given path]),
+	    [without_bundled_zookeeper=yes], [])
+
+AC_ARG_WITH([leveldb],
+	    AS_HELP_STRING([--with-leveldb@<:@=DIR@:>@],
+			   [excludes building and using the bundled LevelDB
+			   package in lieu of an installed version at a
+			   location prefixed by the given path]),
+	    [without_bundled_leveldb=yes], [])
 
 AC_ARG_WITH([cxx11],
-            AS_HELP_STRING([--without-cxx11],
+	    AS_HELP_STRING([--without-cxx11],
                            [builds Mesos without C++11 support (deprecated)]),
             [], [with_cxx11=yes])
 
@@ -199,6 +210,88 @@ if test "x$enable_optimize" = "xyes"; then
   fi
 fi
 
+
+# Attempt to use preinstalled dependencies instead of the bundled versions in
+# cases where the user specified their location (--with-XXX=DIR) or asked us
+# to attempt to detect them (--disable-bundled).
+
+# Check if LevelDB prefix path was supplied and if so, add it to
+# CPPFLAGS while extending it by /include and to LDFLAGS while
+# extending it by /lib.
+if test -n "`echo $with_leveldb`"; then
+    CPPFLAGS="$CPPFLAGS -I${with_leveldb}/include"
+    LDFLAGS="$LDFLAGS -L${with_leveldb}/lib"
+fi
+
+# Check if ZooKeeper prefix path was supplied and if so, add it to
+# CPPFLAGS while extending it by /include and to LDFLAGS while
+# extending it by /lib.
+if test -n "`echo $with_zookeeper`"; then
+    CPPFLAGS="$CPPFLAGS -I${with_zookeeper}/include"
+    LDFLAGS="$LDFLAGS -L${with_zookeeper}/lib"
+elif test "x$enable_bundled" = "xno"; then
+    CPPFLAGS="$CPPFLAGS -I/usr/include/zookeeper"
+fi
+
+# Check if user has asked us to use a preinstalled LevelDB, or if they asked
+# us to ignore all bundled libraries while compiling and linking.
+if test "x$without_bundled_leveldb" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+	# Check if headers and library were located.
+	AC_CHECK_HEADERS([leveldb/db.h],
+			[AC_CHECK_LIB([leveldb],
+				      [leveldb_open],
+				      [found_leveldb=yes])])
+	if test "x$found_leveldb" = "xyes"; then
+		with_bundled_leveldb=no
+	else
+		AC_MSG_ERROR([cannot find LevelDB
+-------------------------------------------------------------------
+You have requested the use of a non-bundled LevelDB but no suitable
+LevelDB could be found.
+
+You may want specify the location of LevelDB by providing a prefix
+path via --with-leveldb=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+	fi
+else
+    with_bundled_leveldb=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_LEVELDB],
+	       [test "x$with_bundled_leveldb" = "xyes"])
+
+# Check if user has asked us to use a preinstalled ZooKeeper or if they asked
+# us to ignore all bundled libraries while compiling and linking.
+if test "x$without_bundled_zookeeper" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+	# Check if headers and library were located.
+	AC_CHECK_HEADERS([zookeeper.h],
+			[AC_CHECK_LIB([zookeeper_mt],
+				      [zookeeper_init],
+				      [found_zookeeper=yes])])
+	if test "x$found_zookeeper" = "xyes"; then
+		with_bundled_zookeeper=no
+	else
+		AC_MSG_ERROR([cannot find ZooKeeper
+-------------------------------------------------------------------
+You have requested the use of a non-bundled ZooKeeper but no suitable
+ZooKeeper could be found.
+
+You may want specify the location of ZooKeeper by providing a prefix
+path via --with-zookeeper=DIR, or check that the path you provided is
+correct if you're already doing this
+-------------------------------------------------------------------
+])
+	fi
+else
+    with_bundled_zookeeper=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_ZOOKEEPER],
+	   [test "x$with_bundled_zookeeper" = "xyes"])
 
 # Check if we're using clang.
 AC_MSG_CHECKING([if compiling with clang])
@@ -605,6 +698,7 @@ There are two possible workarounds for this issue:
   # TODO(tillt): Remove this once Apple distributed an updated Python.
   PYTHON_CFLAGS="$CFLAGS"
   PYTHON_CPPFLAGS="$CPPFLAGS"
+  PYTHON_LDFLAGS="$LDFLAGS"
 
   AS_IF([test "x$CLANG" = "xyes"],
 	[PYTHON_CFLAGS="$PYTHON_CFLAGS -Qunused-arguments"
@@ -642,10 +736,6 @@ AC_CHECK_LIB([curl], [curl_global_init], [],
 libcurl is required for mesos to build.
 -------------------------------------------------------------------
 ])])
-
-
-AM_CONDITIONAL([WITH_INCLUDED_ZOOKEEPER],
-               [test "x$with_included_zookeeper" = "xyes"])
 
 
 # Check if we should/can build with C++11.

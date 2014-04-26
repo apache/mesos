@@ -56,37 +56,39 @@ CLEAN_EXTRACTED =	\
 	test ! -e $(srcdir)/$*.patch || patch -d $* -p1 <$(srcdir)/$*.patch
 	touch $@
 
-
-if HAS_PYTHON
-DISTRIBUTE_EGG = \
-  $(DISTRIBUTE)/dist/$(DISTRIBUTE)$(PYTHON_EGG_PUREPY_POSTFIX).egg
-
-$(DISTRIBUTE_EGG): $(DISTRIBUTE)-stamp
-	cd $(DISTRIBUTE) && $(PYTHON) setup.py bdist_egg
-endif
-
-
-# TODO(charles): Figure out PIC options in our configure.ac or create
-# a configure.ac for leveldb.
-$(LEVELDB)/libleveldb.a: $(LEVELDB)-stamp
-	cd $(LEVELDB) && \
-          $(MAKE) $(AM_MAKEFLAGS) CC="$(CC)" CXX="$(CXX)" OPT="$(CXXFLAGS) -fPIC"
-
-$(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
-	cd $(ZOOKEEPER)/src/c && ./configure $(CONFIGURE_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS)
-
 # Dependencies for all-local.
-ALL_LOCAL = $(LEVELDB)/libleveldb.a
+ALL_LOCAL = # Initialize ALL_LOCAL so we can add to it.
 
 if HAS_PYTHON
+  DISTRIBUTE_EGG = \
+    $(DISTRIBUTE)/dist/$(DISTRIBUTE)$(PYTHON_EGG_PUREPY_POSTFIX).egg
+
+  $(DISTRIBUTE_EGG): $(DISTRIBUTE)-stamp
+	cd $(DISTRIBUTE) && $(PYTHON) setup.py bdist_egg
+
   ALL_LOCAL += $(DISTRIBUTE_EGG)
 endif
 
-if WITH_INCLUDED_ZOOKEEPER
+if WITH_BUNDLED_LEVELDB
+
+  # TODO(charles): Figure out PIC options in our configure.ac or create
+  # a configure.ac for leveldb.
+  $(LEVELDB)/libleveldb.a: $(LEVELDB)-stamp
+	cd $(LEVELDB) && \
+          $(MAKE) $(AM_MAKEFLAGS) CC="$(CC)" CXX="$(CXX)" OPT="$(CXXFLAGS) -fPIC"
+
+  ALL_LOCAL += $(LEVELDB)/libleveldb.a
+endif
+
+if WITH_BUNDLED_ZOOKEEPER
+
+  $(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
+	cd $(ZOOKEEPER)/src/c && ./configure $(CONFIGURE_ARGS) && \
+	  $(MAKE) $(AM_MAKEFLAGS)
+
   ALL_LOCAL += $(ZOOKEEPER)/src/c/libzookeeper_mt.la
 else
-  # Now matter what we need to extract ZooKeeper so that we can run
+  # No matter what, we need to extract ZooKeeper so that we can run
   # 'make check' (some of our tests need the ZooKeeper JAR).
   ALL_LOCAL += $(ZOOKEEPER)-stamp
 endif
