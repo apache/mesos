@@ -165,13 +165,16 @@ endif
 
 stout_tests_CPPFLAGS =				\
   -I$(srcdir)/$(STOUT)/include			\
-  -I$(BOOST)					\
   -I$(GLOG)/src					\
   -I$(GTEST)/include				\
   -I$(GMOCK)/include				\
   -I$(PROTOBUF)/src				\
   -I$(PICOJSON)					\
   $(AM_CPPFLAGS)
+
+if WITH_BUNDLED_BOOST
+  stout_tests_CPPFLAGS += -I$(BOOST)
+endif
 
 stout_tests_LDADD =			\
   libgmock.la				\
@@ -188,12 +191,15 @@ check-local: stout-tests
 # Dependencies for all-local.
 ALL_LOCAL =				\
   $(STOUT)/Makefile			\
-  $(BOOST)-stamp			\
   $(GLOG)/libglog.la			\
   $(LIBEV)/libev.la			\
   $(PROTOBUF)/src/libprotobuf.la	\
   $(PROTOBUF)/src/protoc		\
   $(PICOJSON)-stamp
+
+if WITH_BUNDLED_BOOST
+  ALL_LOCAL += $(BOOST)-stamp
+endif
 
 if HAS_GPERFTOOLS
  ALL_LOCAL += $(GPERFTOOLS)/libprofiler.la
