@@ -3232,6 +3232,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
   // isolator.
   slave::Flags flags = this->CreateSlaveFlags();
   flags.isolation = "cgroups/cpu,cgroups/mem";
+  flags.slave_subsystems = "";
 
   Try<MesosContainerizer*> containerizer1 =
     MesosContainerizer::create(flags, true);

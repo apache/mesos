@@ -41,6 +41,7 @@
 #include <process/delay.hpp>
 #include <process/io.hpp>
 #include <process/process.hpp>
+#include <process/reap.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
@@ -1427,7 +1428,6 @@ protected:
   }
 
 private:
-
   const string hierarchy;
   const string cgroup;
   const Time start;
@@ -1435,27 +1435,19 @@ private:
 };
 
 
-// The process used to wait for a cgroup to become empty (no task in it).
-class EmptyWatcher: public Process<EmptyWatcher>
+// The process used to atomically kill all tasks in a cgroup.
+class TasksKiller : public Process<TasksKiller>
 {
 public:
-  EmptyWatcher(const string& _hierarchy,
-               const string& _cgroup,
-               const Duration& _interval,
-               unsigned int _retries = EMPTY_WATCHER_RETRIES)
-    : hierarchy(_hierarchy),
-      cgroup(_cgroup),
-      interval(_interval),
-      retries(_retries) {}
+  TasksKiller(const string& _hierarchy, const string& _cgroup)
+    : hierarchy(_hierarchy), cgroup(_cgroup) {}
 
-  virtual ~EmptyWatcher() {}
+  virtual ~TasksKiller() {}
 
-  // Return a future indicating the state of the watcher.
-  // There are three outcomes:
-  //   1. true:  the cgroup became empty.
-  //   2. false: the cgroup did not become empty within the retry limit.
-  //   3. error: invalid arguments, or an unexpected error occured.
-  Future<bool> future() { return promise.future(); }
+  // Return a future indicating the state of the killer.
+  // Failure occurs if any process in the cgroup is unable to be
+  // killed.
+  Future<Nothing> future() { return promise.future(); }
 
 protected:
   virtual void initialize()
@@ -1464,113 +1456,22 @@ protected:
     promise.future().onDiscard(lambda::bind(
         static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
-    CHECK(interval >= Seconds(0));
-
-    check();
-  }
-
-  virtual void finalize()
-  {
-    promise.discard();
-  }
-
-private:
-  void check(unsigned int attempt = 0)
-  {
-    Try<set<pid_t> > pids = processes(hierarchy, cgroup);
-    if (pids.isError()) {
-      promise.fail("Failed to get processes of cgroup: " + pids.error());
-      terminate(self());
-      return;
-    }
-
-    if (pids.get().empty()) {
-      promise.set(true);
-      terminate(self());
-      return;
-    } else {
-      if (attempt > retries) {
-        promise.set(false);
-        terminate(self());
-        return;
-      }
-
-      // Re-check needed.
-      delay(interval, self(), &EmptyWatcher::check, attempt + 1);
-    }
-  }
-
-  const string hierarchy;
-  const string cgroup;
-  const Duration interval;
-  const unsigned int retries;
-  Promise<bool> promise;
-};
-
-
-// The process used to atomically kill all tasks in a cgroup.
-class TasksKiller : public Process<TasksKiller>
-{
-public:
-  TasksKiller(const string& _hierarchy,
-              const string& _cgroup,
-              const Duration& _interval)
-    : hierarchy(_hierarchy),
-      cgroup(_cgroup),
-      interval(_interval) {}
-
-  virtual ~TasksKiller() {}
-
-  // Return a future indicating the state of the killer.
-  Future<bool> future() { return promise.future(); }
-
-protected:
-  virtual void initialize()
-  {
-    // Stop when no one cares.
-    promise.future().onDiscard(lambda::bind(
-          static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
-
-    CHECK(interval >= Seconds(0));
-
     killTasks();
   }
 
   virtual void finalize()
   {
-    // Cancel the chain of operations if the user discards the future.
-    if (promise.future().hasDiscard()) {
-      chain.discard();
-
-      // TODO(benh): Discard our promise only after 'chain' has
-      // completed (ready, failed, or discarded).
-      promise.discard();
-    }
+    chain.discard();
+    promise.discard();
   }
 
 private:
-  // The sequence of operations to kill a cgroup is as follows:
-  // SIGSTOP -> SIGKILL -> empty -> freeze -> SIGKILL -> thaw -> empty
-  // This process is repeated until the cgroup becomes empty.
   void killTasks() {
-    // Chain together the steps needed to kill the tasks. Note that we
-    // ignore the return values of freeze, kill, and thaw because,
-    // provided there are no errors, we'll just retry the chain as
-    // long as tasks still exist.
-    // Send stop signal to all tasks.
-    chain = kill(SIGSTOP)
-      // Now send kill signal.
-      .then(defer(self(), &Self::kill, SIGKILL))
-      // Wait until cgroup is empty.
-      .then(defer(self(), &Self::empty))
-      // Freeze cgroup.
-      .then(defer(self(), &Self::freeze))
-      // Send kill signal to any remaining tasks.
-      .then(defer(self(), &Self::kill, SIGKILL))
-      // Thaw cgroup to deliver signals.
-      .then(defer(self(), &Self::thaw))
-      // Wait until cgroup is empty.
-      .then(defer(self(), &Self::empty));
+    // Chain together the steps needed to kill all tasks in the cgroup.
+    chain = freeze()                     // Freeze the cgroup.
+      .then(defer(self(), &Self::kill))  // Send kill signal.
+      .then(defer(self(), &Self::thaw))  // Thaw cgroup to deliver signal.
+      .then(defer(self(), &Self::reap)); // Wait until all pids are reaped.
 
     chain.onAny(defer(self(), &Self::finished, lambda::_1));
   }
@@ -1580,12 +1481,24 @@ private:
     return cgroups::freezer::freeze(hierarchy, cgroup);
   }
 
-  Future<Nothing> kill(const int signal)
+  Future<Nothing> kill()
   {
-    Try<Nothing> kill = cgroups::kill(hierarchy, cgroup, signal);
+    Try<set<pid_t> > processes = cgroups::processes(hierarchy, cgroup);
+    if (processes.isError()) {
+      return Failure(processes.error());
+    }
+
+    // Reaping the frozen pids before we kill (and thaw) ensures we reap the
+    // correct pids.
+    foreach (const pid_t pid, processes.get()) {
+      statuses.push_back(process::reap(pid));
+    }
+
+    Try<Nothing> kill = cgroups::kill(hierarchy, cgroup, SIGKILL);
     if (kill.isError()) {
       return Failure(kill.error());
     }
+
     return Nothing();
   }
 
@@ -1594,37 +1507,43 @@ private:
     return cgroups::freezer::thaw(hierarchy, cgroup);
   }
 
-  Future<bool> empty()
+  Future<list<Option<int> > > reap()
   {
-    EmptyWatcher* watcher = new EmptyWatcher(hierarchy, cgroup, interval);
-    Future<bool> future = watcher->future();
-    spawn(watcher, true);
-    return future;
+    // Wait until we've reaped all processes.
+    return collect(statuses);
   }
 
-  void finished(const Future<bool>& empty)
+  void finished(const Future<list<Option<int> > >& future)
   {
-    if (empty.isDiscarded()) {
-      promise.discard();
+    if (future.isDiscarded()) {
+      promise.fail("Unexpected discard of future");
       terminate(self());
-    } else if (empty.isFailed()) {
-      promise.fail(empty.failure());
+      return;
+    } else if (future.isFailed()) {
+      promise.fail(future.failure());
       terminate(self());
-    } else if (empty.get()) {
-      promise.set(true);
-      terminate(self());
-    } else {
-      // The cgroup was not empty after the retry limit.
-      // We need to re-attempt the freeze/kill/thaw/watch chain.
-      killTasks();
+      return;
     }
+
+    // Verify the cgroup is now empty.
+    Try<set<pid_t> > processes = cgroups::processes(hierarchy, cgroup);
+    if (processes.isError() || !processes.get().empty()) {
+      promise.fail("Failed to kill all processes in cgroup: " +
+                   (processes.isError() ? processes.error()
+                                        : "processes remain"));
+      terminate(self());
+      return;
+    }
+
+    promise.set(Nothing());
+    terminate(self());
   }
 
   const string hierarchy;
   const string cgroup;
-  const Duration interval;
-  Promise<bool> promise;
-  Future<bool> chain; // Used to discard the "chain" of operations.
+  Promise<Nothing> promise;
+  list<Future<Option<int> > > statuses; // List of statuses for processes.
+  Future<list<Option<int> > > chain; // Used to discard all operations.
 };
 
 
@@ -1632,32 +1551,27 @@ private:
 class Destroyer : public Process<Destroyer>
 {
 public:
-  Destroyer(const string& _hierarchy,
-            const vector<string>& _cgroups,
-            const Duration& _interval)
-    : hierarchy(_hierarchy),
-      cgroups(_cgroups),
-      interval(_interval) {}
+  Destroyer(const string& _hierarchy, const vector<string>& _cgroups)
+    : hierarchy(_hierarchy), cgroups(_cgroups) {}
 
   virtual ~Destroyer() {}
 
   // Return a future indicating the state of the destroyer.
-  Future<bool> future() { return promise.future(); }
+  // Failure occurs if any cgroup fails to be destroyed.
+  Future<Nothing> future() { return promise.future(); }
 
 protected:
   virtual void initialize()
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
-          static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
-
-    CHECK(interval >= Seconds(0));
+        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
     // Kill tasks in the given cgroups in parallel. Use collect mechanism to
     // wait until all kill processes finish.
     foreach (const string& cgroup, cgroups) {
       internal::TasksKiller* killer =
-        new internal::TasksKiller(hierarchy, cgroup, interval);
+        new internal::TasksKiller(hierarchy, cgroup);
       killers.push_back(killer->future());
       spawn(killer, true);
     }
@@ -1668,18 +1582,12 @@ protected:
 
   virtual void finalize()
   {
-    // Cancel the operation if the user discards the future.
-    if (promise.future().hasDiscard()) {
-      discard<bool>(killers);
-
-      // TODO(benh): Discard our promise only after all 'killers' have
-      // completed (ready, failed, or discarded).
-      promise.discard();
-    }
+    discard(killers);
+    promise.discard();
   }
 
 private:
-  void killed(const Future<list<bool> >& kill)
+  void killed(const Future<list<Nothing> >& kill)
   {
     if (kill.isReady()) {
       remove();
@@ -1687,7 +1595,8 @@ private:
       promise.discard();
       terminate(self());
     } else if (kill.isFailed()) {
-      promise.fail("Failed to kill tasks in nested cgroups: " + kill.failure());
+      promise.fail("Failed to kill tasks in nested cgroups: " +
+                   kill.failure());
       terminate(self());
     }
   }
@@ -1704,31 +1613,23 @@ private:
       }
     }
 
-    promise.set(true);
+    promise.set(Nothing());
     terminate(self());
   }
 
   const string hierarchy;
   const vector<string> cgroups;
-  const Duration interval;
-  Promise<bool> promise;
+  Promise<Nothing> promise;
 
   // The killer processes used to atomically kill tasks in each cgroup.
-  list<Future<bool> > killers;
+  list<Future<Nothing> > killers;
 };
 
 } // namespace internal {
 
 
-Future<bool> destroy(
-    const string& hierarchy,
-    const string& cgroup,
-    const Duration& interval)
+Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
 {
-  if (interval < Seconds(0)) {
-    return Failure("Interval should be non-negative");
-  }
-
   // Construct the vector of cgroups to destroy.
   Try<vector<string> > cgroups = cgroups::get(hierarchy, cgroup);
   if (cgroups.isError()) {
@@ -1742,15 +1643,15 @@ Future<bool> destroy(
   }
 
   if (candidates.empty()) {
-    return true;
+    return Nothing();
   }
 
   // If the freezer subsystem is available, destroy the cgroups.
   Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
   if (error.isNone()) {
     internal::Destroyer* destroyer =
-      new internal::Destroyer(hierarchy, candidates, interval);
-    Future<bool> future = destroyer->future();
+      new internal::Destroyer(hierarchy, candidates);
+    Future<Nothing> future = destroyer->future();
     spawn(destroyer, true);
     return future;
   } else {
@@ -1763,7 +1664,22 @@ Future<bool> destroy(
     }
   }
 
-  return true;
+  return Nothing();
+}
+
+
+Future<Nothing> destroyTimedOut(
+    Future<Nothing> future,
+    const string& hierarchy,
+    const string& cgroup,
+    const Duration& timeout)
+{
+  LOG(WARNING) << "Failed to destroy cgroup '" << path::join(hierarchy, cgroup)
+               << "' after " << timeout;
+
+  future.discard();
+
+  return future;
 }
 
 

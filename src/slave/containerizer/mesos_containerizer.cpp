@@ -926,7 +926,7 @@ Future<Nothing> MesosContainerizerProcess::update(
 
   // Wait for all isolators to complete.
   return collect(futures)
-    .then(lambda::bind(_nothing));
+    .then(lambda::bind(&_nothing));
 }
 
 

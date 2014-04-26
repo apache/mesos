@@ -441,7 +441,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::cleanup(
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
-  list<Future<bool> > futures;
+  list<Future<Nothing> > futures;
   futures.push_back(cgroups::destroy(hierarchies["cpu"], info->cgroup));
   futures.push_back(cgroups::destroy(hierarchies["cpuacct"], info->cgroup));
 

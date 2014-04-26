@@ -41,7 +41,6 @@
 namespace cgroups {
 
 const Duration DESTROY_TIMEOUT = Seconds(60);
-const unsigned int EMPTY_WATCHER_RETRIES = 50;
 
 // Default number of assign attempts when moving threads to a cgroup.
 const unsigned int THREAD_ASSIGN_RETRIES = 100;
@@ -334,14 +333,21 @@ process::Future<uint64_t> listen(
 // is not present.
 // @param   hierarchy Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   interval    The time interval between two state check
-//                      requests (default: 0.1 seconds).
 // @return  A future which will become ready when the operation is done.
 //          Error if something unexpected happens.
-process::Future<bool> destroy(
+process::Future<Nothing> destroy(
     const std::string& hierarchy,
-    const std::string& cgroup = "/",
-    const Duration& interval = Milliseconds(100));
+    const std::string& cgroup = "/");
+
+
+// Destroy a cgroup under a given hierarchy. This is a convenience
+// function which wraps the cgroups::destroy() to add a timeout: if
+// the cgroup(s) cannot be destroyed after timeout the operation will
+// be discarded.
+process::Future<Nothing> destroy(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Duration& timeout);
 
 
 // Cleanup the hierarchy, by first destroying all the underlying

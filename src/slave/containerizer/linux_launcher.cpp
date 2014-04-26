@@ -271,7 +271,7 @@ Try<pid_t> LinuxLauncher::fork(
 
 Future<Nothing> _destroy(
     const ContainerID& containerId,
-    process::Future<bool> destroyed)
+    process::Future<Nothing> destroyed)
 {
   if (destroyed.isFailed()) {
     LOG(ERROR) << "Failed to destroy freezer cgroup for '"

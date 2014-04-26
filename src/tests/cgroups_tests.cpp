@@ -30,6 +30,7 @@
 #include <vector>
 
 #include <sys/mman.h>
+#include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -756,15 +757,13 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Destroy)
     ASSERT_LT(0, ::read(pipes[0], &dummy, sizeof(dummy)));
     ::close(pipes[0]);
 
-    Future<bool> future = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
-    future.await(Seconds(5));
-    ASSERT_TRUE(future.isReady());
-    EXPECT_TRUE(future.get());
+    AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
 
+    // cgroups::destroy will reap all processes in the cgroup so we should
+    // *not* be able to reap it now.
     int status;
-    EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-    ASSERT_TRUE(WIFSIGNALED(status));
-    EXPECT_EQ(SIGKILL, WTERMSIG(status));
+    EXPECT_EQ(-1, ::waitpid(pid, &status, 0));
+    EXPECT_EQ(ECHILD, errno);
   } else {
     // In child process.
 
@@ -855,10 +854,91 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
   CHECK_SOME(cgroups::assign(hierarchy, "", ::getpid()));
 
   // Destroy the cgroup.
-  Future<bool> future = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
-  future.await(Seconds(5));
-  ASSERT_TRUE(future.isReady());
-  EXPECT_TRUE(future.get());
+  AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+}
+
+
+TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_DestroyStoppedProcess)
+{
+  std::string hierarchy = path::join(baseHierarchy, "freezer");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process.
+    while (true) { sleep(1); }
+
+    ABORT("Child should not reach this statement");
+  }
+
+  // In parent process.
+
+  // Put child into the freezer cgroup.
+  Try<Nothing> assign = cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, pid);
+
+  // Stop the child process.
+  EXPECT_EQ(0, kill(pid, SIGSTOP));
+
+  AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+
+  // cgroups::destroy will reap all processes in the cgroup so we should
+  // *not* be able to reap it now.
+  int status;
+  EXPECT_EQ(-1, ::waitpid(pid, &status, 0));
+  EXPECT_EQ(ECHILD, errno);
+}
+
+
+TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_DestroyTracedProcess)
+{
+  std::string hierarchy = path::join(baseHierarchy, "freezer");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process.
+    while (true) { sleep(1); }
+
+    ABORT("Child should not reach this statement");
+  }
+
+  // In parent process.
+  Try<Nothing> assign = cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, pid);
+  ASSERT_SOME(assign);
+
+  // Attach to the child process.
+  ASSERT_EQ(0, ptrace(PT_ATTACH, pid, NULL, NULL));
+
+  // Wait until the process is in traced state ('t' or 'T').
+  Duration elapsed = Duration::zero();
+  while (true) {
+    Result<proc::ProcessStatus> process = proc::status(pid);
+    ASSERT_SOME(process);
+
+    if (process.get().state == 'T' || process.get().state == 't') {
+      break;
+    }
+
+    if (elapsed > Seconds(1)) {
+      FAIL() << "Failed to wait for process to be traced";
+    }
+
+    os::sleep(Milliseconds(5));
+    elapsed += Milliseconds(5);
+  }
+
+  // Now destroy the cgroup.
+  AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+
+  // cgroups::destroy will reap all processes in the cgroup so we should
+  // *not* be able to reap it now.
+  int status;
+  EXPECT_EQ(-1, ::waitpid(pid, &status, 0));
+  EXPECT_EQ(ECHILD, errno);
 }
 
 
@@ -937,7 +1017,6 @@ TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
   EXPECT_EQ(SIGKILL, WTERMSIG(status));
 
   // Destroy the cgroup.
-  Future<bool> destroy = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
+  Future<Nothing> destroy = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
   AWAIT_READY(destroy);
-  EXPECT_TRUE(destroy.get());
 }
