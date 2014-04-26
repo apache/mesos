@@ -33,19 +33,12 @@ public:
   Future<Option<int> > reap(pid_t pid)
   {
     // Check to see if this pid exists.
-    const Result<os::Process>& process = os::process(pid);
-
-    if (process.isSome()) {
-      // The process exists, we add it to the promises map.
+    if (os::exists(pid)) {
       Owned<Promise<Option<int> > > promise(new Promise<Option<int> >());
       promises.put(pid, promise);
       return promise->future();
-    } else if (process.isNone()) {
-      return None();
     } else {
-      return Failure(
-          "Failed to monitor process " + stringify(pid) + ": " +
-          process.error());
+      return None();
     }
   }
 
@@ -54,32 +47,24 @@ protected:
 
   void wait()
   {
-    // There are a few cases to consider here for each pid:
-    //   1) The process is our child. In this case, we will notify
-    //      with the exit status once it terminates.
-    //   2) The process exists but is not our child. In this case,
-    //      we'll notify with None() once it no longer exists, since
-    //      we cannot reap it.
-    //   3) The process does not exist, notify with None() since it
-    //      has likely been reaped elsewhere.
-
+    // There are two cases to consider for each pid when it terminates:
+    //   1) The process is our child. In this case, we will reap the process and
+    //      notify with the exit status.
+    //   2) The process was not our child. In this case, it will be reaped by
+    //      someone else (its parent or init, if reparented) so we cannot know
+    //      the exit status and we must notify with None().
+    //
+    // NOTE: A child can only be reaped by us, the parent. If a child exits
+    // between waitpid and the (!exists) conditional it will still exist as a
+    // zombie; it will be reaped by us on the next loop.
     foreach (pid_t pid, promises.keys()) {
       int status;
       if (waitpid(pid, &status, WNOHANG) > 0) {
-        // Terminated child process.
+        // We have reaped a child.
         notify(pid, status);
-      } else if (errno == ECHILD) {
-        // The process is not our child, or does not exist. We want to
-        // notify with None() once it no longer exists (reaped by
-        // someone else).
-        const Result<os::Process>& process = os::process(pid);
-
-        if (process.isError()) {
-          notify(pid, Error(process.error()));
-        } else if (process.isNone()) {
-          // The process has been reaped.
-          notify(pid, None());
-        }
+      } else if (!os::exists(pid)) {
+        // The process no longer exists and has been reaped by someone else.
+        notify(pid, None());
       }
     }
 
