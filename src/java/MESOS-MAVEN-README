@@ -7,15 +7,14 @@ Mesos committers can deploy the Mesos jar to the Apache Maven repository
 it will be copied into Maven Central.
 
 NOTE: Publishing artifacts to Maven as described below requires the Mesos Java
-classes to be built in src/java/classes. The easiest way to do this is to run
-make src/mesos-0.9.0.jar. Maven will actually build a new jar itself (as
-opposed to just including the jar that the Make build system builds in src) at
-src/java/target/mesos-0.9.0-incubating.jar. In addition, Maven will create a
-jar containing the Java source files (src/java/target/mesos-0.9.0-sources.jar)
-and the Javadoc (src/java/target/mesos-0.9.0-javadoc.jar), and all three of
-these files, as well as an .md5 and .sha1 for each of the jars, and finally an
-additional *.asc signature file for each of the above files (all in
-src/java/target).
+classes to be generated from the Protobuf file. The easiest way to do this is
+to run `make src/java/target/mesos-0.19.0.jar`. In addition, Maven will create
+a shaded jar that includes the protobuf classes
+(src/java/target/mesos-shaded-protobuf-0.19.0.jar), a jar containing the Java
+source files (src/java/target/mesos-0.19.0-sources.jar) and the Javadoc
+(src/java/target/mesos-0.19.0-javadoc.jar), and all four of these files, as
+well as an .md5 and .sha1 for each of the jars, and finally an additional *.asc
+signature file for each of the above files (all in src/java/target).
 
 We don't have to vote on the jars for a release once we have voted on the
 release itself. Use http://www.apache.org/dev/publishing-maven-artifacts.html

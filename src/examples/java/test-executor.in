@@ -12,13 +12,13 @@ JAVA=${JAVA-${JAVA_HOME}/bin/java}
 # Use colors for errors.
 . ${MESOS_SOURCE_DIR}/support/colors.sh
 
-PROTOBUF_JAR=${MESOS_BUILD_DIR}/protobuf-2.5.0.jar
+PROTOBUF_JAR=${MESOS_BUILD_DIR}/src/java/target/protobuf-java-2.5.0.jar
 
 test ! -e ${PROTOBUF_JAR} && \
   echo "${RED}Failed to find ${PROTOBUF_JAR}${NORMAL}" && \
   exit 1
 
-MESOS_JAR=${MESOS_BUILD_DIR}/src/mesos-@PACKAGE_VERSION@.jar
+MESOS_JAR=${MESOS_BUILD_DIR}/src/java/target/mesos-@PACKAGE_VERSION@.jar
 
 test ! -e ${MESOS_JAR} && \
   echo "${RED}Failed to find ${MESOS_JAR}${NORMAL}" && \

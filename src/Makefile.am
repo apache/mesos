@@ -530,7 +530,7 @@ EXTRA_DIST += deploy/mesos-deploy-env.sh.template			\
 # to EXTRA_DIST unconditionally.
 
 # Mesos JAR.
-MESOS_JAR = mesos-$(PACKAGE_VERSION).jar
+MESOS_JAR = java/target/mesos-$(PACKAGE_VERSION).jar
 MESOS_JAR_SOURCE =							\
 	$(srcdir)/java/src/org/apache/mesos/ExecutorDriver.java		\
 	$(srcdir)/java/src/org/apache/mesos/Executor.java		\
@@ -561,46 +561,12 @@ EXTRA_DIST += $(EXAMPLES_SOURCE)
 
 
 if HAS_JAVA
-# Protocol buffers JAR.
-PROTOBUF_JAR = ../protobuf-$(PROTOBUF_VERSION).jar
+# Protobuf jar, copied there by Maven.
+PROTOBUF_JAR = java/target/protobuf-java-$(PROTOBUF_VERSION).jar
 
-# TODO(charles): Move into 3rdparty/Makefile.am.
-$(PROTOBUF_JAR): # TODO(charles): Specify dependencies for the jar.
-	@echo "Building protobuf-$(PROTOBUF_VERSION).jar ..."
-	$(MKDIR_P) ../$(PROTOBUF)/java/src/main/java
-	$(PROTOC) --java_out=../$(PROTOBUF)/java/src/main/java		\
-          -I../$(PROTOBUF)/src						\
-          ../$(PROTOBUF)/src/google/protobuf/descriptor.proto
-	$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6			\
-          -d ../$(PROTOBUF)/java/src/main/java				\
-          ../$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java	\
-          ../$(PROTOBUF)/java/src/main/java/com/google/protobuf/*.java
-	$(JAVA_HOME)/bin/jar cf $@ -C ../$(PROTOBUF)/java/src/main/java com
-
-CLEANFILES += $(PROTOBUF_JAR)
-
-
-$(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) $(PROTOBUF_JAR)
+$(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) java/mesos.pom
 	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
-	-rm -rf java/classes/org/apache/mesos
-	$(MKDIR_P) java/classes/org/apache/mesos
-	$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6			\
-          -cp $(PROTOBUF_JAR)						\
-          -d java/classes $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED)
-	$(JAVA_HOME)/bin/jar cf $@ -C java/classes org
-
-CLEANFILES += $(MESOS_JAR)
-
-
-MESOS_SOURCES_JAR = ../src/mesos-$(PACKAGE_VERSION)-sources.jar
-
-$(MESOS_SOURCES_JAR): $(MESOS_JAR_SOURCE)
-	-rm -f $(MESOS_SOURCES_JAR)
-	$(JAVA_HOME)/bin/jar cf $@ -C $(srcdir)/java/src org
-	$(JAVA_HOME)/bin/jar uf $@ -C java/generated org
-
-CLEANFILES += $(MESOS_SOURCES_JAR)
-
+	@cd $(abs_top_builddir)/src/java && mvn -f mesos.pom clean package
 
 # Convenience library for JNI bindings.
 # TODO(Charles Reiss): We really should be building the Java library
@@ -664,34 +630,39 @@ nodist_libjava_la_SOURCES =						\
 BUILT_SOURCES += $(nodist_libjava_la_SOURCES)
 
 java/jni/org_apache_mesos_MesosSchedulerDriver.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
-          $(PROTOBUF_JAR):java/classes					\
-          org.apache.mesos.MesosSchedulerDriver
+	$(JAVA_HOME)/bin/javah -d java/jni				\
+	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	  org.apache.mesos.MesosSchedulerDriver
 
 java/jni/org_apache_mesos_MesosExecutorDriver.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
-          $(PROTOBUF_JAR):java/classes					\
+	$(JAVA_HOME)/bin/javah -d java/jni				\
+	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
           org.apache.mesos.MesosExecutorDriver
 
 java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
-          $(PROTOBUF_JAR):java/classes org.apache.mesos.Log
+	$(JAVA_HOME)/bin/javah -d java/jni				\
+	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	  org.apache.mesos.Log
 
 java/jni/org_apache_mesos_state_AbstractState.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
-          $(PROTOBUF_JAR):java/classes org.apache.mesos.state.AbstractState
+	$(JAVA_HOME)/bin/javah -d java/jni				\
+	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	  org.apache.mesos.state.AbstractState
 
 java/jni/org_apache_mesos_state_LevelDBState.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
-          $(PROTOBUF_JAR):java/classes org.apache.mesos.state.LevelDBState
+	$(JAVA_HOME)/bin/javah -d java/jni				\
+	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	  org.apache.mesos.state.LevelDBState
 
 java/jni/org_apache_mesos_state_Variable.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
-          $(PROTOBUF_JAR):java/classes org.apache.mesos.state.Variable
+	$(JAVA_HOME)/bin/javah -d java/jni				\
+	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	  org.apache.mesos.state.Variable
 
 java/jni/org_apache_mesos_state_ZooKeeperState.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
-          $(PROTOBUF_JAR):java/classes org.apache.mesos.state.ZooKeeperState
+	$(JAVA_HOME)/bin/javah -d java/jni				\
+	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	  org.apache.mesos.state.ZooKeeperState
 
 $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
@@ -704,20 +675,18 @@ $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 
 CLEANFILES += $(EXAMPLES_JAR)
 
-maven-install: $(MESOS_JAR) $(MESOS_SOURCES_JAR) java/mesos.pom
-	mvn install:install-file -Dfile=$(MESOS_JAR)			\
-          -Dsources=$(MESOS_SOURCES_JAR) -DpomFile=java/mesos.pom
+maven-install: $(MESOS_JAR) java/mesos.pom
+	mvn -f java/mesos.pom install
 
 PHONY_TARGETS += maven-install
 endif # HAS_JAVA
 
-# We remove mesos-*.jar here to make sure any older versions of the
-# jar are removed.
+# We rely on Maven to clean build artifacts, and remove examples and header
+# files in addition.
 clean-java:
-	-rm -rf java/classes
+	-rm -rf java/target
 	-rm -f examples/java/*.class
 	-rm -f java/jni/org_apache_mesos*.h
-	-rm -f mesos-*.jar
 
 PHONY_TARGETS += clean-java
 
