@@ -650,3 +650,60 @@ TEST_F(OsTest, pstree)
   // We have to reap the child for running the tests in repetition.
   ASSERT_EQ(child, waitpid(child, NULL, 0));
 }
+
+
+TEST_F(OsTest, ProcessExists)
+{
+  // Check we exist.
+  EXPECT_TRUE(os::exists(::getpid()));
+
+  // Check init/launchd/systemd exists.
+  // NOTE: This should return true even if we don't have permission to signal
+  // the pid.
+  EXPECT_TRUE(os::exists(1));
+
+  // Check existence of a child process through its lifecycle: running,
+  // zombied, reaped.
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process.
+    while (true) { sleep(1); }
+
+    ABORT("Child should not reach this statement");
+  }
+
+  // In parent.
+  EXPECT_TRUE(os::exists(pid));
+
+  ASSERT_EQ(0, kill(pid, SIGKILL));
+
+  // Wait until the process is a zombie.
+  Duration elapsed = Duration::zero();
+  while (true) {
+    Result<os::Process> process = os::process(pid);
+    ASSERT_SOME(process);
+
+    if (process.get().zombie) {
+      break;
+    }
+
+    ASSERT_LT(elapsed, Milliseconds(100));
+
+    os::sleep(Milliseconds(5));
+    elapsed += Milliseconds(5);
+  };
+
+  // The process should still 'exist', even if it's a zombie.
+  EXPECT_TRUE(os::exists(pid));
+
+  // Reap the zombie and confirm the process no longer exists.
+  int status;
+
+  EXPECT_EQ(pid, ::waitpid(pid, &status, 0));
+  EXPECT_TRUE(WIFSIGNALED(status));
+  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+
+  EXPECT_FALSE(os::exists(pid));
+}

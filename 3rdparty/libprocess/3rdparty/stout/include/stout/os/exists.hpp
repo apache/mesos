@@ -14,6 +14,9 @@
 #ifndef __STOUT_OS_EXISTS_HPP__
 #define __STOUT_OS_EXISTS_HPP__
 
+#include <errno.h>
+#include <signal.h>
+
 #include <sys/stat.h>
 
 #include <string>
@@ -27,6 +30,22 @@ inline bool exists(const std::string& path)
     return false;
   }
   return true;
+}
+
+
+// Determine if the process identified by pid exists.
+// NOTE: Zombie processes have a pid and therefore exist. See os::process(pid)
+// to get details of a process.
+inline bool exists(pid_t pid)
+{
+  // The special signal 0 is used to check if the process exists; see kill(2).
+  // If the current user does not have permission to signal pid, but it does
+  // exist, then ::kill will return -1 and set errno == EPERM.
+  if (::kill(pid, 0) == 0 || errno == EPERM) {
+    return true;
+  }
+
+  return false;
 }
 
 } // namespace os {
