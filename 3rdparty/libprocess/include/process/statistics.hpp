@@ -41,6 +41,8 @@ struct Statistics
 
     Statistics statistics;
 
+    statistics.count = values.size();
+
     statistics.min = values.front();
     statistics.max = values.back();
 
@@ -53,6 +55,8 @@ struct Statistics
 
     return statistics;
   }
+
+  size_t count;
 
   T min;
   T max;

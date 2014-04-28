@@ -43,6 +43,8 @@ TEST(Statistics, statistics)
 
   EXPECT_SOME(statistics);
 
+  EXPECT_EQ(11u, statistics.get().count);
+
   EXPECT_FLOAT_EQ(-5.0, statistics.get().min);
   EXPECT_FLOAT_EQ(5.0, statistics.get().max);
 

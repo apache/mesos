@@ -119,6 +119,7 @@ Future<http::Response> MetricsProcess::__snapshot(
     Option<Statistics<double> > statistics_ = statistics.get(key).get();
 
     if (statistics_.isSome()) {
+      object.values[key + "/count"] = statistics_.get().count;
       object.values[key + "/min"] = statistics_.get().min;
       object.values[key + "/max"] = statistics_.get().max;
       object.values[key + "/p50"] = statistics_.get().p50;

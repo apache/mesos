@@ -116,6 +116,8 @@ TEST(Metrics, Statistics)
   Option<Statistics<double> > statistics = counter.statistics();
   EXPECT_SOME(statistics);
 
+  EXPECT_EQ(11u, statistics.get().count);
+
   EXPECT_FLOAT_EQ(0.0, statistics.get().min);
   EXPECT_FLOAT_EQ(10.0, statistics.get().max);
 
@@ -214,6 +216,8 @@ TEST(Metrics, SnapshotStatistics)
   JSON::Object expected;
 
   expected.values["test/counter"] = 10.0;
+
+  expected.values["test/counter/count"] = 11;
 
   expected.values["test/counter/min"] = 0.0;
   expected.values["test/counter/max"] = 10.0;
