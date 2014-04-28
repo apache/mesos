@@ -59,6 +59,9 @@ namespace slave {
 const Bytes MIN_MEMORY = Megabytes(32);
 
 
+template<class T>
+static Future<Option<T> > none() { return None(); }
+
 CgroupsMemIsolatorProcess::CgroupsMemIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy)
@@ -168,7 +171,7 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
 }
 
 
-Future<Nothing> CgroupsMemIsolatorProcess::prepare(
+Future<Option<CommandInfo> > CgroupsMemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo)
 {
@@ -201,11 +204,12 @@ Future<Nothing> CgroupsMemIsolatorProcess::prepare(
 
   oomListen(containerId);
 
-  return update(containerId, executorInfo.resources());
+  return update(containerId, executorInfo.resources())
+    .then(lambda::bind(none<CommandInfo>));
 }
 
 
-Future<Option<CommandInfo> > CgroupsMemIsolatorProcess::isolate(
+Future<Nothing> CgroupsMemIsolatorProcess::isolate(
     const ContainerID& containerId,
     pid_t pid)
 {
@@ -226,7 +230,7 @@ Future<Option<CommandInfo> > CgroupsMemIsolatorProcess::isolate(
                    "' : " + assign.error());
   }
 
-  return None();
+  return Nothing();
 }
 
 

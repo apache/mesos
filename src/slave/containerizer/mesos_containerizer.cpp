@@ -300,8 +300,7 @@ Future<Nothing> MesosContainerizerProcess::_recover(
 // 1) os::close, os::chown and os::chdir concatenate strings on error
 // 2) os::setenv uses ::setenv that is not listed as safe
 // 3) freopen is not listed as safe
-// These can all be corrected and also we could write better error messages
-// with multiple writes in an improved asyncSafeFatal.
+// These can all be corrected.
 int execute(
     const CommandInfo& command,
     const string& directory,
@@ -309,8 +308,12 @@ int execute(
     const map<string, string>& env,
     bool redirectIO,
     int pipeRead,
-    int pipeWrite)
+    int pipeWrite,
+    const list<Option<CommandInfo> >& commands)
 {
+  // TODO(idownes): There are several stout/os functions used here that are not
+  // async-signal safe. Replace with plain system calls.
+
   // Do a blocking read on the pipe until the parent signals us to continue.
   os::close(pipeWrite);
   int buf;
@@ -331,27 +334,9 @@ int execute(
     }
   }
 
-  // Change user if provided.
-  if (user.isSome() && !os::su(user.get())) {
-    ABORT("Failed to change user");
-  }
-
   // Enter working directory.
   if (os::chdir(directory) < 0) {
     ABORT("Failed to chdir into work directory");
-  }
-
-  // First set up any additional environment variables.
-  // TODO(idownes): setenv is not async-signal-safe. Environment variables
-  // could instead be set using execle.
-  foreachpair (const string& key, const string& value, env) {
-    os::setenv(key, value);
-  }
-
-  // Then set up environment variables from CommandInfo.
-  foreach(const Environment::Variable& variable,
-      command.environment().variables()) {
-    os::setenv(variable.name(), variable.value());
   }
 
   // Redirect output to files in working dir if required. We append because
@@ -371,6 +356,39 @@ int execute(
     }
   }
 
+  // Run additional preparation commands. These are run as the same user as the
+  // slave. This code is run in the forked child and must be async-signal-safe.
+  foreach (const Option<CommandInfo>& command, commands) {
+    if (command.isSome()) {
+      // Block until the command completes.
+      int status = os::system(command.get().value());
+
+      if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
+        ABORT("Command ",
+              command.get().value().c_str(),
+              " failed to execute successfully");
+      }
+    }
+  }
+
+  // Change user if provided.
+  if (user.isSome() && !os::su(user.get())) {
+    ABORT("Failed to change user");
+  }
+
+  // First set up any additional environment variables.
+  // TODO(idownes): setenv is not async-signal-safe. Environment variables
+  // could instead be set using execle.
+  foreachpair (const string& key, const string& value, env) {
+    os::setenv(key, value);
+  }
+
+  // Then set up environment variables from CommandInfo.
+  foreach(const Environment::Variable& variable,
+      command.environment().variables()) {
+    os::setenv(variable.name(), variable.value());
+  }
+
   // Execute the command (via '/bin/sh -c command').
   execl("/bin/sh", "sh", "-c", command.value().c_str(), (char*) NULL);
 
@@ -383,12 +401,13 @@ int execute(
 
 
 // Launching an executor involves the following steps:
-// 1. Prepare the container. First call prepare on each isolator and then
-//    fetch the executor into the container sandbox.
+// 1. Call prepare on each isolator.
 // 2. Fork the executor. The forked child is blocked from exec'ing until it has
 //    been isolated.
 // 3. Isolate the executor. Call isolate with the pid for each isolator.
-// 4. Exec the executor. The forked child is signalled to continue and exec the
+// 4. Fetch the executor.
+// 4. Exec the executor. The forked child is signalled to continue. It will
+//    first execute any preparation commands from isolators and then exec the
 //    executor.
 Future<Nothing> MesosContainerizerProcess::launch(
     const ContainerID& containerId,
@@ -427,54 +446,17 @@ Future<Nothing> MesosContainerizerProcess::launch(
             << "' for executor '" << executorInfo.executor_id()
             << "' of framework '" << executorInfo.framework_id() << "'";
 
-  // Prepare additional environment variables for the executor.
-  const map<string, string>& env = executorEnvironment(
-      executorInfo,
-      directory,
-      slaveId,
-      slavePid,
-      checkpoint,
-      flags.recovery_timeout);
-
-  // Use a pipe to block the child until it's been isolated.
-  // The parent will close its read end after the child is forked, and the
-  // write end afer the child is signalled to exec.
-  // TODO(idownes): Ensure the pipe's file descriptors are closed even if some
-  // stage of the executor launch fails.
-  int pipes[2];
-  // We assume this should not fail under reasonable conditions so we use CHECK.
-  CHECK(pipe(pipes) == 0);
-
-  // Prepare a function for the forked child to exec() the executor.
-  lambda::function<int()> inChild = lambda::bind(
-      &execute,
-      executorInfo.command(),
-      directory,
-      user,
-      env,
-      !local,
-      pipes[0],
-      pipes[1]);
-
   return prepare(containerId, executorInfo, directory, user)
     .then(defer(self(),
-                &Self::fork,
+                &Self::_launch,
                 containerId,
                 executorInfo,
-                inChild,
+                directory,
+                user,
                 slaveId,
+                slavePid,
                 checkpoint,
-                pipes[0]))
-    .then(defer(self(),
-                &Self::isolate,
-                containerId,
                 lambda::_1))
-    .then(defer(self(),
-                &Self::exec,
-                containerId,
-                pipes[1]))
-    .onAny(lambda::bind(&os::close, pipes[0]))
-    .onAny(lambda::bind(&os::close, pipes[1]))
     .onFailed(defer(self(),
                     &Self::destroy,
                     containerId));
@@ -501,27 +483,22 @@ Future<Nothing> MesosContainerizerProcess::launch(
       checkpoint);
 }
 
-Future<Nothing> MesosContainerizerProcess::prepare(
+Future<list<Option<CommandInfo> > > MesosContainerizerProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user)
 {
-  // Start preparing all isolators (in parallel).
-  list<Future<Nothing> > futures;
+  // Start preparing all isolators (in parallel) and gather any additional
+  // preparation comands that must be run in the forked child before exec'ing
+  // the executor.
+  list<Future<Option<CommandInfo> > > futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
     futures.push_back(isolator->prepare(containerId, executorInfo));
   }
 
-  // Wait for all isolators to complete preparations then fetch the executor.
-  return collect(futures)
-    .then(defer(
-          self(),
-          &Self::fetch,
-          containerId,
-          executorInfo.command(),
-          directory,
-          user));
+  // Wait for all isolators to complete preparations.
+  return collect(futures);
 }
 
 
@@ -636,15 +613,43 @@ Future<Nothing> MesosContainerizerProcess::fetch(
 }
 
 
-Future<pid_t> MesosContainerizerProcess::fork(
+Future<Nothing> MesosContainerizerProcess::_launch(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
-    const lambda::function<int()>& inChild,
+    const string& directory,
+    const Option<string>& user,
     const SlaveID& slaveId,
+    const PID<Slave>& slavePid,
     bool checkpoint,
-    int pipeRead)
+    const list<Option<CommandInfo> >& commands)
 {
-  Try<pid_t> forked = launcher->fork(containerId, inChild);
+  // Prepare additional environment variables for the executor.
+  const map<string, string>& env = executorEnvironment(
+      executorInfo,
+      directory,
+      slaveId,
+      slavePid,
+      checkpoint,
+      flags.recovery_timeout);
+
+  // Use a pipe to block the child until it's been isolated.
+  int pipes[2];
+  // We assume this should not fail under reasonable conditions so we use CHECK.
+  CHECK(pipe(pipes) == 0);
+
+  // Prepare a function for the forked child to exec() the executor.
+  lambda::function<int()> childFunction = lambda::bind(
+      &execute,
+      executorInfo.command(),
+      directory,
+      user,
+      env,
+      !local,
+      pipes[0],
+      pipes[1],
+      commands);
+
+  Try<pid_t> forked = launcher->fork(containerId, childFunction);
 
   if (forked.isError()) {
     return Failure("Failed to fork executor: " + forked.error());
@@ -680,7 +685,16 @@ Future<pid_t> MesosContainerizerProcess::fork(
   statuses.put(containerId, status);
   status.onAny(defer(self(), &Self::reaped, containerId));
 
-  return pid;
+  return isolate(containerId, pid)
+    .then(defer(self(),
+                &Self::fetch,
+                containerId,
+                executorInfo.command(),
+                directory,
+                user))
+    .then(defer(self(), &Self::exec, containerId, pipes[1]))
+    .onAny(lambda::bind(&os::close, pipes[0]))
+    .onAny(lambda::bind(&os::close, pipes[1]));
 }
 
 
@@ -694,31 +708,15 @@ Future<Nothing> MesosContainerizerProcess::isolate(
       .onAny(defer(self(), &Self::limited, containerId, lambda::_1));
   }
 
-  // Isolate the executor with each isolator and get optional additional
-  // commands to be run in the containerized context.
-  list<Future<Option<CommandInfo> > > futures;
+  // Isolate the executor with each isolator.
+  list<Future<Nothing> > futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
     futures.push_back(isolator->isolate(containerId, _pid));
   }
 
-  // Wait for all isolators to complete then run additional commands.
+  // Wait for all isolators to complete.
   return collect(futures)
-    .then(defer(self(), &Self::_isolate, containerId, lambda::_1));
-}
-
-
-Future<Nothing> MesosContainerizerProcess::_isolate(
-    const ContainerID& containerId,
-    const list<Option<CommandInfo> >& commands)
-{
-  // TODO(idownes): Implement execution of additional isolation commands.
-  foreach (const Option<CommandInfo>& command, commands) {
-    if (command.isSome()) {
-      LOG(WARNING) << "Additional isolation commands not implemented";
-    }
-  }
-
-  return Nothing();
+    .then(lambda::bind(&_nothing));
 }
 
 

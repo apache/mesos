@@ -49,11 +49,11 @@ public:
   virtual process::Future<Nothing> recover(
       const std::list<state::RunState>& states);
 
-  virtual process::Future<Nothing> prepare(
+  virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo);
 
-  virtual process::Future<Option<CommandInfo> > isolate(
+  virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,
       pid_t pid);
 

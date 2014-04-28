@@ -64,7 +64,7 @@ public:
     return Nothing();
   }
 
-  virtual process::Future<Nothing> prepare(
+  virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo)
   {
@@ -77,10 +77,10 @@ public:
         new process::Promise<Limitation>());
     promises.put(containerId, promise);
 
-    return Nothing();
+    return None();
   }
 
-  virtual process::Future<Option<CommandInfo> > isolate(
+  virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,
       pid_t pid)
   {
@@ -90,7 +90,7 @@ public:
 
     pids.put(containerId, pid);
 
-    return None();
+    return Nothing();
   }
 
   virtual process::Future<Limitation> watch(

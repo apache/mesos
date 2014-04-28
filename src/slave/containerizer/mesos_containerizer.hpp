@@ -144,7 +144,7 @@ private:
   process::Future<Nothing> _recover(
       const std::list<state::RunState>& recovered);
 
-  process::Future<Nothing> prepare(
+  process::Future<std::list<Option<CommandInfo> > > prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
@@ -156,21 +156,19 @@ private:
       const std::string& directory,
       const Option<std::string>& user);
 
-  process::Future<pid_t> fork(
+  process::Future<Nothing> _launch(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
-      const lambda::function<int()>& inChild,
+      const std::string& directory,
+      const Option<std::string>& user,
       const SlaveID& slaveId,
+      const process::PID<Slave>& slavePid,
       bool checkpoint,
-      int pipeRead);
+      const std::list<Option<CommandInfo> >& scripts);
 
   process::Future<Nothing> isolate(
       const ContainerID& containerId,
       pid_t _pid);
-
-  process::Future<Nothing> _isolate(
-      const ContainerID& containerId,
-      const std::list<Option<CommandInfo> >& commands);
 
   process::Future<Nothing> exec(
       const ContainerID& containerId,

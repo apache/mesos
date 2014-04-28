@@ -82,7 +82,7 @@ Try<Nothing> PosixLauncher::recover(const list<RunState>& states)
 
 Try<pid_t> PosixLauncher::fork(
     const ContainerID& containerId,
-    const lambda::function<int()>& inChild)
+    const lambda::function<int()>& childFunction)
 {
   if (pids.contains(containerId)) {
     return Error("Process has already been forked for container " +
@@ -108,7 +108,7 @@ Try<pid_t> PosixLauncher::fork(
     }
 
     // This function should exec() and therefore not return.
-    inChild();
+    childFunction();
 
     ABORT("Child failed to exec");
   }

@@ -280,6 +280,12 @@ protected:
       DEFAULT_EXECUTOR_INFO.executor_id()
 
 
+#define CREATE_COMMAND_INFO(command)                                  \
+  ({ CommandInfo commandInfo;                                         \
+     commandInfo.set_value(command);                                  \
+     commandInfo; })
+
+
 inline TaskInfo createTask(
     const Offer& offer,
     const std::string& command,

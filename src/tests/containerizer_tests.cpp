@@ -22,11 +22,21 @@
 
 #include <gmock/gmock.h>
 
+#include <process/future.hpp>
+#include <process/owned.hpp>
+
 #include <mesos/mesos.hpp>
 
 #include "slave/flags.hpp"
 
+#include "slave/containerizer/isolator.hpp"
+#include "slave/containerizer/launcher.hpp"
 #include "slave/containerizer/mesos_containerizer.hpp"
+
+#include "tests/flags.hpp"
+#include "tests/isolator.hpp"
+#include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -238,4 +248,186 @@ TEST_F(MesosContainerizerProcessTest, NoExtractExecutable)
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
   EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+}
+
+
+class MesosContainerizerIsolatorPreparationTest :
+  public tests::TemporaryDirectoryTest
+{
+public:
+  // Construct a MesosContainerizer with TestIsolator(s) which use the provided
+  // 'prepare' command(s).
+  Try<MesosContainerizer*> CreateContainerizer(
+      const vector<Option<CommandInfo> >& prepares)
+  {
+    vector<Owned<Isolator> > isolators;
+
+    foreach (const Option<CommandInfo>& prepare, prepares) {
+      Try<Isolator*> isolator = tests::TestIsolatorProcess::create(prepare);
+      if (isolator.isError()) {
+        return Error(isolator.error());
+      }
+
+      isolators.push_back(Owned<Isolator>(isolator.get()));
+    }
+
+    slave::Flags flags;
+    flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+    Try<Launcher*> launcher = PosixLauncher::create(flags);
+    if (launcher.isError()) {
+      return Error(launcher.error());
+    }
+
+    return new MesosContainerizer(
+        flags,
+        false,
+        Owned<Launcher>(launcher.get()),
+        isolators);
+  }
+
+
+  Try<MesosContainerizer*> CreateContainerizer(const Option<CommandInfo>& prepare)
+  {
+    vector<Option<CommandInfo> > prepares;
+    prepares.push_back(prepare);
+
+    return CreateContainerizer(prepares);
+  }
+};
+
+
+// The isolator has a prepare command that succeeds.
+TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds) {
+  string directory = os::getcwd(); // We're inside a temporary sandbox.
+  string file = path::join(directory, "child.script.executed");
+
+  Try<MesosContainerizer*> containerizer = CreateContainerizer(
+      CREATE_COMMAND_INFO("touch " + file));
+  CHECK_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  process::Future<Nothing> launch = containerizer.get()->launch(
+      containerId,
+      CREATE_EXECUTOR_INFO("executor", "exit 0"),
+      directory,
+      None(),
+      SlaveID(),
+      process::PID<Slave>(),
+      false);
+
+  // Wait until the launch completes.
+  AWAIT_READY(launch);
+
+  // Wait for the child (preparation script + executor) to complete.
+  process::Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+  AWAIT_READY(wait);
+
+  // Check the child exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+
+  // Check the preparation script actually ran.
+  EXPECT_TRUE(os::exists(file));
+
+  // Destroy the container.
+  containerizer.get()->destroy(containerId);
+
+  delete containerizer.get();
+}
+
+
+// The isolator has a prepare command that fails.
+TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails) {
+  string directory = os::getcwd(); // We're inside a temporary sandbox.
+  string file = path::join(directory, "child.script.executed");
+
+  Try<MesosContainerizer*> containerizer = CreateContainerizer(
+      CREATE_COMMAND_INFO("touch " + file + " && exit 1"));
+  CHECK_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  Future<Nothing> launch = containerizer.get()->launch(
+      containerId,
+      CREATE_EXECUTOR_INFO("executor", "exit 0"),
+      directory,
+      None(),
+      SlaveID(),
+      process::PID<Slave>(),
+      false);
+
+  // Wait until the launch completes.
+  AWAIT_READY(launch);
+
+  // Wait for the child (preparation script + executor) to complete.
+  Future<containerizer::Termination> wait = containerizer.get()->wait(containerId);
+  AWAIT_READY(wait);
+
+  // Check the child failed to exit correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_NE(0, wait.get().status());
+
+  // Check the preparation script actually ran.
+  EXPECT_TRUE(os::exists(file));
+
+  // Destroy the container.
+  containerizer.get()->destroy(containerId);
+
+  delete containerizer.get();
+}
+
+
+// There are two isolators, one with a prepare command that succeeds and
+// another that fails. The execution order is not defined but the launch should
+// fail from the failing prepare command.
+TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts) {
+  string directory = os::getcwd(); // We're inside a temporary sandbox.
+  string file1 = path::join(directory, "child.script.executed.1");
+  string file2 = path::join(directory, "child.script.executed.2");
+
+  vector<Option<CommandInfo> > prepares;
+  // This isolator prepare command one will succeed if called first, otherwise
+  // it won't get run.
+  prepares.push_back(CREATE_COMMAND_INFO("touch " + file1 + " && exit 0"));
+  // This will fail, either first or after the successful command.
+  prepares.push_back(CREATE_COMMAND_INFO("touch " + file2 + " && exit 1"));
+
+  Try<MesosContainerizer*> containerizer = CreateContainerizer(prepares);
+  CHECK_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  Future<Nothing> launch = containerizer.get()->launch(
+      containerId,
+      CREATE_EXECUTOR_INFO("executor", "exit 0"),
+      directory,
+      None(),
+      SlaveID(),
+      process::PID<Slave>(),
+      false);
+
+  // Wait until the launch completes.
+  AWAIT_READY(launch);
+
+  // Wait for the child (preparation script(s) + executor) to complete.
+  Future<containerizer::Termination> wait = containerizer.get()->wait(containerId);
+  AWAIT_READY(wait);
+
+  // Check the child failed to exit correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_NE(0, wait.get().status());
+
+  // Check the failing preparation script has actually ran.
+  EXPECT_TRUE(os::exists(file2));
+
+  // Destroy the container.
+  containerizer.get()->destroy(containerId);
+
+  delete containerizer.get();
 }

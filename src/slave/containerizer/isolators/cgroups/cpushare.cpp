@@ -62,6 +62,9 @@ const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
 const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
 
 
+template<class T>
+static Future<Option<T> > none() { return None(); }
+
 CgroupsCpushareIsolatorProcess::CgroupsCpushareIsolatorProcess(
     const Flags& _flags,
     const hashmap<string, string>& _hierarchies)
@@ -193,7 +196,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
 }
 
 
-Future<Nothing> CgroupsCpushareIsolatorProcess::prepare(
+Future<Option<CommandInfo> > CgroupsCpushareIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo)
 {
@@ -242,11 +245,12 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::prepare(
     }
   }
 
-  return update(containerId, executorInfo.resources());
+  return update(containerId, executorInfo.resources())
+    .then(lambda::bind(none<CommandInfo>));
 }
 
 
-Future<Option<CommandInfo> > CgroupsCpushareIsolatorProcess::isolate(
+Future<Nothing> CgroupsCpushareIsolatorProcess::isolate(
     const ContainerID& containerId,
     pid_t pid)
 {
@@ -277,7 +281,7 @@ Future<Option<CommandInfo> > CgroupsCpushareIsolatorProcess::isolate(
     return Failure("Failed to isolate container: " + assign.error());
   }
 
-  return None();
+  return Nothing();
 }
 
 

@@ -50,7 +50,7 @@ Future<Nothing> Isolator::recover(const list<state::RunState>& state)
 }
 
 
-Future<Nothing> Isolator::prepare(
+Future<Option<CommandInfo> > Isolator::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo)
 {
@@ -61,7 +61,7 @@ Future<Nothing> Isolator::prepare(
 }
 
 
-Future<Option<CommandInfo> > Isolator::isolate(
+Future<Nothing> Isolator::isolate(
     const ContainerID& containerId,
     pid_t pid)
 {

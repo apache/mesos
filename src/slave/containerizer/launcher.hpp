@@ -47,7 +47,7 @@ public:
   // possible.
   virtual Try<pid_t> fork(
       const ContainerID& containerId,
-      const lambda::function<int()>&) = 0;
+      const lambda::function<int()>& childFunction) = 0;
 
   // Kill all processes in the containerized context.
   virtual process::Future<Nothing> destroy(const ContainerID& containerId) = 0;
@@ -69,7 +69,7 @@ public:
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,
-      const lambda::function<int()>& inChild);
+      const lambda::function<int()>& childFunction);
 
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
 
