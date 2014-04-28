@@ -33,13 +33,21 @@
 
 #include "linux/routing/utils.hpp"
 
+#include "linux/routing/filter/icmp.hpp"
+
 #include "linux/routing/link/link.hpp"
 
+#include "linux/routing/queueing/handle.hpp"
+#include "linux/routing/queueing/ingress.hpp"
+
 using namespace routing;
+using namespace routing::filter;
+using namespace routing::queueing;
 
 using std::endl;
 using std::set;
 using std::string;
+using std::vector;
 
 
 static const string TEST_VETH_LINK = "veth-test";
@@ -281,4 +289,195 @@ TEST_F(RoutingVethTest, ROOT_LinkMTU)
 
   EXPECT_NONE(link::mtu("not-exist"));
   EXPECT_SOME_FALSE(link::setMTU("not-exist", 1500));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_ICMPFilterCreate)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  net::IP ip = net::IP(0x01020304); // 1.2.3.4
+
+  EXPECT_SOME_TRUE(icmp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(ip),
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(icmp::exists(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(ip)));
+
+  Result<vector<icmp::Classifier> > classifiers =
+    icmp::classifiers(TEST_VETH_LINK, ingress::HANDLE);
+
+  ASSERT_SOME(classifiers);
+  ASSERT_EQ(1u, classifiers.get().size());
+  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP());
+}
+
+
+TEST_F(RoutingVethTest, ROOT_ICMPFilterCreateDuplicated)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  set<string> links;
+  links.insert(TEST_PEER_LINK);
+
+  EXPECT_SOME_TRUE(icmp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None()),
+      None(),
+      action::Mirror(links)));
+
+  EXPECT_SOME_TRUE(icmp::exists(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None())));
+
+  EXPECT_SOME_FALSE(icmp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None()),
+      None(),
+      action::Mirror(links)));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_ICMPFilterCreateMultiple)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  net::IP ip1 = net::IP(0x01020304); // 1.2.3.4
+  net::IP ip2 = net::IP(0x05060708); // 5.6.7.8
+
+  EXPECT_SOME_TRUE(icmp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(ip1),
+      Priority(1, 1),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(icmp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(ip2),
+      Priority(1, 2),
+      action::Redirect(TEST_PEER_LINK)));
+
+  Result<vector<icmp::Classifier> > classifiers =
+    icmp::classifiers(TEST_VETH_LINK, ingress::HANDLE);
+
+  ASSERT_SOME(classifiers);
+  ASSERT_EQ(2u, classifiers.get().size());
+  EXPECT_SOME_EQ(ip1, classifiers.get().front().destinationIP());
+  EXPECT_SOME_EQ(ip2, classifiers.get().back().destinationIP());
+}
+
+
+TEST_F(RoutingVethTest, ROOT_ICMPFilterRemove)
+{
+  ASSERT_SOME(link::create(
+      TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  EXPECT_SOME_TRUE(icmp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None()),
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(icmp::exists(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None())));
+
+  EXPECT_SOME_TRUE(icmp::remove(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None())));
+
+  EXPECT_SOME_FALSE(icmp::exists(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None())));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_ICMPFilterUpdate)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  net::IP ip = net::IP(0x01020304); // 1.2.3.4
+
+  set<string> links;
+  links.insert(TEST_PEER_LINK);
+
+  EXPECT_SOME_FALSE(icmp::update(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None()),
+      action::Mirror(links)));
+
+  EXPECT_SOME_TRUE(icmp::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None()),
+      None(),
+      action::Redirect(TEST_PEER_LINK)));
+
+  EXPECT_SOME_TRUE(icmp::exists(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None())));
+
+  EXPECT_SOME_FALSE(icmp::update(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(ip),
+      action::Mirror(links)));
+
+  EXPECT_SOME_TRUE(icmp::update(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None()),
+      action::Mirror(links)));
+
+  EXPECT_SOME_TRUE(icmp::exists(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(None())));
+
+  EXPECT_SOME_FALSE(icmp::exists(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      icmp::Classifier(ip)));
 }
