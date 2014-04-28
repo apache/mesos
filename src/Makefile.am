@@ -634,7 +634,7 @@ PROTOBUF_JAR = java/target/protobuf-java-$(PROTOBUF_VERSION).jar
 
 $(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) java/mesos.pom
 	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
-	@cd $(abs_top_builddir)/src/java && mvn -f mesos.pom clean package
+	@cd $(abs_top_builddir)/src/java && $(MVN) -f mesos.pom clean package
 
 # Convenience library for JNI bindings.
 # TODO(Charles Reiss): We really should be building the Java library
@@ -740,7 +740,7 @@ $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 CLEANFILES += $(EXAMPLES_JAR)
 
 maven-install: $(MESOS_JAR) java/mesos.pom
-	mvn -f java/mesos.pom install
+	$(MVN) -f java/mesos.pom install
 
 PHONY_TARGETS += maven-install
 endif # HAS_JAVA
