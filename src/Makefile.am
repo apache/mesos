@@ -269,13 +269,22 @@ endif
 if WITH_NETWORK_ISOLATOR
   libmesos_no_3rdparty_la_SOURCES +=					\
 	linux/routing/utils.cpp						\
-	linux/routing/link/link.cpp
+	linux/routing/link/link.cpp					\
+	linux/routing/queueing/handle.cpp				\
+	linux/routing/queueing/ingress.cpp
 
   libmesos_no_3rdparty_la_SOURCES +=					\
 	linux/routing/internal.hpp					\
 	linux/routing/utils.hpp						\
+	linux/routing/filter/action.hpp					\
+	linux/routing/filter/filter.hpp					\
+	linux/routing/filter/internal.hpp				\
+	linux/routing/filter/priority.hpp				\
 	linux/routing/link/internal.hpp					\
-	linux/routing/link/link.hpp
+	linux/routing/link/link.hpp					\
+	linux/routing/queueing/handle.hpp				\
+	linux/routing/queueing/ingress.hpp				\
+	linux/routing/queueing/internal.hpp
 endif
 
 libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
