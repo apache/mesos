@@ -38,6 +38,7 @@
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
 #include "slave/containerizer/mesos_containerizer.hpp"
+#include "slave/containerizer/external_containerizer.hpp"
 
 #include "slave/containerizer/isolators/posix.hpp"
 #ifdef __linux__
@@ -175,6 +176,10 @@ Try<Containerizer*> Containerizer::create(
   }
 
   LOG(INFO) << "Using isolation: " << isolation;
+
+  if (isolation == "external") {
+    return new ExternalContainerizer(flags);
+  }
 
   // Create a MesosContainerizerProcess using isolators and a launcher.
   hashmap<std::string, Try<Isolator*> (*)(const Flags&)> creators;

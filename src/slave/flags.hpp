@@ -57,7 +57,7 @@ public:
     add(&Flags::isolation,
         "isolation",
         "Isolation mechanisms to use, e.g., 'posix/cpu,posix/mem'\n"
-        "or 'cgroups/cpu,cgroups/mem'.",
+        "or 'cgroups/cpu,cgroups/mem' or 'external'.",
         "posix/cpu,posix/mem");
 
     add(&Flags::default_role,
@@ -70,8 +70,8 @@ public:
         "*");
 
     add(&Flags::attributes,
-      "attributes",
-      "Attributes of machine");
+        "attributes",
+        "Attributes of machine");
 
     add(&Flags::work_dir,
         "work_dir",
@@ -210,6 +210,16 @@ public:
         "Path to a file containing a single line with\n"
         "the 'principal' and 'secret' separated by whitespace.\n"
         "Path could be of the form 'file:///path/to/file' or '/path/to/file'");
+
+    add(&Flags::containerizer_path,
+        "containerizer_path",
+        "The path to the external containerizer executable used when\n"
+        "external isolation is activated (--isolation=external).\n");
+
+    add(&Flags::default_container_image,
+        "default_container_image",
+        "The default container image to use if not specified by a task,\n"
+        "when using external containerizer");
   }
 
   bool version;
@@ -241,6 +251,8 @@ public:
   Option<std::string> slave_subsystems;
 #endif
   Option<std::string> credential;
+  Option<std::string> containerizer_path;
+  Option<std::string> default_container_image;
 };
 
 } // namespace mesos {

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+# This script uses MESOS_SOURCE_DIR and MESOS_BUILD_DIR which come
+# from configuration substitutions.
+MESOS_SOURCE_DIR=@abs_top_srcdir@
+MESOS_BUILD_DIR=@abs_top_builddir@
+
+# Use colors for errors.
+. ${MESOS_SOURCE_DIR}/support/colors.sh
+
+# Force the use of the Python interpreter configured during building.
+test ! -z "${PYTHON}" && \
+  echo "${RED}Ignoring PYTHON environment variable (using @PYTHON@)${NORMAL}"
+
+PYTHON=@PYTHON@
+
+DISTRIBUTE_EGG=${MESOS_BUILD_DIR}/3rdparty/distribute-0.6.26/dist/
+DISTRIBUTE_EGG+=distribute-0.6.26@PYTHON_EGG_PUREPY_POSTFIX@.egg
+
+test ! -e ${DISTRIBUTE_EGG} && \
+  echo "${RED}Failed to find ${DISTRIBUTE_EGG}${NORMAL}" && \
+  exit 1
+
+PROTOBUF=${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-2.5.0
+
+PROTOBUF_EGG=${PROTOBUF}/python/dist/
+PROTOBUF_EGG+=protobuf-2.5.0@PYTHON_EGG_PUREPY_POSTFIX@.egg
+
+test ! -e ${PROTOBUF_EGG} && \
+  echo "${RED}Failed to find ${PROTOBUF_EGG}${NORMAL}" && \
+  exit 1
+
+MESOS_EGG=${MESOS_BUILD_DIR}/src/python/dist/
+MESOS_EGG+=mesos-@PACKAGE_VERSION@@PYTHON_EGG_POSTFIX@.egg
+
+test ! -e ${MESOS_EGG} && \
+  echo "${RED}Failed to find ${MESOS_EGG}${NORMAL}" && \
+  exit 1
+
+SCRIPT=${MESOS_SOURCE_DIR}/src/examples/python/test_containerizer.py
+
+test ! -e ${SCRIPT} && \
+  echo "${RED}Failed to find ${SCRIPT}${NORMAL}" && \
+  exit 1
+
+PYTHONPATH="${DISTRIBUTE_EGG}:${MESOS_EGG}:${PROTOBUF_EGG}" \
+  exec ${PYTHON} ${SCRIPT} "${@}"
