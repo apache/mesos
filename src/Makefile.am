@@ -966,7 +966,8 @@ if HAS_PYTHON
   mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSPYTHON)
 endif
 
-EXTRA_DIST += examples/python/test_framework.py				\
+EXTRA_DIST += examples/python/test_containerizer.py			\
+	      examples/python/test_framework.py				\
 	      examples/python/test_executor.py
 
 
