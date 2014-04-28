@@ -5,7 +5,12 @@ Release Notes - Mesos - Version 0.18.1
 ** Bug
     * [MESOS-979] - Master segfault when tasks.json endpoint is hit
     * [MESOS-1045] - Unrecognized file extension in CommandInfo.URI causes executor to exit
-    * [MESOS-1078] - JNI calls hasNext on ArrayList instead of iterator.
+    * [MESOS-1078] - JNI calls hasNext on ArrayList instead of iterator
+    * [MESOS-1221] - Slave should update the containerizers with executor resources after recovery
+    * [MESOS-1241] - Unable to disable the auto-extraction of URIs (mesos-fetcher)
+
+** Improvement
+    * [MESOS-1212] - Use maven to compile and package Mesos' Java files
 
 
 Release Notes - Mesos - Version 0.18.0
