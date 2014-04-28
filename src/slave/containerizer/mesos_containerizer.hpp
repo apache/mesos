@@ -181,11 +181,17 @@ private:
       const ContainerID& containerId,
       const process::Future<Nothing>& future);
 
-  // Continues (and completes) '_destroy()' once we get the exit status of the
-  // executor.
+  // Continues '_destroy()' once we get the exit status of the executor.
   void __destroy(
       const ContainerID& containerId,
       const process::Future<Option<int > >& status);
+
+  // Continues (and completes) '__destroy()' once all isolators have completed
+  // cleanup.
+  void ___destroy(
+      const ContainerID& containerId,
+      const process::Future<Option<int > >& status,
+      const process::Future<std::list<Nothing> >& futures);
 
   // Call back for when an isolator limits a container and impacts the
   // processes. This will trigger container destruction.

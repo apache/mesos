@@ -883,6 +883,9 @@ void MesosContainerizerProcess::_destroy(
     promises[containerId]->fail(
         "Failed to destroy container: " +
         (future.isFailed() ? future.failure() : "discarded future"));
+
+    destroying.erase(containerId);
+
     return;
   }
 
@@ -898,6 +901,37 @@ void MesosContainerizerProcess::__destroy(
     const ContainerID& containerId,
     const Future<Option<int > >& status)
 {
+  // Now that all processes have exited we can now clean up all isolators.
+  list<Future<Nothing> > futures;
+  foreach (const Owned<Isolator>& isolator, isolators) {
+    futures.push_back(isolator->cleanup(containerId));
+  }
+
+  // Wait for all isolators to complete cleanup before continuing.
+  collect(futures)
+    .onAny(defer(self(), &Self::___destroy, containerId, status, lambda::_1));
+}
+
+
+void MesosContainerizerProcess::___destroy(
+    const ContainerID& containerId,
+    const Future<Option<int > >& status,
+    const Future<list<Nothing> >& futures)
+{
+  // Something has gone wrong with one of the Isolators and cleanup failed.
+  // We'll fail the container termination and remove the 'destroying' flag but
+  // leave all other state. The containerizer is now in a bad state because
+  // at least one isolator has failed to clean up.
+  if (!futures.isReady()) {
+    promises[containerId]->fail(
+        "Failed to clean up isolators when destroying container: " +
+        (futures.isFailed() ? futures.failure() : "discarded future"));
+
+    destroying.erase(containerId);
+
+    return;
+  }
+
   // A container is 'killed' if any isolator limited it.
   // Note: We may not see a limitation in time for it to be registered. This
   // could occur if the limitation (e.g., an OOM) killed the executor and we
@@ -912,11 +946,6 @@ void MesosContainerizerProcess::__destroy(
     message = strings::trim(message);
   } else {
     message = "Executor terminated";
-  }
-
-  // We can now clean up all isolators.
-  foreach (const Owned<Isolator>& isolator, isolators) {
-    isolator->cleanup(containerId);
   }
 
   containerizer::Termination termination;
