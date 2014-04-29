@@ -385,12 +385,6 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_RUNNING, status.get().state());
 
-  // Shut down the executor manually so that it doesn't hang around
-  // after the test finishes.
-  // TODO(vinod): Kill this after the fix to 'Cluster' to properly
-  // shutdown the slaves.
-  process::post(executorPid, ShutdownExecutorMessage());
-
   driver.stop();
   driver.join();
 
@@ -484,12 +478,6 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   // Scheduler should receive the recovered update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_RUNNING, status.get().state());
-
-  // Shut down the executor manually so that it doesn't hang around
-  // after the test finishes.
-  // TODO(vinod): Kill this after the fix to 'Cluster' to properly
-  // shutdown the slaves.
-  process::post(executorPid, ShutdownExecutorMessage());
 
   driver.stop();
   driver.join();
@@ -1091,7 +1079,6 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
     .WillOnce(FutureArg<1>(&status2));
 
   this->Stop(slave.get());
-  delete containerizer.get();
 
   // Scheduler should receive the TASK_LOST updates.
   AWAIT_READY(status1);
@@ -1102,6 +1089,20 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 
   driver.stop();
   driver.join();
+
+  // Destroy all the containers before we destroy the containerizer. We need to
+  // do this manually because there are no slaves left in the cluster.
+  Future<hashset<ContainerID> > containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+
+  foreach (const ContainerID& containerId, containers.get()) {
+    Future<containerizer::Termination> wait =
+      containerizer.get()->wait(containerId);
+      containerizer.get()->destroy(containerId);
+      AWAIT_READY(wait);
+  }
+
+  delete containerizer.get();
 
   this->Shutdown();
 }
@@ -1569,9 +1570,9 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
   AWAIT_READY(_recover);
+
+  Clock::pause();
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -1811,10 +1812,6 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 
   this->Stop(slave.get());
 
-  // Shut down the executor manually so that it doesn't hang around
-  // after the test finishes.
-  process::post(executorPid, ShutdownExecutorMessage());
-
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status2));
@@ -1832,8 +1829,21 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   driver.stop();
   driver.join();
 
-  this->Shutdown();
+  // Destroy all the containers before we destroy the containerizer. We need to
+  // do this manually because there are no slaves left in the cluster.
+  Future<hashset<ContainerID> > containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+
+  foreach (const ContainerID& containerId, containers.get()) {
+    Future<containerizer::Termination> wait =
+      containerizer.get()->wait(containerId);
+      containerizer.get()->destroy(containerId);
+      AWAIT_READY(wait);
+  }
+
   delete containerizer.get();
+
+  this->Shutdown();
 }
 
 

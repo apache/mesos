@@ -21,6 +21,9 @@
 
 #include <map>
 
+#include <mesos/mesos.hpp>
+
+#include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/owned.hpp>
@@ -199,12 +202,15 @@ public:
     {
       Slave()
         : containerizer(NULL),
+          createdContainerizer(false),
           slave(NULL),
           detector(NULL) {}
 
-      // Only register the containerizer here if it is created within the
-      // Cluster.
+      // Register the slave's containerizer here.
       slave::Containerizer* containerizer;
+      // Record if we created the containerizer so we know to delete it when
+      // stopping the slave.
+      bool createdContainerizer;
       slave::Slave* slave;
       process::Owned<MasterDetector> detector;
 
@@ -436,7 +442,26 @@ inline void Cluster::Slaves::shutdown()
 {
   // TODO(benh): Use utils::copy from stout once namespaced.
   std::map<process::PID<slave::Slave>, Slave> copy(slaves);
-  foreachkey (const process::PID<slave::Slave>& pid, copy) {
+  foreachpair (const process::PID<slave::Slave>& pid,
+               const Slave& slave,
+               copy) {
+
+    process::Future<hashset<ContainerID> > containers =
+      slave.containerizer->containers();
+    AWAIT_READY(containers);
+
+    foreach (const ContainerID& containerId, containers.get()) {
+      // We need to wait on the container before destroying it in case someone
+      // else has already waited on it (and therefore would be immediately
+      // 'reaped' before we could wait on it).
+      process::Future<containerizer::Termination> wait =
+        slave.containerizer->wait(containerId);
+
+      slave.containerizer->destroy(containerId);
+
+      AWAIT_READY(wait);
+    }
+
     stop(pid);
   }
   slaves.clear();
@@ -458,6 +483,7 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
   CHECK_SOME(containerizer);
 
   slave.containerizer = containerizer.get();
+  slave.createdContainerizer = true;
 
   // Get a detector for the master(s).
   slave.detector = masters->detector();
@@ -496,6 +522,7 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
   CHECK_SOME(containerizer);
 
   slave.containerizer = containerizer.get();
+  slave.createdContainerizer = true;
 
   // Get a detector for the master(s) if one wasn't provided.
   if (detector.isNone()) {
@@ -524,6 +551,8 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
   // TODO(benh): Create a work directory if using the default.
 
   Slave slave;
+
+  slave.containerizer = containerizer;
 
   slave.flags = flags;
 
@@ -567,7 +596,9 @@ inline Try<Nothing> Cluster::Slaves::stop(
   process::wait(slave.slave);
   delete slave.slave;
 
-  delete slave.containerizer; // May be NULL.
+  if (slave.createdContainerizer) {
+    delete slave.containerizer;
+  }
 
 #ifdef __linux__
   // Remove all of this processes threads into the root cgroups - this
