@@ -103,10 +103,9 @@ def launch():
             print >> sys.stderr, "No executor passed; using mesos-executor!"
             executor = os.path.join(os.environ['MESOS_LIBEXEC_DIRECTORY'],
                                     "mesos-executor")
-            command = [executor,
-                       "sh",
+            command = ["sh",
                        "-c",
-                       launch.task_info.command.value]
+                       executor]
             print >> sys.stderr, "command " + str(command)
 
         lock_dir = os.path.join("/tmp/mesos-test-containerizer",
