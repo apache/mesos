@@ -66,12 +66,13 @@ public:
   Future<std::set<string> > names();
 
   // ZooKeeper events.
-  void connected(bool reconnect);
-  void reconnecting();
-  void expired();
-  void updated(const string& path);
-  void created(const string& path);
-  void deleted(const string& path);
+  // Note that events from previous sessions are dropped.
+  void connected(int64_t sessionId, bool reconnect);
+  void reconnecting(int64_t sessionId);
+  void expired(int64_t sessionId);
+  void updated(int64_t sessionId, const string& path);
+  void created(int64_t sessionId, const string& path);
+  void deleted(int64_t sessionId, const string& path);
 
 private:
   // Helpers for getting the names, fetching, and swapping.
@@ -290,8 +291,12 @@ Future<bool> ZooKeeperStorageProcess::expunge(const Entry& entry)
 }
 
 
-void ZooKeeperStorageProcess::connected(bool reconnect)
+void ZooKeeperStorageProcess::connected(int64_t sessionId, bool reconnect)
 {
+  if (sessionId != zk->getSessionId()) {
+    return;
+  }
+
   if (!reconnect) {
     // Authenticate if necessary (and we are connected for the first
     // time, or after a session expiration).
@@ -353,14 +358,22 @@ void ZooKeeperStorageProcess::connected(bool reconnect)
 }
 
 
-void ZooKeeperStorageProcess::reconnecting()
+void ZooKeeperStorageProcess::reconnecting(int64_t sessionId)
 {
+  if (sessionId != zk->getSessionId()) {
+    return;
+  }
+
   state = CONNECTING;
 }
 
 
-void ZooKeeperStorageProcess::expired()
+void ZooKeeperStorageProcess::expired(int64_t sessionId)
 {
+  if (sessionId != zk->getSessionId()) {
+    return;
+  }
+
   state = DISCONNECTED;
 
   delete zk;
@@ -370,19 +383,19 @@ void ZooKeeperStorageProcess::expired()
 }
 
 
-void ZooKeeperStorageProcess::updated(const string& path)
+void ZooKeeperStorageProcess::updated(int64_t sessionId, const string& path)
 {
   LOG(FATAL) << "Unexpected ZooKeeper event";
 }
 
 
-void ZooKeeperStorageProcess::created(const string& path)
+void ZooKeeperStorageProcess::created(int64_t sessionId, const string& path)
 {
   LOG(FATAL) << "Unexpected ZooKeeper event";
 }
 
 
-void ZooKeeperStorageProcess::deleted(const string& path)
+void ZooKeeperStorageProcess::deleted(int64_t sessionId, const string& path)
 {
   LOG(FATAL) << "Unexpected ZooKeeper event";
 }

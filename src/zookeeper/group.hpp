@@ -179,12 +179,13 @@ public:
   process::Future<Option<int64_t> > session();
 
   // ZooKeeper events.
-  void connected(bool reconnect);
-  void reconnecting();
-  void expired();
-  void updated(const std::string& path);
-  void created(const std::string& path);
-  void deleted(const std::string& path);
+  // Note that events from previous sessions are dropped.
+  void connected(int64_t sessionId, bool reconnect);
+  void reconnecting(int64_t sessionId);
+  void expired(int64_t sessionId);
+  void updated(int64_t sessionId, const std::string& path);
+  void created(int64_t sessionId, const std::string& path);
+  void deleted(int64_t sessionId, const std::string& path);
 
 private:
   Result<Group::Membership> doJoin(

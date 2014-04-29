@@ -301,9 +301,9 @@ Future<Option<int64_t> > GroupProcess::session()
 }
 
 
-void GroupProcess::connected(bool reconnect)
+void GroupProcess::connected(int64_t sessionId, bool reconnect)
 {
-  if (error.isSome()) {
+  if (error.isSome() || sessionId != zk->getSessionId()) {
     return;
   }
 
@@ -406,9 +406,9 @@ Try<bool> GroupProcess::create()
 }
 
 
-void GroupProcess::reconnecting()
+void GroupProcess::reconnecting(int64_t sessionId)
 {
-  if (error.isSome()) {
+  if (error.isSome() || sessionId != zk->getSessionId()) {
     return;
   }
 
@@ -455,14 +455,14 @@ void GroupProcess::timedout(int64_t sessionId)
                  << "(sessionId=" << std::hex << sessionId << ") expiration";
 
     // Locally determine that the current session has expired.
-    expired();
+    expired(zk->getSessionId());
   }
 }
 
 
-void GroupProcess::expired()
+void GroupProcess::expired(int64_t sessionId)
 {
-  if (error.isSome()) {
+  if (error.isSome() || sessionId != zk->getSessionId()) {
     return;
   }
 
@@ -517,9 +517,9 @@ void GroupProcess::expired()
 }
 
 
-void GroupProcess::updated(const string& path)
+void GroupProcess::updated(int64_t sessionId, const string& path)
 {
-  if (error.isSome()) {
+  if (error.isSome() || sessionId != zk->getSessionId()) {
     return;
   }
 
@@ -543,13 +543,13 @@ void GroupProcess::updated(const string& path)
 }
 
 
-void GroupProcess::created(const string& path)
+void GroupProcess::created(int64_t sessionId, const string& path)
 {
   LOG(FATAL) << "Unexpected ZooKeeper event";
 }
 
 
-void GroupProcess::deleted(const string& path)
+void GroupProcess::deleted(int64_t sessionId, const string& path)
 {
   LOG(FATAL) << "Unexpected ZooKeeper event";
 }
