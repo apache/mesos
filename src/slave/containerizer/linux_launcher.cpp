@@ -27,7 +27,7 @@
 
 #include "mesos/resources.hpp"
 
-#include "slave/containerizer/cgroups_launcher.hpp"
+#include "slave/containerizer/linux_launcher.hpp"
 
 using namespace process;
 
@@ -41,28 +41,28 @@ namespace slave {
 
 using state::RunState;
 
-CgroupsLauncher::CgroupsLauncher(const Flags& _flags, const string& _hierarchy)
+LinuxLauncher::LinuxLauncher(const Flags& _flags, const string& _hierarchy)
   : flags(_flags),
     hierarchy(_hierarchy) {}
 
 
-Try<Launcher*> CgroupsLauncher::create(const Flags& flags)
+Try<Launcher*> LinuxLauncher::create(const Flags& flags)
 {
   Try<string> hierarchy = cgroups::prepare(
       flags.cgroups_hierarchy, "freezer", flags.cgroups_root);
 
   if (hierarchy.isError()) {
-    return Error("Failed to create cgroups launcher: " + hierarchy.error());
+    return Error("Failed to create Linux launcher: " + hierarchy.error());
   }
 
   LOG(INFO) << "Using " << hierarchy.get()
-            << " as the freezer hierarchy for the cgroups launcher";
+            << " as the freezer hierarchy for the Linux launcher";
 
-  return new CgroupsLauncher(flags, hierarchy.get());
+  return new LinuxLauncher(flags, hierarchy.get());
 }
 
 
-Try<Nothing> CgroupsLauncher::recover(const std::list<state::RunState>& states)
+Try<Nothing> LinuxLauncher::recover(const std::list<state::RunState>& states)
 {
   hashset<string> cgroups;
 
@@ -122,7 +122,7 @@ Try<Nothing> CgroupsLauncher::recover(const std::list<state::RunState>& states)
 }
 
 
-Try<pid_t> CgroupsLauncher::fork(
+Try<pid_t> LinuxLauncher::fork(
     const ContainerID& containerId,
     const lambda::function<int()>& inChild)
 {
@@ -250,7 +250,7 @@ Future<Nothing> _destroy(
 }
 
 
-Future<Nothing> CgroupsLauncher::destroy(const ContainerID& containerId)
+Future<Nothing> LinuxLauncher::destroy(const ContainerID& containerId)
 {
   pids.erase(containerId);
 
@@ -259,7 +259,7 @@ Future<Nothing> CgroupsLauncher::destroy(const ContainerID& containerId)
 }
 
 
-string CgroupsLauncher::cgroup(const ContainerID& containerId)
+string LinuxLauncher::cgroup(const ContainerID& containerId)
 {
   return path::join(flags.cgroups_root, containerId.value());
 }

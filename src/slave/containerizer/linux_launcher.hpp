@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __CGROUPS_LAUNCHER_HPP__
-#define __CGROUPS_LAUNCHER_HPP__
+#ifndef __LINUX_LAUNCHER_HPP__
+#define __LINUX_LAUNCHER_HPP__
 
 #include "slave/containerizer/launcher.hpp"
 
@@ -27,12 +27,12 @@ namespace slave {
 
 // Launcher for Linux systems with cgroups. Uses a freezer cgroup to track
 // pids.
-class CgroupsLauncher : public Launcher
+class LinuxLauncher : public Launcher
 {
 public:
   static Try<Launcher*> create(const Flags& flags);
 
-  virtual ~CgroupsLauncher() {}
+  virtual ~LinuxLauncher() {}
 
   virtual Try<Nothing> recover(const std::list<state::RunState>& states);
 
@@ -43,7 +43,7 @@ public:
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
 
 private:
-  CgroupsLauncher(const Flags& flags, const std::string& hierarchy);
+  LinuxLauncher(const Flags& flags, const std::string& hierarchy);
 
   static const std::string subsystem;
   const Flags flags;
@@ -61,4 +61,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __CGROUPS_LAUNCHER_HPP__
+#endif // __LINUX_LAUNCHER_HPP__

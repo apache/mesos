@@ -32,7 +32,7 @@
 #include "slave/slave.hpp"
 
 #ifdef __linux__
-#include "slave/containerizer/cgroups_launcher.hpp"
+#include "slave/containerizer/linux_launcher.hpp"
 #endif // __linux__
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/isolator.hpp"
@@ -210,7 +210,7 @@ Try<Containerizer*> Containerizer::create(
 #ifdef __linux__
   // Use cgroups on Linux if any cgroups isolators are used.
   Try<Launcher*> launcher = strings::contains(isolation, "cgroups")
-    ? CgroupsLauncher::create(flags) : PosixLauncher::create(flags);
+    ? LinuxLauncher::create(flags) : PosixLauncher::create(flags);
 #else
   Try<Launcher*> launcher = PosixLauncher::create(flags);
 #endif // __linux__

@@ -254,7 +254,7 @@ if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/cpushare.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/mem.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/cgroups_launcher.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/linux_launcher.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/fs.cpp
 else
   EXTRA_DIST += linux/cgroups.cpp
@@ -283,7 +283,7 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	master/registrar.hpp						\
 	master/master.hpp master/sorter.hpp				\
 	messages/messages.hpp slave/constants.hpp			\
-	slave/containerizer/cgroups_launcher.hpp			\
+	slave/containerizer/linux_launcher.hpp				\
 	slave/containerizer/containerizer.hpp				\
 	slave/containerizer/isolator.hpp				\
 	slave/containerizer/isolators/cgroups/cpushare.hpp		\

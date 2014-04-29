@@ -39,7 +39,7 @@
 #include "slave/slave.hpp"
 
 #ifdef __linux__
-#include "slave/containerizer/cgroups_launcher.hpp"
+#include "slave/containerizer/linux_launcher.hpp"
 #endif // __linux__
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
@@ -62,8 +62,8 @@ using namespace process;
 using mesos::internal::master::Master;
 #ifdef __linux__
 using mesos::internal::slave::CgroupsCpushareIsolatorProcess;
-using mesos::internal::slave::CgroupsLauncher;
 using mesos::internal::slave::CgroupsMemIsolatorProcess;
+using mesos::internal::slave::LinuxLauncher;
 #endif // __linux__
 using mesos::internal::slave::Isolator;
 using mesos::internal::slave::IsolatorProcess;
@@ -308,7 +308,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
   Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher = CgroupsLauncher::create(flags);
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources to 0.5 cpu.
@@ -395,7 +395,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
   Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher = CgroupsLauncher::create(flags);
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources to 100.5 cpu.
