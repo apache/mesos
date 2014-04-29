@@ -61,9 +61,14 @@ using testing::Return;
 using testing::SaveArg;
 using testing::Invoke;
 
+// The external containerizer tests currently rely on a Python script
+// which needs the Mesos Python egg being built.
+// TODO(tillt): Consider providing tests that do not rely on Python.
+#ifdef MESOS_HAS_PYTHON
+
 // TODO(tillt): Update and enhance the ExternalContainerizer tests,
 // possibly following some of the patterns used within the
-// IsolatorTests.
+// IsolatorTests or even entirely reusing the Containerizer tests.
 class ExternalContainerizerTest : public MesosTest {};
 
 
@@ -255,3 +260,5 @@ TEST_F(ExternalContainerizerTest, Launch)
 
   this->Shutdown();
 }
+
+#endif // MESOS_HAS_PYTHON
