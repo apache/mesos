@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <string>
+
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
@@ -35,6 +37,8 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
+using std::string;
+
 using namespace process;
 
 using testing::_;
@@ -51,23 +55,32 @@ Option<zookeeper::URL> MesosZooKeeperTest::url;
 MesosTest::MesosTest(const Option<zookeeper::URL>& url) : cluster(url) {}
 
 
+void MesosTest::TearDown()
+{
+  TemporaryDirectoryTest::TearDown();
+
+  // TODO(benh): Fail the test if shutdown hasn't been called?
+  Shutdown();
+}
+
+
 master::Flags MesosTest::CreateMasterFlags()
 {
   master::Flags flags;
 
-  // Create a temporary work directory (removed by Environment).
-  Try<std::string> directory = environment->mkdtemp();
-  CHECK_SOME(directory) << "Failed to create temporary directory";
+  // We use the current working directory from TempDirectoryTest
+  // to ensure the work directory remains the same within a test.
+  flags.work_dir = path::join(os::getcwd(), "master");
 
-  flags.work_dir = directory.get();
+  CHECK_SOME(os::mkdir(flags.work_dir.get()));
 
   flags.authenticate_frameworks = true;
   flags.authenticate_slaves = true;
 
   // Create a default credentials file.
-  const std::string& path = path::join(directory.get(), "credentials");
+  const string& path = path::join(os::getcwd(), "credentials");
 
-  const std::string& credentials =
+  const string& credentials =
     DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
 
   CHECK_SOME(os::write(path, credentials))
@@ -77,6 +90,7 @@ master::Flags MesosTest::CreateMasterFlags()
 
   // Use the replicated log (without ZooKeeper) by default.
   flags.registry = "replicated_log";
+  flags.registry_strict = true;
 
   return flags;
 }
@@ -87,7 +101,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
   slave::Flags flags;
 
   // Create a temporary work directory (removed by Environment).
-  Try<std::string> directory = environment->mkdtemp();
+  Try<string> directory = environment->mkdtemp();
   CHECK_SOME(directory) << "Failed to create temporary directory";
 
   flags.work_dir = directory.get();
@@ -95,9 +109,9 @@ slave::Flags MesosTest::CreateSlaveFlags()
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
   // Create a default credential file.
-  const std::string& path = path::join(directory.get(), "credential");
+  const string& path = path::join(directory.get(), "credential");
 
-  const std::string& credential =
+  const string& credential =
     DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
 
   CHECK_SOME(os::write(path, credential))
@@ -108,8 +122,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
   // TODO(vinod): Consider making this true and fixing the tests.
   flags.checkpoint = false;
 
-  flags.resources = Option<std::string>(
-      "cpus:2;mem:1024;disk:1024;ports:[31000-32000]");
+  flags.resources = "cpus:2;mem:1024;disk:1024;ports:[31000-32000]";
 
 #ifdef __linux__
   // Enable putting the slave into memory and cpuacct cgroups.
@@ -296,13 +309,6 @@ void MesosTest::ShutdownSlaves()
 }
 
 
-void MesosTest::TearDown()
-{
-  // TODO(benh): Fail the test if shutdown hasn't been called?
-  Shutdown();
-}
-
-
 slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 {
   slave::Flags flags = MesosTest::CreateSlaveFlags();
@@ -330,9 +336,9 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 {
   if (os::exists("/proc/cgroups") && os::user() == "root") {
     // Clean up any testing hierarchies.
-    Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+    Try<std::set<string> > hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
-    foreach (const std::string& hierarchy, hierarchies.get()) {
+    foreach (const string& hierarchy, hierarchies.get()) {
       if (strings::startsWith(hierarchy, TEST_CGROUPS_HIERARCHY)) {
         AWAIT_READY(cgroups::cleanup(hierarchy));
       }
@@ -345,9 +351,9 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
 {
   if (os::exists("/proc/cgroups") && os::user() == "root") {
     // Clean up any testing hierarchies.
-    Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+    Try<std::set<string> > hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
-    foreach (const std::string& hierarchy, hierarchies.get()) {
+    foreach (const string& hierarchy, hierarchies.get()) {
       if (strings::startsWith(hierarchy, TEST_CGROUPS_HIERARCHY)) {
         AWAIT_READY(cgroups::cleanup(hierarchy));
       }
@@ -366,10 +372,10 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
   subsystems.insert("freezer");
 
   if (os::exists("/proc/cgroups") && os::user() == "root") {
-    foreach (const std::string& subsystem, subsystems) {
+    foreach (const string& subsystem, subsystems) {
       // Establish the base hierarchy if this is the first subsystem checked.
       if (baseHierarchy.empty()) {
-        Result<std::string> hierarchy = cgroups::hierarchy(subsystem);
+        Result<string> hierarchy = cgroups::hierarchy(subsystem);
         ASSERT_FALSE(hierarchy.isError());
 
         if (hierarchy.isNone()) {
@@ -384,7 +390,7 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
       }
 
       // Mount the subsystem if necessary.
-      std::string hierarchy = path::join(baseHierarchy, subsystem);
+      string hierarchy = path::join(baseHierarchy, subsystem);
       Try<bool> mounted = cgroups::mounted(hierarchy, subsystem);
       ASSERT_SOME(mounted);
       if (!mounted.get()) {
@@ -412,13 +418,13 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
   MesosTest::TearDown();
 
   if (os::exists("/proc/cgroups") && os::user() == "root") {
-    foreach (const std::string& subsystem, subsystems) {
-      std::string hierarchy = path::join(baseHierarchy, subsystem);
+    foreach (const string& subsystem, subsystems) {
+      string hierarchy = path::join(baseHierarchy, subsystem);
 
-      Try<std::vector<std::string> > cgroups = cgroups::get(hierarchy);
+      Try<std::vector<string> > cgroups = cgroups::get(hierarchy);
       CHECK_SOME(cgroups);
 
-      foreach (const std::string& cgroup, cgroups.get()) {
+      foreach (const string& cgroup, cgroups.get()) {
         // Remove any cgroups that start with TEST_CGROUPS_ROOT
         if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
           AWAIT_READY(cgroups::destroy(hierarchy, cgroup));

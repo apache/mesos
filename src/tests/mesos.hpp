@@ -53,6 +53,7 @@
 #include "slave/slave.hpp"
 
 #include "tests/cluster.hpp"
+#include "tests/utils.hpp"
 
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"
@@ -66,7 +67,7 @@ namespace tests {
 class MockExecutor;
 
 
-class MesosTest : public ::testing::Test
+class MesosTest : public TemporaryDirectoryTest
 {
 protected:
   MesosTest(const Option<zookeeper::URL>& url = None());
