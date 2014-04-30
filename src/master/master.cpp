@@ -686,14 +686,12 @@ void Master::exited(const UPID& pid)
   //         its tasks transitioned to LOST and resources recovered.
   foreachvalue (Slave* slave, slaves.activated) {
     if (slave->pid == pid) {
-      LOG(INFO) << "Slave " << slave->id << " (" << slave->info.hostname()
-                << ") disconnected";
+      LOG(INFO) << "Slave " << *slave << " disconnected";
 
       if (!slave->info.checkpoint()) {
         // Remove the slave, if it is not checkpointing.
-        LOG(INFO) << "Removing disconnected slave " << slave->id
-                  << "(" << slave->info.hostname() << ") "
-                  << "because it is not checkpointing!";
+        LOG(INFO) << "Removing disconnected slave " << *slave
+                  << " because it is not checkpointing!";
         removeSlave(slave);
         return;
       } else if (!slave->disconnected) {
@@ -701,8 +699,7 @@ void Master::exited(const UPID& pid)
         disconnect(slave);
       } else {
         LOG(WARNING) << "Ignoring duplicate exited() notification for "
-                     << "checkpointing slave " << slave->id
-                     << " (" << slave->info.hostname() << ")";
+                     << "checkpointing slave " << *slave;
       }
     }
   }
@@ -1281,8 +1278,7 @@ void Master::disconnect(Slave* slave)
     Framework* framework = getFramework(frameworkId);
     if (framework != NULL && !framework->info.checkpoint()) {
       LOG(INFO) << "Removing non-checkpointing framework " << frameworkId
-                << " from disconnected slave " << slave->id
-                << "(" << slave->info.hostname() << ")";
+                << " from disconnected slave " << *slave;
 
       removeFramework(slave, framework);
     }
@@ -1805,8 +1801,7 @@ void Master::launchTasks(
 
   LOG(INFO) << "Processing reply for offers: "
             << stringify(offerIds)
-            << " on slave " << slave->id
-            << " (" << slave->info.hostname() << ")"
+            << " on slave " << *slave
             << " for framework " << framework->id;
 
   Resources usedResources; // Accumulated resources used.
@@ -1992,8 +1987,7 @@ void Master::killTask(
   // NOTE: This task will be properly reconciled when the
   // disconnected slave re-registers with the master.
   if (!slave->disconnected) {
-    LOG(INFO) << "Telling slave " << slave->id << " ("
-              << slave->info.hostname() << ")"
+    LOG(INFO) << "Telling slave " << *slave
               << " to kill task " << taskId
               << " of framework " << frameworkId;
 
@@ -2044,16 +2038,14 @@ void Master::schedulerMessage(
 
   if (slave->disconnected) {
     LOG(WARNING) << "Cannot send framework message for framework "
-                 << frameworkId << " to slave " << slaveId
-                 << " (" << slave->info.hostname() << ")"
+                 << frameworkId << " to slave " << *slave
                  << " because slave is disconnected";
     stats.invalidFrameworkMessages++;
     return;
   }
 
   LOG(INFO) << "Sending framework message for framework "
-            << frameworkId << " to slave " << slaveId
-            << " (" << slave->info.hostname() << ")";
+            << frameworkId << " to slave " << *slave;
 
   FrameworkToExecutorMessage message;
   message.mutable_slave_id()->MergeFrom(slaveId);
@@ -2099,14 +2091,14 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
         // to register as a new slave. This could happen if the slave
         // failed recovery and hence registering as a new slave before
         // the master removed the old slave from its map.
-        LOG(INFO) << "Removing old disconnected slave " << slave->id << " ("
-                  << slave->info.hostname() << ") because a registration"
-                  << " attempt is being made from " << from;
+        LOG(INFO)
+          << "Removing old disconnected slave " << *slave
+          << " because a registration attempt is being made from " << from;
         removeSlave(slave);
         break;
       } else {
-        LOG(INFO) << "Slave " << slave->id << " (" << slave->info.hostname()
-                  << ") already registered, resending acknowledgement";
+        LOG(INFO) << "Slave " << *slave << " already registered,"
+                  << " resending acknowledgement";
         SlaveRegisteredMessage message;
         message.mutable_slave_id()->MergeFrom(slave->id);
         reply(message);
@@ -2128,6 +2120,9 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
   // Create and add the slave id.
   SlaveInfo slaveInfo_ = slaveInfo;
   slaveInfo_.mutable_id()->CopyFrom(newSlaveId());
+
+  LOG(INFO) << "Registering slave at " << from << " ("
+            << slaveInfo.hostname() << ") with id " << slaveInfo.id();
 
   registrar->apply(Owned<Operation>(new AdmitSlave(slaveInfo_)))
     .onAny(defer(self(),
@@ -2166,8 +2161,7 @@ void Master::_registerSlave(
   } else {
     Slave* slave = new Slave(slaveInfo, slaveInfo.id(), pid, Clock::now());
 
-    LOG(INFO) << "Admitted slave on " << slave->info.hostname()
-              << " at " << slave->pid;
+    LOG(INFO) << "Registered slave " << *slave;
 
     addSlave(slave);
   }
@@ -2294,11 +2288,15 @@ void Master::reregisterSlave(
   // If we're already re-registering this slave, then no need to ask
   // the registrar again.
   if (slaves.reregistering.contains(slaveInfo.id())) {
-    LOG(INFO) << "Ignoring re-register slave message from slave "
-              << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
-              << "as readmission is already in progress";
+    LOG(INFO)
+      << "Ignoring re-register slave message from slave "
+      << slaveInfo.id() << " at " << from << " ("
+      << slaveInfo.hostname() << ") as readmission is already in progress";
     return;
   }
+
+  LOG(INFO) << "Re-registering slave " << slaveInfo.id() << " at " << from
+            << " (" << slaveInfo.hostname() << ")";
 
   slaves.reregistering.insert(slaveInfo.id());
 
@@ -2348,8 +2346,7 @@ void Master::_reregisterSlave(
     Slave* slave = new Slave(slaveInfo, slaveInfo.id(), pid, Clock::now());
     slave->reregisteredTime = Clock::now();
 
-    LOG(INFO) << "Readmitted slave " << slave->id << " at "
-              << slave->pid << " (" << slave->info.hostname() << ")";
+    LOG(INFO) << "Re-registered slave " << *slave;
 
     readdSlave(slave, executorInfos, tasks, completedFrameworks);
 
@@ -2424,8 +2421,8 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
   // Forward the update to the framework.
   Try<Nothing> _forward = forward(update, pid);
   if (_forward.isError()) {
-    LOG(WARNING) << "Ignoring status update " << update << " from " << pid
-                 << " (" << slave->info.hostname() << "): " << _forward.error();
+    LOG(WARNING) << "Ignoring status update " << update
+                 << " from slave " << *slave << ": " << _forward.error();
     stats.invalidStatusUpdates++;
     return;
   }
@@ -2434,14 +2431,13 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
   const TaskStatus& status = update.status();
   Task* task = slave->getTask(update.framework_id(), status.task_id());
   if (task == NULL) {
-    LOG(WARNING) << "Status update " << update
-                 << " from " << pid << " ("
-                 << slave->info.hostname() << "): error, couldn't lookup task";
+    LOG(WARNING) << "Could not lookup task for status update " << update
+                 << " from slave " << *slave;
     stats.invalidStatusUpdates++;
     return;
   }
 
-  LOG(INFO) << "Status update " << update << " from " << pid;
+  LOG(INFO) << "Status update " << update << " from slave " << *slave;
 
   // TODO(brenden) Consider wiping the `data` and `message` fields?
   if (task->statuses_size() > 0 &&
@@ -2516,23 +2512,20 @@ void Master::exitedExecutor(
 
     LOG(INFO) << "Executor " << executorId
               << " of framework " << frameworkId
-              << " on slave " << slaveId
-              << " (" << slave->info.hostname() << ")"
+              << " on slave " << *slave
               << (WIFEXITED(status) ? " has exited with status "
                                      : " has terminated with signal ")
               << (WIFEXITED(status) ? stringify(WEXITSTATUS(status))
                                      : strsignal(WTERMSIG(status)));
 
-    allocator->resourcesRecovered(frameworkId,
-        slaveId,
-        Resources(executor.resources()));
+    allocator->resourcesRecovered(
+        frameworkId, slaveId, Resources(executor.resources()));
 
     // Remove executor from slave and framework.
     slave->removeExecutor(frameworkId, executorId);
   } else {
     LOG(WARNING) << "Ignoring unknown exited executor "
-                 << executorId << " on slave " << slaveId
-                 << " (" << slave->info.hostname() << ")";
+                 << executorId << " on slave " << *slave;
   }
 
   Framework* framework = getFramework(frameworkId);
@@ -2558,7 +2551,8 @@ void Master::shutdownSlave(const SlaveID& slaveId, const string& message)
   Slave* slave = slaves.activated[slaveId];
   CHECK_NOTNULL(slave);
 
-  LOG(WARNING) << "Shutting down slave " << slaveId << " at " << slave->pid;
+  LOG(WARNING) << "Shutting down slave " << *slave << " with message '"
+               << message << "'";
 
   ShutdownMessage message_;
   message_.set_message(message);
@@ -2696,15 +2690,14 @@ void Master::offer(const FrameworkID& frameworkId,
     Slave* slave = slaves.activated[slaveId];
 
     CHECK(slave->info.checkpoint() || !framework->info.checkpoint())
-        << "Resources of non checkpointing slave " << slaveId
-        << " (" << slave->info.hostname() << ") are being offered to"
-        << " checkpointing framework " << frameworkId;
+        << "Resources of non checkpointing slave " << *slave
+        << " are being offered to checkpointing framework " << frameworkId;
 
     // This could happen if the allocator dispatched 'Master::offer' before
     // it received 'Allocator::slaveRemoved' from the master.
     if (slave->disconnected) {
       LOG(WARNING) << "Master returning resources offered because slave "
-                   << slaveId << " is disconnected";
+                   << *slave << " is disconnected";
 
       allocator->resourcesRecovered(frameworkId, slaveId, offered);
       continue;
@@ -2886,7 +2879,7 @@ Resources Master::launchTask(const TaskInfo& task,
       CHECK(!framework->hasExecutor(slave->id, task.executor().executor_id()))
         << "Executor " << task.executor().executor_id()
         << " known to the framework " << framework->id
-        << " but unknown to the slave " << slave->id;
+        << " but unknown to the slave " << *slave;
 
       slave->addExecutor(framework->id, task.executor());
       framework->addExecutor(slave->id, task.executor());
@@ -2918,8 +2911,8 @@ Resources Master::launchTask(const TaskInfo& task,
   // Tell the slave to launch the task!
   LOG(INFO) << "Launching task " << task.task_id()
             << " of framework " << framework->id
-            << " with resources " << task.resources() << " on slave "
-            << slave->id << " (" << slave->info.hostname() << ")";
+            << " with resources " << task.resources()
+            << " on slave " << *slave;
 
   RunTaskMessage message;
   message.mutable_framework()->MergeFrom(framework->info);
@@ -2962,8 +2955,7 @@ void Master::reconcile(
       if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
         LOG(WARNING) << "Sending TASK_LOST for task " << task->task_id()
                      << " of framework " << task->framework_id()
-                     << " unknown to the slave " << slave->id
-                     << " (" << slave->info.hostname() << ")";
+                     << " unknown to the slave " << *slave;
 
         const StatusUpdate& update = protobuf::createStatusUpdate(
             task->framework_id(),
@@ -2987,9 +2979,8 @@ void Master::reconcile(
     // as we've added code in 0.14.0 to ensure the framework id is set
     // in the scheduler driver.
     if (!executor.has_framework_id()) {
-      LOG(ERROR) << "Slave " << slave->id
-                 << " (" << slave->info.hostname() << ") "
-                 << "re-registered with executor " << executor.executor_id()
+      LOG(ERROR) << "Slave " << *slave
+                 << " re-registered with executor " << executor.executor_id()
                  << " without setting the framework id";
       continue;
     }
@@ -3004,7 +2995,7 @@ void Master::reconcile(
       if (!slaveExecutors.contains(frameworkId, executorId)) {
         LOG(WARNING) << "Removing executor " << executorId << " of framework "
                      << frameworkId << " as it is unknown to the slave "
-                     << slave->id << " (" << slave->info.hostname() << ")";
+                     << *slave;
 
         // TODO(bmahler): This is duplicated in several locations, we
         // may benefit from a method for removing an executor from
@@ -3032,8 +3023,8 @@ void Master::reconcile(
   foreach (const Task& task, tasks) {
     if (!protobuf::isTerminalState(task.state()) &&
         slave->killedTasks.contains(task.framework_id(), task.task_id())) {
-      LOG(WARNING) << " Slave " << slave->id << " (" << slave->info.hostname()
-                   << ") has non-terminal task " << task.task_id()
+      LOG(WARNING) << " Slave " << *slave
+                   << " has non-terminal task " << task.task_id()
                    << " that is supposed to be killed. Killing it now!";
 
       KillTaskMessage message;
@@ -3054,8 +3045,8 @@ void Master::reconcile(
   foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
     if (slaveTasks.contains(framework->id)) {
       LOG(WARNING)
-        << "Slave " << slave->id << " (" << slave->info.hostname()
-        << ") re-registered with completed framework " << framework->id
+        << "Slave " << *slave
+        << " re-registered with completed framework " << framework->id
         << ". Shutting down the framework on the slave";
 
       ShutdownFrameworkMessage message;
@@ -3233,8 +3224,7 @@ void Master::removeFramework(Slave* slave, Framework* framework)
   CHECK_NOTNULL(framework);
 
   LOG(INFO) << "Removing framework " << framework->id
-            << " from slave " << slave->id
-            << " (" << slave->info.hostname() << ")";
+            << " from slave " << *slave;
 
   // Remove pointers to framework's tasks in slaves, and send status
   // updates.
@@ -3280,8 +3270,7 @@ void Master::addSlave(Slave* slave, bool reregister)
 {
   CHECK_NOTNULL(slave);
 
-  LOG(INFO) << "Adding slave " << slave->id
-            << " at " << slave->info.hostname()
+  LOG(INFO) << "Adding slave " << *slave
             << " with " << slave->info.resources();
 
   slaves.deactivated.erase(slave->id);
@@ -3300,14 +3289,14 @@ void Master::addSlave(Slave* slave, bool reregister)
   }
 
   // Set up an observer for the slave.
-  slave->observer = new SlaveObserver(slave->pid, slave->info,
-                                      slave->id, self());
+  slave->observer = new SlaveObserver(
+      slave->pid, slave->info, slave->id, self());
+
   spawn(slave->observer);
 
   if (!reregister) {
-    allocator->slaveAdded(slave->id,
-                          slave->info,
-                          hashmap<FrameworkID, Resources>());
+    allocator->slaveAdded(
+        slave->id, slave->info, hashmap<FrameworkID, Resources>());
   }
 }
 
@@ -3374,8 +3363,7 @@ void Master::readdSlave(
       // reregister and claim them.
       LOG(WARNING) << "Possibly orphaned task " << task.task_id()
                    << " of framework " << task.framework_id()
-                   << " running on slave " << slave->id << " ("
-                   << slave->info.hostname() << ")";
+                   << " running on slave " << *slave;
     }
 
     resources[task.framework_id()] += task.resources();
@@ -3394,8 +3382,7 @@ void Master::readdSlave(
       if (framework != NULL) {
         VLOG(2) << "Re-adding completed task " << task.task_id()
                 << " of framework " << task.framework_id()
-                << " that ran on slave " << slave->id << " ("
-                << slave->info.hostname() << ")";
+                << " that ran on slave " << *slave;
         framework->addCompletedTask(task);
       } else {
         // We could be here if the framework hasn't registered yet.
@@ -3403,8 +3390,7 @@ void Master::readdSlave(
         // information in the registrar.
         LOG(WARNING) << "Possibly orphaned completed task " << task.task_id()
                      << " of framework " << task.framework_id()
-                     << " that ran on slave " << slave->id << " ("
-                     << slave->info.hostname() << ")";
+                     << " that ran on slave " << *slave;
       }
     }
   }
@@ -3417,8 +3403,7 @@ void Master::removeSlave(Slave* slave)
 {
   CHECK_NOTNULL(slave);
 
-  LOG(INFO) << "Removing slave " << slave->id
-            << " (" << slave->info.hostname() << ")";
+  LOG(INFO) << "Removing slave " << *slave;
 
   // We do this first, to make sure any of the resources recovered
   // below (e.g., removeTask()) are ignored by the allocator.

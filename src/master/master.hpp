@@ -672,6 +672,13 @@ private:
 };
 
 
+inline std::ostream& operator << (std::ostream& stream, const Slave& slave)
+{
+  return stream << slave.id << " at " << slave.pid
+                << " (" << slave.info.hostname() << ")";
+}
+
+
 // Information about a connected or completed framework.
 struct Framework
 {
