@@ -182,7 +182,7 @@ def launch_cluster(conn, opts, cluster_name):
   print "Checking for running cluster..."
   reservations = conn.get_all_instances()
   for res in reservations:
-    group_names = [g.id for g in res.groups]
+    group_names = [g.name for g in res.groups]
     if master_group.name in group_names or slave_group.name in group_names or zoo_group.name in group_names:
       active = [i for i in res.instances if is_active(i)]
       if len(active) > 0:
@@ -306,7 +306,7 @@ def get_existing_cluster(conn, opts, cluster_name):
   for res in reservations:
     active = [i for i in res.instances if is_active(i)]
     if len(active) > 0:
-      group_names = [g.id for g in res.groups]
+      group_names = [g.name for g in res.groups]
       if group_names == [cluster_name + "-master"]:
         master_nodes += res.instances
       elif group_names == [cluster_name + "-slaves"]:
