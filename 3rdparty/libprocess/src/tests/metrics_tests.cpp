@@ -261,3 +261,24 @@ TEST(Metrics, Timer)
 
   AWAIT_READY(metrics::remove(timer));
 }
+
+
+// TODO(bmahler): Use 'Clock' in Timer so that we can test that Timer
+// is correctly timing futures.
+TEST(Metrics, AsyncTimer)
+{
+  metrics::Timer t("test/timer");
+  AWAIT_READY(metrics::add(t));
+
+  Future<int> result = 42;
+
+  result = t.time(result);
+  AWAIT_READY(result);
+
+  EXPECT_EQ(42, result.get());
+
+  AWAIT_READY(t.value());
+  EXPECT_GT(t.value().get(), 0.0);
+
+  AWAIT_READY(metrics::remove(t));
+}

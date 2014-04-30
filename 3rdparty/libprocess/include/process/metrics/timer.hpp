@@ -21,8 +21,6 @@ namespace metrics {
 // TODO(dhamon): Allow the user to choose the unit of duration.
 // We could do this by adding methods on Duration subclasses to return
 // the double value and unit string directly.
-// TODO(dhamon): Support timing of concurrent operations. Possibly by
-// exposing a 'timed' method that takes a Future and binds to onAny.
 class Timer : public Metric
 {
 public:
@@ -77,6 +75,20 @@ public:
     push(value);
   }
 
+  // Time an asynchronous event.
+  template<typename T>
+  Future<T> time(const Future<T>& future)
+  {
+    Stopwatch stopwatch;
+    stopwatch.start();
+
+    // We need to take a copy of 'this' here to ensure that the
+    // Timer is not destroyed in the interim.
+    future
+      .onAny(lambda::bind(_time, stopwatch, *this));
+
+    return future;
+  }
 
 private:
   struct Data {
@@ -86,6 +98,23 @@ private:
     Stopwatch stopwatch;
     Option<double> lastValue;
   };
+
+  static void _time(Stopwatch stopwatch, Timer that)
+  {
+    stopwatch.stop();
+
+    double value;
+
+    process::internal::acquire(&that.data->lock);
+    {
+      // Assume milliseconds for now.
+      that.data->lastValue = stopwatch.elapsed().ms();
+      value = that.data->lastValue.get();
+    }
+    process::internal::release(&that.data->lock);
+
+    that.push(value);
+  }
 
   memory::shared_ptr<Data> data;
 };
