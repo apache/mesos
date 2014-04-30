@@ -149,7 +149,6 @@ Future<Nothing> TestContainerizer::launch(
 {
   return launch(
       containerId,
-      taskInfo,
       executorInfo,
       directory,
       user,
