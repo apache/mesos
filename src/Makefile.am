@@ -746,10 +746,8 @@ maven-install: $(MESOS_JAR) java/mesos.pom
 PHONY_TARGETS += maven-install
 endif # HAS_JAVA
 
-# We rely on Maven to clean build artifacts, and remove examples and header
-# files in addition.
 clean-java:
-	mvn -f java/mesos.pom clean
+	-rm -rf java/target
 	-rm -f examples/java/*.class
 	-rm -f java/jni/org_apache_mesos*.h
 
