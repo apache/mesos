@@ -2,6 +2,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/interval.hpp>
+#include <stout/stringify.hpp>
 
 
 TEST(IntervalTest, Interval)
@@ -319,4 +320,25 @@ TEST(IntervalTest, IntervalIteration)
     }
     index++;
   }
+}
+
+
+TEST(IntervalTest, Stream)
+{
+  EXPECT_EQ("[1,3)", stringify((Bound<int>::closed(1), Bound<int>::open(3))));
+  EXPECT_EQ("[1,4)", stringify((Bound<int>::open(0), Bound<int>::closed(3))));
+  EXPECT_EQ("[0,5)", stringify((Bound<int>::closed(0), Bound<int>::closed(4))));
+  EXPECT_EQ("[2,3)", stringify((Bound<int>::open(1), Bound<int>::open(3))));
+  EXPECT_EQ("[)", stringify((Bound<int>::closed(1), Bound<int>::open(1))));
+
+  IntervalSet<int> set;
+
+  set += (Bound<int>::open(7), Bound<int>::closed(9));
+  EXPECT_EQ("{[8,10)}", stringify(set));
+
+  set += 5;
+  EXPECT_EQ("{[5,6)[8,10)}", stringify(set));
+
+  set += (Bound<int>::closed(7), Bound<int>::closed(9));
+  EXPECT_EQ("{[5,6)[7,10)}", stringify(set));
 }

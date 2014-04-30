@@ -16,6 +16,7 @@
 #define __STOUT_INTERVAL_HPP__
 
 #include <functional> // For std::less.
+#include <iostream>
 
 #include <boost/icl/interval.hpp>
 #include <boost/icl/interval_set.hpp>
@@ -84,6 +85,11 @@ public:
 private:
   friend class Bound<T>;
 
+  template <typename X>
+  friend std::ostream& operator << (
+      std::ostream& stream,
+      const Interval<X>& interval);
+
   Interval(const boost::icl::right_open_interval<T, std::less>& _data)
     : data(_data) {}
 
@@ -92,6 +98,13 @@ private:
   // prevent Interval from being passed to bare boost icl containers.
   boost::icl::right_open_interval<T, std::less> data;
 };
+
+
+template <typename T>
+std::ostream& operator << (std::ostream& stream, const Interval<T>& interval)
+{
+  return stream << interval.data;
+}
 
 
 template <typename T>
@@ -242,9 +255,21 @@ public:
   }
 
 private:
+  template <typename X>
+  friend std::ostream& operator << (
+      std::ostream& stream,
+      const IntervalSet<X>& set);
+
   // We use typedef here to make the code less verbose.
   typedef boost::icl::interval_set<T, std::less, Interval<T> > Base;
 };
+
+
+template <typename T>
+std::ostream& operator << (std::ostream& stream, const IntervalSet<T>& set)
+{
+  return stream << static_cast<const typename IntervalSet<T>::Base&>(set);
+}
 
 
 // Defines type traits for the custom Interval above. These type
