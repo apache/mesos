@@ -437,3 +437,54 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
 
   delete containerizer.get();
 }
+
+
+class MesosContainerizerExecuteTest : public tests::TemporaryDirectoryTest {};
+
+TEST_F(MesosContainerizerExecuteTest, IoRedirection)
+{
+  string directory = os::getcwd(); // We're inside a temporary sandbox.
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  // Use local=false so std{err,out} are redirected to files.
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false);
+  ASSERT_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  string errMsg = "this is stderr";
+  string outMsg = "this is stderr";
+  string command =
+    "(echo -n '" + errMsg + "' 1>&2) && echo -n '" + outMsg + "'";
+
+  process::Future<Nothing> launch = containerizer.get()->launch(
+      containerId,
+      CREATE_EXECUTOR_INFO("executor", command),
+      directory,
+      None(),
+      SlaveID(),
+      process::PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  // Wait on the container.
+  process::Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+
+  // Check that std{err, out} was redirected.
+  EXPECT_SOME_EQ(errMsg, os::read(path::join(directory, "stderr")));
+  EXPECT_SOME_EQ(outMsg, os::read(path::join(directory, "stdout")));
+
+  delete containerizer.get();
+}
