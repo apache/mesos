@@ -3524,6 +3524,9 @@ void Master::_removeSlave(
 
   // Notify all frameworks of the lost slave.
   foreachvalue (Framework* framework, frameworks.activated) {
+    LOG(INFO) << "Notifying framework " << framework->id << " of lost slave "
+              << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
+              << "after recovering";
     LostSlaveMessage message;
     message.mutable_slave_id()->MergeFrom(slaveInfo.id());
     send(framework->pid, message);

@@ -1304,6 +1304,82 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 }
 
 
+// This test ensures that when a slave is recovered from the registry
+// but does not re-register with the master, it is removed from the
+// registry and the framework is informed that the slave is lost, and
+// the slave is refused re-registration.
+TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
+{
+  // Step 1: Start a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master> > master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Step 2: Start a slave.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+
+  // Setup recovery slave flags.
+  slaveFlags.checkpoint = true;
+  slaveFlags.recover = "reconnect";
+  slaveFlags.strict = true;
+
+  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Step 3: Stop the slave while the master is down.
+  this->Stop(master.get());
+
+  this->Stop(slave.get());
+
+  // Step 4: Restart the master.
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Step 5: Start a scheduler.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  // Step 6: Advance the clock until the re-registration timeout
+  // elapses, and expect the slave / task to be lost!
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  Clock::pause();
+  Clock::advance(masterFlags.slave_reregister_timeout);
+
+  AWAIT_READY(slaveLost);
+
+  // Step 7: Ensure the slave cannot re-register!
+  Future<ShutdownMessage> shutdownMessage =
+    FUTURE_PROTOBUF(ShutdownMessage(), master.get(), _);
+
+  slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(shutdownMessage);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 #ifdef MESOS_HAS_JAVA
 
 class MasterZooKeeperTest : public MesosZooKeeperTest {};
