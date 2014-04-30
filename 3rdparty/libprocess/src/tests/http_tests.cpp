@@ -135,6 +135,10 @@ TEST(HTTP, Encode)
 
   EXPECT_SOME_EQ(unencoded, http::decode(encoded));
 
+  encoded = "a%24%26%2B%2C%2F%3A%3B%3D%3F%40+%22%3C%3E%23"
+            "%25%7B%7D%7C%5C%5E%7E%5B%5D%60%19%80%FF%00";
+  EXPECT_SOME_EQ(unencoded, http::decode(encoded));
+
   EXPECT_ERROR(http::decode("%"));
   EXPECT_ERROR(http::decode("%1"));
   EXPECT_ERROR(http::decode("%;1"));

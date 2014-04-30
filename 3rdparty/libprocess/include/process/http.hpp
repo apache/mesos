@@ -450,7 +450,7 @@ inline Try<std::string> decode(const std::string& s)
 
   for (size_t i = 0; i < s.length(); ++i) {
     if (s[i] != '%') {
-      out << s[i];
+      out << (s[i] == '+' ? ' ' : s[i]);
       continue;
     }
 
