@@ -6,6 +6,7 @@ AUTOMAKE_OPTIONS = foreign
 
 EXTRA_DIST =					\
   include/stout/abort.hpp			\
+  include/stout/base64.hpp			\
   include/stout/bytes.hpp			\
   include/stout/cache.hpp			\
   include/stout/check.hpp			\
@@ -70,6 +71,7 @@ EXTRA_DIST =					\
   include/stout/unreachable.hpp			\
   include/stout/utils.hpp			\
   include/stout/uuid.hpp			\
+  tests/base64_tests.cpp			\
   tests/bytes_tests.cpp				\
   tests/cache_tests.cpp				\
   tests/duration_tests.cpp			\
