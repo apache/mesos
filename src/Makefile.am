@@ -300,6 +300,7 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	tests/zookeeper.hpp tests/flags.hpp tests/utils.hpp		\
 	tests/cluster.hpp						\
 	tests/containerizer.hpp						\
+	tests/isolator.hpp						\
 	tests/mesos.hpp							\
 	tests/zookeeper_test_server.hpp zookeeper/authentication.hpp	\
 	zookeeper/contender.hpp						\
