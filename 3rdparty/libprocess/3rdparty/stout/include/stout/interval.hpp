@@ -160,10 +160,24 @@ public:
     Base::add((lower, upper));
   }
 
-  // Checks if the specified value is in this set.
+  // Checks if an element is in this set.
   bool contains(const T& value) const
   {
     return boost::icl::contains(static_cast<const Base&>(*this), value);
+  }
+
+  // Checks if an interval is in this set.
+  bool contains(const Interval<T>& interval) const
+  {
+    return boost::icl::contains(static_cast<const Base&>(*this), interval);
+  }
+
+  // Checks if an interval set is a subset of this set.
+  bool contains(const IntervalSet<T>& set) const
+  {
+    return boost::icl::contains(
+        static_cast<const Base&>(*this),
+        static_cast<const Base&>(set));
   }
 
   // Returns the number of intervals in this set.
@@ -173,38 +187,51 @@ public:
   }
 
   // Overloaded operators.
-  template <typename X>
-  IntervalSet<T>& operator += (const X& x)
+  IntervalSet<T>& operator += (const T& value)
   {
-    static_cast<Base&>(*this) += x;
+    static_cast<Base&>(*this) += value;
     return *this;
   }
 
-  template <typename X>
-  IntervalSet<T>& operator -= (const X& x)
+  IntervalSet<T>& operator += (const Interval<T>& interval)
   {
-    static_cast<Base&>(*this) -= x;
+    static_cast<Base&>(*this) += interval;
     return *this;
   }
 
-  template <typename X>
-  IntervalSet<T>& operator &= (const X& x)
-  {
-    static_cast<Base&>(*this) &= x;
-    return *this;
-  }
-
-  // Special overloads for IntervalSet. According to C++ standard,
-  // a non-template function always wins an ambiguous overload.
   IntervalSet<T>& operator += (const IntervalSet<T>& set)
   {
     static_cast<Base&>(*this) += static_cast<const Base&>(set);
     return *this;
   }
 
+  IntervalSet<T>& operator -= (const T& value)
+  {
+    static_cast<Base&>(*this) -= value;
+    return *this;
+  }
+
+  IntervalSet<T>& operator -= (const Interval<T>& interval)
+  {
+    static_cast<Base&>(*this) -= interval;
+    return *this;
+  }
+
   IntervalSet<T>& operator -= (const IntervalSet<T>& set)
   {
     static_cast<Base&>(*this) -= static_cast<const Base&>(set);
+    return *this;
+  }
+
+  IntervalSet<T>& operator &= (const T& value)
+  {
+    static_cast<Base&>(*this) &= value;
+    return *this;
+  }
+
+  IntervalSet<T>& operator &= (const Interval<T>& interval)
+  {
+    static_cast<Base&>(*this) &= interval;
     return *this;
   }
 

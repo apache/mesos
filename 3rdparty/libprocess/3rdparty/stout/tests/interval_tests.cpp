@@ -135,6 +135,37 @@ TEST(IntervalTest, Constructor)
 }
 
 
+TEST(IntervalTest, Contains)
+{
+  IntervalSet<int> set;
+
+  set += (Bound<int>::closed(1), Bound<int>::closed(10));
+
+  EXPECT_TRUE(set.contains(1));
+  EXPECT_TRUE(set.contains(10));
+  EXPECT_FALSE(set.contains(11));
+  EXPECT_FALSE(set.contains(0));
+
+  EXPECT_TRUE(set.contains((Bound<int>::closed(2), Bound<int>::closed(10))));
+  EXPECT_TRUE(set.contains((Bound<int>::closed(2), Bound<int>::open(11))));
+  EXPECT_TRUE(set.contains((Bound<int>::open(2), Bound<int>::open(4))));
+  EXPECT_FALSE(set.contains((Bound<int>::closed(5), Bound<int>::closed(11))));
+  EXPECT_FALSE(set.contains((Bound<int>::open(0), Bound<int>::closed(20))));
+
+  IntervalSet<int> set2;
+
+  set2 += (Bound<int>::open(4), Bound<int>::open(10));
+
+  EXPECT_TRUE(set.contains(set2));
+  EXPECT_FALSE(set2.contains(set));
+
+  IntervalSet<int> set3;
+
+  EXPECT_TRUE(set.contains(set3));
+  EXPECT_FALSE(set3.contains(set2));
+}
+
+
 TEST(IntervalTest, Addition)
 {
   IntervalSet<int> set;
