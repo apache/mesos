@@ -275,8 +275,7 @@ Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
   LOG(INFO) << "Recovering registrar";
 
   if (recovered.isNone()) {
-    metrics.state_fetch.start();
-    state->fetch<Registry>("registry")
+    metrics.state_fetch.time(state->fetch<Registry>("registry"))
       .after(flags.registry_fetch_timeout,
              lambda::bind(
                  &timeout<Variable<Registry> >,
@@ -297,7 +296,6 @@ void RegistrarProcess::_recover(
     const Future<Variable<Registry> >& recovery)
 {
   updating = false;
-  metrics.state_fetch.stop();
 
   CHECK(!recovery.isPending());
 
@@ -394,9 +392,8 @@ void RegistrarProcess::update()
     (*operation)(&registry, &slaveIDs, flags.registry_strict);
   }
 
-  // Perform the store!
-  metrics.state_store.start();
-  state->store(variable.get().mutate(registry))
+  // Perform the store, and time the operation.
+  metrics.state_store.time(state->store(variable.get().mutate(registry)))
     .after(flags.registry_store_timeout,
            lambda::bind(
                &timeout<Option<Variable<Registry> > >,
@@ -415,7 +412,6 @@ void RegistrarProcess::_update(
     deque<Owned<Operation> > applied)
 {
   updating = false;
-  metrics.state_store.stop();
 
   // Set the variable if the storage operation succeeded.
   if (!store.isReady()) {
