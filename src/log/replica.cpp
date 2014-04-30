@@ -564,57 +564,69 @@ void ReplicaProcess::write(const WriteRequest& request)
       response.set_position(request.position());
       reply(response);
     } else {
-      // TODO(benh): Check if this position has already been learned,
-      // and if so, check that we are re-writing the same value!
-      //
-      // TODO(jieyu): Interestingly, in the presence of truncations,
-      // we may encounter a situation where this position has already
-      // been learned, but we are re-writing a different value. For
-      // example, assume that there are 5 replicas (R1 ~ R5). First,
-      // an append operation has been agreed at position 5 by R1, R2,
-      // R3 and R4, but only R1 receives a learned message. Later, a
-      // truncate operation has been agreed at position 10 by R1, R2
-      // and R3, but only R1 receives a learned message. Now, a leader
-      // failover happens and R5 is filled with a NOP at position 5
-      // because its coordinator receives a learned NOP at position 5
-      // from R1 (because of its learned truncation at position 10).
-      // Now, another leader failover happens and R4's coordinator
-      // tries to fill position 5. However, it is only able to contact
-      // R2, R3 and R4 during the explicit promise phase. As a result,
-      // it will try to write an append operation at position 5 to R5
-      // while R5 currently have a learned NOP stored at position 5.
-      action.set_performed(request.proposal());
-      action.clear_learned();
-      if (request.has_learned()) action.set_learned(request.learned());
-      action.clear_type();
-      action.clear_nop();
-      action.clear_append();
-      action.clear_truncate();
-      action.set_type(request.type());
+      if (action.has_learned() && action.learned()) {
+        // We ignore the write request if this position has already
+        // been learned. Turns out that it is possible a replica
+        // receives the learned message of a write earlier than the
+        // write request of that write (Yes! It is possible! See
+        // MESOS-1271 for details). In that case, we want to prevent
+        // this log entry from being overwritten.
+        //
+        // TODO(benh): If the value in the write request is the same
+        // as the learned value, consider sending back an ACK which
+        // might speed convergence.
+        //
+        // NOTE: In the presence of truncations, we may encounter a
+        // situation where this position has already been learned, but
+        // we are receiving a write request for this position with a
+        // different value. For example, assume that there are 5
+        // replicas (R1 ~ R5). First, an append operation has been
+        // agreed at position 5 by R1, R2, R3 and R4, but only R1
+        // receives a learned message. Later, a truncate operation has
+        // been agreed at position 10 by R1, R2 and R3, but only R1
+        // receives a learned message. Now, a leader failover happens
+        // and R5 is filled with a NOP at position 5 because its
+        // coordinator receives a learned NOP at position 5 from R1
+        // (because of its learned truncation at position 10). Now,
+        // another leader failover happens and R4's coordinator tries
+        // to fill position 5. However, it is only able to contact R2,
+        // R3 and R4 during the explicit promise phase. Therefore, it
+        // will try to write an append operation at position 5 to R5
+        // while R5 currently have a learned NOP stored at position 5.
+      } else {
+        action.set_performed(request.proposal());
+        action.clear_learned();
+        if (request.has_learned()) action.set_learned(request.learned());
+        action.clear_type();
+        action.clear_nop();
+        action.clear_append();
+        action.clear_truncate();
+        action.set_type(request.type());
 
-      switch (request.type()) {
-        case Action::NOP:
-          CHECK(request.has_nop());
-          action.mutable_nop();
-          break;
-        case Action::APPEND:
-          CHECK(request.has_append());
-          action.mutable_append()->CopyFrom(request.append());
-          break;
-        case Action::TRUNCATE:
-          CHECK(request.has_truncate());
-          action.mutable_truncate()->CopyFrom(request.truncate());
-          break;
-        default:
-          LOG(FATAL) << "Unknown Action::Type!";
-      }
+        switch (request.type()) {
+          case Action::NOP:
+            CHECK(request.has_nop());
+            action.mutable_nop();
+            break;
+          case Action::APPEND:
+            CHECK(request.has_append());
+            action.mutable_append()->CopyFrom(request.append());
+            break;
+          case Action::TRUNCATE:
+            CHECK(request.has_truncate());
+            action.mutable_truncate()->CopyFrom(request.truncate());
+            break;
+          default:
+            LOG(FATAL) << "Unknown Action::Type!";
+        }
 
-      if (persist(action)) {
-        WriteResponse response;
-        response.set_okay(true);
-        response.set_proposal(request.proposal());
-        response.set_position(request.position());
-        reply(response);
+        if (persist(action)) {
+          WriteResponse response;
+          response.set_okay(true);
+          response.set_proposal(request.proposal());
+          response.set_position(request.position());
+          reply(response);
+        }
       }
     }
   }
