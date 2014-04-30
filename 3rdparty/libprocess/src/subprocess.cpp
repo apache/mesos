@@ -18,6 +18,8 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/execenv.hpp>
+
 using std::map;
 using std::string;
 
@@ -40,63 +42,6 @@ void cleanup(
   }
 
   delete promise;
-}
-
-// Used to build the environment passed to the subproces.
-class Envp
-{
-public:
-  explicit Envp(const map<string, string>& environment);
-  ~Envp();
-
-  char** operator () () const { return envp; }
-
-private:
-  // Not default constructable, not copyable, not assignable.
-  Envp();
-  Envp(const Envp&);
-  Envp& operator = (const Envp&);
-
-  char** envp;
-  size_t size;
-};
-
-
-Envp::Envp(const map<string, string>& _environment)
-  : envp(NULL),
-    size(0)
-{
-  // Merge passed environment with OS environment, overriding where necessary.
-  hashmap<string, string> environment = os::environment();
-
-  foreachpair (const string& key, const string& value, _environment) {
-    environment[key] = value;
-  }
-
-  size = environment.size();
-
-  // Convert environment to internal representation.
-  // Add 1 to the size for a NULL terminator.
-  envp = new char*[size + 1];
-  int index = 0;
-  foreachpair (const string& key, const string& value, environment) {
-    string entry = key + "=" + value;
-    envp[index] = new char[entry.size() + 1];
-    strncpy(envp[index], entry.c_str(), entry.size() + 1);
-    ++index;
-  }
-
-  envp[index] = NULL;
-}
-
-
-Envp::~Envp()
-{
-  for (size_t i = 0; i < size; ++i) {
-    delete[] envp[i];
-  }
-  delete[] envp;
-  envp = NULL;
 }
 
 }  // namespace internal {
@@ -133,7 +78,7 @@ Try<Subprocess> subprocess(
   // TODO(tillt): Consider optimizing this to not pass an empty map
   // into the constructor or even further to use execl instead of
   // execle once we have no user supplied environment.
-  internal::Envp envp(environment.get(map<string, string>()));
+  os::ExecEnv envp(environment.get(map<string, string>()));
 
   pid_t pid;
   if ((pid = fork()) == -1) {
