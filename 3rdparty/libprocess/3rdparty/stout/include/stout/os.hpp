@@ -634,22 +634,114 @@ inline bool chdir(const std::string& directory)
 }
 
 
+inline Result<uid_t> getuid(const Option<std::string>& user = None())
+{
+  if (user.isNone()) {
+    return ::getuid();
+  }
+
+  struct passwd passwd;
+  struct passwd* result = NULL;
+
+  int size = sysconf(_SC_GETPW_R_SIZE_MAX);
+  if (size == -1) {
+    // Initial value for buffer size.
+    size = 1024;
+  }
+
+  while (true) {
+    char* buffer = new char[size];
+
+    if (getpwnam_r(user.get().c_str(), &passwd, buffer, size, &result) == 0) {
+      // getpwnam_r will return 0 but set result == NULL if the user
+      // is not found.
+      if (result == NULL) {
+        delete[] buffer;
+        return None();
+      }
+
+      uid_t uid = passwd.pw_uid;
+      delete[] buffer;
+      return uid;
+    } else {
+      if (errno != ERANGE) {
+        delete[] buffer;
+        return ErrnoError("Failed to get username information");
+      }
+      // getpwnam_r set ERANGE so try again with a larger buffer.
+      size *= 2;
+      delete[] buffer;
+    }
+  }
+
+  return UNREACHABLE();
+}
+
+
+inline Result<gid_t> getgid(const Option<std::string>& user = None())
+{
+  if (user.isNone()) {
+    return ::getgid();
+  }
+
+  struct passwd passwd;
+  struct passwd* result = NULL;
+
+  int size = sysconf(_SC_GETPW_R_SIZE_MAX);
+  if (size == -1) {
+    // Initial value for buffer size.
+    size = 1024;
+  }
+
+  while (true) {
+    char* buffer = new char[size];
+
+    if (getpwnam_r(user.get().c_str(), &passwd, buffer, size, &result) == 0) {
+      // getpwnam_r will return 0 but set result == NULL if the user
+      // is not found.
+      if (result == NULL) {
+        delete[] buffer;
+        return None();
+      }
+
+      gid_t gid = passwd.pw_gid;
+      delete[] buffer;
+      return gid;
+    } else {
+      if (errno != ERANGE) {
+        delete[] buffer;
+        return ErrnoError("Failed to get username information");
+      }
+      // getpwnam_r set ERANGE so try again with a larger buffer.
+      size *= 2;
+      delete[] buffer;
+    }
+  }
+
+  return UNREACHABLE();
+}
+
+
+// TODO(idownes): Refactor to return a Try and to not log internally.
 inline bool su(const std::string& user)
 {
-  passwd* passwd;
-  if ((passwd = ::getpwnam(user.c_str())) == NULL) {
-    PLOG(ERROR) << "Failed to get user information for '"
-                << user << "', getpwnam";
+  Result<gid_t> gid = os::getgid(user);
+  if (gid.isError() || gid.isNone()) {
+    LOG(ERROR) << "Failed to set gid: "
+               << (gid.isError() ? gid.error() : "unknown user");
+    return false;
+  } else if (::setgid(gid.get())) {
+    PLOG(ERROR) << "Failed to setgid";
     return false;
   }
 
-  if (::setgid(passwd->pw_gid) < 0) {
-    PLOG(ERROR) << "Failed to set group id, setgid";
+  Result<uid_t> uid = os::getuid(user);
+  if (uid.isError() || uid.isNone()) {
+    LOG(ERROR) << "Failed to set uid: "
+               << (uid.isError() ? uid.error() : "unknown user");
     return false;
-  }
-
-  if (::setuid(passwd->pw_uid) < 0) {
-    PLOG(ERROR) << "Failed to set user id, setuid";
+  } else if (::setuid(uid.get())) {
+    PLOG(ERROR) << "Failed to setuid";
     return false;
   }
 
@@ -720,14 +812,46 @@ inline Try<std::list<std::string> > find(
 }
 
 
+// TODO(idownes): Refactor to return a Result<string>, returning
+// None() and ErrnoError as appropriate rather than LOG(FATAL).
 inline std::string user()
 {
-  passwd* passwd;
-  if ((passwd = getpwuid(getuid())) == NULL) {
-    LOG(FATAL) << "Failed to get username information";
+  int size = sysconf(_SC_GETPW_R_SIZE_MAX);
+  if (size == -1) {
+    // Initial value for buffer size.
+    size = 1024;
   }
 
-  return passwd->pw_name;
+  struct passwd passwd;
+  struct passwd* result = NULL;
+
+  while (true) {
+    char* buffer = new char[size];
+
+    if (getpwuid_r(::getuid(), &passwd, buffer, size, &result) == 0) {
+      // getpwuid_r will return 0 but set result == NULL if the uid is
+      // not found.
+      if (result == NULL) {
+        delete[] buffer;
+        LOG(FATAL) << "Failed to find username for uid " << ::getuid();
+      }
+
+      std::string user(passwd.pw_name);
+      delete[] buffer;
+      return user;
+    } else {
+      if (errno != ERANGE) {
+        delete[] buffer;
+        PLOG(FATAL) << "Failed to get username information";
+      }
+
+      // getpwuid_r set ERANGE so try again with a larger buffer.
+      size *= 2;
+      delete[] buffer;
+    }
+  }
+
+  return UNREACHABLE();
 }
 
 

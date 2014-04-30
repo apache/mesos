@@ -11,6 +11,7 @@
 #include <cstdlib> // For rand.
 #include <list>
 #include <set>
+#include <sstream>
 #include <string>
 
 #include <stout/duration.hpp>
@@ -706,4 +707,30 @@ TEST_F(OsTest, ProcessExists)
   EXPECT_EQ(SIGKILL, WTERMSIG(status));
 
   EXPECT_FALSE(os::exists(pid));
+}
+
+
+TEST_F(OsTest, user)
+{
+  std::ostringstream user_;
+  EXPECT_SOME_EQ(0, os::shell(&user_ , "id -un"));
+  EXPECT_EQ(strings::trim(user_.str()), os::user());
+
+  std::ostringstream uid_;
+  EXPECT_SOME_EQ(0, os::shell(&uid_, "id -u"));
+  Try<uid_t> uid = numify<uid_t>(strings::trim(uid_.str()));
+  ASSERT_SOME(uid);
+  EXPECT_SOME_EQ(uid.get(), os::getuid(os::user()));
+
+  std::ostringstream gid_;
+  EXPECT_SOME_EQ(0, os::shell(&gid_, "id -g"));
+  Try<gid_t> gid = numify<gid_t>(strings::trim(gid_.str()));
+  ASSERT_SOME(gid);
+  EXPECT_SOME_EQ(gid.get(), os::getgid(os::user()));
+
+  EXPECT_NONE(os::getuid(UUID::random().toString()));
+  EXPECT_NONE(os::getgid(UUID::random().toString()));
+
+  EXPECT_TRUE(os::su(os::user()));
+  EXPECT_FALSE(os::su(UUID::random().toString()));
 }
