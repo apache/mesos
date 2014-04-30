@@ -832,7 +832,16 @@ static Message* parse(Request* request)
     // Now determine 'to'.
     index = request->path.find('/', 1);
     index = index != string::npos ? index - 1 : string::npos;
-    const UPID to(request->path.substr(1, index), __ip__, __port__);
+
+    // Decode possible percent-encoded 'to'.
+    Try<string> decode = http::decode(request->path.substr(1, index));
+
+    if (decode.isError()) {
+      VLOG(2) << "Failed to decode URL path: " << decode.get();
+      return NULL;
+    }
+
+    const UPID to(decode.get(), __ip__, __port__);
 
     // And now determine 'name'.
     index = index != string::npos ? index + 2: request->path.size();
@@ -2428,7 +2437,13 @@ bool ProcessManager::handle(
     request->path = "/" + delegate;
     receiver = use(UPID(delegate, __ip__, __port__));
   } else if (tokens.size() > 0) {
-    receiver = use(UPID(tokens[0], __ip__, __port__));
+    // Decode possible percent-encoded path.
+    Try<string> decode = http::decode(tokens[0]);
+    if (!decode.isError()) {
+      receiver = use(UPID(decode.get(), __ip__, __port__));
+    } else {
+      VLOG(1) << "Failed to decode URL path: " << decode.error();
+    }
   }
 
   if (!receiver && delegate != "") {
@@ -3206,7 +3221,7 @@ void ProcessBase::visit(const HttpEvent& event)
   // Split the path by '/'.
   vector<string> tokens = strings::tokenize(event.request->path, "/");
   CHECK(tokens.size() >= 1);
-  CHECK(tokens[0] == pid.id);
+  CHECK_EQ(pid.id, http::decode(tokens[0]).get());
 
   const string& name = tokens.size() > 1 ? tokens[1] : "";
 

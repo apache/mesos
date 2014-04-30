@@ -27,6 +27,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
@@ -1713,4 +1714,55 @@ TEST(Future, FromTry)
   future = t;
 
   ASSERT_TRUE(future.isFailed());
+}
+
+
+class PercentEncodedIDProcess : public Process<PercentEncodedIDProcess>
+{
+public:
+  PercentEncodedIDProcess()
+    : ProcessBase("id(42)") {}
+
+  virtual void initialize()
+  {
+    install("handler1", &Self::handler1);
+    route("/handler2", None(), &Self::handler2);
+  }
+
+  MOCK_METHOD2(handler1, void(const UPID&, const string&));
+  MOCK_METHOD1(handler2, Future<http::Response>(const http::Request&));
+};
+
+
+TEST(Process, PercentEncodedURLs)
+{
+  PercentEncodedIDProcess process;
+  spawn(process);
+
+  // Construct the PID using percent-encoding.
+  UPID pid("id%2842%29", process.self().ip, process.self().port);
+
+  // Mimic a libprocess message sent to an installed handler.
+  Future<Nothing> handler1;
+  EXPECT_CALL(process, handler1(_, _))
+    .WillOnce(FutureSatisfy(&handler1));
+
+  hashmap<string, string> headers;
+  headers["User-Agent"] = "libprocess/";
+
+  Future<http::Response> response = http::post(pid, "handler1", headers);
+
+  AWAIT_READY(handler1);
+
+  // Now an HTTP request.
+  EXPECT_CALL(process, handler2(_))
+    .WillOnce(Return(http::OK()));
+
+  response = http::get(pid, "handler2");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[200], response.get().status);
+
+  terminate(process);
+  wait(process);
 }
