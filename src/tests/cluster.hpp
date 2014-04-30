@@ -365,6 +365,9 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
         ->appoint(master.master->info());
   }
 
+  process::Future<Nothing> _recover =
+    FUTURE_DISPATCH(master.master->self(), &master::Master::_recover);
+
   process::PID<master::Master> pid = process::spawn(master.master);
 
   masters[pid] = master;
@@ -372,9 +375,6 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   // Speed up the tests by ensuring that the Master is recovered
   // before the test proceeds. Otherwise, authentication and
   // registration messages may be dropped, causing delayed retries.
-  process::Future<Nothing> _recover =
-    FUTURE_DISPATCH(pid, &master::Master::_recover);
-
   if (!_recover.await(Seconds(10))) {
     LOG(FATAL) << "Failed to wait for _recover";
   }
