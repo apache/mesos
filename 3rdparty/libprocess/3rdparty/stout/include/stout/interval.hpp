@@ -182,7 +182,11 @@ public:
   // Checks if an interval is in this set.
   bool contains(const Interval<T>& interval) const
   {
-    return boost::icl::contains(static_cast<const Base&>(*this), interval);
+    // TODO(jieyu): Boost has an issue regarding unqualified lookup in
+    // template (http://clang.llvm.org/compatibility.html#dep_lookup),
+    // and gcc-4.8 complains about it. We use a workaround here by
+    // delegating this call to the IntervalSet version below.
+    return contains(IntervalSet<T>(interval));
   }
 
   // Checks if an interval set is a subset of this set.
