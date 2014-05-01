@@ -158,7 +158,12 @@ inline sysctl::sysctl(int level1, int level2, int level3, int level4)
 }
 
 
-inline sysctl::sysctl(int level1, int level2, int level3, int level4, int level5)
+inline sysctl::sysctl(
+    int level1,
+    int level2,
+    int level3,
+    int level4,
+    int level5)
   : levels(5), name(new int[levels])
 {
   name[0] = level1;

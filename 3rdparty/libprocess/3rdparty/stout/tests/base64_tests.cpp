@@ -18,8 +18,9 @@
 
 TEST(Base64, Encode)
 {
-  EXPECT_EQ("dGVzdHVzZXI6dGVzdHBhc3M=", base64::encode((const unsigned char *)("testuser:testpass"), 17));
+  EXPECT_EQ("dGVzdHVzZXI6dGVzdHBhc3M=", base64::encode("testuser:testpass"));
 }
+
 
 TEST(Base64, Decode)
 {

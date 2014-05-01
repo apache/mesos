@@ -98,7 +98,8 @@ TEST(StringsTest, TokenizeStringWithDelimsAtStart)
 
 TEST(StringsTest, TokenizeStringWithDelimsAtEnd)
 {
-  vector<string> tokens = strings::tokenize("hello world,  what's up?  ", " ");
+  vector<string> tokens =
+    strings::tokenize("hello world,  what's up?  ", " ");
   ASSERT_EQ(4u, tokens.size());
   EXPECT_EQ("hello",  tokens[0]);
   EXPECT_EQ("world,", tokens[1]);
@@ -109,7 +110,8 @@ TEST(StringsTest, TokenizeStringWithDelimsAtEnd)
 
 TEST(StringsTest, TokenizeStringWithDelimsAtStartAndEnd)
 {
-  vector<string> tokens = strings::tokenize("  hello world,  what's up?  ", " ");
+  vector<string> tokens =
+    strings::tokenize("  hello world,  what's up?  ", " ");
   ASSERT_EQ(4u, tokens.size());
   EXPECT_EQ("hello",  tokens[0]);
   EXPECT_EQ("world,", tokens[1]);
@@ -120,8 +122,8 @@ TEST(StringsTest, TokenizeStringWithDelimsAtStartAndEnd)
 
 TEST(StringsTest, TokenizeWithMultipleDelims)
 {
-  vector<string> tokens = strings::tokenize("hello\tworld,  \twhat's up?",
-                                            " \t");
+  vector<string> tokens =
+    strings::tokenize("hello\tworld,  \twhat's up?", " \t");
   ASSERT_EQ(4u, tokens.size());
   EXPECT_EQ("hello",  tokens[0]);
   EXPECT_EQ("world,", tokens[1]);

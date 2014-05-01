@@ -17,7 +17,6 @@
 #include <cctype>
 #include <string>
 
-namespace stout {
 namespace base64 {
 
 // This slightly modified base64 implementation from
@@ -126,6 +125,5 @@ std::string decode(const std::string& s)
 }
 
 } // namespace base64 {
-} // namespace stout {
 
 #endif // __STOUT_BASE64_HPP__
