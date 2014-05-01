@@ -189,6 +189,10 @@ public:
     : Duration(nanoseconds, NANOSECONDS) {}
 
   Nanoseconds(const Duration& d) : Duration(d) {}
+
+  double value() const { return static_cast<double>(this->ns()); }
+
+  static std::string units() { return "ns"; }
 };
 
 
@@ -199,6 +203,10 @@ public:
     : Duration(microseconds, MICROSECONDS) {}
 
   Microseconds(const Duration& d) : Duration(d) {}
+
+  double value() const { return this->us(); }
+
+  static std::string units() { return "us"; }
 };
 
 
@@ -209,6 +217,10 @@ public:
     : Duration(milliseconds, MILLISECONDS) {}
 
   Milliseconds(const Duration& d) : Duration(d) {}
+
+  double value() const { return this->ms(); }
+
+  static std::string units() { return "ms"; }
 };
 
 
@@ -219,6 +231,10 @@ public:
     : Duration(seconds, SECONDS) {}
 
   Seconds(const Duration& d) : Duration(d) {}
+
+  double value() const { return this->secs(); }
+
+  static std::string units() { return "secs"; }
 };
 
 
@@ -229,6 +245,10 @@ public:
     : Duration(minutes, MINUTES) {}
 
   Minutes(const Duration& d) : Duration(d) {}
+
+  double value() const { return this->mins(); }
+
+  static std::string units() { return "mins"; }
 };
 
 
@@ -239,6 +259,10 @@ public:
     : Duration(hours, HOURS) {}
 
   Hours(const Duration& d) : Duration(d) {}
+
+  double value() const { return this->hrs(); }
+
+  static std::string units() { return "hrs"; }
 };
 
 
@@ -249,6 +273,10 @@ public:
     : Duration(days, DAYS) {}
 
   Days(const Duration& d) : Duration(d) {}
+
+  double value() const { return this->days(); }
+
+  static std::string units() { return "days"; }
 };
 
 
@@ -258,6 +286,10 @@ public:
   explicit Weeks(int32_t value) : Duration(value, WEEKS) {}
 
   Weeks(const Duration& d) : Duration(d) {}
+
+  double value() const { return this->weeks(); }
+
+  static std::string units() { return "weeks"; }
 };
 
 
@@ -291,56 +323,56 @@ inline std::ostream& operator << (
   // instead of 'weeks' to output the duration.
   int64_t nanoseconds = duration.ns();
   if (duration < Microseconds(1)) {
-    stream << duration.ns() << "ns";
+    stream << duration.ns() << Nanoseconds::units();
   } else if (duration < Milliseconds(1)) {
     if (nanoseconds % Duration::MICROSECONDS != 0) {
       // We can't get a whole number using this unit but we can at
       // one level down.
-      stream << duration.ns() << "ns";
+      stream << duration.ns() << Nanoseconds::units();
     } else {
-      stream << duration.us() << "us";
+      stream << duration.us() << Microseconds::units();
     }
   } else if (duration < Seconds(1)) {
     if (nanoseconds % Duration::MILLISECONDS != 0 &&
         nanoseconds % Duration::MICROSECONDS == 0) {
-      stream << duration.us() << "us";
+      stream << duration.us() << Microseconds::units();
     } else {
-      stream << duration.ms() << "ms";
+      stream << duration.ms() << Milliseconds::units();
     }
   } else if (duration < Minutes(1)) {
     if (nanoseconds % Duration::SECONDS != 0 &&
         nanoseconds % Duration::MILLISECONDS == 0) {
-      stream << duration.ms() << "ms";
+      stream << duration.ms() << Milliseconds::units();
     } else {
-      stream << duration.secs() << "secs";
+      stream << duration.secs() << Seconds::units();
     }
   } else if (duration < Hours(1)) {
     if (nanoseconds % Duration::MINUTES != 0 &&
         nanoseconds % Duration::SECONDS == 0) {
-      stream << duration.secs() << "secs";
+      stream << duration.secs() << Seconds::units();
     } else {
-      stream << duration.mins() << "mins";
+      stream << duration.mins() << Minutes::units();
     }
   } else if (duration < Days(1)) {
     if (nanoseconds % Duration::HOURS != 0 &&
         nanoseconds % Duration::MINUTES == 0) {
-      stream << duration.mins() << "mins";
+      stream << duration.mins() << Minutes::units();
     } else {
-      stream << duration.hrs() << "hrs";
+      stream << duration.hrs() << Hours::units();
     }
   } else if (duration < Weeks(1)) {
     if (nanoseconds % Duration::DAYS != 0 &&
         nanoseconds % Duration::HOURS == 0) {
-      stream << duration.hrs() << "hrs";
+      stream << duration.hrs() << Hours::units();
     } else {
-      stream << duration.days() << "days";
+      stream << duration.days() << Days::units();
     }
   } else {
     if (nanoseconds % Duration::WEEKS != 0 &&
         nanoseconds % Duration::DAYS == 0) {
-      stream << duration.days() << "days";
+      stream << duration.days() << Days::units();
     } else {
-      stream << duration.weeks() << "weeks";
+      stream << duration.weeks() << Weeks::units();
     }
   }
 
