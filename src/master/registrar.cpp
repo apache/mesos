@@ -152,8 +152,8 @@ private:
 
     Gauge queued_operations;
 
-    Timer state_fetch;
-    Timer state_store;
+    Timer<Milliseconds> state_fetch;
+    Timer<Milliseconds> state_store;
   } metrics;
 
   // Gauge handlers
