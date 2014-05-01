@@ -130,6 +130,7 @@ $(RY_HTTP_PARSER)/http_parser.c: $(RY_HTTP_PARSER)-stamp
 check_PROGRAMS = stout-tests
 
 stout_tests_SOURCES =				\
+  $(STOUT)/tests/base64_tests.cpp		\
   $(STOUT)/tests/bytes_tests.cpp		\
   $(STOUT)/tests/cache_tests.cpp		\
   $(STOUT)/tests/duration_tests.cpp		\

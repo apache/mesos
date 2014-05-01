@@ -105,8 +105,11 @@ private:
     decoder->field.clear();
     decoder->value.clear();
 
-    decoder->request->method = http_method_str((http_method) decoder->parser.method);
+    decoder->request->method =
+      http_method_str((http_method) decoder->parser.method);
+
     decoder->request->keepAlive = http_should_keep_alive(&decoder->parser);
+
     return 0;
   }
 

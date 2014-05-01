@@ -276,8 +276,12 @@ TEST(HTTP, Post)
   EXPECT_CALL(process, post(_))
     .WillOnce(Invoke(validatePost));
 
-  future =
-    http::post(process.self(), "post", None(), "This is the payload.", "text/plain");
+  future = http::post(
+      process.self(),
+      "post",
+      None(),
+      "This is the payload.",
+      "text/plain");
 
   AWAIT_READY(future);
   ASSERT_EQ(http::statuses[200], future.get().status);

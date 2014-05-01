@@ -137,7 +137,7 @@ struct _Deferred
       return std::function<void(ENUM_PARAMS(N, P))>(f);                 \
     }                                                                   \
                                                                         \
-    Option<UPID> pid_ = pid;                                                    \
+    Option<UPID> pid_ = pid;                                            \
     F f_ = f;                                                           \
                                                                         \
     return std::function<void(ENUM_PARAMS(N, P))>(                      \
@@ -156,7 +156,7 @@ struct _Deferred
       return std::function<void(ENUM_PARAMS(N, P))>(f);                 \
     }                                                                   \
                                                                         \
-    Option<UPID> pid_ = pid;                                                    \
+    Option<UPID> pid_ = pid;                                            \
     F f_ = f;                                                           \
                                                                         \
     return std::function<void(ENUM_PARAMS(N, P))>(                      \
@@ -179,7 +179,7 @@ struct _Deferred
       return std::function<R(ENUM_PARAMS(N, P))>(f);                    \
     }                                                                   \
                                                                         \
-    Option<UPID> pid_ = pid;                                                    \
+    Option<UPID> pid_ = pid;                                            \
     F f_ = f;                                                           \
                                                                         \
     return std::function<R(ENUM_PARAMS(N, P))>(                         \
@@ -198,7 +198,7 @@ struct _Deferred
       return std::function<R(ENUM_PARAMS(N, P))>(f);                    \
     }                                                                   \
                                                                         \
-    Option<UPID> pid_ = pid;                                                    \
+    Option<UPID> pid_ = pid;                                            \
     F f_ = f;                                                           \
                                                                         \
     return std::function<R(ENUM_PARAMS(N, P))>(                         \
@@ -226,7 +226,7 @@ private:
   friend auto defer(const PID<T>& pid,                                  \
              void (T::*method)(ENUM_PARAMS(N, P)),                      \
              ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(&std::function<void(ENUM_PARAMS(N, P))>::operator(), std::function<void(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>;
+    -> _Deferred<decltype(std::bind(&std::function<void(ENUM_PARAMS(N, P))>::operator(), std::function<void(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>; // NOLINT(whitespace/line_length)
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
@@ -239,7 +239,7 @@ private:
   friend auto defer(const PID<T>& pid,                                  \
              Future<R> (T::*method)(ENUM_PARAMS(N, P)),                 \
              ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>;
+    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>; // NOLINT(whitespace/line_length)
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
@@ -252,7 +252,7 @@ private:
   friend auto defer(const PID<T>& pid,                                  \
              R (T::*method)(ENUM_PARAMS(N, P)),                         \
              ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>;
+    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>; // NOLINT(whitespace/line_length)
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE

@@ -878,7 +878,8 @@ void handle_async(struct ev_loop* loop, ev_async* _, int revents)
     if (update_timer) {
       if (!timeouts->empty()) {
         // Determine when the next timer should fire.
-        timeouts_watcher.repeat = (timeouts->begin()->first - Clock::now()).secs();
+        timeouts_watcher.repeat =
+          (timeouts->begin()->first - Clock::now()).secs();
 
         if (timeouts_watcher.repeat <= 0) {
           // Feed the event now!
@@ -3167,7 +3168,11 @@ void ProcessBase::enqueue(Event* event, bool inject)
 }
 
 
-void ProcessBase::inject(const UPID& from, const string& name, const char* data, size_t length)
+void ProcessBase::inject(
+    const UPID& from,
+    const string& name,
+    const char* data,
+    size_t length)
 {
   if (!from)
     return;
@@ -3178,7 +3183,11 @@ void ProcessBase::inject(const UPID& from, const string& name, const char* data,
 }
 
 
-void ProcessBase::send(const UPID& to, const string& name, const char* data, size_t length)
+void ProcessBase::send(
+    const UPID& to,
+    const string& name,
+    const char* data,
+    size_t length)
 {
   if (!to) {
     return;
@@ -3909,7 +3918,8 @@ void _splice(
                    WeakFuture<size_t>(read)));
 
   read
-    .onReady(lambda::bind(&__splice, from, to, chunk, data, promise, lambda::_1))
+    .onReady(
+        lambda::bind(&__splice, from, to, chunk, data, promise, lambda::_1))
     .onFailed(lambda::bind(&___splice, promise, lambda::_1))
     .onDiscarded(lambda::bind(&____splice, promise));
 }

@@ -371,7 +371,7 @@ inline ::testing::AssertionResult AwaitAssertResponseHeaderEq(
 
 
 #define AWAIT_EXPECT_RESPONSE_HEADER_EQ_FOR(expected, key, actual, duration) \
-  EXPECT_PRED_FORMAT4(AwaitAssertResponseHeaderEq, expected, key, actual, duration)
+  EXPECT_PRED_FORMAT4(AwaitAssertResponseHeaderEq, expected, key, actual, duration) // NOLINT(whitespace/line_length)
 
 
 #define AWAIT_EXPECT_RESPONSE_HEADER_EQ(expected, key, actual)          \

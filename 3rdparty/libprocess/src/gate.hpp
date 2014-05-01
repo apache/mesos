@@ -1,9 +1,7 @@
-#ifndef GATE_H
-#define GATE_H
+#ifndef __GATE_HPP__
+#define __GATE_HPP__
 
-/* TODO(benh): Provide an implementation directly on-top-of futex's for Linux. */
-//#ifdef __linux__
-//#else
+// TODO(benh): Build implementation directly on-top-of futex's for Linux.
 
 class Gate
 {
@@ -99,6 +97,4 @@ public:
   }
 };
 
-//#endif
-
-#endif /* GATE_H */
+#endif // __GATE_HPP__

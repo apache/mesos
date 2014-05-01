@@ -61,13 +61,13 @@ Deferred<void(void)> defer(
   auto defer(const PID<T>& pid,                                         \
              void (T::*method)(ENUM_PARAMS(N, P)),                      \
              ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(&std::function<void(ENUM_PARAMS(N, P))>::operator(), std::function<void(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))> \
+    -> _Deferred<decltype(std::bind(&std::function<void(ENUM_PARAMS(N, P))>::operator(), std::function<void(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))> /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     std::function<void(ENUM_PARAMS(N, P))> f(                           \
         [=] (ENUM_BINARY_PARAMS(N, P, p)) {                             \
           dispatch(pid, method, ENUM_PARAMS(N, p));                     \
         });                                                             \
-    return std::bind(&std::function<void(ENUM_PARAMS(N, P))>::operator(), std::move(f), ENUM_PARAMS(N, a)); \
+    return std::bind(&std::function<void(ENUM_PARAMS(N, P))>::operator(), std::move(f), ENUM_PARAMS(N, a)); /* NOLINT(whitespace/line_length) */ \
   }                                                                     \
                                                                         \
   template <typename T,                                                 \
@@ -129,13 +129,13 @@ defer(const Process<T>* process, Future<R> (T::*method)(void))
   auto defer(const PID<T>& pid,                                         \
              Future<R> (T::*method)(ENUM_PARAMS(N, P)),                 \
              ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))> \
+    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))> /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     std::function<Future<R>(ENUM_PARAMS(N, P))> f(                      \
         [=] (ENUM_BINARY_PARAMS(N, P, p)) {                             \
           return dispatch(pid, method, ENUM_PARAMS(N, p));              \
         });                                                             \
-    return std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::move(f), ENUM_PARAMS(N, a)); \
+    return std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::move(f), ENUM_PARAMS(N, a)); /* NOLINT(whitespace/line_length) */ \
   }                                                                     \
                                                                         \
   template <typename R,                                                 \
@@ -199,13 +199,13 @@ defer(const Process<T>* process, R (T::*method)(void))
   auto defer(const PID<T>& pid,                                         \
              R (T::*method)(ENUM_PARAMS(N, P)),                         \
              ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))> \
+    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))> /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     std::function<Future<R>(ENUM_PARAMS(N, P))> f(                      \
         [=] (ENUM_BINARY_PARAMS(N, P, p)) {                             \
           return dispatch(pid, method, ENUM_PARAMS(N, p));              \
         });                                                             \
-    return std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::move(f), ENUM_PARAMS(N, a)); \
+    return std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::move(f), ENUM_PARAMS(N, a)); /* NOLINT(whitespace/line_length) */ \
   }                                                                     \
                                                                         \
   template <typename R,                                                 \

@@ -222,7 +222,7 @@ private:
         }));
   }
 
-  template <typename F, typename = typename std::result_of<F(const std::string&)>::type>
+  template <typename F, typename = typename std::result_of<F(const std::string&)>::type> // NOLINT(whitespace/line_length)
   const Future<T>& onFailed(F&& f, Prefer) const
   {
     return onFailed(std::function<void(const std::string&)>(
@@ -240,7 +240,7 @@ private:
         }));
   }
 
-  template <typename F, typename = typename std::result_of<F(const Future<T>&)>::type>
+  template <typename F, typename = typename std::result_of<F(const Future<T>&)>::type> // NOLINT(whitespace/line_length)
   const Future<T>& onAny(F&& f, Prefer) const
   {
     return onAny(std::function<void(const Future<T>&)>(
@@ -329,7 +329,7 @@ public:
 
 #if __cplusplus >= 201103L
 private:
-  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F(const T&)>::type>::type>
+  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F(const T&)>::type>::type> // NOLINT(whitespace/line_length)
   Future<X> then(_Deferred<F>&& f, Prefer) const
   {
     // note the then<X> is necessary to not have an infinite loop with
@@ -337,19 +337,19 @@ private:
     return then<X>(std::function<Future<X>(const T&)>(f));
   }
 
-  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F()>::type>::type>
+  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F()>::type>::type> // NOLINT(whitespace/line_length)
   Future<X> then(_Deferred<F>&& f, LessPrefer) const
   {
     return then<X>(std::function<Future<X>()>(f));
   }
 
-  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F(const T&)>::type>::type>
+  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F(const T&)>::type>::type> // NOLINT(whitespace/line_length)
   Future<X> then(F&& f, Prefer) const
   {
     return then<X>(std::function<Future<X>(const T&)>(f));
   }
 
-  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F()>::type>::type>
+  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F()>::type>::type> // NOLINT(whitespace/line_length)
   Future<X> then(F&& f, LessPrefer) const
   {
     return then<X>(std::function<Future<X>()>(f));
@@ -479,7 +479,7 @@ public:
   Future<T> after(
       const Duration& duration,
       _Deferred<F>&& f,
-      typename std::enable_if<std::is_convertible<_Deferred<F>, std::function<Future<T>(const Future<T>&)>>::value>::type* = NULL) const
+      typename std::enable_if<std::is_convertible<_Deferred<F>, std::function<Future<T>(const Future<T>&)>>::value>::type* = NULL) const // NOLINT(whitespace/line_length)
   {
     return after(duration, std::function<Future<T>(const Future<T>&)>(f));
   }
@@ -488,16 +488,18 @@ public:
   Future<T> after(
       const Duration& duration,
       _Deferred<F>&& f,
-      typename std::enable_if<std::is_convertible<_Deferred<F>, std::function<Future<T>()>>::value>::type* = NULL) const
+      typename std::enable_if<std::is_convertible<_Deferred<F>, std::function<Future<T>()>>::value>::type* = NULL) const // NOLINT(whitespace/line_length)
   {
-    return after(duration, std::function<Future<T>(const Future<T>&)>(std::bind(f)));
+    return after(
+        duration,
+        std::function<Future<T>(const Future<T>&)>(std::bind(f)));
   }
 #else
   template <typename F>
   Future<T> after(
       const Duration& duration,
       const _Defer<F>& f,
-      typename boost::enable_if<boost::is_convertible<_Defer<F>, std::tr1::function<Future<T>(const Future<T>&)> > >::type* = NULL) const
+      typename boost::enable_if<boost::is_convertible<_Defer<F>, std::tr1::function<Future<T>(const Future<T>&)> > >::type* = NULL) const // NOLINT(whitespace/line_length)
   {
     return after(duration, std::tr1::function<Future<T>(const Future<T>&)>(f));
   }
@@ -506,9 +508,11 @@ public:
   Future<T> after(
       const Duration& duration,
       const _Defer<F>& f,
-      typename boost::enable_if<boost::is_convertible<_Defer<F>, std::tr1::function<Future<T>()> > >::type* = NULL) const
+      typename boost::enable_if<boost::is_convertible<_Defer<F>, std::tr1::function<Future<T>()> > >::type* = NULL) const // NOLINT(whitespace/line_length)
   {
-    return after(duration, std::tr1::function<Future<T>(const Future<T>&)>(std::tr1::bind(f)));
+    return after(
+        duration,
+        std::tr1::function<Future<T>(const Future<T>&)>(std::tr1::bind(f)));
   }
 #endif // __cplusplus >= 201103L
 

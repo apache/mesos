@@ -23,13 +23,13 @@ namespace process {
 template <typename F>
 Future<typename lambda::result_of<F(void)>::type> async(
     const F& f,
-    typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL);
+    typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL); // NOLINT(whitespace/line_length)
 
 
 template <typename F>
 Future<Nothing> async(
     const F& f,
-    typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL);
+    typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL); // NOLINT(whitespace/line_length)
 
 
 #define TEMPLATE(Z, N, DATA)                                            \
@@ -37,14 +37,14 @@ Future<Nothing> async(
   Future<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> async( \
       const F& f,                                                       \
       ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL); \
+      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL); /* NOLINT(whitespace/line_length) */ \
                                                                         \
                                                                         \
   template <typename F, ENUM_PARAMS(N, typename A)>                     \
   Future<Nothing> async(                                                \
       const F& f,                                                       \
       ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL);
+      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL); // NOLINT(whitespace/line_length)
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
@@ -66,7 +66,7 @@ private:
   template <typename F>
   typename lambda::result_of<F(void)>::type execute(
       const F& f,
-      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL)
+      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
   {
     terminate(self()); // Terminate process after function returns.
     return f();
@@ -75,7 +75,7 @@ private:
   template <typename F>
   Nothing execute(
       const F& f,
-      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL)
+      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
   {
     terminate(self()); // Terminate process after function returns.
     f();
@@ -87,7 +87,7 @@ private:
   typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type execute(       \
       const F& f,                                                       \
       ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL) \
+      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL) /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     terminate(self()); /* Terminate process after function returns. */  \
     return f(ENUM_PARAMS(N, a));                                        \
@@ -97,7 +97,7 @@ private:
   Nothing execute(                                                      \
       const F& f,                                                       \
       ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL) \
+      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL) /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     terminate(self()); /* Terminate process after function returns. */  \
     f(ENUM_PARAMS(N, a));                                               \
@@ -117,25 +117,25 @@ private:
   template <typename F>
   friend Future<typename lambda::result_of<F(void)>::type> async(
       const F& f,
-      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*);
+      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*); // NOLINT(whitespace/line_length)
 
   template <typename F>
   friend Future<Nothing> async(
       const F& f,
-      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*);
+      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*); // NOLINT(whitespace/line_length)
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <typename F, ENUM_PARAMS(N, typename A)>                     \
   friend Future<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> async( \
       const F& f,                                                       \
       ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*); \
+      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*); /* NOLINT(whitespace/line_length) */ \
                                                                         \
   template <typename F, ENUM_PARAMS(N, typename A)>                     \
   friend Future<Nothing> async(                                         \
       const F& f,                                                       \
       ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*);
+      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*); // NOLINT(whitespace/line_length)
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
@@ -155,10 +155,10 @@ private:
   template <typename F>
   Future<typename lambda::result_of<F(void)>::type> execute(
       const F& f,
-      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL)
+      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
   {
     // Need to disambiguate overloaded method.
-    typename lambda::result_of<F(void)>::type(AsyncExecutorProcess::*method)(const F&, typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*) =
+    typename lambda::result_of<F(void)>::type(AsyncExecutorProcess::*method)(const F&, typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*) = // NOLINT(whitespace/line_length)
       &AsyncExecutorProcess::execute<F>;
 
     return dispatch(process, method, f, (void*) NULL);
@@ -167,10 +167,10 @@ private:
   template <typename F>
   Future<Nothing> execute(
       const F& f,
-      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL)
+      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
   {
     // Need to disambiguate overloaded method.
-    Nothing(AsyncExecutorProcess::*method)(const F&, typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*) =
+    Nothing(AsyncExecutorProcess::*method)(const F&, typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*) = // NOLINT(whitespace/line_length)
       &AsyncExecutorProcess::execute<F>;
 
     return dispatch(process, method, f, (void*) NULL);
@@ -181,10 +181,10 @@ private:
   Future<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> execute( \
       const F& f,                                                       \
       ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL) \
+      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL) /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     /* Need to disambiguate overloaded method. */                       \
-    typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type(AsyncExecutorProcess::*method)(const F&, ENUM_PARAMS(N, A), typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*) = \
+    typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type(AsyncExecutorProcess::*method)(const F&, ENUM_PARAMS(N, A), typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*) = /* NOLINT(whitespace/line_length) */ \
       &AsyncExecutorProcess::execute<F, ENUM_PARAMS(N, A)>;             \
                                                                         \
     return dispatch(process, method, f, ENUM_PARAMS(N, a), (void*) NULL); \
@@ -194,10 +194,10 @@ private:
   Future<Nothing> execute(                                              \
       const F& f,                                                       \
       ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL) \
+      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type* = NULL) /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     /* Need to disambiguate overloaded method. */                       \
-    Nothing(AsyncExecutorProcess::*method)(const F&, ENUM_PARAMS(N, A), typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*) = \
+    Nothing(AsyncExecutorProcess::*method)(const F&, ENUM_PARAMS(N, A), typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*) = /* NOLINT(whitespace/line_length) */ \
       &AsyncExecutorProcess::execute<F, ENUM_PARAMS(N, A)>;             \
                                                                         \
     return dispatch(process, method, f, ENUM_PARAMS(N, a), (void*) NULL); \
@@ -214,7 +214,7 @@ private:
 template <typename F>
 Future<typename lambda::result_of<F(void)>::type> async(
     const F& f,
-    typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*)
+    typename boost::disable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*) // NOLINT(whitespace/line_length)
 {
   return AsyncExecutor().execute(f);
 }
@@ -223,7 +223,7 @@ Future<typename lambda::result_of<F(void)>::type> async(
 template <typename F>
 Future<Nothing> async(
     const F& f,
-    typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*)
+    typename boost::enable_if<boost::is_void<typename lambda::result_of<F(void)>::type> >::type*) // NOLINT(whitespace/line_length)
 {
   return AsyncExecutor().execute(f);
 }
@@ -234,7 +234,7 @@ Future<Nothing> async(
   Future<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> async( \
       const F& f,                                                       \
       ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*) \
+      typename boost::disable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*) /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     return AsyncExecutor().execute(f, ENUM_PARAMS(N, a));               \
   }                                                                     \
@@ -243,7 +243,7 @@ Future<Nothing> async(
   Future<Nothing> async(                                                \
       const F& f,                                                       \
       ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*) \
+      typename boost::enable_if<boost::is_void<typename lambda::result_of<F(ENUM_PARAMS(N, A))>::type> >::type*) /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     return AsyncExecutor().execute(f, ENUM_PARAMS(N, a));               \
   }
