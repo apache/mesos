@@ -240,7 +240,8 @@ TEST(Metrics, SnapshotStatistics)
 
 TEST(Metrics, Timer)
 {
-  metrics::Timer timer("test/timer");
+  metrics::Timer<Nanoseconds> timer("test/timer");
+  EXPECT_EQ("test/timer_ns", timer.name());
 
   AWAIT_READY(metrics::add(timer));
 
@@ -267,7 +268,9 @@ TEST(Metrics, Timer)
 // is correctly timing futures.
 TEST(Metrics, AsyncTimer)
 {
-  metrics::Timer t("test/timer");
+  metrics::Timer<Microseconds> t("test/timer");
+  EXPECT_EQ("test/timer_us", t.name());
+
   AWAIT_READY(metrics::add(t));
 
   Future<int> result = 42;

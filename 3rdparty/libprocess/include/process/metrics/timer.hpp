@@ -17,16 +17,18 @@
 namespace process {
 namespace metrics {
 
-// A Metric that represents a timed event in milliseconds.
+// A Metric that represents a timed event. It is templated on a Duration
+// subclass that specifies the unit to use for the Timer.
 // TODO(dhamon): Allow the user to choose the unit of duration.
 // We could do this by adding methods on Duration subclasses to return
 // the double value and unit string directly.
+template<class T>
 class Timer : public Metric
 {
 public:
-  // The Timer name will have "_ms" as an implicit unit suffix.
+  // The Timer name will have a unit suffix added automatically.
   Timer(const std::string& name, const Option<Duration>& window = None())
-    : Metric(name + "_ms", window),
+    : Metric(name + "_" + T::units(), window),
       data(new Data()) {}
 
   Future<double> value() const
@@ -65,8 +67,7 @@ public:
     {
       data->stopwatch.stop();
 
-      // Assume milliseconds for now.
-      data->lastValue = data->stopwatch.elapsed().ms();
+      data->lastValue = T(data->stopwatch.elapsed()).value();
 
       value = data->lastValue.get();
     }
@@ -76,8 +77,8 @@ public:
   }
 
   // Time an asynchronous event.
-  template<typename T>
-  Future<T> time(const Future<T>& future)
+  template<typename U>
+  Future<U> time(const Future<U>& future)
   {
     Stopwatch stopwatch;
     stopwatch.start();
@@ -107,8 +108,7 @@ private:
 
     process::internal::acquire(&that.data->lock);
     {
-      // Assume milliseconds for now.
-      that.data->lastValue = stopwatch.elapsed().ms();
+      that.data->lastValue = T(stopwatch.elapsed()).value();
       value = that.data->lastValue.get();
     }
     process::internal::release(&that.data->lock);
