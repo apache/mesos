@@ -3095,7 +3095,7 @@ TYPED_TEST(SlaveRecoveryTest, ResourceStatistics)
 // before the containerizer has processed the launch. When the slave
 // comes back up it should send a TASK_LOST for the task.
 // NOTE: This is a 'TYPED_TEST' but we don't use 'TypeParam'.
-TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
+TYPED_TEST(SlaveRecoveryTest, DISABLED_RestartBeforeContainerizerLaunch)
 {
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
