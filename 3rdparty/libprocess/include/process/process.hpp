@@ -162,6 +162,19 @@ protected:
     assets[name] = asset;
   }
 
+  void lock()
+  {
+    pthread_mutex_lock(&m);
+  }
+
+  void unlock()
+  {
+    pthread_mutex_unlock(&m);
+  }
+
+  // Queue of received events, requires lock()ed access!
+  std::deque<Event*> events;
+
 private:
   friend class SocketManager;
   friend class ProcessManager;
@@ -181,14 +194,9 @@ private:
   // Mutex protecting internals.
   // TODO(benh): Consider replacing with a spinlock, on multi-core systems.
   pthread_mutex_t m;
-  void lock() { pthread_mutex_lock(&m); }
-  void unlock() { pthread_mutex_unlock(&m); }
 
   // Enqueue the specified message, request, or function call.
   void enqueue(Event* event, bool inject = false);
-
-  // Queue of received events.
-  std::deque<Event*> events;
 
   // Delegates for messages.
   std::map<std::string, UPID> delegates;
