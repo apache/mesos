@@ -131,12 +131,16 @@ private:
   {
     explicit Metrics(const RegistrarProcess& process)
       : queued_operations(
-          "registrar/queued_operations",
-          defer(process, &RegistrarProcess::_queued_operations)),
+            "registrar/queued_operations",
+            defer(process, &RegistrarProcess::_queued_operations)),
+        registry_size_bytes(
+            "registrar/registry_size_bytes",
+            defer(process, &RegistrarProcess::_registry_size_bytes)),
         state_fetch("registrar/state_fetch"),
         state_store("registrar/state_store", Days(1))
     {
       process::metrics::add(queued_operations);
+      process::metrics::add(registry_size_bytes);
 
       process::metrics::add(state_fetch);
       process::metrics::add(state_store);
@@ -145,12 +149,14 @@ private:
     ~Metrics()
     {
       process::metrics::remove(queued_operations);
+      process::metrics::remove(registry_size_bytes);
 
       process::metrics::remove(state_fetch);
       process::metrics::remove(state_store);
     }
 
     Gauge queued_operations;
+    Gauge registry_size_bytes;
 
     Timer<Milliseconds> state_fetch;
     Timer<Milliseconds> state_store;
@@ -160,6 +166,15 @@ private:
   double _queued_operations()
   {
     return operations.size();
+  }
+
+  Future<double> _registry_size_bytes()
+  {
+    if (variable.isSome()) {
+      return variable.get().get().ByteSize();
+    }
+
+    return Failure("Not recovered yet");
   }
 
   // Continuations.
