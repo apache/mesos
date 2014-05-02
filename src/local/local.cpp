@@ -128,15 +128,15 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
                 << " based registry";
       }
       storage = new state::InMemoryStorage();
-    } else if (flags.registry == "log_storage") {
+    } else if (flags.registry == "replicated_log") {
       if (flags.work_dir.isNone()) {
-        EXIT(1) << "Need to specify --work_dir for log storage based registry";
+        EXIT(1) << "--work_dir needed for replicated log based registry";
       }
 
-      // TODO(vinod): Add support for log storage with ZooKeeper.
+      // TODO(vinod): Add support for replicated log with ZooKeeper.
       log = new Log(
           1,
-          path::join(flags.work_dir.get(), "log_storage"),
+          path::join(flags.work_dir.get(), "replicated_log"),
           set<UPID>(),
           flags.log_auto_initialize);
       storage = new state::LogStorage(log);

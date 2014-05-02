@@ -59,15 +59,15 @@ public:
     add(&Flags::registry,
         "registry",
         "Persistence strategy for the registry;\n"
-        "available options are 'in_memory', 'log_storage'.",
+        "available options are 'in_memory', 'replicated_log'.",
         "in_memory");
 
     // TODO(vinod): Instead of specifying the quorum size consider
     // specifying the number of masters or the list of masters.
     add(&Flags::quorum,
         "quorum",
-        "The size of the quorum of replicas when using 'log_storage' based\n"
-        "Registry. It is imperative to set this value to be a majority of\n"
+        "The size of the quorum of replicas when using 'replicated_log' based\n"
+        "registry. It is imperative to set this value to be a majority of\n"
         "masters i.e., quorum > (number of masters)/2.");
 
     add(&Flags::zk_session_timeout,
@@ -101,8 +101,8 @@ public:
 
     add(&Flags::log_auto_initialize,
         "log_auto_initialize",
-        "Whether to automatically initialize the log storage used by the\n"
-        "Registry. If this is set to false, the log has to be manually\n"
+        "Whether to automatically initialize the replicated log used for the\n"
+        "registry. If this is set to false, the log has to be manually\n"
         "initialized when used for the very first time.",
         true);
 

@@ -234,8 +234,8 @@ protected:
   {
     master::Flags flags = MesosTest::CreateMasterFlags();
 
-    // NOTE: Since we are using ZooKeeper with log storage (default
-    // storage in MesosTest) we need to specify a quorum size.
+    // NOTE: Since we are using the replicated log with ZooKeeper
+    // (default storage in MesosTest), we need to specify the quorum.
     flags.quorum = 1;
 
     return flags;

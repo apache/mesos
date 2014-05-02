@@ -75,8 +75,8 @@ master::Flags MesosTest::CreateMasterFlags()
 
   flags.credentials = "file://" + path;
 
-  // Use log storage (without ZooKeeper) by default.
-  flags.registry = "log_storage";
+  // Use the replicated log (without ZooKeeper) by default.
+  flags.registry = "replicated_log";
 
   return flags;
 }

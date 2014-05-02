@@ -703,7 +703,7 @@ Try<bool> GroupProcess::cache()
     Try<int32_t> sequence = numify<int32_t>(tokens.back());
 
     // Skip it if it couldn't be converted to a number.
-    // NOTE: This is currently possible when using a log storage
+    // NOTE: This is currently possible when using a replicated log
     // based registry because the log replicas register under
     // "/log_replicas" at the same path as the masters' ephemeral
     // znodes.

@@ -301,22 +301,22 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
           " registry");
     }
     master.storage = new state::InMemoryStorage();
-  } else if (flags.registry == "log_storage") {
+  } else if (flags.registry == "replicated_log") {
     if (flags.work_dir.isNone()) {
       return Error(
-          "Need to specify --work_dir for log storage based registry");
+          "Need to specify --work_dir for replicated log based registry");
     }
 
     if (url.isSome()) {
-      // Use ZooKeeper based log storage.
+      // Use ZooKeeper based replicated log.
       if (flags.quorum.isNone()) {
         return Error(
-            "Need to specify --quorum for log storage based registry when using"
-            " ZooKeeper");
+            "Need to specify --quorum for replicated log based registry"
+            " when using ZooKeeper");
       }
       master.log = new log::Log(
           flags.quorum.get(),
-          path::join(flags.work_dir.get(), "log_storage"),
+          path::join(flags.work_dir.get(), "replicated_log"),
           url.get().servers,
           flags.zk_session_timeout,
           path::join(url.get().path, "log_replicas"),
@@ -325,7 +325,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
     } else {
       master.log = new log::Log(
           1,
-          path::join(flags.work_dir.get(), "log_storage"),
+          path::join(flags.work_dir.get(), "replicated_log"),
           std::set<process::UPID>(),
           flags.log_auto_initialize);
     }

@@ -173,19 +173,22 @@ int main(int argc, char** argv)
               << " based registry";
     }
     storage = new state::InMemoryStorage();
-  } else if (flags.registry == "log_storage") {
+  } else if (flags.registry == "replicated_log" ||
+             flags.registry == "log_storage") {
+    // TODO(bmahler): "log_storage" is present for backwards
+    // compatibility, can be removed before 0.19.0.
     if (flags.work_dir.isNone()) {
-      EXIT(1) << "Need to specify --work_dir for log storage based registry";
+      EXIT(1) << "--work_dir needed for replicated log based registry";
     }
 
     if (zk.isSome()) {
-      // Use log storage with ZooKeeper.
+      // Use replicated log with ZooKeeper.
       if (flags.quorum.isNone()) {
-        EXIT(1) << "Need to specify --quorum for log storage based registry"
+        EXIT(1) << "Need to specify --quorum for replicated log based registry"
                 << " when using ZooKeeper";
       }
 
-      // TODO(vinod): Add support for "--zk=file://" for log storage.
+      // TODO(vinod): Add support for "--zk=file://".
       Try<URL> url = URL::parse(zk.get());
       if (url.isError()) {
         EXIT(1) << "Error parsing ZooKeeper URL: " << url.error();
@@ -193,17 +196,17 @@ int main(int argc, char** argv)
 
       log = new Log(
           flags.quorum.get(),
-          path::join(flags.work_dir.get(), "log_storage"),
+          path::join(flags.work_dir.get(), "replicated_log"),
           url.get().servers,
           flags.zk_session_timeout,
           path::join(url.get().path, "log_replicas"),
           url.get().authentication,
           flags.log_auto_initialize);
     } else {
-      // Use log storage without ZooKeeper.
+      // Use replicated log without ZooKeeper.
       log = new Log(
           1,
-          path::join(flags.work_dir.get(), "log_storage"),
+          path::join(flags.work_dir.get(), "replicated_log"),
           set<UPID>(),
           flags.log_auto_initialize);
     }
