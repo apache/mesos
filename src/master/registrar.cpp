@@ -175,6 +175,12 @@ private:
       const Future<Option<Variable<Registry> > >& store,
       deque<Owned<Operation> > operations);
 
+  // Fails all pending operations and transitions the Registrar
+  // into an error state in which all subsequent operations will fail.
+  // This ensures we don't attempt to re-acquire log leadership by
+  // performing more State storage operations.
+  void abort(const string& message);
+
   Option<Variable<Registry> > variable;
   deque<Owned<Operation> > operations;
   bool updating; // Used to signify fetching (recovering) or storing.
@@ -184,6 +190,10 @@ private:
 
   // Used to compose our operations with recovery.
   Option<Owned<Promise<Registry> > > recovered;
+
+  // When an error is encountered from abort(), we'll fail all
+  // subsequent operations.
+  Option<Error> error;
 };
 
 
@@ -198,6 +208,18 @@ Future<T> timeout(
 
   return Failure(
       "Failed to perform " + operation + " within " + stringify(duration));
+}
+
+
+// Helper for failing a deque of operations.
+void fail(deque<Owned<Operation> >* operations, const string& message)
+{
+  while (!operations->empty()) {
+    const Owned<Operation>& operation = operations->front();
+    operations->pop_front();
+
+    operation->fail(message);
+  }
 }
 
 
@@ -272,9 +294,9 @@ string RegistrarProcess::registryHelp()
 
 Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
 {
-  LOG(INFO) << "Recovering registrar";
-
   if (recovered.isNone()) {
+    LOG(INFO) << "Recovering registrar";
+
     metrics.state_fetch.time(state->fetch<Registry>("registry"))
       .after(flags.registry_fetch_timeout,
              lambda::bind(
@@ -303,10 +325,11 @@ void RegistrarProcess::_recover(
     recovered.get()->fail("Failed to recover registrar: " +
         (recovery.isFailed() ? recovery.failure() : "discarded"));
   } else {
-    LOG(INFO) << "Successfully recovered registrar";
-
     // Save the registry.
     variable = recovery.get();
+
+    LOG(INFO) << "Successfully fetched the registry "
+              << "(" << Bytes(variable.get().get().ByteSize()) << ")";
 
     // Perform the Recover operation to add the new MasterInfo.
     Owned<Operation> operation(new Recover(info));
@@ -331,6 +354,8 @@ void RegistrarProcess::__recover(const Future<bool>& recover)
     recovered.get()->fail("Failed to recover registrar: "
         "Failed to persist MasterInfo: version mismatch");
   } else {
+    LOG(INFO) << "Successfully recovered registrar";
+
     // At this point _update() has updated 'variable' to contain
     // the Registry with the latest MasterInfo.
     // Set the promise and un-gate any pending operations.
@@ -353,6 +378,10 @@ Future<bool> RegistrarProcess::apply(Owned<Operation> operation)
 
 Future<bool> RegistrarProcess::_apply(Owned<Operation> operation)
 {
+  if (error.isSome()) {
+    return Failure(error.get());
+  }
+
   CHECK_SOME(variable);
 
   operations.push_back(operation);
@@ -371,6 +400,7 @@ void RegistrarProcess::update()
   }
 
   CHECK(!updating);
+  CHECK(error.isNone());
 
   updating = true;
 
@@ -413,39 +443,48 @@ void RegistrarProcess::_update(
 {
   updating = false;
 
-  // Set the variable if the storage operation succeeded.
-  if (!store.isReady()) {
-    LOG(ERROR) << "Failed to update 'registry': "
-               << (store.isFailed() ? store.failure() : "discarded");
-  } else if (store.get().isNone()) {
-    LOG(WARNING) << "Failed to update 'registry': version mismatch";
-  } else {
-    LOG(INFO) << "Successfully updated 'registry'";
-    variable = store.get().get();
+  // Abort if the storage operation did not succeed.
+  if (!store.isReady() || store.get().isNone()) {
+    string message = "Failed to update 'registry': ";
+
+    if (store.isFailed()) {
+      message += store.failure();
+    } else if (store.isDiscarded()) {
+      message += "discarded";
+    } else {
+      message += "version mismatch";
+    }
+
+    fail(&applied, message);
+    abort(message);
+
+    return;
   }
+
+  LOG(INFO) << "Successfully updated 'registry'";
+  variable = store.get().get();
 
   // Remove the operations.
   while (!applied.empty()) {
     Owned<Operation> operation = applied.front();
     applied.pop_front();
 
-    if (!store.isReady()) {
-      operation->fail("Failed to update 'registry': " +
-          (store.isFailed() ? store.failure() : "discarded"));
-    } else {
-      if (store.get().isNone()) {
-        operation->fail("Failed to update 'registry': version mismatch");
-      } else {
-        operation->set();
-      }
-    }
+    operation->set();
   }
-
-  applied.clear();
 
   if (!operations.empty()) {
     update();
   }
+}
+
+
+void RegistrarProcess::abort(const string& message)
+{
+  error = Error(message);
+
+  LOG(ERROR) << "Registrar aborting: " << message;
+
+  fail(&operations, message);
 }
 
 

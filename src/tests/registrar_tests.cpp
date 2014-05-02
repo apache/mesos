@@ -124,6 +124,15 @@ protected:
     state = new State(storage);
 
     master.CopyFrom(protobuf::createMasterInfo(UPID("master@127.0.0.1:5050")));
+
+    SlaveID id;
+    id.set_value("1");
+
+    SlaveInfo info;
+    info.set_hostname("localhost");
+    info.mutable_id()->CopyFrom(id);
+
+    slave.CopyFrom(info);
   }
 
   virtual void TearDown()
@@ -143,6 +152,7 @@ protected:
   Replica* replica2;
 
   MasterInfo master;
+  SlaveInfo slave;
   Flags flags;
 };
 
@@ -166,12 +176,6 @@ INSTANTIATE_TEST_CASE_P(Strict, RegistrarTest, ::testing::Bool());
 TEST_P(RegistrarTest, recover)
 {
   Registrar registrar(flags, state);
-
-  SlaveInfo slave;
-  slave.set_hostname("localhost");
-  SlaveID id;
-  id.set_value("1");
-  slave.mutable_id()->CopyFrom(id);
 
   // Operations preceding recovery will fail.
   AWAIT_EXPECT_FAILED(
@@ -206,19 +210,12 @@ TEST_P(RegistrarTest, admit)
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
-  SlaveInfo info1;
-  info1.set_hostname("localhost");
-
-  SlaveID id1;
-  id1.set_value("1");
-  info1.mutable_id()->CopyFrom(id1);
-
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
   } else {
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
   }
 }
 
@@ -314,13 +311,6 @@ TEST_P(RegistrarTest, remove)
 
 TEST_P(RegistrarTest, bootstrap)
 {
-  SlaveID id;
-  id.set_value("1");
-
-  SlaveInfo info;
-  info.set_hostname("localhost");
-  info.mutable_id()->CopyFrom(id);
-
   // Run 1 readmits a slave that is not present.
   {
     Registrar registrar(flags, state);
@@ -329,10 +319,10 @@ TEST_P(RegistrarTest, bootstrap)
     // If not strict, we should be allowed to readmit the slave.
     if (flags.registry_strict) {
       AWAIT_EQ(false,
-               registrar.apply(Owned<Operation>(new ReadmitSlave(info))));
+               registrar.apply(Owned<Operation>(new ReadmitSlave(slave))));
     } else {
       AWAIT_EQ(true,
-               registrar.apply(Owned<Operation>(new ReadmitSlave(info))));
+               registrar.apply(Owned<Operation>(new ReadmitSlave(slave))));
     }
   }
 
@@ -348,7 +338,7 @@ TEST_P(RegistrarTest, bootstrap)
       EXPECT_EQ(0, registry.get().slaves().slaves().size());
     } else {
       ASSERT_EQ(1, registry.get().slaves().slaves().size());
-      EXPECT_EQ(info, registry.get().slaves().slaves(0).info());
+      EXPECT_EQ(slave, registry.get().slaves().slaves(0).info());
     }
   }
 }
@@ -387,6 +377,9 @@ TEST_P(RegistrarTest, fetchTimeout)
   AWAIT_FAILED(recover);
 
   Clock::resume();
+
+  // Ensure the registrar fails subsequent operations.
+  AWAIT_FAILED(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
 }
 
 
@@ -416,6 +409,34 @@ TEST_P(RegistrarTest, storeTimeout)
   AWAIT_FAILED(recover);
 
   Clock::resume();
+
+  // Ensure the registrar fails subsequent operations.
+  AWAIT_FAILED(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+}
+
+
+TEST_P(RegistrarTest, abort)
+{
+  MockStorage storage;
+  State state(&storage);
+
+  Registrar registrar(flags, &state);
+
+  EXPECT_CALL(storage, get(_))
+    .WillOnce(Return(None()));
+
+  EXPECT_CALL(storage, set(_, _))
+    .WillOnce(Return(Future<bool>(true)))              // Recovery.
+    .WillOnce(Return(Future<bool>::failed("failure"))) // Failure.
+    .WillRepeatedly(Return(Future<bool>(true)));       // Success.
+
+  AWAIT_READY(registrar.recover(master));
+
+  // Storage failure.
+  AWAIT_FAILED(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+
+  // The registrar should now be aborted!
+  AWAIT_FAILED(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
 }
 
 
