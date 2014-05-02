@@ -274,6 +274,7 @@ protected:
   // TODO(adam-mesos): Rename deactivate to disconnect, or v.v.
   void deactivate(Framework* framework);
   void disconnect(Slave* slave);
+  void removeFrameworksAndOffers(Slave* slave);
 
   // Add a slave.
   void addSlave(Slave* slave, bool reregister = false);
