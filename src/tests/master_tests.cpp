@@ -1290,6 +1290,8 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 
   EXPECT_EQ(1u, stats.values.count("master/recovery_slave_removals"));
 
+  EXPECT_EQ(1u, stats.values.count("master/event_queue_size"));
+
   EXPECT_EQ(1u, stats.values.count("registrar/queued_operations"));
   EXPECT_EQ(1u, stats.values.count("registrar/registry_size_bytes"));
 

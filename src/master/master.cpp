@@ -221,7 +221,8 @@ Master::Master(
     repairer(_repairer),
     files(_files),
     contender(_contender),
-    detector(_detector)
+    detector(_detector),
+    metrics(*this)
 {
   // NOTE: We populate 'info_' here instead of inside 'initialize()'
   // because 'StandaloneMasterDetector' needs access to the info.

@@ -36,6 +36,7 @@
 #include <process/timer.hpp>
 
 #include <process/metrics/counter.hpp>
+#include <process/metrics/gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/cache.hpp>
@@ -468,7 +469,7 @@ private:
 
   struct Metrics
   {
-    Metrics()
+    Metrics(const Master& master)
       : dropped_messages(
             "master/dropped_messages"),
         framework_registration_messages(
@@ -480,7 +481,10 @@ private:
         slave_reregistration_messages(
             "master/slave_reregistration_messages"),
         recovery_slave_removals(
-            "master/recovery_slave_removals")
+            "master/recovery_slave_removals"),
+        event_queue_size(
+            "master/event_queue_size",
+            defer(master, &Master::_event_queue_size))
     {
       process::metrics::add(dropped_messages);
 
@@ -491,6 +495,8 @@ private:
       process::metrics::add(slave_reregistration_messages);
 
       process::metrics::add(recovery_slave_removals);
+
+      process::metrics::add(event_queue_size);
     }
 
     ~Metrics()
@@ -504,6 +510,8 @@ private:
       process::metrics::remove(slave_reregistration_messages);
 
       process::metrics::remove(recovery_slave_removals);
+
+      process::metrics::remove(event_queue_size);
     }
 
     // Message counters.
@@ -519,7 +527,24 @@ private:
 
     // Recovery counters.
     process::metrics::Counter recovery_slave_removals;
+
+    // Process metrics.
+    process::metrics::Gauge event_queue_size;
   } metrics;
+
+  // Gauge handlers.
+  double _event_queue_size()
+  {
+    size_t size;
+
+    lock();
+    {
+      size = events.size();
+    }
+    unlock();
+
+    return static_cast<double>(size);
+  }
 
   process::Time startTime; // Start time used to calculate uptime.
 };
