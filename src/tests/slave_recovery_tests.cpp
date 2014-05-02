@@ -3093,9 +3093,9 @@ TYPED_TEST(SlaveRecoveryTest, ResourceStatistics)
 
 // The slave is stopped after it dispatched Containerizer::launch but
 // before the containerizer has processed the launch. When the slave
-// comes back up it should send a TASK_LOST for the task.
+// comes back up it should send a TASK_FAILED for the task.
 // NOTE: This is a 'TYPED_TEST' but we don't use 'TypeParam'.
-TYPED_TEST(SlaveRecoveryTest, DISABLED_RestartBeforeContainerizerLaunch)
+TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 {
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
@@ -3151,14 +3151,24 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RestartBeforeContainerizerLaunch)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status));
 
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
   TestContainerizer* containerizer2 = new TestContainerizer();
 
   slave = this->StartSlave(containerizer2, flags);
   ASSERT_SOME(slave);
 
-  // Scheduler should receive an update for the lost task.
+  Clock::pause();
+
+  AWAIT_READY(_recover);
+
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+
+  // Scheduler should receive the TASK_FAILED update.
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_LOST, status.get().state());
+  ASSERT_EQ(TASK_FAILED, status.get().state());
 
   driver.stop();
   driver.join();
