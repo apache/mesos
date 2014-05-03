@@ -88,6 +88,6 @@ TEST(LinkedHashmapTest, Values)
 
   int val = 0;
   foreach (int value, map.values()) {
-   ASSERT_EQ(++val, value);
+    ASSERT_EQ(++val, value);
   }
 }
