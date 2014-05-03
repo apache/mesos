@@ -221,33 +221,33 @@ fi
 # CPPFLAGS while extending it by /include and to LDFLAGS while
 # extending it by /lib.
 if test -n "`echo $with_leveldb`"; then
-    CPPFLAGS="$CPPFLAGS -I${with_leveldb}/include"
-    LDFLAGS="$LDFLAGS -L${with_leveldb}/lib"
+  CPPFLAGS="$CPPFLAGS -I${with_leveldb}/include"
+  LDFLAGS="$LDFLAGS -L${with_leveldb}/lib"
 fi
 
 # Check if ZooKeeper prefix path was supplied and if so, add it to
 # CPPFLAGS while extending it by /include and to LDFLAGS while
 # extending it by /lib.
 if test -n "`echo $with_zookeeper`"; then
-    CPPFLAGS="$CPPFLAGS -I${with_zookeeper}/include"
-    LDFLAGS="$LDFLAGS -L${with_zookeeper}/lib"
+  CPPFLAGS="$CPPFLAGS -I${with_zookeeper}/include"
+  LDFLAGS="$LDFLAGS -L${with_zookeeper}/lib"
 elif test "x$enable_bundled" = "xno"; then
-    CPPFLAGS="$CPPFLAGS -I/usr/include/zookeeper"
+  CPPFLAGS="$CPPFLAGS -I/usr/include/zookeeper"
 fi
 
 # Check if user has asked us to use a preinstalled LevelDB, or if they asked
 # us to ignore all bundled libraries while compiling and linking.
 if test "x$without_bundled_leveldb" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
-	# Check if headers and library were located.
-	AC_CHECK_HEADERS([leveldb/db.h],
-			[AC_CHECK_LIB([leveldb],
-				      [leveldb_open],
-				      [found_leveldb=yes])])
-	if test "x$found_leveldb" = "xyes"; then
-		with_bundled_leveldb=no
-	else
-		AC_MSG_ERROR([cannot find LevelDB
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([leveldb/db.h],
+                   [AC_CHECK_LIB([leveldb],
+                                 [leveldb_open],
+                                 [found_leveldb=yes])])
+  if test "x$found_leveldb" = "xyes"; then
+    with_bundled_leveldb=no
+  else
+    AC_MSG_ERROR([cannot find LevelDB
 -------------------------------------------------------------------
 You have requested the use of a non-bundled LevelDB but no suitable
 LevelDB could be found.
@@ -257,9 +257,9 @@ path via --with-leveldb=DIR, or check that the path you provided is
 correct if you're already doing this.
 -------------------------------------------------------------------
 ])
-	fi
+  fi
 else
-    with_bundled_leveldb=yes
+  with_bundled_leveldb=yes
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_LEVELDB],
@@ -269,15 +269,15 @@ AM_CONDITIONAL([WITH_BUNDLED_LEVELDB],
 # us to ignore all bundled libraries while compiling and linking.
 if test "x$without_bundled_zookeeper" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
-	# Check if headers and library were located.
-	AC_CHECK_HEADERS([zookeeper.h],
-			[AC_CHECK_LIB([zookeeper_mt],
-				      [zookeeper_init],
-				      [found_zookeeper=yes])])
-	if test "x$found_zookeeper" = "xyes"; then
-		with_bundled_zookeeper=no
-	else
-		AC_MSG_ERROR([cannot find ZooKeeper
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([zookeeper.h],
+                   [AC_CHECK_LIB([zookeeper_mt],
+				 [zookeeper_init],
+				 [found_zookeeper=yes])])
+  if test "x$found_zookeeper" = "xyes"; then
+    with_bundled_zookeeper=no
+  else
+    AC_MSG_ERROR([cannot find ZooKeeper
 -------------------------------------------------------------------
 You have requested the use of a non-bundled ZooKeeper but no suitable
 ZooKeeper could be found.
@@ -287,13 +287,13 @@ path via --with-zookeeper=DIR, or check that the path you provided is
 correct if you're already doing this
 -------------------------------------------------------------------
 ])
-	fi
+  fi
 else
-    with_bundled_zookeeper=yes
+  with_bundled_zookeeper=yes
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_ZOOKEEPER],
-	   [test "x$with_bundled_zookeeper" = "xyes"])
+               [test "x$with_bundled_zookeeper" = "xyes"])
 
 # Check if we're using clang.
 AC_MSG_CHECKING([if compiling with clang])
@@ -577,11 +577,11 @@ if test "x$enable_python" = "xyes"; then
   # PYTHON is not set (necessary to run our examples).
   AM_PATH_PYTHON([2.6],,
                  [AC_MSG_ERROR([mesos requires Python >= 2.6
-  -------------------------------------------------------------------
-  If you already have Python 2.6 installed (and it's on the path),
-  you might want to check if you have the PYTHON environment variable
-  set to an older version of Python.
-  -------------------------------------------------------------------
+-------------------------------------------------------------------
+If you already have Python 2.6 installed (and it's on the path),
+you might want to check if you have the PYTHON environment variable
+set to an older version of Python.
+-------------------------------------------------------------------
   ])])
 
   # Next we ensure we have the Python development libraries.
