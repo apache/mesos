@@ -2132,7 +2132,7 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
   slaveInfo_.mutable_id()->CopyFrom(newSlaveId());
 
   LOG(INFO) << "Registering slave at " << from << " ("
-            << slaveInfo.hostname() << ") with id " << slaveInfo.id();
+            << slaveInfo.hostname() << ") with id " << slaveInfo_.id();
 
   registrar->apply(Owned<Operation>(new AdmitSlave(slaveInfo_)))
     .onAny(defer(self(),
