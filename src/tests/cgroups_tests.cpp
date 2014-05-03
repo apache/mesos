@@ -427,7 +427,10 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
 
   // In parent process.
   ASSERT_SOME(
-      cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "cgroup.procs", stringify(pid)));
+      cgroups::write(hierarchy,
+                     TEST_CGROUPS_ROOT,
+                     "cgroup.procs",
+                     stringify(pid)));
 
   Try<std::set<pid_t> > pids = cgroups::processes(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_SOME(pids);

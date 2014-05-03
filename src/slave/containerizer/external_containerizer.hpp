@@ -249,7 +249,8 @@ private:
       const Sandbox& sandbox,
       const google::protobuf::Message& message,
       const std::map<std::string, std::string>& environment =
-        (std::map<std::string, std::string>())); // Wrapped in parens due to: http://llvm.org/bugs/show_bug.cgi?id=13657
+        // Default in parens due to: http://llvm.org/bugs/show_bug.cgi?id=13657
+        (std::map<std::string, std::string>()));
 };
 
 

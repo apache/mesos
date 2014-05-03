@@ -108,7 +108,8 @@ MesosContainerizer::~MesosContainerizer()
 }
 
 
-Future<Nothing> MesosContainerizer::recover(const Option<state::SlaveState>& state)
+Future<Nothing> MesosContainerizer::recover(
+    const Option<state::SlaveState>& state)
 {
   return dispatch(process, &MesosContainerizerProcess::recover, state);
 }

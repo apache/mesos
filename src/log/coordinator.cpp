@@ -83,7 +83,8 @@ private:
   Future<PromiseResponse> runPromisePhase();
   Future<Option<uint64_t> > checkPromisePhase(const PromiseResponse& response);
   Future<IntervalSet<uint64_t> > getMissingPositions();
-  Future<Nothing> catchupMissingPositions(const IntervalSet<uint64_t>& positions);
+  Future<Nothing> catchupMissingPositions(
+      const IntervalSet<uint64_t>& positions);
   Future<Option<uint64_t> > updateIndexAfterElected();
   void electingFinished(const Option<uint64_t>& position);
   void electingFailed();

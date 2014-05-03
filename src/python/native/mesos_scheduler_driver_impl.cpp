@@ -146,7 +146,7 @@ PyMethodDef MesosSchedulerDriverImpl_methods[] = {
   { "reconcileTasks",
     (PyCFunction) MesosSchedulerDriverImpl_reconcileTasks,
     METH_VARARGS,
-    "Master sends status updates if task status is different from last known state."
+    "Master sends status updates if task status is different from expected"
   },
   { NULL }  /* Sentinel */
 };
@@ -198,7 +198,8 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
   FrameworkInfo framework;
   if (frameworkObj != NULL) {
     if (!readPythonProtobuf(frameworkObj, &framework)) {
-      PyErr_Format(PyExc_Exception, "Could not deserialize Python FrameworkInfo");
+      PyErr_Format(PyExc_Exception,
+                   "Could not deserialize Python FrameworkInfo");
       return -1;
     }
   }
@@ -363,8 +364,9 @@ PyObject* MesosSchedulerDriverImpl_run(MesosSchedulerDriverImpl* self)
 }
 
 
-PyObject* MesosSchedulerDriverImpl_requestResources(MesosSchedulerDriverImpl* self,
-                                                    PyObject* args)
+PyObject* MesosSchedulerDriverImpl_requestResources(
+    MesosSchedulerDriverImpl* self,
+    PyObject* args)
 {
   if (self->driver == NULL) {
     PyErr_Format(PyExc_Exception, "MesosSchedulerDriverImpl.driver is NULL");
@@ -379,7 +381,8 @@ PyObject* MesosSchedulerDriverImpl_requestResources(MesosSchedulerDriverImpl* se
   }
 
   if (!PyList_Check(requestsObj)) {
-    PyErr_Format(PyExc_Exception, "Parameter 2 to requestsResources is not a list");
+    PyErr_Format(PyExc_Exception,
+                 "Parameter 2 to requestsResources is not a list");
     return NULL;
   }
   Py_ssize_t len = PyList_Size(requestsObj);

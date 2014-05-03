@@ -287,7 +287,8 @@ public:
   }
 
 
-  Try<MesosContainerizer*> CreateContainerizer(const Option<CommandInfo>& prepare)
+  Try<MesosContainerizer*> CreateContainerizer(
+      const Option<CommandInfo>& prepare)
   {
     vector<Option<CommandInfo> > prepares;
     prepares.push_back(prepare);
@@ -365,7 +366,8 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails) {
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script + executor) to complete.
-  Future<containerizer::Termination> wait = containerizer.get()->wait(containerId);
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the child failed to exit correctly.
@@ -416,7 +418,8 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts) {
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script(s) + executor) to complete.
-  Future<containerizer::Termination> wait = containerizer.get()->wait(containerId);
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the child failed to exit correctly.

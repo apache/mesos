@@ -58,7 +58,7 @@ public:
     {
       static Jvm::Constructor constructor = Jvm::get()->findConstructor(
           Jvm::Class::named(
-              "org/apache/zookeeper/server/ZooKeeperServer$BasicDataTreeBuilder")
+              "org/apache/zookeeper/server/ZooKeeperServer$BasicDataTreeBuilder") // NOLINT(whitespace/line_length)
           .constructor());
 
       object = Jvm::get()->invoke(constructor);
@@ -78,7 +78,7 @@ public:
                 "org/apache/zookeeper/server/persistence/FileTxnSnapLog"))
         .parameter(
             Jvm::Class::named(
-                "org/apache/zookeeper/server/ZooKeeperServer$DataTreeBuilder")));
+                "org/apache/zookeeper/server/ZooKeeperServer$DataTreeBuilder"))); // NOLINT(whitespace/line_length)
 
     object = Jvm::get()->invoke(
         constructor, (jobject) txnLogFactory, (jobject) treeBuilder);

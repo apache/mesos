@@ -527,8 +527,8 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
       allocator.real, &HierarchicalDRFAllocatorProcess::slaveAdded);
 
   slave::Flags flags1 = CreateSlaveFlags();
-  flags1.resources = Option<string>("cpus(role1):1;mem(role1):200;cpus(role2):2;"
-                                    "mem(role2):600;cpus:1;mem:200;disk:0");
+  flags1.resources = Some("cpus(role1):1;mem(role1):200;cpus(role2):2;"
+                          "mem(role2):600;cpus:1;mem:200;disk:0");
   Try<PID<Slave> > slave1 = StartSlave(&exec, flags1);
   ASSERT_SOME(slave1);
 

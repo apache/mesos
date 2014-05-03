@@ -97,7 +97,8 @@ void LeaderDetectorProcess::watch(const set<Group::Membership>& expected)
 }
 
 
-void LeaderDetectorProcess::watched(const Future<set<Group::Membership> >& memberships)
+void LeaderDetectorProcess::watched(
+    const Future<set<Group::Membership> >& memberships)
 {
   CHECK(!memberships.isDiscarded());
 

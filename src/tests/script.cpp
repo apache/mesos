@@ -86,7 +86,8 @@ void execute(const string& script)
 
     // Start by cd'ing into the temporary directory.
     if (!os::chdir(directory.get())) {
-      std::cerr << "Failed to chdir to '" << directory.get() << "'" << std::endl;
+      std::cerr << "Failed to chdir to '" << directory.get() << "'"
+                << std::endl;
       abort();
     }
 

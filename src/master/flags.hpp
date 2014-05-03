@@ -200,7 +200,7 @@ public:
     add(&Flags::credentials,
         "credentials",
         "Path to a file with a list of credentials.\n"
-        "Each line contains a 'principal' and 'secret' separated by whitespace.\n"
+        "Each line contains 'principal' and 'secret' separated by whitespace.\n"
         "Path could be of the form 'file:///path/to/file' or '/path/to/file'.");
   }
 

@@ -1471,10 +1471,10 @@ struct ResourceUsageChecker : TaskInfoVisitor
         if (!slave.hasExecutor(framework.id, task.executor().executor_id())) {
           taskResources += task.executor().resources();
           if (!((usedResources + taskResources) <= resources)) {
-            return "Task " + stringify(task.task_id()) + " + executor attempted" +
-                " to use " + stringify(taskResources) + " combined with" +
-                " already used " + stringify(usedResources) + " is greater" +
-                " than offered " + stringify(resources);
+            return "Task " + stringify(task.task_id()) +
+                   " + executor attempted to use " + stringify(taskResources) +
+                   " combined with already used " + stringify(usedResources) +
+                   " is greater than offered " + stringify(resources);
           }
         }
         executors.insert(task.executor().executor_id());

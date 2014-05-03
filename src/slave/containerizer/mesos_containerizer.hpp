@@ -89,7 +89,8 @@ private:
 };
 
 
-class MesosContainerizerProcess : public process::Process<MesosContainerizerProcess>
+class MesosContainerizerProcess
+  : public process::Process<MesosContainerizerProcess>
 {
 public:
   MesosContainerizerProcess(

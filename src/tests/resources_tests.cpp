@@ -376,7 +376,8 @@ TEST(ResourcesTest, ScalarSubtraction2)
 TEST(ResourcesTest, RangesEquals)
 {
   Resource ports1 = Resources::parse("ports", "[20-40]", "*").get();
-  Resource ports2 = Resources::parse("ports", "[20-30, 31-39, 40-40]", "*").get();
+  Resource ports2 =
+    Resources::parse("ports", "[20-30, 31-39, 40-40]", "*").get();
 
   Resources r1;
   r1 += ports1;
@@ -505,7 +506,8 @@ TEST(ResourcesTest, RangesAdditon3)
 
 TEST(ResourcesTest, RangesAddition4)
 {
-  Resource ports1 = Resources::parse("ports", "[1-4, 9-10, 20-22, 26-30]", "*").get();
+  Resource ports1 =
+    Resources::parse("ports", "[1-4, 9-10, 20-22, 26-30]", "*").get();
   Resource ports2 = Resources::parse("ports", "[5-8, 23-25]", "*").get();
 
   Resources r;
@@ -523,7 +525,8 @@ TEST(ResourcesTest, RangesAddition4)
 TEST(ResourcesTest, RangesSubtraction)
 {
   Resource ports1 = Resources::parse("ports", "[20000-40000]", "*").get();
-  Resource ports2 = Resources::parse("ports", "[10000-20000, 30000-50000]", "*").get();
+  Resource ports2 =
+    Resources::parse("ports", "[10000-20000, 30000-50000]", "*").get();
 
   Resources r;
   r += ports1;
@@ -610,7 +613,8 @@ TEST(ResourcesTest, RangesSubtraction4)
 
 TEST(ResourcesTest, RangesSubtraction5)
 {
-  Resource ports1 = Resources::parse("ports", "[1-10, 20-30, 40-50]", "*").get();
+  Resource ports1 =
+    Resources::parse("ports", "[1-10, 20-30, 40-50]", "*").get();
   Resource ports2 = Resources::parse("ports", "[2-9, 15-45, 48-50]", "*").get();
 
   Resources r;
@@ -659,7 +663,8 @@ TEST(ResourcesTest, SetEquals)
 TEST(ResourcesTest, SetSubset)
 {
   Resource disks1 = Resources::parse("disks", "{sda1,sda2}", "*").get();
-  Resource disks2 = Resources::parse("disks", "{sda1,sda3,sda4,sda2}", "*").get();
+  Resource disks2 =
+    Resources::parse("disks", "{sda1,sda3,sda4,sda2}", "*").get();
 
   Resources r1;
   r1 += disks1;
@@ -677,7 +682,8 @@ TEST(ResourcesTest, SetSubset)
 TEST(ResourcesTest, SetAddition)
 {
   Resource disks1 = Resources::parse("disks", "{sda1,sda2,sda3}", "*").get();
-  Resource disks2 = Resources::parse("disks", "{sda1,sda2,sda3,sda4}", "*").get();
+  Resource disks2 =
+    Resources::parse("disks", "{sda1,sda2,sda3,sda4}", "*").get();
 
   Resources r;
   r += disks1;
@@ -693,7 +699,8 @@ TEST(ResourcesTest, SetAddition)
 
 TEST(ResourcesTest, SetSubtraction)
 {
-  Resource disks1 = Resources::parse("disks", "{sda1,sda2,sda3,sda4}", "*").get();
+  Resource disks1 =
+    Resources::parse("disks", "{sda1,sda2,sda3,sda4}", "*").get();
   Resource disks2 = Resources::parse("disks", "{sda2,sda3,sda4}", "*").get();
 
   Resources r;

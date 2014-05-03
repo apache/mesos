@@ -757,7 +757,8 @@ private:
 };
 
 
-inline const ::testing::Matcher<const std::vector<Offer>& > OfferEq(int cpus, int mem)
+inline
+const ::testing::Matcher<const std::vector<Offer>& > OfferEq(int cpus, int mem)
 {
   return MakeMatcher(new OfferEqMatcher(cpus, mem));
 }

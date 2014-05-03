@@ -457,7 +457,8 @@ Result<Option<Entry> > ZooKeeperStorageProcess::doGet(const string& name)
 }
 
 
-Result<bool> ZooKeeperStorageProcess::doSet(const Entry& entry, const UUID& uuid)
+Result<bool> ZooKeeperStorageProcess::doSet(const Entry& entry,
+                                            const UUID& uuid)
 {
   CHECK(error.isNone()) << ": " << error.get();
   CHECK(state == CONNECTED);

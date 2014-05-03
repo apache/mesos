@@ -732,7 +732,9 @@ Try<bool> GroupProcess::cache()
     }
   }
 
-  foreachpair (int32_t sequence, Promise<bool>* cancelled, utils::copy(unowned)) {
+  foreachpair (int32_t sequence,
+               Promise<bool>* cancelled,
+               utils::copy(unowned)) {
     if (!sequences.contains(sequence)) {
       cancelled->set(false);
       unowned.erase(sequence); // Okay since iterating over a copy.

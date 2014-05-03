@@ -262,13 +262,13 @@ public:
 
 
 template <class RoleSorter, class FrameworkSorter>
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::HierarchicalAllocatorProcess()
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::HierarchicalAllocatorProcess() // NOLINT(whitespace/line_length)
   : ProcessBase(process::ID::generate("hierarchical-allocator")),
     initialized(false) {}
 
 
 template <class RoleSorter, class FrameworkSorter>
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::~HierarchicalAllocatorProcess()
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::~HierarchicalAllocatorProcess() // NOLINT(whitespace/line_length)
 {}
 
 
@@ -276,8 +276,7 @@ template <class RoleSorter, class FrameworkSorter>
 process::PID<HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter> >
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::self()
 {
-  return
-    process::PID<HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter> >(this);
+  return process::PID<HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter> >(this); // NOLINT(whitespace/line_length)
 }
 
 

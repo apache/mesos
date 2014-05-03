@@ -377,7 +377,9 @@ void Slave::initialize()
   install("PING", &Slave::ping);
 
   // Setup HTTP routes.
-  route("/health", Http::HEALTH_HELP, lambda::bind(&Http::health, http, lambda::_1));
+  route("/health",
+        Http::HEALTH_HELP,
+        lambda::bind(&Http::health, http, lambda::_1));
   route("/stats.json", None(), lambda::bind(&Http::stats, http, lambda::_1));
   route("/state.json", None(), lambda::bind(&Http::state, http, lambda::_1));
 
@@ -2675,7 +2677,8 @@ void Slave::shutdownExecutorTimeout(
     return;
   }
 
-  if (executor->containerId != containerId) { // Make sure this timeout is valid.
+  // Make sure this timeout is valid.
+  if (executor->containerId != containerId) {
     LOG(INFO) << "A new executor '" << executorId
               << "' of framework " << frameworkId
               << " with run " << executor->containerId

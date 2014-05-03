@@ -6,7 +6,8 @@
 namespace java {
 namespace net {
 
-class InetSocketAddress : public Jvm::Object // TODO(benh): Extends SocketAddress.
+// TODO(benh): Extends SocketAddress.
+class InetSocketAddress : public Jvm::Object
 {
 public:
   explicit InetSocketAddress(int port)

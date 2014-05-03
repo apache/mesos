@@ -517,7 +517,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
     .WillOnce(FutureArg<1>(&status));
 
   // Drop the first ACK from the scheduler to the slave.
-  Future<StatusUpdateAcknowledgementMessage> statusUpdateAcknowledgementMessage =
+  Future<StatusUpdateAcknowledgementMessage> statusUpdateAckMessage =
     DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, slave.get());
 
   Future<Nothing> _statusUpdate =
@@ -531,7 +531,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
 
   EXPECT_EQ(TASK_FINISHED, status.get().state());
 
-  AWAIT_READY(statusUpdateAcknowledgementMessage);
+  AWAIT_READY(statusUpdateAckMessage);
 
   // At this point the status update manager has enqueued
   // TASK_FINISHED update.
@@ -731,7 +731,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
     .WillOnce(FutureArg<1>(&status));
 
   // Drop the first ACK from the scheduler to the slave.
-  Future<StatusUpdateAcknowledgementMessage> statusUpdateAcknowledgementMessage =
+  Future<StatusUpdateAcknowledgementMessage> statusUpdateAckMessage =
     DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, slave.get());
 
   Clock::pause();
@@ -744,7 +744,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
 
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  AWAIT_READY(statusUpdateAcknowledgementMessage);
+  AWAIT_READY(statusUpdateAckMessage);
 
   Future<Nothing> _statusUpdate =
     FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdate);

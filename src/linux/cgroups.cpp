@@ -1744,13 +1744,20 @@ private:
     // ignore the return values of freeze, kill, and thaw because,
     // provided there are no errors, we'll just retry the chain as
     // long as tasks still exist.
-    chain = kill(SIGSTOP)                        // Send stop signal to all tasks.
-      .then(defer(self(), &Self::kill, SIGKILL)) // Now send kill signal.
-      .then(defer(self(), &Self::empty))         // Wait until cgroup is empty.
-      .then(defer(self(), &Self::freeze))        // Freeze cgroug.
-      .then(defer(self(), &Self::kill, SIGKILL)) // Send kill signal to any remaining tasks.
-      .then(defer(self(), &Self::thaw))          // Thaw cgroup to deliver signals.
-      .then(defer(self(), &Self::empty));        // Wait until cgroup is empty.
+    // Send stop signal to all tasks.
+    chain = kill(SIGSTOP)
+      // Now send kill signal.
+      .then(defer(self(), &Self::kill, SIGKILL))
+      // Wait until cgroup is empty.
+      .then(defer(self(), &Self::empty))
+      // Freeze cgroup.
+      .then(defer(self(), &Self::freeze))
+      // Send kill signal to any remaining tasks.
+      .then(defer(self(), &Self::kill, SIGKILL))
+      // Thaw cgroup to deliver signals.
+      .then(defer(self(), &Self::thaw))
+      // Wait until cgroup is empty.
+      .then(defer(self(), &Self::empty));
 
     chain.onAny(defer(self(), &Self::finished, lambda::_1));
   }

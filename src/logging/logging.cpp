@@ -171,8 +171,8 @@ void initialize(
   if (flags.quiet) {
     FLAGS_stderrthreshold = 3; // FATAL.
 
-    // FLAGS_stderrthreshold is ignored when logging to stderr instead of log files.
-    // Setting the minimum log level gets around this issue.
+    // FLAGS_stderrthreshold is ignored when logging to stderr instead
+    // of log files. Setting the minimum log level gets around this issue.
     if (FLAGS_logtostderr) {
       FLAGS_minloglevel = 3; // FATAL.
     }

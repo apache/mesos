@@ -397,7 +397,8 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());      // Ignore subsequent updates.
 
-  Future<Nothing> executorLaunched = FUTURE_DISPATCH(_, &Slave::executorLaunched);
+  Future<Nothing> executorLaunched =
+    FUTURE_DISPATCH(_, &Slave::executorLaunched);
 
   driver.start();
 

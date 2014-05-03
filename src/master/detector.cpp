@@ -65,7 +65,8 @@ public:
   ~StandaloneMasterDetectorProcess();
 
   void appoint(const Option<MasterInfo>& leader);
-  Future<Option<MasterInfo> > detect(const Option<MasterInfo>& previous = None());
+  Future<Option<MasterInfo> > detect(
+      const Option<MasterInfo>& previous = None());
 
 private:
   Option<MasterInfo> leader; // The appointed master.

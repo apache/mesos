@@ -243,7 +243,8 @@ Option<Resources> Resources::find(
             Resource potential_ = potential;
             potential_.set_role(remaining.role());
             if (remaining <= potential_) {
-              // We can satisfy the remaining requirements for this resource type.
+              // We can satisfy the remaining requirements for this
+              // resource type.
               Resource found = remaining;
               found.set_role(potential.role());
               foundResources += found;
