@@ -105,7 +105,7 @@ esac
 # Include directories used by package managers (e.g., MacPorts).
 if test "x$enable_bundled" = "xno" && \
    test "x$OS_NAME" = "xdarwin"; then
-    CPPFLAGS="$CPPFLAGS -I/opt/local/include"
+  CPPFLAGS="$CPPFLAGS -I/opt/local/include"
 fi
 
 # Used for conditionally building source files (e.g., only want to
@@ -113,20 +113,20 @@ fi
 AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 
 if test -n "`echo $with_boost`"; then
-    CPPFLAGS="$CPPFLAGS -I${with_boost}/include"
+  CPPFLAGS="$CPPFLAGS -I${with_boost}/include"
 fi
 
 # Check if user has asked us to use a preinstalled Boost, or if they asked
 # us to ignore all bundled libraries while compiling and linking.
 if test "x$without_bundled_boost" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
-	# Check if headers and library were located.
-	AC_CHECK_HEADERS([boost/version.hpp], [found_boost=yes])
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([boost/version.hpp], [found_boost=yes])
 
-	if test "x$found_boost" = "xyes"; then
-		with_bundled_boost=no
-	else
-		AC_MSG_ERROR([cannot find Boost
+  if test "x$found_boost" = "xyes"; then
+    with_bundled_boost=no
+  else
+    AC_MSG_ERROR([cannot find Boost
 -------------------------------------------------------------------
 You have requested the use of a non-bundled Boost but no suitable
 Boost could be found.
@@ -136,9 +136,9 @@ path via --with-boost=DIR, or check that the path you provided is
 correct if you're already doing this.
 -------------------------------------------------------------------
 ])
-	fi
+  fi
 else
-    with_bundled_boost=yes
+  with_bundled_boost=yes
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_BOOST], [test "x$with_bundled_boost" = "xyes"])
@@ -225,11 +225,11 @@ AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
 if test "x$with_zlib" = "xyes"; then
   AC_CHECK_LIB([z], [deflate, gzread, gzwrite, inflate], [],
                [AC_MSG_ERROR([cannot find libz
-  -------------------------------------------------------------------
-  This means HTTP responses will be slower because we cannot use
-  compression; you probably want to download and install zlib, but
-  you can get away without it by doing --without-zlib.
-  -------------------------------------------------------------------
+-------------------------------------------------------------------
+This means HTTP responses will be slower because we cannot use
+compression; you probably want to download and install zlib, but
+you can get away without it by doing --without-zlib.
+-------------------------------------------------------------------
   ])])
 fi
 
