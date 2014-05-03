@@ -449,6 +449,9 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   Future<Nothing> _reregisterSlave =
     DROP_DISPATCH(_, &Master::_reregisterSlave);
 
@@ -505,9 +508,6 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   Clock::settle();
 
   Clock::resume();
-
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
@@ -1548,6 +1548,8 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
 
   AWAIT_READY(slaveLost);
 
+  Clock::resume();
+
   // Step 7: Ensure the slave cannot re-register!
   Future<ShutdownMessage> shutdownMessage =
     FUTURE_PROTOBUF(ShutdownMessage(), master.get(), _);
@@ -1629,6 +1631,8 @@ TEST_F(MasterTest, NonStrictRegistryWriteOnly)
   Clock::settle();
 
   ASSERT_TRUE(slaveLost.isPending());
+
+  Clock::resume();
 
   // Step 7: Now expect the slave to be able to re-register,
   // according to the non-strict semantics.

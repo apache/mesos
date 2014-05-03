@@ -801,8 +801,6 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   AWAIT_READY(_recover);
 
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-  Clock::settle();
-
   Clock::resume();
 
   // Scheduler should receive the TASK_FAILED update.
@@ -1207,7 +1205,6 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.checkpoint = false;
 
-  Clock::pause();
 
   Future<RegisterSlaveMessage> registerSlaveMessage =
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
@@ -1236,6 +1233,8 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .Times(0); // No offers should be received!
+
+  Clock::pause();
 
   driver.start();
 
@@ -1309,8 +1308,8 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  Future<ReregisterSlaveMessage> reregisterSlave =
-    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
   Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
@@ -1326,9 +1325,12 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::resume();
 
   // Wait for the slave to re-register.
-  AWAIT_READY(reregisterSlave);
+  AWAIT_READY(slaveReregisteredMessage);
+
+  Clock::pause();
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -1560,8 +1562,8 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  Future<ReregisterSlaveMessage> reregisterSlave =
-    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
   Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
@@ -1585,7 +1587,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   Clock::settle();
 
-  AWAIT_READY(reregisterSlave);
+  AWAIT_READY(slaveReregisteredMessage);
 
   Clock::advance(flags.gc_delay);
 
@@ -2158,8 +2160,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  Future<ReregisterSlaveMessage> reregisterSlave =
-    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   EXPECT_CALL(allocator, slaveReconnected(_));
   EXPECT_CALL(allocator, resourcesRecovered(_, _, _));
@@ -2181,16 +2183,16 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
   AWAIT_READY(_recover);
 
   // Wait for the slave to re-register.
-  AWAIT_READY(reregisterSlave);
+  AWAIT_READY(slaveReregisteredMessage);
 
   // Wait for TASK_LOST update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_LOST, status.get().state());
+
+  Clock::pause();
 
   // Advance the clock until the allocator allocates
   // the recovered resources.
@@ -2310,8 +2312,8 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
-      FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+      FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
   Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
@@ -2327,9 +2329,10 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::resume();
 
   // Wait for the slave to re-register.
-  AWAIT_READY(reregisterSlaveMessage);
+  AWAIT_READY(slaveReregisteredMessage);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched2, statusUpdate(_, _))
@@ -2340,6 +2343,8 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   EXPECT_CALL(sched2, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  Clock::pause();
 
   // Kill the task.
   driver2.killTask(task.task_id());
@@ -2487,6 +2492,8 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   AWAIT_READY(executorTerminated);
   Clock::settle();
 
+  Clock::resume();
+
   this->Stop(slave.get());
   delete containerizer1.get();
 
@@ -2501,8 +2508,6 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlaveMessage);
-
-  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -2593,8 +2598,8 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   // Step 3. Restart the slave and kill the task.
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
-    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
   Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
@@ -2611,10 +2616,10 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
 
-  // Wait for the slave to re-register.
-  AWAIT_READY(reregisterSlaveMessage);
-
   Clock::resume();
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(slaveReregisteredMessage);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -2757,8 +2762,8 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
-    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
   Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
@@ -2775,10 +2780,10 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
 
-  // Wait for the slave to re-register.
-  AWAIT_READY(reregisterSlaveMessage);
-
   Clock::resume();
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(slaveReregisteredMessage);
 
   // Expectations for the status changes as a result of killing the
   // tasks.
@@ -2924,10 +2929,10 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   Future<Nothing> _recover1 = FUTURE_DISPATCH(_, &Slave::_recover);
   Future<Nothing> _recover2 = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  Future<ReregisterSlaveMessage> reregisterSlave1 =
-    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
-  Future<ReregisterSlaveMessage> reregisterSlave2 =
-    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage2 =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart both slaves using the same flags with new containerizers.
   Try<TypeParam*> containerizer3 = TypeParam::create(flags1, true);
@@ -2958,8 +2963,8 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   Clock::resume();
 
   // Wait for the slaves to re-register.
-  AWAIT_READY(reregisterSlave1);
-  AWAIT_READY(reregisterSlave2);
+  AWAIT_READY(slaveReregisteredMessage1);
+  AWAIT_READY(slaveReregisteredMessage2);
 
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
@@ -3073,6 +3078,8 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+
+  Clock::resume();
 
   // Scheduler should receive the TASK_FAILED update.
   AWAIT_READY(status);

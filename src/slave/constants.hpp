@@ -45,8 +45,9 @@ extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;
 extern const Duration RESOURCE_MONITORING_INTERVAL;
 
-// The minimum interval the slave waits before retrying registration.
-extern const Duration REGISTER_RETRY_INTERVAL_MIN;
+
+// Default backoff interval used by the slave to wait before registration.
+extern const Duration REGISTRATION_BACKOFF_FACTOR;
 
 // The maximum interval the slave waits before retrying registration.
 // Note that this value has to be << 'MIN_SLAVE_REREGISTER_TIMEOUT'

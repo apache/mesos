@@ -98,8 +98,7 @@ public:
 
   void registered(const process::UPID& from, const SlaveID& slaveId);
   void reregistered(const process::UPID& from, const SlaveID& slaveId);
-  void doReliableRegistration(
-      const Duration& duration = REGISTER_RETRY_INTERVAL_MIN);
+  void doReliableRegistration(const Duration& duration);
 
   void runTask(
       const process::UPID& from,

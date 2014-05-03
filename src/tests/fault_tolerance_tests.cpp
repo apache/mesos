@@ -323,6 +323,8 @@ TEST_F(FaultToleranceTest, PartitionedSlaveReregistration)
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
 
+  Clock::resume();
+
   // We now complete the partition on the slave side as well. This
   // is done by simulating a master loss event which would normally
   // occur during a network partition.
@@ -341,8 +343,6 @@ TEST_F(FaultToleranceTest, PartitionedSlaveReregistration)
   // The slave will then shut down the executor.
   AWAIT_READY(shutdownMessage);
   AWAIT_READY(shutdown);
-
-  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -2057,8 +2057,6 @@ TEST_F(FaultToleranceTest, ReconcileIncompleteTasks)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return()); // Ignore retried update due to update framework.
 
-  Clock::pause();
-
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(_statusUpdate);
@@ -2078,6 +2076,7 @@ TEST_F(FaultToleranceTest, ReconcileIncompleteTasks)
   // TASK_FINISHED update.
   // NOTE: The status update manager resends the status update when
   // it detects a new master.
+  Clock::pause();
   Clock::settle();
 
   AWAIT_READY(status);

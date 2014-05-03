@@ -456,7 +456,7 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
 
 
 // This test runs a command _with_ the command user field set. The
-// command will very the assumption that the command is run as the
+// command will verify the assumption that the command is run as the
 // specified user. We use (and assume the precense) of the
 // unprivileged 'nobody' user which should be available on both Linux
 // and Mac OS X.

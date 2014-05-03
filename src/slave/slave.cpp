@@ -219,6 +219,12 @@ void Slave::initialize()
   }
 #endif // __linux__
 
+  if (flags.registration_backoff_factor > REGISTER_RETRY_INTERVAL_MAX) {
+    EXIT(1) << "Invalid value '" << flags.registration_backoff_factor << "' "
+            << "for --registration_backoff_factor: "
+            << "Must be less than " << REGISTER_RETRY_INTERVAL_MAX;
+  }
+
   if (flags.credential.isSome()) {
     const string& path =
       strings::remove(flags.credential.get(), "file://", strings::PREFIX);
@@ -546,14 +552,30 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
       return;
     }
 
+    // Wait for a random amount of time before authentication or
+    // registration.
+    Duration duration =
+      flags.registration_backoff_factor * ((double) ::random() / RAND_MAX);
+
     if (credential.isSome()) {
       // Authenticate with the master.
+      // TODO(vinod): Do a backoff for authentication similar to what
+      // we do for registration. This is a little tricky because, if
+      // we delay 'Slave::authenticate' and a new master is detected
+      // before 'authenticate' event is processed the slave tries to
+      // authenticate with the new master twice.
+      // TODO(vinod): Consider adding an "AUTHENTICATED" state to the\
+      // slave instead of "authenticate" variable.
       authenticate();
     } else {
       // Proceed with registration without authentication.
       LOG(INFO) << "No credentials provided."
                 << " Attempting to register without authentication";
-      doReliableRegistration();
+
+      delay(duration,
+            self(),
+            &Slave::doReliableRegistration,
+            flags.registration_backoff_factor * 2); // Backoff
     }
   } else {
     LOG(INFO) << "Lost leading master";
@@ -649,7 +671,8 @@ void Slave::_authenticate()
   authenticated = true;
   authenticating = None();
 
-  doReliableRegistration(); // Proceed with registration.
+  // Proceed with registration.
+  doReliableRegistration(flags.registration_backoff_factor * 2);
 }
 
 
@@ -870,15 +893,16 @@ void Slave::doReliableRegistration(const Duration& duration)
 
   // Retry registration if necessary.
   Duration next = std::min(
-      REGISTER_RETRY_INTERVAL_MIN + duration * ((double) ::random() / RAND_MAX),
+      duration * ((double) ::random() / RAND_MAX),
+      REGISTER_RETRY_INTERVAL_MAX);
+
+  Duration duration_ = std::min(
+      duration * 2,
       REGISTER_RETRY_INTERVAL_MAX);
 
   VLOG(1) << "Will retry registration in " << next << " if necessary";
 
-  // Increase next backoff duration exponentially until the maximum
-  // is reached.
-  Duration duration_ = std::min(duration * 2, REGISTER_RETRY_INTERVAL_MAX);
-
+  // Backoff.
   delay(next, self(), &Slave::doReliableRegistration, duration_);
 }
 

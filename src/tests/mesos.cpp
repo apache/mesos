@@ -23,6 +23,7 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/result.hpp>
+#include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
 #ifdef __linux__
@@ -141,6 +142,8 @@ slave::Flags MesosTest::CreateSlaveFlags()
   flags.checkpoint = false;
 
   flags.resources = "cpus:2;mem:1024;disk:1024;ports:[31000-32000]";
+
+  flags.registration_backoff_factor = Milliseconds(10);
 
 #ifdef __linux__
   // Enable putting the slave into memory and cpuacct cgroups.
