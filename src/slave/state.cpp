@@ -242,7 +242,7 @@ Try<FrameworkState> FrameworkState::recover(
         ": " + executors.error());
   }
 
-   // Recover the executors.
+  // Recover the executors.
   foreach (const string& path, executors.get()) {
     ExecutorID executorId;
     executorId.set_value(os::basename(path).get());

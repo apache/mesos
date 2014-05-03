@@ -213,7 +213,7 @@ Future<Option<uint64_t> > CoordinatorProcess::checkPromisePhase(
     return getMissingPositions()
       .then(defer(self(), &Self::catchupMissingPositions, lambda::_1))
       .then(defer(self(), &Self::updateIndexAfterElected));
-   }
+  }
 }
 
 

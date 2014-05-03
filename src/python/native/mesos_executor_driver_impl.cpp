@@ -88,25 +88,42 @@ PyTypeObject MesosExecutorDriverImplType = {
  * List of Python methods in MesosExecutorDriverImpl.
  */
 PyMethodDef MesosExecutorDriverImpl_methods[] = {
-  {"start", (PyCFunction) MesosExecutorDriverImpl_start, METH_NOARGS,
-   "Start the driver to connect to Mesos"},
-  {"stop", (PyCFunction) MesosExecutorDriverImpl_stop, METH_NOARGS,
-   "Stop the driver, disconnecting from Mesos"},
-  {"abort", (PyCFunction) MesosExecutorDriverImpl_abort, METH_NOARGS,
-   "Abort the driver, disallowing calls from and to the driver"},
-  {"join", (PyCFunction) MesosExecutorDriverImpl_join, METH_NOARGS,
-   "Wait for a running driver to disconnect from Mesos"},
-  {"run", (PyCFunction) MesosExecutorDriverImpl_run, METH_NOARGS,
-   "Start a driver and run it, returning when it disconnects from Mesos"},
-  {"sendStatusUpdate",
-   (PyCFunction) MesosExecutorDriverImpl_sendStatusUpdate,
-   METH_VARARGS,
-   "Send a status update for a task"},
-  {"sendFrameworkMessage",
-   (PyCFunction) MesosExecutorDriverImpl_sendFrameworkMessage,
-   METH_VARARGS,
-   "Send a FrameworkMessage to a slave"},
-  {NULL}  /* Sentinel */
+  { "start",
+    (PyCFunction) MesosExecutorDriverImpl_start,
+    METH_NOARGS,
+    "Start the driver to connect to Mesos"
+  },
+  { "stop",
+    (PyCFunction) MesosExecutorDriverImpl_stop,
+    METH_NOARGS,
+    "Stop the driver, disconnecting from Mesos"
+  },
+  { "abort",
+    (PyCFunction) MesosExecutorDriverImpl_abort,
+    METH_NOARGS,
+    "Abort the driver, disallowing calls from and to the driver"
+  },
+  { "join",
+    (PyCFunction) MesosExecutorDriverImpl_join,
+    METH_NOARGS,
+    "Wait for a running driver to disconnect from Mesos"
+  },
+  { "run",
+    (PyCFunction) MesosExecutorDriverImpl_run,
+    METH_NOARGS,
+    "Start a driver and run it, returning when it disconnects from Mesos"
+  },
+  { "sendStatusUpdate",
+    (PyCFunction) MesosExecutorDriverImpl_sendStatusUpdate,
+    METH_VARARGS,
+    "Send a status update for a task"
+  },
+  { "sendFrameworkMessage",
+    (PyCFunction) MesosExecutorDriverImpl_sendFrameworkMessage,
+    METH_VARARGS,
+    "Send a FrameworkMessage to a slave"
+  },
+  { NULL }  /* Sentinel */
 };
 
 

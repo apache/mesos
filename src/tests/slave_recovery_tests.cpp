@@ -2339,7 +2339,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-   // Kill the task.
+  // Kill the task.
   driver2.killTask(task.task_id());
 
   // Wait for TASK_KILLED update.

@@ -292,7 +292,7 @@ private:
 
   void finished(const Future<Option<RecoverResponse> >& future)
   {
-   if (future.isDiscarded()) {
+    if (future.isDiscarded()) {
       // We use the boolean flag 'terminating' to distinguish between
       // a user initiated discard and a timeout induced discard. In
       // the case of a user initiated discard, the flag 'terminating'

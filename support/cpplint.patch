@@ -1,5 +1,5 @@
---- support/cpplint.py	2014-03-14 14:44:03.077741545 -0700
-+++ support/cpplint.py2	2014-03-14 14:53:33.053733284 -0700
+--- support/cpplint.py.orig	2014-05-01 18:17:51.480890494 -0700
++++ support/cpplint.py	2014-05-01 18:20:52.068887876 -0700
 @@ -28,6 +28,8 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -27,7 +27,30 @@
  
  def ParseNolintSuppressions(filename, raw_line, linenum, error):
    """Updates the global list of error-suppressions.
-@@ -3400,7 +3402,7 @@
+@@ -1993,11 +1995,9 @@
+       if access_match:
+         classinfo.access = access_match.group(2)
+ 
+-        # Check that access keywords are indented +1 space.  Skip this
+-        # check if the keywords are not preceded by whitespaces.
++        # Check that access keywords are not indented.
+         indent = access_match.group(1)
+-        if (len(indent) != classinfo.class_indent + 1 and
+-            Match(r'^\s*$', indent)):
++        if (len(indent) != classinfo.class_indent):
+           if classinfo.is_struct:
+             parent = 'struct ' + classinfo.name
+           else:
+@@ -2006,7 +2006,7 @@
+           if access_match.group(3):
+             slots = access_match.group(3)
+           error(filename, linenum, 'whitespace/indent', 3,
+-                '%s%s: should be indented +1 space inside %s' % (
++                '%s%s: should not be indented inside %s' % (
+                     access_match.group(2), slots, parent))
+ 
+     # Consume braces or semicolons from what's left of the line
+@@ -3400,7 +3400,7 @@
  
    # Check if the line is a header guard.
    is_header_guard = False
@@ -36,7 +59,7 @@
      cppvar = GetHeaderGuardCPPVariable(filename)
      if (line.startswith('#ifndef %s' % cppvar) or
          line.startswith('#define %s' % cppvar) or
-@@ -3867,7 +3869,7 @@
+@@ -3867,7 +3867,7 @@
      error(filename, linenum, 'runtime/init', 4,
            'You seem to be initializing a member variable with itself.')
  
@@ -45,7 +68,7 @@
      # TODO(unknown): check that 1-arg constructors are explicit.
      #                How to tell it's a constructor?
      #                (handled in CheckForNonStandardConstructs for now)
-@@ -4011,7 +4013,7 @@
+@@ -4011,7 +4011,7 @@
    # Check for use of unnamed namespaces in header files.  Registration
    # macros are typically OK, so we allow use of "namespace {" on lines
    # that end with backslashes.
@@ -54,7 +77,7 @@
        and Search(r'\bnamespace\s*{', line)
        and line[-1] != '\\'):
      error(filename, linenum, 'build/namespaces', 4,
-@@ -4552,7 +4554,7 @@
+@@ -4552,7 +4552,7 @@
  
    CheckForCopyright(filename, lines, error)
  

@@ -16,6 +16,7 @@ active_rules = ['build/class',
                 'whitespace/comma',
                 'whitespace/ending_newline',
                 'whitespace/forcolon',
+                'whitespace/indent',
                 'whitespace/tab',
                 'whitespace/todo']
 

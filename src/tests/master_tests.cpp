@@ -1142,7 +1142,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   EXPECT_EQ(2, resources1.cpus().get());
   EXPECT_EQ(Megabytes(1024), resources1.mem().get());
 
-   // Test that offers cannot span multiple slaves.
+  // Test that offers cannot span multiple slaves.
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers2));

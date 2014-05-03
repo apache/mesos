@@ -88,45 +88,67 @@ PyTypeObject MesosSchedulerDriverImplType = {
  * List of Python methods in MesosSchedulerDriverImpl.
  */
 PyMethodDef MesosSchedulerDriverImpl_methods[] = {
-  {"start", (PyCFunction) MesosSchedulerDriverImpl_start, METH_NOARGS,
-   "Start the driver to connect to Mesos"},
-  {"stop", (PyCFunction) MesosSchedulerDriverImpl_stop, METH_VARARGS,
-   "Stop the driver, disconnecting from Mesos"},
-  {"abort", (PyCFunction) MesosSchedulerDriverImpl_abort, METH_NOARGS,
-    "Abort the driver, disabling calls from and to the driver"},
-  {"join", (PyCFunction) MesosSchedulerDriverImpl_join, METH_NOARGS,
-   "Wait for a running driver to disconnect from Mesos"},
-  {"run", (PyCFunction) MesosSchedulerDriverImpl_run, METH_NOARGS,
-   "Start a driver and run it, returning when it disconnects from Mesos"},
-  {"requestResources",
-   (PyCFunction) MesosSchedulerDriverImpl_requestResources,
-   METH_VARARGS,
-   "Request resources from the Mesos allocator"},
-  {"launchTasks",
-   (PyCFunction) MesosSchedulerDriverImpl_launchTasks,
-   METH_VARARGS,
-   "Reply to a Mesos offer with a list of tasks"},
-  {"killTask",
-   (PyCFunction) MesosSchedulerDriverImpl_killTask,
-   METH_VARARGS,
-   "Kill the task with the given ID"},
-  {"declineOffer",
-   (PyCFunction) MesosSchedulerDriverImpl_declineOffer,
-   METH_VARARGS,
-   "Decline a Mesos offer"},
-  {"reviveOffers",
-   (PyCFunction) MesosSchedulerDriverImpl_reviveOffers,
-   METH_NOARGS,
-   "Remove all filters and ask Mesos for new offers"},
-  {"sendFrameworkMessage",
-   (PyCFunction) MesosSchedulerDriverImpl_sendFrameworkMessage,
-   METH_VARARGS,
-   "Send a FrameworkMessage to a slave"},
-   {"reconcileTasks",
-   (PyCFunction) MesosSchedulerDriverImpl_reconcileTasks,
-   METH_VARARGS,
-   "Master sends status updates if task status is different from last known state."},
-  {NULL}  /* Sentinel */
+  { "start",
+    (PyCFunction) MesosSchedulerDriverImpl_start,
+    METH_NOARGS,
+    "Start the driver to connect to Mesos"
+  },
+  { "stop",
+    (PyCFunction) MesosSchedulerDriverImpl_stop,
+    METH_VARARGS,
+    "Stop the driver, disconnecting from Mesos"
+  },
+  { "abort",
+    (PyCFunction) MesosSchedulerDriverImpl_abort,
+    METH_NOARGS,
+    "Abort the driver, disabling calls from and to the driver"
+  },
+  { "join",
+    (PyCFunction) MesosSchedulerDriverImpl_join,
+    METH_NOARGS,
+    "Wait for a running driver to disconnect from Mesos"
+  },
+  { "run",
+    (PyCFunction) MesosSchedulerDriverImpl_run,
+    METH_NOARGS,
+    "Start a driver and run it, returning when it disconnects from Mesos"
+  },
+  { "requestResources",
+    (PyCFunction) MesosSchedulerDriverImpl_requestResources,
+    METH_VARARGS,
+    "Request resources from the Mesos allocator"
+  },
+  { "launchTasks",
+    (PyCFunction) MesosSchedulerDriverImpl_launchTasks,
+    METH_VARARGS,
+    "Reply to a Mesos offer with a list of tasks"
+  },
+  { "killTask",
+    (PyCFunction) MesosSchedulerDriverImpl_killTask,
+    METH_VARARGS,
+    "Kill the task with the given ID"
+  },
+  { "declineOffer",
+    (PyCFunction) MesosSchedulerDriverImpl_declineOffer,
+    METH_VARARGS,
+    "Decline a Mesos offer"
+  },
+  { "reviveOffers",
+    (PyCFunction) MesosSchedulerDriverImpl_reviveOffers,
+    METH_NOARGS,
+    "Remove all filters and ask Mesos for new offers"
+  },
+  { "sendFrameworkMessage",
+    (PyCFunction) MesosSchedulerDriverImpl_sendFrameworkMessage,
+    METH_VARARGS,
+    "Send a FrameworkMessage to a slave"
+  },
+  { "reconcileTasks",
+    (PyCFunction) MesosSchedulerDriverImpl_reconcileTasks,
+    METH_VARARGS,
+    "Master sends status updates if task status is different from last known state."
+  },
+  { NULL }  /* Sentinel */
 };
 
 

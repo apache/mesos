@@ -1995,11 +1995,9 @@ class _NestingState(object):
       if access_match:
         classinfo.access = access_match.group(2)
 
-        # Check that access keywords are indented +1 space.  Skip this
-        # check if the keywords are not preceded by whitespaces.
+        # Check that access keywords are not indented.
         indent = access_match.group(1)
-        if (len(indent) != classinfo.class_indent + 1 and
-            Match(r'^\s*$', indent)):
+        if (len(indent) != classinfo.class_indent):
           if classinfo.is_struct:
             parent = 'struct ' + classinfo.name
           else:
@@ -2008,7 +2006,7 @@ class _NestingState(object):
           if access_match.group(3):
             slots = access_match.group(3)
           error(filename, linenum, 'whitespace/indent', 3,
-                '%s%s: should be indented +1 space inside %s' % (
+                '%s%s: should not be indented inside %s' % (
                     access_match.group(2), slots, parent))
 
     # Consume braces or semicolons from what's left of the line
