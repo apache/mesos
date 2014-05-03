@@ -1823,6 +1823,8 @@ void Master::launchTasks(
   taskVisitors.push_back(new ExecutorInfoChecker());
   taskVisitors.push_back(new CheckpointChecker());
 
+  // TODO(benh): Add a HealthCheckChecker visitor.
+
   // Loop through each task and check it's validity.
   foreach (const TaskInfo& task, tasks) {
     // Possible error found while checking task's validity.
