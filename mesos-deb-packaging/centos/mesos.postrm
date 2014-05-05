@@ -1,0 +1,2 @@
+#rm -rf /var/log/mesos /etc/mesos
+

@@ -1,0 +1,30 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+
+  configure)
+    update-rc.d mesos-master defaults
+    update-rc.d mesos-slave defaults
+    ;;
+
+  configure|abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+
+  *)
+    echo "postinst called with unknown argument \`$1'" >&2
+    exit 1
+    ;;
+esac
+
+# TODO we should restart mesos-slave or master
+
+#run ldconfig in order to have available libmesos.so
+
+ldconfig
+
+
+#DEBHELPER#
+
+exit 0
+

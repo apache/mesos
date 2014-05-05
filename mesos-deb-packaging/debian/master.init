@@ -1,0 +1,57 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          mesos-master
+# Required-Start:    $local_fs $remote_fs $network $syslog
+# Required-Stop:     $local_fs $remote_fs $network $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: starts the mesos master
+# Description:       The Mesos master distributes computing tasks to slaves
+### END INIT INFO
+set -ue
+
+NAME="mesos-master"
+DESC="mesos master"
+
+. /lib/lsb/init-functions
+
+PID=/var/run/mesos-master.pid
+
+start() {
+  start-stop-daemon --start --background --quiet \
+                    --pidfile "$PID" --make-pidfile \
+                    --exec /usr/bin/mesos-init-wrapper -- master
+
+}
+
+stop() {
+  start-stop-daemon --stop --quiet --pidfile "$PID"
+}
+
+case "$1" in
+  start)
+    echo -n "Starting $DESC: "
+    start
+    echo "$NAME."
+    ;;
+  stop)
+    echo -n "Stopping $DESC: "
+    stop
+    echo "$NAME."
+    ;;
+  restart)
+    echo -n "Restarting $DESC: "
+    stop
+    sleep 1
+    start
+    echo "$NAME."
+    ;;
+  status)
+    status_of_proc -p "$PID" "$NAME" "$NAME"
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status}" >&2
+    exit 1
+    ;;
+esac
+

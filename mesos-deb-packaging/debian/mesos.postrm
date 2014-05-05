@@ -1,0 +1,23 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+  purge)
+    rm -rf /var/log/mesos /etc/mesos
+    update-rc.d mesos-master remove
+    update-rc.d mesos-slave remove
+    ;;
+
+  remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+    ;;
+
+  *)
+    echo "postrm called with unknown argument \`$1'" >&2
+    exit 1
+esac
+
+#DEBHELPER#
+
+exit 0
+

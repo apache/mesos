@@ -1,0 +1,311 @@
+#!/bin/bash
+set -o errexit -o nounset -o pipefail
+export LC_ALL=C
+function -h {
+cat <<USAGE
+ USAGE: build_mesos (--repo <git URL>)? (--nominal-version <version>)?
+
+  Performs a build in ./mesos-repo after checking out a recent copy of Mesos.
+  The default is to checkout:
+
+    $repo
+
+  You can specify a different Mesos Git URL with \`--repo'. Note that it does
+  not work to use an \`='; the \`--repo' option must be separated from the Git
+  URL with a space.
+
+  The repo can be given as ...?ref=prod7 or even ...?prod7 to select a
+  particular branch to build.
+
+USAGE
+}; function --help { -h ;}
+
+this="$(cd "$(dirname "$0")" && pwd -P)"
+name=mesos
+version="${version:-9999}"
+
+function main {
+  while [[ $# -gt 0 ]]
+  do
+    case "$1" in                                      # Munging globals, beware
+      --repo)                   repo="$2"    ; shift 2 ;;
+      --nominal-version)        version="$2" ; shift 2 ;;
+      *)                        err 'Argument error. Please see help.' ;;
+    esac
+  done
+  checkout go
+}
+
+function go {
+  build
+  create_installation
+  pkg
+  save_python_egg
+}
+
+use_git_version=false
+function maybe_append_git_hash {
+  if $use_git_version && git rev-parse --git-dir &>/dev/null
+  then out "$1-g$(git log -n1 --format=%h)"
+  else out "$1"
+  fi
+}
+
+repo=https://git-wip-us.apache.org/repos/asf/mesos.git
+function checkout {
+  local url=( $(url_split "$repo") )
+  local repository="${url[0]}"
+  local query="${url[1]:-}"
+  if [[ ${url[2]:-} ]]
+  then err "Setting fragment (#) does nothing. Try query (?) instead."
+  fi
+  case "$query" in
+    ref=*|h=*|branch=*|tag=*) local ref="${query#*=}" ;;
+    *)                        local ref="$query" ;;
+  esac
+  ( cd ../ && ( [[ ! ${ref:-} ]] || git checkout -f "$ref" ) && "$@" )
+}
+
+function build {(
+  autoreconf -f -i -Wall,no-obsolete
+  ./bootstrap
+  mkdir -p build
+  cd build
+  ../configure $(configure_opts)
+  # optimal number of build jobs is 2x num_cores
+  make -j $(($(num_cores)*2))
+)}
+
+function os_release {
+  msg "Trying /etc/os-release..."
+  if [[ -f /etc/os-release ]]
+  then
+    ( source /etc/os-release && display_version "$ID" "$VERSION_ID" )
+    return 0
+  fi
+  msg "Trying /etc/redhat-release..."
+  if [[ -f /etc/redhat-release ]]
+  then
+    # Seems to be formatted as: <distro> release <version> (<remark>)
+    #                           CentOS release 6.3 (Final)
+    if [[ $(cat /etc/redhat-release) =~ \
+          ^(.+)' '+release' '+([^ ]+)' '+'('[^')']+')'$ ]]
+    then
+      local os
+      case "${BASH_REMATCH[1]}" in
+        'Red Hat '*) os=RedHat ;;
+        *)           os="${BASH_REMATCH[1]}" ;;
+      esac
+      display_version "$os" "${BASH_REMATCH[2]}"
+      return 0
+    else
+      err "/etc/redhat-release not like: <distro> release <version> (<remark>)"
+    fi
+  fi
+  if which sw_vers &> /dev/null
+  then
+    local product="$(sw_vers -productName)"
+    case "$product" in
+      'Mac OS X') display_version MacOSX "$(sw_vers -productVersion)" ;;
+      *) err "Expecting productName to be 'Mac OS X', not '$product'!";;
+    esac
+    return 0
+  fi
+  err "Could not determine OS version!"
+}
+
+function display_version {
+  local os="$( tr A-Z a-z <<<"$1" )" version="$( tr A-Z a-z <<<"$2" )"
+  case "$os" in
+    redhat|centos|debian) out "$os/${version%%.*}" ;;   # Ignore minor versions
+    macosx)               out "$os/${version%.*}" ;;  # Ignore bug fix releases
+    *)                    out "$os/$version" ;;
+  esac
+}
+
+function create_installation {(
+  local pwd="$(pwd -P)"
+  mkdir -p toor
+  ( cd build && make install DESTDIR="$pwd"/toor )
+  cd toor
+  mkdir -p usr/share/doc/mesos etc/default etc/mesos var/log/mesos
+  cp ../CHANGELOG               usr/share/doc/mesos/
+  cp "$this"/default/mesos*     etc/default/
+  echo zk://localhost:2181/mesos > etc/mesos/zk
+  init_scripts "$linux"
+  jars
+  chown -R 0:0 .
+)}
+
+function init_scripts {
+  mkdir -p usr/bin
+  cp -p "$this"/mesos-init-wrapper usr/bin
+  case "$1" in
+    debian/*)
+      mkdir -p etc/init.d
+      cp -p "$this"/debian/master.init etc/init.d/mesos-master
+      cp -p "$this"/debian/slave.init etc/init.d/mesos-slave ;;
+    ubuntu/*)
+      mkdir -p etc/init
+      cp "$this"/ubuntu/master.upstart etc/init/mesos-master.conf
+      cp "$this"/ubuntu/slave.upstart etc/init/mesos-slave.conf ;;
+    redhat/6|redhat/6.*|centos/6|centos/6.*)
+      mkdir -p etc/init
+      cp "$this"/ubuntu/master.upstart etc/init/mesos-master.conf
+      cp "$this"/ubuntu/slave.upstart etc/init/mesos-slave.conf ;;
+    *) err "Not sure how to make init scripts for: $1" ;;
+  esac
+}
+
+function jars {
+  mkdir -p usr/share/java/
+  mv ../build/src/mesos-*.jar usr/share/java/
+}
+
+function pkg {
+  case "$linux" in
+    ubuntu/*|debian/*) deb_ ;;
+    centos/*|redhat/*) rpm_ ;;
+    *)                 err "Not sure how to package for: $linux" ;;
+  esac
+}
+
+function architecture {
+  case "$linux" in
+    ubuntu/*|debian/*) dpkg-architecture -qDEB_BUILD_ARCH ;;
+    centos/*|redhat/*) arch ;;
+    *)                 err "Not sure how to determine arch for: $linux" ;;
+  esac
+}
+
+function find_gem_bin {
+  gem env | sed -n '/^ *- EXECUTABLE DIRECTORY: */ { s/// ; p }'
+}
+
+function deb_ {
+  local scripts="${linux%%/*}"
+  local opts=( -t deb
+               --deb-recommends zookeeper
+               --deb-recommends zookeeperd
+               --deb-recommends zookeeper-bin
+               -d 'java7-runtime-headless | java6-runtime-headless'
+               -d libcurl3
+               --after-install "$this/$scripts/mesos.postinst"
+               --after-remove "$this/$scripts/mesos.postrm" )
+  fpm_ "${opts[@]}" -p "$this"/pkg.deb
+}
+
+function rpm_ {
+  local scripts="${linux%%/*}"
+  local opts=( -t rpm
+               -d libcurl
+               --after-install "$this/$scripts/mesos.postinst"
+               --after-remove "$this/$scripts/mesos.postrm" )
+  fpm_ "${opts[@]}" -p "$this"/pkg.rpm
+}
+
+# Doesn't actually work the same as the others...
+function osx_ {(
+  arch=x86_64
+  gem_bin=/usr/bin
+  fpm_ -t osxpkg --osxpkg-identifier-prefix org.apache
+)}
+
+function fpm_ {
+  local version="$(maybe_append_git_hash "$version")"
+  local opts=( -s dir
+               -n "$name"
+               -v "$version"
+               --description
+"Cluster resouce manager with efficient resource isolation
+Apache Mesos is a cluster manager that offers efficient resource isolation
+and sharing across distributed applications, or frameworks. It can run
+Hadoop, MPI, Hypertable, Spark (a new framework for low-latency interactive
+and iterative jobs), and other applications."
+               --url=http://incubator.apache.org/mesos/
+               -a "$arch"
+               --category misc
+               --vendor ""
+               -m mesos-dev@incubator.apache.org
+               --config-files etc/
+               --prefix=/ )
+  ( cd toor && "$gem_bin"/fpm "${opts[@]}" "$@" -- . )
+}
+
+function save_python_egg {
+  local eggs=( build/src/python/dist/*.egg )
+  cat "${eggs[@]}" > "$this"/mesos.egg
+}
+
+function upload {
+  local pkg="$name"_"$version"_"$arch".deb
+  local url="${1%/}"/"$linux"/"$pkg"
+  curl -X PUT "$url" --data-binary @"$2" >/dev/null
+  out "$url"
+}
+
+function get_system_info {
+  linux="$(os_release)"                 # <distro>/<version>, like ubuntu/12.10
+  arch="$(architecture)"          # In the format used to label distro packages
+  gem_bin="$(find_gem_bin)"                          # Might not be on the PATH
+}
+
+function url_fragment {
+  local step1="${1%#}"#       # Ensure URL ends in #, even if it has a fragment
+  local step2="${step1#*#}"                                # Clip up to first #
+  out "${step2%#}"                    # Remove trailing #, guaranteed by step 1
+}
+
+# Split URL in to resource, query and fragment.
+function url_split {
+  local fragment= query=
+  local sans_fragment="${1%%#*}"
+  local sans_query="${sans_fragment%%'?'*}"
+  [[ $1             = $sans_fragment ]] || fragment="${1#*#}"
+  [[ $sans_fragment = $sans_query    ]] || query="${sans_fragment#*'?'}"
+  out "$sans_query"
+  out "$query"
+  out "$fragment"
+}
+
+# Print the number of cores detected. If we are unable to determine the number
+# of cores, print a warning and assume "1" core.
+function num_cores {
+  local cores=
+  if hash nproc &>/dev/null
+  then cores="$(nproc)"                                   # Linux based systems
+  else                                                            # OSX and BSD
+    if cores="$(sysctl -n hw.ncpu)"
+    then : # Do nothing, success
+    else
+      msg "Could not find nproc and sysctl failed; defaulting to 1 core."
+      cores=1
+    fi
+  fi
+  out "$cores"
+}
+
+# Return Mesos configuration options
+function configure_opts {
+  local options=
+  if [[ "$version" == 0.18.0-rc4 ]] || [[ "$repo" =~ 0\.18\.0-rc4$ ]]
+  then options="--without-cxx11"                # See: MESOS-750 and MESOS-1095
+  fi
+  out "$options"
+}
+
+function msg { out "$*" >&2 ;}
+function err { local x=$? ; msg "$*" ; return $(( $x == 0 ? 1 : $x )) ;}
+function out { printf '%s\n' "$*" ;}
+
+if [[ ${1:-} ]] && declare -F | cut -d' ' -f3 | fgrep -qx -- "${1:-}"
+then
+  case "$1" in
+    -h|--help|go|url_split|create_installation|checkout|build|osx_) : ;;
+    *) get_system_info ;;
+  esac
+  "$@"
+else
+  get_system_info
+  main "$@"
+fi
