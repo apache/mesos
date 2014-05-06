@@ -191,8 +191,8 @@ int main(int argc, char* argv[])
 
     CommandInfo::URI uri;
     uri.set_value(token.substr(0, pos));
-    uri.set_executable(token.substr(pos + 1) == "1");
-    uri.set_extract(token.substr(pos + 2) == "X");
+    uri.set_executable(token.substr(pos + 1, 1) == "1");
+    uri.set_extract(token.substr(pos + 2, 1) == "X");
 
     commandInfo.add_uris()->MergeFrom(uri);
   }
