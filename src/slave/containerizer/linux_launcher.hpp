@@ -38,22 +38,27 @@ public:
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,
-      const lambda::function<int()>& inChild);
+      const lambda::function<int()>& childFunction);
 
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
 
 private:
-  LinuxLauncher(const Flags& flags, const std::string& hierarchy);
+  LinuxLauncher(
+      const Flags& flags,
+      int namespaces,
+      const std::string& hierarchy);
 
   static const std::string subsystem;
   const Flags flags;
+  const int namespaces;
   const std::string hierarchy;
 
   std::string cgroup(const ContainerID& containerId);
 
-  // The 'pid' is the process id of the first process and also the process
+  // The 'pid' is the process id of the child process and also the process
   // group id and session id.
   hashmap<ContainerID, pid_t> pids;
+
 };
 
 
