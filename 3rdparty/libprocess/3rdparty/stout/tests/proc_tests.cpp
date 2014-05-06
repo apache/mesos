@@ -107,4 +107,26 @@ TEST(ProcTest, MultipleThreads)
     EXPECT_EQ(0, pthread_cancel(pthreads[i]));
     EXPECT_EQ(0, pthread_join(pthreads[i], NULL));
   }
+
+  // There is some delay before /proc updates after the threads have
+  // terminated. We wait until this occurs before completing the test to ensure
+  // a call to proc::threads in a subsequent test will not return these
+  // threads, e.g., if tests are shuffled and ProcTest.SingleThread occurs
+  // after this test.
+  Duration elapsed = Duration::zero();
+  while (true) {
+    threads = proc::threads(::getpid());
+    ASSERT_SOME(threads);
+
+    if (threads.get().size() == 1) {
+      break;
+    }
+
+    if (elapsed > Seconds(1)) {
+      FAIL() << "Failed to wait for /proc to update for terminated threads";
+    }
+
+    os::sleep(Milliseconds(5));
+    elapsed += Milliseconds(5);
+  }
 }
