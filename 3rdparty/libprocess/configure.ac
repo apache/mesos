@@ -256,5 +256,12 @@ if test "x$with_cxx11" = "xyes"; then
   CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
 fi
 
+AC_CHECK_LIB([dl], [dlopen], [AC_MSG_RESULT([found])],
+	     [AC_MSG_ERROR([cannot find libdl
+-------------------------------------------------------------------
+libdl was not found, and is required for compilation.
+-------------------------------------------------------------------
+])])
+
 
 AC_OUTPUT

@@ -134,6 +134,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/bytes_tests.cpp		\
   $(STOUT)/tests/cache_tests.cpp		\
   $(STOUT)/tests/duration_tests.cpp		\
+  $(STOUT)/tests/dynamiclibrary_tests.cpp	\
   $(STOUT)/tests/error_tests.cpp		\
   $(STOUT)/tests/flags_tests.cpp		\
   $(STOUT)/tests/gzip_tests.cpp			\
@@ -180,7 +181,8 @@ endif
 stout_tests_LDADD =			\
   libgmock.la				\
   $(GLOG)/libglog.la			\
-  $(PROTOBUF)/src/libprotobuf.la
+  $(PROTOBUF)/src/libprotobuf.la	\
+  -ldl
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.

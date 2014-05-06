@@ -11,6 +11,7 @@ EXTRA_DIST =					\
   include/stout/cache.hpp			\
   include/stout/check.hpp			\
   include/stout/duration.hpp			\
+  include/stout/dynamiclibrary.hpp		\
   include/stout/error.hpp			\
   include/stout/exit.hpp			\
   include/stout/fatal.hpp			\
@@ -75,6 +76,7 @@ EXTRA_DIST =					\
   tests/bytes_tests.cpp				\
   tests/cache_tests.cpp				\
   tests/duration_tests.cpp			\
+  tests/dynamiclibrary_tests.cpp		\
   tests/error_tests.cpp				\
   tests/flags_tests.cpp				\
   tests/gzip_tests.cpp				\
