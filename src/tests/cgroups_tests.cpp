@@ -826,7 +826,8 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
   // Assign ourselves to the test cgroup.
   CHECK_SOME(cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid()));
 
-  // Get our threads (may be more than the numThreads we created if other threads are running).
+  // Get our threads (may be more than the numThreads we created if
+  // other threads are running).
   Try<set<pid_t> > threads = proc::threads(::getpid());
   ASSERT_SOME(threads);
 
