@@ -26,6 +26,9 @@
 
 #include <gtest/gtest.h>
 
+#include <process/clock.hpp>
+#include <process/gtest.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
@@ -42,6 +45,8 @@
 
 #include "linux/routing/queueing/handle.hpp"
 #include "linux/routing/queueing/ingress.hpp"
+
+using namespace process;
 
 using namespace routing;
 using namespace routing::filter;
@@ -268,6 +273,23 @@ TEST_F(RoutingVethTest, ROOT_LinkCreatePid)
   EXPECT_EQ(SIGKILL, WTERMSIG(status));
 }
 #endif
+
+
+TEST_F(RoutingVethTest, ROOT_LinkWait)
+{
+  AWAIT_READY(link::removed(TEST_VETH_LINK));
+
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  Future<Nothing> removed = link::removed(TEST_VETH_LINK);
+  EXPECT_TRUE(removed.isPending());
+
+  ASSERT_SOME_TRUE(link::remove(TEST_VETH_LINK));
+  AWAIT_READY(removed);
+}
 
 
 TEST_F(RoutingVethTest, ROOT_LinkSetUp)

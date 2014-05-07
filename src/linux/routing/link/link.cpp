@@ -32,7 +32,13 @@
 
 #include <netlink/route/link/veth.h>
 
+#include <process/delay.hpp>
+#include <process/pid.hpp>
+#include <process/process.hpp>
+
 #include <stout/error.hpp>
+#include <stout/duration.hpp>
+#include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/os.hpp>
 
@@ -40,6 +46,8 @@
 
 #include "linux/routing/link/internal.hpp"
 #include "linux/routing/link/link.hpp"
+
+using namespace process;
 
 using std::string;
 
@@ -106,6 +114,68 @@ Try<bool> remove(const string& _link)
   }
 
   return true;
+}
+
+
+namespace internal {
+
+// A process that checks if a link has been removed.
+class ExistenceChecker : public Process<ExistenceChecker>
+{
+public:
+  ExistenceChecker(const string& _link) : link(_link) {}
+
+  virtual ~ExistenceChecker() {}
+
+  // Returns a future which gets set when the link has been removed.
+  Future<Nothing> future() { return promise.future(); }
+
+protected:
+  virtual void initialize()
+  {
+    // Stop when no one cares.
+    promise.future().onDiscard(lambda::bind(
+        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
+
+    check();
+  }
+
+  virtual void finalize()
+  {
+    promise.discard();
+  }
+
+private:
+  void check()
+  {
+    Try<bool> exists = link::exists(link);
+    if (exists.isError()) {
+      promise.fail(exists.error());
+      terminate(self());
+      return;
+    } else if (!exists.get()) {
+      promise.set(Nothing());
+      terminate(self());
+      return;
+    }
+
+    // Perform the check again.
+    delay(Milliseconds(100), self(), &Self::check);
+  }
+
+  const string link;
+  Promise<Nothing> promise;
+};
+
+} // namespace internal {
+
+
+Future<Nothing> removed(const string& link)
+{
+  internal::ExistenceChecker* checker = new internal::ExistenceChecker(link);
+  Future<Nothing> future = checker->future();
+  spawn(checker, true);
+  return future;
 }
 
 

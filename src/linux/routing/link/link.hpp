@@ -25,8 +25,11 @@
 
 #include <string>
 
+#include <process/future.hpp>
+
 #include <stout/hashmap.hpp>
 #include <stout/net.hpp>
+#include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
@@ -51,6 +54,12 @@ Try<bool> create(
 
 // Removes a link. Returns false if the link is not found.
 Try<bool> remove(const std::string& link);
+
+
+// Waits for the link to be removed. The returned future will be set
+// once the link has been removed. The user can discard the returned
+// future to cancel the operation.
+process::Future<Nothing> removed(const std::string& link);
 
 
 // Returns the interface index of the link. Returns None if the link
