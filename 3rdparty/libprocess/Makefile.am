@@ -15,7 +15,6 @@ GLOG = 3rdparty/glog-$(GLOG_VERSION)
 GMOCK = 3rdparty/gmock-$(GMOCK_VERSION)
 GPERFTOOLS = 3rdparty/gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
-RY_HTTP_PARSER = 3rdparty/ry-http-parser-$(RY_HTTP_PARSER_VERSION)
 LIBEV = 3rdparty/libev-$(LIBEV_VERSION)
 PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
 
@@ -47,14 +46,22 @@ libprocess_la_CPPFLAGS =		\
   -I$(srcdir)/$(STOUT)/include		\
   -I$(BOOST)				\
   -I$(GLOG)/src				\
-  -I$(RY_HTTP_PARSER)			\
   -I$(LIBEV)				\
   -I$(PICOJSON)				\
   $(AM_CPPFLAGS)
 
+if WITH_BUNDLED_HTTP_PARSER
+  RY_HTTP_PARSER = 3rdparty/ry-http-parser-$(RY_HTTP_PARSER_VERSION)
+  libprocess_la_CPPFLAGS += -I$(RY_HTTP_PARSER)
+
+  HTTP_PARSER_LIB = 3rdparty/libry_http_parser.la
+else
+  HTTP_PARSER_LIB = -lhttp_parser
+endif
+
 libprocess_la_LIBADD =			\
   $(GLOG)/libglog.la			\
-  3rdparty/libry_http_parser.la	\
+  $(HTTP_PARSER_LIB)			\
   $(LIBEV)/libev.la
 
 if HAS_GPERFTOOLS
@@ -149,7 +156,12 @@ tests_CPPFLAGS =			\
   -I$(GMOCK)/include			\
   $(libprocess_la_CPPFLAGS)
 
-tests_LDADD = 3rdparty/libgmock.la libprocess.la
+tests_LDADD =				\
+  3rdparty/libgmock.la			\
+  libprocess.la				\
+  $(GLOG)/libglog.la			\
+  $(HTTP_PARSER_LIB)			\
+  $(LIBEV)/libev.la
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.

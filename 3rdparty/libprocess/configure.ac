@@ -77,6 +77,13 @@ AC_ARG_WITH([boost],
 		           location prefixed by the given path]),
 	    [without_bundled_boost=yes], [])
 
+AC_ARG_WITH([http-parser],
+	    AS_HELP_STRING([--with-http-parser@<:@=DIR@:>@],
+			   [excludes building and using the bundled http-parser
+			   package in lieu of an installed version at a
+			   location prefixed by the given path]),
+	    [without_bundled_http_parser=yes], [])
+
 AC_ARG_WITH([zlib],
             AS_HELP_STRING([--without-zlib],
                            [disables zlib compression, which means the webui
@@ -116,6 +123,10 @@ if test -n "`echo $with_boost`"; then
   CPPFLAGS="$CPPFLAGS -I${with_boost}/include"
 fi
 
+if test -n "`echo $with_http-parser`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_http-parser}/include"
+fi
+
 # Check if user has asked us to use a preinstalled Boost, or if they asked
 # us to ignore all bundled libraries while compiling and linking.
 if test "x$without_bundled_boost" = "xyes" || \
@@ -142,6 +153,36 @@ else
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_BOOST], [test "x$with_bundled_boost" = "xyes"])
+
+
+# Check if user has asked us to use a preinstalled http-parser, or if they asked
+# us to ignore all bundled libraries while compiling and linking.
+if test "x$without_bundled_http_parse" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([http_parser.h], [found_http_parser=yes])
+
+  if test "x$found_http_parser" = "xyes"; then
+    with_bundled_http_parser=no
+  else
+    AC_MSG_ERROR([cannot find http-parser
+-------------------------------------------------------------------
+You have requested the use of a non-bundled http-parser but no suitable
+http-parser could be found.
+
+You may want specify the location of http-parser by providing a prefix
+path via --with-http-parser=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_http_parser=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_HTTP_PARSER],
+               [test "x$with_bundled_http_parser" = "xyes"])
+
 
 # Default to gcc toolchain (we rely on some atomic builtins for now,
 # that are also present with clang).

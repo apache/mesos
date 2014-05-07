@@ -66,15 +66,16 @@ CLEAN_EXTRACTED =	\
 	test ! -e $(srcdir)/$*.patch || patch -d $* -p1 <$(srcdir)/$*.patch
 	touch $@
 
+if WITH_BUNDLED_HTTP_PARSER
+  # Convenience library for Ryan Dahl's HTTP parser.
+  noinst_LTLIBRARIES = libry_http_parser.la
+  nodist_libry_http_parser_la_SOURCES = $(RY_HTTP_PARSER)/http_parser.c
+  libry_http_parser_la_CPPFLAGS = -I$(RY_HTTP_PARSER)
 
-# Convenience library for Ryan Dahl's HTTP parser.
-noinst_LTLIBRARIES = libry_http_parser.la
-nodist_libry_http_parser_la_SOURCES = $(RY_HTTP_PARSER)/http_parser.c
-libry_http_parser_la_CPPFLAGS = -I$(RY_HTTP_PARSER)
+  BUILT_SOURCES += $(nodist_libry_http_parser_la_SOURCES)
 
-# We list the sources in BUILT_SOURCES to make sure that the package
-# gets unarchived first.
-BUILT_SOURCES += $(nodist_libry_http_parser_la_SOURCES)
+  $(RY_HTTP_PARSER)/http_parser.c: $(RY_HTTP_PARSER)-stamp
+endif
 
 
 # Convenience library for gmock/gtest.
@@ -122,9 +123,6 @@ $(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
 	cd $(PROTOBUF) && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 	touch $@
-
-$(RY_HTTP_PARSER)/http_parser.c: $(RY_HTTP_PARSER)-stamp
-
 
 # Tests for stout.
 check_PROGRAMS = stout-tests
