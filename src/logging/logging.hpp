@@ -40,12 +40,8 @@ void initialize(
 Try<std::string> getLogFile(google::LogSeverity severity);
 
 
-// Creates the log file for the provided severity.
-void createLogFile(google::LogSeverity severity);
-
-
-// Returns the minimum level of logging as a number.
-google::LogSeverity getMinLogLevel(const std::string& minloglevel);
+// Returns the provided logging level as a LogSeverity type.
+google::LogSeverity getLogSeverity(const std::string& logging_level);
 
 } // namespace logging {
 } // namespace internal {

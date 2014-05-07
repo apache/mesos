@@ -522,12 +522,10 @@ void Master::initialize()
   provide("", path::join(flags.webui_dir, "master/static/index.html"));
   provide("static", path::join(flags.webui_dir, "master/static"));
 
-  // No need to access FATAL log file; if the program
-  // is still running, there definitely haven't been any
-  // FATAL logs yet; a FATAL log will cause the program to crash.
-  google::LogSeverity minloglevel = logging::getMinLogLevel(flags.minloglevel);
-  if (flags.log_dir.isSome() && minloglevel != google::FATAL) {
-    Try<string> log = logging::getLogFile(minloglevel);
+  if (flags.log_dir.isSome()) {
+    Try<string> log = logging::getLogFile(
+        logging::getLogSeverity(flags.logging_level));
+
     if (log.isError()) {
       LOG(ERROR) << "Master log file cannot be found: " << log.error();
     } else {

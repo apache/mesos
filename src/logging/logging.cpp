@@ -91,48 +91,18 @@ void handler(int signal)
 }
 
 
-void createLogFile(google::LogSeverity severity)
+google::LogSeverity getLogSeverity(const string& logging_level)
 {
-  if (severity < google::INFO || severity > google::FATAL) {
-    severity = google::INFO;
-  }
-
-  // Log this message in order to create the log file; also
-  // recreate the file if it has been created on a previous run.
-  string msg = "Logging " + string(google::GetLogSeverityName(severity)) +
-               " level started!";
-  switch(severity) {
-    case 0:
-      LOG(INFO) << msg;
-      break;
-    case 1:
-      LOG(WARNING) << msg;
-      break;
-    case 2:
-      LOG(ERROR) << msg;
-      break;
-  }
-}
-
-
-google::LogSeverity getMinLogLevel(const string& minloglevel)
-{
-  if (minloglevel == "INFO") {
+  if (logging_level == "INFO") {
+    return google::INFO;
+  } else if (logging_level == "WARNING") {
+    return google::WARNING;
+  } else if (logging_level == "ERROR") {
+    return google::ERROR;
+  } else {
+    // TODO(bmahler): Consider an error here.
     return google::INFO;
   }
-  if (minloglevel == "WARNING") {
-    return google::WARNING;
-  }
-  if (minloglevel == "ERROR") {
-    return google::ERROR;
-  }
-  if (minloglevel == "FATAL") {
-    return google::FATAL;
-  }
-
-  // Return the default value of logging (INFO) if an invalid
-  // value is passed to minloglevel flag.
-  return google::INFO;
 }
 
 
@@ -149,8 +119,15 @@ void initialize(
 
   argv0 = _argv0;
 
-  // Set glog's parameters through Google Flags variables.
-  FLAGS_minloglevel = getMinLogLevel(flags.minloglevel);
+  if (flags.logging_level != "INFO" &&
+      flags.logging_level != "WARNING" &&
+      flags.logging_level != "ERROR") {
+    EXIT(1) << "'" << flags.logging_level << "' is not a valid logging level."
+               " Possible values for 'logging_level' flag are: "
+               " 'INFO', 'WARNING', 'ERROR'.";
+  }
+
+  FLAGS_minloglevel = getLogSeverity(flags.logging_level);
 
   if (flags.log_dir.isSome()) {
     Try<Nothing> mkdir = os::mkdir(flags.log_dir.get());
@@ -183,8 +160,13 @@ void initialize(
   FLAGS_logbufsecs = flags.logbufsecs;
 
   google::InitGoogleLogging(argv0.c_str());
-  if (flags.log_dir.isSome() && FLAGS_minloglevel != google::FATAL) {
-    createLogFile(FLAGS_minloglevel);
+  if (flags.log_dir.isSome()) {
+    // Log this message in order to create the log file; this is because GLOG
+    // creates the log file once the first log message occurs; also recreate
+    // the file if it has been created on a previous run.
+    LOG_AT_LEVEL(FLAGS_minloglevel)
+      << google::GetLogSeverityName(FLAGS_minloglevel)
+      << " level logging started!";
   }
 
   VLOG(1) << "Logging to " <<
