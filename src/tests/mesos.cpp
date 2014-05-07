@@ -181,18 +181,8 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
 Try<process::PID<slave::Slave> > MesosTest::StartSlave(
     const Option<slave::Flags>& flags)
 {
-  slave::Containerizer* containerizer = new TestContainerizer();
-
-  Try<process::PID<slave::Slave> > pid = StartSlave(containerizer, flags);
-
-  if (pid.isError()) {
-    delete containerizer;
-    return pid;
-  }
-
-  containerizers[pid.get()] = containerizer;
-
-  return pid;
+  return cluster.slaves.start(
+      flags.isNone() ? CreateSlaveFlags() : flags.get());
 }
 
 
