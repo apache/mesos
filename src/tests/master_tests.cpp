@@ -1380,6 +1380,89 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
 }
 
 
+// This test ensures that a non-strict registry is write-only by
+// inducing a slave removal during recovery. After which, we expect
+// that the framework is *not* informed, and we expect that the
+// slave can re-register successfully.
+TEST_F(MasterTest, NonStrictRegistryWriteOnly)
+{
+  // Step 1: Start a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry_strict = false;
+
+  Try<PID<Master> > master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Step 2: Start a slave.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+
+  // Setup recovery slave flags.
+  slaveFlags.checkpoint = true;
+  slaveFlags.recover = "reconnect";
+  slaveFlags.strict = true;
+
+  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Step 3: Stop the slave while the master is down.
+  this->Stop(master.get());
+
+  this->Stop(slave.get());
+
+  // Step 4: Restart the master.
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Step 5: Start a scheduler.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return()); // Ignore offers.
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  // Step 6: Advance the clock and make sure the slave is not
+  // removed!
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillRepeatedly(FutureSatisfy(&slaveLost));
+
+  Clock::pause();
+  Clock::advance(masterFlags.slave_reregister_timeout);
+  Clock::settle();
+
+  ASSERT_TRUE(slaveLost.isPending());
+
+  // Step 7: Now expect the slave to be able to re-register,
+  // according to the non-strict semantics.
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), _);
+
+  slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 // This test ensures that when a slave is recovered from the registry
 // and re-registers with the master, it is *not* removed after the
 // re-registration timeout elapses.
