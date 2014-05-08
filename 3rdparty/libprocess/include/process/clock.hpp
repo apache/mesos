@@ -24,6 +24,11 @@ public:
   static void update(const Time& time);
   static void update(ProcessBase* process, const Time& time);
   static void order(ProcessBase* from, ProcessBase* to);
+
+  // When the clock is paused, settle() synchronously ensures that:
+  //   (1) all expired timers are executed,
+  //   (2) no Processes are running, and
+  //   (3) no Processes are ready to run.
   static void settle();
 };
 
