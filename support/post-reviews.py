@@ -37,11 +37,18 @@ def readline(prompt):
 
 
 def execute(command, ignore_errors=False):
-    process = Popen(command,
-                    stdin=PIPE,
-                    stdout=PIPE,
-                    stderr=STDOUT,
-                    shell=False)
+    process = None
+    try:
+        process = Popen(command,
+                stdin=PIPE,
+                stdout=PIPE,
+                stderr=STDOUT,
+                shell=False)
+    except:
+        if not ignore_errors:
+            raise
+        return None
+
     data = process.stdout.read()
     status = process.wait()
     if status != 0 and not ignore_errors:
@@ -58,9 +65,9 @@ def execute(command, ignore_errors=False):
 
 # Choose 'post-review' if available, otherwise choose 'rbt'.
 post_review = None
-if execute(['type', 'post-review'], ignore_errors=True):
+if execute(['post-review', '--version'], ignore_errors=True):
   post_review = ['post-review']
-elif execute(['type', 'rbt'], ignore_errors=True):
+elif execute('rbt', '--version', ignore_errors=True):
   post_review = ['rbt', 'post']
 else:
   print 'Please install RBTools before proceeding'
