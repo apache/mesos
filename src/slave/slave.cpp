@@ -3144,6 +3144,14 @@ Executor* Framework::launchExecutor(
   ExecutorInfo executorInfo_ = executor->info;
   executorInfo_.mutable_resources()->MergeFrom(taskInfo.resources());
 
+  // The command (either in form of task or executor command) can
+  // define a specific user to run as. If present, this precedes the
+  // framework user value.
+  string user = info.user();
+  if (executor->info.command().has_user()) {
+    user = executor->info.command().user();
+  }
+
   // Launch the container.
   Future<Nothing> launch;
   if (!executor->commandExecutor) {
@@ -3155,7 +3163,7 @@ Executor* Framework::launchExecutor(
         containerId,
         executorInfo_, // modified to include the task's resources
         executor->directory,
-        slave->flags.switch_user ? Option<string>(info.user()) : None(),
+        slave->flags.switch_user ? Option<string>(user) : None(),
         slave->info.id(),
         slave->self(),
         info.checkpoint());
@@ -3173,7 +3181,7 @@ Executor* Framework::launchExecutor(
         taskInfo,
         executorInfo_,
         executor->directory,
-        slave->flags.switch_user ? Option<string>(info.user()) : None(),
+        slave->flags.switch_user ? Option<string>(user) : None(),
         slave->info.id(),
         slave->self(),
         info.checkpoint());

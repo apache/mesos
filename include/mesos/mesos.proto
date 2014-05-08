@@ -163,6 +163,11 @@ message CommandInfo {
   // NOTE: MesosContainerizer does currently not support this attribute
   // and tasks supplying a 'container' will fail.
   optional ContainerInfo container = 4;
+
+  // Enables executor and tasks to run as a specific user. If the user
+  // field is present both in FrameworkInfo and here, the CommandInfo
+  // user value takes precedence.
+  optional string user = 5;
 }
 
 

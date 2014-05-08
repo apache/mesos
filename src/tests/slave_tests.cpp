@@ -247,3 +247,161 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
+
+// This test runs a command without the command user field set. The
+// command will verify the assumption that the command is run as the
+// slave user (in this case, root).
+TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Need flags for 'executor_registration_timeout'.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "posix/cpu,posix/mem";
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false);
+  CHECK_SOME(containerizer);
+
+  Try<PID<Slave> > slave = StartSlave(containerizer.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Launch a task with the command executor.
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+
+  // Command executor will run as user running test.
+  string user = os::user();
+
+  CommandInfo command;
+  command.set_value("test `whoami` = " + user);
+
+  task.mutable_command()->MergeFrom(command);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// This test runs a command _with_ the command user field set. The
+// command will very the assumption that the command is run as the
+// specified user. We use (and assume the precense) of the
+// unprivileged 'nobody' user which should be available on both Linux
+// and Mac OS X.
+TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithUser)
+{
+  // TODO(nnielsen): Introduce STOUT abstraction for user verification
+  // instead of flat getpwnam call.
+  const string testUser = "nobody";
+  if (::getpwnam(testUser.c_str()) == NULL) {
+    LOG(WARNING) << "Cannot run ROOT_RunTaskWithCommandInfoWithUser test:"
+                 << " user '" << testUser << "' is not present";
+    return;
+  }
+
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Need flags for 'executor_registration_timeout'.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "posix/cpu,posix/mem";
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false);
+  CHECK_SOME(containerizer);
+
+  Try<PID<Slave> > slave = StartSlave(containerizer.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Launch a task with the command executor.
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+
+  CommandInfo command;
+  command.set_value("test `whoami` = " + testUser);
+  command.set_user(testUser);
+
+  task.mutable_command()->MergeFrom(command);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
