@@ -2584,8 +2584,8 @@ void Master::reconcileTasks(
     return;
   }
 
-  LOG(INFO) << "Performing best-effort task state reconciliation for framework "
-            << frameworkId;
+  LOG(INFO) << "Performing task state reconciliation for " << statuses.size()
+            << " task statuses of framework " << frameworkId;
 
   // Reconciliation occurs for the following cases:
   //   (1) If the slave is unknown, we send TASK_LOST.
@@ -2609,13 +2609,13 @@ void Master::reconcileTasks(
         !slaves.reregistering.contains(status.slave_id()) &&
         !slaves.activated.contains(status.slave_id()) &&
         !slaves.removing.contains(status.slave_id())) {
-      // Slave is removed!
+      // Slave is unknown or removed!
       update = protobuf::createStatusUpdate(
           frameworkId,
           status.slave_id(),
           status.task_id(),
           TASK_LOST,
-          "Reconciliation: Slave is removed");
+          "Reconciliation: Slave is unknown/removed");
     }
 
     // Check for a known slave / task (cases (2) and (3)).
@@ -2645,7 +2645,10 @@ void Master::reconcileTasks(
     }
 
     if (update.isSome()) {
-      statusUpdate(update.get(), UPID());
+      CHECK_NOTNULL(framework);
+      StatusUpdateMessage message;
+      message.mutable_update()->CopyFrom(update.get());
+      send(framework->pid, message);
     }
   }
 }

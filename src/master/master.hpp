@@ -199,6 +199,18 @@ public:
   // Made public for testing purposes.
   process::Future<Nothing> _recover(const Registry& registry);
 
+  // Continuation of reregisterSlave().
+  // Made public for testing purposes.
+  // TODO(vinod): Instead of doing this create and use a
+  // MockRegistrar.
+  void _reregisterSlave(
+      const SlaveInfo& slaveInfo,
+      const process::UPID& pid,
+      const std::vector<ExecutorInfo>& executorInfos,
+      const std::vector<Task>& tasks,
+      const std::vector<Archive::Framework>& completedFrameworks,
+      const process::Future<bool>& readmit);
+
   MasterInfo info() const
   {
     return info_;
@@ -218,14 +230,6 @@ protected:
       const SlaveInfo& slaveInfo,
       const process::UPID& pid,
       const process::Future<bool>& admit);
-
-  void _reregisterSlave(
-      const SlaveInfo& slaveInfo,
-      const process::UPID& pid,
-      const std::vector<ExecutorInfo>& executorInfos,
-      const std::vector<Task>& tasks,
-      const std::vector<Archive::Framework>& completedFrameworks,
-      const process::Future<bool>& readmit);
 
   void __reregisterSlave(
       Slave* slave,
