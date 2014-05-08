@@ -92,6 +92,16 @@ public:
   // Checks if this interval intersects with an interval set.
   bool intersects(const IntervalSet<T>& set) const;
 
+  bool operator == (const Interval<T>& that) const
+  {
+    return data == that.data;
+  }
+
+  bool operator != (const Interval<T>& that) const
+  {
+    return !operator == (that);
+  }
+
 private:
   friend class Bound<T>;
 

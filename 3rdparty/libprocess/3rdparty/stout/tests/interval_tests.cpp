@@ -119,6 +119,22 @@ TEST(IntervalTest, EmptyInterval)
 }
 
 
+TEST(IntervalTest, IntervalEqual)
+{
+  Interval<int> interval((Bound<int>::closed(1), Bound<int>::open(3)));
+  Interval<int> interval2((Bound<int>::closed(1), Bound<int>::open(3)));
+  Interval<int> interval3((Bound<int>::open(1), Bound<int>::open(1)));
+  Interval<int> interval4((Bound<int>::open(1), Bound<int>::open(1)));
+  Interval<int> interval5((Bound<int>::open(2), Bound<int>::closed(3)));
+
+  EXPECT_EQ(interval, interval2);
+  EXPECT_EQ(interval3, interval4);
+  EXPECT_NE(interval, interval3);
+  EXPECT_NE(interval2, interval5);
+  EXPECT_NE(interval3, interval5);
+}
+
+
 TEST(IntervalTest, Constructor)
 {
   IntervalSet<int> set(0);
