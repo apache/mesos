@@ -13,6 +13,7 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 
 namespace process {
 namespace metrics {
@@ -45,8 +46,11 @@ private:
 
   Future<http::Response> snapshot(const http::Request& request);
   Future<http::Response> _snapshot(const http::Request& request);
+  static std::list<Future<double> > _snapshotTimeout(
+      const std::list<Future<double> >& futures);
   static Future<http::Response> __snapshot(
       const http::Request& request,
+      const Option<Duration>& timeout,
       const hashmap<std::string, Future<double> >& metrics,
       const hashmap<std::string, Option<Statistics<double> > >& statistics);
 

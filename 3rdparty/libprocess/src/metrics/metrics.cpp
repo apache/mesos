@@ -51,6 +51,10 @@ string MetricsProcess::help()
           "This endpoint provides information regarding the current metrics ",
           "tracked by the system.",
           "",
+          "The optional query parameter 'timeout' determines the maximum ",
+          "amount of time the endpoint will take to respond. If the timeout ",
+          "is exceeded, some metrics may not be included in the response.",
+          "",
           "The key is the metric name, and the value is a double-type."));
 }
 
@@ -87,35 +91,71 @@ Future<http::Response> MetricsProcess::snapshot(const http::Request& request)
 
 Future<http::Response> MetricsProcess::_snapshot(const http::Request& request)
 {
+  // Parse the 'timeout' parameter.
+  Option<Duration> timeout;
+
+  if (request.query.contains("timeout")) {
+    string parameter = request.query.get("timeout").get();
+
+    Try<Duration> duration = Duration::parse(parameter);
+
+    if (duration.isError()) {
+      return http::BadRequest(
+          "Invalid timeout '" + parameter + "':" + duration.error() + ".\n");
+    }
+
+    timeout = duration.get();
+  }
+
   hashmap<string, Future<double> > futures;
   hashmap<string, Option<Statistics<double> > > statistics;
 
   foreachkey (const string& metric, metrics) {
     CHECK_NOTNULL(metrics[metric].get());
     futures[metric] = metrics[metric]->value();
-    // TODO(dhamon): It would be nice to get these in parallel.
+    // TODO(dhamon): It would be nice to compute these asynchronously.
     statistics[metric] = metrics[metric]->statistics();
   }
 
-  return await(futures.values())
-    .then(lambda::bind(__snapshot, request, futures, statistics));
+  if (timeout.isSome()) {
+    return await(futures.values())
+      .after(timeout.get(), lambda::bind(_snapshotTimeout, futures.values()))
+      .then(lambda::bind(__snapshot, request, timeout, futures, statistics));
+  } else {
+    return await(futures.values())
+      .then(lambda::bind(__snapshot, request, timeout, futures, statistics));
+  }
+}
+
+
+list<Future<double> > MetricsProcess::_snapshotTimeout(
+    const list<Future<double> >& futures)
+{
+  // Stop waiting for all futures to transition and return a 'ready'
+  // list to proceed handling the request.
+  return futures;
 }
 
 
 Future<http::Response> MetricsProcess::__snapshot(
     const http::Request& request,
+    const Option<Duration>& timeout,
     const hashmap<string, Future<double> >& metrics,
     const hashmap<string, Option<Statistics<double> > >& statistics)
 {
   JSON::Object object;
 
   foreachpair (const string& key, const Future<double>& value, metrics) {
-    // Value.
-    if (value.isReady()) {
+    // TODO(dhamon): Maybe add the failure message for this metric to the
+    // response if value.isFailed().
+    if (value.isPending()) {
+      CHECK_SOME(timeout);
+      VLOG(1) << "Exceeded timeout of " << timeout.get() << " when attempting "
+              << "to get metric '" << key << "'";
+    } else if (value.isReady()) {
       object.values[key] = value.get();
     }
 
-    // Statistics.
     Option<Statistics<double> > statistics_ = statistics.get(key).get();
 
     if (statistics_.isSome()) {

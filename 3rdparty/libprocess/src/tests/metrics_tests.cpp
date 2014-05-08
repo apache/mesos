@@ -18,6 +18,7 @@
 
 using namespace process;
 
+using process::http::BadRequest;
 using process::http::OK;
 using process::http::Response;
 
@@ -37,6 +38,11 @@ public:
   Future<double> fail()
   {
     return Failure("failure");
+  }
+
+  Future<double> pending()
+  {
+    return Future<double>();
   }
 };
 
@@ -155,9 +161,11 @@ TEST(Metrics, Snapshot)
   ASSERT_TRUE(pid);
 
   Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
+  Gauge gaugeFail("test/gauge_fail", defer(pid, &GaugeProcess::fail));
   Counter counter("test/counter");
 
   AWAIT_READY(metrics::add(gauge));
+  AWAIT_READY(metrics::add(gaugeFail));
   AWAIT_READY(metrics::add(counter));
 
   // Advance the clock to avoid rate limit.
@@ -165,21 +173,106 @@ TEST(Metrics, Snapshot)
 
   // Get the snapshot.
   response = http::get(upid, "snapshot");
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   JSON::Object expected;
   expected.values["test/counter"] = 0.0;
   expected.values["test/gauge"] = 42.0;
+
   AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
   // Remove the metrics and ensure they are no longer in the snapshot.
   AWAIT_READY(metrics::remove(gauge));
+  AWAIT_READY(metrics::remove(gaugeFail));
   AWAIT_READY(metrics::remove(counter));
 
   // Advance the clock to avoid rate limit.
   Clock::advance(Seconds(1));
 
   response = http::get(upid, "snapshot");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
+
+  terminate(process);
+  wait(process);
+}
+
+
+TEST(Metrics, SnapshotTimeout)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  UPID upid("metrics", process::ip(), process::port());
+
+  Clock::pause();
+
+  // Advance the clock to avoid rate limit.
+  Clock::advance(Seconds(1));
+
+  // Ensure the timeout parameter is validated.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      BadRequest().status,
+      http::get(upid, "snapshot?timeout=foobar"));
+
+  // Advance the clock to avoid rate limit.
+  Clock::advance(Seconds(1));
+
+  // Before adding any metrics, the response should be empty.
+  Future<Response> response = http::get(upid, "snapshot?timeout=2secs");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
+
+  // Add a gauge and a counter.
+  GaugeProcess process;
+  PID<GaugeProcess> pid = spawn(&process);
+  ASSERT_TRUE(pid);
+
+  Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
+  Gauge gaugeFail("test/gauge_fail", defer(pid, &GaugeProcess::fail));
+  Gauge gaugeTimeout("test/gauge_timeout", defer(pid, &GaugeProcess::pending));
+  Counter counter("test/counter");
+
+  AWAIT_READY(metrics::add(gauge));
+  AWAIT_READY(metrics::add(gaugeFail));
+  AWAIT_READY(metrics::add(gaugeTimeout));
+  AWAIT_READY(metrics::add(counter));
+
+  // Advance the clock to avoid rate limit.
+  Clock::advance(Seconds(1));
+
+  // Get the snapshot.
+  response = http::get(upid, "snapshot?timeout=2secs");
+
+  // Make sure the request is pending before the timeout is exceeded.
+  Clock::settle();
+
+  ASSERT_TRUE(response.isPending());
+
+  // Advance the clock to trigger the timeout.
+  Clock::advance(Seconds(2));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  JSON::Object expected;
+  expected.values["test/counter"] = 0.0;
+  expected.values["test/gauge"] = 42.0;
+
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+
+  // Remove the metrics and ensure they are no longer in the snapshot.
+  AWAIT_READY(metrics::remove(gauge));
+  AWAIT_READY(metrics::remove(gaugeFail));
+  AWAIT_READY(metrics::remove(gaugeTimeout));
+  AWAIT_READY(metrics::remove(counter));
+
+  // Advance the clock to avoid rate limit.
+  Clock::advance(Seconds(1));
+
+  response = http::get(upid, "snapshot?timeout=2secs");
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
 
