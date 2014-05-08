@@ -36,7 +36,7 @@
 
 /* Forward declarations of classes we are using. */
 class ZooKeeper;
-class ZooKeeperImpl;
+class ZooKeeperProcess;
 
 /**
  * This interface specifies the public interface an event handler
@@ -53,10 +53,10 @@ class Watcher
 {
 public:
   virtual void process(
-      ZooKeeper *zk,
+      ZooKeeper* zk,
       int type,
       int state,
-      const std::string &path) = 0;
+      const std::string& path) = 0;
 
   virtual ~Watcher() {}
 };
@@ -121,9 +121,9 @@ public:
    *    callbacks. When notifications are triggered the Watcher::process
    *    method will be invoked.
    */
-  ZooKeeper(const std::string &servers,
+  ZooKeeper(const std::string& servers,
             const Duration& timeout,
-            Watcher *watcher);
+            Watcher* watcher);
 
   ~ZooKeeper();
 
@@ -189,11 +189,11 @@ public:
    * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
    */
   int create(
-      const std::string &path,
-      const std::string &data,
-      const ACL_vector &acl,
+      const std::string& path,
+      const std::string& data,
+      const ACL_vector& acl,
       int flags,
-      std::string *result,
+      std::string* result,
       bool recursive = false);
 
   /**
@@ -215,7 +215,7 @@ public:
    * ZINVALIDSTATE - state is ZOO_SESSION_EXPIRED_STATE or ZOO_AUTH_FAILED_STATE
    * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
    */
-  int remove(const std::string &path, int version);
+  int remove(const std::string& path, int version);
 
   /**
    * \brief checks the existence of a node in zookeeper synchronously.
@@ -235,7 +235,7 @@ public:
    * ZINVALIDSTATE - state is ZOO_SESSION_EXPIRED_STATE or ZOO_AUTH_FAILED_STATE
    * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
    */
-  int exists(const std::string &path, bool watch, Stat *stat);
+  int exists(const std::string& path, bool watch, Stat* stat);
 
   /**
    * \brief gets the data associated with a node synchronously.
@@ -256,10 +256,10 @@ public:
    * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
    */
   int get(
-      const std::string &path,
+      const std::string& path,
       bool watch,
-      std::string *result,
-      Stat *stat);
+      std::string* result,
+      Stat* stat);
 
   /**
    * \brief lists the children of a node synchronously.
@@ -278,9 +278,9 @@ public:
    * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
    */
   int getChildren(
-      const std::string &path,
+      const std::string& path,
       bool watch,
-      std::vector<std::string> *results);
+      std::vector<std::string>* results);
 
   /**
    * \brief sets the data associated with a node.
@@ -300,7 +300,7 @@ public:
    * ZINVALIDSTATE - zhandle state is either ZOO_SESSION_EXPIRED_STATE or ZOO_AUTH_FAILED_STATE
    * ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
    */
-  int set(const std::string &path, const std::string &data, int version);
+  int set(const std::string& path, const std::string& data, int version);
 
   /**
    * \brief return a message describing the return code.
@@ -321,12 +321,12 @@ public:
 
 protected:
   /* Underlying implementation (pimpl idiom). */
-  ZooKeeperImpl *impl;
+  ZooKeeperProcess* process;
 
 private:
   /* ZooKeeper instances are not copyable. */
-  ZooKeeper(const ZooKeeper &that);
-  ZooKeeper & operator = (const ZooKeeper &that);
+  ZooKeeper(const ZooKeeper& that);
+  ZooKeeper& operator = (const ZooKeeper& that);
 };
 
 
