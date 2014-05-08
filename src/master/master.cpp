@@ -2109,7 +2109,7 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
                   << " resending acknowledgement";
         SlaveRegisteredMessage message;
         message.mutable_slave_id()->MergeFrom(slave->id);
-        reply(message);
+        send(from, message);
         return;
       }
     }
@@ -2227,7 +2227,7 @@ void Master::reregisterSlave(
 
     ShutdownMessage message;
     message.set_message("Slave attempted to re-register after deactivation");
-    reply(message);
+    send(from, message);
     return;
   }
 
@@ -2257,7 +2257,7 @@ void Master::reregisterSlave(
 
     SlaveReregisteredMessage message;
     message.mutable_slave_id()->MergeFrom(slave->id);
-    reply(message);
+    send(from, message);
 
     // Update the slave pid and relink to it.
     // NOTE: Re-linking the slave here always rather than only when
