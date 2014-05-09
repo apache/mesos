@@ -35,6 +35,9 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <process/metrics/counter.hpp>
+#include <process/metrics/gauge.hpp>
+
 #include <stout/bytes.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/hashmap.hpp>
@@ -331,6 +334,22 @@ private:
   Slave(const Slave&);              // No copying.
   Slave& operator = (const Slave&); // No assigning.
 
+  // Gauge methods.
+  double _active_frameworks()
+  {
+    return frameworks.size();
+  }
+
+  double _uptime_secs()
+  {
+    return (Clock::now() - startTime).secs();
+  }
+
+  double _registered()
+  {
+    return master.isSome() ? 1 : 0;
+  }
+
   const Flags flags;
 
   SlaveInfo info;
@@ -351,13 +370,36 @@ private:
   Files* files;
 
   // Statistics (initialized in Slave::initialize).
-  struct {
+  struct
+  {
     uint64_t tasks[TaskState_ARRAYSIZE];
     uint64_t validStatusUpdates;
     uint64_t invalidStatusUpdates;
     uint64_t validFrameworkMessages;
     uint64_t invalidFrameworkMessages;
   } stats;
+
+  struct Metrics
+  {
+    Metrics(const Slave& slave);
+
+    ~Metrics();
+
+    process::metrics::Gauge uptime_secs;
+    process::metrics::Gauge registered;
+
+    process::metrics::Counter recovery_errors;
+
+    process::metrics::Gauge active_frameworks;
+
+    // TODO(dhamon): Add tasks Gauges.
+
+    process::metrics::Counter valid_status_updates;
+    process::metrics::Counter invalid_status_updates;
+
+    process::metrics::Counter valid_framework_messages;
+    process::metrics::Counter invalid_framework_messages;
+  } metrics;
 
   process::Time startTime;
 

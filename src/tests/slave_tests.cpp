@@ -405,3 +405,43 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithUser)
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
+
+
+TEST_F(SlaveTest, MetricsInStatsEndpoint)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  Future<process::http::Response> response =
+    process::http::get(slave.get(), "stats.json");
+
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(parse);
+
+  JSON::Object stats = parse.get();
+
+  EXPECT_EQ(1u, stats.values.count("slave/uptime_secs"));
+  EXPECT_EQ(1u, stats.values.count("slave/registered"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/recovery_errors"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/active_frameworks"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/valid_status_updates"));
+  EXPECT_EQ(1u, stats.values.count("slave/invalid_status_updates"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/valid_framework_messages"));
+  EXPECT_EQ(1u, stats.values.count("slave/invalid_framework_messages"));
+
+  Shutdown();
+}
