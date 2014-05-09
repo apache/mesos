@@ -67,7 +67,7 @@ def execute(command, ignore_errors=False):
 post_review = None
 if execute(['post-review', '--version'], ignore_errors=True):
   post_review = ['post-review']
-elif execute('rbt', '--version', ignore_errors=True):
+elif execute(['rbt', '--version'], ignore_errors=True):
   post_review = ['rbt', 'post']
 else:
   print 'Please install RBTools before proceeding'
