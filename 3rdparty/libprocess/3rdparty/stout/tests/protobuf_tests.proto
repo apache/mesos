@@ -63,4 +63,7 @@ message Message {
   repeated Nested repeated_nested = 24;
 
   repeated string empty = 25;
+
+  optional double optional_default = 28 [default = 42.0];
+  optional double optional_no_default = 29;
 }

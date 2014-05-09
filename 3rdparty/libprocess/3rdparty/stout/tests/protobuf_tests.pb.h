@@ -480,6 +480,20 @@ class Message : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& empty() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_empty();
 
+  // optional double optional_default = 28 [default = 42];
+  inline bool has_optional_default() const;
+  inline void clear_optional_default();
+  static const int kOptionalDefaultFieldNumber = 28;
+  inline double optional_default() const;
+  inline void set_optional_default(double value);
+
+  // optional double optional_no_default = 29;
+  inline bool has_optional_no_default() const;
+  inline void clear_optional_no_default();
+  static const int kOptionalNoDefaultFieldNumber = 29;
+  inline double optional_no_default() const;
+  inline void set_optional_no_default(double value);
+
   // @@protoc_insertion_point(class_scope:tests.Message)
  private:
   inline void set_has_b();
@@ -508,6 +522,10 @@ class Message : public ::google::protobuf::Message {
   inline void clear_has_e();
   inline void set_has_nested();
   inline void clear_has_nested();
+  inline void set_has_optional_default();
+  inline void clear_has_optional_default();
+  inline void set_has_optional_no_default();
+  inline void clear_has_optional_no_default();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -538,9 +556,11 @@ class Message : public ::google::protobuf::Message {
   ::google::protobuf::RepeatedField<int> repeated_enum_;
   ::google::protobuf::RepeatedPtrField< ::tests::Nested > repeated_nested_;
   ::google::protobuf::RepeatedPtrField< ::std::string> empty_;
+  double optional_default_;
+  double optional_no_default_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(27 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(29 + 31) / 32];
 
   friend void  protobuf_AddDesc_protobuf_5ftests_2eproto();
   friend void protobuf_AssignDesc_protobuf_5ftests_2eproto();
@@ -1436,6 +1456,50 @@ Message::empty() const {
 inline ::google::protobuf::RepeatedPtrField< ::std::string>*
 Message::mutable_empty() {
   return &empty_;
+}
+
+// optional double optional_default = 28 [default = 42];
+inline bool Message::has_optional_default() const {
+  return (_has_bits_[0] & 0x08000000u) != 0;
+}
+inline void Message::set_has_optional_default() {
+  _has_bits_[0] |= 0x08000000u;
+}
+inline void Message::clear_has_optional_default() {
+  _has_bits_[0] &= ~0x08000000u;
+}
+inline void Message::clear_optional_default() {
+  optional_default_ = 42;
+  clear_has_optional_default();
+}
+inline double Message::optional_default() const {
+  return optional_default_;
+}
+inline void Message::set_optional_default(double value) {
+  set_has_optional_default();
+  optional_default_ = value;
+}
+
+// optional double optional_no_default = 29;
+inline bool Message::has_optional_no_default() const {
+  return (_has_bits_[0] & 0x10000000u) != 0;
+}
+inline void Message::set_has_optional_no_default() {
+  _has_bits_[0] |= 0x10000000u;
+}
+inline void Message::clear_has_optional_no_default() {
+  _has_bits_[0] &= ~0x10000000u;
+}
+inline void Message::clear_optional_no_default() {
+  optional_no_default_ = 0;
+  clear_has_optional_no_default();
+}
+inline double Message::optional_no_default() const {
+  return optional_no_default_;
+}
+inline void Message::set_optional_no_default(double value) {
+  set_has_optional_no_default();
+  optional_no_default_ = value;
 }
 
 

@@ -473,9 +473,27 @@ struct Protobuf
   // fields but we may want to revisit this decision.
   Protobuf(const google::protobuf::Message& message)
   {
+    const google::protobuf::Descriptor* descriptor = message.GetDescriptor();
     const google::protobuf::Reflection* reflection = message.GetReflection();
+
+    // We first look through all the possible fields to determine both
+    // the set fields _and_ the optional fields with a default that
+    // are not set. Reflection::ListFields() alone will only include
+    // set fields and is therefore insufficient.
     std::vector<const google::protobuf::FieldDescriptor*> fields;
-    reflection->ListFields(message, &fields);
+    for (int i = 0; i < descriptor->field_count(); i++) {
+      const google::protobuf::FieldDescriptor* field = descriptor->field(i);
+      if (field->is_repeated()) {
+        if (reflection->FieldSize(message, descriptor->field(i)) > 0) {
+          // Has repeated field with members, output as JSON.
+          fields.push_back(field);
+        }
+      } else if (reflection->HasField(message, field) ||
+                 field->has_default_value()) {
+        // Field is set or has default, output as JSON.
+        fields.push_back(field);
+      }
+    }
 
     foreach (const google::protobuf::FieldDescriptor* field, fields) {
       if (field->is_repeated()) {

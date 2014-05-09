@@ -73,6 +73,7 @@ TEST(ProtobufTest, JSON)
       "  \"int32\": -1,"
       "  \"int64\": -1,"
       "  \"nested\": { \"str\": \"nested\"},"
+      "  \"optional_default\": 42,"
       "  \"repeated_bool\": [true],"
       "  \"repeated_bytes\": [\"repeated_bytes\"],"
       "  \"repeated_double\": [1, 2],"
