@@ -31,6 +31,8 @@
 #include <stout/memory.hpp>
 #include <stout/try.hpp>
 
+#include "linux/routing/utils.hpp"
+
 namespace routing {
 
 // A helper class for managing netlink objects (e.g., rtnl_link,
@@ -79,6 +81,11 @@ inline void cleanup(struct rtnl_qdisc* qdisc) { rtnl_qdisc_put(qdisc); }
 // socket is needed for most of the operations.
 inline Try<Netlink<struct nl_sock> > socket()
 {
+  Try<Nothing> checking = check();
+  if (checking.isError()) {
+    return Error(checking.error());
+  }
+
   struct nl_sock* s = nl_socket_alloc();
   if (s == NULL) {
     return Error("Failed to allocate netlink socket");

@@ -268,10 +268,12 @@ endif
 
 if WITH_NETWORK_ISOLATOR
   libmesos_no_3rdparty_la_SOURCES +=					\
+	linux/routing/utils.cpp						\
 	linux/routing/link/link.cpp
 
   libmesos_no_3rdparty_la_SOURCES +=					\
 	linux/routing/internal.hpp					\
+	linux/routing/utils.hpp						\
 	linux/routing/link/internal.hpp					\
 	linux/routing/link/link.hpp
 endif

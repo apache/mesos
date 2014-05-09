@@ -31,10 +31,13 @@
 #include <stout/hashmap.hpp>
 #include <stout/net.hpp>
 
+#include "linux/routing/utils.hpp"
+
 #include "linux/routing/link/link.hpp"
 
 using namespace routing;
 
+using std::endl;
 using std::set;
 using std::string;
 
@@ -43,7 +46,19 @@ static const string TEST_VETH_LINK = "veth-test";
 static const string TEST_PEER_LINK = "veth-peer";
 
 
-class RoutingTest : public ::testing::Test {};
+class RoutingTest : public ::testing::Test
+{
+protected:
+  virtual void SetUp()
+  {
+    ASSERT_SOME(routing::check())
+      << "-------------------------------------------------------------\n"
+      << "We cannot run any routing tests because your libnl\n"
+      << "library is not new enough. You can either install a\n"
+      << "new libnl library, or disable this test case\n"
+      << "-------------------------------------------------------------";
+  }
+};
 
 
 // Tests that require setting up virtual ethernet on host.
@@ -52,6 +67,8 @@ class RoutingVethTest : public RoutingTest
 protected:
   virtual void SetUp()
   {
+    RoutingTest::SetUp();
+
     // Clean up the test links, in case it wasn't cleaned up properly
     // from previous tests.
     link::remove(TEST_VETH_LINK);
