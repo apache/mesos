@@ -200,6 +200,57 @@ Try<bool> setMAC(const string& link, const net::MAC& mac)
 }
 
 
+Result<unsigned int> mtu(const string& _link)
+{
+  Result<Netlink<struct rtnl_link> > link = internal::get(_link);
+  if (link.isError()) {
+    return Error(link.error());
+  } else if (link.isNone()) {
+    return None();
+  }
+
+  return rtnl_link_get_mtu(link.get().get());
+}
+
+
+Try<bool> setMTU(const string& _link, unsigned int mtu)
+{
+  Result<Netlink<struct rtnl_link> > link = internal::get(_link);
+  if (link.isError()) {
+    return Error(link.error());
+  } else if (link.isNone()) {
+    return false;
+  }
+
+  // TODO(jieyu): We use ioctl to set the MTU because libnl has some
+  // issues with rtnl_link_change.
+  struct ifreq ifr;
+  memset(&ifr, 0, sizeof(ifr));
+
+  strncpy(ifr.ifr_name, _link.c_str(), IFNAMSIZ);
+  ifr.ifr_mtu = mtu;
+
+  int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+  if (fd == -1) {
+    return ErrnoError();
+  }
+
+  if (ioctl(fd, SIOCSIFMTU, &ifr) == -1) {
+    if (errno == ENODEV) {
+      os::close(fd);
+      return false;
+    }
+
+    // Save the error string as os::close may overwrite errno.
+    const string message = strerror(errno);
+    os::close(fd);
+    return Error(message);
+  }
+
+  return true;
+}
+
+
 Result<hashmap<string, uint64_t> > statistics(const string& _link)
 {
   Result<Netlink<struct rtnl_link> > link = internal::get(_link);

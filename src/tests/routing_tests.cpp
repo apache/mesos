@@ -247,3 +247,21 @@ TEST_F(RoutingVethTest, ROOT_LinkSetMAC)
 
   EXPECT_ERROR(link::setMAC(TEST_VETH_LINK, net::MAC(multicast)));
 }
+
+
+TEST_F(RoutingVethTest, ROOT_LinkMTU)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  EXPECT_SOME_TRUE(link::setMTU(TEST_VETH_LINK, 10000));
+
+  Result<unsigned int> mtu = link::mtu(TEST_VETH_LINK);
+  ASSERT_SOME(mtu);
+  EXPECT_EQ(10000u, mtu.get());
+
+  EXPECT_NONE(link::mtu("not-exist"));
+  EXPECT_SOME_FALSE(link::setMTU("not-exist", 1500));
+}

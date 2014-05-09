@@ -77,6 +77,16 @@ Try<bool> setUp(const std::string& link);
 Try<bool> setMAC(const std::string& link, const net::MAC& mac);
 
 
+// Returns the Maximum Transmission Unit (MTU) of the link. Returns
+// None if the link is not found.
+Result<unsigned int> mtu(const std::string& link);
+
+
+// Sets the Maximum Transmission Unit (MTU) of the link. Returns false
+// if the link is not found.
+Try<bool> setMTU(const std::string& link, unsigned int mtu);
+
+
 // Returns the statistics of the link.
 Result<hashmap<std::string, uint64_t> > statistics(const std::string& link);
 
