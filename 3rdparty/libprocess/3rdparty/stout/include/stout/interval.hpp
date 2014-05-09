@@ -27,6 +27,10 @@ template <typename T>
 class Interval;
 
 
+template <typename T>
+class IntervalSet;
+
+
 // Represents a bound (left or right) for an interval. A bound can
 // either be open or closed.
 template <typename T>
@@ -81,6 +85,12 @@ public:
 
   // Returns the exclusive upper bound of this interval.
   T upper() const { return data.upper(); }
+
+  // Checks if this interval intersects with another interval.
+  bool intersects(const Interval<T>& interval) const;
+
+  // Checks if this interval intersects with an interval set.
+  bool intersects(const IntervalSet<T>& set) const;
 
 private:
   friend class Bound<T>;
@@ -197,6 +207,20 @@ public:
         static_cast<const Base&>(set));
   }
 
+  // Checks if this set intersects with an interval.
+  bool intersects(const Interval<T>& interval) const
+  {
+    return boost::icl::intersects(static_cast<const Base&>(*this), interval);
+  }
+
+  // Checks if this set intersects with another interval set.
+  bool intersects(const IntervalSet<T>& set) const
+  {
+    return boost::icl::intersects(
+        static_cast<const Base&>(*this),
+        static_cast<const Base&>(set));
+  }
+
   // Returns the number of intervals in this set.
   size_t intervalCount() const
   {
@@ -273,6 +297,20 @@ template <typename T>
 std::ostream& operator << (std::ostream& stream, const IntervalSet<T>& set)
 {
   return stream << static_cast<const typename IntervalSet<T>::Base&>(set);
+}
+
+
+template <typename T>
+bool Interval<T>::intersects(const Interval<T>& interval) const
+{
+  return IntervalSet<T>(*this).intersects(interval);
+}
+
+
+template <typename T>
+bool Interval<T>::intersects(const IntervalSet<T>& set) const
+{
+  return set.intersects(*this);
 }
 
 

@@ -274,6 +274,34 @@ TEST(IntervalTest, Intersection)
 }
 
 
+TEST(IntervalTest, IntersectionTest)
+{
+  Interval<int> interval((Bound<int>::open(4), Bound<int>::closed(6)));
+  Interval<int> interval2((Bound<int>::closed(1), Bound<int>::closed(5)));
+  Interval<int> interval3((Bound<int>::closed(7), Bound<int>::closed(8)));
+
+  IntervalSet<int> set((Bound<int>::closed(1), Bound<int>::closed(3)));
+  IntervalSet<int> set2((Bound<int>::open(2), Bound<int>::open(4)));
+  IntervalSet<int> set3((Bound<int>::open(6), Bound<int>::closed(7)));
+
+  EXPECT_FALSE(set.intersects(interval));
+  EXPECT_TRUE(set2.intersects(interval2));
+  EXPECT_TRUE(set3.intersects(interval3));
+
+  EXPECT_FALSE(set2.intersects(interval));
+  EXPECT_TRUE(set2.intersects(interval2));
+  EXPECT_FALSE(set2.intersects(interval3));
+
+  EXPECT_TRUE(set.intersects(set2));
+  EXPECT_TRUE(set2.intersects(set));
+  EXPECT_FALSE(set3.intersects(set2));
+
+  EXPECT_TRUE(interval.intersects(interval2));
+  EXPECT_FALSE(interval2.intersects(interval3));
+  EXPECT_FALSE(interval3.intersects(interval));
+}
+
+
 TEST(IntervalTest, LargeInterval)
 {
   IntervalSet<int> set;
