@@ -142,7 +142,7 @@ public:
         "Whether to checkpoint slave and frameworks information\n"
         "to disk. This enables a restarted slave to recover\n"
         "status updates and reconnect with (--recover=reconnect) or\n"
-        "kill (--recover=kill) old executors",
+        "kill (--recover=cleanup) old executors",
         true);
 
     add(&Flags::recover,
