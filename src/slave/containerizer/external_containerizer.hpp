@@ -39,7 +39,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// The scheme an external containerizer has to adhere to is;
+// The scheme an external containerizer programs have to adhere to is;
 //
 // COMMAND < INPUT-PROTO > RESULT-PROTO
 //
@@ -49,6 +49,7 @@ namespace slave {
 // wait < containerizer::Wait > containerizer::Termination
 // destroy < containerizer::Destroy
 // containers > containerizer::Containers
+// recover
 //
 // 'wait' on the external containerizer side is expected to block
 // until the task command/executor has terminated.
@@ -65,12 +66,8 @@ namespace slave {
 // Check src/examples/python/test_containerizer.py for a rough
 // implementation template of this protocol.
 
-// TODO(tillt): Implement a protocol for external containerizer
-// recovery by defining needed protobuf/s.
-// Currently we expect to cover recovery entirely on the slave side.
-
-// For debugging purposes of an external containerizer, it might be
-// helpful to enable verbose logging on the slave (GLOG_v=2).
+// For debugging purposes of an external containerizer program, it
+// might be helpful to enable verbose logging on the slave (GLOG_v=2).
 
 class ExternalContainerizerProcess;
 
@@ -204,6 +201,14 @@ private:
 
   // Stores all active containers.
   hashmap<ContainerID, process::Owned<Container> > actives;
+
+  process::Future<Nothing> _recover(
+      const state::SlaveState& state,
+      const process::Future<Option<int> >& future);
+
+  process::Future<Nothing> __recover(
+      const state::SlaveState& state,
+      const hashset<ContainerID>& containers);
 
   process::Future<Nothing> _launch(
       const ContainerID& containerId,

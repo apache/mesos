@@ -25,13 +25,11 @@
 # usage < Usage > ResourceStatistics
 # wait < Wait > Termination
 # destroy < Destroy
+# containers > Containers
+# recover
 #
 # 'wait' is expected to block until the task command/executor has
 # terminated.
-
-# TODO(tillt): Implement a protocol for external containerizer
-# recovery by defining needed protobuf/s.
-# Currently we exepect to cover recovery entirely on the slave side.
 
 import fcntl
 import multiprocessing
@@ -257,25 +255,14 @@ def destroy():
     return 0
 
 
-# Recover the containerized executor.
-# TODO(tillt): It is yet to be defined which data will be forwarded
-# for the external containerizer to be able to recover its internal
-# states. Currently this command is not being invoked.
+# Recover all containerized executors states.
 def recover():
-    try:
-        data = receive()
-        if len(data) == 0:
-            return 1
-        containerId = mesos_pb2.ContainerID()
-        containerId.ParseFromString(data)
 
-    except google.protobuf.message.DecodeError:
-        print >> sys.stderr, "Could not deserialise ContainerID protobuf."
-        return 1
-
-    except OSError as e:
-        print >> sys.stderr, e.strerror
-        return 1
+    # This currently does not try to recover any internal state and
+    # therefore is to be regarded as being not complete.
+    # A complete implementation would attempt to recover all active
+    # containers by deserializing all previously checkpointed
+    # ContainerIDs.
 
     return 0
 

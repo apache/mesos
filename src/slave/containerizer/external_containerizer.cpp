@@ -244,9 +244,132 @@ ExternalContainerizerProcess::ExternalContainerizerProcess(
 Future<Nothing> ExternalContainerizerProcess::recover(
     const Option<state::SlaveState>& state)
 {
-  // TODO(tillt): Consider forwarding the recover command to the
-  // external containerizer. For now, recovery should be entirely
-  // covered by the slave itself.
+  LOG(INFO) << "Recovering containerizer";
+
+  // We need a slave state for recovery as otherwise we will not be
+  // able to reconstruct the sandbox of an active container.
+  if (state.isNone()) {
+    LOG(WARNING) << "No slave state available to recover from";
+    return Nothing();
+  }
+
+  // Ask the external containerizer to recover its internal state.
+  Try<Subprocess> invoked = invoke("recover");
+
+  if (invoked.isError()) {
+    return Failure("Recover failed: " + invoked.error());
+  }
+
+  return invoked.get().status()
+    .then(defer(
+        PID<ExternalContainerizerProcess>(this),
+        &ExternalContainerizerProcess::_recover,
+        state.get(),
+        lambda::_1));
+}
+
+
+Future<Nothing> ExternalContainerizerProcess::_recover(
+    const state::SlaveState& state,
+    const Future<Option<int> >& future)
+{
+  VLOG(1) << "Recover validation callback triggered";
+
+  Option<Error> error = validate(future);
+
+  if (error.isSome()) {
+    return Failure("Recover failed: " + error.get().message);
+  }
+
+  // Gather the active containers from the external containerizer.
+  return containers()
+    .then(defer(
+        PID<ExternalContainerizerProcess>(this),
+        &ExternalContainerizerProcess::__recover,
+        state,
+        lambda::_1));
+}
+
+
+Future<Nothing> ExternalContainerizerProcess::__recover(
+    const state::SlaveState& state,
+    const hashset<ContainerID>& containers)
+{
+  VLOG(1) << "Recover continuation triggered";
+
+  foreachvalue (const FrameworkState& framework, state.frameworks) {
+    foreachvalue (const ExecutorState& executor, framework.executors) {
+      if (executor.info.isNone()) {
+        LOG(WARNING) << "Skipping recovery of executor '" << executor.id
+                     << "' of framework " << framework.id
+                     << " because its info could not be recovered";
+        continue;
+      }
+
+      if (executor.latest.isNone()) {
+        LOG(WARNING) << "Skipping recovery of executor '" << executor.id
+                     << "' of framework " << framework.id
+                     << " because its latest run could not be recovered";
+        continue;
+      }
+
+      // We are only interested in the latest run of the executor!
+      const ContainerID& containerId = executor.latest.get();
+      Option<RunState> run = executor.runs.get(containerId);
+      CHECK_SOME(run);
+
+      if (run.get().completed) {
+        VLOG(1) << "Skipping recovery of executor '" << executor.id
+                << "' of framework " << framework.id
+                << " because its latest run "
+                << containerId << " is completed";
+        continue;
+      }
+
+      // Containers the external containerizer does not have
+      // information on, should be skipped as their state is not
+      // recoverable.
+      if (!containers.contains(containerId)) {
+        LOG(WARNING) << "Skipping recovery of executor '" << executor.id
+                     << "' of framework " << framework.id
+                     << " because the external containerizer has not "
+                     << " identified " << containerId << " as active";
+        continue;
+      }
+
+      // Re-create the sandbox for this container.
+      const string& directory = paths::createExecutorDirectory(
+          flags.work_dir,
+          state.id,
+          framework.id,
+          executor.id,
+          containerId);
+
+      Option<string> user = None();
+      if (flags.switch_user) {
+        // The command (either in form of task or executor command)
+        // can define a specific user to run as. If present, this
+        // precedes the framework user value.
+        if (executor.info.isSome() &&
+            executor.info.get().command().has_user()) {
+          user = executor.info.get().command().user();
+        } else if (framework.info.isSome()) {
+          user = framework.info.get().user();
+        }
+      }
+
+      Sandbox sandbox(directory, user);
+
+      // Collect this container as being active.
+      actives.put(containerId, Owned<Container>(new Container(sandbox)));
+
+      // Assume that this container had been launched, if this proves
+      // to be wrong, the containerizer::Termination delivered by the
+      // subsequent wait invocation will tell us.
+      actives[containerId]->launched.set(Nothing());
+    }
+  }
+
   return Nothing();
 }
 
