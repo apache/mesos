@@ -4,6 +4,7 @@
 #include <stout/gtest.hpp>
 
 #include <process/clock.hpp>
+#include <process/defer.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/http.hpp>
@@ -27,10 +28,16 @@ using process::metrics::Gauge;
 using process::metrics::Timer;
 
 
+double one()
+{
+  return 1.0;
+}
+
+
 class GaugeProcess : public Process<GaugeProcess>
 {
 public:
-  double get()
+  Future<double> get()
   {
     return 42.0;
   }
@@ -77,26 +84,29 @@ TEST(Metrics, Gauge)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
+  // Simple synchronous gauge.
+  Gauge gauge("test/function_gauge", one);
+
+  AWAIT_READY(metrics::add(gauge));
+  AWAIT_EXPECT_EQ(1.0, gauge.value());
+  AWAIT_READY(metrics::remove(gauge));
+
   GaugeProcess process;
   PID<GaugeProcess> pid = spawn(&process);
   ASSERT_TRUE(pid);
 
   // Gauge with a value.
-  Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
+  gauge = Gauge("test/deferred_gauge", defer(pid, &GaugeProcess::get));
 
   AWAIT_READY(metrics::add(gauge));
-
   AWAIT_EXPECT_EQ(42.0, gauge.value());
-
   AWAIT_READY(metrics::remove(gauge));
 
   // Failing gauge.
-  gauge = Gauge("test/failedgauge", defer(pid, &GaugeProcess::fail));
+  gauge = Gauge("test/failed_gauge", defer(pid, &GaugeProcess::fail));
 
   AWAIT_READY(metrics::add(gauge));
-
   AWAIT_EXPECT_FAILED(gauge.value());
-
   AWAIT_READY(metrics::remove(gauge));
 
   terminate(process);
