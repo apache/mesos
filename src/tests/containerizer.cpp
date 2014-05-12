@@ -162,7 +162,7 @@ Future<Nothing> TestContainerizer::launch(
 }
 
 
-Future<containerizer::Termination> TestContainerizer::wait(
+Future<containerizer::Termination> TestContainerizer::_wait(
     const ContainerID& containerId)
 {
   // An unknown container is possible for tests where we "drop" the
@@ -236,6 +236,9 @@ void TestContainerizer::setup()
 
   EXPECT_CALL(*this, launch(_, _, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &TestContainerizer::_launch));
+
+  EXPECT_CALL(*this, wait(_))
+    .WillRepeatedly(Invoke(this, &TestContainerizer::_wait));
 }
 
 } // namespace tests {

@@ -35,7 +35,9 @@
 #include <process/timer.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/flags.hpp>
 #include <stout/lambda.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
@@ -61,11 +63,12 @@ using namespace process;
 class CommandExecutorProcess : public Process<CommandExecutorProcess>
 {
 public:
-  CommandExecutorProcess()
+  CommandExecutorProcess(Option<char**> override)
     : launched(false),
       killed(false),
       pid(-1),
-      escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT) {}
+      escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
+      override(override) {}
 
   virtual ~CommandExecutorProcess() {}
 
@@ -168,9 +171,24 @@ public:
       os::close(pipes[1]);
 
       // The child has successfully setsid, now run the command.
-      std::cout << "sh -c '" << task.command().value() << "'" << std::endl;
-      execl("/bin/sh", "sh", "-c",
-            task.command().value().c_str(), (char*) NULL);
+
+      if (override.isNone()) {
+        std::cout << "sh -c '" << task.command().value() << "'" << std::endl;
+        execl("/bin/sh", "sh", "-c",
+              task.command().value().c_str(), (char*) NULL);
+      } else {
+        char** argv = override.get();
+
+        // argv is guaranteed to be NULL terminated and we rely on
+        // that fact to print command to be executed.
+        for (int i = 0; argv[i] != NULL; i++) {
+          std::cout << argv[i] << " ";
+        }
+        std::cout << std::endl;
+
+        execvp(argv[0], argv);
+      }
+
       perror("Failed to exec");
       abort();
     }
@@ -339,15 +357,16 @@ private:
   pid_t pid;
   Duration escalationTimeout;
   Timer escalationTimer;
+  Option<char**> override;
 };
 
 
 class CommandExecutor: public Executor
 {
 public:
-  CommandExecutor()
+  CommandExecutor(Option<char**> override)
   {
-    process = new CommandExecutorProcess();
+    process = new CommandExecutorProcess(override);
     spawn(process);
   }
 
@@ -420,9 +439,71 @@ private:
 } // namespace mesos {
 
 
+void usage(const char* argv0, const flags::FlagsBase& flags)
+{
+  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
+       << endl
+       << "Supported options:" << endl
+       << flags.usage();
+}
+
+
+class Flags : public flags::FlagsBase
+{
+public:
+  Flags()
+  {
+    add(&override,
+        "override",
+        "Whether or not to override the command the executor should run\n"
+        "when the task is launched. Only this flag is expected to be on\n"
+        "the command line and all arguments after the flag will be used as\n"
+        "the subsequent 'argv' to be used with 'execvp'",
+        false);
+
+    // TODO(nnielsen): Add 'prefix' option to enable replacing
+    // 'sh -c' with user specified wrapper.
+  }
+
+  bool override;
+};
+
+
 int main(int argc, char** argv)
 {
-  mesos::internal::CommandExecutor executor;
+  Flags flags;
+
+  bool help;
+  flags.add(&help,
+            "help",
+            "Prints this help message",
+            false);
+
+  // Load flags from environment and command line.
+  Try<Nothing> load = flags.load(None(), argc, argv);
+
+  if (load.isError()) {
+    cerr << load.error() << endl;
+    usage(argv[0], flags);
+    return -1;
+  }
+
+  if (help) {
+    usage(argv[0], flags);
+    return -1;
+  }
+
+  Option<char**> override = None();
+  if (flags.override) {
+    // TODO(nnielsen): We assume that when you run "--override" that
+    // there won't be other flags or arguments. In the future, we
+    // should be able to use MESOS-1345.
+    if (argc > 2) {
+      override = argv + 2;
+    }
+  }
+
+  mesos::internal::CommandExecutor executor(override);
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
 }

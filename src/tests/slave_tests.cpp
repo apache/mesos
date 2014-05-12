@@ -20,6 +20,7 @@
 
 #include <gmock/gmock.h>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -29,8 +30,10 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/io.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
+#include <process/subprocess.hpp>
 
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -46,6 +49,7 @@
 #include "slave/slave.hpp"
 
 #include "tests/containerizer.hpp"
+#include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
 using namespace mesos;
@@ -65,6 +69,7 @@ using process::Future;
 using process::Owned;
 using process::PID;
 
+using std::map;
 using std::string;
 using std::vector;
 
@@ -245,6 +250,133 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
   driver.join();
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// Test that we can run the mesos-executor and specify an "override"
+// command to use via the --override argument.
+TEST_F(SlaveTest, MesosExecutorWithOverride)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  TestContainerizer containerizer;
+
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Launch a task with the command executor.
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+
+  CommandInfo command;
+  command.set_value("sleep 10");
+
+  task.mutable_command()->MergeFrom(command);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  // Expect the launch but don't do anything as we'll be launching the
+  // executor ourselves manually below.
+  Future<Nothing> launch;
+  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureSatisfy(&launch),
+                    Return(Future<Nothing>())));
+
+  // Expect wait after launch is called. wait() will fail if not
+  // intercepted here as the container will never be registered within
+  // the TestContainerizer when launch() is intercepted above.
+  Future<Nothing> wait;
+  process::Promise<containerizer::Termination> promise;
+  EXPECT_CALL(containerizer, wait(_))
+    .WillOnce(DoAll(FutureSatisfy(&wait),
+                    Return(promise.future())));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Once we get the launch the mesos-executor with --override.
+  AWAIT_READY(launch);
+
+  // Set up fake environment for executor.
+  map<string, string> environment;
+  environment["MESOS_SLAVE_PID"] = stringify(slave.get());
+  environment["MESOS_SLAVE_ID"] = stringify(offers.get()[0].slave_id());
+  environment["MESOS_FRAMEWORK_ID"] = stringify(offers.get()[0].framework_id());
+  environment["MESOS_EXECUTOR_ID"] = stringify(task.task_id());
+  environment["MESOS_DIRECTORY"] = "";
+
+  // Create temporary file to store validation string. If command is
+  // succesfully replaced, this file will end up containing the string
+  // 'Hello World\n'. Otherwise, the original task command i.e.
+  // 'sleep' will be called and the test will fail.
+  Try<std::string> file = os::mktemp();
+  ASSERT_SOME(file);
+
+  string executorCommand =
+    path::join(tests::flags.build_dir, "src", "mesos-executor") +
+    " --override /bin/sh -c 'echo hello world >" + file.get() + "'";
+
+  // Expect two status updates, one for once the mesos-executor says
+  // the task is running and one for after our overridden command
+  // above finishes.
+  Future<TaskStatus> status1, status2;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  Try<process::Subprocess> executor =
+    process::subprocess(executorCommand, environment);
+
+  ASSERT_SOME(executor);
+
+  // Scheduler should receive the TASK_RUNNING update.
+  AWAIT_READY(status1);
+  ASSERT_EQ(TASK_RUNNING, status1.get().state());
+
+  AWAIT_READY(status2);
+  ASSERT_EQ(TASK_FINISHED, status2.get().state());
+
+  containerizer::Termination termination;
+  termination.set_killed(false);
+  termination.set_message("Killed executor");
+  termination.set_status(0);
+  promise.set(termination);
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(executor.get().status());
+
+  // Verify file contents.
+  Try<std::string> validate = os::read(file.get());
+  ASSERT_SOME(validate);
+
+  EXPECT_EQ(validate.get(), "hello world\n");
+
+  os::rm(file.get());
+
+  Shutdown();
 }
 
 

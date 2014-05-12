@@ -85,9 +85,6 @@ public:
       const process::PID<slave::Slave>& slavePid,
       bool checkpoint);
 
-  virtual process::Future<containerizer::Termination> wait(
-      const ContainerID& containerId);
-
   // Additional destroy method for testing because we won't know the
   // ContainerID created for each container.
   void destroy(const FrameworkID& frameworkId, const ExecutorID& executorId);
@@ -108,6 +105,10 @@ public:
       usage,
       process::Future<ResourceStatistics>(const ContainerID&));
 
+  MOCK_METHOD1(
+      wait,
+      process::Future<containerizer::Termination>(const ContainerID&));
+
 private:
   void setup();
 
@@ -120,6 +121,9 @@ private:
       const SlaveID& slaveId,
       const process::PID<slave::Slave>& slavePid,
       bool checkpoint);
+
+  process::Future<containerizer::Termination> _wait(
+      const ContainerID& containerId);
 
   hashmap<ExecutorID, Executor*> executors;
 
