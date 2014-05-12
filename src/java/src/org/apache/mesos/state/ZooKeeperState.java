@@ -32,8 +32,8 @@ public class ZooKeeperState extends AbstractState {
    *
    * @param servers List of ZooKeeper servers, e.g., 'ip1:port1,ip2:port2'.
    * @param timeout ZooKeeper session timeout.
-   * @param unit Unit for session timeout.
-   * @param znode Path to znode where "state" should be rooted.
+   * @param unit    Unit for session timeout.
+   * @param znode   Path to znode where "state" should be rooted.
    */
   public ZooKeeperState(String servers,
                         long timeout,
@@ -45,11 +45,11 @@ public class ZooKeeperState extends AbstractState {
   /**
    * Constructs a new instance of ZooKeeperState.
    *
-   * @param servers List of ZooKeeper servers (e.g., 'ip1:port1,ip2:port2').
-   * @param timeout ZooKeeper session timeout.
-   * @param unit Unit for session timeout.
-   * @param znode Path to znode where "state" should be rooted.
-   * @param scheme Authentication scheme (e.g., "digest").
+   * @param servers     List of ZooKeeper servers (e.g., 'ip1:port1,ip2:port2').
+   * @param timeout     ZooKeeper session timeout.
+   * @param unit        Unit for session timeout.
+   * @param znode       Path to znode where "state" should be rooted.
+   * @param scheme      Authentication scheme (e.g., "digest").
    * @param credentials Authentication credentials (e.g., "user:pass").
    */
   public ZooKeeperState(String servers,
