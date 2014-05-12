@@ -2172,6 +2172,7 @@ void Master::_registerSlave(
     Slave* slave = new Slave(slaveInfo, slaveInfo.id(), pid, Clock::now());
 
     LOG(INFO) << "Registered slave " << *slave;
+    ++metrics.slave_registrations;
 
     addSlave(slave);
   }
@@ -2357,6 +2358,7 @@ void Master::_reregisterSlave(
     slave->reregisteredTime = Clock::now();
 
     LOG(INFO) << "Re-registered slave " << *slave;
+    ++metrics.slave_reregistrations;
 
     readdSlave(slave, executorInfos, tasks, completedFrameworks);
 
@@ -3517,6 +3519,10 @@ void Master::_removeSlave(
   CHECK(removed.get())
     << "Slave " << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
     << "already removed from the registrar";
+
+  LOG(INFO) << "Removed slave " << slaveInfo.id() << " ("
+            << slaveInfo.hostname() << ")";
+  ++metrics.slave_removals;
 
   // Forward the LOST updates on to the framework.
   foreach (const StatusUpdate& update, updates) {

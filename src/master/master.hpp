@@ -488,7 +488,13 @@ private:
             "master/recovery_slave_removals"),
         event_queue_size(
             "master/event_queue_size",
-            defer(master, &Master::_event_queue_size))
+            defer(master, &Master::_event_queue_size)),
+        slave_registrations(
+            "master/slave_registrations"),
+        slave_reregistrations(
+            "master/slave_reregistrations"),
+        slave_removals(
+            "master/slave_removals")
     {
       process::metrics::add(dropped_messages);
 
@@ -501,6 +507,10 @@ private:
       process::metrics::add(recovery_slave_removals);
 
       process::metrics::add(event_queue_size);
+
+      process::metrics::add(slave_registrations);
+      process::metrics::add(slave_reregistrations);
+      process::metrics::add(slave_removals);
     }
 
     ~Metrics()
@@ -516,6 +526,10 @@ private:
       process::metrics::remove(recovery_slave_removals);
 
       process::metrics::remove(event_queue_size);
+
+      process::metrics::remove(slave_registrations);
+      process::metrics::remove(slave_reregistrations);
+      process::metrics::remove(slave_removals);
     }
 
     // Message counters.
@@ -534,6 +548,11 @@ private:
 
     // Process metrics.
     process::metrics::Gauge event_queue_size;
+
+    // Successful registry operations.
+    process::metrics::Counter slave_registrations;
+    process::metrics::Counter slave_reregistrations;
+    process::metrics::Counter slave_removals;
   } metrics;
 
   // Gauge handlers.
