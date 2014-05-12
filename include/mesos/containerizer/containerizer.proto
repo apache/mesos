@@ -90,3 +90,12 @@ message Termination {
   // Exit status of the process.
   optional int32 status = 3;
 }
+
+
+/**
+ * Information on all active containers returned by the containerizer
+ * to the slave.
+ */
+message Containers {
+  repeated ContainerID containers = 1;
+}

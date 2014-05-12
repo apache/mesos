@@ -210,7 +210,7 @@ def usage():
         send(statistics.SerializeToString())
 
     except google.protobuf.message.DecodeError:
-        print >> sys.stderr, "Could not deserialise ContainerID protobuf."
+        print >> sys.stderr, "Could not deserialise Usage protobuf."
         return 1
 
     except google.protobuf.message.EncodeError:
@@ -247,7 +247,7 @@ def destroy():
             os.kill(pid, signal.SIGKILL)
 
     except google.protobuf.message.DecodeError:
-        print >> sys.stderr, "Could not deserialise ContainerID protobuf."
+        print >> sys.stderr, "Could not deserialise Destroy protobuf."
         return 1
 
     except OSError as e:
@@ -310,7 +310,7 @@ def wait():
         send(termination.SerializeToString())
 
     except google.protobuf.message.DecodeError:
-        print >> sys.stderr, "Could not deserialise ContainerID protobuf."
+        print >> sys.stderr, "Could not deserialise Termination protobuf."
         return 1
 
     except google.protobuf.message.EncodeError:
@@ -324,13 +324,36 @@ def wait():
     return 0
 
 
+def containers():
+    try:
+        containers = containerizer_pb2.Containers()
+
+        # This currently does not fill in any active containers and
+        # therefore is to be regarded as being not complete.
+        # A complete implementation would fill the containers message
+        # with all active ContainerIDs.
+
+        send(containers.SerializeToString())
+
+    except google.protobuf.message.EncodeError:
+        print >> sys.stderr, "Could not serialise Containers protobuf."
+        return 1
+
+    except OSError as e:
+        print >> sys.stderr, e.strerror
+        return 1
+
+    return 0
+
+
 if __name__ == "__main__":
-    methods = { "launch":  launch,
-                "update":  update,
-                "destroy": destroy,
-                "recover": recover,
-                "usage":   usage,
-                "wait":    wait }
+    methods = { "launch":       launch,
+                "update":       update,
+                "destroy":      destroy,
+                "containers":   containers,
+                "recover":      recover,
+                "usage":        usage,
+                "wait":         wait }
 
     if sys.argv[1:2] == ["--help"] or sys.argv[1:2] == ["-h"]:
         print use(sys.argv[0], methods.keys())

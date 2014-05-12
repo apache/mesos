@@ -105,9 +105,7 @@ static Option<Error> validate(
 // message.
 template<typename T>
 static Try<T> result(
-    const process::Future<tuples::tuple<
-        process::Future<Result<T> >,
-        process::Future<Option<int> > > >& future)
+    const Future<tuple<Future<Result<T> >, Future<Option<int> > > >& future)
 {
   if (!future.isReady()) {
     return Error("Could not receive any result");
@@ -308,8 +306,8 @@ Future<Nothing> ExternalContainerizerProcess::launch(
 
   Try<Subprocess> invoked = invoke(
       "launch",
-      sandbox,
       launch,
+      sandbox,
       environment);
 
   if (invoked.isError()) {
@@ -405,8 +403,8 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
 
   Try<Subprocess> invoked = invoke(
       "wait",
-      actives[containerId]->sandbox,
-      wait);
+      wait,
+      actives[containerId]->sandbox);
 
   if (invoked.isError()) {
     // 'wait' has failed, we need to tear down everything now.
@@ -441,7 +439,7 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
 
 void ExternalContainerizerProcess::__wait(
     const ContainerID& containerId,
-    const Future<tuples::tuple<
+    const Future<tuple<
         Future<Result<containerizer::Termination> >,
         Future<Option<int> > > >& future)
 {
@@ -508,8 +506,8 @@ Future<Nothing> ExternalContainerizerProcess::_update(
 
   Try<Subprocess> invoked = invoke(
       "update",
-      actives[containerId]->sandbox,
-      update);
+      update,
+      actives[containerId]->sandbox);
 
   if (invoked.isError()) {
     return Failure("Update of container '" + containerId.value() +
@@ -576,8 +574,8 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
 
   Try<Subprocess> invoked = invoke(
       "usage",
-      actives[containerId]->sandbox,
-      usage);
+      usage,
+      actives[containerId]->sandbox);
 
   if (invoked.isError()) {
     // 'usage' has failed but we keep the container alive for now.
@@ -604,7 +602,7 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
 
 Future<ResourceStatistics> ExternalContainerizerProcess::__usage(
     const ContainerID& containerId,
-    const Future<tuples::tuple<
+    const Future<tuple<
         Future<Result<ResourceStatistics> >,
         Future<Option<int> > > >& future)
 {
@@ -664,8 +662,8 @@ void ExternalContainerizerProcess::_destroy(const ContainerID& containerId)
 
   Try<Subprocess> invoked = invoke(
       "destroy",
-      actives[containerId]->sandbox,
-      destroy);
+      destroy,
+      actives[containerId]->sandbox);
 
   if (invoked.isError()) {
     LOG(ERROR) << "Destroy of container '" << containerId
@@ -708,7 +706,50 @@ void ExternalContainerizerProcess::__destroy(
 
 Future<hashset<ContainerID> > ExternalContainerizerProcess::containers()
 {
-  return actives.keys();
+  VLOG(1) << "Containers triggered";
+
+  Try<Subprocess> invoked = invoke("containers");
+
+  if (invoked.isError()) {
+    return Failure("Containers failed: " + invoked.error());
+  }
+
+  Result<containerizer::Containers>(*read)(int, bool, bool) =
+    &::protobuf::read<containerizer::Containers>;
+
+  Future<Result<containerizer::Containers> > future = async(
+      read, invoked.get().out(), false, false);
+
+  // Await both, a protobuf Message from the subprocess as well as
+  // its exit.
+  return await(future, invoked.get().status())
+    .then(defer(
+        PID<ExternalContainerizerProcess>(this),
+        &ExternalContainerizerProcess::_containers,
+        lambda::_1));
+}
+
+
+Future<hashset<ContainerID> > ExternalContainerizerProcess::_containers(
+    const Future<tuple<
+        Future<Result<containerizer::Containers> >,
+        Future<Option<int> > > >& future)
+{
+  VLOG(1) << "Containers callback triggered";
+
+  Try<containerizer::Containers> containers =
+    result<containerizer::Containers>(future);
+
+  if (containers.isError()) {
+    return Failure(containers.error());
+  }
+
+  hashset<ContainerID> result;
+  foreach (const ContainerID& containerId, containers.get().containers()) {
+    result.insert(containerId);
+  }
+
+  return result;
 }
 
 
@@ -780,8 +821,10 @@ static int setup(const string& directory)
   }
 
   // Re/establish the sandbox conditions for the containerizer.
-  if (::chdir(directory.c_str()) == -1) {
-    return errno;
+  if (!directory.empty()) {
+    if (::chdir(directory.c_str()) == -1) {
+      return errno;
+    }
   }
 
   // Sync parent and child process.
@@ -793,11 +836,10 @@ static int setup(const string& directory)
 }
 
 
-Try<process::Subprocess> ExternalContainerizerProcess::invoke(
+Try<Subprocess> ExternalContainerizerProcess::invoke(
     const string& command,
-    const Sandbox& sandbox,
-    const google::protobuf::Message& message,
-    const map<string, string>& commandEnvironment)
+    const Option<Sandbox>& sandbox,
+    const Option<map<string, string> >& commandEnvironment)
 {
   CHECK_SOME(flags.containerizer_path) << "containerizer_path not set";
 
@@ -806,22 +848,28 @@ Try<process::Subprocess> ExternalContainerizerProcess::invoke(
   // Prepare a default environment.
   map<string, string> environment;
   environment["MESOS_LIBEXEC_DIRECTORY"] = flags.launcher_dir;
+  environment["MESOS_WORK_DIRECTORY"] = flags.work_dir;
 
   // Update default environment with command specific one.
-  environment.insert(commandEnvironment.begin(), commandEnvironment.end());
+  if (commandEnvironment.isSome()) {
+    environment.insert(
+        commandEnvironment.get().begin(),
+        commandEnvironment.get().end());
+  }
 
   // Construct the command to execute.
   string execute = flags.containerizer_path.get() + " " + command;
 
   VLOG(2) << "calling: [" << execute << "]";
-  VLOG(2) << "directory: " << sandbox.directory;
-  VLOG_IF(sandbox.user.isSome(), 2) << "user: " << sandbox.user.get();
+  VLOG_IF(2, sandbox.isSome()) << "directory: " << sandbox.get().directory;
+  VLOG_IF(2, sandbox.isSome() &&
+      sandbox.get().user.isSome()) << "user: " << sandbox.get().user.get();
 
   // Re/establish the sandbox conditions for the containerizer.
-  if (sandbox.user.isSome()) {
+  if (sandbox.isSome() && sandbox.get().user.isSome()) {
     Try<Nothing> chown = os::chown(
-        sandbox.user.get(),
-        sandbox.directory);
+        sandbox.get().user.get(),
+        sandbox.get().directory);
     if (chown.isError()) {
       return Error("Failed to chown work directory: " + chown.error());
     }
@@ -832,7 +880,8 @@ Try<process::Subprocess> ExternalContainerizerProcess::invoke(
   Try<Subprocess> external = process::subprocess(
       execute,
       environment,
-      lambda::bind(&setup, sandbox.directory));
+      lambda::bind(&setup, sandbox.isSome() ? sandbox.get().directory
+                                            : string()));
 
   if (external.isError()) {
     return Error("Failed to execute external containerizer: " +
@@ -857,32 +906,27 @@ Try<process::Subprocess> ExternalContainerizerProcess::invoke(
   // Redirect output (stderr) from the external containerizer to log
   // file in the executor work directory, chown'ing it if a user is
   // specified.
-  Try<int> err = os::open(
-      path::join(sandbox.directory, "stderr"),
-      O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  if (sandbox.isSome()) {
+    Try<int> err = os::open(
+        path::join(sandbox.get().directory, "stderr"),
+        O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK,
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
-  if (err.isError()) {
-    return Error("Failed to redirect stderr: " + err.error());
-  }
-
-  if (sandbox.user.isSome()) {
-    Try<Nothing> chown = os::chown(
-        sandbox.user.get(),
-        path::join(sandbox.directory, "stderr"));
-    if (chown.isError()) {
-      return Error("Failed to redirect stderr:" + chown.error());
+    if (err.isError()) {
+      return Error("Failed to redirect stderr: " + err.error());
     }
-  }
 
-  io::splice(external.get().err(), err.get())
-    .onAny(bind(&os::close, err.get()));
+    if (sandbox.get().user.isSome()) {
+      Try<Nothing> chown = os::chown(
+          sandbox.get().user.get(),
+          path::join(sandbox.get().directory, "stderr"));
+      if (chown.isError()) {
+        return Error("Failed to redirect stderr:" + chown.error());
+      }
+    }
 
-  // Transmit protobuf data via stdout towards the external
-  // containerizer. Each message is prefixed by its total size.
-  Try<Nothing> write = ::protobuf::write(external.get().in(), message);
-  if (write.isError()) {
-    return Error("Failed to write protobuf to pipe: " + write.error());
+    io::splice(external.get().err(), err.get())
+      .onAny(bind(&os::close, err.get()));
   }
 
   VLOG(2) << "Subprocess pid: " << external.get().pid() << ", "
@@ -891,6 +935,27 @@ Try<process::Subprocess> ExternalContainerizerProcess::invoke(
   return external;
 }
 
+
+Try<Subprocess> ExternalContainerizerProcess::invoke(
+    const string& command,
+    const google::protobuf::Message& message,
+    const Option<Sandbox>& sandbox,
+    const Option<map<string, string> >& commandEnvironment)
+{
+  Try<Subprocess> external = invoke(command, sandbox, commandEnvironment);
+  if (external.isError()) {
+    return external;
+  }
+
+  // Transmit protobuf data via stdout towards the external
+  // containerizer. Each message is prefixed by its total size.
+  Try<Nothing> write = ::protobuf::write(external.get().in(), message);
+  if (write.isError()) {
+    return Error("Failed to write protobuf to pipe: " + write.error());
+  }
+
+  return external;
+}
 
 } // namespace slave {
 } // namespace internal {
