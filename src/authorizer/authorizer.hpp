@@ -327,7 +327,7 @@ Try<process::Owned<LocalAuthorizer> > LocalAuthorizer::create(const ACLs& acls)
        return Error("At least one of the subjects should be set for ACL: " +
                      acl.DebugString());
      }
-   }
+  }
 
   return new LocalAuthorizer(acls);
 }
