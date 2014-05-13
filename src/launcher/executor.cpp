@@ -480,7 +480,7 @@ int main(int argc, char** argv)
             false);
 
   // Load flags from environment and command line.
-  Try<Nothing> load = flags.load(None(), argc, argv);
+  Try<Nothing> load = flags.load(None(), &argc, &argv);
 
   if (load.isError()) {
     cerr << load.error() << endl;
@@ -493,13 +493,15 @@ int main(int argc, char** argv)
     return -1;
   }
 
+  // After flags.load(..., &argc, &argv) all flags will have been
+  // stripped from argv. Additionally, arguments after a "--"
+  // terminator will be preservered in argv and it is therefore
+  // possible to pass override and prefix commands which use
+  // "--foobar" style flags.
   Option<char**> override = None();
   if (flags.override) {
-    // TODO(nnielsen): We assume that when you run "--override" that
-    // there won't be other flags or arguments. In the future, we
-    // should be able to use MESOS-1345.
-    if (argc > 2) {
-      override = argv + 2;
+    if (argc > 1) {
+      override = argv + 1;
     }
   }
 

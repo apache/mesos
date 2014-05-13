@@ -335,7 +335,7 @@ TEST_F(SlaveTest, MesosExecutorWithOverride)
 
   string executorCommand =
     path::join(tests::flags.build_dir, "src", "mesos-executor") +
-    " --override /bin/sh -c 'echo hello world >" + file.get() + "'";
+    " --override -- /bin/sh -c 'echo hello world >" + file.get() + "'";
 
   // Expect two status updates, one for once the mesos-executor says
   // the task is running and one for after our overridden command
