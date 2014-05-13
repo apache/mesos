@@ -258,6 +258,50 @@ TEST(FlagsTest, LoadFromCommandLineWithDashDash)
 }
 
 
+TEST(FlagsTest, LoadFromCommandLineAndUpdateArgcArgv)
+{
+  TestFlags flags;
+
+  int argc = 11;
+  char* argv[argc];
+
+  argv[0] = (char*) "/path/to/program";
+  argv[1] = (char*) "more";
+  argv[2] = (char*) "--name1=billy joel";
+  argv[3] = (char*) "stuff";
+  argv[4] = (char*) "at";
+  argv[5] = (char*) "--name2=43";
+  argv[6] = (char*) "--no-name3";
+  argv[7] = (char*) "--";
+  argv[8] = (char*) "--no-name4";
+  argv[9] = (char*) "--name5";
+  argv[10] = (char*) "the";
+
+  // Need a temporary since some compilers want to treat the type of
+  // 'argv' as 'char *(*)[argc]' since the size of the array is known.
+  char** _argv = argv;
+
+  Try<Nothing> load = flags.load("FLAGSTEST_", &argc, &_argv);
+  EXPECT_SOME(load);
+
+  EXPECT_EQ("billy joel", flags.name1);
+  EXPECT_EQ(43, flags.name2);
+  EXPECT_FALSE(flags.name3);
+  ASSERT_NONE(flags.name4);
+  ASSERT_NONE(flags.name5);
+
+  EXPECT_EQ(7, argc);
+  EXPECT_STREQ("/path/to/program", argv[0]);
+  EXPECT_STREQ("more", argv[1]);
+  EXPECT_STREQ("stuff", argv[2]);
+  EXPECT_STREQ("at", argv[3]);
+  EXPECT_STREQ("--no-name4", argv[4]);
+  EXPECT_STREQ("--name5", argv[5]);
+  EXPECT_STREQ("the", argv[6]);
+  EXPECT_EQ(NULL, argv[7]);
+}
+
+
 TEST(FlagsTest, Stringification)
 {
   TestFlags flags;

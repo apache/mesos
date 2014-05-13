@@ -62,6 +62,21 @@ public:
       bool unknowns = false,
       bool duplicates = false);
 
+  // Load any flags from the environment as above but remove processed
+  // flags from 'argv' and update 'argc' appropriately. For example:
+  //
+  // argv = ["/path/to/program", "--arg1", "hello", "--arg2", "--", "world"]
+  //
+  // Becomes:
+  //
+  // argv = ["/path/to/program", "hello", "world"]
+  virtual Try<Nothing> load(
+      const Option<std::string>& prefix,
+      int* argc,
+      char*** argv,
+      bool unknowns = false,
+      bool duplicates = false);
+
   virtual Try<Nothing> load(
       const std::map<std::string, Option<std::string> >& values,
       bool unknowns = false);
@@ -372,6 +387,88 @@ inline Try<Nothing> FlagsBase::load(
   }
 
   return load(values, unknowns);
+}
+
+
+inline Try<Nothing> FlagsBase::load(
+    const Option<std::string>& prefix,
+    int* argc,
+    char*** argv,
+    bool unknowns,
+    bool duplicates)
+{
+  std::map<std::string, Option<std::string> > values;
+
+  if (prefix.isSome()) {
+    values = extract(prefix.get());
+  }
+
+  // Keep the arguments that are not being processed as flags.
+  std::vector<char*> args;
+
+  // Read flags from the command line.
+  for (int i = 1; i < *argc; i++) {
+    const std::string arg(strings::trim((*argv)[i]));
+
+    // Stop parsing flags after '--' is encountered.
+    if (arg == "--") {
+      // Save the rest of the arguments
+      for (int j = i + 1; j < *argc; j++) {
+        args.push_back((*argv)[j]);
+      }
+      break;
+    }
+
+    // Skip anything that doesn't look like a flag.
+    if (arg.find("--") != 0) {
+      args.push_back((*argv)[i]);
+      continue;
+    }
+
+    std::string name;
+    Option<std::string> value = None();
+
+    size_t eq = arg.find_first_of("=");
+    if (eq == std::string::npos && arg.find("--no-") == 0) { // --no-name
+      name = arg.substr(2);
+    } else if (eq == std::string::npos) {                    // --name
+      name = arg.substr(2);
+    } else {                                                 // --name=value
+      name = arg.substr(2, eq - 2);
+      value = arg.substr(eq + 1);
+    }
+
+    name = strings::lower(name);
+
+    if (!duplicates) {
+      if (values.count(name) > 0 ||
+          (name.find("no-") == 0 && values.count(name.substr(3)) > 0)) {
+        return Error("Duplicate flag '" + name + "' on command line");
+      }
+    }
+
+    values[name] = value;
+  }
+
+  Try<Nothing> result = load(values, unknowns);
+
+  // Update 'argc' and 'argv' if we successfully loaded the flags.
+  if (!result.isError()) {
+    CHECK_LE(args.size(), *argc);
+    size_t i = 1; // Start at '1' to skip argv[0].
+    foreach (char* arg, args) {
+      (*argv)[i++] = arg;
+    }
+
+    *argc = i;
+
+    // Now null terminate the array. Note that we'll "leak" the
+    // arguments that were processed here but it's not like they would
+    // have gotten deleted in normal operations anyway.
+    (*argv)[i++] = NULL;
+  }
+
+  return result;
 }
 
 
