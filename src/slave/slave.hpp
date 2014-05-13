@@ -350,6 +350,10 @@ private:
     return master.isSome() ? 1 : 0;
   }
 
+  double _tasks_staging();
+  double _tasks_starting();
+  double _tasks_running();
+
   const Flags flags;
 
   SlaveInfo info;
@@ -392,7 +396,13 @@ private:
 
     process::metrics::Gauge active_frameworks;
 
-    // TODO(dhamon): Add tasks Gauges.
+    process::metrics::Gauge tasks_staging;
+    process::metrics::Gauge tasks_starting;
+    process::metrics::Gauge tasks_running;
+    process::metrics::Counter tasks_finished;
+    process::metrics::Counter tasks_failed;
+    process::metrics::Counter tasks_killed;
+    process::metrics::Counter tasks_lost;
 
     process::metrics::Counter valid_status_updates;
     process::metrics::Counter invalid_status_updates;

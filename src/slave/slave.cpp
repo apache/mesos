@@ -3081,7 +3081,51 @@ Future<Nothing> Slave::garbageCollect(const string& path)
 }
 
 
-// TODO(dhamon): Consider adding a metrics.cpp for definitions.
+// TODO(dhamon): Move these to their own metrics.hpp|cpp.
+double Slave::_tasks_staging()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      count += executor->queuedTasks.size();
+    }
+  }
+  return count;
+}
+
+
+double Slave::_tasks_starting()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      foreach (Task* task, executor->launchedTasks.values()) {
+        if (task->state() == TASK_STARTING) {
+          count++;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+
+double Slave::_tasks_running()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      foreach (Task* task, executor->launchedTasks.values()) {
+        if (task->state() == TASK_RUNNING) {
+          count++;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+
 Slave::Metrics::Metrics(const Slave& slave)
   : uptime_secs(
         "slave/uptime_secs",
@@ -3094,6 +3138,23 @@ Slave::Metrics::Metrics(const Slave& slave)
     active_frameworks(
         "slave/active_frameworks",
         defer(slave, &Slave::_active_frameworks)),
+    tasks_staging(
+        "slave/tasks_staging",
+        defer(slave, &Slave::_tasks_staging)),
+    tasks_starting(
+        "slave/tasks_starting",
+        defer(slave, &Slave::_tasks_starting)),
+    tasks_running(
+        "slave/tasks_running",
+        defer(slave, &Slave::_tasks_running)),
+    tasks_finished(
+        "slave/tasks_finished"),
+    tasks_failed(
+        "slave/tasks_failed"),
+    tasks_killed(
+        "slave/tasks_killed"),
+    tasks_lost(
+        "slave/tasks_lost"),
     valid_status_updates(
         "slave/valid_status_updates"),
     invalid_status_updates(
@@ -3111,6 +3172,14 @@ Slave::Metrics::Metrics(const Slave& slave)
 
   process::metrics::add(active_frameworks);
 
+  process::metrics::add(tasks_staging);
+  process::metrics::add(tasks_starting);
+  process::metrics::add(tasks_running);
+  process::metrics::add(tasks_finished);
+  process::metrics::add(tasks_failed);
+  process::metrics::add(tasks_killed);
+  process::metrics::add(tasks_lost);
+
   process::metrics::add(valid_status_updates);
   process::metrics::add(invalid_status_updates);
 
@@ -3122,17 +3191,26 @@ Slave::Metrics::Metrics(const Slave& slave)
 Slave::Metrics::~Metrics()
 {
   // TODO(dhamon): Check return values of unregistered metrics
+  process::metrics::remove(uptime_secs);
+  process::metrics::remove(registered);
+
+  process::metrics::remove(recovery_errors);
+
+  process::metrics::remove(active_frameworks);
+
+  process::metrics::remove(tasks_staging);
+  process::metrics::remove(tasks_starting);
+  process::metrics::remove(tasks_running);
+  process::metrics::remove(tasks_finished);
+  process::metrics::remove(tasks_failed);
+  process::metrics::remove(tasks_killed);
+  process::metrics::remove(tasks_lost);
+
   process::metrics::remove(valid_status_updates);
   process::metrics::remove(invalid_status_updates);
 
   process::metrics::remove(valid_framework_messages);
   process::metrics::remove(invalid_framework_messages);
-
-  process::metrics::remove(active_frameworks);
-  process::metrics::remove(registered);
-  process::metrics::remove(uptime_secs);
-
-  process::metrics::remove(recovery_errors);
 }
 
 
@@ -3539,6 +3617,24 @@ void Executor::terminateTask(
       resources = resources.get() - resource;
     }
     launchedTasks.erase(taskId);
+  }
+
+  switch (state) {
+    case TASK_FINISHED:
+      ++slave->metrics.tasks_finished;
+      break;
+    case TASK_FAILED:
+      ++slave->metrics.tasks_failed;
+      break;
+    case TASK_KILLED:
+      ++slave->metrics.tasks_killed;
+      break;
+    case TASK_LOST:
+      ++slave->metrics.tasks_lost;
+      break;
+    default:
+      LOG(WARNING) << "Unhandled task state " << state << " on completion.";
+      break;
   }
 
   terminatedTasks[taskId] = CHECK_NOTNULL(task);
