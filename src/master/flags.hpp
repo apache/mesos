@@ -56,11 +56,13 @@ public:
         "work_dir",
         "Where to store the persistent information stored in the Registry.");
 
+    // TODO(bmahler): Consider removing 'in_memory' as it was only
+    // used before 'replicated_log' was implemented.
     add(&Flags::registry,
         "registry",
         "Persistence strategy for the registry;\n"
-        "available options are 'in_memory', 'replicated_log'.",
-        "in_memory");
+        "available options are 'replicated_log', 'in_memory' (for testing).",
+        "replicated_log");
 
     // TODO(vinod): Instead of specifying the quorum size consider
     // specifying the number of masters or the list of masters.
