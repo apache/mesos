@@ -3,14 +3,11 @@
 
 #include <string>
 
-#include <process/async.hpp>
 #include <process/defer.hpp>
 
 #include <process/metrics/metric.hpp>
 
-#include <stout/lambda.hpp>
 #include <stout/memory.hpp>
-#include <stout/none.hpp>
 
 namespace process {
 namespace metrics {
@@ -22,14 +19,9 @@ class Gauge : public Metric
 public:
   // 'name' is the unique name for the instance of Gauge being constructed.
   // It will be the key exposed in the JSON endpoint.
-  // 'f' is the function called asynchronously when the Metric value is
-  // requested.
-  Gauge(const std::string& name, const lambda::function<double(void)>& f)
-    : Metric(name, None()),
-      data(new Data(f)) {}
-
   // 'f' is the deferred object called when the Metric value is requested.
-  Gauge(const std::string& name, const Deferred<Future<double>(void)>& f)
+  Gauge(const std::string& name,
+        const Deferred<Future<double> (void)>& f)
     : Metric(name, None()),
       data(new Data(f)) {}
 
@@ -40,17 +32,10 @@ public:
 private:
   struct Data
   {
-    // Wrap the function in an async call. The extra NULL parameter is required
-    // as async takes a third parameter that defaults to NULL.
-    explicit Data(const lambda::function<double (void)>& _f)
-      : f(lambda::bind(&async<lambda::function<double (void)> >,
-                       _f,
-                       static_cast<void*>(NULL))) {}
-
     explicit Data(const Deferred<Future<double> (void)>& _f)
       : f(_f) {}
 
-    const lambda::function<Future<double> (void)> f;
+    const Deferred<Future<double> (void)> f;
   };
 
   memory::shared_ptr<Data> data;
