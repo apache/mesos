@@ -388,6 +388,134 @@ TEST_F(MasterTest, KillUnknownTask)
 }
 
 
+TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get());
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  // Start a checkpointing slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.checkpoint = true;
+
+  Try<PID<Slave> > slave = StartSlave(&exec, slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Wait for slave registration.
+  AWAIT_READY(slaveRegisteredMessage);
+  const SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Start a task.
+  TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  Future<Nothing> _reregisterSlave =
+    DROP_DISPATCH(_, &Master::_reregisterSlave);
+
+  // Stop master and slave.
+  Stop(master.get());
+  Stop(slave.get());
+
+  frameworkId = Future<FrameworkID>();
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  // Restart master.
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<Nothing> disconnected;
+  EXPECT_CALL(sched, disconnected(&driver))
+    .WillOnce(FutureSatisfy(&disconnected));
+
+  // Simulate a spurious event (e.g., due to ZooKeeper
+  // expiration) at the scheduler.
+  detector.appoint(master.get());
+
+  AWAIT_READY(frameworkId);
+
+  // Restart slave.
+  slave = StartSlave(&exec, slaveFlags);
+
+  // Wait for the slave to start reregistration.
+  AWAIT_READY(_reregisterSlave);
+
+  // As Master::killTask isn't doing anything, we shouldn't get a status update.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  // Set expectation that Master receives killTask message.
+  Future<KillTaskMessage> killTaskMessage =
+    FUTURE_PROTOBUF(KillTaskMessage(), _, master.get());
+
+  // Attempt to kill unknown task while slave is transitioning.
+  TaskID unknownTaskId;
+  unknownTaskId.set_value("2");
+
+  ASSERT_FALSE(unknownTaskId == task.task_id());
+
+  Clock::pause();
+
+  driver.killTask(unknownTaskId);
+
+  AWAIT_READY(killTaskMessage);
+
+  // Wait for all messages to be dispatched and processed completely to satisfy
+  // the expectation that we didn't receive a status update.
+  Clock::settle();
+
+  Clock::resume();
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 TEST_F(MasterTest, StatusUpdateAck)
 {
   Try<PID<Master> > master = StartMaster();

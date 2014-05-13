@@ -203,6 +203,7 @@ public:
   // Made public for testing purposes.
   // TODO(vinod): Instead of doing this create and use a
   // MockRegistrar.
+  // TODO(dhamon): Consider FRIEND_TEST macro from gtest.
   void _reregisterSlave(
       const SlaveInfo& slaveInfo,
       const process::UPID& pid,

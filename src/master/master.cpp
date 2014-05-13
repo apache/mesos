@@ -1961,7 +1961,7 @@ void Master::killTask(
       // between states, then this task is definitely unknown!
       LOG(WARNING)
         << "Cannot kill task " << taskId << " of framework " << frameworkId
-        << " because it cannot be found; sending TASK_LOST since there are "
+        << " because it cannot be found; sending TASK_LOST since there are"
         << " no transitionary slaves";
 
       StatusUpdateMessage message;
