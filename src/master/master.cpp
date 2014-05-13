@@ -946,7 +946,7 @@ void Master::registerFramework(
     const UPID& from,
     const FrameworkInfo& frameworkInfo)
 {
-  ++metrics.framework_registration_messages;
+  ++metrics.messages_register_framework;
 
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up registration request from " << from
@@ -1018,7 +1018,7 @@ void Master::reregisterFramework(
     const FrameworkInfo& frameworkInfo,
     bool failover)
 {
-  ++metrics.framework_reregistration_messages;
+  ++metrics.messages_reregister_framework;
 
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up re-registration request from " << from
@@ -1189,6 +1189,8 @@ void Master::unregisterFramework(
     const UPID& from,
     const FrameworkID& frameworkId)
 {
+  ++metrics.messages_unregister_framework;
+
   LOG(INFO) << "Asked to unregister framework " << frameworkId;
 
   Framework* framework = getFramework(frameworkId);
@@ -1209,6 +1211,8 @@ void Master::deactivateFramework(
     const UPID& from,
     const FrameworkID& frameworkId)
 {
+  ++metrics.messages_deactivate_framework;
+
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
@@ -1309,6 +1313,8 @@ void Master::resourceRequest(
     const FrameworkID& frameworkId,
     const vector<Request>& requests)
 {
+  ++metrics.messages_resource_request;
+
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
@@ -1678,6 +1684,8 @@ void Master::launchTasks(
     const Filters& filters,
     const vector<OfferID>& _offerIds)
 {
+  ++metrics.messages_launch_tasks;
+
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
@@ -1889,6 +1897,8 @@ void Master::launchTasks(
 
 void Master::reviveOffers(const UPID& from, const FrameworkID& frameworkId)
 {
+  ++metrics.messages_revive_offers;
+
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
@@ -1916,6 +1926,8 @@ void Master::killTask(
     const FrameworkID& frameworkId,
     const TaskID& taskId)
 {
+  ++metrics.messages_kill_task;
+
   LOG(INFO) << "Asked to kill task " << taskId
             << " of framework " << frameworkId;
 
@@ -2018,6 +2030,8 @@ void Master::schedulerMessage(
     const ExecutorID& executorId,
     const string& data)
 {
+  ++metrics.messages_framework_to_executor;
+
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
@@ -2077,7 +2091,7 @@ void Master::schedulerMessage(
 
 void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
 {
-  ++metrics.slave_registration_messages;
+  ++metrics.messages_register_slave;
 
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up registration request from " << from
@@ -2194,7 +2208,7 @@ void Master::reregisterSlave(
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks)
 {
-  ++metrics.slave_reregistration_messages;
+  ++metrics.messages_reregister_slave;
 
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up re-registration request from " << from
@@ -2394,6 +2408,8 @@ void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
 
 void Master::unregisterSlave(const SlaveID& slaveId)
 {
+  ++metrics.messages_unregister_slave;
+
   LOG(INFO) << "Asked to unregister slave " << slaveId;
 
   // TODO(benh): Check that only the slave is asking to unregister?
@@ -2410,6 +2426,8 @@ void Master::unregisterSlave(const SlaveID& slaveId)
 // the slave.
 void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 {
+  ++metrics.messages_status_update;
+
   if (slaves.deactivated.get(update.slave_id()).isSome()) {
     // If the slave is deactivated, we have already informed
     // frameworks that its tasks were LOST, so the slave should
@@ -2504,6 +2522,8 @@ void Master::exitedExecutor(
     const ExecutorID& executorId,
     int32_t status)
 {
+  ++metrics.messages_exited_executor;
+
   if (slaves.deactivated.get(slaveId).isSome()) {
     // If the slave is deactivated, we have already informed
     // frameworks that its tasks were LOST, so the slave should
@@ -2591,6 +2611,8 @@ void Master::reconcileTasks(
     const FrameworkID& frameworkId,
     const std::vector<TaskStatus>& statuses)
 {
+  ++metrics.messages_reconcile_tasks;
+
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
     LOG(WARNING) << "Unknown framework " << frameworkId << " at " << from
@@ -2775,6 +2797,8 @@ void Master::offer(const FrameworkID& frameworkId,
 // 'authenticate' message doesn't contain the 'FrameworkID'.
 void Master::authenticate(const UPID& from, const UPID& pid)
 {
+  ++metrics.messages_authenticate;
+
   // Deactivate the framework/slave if it's already registered.
   // TODO(adam-mesos): MESOS-1081: Do not deactivate the current
   // framework/slave before we find out if the new one is legit.
@@ -3692,6 +3716,8 @@ double Master::_inactive_slaves()
 
 
 // TODO(dhamon): Consider moving to master/metrics.cpp|hpp.
+// Message counters are named with "messages_" prefix so they can
+// be grouped together alphabetically in the output.
 Master::Metrics::Metrics(const Master& master)
   : uptime_secs(
         "master/uptime_secs",
@@ -3716,14 +3742,38 @@ Master::Metrics::Metrics(const Master& master)
         defer(master, &Master::_outstanding_offers)),
     dropped_messages(
         "master/dropped_messages"),
-    framework_registration_messages(
-        "master/framework_registration_messages"),
-    framework_reregistration_messages(
-        "master/framework_reregistration_messages"),
-    slave_registration_messages(
-        "master/slave_registration_messages"),
-    slave_reregistration_messages(
-        "master/slave_reregistration_messages"),
+    messages_register_framework(
+        "master/messages_register_framework"),
+    messages_reregister_framework(
+        "master/messages_reregister_framework"),
+    messages_unregister_framework(
+        "master/messages_unregister_framework"),
+    messages_deactivate_framework(
+        "master/messages_deactivate_framework"),
+    messages_kill_task(
+        "master/messages_kill_task"),
+    messages_resource_request(
+        "master/messages_resource_request"),
+    messages_launch_tasks(
+        "master/messages_launch_tasks"),
+    messages_revive_offers(
+        "master/messages_revive_offers"),
+    messages_reconcile_tasks(
+        "master/messages_reconcile_tasks"),
+    messages_framework_to_executor(
+        "master/messages_framework_to_executor"),
+    messages_register_slave(
+        "master/messages_register_slave"),
+    messages_reregister_slave(
+        "master/messages_reregister_slave"),
+    messages_unregister_slave(
+        "master/messages_unregister_slave"),
+    messages_status_update(
+        "master/messages_status_update"),
+    messages_exited_executor(
+        "master/messages_exited_executor"),
+    messages_authenticate(
+        "master/messages_authenticate"),
     valid_framework_to_executor_messages(
         "master/valid_framework_to_executor_messages"),
     invalid_framework_to_executor_messages(
@@ -3758,11 +3808,27 @@ Master::Metrics::Metrics(const Master& master)
 
   process::metrics::add(dropped_messages);
 
-  process::metrics::add(framework_registration_messages);
-  process::metrics::add(framework_reregistration_messages);
+  // Messages from schedulers.
+  process::metrics::add(messages_register_framework);
+  process::metrics::add(messages_reregister_framework);
+  process::metrics::add(messages_unregister_framework);
+  process::metrics::add(messages_deactivate_framework);
+  process::metrics::add(messages_kill_task);
+  process::metrics::add(messages_resource_request);
+  process::metrics::add(messages_launch_tasks);
+  process::metrics::add(messages_revive_offers);
+  process::metrics::add(messages_reconcile_tasks);
+  process::metrics::add(messages_framework_to_executor);
 
-  process::metrics::add(slave_registration_messages);
-  process::metrics::add(slave_reregistration_messages);
+  // Messages from slaves.
+  process::metrics::add(messages_register_slave);
+  process::metrics::add(messages_reregister_slave);
+  process::metrics::add(messages_unregister_slave);
+  process::metrics::add(messages_status_update);
+  process::metrics::add(messages_exited_executor);
+
+  // Messages from both schedulers and slaves.
+  process::metrics::add(messages_authenticate);
 
   process::metrics::add(valid_framework_to_executor_messages);
   process::metrics::add(invalid_framework_to_executor_messages);
@@ -3796,11 +3862,27 @@ Master::Metrics::~Metrics()
 
   process::metrics::remove(dropped_messages);
 
-  process::metrics::remove(framework_registration_messages);
-  process::metrics::remove(framework_reregistration_messages);
+  // Messages from schedulers.
+  process::metrics::remove(messages_register_framework);
+  process::metrics::remove(messages_reregister_framework);
+  process::metrics::remove(messages_unregister_framework);
+  process::metrics::remove(messages_deactivate_framework);
+  process::metrics::remove(messages_kill_task);
+  process::metrics::remove(messages_resource_request);
+  process::metrics::remove(messages_launch_tasks);
+  process::metrics::remove(messages_revive_offers);
+  process::metrics::remove(messages_reconcile_tasks);
+  process::metrics::remove(messages_framework_to_executor);
 
-  process::metrics::remove(slave_registration_messages);
-  process::metrics::remove(slave_reregistration_messages);
+  // Messages from schedulers.
+  process::metrics::remove(messages_register_slave);
+  process::metrics::remove(messages_reregister_slave);
+  process::metrics::remove(messages_unregister_slave);
+  process::metrics::remove(messages_status_update);
+  process::metrics::remove(messages_exited_executor);
+
+  // Messages from both schedulers and slaves.
+  process::metrics::remove(messages_authenticate);
 
   process::metrics::remove(valid_framework_to_executor_messages);
   process::metrics::remove(invalid_framework_to_executor_messages);

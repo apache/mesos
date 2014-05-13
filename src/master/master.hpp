@@ -490,15 +490,29 @@ private:
     process::metrics::Gauge outstanding_offers;
 
     // Message counters.
-    // TODO(bmahler): Add counters for other messages: kill task,
-    // status update, etc.
     process::metrics::Counter dropped_messages;
 
-    process::metrics::Counter framework_registration_messages;
-    process::metrics::Counter framework_reregistration_messages;
+    // Messages from schedulers.
+    process::metrics::Counter messages_register_framework;
+    process::metrics::Counter messages_reregister_framework;
+    process::metrics::Counter messages_unregister_framework;
+    process::metrics::Counter messages_deactivate_framework;
+    process::metrics::Counter messages_kill_task;
+    process::metrics::Counter messages_resource_request;
+    process::metrics::Counter messages_launch_tasks;
+    process::metrics::Counter messages_revive_offers;
+    process::metrics::Counter messages_reconcile_tasks;
+    process::metrics::Counter messages_framework_to_executor;
 
-    process::metrics::Counter slave_registration_messages;
-    process::metrics::Counter slave_reregistration_messages;
+    // Messages from slaves.
+    process::metrics::Counter messages_register_slave;
+    process::metrics::Counter messages_reregister_slave;
+    process::metrics::Counter messages_unregister_slave;
+    process::metrics::Counter messages_status_update;
+    process::metrics::Counter messages_exited_executor;
+
+    // Messages from both schedulers and slaves.
+    process::metrics::Counter messages_authenticate;
 
     process::metrics::Counter valid_framework_to_executor_messages;
     process::metrics::Counter invalid_framework_to_executor_messages;

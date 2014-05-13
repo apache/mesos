@@ -1422,11 +1422,27 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 
   EXPECT_EQ(1u, stats.values.count("master/dropped_messages"));
 
-  EXPECT_EQ(1u, stats.values.count("master/framework_registration_messages"));
-  EXPECT_EQ(1u, stats.values.count("master/framework_reregistration_messages"));
+  // Messages from schedulers.
+  EXPECT_EQ(1u, stats.values.count("master/messages_register_framework"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_reregister_framework"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_unregister_framework"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_deactivate_framework"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_kill_task"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_resource_request"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_launch_tasks"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_revive_offers"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_reconcile_tasks"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_framework_to_executor"));
 
-  EXPECT_EQ(1u, stats.values.count("master/slave_registration_messages"));
-  EXPECT_EQ(1u, stats.values.count("master/slave_reregistration_messages"));
+  // Messages from schedulers.
+  EXPECT_EQ(1u, stats.values.count("master/messages_register_slave"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_reregister_slave"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_unregister_slave"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_status_update"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_exited_executor"));
+
+  // Messages from both schedulers and slaves.
+  EXPECT_EQ(1u, stats.values.count("master/messages_authenticate"));
 
   EXPECT_EQ(
       1u,
