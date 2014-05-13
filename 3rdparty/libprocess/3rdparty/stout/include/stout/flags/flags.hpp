@@ -336,6 +336,12 @@ inline Try<Nothing> FlagsBase::load(
   for (int i = 1; i < argc; i++) {
     const std::string arg(strings::trim(argv[i]));
 
+    // Stop parsing flags after '--' is encountered.
+    if (arg == "--") {
+      break;
+    }
+
+    // Skip anything that doesn't look like a flag.
     if (arg.find("--") != 0) {
       continue;
     }

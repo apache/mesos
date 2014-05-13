@@ -228,6 +228,36 @@ TEST(FlagsTest, LoadFromCommandLineWithNonFlags)
 }
 
 
+TEST(FlagsTest, LoadFromCommandLineWithDashDash)
+{
+  TestFlags flags;
+
+  int argc = 11;
+  char* argv[argc];
+
+  argv[0] = (char*) "/path/to/program";
+  argv[1] = (char*) "more";
+  argv[2] = (char*) "--name1=billy joel";
+  argv[3] = (char*) "stuff";
+  argv[4] = (char*) "at";
+  argv[5] = (char*) "--name2=43";
+  argv[6] = (char*) "--no-name3";
+  argv[7] = (char*) "--";
+  argv[8] = (char*) "--no-name4";
+  argv[9] = (char*) "--name5";
+  argv[10] = (char*) "the";
+
+  Try<Nothing> load = flags.load("FLAGSTEST_", argc, argv);
+  EXPECT_SOME(load);
+
+  EXPECT_EQ("billy joel", flags.name1);
+  EXPECT_EQ(43, flags.name2);
+  EXPECT_FALSE(flags.name3);
+  ASSERT_NONE(flags.name4);
+  ASSERT_NONE(flags.name5);
+}
+
+
 TEST(FlagsTest, Stringification)
 {
   TestFlags flags;
