@@ -48,6 +48,7 @@
 #include <stout/strings.hpp>
 
 #include "linux/cgroups.hpp"
+#include "linux/perf.hpp"
 
 #include "tests/mesos.hpp" // For TEST_CGROUPS_(HIERARCHY|ROOT).
 
@@ -851,4 +852,85 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
   future.await(Seconds(5));
   ASSERT_TRUE(future.isReady());
   EXPECT_TRUE(future.get());
+}
+
+
+class CgroupsAnyHierarchyWithPerfEventTest
+  : public CgroupsAnyHierarchyTest
+{
+public:
+  CgroupsAnyHierarchyWithPerfEventTest()
+    : CgroupsAnyHierarchyTest("perf_event") {}
+};
+
+
+TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
+{
+  int pipes[2];
+  int dummy;
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  std::string hierarchy = path::join(baseHierarchy, "perf_event");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process.
+    ::close(pipes[1]);
+
+    // Wait until parent has assigned us to the cgroup.
+    ssize_t len;
+    while ((len = ::read(pipes[0], &dummy, sizeof(dummy))) == -1 &&
+           errno == EINTR);
+    ASSERT_EQ(sizeof(dummy), len);
+    ::close(pipes[0]);
+
+    while (true) { sleep(1); }
+
+    ABORT("Child should not reach here");
+  }
+
+  // In parent.
+  ::close(pipes[0]);
+
+  // Put child into the test cgroup.
+  ASSERT_SOME(cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, pid));
+
+  ssize_t len;
+  while ((len = ::write(pipes[1], &dummy, sizeof(dummy))) == -1 &&
+         errno == EINTR);
+  ASSERT_EQ(sizeof(dummy), len);
+  ::close(pipes[1]);
+
+  std::set<std::string> events;
+  // Hardware event.
+  events.insert("cycles");
+  // Software event.
+  events.insert("task-clock");
+
+  Future<mesos::PerfStatistics> statistics =
+    perf::sample(events, TEST_CGROUPS_ROOT, Seconds(1));
+  AWAIT_READY(statistics);
+
+  ASSERT_TRUE(statistics.get().has_cycles());
+  EXPECT_LT(0u, statistics.get().cycles());
+
+  ASSERT_TRUE(statistics.get().has_task_clock());
+  EXPECT_LT(0.0, statistics.get().task_clock());
+
+  // Kill the child process.
+  ASSERT_NE(-1, ::kill(pid, SIGKILL));
+
+  // Wait for the child process.
+  int status;
+  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
+  ASSERT_TRUE(WIFSIGNALED(status));
+  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+
+  // Destroy the cgroup.
+  Future<bool> destroy = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
+  AWAIT_READY(destroy);
+  EXPECT_TRUE(destroy.get());
 }

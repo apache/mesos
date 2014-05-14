@@ -287,6 +287,7 @@ nodist_scheduler_HEADERS = scheduler/scheduler.pb.h
 
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
+  libmesos_no_3rdparty_la_SOURCES += linux/perf.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/cpushare.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/mem.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/perf_event.cpp
@@ -339,6 +340,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	hdfs/hdfs.hpp							\
 	launcher/launcher.hpp						\
 	linux/cgroups.hpp						\
+	linux/perf.hpp							\
 	linux/fs.hpp local/flags.hpp local/local.hpp			\
 	logging/flags.hpp logging/logging.hpp				\
 	master/allocator.hpp						\
@@ -1014,6 +1016,7 @@ if OS_LINUX
   mesos_tests_SOURCES += tests/cgroups_isolator_tests.cpp
   mesos_tests_SOURCES += tests/cgroups_tests.cpp
   mesos_tests_SOURCES += tests/fs_tests.cpp
+  mesos_tests_SOURCES += tests/perf_tests.cpp
 endif
 
 if WITH_NETWORK_ISOLATOR
