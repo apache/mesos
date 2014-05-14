@@ -30,6 +30,8 @@
 #include <process/id.hpp>
 #include <process/run.hpp>
 
+#include <process/metrics/metrics.hpp>
+
 #include <stout/check.hpp>
 #include <stout/lambda.hpp>
 #include <stout/memory.hpp>
@@ -2024,6 +2026,7 @@ void Master::schedulerMessage(
       << " of framework " << frameworkId
       << " because the framework cannot be found";
     stats.invalidFrameworkMessages++;
+    metrics.invalid_framework_to_executor_messages++;
     return;
   }
 
@@ -2034,6 +2037,7 @@ void Master::schedulerMessage(
       << " because it is not from the registered framework "
       << framework->pid;
     stats.invalidFrameworkMessages++;
+    metrics.invalid_framework_to_executor_messages++;
     return;
   }
 
@@ -2043,6 +2047,7 @@ void Master::schedulerMessage(
                  << frameworkId << " to slave " << slaveId
                  << " because slave is not activated";
     stats.invalidFrameworkMessages++;
+    metrics.invalid_framework_to_executor_messages++;
     return;
   }
 
@@ -2051,6 +2056,7 @@ void Master::schedulerMessage(
                  << frameworkId << " to slave " << *slave
                  << " because slave is disconnected";
     stats.invalidFrameworkMessages++;
+    metrics.invalid_framework_to_executor_messages++;
     return;
   }
 
@@ -2065,6 +2071,7 @@ void Master::schedulerMessage(
   send(slave->pid, message);
 
   stats.validFrameworkMessages++;
+  metrics.valid_framework_to_executor_messages++;
 }
 
 
@@ -2417,6 +2424,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     send(pid, message);
 
     stats.invalidStatusUpdates++;
+    metrics.invalid_status_updates++;
     return;
   }
 
@@ -2425,6 +2433,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
                  << " from unknown slave " << pid
                  << " with id " << update.slave_id();
     stats.invalidStatusUpdates++;
+    metrics.invalid_status_updates++;
     return;
   }
 
@@ -2436,6 +2445,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     LOG(WARNING) << "Ignoring status update " << update
                  << " from slave " << *slave << ": " << _forward.error();
     stats.invalidStatusUpdates++;
+    metrics.invalid_status_updates++;
     return;
   }
 
@@ -2446,6 +2456,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     LOG(WARNING) << "Could not lookup task for status update " << update
                  << " from slave " << *slave;
     stats.invalidStatusUpdates++;
+    metrics.invalid_status_updates++;
     return;
   }
 
@@ -2466,6 +2477,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
   stats.tasks[status.state()]++;
   stats.validStatusUpdates++;
+  metrics.valid_status_updates++;
 }
 
 
@@ -3652,6 +3664,157 @@ SlaveID Master::newSlaveId()
   SlaveID slaveId;
   slaveId.set_value(info_.id() + "-" + stringify(nextSlaveId++));
   return slaveId;
+}
+
+
+double Master::_active_slaves()
+{
+  double count = 0.0;
+  foreachvalue (Slave* slave, slaves.activated) {
+    if (!slave->disconnected) {
+      count++;
+    }
+  }
+  return count;
+}
+
+
+double Master::_inactive_slaves()
+{
+  double count = 0.0;
+  foreachvalue (Slave* slave, slaves.activated) {
+    if (slave->disconnected) {
+      count++;
+    }
+  }
+  return count;
+}
+
+
+// TODO(dhamon): Consider moving to master/metrics.cpp|hpp.
+Master::Metrics::Metrics(const Master& master)
+  : uptime_secs(
+        "master/uptime_secs",
+        defer(master, &Master::_uptime_secs)),
+    elected(
+        "master/elected",
+        defer(master, &Master::_elected)),
+    active_slaves(
+        "master/active_slaves",
+        defer(master, &Master::_active_slaves)),
+    inactive_slaves(
+        "master/inactive_slaves",
+        defer(master, &Master::_inactive_slaves)),
+    active_frameworks(
+        "master/active_frameworks",
+        defer(master, &Master::_active_frameworks)),
+    inactive_frameworks(
+        "master/inactive_frameworks",
+        defer(master, &Master::_inactive_frameworks)),
+    outstanding_offers(
+        "master/outstanding_offers",
+        defer(master, &Master::_outstanding_offers)),
+    dropped_messages(
+        "master/dropped_messages"),
+    framework_registration_messages(
+        "master/framework_registration_messages"),
+    framework_reregistration_messages(
+        "master/framework_reregistration_messages"),
+    slave_registration_messages(
+        "master/slave_registration_messages"),
+    slave_reregistration_messages(
+        "master/slave_reregistration_messages"),
+    valid_framework_to_executor_messages(
+        "master/valid_framework_to_executor_messages"),
+    invalid_framework_to_executor_messages(
+        "master/invalid_framework_to_executor_messages"),
+    valid_status_updates(
+        "master/valid_status_updates"),
+    invalid_status_updates(
+        "master/invalid_status_updates"),
+    recovery_slave_removals(
+        "master/recovery_slave_removals"),
+    event_queue_size(
+        "master/event_queue_size",
+        defer(master, &Master::_event_queue_size)),
+    slave_registrations(
+        "master/slave_registrations"),
+    slave_reregistrations(
+        "master/slave_reregistrations"),
+    slave_removals(
+        "master/slave_removals")
+{
+  // TODO(dhamon): Check return values of 'add'.
+  process::metrics::add(uptime_secs);
+  process::metrics::add(elected);
+
+  process::metrics::add(active_slaves);
+  process::metrics::add(inactive_slaves);
+
+  process::metrics::add(active_frameworks);
+  process::metrics::add(inactive_frameworks);
+
+  process::metrics::add(outstanding_offers);
+
+  process::metrics::add(dropped_messages);
+
+  process::metrics::add(framework_registration_messages);
+  process::metrics::add(framework_reregistration_messages);
+
+  process::metrics::add(slave_registration_messages);
+  process::metrics::add(slave_reregistration_messages);
+
+  process::metrics::add(valid_framework_to_executor_messages);
+  process::metrics::add(invalid_framework_to_executor_messages);
+
+  process::metrics::add(valid_status_updates);
+  process::metrics::add(invalid_status_updates);
+
+  process::metrics::add(recovery_slave_removals);
+
+  process::metrics::add(event_queue_size);
+
+  process::metrics::add(slave_registrations);
+  process::metrics::add(slave_reregistrations);
+  process::metrics::add(slave_removals);
+}
+
+
+Master::Metrics::~Metrics()
+{
+  // TODO(dhamon): Check return values of 'remove'.
+  process::metrics::remove(uptime_secs);
+  process::metrics::remove(elected);
+
+  process::metrics::remove(active_slaves);
+  process::metrics::remove(inactive_slaves);
+
+  process::metrics::remove(active_frameworks);
+  process::metrics::remove(inactive_frameworks);
+
+  process::metrics::remove(outstanding_offers);
+
+  process::metrics::remove(dropped_messages);
+
+  process::metrics::remove(framework_registration_messages);
+  process::metrics::remove(framework_reregistration_messages);
+
+  process::metrics::remove(slave_registration_messages);
+  process::metrics::remove(slave_reregistration_messages);
+
+  process::metrics::remove(valid_framework_to_executor_messages);
+  process::metrics::remove(invalid_framework_to_executor_messages);
+
+  process::metrics::remove(valid_status_updates);
+  process::metrics::remove(invalid_status_updates);
+
+  process::metrics::remove(recovery_slave_removals);
+
+  process::metrics::remove(event_queue_size);
+
+  process::metrics::remove(slave_registrations);
+  process::metrics::remove(slave_reregistrations);
+  process::metrics::remove(slave_removals);
 }
 
 } // namespace master {

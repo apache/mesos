@@ -377,6 +377,7 @@ Future<Response> Master::Http::stats(const Request& request)
   }
   object.values["active_tasks_gauge"] = active_tasks;
 
+  // TODO(dhamon): Port these to metrics library.
   // Get total and used (note, not offered) resources in order to
   // compute capacity of scalar resources.
   Resources totalResources;

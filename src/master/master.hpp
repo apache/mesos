@@ -474,64 +474,20 @@ private:
 
   struct Metrics
   {
-    Metrics(const Master& master)
-      : dropped_messages(
-            "master/dropped_messages"),
-        framework_registration_messages(
-            "master/framework_registration_messages"),
-        framework_reregistration_messages(
-            "master/framework_reregistration_messages"),
-        slave_registration_messages(
-            "master/slave_registration_messages"),
-        slave_reregistration_messages(
-            "master/slave_reregistration_messages"),
-        recovery_slave_removals(
-            "master/recovery_slave_removals"),
-        event_queue_size(
-            "master/event_queue_size",
-            defer(master, &Master::_event_queue_size)),
-        slave_registrations(
-            "master/slave_registrations"),
-        slave_reregistrations(
-            "master/slave_reregistrations"),
-        slave_removals(
-            "master/slave_removals")
-    {
-      process::metrics::add(dropped_messages);
+    Metrics(const Master& master);
 
-      process::metrics::add(framework_registration_messages);
-      process::metrics::add(framework_reregistration_messages);
+    ~Metrics();
 
-      process::metrics::add(slave_registration_messages);
-      process::metrics::add(slave_reregistration_messages);
+    process::metrics::Gauge uptime_secs;
+    process::metrics::Gauge elected;
 
-      process::metrics::add(recovery_slave_removals);
+    process::metrics::Gauge active_slaves;
+    process::metrics::Gauge inactive_slaves;
 
-      process::metrics::add(event_queue_size);
+    process::metrics::Gauge active_frameworks;
+    process::metrics::Gauge inactive_frameworks;
 
-      process::metrics::add(slave_registrations);
-      process::metrics::add(slave_reregistrations);
-      process::metrics::add(slave_removals);
-    }
-
-    ~Metrics()
-    {
-      process::metrics::remove(dropped_messages);
-
-      process::metrics::remove(framework_registration_messages);
-      process::metrics::remove(framework_reregistration_messages);
-
-      process::metrics::remove(slave_registration_messages);
-      process::metrics::remove(slave_reregistration_messages);
-
-      process::metrics::remove(recovery_slave_removals);
-
-      process::metrics::remove(event_queue_size);
-
-      process::metrics::remove(slave_registrations);
-      process::metrics::remove(slave_reregistrations);
-      process::metrics::remove(slave_removals);
-    }
+    process::metrics::Gauge outstanding_offers;
 
     // Message counters.
     // TODO(bmahler): Add counters for other messages: kill task,
@@ -543,6 +499,12 @@ private:
 
     process::metrics::Counter slave_registration_messages;
     process::metrics::Counter slave_reregistration_messages;
+
+    process::metrics::Counter valid_framework_to_executor_messages;
+    process::metrics::Counter invalid_framework_to_executor_messages;
+
+    process::metrics::Counter valid_status_updates;
+    process::metrics::Counter invalid_status_updates;
 
     // Recovery counters.
     process::metrics::Counter recovery_slave_removals;
@@ -557,6 +519,35 @@ private:
   } metrics;
 
   // Gauge handlers.
+  double _uptime_secs()
+  {
+    return (process::Clock::now() - startTime).secs();
+  }
+
+  double _elected()
+  {
+    return elected() ? 1 : 0;
+  }
+
+  double _active_slaves();
+
+  double _inactive_slaves();
+
+  double _active_frameworks()
+  {
+    return getActiveFrameworks().size();
+  }
+
+  double _inactive_frameworks()
+  {
+    return frameworks.activated.size() - _active_frameworks();
+  }
+
+  double _outstanding_offers()
+  {
+    return offers.size();
+  }
+
   double _event_queue_size()
   {
     size_t size;

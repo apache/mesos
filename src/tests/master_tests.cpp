@@ -1409,6 +1409,17 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 
   JSON::Object stats = parse.get();
 
+  EXPECT_EQ(1u, stats.values.count("master/uptime_secs"));
+  EXPECT_EQ(1u, stats.values.count("master/elected"));
+
+  EXPECT_EQ(1u, stats.values.count("master/active_slaves"));
+  EXPECT_EQ(1u, stats.values.count("master/inactive_slaves"));
+
+  EXPECT_EQ(1u, stats.values.count("master/active_frameworks"));
+  EXPECT_EQ(1u, stats.values.count("master/inactive_frameworks"));
+
+  EXPECT_EQ(1u, stats.values.count("master/outstanding_offers"));
+
   EXPECT_EQ(1u, stats.values.count("master/dropped_messages"));
 
   EXPECT_EQ(1u, stats.values.count("master/framework_registration_messages"));
@@ -1416,6 +1427,16 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 
   EXPECT_EQ(1u, stats.values.count("master/slave_registration_messages"));
   EXPECT_EQ(1u, stats.values.count("master/slave_reregistration_messages"));
+
+  EXPECT_EQ(
+      1u,
+      stats.values.count("master/valid_framework_to_executor_messages"));
+  EXPECT_EQ(
+      1u,
+      stats.values.count("master/invalid_framework_to_executor_messages"));
+
+  EXPECT_EQ(1u, stats.values.count("master/valid_status_updates"));
+  EXPECT_EQ(1u, stats.values.count("master/invalid_status_updates"));
 
   EXPECT_EQ(1u, stats.values.count("master/recovery_slave_removals"));
 
