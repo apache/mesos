@@ -81,4 +81,22 @@ if __name__ == '__main__':
         for candidate in find_candidates(source_dir):
             candidates.append(candidate)
 
-    sys.exit(run_lint(candidates))
+    if len(sys.argv) == 1:
+        # No file paths specified, run lint on all candidates.
+        sys.exit(run_lint(candidates))
+    else:
+        # File paths specified, run lint on all file paths that are candidates.
+        file_paths = sys.argv[1:]
+
+        # Compute the set intersect of the input file paths and candidates.
+        # This represents the reduced set of candidates to run lint on.
+        candidates_set = set(candidates)
+        clean_file_paths_set = set(map(lambda x: x.rstrip(), file_paths))
+        filtered_candidates_set = clean_file_paths_set.intersection(
+            candidates_set)
+
+        if filtered_candidates_set:
+            sys.exit(run_lint(list(filtered_candidates_set)))
+        else:
+            print "No files to lint\n"
+            sys.exit(0)
