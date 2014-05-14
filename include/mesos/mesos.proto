@@ -405,6 +405,9 @@ message ResourceStatistics {
 
   // TODO(bmahler): Add disk usage.
   // TODO(bmahler): Add network usage?
+
+  // Perf statistics.
+  optional PerfStatistics perf = 13;
 }
 
 
@@ -433,6 +436,81 @@ message ResourceUsage {
 
   // If missing, the isolation module cannot provide resource usage.
   optional ResourceStatistics statistics = 6;
+}
+
+
+/**
+ * Describes a sample of events from "perf stat". Only available on
+ * Linux.
+ *
+ * NOTE: Each optional field matches the name of a perf event (see
+ * "perf list") with the following changes:
+ * 1. Names are downcased.
+ * 2. Hyphens ('-') are replaced with underscores ('_').
+ * 3. Events with alternate names use the name "perf stat" returns,
+ *    e.g., for the event "cycles OR cpu-cycles" perf always returns
+ *    cycles.
+ */
+message PerfStatistics {
+  required double timestamp = 1; // Start of sample interval, in seconds since the Epoch.
+  required double duration = 2;  // Duration of sample interval, in seconds.
+
+  // Hardware event.
+  optional uint64 cycles = 3;
+  optional uint64 stalled_cycles_frontend = 4;
+  optional uint64 stalled_cycles_backend = 5;
+  optional uint64 instructions = 6;
+  optional uint64 cache_references = 7;
+  optional uint64 cache_misses = 8;
+  optional uint64 branches = 9;
+  optional uint64 branch_misses = 10;
+  optional uint64 bus_cycles = 11;
+  optional uint64 ref_cycles = 12;
+
+  // Software event.
+  optional double cpu_clock = 13;
+  optional double task_clock = 14;
+  optional uint64 page_faults = 15;
+  optional uint64 minor_faults = 16;
+  optional uint64 major_faults = 17;
+  optional uint64 context_switches = 18;
+  optional uint64 cpu_migrations = 19;
+  optional uint64 alignment_faults = 20;
+  optional uint64 emulation_faults = 21;
+
+  // Hardware cache event.
+  optional uint64 l1_dcache_loads = 22;
+  optional uint64 l1_dcache_load_misses = 23;
+  optional uint64 l1_dcache_stores = 24;
+  optional uint64 l1_dcache_store_misses = 25;
+  optional uint64 l1_dcache_prefetches = 26;
+  optional uint64 l1_dcache_prefetch_misses = 27;
+  optional uint64 l1_icache_loads = 28;
+  optional uint64 l1_icache_load_misses = 29;
+  optional uint64 l1_icache_prefetches = 30;
+  optional uint64 l1_icache_prefetch_misses = 31;
+  optional uint64 llc_loads = 32;
+  optional uint64 llc_load_misses = 33;
+  optional uint64 llc_stores = 34;
+  optional uint64 llc_store_misses = 35;
+  optional uint64 llc_prefetches = 36;
+  optional uint64 llc_prefetch_misses = 37;
+  optional uint64 dtlb_loads = 38;
+  optional uint64 dtlb_load_misses = 39;
+  optional uint64 dtlb_stores = 40;
+  optional uint64 dtlb_store_misses = 41;
+  optional uint64 dtlb_prefetches = 42;
+  optional uint64 dtlb_prefetch_misses = 43;
+  optional uint64 itlb_loads = 44;
+  optional uint64 itlb_load_misses = 45;
+  optional uint64 branch_loads = 46;
+  optional uint64 branch_load_misses = 47;
+  optional uint64 node_loads = 48;
+  optional uint64 node_load_misses = 49;
+  optional uint64 node_stores = 50;
+  optional uint64 node_store_misses = 51;
+  optional uint64 node_prefetches = 52;
+  optional uint64 node_prefetch_misses = 53;
 }
 
 
