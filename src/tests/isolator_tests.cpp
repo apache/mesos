@@ -48,6 +48,7 @@
 #ifdef __linux__
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
+#include "slave/containerizer/isolators/cgroups/perf_event.hpp"
 #endif // __linux__
 
 #include "tests/mesos.hpp"
@@ -63,6 +64,7 @@ using mesos::internal::master::Master;
 #ifdef __linux__
 using mesos::internal::slave::CgroupsCpushareIsolatorProcess;
 using mesos::internal::slave::CgroupsMemIsolatorProcess;
+using mesos::internal::slave::CgroupsPerfEventIsolatorProcess;
 using mesos::internal::slave::LinuxLauncher;
 #endif // __linux__
 using mesos::internal::slave::Isolator;
@@ -576,3 +578,73 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   delete isolator.get();
   delete launcher.get();
 }
+
+
+#ifdef __linux__
+class PerfEventIsolatorTest : public MesosTest {};
+
+TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
+{
+  Flags flags;
+
+  flags.perf_events = "cycles,task-clock";
+  flags.perf_duration = Milliseconds(250);
+  flags.perf_interval = Milliseconds(500);
+
+  Try<Isolator*> isolator = CgroupsPerfEventIsolatorProcess::create(flags);
+  CHECK_SOME(isolator);
+
+  ExecutorInfo executorInfo;
+
+  ContainerID containerId;
+  containerId.set_value("test");
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+
+  // This first sample is likely to be empty because perf hasn't
+  // completed yet but we should still have the required fields.
+  Future<ResourceStatistics> statistics1 = isolator.get()->usage(containerId);
+  AWAIT_READY(statistics1);
+  ASSERT_TRUE(statistics1.get().has_perf());
+  EXPECT_TRUE(statistics1.get().perf().has_timestamp());
+  EXPECT_TRUE(statistics1.get().perf().has_duration());
+
+  // Wait until we get the next sample. We use a generous timeout of
+  // two seconds because we currently have a one second reap interval;
+  // when running perf with perf_duration of 250ms we won't notice the
+  // exit for up to one second.
+  ResourceStatistics statistics2;
+  Duration waited = Duration::zero();
+  do {
+    Future<ResourceStatistics> statistics = isolator.get()->usage(containerId);
+    AWAIT_READY(statistics);
+
+    statistics2 = statistics.get();
+
+    ASSERT_TRUE(statistics2.has_perf());
+
+    if (statistics1.get().perf().timestamp() !=
+        statistics2.perf().timestamp()) {
+      break;
+    }
+
+    os::sleep(Milliseconds(250));
+    waited += Milliseconds(250);
+  } while (waited < Seconds(2));
+
+  sleep(2);
+
+  EXPECT_NE(statistics1.get().perf().timestamp(),
+            statistics2.perf().timestamp());
+
+  EXPECT_TRUE(statistics2.perf().has_cycles());
+  EXPECT_LE(0u, statistics2.perf().cycles());
+
+  EXPECT_TRUE(statistics2.perf().has_task_clock());
+  EXPECT_LE(0.0, statistics2.perf().task_clock());
+
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete isolator.get();
+}
+#endif // __linux__

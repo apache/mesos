@@ -3218,3 +3218,153 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 
   delete containerizer2.get();
 }
+
+#ifdef __linux__
+// Test that the perf event isolator can be enabled on a new slave.
+// Previously created containers will not report perf statistics but
+// newly created containers will.
+TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a slave using a containerizer without a perf event
+  // isolator.
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.isolation = "cgroups/cpu,cgroups/mem";
+
+  Try<MesosContainerizer*> containerizer1 =
+    MesosContainerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Scheduler expectations.
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  SlaveID slaveId = offers1.get()[0].slave_id();
+
+  TaskInfo task1 = createTask(
+      slaveId, Resources::parse("cpus:0.5;mem:128").get(), "sleep 1000");
+  vector<TaskInfo> tasks1;
+  tasks1.push_back(task1);
+
+  // Message expectations.
+  Future<Message> registerExecutor =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers1.get()[0].id(), tasks1);
+
+  AWAIT_READY(registerExecutor);
+
+  Future<hashset<ContainerID> > containers = containerizer1.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId1 = *(containers.get().begin());
+
+  Future<ResourceStatistics> usage = containerizer1.get()->usage(containerId1);
+  AWAIT_READY(usage);
+
+  // There should not be any perf statistics.
+  EXPECT_FALSE(usage.get().has_perf());
+
+  this->Stop(slave.get());
+  delete containerizer1.get();
+
+  // Set up so we can wait until the new slave updates the container's
+  // resources (this occurs after the executor has re-registered).
+  Future<Nothing> update =
+    FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
+
+  // Start a slave using a containerizer with a perf event isolator.
+  flags.isolation = "cgroups/cpu,cgroups/mem,cgroups/perf_event";
+  flags.perf_events = "cycles,task-clock";
+  flags.perf_duration = Milliseconds(250);
+  flags.perf_interval = Milliseconds(500);
+
+  Try<MesosContainerizer*> containerizer2 =
+    MesosContainerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  slave = this->StartSlave(containerizer2.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+
+  // Wait until the containerizer is updated.
+  AWAIT_READY(update);
+
+  // The first container should not report perf statistics.
+  usage = containerizer2.get()->usage(containerId1);
+  AWAIT_READY(usage);
+
+  EXPECT_FALSE(usage.get().has_perf());
+
+  // Start a new container which will start reporting perf statistics.
+  TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks2;
+  tasks2.push_back(task2);
+
+  // Message expectations.
+  registerExecutor =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers2.get()[0].id(), tasks2);
+
+  AWAIT_READY(registerExecutor);
+
+  containers = containerizer2.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(2u, containers.get().size());
+  EXPECT_TRUE(containers.get().contains(containerId1));
+
+  ContainerID containerId2;
+  foreach (const ContainerID containerId, containers.get()) {
+    if (containerId != containerId1) {
+      containerId2.CopyFrom(containerId);
+    }
+  }
+
+  usage = containerizer2.get()->usage(containerId2);
+  AWAIT_READY(usage);
+
+  EXPECT_TRUE(usage.get().has_perf());
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+  delete containerizer2.get();
+}
+#endif // __linux__

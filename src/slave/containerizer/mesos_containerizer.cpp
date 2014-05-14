@@ -45,6 +45,7 @@
 #ifdef __linux__
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
+#include "slave/containerizer/isolators/cgroups/perf_event.hpp"
 #endif // __linux__
 
 using std::list;
@@ -131,6 +132,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #ifdef __linux__
   creators["cgroups/cpu"] = &CgroupsCpushareIsolatorProcess::create;
   creators["cgroups/mem"] = &CgroupsMemIsolatorProcess::create;
+  creators["cgroups/perf_event"] = &CgroupsPerfEventIsolatorProcess::create;
 #endif // __linux__
 
   vector<Owned<Isolator> > isolators;

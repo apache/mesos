@@ -213,6 +213,30 @@ public:
         "Present functionality is intended for resource monitoring and\n"
         "no cgroup limits are set, they are inherited from the root mesos\n"
         "cgroup.");
+
+    add(&Flags::perf_events,
+        "perf_events",
+        "List of command-separated perf events to sample for each container\n"
+        "when using the perf_event isolator. Default is none.\n"
+        "Run command 'perf list' to see all events. Event names are\n"
+        "sanitized by downcasing and replacing hyphens with underscores\n"
+        "when reported in the PerfStatistics protobuf, e.g., cpu-cycles\n"
+        "becomes cpu_cycles; see the PerfStatistics protobuf for all names.");
+
+    add(&Flags::perf_interval,
+        "perf_interval",
+        "Interval between the start of perf stat samples. Perf samples are\n"
+        "obtained periodically according to perf_interval and the most\n"
+        "recently obtained sample is returned rather than sampling on\n"
+        "demand. For this reason, perf_interval is independent of the\n"
+        "resource monitoring interval",
+        Seconds(60));
+
+    add(&Flags::perf_duration,
+        "perf_duration",
+        "Duration of a perf stat sample. The duration must be less\n"
+        "that the perf_interval.",
+        Seconds(10));
 #endif
 
     add(&Flags::credential,
@@ -260,6 +284,9 @@ public:
   Option<std::string> cgroups_subsystems;
   bool cgroups_enable_cfs;
   Option<std::string> slave_subsystems;
+  Option<std::string> perf_events;
+  Duration perf_interval;
+  Duration perf_duration;
 #endif
   Option<std::string> credential;
   Option<std::string> containerizer_path;

@@ -408,6 +408,7 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
   subsystems.insert("cpuacct");
   subsystems.insert("memory");
   subsystems.insert("freezer");
+  subsystems.insert("perf_event");
 
   if (cgroups::enabled() && os::user() == "root") {
     foreach (const string& subsystem, subsystems) {

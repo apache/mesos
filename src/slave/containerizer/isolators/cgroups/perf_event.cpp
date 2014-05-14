@@ -19,13 +19,20 @@
 #include <stdint.h>
 
 #include <vector>
+#include <set>
+
+#include <google/protobuf/descriptor.h>
+#include <google/protobuf/message.h>
 
 #include <mesos/resources.hpp>
 #include <mesos/values.hpp>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
+#include <process/delay.hpp>
+#include <process/io.hpp>
 #include <process/pid.hpp>
+#include <process/subprocess.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/check.hpp>
@@ -35,10 +42,9 @@
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
+#include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "linux/cgroups.hpp"
 
@@ -47,7 +53,7 @@
 using namespace process;
 
 using std::list;
-using std::ostringstream;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -55,17 +61,33 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-CgroupsPerfEventIsolatorProcess::CgroupsPerfEventIsolatorProcess(
-    const Flags& _flags,
-    const string& _hierarchy)
-  : flags(_flags), hierarchy(_hierarchy) {}
-
-
-CgroupsPerfEventIsolatorProcess::~CgroupsPerfEventIsolatorProcess() {}
-
-
 Try<Isolator*> CgroupsPerfEventIsolatorProcess::create(const Flags& flags)
 {
+  LOG(INFO) << "Creating PerfEvent isolator";
+
+  if (flags.perf_duration > flags.perf_interval) {
+    return Error("Sampling perf for duration (" +
+                 stringify(flags.perf_duration) +
+                 ") > interval (" +
+                 stringify(flags.perf_interval) +
+                 ") is not supported.");
+  }
+
+  if (!flags.perf_events.isSome()) {
+    return Error("No perf events specified.");
+  }
+
+  set<string> events;
+  foreach (const string& event,
+           strings::tokenize(flags.perf_events.get(), ",")) {
+    events.insert(event);
+  }
+
+  if (!perf::valid(events)) {
+    return Error("Failed to create PerfEvent isolator, invalid events: " +
+                 stringify(events));
+  }
+
   Try<string> hierarchy = cgroups::prepare(
       flags.cgroups_hierarchy, "perf_event", flags.cgroups_root);
 
@@ -73,10 +95,39 @@ Try<Isolator*> CgroupsPerfEventIsolatorProcess::create(const Flags& flags)
     return Error("Failed to create perf_event cgroup: " + hierarchy.error());
   }
 
+  LOG(INFO) << "PerfEvent isolator will profile for " << flags.perf_duration
+            << " every " << flags.perf_interval
+            << " for events: " << stringify(events);
+
   process::Owned<IsolatorProcess> process(
       new CgroupsPerfEventIsolatorProcess(flags, hierarchy.get()));
 
   return new Isolator(process);
+}
+
+
+CgroupsPerfEventIsolatorProcess::CgroupsPerfEventIsolatorProcess(
+    const Flags& _flags,
+    const string& _hierarchy)
+  : flags(_flags),
+    hierarchy(_hierarchy)
+{
+  CHECK_SOME(flags.perf_events);
+
+  foreach (const string& event,
+           strings::tokenize(flags.perf_events.get(), ",")) {
+    events.insert(event);
+  }
+}
+
+
+CgroupsPerfEventIsolatorProcess::~CgroupsPerfEventIsolatorProcess() {}
+
+
+void CgroupsPerfEventIsolatorProcess::initialize()
+{
+  // Start sampling.
+  sample();
 }
 
 
@@ -95,41 +146,39 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
     }
 
     const ContainerID& containerId = state.id.get();
+    const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
-    Info* info = new Info(
-        containerId, path::join(flags.cgroups_root, containerId.value()));
-    CHECK_NOTNULL(info);
-
-    infos[containerId] = info;
-    cgroups.insert(info->cgroup);
-
-    Try<bool> exists = cgroups::exists(hierarchy, info->cgroup);
+    Try<bool> exists = cgroups::exists(hierarchy, cgroup);
     if (exists.isError()) {
-      delete info;
       foreachvalue (Info* info, infos) {
         delete info;
       }
+
       infos.clear();
-      return Failure("Failed to check cgroup for container '" +
-                     stringify(containerId) + "'");
+      return Failure("Failed to check cgroup " + cgroup +
+                     " for container '" + stringify(containerId) + "'");
     }
 
     if (!exists.get()) {
-      VLOG(1) << "Couldn't find cgroup for container " << containerId;
       // This may occur if the executor is exiting and the isolator has
       // destroyed the cgroup but the slave dies before noticing this. This
       // will be detected when the containerizer tries to monitor the
       // executor's pid.
       // NOTE: This could also occur if this isolator is now enabled for a
-      // container that was started without this isolator. For this particular
-      // isolator it is okay to continue running this container without its
-      // perf_event cgroup existing because we don't ever query it and the
-      // destroy will succeed immediately.
+      // container that was started without this isolator. For this
+      // particular isolator it is acceptable to continue running this
+      // container without a perf_event cgroup because we don't ever
+      // query it and the destroy will succeed immediately.
+      VLOG(1) << "Couldn't find perf event cgroup for container " << containerId
+              << ", perf statistics will not be available";
+      continue;
     }
+
+    infos[containerId] = new Info(containerId, cgroup);
+    cgroups.insert(cgroup);
   }
 
-  Try<vector<string> > orphans = cgroups::get(
-      hierarchy, flags.cgroups_root);
+  Try<vector<string> > orphans = cgroups::get(hierarchy, flags.cgroups_root);
   if (orphans.isError()) {
     foreachvalue (Info* info, infos) {
       delete info;
@@ -139,6 +188,13 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
   }
 
   foreach (const string& orphan, orphans.get()) {
+    // Ignore the slave cgroup (see the --slave_subsystems flag).
+    // TODO(idownes): Remove this when the cgroups layout is updated,
+    // see MESOS-1185.
+    if (orphan == path::join(flags.cgroups_root, "slave")) {
+      continue;
+    }
+
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup '" << orphan << "'";
       cgroups::destroy(hierarchy, orphan);
@@ -157,8 +213,11 @@ Future<Option<CommandInfo> > CgroupsPerfEventIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
+  LOG(INFO) << "Preparing perf event cgroup for " << containerId;
+
   Info* info = new Info(
-      containerId, path::join(flags.cgroups_root, containerId.value()));
+      containerId,
+      path::join(flags.cgroups_root, containerId.value()));
 
   infos[containerId] = CHECK_NOTNULL(info);
 
@@ -194,9 +253,6 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::isolate(
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
-  CHECK(info->pid.isNone());
-  info->pid = pid;
-
   Try<Nothing> assign = cgroups::assign(hierarchy, info->cgroup, pid);
   if (assign.isError()) {
     return Failure("Failed to assign container '" +
@@ -212,13 +268,8 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::isolate(
 Future<Limitation> CgroupsPerfEventIsolatorProcess::watch(
     const ContainerID& containerId)
 {
-  if (!infos.contains(containerId)) {
-    return Failure("Unknown container");
-  }
-
-  CHECK_NOTNULL(infos[containerId]);
-
-  return infos[containerId]->limitation.future();
+  // No resources are limited.
+  return Future<Limitation>();
 }
 
 
@@ -234,19 +285,35 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::update(
 Future<ResourceStatistics> CgroupsPerfEventIsolatorProcess::usage(
     const ContainerID& containerId)
 {
-  // No resource statistics provided by this isolator.
-  return ResourceStatistics();
+  if (!infos.contains(containerId)) {
+    // Return an empty ResourceStatistics, i.e., without
+    // PerfStatistics, if we don't know about this container.
+    return ResourceStatistics();
+  }
+
+  CHECK_NOTNULL(infos[containerId]);
+
+  ResourceStatistics statistics;
+  statistics.mutable_perf()->CopyFrom(infos[containerId]->statistics);
+
+  return statistics;
 }
 
 
 Future<Nothing> CgroupsPerfEventIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
+  // Tolerate clean up attempts for unknown containers which may arise from
+  // repeated clean up attempts (during test cleanup).
   if (!infos.contains(containerId)) {
-    return Failure("Unknown container");
+    VLOG(1) << "Ignoring cleanup request for unknown container: "
+            << containerId;
+    return Nothing();
   }
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
+
+  info->destroying = true;
 
   return cgroups::destroy(hierarchy, info->cgroup)
     .then(defer(PID<CgroupsPerfEventIsolatorProcess>(this),
@@ -258,7 +325,10 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::cleanup(
 Future<Nothing> CgroupsPerfEventIsolatorProcess::_cleanup(
     const ContainerID& containerId)
 {
-  CHECK(infos.contains(containerId));
+  if (!infos.contains(containerId))
+  {
+    return Nothing();
+  }
 
   delete infos[containerId];
   infos.erase(containerId);
@@ -266,6 +336,94 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::_cleanup(
   return Nothing();
 }
 
+
+Future<hashmap<string, PerfStatistics> > discardSample(
+    Future<hashmap<string, PerfStatistics> > future,
+    const Duration& duration,
+    const Duration& timeout)
+{
+  LOG(ERROR) << "Perf sample of " << stringify(duration)
+             << " failed to complete within " << stringify(timeout)
+             << "; sampling will be halted";
+
+  future.discard();
+
+  return future;
+}
+
+
+void CgroupsPerfEventIsolatorProcess::sample()
+{
+  set<string> cgroups;
+  foreachvalue (Info* info, infos) {
+    CHECK_NOTNULL(info);
+
+    if (info->destroying) {
+      // Skip cgroups if destroy has started because it's asynchronous
+      // and "perf stat" will fail if the cgroup has been destroyed
+      // by the time we actually run perf.
+      continue;
+    }
+
+    cgroups.insert(info->cgroup);
+  }
+
+  if (cgroups.size() > 0) {
+    // The timeout includes an allowance of twice the process::reap
+    // interval (currently one second) to ensure we see the perf
+    // process exit. If the sample is not ready after the timeout
+    // something very unexpected has occurred so we discard it and
+    // halt all sampling.
+    Duration timeout = flags.perf_duration + Seconds(2);
+
+    perf::sample(events, cgroups, flags.perf_duration)
+      .after(timeout,
+             lambda::bind(&discardSample,
+                          lambda::_1,
+                          flags.perf_duration,
+                          timeout))
+      .onAny(defer(PID<CgroupsPerfEventIsolatorProcess>(this),
+                   &CgroupsPerfEventIsolatorProcess::_sample,
+                   Clock::now() + flags.perf_interval,
+                   lambda::_1));
+  } else {
+    // No cgroups to sample for now so just schedule the next sample.
+    delay(flags.perf_interval,
+          PID<CgroupsPerfEventIsolatorProcess>(this),
+          &CgroupsPerfEventIsolatorProcess::sample);
+  }
+}
+
+
+void CgroupsPerfEventIsolatorProcess::_sample(
+    const Time& next,
+    const Future<hashmap<string, PerfStatistics> >& statistics)
+{
+  if (!statistics.isReady()) {
+    // Failure can occur for many reasons but all are unexpected and
+    // indicate something is not right so we'll stop sampling.
+    LOG(ERROR) << "Failed to get perf sample, sampling will be halted: "
+               << (statistics.isFailed() ? statistics.failure() : "discarded");
+    return;
+  }
+
+  foreachvalue (Info* info, infos) {
+    CHECK_NOTNULL(info);
+
+    if (!statistics.get().contains(info->cgroup)) {
+      // This must be a newly added cgroup and isn't in this sample;
+      // it should be included in the next sample.
+      continue;
+    }
+
+    info->statistics = statistics.get().get(info->cgroup).get();
+  }
+
+  // Schedule sample for the next time.
+  delay(next - Clock::now(),
+        PID<CgroupsPerfEventIsolatorProcess>(this),
+        &CgroupsPerfEventIsolatorProcess::sample);
+}
 
 } // namespace slave {
 } // namespace internal {

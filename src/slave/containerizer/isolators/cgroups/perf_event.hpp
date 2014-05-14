@@ -19,9 +19,14 @@
 #ifndef __PERF_EVENT_ISOLATOR_HPP__
 #define __PERF_EVENT_ISOLATOR_HPP__
 
+#include <set>
+
+#include "linux/perf.hpp"
+
 #include <mesos/resources.hpp>
 
 #include <process/future.hpp>
+#include <process/time.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/try.hpp>
@@ -65,29 +70,48 @@ public:
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);
 
+protected:
+  virtual void initialize();
+
 private:
   CgroupsPerfEventIsolatorProcess(
       const Flags& flags,
       const std::string& hierarchy);
+
+  void sample();
+
+  void _sample(
+      const process::Time& next,
+      const process::Future<hashmap<std::string, PerfStatistics> >& statistics);
 
   virtual process::Future<Nothing> _cleanup(const ContainerID& containerId);
 
   struct Info
   {
     Info(const ContainerID& _containerId, const std::string& _cgroup)
-      : containerId(_containerId), cgroup(_cgroup) {}
+      : containerId(_containerId), cgroup(_cgroup), destroying(false)
+    {
+      // Ensure the initial statistics include the required fields.
+      // Note the duration is set to zero to indicate no sampling has
+      // taken place. This empty sample will be returned from usage()
+      // until the first true sample is obtained.
+      statistics.set_timestamp(process::Clock::now().secs());
+      statistics.set_duration(Seconds(0).secs());
+    }
 
     const ContainerID containerId;
     const std::string cgroup;
-    Option<pid_t> pid;
-
-    process::Promise<Limitation> limitation;
+    PerfStatistics statistics;
+    // Mark a container when we start destruction so we stop sampling it.
+    bool destroying;
   };
 
   const Flags flags;
 
   // The path to the cgroups subsystem hierarchy root.
   const std::string hierarchy;
+  // Set of events to sample.
+  std::set<std::string> events;
 
   hashmap<ContainerID, Info*> infos;
 };
@@ -97,4 +121,3 @@ private:
 } // namespace mesos {
 
 #endif // __PERF_EVENT_ISOLATOR_HPP__
-
