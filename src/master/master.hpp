@@ -489,6 +489,15 @@ private:
 
     process::metrics::Gauge outstanding_offers;
 
+    // Task state metrics.
+    process::metrics::Gauge tasks_staging;
+    process::metrics::Gauge tasks_starting;
+    process::metrics::Gauge tasks_running;
+    process::metrics::Counter tasks_finished;
+    process::metrics::Counter tasks_failed;
+    process::metrics::Counter tasks_killed;
+    process::metrics::Counter tasks_lost;
+
     // Message counters.
     process::metrics::Counter dropped_messages;
 
@@ -574,6 +583,10 @@ private:
 
     return static_cast<double>(size);
   }
+
+  double _tasks_staging();
+  double _tasks_starting();
+  double _tasks_running();
 
   process::Time startTime; // Start time used to calculate uptime.
 };
@@ -770,21 +783,22 @@ struct Framework
     resources += task->resources();
   }
 
+  void addCompletedTask(const Task& task)
+  {
+    // TODO(adam-mesos): Check if completed task already exists.
+    completedTasks.push_back(memory::shared_ptr<Task>(new Task(task)));
+  }
+
   void removeTask(Task* task)
   {
     CHECK(tasks.contains(task->task_id()))
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
 
-    completedTasks.push_back(memory::shared_ptr<Task>(new Task(*task)));
+    addCompletedTask(*task);
+
     tasks.erase(task->task_id());
     resources -= task->resources();
-  }
-
-  void addCompletedTask(const Task& task)
-  {
-    // TODO(adam-mesos): Check if completed task already exists.
-    completedTasks.push_back(memory::shared_ptr<Task>(new Task(task)));
   }
 
   void addOffer(Offer* offer)

@@ -3600,6 +3600,20 @@ void Master::removeTask(Task* task)
   allocator->resourcesRecovered(
       task->framework_id(), task->slave_id(), Resources(task->resources()));
 
+  // Update the task state metric.
+  switch (task->state()) {
+    case TASK_FINISHED: ++metrics.tasks_finished; break;
+    case TASK_FAILED:   ++metrics.tasks_failed;   break;
+    case TASK_KILLED:   ++metrics.tasks_killed;   break;
+    case TASK_LOST:     ++metrics.tasks_lost;     break;
+    default:
+      LOG(WARNING) << "Removing task " << task->task_id()
+                   << " of framework " << task->framework_id()
+                   << " and slave " << task->slave_id()
+                   << " in non-terminal state " << task->state();
+      break;
+  }
+
   delete task;
 }
 
@@ -3715,6 +3729,63 @@ double Master::_inactive_slaves()
 }
 
 
+double Master::_tasks_staging()
+{
+  double count = 0.0;
+
+  foreachvalue (Slave* slave, slaves.activated) {
+    typedef hashmap<TaskID, Task*> TaskMap;
+    foreachvalue (const TaskMap& tasks, slave->tasks) {
+      foreachvalue (const Task* task, tasks) {
+        if (task->state() == TASK_STAGING) {
+          count++;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
+
+double Master::_tasks_starting()
+{
+  double count = 0.0;
+
+  foreachvalue (Slave* slave, slaves.activated) {
+    typedef hashmap<TaskID, Task*> TaskMap;
+    foreachvalue (const TaskMap& tasks, slave->tasks) {
+      foreachvalue (const Task* task, tasks) {
+        if (task->state() == TASK_STARTING) {
+          count++;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
+
+double Master::_tasks_running()
+{
+  double count = 0.0;
+
+  foreachvalue (Slave* slave, slaves.activated) {
+    typedef hashmap<TaskID, Task*> TaskMap;
+    foreachvalue (const TaskMap& tasks, slave->tasks) {
+      foreachvalue (const Task* task, tasks) {
+        if (task->state() == TASK_RUNNING) {
+          count++;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
+
 // TODO(dhamon): Consider moving to master/metrics.cpp|hpp.
 // Message counters are named with "messages_" prefix so they can
 // be grouped together alphabetically in the output.
@@ -3740,6 +3811,23 @@ Master::Metrics::Metrics(const Master& master)
     outstanding_offers(
         "master/outstanding_offers",
         defer(master, &Master::_outstanding_offers)),
+    tasks_staging(
+        "master/tasks_staging",
+        defer(master, &Master::_tasks_staging)),
+    tasks_starting(
+        "master/tasks_starting",
+        defer(master, &Master::_tasks_starting)),
+    tasks_running(
+        "master/tasks_running",
+        defer(master, &Master::_tasks_running)),
+    tasks_finished(
+        "master/tasks_finished"),
+    tasks_failed(
+        "master/tasks_failed"),
+    tasks_killed(
+        "master/tasks_killed"),
+    tasks_lost(
+        "master/tasks_lost"),
     dropped_messages(
         "master/dropped_messages"),
     messages_register_framework(
@@ -3806,6 +3894,14 @@ Master::Metrics::Metrics(const Master& master)
 
   process::metrics::add(outstanding_offers);
 
+  process::metrics::add(tasks_staging);
+  process::metrics::add(tasks_starting);
+  process::metrics::add(tasks_running);
+  process::metrics::add(tasks_finished);
+  process::metrics::add(tasks_failed);
+  process::metrics::add(tasks_killed);
+  process::metrics::add(tasks_lost);
+
   process::metrics::add(dropped_messages);
 
   // Messages from schedulers.
@@ -3859,6 +3955,14 @@ Master::Metrics::~Metrics()
   process::metrics::remove(inactive_frameworks);
 
   process::metrics::remove(outstanding_offers);
+
+  process::metrics::remove(tasks_staging);
+  process::metrics::remove(tasks_starting);
+  process::metrics::remove(tasks_running);
+  process::metrics::remove(tasks_finished);
+  process::metrics::remove(tasks_failed);
+  process::metrics::remove(tasks_killed);
+  process::metrics::remove(tasks_lost);
 
   process::metrics::remove(dropped_messages);
 
