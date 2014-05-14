@@ -149,7 +149,8 @@ void Slave::initialize()
   if (flags.slave_subsystems.isSome()) {
     foreach (const string& subsystem,
             strings::tokenize(flags.slave_subsystems.get(), ",")) {
-      LOG(INFO) << "Moving slave process into its own cgroup";
+      LOG(INFO) << "Moving slave process into its own cgroup for"
+                << " subsystem: " << subsystem;
 
       // Ensure the subsystem is mounted and the Mesos root cgroup is present.
       Try<string> hierarchy = cgroups::prepare(
