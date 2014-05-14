@@ -521,6 +521,13 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
     return Failure("Container '" + containerId.value() + "' not running");
   }
 
+  // We must not run multiple 'wait' invocations concurrently on the
+  // same container.
+  if (actives[containerId]->pid.isSome()) {
+    VLOG(2) << "Already waiting for " << containerId;
+    return actives[containerId]->termination.future();
+  }
+
   containerizer::Wait wait;
   wait.mutable_container_id()->CopyFrom(containerId);
 
