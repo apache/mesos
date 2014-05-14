@@ -3939,6 +3939,31 @@ Master::Metrics::Metrics(const Master& master)
   process::metrics::add(slave_registrations);
   process::metrics::add(slave_reregistrations);
   process::metrics::add(slave_removals);
+
+  // Create resource gauges.
+  // TODO(dhamon): Set these up dynamically when adding a slave based on the
+  // resources the slave exposes.
+  const string resources[] = {"cpus", "mem", "disk"};
+
+  foreach (const string& resource, resources) {
+    process::metrics::Gauge totalGauge(
+        "master/" + resource + "_total",
+        defer(master, &Master::_resources_total, resource));
+    resources_total.push_back(totalGauge);
+    process::metrics::add(totalGauge);
+
+    process::metrics::Gauge usedGauge(
+        "master/" + resource + "_used",
+        defer(master, &Master::_resources_used, resource));
+    resources_used.push_back(usedGauge);
+    process::metrics::add(usedGauge);
+
+    process::metrics::Gauge percentGauge(
+        "master/" + resource + "_percent",
+        defer(master, &Master::_resources_percent, resource));
+    resources_percent.push_back(percentGauge);
+    process::metrics::add(percentGauge);
+  }
 }
 
 
@@ -4001,6 +4026,64 @@ Master::Metrics::~Metrics()
   process::metrics::remove(slave_registrations);
   process::metrics::remove(slave_reregistrations);
   process::metrics::remove(slave_removals);
+
+  foreach (const process::metrics::Gauge& gauge, resources_total) {
+    process::metrics::remove(gauge);
+  }
+  resources_total.clear();
+
+  foreach (const process::metrics::Gauge& gauge, resources_used) {
+    process::metrics::remove(gauge);
+  }
+  resources_used.clear();
+
+  foreach (const process::metrics::Gauge& gauge, resources_percent) {
+    process::metrics::remove(gauge);
+  }
+  resources_percent.clear();
+}
+
+
+double Master::_resources_total(const std::string& name)
+{
+  double total = 0.0;
+
+  foreachvalue (Slave* slave, slaves.activated) {
+    foreach (const Resource& resource, slave->info.resources()) {
+      if (resource.name() == name && resource.type() == Value::SCALAR) {
+        total += resource.scalar().value();
+      }
+    }
+  }
+
+  return total;
+}
+
+
+double Master::_resources_used(const std::string& name)
+{
+  double used = 0.0;
+
+  foreachvalue (Slave* slave, slaves.activated) {
+    foreach (const Resource& resource, slave->resourcesInUse) {
+      if (resource.name() == name && resource.type() == Value::SCALAR) {
+        used += resource.scalar().value();
+      }
+    }
+  }
+
+  return used;
+}
+
+double Master::_resources_percent(const std::string& name)
+{
+  double total = _resources_total(name);
+
+  if (total == 0.0) {
+    return total;
+  } else {
+    return _resources_used(name) / total;
+  }
 }
 
 } // namespace master {

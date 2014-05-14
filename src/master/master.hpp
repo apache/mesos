@@ -539,6 +539,11 @@ private:
     process::metrics::Counter slave_registrations;
     process::metrics::Counter slave_reregistrations;
     process::metrics::Counter slave_removals;
+
+    // Resource metrics.
+    std::vector<process::metrics::Gauge> resources_total;
+    std::vector<process::metrics::Gauge> resources_used;
+    std::vector<process::metrics::Gauge> resources_percent;
   } metrics;
 
   // Gauge handlers.
@@ -587,6 +592,10 @@ private:
   double _tasks_staging();
   double _tasks_starting();
   double _tasks_running();
+
+  double _resources_total(const std::string& name);
+  double _resources_used(const std::string& name);
+  double _resources_percent(const std::string& name);
 
   process::Time startTime; // Start time used to calculate uptime.
 };

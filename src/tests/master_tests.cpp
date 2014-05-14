@@ -1466,6 +1466,18 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 
   EXPECT_EQ(1u, stats.values.count("master/event_queue_size"));
 
+  EXPECT_EQ(1u, stats.values.count("master/cpus_total"));
+  EXPECT_EQ(1u, stats.values.count("master/cpus_used"));
+  EXPECT_EQ(1u, stats.values.count("master/cpus_percent"));
+
+  EXPECT_EQ(1u, stats.values.count("master/mem_total"));
+  EXPECT_EQ(1u, stats.values.count("master/mem_used"));
+  EXPECT_EQ(1u, stats.values.count("master/mem_percent"));
+
+  EXPECT_EQ(1u, stats.values.count("master/disk_total"));
+  EXPECT_EQ(1u, stats.values.count("master/disk_used"));
+  EXPECT_EQ(1u, stats.values.count("master/disk_percent"));
+
   EXPECT_EQ(1u, stats.values.count("registrar/queued_operations"));
   EXPECT_EQ(1u, stats.values.count("registrar/registry_size_bytes"));
 
