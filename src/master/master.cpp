@@ -3978,7 +3978,7 @@ Master::Metrics::~Metrics()
   process::metrics::remove(messages_reconcile_tasks);
   process::metrics::remove(messages_framework_to_executor);
 
-  // Messages from schedulers.
+  // Messages from slaves.
   process::metrics::remove(messages_register_slave);
   process::metrics::remove(messages_reregister_slave);
   process::metrics::remove(messages_unregister_slave);

@@ -1442,7 +1442,7 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
   EXPECT_EQ(1u, stats.values.count("master/messages_reconcile_tasks"));
   EXPECT_EQ(1u, stats.values.count("master/messages_framework_to_executor"));
 
-  // Messages from schedulers.
+  // Messages from slaves.
   EXPECT_EQ(1u, stats.values.count("master/messages_register_slave"));
   EXPECT_EQ(1u, stats.values.count("master/messages_reregister_slave"));
   EXPECT_EQ(1u, stats.values.count("master/messages_unregister_slave"));
