@@ -315,7 +315,9 @@ void Master::initialize()
 
   // Load credentials.
   if (flags.credentials.isSome()) {
-    const string& path = flags.credentials.get();
+    const string& path =
+      strings::remove(flags.credentials.get(), "file://", strings::PREFIX);
+
     Result<vector<Credential> > credentials = credentials::read(path);
     if (credentials.isError()) {
       EXIT(1) << credentials.error() << " (see --credentials flag)";

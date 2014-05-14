@@ -220,12 +220,15 @@ void Slave::initialize()
 #endif // __linux__
 
   if (flags.credential.isSome()) {
-    const string& path = flags.credential.get();
+    const string& path =
+      strings::remove(flags.credential.get(), "file://", strings::PREFIX);
+
     Result<vector<Credential> > credentials = credentials::read(path);
     if (credentials.isError()) {
       EXIT(1) << credentials.error() << " (see --credential flag)";
     } else if (credentials.isNone()) {
-      EXIT(1) << "Empty credential file " << path << " (see --credential flag)";
+      EXIT(1) << "Empty credential file '" << path
+              << "' (see --credential flag)";
     } else if (credentials.get().size() != 1) {
       EXIT(1) << "Not expecting multiple credentials (see --credential flag)";
     } else {

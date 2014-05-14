@@ -32,10 +32,9 @@ namespace credentials {
 
 inline Result<std::vector<Credential> > read(const std::string& path)
 {
-  LOG(INFO) << "Loading credentials for authentication";
+  LOG(INFO) << "Loading credentials for authentication from '" << path << "'";
 
-  Try<std::string> read = os::read(
-      strings::remove(path, "file://", strings::PREFIX));
+  Try<std::string> read = os::read(path);
   if (read.isError()) {
     return Error("Failed to read credentials file '" + path +
                  "': " + read.error());
