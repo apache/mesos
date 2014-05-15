@@ -125,7 +125,9 @@ Try<Nothing> LinuxLauncher::recover(const std::list<state::RunState>& states)
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup"
                 << " '" << path::join("freezer", orphan) << "'";
-      cgroups::destroy(hierarchy, orphan);
+      // Do not wait on the destroy to complete so we don't block
+      // recovery.
+      cgroups::destroy(hierarchy, orphan, cgroups::DESTROY_TIMEOUT);
     }
   }
 
@@ -271,13 +273,13 @@ Try<pid_t> LinuxLauncher::fork(
 
 Future<Nothing> _destroy(
     const ContainerID& containerId,
-    process::Future<Nothing> destroyed)
+    const process::Future<Nothing>& destroyed)
 {
-  if (destroyed.isFailed()) {
-    LOG(ERROR) << "Failed to destroy freezer cgroup for '"
-               << containerId << "': " << destroyed.failure();
-    return Failure("Failed to destroy launcher: " + destroyed.failure());
+  if (!destroyed.isReady()) {
+    return Failure("Failed to destroy launcher: " +
+                   (destroyed.isFailed() ? destroyed.failure() : "discarded"));
   }
+
   return Nothing();
 }
 
@@ -286,8 +288,9 @@ Future<Nothing> LinuxLauncher::destroy(const ContainerID& containerId)
 {
   pids.erase(containerId);
 
-  return cgroups::destroy(hierarchy, cgroup(containerId))
-    .then(lambda::bind(&_destroy, containerId, lambda::_1));
+  return cgroups::destroy(
+      hierarchy, cgroup(containerId), cgroups::DESTROY_TIMEOUT)
+    .onAny(lambda::bind(&_destroy, containerId, lambda::_1));
 }
 
 

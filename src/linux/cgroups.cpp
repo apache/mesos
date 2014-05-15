@@ -1668,18 +1668,24 @@ Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
 }
 
 
-Future<Nothing> destroyTimedOut(
-    Future<Nothing> future,
+namespace {
+
+Future<Nothing> discard(Future<Nothing> future)
+{
+  future.discard();
+
+  return future;
+}
+
+} // namespace
+
+Future<Nothing> destroy(
     const string& hierarchy,
     const string& cgroup,
     const Duration& timeout)
 {
-  LOG(WARNING) << "Failed to destroy cgroup '" << path::join(hierarchy, cgroup)
-               << "' after " << timeout;
-
-  future.discard();
-
-  return future;
+  return destroy(hierarchy, cgroup)
+    .after(timeout, lambda::bind(&discard, lambda::_1));
 }
 
 

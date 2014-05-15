@@ -75,7 +75,9 @@ private:
       const Flags& flags,
       const hashmap<std::string, std::string>& hierarchies);
 
-  virtual process::Future<Nothing> _cleanup(const ContainerID& containerId);
+  virtual process::Future<std::list<Nothing> > _cleanup(
+      const ContainerID& containerId,
+      const process::Future<std::list<Nothing> >& future);
 
   struct Info
   {

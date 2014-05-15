@@ -73,7 +73,9 @@ public:
 private:
   CgroupsMemIsolatorProcess(const Flags& flags, const std::string& hierarchy);
 
-  virtual process::Future<Nothing> _cleanup(const ContainerID& containerId);
+  virtual process::Future<Nothing> _cleanup(
+      const ContainerID& containerId,
+      const process::Future<Nothing>& future);
 
   struct Info
   {

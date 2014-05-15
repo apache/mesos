@@ -166,7 +166,8 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
 
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup '" << orphan << "'";
-      cgroups::destroy(hierarchy, orphan);
+      // We don't wait on the destroy as we don't want to block recovery.
+      cgroups::destroy(hierarchy, orphan, cgroups::DESTROY_TIMEOUT);
     }
   }
 
@@ -380,17 +381,29 @@ Future<Nothing> CgroupsMemIsolatorProcess::cleanup(
     info->oomNotifier.discard();
   }
 
-  return cgroups::destroy(hierarchy, info->cgroup)
-    .then(defer(PID<CgroupsMemIsolatorProcess>(this),
-                &CgroupsMemIsolatorProcess::_cleanup,
-                containerId));
+  return cgroups::destroy(hierarchy, info->cgroup, cgroups::DESTROY_TIMEOUT)
+    .onAny(defer(PID<CgroupsMemIsolatorProcess>(this),
+                 &CgroupsMemIsolatorProcess::_cleanup,
+                 containerId,
+                 lambda::_1));
 }
 
 
 Future<Nothing> CgroupsMemIsolatorProcess::_cleanup(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const Future<Nothing>& future)
 {
-  CHECK(infos.contains(containerId));
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  CHECK_NOTNULL(infos[containerId]);
+
+  if (!future.isReady()) {
+    return Failure("Failed to clean up container " + stringify(containerId) +
+                   " : " + (future.isFailed() ? future.failure()
+                                              : "discarded"));
+  }
 
   delete infos[containerId];
   infos.erase(containerId);

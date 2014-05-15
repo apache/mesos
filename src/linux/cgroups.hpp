@@ -40,6 +40,9 @@
 
 namespace cgroups {
 
+// Suggested timeout for use with the convenience version of
+// cgroups::destroy(); it is not a default timeout and must be
+// explicitly specified.
 const Duration DESTROY_TIMEOUT = Seconds(60);
 
 // Default number of assign attempts when moving threads to a cgroup.

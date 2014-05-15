@@ -173,7 +173,9 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup"
                 << " '" << path::join("cpu", orphan) << "'";
-      cgroups::destroy(hierarchies["cpu"], orphan);
+      // We don't wait on the destroy as we don't want to block recovery.
+      cgroups::destroy(
+          hierarchies["cpu"], orphan, cgroups::DESTROY_TIMEOUT);
     }
   }
 
@@ -198,7 +200,9 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup"
                 << " '" << path::join("cpuacct", orphan) << "'";
-      cgroups::destroy(hierarchies["cpuacct"], orphan);
+      // We don't wait on the destroy as we don't want to block recovery.
+      cgroups::destroy(
+          hierarchies["cpuacct"], orphan, cgroups::DESTROY_TIMEOUT);
     }
   }
 
@@ -429,6 +433,13 @@ Future<ResourceStatistics> CgroupsCpushareIsolatorProcess::usage(
 }
 
 
+namespace {
+
+Future<Nothing> _nothing() { return Nothing(); }
+
+} // namespace {
+
+
 Future<Nothing> CgroupsCpushareIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
@@ -442,25 +453,40 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::cleanup(
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
   list<Future<Nothing> > futures;
-  futures.push_back(cgroups::destroy(hierarchies["cpu"], info->cgroup));
-  futures.push_back(cgroups::destroy(hierarchies["cpuacct"], info->cgroup));
+  foreachvalue (const string& hierarchy, hierarchies) {
+    futures.push_back(
+        cgroups::destroy(hierarchy, info->cgroup, cgroups::DESTROY_TIMEOUT));
+  }
 
   return collect(futures)
-    .then(defer(PID<CgroupsCpushareIsolatorProcess>(this),
+    .onAny(defer(PID<CgroupsCpushareIsolatorProcess>(this),
                 &CgroupsCpushareIsolatorProcess::_cleanup,
-                containerId));
+                containerId,
+                lambda::_1))
+    .then(lambda::bind(&_nothing));
 }
 
 
-Future<Nothing> CgroupsCpushareIsolatorProcess::_cleanup(
-    const ContainerID& containerId)
+Future<list<Nothing> > CgroupsCpushareIsolatorProcess::_cleanup(
+    const ContainerID& containerId,
+    const Future<list<Nothing> >& future)
 {
-  CHECK(infos.contains(containerId));
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  CHECK_NOTNULL(infos[containerId]);
+
+  if (!future.isReady()) {
+    return Failure("Failed to clean up container " + stringify(containerId) +
+                   " : " + (future.isFailed() ? future.failure()
+                                              : "discarded"));
+  }
 
   delete infos[containerId];
   infos.erase(containerId);
 
-  return Nothing();
+  return future;
 }
 
 
