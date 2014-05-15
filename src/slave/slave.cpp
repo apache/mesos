@@ -1879,7 +1879,6 @@ void Slave::reregisterExecutor(
       foreach (Task* task, executor->launchedTasks.values()) {
         if (task->state() == TASK_STAGING &&
             !unackedTasks.contains(task->task_id())) {
-
           LOG(INFO)
             << "Transitioning STAGED task " << task->task_id() << " to LOST"
             << " because it is unknown to the executor " << executorId;

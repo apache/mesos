@@ -31,7 +31,6 @@ namespace tests {
 class TestIsolatorProcess : public slave::IsolatorProcess
 {
 public:
-
   static Try<slave::Isolator*> create(const Option<CommandInfo>& commandInfo)
   {
     process::Owned<slave::IsolatorProcess> process(

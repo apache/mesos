@@ -445,7 +445,6 @@ inline void Cluster::Slaves::shutdown()
   foreachpair (const process::PID<slave::Slave>& pid,
                const Slave& slave,
                copy) {
-
     process::Future<hashset<ContainerID> > containers =
       slave.containerizer->containers();
     AWAIT_READY(containers);
@@ -606,8 +605,7 @@ inline Try<Nothing> Cluster::Slaves::stop(
   // when the --slave_subsystems flag is used.
   if (slave.flags.slave_subsystems.isSome()) {
     foreach (const std::string& subsystem,
-            strings::tokenize(slave.flags.slave_subsystems.get(), ",")) {
-
+             strings::tokenize(slave.flags.slave_subsystems.get(), ",")) {
       std::string hierarchy = path::join(
           slave.flags.cgroups_hierarchy, subsystem);
 

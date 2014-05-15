@@ -104,7 +104,6 @@ public:
       // ACL matches if both subjects and objects match.
       if (matches(request.principals(), acl.principals()) &&
           matches(request.users(), acl.users())) {
-
         // ACL is allowed if both subjects and objects are allowed.
         return allows(request.principals(), acl.principals()) &&
                allows(request.users(), acl.users());
@@ -120,7 +119,6 @@ public:
       // ACL matches if both subjects and objects match.
       if (matches(request.principals(), acl.principals()) &&
           matches(request.roles(), acl.roles())) {
-
         // ACL is allowed if both subjects and objects are allowed.
         return allows(request.principals(), acl.principals()) &&
                allows(request.roles(), acl.roles());
@@ -138,7 +136,6 @@ public:
           matches(request.ips(), acl.ips()) &&
           matches(request.hostnames(), acl.hostnames()) &&
           matches(request.urls(), acl.urls())) {
-
         // ACL is allowed if both subjects and objects are allowed.
         return allows(request.usernames(), acl.usernames()) &&
                allows(request.ips(), acl.ips()) &&
@@ -158,7 +155,6 @@ public:
           matches(request.ips(), acl.ips()) &&
           matches(request.hostnames(), acl.hostnames()) &&
           matches(request.urls(), acl.urls())) {
-
         // ACL is allowed if both subjects and objects are allowed.
         return allows(request.usernames(), acl.usernames()) &&
                allows(request.ips(), acl.ips()) &&

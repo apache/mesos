@@ -189,7 +189,6 @@ private:
 
   // Set of cgroup subsystems used by the cgroups related tests.
   hashset<std::string> subsystems;
-
 };
 #else
 template<>

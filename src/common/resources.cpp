@@ -238,7 +238,6 @@ Option<Resources> Resources::find(
           if ((i == 0 && potential.role() == role) ||
               (i == 1 && potential.role() == "*" && potential.role() != role) ||
               (i == 2 && potential.role() != "*" && potential.role() != role)) {
-
             // The resources must have the same role for <= to work.
             Resource potential_ = potential;
             potential_.set_role(remaining.role());
