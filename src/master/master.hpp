@@ -598,6 +598,8 @@ private:
   double _resources_percent(const std::string& name);
 
   process::Time startTime; // Start time used to calculate uptime.
+
+  Option<process::Time> electedTime; // Time when this master is elected.
 };
 
 

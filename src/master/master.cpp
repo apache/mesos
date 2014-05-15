@@ -224,7 +224,8 @@ Master::Master(
     files(_files),
     contender(_contender),
     detector(_detector),
-    metrics(*this)
+    metrics(*this),
+    electedTime(None())
 {
   // NOTE: We populate 'info_' here instead of inside 'initialize()'
   // because 'StandaloneMasterDetector' needs access to the info.
@@ -929,13 +930,21 @@ void Master::detected(const Future<Option<MasterInfo> >& _leader)
     EXIT(1) << "Lost leadership... committing suicide!";
   }
 
-  if (!wasElected && elected()) {
-    LOG(INFO) << "Elected as the leading master!";
+  if (elected()) {
+    electedTime = Clock::now();
 
-    // Begin the recovery process, bail if it fails or is discarded.
-    recover()
-      .onFailed(lambda::bind(fail, "Recovery failed", lambda::_1))
-      .onDiscarded(lambda::bind(fail, "Recovery failed", "discarded"));
+    if (!wasElected) {
+      LOG(INFO) << "Elected as the leading master!";
+
+      // Begin the recovery process, bail if it fails or is discarded.
+      recover()
+        .onFailed(lambda::bind(fail, "Recovery failed", lambda::_1))
+        .onDiscarded(lambda::bind(fail, "Recovery failed", "discarded"));
+    } else {
+      // This happens if there is a ZK blip that causes a re-election
+      // but the same leading master is elected as leader.
+      LOG(INFO) << "Re-elected as the leading master";
+    }
   }
 
   // Keep detecting.

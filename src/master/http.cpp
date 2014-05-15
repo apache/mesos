@@ -470,6 +470,11 @@ Future<Response> Master::Http::state(const Request& request)
   object.values["build_time"] = build::TIME;
   object.values["build_user"] = build::USER;
   object.values["start_time"] = master.startTime.secs();
+
+  if (master.electedTime.isSome()) {
+    object.values["elected_time"] = master.electedTime.get().secs();
+  }
+
   object.values["id"] = master.info().id();
   object.values["pid"] = string(master.self());
   object.values["hostname"] = master.info().hostname();
