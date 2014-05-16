@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -77,6 +78,14 @@ private:
   uint16_t begin_; // In host order.
   uint16_t end_;   // In host order.
 };
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const PortRange& range)
+{
+  return stream << "[" << range.begin() << "," << range.end() << "]";
+}
 
 
 class Classifier

@@ -33,6 +33,7 @@
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/net.hpp>
+#include <stout/stringify.hpp>
 
 #include "linux/routing/route.hpp"
 #include "linux/routing/utils.hpp"
@@ -113,24 +114,28 @@ TEST_F(RoutingTest, PortRange)
   EXPECT_EQ(4u, ports.get().begin());
   EXPECT_EQ(7u, ports.get().end());
   EXPECT_EQ(0xfffc, ports.get().mask());
+  EXPECT_EQ("[4,7]", stringify(ports.get()));
 
   ports = ip::PortRange::fromBeginEnd(10, 10);
   ASSERT_SOME(ports);
   EXPECT_EQ(10u, ports.get().begin());
   EXPECT_EQ(10u, ports.get().end());
   EXPECT_EQ(0xffff, ports.get().mask());
+  EXPECT_EQ("[10,10]", stringify(ports.get()));
 
   ports = ip::PortRange::fromBeginMask(20, 0xffff);
   ASSERT_SOME(ports);
   EXPECT_EQ(20u, ports.get().begin());
   EXPECT_EQ(20u, ports.get().end());
   EXPECT_EQ(0xffff, ports.get().mask());
+  EXPECT_EQ("[20,20]", stringify(ports.get()));
 
   ports = ip::PortRange::fromBeginMask(1024, 0xfff8);
   ASSERT_SOME(ports);
   EXPECT_EQ(1024u, ports.get().begin());
   EXPECT_EQ(1031u, ports.get().end());
   EXPECT_EQ(0xfff8, ports.get().mask());
+  EXPECT_EQ("[1024,1031]", stringify(ports.get()));
 }
 
 
