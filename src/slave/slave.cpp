@@ -564,7 +564,7 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
       // we delay 'Slave::authenticate' and a new master is detected
       // before 'authenticate' event is processed the slave tries to
       // authenticate with the new master twice.
-      // TODO(vinod): Consider adding an "AUTHENTICATED" state to the\
+      // TODO(vinod): Consider adding an "AUTHENTICATED" state to the
       // slave instead of "authenticate" variable.
       authenticate();
     } else {
