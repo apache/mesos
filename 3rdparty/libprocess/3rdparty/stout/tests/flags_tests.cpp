@@ -7,14 +7,20 @@
 #include <stout/flags.hpp>
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
+#include <stout/json.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/some.hpp>
 
+#include <stout/tests/utils.hpp>
 
 using namespace flags;
+
+using std::string;
+using std::map;
 
 class TestFlags : public virtual FlagsBase
 {
@@ -45,7 +51,7 @@ public:
         "Set name5");
   }
 
-  std::string name1;
+  string name1;
   int name2;
   bool name3;
   Option<bool> name4;
@@ -57,7 +63,7 @@ TEST(FlagsTest, Load)
 {
   TestFlags flags;
 
-  std::map<std::string, Option<std::string> > values;
+  map<string, Option<string> > values;
 
   values["name1"] = Some("billy joel");
   values["name2"] = Some("43");
@@ -81,7 +87,7 @@ TEST(FlagsTest, Add)
 {
   Flags<TestFlags> flags;
 
-  Option<std::string> name6;
+  Option<string> name6;
 
   flags.add(&name6,
             "name6",
@@ -94,13 +100,13 @@ TEST(FlagsTest, Add)
             "Also set name7",
             true);
 
-  Option<std::string> name8;
+  Option<string> name8;
 
   flags.add(&name8,
             "name8",
             "Also set name8");
 
-  std::map<std::string, Option<std::string> > values;
+  map<string, Option<string> > values;
 
   values["name6"] = Some("ben folds");
   values["no-name7"] = None();
@@ -120,7 +126,7 @@ TEST(FlagsTest, Flags)
 {
   TestFlags flags;
 
-  std::map<std::string, Option<std::string> > values;
+  map<string, Option<string> > values;
 
   values["name1"] = Some("billy joel");
   values["name2"] = Some("43");
@@ -325,7 +331,7 @@ TEST(FlagsTest, Stringification)
             "name8",
             "Optional name8");
 
-  std::map<std::string, Option<std::string> > values;
+  map<string, Option<string> > values;
 
   values["name2"] = Some("43");
   values["no-name4"] = None();
@@ -333,8 +339,8 @@ TEST(FlagsTest, Stringification)
 
   flags.load(values);
 
-  foreachpair(const std::string& name, const Flag& flag, flags) {
-    Option<std::string> value = flag.stringify(flags);
+  foreachpair (const string& name, const Flag& flag, flags) {
+    Option<string> value = flag.stringify(flags);
     if (name == "name1") {
       ASSERT_SOME(value);
       EXPECT_EQ("ben folds", value.get());
@@ -503,15 +509,82 @@ TEST(FlagsTest, Duration)
             "name7",
             "Also some amount of time");
 
-  std::map<std::string, Option<std::string> > values;
+  map<string, Option<string> > values;
 
   values["name6"] = Some("2mins");
   values["name7"] = Some("3hrs");
 
-  flags.load(values);
+  ASSERT_SOME(flags.load(values));
 
   EXPECT_EQ(Minutes(2), name6);
 
-  ASSERT_SOME(name7);
-  EXPECT_EQ(Hours(3), name7.get());
+  EXPECT_SOME_EQ(Hours(3), name7);
+}
+
+
+TEST(FlagsTest, JSON)
+{
+  Flags<TestFlags> flags;
+
+  Option<JSON::Object> json;
+
+  flags.add(&json,
+            "json",
+            "JSON string");
+
+  JSON::Object object;
+
+  object.values["strings"] = "string";
+  object.values["integer"] = 1;
+  object.values["double"] = -1.42;
+
+  JSON::Object nested;
+  nested.values["string"] = "string";
+
+  object.values["nested"] = nested;
+
+  map<string, Option<string> > values;
+  values["json"] = Some(stringify(object));
+
+  ASSERT_SOME(flags.load(values));
+
+  ASSERT_SOME_EQ(object, json);
+}
+
+
+class FlagsFileTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(FlagsFileTest, JSONFile)
+{
+  Flags<TestFlags> flags;
+
+  Option<JSON::Object> json;
+
+  flags.add(&json,
+            "json",
+            "JSON string");
+
+  JSON::Object object;
+
+  object.values["strings"] = "string";
+  object.values["integer"] = 1;
+  object.values["double"] = -1.42;
+
+  JSON::Object nested;
+  nested.values["string"] = "string";
+
+  object.values["nested"] = nested;
+
+  // Write the JSON to a file.
+  const string& file = path::join(os::getcwd(), "file.json");
+  ASSERT_SOME(os::write(file, stringify(object)));
+
+  // Read the JSON from the file.
+  map<string, Option<string> > values;
+  values["json"] = Some(file);
+
+  ASSERT_SOME(flags.load(values));
+
+  ASSERT_SOME_EQ(object, json);
 }

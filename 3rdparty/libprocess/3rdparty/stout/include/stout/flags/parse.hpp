@@ -19,7 +19,11 @@
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
+#include <stout/json.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
+
+#include <stout/os/read.hpp>
 
 namespace flags {
 
@@ -66,6 +70,33 @@ template <>
 inline Try<Bytes> parse(const std::string& value)
 {
   return Bytes::parse(value);
+}
+
+
+template <>
+inline Try<JSON::Object> parse(const std::string& value)
+{
+  // If the flag value corresponds to a file parse the contents of the
+  // file as JSON.
+  // TODO(vinod): We do not support relative paths because it is
+  // tricky to figure out if a flag value corresponds to a relative
+  // path or a JSON string. For example, "{", "  {" and "  \n {" are
+  // all valid prefixes of a JSON string.
+  if (strings::startsWith(value, "/") ||
+      strings::startsWith(value, "file://")) {
+
+    const std::string& path =
+      strings::remove(value, "file://", strings::PREFIX);
+
+    Try<std::string> read = os::read(path);
+    if (read.isError()) {
+      return Error("Error reading file '" + path + "': " + read.error());
+    }
+
+    return JSON::parse<JSON::Object>(read.get());
+  }
+
+  return JSON::parse<JSON::Object>(value);
 }
 
 } // namespace flags {
