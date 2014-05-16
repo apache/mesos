@@ -20,12 +20,15 @@
 #define __LINUX_ROUTING_INTERNAL_HPP__
 
 #include <netlink/cache.h>
+#include <netlink/errno.h>
 #include <netlink/netlink.h>
 #include <netlink/socket.h>
 
 #include <netlink/route/classifier.h>
 #include <netlink/route/link.h>
 #include <netlink/route/qdisc.h>
+
+#include <string>
 
 #include <stout/error.hpp>
 #include <stout/memory.hpp>
@@ -92,8 +95,12 @@ inline Try<Netlink<struct nl_sock> > socket()
   }
 
   Netlink<struct nl_sock> sock(s);
-  if (nl_connect(sock.get(), NETLINK_ROUTE) != 0) {
-    return Error("Failed to connect to routing netlink protocol");
+
+  int err = nl_connect(sock.get(), NETLINK_ROUTE);
+  if (err != 0) {
+    return Error(
+        "Failed to connect to routing netlink protocol: " +
+        std::string(nl_geterror(err)));
   }
 
   return sock;
