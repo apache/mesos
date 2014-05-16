@@ -72,6 +72,8 @@ namespace sasl {
 class Authenticator;
 }
 
+class Authorizer;
+
 namespace master {
 
 // Forward declarations.
@@ -456,6 +458,8 @@ private:
 
   // Authenticated frameworks/slaves keyed by PID.
   hashset<process::UPID> authenticated;
+
+  Option<process::Owned<Authorizer> > authorizer;
 
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.

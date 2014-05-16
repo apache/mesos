@@ -23,6 +23,8 @@
 
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
+#include <stout/json.hpp>
+#include <stout/option.hpp>
 
 #include "logging/flags.hpp"
 
@@ -204,6 +206,29 @@ public:
         "Path to a file with a list of credentials.\n"
         "Each line contains 'principal' and 'secret' separated by whitespace.\n"
         "Path could be of the form 'file:///path/to/file' or '/path/to/file'.");
+
+    add(&Flags::acls,
+        "acls",
+        "The value could be a JSON formatted string of ACLs\n"
+        "or a file path containing the JSON formatted ACLs used\n"
+        "for authorization. Path could be of the form 'file:///path/to/file'\n"
+        "or '/path/to/file'.\n"
+        "\n"
+        "See the ACL protobuf in mesos.proto for the expected format.\n"
+        "\n"
+        "Example:\n"
+        "{\n"
+        "  \"run_tasks\": [\n"
+        "                  {\n"
+        "                     \"principals\": { values: [\"foo\", \"bar\"] },\n"
+        "                     \"users\": { values: [\"root\"] }\n"
+        "                  },\n"
+        "                  {\n"
+        "                     \"principals\": { type: \"ANY\" },\n"
+        "                     \"users\": { values: [\"guest\"] }\n"
+        "                  }\n"
+        "                ]\n"
+        "}");
   }
 
   bool version;
@@ -230,6 +255,7 @@ public:
   bool authenticate_frameworks;
   bool authenticate_slaves;
   Option<std::string> credentials;
+  Option<JSON::Object> acls;
 };
 
 } // namespace mesos {

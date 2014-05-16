@@ -44,6 +44,8 @@
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
+#include "authorizer/authorizer.hpp"
+
 #include "sasl/authenticator.hpp"
 
 #include "common/build.hpp"
@@ -332,6 +334,16 @@ void Master::initialize()
   } else if (flags.authenticate_frameworks || flags.authenticate_slaves) {
     EXIT(1) << "Authentication requires a credentials file"
             << " (see --credentials flag)";
+  }
+
+  if (flags.acls.isSome()) {
+    LOG(INFO) << "Master enabling authorization";
+    Try<Owned<Authorizer> > authorizer_ = Authorizer::create(flags.acls.get());
+    if (authorizer_.isError()) {
+      EXIT(1) << "Failed to initialize the Authorizer: "
+              << authorizer_.error() << " (see --acls flag)";
+    }
+    authorizer = authorizer_.get();
   }
 
   hashmap<string, RoleInfo> roleInfos;

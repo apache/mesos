@@ -20,6 +20,7 @@
 
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
+#include <stout/json.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/result.hpp>
@@ -97,6 +98,9 @@ master::Flags MesosTest::CreateMasterFlags()
   CHECK_SOME(os::close(fd.get()));
 
   flags.credentials = "file://" + path;
+
+  // Set default ACLs.
+  flags.acls = JSON::Object();
 
   // Use the replicated log (without ZooKeeper) by default.
   flags.registry = "replicated_log";

@@ -34,11 +34,10 @@
 #include <stout/check.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
 #include "mesos/mesos.hpp"
-
-#include "master/flags.hpp"
 
 namespace mesos {
 namespace internal {
@@ -52,8 +51,8 @@ class Authorizer
 public:
   virtual ~Authorizer() {}
 
-  // Attempts to create an Authorizer based on the flags.
-  static Try<process::Owned<Authorizer> > create(const master::Flags& flags);
+  // Attempts to create an Authorizer based on the ACLs.
+  static Try<process::Owned<Authorizer> > create(const JSON::Object& acls);
 
   // Returns true if the ACL can be satisfied or false otherwise.
   // A failed future indicates a transient failure and the user
@@ -277,11 +276,16 @@ private:
 };
 
 
-Try<process::Owned<Authorizer> > Authorizer::create(const master::Flags& flags)
+Try<process::Owned<Authorizer> > Authorizer::create(const JSON::Object& acls_)
 {
-  // TODO(vinod): Parse "flags.acls" from JSON to "ACLs" protobuf.
+  // Convert ACLs from JSON to Protobuf.
+  Try<ACLs> acls = protobuf::parse<ACLs>(acls_);
+  if (acls.isError()) {
+    return Error("Invalid ACLs format: " + acls.error());
+  }
+
   Try<process::Owned<LocalAuthorizer> > authorizer =
-    LocalAuthorizer::create(ACLs());
+    LocalAuthorizer::create(acls.get());
 
   if (authorizer.isError()) {
     return Error(authorizer.error());
