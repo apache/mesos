@@ -64,12 +64,8 @@ TEST_F(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
   for (int i = 0; i < 10; i++) {
     slave::Flags flags = CreateSlaveFlags();
 
-#ifdef __linux__
-    // Disable putting slave into cgroup(s) because this is a multi-slave test.
-    flags.slave_subsystems = None();
-#endif // __linux
-
     flags.resources = Option<std::string>("cpus:2;mem:1024");
+
     Try<PID<Slave> > slave = StartSlave(flags);
     ASSERT_SOME(slave);
   }

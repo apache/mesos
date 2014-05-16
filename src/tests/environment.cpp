@@ -81,7 +81,7 @@ static bool enable(const ::testing::TestInfo& test)
       return false;
     }
 
-    if (strings::contains(name, "CGROUPS_") && !os::exists("/proc/cgroups")) {
+    if (strings::contains(name, "CGROUPS_") && !cgroups::enabled()) {
       return false;
     }
 
@@ -129,7 +129,7 @@ static bool enable(const ::testing::TestInfo& test)
   if (test.type_param() != NULL) {
     const string& type = test.type_param();
     if (strings::contains(type, "Cgroups") &&
-        (os::user() != "root" || !os::exists("/proc/cgroups"))) {
+        (os::user() != "root" || !cgroups::enabled())) {
       return false;
     }
   }

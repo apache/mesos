@@ -145,13 +145,6 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   flags.registration_backoff_factor = Milliseconds(10);
 
-#ifdef __linux__
-  // Enable putting the slave into memory and cpuacct cgroups.
-  if (os::exists("/proc/cgroups") && os::user() == "root") {
-    flags.slave_subsystems = "memory,cpuacct";
-  }
-#endif // __linux__
-
   return flags;
 }
 
@@ -327,10 +320,13 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 #ifdef __linux__
   // Use cgroup isolators if they're available and we're root.
   // TODO(idownes): Refactor the cgroups/non-cgroups code.
-  if (os::exists("/proc/cgroups") && os::user() == "root") {
+  if (cgroups::enabled() && os::user() == "root") {
     flags.isolation = "cgroups/cpu,cgroups/mem";
     flags.cgroups_hierarchy = baseHierarchy;
     flags.cgroups_root = TEST_CGROUPS_ROOT + "_" + UUID::random().toString();
+
+    // Enable putting the slave into memory and cpuacct cgroups.
+    flags.slave_subsystems = "memory,cpuacct";
   } else {
     flags.isolation = "posix/cpu,posix/mem";
   }
@@ -345,7 +341,7 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 #ifdef __linux__
 void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 {
-  if (os::exists("/proc/cgroups") && os::user() == "root") {
+  if (cgroups::enabled() && os::user() == "root") {
     // Clean up any testing hierarchies.
     Try<std::set<string> > hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
@@ -360,7 +356,7 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 
 void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
 {
-  if (os::exists("/proc/cgroups") && os::user() == "root") {
+  if (cgroups::enabled() && os::user() == "root") {
     // Clean up any testing hierarchies.
     Try<std::set<string> > hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
@@ -382,7 +378,7 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
   subsystems.insert("memory");
   subsystems.insert("freezer");
 
-  if (os::exists("/proc/cgroups") && os::user() == "root") {
+  if (cgroups::enabled() && os::user() == "root") {
     foreach (const string& subsystem, subsystems) {
       // Establish the base hierarchy if this is the first subsystem checked.
       if (baseHierarchy.empty()) {
@@ -428,7 +424,7 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
 {
   MesosTest::TearDown();
 
-  if (os::exists("/proc/cgroups") && os::user() == "root") {
+  if (cgroups::enabled() && os::user() == "root") {
     foreach (const string& subsystem, subsystems) {
       string hierarchy = path::join(baseHierarchy, subsystem);
 
