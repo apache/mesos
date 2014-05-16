@@ -230,7 +230,7 @@ Future<T> timeout(
 void fail(deque<Owned<Operation> >* operations, const string& message)
 {
   while (!operations->empty()) {
-    const Owned<Operation>& operation = operations->front();
+    Owned<Operation> operation = operations->front();
     operations->pop_front();
 
     operation->fail(message);
