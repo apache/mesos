@@ -30,6 +30,8 @@
 #include <stout/os/sysctl.hpp>
 #endif
 
+#include <stout/tests/utils.hpp>
+
 using os::Exec;
 using os::Fork;
 using os::Process;
@@ -51,23 +53,7 @@ static hashset<string> listfiles(const string& directory)
 }
 
 
-class OsTest : public ::testing::Test
-{
-protected:
-  virtual void SetUp()
-  {
-    const Try<string>& mkdtemp = os::mkdtemp();
-    ASSERT_SOME(mkdtemp);
-    tmpdir = mkdtemp.get();
-  }
-
-  virtual void TearDown()
-  {
-    ASSERT_SOME(os::rmdir(tmpdir));
-  }
-
-  string tmpdir;
-};
+class OsTest : public TemporaryDirectoryTest {};
 
 
 TEST_F(OsTest, environment)
@@ -96,6 +82,7 @@ TEST_F(OsTest, environment)
 TEST_F(OsTest, rmdir)
 {
   const hashset<string> EMPTY;
+  const string& tmpdir = os::getcwd();
 
   hashset<string> expectedListing = EMPTY;
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
@@ -170,7 +157,7 @@ TEST_F(OsTest, nonblock)
 
 TEST_F(OsTest, touch)
 {
-  const string& testfile  = tmpdir + "/" + UUID::random().toString();
+  const string& testfile  = path::join(os::getcwd(), UUID::random().toString());
 
   ASSERT_SOME(os::touch(testfile));
   ASSERT_TRUE(os::exists(testfile));
@@ -179,7 +166,7 @@ TEST_F(OsTest, touch)
 
 TEST_F(OsTest, readWriteString)
 {
-  const string& testfile  = tmpdir + "/" + UUID::random().toString();
+  const string& testfile  = path::join(os::getcwd(), UUID::random().toString());
   const string& teststr = "line1\nline2";
 
   ASSERT_SOME(os::write(testfile, teststr));
@@ -193,7 +180,7 @@ TEST_F(OsTest, readWriteString)
 
 TEST_F(OsTest, find)
 {
-  const string& testdir = tmpdir + "/" + UUID::random().toString();
+  const string& testdir = path::join(os::getcwd(), UUID::random().toString());
   const string& subdir = testdir + "/test1";
   ASSERT_SOME(os::mkdir(subdir)); // Create the directories.
 

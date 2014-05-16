@@ -6,10 +6,11 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include <stout/tests/utils.hpp>
+
 using std::string;
 
-// TODO(bmahler): Extend from OsTest.
-class OsSendfileTest : public ::testing::Test
+class OsSendfileTest : public TemporaryDirectoryTest
 {
 public:
   OsSendfileTest()
@@ -25,24 +26,15 @@ public:
 protected:
   virtual void SetUp()
   {
-    const Try<string>& mkdtemp = os::mkdtemp();
-    ASSERT_SOME(mkdtemp);
-    tmpdir = mkdtemp.get();
-    filename = path::join(mkdtemp.get(), "lorem.txt");
+    TemporaryDirectoryTest::SetUp();
+
+    filename = "lorem.txt";
 
     ASSERT_SOME(os::write(filename, LOREM_IPSUM));
   }
 
-  virtual void TearDown()
-  {
-    ASSERT_SOME(os::rmdir(tmpdir));
-  }
-
   const string LOREM_IPSUM;
   string filename;
-
-private:
-  string tmpdir;
 };
 
 

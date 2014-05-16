@@ -103,4 +103,5 @@ EXTRA_DIST =					\
   tests/some_tests.cpp				\
   tests/strings_tests.cpp			\
   tests/thread_tests.cpp			\
+  tests/utils.hpp				\
   tests/uuid_tests.cpp

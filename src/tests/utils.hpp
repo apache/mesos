@@ -30,6 +30,7 @@ namespace internal {
 namespace tests {
 
 // Test fixture for creating a temporary directory for each test.
+// TODO(vinod): Fold this into stout/tests/utils.hpp.
 class TemporaryDirectoryTest : public ::testing::Test
 {
 protected:
