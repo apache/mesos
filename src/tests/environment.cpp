@@ -81,8 +81,12 @@ static bool enable(const ::testing::TestInfo& test)
       return false;
     }
 
-    if (strings::contains(name, "CGROUPS_") && !cgroups::enabled()) {
+    if (strings::contains(name, "CGROUPS_")) {
+#ifdef __linux__
+      return cgroups::enabled();
+#else
       return false;
+#endif
     }
 
 #ifdef __linux__
@@ -128,9 +132,12 @@ static bool enable(const ::testing::TestInfo& test)
   // Now check the type parameter.
   if (test.type_param() != NULL) {
     const string& type = test.type_param();
-    if (strings::contains(type, "Cgroups") &&
-        (os::user() != "root" || !cgroups::enabled())) {
+    if (strings::contains(type, "Cgroups")) {
+#ifdef __linux__
+      return os::user() == "root" && cgroups::enabled();
+#else
       return false;
+#endif
     }
   }
 
