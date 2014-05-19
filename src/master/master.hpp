@@ -241,9 +241,9 @@ protected:
   void _authenticate(
       const process::UPID& pid,
       const process::Owned<process::Promise<Nothing> >& promise,
-      const process::Future<bool>& future);
+      const process::Future<Option<std::string> >& future);
 
-  void authenticationTimeout(process::Future<bool> future);
+  void authenticationTimeout(process::Future<Option<std::string> > future);
 
   void fileAttached(const process::Future<Nothing>& result,
                     const std::string& path);

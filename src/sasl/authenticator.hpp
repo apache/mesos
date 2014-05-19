@@ -34,6 +34,8 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/check.hpp>
+
 #include "messages/messages.hpp"
 
 #include "sasl/auxprop.hpp"
@@ -52,14 +54,15 @@ public:
   explicit Authenticator(const process::UPID& pid);
   ~Authenticator();
 
-  // Returns true if successfully authenticated otherwise false or an
-  // error. Note that we distinguish authentication failure (false)
-  // from a failed future in the event the future failed due to a
-  // transient error and authentication can (should) be
-  // retried. Discarding the future will cause the future to fail if
-  // it hasn't already completed since we have already started the
-  // authentication procedure and can't reliably cancel.
-  process::Future<bool> authenticate();
+  // Returns the principal of the Authenticatee if successfully
+  // authenticated otherwise None or an error. Note that we
+  // distinguish authentication failure (None) from a failed future
+  // in the event the future failed due to a transient error and
+  // authentication can (should) be retried. Discarding the future
+  // will cause the future to fail if it hasn't already completed
+  // since we have already started the authentication procedure and
+  // can't reliably cancel.
+  process::Future<Option<std::string> > authenticate();
 
 private:
   AuthenticatorProcess* process;
@@ -82,7 +85,7 @@ public:
     }
   }
 
-  process::Future<bool> authenticate()
+  process::Future<Option<std::string> > authenticate()
   {
     static process::Once* initialize = new process::Once();
     static bool initialized = false;
@@ -141,9 +144,14 @@ public:
     callbacks[0].proc = (int(*)()) &getopt;
     callbacks[0].context = NULL;
 
-    callbacks[1].id = SASL_CB_LIST_END;
-    callbacks[1].proc = NULL;
-    callbacks[1].context = NULL;
+    callbacks[1].id = SASL_CB_CANON_USER;
+    callbacks[1].proc = (int(*)()) &canonicalize;
+    // Pass in the principal so we can set it in canon_user().
+    callbacks[1].context = &principal;
+
+    callbacks[2].id = SASL_CB_LIST_END;
+    callbacks[2].proc = NULL;
+    callbacks[2].context = NULL;
 
     LOG(INFO) << "Creating new server SASL connection";
 
@@ -327,17 +335,51 @@ private:
     return SASL_OK;
   }
 
+  // Callback for canonicalizing the username (principal). We use it
+  // to record the principal in Authenticator.
+  static int canonicalize(
+      sasl_conn_t* connection,
+      void* context,
+      const char* input,
+      unsigned inputLength,
+      unsigned flags,
+      const char* userRealm,
+      char* output,
+      unsigned outputMaxLength,
+      unsigned* outputLength)
+  {
+    CHECK_NOTNULL(input);
+    CHECK_NOTNULL(context);
+    CHECK_NOTNULL(output);
+
+    // Save the input.
+    Option<std::string>* principal =
+      static_cast<Option<std::string>*>(context);
+    CHECK(principal->isNone());
+    *principal = std::string(input, inputLength);
+
+    // Tell SASL that the canonical username is the same as the
+    // client-supplied username.
+    memcpy(output, input, inputLength);
+    *outputLength = inputLength;
+
+    return SASL_OK;
+  }
+
   // Helper for handling result of server start and step.
   void handle(int result, const char* output, unsigned length)
   {
     if (result == SASL_OK) {
+      // Principal must have been set if authentication succeeded.
+      CHECK_SOME(principal);
+
       LOG(INFO) << "Authentication success";
       // Note that we're not using SASL_SUCCESS_DATA which means that
       // we should not have any data to send when we get a SASL_OK.
       CHECK(output == NULL);
       send(pid, AuthenticationCompletedMessage());
       status = COMPLETED;
-      promise.set(true);
+      promise.set(principal);
     } else if (result == SASL_CONTINUE) {
       LOG(INFO) << "Authentication requires more steps";
       AuthenticationStepMessage message;
@@ -349,7 +391,7 @@ private:
                    << sasl_errstring(result, NULL, NULL);
       send(pid, AuthenticationFailedMessage());
       status = FAILED;
-      promise.set(false);
+      promise.set(Option<std::string>::none());
     } else {
       LOG(ERROR) << "Authentication error: "
                  << sasl_errstring(result, NULL, NULL);
@@ -372,13 +414,15 @@ private:
     DISCARDED
   } status;
 
-  sasl_callback_t callbacks[2];
+  sasl_callback_t callbacks[3];
 
   const process::UPID pid;
 
   sasl_conn_t* connection;
 
-  process::Promise<bool> promise;
+  process::Promise<Option<std::string> > promise;
+
+  Option<std::string> principal;
 };
 
 
@@ -397,7 +441,7 @@ Authenticator::~Authenticator()
 }
 
 
-process::Future<bool> Authenticator::authenticate()
+process::Future<Option<std::string> > Authenticator::authenticate()
 {
   return process::dispatch(process, &AuthenticatorProcess::authenticate);
 }

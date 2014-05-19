@@ -24,6 +24,8 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include <stout/gtest.hpp>
+
 #include "sasl/authenticatee.hpp"
 #include "sasl/authenticator.hpp"
 
@@ -64,10 +66,11 @@ TEST(SASL, success)
 
   Authenticator authenticator(message.get().from);
 
-  Future<bool> server = authenticator.authenticate();
+  Future<Option<string> > principal = authenticator.authenticate();
 
   AWAIT_EQ(true, client);
-  AWAIT_EQ(true, server);
+  AWAIT_READY(principal);
+  EXPECT_SOME_EQ("benh", principal.get());
 
   terminate(pid);
 }
@@ -99,10 +102,11 @@ TEST(SASL, failed1)
 
   Authenticator authenticator(message.get().from);
 
-  Future<bool> server = authenticator.authenticate();
+  Future<Option<string> > server = authenticator.authenticate();
 
   AWAIT_EQ(false, client);
-  AWAIT_EQ(false, server);
+  AWAIT_READY(server);
+  EXPECT_NONE(server.get());
 
   terminate(pid);
 }
@@ -134,10 +138,11 @@ TEST(SASL, failed2)
 
   Authenticator authenticator(message.get().from);
 
-  Future<bool> server = authenticator.authenticate();
+  Future<Option<string> > server = authenticator.authenticate();
 
   AWAIT_EQ(false, client);
-  AWAIT_EQ(false, server);
+  AWAIT_READY(server);
+  EXPECT_NONE(server.get());
 
   terminate(pid);
 }

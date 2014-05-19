@@ -2857,7 +2857,7 @@ void Master::authenticate(const UPID& from, const UPID& pid)
   Owned<sasl::Authenticator> authenticator(new sasl::Authenticator(from));
 
   // Start authentication.
-  const Future<bool>& future = authenticator->authenticate()
+  const Future<Option<string> >& future = authenticator->authenticate()
     .onAny(defer(self(), &Self::_authenticate, pid, promise, lambda::_1));
 
   // Don't wait for authentication to happen for ever.
@@ -2875,9 +2875,9 @@ void Master::authenticate(const UPID& from, const UPID& pid)
 void Master::_authenticate(
     const UPID& pid,
     const Owned<Promise<Nothing> >& promise,
-    const Future<bool>& future)
+    const Future<Option<string> >& future)
 {
-  if (!future.isReady() || !future.get()) {
+  if (!future.isReady() || future.get().isNone()) {
     const string& error = future.isReady()
         ? "Refused authentication"
         : (future.isFailed() ? future.failure() : "future discarded");
@@ -2898,7 +2898,7 @@ void Master::_authenticate(
 }
 
 
-void Master::authenticationTimeout(Future<bool> future)
+void Master::authenticationTimeout(Future<Option<string> > future)
 {
   // Note that a 'discard' here is safe even if another
   // authenticator is in progress because this copy of the future
