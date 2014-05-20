@@ -183,19 +183,23 @@ for i in range(len(shas)):
 
     revision_range = previous + ':' + sha
 
-    if review_request_id is None:
-        output = execute(post_review +
-                         ['--repository-url=' + repository,
-                          '--tracking-branch=' + parent_branch,
-                          '--revision-range=' + revision_range] +
-                         sys.argv[1:]).strip()
+    # Build the post-review/rbt command up to the point where they are common.
+    command = post_review + ['--repository-url=' + repository,
+                             '--tracking-branch=' + parent_branch]
+    if review_request_id:
+        command = command + ['--review-request-id=' + review_request_id]
+
+    # Determine how to specify the revision range.
+    if 'rbt' in post_review:
+        # rbt revisions are passed in as args.
+        command = command + sys.argv[1:] + [previous, sha]
     else:
-        output = execute(post_review +
-                         ['--review-request-id=' + review_request_id,
-                          '--repository-url=' + repository,
-                          '--tracking-branch=' + parent_branch,
-                          '--revision-range=' + revision_range] +
-                         sys.argv[1:]).strip()
+        # post-review revisions are passed in using the revision range option.
+        command = command + \
+            ['--revision-range=' + revision_range] + \
+            sys.argv[1:]
+
+    output = execute(command).strip()
 
     print output
 
@@ -205,7 +209,11 @@ for i in range(len(shas)):
         continue
 
     lines = output.split('\n')
-    url = lines[len(lines) - 1]
+
+    # The last line of output in post-review is the review url.
+    # The second to the last line of output in rbt is the review url.
+    url = lines[len(lines) - 2] if 'rbt' in post_review \
+        else lines[len(lines) - 1]
     url = url.strip('/')
 
     # Construct new commit message.
