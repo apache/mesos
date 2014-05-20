@@ -24,4 +24,4 @@ exec 1>&2
 git diff-index --check --cached $against -- || exit 1
 
 # Check Mesos style.
-exec git diff --cached --name-only --diff-filter=AM -z $against | xargs ./support/mesos-style.py
+exec git diff --cached --name-only --diff-filter=AM | xargs ./support/mesos-style.py
