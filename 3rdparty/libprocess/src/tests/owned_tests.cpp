@@ -41,8 +41,8 @@ TEST(Owned, Null)
   Owned<Foo> owned;
   Owned<Foo> owned2(NULL);
 
-  EXPECT_TRUE(owned.get() == NULL);
-  EXPECT_TRUE(owned2.get() == NULL);
+  EXPECT_EQ(NULL, owned.get());
+  EXPECT_EQ(NULL, owned2.get());
 }
 
 
@@ -59,7 +59,7 @@ TEST(Owned, Share)
 
   Shared<Foo> shared = owned.share();
 
-  EXPECT_TRUE(owned.get() == NULL);
+  EXPECT_EQ(NULL, owned.get());
   EXPECT_TRUE(shared.unique());
 
   EXPECT_EQ(42, shared->get());
@@ -77,4 +77,24 @@ TEST(Owned, Share)
   }
 
   EXPECT_TRUE(shared.unique());
+}
+
+
+TEST(Owned, Release)
+{
+  Foo* foo = new Foo();
+  foo->set(42);
+
+  Owned<Foo> owned(foo);
+
+  EXPECT_EQ(42, owned->get());
+  EXPECT_EQ(42, (*owned).get());
+  EXPECT_EQ(42, owned.get()->get());
+
+  Foo* raw = owned.release();
+  EXPECT_EQ(NULL, owned.get());
+  EXPECT_EQ(42, raw->get());
+
+  delete raw;
+  EXPECT_EQ(NULL, owned.get());
 }

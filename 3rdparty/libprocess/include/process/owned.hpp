@@ -40,6 +40,10 @@ public:
   // pointer will be reset after this function is invoked.
   Shared<T> share();
 
+  // Converts from an owned pointer to a raw pointer. This owned
+  // pointer will be reset after this function is invoked.
+  T* release();
+
 private:
   struct Data
   {
@@ -136,15 +140,39 @@ template <typename T>
 Shared<T> Owned<T>::share()
 {
   if (data.get() == NULL) {
+    // The ownership of this pointer has already been lost.
     return Shared<T>(NULL);
   }
 
   // Atomically set the pointer 'data->t' to NULL.
   T* t = __sync_fetch_and_and(&data->t, NULL);
-  CHECK(t != NULL) << "The ownership of this pointer has already been shared";
+  if (t == NULL) {
+    // The ownership of this pointer has already been lost.
+    return Shared<T>(NULL);
+  }
 
   data.reset();
   return Shared<T>(t);
+}
+
+
+template <typename T>
+T* Owned<T>::release()
+{
+  if (data.get() == NULL) {
+    // The ownership of this pointer has already been lost.
+    return NULL;
+  }
+
+  // Atomically set the pointer 'data->t' to NULL.
+  T* t = __sync_fetch_and_and(&data->t, NULL);
+  if (t == NULL) {
+    // The ownership of this pointer has already been lost.
+    return NULL;
+  }
+
+  data.reset();
+  return t;
 }
 
 
