@@ -644,7 +644,7 @@ message ACL {
  *
  */
 message ACLs {
-  required bool permissive = 1 [default = true];
+  optional bool permissive = 1 [default = true];
   repeated ACL.RunTasks run_tasks = 2;
   repeated ACL.ReceiveOffers receive_offers = 3;
   repeated ACL.HTTPGet http_get = 4;

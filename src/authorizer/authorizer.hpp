@@ -287,7 +287,8 @@ Try<process::Owned<Authorizer> > Authorizer::create(const master::Flags& flags)
     return Error(authorizer.error());
   }
 
-  return authorizer.get().get();
+  process::Owned<LocalAuthorizer> authorizer_ = authorizer.get();
+  return static_cast<Authorizer*>(authorizer_.release());
 }
 
 
