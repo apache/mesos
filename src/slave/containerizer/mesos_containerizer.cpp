@@ -393,7 +393,8 @@ int execute(
   // Do a blocking read on the pipe until the parent signals us to continue.
   char dummy;
   ssize_t length;
-  while ((length = read(pipeRead, &dummy, sizeof(dummy))) == -1 && errno == EINTR);
+  while ((length = read(pipeRead, &dummy, sizeof(dummy))) == -1 &&
+         errno == EINTR);
 
   if (length != sizeof(dummy)) {
     close(pipeRead);
@@ -853,7 +854,8 @@ Future<Nothing> MesosContainerizerProcess::exec(
   // writing to the pipe.
   char dummy;
   ssize_t length;
-  while ((length = write(pipeWrite, &dummy, sizeof(dummy))) == -1 && errno == EINTR);
+  while ((length = write(pipeWrite, &dummy, sizeof(dummy))) == -1 &&
+         errno == EINTR);
 
   if (length != sizeof(dummy)) {
     return Failure("Failed to synchronize child process: " +
