@@ -427,8 +427,11 @@ int execute(
   // when redirection is desired.
   if (redirectIO) {
     int fd;
-    while ((fd = open("stdout", O_CREAT | O_WRONLY | O_APPEND)) == -1 &&
-           errno == EINTR);
+    while ((fd = open(
+        "stdout",
+        O_CREAT | O_WRONLY | O_APPEND,
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)) == -1 &&
+            errno == EINTR);
     if (fd == -1) {
       ABORT("Failed to open stdout");
     }
@@ -443,8 +446,11 @@ int execute(
       ABORT("Failed to close stdout fd");
     }
 
-    while ((fd = open("stderr", O_CREAT | O_WRONLY | O_APPEND)) == -1 &&
-           errno == EINTR);
+    while ((fd = open(
+        "stderr",
+        O_CREAT | O_WRONLY | O_APPEND,
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)) == -1 &&
+            errno == EINTR);
     if (fd == -1) {
       ABORT("Failed to open stderr");
     }
