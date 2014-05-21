@@ -41,6 +41,7 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
@@ -58,6 +59,8 @@ using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
+
+using mesos::internal::master::allocator::AllocatorProcess;
 
 using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::Slave;
@@ -1300,10 +1303,16 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   combinedOffers.push_back(offers1.get()[0].id());
   combinedOffers.push_back(offers2.get()[0].id());
 
+  Future<Nothing> resourcesRecovered =
+    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+
   driver.launchTasks(combinedOffers, tasks);
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
+
+  // The resources of the invalid offers should be recovered.
+  AWAIT_READY(resourcesRecovered);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1372,10 +1381,16 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
+  Future<Nothing> resourcesRecovered =
+    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+
   driver.launchTasks(combinedOffers, tasks);
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
+
+  // The resources of the invalid offers should be recovered.
+  AWAIT_READY(resourcesRecovered);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

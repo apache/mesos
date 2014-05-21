@@ -1637,12 +1637,16 @@ struct OfferVisitor
 
   virtual ~OfferVisitor() {}
 
-  Slave* getSlave(Master* master, const SlaveID& id) {
-    return master->getSlave(id);
+  Slave* getSlave(Master* master, const SlaveID& slaveId)
+  {
+    CHECK_NOTNULL(master);
+    return master->getSlave(slaveId);
   }
 
-  Offer* getOffer(Master* master, const OfferID& id) {
-    return master->getOffer(id);
+  Offer* getOffer(Master* master, const OfferID& offerId)
+  {
+    CHECK_NOTNULL(master);
+    return master->getOffer(offerId);
   }
 };
 
@@ -1672,6 +1676,10 @@ struct FrameworkChecker : OfferVisitor {
       Master* master)
   {
     Offer* offer = getOffer(master, offerId);
+    if (offer == NULL) {
+      return "Offer " + stringify(offerId) + " is no longer valid";
+    }
+
     if (!(framework.id == offer->framework_id())) {
       return "Offer " + stringify(offer->id()) +
           " has invalid framework " + stringify(offer->framework_id()) +
@@ -1693,15 +1701,21 @@ struct SlaveChecker : OfferVisitor
       Master* master)
   {
     Offer* offer = getOffer(master, offerId);
-    Slave* slave = getSlave(master, offer->slave_id());
-    if (slave == NULL) {
-      return "Offer " + stringify(offerId) +
-          " outlived slave " + stringify(offer->slave_id());
+    if (offer == NULL) {
+      return "Offer " + stringify(offerId) + " is no longer valid";
     }
 
+    Slave* slave = getSlave(master, offer->slave_id());
+
+    // This is not possible because the offer should've been removed.
+    CHECK(slave != NULL)
+      << "Offer " << offerId
+      << " outlived slave " << offer->slave_id();
+
+    // This is not possible because the offer should've been removed.
     CHECK(!slave->disconnected)
-      << "Offer " + stringify(offerId)
-      << " outlived disconnected slave " << stringify(slave->id);
+      << "Offer " << offerId
+      << " outlived disconnected slave " << offer->slave_id();
 
     if (slaveId.isNone()) {
       // Set slave id and use as base case for validation.
@@ -1828,7 +1842,7 @@ void Master::launchTasks(
     }
 
     // If offer validation succeeds, we need to pass along the common
-    // slave. So optimisticaly, we store the first slave id we see.
+    // slave. So optimistically, we store the first slave id we see.
     // In case of invalid offers (different slaves for example), we
     // report error and return from launchTask before slaveId is used.
     if (slaveId.isNone()) {
@@ -1845,19 +1859,22 @@ void Master::launchTasks(
     delete visitor;
   };
 
-  // Remove offers.
+  // Remove offers and recover resources if any of the offers are
+  // invalid.
   foreach (const OfferID& offerId, offerIds) {
     Offer* offer = getOffer(offerId);
-    // Explicit check needed if an offerId appears more
-    // than once in offerIds.
-     if (offer != NULL) {
+    if (offer != NULL) {
+      if (offerError.isSome()) {
+        allocator->resourcesRecovered(
+            offer->framework_id(), offer->slave_id(), offer->resources());
+      }
       removeOffer(offer);
     }
   }
 
   if (offerError.isSome()) {
     LOG(WARNING) << "Failed to validate offer " << offerId
-                   << " : " << offerError.get();
+                   << ": " << offerError.get();
 
     foreach (const TaskInfo& task, tasks) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
@@ -1874,7 +1891,6 @@ void Master::launchTasks(
       message.mutable_update()->CopyFrom(update);
       send(framework->pid, message);
     }
-
     return;
   }
 
@@ -3761,6 +3777,8 @@ void Master::removeTask(Task* task)
 }
 
 
+// TODO(vinod): Instead of 'removeOffer()', consider implementing
+// 'useOffer()', 'discardOffer()' and 'rescindOffer()' for clarity.
 void Master::removeOffer(Offer* offer, bool rescind)
 {
   // Remove from framework.
@@ -3789,6 +3807,7 @@ void Master::removeOffer(Offer* offer, bool rescind)
   offers.erase(offer->id());
   delete offer;
 }
+
 
 // TODO(bmahler): Consider killing this.
 Framework* Master::getFramework(const FrameworkID& frameworkId)
