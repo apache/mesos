@@ -456,8 +456,8 @@ private:
 
   hashmap<process::UPID, process::Owned<sasl::Authenticator> > authenticators;
 
-  // Authenticated frameworks/slaves keyed by PID.
-  hashset<process::UPID> authenticated;
+  // Principals of authenticated frameworks/slaves keyed by PID.
+  hashmap<process::UPID, std::string> authenticated;
 
   Option<process::Owned<Authorizer> > authorizer;
 

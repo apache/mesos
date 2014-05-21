@@ -157,6 +157,76 @@ TEST_F(AuthenticationTest, DisableSlaveAuthentication)
 }
 
 
+// This test verifies that an authenticated framework is denied
+// registration by the master if it uses a different
+// FrameworkInfo::principal.
+TEST_F(AuthenticationTest, MismatchedFrameworkInfoPrincipal)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_principal("mismatched-principal");
+
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get(),
+      DEFAULT_CREDENTIAL);
+
+  Future<Nothing> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureSatisfy(&error));
+
+  driver.start();
+
+  // Scheduler should get error message from the master.
+  AWAIT_READY(error);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that if a Framework successfully authenticates
+// but does not set FrameworkInfo::principal, it is allowed to
+// register.
+TEST_F(AuthenticationTest, UnspecifiedFrameworkInfoPrincipal)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.clear_principal();
+
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get(),
+      DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  // Scheduler should be able to get registered.
+  AWAIT_READY(registered);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 // This test verifies that when the master is started with
 // authentication disabled, it registers authenticated frameworks.
 TEST_F(AuthenticationTest, AuthenticatedFramework)
@@ -681,6 +751,77 @@ TEST_F(AuthenticationTest, SchedulerFailover)
   driver2.start();
 
   AWAIT_READY(sched2Registered);
+
+  driver2.stop();
+  driver2.join();
+
+  driver1.stop();
+  driver1.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that a scheduler's re-registration will be
+// rejected if it specifies a principal different from what's used in
+// authentication.
+TEST_F(AuthenticationTest, RejectedSchedulerFailover)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Launch the first scheduler.
+  MockScheduler sched1;
+  Owned<StandaloneMasterDetector> detector(
+      new StandaloneMasterDetector(master.get()));
+  TestingMesosSchedulerDriver driver1(&sched1, detector.get());
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver1.start();
+
+  AWAIT_READY(frameworkId);
+
+  // Drop the AuthenticationStepMessage from authenticator
+  // to stop authentication from succeeding.
+  Future<AuthenticationStepMessage> authenticationStepMessage =
+    DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
+
+  EXPECT_CALL(sched1, disconnected(&driver1));
+
+  // Appoint a new master and inform the scheduler about it.
+  detector->appoint(master.get());
+
+  AWAIT_READY(authenticationStepMessage);
+
+  // Attempt to failover to scheduler 2 while scheduler 1 is still
+  // up. We use the framework id recorded from scheduler 1 but change
+  // the principal in FrameworInfo and it will be denied. Scheduler 1
+  // will not be asked to shutdown.
+  MockScheduler sched2;
+
+  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
+  framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId.get());
+  framework2.set_principal("mismatched-principal");
+
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> sched1Error;
+  EXPECT_CALL(sched1, error(&driver1, _))
+    .Times(0);
+
+  Future<Nothing> sched2Error;
+  EXPECT_CALL(sched2, error(&driver2, _))
+    .WillOnce(FutureSatisfy(&sched2Error));
+
+  driver2.start();
+
+  // Scheduler 2 should get error message from the master.
+  AWAIT_READY(sched2Error);
 
   driver2.stop();
   driver2.join();

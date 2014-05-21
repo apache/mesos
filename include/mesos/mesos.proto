@@ -111,6 +111,10 @@ message ContainerID {
  * decisions, depending on the allocation policy being used.
  * If the hostname field is set to an empty string Mesos will
  * automagically set it to the current hostname.
+ * The principal field should match the credential the framework uses
+ * in authentication. This field is used for framework API rate
+ * exporting and limiting and should be set even if authentication is
+ * not enabled if these features are desired.
  */
 message FrameworkInfo {
   required string user = 1;
@@ -120,6 +124,7 @@ message FrameworkInfo {
   optional bool checkpoint = 5 [default = false];
   optional string role = 6 [default = "*"];
   optional string hostname = 7;
+  optional string principal = 8;
 }
 
 

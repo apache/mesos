@@ -263,17 +263,18 @@ protected:
         executor; })
 
 
-#define DEFAULT_FRAMEWORK_INFO                                          \
-     ({ FrameworkInfo framework;                                        \
-        framework.set_name("default");                                  \
-        framework; })
-
-
 #define DEFAULT_CREDENTIAL                                             \
      ({ Credential credential;                                         \
         credential.set_principal("test-principal");                    \
         credential.set_secret("test-secret");                          \
         credential; })
+
+
+#define DEFAULT_FRAMEWORK_INFO                                          \
+     ({ FrameworkInfo framework;                                        \
+        framework.set_name("default");                                  \
+        framework.set_principal(DEFAULT_CREDENTIAL.principal());        \
+        framework; })
 
 
 #define DEFAULT_EXECUTOR_ID           \
