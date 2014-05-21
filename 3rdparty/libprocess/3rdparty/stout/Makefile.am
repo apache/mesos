@@ -13,7 +13,6 @@ EXTRA_DIST =					\
   include/stout/duration.hpp			\
   include/stout/dynamiclibrary.hpp		\
   include/stout/error.hpp			\
-  include/stout/execenv.hpp			\
   include/stout/exit.hpp			\
   include/stout/fatal.hpp			\
   include/stout/flags.hpp			\
@@ -43,6 +42,7 @@ EXTRA_DIST =					\
   include/stout/numify.hpp			\
   include/stout/option.hpp			\
   include/stout/os.hpp				\
+  include/stout/os/execenv.hpp			\
   include/stout/os/exists.hpp			\
   include/stout/os/fork.hpp			\
   include/stout/os/killtree.hpp			\
