@@ -641,6 +641,13 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 
   Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
 
+  // We advance the clock here so that the 'removalTime' of the
+  // executor directory is definitely less than 'flags.gc_delay' in
+  // the GarbageCollectorProcess 'GarbageCollector::prune()' gets
+  // called (below). Otherwise, due to double comparison precision
+  // in 'prune()' the directory might not be deleted.
+  Clock::advance(Seconds(1));
+
   Future<Nothing> _checkDiskUsage =
     FUTURE_DISPATCH(_, &Slave::_checkDiskUsage);
 
