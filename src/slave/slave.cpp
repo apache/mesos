@@ -1540,11 +1540,42 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
 
 
 void Slave::statusUpdateAcknowledgement(
+    const UPID& from,
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const TaskID& taskId,
     const string& uuid)
 {
+  // Originally, all status update acknowledgements were sent from the
+  // scheduler driver. We'd like to have all acknowledgements sent by
+  // the master instead. See: MESOS-1389.
+  // For now, we handle acknowledgements from the leading master and
+  // from the scheduler driver, for backwards compatibility.
+  // TODO(bmahler): Aim to have the scheduler driver no longer
+  // sending acknowledgements in 0.20.0. Stop handling those messages
+  // here in 0.21.0.
+  // NOTE: We must reject those acknowledgements coming from
+  // non-leading masters because we may have already sent the terminal
+  // un-acknowledged task to the leading master! Unfortunately, the
+  // master's pid will not change across runs on the same machine, so
+  // we may process a message from the old master on the same machine,
+  // but this is a more general problem!
+  if (strings::startsWith(from.id, "master")) {
+    if (state != RUNNING) {
+      LOG(WARNING) << "Dropping status update acknowledgement message for "
+                   << frameworkId << " because the slave is in "
+                   << state << " state";
+      return;
+    }
+
+    if (master != from) {
+      LOG(WARNING) << "Ignoring status update acknowledgement message from "
+                   << from << " because it is not the expected master: "
+                   << (master.isSome() ? stringify(master.get()) : "None");
+      return;
+    }
+  }
+
   statusUpdateManager->acknowledgement(
       taskId, frameworkId, UUID::fromBytes(uuid))
     .onAny(defer(self(),

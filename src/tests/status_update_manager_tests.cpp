@@ -355,6 +355,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
   process::dispatch(
       slave.get(),
       &Slave::statusUpdateAcknowledgement,
+      master.get(),
       update.slave_id(),
       frameworkId,
       update.status().task_id(),
@@ -447,6 +448,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
   process::dispatch(
       slave.get(),
       &Slave::statusUpdateAcknowledgement,
+      master.get(),
       update.slave_id(),
       frameworkId,
       update.status().task_id(),

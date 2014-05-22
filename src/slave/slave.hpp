@@ -173,6 +173,7 @@ public:
       const process::UPID& pid);
 
   void statusUpdateAcknowledgement(
+      const process::UPID& from,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const TaskID& taskId,
