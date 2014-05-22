@@ -619,32 +619,26 @@ protected:
 
     VLOG(1) << "Scheduler::statusUpdate took " << stopwatch.elapsed();
 
-    // Acknowledge the status update.
-    // NOTE: We do a dispatch here instead of directly sending the ACK because,
-    // we want to avoid sending the ACK if the driver was aborted when we
-    // made the statusUpdate call. This works because, the 'abort' message will
-    // be enqueued before the ACK message is processed.
-    if (pid != UPID()) {
-      dispatch(self(), &Self::statusUpdateAcknowledgement, update, pid);
-    }
-  }
-
-  void statusUpdateAcknowledgement(const StatusUpdate& update, const UPID& pid)
-  {
+    // Note that we need to look at the volatile 'aborted' here to
+    // so that we don't acknowledge the update if the driver was
+    // aborted during the processing of the update.
     if (aborted) {
       VLOG(1) << "Not sending status update acknowledgment message because "
               << "the driver is aborted!";
       return;
     }
 
-    VLOG(2) << "Sending ACK for status update " << update << " to " << pid;
+    // Acknowledge the status update.
+    if (pid != UPID()) {
+      VLOG(2) << "Sending ACK for status update " << update << " to " << pid;
 
-    StatusUpdateAcknowledgementMessage message;
-    message.mutable_framework_id()->MergeFrom(framework.id());
-    message.mutable_slave_id()->MergeFrom(update.slave_id());
-    message.mutable_task_id()->MergeFrom(update.status().task_id());
-    message.set_uuid(update.uuid());
-    send(pid, message);
+      StatusUpdateAcknowledgementMessage message;
+      message.mutable_framework_id()->MergeFrom(framework.id());
+      message.mutable_slave_id()->MergeFrom(update.slave_id());
+      message.mutable_task_id()->MergeFrom(update.status().task_id());
+      message.set_uuid(update.uuid());
+      send(pid, message);
+    }
   }
 
   void lostSlave(const UPID& from, const SlaveID& slaveId)
