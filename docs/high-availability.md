@@ -15,9 +15,9 @@ To put Mesos into high-availability mode:
 
 2. Provide the znode path to all masters, slaves, and framework schedulers as follows:
 
-    * Start the mesos-master binaries using the `--zk` flag, e.g. `--zk=zk://host1:port1/path,host2:port2/path...'  
+    * Start the mesos-master binaries using the `--zk` flag, e.g. `--zk=zk://host1:port1,host2:port2,.../path'
 
-    * Start the mesos-slave binaries with `--master=zk://host1:port1/path,host2:port2/path...`
+    * Start the mesos-slave binaries with `--master=zk://host1:port1,host2:port2,.../path`
 
     * Start any framework schedulers using the same `zk` path as in the last two steps. The SchedulerDriver must be constructed with this path, as shown in the [Framework Development Guide]( http://mesos.apache.org/documentation/latest/app-framework-development-guide/).
 
