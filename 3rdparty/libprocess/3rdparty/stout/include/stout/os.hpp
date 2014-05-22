@@ -64,6 +64,7 @@
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
 #include <stout/os/exists.hpp>
 #include <stout/os/fork.hpp>
@@ -674,7 +675,7 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
     }
   }
 
-  return UNREACHABLE();
+  return Result<uid_t>(UNREACHABLE());
 }
 
 
@@ -718,7 +719,7 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
     }
   }
 
-  return UNREACHABLE();
+  return Result<gid_t>(UNREACHABLE());
 }
 
 
