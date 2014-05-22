@@ -1535,6 +1535,8 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
   EXPECT_EQ(1u, stats.values.count("master/messages_unregister_framework"));
   EXPECT_EQ(1u, stats.values.count("master/messages_deactivate_framework"));
   EXPECT_EQ(1u, stats.values.count("master/messages_kill_task"));
+  EXPECT_EQ(1u, stats.values.count(
+      "master/messages_status_update_acknowledgement"));
   EXPECT_EQ(1u, stats.values.count("master/messages_resource_request"));
   EXPECT_EQ(1u, stats.values.count("master/messages_launch_tasks"));
   EXPECT_EQ(1u, stats.values.count("master/messages_revive_offers"));
@@ -1551,15 +1553,18 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
   // Messages from both schedulers and slaves.
   EXPECT_EQ(1u, stats.values.count("master/messages_authenticate"));
 
-  EXPECT_EQ(
-      1u,
-      stats.values.count("master/valid_framework_to_executor_messages"));
-  EXPECT_EQ(
-      1u,
-      stats.values.count("master/invalid_framework_to_executor_messages"));
+  EXPECT_EQ(1u, stats.values.count(
+      "master/valid_framework_to_executor_messages"));
+  EXPECT_EQ(1u, stats.values.count(
+      "master/invalid_framework_to_executor_messages"));
 
   EXPECT_EQ(1u, stats.values.count("master/valid_status_updates"));
   EXPECT_EQ(1u, stats.values.count("master/invalid_status_updates"));
+
+  EXPECT_EQ(1u, stats.values.count(
+      "master/valid_status_update_acknowledgements"));
+  EXPECT_EQ(1u, stats.values.count(
+      "master/invalid_status_update_acknowledgements"));
 
   EXPECT_EQ(1u, stats.values.count("master/recovery_slave_removals"));
 

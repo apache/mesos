@@ -2094,7 +2094,7 @@ void Master::statusUpdateAcknowledgement(
     const TaskID& taskId,
     const string& uuid)
 {
-  // TODO(bmahler): Add message counter.
+  metrics.messages_status_update_acknowledgement++;
 
   // TODO(bmahler): Consider adding a message validator abstraction
   // for the master that takes care of all this boilerplate. Ideally
@@ -2110,7 +2110,7 @@ void Master::statusUpdateAcknowledgement(
       << "Ignoring status update acknowledgement message for task " << taskId
       << " of framework " << frameworkId << " on slave " << slaveId
       << " because the framework cannot be found";
-    // TODO(bmahler): Add dropped counter.
+    metrics.invalid_status_update_acknowledgements++;
     return;
   }
 
@@ -2120,7 +2120,7 @@ void Master::statusUpdateAcknowledgement(
       << " of framework " << frameworkId << " on slave " << slaveId
       << " from " << from << " because it is not from the registered framework "
       << framework->pid;
-    // TODO(bmahler): Add dropped counter.
+    metrics.invalid_status_update_acknowledgements++;
     return;
   }
 
@@ -2131,7 +2131,7 @@ void Master::statusUpdateAcknowledgement(
       << "Cannot send status update acknowledgement message for task " << taskId
       << " of framework " << frameworkId << " to slave " << slaveId
       << " because slave is not activated";
-    // TODO(bmahler): Add dropped counter.
+    metrics.invalid_status_update_acknowledgements++;
     return;
   }
 
@@ -2140,7 +2140,7 @@ void Master::statusUpdateAcknowledgement(
       << "Cannot send status update acknowledgement message for task " << taskId
       << " of framework " << frameworkId << " to slave " << *slave
       << " because slave is disconnected";
-    // TODO(bmahler): Add dropped counter.
+    metrics.invalid_status_update_acknowledgements++;
     return;
   }
 
@@ -2161,7 +2161,7 @@ void Master::statusUpdateAcknowledgement(
 
   send(slave->pid, message);
 
-  // TODO(bmahler): Add valid acknowledgement counter.
+  metrics.valid_status_update_acknowledgements++;
 }
 
 
@@ -3983,6 +3983,8 @@ Master::Metrics::Metrics(const Master& master)
         "master/messages_deactivate_framework"),
     messages_kill_task(
         "master/messages_kill_task"),
+    messages_status_update_acknowledgement(
+        "master/messages_status_update_acknowledgement"),
     messages_resource_request(
         "master/messages_resource_request"),
     messages_launch_tasks(
@@ -4013,6 +4015,10 @@ Master::Metrics::Metrics(const Master& master)
         "master/valid_status_updates"),
     invalid_status_updates(
         "master/invalid_status_updates"),
+    valid_status_update_acknowledgements(
+        "master/valid_status_update_acknowledgements"),
+    invalid_status_update_acknowledgements(
+        "master/invalid_status_update_acknowledgements"),
     recovery_slave_removals(
         "master/recovery_slave_removals"),
     event_queue_size(
@@ -4053,6 +4059,7 @@ Master::Metrics::Metrics(const Master& master)
   process::metrics::add(messages_unregister_framework);
   process::metrics::add(messages_deactivate_framework);
   process::metrics::add(messages_kill_task);
+  process::metrics::add(messages_status_update_acknowledgement);
   process::metrics::add(messages_resource_request);
   process::metrics::add(messages_launch_tasks);
   process::metrics::add(messages_revive_offers);
@@ -4074,6 +4081,9 @@ Master::Metrics::Metrics(const Master& master)
 
   process::metrics::add(valid_status_updates);
   process::metrics::add(invalid_status_updates);
+
+  process::metrics::add(valid_status_update_acknowledgements);
+  process::metrics::add(invalid_status_update_acknowledgements);
 
   process::metrics::add(recovery_slave_removals);
 
@@ -4140,6 +4150,7 @@ Master::Metrics::~Metrics()
   process::metrics::remove(messages_unregister_framework);
   process::metrics::remove(messages_deactivate_framework);
   process::metrics::remove(messages_kill_task);
+  process::metrics::remove(messages_status_update_acknowledgement);
   process::metrics::remove(messages_resource_request);
   process::metrics::remove(messages_launch_tasks);
   process::metrics::remove(messages_revive_offers);
@@ -4161,6 +4172,9 @@ Master::Metrics::~Metrics()
 
   process::metrics::remove(valid_status_updates);
   process::metrics::remove(invalid_status_updates);
+
+  process::metrics::remove(valid_status_update_acknowledgements);
+  process::metrics::remove(invalid_status_update_acknowledgements);
 
   process::metrics::remove(recovery_slave_removals);
 

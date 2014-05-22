@@ -522,6 +522,7 @@ private:
     process::metrics::Counter messages_unregister_framework;
     process::metrics::Counter messages_deactivate_framework;
     process::metrics::Counter messages_kill_task;
+    process::metrics::Counter messages_status_update_acknowledgement;
     process::metrics::Counter messages_resource_request;
     process::metrics::Counter messages_launch_tasks;
     process::metrics::Counter messages_revive_offers;
@@ -543,6 +544,9 @@ private:
 
     process::metrics::Counter valid_status_updates;
     process::metrics::Counter invalid_status_updates;
+
+    process::metrics::Counter valid_status_update_acknowledgements;
+    process::metrics::Counter invalid_status_update_acknowledgements;
 
     // Recovery counters.
     process::metrics::Counter recovery_slave_removals;
