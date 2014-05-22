@@ -24,6 +24,7 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
+#include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/fatal.hpp>
@@ -39,6 +40,7 @@ using process::Future;
 using process::PID;
 using process::Process;
 using process::Promise;
+using process::Timeout;
 
 using std::map;
 using std::string;
@@ -67,13 +69,35 @@ public:
 
   virtual void initialize()
   {
-    zh = zookeeper_init(
-        servers.c_str(),
-        event,
-        static_cast<int>(timeout.ms()),
-        NULL,
-        &callback,
-        0);
+    // We retry zookeeper_init until the timeout elapses because we've
+    // seen cases where temporary DNS outages cause the slave to abort
+    // here. See MESOS-1326 for more information.
+    const Timeout timeout_ = Timeout::in(timeout);
+
+    while (!timeout_.expired()) {
+      zh = zookeeper_init(
+          servers.c_str(),
+          event,
+          static_cast<int>(timeout.ms()),
+          NULL,
+          &callback,
+          0);
+
+      // Unfortunately, EINVAL is highly overloaded in zookeeper_init
+      // and can correspond to:
+      //   (1) Empty / invalid 'host' string format.
+      //   (2) Any getaddrinfo error other than EAI_NONAME,
+      //       EAI_NODATA, and EAI_MEMORY are mapped to EINVAL.
+      // Either way, retrying is not problematic.
+      if (zh == NULL && errno == EINVAL) {
+        ErrnoError error("zookeeper_init failed");
+        LOG(WARNING) << error.message << " ; retrying in 1 second";
+        os::sleep(Seconds(1));
+        continue;
+      }
+
+      break;
+    }
 
     if (zh == NULL) {
       PLOG(FATAL) << "Failed to create ZooKeeper, zookeeper_init";
