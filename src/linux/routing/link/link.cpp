@@ -107,7 +107,7 @@ Try<bool> remove(const string& _link)
 
   int err = rtnl_link_delete(sock.get().get(), link.get().get());
   if (err != 0) {
-    if (err == -NLE_OBJ_NOTFOUND) {
+    if (err == -NLE_OBJ_NOTFOUND || err == -NLE_NODEV) {
       return false;
     }
     return Error(nl_geterror(err));
