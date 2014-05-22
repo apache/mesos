@@ -137,6 +137,14 @@ public:
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const TaskID& taskId);
+
+  void statusUpdateAcknowledgement(
+      const process::UPID& from,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const TaskID& taskId,
+      const std::string& uuid);
+
   void schedulerMessage(
       const process::UPID& from,
       const SlaveID& slaveId,
@@ -156,15 +164,18 @@ public:
 
   void unregisterSlave(
       const SlaveID& slaveId);
+
   void statusUpdate(
       const StatusUpdate& update,
       const process::UPID& pid);
+
   void exitedExecutor(
       const process::UPID& from,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       int32_t status);
+
   void shutdownSlave(
       const SlaveID& slaveId,
       const std::string& message);

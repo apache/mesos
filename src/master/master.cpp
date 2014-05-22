@@ -464,6 +464,13 @@ void Master::initialize()
       &KillTaskMessage::framework_id,
       &KillTaskMessage::task_id);
 
+  install<StatusUpdateAcknowledgementMessage>(
+      &Master::statusUpdateAcknowledgement,
+      &StatusUpdateAcknowledgementMessage::slave_id,
+      &StatusUpdateAcknowledgementMessage::framework_id,
+      &StatusUpdateAcknowledgementMessage::task_id,
+      &StatusUpdateAcknowledgementMessage::uuid);
+
   install<FrameworkToExecutorMessage>(
       &Master::schedulerMessage,
       &FrameworkToExecutorMessage::slave_id,
@@ -2077,6 +2084,84 @@ void Master::killTask(
     message.mutable_task_id()->MergeFrom(taskId);
     send(slave->pid, message);
   }
+}
+
+
+void Master::statusUpdateAcknowledgement(
+    const UPID& from,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const TaskID& taskId,
+    const string& uuid)
+{
+  // TODO(bmahler): Add message counter.
+
+  // TODO(bmahler): Consider adding a message validator abstraction
+  // for the master that takes care of all this boilerplate. Ideally
+  // by the time we process messages in the critical master code, we
+  // can assume that they are valid. This will become especially
+  // important as validation logic is moved out of the scheduler
+  // driver and into the master.
+
+  Framework* framework = getFramework(frameworkId);
+
+  if (framework == NULL) {
+    LOG(WARNING)
+      << "Ignoring status update acknowledgement message for task " << taskId
+      << " of framework " << frameworkId << " on slave " << slaveId
+      << " because the framework cannot be found";
+    // TODO(bmahler): Add dropped counter.
+    return;
+  }
+
+  if (from != framework->pid) {
+    LOG(WARNING)
+      << "Ignoring status update acknowledgement message for task " << taskId
+      << " of framework " << frameworkId << " on slave " << slaveId
+      << " from " << from << " because it is not from the registered framework "
+      << framework->pid;
+    // TODO(bmahler): Add dropped counter.
+    return;
+  }
+
+  Slave* slave = getSlave(slaveId);
+
+  if (slave == NULL) {
+    LOG(WARNING)
+      << "Cannot send status update acknowledgement message for task " << taskId
+      << " of framework " << frameworkId << " to slave " << slaveId
+      << " because slave is not activated";
+    // TODO(bmahler): Add dropped counter.
+    return;
+  }
+
+  if (slave->disconnected) {
+    LOG(WARNING)
+      << "Cannot send status update acknowledgement message for task " << taskId
+      << " of framework " << frameworkId << " to slave " << *slave
+      << " because slave is disconnected";
+    // TODO(bmahler): Add dropped counter.
+    return;
+  }
+
+  LOG(INFO) << "Forwarding status update acknowledgement "
+            << UUID::fromBytes(uuid) << " for task " << taskId
+            << " of framework " << frameworkId << " to slave " << *slave;
+
+  // TODO(bmahler): Once we store terminal unacknowledged updates in
+  // the master per MESOS-1410, this is where we'll find the
+  // unacknowledged task and remove it if present.
+  // Also, be sure to confirm Master::reconcile is still correct!
+
+  StatusUpdateAcknowledgementMessage message;
+  message.mutable_slave_id()->CopyFrom(slaveId);
+  message.mutable_framework_id()->CopyFrom(frameworkId);
+  message.mutable_task_id()->CopyFrom(taskId);
+  message.set_uuid(uuid);
+
+  send(slave->pid, message);
+
+  // TODO(bmahler): Add valid acknowledgement counter.
 }
 
 

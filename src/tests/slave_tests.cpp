@@ -539,6 +539,130 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
 }
 
 
+// This test ensures that a status update acknowledgement from a
+// non-leading master is ignored.
+// TODO(bmahler): This test will need to be updated once all
+// acknowledgements go through the master.
+TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave> > slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver schedDriver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&schedDriver, _, _))
+    .Times(1);
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&schedDriver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // We need to grab this message to get the scheduler's pid.
+  Future<process::Message> frameworkRegisteredMessage = FUTURE_MESSAGE(
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+
+  schedDriver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+  const process::UPID schedulerPid = frameworkRegisteredMessage.get().to;
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<ExecutorDriver*> execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(FutureArg<0>(&execDriver));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> update;
+  EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  // Pause the clock to prevent status update retries on the slave.
+  Clock::pause();
+
+  // Intercept the status update acknowledgement and send it to the
+  // master instead!
+  Future<StatusUpdateAcknowledgementMessage> acknowledgementMessage =
+    DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(),
+                  schedulerPid,
+                  slave.get());
+
+  schedDriver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(update);
+  EXPECT_EQ(TASK_RUNNING, update.get().state());
+
+  AWAIT_READY(acknowledgementMessage);
+
+  // Intercept the status update acknowledgement from the master
+  // to the slave so that we can spoof a non-leading master pid.
+  Future<StatusUpdateAcknowledgementMessage> acknowledgementMessage2 =
+    DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(),
+                  master.get(),
+                  slave.get());
+
+  // Send the acknowledgment to the master.
+  process::post(schedulerPid, master.get(), acknowledgementMessage.get());
+
+  AWAIT_READY(acknowledgementMessage2);
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdateAcknowledgement);
+
+  // Send the acknowledgement to the slave with a non-leading master.
+  process::post(
+      schedulerPid,
+      process::UPID("master@localhost:1"),
+      acknowledgementMessage.get());
+
+  // Make sure the acknowledgement was ignored.
+  Clock::settle();
+  ASSERT_TRUE(_statusUpdateAcknowledgement.isPending());
+
+  // Make sure the status update gets retried because the slave
+  // ignored the acknowledgement.
+  Future<TaskStatus> retriedUpdate;
+  EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
+    .WillOnce(FutureArg<1>(&retriedUpdate));
+
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+
+  AWAIT_READY(retriedUpdate);
+
+  // Ensure the slave receives and properly handles the ACK.
+  // Clock::settle() ensures that the slave successfully
+  // executes Slave::_statusUpdateAcknowledgement().
+  AWAIT_READY(_statusUpdateAcknowledgement);
+  Clock::settle();
+
+  Clock::resume();
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  schedDriver.stop();
+  schedDriver.join();
+
+  Shutdown();
+}
+
+
 TEST_F(SlaveTest, MetricsInStatsEndpoint)
 {
   Try<PID<Master> > master = StartMaster();

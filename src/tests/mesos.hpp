@@ -287,6 +287,8 @@ protected:
      commandInfo; })
 
 
+// TODO(bmahler): Refactor this to make the distinction between
+// command tasks and executor tasks clearer.
 inline TaskInfo createTask(
     const Offer& offer,
     const std::string& command,
