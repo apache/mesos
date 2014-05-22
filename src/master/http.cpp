@@ -350,7 +350,7 @@ Future<Response> Master::Http::stats(const Request& request)
 
   JSON::Object object;
   object.values["uptime"] = (Clock::now() - master.startTime).secs();
-  object.values["elected"] = master.elected(); // Note: using int not bool.
+  object.values["elected"] = master.elected() ? 1 : 0;
   object.values["total_schedulers"] = master.frameworks.activated.size();
   object.values["active_schedulers"] = master.getActiveFrameworks().size();
   object.values["activated_slaves"] = master.slaves.activated.size();

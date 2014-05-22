@@ -1407,7 +1407,12 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
   JSON::Object stats = parse.get();
 
   EXPECT_EQ(1u, stats.values.count("master/uptime_secs"));
+
+  EXPECT_EQ(1u, stats.values.count("elected"));
   EXPECT_EQ(1u, stats.values.count("master/elected"));
+
+  EXPECT_EQ(1, stats.values["elected"]);
+  EXPECT_EQ(1, stats.values["master/elected"]);
 
   EXPECT_EQ(1u, stats.values.count("master/active_slaves"));
   EXPECT_EQ(1u, stats.values.count("master/inactive_slaves"));
