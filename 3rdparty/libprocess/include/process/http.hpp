@@ -232,6 +232,21 @@ struct TemporaryRedirect : Response
   }
 };
 
+struct Unauthorized : Response
+{
+  Unauthorized(const std::string& realm)
+  {
+    status = "401 Unauthorized";
+    headers["WWW-authenticate"] = "Basic realm=\"" + realm + "\"";
+  }
+
+  Unauthorized(const std::string& realm, const std::string& body)
+    : Response(body)
+  {
+    status = "401 Unauthorized";
+    headers["WWW-authenticate"] = "Basic realm=\"" + realm + "\"";
+  }
+};
 
 struct BadRequest : Response
 {

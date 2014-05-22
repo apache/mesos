@@ -13,6 +13,7 @@
 #include <process/http.hpp>
 #include <process/io.hpp>
 
+#include <stout/base64.hpp>
 #include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
@@ -37,10 +38,21 @@ class HttpProcess : public Process<HttpProcess>
 public:
   HttpProcess()
   {
+    route("/auth", None(), &HttpProcess::auth);
     route("/body", None(), &HttpProcess::body);
     route("/pipe", None(), &HttpProcess::pipe);
     route("/get", None(), &HttpProcess::get);
     route("/post", None(), &HttpProcess::post);
+  }
+
+  Future<http::Response> auth(const http::Request& request)
+  {
+    string encodedAuth = base64::encode("testuser:testpass");
+    Option<string> authHeader = request.headers.get("Authorization");
+    if (!authHeader.isSome() || (authHeader.get() != "Basic " + encodedAuth)) {
+      return http::Unauthorized("testrealm");
+    }
+    return http::OK();
   }
 
   MOCK_METHOD1(body, Future<http::Response>(const http::Request&));
@@ -48,6 +60,48 @@ public:
   MOCK_METHOD1(get, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(post, Future<http::Response>(const http::Request&));
 };
+
+
+TEST(HTTP, auth)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  HttpProcess process;
+
+  spawn(process);
+
+  // Test the case where there is no auth.
+  Future<http::Response> noAuthFuture = http::get(process.self(), "auth");
+
+  AWAIT_READY(noAuthFuture);
+  EXPECT_EQ(http::statuses[401], noAuthFuture.get().status);
+  ASSERT_SOME_EQ("Basic realm=\"testrealm\"",
+                 noAuthFuture.get().headers.get("WWW-authenticate"));
+
+  // Now test passing wrong auth header.
+  hashmap<string, string> headers;
+  headers["Authorization"] = "Basic " + base64::encode("testuser:wrongpass");
+
+  Future<http::Response> wrongAuthFuture =
+    http::get(process.self(), "auth", None(), headers);
+
+  AWAIT_READY(wrongAuthFuture);
+  EXPECT_EQ(http::statuses[401], wrongAuthFuture.get().status);
+  ASSERT_SOME_EQ("Basic realm=\"testrealm\"",
+                 wrongAuthFuture.get().headers.get("WWW-authenticate"));
+
+  // Now test passing right auth header.
+  headers["Authorization"] = "Basic " + base64::encode("testuser:testpass");
+
+  Future<http::Response> rightAuthFuture =
+    http::get(process.self(), "auth", None(), headers);
+
+  AWAIT_READY(rightAuthFuture);
+  EXPECT_EQ(http::statuses[200], rightAuthFuture.get().status);
+
+  terminate(process);
+  wait(process);
+}
 
 
 TEST(HTTP, Endpoints)
