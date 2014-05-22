@@ -38,6 +38,14 @@
 
 namespace routing {
 
+// Customized deallocation functions for netlink objects.
+inline void cleanup(struct nl_cache* cache) { nl_cache_free(cache); }
+inline void cleanup(struct nl_sock* sock) { nl_socket_free(sock); }
+inline void cleanup(struct rtnl_cls* cls) { rtnl_cls_put(cls); }
+inline void cleanup(struct rtnl_link* link) { rtnl_link_put(link); }
+inline void cleanup(struct rtnl_qdisc* qdisc) { rtnl_qdisc_put(qdisc); }
+
+
 // A helper class for managing netlink objects (e.g., rtnl_link,
 // nl_sock, etc.). It manages the life cycle of a netlink object. It
 // is copyable and assignable, and multiple copies share the same
@@ -70,14 +78,6 @@ private:
 
   memory::shared_ptr<Data> data;
 };
-
-
-// Customized deallocation functions for netlink objects.
-inline void cleanup(struct nl_cache* cache) { nl_cache_free(cache); }
-inline void cleanup(struct nl_sock* sock) { nl_socket_free(sock); }
-inline void cleanup(struct rtnl_cls* cls) { rtnl_cls_put(cls); }
-inline void cleanup(struct rtnl_link* link) { rtnl_link_put(link); }
-inline void cleanup(struct rtnl_qdisc* qdisc) { rtnl_qdisc_put(qdisc); }
 
 
 // Returns a netlink socket for communicating with the kernel. This

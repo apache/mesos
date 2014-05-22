@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include <linux/if_ether.h>
-
 #include <netlink/errno.h>
 
 #include <netlink/route/tc.h>
@@ -61,6 +59,13 @@ struct Classifier
 /////////////////////////////////////////////////
 
 namespace internal {
+
+// This is a work around. Including <linux/if_ether.h> causes
+// duplicated definitions on some platforms with old glibc.
+#ifndef ETH_P_ARP
+#define ETH_P_ARP 0x0806
+#endif
+
 
 // Encodes the ARP classifier into the libnl filter 'cls'. Each type
 // of classifier needs to implement this function.

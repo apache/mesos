@@ -18,13 +18,12 @@
 
 #include <stdint.h>
 
-#include <linux/rtnetlink.h>
-
 #include <netinet/in.h>
 
 #include <netlink/addr.h>
 #include <netlink/cache.h>
 #include <netlink/errno.h>
+#include <netlink/netlink.h>
 #include <netlink/object.h>
 #include <netlink/socket.h>
 

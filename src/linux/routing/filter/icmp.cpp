@@ -20,8 +20,6 @@
 
 #include <arpa/inet.h>
 
-#include <linux/if_ether.h>
-
 #include <netlink/errno.h>
 
 #include <netlink/route/tc.h>
@@ -52,6 +50,13 @@ namespace filter {
 /////////////////////////////////////////////////
 
 namespace internal {
+
+// This is a work around. Including <linux/if_ether.h> causes
+// duplicated definitions on some platforms with old glibc.
+#ifndef ETH_P_IP
+#define ETH_P_IP  0x0800
+#endif
+
 
 // Encodes the ICMP classifier into the libnl filter 'cls'. Each type
 // of classifier needs to implement this function.

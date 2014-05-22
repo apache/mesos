@@ -231,6 +231,9 @@ TEST_F(RoutingVethTest, ROOT_LinkRemove)
 }
 
 
+// Network namespace is not available until Linux 2.6.24.
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
+
 // Entry point of the child process (used in clone()).
 static int child(void*)
 {
@@ -246,8 +249,6 @@ static int child(void*)
 }
 
 
-// Network namespace is not available until Linux 2.6.24.
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
 TEST_F(RoutingVethTest, ROOT_LinkCreatePid)
 {
   // Stack used in the child process.
