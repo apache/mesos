@@ -35,7 +35,7 @@ static inline bool isBase64(unsigned char c)
 }
 
 
-std::string encode(const std::string& s)
+inline std::string encode(const std::string& s)
 {
   std::string result;
   int i = 0;
@@ -79,7 +79,7 @@ std::string encode(const std::string& s)
 }
 
 
-std::string decode(const std::string& s)
+inline std::string decode(const std::string& s)
 {
   size_t length = s.size();
   size_t i = 0;
