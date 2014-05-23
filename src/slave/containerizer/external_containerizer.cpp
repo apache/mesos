@@ -786,6 +786,13 @@ void ExternalContainerizerProcess::_destroy(const ContainerID& containerId)
     return;
   }
 
+  if (actives[containerId]->destroying) {
+    LOG(WARNING) << "Container '" << containerId
+                 << "' is already being destroyed";
+    return;
+  }
+  actives[containerId]->destroying = true;
+
   containerizer::Destroy destroy;
   destroy.mutable_container_id()->CopyFrom(containerId);
 
