@@ -579,14 +579,40 @@ void ExternalContainerizerProcess::__wait(
     return;
   }
 
+  // When 'wait' was terminated by 'destroy', it is getting SIGKILLed
+  // (see unwait). We need to test for that specific case as otherwise
+  // the result validation below will return an error due to a non 0
+  // exit status.
+  if (actives[containerId]->destroying && future.isReady()) {
+    Future<Option<int> > statusFuture = tuples::get<1>(future.get());
+    if (statusFuture.isReady()) {
+      Option<int> status = statusFuture.get();
+      if (status.isSome()) {
+        VLOG(2) << "Wait got destroyed on '" << containerId << "'";
+        containerizer::Termination termination;
+        // 'killed' must only be true when a resource limitation
+        // had to be enforced through terminating a task.
+        // TODO(tillt): Consider renaming 'killed' towards 'limited'.
+        termination.set_killed(false);
+        termination.set_message("");
+        termination.set_status(status.get());
+        actives[containerId]->termination.set(termination);
+        cleanup(containerId);
+        return;
+      }
+    }
+  }
+
   Try<containerizer::Termination> termination =
     result<containerizer::Termination>(future);
 
   if (termination.isError()) {
+    VLOG(2) << "Wait termination failed on '" << containerId << "'";
     // 'wait' has failed, we need to tear down everything now.
     actives[containerId]->termination.fail(termination.error());
     unwait(containerId);
   } else {
+    VLOG(2) << "Wait Termination: " << termination.get().DebugString();
     // Set the promise to alert others waiting on this container.
     actives[containerId]->termination.set(termination.get());
   }
