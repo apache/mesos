@@ -414,9 +414,8 @@ Future<Nothing> ExternalContainerizerProcess::launch(
   launch.mutable_container_id()->CopyFrom(containerId);
   if (taskInfo.isSome()) {
     launch.mutable_task_info()->CopyFrom(taskInfo.get());
-  } else {
-    launch.mutable_executor_info()->CopyFrom(executor);
   }
+  launch.mutable_executor_info()->CopyFrom(executor);
   launch.set_directory(directory);
   if (user.isSome()) {
     launch.set_user(user.get());
