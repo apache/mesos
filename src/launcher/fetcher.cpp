@@ -82,11 +82,14 @@ Try<string> fetch(
     return Error("Illegal characters in URI");
   }
 
-  // Grab the resource from HDFS if its path begins with hdfs:// or
-  // hftp:
+  // Grab the resource using the hadoop client if it's one of the known schemes
+  // TODO(tarnfeld): This isn't very scalable with hadoop's pluggable
+  // filesystem implementations.
   // TODO(matei): Enforce some size limits on files we get from HDFS
   if (strings::startsWith(uri, "hdfs://") ||
-      strings::startsWith(uri, "hftp://")) {
+      strings::startsWith(uri, "hftp://") ||
+      strings::startsWith(uri, "s3://") ||
+      strings::startsWith(uri, "s3n://")) {
     Try<string> base = os::basename(uri);
     if (base.isError()) {
       LOG(ERROR) << "Invalid basename for URI: " << base.error();
