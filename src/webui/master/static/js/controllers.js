@@ -59,7 +59,7 @@
       // Redirect if we aren't the leader.
       if ($scope.state.leader != $scope.state.pid) {
         $scope.redirect = 6000;
-        $("#not-leader-alert").show();
+        $("#not-leader-alert").removeClass("hide");
 
         var countdown = function() {
           if ($scope.redirect == 0) {
