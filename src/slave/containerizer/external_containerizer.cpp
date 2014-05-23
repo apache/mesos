@@ -1034,29 +1034,28 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
 
   // Redirect output (stderr) from the external containerizer to log
   // file in the executor work directory, chown'ing it if a user is
-  // specified.
-  if (sandbox.isSome()) {
-    Try<int> err = os::open(
-        path::join(sandbox.get().directory, "stderr"),
-        O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK,
-        S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
-
-    if (err.isError()) {
-      return Error("Failed to redirect stderr: " + err.error());
-    }
-
-    if (sandbox.get().user.isSome()) {
-      Try<Nothing> chown = os::chown(
-          sandbox.get().user.get(),
-          path::join(sandbox.get().directory, "stderr"));
-      if (chown.isError()) {
-        return Error("Failed to redirect stderr:" + chown.error());
-      }
-    }
-
-    io::splice(external.get().err(), err.get())
-      .onAny(bind(&os::close, err.get()));
+  // specified. When no sandbox is given, redirect to /dev/null to
+  // prevent blocking on the subprocess side.
+  Try<int> err = os::open(
+      sandbox.isSome() ? path::join(sandbox.get().directory, "stderr")
+                       : "/dev/null",
+      O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  if (err.isError()) {
+    return Error("Failed to redirect stderr: " + err.error());
   }
+
+  if (sandbox.isSome() && sandbox.get().user.isSome()) {
+    Try<Nothing> chown = os::chown(
+        sandbox.get().user.get(),
+        path::join(sandbox.get().directory, "stderr"));
+    if (chown.isError()) {
+      return Error("Failed to redirect stderr:" + chown.error());
+    }
+  }
+
+  io::splice(external.get().err(), err.get())
+    .onAny(bind(&os::close, err.get()));
 
   VLOG(2) << "Subprocess pid: " << external.get().pid() << ", "
           << "output pipe: " << external.get().out();
