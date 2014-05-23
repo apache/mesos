@@ -2691,7 +2691,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   Future<vector<Offer> > offers1;
   EXPECT_CALL(sched1, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(DeclineOffers()); // Ignore subsequent offers.
 
   driver1.start();
 
@@ -2735,7 +2735,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched2, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(DeclineOffers()); // Ignore subsequent offers.
 
   driver2.start();
 
