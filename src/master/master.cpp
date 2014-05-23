@@ -986,6 +986,40 @@ void Master::detected(const Future<Option<MasterInfo> >& _leader)
 }
 
 
+Try<Nothing> Master::validate(
+    const FrameworkInfo& frameworkInfo,
+    const UPID& from)
+{
+  if (flags.authenticate_frameworks) {
+    if (!authenticated.contains(from)) {
+      // This could happen if another authentication request came
+      // through before we are here or if a framework tried to
+      // (re-)register without authentication.
+      return Error("Framework at " + stringify(from) + " is not authenticated");
+    } else if (frameworkInfo.has_principal() &&
+               frameworkInfo.principal() != authenticated[from]) {
+      return Error(
+          "Framework principal '" + frameworkInfo.principal() +
+          "' does not match authenticated principal '" + authenticated[from]  +
+          "'");
+    } else if (!frameworkInfo.has_principal()) {
+      // We allow an authenticated framework to not specify a
+      // principal in FrameworkInfo but we'd prefer if it did so we log
+      // a WARNING here when this happens.
+      LOG(WARNING) << "Framework at " << from << " (authenticated as '"
+                   << authenticated[from]
+                   << "') does not specify principal in its FrameworkInfo";
+    }
+  }
+
+  if (!roles.contains(frameworkInfo.role())) {
+    return Error("Role '" + frameworkInfo.role() + "' is not valid.");
+  }
+
+  return Nothing();
+}
+
+
 void Master::registerFramework(
     const UPID& from,
     const FrameworkInfo& frameworkInfo)
@@ -1001,39 +1035,12 @@ void Master::registerFramework(
     return;
   }
 
-  if (flags.authenticate_frameworks) {
-    if (!authenticated.contains(from)) {
-      // This could happen if another authentication request came
-      // through before we are here or if a framework tried to register
-      // without authentication.
-      LOG(WARNING) << "Refusing registration of framework at " << from
-                   << " because it is not authenticated";
-      FrameworkErrorMessage message;
-      message.set_message("Framework at " + stringify(from) +
-                          " is not authenticated.");
-      send(from, message);
-      return;
-    } else if (frameworkInfo.has_principal() &&
-               frameworkInfo.principal() != authenticated[from]) {
-      LOG(WARNING) << "Refusing registration of framework at " << from
-                   << " because its principal '" << frameworkInfo.principal()
-                   << "' does not match what it used in authentication: '"
-                   << authenticated[from] << "'";
-      FrameworkErrorMessage message;
-      message.set_message("Framework principal " + frameworkInfo.principal() +
-                          " does not match what was used in authentication: " +
-                          authenticated[from]);
-      send(from, message);
-      return;
-    } else if (!frameworkInfo.has_principal()) {
-      LOG(WARNING) << "Framework at " << from
-                   << " does not specify principal in its FrameworkInfo";
-    }
-  }
-
-  if (!roles.contains(frameworkInfo.role())) {
+  Try<Nothing> valid = validate(frameworkInfo, from);
+  if (valid.isError()) {
+    LOG(WARNING) << "Refusing registration of framework at " << from  << ": "
+                 << valid.error();
     FrameworkErrorMessage message;
-    message.set_message("Role '" + frameworkInfo.role() + "' is not valid.");
+    message.set_message(valid.error());
     send(from, message);
     return;
   }
@@ -1102,39 +1109,12 @@ void Master::reregisterFramework(
     return;
   }
 
-  if (flags.authenticate_frameworks) {
-    if (!authenticated.contains(from)) {
-      // This could happen if another authentication request came
-      // through before we are here or if a framework tried to
-      // re-register without authentication.
-      LOG(WARNING) << "Refusing re-registration of framework at " << from
-                   << " because it is not authenticated";
-      FrameworkErrorMessage message;
-      message.set_message("Framework '" + frameworkInfo.id().value() + "' at " +
-                          stringify(from) + " is not authenticated.");
-      send(from, message);
-      return;
-    } else if (frameworkInfo.has_principal() &&
-               frameworkInfo.principal() != authenticated[from]) {
-      LOG(WARNING) << "Refusing re-registration of framework at " << from
-                   << " because its principal '" << frameworkInfo.principal()
-                   << "' does not match what it used in authentication: '"
-                   << authenticated[from] << "'";
-      FrameworkErrorMessage message;
-      message.set_message("Framework principal " + frameworkInfo.principal() +
-                          " does not match what was used in authentication: " +
-                          authenticated[from]);
-      send(from, message);
-      return;
-    } else if (!frameworkInfo.has_principal()) {
-      LOG(WARNING) << "Framework at " << from
-                   << " does not specify principal in its FrameworkInfo";
-    }
-  }
-
-  if (!roles.contains(frameworkInfo.role())) {
+  Try<Nothing> valid = validate(frameworkInfo, from);
+  if (valid.isError()) {
+    LOG(WARNING) << "Refusing re-registration of framework at " << from << ": "
+                 << valid.error();
     FrameworkErrorMessage message;
-    message.set_message("Role '" + frameworkInfo.role() + "' is not valid.");
+    message.set_message(valid.error());
     send(from, message);
     return;
   }

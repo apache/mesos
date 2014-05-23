@@ -618,6 +618,16 @@ private:
   process::Time startTime; // Start time used to calculate uptime.
 
   Option<process::Time> electedTime; // Time when this master is elected.
+
+  // Helper method for common FrameworkInfo and PID validation shared
+  // by Framework registration and re-registration.
+  // An error return value indicates the request is invalid and a
+  // FrameworkErrorMessage should be returned.
+  // Note that registration/re-registration specific checking is not
+  // handled here.
+  Try<Nothing> validate(
+      const FrameworkInfo& frameworkInfo,
+      const process::UPID& from);
 };
 
 
