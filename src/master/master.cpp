@@ -1183,7 +1183,7 @@ void Master::reregisterFramework(
       foreach (Offer* offer, utils::copy(framework->offers)) {
         allocator->resourcesRecovered(
             offer->framework_id(), offer->slave_id(), offer->resources());
-        removeOffer(offer);
+        removeOffer(offer, true); // Rescind.
       }
 
       FrameworkReregisteredMessage message;
@@ -1318,7 +1318,7 @@ void Master::deactivate(Framework* framework)
   foreach (Offer* offer, utils::copy(framework->offers)) {
     allocator->resourcesRecovered(
         offer->framework_id(), offer->slave_id(), offer->resources());
-    removeOffer(offer);
+    removeOffer(offer, true); // Rescind.
   }
 }
 
