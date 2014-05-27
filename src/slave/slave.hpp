@@ -334,7 +334,7 @@ private:
   Slave& operator = (const Slave&); // No assigning.
 
   // Gauge methods.
-  double _active_frameworks()
+  double _frameworks_active()
   {
     return frameworks.size();
   }
@@ -393,7 +393,7 @@ private:
 
     process::metrics::Counter recovery_errors;
 
-    process::metrics::Gauge active_frameworks;
+    process::metrics::Gauge frameworks_active;
 
     process::metrics::Gauge tasks_staging;
     process::metrics::Gauge tasks_starting;

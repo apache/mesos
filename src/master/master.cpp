@@ -3763,7 +3763,7 @@ SlaveID Master::newSlaveId()
 }
 
 
-double Master::_active_slaves()
+double Master::_slaves_active()
 {
   double count = 0.0;
   foreachvalue (Slave* slave, slaves.activated) {
@@ -3775,7 +3775,7 @@ double Master::_active_slaves()
 }
 
 
-double Master::_inactive_slaves()
+double Master::_slaves_inactive()
 {
   double count = 0.0;
   foreachvalue (Slave* slave, slaves.activated) {
@@ -3854,18 +3854,18 @@ Master::Metrics::Metrics(const Master& master)
     elected(
         "master/elected",
         defer(master, &Master::_elected)),
-    active_slaves(
-        "master/active_slaves",
-        defer(master, &Master::_active_slaves)),
-    inactive_slaves(
-        "master/inactive_slaves",
-        defer(master, &Master::_inactive_slaves)),
-    active_frameworks(
-        "master/active_frameworks",
-        defer(master, &Master::_active_frameworks)),
-    inactive_frameworks(
-        "master/inactive_frameworks",
-        defer(master, &Master::_inactive_frameworks)),
+    slaves_active(
+        "master/slaves_active",
+        defer(master, &Master::_slaves_active)),
+    slaves_inactive(
+        "master/slaves_inactive",
+        defer(master, &Master::_slaves_inactive)),
+    frameworks_active(
+        "master/frameworks_active",
+        defer(master, &Master::_frameworks_active)),
+    frameworks_inactive(
+        "master/frameworks_inactive",
+        defer(master, &Master::_frameworks_inactive)),
     outstanding_offers(
         "master/outstanding_offers",
         defer(master, &Master::_outstanding_offers)),
@@ -3944,11 +3944,11 @@ Master::Metrics::Metrics(const Master& master)
   process::metrics::add(uptime_secs);
   process::metrics::add(elected);
 
-  process::metrics::add(active_slaves);
-  process::metrics::add(inactive_slaves);
+  process::metrics::add(slaves_active);
+  process::metrics::add(slaves_inactive);
 
-  process::metrics::add(active_frameworks);
-  process::metrics::add(inactive_frameworks);
+  process::metrics::add(frameworks_active);
+  process::metrics::add(frameworks_inactive);
 
   process::metrics::add(outstanding_offers);
 
@@ -4031,11 +4031,11 @@ Master::Metrics::~Metrics()
   process::metrics::remove(uptime_secs);
   process::metrics::remove(elected);
 
-  process::metrics::remove(active_slaves);
-  process::metrics::remove(inactive_slaves);
+  process::metrics::remove(slaves_active);
+  process::metrics::remove(slaves_inactive);
 
-  process::metrics::remove(active_frameworks);
-  process::metrics::remove(inactive_frameworks);
+  process::metrics::remove(frameworks_active);
+  process::metrics::remove(frameworks_inactive);
 
   process::metrics::remove(outstanding_offers);
 

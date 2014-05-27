@@ -567,7 +567,7 @@ TEST_F(SlaveTest, MetricsInStatsEndpoint)
 
   EXPECT_EQ(1u, stats.values.count("slave/recovery_errors"));
 
-  EXPECT_EQ(1u, stats.values.count("slave/active_frameworks"));
+  EXPECT_EQ(1u, stats.values.count("slave/frameworks_active"));
 
   EXPECT_EQ(1u, stats.values.count("slave/tasks_staging"));
   EXPECT_EQ(1u, stats.values.count("slave/tasks_starting"));

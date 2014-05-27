@@ -3161,9 +3161,9 @@ Slave::Metrics::Metrics(const Slave& slave)
         defer(slave, &Slave::_registered)),
     recovery_errors(
         "slave/recovery_errors"),
-    active_frameworks(
-        "slave/active_frameworks",
-        defer(slave, &Slave::_active_frameworks)),
+    frameworks_active(
+        "slave/frameworks_active",
+        defer(slave, &Slave::_frameworks_active)),
     tasks_staging(
         "slave/tasks_staging",
         defer(slave, &Slave::_tasks_staging)),
@@ -3196,7 +3196,7 @@ Slave::Metrics::Metrics(const Slave& slave)
 
   process::metrics::add(recovery_errors);
 
-  process::metrics::add(active_frameworks);
+  process::metrics::add(frameworks_active);
 
   process::metrics::add(tasks_staging);
   process::metrics::add(tasks_starting);
@@ -3222,7 +3222,7 @@ Slave::Metrics::~Metrics()
 
   process::metrics::remove(recovery_errors);
 
-  process::metrics::remove(active_frameworks);
+  process::metrics::remove(frameworks_active);
 
   process::metrics::remove(tasks_staging);
   process::metrics::remove(tasks_starting);

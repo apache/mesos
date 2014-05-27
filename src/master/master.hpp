@@ -485,11 +485,11 @@ private:
     process::metrics::Gauge uptime_secs;
     process::metrics::Gauge elected;
 
-    process::metrics::Gauge active_slaves;
-    process::metrics::Gauge inactive_slaves;
+    process::metrics::Gauge slaves_active;
+    process::metrics::Gauge slaves_inactive;
 
-    process::metrics::Gauge active_frameworks;
-    process::metrics::Gauge inactive_frameworks;
+    process::metrics::Gauge frameworks_active;
+    process::metrics::Gauge frameworks_inactive;
 
     process::metrics::Gauge outstanding_offers;
 
@@ -561,18 +561,18 @@ private:
     return elected() ? 1 : 0;
   }
 
-  double _active_slaves();
+  double _slaves_active();
 
-  double _inactive_slaves();
+  double _slaves_inactive();
 
-  double _active_frameworks()
+  double _frameworks_active()
   {
     return getActiveFrameworks().size();
   }
 
-  double _inactive_frameworks()
+  double _frameworks_inactive()
   {
-    return frameworks.activated.size() - _active_frameworks();
+    return frameworks.activated.size() - _frameworks_active();
   }
 
   double _outstanding_offers()

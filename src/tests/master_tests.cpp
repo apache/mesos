@@ -1414,11 +1414,11 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
   EXPECT_EQ(1, stats.values["elected"]);
   EXPECT_EQ(1, stats.values["master/elected"]);
 
-  EXPECT_EQ(1u, stats.values.count("master/active_slaves"));
-  EXPECT_EQ(1u, stats.values.count("master/inactive_slaves"));
+  EXPECT_EQ(1u, stats.values.count("master/slaves_active"));
+  EXPECT_EQ(1u, stats.values.count("master/slaves_inactive"));
 
-  EXPECT_EQ(1u, stats.values.count("master/active_frameworks"));
-  EXPECT_EQ(1u, stats.values.count("master/inactive_frameworks"));
+  EXPECT_EQ(1u, stats.values.count("master/frameworks_active"));
+  EXPECT_EQ(1u, stats.values.count("master/frameworks_inactive"));
 
   EXPECT_EQ(1u, stats.values.count("master/outstanding_offers"));
 
