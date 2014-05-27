@@ -84,7 +84,6 @@ inline Try<JSON::Object> parse(const std::string& value)
   // all valid prefixes of a JSON string.
   if (strings::startsWith(value, "/") ||
       strings::startsWith(value, "file://")) {
-
     const std::string& path =
       strings::remove(value, "file://", strings::PREFIX);
 
