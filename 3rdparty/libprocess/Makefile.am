@@ -147,6 +147,7 @@ tests_SOURCES =							\
   src/tests/shared_tests.cpp					\
   src/tests/statistics_tests.cpp				\
   src/tests/subprocess_tests.cpp				\
+  src/tests/system_tests.cpp					\
   src/tests/timeseries_tests.cpp				\
   src/tests/time_tests.cpp
 

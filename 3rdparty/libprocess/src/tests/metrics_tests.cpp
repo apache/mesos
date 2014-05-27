@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <map>
+#include <string>
+
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
 
@@ -26,6 +29,8 @@ using process::metrics::Counter;
 using process::metrics::Gauge;
 using process::metrics::Timer;
 
+using std::map;
+using std::string;
 
 class GaugeProcess : public Process<GaugeProcess>
 {
@@ -146,15 +151,6 @@ TEST(Metrics, Snapshot)
 
   Clock::pause();
 
-  // Advance the clock to avoid rate limit.
-  Clock::advance(Seconds(1));
-
-  // Before adding any metrics, the response should be empty.
-  Future<Response> response = http::get(upid, "snapshot");
-
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
-
   // Add a gauge and a counter.
   GaugeProcess process;
   PID<GaugeProcess> pid = spawn(&process);
@@ -172,15 +168,23 @@ TEST(Metrics, Snapshot)
   Clock::advance(Seconds(1));
 
   // Get the snapshot.
-  response = http::get(upid, "snapshot");
-
+  Future<Response> response = http::get(upid, "snapshot");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  JSON::Object expected;
-  expected.values["test/counter"] = 0.0;
-  expected.values["test/gauge"] = 42.0;
+  // Parse the response.
+  Try<JSON::Object> responseJSON =
+      JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(responseJSON);
 
-  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+  map<string, JSON::Value> values = responseJSON.get().values;
+
+  EXPECT_EQ(1u, values.count("test/counter"));
+  EXPECT_FLOAT_EQ(0.0, values["test/counter"].as<JSON::Number>().value);
+
+  EXPECT_EQ(1u, values.count("test/gauge"));
+  EXPECT_FLOAT_EQ(42.0, values["test/gauge"].as<JSON::Number>().value);
+
+  EXPECT_EQ(0u, values.count("test/gauge_fail"));
 
   // Remove the metrics and ensure they are no longer in the snapshot.
   AWAIT_READY(metrics::remove(gauge));
@@ -190,10 +194,21 @@ TEST(Metrics, Snapshot)
   // Advance the clock to avoid rate limit.
   Clock::advance(Seconds(1));
 
+  // Ensure MetricsProcess has removed the metrics.
+  Clock::settle();
+
   response = http::get(upid, "snapshot");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
+
+  // Parse the response.
+  responseJSON = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(responseJSON);
+
+  values = responseJSON.get().values;
+  EXPECT_EQ(0u, values.count("test/counter"));
+  EXPECT_EQ(0u, values.count("test/gauge"));
+  EXPECT_EQ(0u, values.count("test/gauge_fail"));
 
   terminate(process);
   wait(process);
@@ -219,13 +234,7 @@ TEST(Metrics, SnapshotTimeout)
   // Advance the clock to avoid rate limit.
   Clock::advance(Seconds(1));
 
-  // Before adding any metrics, the response should be empty.
-  Future<Response> response = http::get(upid, "snapshot?timeout=2secs");
-
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
-
-  // Add a gauge and a counter.
+  // Add gauges and a counter.
   GaugeProcess process;
   PID<GaugeProcess> pid = spawn(&process);
   ASSERT_TRUE(pid);
@@ -244,7 +253,7 @@ TEST(Metrics, SnapshotTimeout)
   Clock::advance(Seconds(1));
 
   // Get the snapshot.
-  response = http::get(upid, "snapshot?timeout=2secs");
+  Future<Response> response = http::get(upid, "snapshot?timeout=2secs");
 
   // Make sure the request is pending before the timeout is exceeded.
   Clock::settle();
@@ -256,11 +265,21 @@ TEST(Metrics, SnapshotTimeout)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  JSON::Object expected;
-  expected.values["test/counter"] = 0.0;
-  expected.values["test/gauge"] = 42.0;
+  // Parse the response.
+  Try<JSON::Object> responseJSON =
+      JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(responseJSON);
 
-  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+  map<string, JSON::Value> values = responseJSON.get().values;
+
+  EXPECT_EQ(1u, values.count("test/counter"));
+  EXPECT_FLOAT_EQ(0.0, values["test/counter"].as<JSON::Number>().value);
+
+  EXPECT_EQ(1u, values.count("test/gauge"));
+  EXPECT_FLOAT_EQ(42.0, values["test/gauge"].as<JSON::Number>().value);
+
+  EXPECT_EQ(0u, values.count("test/gauge_fail"));
+  EXPECT_EQ(0u, values.count("test/gauge_timeout"));
 
   // Remove the metrics and ensure they are no longer in the snapshot.
   AWAIT_READY(metrics::remove(gauge));
@@ -271,10 +290,24 @@ TEST(Metrics, SnapshotTimeout)
   // Advance the clock to avoid rate limit.
   Clock::advance(Seconds(1));
 
+  // Ensure MetricsProcess has removed the metrics.
+  Clock::settle();
+
   response = http::get(upid, "snapshot?timeout=2secs");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
+
+  // Parse the response.
+  responseJSON = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(responseJSON);
+
+  values = responseJSON.get().values;
+
+  ASSERT_SOME(responseJSON);
+  EXPECT_EQ(0u, values.count("test/counter"));
+  EXPECT_EQ(0u, values.count("test/gauge"));
+  EXPECT_EQ(0u, values.count("test/gauge_fail"));
+  EXPECT_EQ(0u, values.count("test/gauge_timeout"));
 
   terminate(process);
   wait(process);
@@ -288,15 +321,6 @@ TEST(Metrics, SnapshotStatistics)
 
   Clock::pause();
 
-  // Advance the clock to avoid rate limit.
-  Clock::advance(Seconds(1));
-  Future<Response> response = http::get(upid, "snapshot");
-
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(JSON::Object()), response);
-
-  Clock::pause();
-
   Counter counter("test/counter", process::TIME_SERIES_WINDOW);
 
   AWAIT_READY(metrics::add(counter));
@@ -306,26 +330,46 @@ TEST(Metrics, SnapshotStatistics)
     ++counter;
   }
 
-  JSON::Object expected;
+  hashmap<std::string, double> expected;
 
-  expected.values["test/counter"] = 10.0;
+  expected["test/counter"] = 10.0;
 
-  expected.values["test/counter/count"] = 11;
+  expected["test/counter/count"] = 11;
 
-  expected.values["test/counter/min"] = 0.0;
-  expected.values["test/counter/max"] = 10.0;
+  expected["test/counter/min"] = 0.0;
+  expected["test/counter/max"] = 10.0;
 
-  expected.values["test/counter/p50"] = 5.0;
-  expected.values["test/counter/p90"] = 9.0;
-  expected.values["test/counter/p95"] = 9.5;
-  expected.values["test/counter/p99"] = 9.9;
-  expected.values["test/counter/p999"] = 9.99;
-  expected.values["test/counter/p9999"] = 9.999;
+  expected["test/counter/p50"] = 5.0;
+  expected["test/counter/p90"] = 9.0;
+  expected["test/counter/p95"] = 9.5;
+  expected["test/counter/p99"] = 9.9;
+  expected["test/counter/p999"] = 9.99;
+  expected["test/counter/p9999"] = 9.999;
 
-  response = http::get(upid, "snapshot");
+  Future<Response> response = http::get(upid, "snapshot");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+
+  Try<JSON::Object> responseJSON =
+      JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(responseJSON);
+
+  // Pull the response values into a map.
+  hashmap<std::string, double> responseValues;
+  foreachpair (const std::string& key,
+               const JSON::Value& value,
+               responseJSON.get().values) {
+    if (value.is<JSON::Number>()) {
+      responseValues[key] = value.as<JSON::Number>().value;
+    }
+  }
+
+  // Ensure the expected keys are in the response and that the values match
+  // expectations.
+  foreachkey (const std::string& key, expected) {
+    EXPECT_FLOAT_EQ(expected[key], responseValues[key]);
+  }
 
   AWAIT_READY(metrics::remove(counter));
 }
