@@ -33,6 +33,7 @@ layout: documentation
 * [Twitter](http://www.twitter.com)
 * [UCSF](http://www.ucsf.edu)
 * [UC Berkeley](http://www.berkeley.edu)
+* [URX](http://www.urx.com)
 * [Viadeo](http://www.viadeo.com)
 * [Vimeo](http://www.vimeo.com)
 * [Xogito](http://www.xogito.com)
