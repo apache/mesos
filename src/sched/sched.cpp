@@ -40,8 +40,12 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/owned.hpp>
+#include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
+
+#include <process/metrics/gauge.hpp>
+#include <process/metrics/metrics.hpp>
 
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
@@ -103,6 +107,7 @@ public:
                    pthread_mutex_t* _mutex,
                    pthread_cond_t* _cond)
     : ProcessBase(ID::generate("scheduler")),
+      metrics(*this),
       driver(_driver),
       scheduler(_scheduler),
       framework(_framework),
@@ -992,6 +997,42 @@ protected:
 
 private:
   friend class mesos::MesosSchedulerDriver;
+
+  struct Metrics
+  {
+    Metrics(const SchedulerProcess& schedulerProcess)
+      : event_queue_size(
+          "scheduler/event_queue_size",
+          defer(schedulerProcess, &SchedulerProcess::_event_queue_size))
+    {
+      // TODO(dhamon): When we start checking the return value of 'add' we may
+      // get failures in situations where multiple SchedulerProcesses are active
+      // (ie, the fault tolerance tests). At that point we'll need MESOS-1285 to
+      // be fixed and to use self().id in the metric name.
+      process::metrics::add(event_queue_size);
+    }
+
+    ~Metrics()
+    {
+      process::metrics::remove(event_queue_size);
+    }
+
+    // Process metrics.
+    process::metrics::Gauge event_queue_size;
+  } metrics;
+
+  double _event_queue_size()
+  {
+    size_t size;
+
+    lock();
+    {
+      size = events.size();
+    }
+    unlock();
+
+    return static_cast<double>(size);
+  }
 
   MesosSchedulerDriver* driver;
   Scheduler* scheduler;
