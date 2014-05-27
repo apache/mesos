@@ -720,7 +720,21 @@ void Master::exited(const UPID& pid)
       } else if (!slave->disconnected) {
         // Checkpointing slaves can just be disconnected.
         disconnect(slave);
-        removeFrameworksAndOffers(slave);
+
+        // Remove all non-checkpointing frameworks.
+        hashset<FrameworkID> frameworkIds =
+          slave->tasks.keys() | slave->executors.keys();
+
+        foreach (const FrameworkID& frameworkId, frameworkIds) {
+          Framework* framework = getFramework(frameworkId);
+          if (framework != NULL && !framework->info.checkpoint()) {
+            LOG(INFO) << "Removing framework " << frameworkId
+                      << " from disconnected slave " << *slave
+                      << " because the framework is not checkpointing";
+
+            removeFramework(slave, framework);
+          }
+        }
       } else {
         LOG(WARNING) << "Ignoring duplicate exited() notification for "
                      << "checkpointing slave " << *slave;
@@ -1336,37 +1350,12 @@ void Master::disconnect(Slave* slave)
   // Remove the slave from authenticated. This is safe because
   // a slave will always reauthenticate before (re-)registering.
   authenticated.erase(slave->pid);
-}
 
-
-void Master::removeFrameworksAndOffers(Slave* slave)
-{
-  CHECK_NOTNULL(slave);
-
-  // If a slave is checkpointing, remove all non-checkpointing
-  // frameworks from the slave. If the slave is not checkpointing,
-  // remove all of its frameworks.
-  hashset<FrameworkID> frameworkIds =
-    slave->tasks.keys() | slave->executors.keys();
-
-  foreach (const FrameworkID& frameworkId, frameworkIds) {
-    Framework* framework = getFramework(frameworkId);
-    if (framework != NULL &&
-        (!framework->info.checkpoint() || !slave->info.checkpoint())) {
-      LOG(INFO) << "Removing framework " << frameworkId
-                << " from disconnected slave " << *slave << " because "
-                << (!slave->info.checkpoint() ? "slave" : "framework")
-                << " is not checkpointing";
-
-      removeFramework(slave, framework);
-    }
-  }
-
+  // Remove and rescind offers.
   foreach (Offer* offer, utils::copy(slave->offers)) {
     allocator->resourcesRecovered(
         offer->framework_id(), slave->id, offer->resources());
 
-    // Remove and rescind offers.
     removeOffer(offer, true); // Rescind!
   }
 }

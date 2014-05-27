@@ -286,14 +286,13 @@ protected:
   // reschedule offers that were assigned to this framework.
   void removeFramework(Framework* framework);
 
-  // Remove a framework from the slave, i.e., kill all of its tasks,
-  // remove its offers and reallocate its resources.
+  // Remove a framework from the slave, i.e., remove its tasks and
+  // executors and recover the resources.
   void removeFramework(Slave* slave, Framework* framework);
 
   // TODO(adam-mesos): Rename deactivate to disconnect, or v.v.
   void deactivate(Framework* framework);
   void disconnect(Slave* slave);
-  void removeFrameworksAndOffers(Slave* slave);
 
   // Add a slave.
   void addSlave(Slave* slave, bool reregister = false);
