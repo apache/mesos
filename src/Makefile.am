@@ -228,6 +228,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	common/values.cpp						\
 	files/files.cpp							\
 	logging/logging.cpp						\
+	usage/usage.cpp							\
 	zookeeper/contender.cpp						\
 	zookeeper/detector.cpp						\
 	zookeeper/zookeeper.cpp						\

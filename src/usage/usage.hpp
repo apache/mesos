@@ -21,14 +21,7 @@
 
 #include <unistd.h> // For pid_t.
 
-#include <deque>
-
-#include <mesos/mesos.hpp>
-
-#include <process/clock.hpp>
-
-#include <stout/foreach.hpp>
-#include <stout/os.hpp>
+#include "mesos/mesos.hpp"
 
 namespace mesos {
 namespace internal {
@@ -36,55 +29,7 @@ namespace internal {
 // Collects resource usage of a process tree rooted at 'pid'. Only
 // collects the 'mem_*' values if 'mem' is true and the 'cpus_*'
 // values if 'cpus' is true.
-ResourceStatistics usage(pid_t pid, bool mem = true, bool cpus = true)
-{
-  Try<os::ProcessTree> pstree = os::pstree(pid);
-
-  if (pstree.isError()) {
-    return ResourceStatistics();
-  }
-
-  ResourceStatistics statistics;
-
-  // The timestamp is the only required field.
-  statistics.set_timestamp(process::Clock::now().secs());
-
-  std::deque<os::ProcessTree> trees;
-  trees.push_back(pstree.get());
-
-  while (!trees.empty()) {
-    const os::ProcessTree& tree = trees.front();
-
-    if (mem) {
-      if (tree.process.rss.isSome()) {
-        statistics.set_mem_rss_bytes(
-            statistics.mem_rss_bytes() + tree.process.rss.get().bytes());
-      }
-    }
-
-    // We only show utime and stime when both are available, otherwise
-    // we're exposing a partial view of the CPU times.
-    if (cpus) {
-      if (tree.process.utime.isSome() && tree.process.stime.isSome()) {
-        statistics.set_cpus_user_time_secs(
-            statistics.cpus_user_time_secs() +
-            tree.process.utime.get().secs());
-
-        statistics.set_cpus_system_time_secs(
-            statistics.cpus_system_time_secs() +
-            tree.process.stime.get().secs());
-      }
-    }
-
-    foreach (const os::ProcessTree& child, tree.children) {
-      trees.push_back(child);
-    }
-
-    trees.pop_front();
-  }
-
-  return statistics;
-}
+ResourceStatistics usage(pid_t pid, bool mem = true, bool cpus = true);
 
 } // namespace internal {
 } // namespace mesos {
