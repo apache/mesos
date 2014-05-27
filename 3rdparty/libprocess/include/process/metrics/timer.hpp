@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/internal.hpp>
 
@@ -11,7 +12,6 @@
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
-#include <stout/stopwatch.hpp>
 #include <stout/try.hpp>
 
 namespace process {
@@ -48,26 +48,26 @@ public:
     return value;
   }
 
-  // Start the stopwatch.
+  // Start the Timer.
   void start()
   {
     process::internal::acquire(&data->lock);
     {
-      data->stopwatch.start();
+      data->start = Clock::now();
     }
     process::internal::release(&data->lock);
   }
 
-  // Stop the stopwatch.
+  // Stop the Timer.
   void stop()
   {
+    const Time stop = Clock::now();
+
     double value;
 
     process::internal::acquire(&data->lock);
     {
-      data->stopwatch.stop();
-
-      data->lastValue = T(data->stopwatch.elapsed()).value();
+      data->lastValue = T(stop - data->start).value();
 
       value = data->lastValue.get();
     }
@@ -80,13 +80,10 @@ public:
   template<typename U>
   Future<U> time(const Future<U>& future)
   {
-    Stopwatch stopwatch;
-    stopwatch.start();
-
     // We need to take a copy of 'this' here to ensure that the
     // Timer is not destroyed in the interim.
     future
-      .onAny(lambda::bind(_time, stopwatch, *this));
+      .onAny(lambda::bind(_time, Clock::now(), *this));
 
     return future;
   }
@@ -96,19 +93,19 @@ private:
     Data() : lock(0) {}
 
     int lock;
-    Stopwatch stopwatch;
+    Time start;
     Option<double> lastValue;
   };
 
-  static void _time(Stopwatch stopwatch, Timer that)
+  static void _time(Time start, Timer that)
   {
-    stopwatch.stop();
+    const Time stop = Clock::now();
 
     double value;
 
     process::internal::acquire(&that.data->lock);
     {
-      that.data->lastValue = T(stopwatch.elapsed()).value();
+      that.data->lastValue = T(stop - start).value();
       value = that.data->lastValue.get();
     }
     process::internal::release(&that.data->lock);

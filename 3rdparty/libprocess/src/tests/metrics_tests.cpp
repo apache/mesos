@@ -342,13 +342,14 @@ TEST(Metrics, Timer)
   timer.stop();
 
   // Time a no-op.
+  Clock::pause();
   timer.start();
-  os::sleep(Microseconds(1));
+  Clock::advance(Microseconds(1));
   timer.stop();
 
   Future<double> value = timer.value();
   AWAIT_READY(value);
-  EXPECT_GE(value.get(), Microseconds(1).ms());
+  EXPECT_FLOAT_EQ(value.get(), Microseconds(1).ns());
 
   // It is not an error to stop a timer that has already been stopped.
   timer.stop();
@@ -357,8 +358,13 @@ TEST(Metrics, Timer)
 }
 
 
-// TODO(bmahler): Use 'Clock' in Timer so that we can test that Timer
-// is correctly timing futures.
+static Future<int> advanceAndReturn()
+{
+  Clock::advance(Seconds(1));
+  return 42;
+}
+
+
 TEST(Metrics, AsyncTimer)
 {
   metrics::Timer<Microseconds> t("test/timer");
@@ -366,15 +372,19 @@ TEST(Metrics, AsyncTimer)
 
   AWAIT_READY(metrics::add(t));
 
-  Future<int> result = 42;
-
-  result = t.time(result);
+  // Time a Future that returns immediately. Even though the method advances the
+  // clock and we advance the clock here, the Future should be timed as if it
+  // takes 0 time. Ie, we're not timing the method call but the Future.
+  Clock::pause();
+  Future<int> result = t.time(advanceAndReturn());
+  Clock::advance(Seconds(1));
   AWAIT_READY(result);
 
   EXPECT_EQ(42, result.get());
 
+  // The future should have taken zero time.
   AWAIT_READY(t.value());
-  EXPECT_GT(t.value().get(), 0.0);
+  EXPECT_FLOAT_EQ(t.value().get(), 0.0);
 
   AWAIT_READY(metrics::remove(t));
 }
