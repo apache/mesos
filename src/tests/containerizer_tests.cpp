@@ -457,9 +457,9 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   containerId.set_value("test_container");
 
   string errMsg = "this is stderr";
-  string outMsg = "this is stderr";
+  string outMsg = "this is stdout";
   string command =
-    "(echo -n '" + errMsg + "' 1>&2) && echo -n '" + outMsg + "'";
+    "(echo '" + errMsg + "' 1>&2) && echo '" + outMsg + "'";
 
   process::Future<Nothing> launch = containerizer.get()->launch(
       containerId,
@@ -483,8 +483,8 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   EXPECT_EQ(0, wait.get().status());
 
   // Check that std{err, out} was redirected.
-  EXPECT_SOME_EQ(errMsg, os::read(path::join(directory, "stderr")));
-  EXPECT_SOME_EQ(outMsg, os::read(path::join(directory, "stdout")));
+  EXPECT_SOME_EQ(errMsg + "\n", os::read(path::join(directory, "stderr")));
+  EXPECT_SOME_EQ(outMsg + "\n", os::read(path::join(directory, "stdout")));
 
   delete containerizer.get();
 }
