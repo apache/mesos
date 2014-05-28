@@ -799,6 +799,9 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
   DropProtobufs(message, from, to)
 
 
+#define NO_FUTURE_PROTOBUFS(message, from, to)              \
+  NoFutureProtobufs(message, from, to)
+
 // Forward declaration.
 template <typename T>
 T _FutureProtobuf(const process::Message& message);
@@ -831,6 +834,16 @@ void DropProtobufs(T t, From from, To to)
   { google::protobuf::Message* m = &t; (void) m; }
 
   process::DropMessages(testing::Eq(t.GetTypeName()), from, to);
+}
+
+
+template <typename T, typename From, typename To>
+void NoFutureProtobufs(T t, From from, To to)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &t; (void) m; }
+
+  process::NoFutureMessages(testing::Eq(t.GetTypeName()), from, to);
 }
 
 } // namespace tests {
