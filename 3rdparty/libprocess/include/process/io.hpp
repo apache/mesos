@@ -64,6 +64,15 @@ Future<Nothing> write(int fd, const std::string& data);
 // both the 'from' and 'to' file descriptors must be non-blocking.
 Future<Nothing> splice(int from, int to, size_t chunk = 4096);
 
+
+// Redirect output from 'from' file descriptor to 'to' file descriptor
+// or /dev/null if 'to' is None. Note that depending on how we
+// redirect output we duplicate the 'from' and 'to' file descriptors
+// so we can control their lifetimes. Returns after EOF has been hit
+// on 'from' or some form of failure has occured.
+// TODO(benh): Consider subsuming lower-level 'splice'.
+Future<Nothing> redirect(int from, Option<int> to, size_t chunk = 4096);
+
 } // namespace io {
 } // namespace process {
 
