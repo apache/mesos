@@ -709,3 +709,111 @@ TEST_F(SlaveTest, MetricsInStatsEndpoint)
 
   Shutdown();
 }
+
+
+// This test ensures that when a previously unregistered slave is shutting
+// down, it will not keep trying to re-register with the master.
+TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
+{
+  // Start a master and a slave.
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  // Create a MockExecutor to enable us to catch ShutdownExecutorMessage later.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  StandaloneMasterDetector detector(master.get());
+  Try<PID<Slave> > slave = this->StartSlave(
+      &containerizer,
+      &detector);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Create a task on the slave.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer> >offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Wait for TASK_RUNNING update.
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Pause the clock here so when the master comes back,
+  // the slave will not send multiple re-register messages
+  // before we change its state to TERMINATING.
+  Clock::pause();
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    DROP_PROTOBUF(SlaveReregisteredMessage(), master.get(), _);
+
+  // Simulate a new master detected event to the scheduler,
+  // so that the slave will do a re-registration.
+  detector.appoint(master.get());
+
+  // Make sure the slave has entered doReliableRegistration()
+  // before we change the slave's state
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Drop all ShutdownExecutorMessages to ensure that
+  // the slave will stay in TERMINATING state
+  DROP_PROTOBUFS(ShutdownExecutorMessage(), _, _);
+
+  process::post(slave.get(), ShutdownMessage());
+
+  // Setup an expection
+  NO_FUTURE_PROTOBUFS(SlaveReregisteredMessage(), master.get(), _);
+
+  // Advance the clock to trigger doReliableRegistration()
+  Clock::advance(slave::REGISTER_RETRY_INTERVAL_MAX);
+  Clock::settle();
+  Clock::resume();
+
+  // Clean up
+  driver.killTask(task.task_id());
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+}
