@@ -803,8 +803,7 @@ void Slave::doReliableRegistration(const Duration& duration)
   CHECK(state == DISCONNECTED || state == TERMINATING) << state;
 
   if (info.id() == "") {
-    // Slave started before master.
-    // (Vinod): Is the above comment true?
+    // Registering for the first time.
     RegisterSlaveMessage message;
     message.mutable_slave()->CopyFrom(info);
     send(master.get(), message);
@@ -816,13 +815,9 @@ void Slave::doReliableRegistration(const Duration& duration)
 
     foreachvalue (Framework* framework, frameworks) {
       foreachvalue (Executor* executor, framework->executors) {
-        // Ignore terminated executors because they do not consume
-        // any resources.
-        if (executor->state == Executor::TERMINATED) {
-          continue;
-        }
-
         // Add launched, terminated, and queued tasks.
+        // Note that terminated executors will only have terminated
+        // unacknowledged tasks.
         foreach (Task* task, executor->launchedTasks.values()) {
           message.add_tasks()->CopyFrom(*task);
         }
@@ -844,12 +839,16 @@ void Slave::doReliableRegistration(const Duration& duration)
             message.mutable_tasks(i)->clear_executor_id();
           }
         } else {
-          ExecutorInfo* executorInfo = message.add_executor_infos();
-          executorInfo->MergeFrom(executor->info);
+          // Ignore terminated executors because they do not consume
+          // any resources.
+          if (executor->state != Executor::TERMINATED) {
+            ExecutorInfo* executorInfo = message.add_executor_infos();
+            executorInfo->MergeFrom(executor->info);
 
-          // Scheduler Driver will ensure the framework id is set in
-          // ExecutorInfo, effectively making it a required field.
-          CHECK(executorInfo->has_framework_id());
+            // Scheduler Driver will ensure the framework id is set in
+            // ExecutorInfo, effectively making it a required field.
+            CHECK(executorInfo->has_framework_id());
+          }
         }
       }
     }
