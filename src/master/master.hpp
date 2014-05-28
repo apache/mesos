@@ -86,10 +86,10 @@ class SlaveObserver;
 class WhitelistWatcher;
 
 struct Framework;
-struct Slave;
-struct Role;
 struct OfferVisitor;
-
+struct Role;
+struct Slave;
+struct TaskInfoVisitor;
 
 class Master : public ProtobufProcess<Master>
 {
@@ -310,11 +310,27 @@ protected:
       const std::vector<StatusUpdate>& updates,
       const process::Future<bool>& removed);
 
-  // Launch a task from a task description, and returned the consumed
-  // resources for the task and possibly it's executor.
-  Resources launchTask(const TaskInfo& task,
-                       Framework* framework,
-                       Slave* slave);
+  // Validates the task including authorization.
+  // Returns None if the task is valid.
+  // Returns Error if the task is invalid.
+  // Returns Failure if authorization returns 'Failure'.
+  process::Future<Option<Error> > validateTask(
+      const TaskInfo& task,
+      Framework* framework,
+      Slave* slave,
+      const Resources& totalResources);
+
+  // Launch a task from a task description.
+  void launchTask(const TaskInfo& task, Framework* framework, Slave* slave);
+
+  // 'launchTasks()' continuation.
+  void _launchTasks(
+      const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const std::vector<TaskInfo>& tasks,
+      const Resources& totalResources,
+      const Filters& filters,
+      const process::Future<std::list<process::Future<Option<Error> > > >& f);
 
   // Remove a task.
   void removeTask(Task* task);
@@ -900,6 +916,10 @@ struct Framework
   process::Time registeredTime;
   process::Time reregisteredTime;
   process::Time unregisteredTime;
+
+  // Tasks that have not yet been launched because they are being
+  // validated (e.g., authorized).
+  hashmap<TaskID, TaskInfo> pendingTasks;
 
   hashmap<TaskID, Task*> tasks;
 

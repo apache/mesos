@@ -25,6 +25,8 @@
 #include <list>
 #include <sstream>
 
+#include <process/check.hpp>
+#include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
@@ -68,6 +70,7 @@ using std::list;
 using std::string;
 using std::vector;
 
+using process::await;
 using process::wait; // Necessary on some OS's to disambiguate.
 using process::Clock;
 using process::Failure;
@@ -576,6 +579,9 @@ void Master::finalize()
   // allocator or the roles because it is unnecessary bookkeeping at
   // this point since we are shutting down.
   foreachvalue (Framework* framework, frameworks.activated) {
+    // Remove pending tasks from the framework.
+    framework->pendingTasks.clear();
+
     // Remove pointers to the framework's tasks in slaves.
     foreachvalue (Task* task, utils::copy(framework->tasks)) {
       Slave* slave = getSlave(task->slave_id());
@@ -1387,6 +1393,7 @@ struct TaskInfoVisitor
   virtual ~TaskInfoVisitor() {}
 };
 
+
 // Checks that a task id is valid, i.e., contains only valid characters.
 struct TaskIDChecker : TaskInfoVisitor
 {
@@ -1445,22 +1452,21 @@ struct UniqueTaskIDChecker : TaskInfoVisitor
   {
     const TaskID& taskId = task.task_id();
 
-    if (ids.contains(taskId) || framework.tasks.contains(taskId)) {
+    if (framework.pendingTasks.contains(taskId) ||
+        framework.tasks.contains(taskId)) {
       return "Task has duplicate ID: " + taskId.value();
     }
-
-    ids.insert(taskId);
-
     return None();
   }
-
-  hashset<TaskID> ids;
 };
 
 
-// Checks that the used resources by a task (and executor if
-// necessary) on each slave does not exceed the total resources
-// offered on that slave
+// Checks that the used resources by a task on each slave does not
+// exceed the total resources offered on that slave.
+// NOTE: We do not account for executor resources here because tasks
+// are launched asynchronously and an executor might exit between
+// validation and actual launch. Therefore executor resources are
+// accounted for in 'Master::_launchTasks()'.
 struct ResourceUsageChecker : TaskInfoVisitor
 {
   virtual Option<Error> operator () (
@@ -1482,11 +1488,10 @@ struct ResourceUsageChecker : TaskInfoVisitor
     // Check if this task uses more resources than offered.
     Resources taskResources = task.resources();
 
-    if (!((usedResources + taskResources) <= resources)) {
+    if (!(taskResources <= resources)) {
       return "Task " + stringify(task.task_id()) + " attempted to use " +
-          stringify(taskResources) + " combined with already used " +
-          stringify(usedResources) + " is greater than offered " +
-          stringify(resources);
+             stringify(taskResources) + " which is greater than offered " +
+             stringify(resources);
     }
 
     // Check this task's executor's resources.
@@ -1496,33 +1501,13 @@ struct ResourceUsageChecker : TaskInfoVisitor
         if (!Resources::isAllocatable(resource)) {
           // TODO(benh): Send back the invalid resources?
           return "Executor for task " + stringify(task.task_id()) +
-              " uses invalid resources " + stringify(resource);
+                 " uses invalid resources " + stringify(resource);
         }
-      }
-
-      // Check if this task's executor is running, and if not check if
-      // the task + the executor use more resources than offered.
-      if (!executors.contains(task.executor().executor_id())) {
-        if (!slave.hasExecutor(framework.id, task.executor().executor_id())) {
-          taskResources += task.executor().resources();
-          if (!((usedResources + taskResources) <= resources)) {
-            return "Task " + stringify(task.task_id()) +
-                   " + executor attempted to use " + stringify(taskResources) +
-                   " combined with already used " + stringify(usedResources) +
-                   " is greater than offered " + stringify(resources);
-          }
-        }
-        executors.insert(task.executor().executor_id());
       }
     }
 
-    usedResources += taskResources;
-
     return None();
   }
-
-  Resources usedResources;
-  hashset<ExecutorID> executors;
 };
 
 
@@ -1544,11 +1529,26 @@ struct ExecutorInfoChecker : TaskInfoVisitor
 
     if (task.has_executor()) {
       const ExecutorID& executorId = task.executor().executor_id();
-      if (slave.hasExecutor(framework.id, executorId)) {
-        const Option<ExecutorInfo> executorInfo =
-          slave.executors.get(framework.id).get().get(executorId);
+      Option<ExecutorInfo> executorInfo = None();
 
-        if (!(task.executor() == executorInfo.get())) {
+      if (slave.hasExecutor(framework.id, executorId)) {
+        executorInfo = slave.executors.get(framework.id).get().get(executorId);
+      } else {
+        // See if any of the pending tasks have the same executor.
+        // Note that picking the first matching executor is ok because
+        // all the matching executors have been added to
+        // 'framework.pendingTasks' after validation and hence have
+        // the same executor info.
+        foreachvalue (const TaskInfo& task_, framework.pendingTasks) {
+          if (task_.has_executor() &&
+              task_.executor().executor_id() == executorId) {
+            executorInfo = task_.executor();
+            break;
+          }
+        }
+      }
+
+      if (executorInfo.isSome() && !(task.executor() == executorInfo.get())) {
           return "Task has invalid ExecutorInfo (existing ExecutorInfo"
               " with same ExecutorID is not compatible).\n"
               "------------------------------------------------------------\n"
@@ -1558,7 +1558,6 @@ struct ExecutorInfoChecker : TaskInfoVisitor
               "Task's ExecutorInfo:\n" +
               stringify(task.executor()) + "\n"
               "------------------------------------------------------------\n";
-        }
       }
     }
 
@@ -1854,9 +1853,55 @@ void Master::launchTasks(
             << " on slave " << *slave
             << " for framework " << framework->id;
 
-  Resources usedResources; // Accumulated resources used.
+  // Validate each task and launch if valid.
+  list<Future<Option<Error> > > futures;
+  foreach (const TaskInfo& task, tasks) {
+    futures.push_back(validateTask(task, framework, slave, totalResources));
+
+    // Add to pending tasks.
+    // NOTE: We need to do this here after validation because of the
+    // way task validators work.
+    framework->pendingTasks[task.task_id()] = task;
+  }
+
+  // Wait for all the tasks to be validated.
+  // NOTE: We wait for all tasks because currently the allocator
+  // is expected to get 'resourcesUnused()' once per 'launchTasks()'.
+  await(futures)
+    .onAny(defer(self(),
+                 &Master::_launchTasks,
+                 framework->id,
+                 slaveId.get(),
+                 tasks,
+                 totalResources,
+                 filters,
+                 lambda::_1));
+}
+
+
+// Helper to convert authorization result to Future<Option<Error> >.
+static Future<Option<Error> > _authorize(const string& message, bool authorized)
+{
+  if (authorized) {
+    return None();
+  }
+
+  return Error(message);
+}
+
+
+Future<Option<Error> > Master::validateTask(
+    const TaskInfo& task,
+    Framework* framework,
+    Slave* slave,
+    const Resources& totalResources)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
 
   // Create task visitors.
+  // TODO(vinod): Create the visitors on the heap and make the visit
+  // operation const.
   list<TaskInfoVisitor*> taskVisitors;
   taskVisitors.push_back(new TaskIDChecker());
   taskVisitors.push_back(new SlaveIDChecker());
@@ -1867,40 +1912,241 @@ void Master::launchTasks(
 
   // TODO(benh): Add a HealthCheckChecker visitor.
 
-  // Loop through each task and check it's validity.
-  foreach (const TaskInfo& task, tasks) {
-    // Possible error found while checking task's validity.
-    Option<Error> error = None();
+  // Invoke each visitor.
+  Option<Error> error = None();
+  foreach (TaskInfoVisitor* visitor, taskVisitors) {
+    error = (*visitor)(task, totalResources, *framework, *slave);
+    if (error.isSome()) {
+      break;
+    }
+  }
 
-    // Invoke each visitor.
-    foreach (TaskInfoVisitor* visitor, taskVisitors) {
-      error = (*visitor)(task, totalResources, *framework, *slave);
-      if (error.isSome()) {
-        break;
-      }
+  // Cleanup visitors.
+  while (!taskVisitors.empty()) {
+    TaskInfoVisitor* visitor = taskVisitors.front();
+    taskVisitors.pop_front();
+    delete visitor;
+  };
+
+  if (error.isSome()) {
+    return Error(error.get().message);
+  }
+
+  if (authorizer.isNone()) {
+    // Authorization is disabled.
+    return None();
+  }
+
+  // Authorize the task.
+  string user = framework->info.user(); // Default user.
+  if (task.has_command() && task.command().has_user()) {
+    user = task.command().user();
+  } else if (task.has_executor() && task.executor().command().has_user()) {
+    user = task.executor().command().user();
+  }
+
+  LOG(INFO)
+    << "Authorizing framework principal '" << framework->info.principal()
+    << "' to launch task " << task.task_id() << " as user '" << user << "'";
+
+  mesos::ACL::RunTasks request;
+  if (framework->info.has_principal()) {
+    request.mutable_principals()->add_values(framework->info.principal());
+  } else {
+    // Framework doesn't have a principal set.
+    request.mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  }
+  request.mutable_users()->add_values(user);
+
+  return authorizer.get()->authorize(request).then(
+      lambda::bind(&_authorize,
+                   "Not authorized to launch as user '" + user + "'",
+                   lambda::_1));
+}
+
+
+void Master::launchTask(
+    const TaskInfo& task,
+    Framework* framework,
+    Slave* slave)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+  CHECK(!slave->disconnected);
+
+  // Determine if this task launches an executor, and if so make sure
+  // the slave and framework state has been updated accordingly.
+  Option<ExecutorID> executorId;
+
+  if (task.has_executor()) {
+    // TODO(benh): Refactor this code into Slave::addTask.
+    if (!slave->hasExecutor(framework->id, task.executor().executor_id())) {
+      CHECK(!framework->hasExecutor(slave->id, task.executor().executor_id()))
+        << "Executor " << task.executor().executor_id()
+        << " known to the framework " << framework->id
+        << " but unknown to the slave " << *slave;
+
+      slave->addExecutor(framework->id, task.executor());
+      framework->addExecutor(slave->id, task.executor());
     }
 
-    if (error.isNone()) {
-      // Task looks good, get it running!
-      usedResources += launchTask(task, framework, slave);
-    } else {
-      // Error validating task, send a failed status update.
-      LOG(WARNING) << "Failed to validate task " << task.task_id()
-                   << " : " << error.get().message;
+    executorId = task.executor().executor_id();
+  }
 
+  // Add the task to the framework and slave.
+  Task* t = new Task();
+  t->mutable_framework_id()->MergeFrom(framework->id);
+  t->set_state(TASK_STAGING);
+  t->set_name(task.name());
+  t->mutable_task_id()->MergeFrom(task.task_id());
+  t->mutable_slave_id()->MergeFrom(task.slave_id());
+  t->mutable_resources()->MergeFrom(task.resources());
+
+  if (executorId.isSome()) {
+    t->mutable_executor_id()->MergeFrom(executorId.get());
+  }
+
+  framework->addTask(t);
+
+  slave->addTask(t);
+
+  // Tell the slave to launch the task!
+  LOG(INFO) << "Launching task " << task.task_id()
+            << " of framework " << framework->id
+            << " with resources " << task.resources()
+            << " on slave " << *slave;
+
+  RunTaskMessage message;
+  message.mutable_framework()->MergeFrom(framework->info);
+  message.mutable_framework_id()->MergeFrom(framework->id);
+  message.set_pid(framework->pid);
+  message.mutable_task()->MergeFrom(task);
+  send(slave->pid, message);
+
+  stats.tasks[TASK_STAGING]++;
+
+  return;
+}
+
+
+void Master::_launchTasks(
+    const FrameworkID& frameworkId,
+    const SlaveID& slaveId,
+    const vector<TaskInfo>& tasks,
+    const Resources& totalResources,
+    const Filters& filters,
+    const Future<list<Future<Option<Error> > > >& validationErrors)
+{
+  CHECK_READY(validationErrors);
+  CHECK_EQ(validationErrors.get().size(), tasks.size());
+
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+    LOG(WARNING)
+      << "Ignoring launch tasks message for framework " << frameworkId
+      << " because the framework cannot be found";
+
+    // Tell the allocator about the recovered resources.
+    allocator->resourcesRecovered(frameworkId, slaveId, totalResources);
+
+    return;
+  }
+
+  Slave* slave = getSlave(slaveId);
+  if (slave == NULL || slave->disconnected) {
+    foreach (const TaskInfo& task, tasks) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
           framework->id,
-          slave->id,
+          task.slave_id(),
           task.task_id(),
           TASK_LOST,
-          error.get().message);
+          (slave == NULL ? "Slave removed" : "Slave disconnected"));
 
-      LOG(INFO) << "Sending status update "
-                << update << " for invalid task";
+      LOG(INFO) << "Sending status update " << update << ": "
+                << (slave == NULL ? "Slave removed" : "Slave disconnected");
+
       StatusUpdateMessage message;
       message.mutable_update()->CopyFrom(update);
       send(framework->pid, message);
     }
+
+    // Tell the allocator about the recovered resources.
+    allocator->resourcesRecovered(frameworkId, slaveId, totalResources);
+
+    return;
+  }
+
+  Resources usedResources; // Accumulated resources used.
+
+  size_t index = 0;
+  foreach (const Future<Option<Error> >& future, validationErrors.get()) {
+    const TaskInfo& task = tasks[index++];
+
+    // NOTE: The task will not be in 'pendingTasks' if 'killTask()'
+    // for the task was called before we are here.
+    if (!framework->pendingTasks.contains(task.task_id())) {
+      continue;
+    }
+
+    framework->pendingTasks.erase(task.task_id()); // Remove from pending tasks.
+
+    CHECK(!future.isDiscarded());
+    if (future.isFailed() || future.get().isSome()) {
+      const string error = future.isFailed()
+          ? "Authorization failure: " + future.failure()
+          : future.get().get().message;
+
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          framework->id,
+          task.slave_id(),
+          task.task_id(),
+          TASK_LOST,
+          error);
+
+      LOG(INFO)
+        << "Sending status update " << update << ": " << error;
+
+      StatusUpdateMessage message;
+      message.mutable_update()->CopyFrom(update);
+      send(framework->pid, message);
+
+      continue;
+    }
+
+    // Check if resources needed by the task (and its executor in case
+    // the executor is new) are available. These resources will be
+    // added by 'launchTask()' below.
+    Resources resources = task.resources();
+    if (task.has_executor() &&
+        !slave->hasExecutor(framework->id, task.executor().executor_id())) {
+      resources += task.executor().resources();
+    }
+
+    if (!(usedResources + resources <= totalResources)) {
+      const string error =
+        "Task uses more resources " + stringify(resources) +
+        " than available " + stringify(totalResources - usedResources);
+
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          framework->id,
+          task.slave_id(),
+          task.task_id(),
+          TASK_LOST,
+          error);
+
+      LOG(INFO) << "Sending status update " << update << " for invalid task: "
+                << error;
+
+      StatusUpdateMessage message;
+      message.mutable_update()->CopyFrom(update);
+      send(framework->pid, message);
+
+      continue;
+    }
+
+    // Launch task.
+    launchTask(task, framework, slave);
+    usedResources += resources;
   }
 
   // All used resources should be allocatable, enforced by our validators.
@@ -1911,19 +2157,8 @@ void Master::launchTasks(
 
   if (unusedResources.allocatable().size() > 0) {
     // Tell the allocator about the unused (e.g., refused) resources.
-    allocator->resourcesUnused(
-        framework->id,
-        slave->id,
-        unusedResources,
-        filters);
+    allocator->resourcesUnused(frameworkId, slaveId, unusedResources, filters);
   }
-
-  // Cleanup visitors.
-  while (!taskVisitors.empty()) {
-    TaskInfoVisitor* visitor = taskVisitors.front();
-    taskVisitors.pop_front();
-    delete visitor;
-  };
 }
 
 
@@ -1978,6 +2213,24 @@ void Master::killTask(
       << " of framework " << frameworkId << " from '" << from
       << "' because it is not from the registered framework '"
       << framework->pid << "'";
+    return;
+  }
+
+  if (framework->pendingTasks.contains(taskId)) {
+    // Remove from pending tasks.
+    framework->pendingTasks.erase(taskId);
+
+    StatusUpdateMessage message;
+    StatusUpdate* update = message.mutable_update();
+    update->mutable_framework_id()->MergeFrom(frameworkId);
+    TaskStatus* status = update->mutable_status();
+    status->mutable_task_id()->MergeFrom(taskId);
+    status->set_state(TASK_KILLED);
+    status->set_message("Killed pending task");
+    update->set_timestamp(Clock::now().secs());
+    update->set_uuid(UUID::random().toBytes());
+    send(framework->pid, message);
+
     return;
   }
 
@@ -2778,6 +3031,13 @@ void Master::reconcileTasks(
       continue;
     }
 
+    if (framework->pendingTasks.contains(status.task_id())) {
+      LOG(WARNING) << "Status for task " << status.task_id()
+                   << " from framework " << frameworkId
+                   << " is unknown since the task is pending";
+      continue;
+    }
+
     Option<StatusUpdate> update;
 
     // Check for a removed slave (case 1).
@@ -3052,73 +3312,6 @@ vector<Framework*> Master::getActiveFrameworks() const
 }
 
 
-Resources Master::launchTask(const TaskInfo& task,
-                             Framework* framework,
-                             Slave* slave)
-{
-  CHECK_NOTNULL(framework);
-  CHECK_NOTNULL(slave);
-
-  Resources resources; // Total resources used on slave by launching this task.
-
-  // Determine if this task launches an executor, and if so make sure
-  // the slave and framework state has been updated accordingly.
-  Option<ExecutorID> executorId;
-
-  if (task.has_executor()) {
-    // TODO(benh): Refactor this code into Slave::addTask.
-    if (!slave->hasExecutor(framework->id, task.executor().executor_id())) {
-      CHECK(!framework->hasExecutor(slave->id, task.executor().executor_id()))
-        << "Executor " << task.executor().executor_id()
-        << " known to the framework " << framework->id
-        << " but unknown to the slave " << *slave;
-
-      slave->addExecutor(framework->id, task.executor());
-      framework->addExecutor(slave->id, task.executor());
-      resources += task.executor().resources();
-    }
-
-    executorId = task.executor().executor_id();
-  }
-
-  // Add the task to the framework and slave.
-  Task* t = new Task();
-  t->mutable_framework_id()->MergeFrom(framework->id);
-  t->set_state(TASK_STAGING);
-  t->set_name(task.name());
-  t->mutable_task_id()->MergeFrom(task.task_id());
-  t->mutable_slave_id()->MergeFrom(task.slave_id());
-  t->mutable_resources()->MergeFrom(task.resources());
-
-  if (executorId.isSome()) {
-    t->mutable_executor_id()->MergeFrom(executorId.get());
-  }
-
-  framework->addTask(t);
-
-  slave->addTask(t);
-
-  resources += task.resources();
-
-  // Tell the slave to launch the task!
-  LOG(INFO) << "Launching task " << task.task_id()
-            << " of framework " << framework->id
-            << " with resources " << task.resources()
-            << " on slave " << *slave;
-
-  RunTaskMessage message;
-  message.mutable_framework()->MergeFrom(framework->info);
-  message.mutable_framework_id()->MergeFrom(framework->id);
-  message.set_pid(framework->pid);
-  message.mutable_task()->MergeFrom(task);
-  send(slave->pid, message);
-
-  stats.tasks[TASK_STAGING]++;
-
-  return resources;
-}
-
-
 // NOTE: This function is only called when the slave re-registers
 // with a master that already knows about it (i.e., not a failed
 // over master).
@@ -3349,6 +3542,9 @@ void Master::removeFramework(Framework* framework)
     message.mutable_framework_id()->MergeFrom(framework->id);
     send(slave->pid, message);
   }
+
+  // Remove the pending tasks from the framework.
+  framework->pendingTasks.clear();
 
   // Remove pointers to the framework's tasks in slaves.
   foreachvalue (Task* task, utils::copy(framework->tasks)) {

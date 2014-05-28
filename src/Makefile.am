@@ -975,6 +975,7 @@ mesos_tests_SOURCES =				\
   tests/log_tests.cpp				\
   tests/logging_tests.cpp			\
   tests/main.cpp				\
+  tests/master_authorization_tests.cpp		\
   tests/master_contender_detector_tests.cpp	\
   tests/master_tests.cpp			\
   tests/mesos.cpp				\

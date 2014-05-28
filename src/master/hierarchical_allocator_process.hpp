@@ -553,7 +553,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesUnused(
   // result of a valid task launch by an active
   // framework that doesn't use the entire offer.
   CHECK(frameworks.contains(frameworkId));
-
   const std::string& role = frameworks[frameworkId].role();
   sorters[role]->unallocated(frameworkId.value(), resources);
   sorters[role]->remove(resources);
