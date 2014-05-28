@@ -95,7 +95,7 @@ private:
     if (load.isSome()) {
       return load.get().one;
     }
-    return Failure("loadavg not available.");
+    return Failure("Failed to get loadavg: " + load.error());
   }
 
 
@@ -105,7 +105,7 @@ private:
     if (load.isSome()) {
       return load.get().five;
     }
-    return Failure("loadavg not available.");
+    return Failure("Failed to get loadavg: " + load.error());
   }
 
 
@@ -115,7 +115,7 @@ private:
     if (load.isSome()) {
       return load.get().fifteen;
     }
-    return Failure("loadavg not available.");
+    return Failure("Failed to get loadavg: " + load.error());
   }
 
 
@@ -125,7 +125,7 @@ private:
     if (cpus.isSome()) {
       return cpus.get();
     }
-    return Failure("cpus not available.");
+    return Failure("Failed to get cpus: " + cpus.error());
   }
 
 
@@ -135,7 +135,7 @@ private:
     if (memory.isSome()) {
       return memory.get().total.bytes();
     }
-    return Failure("memory not available.");
+    return Failure("Failed to get memory: " + memory.error());
   }
 
 
@@ -145,7 +145,7 @@ private:
     if (memory.isSome()) {
       return memory.get().free.bytes();
     }
-    return Failure("memory not available.");
+    return Failure("Failed to get memory: " + memory.error());
   }
 
   // HTTP endpoints.

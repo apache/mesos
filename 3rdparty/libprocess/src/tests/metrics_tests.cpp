@@ -270,6 +270,9 @@ TEST(Metrics, SnapshotTimeout)
       JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(responseJSON);
 
+  // We can't use simple JSON equality testing here as initializing
+  // libprocess adds metrics to the system. We want to only check if
+  // the metrics from this test are correctly handled.
   map<string, JSON::Value> values = responseJSON.get().values;
 
   EXPECT_EQ(1u, values.count("test/counter"));
@@ -330,7 +333,10 @@ TEST(Metrics, SnapshotStatistics)
     ++counter;
   }
 
-  hashmap<std::string, double> expected;
+  // We can't use simple JSON equality testing here as initializing
+  // libprocess adds metrics to the system. We want to only check if
+  // the metrics from this test are correctly handled.
+  hashmap<string, double> expected;
 
   expected["test/counter"] = 10.0;
 
@@ -356,8 +362,8 @@ TEST(Metrics, SnapshotStatistics)
   ASSERT_SOME(responseJSON);
 
   // Pull the response values into a map.
-  hashmap<std::string, double> responseValues;
-  foreachpair (const std::string& key,
+  hashmap<string, double> responseValues;
+  foreachpair (const string& key,
                const JSON::Value& value,
                responseJSON.get().values) {
     if (value.is<JSON::Number>()) {
@@ -367,7 +373,7 @@ TEST(Metrics, SnapshotStatistics)
 
   // Ensure the expected keys are in the response and that the values match
   // expectations.
-  foreachkey (const std::string& key, expected) {
+  foreachkey (const string& key, expected) {
     EXPECT_FLOAT_EQ(expected[key], responseValues[key]);
   }
 
@@ -416,9 +422,10 @@ TEST(Metrics, AsyncTimer)
 
   AWAIT_READY(metrics::add(t));
 
-  // Time a Future that returns immediately. Even though the method advances the
-  // clock and we advance the clock here, the Future should be timed as if it
-  // takes 0 time. Ie, we're not timing the method call but the Future.
+  // Time a Future that returns immediately. Even though the method
+  // advances the clock and we advance the clock here, the Future
+  // should be timed as if it takes 0 time. Ie, we're not timing the
+  // method call but the Future.
   Clock::pause();
   Future<int> result = t.time(advanceAndReturn());
   Clock::advance(Seconds(1));
