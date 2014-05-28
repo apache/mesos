@@ -238,6 +238,16 @@ public:
   }
 
   // Overloaded operators.
+  bool operator == (const IntervalSet<T>& that) const
+  {
+    return static_cast<const Base&>(*this) == static_cast<const Base&>(that);
+  }
+
+  bool operator != (const IntervalSet<T>& that) const
+  {
+    return !operator == (that);
+  }
+
   IntervalSet<T>& operator += (const T& value)
   {
     static_cast<Base&>(*this) += value;
