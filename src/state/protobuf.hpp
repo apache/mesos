@@ -40,6 +40,9 @@ namespace internal {
 namespace state {
 namespace protobuf {
 
+class State; // Forward declaration.
+
+
 template <typename T>
 class Variable
 {
