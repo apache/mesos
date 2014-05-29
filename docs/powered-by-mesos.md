@@ -18,6 +18,7 @@ layout: documentation
 * [HubSpot](http://www.hubspot.com)
 * [Ignidata](http://www.ignidata.com)
 * [iQIYI](http://www.iqiyi.com/)
+* [Magine TV](https://magine.com)
 * [Medidata Solutions](http://www.mdsol.com)
 * [meemo](http://www.meemo.io)
 * [MediaCrossing](http://www.mediacrossing.com)
