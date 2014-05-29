@@ -652,8 +652,14 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
   }
 
-  // Redirect output (stdout and stderr) from the fetcher to log files in the
-  // executor work directory, chown'ing them if a user is specified.
+  // Redirect output (stdout and stderr) from the fetcher to log files
+  // in the executor work directory, chown'ing them if a user is
+  // specified.
+  // TODO(tillt): Consider adding O_CLOEXEC for atomic close-on-exec.
+  // TODO(tillt): Consider adding an overload to io::redirect
+  // that accepts a file path as 'to' for further reducing code. We
+  // would however also need an owner user parameter for such overload
+  // to perfectly replace the below.
   Try<int> out = os::open(
       path::join(directory, "stdout"),
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
@@ -664,21 +670,23 @@ Future<Nothing> MesosContainerizerProcess::fetch(
   }
 
   if (user.isSome()) {
-    Try<Nothing> chown = os::chown(user.get(), path::join(directory, "stdout"));
+    Try<Nothing> chown = os::chown(
+        user.get(), path::join(directory, "stdout"));
     if (chown.isError()) {
       os::close(out.get());
-      return Failure("Failed to redirect stdout:" + chown.error());
+      return Failure(
+          "Failed to redirect stdout: Failed to chown: " +
+          chown.error());
     }
   }
 
-  Try<Nothing> nonblock = os::nonblock(fetcher.get().out());
-  if (nonblock.isError()) {
-    os::close(out.get());
-    return Failure("Failed to redirect stdout:" + nonblock.error());
-  }
+  // Redirect takes care of nonblocking and close-on-exec for the
+  // supplied file descriptors.
+  io::redirect(fetcher.get().out(), out.get());
 
-  io::splice(fetcher.get().out(), out.get())
-    .onAny(lambda::bind(&os::close, out.get()));
+  // Redirect does 'dup' the file descriptor, hence we can close the
+  // original now.
+  os::close(out.get());
 
   // Repeat for stderr.
   Try<int> err = os::open(
@@ -687,28 +695,25 @@ Future<Nothing> MesosContainerizerProcess::fetch(
       S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (err.isError()) {
-    os::close(out.get());
-    return Failure("Failed to redirect stderr:" + err.error());
+    return Failure(
+        "Failed to redirect stderr: Failed to open: " +
+        err.error());
   }
 
   if (user.isSome()) {
-    Try<Nothing> chown = os::chown(user.get(), path::join(directory, "stderr"));
+    Try<Nothing> chown = os::chown(
+        user.get(), path::join(directory, "stderr"));
     if (chown.isError()) {
-      os::close(out.get());
       os::close(err.get());
-      return Failure("Failed to redirect stderr:" + chown.error());
+      return Failure(
+          "Failed to redirect stderr: Failed to chown: " +
+          chown.error());
     }
   }
 
-  nonblock = os::nonblock(fetcher.get().err());
-  if (nonblock.isError()) {
-    os::close(out.get());
-    os::close(err.get());
-    return Failure("Failed to redirect stderr:" + nonblock.error());
-  }
+  io::redirect(fetcher.get().err(), err.get());
 
-  io::splice(fetcher.get().err(), err.get())
-    .onAny(lambda::bind(&os::close, err.get()));
+  os::close(err.get());
 
   return fetcher.get().status()
     .then(lambda::bind(&_fetch, containerId, directory, user, lambda::_1));
