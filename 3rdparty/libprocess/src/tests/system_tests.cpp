@@ -31,7 +31,14 @@ using namespace process;
 
 using process::metrics::internal::MetricsProcess;
 
-TEST(System, Metrics)
+// MESOS-1433
+// This test is disabled as the Gauges that are used for these metrics
+// may return Failures. In this case we do not put the metric into the
+// endpoint. This has been observed specifically for the memory
+// metrics. If in the future we put the error message from the Failure
+// in the endpoint, or the memory metric is always available, we
+// should reenable this test.
+TEST(System, DISABLED_Metrics)
 {
   Future<http::Response> response =
     http::get(MetricsProcess::instance()->self(), "snapshot");
