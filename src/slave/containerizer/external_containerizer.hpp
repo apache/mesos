@@ -176,12 +176,12 @@ private:
   // Information describing a running container.
   struct Container
   {
-    Container(const Sandbox& sandbox)
+    Container(const Option<Sandbox>& sandbox)
       : sandbox(sandbox), pid(None()), destroying(false) {}
 
     // Keep sandbox information available for subsequent containerizer
     // invocations.
-    Sandbox sandbox;
+    Option<Sandbox> sandbox;
 
     // External containerizer pid as per wait-invocation.
     // Wait should block on the external containerizer side, hence we
@@ -198,6 +198,9 @@ private:
     // queued until then to reduce complexity within external
     // containerizer program implementations. To achieve that, we
     // simply queue all events onto this promise.
+    // TODO(tillt): Consider adding a timeout when queuing onto this
+    // promise to account for external containerizer launch
+    // invocations that got stuck.
     process::Promise<Nothing> launched;
 
     Resources resources;
@@ -207,12 +210,14 @@ private:
   hashmap<ContainerID, process::Owned<Container> > actives;
 
   process::Future<Nothing> _recover(
-      const state::SlaveState& state,
+      const Option<state::SlaveState>& state,
       const process::Future<Option<int> >& future);
 
   process::Future<Nothing> __recover(
-      const state::SlaveState& state,
+      const Option<state::SlaveState>& state,
       const hashset<ContainerID>& containers);
+
+  process::Future<Nothing> ___recover();
 
   process::Future<Nothing> _launch(
       const ContainerID& containerId,
