@@ -290,7 +290,8 @@ protected:
 // TODO(bmahler): Refactor this to make the distinction between
 // command tasks and executor tasks clearer.
 inline TaskInfo createTask(
-    const Offer& offer,
+    const SlaveID& slaveId,
+    const Resources& resources,
     const std::string& command,
     const Option<mesos::ExecutorID>& executorId = None(),
     const std::string& name = "test-task",
@@ -299,8 +300,8 @@ inline TaskInfo createTask(
   TaskInfo task;
   task.set_name(name);
   task.mutable_task_id()->set_value(id);
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
+  task.mutable_slave_id()->CopyFrom(slaveId);
+  task.mutable_resources()->CopyFrom(resources);
   if (executorId.isSome()) {
     ExecutorInfo executor;
     executor.mutable_executor_id()->CopyFrom(executorId.get());
@@ -311,6 +312,18 @@ inline TaskInfo createTask(
   }
 
   return task;
+}
+
+
+inline TaskInfo createTask(
+    const Offer& offer,
+    const std::string& command,
+    const Option<mesos::ExecutorID>& executorId = None(),
+    const std::string& name = "test-task",
+    const std::string& id = UUID::random().toString())
+{
+  return createTask(
+      offer.slave_id(), offer.resources(), command, executorId, name, id);
 }
 
 
