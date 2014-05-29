@@ -890,7 +890,7 @@ protected:
       foreach (const TaskInfo& task, result) {
         // Keep only the slave PIDs where we run tasks so we can send
         // framework messages directly.
-        if (savedOffers.count(offerId) > 0) {
+        if (savedOffers.contains(offerId)) {
           if (savedOffers[offerId].count(task.slave_id()) > 0) {
             savedSlavePids[task.slave_id()] =
               savedOffers[offerId][task.slave_id()];
@@ -902,10 +902,9 @@ protected:
           LOG(WARNING) << "Attempting to launch task " << task.task_id()
                        << " with an unknown offer " << offerId;
         }
-
-        // Remove the offer since we saved all the PIDs we might use.
-        savedOffers.erase(offerId);
       }
+      // Remove the offer since we saved all the PIDs we might use.
+      savedOffers.erase(offerId);
     }
 
     foreach (const TaskInfo& task, result) {
