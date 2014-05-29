@@ -1144,13 +1144,16 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
   // file in the executor work directory, chown'ing it if a user is
   // specified. When no sandbox is given, redirect to /dev/null to
   // prevent blocking on the subprocess side.
+  // TODO(tillt): Consider switching to atomic close-on-exec instead.
   Try<int> err = os::open(
       sandbox.isSome() ? path::join(sandbox.get().directory, "stderr")
                        : "/dev/null",
       O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
   if (err.isError()) {
-    return Error("Failed to redirect stderr: " + err.error());
+    return Error(
+        "Failed to redirect stderr: Failed to open: " +
+        err.error());
   }
 
   if (sandbox.isSome() && sandbox.get().user.isSome()) {
@@ -1158,12 +1161,20 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
         sandbox.get().user.get(),
         path::join(sandbox.get().directory, "stderr"));
     if (chown.isError()) {
-      return Error("Failed to redirect stderr:" + chown.error());
+      os::close(err.get());
+      return Error(
+          "Failed to redirect stderr: Failed to chown: " +
+          chown.error());
     }
   }
 
-  io::splice(external.get().err(), err.get())
-    .onAny(bind(&os::close, err.get()));
+  // TODO(tillt): Consider adding an overload to io::redirect
+  // that accepts a file path as 'to' for further reducing code.
+  io::redirect(external.get().err(), err.get());
+
+  // Redirect does 'dup' the file descriptor, hence we can close the
+  // original now.
+  os::close(err.get());
 
   VLOG(2) << "Subprocess pid: " << external.get().pid() << ", "
           << "output pipe: " << external.get().out();
