@@ -41,6 +41,8 @@ There are different ways you can get Mesos:
         # Install devel libsasl (***Only required for Mesos 0.14.0 or newer***).
         $ sudo apt-get install libsasl2-dev
 
+        # Install Maven (***Only required for Mesos 0.18.1 or newer***).
+        $ sudo apt-get install maven
 
 -  If you are building from git repository, you will need to additionally install the following packages.
 
