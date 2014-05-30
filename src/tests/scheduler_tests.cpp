@@ -67,10 +67,13 @@ TEST_F(SchedulerTest, MetricsEndpoint)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
+  Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+    .WillOnce(FutureSatisfy(&registered));
 
   ASSERT_EQ(DRIVER_RUNNING, driver.start());
+
+  AWAIT_READY(registered);
 
   Future<process::http::Response> response =
     process::http::get(MetricsProcess::instance()->self(), "/snapshot");
