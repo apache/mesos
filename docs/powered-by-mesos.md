@@ -37,6 +37,8 @@ layout: documentation
 * [URX](http://www.urx.com)
 * [Viadeo](http://www.viadeo.com)
 * [Vimeo](http://www.vimeo.com)
+* [Virdata](http://www.virdata.com)
+* [Yieldbot](http://www.yieldbot.com)
 * [Xogito](http://www.xogito.com)
 
 ## Software projects built on Mesos
