@@ -5,6 +5,22 @@ layout: documentation
 # Upgrading Mesos
 This document serves as a guide for users who wish to upgrade an existing mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
+
+## Upgrading from 0.18.0 to 0.19.0.
+
+NOTE: There are new required flags on the master (`--work_dir` and `--quorum`) to support the *Registrar* feature, which adds replicated state on the masters.
+
+NOTE: No required upgrade ordering across components.
+
+In order to upgrade a running cluster:
+
+* Install the new master binaries and restart the masters.
+* Install the new slave binaries and restart the slaves.
+* Upgrade the schedulers by linking the latest native library (mesos jar upgrade not necessary).
+* Restart the schedulers.
+* Upgrade the executors by linking the latest native library and mesos jar (if necessary).
+
+
 ## Upgrading from 0.17.0 to 0.18.0.
 
 In order to upgrade a running cluster:
