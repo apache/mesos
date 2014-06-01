@@ -210,7 +210,7 @@ nodist_libmesos_no_3rdparty_la_SOURCES =				\
   $(REGISTRY_PROTOS)
 
 libmesos_no_3rdparty_la_SOURCES =					\
-	authorizer/authorizer.hpp					\
+	authorizer/authorizer.cpp					\
 	sasl/authenticatee.hpp						\
 	sasl/authenticator.hpp						\
 	sasl/auxprop.hpp						\
@@ -325,7 +325,9 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/queueing/internal.hpp
 endif
 
-libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
+libmesos_no_3rdparty_la_SOURCES +=					\
+	authorizer/authorizer.hpp					\
+	common/attributes.hpp						\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
 	common/protobuf_utils.hpp					\
 	common/http.hpp							\
