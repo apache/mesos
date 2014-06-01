@@ -21,12 +21,16 @@
 #include <sstream>
 #include <vector>
 
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/path.hpp>
+#include <stout/try.hpp>
 #include <stout/strings.hpp>
+
+#include "authorizer/authorizer.hpp"
 
 #include "common/protobuf_utils.hpp"
 
@@ -67,6 +71,7 @@ using mesos::internal::master::Repairer;
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Slave;
 
+using process::Owned;
 using process::PID;
 using process::UPID;
 
@@ -92,6 +97,7 @@ static Master* master = NULL;
 static map<Containerizer*, Slave*> slaves;
 static StandaloneMasterDetector* detector = NULL;
 static MasterContender* contender = NULL;
+static Option<Authorizer*> authorizer = None();
 static Files* files = NULL;
 
 
@@ -153,15 +159,29 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     contender = new StandaloneMasterContender();
     detector = new StandaloneMasterDetector();
-    master =
-      new Master(
+
+    if (flags.acls.isSome()) {
+      Try<Owned<Authorizer> > authorizer_ =
+        Authorizer::create(flags.acls.get());
+
+      if (authorizer_.isError()) {
+        EXIT(1) << "Failed to initialize the authorizer: "
+                << authorizer_.error() << " (see --acls flag)";
+      }
+      Owned<Authorizer> authorizer__ = authorizer_.get();
+      authorizer = authorizer__.release();
+    }
+
+    master = new Master(
         _allocator,
         registrar,
         repairer,
         files,
         contender,
         detector,
+        authorizer,
         flags);
+
     detector->appoint(master->info());
   }
 
@@ -221,6 +241,11 @@ void shutdown()
     }
 
     slaves.clear();
+
+    if (authorizer.isSome()) {
+      delete authorizer.get();
+      authorizer = None();
+    }
 
     delete detector;
     detector = NULL;

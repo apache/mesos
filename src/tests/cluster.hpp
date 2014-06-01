@@ -45,6 +45,8 @@
 #include "linux/cgroups.hpp"
 #endif // __linux__
 
+#include "authorizer/authorizer.hpp"
+
 #include "log/log.hpp"
 
 #include "log/tool/initialize.hpp"
@@ -131,7 +133,8 @@ public:
           registrar(NULL),
           repairer(NULL),
           contender(NULL),
-          detector(NULL) {}
+          detector(NULL),
+          authorizer(None()) {}
 
       master::Master* master;
       master::allocator::Allocator* allocator;
@@ -143,6 +146,7 @@ public:
       master::Repairer* repairer;
       MasterContender* contender;
       MasterDetector* detector;
+      Option<Authorizer*> authorizer;
     };
 
     std::map<process::PID<master::Master>, Master> masters;
@@ -350,6 +354,17 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
     master.detector = new StandaloneMasterDetector();
   }
 
+  if (flags.acls.isSome()) {
+    Try<process::Owned<Authorizer> > authorizer_ =
+      Authorizer::create(flags.acls.get());
+    if (authorizer_.isError()) {
+      return Error("Failed to initialize the authorizer: " +
+                   authorizer_.error() + " (see --acls flag)");
+    }
+    process::Owned<Authorizer> authorizer__ = authorizer_.get();
+    master.authorizer = authorizer__.release();
+  }
+
   master.master = new master::Master(
       master.allocator,
       master.registrar,
@@ -357,6 +372,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
       &cluster->files,
       master.contender,
       master.detector,
+      master.authorizer,
       flags);
 
   if (url.isNone()) {
@@ -407,6 +423,10 @@ inline Try<Nothing> Cluster::Masters::stop(
 
   delete master.contender;
   delete master.detector;
+
+  if (master.authorizer.isSome()) {
+    delete master.authorizer.get();
+  }
 
   masters.erase(pid);
 

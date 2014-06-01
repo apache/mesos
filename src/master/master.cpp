@@ -28,6 +28,7 @@
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
+#include <process/owned.hpp>
 #include <process/run.hpp>
 
 #include <process/metrics/metrics.hpp>
@@ -38,6 +39,7 @@
 #include <stout/multihashmap.hpp>
 #include <stout/nothing.hpp>
 #include <stout/numify.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
@@ -216,6 +218,7 @@ Master::Master(
     Files* _files,
     MasterContender* _contender,
     MasterDetector* _detector,
+    const Option<Authorizer*>& _authorizer,
     const Flags& _flags)
   : ProcessBase("master"),
     http(*this),
@@ -226,6 +229,7 @@ Master::Master(
     files(_files),
     contender(_contender),
     detector(_detector),
+    authorizer(_authorizer),
     metrics(*this),
     electedTime(None())
 {
@@ -336,14 +340,8 @@ void Master::initialize()
             << " (see --credentials flag)";
   }
 
-  if (flags.acls.isSome()) {
-    LOG(INFO) << "Master enabling authorization";
-    Try<Owned<Authorizer> > authorizer_ = Authorizer::create(flags.acls.get());
-    if (authorizer_.isError()) {
-      EXIT(1) << "Failed to initialize the Authorizer: "
-              << authorizer_.error() << " (see --acls flag)";
-    }
-    authorizer = authorizer_.get();
+  if (authorizer.isSome()) {
+    LOG(INFO) << "Authorization enabled";
   }
 
   hashmap<string, RoleInfo> roleInfos;

@@ -100,6 +100,7 @@ public:
          Files* files,
          MasterContender* contender,
          MasterDetector* detector,
+         const Option<Authorizer*>& authorizer,
          const Flags& flags = Flags());
 
   virtual ~Master();
@@ -401,6 +402,8 @@ private:
   MasterContender* contender;
   MasterDetector* detector;
 
+  const Option<Authorizer*> authorizer;
+
   MasterInfo info_;
 
   // Indicates when recovery is complete. Recovery begins once the
@@ -467,8 +470,6 @@ private:
 
   // Principals of authenticated frameworks/slaves keyed by PID.
   hashmap<process::UPID, std::string> authenticated;
-
-  Option<process::Owned<Authorizer> > authorizer;
 
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.
