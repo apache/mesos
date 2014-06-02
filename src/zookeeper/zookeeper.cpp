@@ -23,6 +23,7 @@
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
@@ -36,11 +37,7 @@
 
 #include "zookeeper/zookeeper.hpp"
 
-using process::Future;
-using process::PID;
-using process::Process;
-using process::Promise;
-using process::Timeout;
+using namespace process;
 
 using std::map;
 using std::string;
@@ -57,7 +54,8 @@ public:
       const string& servers,
       const Duration& timeout,
       Watcher* watcher)
-    : servers(servers),
+    : ProcessBase(ID::generate("zookeeper")),
+      servers(servers),
       timeout(timeout),
       zh(NULL)
   {

@@ -4,6 +4,7 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 
 #include <stout/check.hpp>
 #include <stout/lambda.hpp>
@@ -78,7 +79,10 @@ LeaderContenderProcess::LeaderContenderProcess(
     Group* _group,
     const string& _data,
     const Option<string>& _label)
-  : group(_group), data(_data), label(_label) {}
+  : ProcessBase(ID::generate("leader-contender")),
+    group(_group),
+    data(_data),
+    label(_label) {}
 
 
 LeaderContenderProcess::~LeaderContenderProcess()

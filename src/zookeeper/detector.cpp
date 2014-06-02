@@ -4,6 +4,7 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include "process/logging.hpp"
 #include <process/process.hpp>
 
@@ -48,7 +49,9 @@ private:
 
 
 LeaderDetectorProcess::LeaderDetectorProcess(Group* _group)
-  : group(_group), leader(None()) {}
+  : ProcessBase(ID::generate("leader-detector")),
+    group(_group),
+    leader(None()) {}
 
 
 LeaderDetectorProcess::~LeaderDetectorProcess()

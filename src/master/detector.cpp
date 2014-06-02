@@ -23,6 +23,7 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/logging.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
@@ -59,9 +60,11 @@ class StandaloneMasterDetectorProcess
   : public Process<StandaloneMasterDetectorProcess>
 {
 public:
-  StandaloneMasterDetectorProcess() {}
+  StandaloneMasterDetectorProcess()
+    : ProcessBase(ID::generate("standalone-master-detector")) {}
   explicit StandaloneMasterDetectorProcess(const MasterInfo& _leader)
-    : leader(_leader) {}
+    : ProcessBase(ID::generate("standalone-master-detector")),
+      leader(_leader) {}
   ~StandaloneMasterDetectorProcess();
 
   void appoint(const Option<MasterInfo>& leader);
@@ -235,7 +238,8 @@ Future<Option<MasterInfo> > StandaloneMasterDetector::detect(
 // TODO(xujyan): Use peer constructor after switching to C++ 11.
 ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
     const URL& url)
-  : group(new Group(url.servers,
+  : ProcessBase(ID::generate("zookeeper-master-detector")),
+    group(new Group(url.servers,
                     MASTER_DETECTOR_ZK_SESSION_TIMEOUT,
                     url.path,
                     url.authentication)),
@@ -245,7 +249,8 @@ ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
 
 ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
     Owned<Group> _group)
-  : group(_group),
+  : ProcessBase(ID::generate("zookeeper-master-detector")),
+    group(_group),
     detector(group.get()),
     leader(None()) {}
 

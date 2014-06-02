@@ -17,6 +17,7 @@
  */
 
 #include <process/defer.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/check.hpp>
@@ -175,13 +176,15 @@ Future<Future<Nothing> > ZooKeeperMasterContender::contend()
 
 ZooKeeperMasterContenderProcess::ZooKeeperMasterContenderProcess(
     const URL& url)
-  : group(new Group(url, MASTER_CONTENDER_ZK_SESSION_TIMEOUT)),
+  : ProcessBase(ID::generate("zookeeper-master-contender")),
+    group(new Group(url, MASTER_CONTENDER_ZK_SESSION_TIMEOUT)),
     contender(NULL) {}
 
 
 ZooKeeperMasterContenderProcess::ZooKeeperMasterContenderProcess(
     Owned<Group> _group)
-  : group(_group),
+  : ProcessBase(ID::generate("zookeeper-master-contender")),
+    group(_group),
     contender(NULL) {}
 
 

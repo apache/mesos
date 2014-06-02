@@ -5,6 +5,7 @@
 
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/check.hpp>
@@ -73,7 +74,8 @@ GroupProcess::GroupProcess(
     const Duration& _timeout,
     const string& _znode,
     const Option<Authentication>& _auth)
-  : servers(_servers),
+  : ProcessBase(ID::generate("group")),
+    servers(_servers),
     timeout(_timeout),
     znode(strings::remove(_znode, "/", strings::SUFFIX)),
     auth(_auth),
@@ -92,7 +94,8 @@ GroupProcess::GroupProcess(
 GroupProcess::GroupProcess(
     const URL& url,
     const Duration& _timeout)
-  : servers(url.servers),
+  : ProcessBase(ID::generate("group")),
+    servers(url.servers),
     timeout(_timeout),
     znode(strings::remove(url.path, "/", strings::SUFFIX)),
     auth(url.authentication),
