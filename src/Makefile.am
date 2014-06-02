@@ -218,6 +218,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	sched/sched.cpp							\
 	scheduler/scheduler.cpp						\
 	local/local.cpp							\
+	launcher/launcher.cpp						\
 	master/contender.cpp						\
 	master/constants.cpp						\
 	master/detector.cpp						\
@@ -330,9 +331,10 @@ libmesos_no_3rdparty_la_SOURCES += common/attributes.hpp		\
 	common/http.hpp							\
 	common/lock.hpp							\
 	common/type_utils.hpp common/thread.hpp				\
-	credentials/credentials.hpp						\
+	credentials/credentials.hpp					\
 	examples/utils.hpp files/files.hpp				\
 	hdfs/hdfs.hpp							\
+	launcher/launcher.hpp						\
 	linux/cgroups.hpp						\
 	linux/fs.hpp local/flags.hpp local/local.hpp			\
 	logging/flags.hpp logging/logging.hpp				\
@@ -546,6 +548,11 @@ pkglibexec_PROGRAMS += mesos-usage
 mesos_usage_SOURCES = usage/main.cpp
 mesos_usage_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_usage_LDADD = libmesos.la
+
+pkglibexec_PROGRAMS += mesos-launcher
+mesos_launcher_SOURCES = launcher/main.cpp
+mesos_launcher_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_launcher_LDADD = libmesos.la
 
 bin_PROGRAMS += mesos-log
 mesos_log_SOURCES = log/main.cpp
@@ -962,6 +969,7 @@ mesos_tests_SOURCES =				\
   tests/gc_tests.cpp				\
   tests/isolator_tests.cpp			\
   tests/external_containerizer_test.cpp		\
+  tests/launcher_tests.cpp			\
   tests/log_tests.cpp				\
   tests/logging_tests.cpp			\
   tests/main.cpp				\
