@@ -161,6 +161,13 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
   }
 
   foreach (const string& orphan, orphans.get()) {
+    // Ignore the slave cgroup (see the --slave_subsystems flag).
+    // TODO(idownes): Remove this when the cgroups layout is updated,
+    // see MESOS-1185.
+    if (orphan == path::join(flags.cgroups_root, "slave")) {
+      continue;
+    }
+
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup '" << orphan << "'";
       cgroups::destroy(hierarchy, orphan);
