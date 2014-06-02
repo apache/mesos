@@ -52,6 +52,7 @@ EXTRA_DIST =					\
   include/stout/os/process.hpp			\
   include/stout/os/read.hpp			\
   include/stout/os/sendfile.hpp			\
+  include/stout/os/setns.hpp			\
   include/stout/os/shell.hpp			\
   include/stout/os/signals.hpp			\
   include/stout/os/permissions.hpp		\
@@ -93,6 +94,7 @@ EXTRA_DIST =					\
   tests/option_tests.cpp			\
   tests/os_tests.cpp				\
   tests/os/sendfile_tests.cpp			\
+  tests/os/setns_tests.cpp			\
   tests/os/signals_tests.cpp			\
   tests/proc_tests.cpp				\
   tests/protobuf_tests.cpp			\
