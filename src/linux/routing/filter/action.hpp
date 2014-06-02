@@ -70,6 +70,11 @@ private:
   std::set<std::string> links_;
 };
 
+
+// Represents an action that stops the packet from being sent to the
+// next filter.
+class Terminal : public Action {};
+
 } // namespace action {
 } // namespace routing {
 
