@@ -41,6 +41,8 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
+#include "authorizer/authorizer.hpp"
+
 #include "messages/messages.hpp" // For google::protobuf::Message.
 
 #include "master/allocator.hpp"
@@ -98,6 +100,14 @@ protected:
   // do AWAIT_READY.
   virtual Try<process::PID<master::Master> > StartMaster(
       master::allocator::AllocatorProcess* allocator,
+      const Option<master::Flags>& flags = None(),
+      bool wait = true);
+
+  // Starts a master with the specified authorizer and flags.
+  // Waits for the master to detect a leader (could be itself) before
+  // returning if 'wait' is set to true.
+  virtual Try<process::PID<master::Master> > StartMaster(
+      Authorizer* authorizer,
       const Option<master::Flags>& flags = None(),
       bool wait = true);
 
@@ -466,6 +476,42 @@ public:
     // MesosSchedulerDriver::~MesosSchedulerDriver().
     detector = NULL;
   }
+};
+
+
+// Definition of a MockAuthozier that can be used in tests with gmock.
+class MockAuthorizer : public Authorizer
+{
+public:
+  MockAuthorizer()
+  {
+    using ::testing::An;
+    using ::testing::Return;
+
+    // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
+    // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
+    // for more details.
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::RunTasks&>()))
+      .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+      .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::HTTPGet&>()))
+      .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::HTTPPut&>()))
+      .WillRepeatedly(Return(true));
+  }
+
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::RunTasks& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::ReceiveOffers& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::HTTPGet& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::HTTPPut& request));
 };
 
 

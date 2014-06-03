@@ -27,6 +27,8 @@
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
+#include "authorizer/authorizer.hpp"
+
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif
@@ -186,6 +188,28 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
 
   Try<process::PID<master::Master> > master = cluster.masters.start(
       allocator, flags.isNone() ? CreateMasterFlags() : flags.get());
+
+  // Wait until the leader is detected because otherwise this master
+  // may reject authentication requests because it doesn't know it's
+  // the leader yet [MESOS-881].
+  if (wait && master.isSome() && !detected.await(Seconds(10))) {
+    return Error("Failed to wait " + stringify(Seconds(10)) +
+                 " for master to detect the leader");
+  }
+
+  return master;
+}
+
+
+Try<process::PID<master::Master> > MesosTest::StartMaster(
+    Authorizer* authorizer,
+    const Option<master::Flags>& flags,
+    bool wait)
+{
+  Future<Nothing> detected = FUTURE_DISPATCH(_, &master::Master::detected);
+
+  Try<process::PID<master::Master> > master = cluster.masters.start(
+      authorizer, flags.isNone() ? CreateMasterFlags() : flags.get());
 
   // Wait until the leader is detected because otherwise this master
   // may reject authentication requests because it doesn't know it's

@@ -98,12 +98,25 @@ public:
     Try<process::PID<master::Master> > start(
         const master::Flags& flags = master::Flags());
 
+    // Start and manage a new master using the specified allocator
+    // process.
+    Try<process::PID<master::Master> > start(
+        master::allocator::AllocatorProcess* allocatorProcess,
+        const master::Flags& flags = master::Flags());
+
+    // Start and manage a new master using the specified authorizer.
+    Try<process::PID<master::Master> > start(
+        Authorizer* authorizer,
+        const master::Flags& flags = master::Flags());
+
     // Start and manage a new master using the specified flags.
-    // An allocator process may be specified in which case it will outlive
-    // the launched master.  If no allocator process is specified then
-    // the default allocator will be instantiated.
+    // An allocator process or authorizer may be specified in which
+    // case it will outlive the launched master. If either allocator
+    // process or authorizer is not specified then the default
+    // allocator or authorizer will be used.
     Try<process::PID<master::Master> > start(
         const Option<master::allocator::AllocatorProcess*>& allocatorProcess,
+        const Option<Authorizer*>& authorizer,
         const master::Flags& flags = master::Flags());
 
     // Stops and cleans up a master at the specified PID.
@@ -272,12 +285,29 @@ inline void Cluster::Masters::shutdown()
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const master::Flags& flags)
 {
-  return start(None(), flags);
+  return start(None(), None(), flags);
+}
+
+
+inline Try<process::PID<master::Master> > Cluster::Masters::start(
+    master::allocator::AllocatorProcess* allocator,
+    const master::Flags& flags)
+{
+  return start(allocator, None(), flags);
+}
+
+
+inline Try<process::PID<master::Master> > Cluster::Masters::start(
+    Authorizer* authorizer,
+    const master::Flags& flags)
+{
+  return start(None(), authorizer, flags);
 }
 
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const Option<master::allocator::AllocatorProcess*>& allocatorProcess,
+    const Option<Authorizer*>& authorizer,
     const master::Flags& flags)
 {
   // Disallow multiple masters when not using ZooKeeper.
@@ -354,7 +384,9 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
     master.detector = new StandaloneMasterDetector();
   }
 
-  if (flags.acls.isSome()) {
+  if (authorizer.isSome()) {
+    CHECK_NOTNULL(authorizer.get());
+  } else if (flags.acls.isSome()) {
     Try<process::Owned<Authorizer> > authorizer_ =
       Authorizer::create(flags.acls.get());
     if (authorizer_.isError()) {
@@ -372,7 +404,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
       &cluster->files,
       master.contender,
       master.detector,
-      master.authorizer,
+      authorizer.isSome() ? authorizer : master.authorizer,
       flags);
 
   if (url.isNone()) {
