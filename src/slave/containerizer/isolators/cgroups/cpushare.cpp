@@ -126,14 +126,10 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
     }
 
     const ContainerID& containerId = state.id.get();
+    const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
-    Info* info = new Info(
-        containerId, path::join(flags.cgroups_root, containerId.value()));
-    CHECK_NOTNULL(info);
-
-    Try<bool> exists = cgroups::exists(hierarchies["cpu"], info->cgroup);
+    Try<bool> exists = cgroups::exists(hierarchies["cpu"], cgroup);
     if (exists.isError()) {
-      delete info;
       foreachvalue (Info* info, infos) {
         delete info;
       }
@@ -151,8 +147,8 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
       continue;
     }
 
-    infos[containerId] = info;
-    cgroups.insert(info->cgroup);
+    infos[containerId] = new Info(containerId, cgroup);;
+    cgroups.insert(cgroup);
   }
 
   // Remove orphans in the cpu hierarchy.
@@ -218,27 +214,27 @@ Future<Option<CommandInfo> > CgroupsCpushareIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
+  // TODO(bmahler): Don't insert into 'infos' unless we create the
+  // cgroup successfully. It's safe for now because 'cleanup' gets
+  // called if we return a Failure, but cleanup will fail because
+  // the cgroup does not exist when cgroups::destroy is called.
   Info* info = new Info(
       containerId, path::join(flags.cgroups_root, containerId.value()));
 
-  infos[containerId] = CHECK_NOTNULL(info);
+  infos[containerId] = info;
 
   // Create a 'cpu' cgroup for this container.
   Try<bool> exists = cgroups::exists(hierarchies["cpu"], info->cgroup);
 
   if (exists.isError()) {
     return Failure("Failed to prepare isolator: " + exists.error());
-  }
-
-  if (exists.get()) {
+  } else if (exists.get()) {
     return Failure("Failed to prepare isolator: cgroup already exists");
   }
 
-  if (!exists.get()) {
-    Try<Nothing> create = cgroups::create(hierarchies["cpu"], info->cgroup);
-    if (create.isError()) {
-      return Failure("Failed to prepare isolator: " + create.error());
-    }
+  Try<Nothing> create = cgroups::create(hierarchies["cpu"], info->cgroup);
+  if (create.isError()) {
+    return Failure("Failed to prepare isolator: " + create.error());
   }
 
   // Create a 'cpuacct' cgroup for this container.
@@ -246,17 +242,13 @@ Future<Option<CommandInfo> > CgroupsCpushareIsolatorProcess::prepare(
 
   if (exists.isError()) {
     return Failure("Failed to prepare isolator: " + exists.error());
-  }
-
-  if (exists.get()) {
+  } else if (exists.get()) {
     return Failure("Failed to prepare isolator: cgroup already exists");
   }
 
-  if (!exists.get()) {
-    Try<Nothing> create = cgroups::create(hierarchies["cpuacct"], info->cgroup);
-    if (create.isError()) {
-      return Failure("Failed to prepare isolator: " + create.error());
-    }
+  create = cgroups::create(hierarchies["cpuacct"], info->cgroup);
+  if (create.isError()) {
+    return Failure("Failed to prepare isolator: " + create.error());
   }
 
   return update(containerId, executorInfo.resources())

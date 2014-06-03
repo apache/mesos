@@ -119,14 +119,10 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
     }
 
     const ContainerID& containerId = state.id.get();
+    const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
-    Info* info = new Info(
-        containerId, path::join(flags.cgroups_root, containerId.value()));
-    CHECK_NOTNULL(info);
-
-    Try<bool> exists = cgroups::exists(hierarchy, info->cgroup);
+    Try<bool> exists = cgroups::exists(hierarchy, cgroup);
     if (exists.isError()) {
-      delete info;
       foreachvalue (Info* info, infos) {
         delete info;
       }
@@ -137,15 +133,15 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
 
     if (!exists.get()) {
       VLOG(1) << "Couldn't find cgroup for container " << containerId;
-      // This may occur if the executor has exiting and the isolator has
+      // This may occur if the executor has exited and the isolator has
       // destroyed the cgroup but the slave dies before noticing this. This
       // will be detected when the containerizer tries to monitor the
       // executor's pid.
       continue;
     }
 
-    infos[containerId] = info;
-    cgroups.insert(info->cgroup);
+    infos[containerId] = new Info(containerId, cgroup);
+    cgroups.insert(cgroup);
 
     oomListen(containerId);
   }
@@ -186,27 +182,27 @@ Future<Option<CommandInfo> > CgroupsMemIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
+  // TODO(bmahler): Don't insert into 'infos' unless we create the
+  // cgroup successfully. It's safe for now because 'cleanup' gets
+  // called if we return a Failure, but cleanup will fail because
+  // the cgroup does not exist when cgroups::destroy is called.
   Info* info = new Info(
       containerId, path::join(flags.cgroups_root, containerId.value()));
 
-  infos[containerId] = CHECK_NOTNULL(info);
+  infos[containerId] = info;
 
   // Create a cgroup for this container.
   Try<bool> exists = cgroups::exists(hierarchy, info->cgroup);
 
   if (exists.isError()) {
     return Failure("Failed to prepare isolator: " + exists.error());
-  }
-
-  if (exists.get()) {
+  } else if (exists.get()) {
     return Failure("Failed to prepare isolator: cgroup already exists");
   }
 
-  if (!exists.get()) {
-    Try<Nothing> create = cgroups::create(hierarchy, info->cgroup);
-    if (create.isError()) {
-      return Failure("Failed to prepare isolator: " + create.error());
-    }
+  Try<Nothing> create = cgroups::create(hierarchy, info->cgroup);
+  if (create.isError()) {
+    return Failure("Failed to prepare isolator: " + create.error());
   }
 
   oomListen(containerId);

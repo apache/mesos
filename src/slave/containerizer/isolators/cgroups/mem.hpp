@@ -108,6 +108,7 @@ private:
   // The path to the cgroups subsystem hierarchy root.
   const std::string hierarchy;
 
+  // TODO(bmahler): Use Owned<Info>.
   hashmap<ContainerID, Info*> infos;
 };
 

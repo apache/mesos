@@ -94,6 +94,7 @@ private:
   // Map from subsystem to hierarchy.
   hashmap<std::string, std::string> hierarchies;
 
+  // TODO(bmahler): Use Owned<Info>.
   hashmap<ContainerID, Info*> infos;
 };
 
