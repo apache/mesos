@@ -450,7 +450,6 @@ void Master::initialize()
   install<LaunchTasksMessage>(
       &Master::launchTasks,
       &LaunchTasksMessage::framework_id,
-      &LaunchTasksMessage::offer_id,
       &LaunchTasksMessage::tasks,
       &LaunchTasksMessage::filters,
       &LaunchTasksMessage::offer_ids);
@@ -1726,10 +1725,9 @@ struct UniqueOfferIDChecker : OfferVisitor
 void Master::launchTasks(
     const UPID& from,
     const FrameworkID& frameworkId,
-    const OfferID& offerId,
     const vector<TaskInfo>& tasks,
     const Filters& filters,
-    const vector<OfferID>& _offerIds)
+    const vector<OfferID>& offerIds)
 {
   ++metrics.messages_launch_tasks;
 
@@ -1737,9 +1735,7 @@ void Master::launchTasks(
 
   if (framework == NULL) {
     LOG(WARNING)
-      << "Ignoring launch tasks message for offer "
-      << stringify(_offerIds.empty() ? stringify(offerId)
-                                     : stringify(_offerIds))
+      << "Ignoring launch tasks message for offers " << stringify(offerIds)
       << " of framework " << frameworkId
       << " because the framework cannot be found";
     return;
@@ -1747,23 +1743,15 @@ void Master::launchTasks(
 
   if (from != framework->pid) {
     LOG(WARNING)
-      << "Ignoring launch tasks message for offer "
-      << stringify(_offerIds.empty() ? stringify(offerId)
-                                     : stringify(_offerIds))
+      << "Ignoring launch tasks message for offers " << stringify(offerIds)
       << " of framework " << frameworkId << " from '" << from
       << "' because it is not from the registered framework '"
       << framework->pid << "'";
     return;
   }
 
-  // Support single offerId for backward compatibility.
-  // OfferIds will be ignored if offerId is set.
-  vector<OfferID> offerIds;
-  if (offerId.has_value()) {
-    offerIds.push_back(offerId);
-  } else if (_offerIds.size() > 0) {
-    offerIds = _offerIds;
-  } else {
+  // TODO(bmahler): This case can be caught during offer validation.
+  if (offerIds.empty()) {
     LOG(WARNING) << "No offers to launch tasks on";
 
     foreach (const TaskInfo& task, tasks) {
@@ -1842,7 +1830,7 @@ void Master::launchTasks(
   }
 
   if (offerError.isSome()) {
-    LOG(WARNING) << "Failed to validate offer " << offerId
+    LOG(WARNING) << "Failed to validate offers " << stringify(offerIds)
                    << ": " << offerError.get();
 
     foreach (const TaskInfo& task, tasks) {

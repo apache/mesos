@@ -126,7 +126,6 @@ public:
   void launchTasks(
       const process::UPID& from,
       const FrameworkID& frameworkId,
-      const OfferID& offerId,
       const std::vector<TaskInfo>& tasks,
       const Filters& filters,
       const std::vector<OfferID>& offerIds);

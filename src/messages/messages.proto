@@ -155,7 +155,6 @@ message ResourceOffersMessage {
 
 message LaunchTasksMessage {
   required FrameworkID framework_id = 1;
-  optional OfferID offer_id = 2; // Deprecated.
   repeated TaskInfo tasks = 3;
   required Filters filters = 5;
   repeated OfferID offer_ids = 6;

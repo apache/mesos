@@ -191,16 +191,15 @@ class SchedulerDriver(object):
       Scheduler.resourceOffers callback, asynchronously.
     """
 
-  def launchTasks(self, offerId, tasks, filters=None):
+  def launchTasks(self, offerIds, tasks, filters=None):
     """
       Launches the given set of tasks. Any resources remaining (i.e., not
       used by the tasks or their executors) will be considered declined.
       The specified filters are applied on all unused resources (see
       mesos.proto for a description of Filters.) Invoking this function with
-      an empty collection of tasks declines this offer in its entirety (see
-      Scheduler.declineOffer).  Note that currently tasks can only be
-      launched per offer.  In the future, frameworks will be allowed to
-      aggregate offers (resources) to launch their tasks.
+      an empty collection of tasks declines the offers in entirety (see
+      Scheduler.declineOffer). Note that passing a single offer is also
+      supported.
     """
 
   def killTask(self, taskId):

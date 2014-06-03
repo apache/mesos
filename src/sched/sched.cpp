@@ -908,13 +908,6 @@ protected:
       }
     }
 
-    // During upgrade, frameworks using new driver could send new
-    // launch tasks protobufs to old masters. To ensure support in
-    // this period, we set the offer id field.
-    if (offerIds.size() == 1) {
-      message.mutable_offer_id()->MergeFrom(offerIds[0]);
-    }
-
     foreach (const TaskInfo& task, result) {
       message.add_tasks()->MergeFrom(task);
     }
