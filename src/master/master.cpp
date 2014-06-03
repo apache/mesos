@@ -748,8 +748,8 @@ void Master::visit(const MessageEvent& event)
 {
   // All messages are filtered when non-leading.
   if (!elected()) {
-    LOG(WARNING) << "Dropping '" << event.message->name << "' message since "
-                 << "not elected yet";
+    VLOG(1) << "Dropping '" << event.message->name << "' message since "
+            << "not elected yet";
     ++metrics.dropped_messages;
     return;
   }
@@ -762,8 +762,8 @@ void Master::visit(const MessageEvent& event)
   // the additional queueing delay and the accumulated backlog
   // of messages post-recovery?
   if (!recovered.get().isReady()) {
-    LOG(WARNING) << "Dropping '" << event.message->name << "' message since "
-                 << "not recovered yet";
+    VLOG(1) << "Dropping '" << event.message->name << "' message since "
+            << "not recovered yet";
     ++metrics.dropped_messages;
     return;
   }
