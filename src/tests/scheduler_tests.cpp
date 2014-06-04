@@ -151,7 +151,7 @@ TEST_F(SchedulerTest, TaskRunning)
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_NE(0u, event.get().offers().offers().size());
+  EXPECT_NE(0, event.get().offers().offers().size());
 
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
