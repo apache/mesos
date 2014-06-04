@@ -2741,7 +2741,7 @@ void Master::reconcileTasks(
   // Reconciliation occurs for the following cases:
   //   (1) If the slave is unknown, we send TASK_LOST.
   //   (2) If the task is missing on the slave, we send TASK_LOST.
-  //   (3) If the task state differs, we send the latest state.
+  //   (3) Otherwise, we send the latest state.
   //
   // (1) is applicable only when operating with a strict registry.
   foreach (const TaskStatus& status, statuses) {
@@ -2784,14 +2784,14 @@ void Master::reconcileTasks(
             status.task_id(),
             TASK_LOST,
             "Reconciliation: Task is unknown to the slave");
-      } else if (task->state() != status.state()) {
+      } else {
         // Case (3).
         update = protobuf::createStatusUpdate(
             frameworkId,
             task->slave_id(),
             task->task_id(),
             task->state(),
-            "Reconciliation: Task state changed");
+            "Reconciliation: Latest task state");
       }
     }
 

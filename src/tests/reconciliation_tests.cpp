@@ -65,9 +65,9 @@ using testing::Return;
 class ReconciliationTest : public MesosTest {};
 
 
-// This test verifies that task state reconciliation for a task
-// whose state differs between framework and master results in a
-// status update.
+// This test verifies that reconciliation sends the latest task
+// status, when the task state does not match between the framework
+// and the master.
 TEST_F(ReconciliationTest, TaskStateMismatch)
 {
   Try<PID<Master> > master = StartMaster();
@@ -143,9 +143,12 @@ TEST_F(ReconciliationTest, TaskStateMismatch)
 }
 
 
-// This test verifies that task state reconciliation for a task
-// whose state does not differ between framework and master does not
-// result in a status update.
+// This test verifies that task reconciliation results in a status
+// update, when the task state matches between the framework and the
+// master.
+// TODO(bmahler): Now that the semantics have changed, consolidate
+// these tests? There's no need to test anything related to the
+// task state difference between the master and the framework.
 TEST_F(ReconciliationTest, TaskStateMatch)
 {
   Try<PID<Master> > master = StartMaster();
@@ -205,20 +208,14 @@ TEST_F(ReconciliationTest, TaskStateMatch)
 
   statuses.push_back(status);
 
-  Future<ReconcileTasksMessage> reconcileTasksMessage =
-    FUTURE_PROTOBUF(ReconcileTasksMessage(), _ , _);
-
-  Clock::pause();
+  Future<TaskStatus> update2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&update2));
 
   driver.reconcileTasks(statuses);
 
-  // Make sure the master received the reconcile tasks message.
-  AWAIT_READY(reconcileTasksMessage);
-
-  // The Clock::settle() will ensure that framework would receive
-  // a status update if it is sent by the master. In this test it
-  // shouldn't receive any.
-  Clock::settle();
+  AWAIT_READY(update2);
+  EXPECT_EQ(TASK_RUNNING, update2.get().state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

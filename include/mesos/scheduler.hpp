@@ -308,8 +308,9 @@ public:
                                       const std::string& data) = 0;
 
   /**
-   * Reconciliation of tasks causes the master to send status updates for tasks
-   * whose status differs from the status sent here.
+   * Causes the master to send back the latest task status for each
+   * task in 'statuses', if possible. Tasks that are no longer known
+   * will result in a TASK_LOST update.
    */
   virtual Status reconcileTasks(
       const std::vector<TaskStatus>& statuses) = 0;
