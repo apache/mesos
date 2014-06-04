@@ -896,7 +896,12 @@ Future<Nothing> MesosContainerizerProcess::update(
   // after recovery so we must check the promises hashmap (which is set during
   // recovery).
   if (!promises.contains(containerId)) {
-    return Failure("Unknown container: " + stringify(containerId));
+    // It is not considered a failure if the container is not known
+    // because the slave will attempt to update the container's
+    // resources on a task's terminal state change but the executor
+    // may have already exited and the container cleaned up.
+    LOG(WARNING) << "Ignoring update for unknown container: " << containerId;
+    return Nothing();
   }
 
   // Store the resources for usage().
