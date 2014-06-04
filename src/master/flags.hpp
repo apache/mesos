@@ -175,9 +175,10 @@ public:
         "Human readable name for the cluster,\n"
         "displayed in the webui.");
 
+    // TODO(vinod): Deprecate this in favor of '--acls'.
     add(&Flags::roles,
         "roles",
-        "A comma seperated list of the allocation\n"
+        "A comma separated list of the allocation\n"
         "roles that frameworks in this cluster may\n"
         "belong to.");
 

@@ -275,6 +275,19 @@ protected:
       const std::vector<ExecutorInfo>& executors,
       const std::vector<Task>& tasks);
 
+  // 'registerFramework()' continuation.
+  void _registerFramework(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      const process::Future<Option<Error> >& validationError);
+
+  // 'reregisterFramework()' continuation.
+  void _reregisterFramework(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      bool failover,
+      const process::Future<Option<Error> >& validationError);
+
   // Add a framework.
   void addFramework(Framework* framework);
 
@@ -635,13 +648,11 @@ private:
 
   Option<process::Time> electedTime; // Time when this master is elected.
 
-  // Helper method for common FrameworkInfo and PID validation shared
-  // by Framework registration and re-registration.
-  // An error return value indicates the request is invalid and a
-  // FrameworkErrorMessage should be returned.
-  // Note that registration/re-registration specific checking is not
-  // handled here.
-  Try<Nothing> validate(
+  // Validates the framework including authorization.
+  // Returns None if the framework is valid.
+  // Returns Error if the framework is invalid.
+  // Returns Failure if authorization returns 'Failure'.
+  process::Future<Option<Error> > validate(
       const FrameworkInfo& frameworkInfo,
       const process::UPID& from);
 };

@@ -599,3 +599,350 @@ TEST_F(MasterAuthorizationTest, ReconcileTask)
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
+
+
+// This test verifies that a framework registration with authorized
+// role is successful.
+TEST_F(MasterAuthorizationTest, AuthorizedRole)
+{
+  // Setup ACLs so that the framework can receive offers for role
+  // "foo".
+  ACLs acls;
+  mesos::ACL::ReceiveOffers* acl = acls.add_receive_offers();
+  acl->mutable_principals()->add_values(DEFAULT_FRAMEWORK_INFO.principal());
+  acl->mutable_roles()->add_values("foo");
+
+  master::Flags flags = CreateMasterFlags();
+  flags.roles = "foo";
+  flags.acls = JSON::Protobuf(acls);
+
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("foo");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that a framework registration with unauthorized
+// role is denied.
+TEST_F(MasterAuthorizationTest, UnauthorizedRole)
+{
+  // Setup ACLs so that no framework can receive offers for role
+  // "foo".
+  ACLs acls;
+  mesos::ACL::ReceiveOffers* acl = acls.add_receive_offers();
+  acl->mutable_principals()->set_type(mesos::ACL::Entity::NONE);
+  acl->mutable_roles()->add_values("foo");
+
+  master::Flags flags = CreateMasterFlags();
+  flags.roles = "foo";
+  flags.acls = JSON::Protobuf(acls);
+
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("foo");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureSatisfy(&error));
+
+  driver.start();
+
+  // Framework should get error message from the master.
+  AWAIT_READY(error);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that an authentication request that comes from
+// the same instance of the framework (e.g., ZK blip) before
+// 'Master::_registerFramework()' from an earlier attempt, causes the
+// master to successfully register the framework.
+TEST_F(MasterAuthorizationTest, DuplicateRegistration)
+{
+  MockAuthorizer authorizer;
+  Try<PID<Master> > master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  // Create a detector for the scheduler driver because we want the
+  // spurious leading master change to be known by the scheduler
+  // driver only.
+  StandaloneMasterDetector detector(master.get());
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Return pending futures from authorizer.
+  Future<Nothing> future1;
+  Promise<bool> promise1;
+  Future<Nothing> future2;
+  Promise<bool> promise2;
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+    .WillOnce(DoAll(FutureSatisfy(&future1),
+                    Return(promise1.future())))
+    .WillOnce(DoAll(FutureSatisfy(&future2),
+                    Return(promise2.future())));
+
+  driver.start();
+
+  // Wait until first authorization attempt is in progress.
+  AWAIT_READY(future1);
+
+  // Simulate a spurious leading master change at the scheduler.
+  detector.appoint(master.get());
+
+  // Wait until second authorization attempt is in progress.
+  AWAIT_READY(future2);
+
+  // Now complete the first authorization attempt.
+  promise1.set(true);
+
+  // First registration request should succeed because the
+  // framework PID did not change.
+  AWAIT_READY(registered);
+
+  Future<FrameworkRegisteredMessage> frameworkRegisteredMessage =
+    FUTURE_PROTOBUF(FrameworkRegisteredMessage(), _, _);
+
+  // Now complete the second authorization attempt.
+  promise2.set(true);
+
+  // Master should acknowledge the second registration attempt too.
+  AWAIT_READY(frameworkRegisteredMessage);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that an authentication request that comes from
+// the same instance of the framework (e.g., ZK blip) before
+// 'Master::_reregisterFramework()' from an earlier attempt, causes
+// the master to successfully re-register the framework.
+TEST_F(MasterAuthorizationTest, DuplicateReregistration)
+{
+  MockAuthorizer authorizer;
+  Try<PID<Master> > master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  // Create a detector for the scheduler driver because we want the
+  // spurious leading master change to be known by the scheduler
+  // driver only.
+  StandaloneMasterDetector detector(master.get());
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Return pending futures from authorizer after the first attempt.
+  Future<Nothing> future2;
+  Promise<bool> promise2;
+  Future<Nothing> future3;
+  Promise<bool> promise3;
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+    .WillOnce(Return(true))
+    .WillOnce(DoAll(FutureSatisfy(&future2),
+                    Return(promise2.future())))
+    .WillOnce(DoAll(FutureSatisfy(&future3),
+                    Return(promise3.future())));
+
+  driver.start();
+
+  // Wait for the framework to be registered.
+  AWAIT_READY(registered);
+
+  EXPECT_CALL(sched, disconnected(&driver));
+
+  // Simulate a spurious leading master change at the scheduler.
+  detector.appoint(master.get());
+
+  // Wait until the second authorization attempt is in progress.
+  AWAIT_READY(future2);
+
+  // Simulate another spurious leading master change at the scheduler.
+  detector.appoint(master.get());
+
+  // Wait until the third authorization attempt is in progress.
+  AWAIT_READY(future3);
+
+  Future<Nothing> reregistered;
+  EXPECT_CALL(sched, reregistered(&driver, _))
+    .WillOnce(FutureSatisfy(&reregistered));
+
+  // Now complete the second authorization attempt.
+  promise2.set(true);
+
+  // First re-registration request should succeed because the
+  // framework PID did not change.
+  AWAIT_READY(reregistered);
+
+  Future<FrameworkReregisteredMessage> frameworkReregisteredMessage =
+    FUTURE_PROTOBUF(FrameworkReregisteredMessage(), _, _);
+
+  // Now complete the third authorization attempt.
+  promise3.set(true);
+
+  // Master should acknowledge the second re-registration attempt too.
+  AWAIT_READY(frameworkReregisteredMessage);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test ensures that a framework that is removed while
+// authorization for registration is in progress is properly handled.
+TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
+{
+  MockAuthorizer authorizer;
+  Try<PID<Master> > master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  // Return a pending future from authorizer.
+  Future<Nothing> future;
+  Promise<bool> promise;
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+    .WillOnce(DoAll(FutureSatisfy(&future),
+                    Return(promise.future())));
+
+  driver.start();
+
+  // Wait until authorization is in progress.
+  AWAIT_READY(future);
+
+  // Stop the framework.
+  // At this point the framework is disconnected but the master does
+  // not take any action because the framework is not in its map yet.
+  driver.stop();
+  driver.join();
+
+  // Settle the clock here to ensure master handles the framework
+  // 'exited' event.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  Future<Nothing> frameworkRemoved =
+    FUTURE_DISPATCH(_, &AllocatorProcess::frameworkRemoved);
+
+  // Now complete authorization.
+  promise.set(true);
+
+  // When the master tries to link to a non-existent framework PID
+  // it should realize the framework is gone and remove it.
+  AWAIT_READY(frameworkRemoved);
+
+  Shutdown();
+}
+
+
+// This test ensures that a framework that is removed while
+// authorization for re-registration is in progress is properly
+// handled.
+TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
+{
+  MockAuthorizer authorizer;
+  Try<PID<Master> > master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  // Create a detector for the scheduler driver because we want the
+  // spurious leading master change to be known by the scheduler
+  // driver only.
+  StandaloneMasterDetector detector(master.get());
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Return a pending future from authorizer after first attempt.
+  Future<Nothing> future2;
+  Promise<bool> promise2;
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+    .WillOnce(Return(true))
+    .WillOnce(DoAll(FutureSatisfy(&future2),
+                    Return(promise2.future())));
+
+  driver.start();
+
+  // Wait until the framework is registered.
+  AWAIT_READY(registered);
+
+  EXPECT_CALL(sched, disconnected(&driver));
+
+  // Framework should not be re-registered.
+  EXPECT_CALL(sched, reregistered(&driver, _))
+    .Times(0);
+
+  // Simulate a spurious leading master change at the scheduler.
+  detector.appoint(master.get());
+
+  // Wait until the second authorization attempt is in progress.
+  AWAIT_READY(future2);
+
+  Future<Nothing> frameworkRemoved =
+    FUTURE_DISPATCH(_, &AllocatorProcess::frameworkRemoved);
+
+  // Stop the framework.
+  driver.stop();
+  driver.join();
+
+  // Wait until the framework is removed.
+  AWAIT_READY(frameworkRemoved);
+
+  // Now complete the second authorization attempt.
+  promise2.set(true);
+
+  // Master should drop the second framework re-registration request
+  // because the framework PID was removed from 'authenticated' map.
+  // Settle the clock here to ensure 'Master::_reregisterFramework()'
+  // is executed.
+  Clock::pause();
+  Clock::settle();
+
+  Shutdown();
+}

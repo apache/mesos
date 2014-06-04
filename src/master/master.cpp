@@ -990,7 +990,18 @@ void Master::detected(const Future<Option<MasterInfo> >& _leader)
 }
 
 
-Try<Nothing> Master::validate(
+// Helper to convert authorization result to Future<Option<Error> >.
+static Future<Option<Error> > _authorize(const string& message, bool authorized)
+{
+  if (authorized) {
+    return None();
+  }
+
+  return Error(message);
+}
+
+
+Future<Option<Error> > Master::validate(
     const FrameworkInfo& frameworkInfo,
     const UPID& from)
 {
@@ -1016,11 +1027,33 @@ Try<Nothing> Master::validate(
     }
   }
 
+  // TODO(vinod): Deprecate this in favor of ACLs.
   if (!roles.contains(frameworkInfo.role())) {
-    return Error("Role '" + frameworkInfo.role() + "' is not valid.");
+    return Error("Role '" + frameworkInfo.role() + "' is invalid");
   }
 
-  return Nothing();
+  if (authorizer.isNone()) {
+    // Authorization is disabled.
+    return None();
+  }
+
+  LOG(INFO)
+    << "Authorizing framework principal '" << frameworkInfo.principal()
+    << "' to receive offers for role '" << frameworkInfo.role() << "'";
+
+  mesos::ACL::ReceiveOffers request;
+  if (frameworkInfo.has_principal()) {
+    request.mutable_principals()->add_values(frameworkInfo.principal());
+  } else {
+    // Framework doesn't have a principal set.
+    request.mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  }
+  request.mutable_roles()->add_values(frameworkInfo.role());
+
+  return authorizer.get()->authorize(request).then(
+      lambda::bind(&_authorize,
+                   "Not authorized to use role '" + frameworkInfo.role() + "'",
+                   lambda::_1));
 }
 
 
@@ -1031,6 +1064,11 @@ void Master::registerFramework(
   ++metrics.messages_register_framework;
 
   if (authenticating.contains(from)) {
+    // TODO(vinod): Consider dropping this request and fix the tests
+    // to deal with the drop. Currently there is a race between master
+    // realizing the framework is authenticated and framework sending
+    // a registration request. Dropping this message will cause the
+    // framework to retry slowing down the tests.
     LOG(INFO) << "Queuing up registration request from " << from
               << " because authentication is still in progress";
 
@@ -1039,17 +1077,48 @@ void Master::registerFramework(
     return;
   }
 
-  Try<Nothing> valid = validate(frameworkInfo, from);
-  if (valid.isError()) {
-    LOG(WARNING) << "Refusing registration of framework at " << from  << ": "
-                 << valid.error();
+  LOG(INFO) << "Received registration request from " << from;
+
+  validate(frameworkInfo, from)
+    .onAny(defer(self(),
+                 &Master::_registerFramework,
+                 from,
+                 frameworkInfo,
+                 lambda::_1));
+}
+
+
+void Master::_registerFramework(
+    const UPID& from,
+    const FrameworkInfo& frameworkInfo,
+    const Future<Option<Error> >& validationError)
+{
+  CHECK_READY(validationError);
+  if (validationError.get().isSome()) {
+    LOG(INFO) << "Refusing registration of framework at " << from  << ": "
+              << validationError.get().get().message;
+
     FrameworkErrorMessage message;
-    message.set_message(valid.error());
+    message.set_message(validationError.get().get().message);
     send(from, message);
     return;
   }
 
-  LOG(INFO) << "Received registration request from " << from;
+  if (authenticating.contains(from)) {
+    // This could happen if a new authentication request came from the
+    // same framework while validation was in progress.
+    LOG(INFO) << "Dropping registration request from " << from
+              << " because new authentication attempt is in progress";
+    return;
+  }
+
+  if (flags.authenticate_frameworks && !authenticated.contains(from)) {
+    // This could happen if another (failed over) framework
+    // authenticated while validation was in progress.
+    LOG(INFO) << "Dropping registration request from " << from
+              << " because it is not authenticated";
+    return;
+  }
 
   // Check if this framework is already registered (because it retries).
   foreachvalue (Framework* framework, frameworks.activated) {
@@ -1069,6 +1138,7 @@ void Master::registerFramework(
 
   LOG(INFO) << "Registering framework " << framework->id << " at " << from;
 
+  // TODO(vinod): Deprecate this in favor of authorization.
   bool rootSubmissions = flags.root_submissions;
 
   if (framework->info.user() == "root" && rootSubmissions == false) {
@@ -1095,7 +1165,9 @@ void Master::reregisterFramework(
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up re-registration request from " << from
               << " because authentication is still in progress";
-
+    // TODO(vinod): Consider dropping this request and fix the tests
+    // to deal with the drop. See 'Master::registerFramework()' for
+    // more details.
     authenticating[from]
       .onReady(defer(self(),
                      &Self::reregisterFramework,
@@ -1113,13 +1185,54 @@ void Master::reregisterFramework(
     return;
   }
 
-  Try<Nothing> valid = validate(frameworkInfo, from);
-  if (valid.isError()) {
-    LOG(WARNING) << "Refusing re-registration of framework at " << from << ": "
-                 << valid.error();
+  LOG(INFO) << "Received re-registration request from framework "
+            << frameworkInfo.id() << " at " << from;
+
+  validate(frameworkInfo, from)
+    .onAny(defer(self(),
+                 &Master::_reregisterFramework,
+                 from,
+                 frameworkInfo,
+                 failover,
+                 lambda::_1));
+}
+
+
+void Master::_reregisterFramework(
+    const UPID& from,
+    const FrameworkInfo& frameworkInfo,
+    bool failover,
+    const Future<Option<Error> >& validationError)
+{
+  CHECK_READY(validationError);
+  if (validationError.get().isSome()) {
+    LOG(INFO) << "Refusing re-registration of framework " << frameworkInfo.id()
+              << " at " << from << ": " << validationError.get().get().message;
+
     FrameworkErrorMessage message;
-    message.set_message(valid.error());
+    message.set_message(validationError.get().get().message);
     send(from, message);
+    return;
+  }
+
+  if (authenticating.contains(from)) {
+    // This could happen if a new authentication request came from the
+    // same framework while validation was in progress.
+    LOG(INFO) << "Dropping re-registration request of framework "
+              << frameworkInfo.id() << " at " << from
+              << " because new authentication attempt is in progress";
+    return;
+  }
+
+  if (flags.authenticate_frameworks && !authenticated.contains(from)) {
+    // This could happen if another (failed over) framework
+    // authenticated while validation was in progress. It is important
+    // to drop this because if this request is from a failing over
+    // framework (pid = from) we don't want to failover the already
+    // registered framework (pid = framework->pid).
+    LOG(INFO) << "Dropping re-registration request of framework "
+              << frameworkInfo.id() << " at " << from
+              << " because it is not authenticated";
     return;
   }
 
@@ -1876,17 +1989,6 @@ void Master::launchTasks(
                  totalResources,
                  filters,
                  lambda::_1));
-}
-
-
-// Helper to convert authorization result to Future<Option<Error> >.
-static Future<Option<Error> > _authorize(const string& message, bool authorized)
-{
-  if (authorized) {
-    return None();
-  }
-
-  return Error(message);
 }
 
 
