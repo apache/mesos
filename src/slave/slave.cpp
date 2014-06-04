@@ -801,7 +801,12 @@ void Slave::doReliableRegistration(const Duration& duration)
     return;
   }
 
-  CHECK(state == DISCONNECTED || state == TERMINATING) << state;
+  if (state == TERMINATING) {
+    LOG(INFO) << "Skipping registration because slave is terminating";
+    return;
+  }
+
+  CHECK(state == DISCONNECTED) << state;
 
   if (info.id() == "") {
     // Registering for the first time.

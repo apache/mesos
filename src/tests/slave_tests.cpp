@@ -709,3 +709,91 @@ TEST_F(SlaveTest, MetricsInStatsEndpoint)
 
   Shutdown();
 }
+
+
+// This test ensures that when a previously unregistered slave is shutting
+// down, it will not keep trying to re-register with the master.
+TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Create a MockExecutor to enable us to catch ShutdownExecutorMessage later.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  // Create a StandaloneMasterDetector to enable the slave to trigger
+  // re-registeration later.
+  StandaloneMasterDetector detector(master.get());
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Make the executor_shutdown_grace_period to be much longer
+  // than REGISTER_RETRY_INTERVAL, so that the slave will at least
+  // call doReliableRegistration() once before the slave is actually
+  // terminated.
+  flags.executor_shutdown_grace_period = slave::REGISTER_RETRY_INTERVAL_MAX*2;
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave(&exec, &detector, flags);
+  ASSERT_SOME(slave);
+
+  // Create a task on the slave.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  // Launch a task that uses less resource than the default(cpus:2, mem:1024).
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Pause the clock here so that after detecting a new master,
+  // the slave will not send multiple reregister messages
+  // before we change its state to TERMINATING.
+  Clock::pause();
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    DROP_PROTOBUF(SlaveReregisteredMessage(), master.get(), slave.get());
+
+  // Simulate a new master detected event to the scheduler,
+  // so that the slave will do a re-registration.
+  detector.appoint(master.get());
+
+  // Make sure the slave has entered doReliableRegistration()
+  // before we change the slave's state.
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Setup an expectation that the master should not receive any
+  // ReregisterSlaveMessage in the future.
+  EXPECT_NO_FUTURE_PROTOBUFS(ReregisterSlaveMessage(), slave.get(), master.get());
+
+  // Drop the ShutdownExecutorMessage, so that the slave will
+  // stay in TERMINATING for a while.
+  DROP_PROTOBUFS(ShutdownExecutorMessage(), slave.get(), _);
+
+  // Send a ShutdownMessage instead of calling Stop() directly
+  // to avoid blocking.
+  process::post(slave.get(), ShutdownMessage());
+
+  // Advance the clock to trigger doReliableRegistration().
+  Clock::advance(slave::REGISTER_RETRY_INTERVAL_MAX * 2);
+  Clock::settle();
+  Clock::resume();
+
+  // Clean up.
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
