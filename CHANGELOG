@@ -108,6 +108,8 @@ Release Notes - Mesos - Version 0.19.0
     * [MESOS-1415] - Web UI master redirect message doesn't show up
     * [MESOS-1418] - Master should remove/rescind offers for disconnected slave.
     * [MESOS-1419] - Properly rescind offers
+    * [MESOS-1449] - Isolator::recover will attempt to remove slave cgroup when using --slave_subsystems
+    * [MESOS-1455] - Segfault in libprocess during Process linking.
 
 ** Documentation
     * [MESOS-1002] - Add "make check" instruction to getting started doc
