@@ -80,6 +80,12 @@ extern const Bytes DEFAULT_DISK;
 // Default ports range offered by the slave.
 extern const std::string DEFAULT_PORTS;
 
+// Default cpu resource given to a command executor.
+const double DEFAULT_EXECUTOR_CPUS = 0.1;
+
+// Default memory resource given to a command executor.
+const Bytes DEFAULT_EXECUTOR_MEM = Megabytes(32);
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

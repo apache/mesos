@@ -2297,6 +2297,13 @@ ExecutorInfo Slave::getExecutorInfo(
           "'; exit 1");
     }
 
+    // Add an allowance for the command executor. This does lead to a
+    // small overcommit of resources.
+    executor.mutable_resources()->MergeFrom(
+        Resources::parse(
+          "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +
+          "mem:" + stringify(DEFAULT_EXECUTOR_MEM.megabytes())).get());
+
     return executor;
   }
 
