@@ -216,6 +216,10 @@ public:
       }
 
       case Call::REQUEST: {
+        if (!call.has_request()) {
+          drop(call, "Expecting 'request' to be present");
+          return;
+        }
         ResourceRequestMessage message;
         message.mutable_framework_id()->CopyFrom(call.framework_info().id());
         message.mutable_requests()->CopyFrom(call.request().requests());
@@ -224,6 +228,10 @@ public:
       }
 
       case Call::DECLINE: {
+        if (!call.has_decline()) {
+          drop(call, "Expecting 'decline' to be present");
+          return;
+        }
         LaunchTasksMessage message;
         message.mutable_framework_id()->CopyFrom(call.framework_info().id());
         message.mutable_filters()->CopyFrom(call.decline().filters());
@@ -240,6 +248,10 @@ public:
       }
 
       case Call::LAUNCH: {
+        if (!call.has_launch()) {
+          drop(call, "Expecting 'launch' to be present");
+          return;
+        }
         // We do some local validation here, but really this should
         // all happen in the master so it's only implemented once.
         vector<TaskInfo> tasks;
@@ -289,6 +301,10 @@ public:
       }
 
       case Call::KILL: {
+        if (!call.has_kill()) {
+          drop(call, "Expecting 'kill' to be present");
+          return;
+        }
         KillTaskMessage message;
         message.mutable_framework_id()->CopyFrom(call.framework_info().id());
         message.mutable_task_id()->CopyFrom(call.kill().task_id());
@@ -297,6 +313,10 @@ public:
       }
 
       case Call::ACKNOWLEDGE: {
+        if (!call.has_acknowledge()) {
+          drop(call, "Expecting 'acknowledge' to be present");
+          return;
+        }
         StatusUpdateAcknowledgementMessage message;
         message.mutable_framework_id()->CopyFrom(call.framework_info().id());
         message.mutable_slave_id()->CopyFrom(call.acknowledge().slave_id());
@@ -307,6 +327,10 @@ public:
       }
 
       case Call::RECONCILE: {
+        if (!call.has_reconcile()) {
+          drop(call, "Expecting 'reconcile' to be present");
+          return;
+        }
         ReconcileTasksMessage message;
         message.mutable_framework_id()->CopyFrom(call.framework_info().id());
         message.mutable_statuses()->CopyFrom(call.reconcile().statuses());
@@ -315,6 +339,10 @@ public:
       }
 
       case Call::MESSAGE: {
+        if (!call.has_message()) {
+          drop(call, "Expecting 'message' to be present");
+          return;
+        }
         FrameworkToExecutorMessage message;
         message.mutable_slave_id()->CopyFrom(call.message().slave_id());
         message.mutable_framework_id()->CopyFrom(call.framework_info().id());
