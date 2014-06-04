@@ -87,7 +87,6 @@ protected:
     MOCK_METHOD0(disconnected, void(void));
     MOCK_METHOD1(received, void(const std::queue<Event>&));
   };
-
 };
 
 
