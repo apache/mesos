@@ -106,6 +106,9 @@ master::Flags MesosTest::CreateMasterFlags()
   flags.registry = "replicated_log";
   flags.registry_strict = true;
 
+  // On many test VMs, this default is too small.
+  flags.registry_store_timeout = flags.registry_store_timeout * 2;
+
   return flags;
 }
 
