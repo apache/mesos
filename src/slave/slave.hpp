@@ -164,10 +164,20 @@ public:
   // status updates it generated (e.g., TASK_LOST).
   void statusUpdate(const StatusUpdate& update, const process::UPID& pid);
 
+  // Continue handling the status update after optionally updating the
+  // container's resources.
+  void _statusUpdate(
+      const Option<Future<Nothing> >& future,
+      const StatusUpdate& update,
+      const UPID& pid,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      bool checkpoint);
+
   // This is called when the status update manager finishes
   // handling the update. If the handling is successful, an
   // acknowledgment is sent to the executor.
-  void _statusUpdate(
+  void __statusUpdate(
       const process::Future<Nothing>& future,
       const StatusUpdate& update,
       const process::UPID& pid);

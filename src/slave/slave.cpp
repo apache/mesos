@@ -2012,7 +2012,7 @@ void Slave::reregisterExecutorTimeout()
 // This can be called in two ways:
 // 1) When a status update from the executor is received.
 // 2) When slave generates task updates (e.g LOST/KILLED/FAILED).
-// NOTE: We set the pid in 'Slave::_statusUpdate()' to 'pid' so that
+// NOTE: We set the pid in 'Slave::__statusUpdate()' to 'pid' so that
 // whoever sent this update will get an ACK. This is important because
 // we allow executors to send updates for tasks that belong to other
 // executors. Currently we allow this because we cannot guarantee
@@ -2072,7 +2072,7 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
     // corresponding to this task because the task has been moved to
     // 'Executor::completedTasks'.
     statusUpdateManager->update(update, info.id())
-      .onAny(defer(self(), &Slave::_statusUpdate, lambda::_1, update, pid));
+      .onAny(defer(self(), &Slave::__statusUpdate, lambda::_1, update, pid));
 
     return;
   }
@@ -2105,37 +2105,74 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
        executor->launchedTasks.contains(status.task_id()))) {
     executor->terminateTask(status.task_id(), status.state());
 
-    // Tell the isolator to update the resources.
-    // TODO(idownes): Wait until this completes.
+    // Wait until the container's resources have been updated before
+    // sending the status update.
     CHECK_SOME(executor->resources);
-    containerizer->update(executor->containerId, executor->resources.get());
-  }
-
-  if (executor->checkpoint) {
-    // Ask the status update manager to checkpoint and reliably send the update.
-    statusUpdateManager->update(
-        update,
-        info.id(),
-        executor->id,
-        executor->containerId)
+    containerizer->update(executor->containerId, executor->resources.get())
       .onAny(defer(self(),
                    &Slave::_statusUpdate,
                    lambda::_1,
                    update,
-                   pid));
+                   pid,
+                   executor->id,
+                   executor->containerId,
+                   executor->checkpoint));
   } else {
-    // Ask the status update manager to just retry the update.
-    statusUpdateManager->update(update, info.id())
-      .onAny(defer(self(),
-                   &Slave::_statusUpdate,
-                   lambda::_1,
-                   update,
-                   pid));
+    // Immediately send the status update.
+    _statusUpdate(None(),
+                  update,
+                  pid,
+                  executor->id,
+                  executor->containerId,
+                  executor->checkpoint);
   }
 }
 
 
 void Slave::_statusUpdate(
+    const Option<Future<Nothing> >& future,
+    const StatusUpdate& update,
+    const UPID& pid,
+    const ExecutorID& executorId,
+    const ContainerID& containerId,
+    bool checkpoint)
+{
+  if (future.isSome() && !future.get().isReady()) {
+    LOG(ERROR) << "Failed to update resources for container " << containerId
+               << " of executor " << executorId
+               << " running task " << update.status().task_id()
+               << " on status update for terminal task, destroying container:"
+               << (future.get().isFailed() ? future.get().failure()
+                                           : "discarded");
+
+    containerizer->destroy(containerId);
+  }
+
+  if (checkpoint) {
+    // Ask the status update manager to checkpoint and reliably send the update.
+    statusUpdateManager->update(
+        update,
+        info.id(),
+        executorId,
+        containerId)
+      .onAny(defer(self(),
+                  &Slave::__statusUpdate,
+                  lambda::_1,
+                  update,
+                  pid));
+  } else {
+    // Ask the status update manager to just retry the update.
+    statusUpdateManager->update(update, info.id())
+      .onAny(defer(self(),
+                  &Slave::__statusUpdate,
+                  lambda::_1,
+                  update,
+                  pid));
+  }
+}
+
+
+void Slave::__statusUpdate(
     const Future<Nothing>& future,
     const StatusUpdate& update,
     const UPID& pid)

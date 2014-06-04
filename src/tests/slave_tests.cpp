@@ -805,3 +805,98 @@ TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
 
   Shutdown();
 }
+
+
+// This test verifies the slave will destroy a container if, when
+// receiving a terminal status task update, updating the container's
+// resources fails.
+TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFails)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  TestContainerizer containerizer(&exec);
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  // Start two tasks.
+  vector<TaskInfo> tasks;
+
+  tasks.push_back(createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:0.1;mem:32").get(),
+      "sleep 1000",
+      exec.id));
+
+  tasks.push_back(createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:0.1;mem:32").get(),
+      "sleep 1000",
+      exec.id));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1, status2, status3, status4;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillOnce(FutureArg<1>(&status3))
+    .WillOnce(FutureArg<1>(&status4));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  // Set up the containerizer so the next update() will fail.
+  EXPECT_CALL(containerizer, update(_, _))
+    .WillOnce(Return(process::Failure("update() failed")))
+    .WillRepeatedly(Return(Nothing()));
+
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
+
+  // Kill one of the tasks. The failed update should result in the
+  // second task going lost when the container is destroyed.
+  driver.killTask(tasks[0].task_id());
+
+  AWAIT_READY(status3);
+  EXPECT_EQ(TASK_KILLED, status3.get().state());
+
+  AWAIT_READY(status4);
+  EXPECT_EQ(TASK_LOST, status4.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
