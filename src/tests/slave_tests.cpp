@@ -730,7 +730,7 @@ TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
   // than REGISTER_RETRY_INTERVAL, so that the slave will at least
   // call doReliableRegistration() once before the slave is actually
   // terminated.
-  flags.executor_shutdown_grace_period = slave::REGISTER_RETRY_INTERVAL_MAX*2;
+  flags.executor_shutdown_grace_period = slave::REGISTER_RETRY_INTERVAL_MAX * 2;
 
   // Start a slave.
   Try<PID<Slave> > slave = StartSlave(&exec, &detector, flags);
@@ -776,7 +776,8 @@ TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
 
   // Setup an expectation that the master should not receive any
   // ReregisterSlaveMessage in the future.
-  EXPECT_NO_FUTURE_PROTOBUFS(ReregisterSlaveMessage(), slave.get(), master.get());
+  EXPECT_NO_FUTURE_PROTOBUFS(
+      ReregisterSlaveMessage(), slave.get(), master.get());
 
   // Drop the ShutdownExecutorMessage, so that the slave will
   // stay in TERMINATING for a while.
