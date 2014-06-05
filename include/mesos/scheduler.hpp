@@ -308,9 +308,12 @@ public:
                                       const std::string& data) = 0;
 
   /**
-   * Causes the master to send back the latest task status for each
-   * task in 'statuses', if possible. Tasks that are no longer known
-   * will result in a TASK_LOST update.
+   * Allows the framework to query the status for non-terminal tasks.
+   * This causes the master to send back the latest task status for
+   * each task in 'statuses', if possible. Tasks that are no longer
+   * known will result in a TASK_LOST update. If statuses is empty,
+   * then the master will send the latest status for each task
+   * currently known.
    */
   virtual Status reconcileTasks(
       const std::vector<TaskStatus>& statuses) = 0;

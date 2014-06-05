@@ -2735,10 +2735,41 @@ void Master::reconcileTasks(
     return;
   }
 
-  LOG(INFO) << "Performing task state reconciliation for " << statuses.size()
-            << " task statuses of framework " << frameworkId;
+  if (from != framework->pid) {
+    LOG(WARNING)
+      << "Ignoring reconcile tasks message for framework " << frameworkId
+      << " from '" << from << "' because it is not from the registered"
+      << " framework '" << framework->pid << "'";
+    return;
+  }
 
-  // Reconciliation occurs for the following cases:
+  if (statuses.empty()) {
+    // Implicit reconciliation.
+    LOG(INFO) << "Performing implicit task state reconciliation for framework "
+              << frameworkId;
+
+    // TODO(bmahler): Consider sending completed tasks?
+    foreachvalue (Task* task, framework->tasks) {
+      StatusUpdate update = protobuf::createStatusUpdate(
+          frameworkId,
+          task->slave_id(),
+          task->task_id(),
+          task->state(),
+          "Reconciliation: Latest task state");
+
+      StatusUpdateMessage message;
+      message.mutable_update()->CopyFrom(update);
+      send(framework->pid, message);
+    }
+
+    return;
+  }
+
+  // Explicit reconciliation.
+  LOG(INFO) << "Performing explicit task state reconciliation for "
+            << statuses.size() << " task statuses of framework " << frameworkId;
+
+  // Explicit reconciliation occurs for the following cases:
   //   (1) If the slave is unknown, we send TASK_LOST.
   //   (2) If the task is missing on the slave, we send TASK_LOST.
   //   (3) Otherwise, we send the latest state.
@@ -2796,7 +2827,6 @@ void Master::reconcileTasks(
     }
 
     if (update.isSome()) {
-      CHECK_NOTNULL(framework);
       StatusUpdateMessage message;
       message.mutable_update()->CopyFrom(update.get());
       send(framework->pid, message);

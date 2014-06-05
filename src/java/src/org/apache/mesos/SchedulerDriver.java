@@ -212,10 +212,14 @@ public interface SchedulerDriver {
                               byte[] data);
 
   /**
-   * Reconciliation of tasks causes the master to send status updates for tasks
-   * whose status differs from the status sent here.
+   * Allows the framework to query the status for non-terminal tasks.
+   * This causes the master to send back the latest task status for
+   * each task in 'statuses', if possible. Tasks that are no longer
+   * known will result in a TASK_LOST update. If statuses is empty,
+   * then the master will send the latest status for each task
+   * currently known.
    *
-   * @param statuses The collection of tasks and statuses to reconcile.
+   * @param statuses The collection of non-terminal TaskStatuses to reconcile.
    * @return The state of the driver after the call.
    */
   Status reconcileTasks(Collection<TaskStatus> statuses);
