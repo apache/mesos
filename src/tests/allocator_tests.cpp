@@ -95,7 +95,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   ASSERT_SOME(slave1);
   // Total cluster resources now cpus=2, mem=1024.
 
-  FrameworkInfo frameworkInfo1;
+  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_role("role1");
@@ -122,7 +123,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   // user1 share = 1 (cpus=2, mem=1024)
   //   framework1 share = 1
 
-  FrameworkInfo frameworkInfo2;
+  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_name("framework2");
   frameworkInfo2.set_user("user2");
   frameworkInfo2.set_role("role2");
@@ -196,7 +198,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   // user2 share = 0.71 (cpus=4, mem=2560)
   //   framework2 share = 1
 
-  FrameworkInfo frameworkInfo3;
+  FrameworkInfo frameworkInfo3; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo3 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo3.set_name("framework3");
   frameworkInfo3.set_user("user3");
   frameworkInfo3.set_role("role1");
@@ -246,7 +249,8 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   // user2 share = 0.4 (cpus=4, mem=2560)
   //   framework2 share = 1
 
-  FrameworkInfo frameworkInfo4;
+  FrameworkInfo frameworkInfo4; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo4 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo4.set_name("framework4");
   frameworkInfo4.set_user("user1");
   frameworkInfo4.set_role("role1");
@@ -371,7 +375,8 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
 
   AWAIT_READY(slaveAdded);
 
-  FrameworkInfo frameworkInfo1;
+  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_role("role1");
@@ -393,7 +398,8 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   // unreserved resources on slave2.
   AWAIT_READY(resourceOffers1);
 
-  FrameworkInfo frameworkInfo2;
+  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_user("user2");
   frameworkInfo2.set_name("framework2");
   frameworkInfo2.set_role("role2");
@@ -414,7 +420,8 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   // framework2 gets all of its reserved resources on slave2.
   AWAIT_READY(resourceOffers2);
 
-  FrameworkInfo frameworkInfo3;
+  FrameworkInfo frameworkInfo3; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo3 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo3.set_user("user2");
   frameworkInfo3.set_name("framework3");
   frameworkInfo3.set_role("role3");
@@ -519,7 +526,8 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   // Wait until allocator has added slave2.
   AWAIT_READY(slaveAdded2);
 
-  FrameworkInfo frameworkInfo1;
+  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_role("role1");
@@ -567,7 +575,8 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
 
   AWAIT_READY(resourceOffers1);
 
-  FrameworkInfo frameworkInfo2;
+  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_user("user2");
   frameworkInfo2.set_name("framework2");
   frameworkInfo2.set_role("role2");
@@ -776,7 +785,8 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   // expected offer.
   AWAIT_READY(resourcesUnused);
 
-  FrameworkInfo frameworkInfo2;
+  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_user("user2");
   frameworkInfo2.set_name("framework2");
 
@@ -845,7 +855,8 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   Try<PID<Slave> > slave1 = this->StartSlave(flags1);
   ASSERT_SOME(slave1);
 
-  FrameworkInfo frameworkInfo1;
+  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_name("framework1");
 
@@ -908,7 +919,8 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   // TODO(benh): Seems like we should wait for the above
   // resourcesRecovered to be executed.
 
-  FrameworkInfo frameworkInfo2;
+  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_user("user2");
   frameworkInfo2.set_name("framework2");
 
@@ -972,7 +984,8 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
-  FrameworkInfo frameworkInfo1;
+  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_failover_timeout(10);
@@ -1664,7 +1677,8 @@ TYPED_TEST(AllocatorTest, RoleTest)
 
   // Launch a framework with a role that doesn't exist to see that it
   // receives an error message.
-  FrameworkInfo frameworkInfo1;
+  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_role("role1");
@@ -1683,7 +1697,8 @@ TYPED_TEST(AllocatorTest, RoleTest)
   AWAIT_READY(errorMessage);
 
   // Launch a framework under an existing role to see that it registers.
-  FrameworkInfo frameworkInfo2;
+  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_name("framework2");
   frameworkInfo2.set_user("user2");
   frameworkInfo2.set_role("role2");

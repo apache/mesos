@@ -80,10 +80,9 @@ public class TestExceptionFramework {
       System.exit(1);
     }
 
-    FrameworkInfo framework = FrameworkInfo.newBuilder()
+    FrameworkInfo.Builder frameworkBuilder = FrameworkInfo.newBuilder()
         .setUser("") // Have Mesos fill in the current user.
-        .setName("Exception Framework (Java)")
-        .build();
+        .setName("Exception Framework (Java)");
 
     MesosSchedulerDriver driver = null;
     if (System.getenv("MESOS_AUTHENTICATE") != null) {
@@ -104,15 +103,19 @@ public class TestExceptionFramework {
         .setSecret(ByteString.copyFrom(System.getenv("DEFAULT_SECRET").getBytes()))
         .build();
 
+      frameworkBuilder.setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
+
       driver = new MesosSchedulerDriver(
           new TestExceptionScheduler(),
-          framework,
+          frameworkBuilder.build(),
           args[0],
           credential);
     } else {
+      frameworkBuilder.setPrincipal("exception-framework-java");
+
       driver = new MesosSchedulerDriver(
           new TestExceptionScheduler(),
-          framework,
+          frameworkBuilder.build(),
           args[0]);
     }
 

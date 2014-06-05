@@ -201,9 +201,13 @@ int main(int argc, char** argv)
     credential.set_principal(getenv("DEFAULT_PRINCIPAL"));
     credential.set_secret(getenv("DEFAULT_SECRET"));
 
+    framework.set_principal(getenv("DEFAULT_PRINCIPAL"));
+
     driver = new MesosSchedulerDriver(
         &scheduler, framework, argv[1], credential);
   } else {
+    framework.set_principal("long-lived-framework-cpp");
+
     driver = new MesosSchedulerDriver(
         &scheduler, framework, argv[1]);
   }

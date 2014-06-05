@@ -157,8 +157,6 @@ public class TestFramework {
       frameworkBuilder.setCheckpoint(true);
     }
 
-    FrameworkInfo framework = frameworkBuilder.build();
-
     Scheduler scheduler = args.length == 1
         ? new TestScheduler(executor)
         : new TestScheduler(executor, Integer.parseInt(args[1]));
@@ -182,9 +180,13 @@ public class TestFramework {
         .setSecret(ByteString.copyFrom(System.getenv("DEFAULT_SECRET").getBytes()))
         .build();
 
-      driver = new MesosSchedulerDriver(scheduler, framework, args[0], credential);
+      frameworkBuilder.setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
+
+      driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), args[0], credential);
     } else {
-      driver = new MesosSchedulerDriver(scheduler, framework, args[0]);
+      frameworkBuilder.setPrincipal("test-framework-java");
+
+      driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), args[0]);
     }
 
     int status = driver.run() == Status.DRIVER_STOPPED ? 0 : 1;
