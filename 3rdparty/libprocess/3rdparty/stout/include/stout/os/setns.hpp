@@ -89,7 +89,7 @@ inline Try<int> nstype(const std::string& ns)
   nstypes["user"] = 0x10000000;
 #endif
 
-#ifndef CLONE_NEWPID
+#ifdef CLONE_NEWPID
   nstypes["pid"] = CLONE_NEWPID;
 #else
   nstypes["pid"] = 0x20000000;
