@@ -34,6 +34,7 @@
 #include <process/metrics/metrics.hpp>
 
 #include <stout/check.hpp>
+#include <stout/error.hpp>
 #include <stout/lambda.hpp>
 #include <stout/memory.hpp>
 #include <stout/multihashmap.hpp>
@@ -1375,11 +1376,9 @@ void Master::resourceRequest(
 // back to the framework for only that task description. An instance
 // will be reused for each task description from same 'launchTasks()',
 // but not for task descriptions from different offers.
-typedef Option<string> TaskInfoError;
-
 struct TaskInfoVisitor
 {
-  virtual TaskInfoError operator () (
+  virtual Option<Error> operator () (
       const TaskInfo& task,
       const Resources& resources,
       const Framework& framework,
@@ -1391,7 +1390,7 @@ struct TaskInfoVisitor
 // Checks that a task id is valid, i.e., contains only valid characters.
 struct TaskIDChecker : TaskInfoVisitor
 {
-  virtual TaskInfoError operator () (
+  virtual Option<Error> operator () (
       const TaskInfo& task,
       const Resources& resources,
       const Framework& framework,
@@ -1416,7 +1415,7 @@ struct TaskIDChecker : TaskInfoVisitor
 // Checks that the slave ID used by a task is correct.
 struct SlaveIDChecker : TaskInfoVisitor
 {
-  virtual TaskInfoError operator () (
+  virtual Option<Error> operator () (
       const TaskInfo& task,
       const Resources& resources,
       const Framework& framework,
@@ -1438,7 +1437,7 @@ struct SlaveIDChecker : TaskInfoVisitor
 // task tries to re-use an ID.
 struct UniqueTaskIDChecker : TaskInfoVisitor
 {
-  virtual TaskInfoError operator () (
+  virtual Option<Error> operator () (
       const TaskInfo& task,
       const Resources& resources,
       const Framework& framework,
@@ -1464,7 +1463,7 @@ struct UniqueTaskIDChecker : TaskInfoVisitor
 // offered on that slave
 struct ResourceUsageChecker : TaskInfoVisitor
 {
-  virtual TaskInfoError operator () (
+  virtual Option<Error> operator () (
       const TaskInfo& task,
       const Resources& resources,
       const Framework& framework,
@@ -1531,7 +1530,7 @@ struct ResourceUsageChecker : TaskInfoVisitor
 // ExecutorID) have an identical ExecutorInfo.
 struct ExecutorInfoChecker : TaskInfoVisitor
 {
-  virtual TaskInfoError operator () (
+  virtual Option<Error> operator () (
       const TaskInfo& task,
       const Resources& resources,
       const Framework& framework,
@@ -1572,7 +1571,7 @@ struct ExecutorInfoChecker : TaskInfoVisitor
 // launched on a slave that has not enabled checkpointing.
 struct CheckpointChecker : TaskInfoVisitor
 {
-  virtual TaskInfoError operator () (
+  virtual Option<Error> operator () (
       const TaskInfo& task,
       const Resources& resources,
       const Framework& framework,
@@ -1592,11 +1591,9 @@ struct CheckpointChecker : TaskInfoVisitor
 // The error reporting scheme is also similar to TaskInfoVisitor.
 // However, offer processing (and subsequent task processing) is
 // aborted altogether if offer visitor reports an error.
-typedef Option<string> OfferError;
-
 struct OfferVisitor
 {
-  virtual OfferError operator () (
+  virtual Option<Error> operator () (
       const OfferID& offerId,
       const Framework& framework,
       Master* master) = 0;
@@ -1619,14 +1616,14 @@ struct OfferVisitor
 
 // Checks validity/liveness of an offer.
 struct ValidOfferChecker : OfferVisitor {
-  virtual OfferError operator () (
+  virtual Option<Error> operator () (
       const OfferID& offerId,
       const Framework& framework,
       Master* master)
   {
     Offer* offer = getOffer(master, offerId);
     if (offer == NULL) {
-      return "Offer " + stringify(offerId) + " is no longer valid";
+      return Error("Offer " + stringify(offerId) + " is no longer valid");
     }
 
     return None();
@@ -1636,14 +1633,14 @@ struct ValidOfferChecker : OfferVisitor {
 
 // Checks that an offer belongs to the expected framework.
 struct FrameworkChecker : OfferVisitor {
-  virtual OfferError operator () (
+  virtual Option<Error> operator () (
       const OfferID& offerId,
       const Framework& framework,
       Master* master)
   {
     Offer* offer = getOffer(master, offerId);
     if (offer == NULL) {
-      return "Offer " + stringify(offerId) + " is no longer valid";
+      return Error("Offer " + stringify(offerId) + " is no longer valid");
     }
 
     if (!(framework.id == offer->framework_id())) {
@@ -1661,7 +1658,7 @@ struct FrameworkChecker : OfferVisitor {
 // the same slave.
 struct SlaveChecker : OfferVisitor
 {
-  virtual OfferError operator () (
+  virtual Option<Error> operator () (
       const OfferID& offerId,
       const Framework& framework,
       Master* master)
@@ -1703,7 +1700,7 @@ struct SlaveChecker : OfferVisitor
 // Checks that an offer only appears once in offer list.
 struct UniqueOfferIDChecker : OfferVisitor
 {
-  virtual OfferError operator () (
+  virtual Option<Error> operator () (
       const OfferID& offerId,
       const Framework& framework,
       Master* master)
@@ -1782,17 +1779,17 @@ void Master::launchTasks(
   // Verify and aggregate all offers.
   // Abort offer and task processing if any offer validation failed.
   Resources totalResources;
-  OfferError offerError = None();
+  Option<Error> error = None();
   foreach (const OfferID& offerId, offerIds) {
     foreach (OfferVisitor* visitor, offerVisitors) {
-      offerError = (*visitor)(offerId, *framework, this);
-      if (offerError.isSome()) {
+      error = (*visitor)(offerId, *framework, this);
+      if (error.isSome()) {
         break;
       }
     }
     // Offer validation error needs to be propagated from visitor
     // loop above.
-    if (offerError.isSome()) {
+    if (error.isSome()) {
       break;
     }
 
@@ -1819,7 +1816,7 @@ void Master::launchTasks(
   foreach (const OfferID& offerId, offerIds) {
     Offer* offer = getOffer(offerId);
     if (offer != NULL) {
-      if (offerError.isSome()) {
+      if (error.isSome()) {
         allocator->resourcesRecovered(
             offer->framework_id(), offer->slave_id(), offer->resources());
       }
@@ -1827,9 +1824,9 @@ void Master::launchTasks(
     }
   }
 
-  if (offerError.isSome()) {
-    LOG(WARNING) << "Failed to validate offers " << stringify(offerIds)
-                   << ": " << offerError.get();
+  if (error.isSome()) {
+    LOG(WARNING) << "Failed to validate offer " << stringify(offerIds)
+                   << ": " << error.get().message;
 
     foreach (const TaskInfo& task, tasks) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
@@ -1837,7 +1834,7 @@ void Master::launchTasks(
           task.slave_id(),
           task.task_id(),
           TASK_LOST,
-          "Task launched with invalid offers: " + offerError.get());
+          "Task launched with invalid offers: " + error.get().message);
 
       LOG(INFO) << "Sending status update " << update
                 << " for launch task attempt on invalid offers: "
@@ -1873,7 +1870,7 @@ void Master::launchTasks(
   // Loop through each task and check it's validity.
   foreach (const TaskInfo& task, tasks) {
     // Possible error found while checking task's validity.
-    TaskInfoError error = None();
+    Option<Error> error = None();
 
     // Invoke each visitor.
     foreach (TaskInfoVisitor* visitor, taskVisitors) {
@@ -1889,14 +1886,14 @@ void Master::launchTasks(
     } else {
       // Error validating task, send a failed status update.
       LOG(WARNING) << "Failed to validate task " << task.task_id()
-                   << " : " << error.get();
+                   << " : " << error.get().message;
 
       const StatusUpdate& update = protobuf::createStatusUpdate(
           framework->id,
           slave->id,
           task.task_id(),
           TASK_LOST,
-          error.get());
+          error.get().message);
 
       LOG(INFO) << "Sending status update "
                 << update << " for invalid task";
