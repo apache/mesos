@@ -975,7 +975,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   FrameworkInfo frameworkInfo1;
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_user("user1");
-  frameworkInfo1.set_failover_timeout(.1);
+  frameworkInfo1.set_failover_timeout(10);
 
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
@@ -1046,7 +1046,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   EXPECT_CALL(sched2, registered(_, frameworkId, _));
 
-  // Even though the scheduler failed over, the 1 cpu, 512 mem
+  // Even though the scheduler failed over, the 1 cpu, 256 mem
   // task that it launched earlier should still be running, so
   // only 2 cpus and 768 mem are available.
   Future<Nothing> resourceOffers;
