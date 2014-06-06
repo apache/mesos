@@ -66,7 +66,8 @@ TYPED_TEST_CASE(AllocatorZooKeeperTest, AllocatorTypes);
 // new master, if a framework reregisters before a slave that it has
 // resources on reregisters, all used and unused resources are
 // accounted for correctly.
-TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
+// DISABLED as per MESOS-1337 and MESOS-1341.
+TYPED_TEST(AllocatorZooKeeperTest, DISABLED_FrameworkReregistersFirst)
 {
   TypeParam allocator1;
 
@@ -181,7 +182,8 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 // new master, if a slave reregisters before a framework that has
 // resources on reregisters, all used and unused resources are
 // accounted for correctly.
-TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
+// DISABLED as per MESOS-1436.
+TYPED_TEST(AllocatorZooKeeperTest, DISABLED_SlaveReregistersFirst)
 {
   TypeParam allocator1;
 
