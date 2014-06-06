@@ -82,11 +82,16 @@ Try<vector<Rule> > table()
       if (dst != NULL && nl_addr_get_len(dst) != 0) {
         struct in_addr* addr = (struct in_addr*) nl_addr_get_binary_addr(dst);
 
-        // Calculate the netmask based on the prefix length.
-        CHECK_GE(32u, nl_addr_get_prefixlen(dst));
-        uint32_t netmask = 0xffffffff << (32 - nl_addr_get_prefixlen(dst));
+        Try<net::IP> ip = net::IP::fromAddressPrefix(
+            ntohl(addr->s_addr),
+            nl_addr_get_prefixlen(dst));
 
-        destination = net::IP(ntohl(addr->s_addr), netmask);
+        if (ip.isError()) {
+          return Error(
+              "Invalid IP format from the routing table: " + ip.error());
+        }
+
+        destination = ip.get();
       }
 
       // Get the default gateway if exists.
