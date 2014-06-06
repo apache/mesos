@@ -54,6 +54,7 @@
 #include "os.hpp"
 #include "result.hpp"
 #include "stringify.hpp"
+#include "strings.hpp"
 #include "try.hpp"
 
 
@@ -309,13 +310,24 @@ inline Result<MAC> mac(const std::string& name)
 class IP
 {
 public:
-  // Constructs an IP from the given IP address (in host order).
-  explicit IP(uint32_t _address) : address_(_address) {}
+  // Creates an IP from the given string that has the dot-decimal
+  // format (with or without subnet prefix). For example:
+  //   10.0.0.1/8
+  //   192.168.1.100/24
+  //   172.158.1.23
+  static Try<IP> fromDotDecimal(const std::string& value);
 
-  // Constructs an IP from the given IP address and the given netmask
-  // (all in host order).
-  IP(uint32_t _address, uint32_t _netmask)
-    : address_(_address), netmask_(_netmask) {}
+  // Creates an IP from the given IP address (in host order) and the
+  // given netmask (in host order). Returns error if the netmask is
+  // not valid (e.g., not contiguous).
+  static Try<IP> fromAddressNetmask(uint32_t address, uint32_t netmask);
+
+  // Creates an IP from a 32-bit address (in host order) and a subnet
+  // prefix (within [0,32]). Returns error if the prefix is not valid.
+  static Try<IP> fromAddressPrefix(uint32_t address, size_t prefix);
+
+  // Constructs an IP with the given IP address (in host order).
+  explicit IP(uint32_t _address) : address_(_address) {}
 
   // Returns the IP address (in host order).
   uint32_t address() const { return address_; }
@@ -334,7 +346,7 @@ public:
 
     size_t value = 0;
     while (mask != 0) {
-      value += mask & 0x1;
+      value += mask & 1;
       mask >>= 1;
     }
 
@@ -352,12 +364,64 @@ public:
   }
 
 private:
+  // Constructs an IP with the given IP address (in host order) and
+  // the given netmask (in host order).
+  IP(uint32_t _address, uint32_t _netmask)
+    : address_(_address), netmask_(_netmask) {}
+
   // IP address (in host order).
   uint32_t address_;
 
   // The optional net mask (in host order).
   Option<uint32_t> netmask_;
 };
+
+
+inline Try<IP> IP::fromDotDecimal(const std::string& value)
+{
+  std::vector<std::string> tokens = strings::split(value, "/");
+
+  if (tokens.size() > 2) {
+    return Error("More than one '/' detected");
+  }
+
+  struct in_addr in;
+  if (inet_aton(tokens[0].c_str(), &in) == 0) {
+    return Error("Failed to parse the IP address");
+  }
+
+  // Parse the subnet prefix if specified.
+  if (tokens.size() == 2) {
+    Try<size_t> prefix = numify<size_t>(tokens[1]);
+    if (prefix.isError()) {
+      return Error("Subnet prefix is not a number");
+    }
+
+    return fromAddressPrefix(ntohl(in.s_addr), prefix.get());
+  }
+
+  return IP(ntohl(in.s_addr));
+}
+
+
+inline Try<IP> IP::fromAddressNetmask(uint32_t address, uint32_t netmask)
+{
+  if (((~netmask + 1) & (~netmask)) != 0) {
+    return Error("Netmask is not valid");
+  }
+
+  return IP(address, netmask);
+}
+
+
+inline Try<IP> IP::fromAddressPrefix(uint32_t address, size_t prefix)
+{
+  if (prefix > 32) {
+    return Error("Subnet prefix is larger than 32");
+  }
+
+  return IP(address, (0xffffffff << (32 - prefix)));
+}
 
 
 // Returns the string representation of the given IP address using the
@@ -421,10 +485,17 @@ inline Result<IP> ip(const std::string& name)
             ifa->ifa_netmask->sa_family == AF_INET) {
           struct sockaddr_in* netmask = (struct sockaddr_in*) ifa->ifa_netmask;
 
-          IP ip(ntohl(addr->sin_addr.s_addr), ntohl(netmask->sin_addr.s_addr));
+          Try<IP> ip = IP::fromAddressNetmask(
+              ntohl(addr->sin_addr.s_addr),
+              ntohl(netmask->sin_addr.s_addr));
 
           freeifaddrs(ifaddr);
-          return ip;
+
+          if (ip.isError()) {
+            return Error(ip.error());
+          }
+
+          return ip.get();
         }
 
         // Note that this is the case where net mask is not specified.
