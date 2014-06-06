@@ -42,6 +42,8 @@ extern const std::string DEFAULT_EXECUTABLE;
 class Operation
 {
 public:
+  virtual ~Operation() {}
+
   // Launches this operation in a subprocess. The user may choose to
   // specify the executable and the path in which to search for the
   // executable. If not specified, the default executable and the
