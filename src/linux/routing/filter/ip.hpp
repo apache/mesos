@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 
+#include <boost/functional/hash.hpp>
+
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
@@ -85,6 +87,15 @@ inline std::ostream& operator << (
     const PortRange& range)
 {
   return stream << "[" << range.begin() << "," << range.end() << "]";
+}
+
+
+inline size_t hash_value(const PortRange& range)
+{
+  size_t seed = 0;
+  boost::hash_combine(seed, range.begin());
+  boost::hash_combine(seed, range.end());
+  return seed;
 }
 
 
