@@ -76,6 +76,9 @@ struct MessageEvent : Event
   explicit MessageEvent(Message* _message)
     : message(_message) {}
 
+  MessageEvent(const MessageEvent& that)
+    : message(that.message == NULL ? NULL : new Message(*that.message)) {}
+
   virtual ~MessageEvent()
   {
     delete message;
@@ -89,8 +92,10 @@ struct MessageEvent : Event
   Message* const message;
 
 private:
-  // Not copyable, not assignable.
-  MessageEvent(const MessageEvent&);
+  // Keep MessageEvent not assignable even though we made it
+  // copyable.
+  // Note that we are violating the "rule of three" here but it helps
+  // keep the fields const.
   MessageEvent& operator = (const MessageEvent&);
 };
 
@@ -170,8 +175,9 @@ struct ExitedEvent : Event
   const UPID pid;
 
 private:
-  // Not copyable, not assignable.
-  ExitedEvent(const ExitedEvent&);
+  // Keep ExitedEvent not assignable even though we made it copyable.
+  // Note that we are violating the "rule of three" here but it helps
+  // keep the fields const.
   ExitedEvent& operator = (const ExitedEvent&);
 };
 
