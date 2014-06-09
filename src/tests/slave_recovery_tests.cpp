@@ -1331,8 +1331,6 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   // Wait for the slave to re-register.
   AWAIT_READY(slaveReregisteredMessage);
 
-  Clock::pause();
-
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
@@ -1349,6 +1347,8 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   // Wait for TASK_KILLED update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_KILLED, status.get().state());
+
+  Clock::pause();
 
   // Advance the clock until the allocator allocates
   // the recovered resources.
@@ -2455,14 +2455,14 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  Clock::pause();
-
   // Kill the task.
   driver2.killTask(task.task_id());
 
   // Wait for TASK_KILLED update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_KILLED, status.get().state());
+
+  Clock::pause();
 
   // Advance the clock until the allocator allocates
   // the recovered resources.
