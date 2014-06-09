@@ -30,6 +30,7 @@
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
+#include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/run.hpp>
 
@@ -74,6 +75,7 @@ using std::vector;
 using process::await;
 using process::wait; // Necessary on some OS's to disambiguate.
 using process::Clock;
+using process::ExitedEvent;
 using process::Failure;
 using process::Future;
 using process::MessageEvent;
@@ -81,6 +83,7 @@ using process::Owned;
 using process::PID;
 using process::Process;
 using process::Promise;
+using process::RateLimiter;
 using process::Time;
 using process::Timer;
 using process::UPID;
@@ -352,14 +355,32 @@ void Master::initialize()
   }
 
   if (flags.rate_limits.isSome()) {
-    Try<RateLimits> limits_ =
+    Try<RateLimits> limits =
       ::protobuf::parse<RateLimits>(flags.rate_limits.get());
-    if (limits_.isError()) {
-      EXIT(1) << "Invalid RateLimits format: " << limits_.error()
+    if (limits.isError()) {
+      EXIT(1) << "Invalid RateLimits format: " << limits.error()
               << " (see --rate_limits flag)";
     }
-    limits = limits_.get();
-    LOG(INFO) << "Framework rate limiting enabled";
+
+    // Add framework rate limiters.
+    foreach (const RateLimit& limit_, limits.get().limits()) {
+      if (limiters.contains(limit_.principal())) {
+        EXIT(1) << "Duplicate principal " << limit_.principal()
+                << " found in RateLimits configuration";
+      }
+
+      if (limit_.has_qps() && limit_.qps() <= 0) {
+        EXIT(1) << "Invalid qps: " << limit_.qps()
+                << ". It must be a positive number";
+      }
+
+      limiters.put(
+          limit_.principal(),
+          limit_.has_qps()
+            ? Option<Owned<RateLimiter> >::some(
+                Owned<RateLimiter>(new RateLimiter(limit_.qps())))
+            : Option<Owned<RateLimiter> >::none());
+    }
   }
 
   hashmap<string, RoleInfo> roleInfos;
@@ -799,16 +820,75 @@ void Master::visit(const MessageEvent& event)
     return;
   }
 
+  // Throttle the message if it's a framework message and a
+  // RateLimiter is configured for the framework's principal.
+  // The framework is not throttled if:
+  // 1) the principal is not specified by the framework (or)
+  // 2) the principal doesn't exist in RateLimits configuration (or)
+  // 3) the principal exists in RateLimits but 'qps' is not set.
+  if (principal.isSome() &&
+      limiters.contains(principal.get()) &&
+      limiters[principal.get()].isSome()) {
+    // Necessary to disambiguate.
+    typedef void(Self::*F)(const MessageEvent&);
+
+    limiters[principal.get()].get()->acquire()
+      .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
+  } else {
+    _visit(event);
+  }
+}
+
+
+void Master::visit(const process::ExitedEvent& event)
+{
+  // Throttle the message if it's a framework message and a
+  // RateLimiter is configured for the framework's principal.
+  // Note that throttling ExitedEvent is necessary so the order
+  // between MessageEvents and ExitedEvents from the same PID is
+  // maintained.
+  // See comments in 'visit(const MessageEvent& event)' for when a
+  // message is not throttled.
+  const Option<string> principal = frameworks.principals.get(event.pid);
+  if (principal.isSome() &&
+      limiters.contains(principal.get()) &&
+      limiters[principal.get()].isSome()) {
+    // Necessary to disambiguate.
+    typedef void(Self::*F)(const ExitedEvent&);
+
+    limiters[principal.get()].get()->acquire()
+      .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
+  } else {
+    _visit(event);
+  }
+}
+
+
+void Master::_visit(const MessageEvent& event)
+{
+  // Obtain the principal before processing the Message because the
+  // mapping may be deleted in handling 'UnregisterFrameworkMessage'
+  // but its counter still needs to be incremented for this message.
+  const Option<string> principal =
+    frameworks.principals.get(event.message->from);
+
   ProtobufProcess<Master>::visit(event);
 
   // Increment 'messages_processed' counter if it still exists.
   // Note that it could be removed in handling
-  // 'UnregisterFrameworkMessage'.
+  // 'UnregisterFrameworkMessage' if it's the last framework with
+  // this principal.
   if (principal.isSome() && metrics.frameworks.contains(principal.get())) {
     Counter messages_processed =
       metrics.frameworks.get(principal.get()).get()->messages_processed;
     ++messages_processed;
   }
+}
+
+
+void Master::_visit(const ExitedEvent& event)
+{
+  Process<Master>::visit(event);
 }
 
 

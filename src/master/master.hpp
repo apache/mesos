@@ -59,6 +59,9 @@
 
 #include "messages/messages.hpp"
 
+namespace process {
+class RateLimiter; // Forward declaration.
+}
 
 namespace mesos {
 namespace internal {
@@ -235,6 +238,11 @@ protected:
   virtual void finalize();
   virtual void exited(const process::UPID& pid);
   virtual void visit(const process::MessageEvent& event);
+  virtual void visit(const process::ExitedEvent& event);
+
+  // Continuations of visit().
+  void _visit(const process::MessageEvent& event);
+  void _visit(const process::ExitedEvent& event);
 
   // Recovers state from the registrar.
   process::Future<Nothing> recover();
@@ -510,8 +518,6 @@ private:
   // Principals of authenticated frameworks/slaves keyed by PID.
   hashmap<process::UPID, std::string> authenticated;
 
-  Option<RateLimits> limits;
-
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.
   int64_t nextSlaveId;     // Used to give each slave a unique ID.
@@ -572,9 +578,11 @@ private:
       process::metrics::Counter messages_received;
 
       // Framework messages processed.
-      // NOTE: This doesn't include dropped messages. Also due to
-      // Master's asynchronous nature, this doesn't necessarily mean
-      // the work requested by this message has finished.
+      // NOTE: This doesn't include dropped messages. Processing of
+      // a message may be throttled by a RateLimiter if one is
+      // configured for this principal. Also due to Master's
+      // asynchronous nature, this doesn't necessarily mean the work
+      // requested by this message has finished.
       process::metrics::Counter messages_processed;
 
       explicit Frameworks(const std::string& principal)
@@ -707,6 +715,11 @@ private:
   process::Future<Option<Error> > validate(
       const FrameworkInfo& frameworkInfo,
       const process::UPID& from);
+
+  // RateLimiters keyed by the framework principal.
+  // Like Metrics::Frameworks, all frameworks of the same principal
+  // are throttled together at a common rate limit.
+  hashmap<std::string, Option<process::Owned<process::RateLimiter> > > limiters;
 };
 
 

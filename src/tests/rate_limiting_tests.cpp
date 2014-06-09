@@ -48,7 +48,6 @@ using process::PID;
 using std::string;
 
 using testing::_;
-using testing::AtLeast;
 using testing::Eq;
 using testing::Return;
 
@@ -549,6 +548,93 @@ TEST_F(RateLimitingTest, SchedulerMessageCounterFailover)
 
   EXPECT_EQ(DRIVER_ABORTED, driver1.stop());
   EXPECT_EQ(DRIVER_STOPPED, driver1.join());
+
+  Shutdown();
+}
+
+
+// Verify that a framework is being correctly throttled at the
+// configured rate.
+TEST_F(RateLimitingTest, ThrottleFramework)
+{
+  // Throttle at 1 QPS.
+  RateLimits limits;
+  RateLimit* limit = limits.mutable_limits()->Add();
+  limit->set_principal(DEFAULT_CREDENTIAL.principal());
+  limit->set_qps(1);
+  master::Flags flags = CreateMasterFlags();
+
+  flags.rate_limits = JSON::Protobuf(limits);
+
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  // Grab this message so we can resend it.
+  Future<RegisterFrameworkMessage> registerFrameworkMessage = FUTURE_PROTOBUF(
+      RegisterFrameworkMessage(), _, master.get());
+
+  // Grab this message to get the scheduler's pid and to make sure we
+  // wait until the framework is registered.
+  Future<process::Message> frameworkRegisteredMessage = FUTURE_MESSAGE(
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+
+  ASSERT_EQ(DRIVER_RUNNING, driver.start());
+
+  AWAIT_READY(registerFrameworkMessage);
+  AWAIT_READY(frameworkRegisteredMessage);
+
+  const process::UPID schedulerPid = frameworkRegisteredMessage.get().to;
+
+  Clock::pause();
+
+  // Keep sending duplicate RegisterFrameworkMessages. Master sends
+  // FrameworkRegisteredMessage back after processing each of them.
+  {
+    Future<process::Message> duplicateFrameworkRegisteredMessage =
+      FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
+                     master.get(),
+                     _);
+
+    process::post(schedulerPid, master.get(), registerFrameworkMessage.get());
+    Clock::settle();
+
+    // The first message is not throttled because it's at the head of
+    // the queue.
+    AWAIT_READY(duplicateFrameworkRegisteredMessage);
+  }
+
+  {
+    Future<process::Message> duplicateFrameworkRegisteredMessage =
+      FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
+                     master.get(),
+                     _);
+
+    process::post(schedulerPid, master.get(), registerFrameworkMessage.get());
+    Clock::settle();
+
+    // The 2nd message is throttled for a second.
+    Clock::advance(Milliseconds(500));
+    Clock::settle();
+
+    EXPECT_TRUE(duplicateFrameworkRegisteredMessage.isPending());
+
+    Clock::advance(Milliseconds(501));
+    Clock::settle();
+
+    AWAIT_READY(duplicateFrameworkRegisteredMessage);
+  }
+
+  Clock::resume();
+
+  EXPECT_EQ(DRIVER_STOPPED, driver.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver.join());
 
   Shutdown();
 }
