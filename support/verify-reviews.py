@@ -40,8 +40,10 @@ if len(sys.argv) >= 5:
 
 def shell(command):
     print command
-    return subprocess.check_output(
-        command, stderr=subprocess.STDOUT, shell=True)
+    proc = subprocess.Popen(command, stderr=subprocess.STDOUT, shell=True)
+    (out, _) = proc.communicate()
+    if proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, command, out)
 
 
 def api(url, data=None):
