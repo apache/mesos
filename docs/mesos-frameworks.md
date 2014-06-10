@@ -16,6 +16,7 @@ layout: documentation
 * [Dpark](https://github.com/douban/dpark) is a Python clone of Spark, a MapReduce-like framework written in Python, running on Mesos.
 * [Exelixi](https://github.com/mesosphere/exelixi) is a distributed framework for running genetic algorithms at scale.
 * [Hadoop](https://github.com/mesos/hadoop) Running Hadoop on Mesos distributes MapReduce jobs efficiently across an entire cluster.
+* [Hama](http://wiki.apache.org/hama/GettingStartedMesos) is a distributed computing framework based on Bulk Synchronous Parallel computing techniques for massive scientific computations e.g., matrix, graph and network algorithms.
 * [MPI](https://github.com/mesosphere/mesos-hydra) is a message-passing system designed to function on a wide variety of parallel computers.
 * [Spark](http://spark.incubator.apache.org/) is a fast and general-purpose cluster computing system which makes parallel jobs easy to write.
 * [Storm](https://github.com/mesosphere/storm-mesos) is a distributed realtime computation system. Storm makes it easy to reliably process unbounded streams of data, doing for realtime processing what Hadoop did for batch processing.
