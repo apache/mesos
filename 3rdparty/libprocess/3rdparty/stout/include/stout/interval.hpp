@@ -334,6 +334,24 @@ bool Interval<T>::intersects(const IntervalSet<T>& set) const
 }
 
 
+template <typename T, typename X>
+IntervalSet<T> operator + (const IntervalSet<T>& set, const X& x)
+{
+  IntervalSet<T> result(set);
+  result += x;
+  return result;
+}
+
+
+template <typename T, typename X>
+IntervalSet<T> operator - (const IntervalSet<T>& set, const X& x)
+{
+  IntervalSet<T> result(set);
+  result -= x;
+  return result;
+}
+
+
 // Defines type traits for the custom Interval above. These type
 // traits are required by the boost interval set.
 namespace boost {
