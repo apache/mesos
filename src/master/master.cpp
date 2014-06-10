@@ -84,6 +84,8 @@ using process::Time;
 using process::Timer;
 using process::UPID;
 
+using process::metrics::Counter;
+
 using memory::shared_ptr;
 
 namespace mesos {
@@ -750,6 +752,19 @@ void Master::exited(const UPID& pid)
 
 void Master::visit(const MessageEvent& event)
 {
+  // Increment the "message_received" counter if the message is from
+  // a framework and such a counter is configured for it.
+  // See comments for 'Master::Metrics::Frameworks' and
+  // 'Master::Frameworks::principals' for details.
+  const Option<string> principal =
+    frameworks.principals.get(event.message->from);
+  if (principal.isSome()) {
+    CHECK(metrics.frameworks.contains(principal.get()));
+    Counter messages_received =
+      metrics.frameworks.get(principal.get()).get()->messages_received;
+    ++messages_received;
+  }
+
   // All messages are filtered when non-leading.
   if (!elected()) {
     VLOG(1) << "Dropping '" << event.message->name << "' message since "
@@ -773,6 +788,15 @@ void Master::visit(const MessageEvent& event)
   }
 
   ProtobufProcess<Master>::visit(event);
+
+  // Increment 'messages_processed' counter if it still exists.
+  // Note that it could be removed in handling
+  // 'UnregisterFrameworkMessage'.
+  if (principal.isSome() && metrics.frameworks.contains(principal.get())) {
+    Counter messages_processed =
+      metrics.frameworks.get(principal.get()).get()->messages_processed;
+    ++messages_processed;
+  }
 }
 
 
@@ -3567,6 +3591,30 @@ void Master::addFramework(Framework* framework)
 
   allocator->frameworkAdded(
       framework->id, framework->info, framework->resources);
+
+  // Export framework metrics.
+
+  // If the framework is authenticated, its principal should be in
+  // 'authenticated'. Otherwise look if it's supplied in
+  // FrameworkInfo.
+  Option<string> principal = authenticated.get(framework->pid);
+  if (principal.isNone() && framework->info.has_principal()) {
+    principal = framework->info.principal();
+  }
+
+  // Export framework metrics if a principal is specified.
+  if (principal.isSome()) {
+    CHECK(!frameworks.principals.contains(framework->pid));
+    frameworks.principals.put(framework->pid, principal.get());
+
+    // Create new framework metrics if this framework is the first
+    // one of this principal. Otherwise existing metrics are reused.
+    if (!metrics.frameworks.contains(principal.get())) {
+      metrics.frameworks.put(
+          principal.get(),
+          Owned<Metrics::Frameworks>(new Metrics::Frameworks(principal.get())));
+    }
+  }
 }
 
 
@@ -3574,7 +3622,7 @@ void Master::addFramework(Framework* framework)
 // event of a scheduler failover.
 void Master::failoverFramework(Framework* framework, const UPID& newPid)
 {
-  const UPID& oldPid = framework->pid;
+  const UPID oldPid = framework->pid;
 
   // There are a few failover cases to consider:
   //   1. The pid has changed. In this case we definitely want to
@@ -3621,6 +3669,13 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
     allocator->resourcesRecovered(
         offer->framework_id(), offer->slave_id(), offer->resources());
     removeOffer(offer);
+  }
+
+  // 'Failover' the framework's metrics. i.e., change the lookup key
+  // for its metrics to 'newPid'.
+  if (oldPid != newPid && frameworks.principals.contains(oldPid)) {
+    frameworks.principals[newPid] = frameworks.principals[oldPid];
+    frameworks.principals.erase(oldPid);
   }
 }
 
@@ -3702,7 +3757,20 @@ void Master::removeFramework(Framework* framework)
   // Remove the framework from authenticated.
   authenticated.erase(framework->pid);
 
-  // Remove it.
+  // Remove the framework's message counters.
+  const Option<string> principal = frameworks.principals.get(framework->pid);
+  if (principal.isSome()) {
+    frameworks.principals.erase(framework->pid);
+
+    // Remove the metrics for the principal if this framework is the
+    // last one with this principal.
+    if (!frameworks.principals.containsValue(principal.get())) {
+      CHECK(metrics.frameworks.contains(principal.get()));
+      metrics.frameworks.erase(principal.get());
+    }
+  }
+
+  // Remove the framework.
   frameworks.activated.erase(framework->id);
   allocator->frameworkRemoved(framework->id);
 }

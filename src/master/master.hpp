@@ -484,6 +484,16 @@ private:
 
     hashmap<FrameworkID, Framework*> activated;
     boost::circular_buffer<memory::shared_ptr<Framework> > completed;
+
+    // Principals of frameworks keyed by PID.
+    // NOTE: Multiple PIDs can map to the same principal. The
+    // differences between this map and 'authenticated' are:
+    // 1) This map only includes *registered* frameworks. The mapping
+    //    is added when a framework (re-)registers.
+    // 2) This map includes unauthenticated frameworks (when Master
+    //    allows them) if they have principals specified in
+    //    FrameworkInfo.
+    hashmap<process::UPID, std::string> principals;
   } frameworks;
 
   hashmap<OfferID, Offer*> offers;
@@ -543,6 +553,46 @@ private:
 
     // Message counters.
     process::metrics::Counter dropped_messages;
+
+    // Metrics specific to frameworks of a common principal.
+    // These metrics have names prefixed by "frameworks/<principal>/".
+    struct Frameworks
+    {
+      // Counters for messages from all frameworks of this principal.
+      // Note: We only count messages from active scheduler
+      // *instances* while they are *registered*. i.e., messages
+      // prior to the completion of (re)registration
+      // (AuthenticateMessage and (Re)RegisterFrameworkMessage) and
+      // messages from an inactive scheduler instance (after the
+      // framework has failed over) are not counted.
+
+      // Framework messages received (before processing).
+      process::metrics::Counter messages_received;
+
+      // Framework messages processed.
+      // NOTE: This doesn't include dropped messages. Also due to
+      // Master's asynchronous nature, this doesn't necessarily mean
+      // the work requested by this message has finished.
+      process::metrics::Counter messages_processed;
+
+      explicit Frameworks(const std::string& principal)
+        : messages_received("frameworks/" + principal + "/messages_received"),
+          messages_processed("frameworks/" + principal + "/messages_processed")
+      {
+        process::metrics::add(messages_received);
+        process::metrics::add(messages_processed);
+      }
+
+      ~Frameworks()
+      {
+        process::metrics::remove(messages_received);
+        process::metrics::remove(messages_processed);
+      }
+    };
+
+    // Per-framework-principal metrics keyed by the framework
+    // principal.
+    hashmap<std::string, process::Owned<Frameworks> > frameworks;
 
     // Messages from schedulers.
     process::metrics::Counter messages_register_framework;

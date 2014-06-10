@@ -987,6 +987,7 @@ mesos_tests_SOURCES =				\
   tests/monitor_tests.cpp			\
   tests/paths_tests.cpp				\
   tests/protobuf_io_tests.cpp			\
+  tests/rate_limiting_tests.cpp			\
   tests/reconciliation_tests.cpp		\
   tests/registrar_tests.cpp			\
   tests/repair_tests.cpp			\
