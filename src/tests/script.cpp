@@ -27,7 +27,11 @@
 #include <stout/check.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/protobuf.hpp>
+#include <stout/stringify.hpp>
 #include <stout/strings.hpp>
+
+#include "mesos/mesos.hpp"
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
@@ -114,11 +118,11 @@ void execute(const string& script)
     os::setenv("MESOS_AUTHENTICATE", "true");
 
     // Create test credentials.
-    const std::string& credentialsPath =
-      path::join(directory.get(), "credentials");
-
-    const std::string& credentials =
+    const string& credentials =
       DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
+
+    const string& credentialsPath =
+      path::join(directory.get(), "credentials");
 
     CHECK_SOME(os::write(credentialsPath, credentials))
       << "Failed to write credentials to '" << credentialsPath << "'";
@@ -128,6 +132,25 @@ void execute(const string& script)
     // We set test credentials here for example frameworks to use.
     os::setenv("DEFAULT_PRINCIPAL", DEFAULT_CREDENTIAL.principal());
     os::setenv("DEFAULT_SECRET", DEFAULT_CREDENTIAL.secret());
+
+    // Create test ACLs.
+    ACLs acls;
+    acls.set_permissive(false);
+
+    mesos::ACL::RunTasks* run = acls.add_run_tasks();
+    run->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    run->mutable_users()->add_values(os::user());
+
+    mesos::ACL::ReceiveOffers* offer = acls.add_receive_offers();
+    offer->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    offer->mutable_roles()->add_values("*");
+
+    const string& aclsPath = path::join(directory.get(), "acls");
+
+    CHECK_SOME(os::write(aclsPath, stringify(JSON::Protobuf(acls))))
+      << "Failed to write ACLs to '" << aclsPath << "'";
+
+    os::setenv("MESOS_ACLS", "file://" + aclsPath);
 
     // Now execute the script.
     execl(path.get().c_str(), path.get().c_str(), (char*) NULL);
