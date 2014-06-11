@@ -397,8 +397,17 @@ int execute(
          errno == EINTR);
 
   if (length != sizeof(dummy)) {
-    close(pipeRead);
-    ABORT("Failed to synchronize with parent");
+    // This will occur if the slave terminates during executor launch.
+    // There's a reasonable probability this will occur during slave restarts
+    // across a large/busy cluster so we log and exit non-zero rather than
+    // ABORT.
+    const char* message =
+      "Failed to synchronize with slave (it has probably exited)";
+
+    while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
+           errno == EINTR);
+
+    _exit(1);
   }
 
   if (close(pipeRead) != 0) {
