@@ -1546,11 +1546,20 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   AWAIT_READY(status);
 
   this->Stop(slave.get());
-  delete containerizer1.get();
 
-  // Shut down the executor manually so that it doesn't hang around
-  // after the test finishes.
-  process::post(executorPid, ShutdownExecutorMessage());
+  // Destroy all the containers before we destroy the containerizer.
+  Future<hashset<ContainerID> > containers = containerizer1.get()->containers();
+  AWAIT_READY(containers);
+
+  foreach (const ContainerID& containerId, containers.get()) {
+    Future<containerizer::Termination> wait =
+      containerizer1.get()->wait(containerId);
+
+    containerizer1.get()->destroy(containerId);
+    AWAIT_READY(wait);
+  }
+
+  delete containerizer1.get();
 
   // Remove the symlink "latest" in the executor directory
   // to simulate a non-recoverable executor.
