@@ -2,7 +2,7 @@
 layout: documentation
 ---
 
-# Getting Started with Apache Mesos
+# Getting Started
 
 ## Downloading Mesos
 

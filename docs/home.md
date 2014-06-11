@@ -2,7 +2,7 @@
 layout: documentation
 ---
 
-# Apache Mesos Documentation
+# Documentation
 
 ## Running Mesos
 
