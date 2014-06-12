@@ -94,8 +94,11 @@ def post_review(review_request, message):
 
 @atexit.register
 def cleanup():
-    shell("git clean -fd")
-    shell("git reset --hard HEAD")
+    try:
+        shell("git clean -fd")
+        shell("git reset --hard HEAD")
+    except subprocess.CalledProcessError as e:
+        print "Failed command: %s\n\nError: %s" % (e.cmd, e.output)
 
 
 def verify_review(review_request):
