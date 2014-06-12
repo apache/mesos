@@ -741,17 +741,24 @@ TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
   // Launch a task that uses less resource than the default(cpus:2, mem:1024).
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status));
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   driver.start();
 
