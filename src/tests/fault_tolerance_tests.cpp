@@ -1899,10 +1899,17 @@ TEST_F(FaultToleranceTest, SlaveReregisterTerminatedExecutor)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
+  Future<StatusUpdateAcknowledgementMessage> statusUpdateAcknowledgementMessage
+    = FUTURE_PROTOBUF(
+        StatusUpdateAcknowledgementMessage(), master.get(), slave.get());
+
   driver.start();
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Make sure the acknowledgement reaches the slave.
+  AWAIT_READY(statusUpdateAcknowledgementMessage);
 
   // Drop the TASK_FINISHED status update sent to the master.
   Future<StatusUpdateMessage> statusUpdateMessage =
@@ -1910,8 +1917,6 @@ TEST_F(FaultToleranceTest, SlaveReregisterTerminatedExecutor)
 
   Future<ExitedExecutorMessage> executorExitedMessage =
     FUTURE_PROTOBUF(ExitedExecutorMessage(), _, _);
-
-  Clock::pause();
 
   TaskStatus finishedStatus;
   finishedStatus = status.get();
@@ -1928,14 +1933,7 @@ TEST_F(FaultToleranceTest, SlaveReregisterTerminatedExecutor)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status2));
 
-  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), slave.get());
-
   detector.appoint(master.get());
-
-  AWAIT_READY(slaveReregisteredMessage);
-
-  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
 
   AWAIT_READY(status2);
   EXPECT_EQ(TASK_FINISHED, status2.get().state());

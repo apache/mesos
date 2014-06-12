@@ -541,8 +541,6 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
 
 // This test ensures that a status update acknowledgement from a
 // non-leading master is ignored.
-// TODO(bmahler): This test will need to be updated once all
-// acknowledgements go through the master.
 TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
 {
   Try<PID<Master> > master = StartMaster();
@@ -596,12 +594,15 @@ TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
   // Pause the clock to prevent status update retries on the slave.
   Clock::pause();
 
-  // Intercept the status update acknowledgement and send it to the
-  // master instead!
+  // Intercept the acknowledgement sent to the slave so that we can
+  // spoof the master's pid.
   Future<StatusUpdateAcknowledgementMessage> acknowledgementMessage =
     DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(),
-                  schedulerPid,
+                  master.get(),
                   slave.get());
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdateAcknowledgement);
 
   schedDriver.launchTasks(offers.get()[0].id(), tasks);
 
@@ -610,25 +611,10 @@ TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
 
   AWAIT_READY(acknowledgementMessage);
 
-  // Intercept the status update acknowledgement from the master
-  // to the slave so that we can spoof a non-leading master pid.
-  Future<StatusUpdateAcknowledgementMessage> acknowledgementMessage2 =
-    DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(),
-                  master.get(),
-                  slave.get());
-
-  // Send the acknowledgment to the master.
-  process::post(schedulerPid, master.get(), acknowledgementMessage.get());
-
-  AWAIT_READY(acknowledgementMessage2);
-
-  Future<Nothing> _statusUpdateAcknowledgement =
-    FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdateAcknowledgement);
-
   // Send the acknowledgement to the slave with a non-leading master.
   process::post(
-      schedulerPid,
       process::UPID("master@localhost:1"),
+      slave.get(),
       acknowledgementMessage.get());
 
   // Make sure the acknowledgement was ignored.

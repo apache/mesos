@@ -634,16 +634,21 @@ protected:
       return;
     }
 
-    // Acknowledge the status update.
-    if (pid != UPID()) {
-      VLOG(2) << "Sending ACK for status update " << update << " to " << pid;
+    // Don't acknowledge updates created by the driver or master.
+    if (from != UPID() && pid != UPID()) {
+      // We drop updates while we're disconnected.
+      CHECK(connected);
+      CHECK_SOME(master);
+
+      VLOG(2) << "Sending ACK for status update " << update
+              << " to " << master.get();
 
       StatusUpdateAcknowledgementMessage message;
       message.mutable_framework_id()->MergeFrom(framework.id());
       message.mutable_slave_id()->MergeFrom(update.slave_id());
       message.mutable_task_id()->MergeFrom(update.status().task_id());
       message.set_uuid(update.uuid());
-      send(pid, message);
+      send(master.get(), message);
     }
   }
 
