@@ -26,6 +26,8 @@
 #ifndef ZOOKEEPER_HPP
 #define ZOOKEEPER_HPP
 
+#include <stdint.h>
+
 #include <zookeeper.h>
 
 #include <string>
@@ -53,9 +55,9 @@ class Watcher
 {
 public:
   virtual void process(
-      ZooKeeper* zk,
       int type,
       int state,
+      int64_t sessionId,
       const std::string& path) = 0;
 
   virtual ~Watcher() {}
