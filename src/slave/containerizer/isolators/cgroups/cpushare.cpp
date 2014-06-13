@@ -406,27 +406,29 @@ Future<ResourceStatistics> CgroupsCpushareIsolatorProcess::usage(
     result.set_cpus_system_time_secs((double) system.get() / (double) ticks);
   }
 
-  // Add the cpu.stat information.
-  stat = cgroups::stat(hierarchies["cpu"], info->cgroup, "cpu.stat");
+  // Add the cpu.stat information only if CFS is enabled.
+  if (flags.cgroups_enable_cfs) {
+    stat = cgroups::stat(hierarchies["cpu"], info->cgroup, "cpu.stat");
 
-  if (stat.isError()) {
-    return Failure("Failed to read cpu.stat: " + stat.error());
-  }
+    if (stat.isError()) {
+      return Failure("Failed to read cpu.stat: " + stat.error());
+    }
 
-  Option<uint64_t> nr_periods = stat.get().get("nr_periods");
-  if (nr_periods.isSome()) {
-    result.set_cpus_nr_periods(nr_periods.get());
-  }
+    Option<uint64_t> nr_periods = stat.get().get("nr_periods");
+    if (nr_periods.isSome()) {
+      result.set_cpus_nr_periods(nr_periods.get());
+    }
 
-  Option<uint64_t> nr_throttled = stat.get().get("nr_throttled");
-  if (nr_throttled.isSome()) {
-    result.set_cpus_nr_throttled(nr_throttled.get());
-  }
+    Option<uint64_t> nr_throttled = stat.get().get("nr_throttled");
+    if (nr_throttled.isSome()) {
+      result.set_cpus_nr_throttled(nr_throttled.get());
+    }
 
-  Option<uint64_t> throttled_time = stat.get().get("throttled_time");
-  if (throttled_time.isSome()) {
-    result.set_cpus_throttled_time_secs(
-        Nanoseconds(throttled_time.get()).secs());
+    Option<uint64_t> throttled_time = stat.get().get("throttled_time");
+    if (throttled_time.isSome()) {
+      result.set_cpus_throttled_time_secs(
+          Nanoseconds(throttled_time.get()).secs());
+    }
   }
 
   return result;
