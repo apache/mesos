@@ -180,6 +180,12 @@ message HealthCheck {
 
   // Number of consecutive failures until considered unhealthy.
   optional uint32 failures = 5 [default = 3];
+
+  // Amount of time to allow failed health checks since launch.
+  optional double grade_period_seconds = 6 [default = 10.0];
+
+  // Command health check.
+  optional CommandInfo command = 7;
 }
 
 
@@ -232,10 +238,6 @@ message CommandInfo {
   // field is present both in FrameworkInfo and here, the CommandInfo
   // user value takes precedence.
   optional string user = 5;
-
-  // A health check for the command (currently in *alpha* and initial
-  // support will only be for TaskInfo's that have a CommandInfo).
-  optional HealthCheck health_check = 6;
 }
 
 
@@ -476,6 +478,9 @@ message TaskInfo {
   optional ExecutorInfo executor = 5;
   optional CommandInfo command = 7;
   optional bytes data = 6;
+  // A health check for the task (currently in *alpha* and initial
+  // support will only be for TaskInfo's that have a CommandInfo).
+  optional HealthCheck health_check = 8;
 }
 
 
