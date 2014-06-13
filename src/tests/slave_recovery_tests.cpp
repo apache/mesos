@@ -3065,33 +3065,46 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
     .WillOnce(DoAll(FutureSatisfy(&launch),
                     Return(Future<Nothing>())));
 
+  // Ensure that wait doesn't complete so that containerizer doesn't
+  // return a failure on 'wait' due to the pending launch.
+  EXPECT_CALL(*containerizer1, wait(_))
+    .WillOnce(Return(Future<containerizer::Termination>()));
+
+  // No status update should be sent for now.
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .Times(0);
+
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  // Once we get the launch restart the slave.
+  // Once we see the call to launch, restart the slave.
   AWAIT_READY(launch);
 
   this->Stop(slave.get());
   delete containerizer1;
 
   Future<TaskStatus> status;
+  // There is a race here where the Slave may reregister before we
+  // shut down. If it does, it causes the StatusUpdateManager to
+  // flush which will cause a duplicate status update to be sent. As
+  // such, we ignore any subsequent updates.
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  TestContainerizer* containerizer2 = new TestContainerizer();
-
-  slave = this->StartSlave(containerizer2, flags);
-  ASSERT_SOME(slave);
+  TestContainerizer containerizer2;
 
   Clock::pause();
+
+  slave = this->StartSlave(&containerizer2, flags);
+  ASSERT_SOME(slave);
 
   AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-
   Clock::resume();
 
   // Scheduler should receive the TASK_FAILED update.
@@ -3102,7 +3115,6 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   driver.join();
 
   this->Shutdown();
-  delete containerizer2;
 }
 
 
