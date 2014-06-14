@@ -51,6 +51,23 @@ using testing::_;
 using testing::Eq;
 using testing::Return;
 
+// Query Mesos metrics snapshot endpoint and return a JSON::Object
+// result.
+#define METRICS_SNAPSHOT                                                       \
+  ({ Future<process::http::Response> response =                                \
+       process::http::get(MetricsProcess::instance()->self(), "snapshot");     \
+     AWAIT_READY(response);                                                    \
+                                                                               \
+     EXPECT_SOME_EQ(                                                           \
+         "application/json",                                                   \
+         response.get().headers.get("Content-Type"));                          \
+                                                                               \
+     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body); \
+     ASSERT_SOME(parse);                                                       \
+                                                                               \
+     parse.get(); })
+
+
 // This test case covers tests related to framework API rate limiting
 // which includes metrics exporting for API call rates.
 class RateLimitingTest : public MesosTest {};
@@ -65,20 +82,7 @@ TEST_F(RateLimitingTest, FrameworkMessageCounterMetrics)
 
   // Message counters not present before the framework registers.
   {
-    // TODO(xujyan): It would be nice to refactor out the common
-    // metrics snapshot querying logic into a helper method/MACRO.
-    Future<process::http::Response> response =
-      process::http::get(MetricsProcess::instance()->self(), "snapshot");
-    AWAIT_READY(response);
-
-    EXPECT_SOME_EQ(
-        "application/json",
-        response.get().headers.get("Content-Type"));
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    JSON::Object metrics = parse.get();
+    JSON::Object metrics = METRICS_SNAPSHOT;
 
     EXPECT_EQ(
         0u, metrics.values.count("frameworks/"+ DEFAULT_CREDENTIAL.principal() +
@@ -105,18 +109,7 @@ TEST_F(RateLimitingTest, FrameworkMessageCounterMetrics)
 
   // Message counters added after the framework is registered.
   {
-    Future<process::http::Response> response =
-      process::http::get(MetricsProcess::instance()->self(), "snapshot");
-    AWAIT_READY(response);
-
-    EXPECT_SOME_EQ(
-        "application/json",
-        response.get().headers.get("Content-Type"));
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    JSON::Object metrics = parse.get();
+    JSON::Object metrics = METRICS_SNAPSHOT;
 
     EXPECT_EQ(
         1u, metrics.values.count("frameworks/"+ DEFAULT_CREDENTIAL.principal() +
@@ -138,18 +131,7 @@ TEST_F(RateLimitingTest, FrameworkMessageCounterMetrics)
 
   // Message counter removed after the framework is unregistered.
   {
-    Future<process::http::Response> response =
-      process::http::get(MetricsProcess::instance()->self(), "snapshot");
-    AWAIT_READY(response);
-
-    EXPECT_SOME_EQ(
-        "application/json",
-        response.get().headers.get("Content-Type"));
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    JSON::Object metrics = parse.get();
+    JSON::Object metrics = METRICS_SNAPSHOT;
 
     EXPECT_EQ(
         0u, metrics.values.count("frameworks/"+ DEFAULT_CREDENTIAL.principal() +
@@ -214,18 +196,7 @@ TEST_F(RateLimitingTest, FrameworkMessageCountersMultipleFrameworks)
 
   // 2. Verify that both frameworks have message counters added.
   {
-    Future<process::http::Response> response =
-      process::http::get(MetricsProcess::instance()->self(), "snapshot");
-    AWAIT_READY(response);
-
-    EXPECT_SOME_EQ(
-        "application/json",
-        response.get().headers.get("Content-Type"));
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    JSON::Object metrics = parse.get();
+    JSON::Object metrics = METRICS_SNAPSHOT;
 
     EXPECT_EQ(
         1u, metrics.values.count("frameworks/framework1/messages_received"));
@@ -250,18 +221,7 @@ TEST_F(RateLimitingTest, FrameworkMessageCountersMultipleFrameworks)
   // 4. Its message counters are deleted while the other framework's
   //    counters stay.
   {
-    Future<process::http::Response> response =
-      process::http::get(MetricsProcess::instance()->self(), "snapshot");
-    AWAIT_READY(response);
-
-    EXPECT_SOME_EQ(
-        "application/json",
-        response.get().headers.get("Content-Type"));
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    JSON::Object metrics = parse.get();
+    JSON::Object metrics = METRICS_SNAPSHOT;
 
     EXPECT_EQ(
         0u, metrics.values.count("frameworks/framework1/messages_received"));
@@ -321,18 +281,7 @@ TEST_F(RateLimitingTest, FrameworkMessageCountersSamePrincipalFrameworks)
 
   // Message counters added after both frameworks are registered.
   {
-    Future<process::http::Response> response =
-      process::http::get(MetricsProcess::instance()->self(), "snapshot");
-    AWAIT_READY(response);
-
-    EXPECT_SOME_EQ(
-        "application/json",
-        response.get().headers.get("Content-Type"));
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    JSON::Object metrics = parse.get();
+    JSON::Object metrics = METRICS_SNAPSHOT;
 
     EXPECT_EQ(
         1u, metrics.values.count("frameworks/"+ DEFAULT_CREDENTIAL.principal() +
@@ -354,18 +303,7 @@ TEST_F(RateLimitingTest, FrameworkMessageCountersSamePrincipalFrameworks)
   // Message counters are not removed after the first framework is
   // unregistered.
   {
-    Future<process::http::Response> response =
-      process::http::get(MetricsProcess::instance()->self(), "snapshot");
-    AWAIT_READY(response);
-
-    EXPECT_SOME_EQ(
-        "application/json",
-        response.get().headers.get("Content-Type"));
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    JSON::Object metrics = parse.get();
+    JSON::Object metrics = METRICS_SNAPSHOT;
 
     EXPECT_EQ(
         1u, metrics.values.count("frameworks/"+ DEFAULT_CREDENTIAL.principal() +
@@ -436,18 +374,7 @@ TEST_F(RateLimitingTest, SchedulerMessageCounterFailover)
     Clock::resume();
 
     // Verify the message counters.
-    Future<process::http::Response> response =
-      process::http::get(MetricsProcess::instance()->self(), "snapshot");
-    AWAIT_READY(response);
-
-    EXPECT_SOME_EQ(
-        "application/json",
-        response.get().headers.get("Content-Type"));
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    JSON::Object metrics = parse.get();
+    JSON::Object metrics = METRICS_SNAPSHOT;
 
     // One message received and processed after the framework is
     // registered.
@@ -517,18 +444,7 @@ TEST_F(RateLimitingTest, SchedulerMessageCounterFailover)
     Clock::settle();
     Clock::resume();
 
-    Future<process::http::Response> response =
-      process::http::get(MetricsProcess::instance()->self(), "snapshot");
-    AWAIT_READY(response);
-
-    EXPECT_SOME_EQ(
-        "application/json",
-        response.get().headers.get("Content-Type"));
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    JSON::Object metrics = parse.get();
+    JSON::Object metrics = METRICS_SNAPSHOT;
 
     // Another message after sched2 is reregistered plus the one from
     // the sched1.
