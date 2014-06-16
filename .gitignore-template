@@ -4,7 +4,9 @@
 # Files created by ./bootstrap.
 Makefile.in
 aclocal.m4
+ar-lib
 autom4te.cache
+compile
 config.guess
 config.sub
 configure
