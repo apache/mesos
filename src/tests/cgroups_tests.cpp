@@ -884,7 +884,7 @@ TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
     ssize_t len;
     while ((len = ::read(pipes[0], &dummy, sizeof(dummy))) == -1 &&
            errno == EINTR);
-    ASSERT_EQ(sizeof(dummy), len);
+    ASSERT_EQ((ssize_t) sizeof(dummy), len);
     ::close(pipes[0]);
 
     while (true) { sleep(1); }
@@ -901,7 +901,7 @@ TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
   ssize_t len;
   while ((len = ::write(pipes[1], &dummy, sizeof(dummy))) == -1 &&
          errno == EINTR);
-  ASSERT_EQ(sizeof(dummy), len);
+  ASSERT_EQ((ssize_t) sizeof(dummy), len);
   ::close(pipes[1]);
 
   std::set<std::string> events;

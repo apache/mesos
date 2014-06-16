@@ -196,7 +196,7 @@ private:
   {
     if (!status.isReady()) {
       promise.fail("Failed to get exit status of perf process: " +
-                    status.isFailed() ? status.failure() : "discarded");
+                   (status.isFailed() ? status.failure() : "discarded"));
       terminate(self());
       return;
     }
@@ -217,7 +217,7 @@ private:
   {
     if (!future.isReady()) {
       promise.fail("Failed to collect output of perf process: " +
-                    future.isFailed() ? future.failure() : "discarded");
+                   (future.isFailed() ? future.failure() : "discarded"));
       terminate(self());
       return;
     }
