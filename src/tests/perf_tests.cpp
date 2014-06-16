@@ -135,7 +135,8 @@ TEST_F(PerfTest, ROOT_SampleInit)
   // because there's the process reap delay in addition to the sampling
   // duration.
   ASSERT_TRUE(statistics.get().has_timestamp());
-  EXPECT_GT(Seconds(5).secs(), Clock::now().secs() - statistics.get().timestamp());
+  EXPECT_GT(
+      Seconds(5).secs(), Clock::now().secs() - statistics.get().timestamp());
   EXPECT_EQ(Seconds(1).secs(), statistics.get().duration());
 
   ASSERT_TRUE(statistics.get().has_cycles());
