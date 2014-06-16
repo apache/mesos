@@ -82,6 +82,7 @@ using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
 using testing::Return;
+using testing::SaveArg;
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more master than slave-related are in this file.
@@ -1919,3 +1920,171 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
 }
 
 #endif // MESOS_HAS_JAVA
+
+
+// This test ensures that when a master fails over, those tasks that
+// belong to some currently unregistered frameworks will appear in the
+// "orphan_tasks" field in the state.json. And those unregistered frameworks
+// will appear in the "unregistered_frameworks" field.
+TEST_F(MasterTest, OrphanTasks)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  StandaloneMasterDetector detector (master.get());
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave(&exec, &detector);
+  ASSERT_SOME(slave);
+
+  // Create a task on the slave.
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector);
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId))
+    .WillRepeatedly(Return()); // Ignore subsequent events.
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Get the master's state.
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  JSON::Object state = parse.get();
+  // Record the original framework and task info.
+  JSON::Array frameworks =
+    state.values["frameworks"].as<JSON::Array>();
+  JSON::Object activeFramework =
+    frameworks.values.front().as<JSON::Object>();
+  JSON::String activeFrameworkId =
+    activeFramework.values["id"].as<JSON::String>();
+  JSON::Array activeTasks =
+    activeFramework.values["tasks"].as<JSON::Array>();
+  JSON::Array orphanTasks =
+    state.values["orphan_tasks"].as<JSON::Array>();
+  JSON::Array unknownFrameworksArray =
+    state.values["unregistered_frameworks"].as<JSON::Array>();
+
+  EXPECT_EQ(1u, frameworks.values.size());
+  EXPECT_EQ(1u, activeTasks.values.size());
+  EXPECT_EQ(0u, orphanTasks.values.size());
+  EXPECT_EQ(0u, unknownFrameworksArray.values.size());
+  EXPECT_EQ(frameworkId.value(), activeFrameworkId.value);
+
+  EXPECT_CALL(sched, disconnected(&driver))
+    .Times(1);
+
+  // Stop the master.
+  Stop(master.get());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), _);
+
+  // Drop the reregisterFrameworkMessage to delay the framework
+  // from re-registration.
+  Future<ReregisterFrameworkMessage> reregisterFrameworkMessage =
+    DROP_PROTOBUF(ReregisterFrameworkMessage(), _, master.get());
+
+  Future<FrameworkRegisteredMessage> frameworkRegisteredMessage =
+    FUTURE_PROTOBUF(FrameworkRegisteredMessage(), master.get(), _);
+
+  Clock::pause();
+
+  // The master failover.
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Simulate a new master detected event to the slave and the framework.
+  detector.appoint(master.get());
+
+  AWAIT_READY(slaveReregisteredMessage);
+  AWAIT_READY(reregisterFrameworkMessage);
+
+  // Get the master's state.
+  response = process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  // Verify that we have some orphan tasks and unregistered
+  // frameworks.
+  state = parse.get();
+  orphanTasks = state.values["orphan_tasks"].as<JSON::Array>();
+  EXPECT_EQ(activeTasks, orphanTasks);
+
+  unknownFrameworksArray =
+    state.values["unregistered_frameworks"].as<JSON::Array>();
+  EXPECT_EQ(1u, unknownFrameworksArray.values.size());
+
+  JSON::String unknownFrameworkId =
+    unknownFrameworksArray.values.front().as<JSON::String>();
+  EXPECT_EQ(activeFrameworkId, unknownFrameworkId);
+
+  // Advance the clock to let the framework re-register with the master.
+  Clock::advance(Seconds(1));
+  Clock::settle();
+  Clock::resume();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+
+  // Get the master's state.
+  response = process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  // Verify the orphan tasks and unregistered frameworks are removed.
+  state = parse.get();
+  unknownFrameworksArray =
+    state.values["unregistered_frameworks"].as<JSON::Array>();
+  EXPECT_EQ(0u, unknownFrameworksArray.values.size());
+
+  orphanTasks = state.values["orphan_tasks"].as<JSON::Array>();
+  EXPECT_EQ(0u, orphanTasks.values.size());
+
+  // Cleanup.
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}

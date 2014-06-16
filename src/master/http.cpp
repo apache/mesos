@@ -540,6 +540,44 @@ Future<Response> Master::Http::state(const Request& request)
     object.values["completed_frameworks"] = array;
   }
 
+  // Model all of the orphan tasks.
+  {
+    JSON::Array array;
+
+    // Find those orphan tasks.
+    foreachvalue (const Slave* slave, master.slaves.activated) {
+      typedef hashmap<TaskID, Task*> TaskMap;
+      foreachvalue (const TaskMap& tasks, slave->tasks) {
+        foreachvalue (const Task* task, tasks) {
+          CHECK_NOTNULL(task);
+          if (!master.frameworks.activated.contains(task->framework_id())) {
+            array.values.push_back(model(*task));
+          }
+        }
+      }
+    }
+
+    object.values["orphan_tasks"] = array;
+  }
+
+  // Model all currently unregistered frameworks.
+  // This could happen when the framework has yet to re-register
+  // after master failover.
+  {
+    JSON::Array array;
+
+    // Find unregistered frameworks.
+    foreachvalue (const Slave* slave, master.slaves.activated) {
+      foreachkey (const FrameworkID& frameworkId, slave->tasks) {
+        if (!master.frameworks.activated.contains(frameworkId)) {
+          array.values.push_back(frameworkId.value());
+        }
+      }
+    }
+
+    object.values["unregistered_frameworks"] = array;
+  }
+
   return OK(object, request.query.get("jsonp"));
 }
 
