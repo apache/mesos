@@ -543,13 +543,24 @@ __EOF__
     AC_PATH_PROG([MVN], [mvn], [$MVN])
 
     if test "x$MVN" = "x"; then
-      AC_MSG_ERROR([can not find mvn on your path])
+      AC_MSG_ERROR([can not find mvn on your path
+-------------------------------------------------------------------
+You may want verify that Maven has been correctly installed and
+added to your PATH or set the MAVEN_HOME environment variable
+to point to your Maven installation.
+-------------------------------------------------------------------
+])
     fi
   else
     AC_PATH_PROGS([MVN], [mvn], [$MVN], [$MAVEN_HOME/bin])
 
     if test "x$MVN" = "x"; then
-      AC_MSG_ERROR([can not find mvn inside $MAVEN_HOME/bin])
+      AC_MSG_ERROR([can not find mvn inside $MAVEN_HOME/bin
+-------------------------------------------------------------------
+You may want verify the MAVEN_HOME validity or check that Maven
+has been correctly installed.
+-------------------------------------------------------------------
+])
     fi
   fi
 fi
