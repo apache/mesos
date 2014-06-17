@@ -327,7 +327,7 @@ public:
   static Try<IP> fromAddressPrefix(uint32_t address, size_t prefix);
 
   // Constructs an IP with the given IP address (in host order).
-  explicit IP(uint32_t _address) : address_(_address) {}
+  /*implicit*/ IP(uint32_t _address) : address_(_address) {}
 
   // Returns the IP address (in host order).
   uint32_t address() const { return address_; }
