@@ -1,6 +1,8 @@
 #ifndef __PROCESS_SUBPROCESS_HPP__
 #define __PROCESS_SUBPROCESS_HPP__
 
+#include <unistd.h>
+
 #include <sys/types.h>
 
 #include <map>
@@ -22,24 +24,79 @@ namespace process {
 //   1. The subprocess has terminated, and
 //   2. There are no longer any references to the associated
 //      Subprocess object.
-struct Subprocess
+class Subprocess
 {
+public:
+  // Describes how the I/O is redirected for stdin/stdout/stderr.
+  // One of the following three modes are supported:
+  //   1. PIPE: Redirect to a pipe. The pipe will be created
+  //      automatically and the user can read/write the parent side of
+  //      the pipe from in()/out()/err().
+  //   2. PATH: Redirect to a file. The file will be created if it
+  //      does not exist. If the file exists, it will be appended.
+  //   3. FD: Redirect to an open file descriptor.
+  class IO
+  {
+  private:
+    friend class Subprocess;
+
+    friend Try<Subprocess> subprocess(
+        const std::string& command,
+        const IO& in,
+        const IO& out,
+        const IO& err,
+        const Option<std::map<std::string, std::string> >& environment,
+        const Option<lambda::function<int()> >& setup);
+
+    enum Mode
+    {
+      PIPE, // Redirect I/O to a pipe.
+      PATH, // Redirect I/O to a file.
+      FD,   // Redirect I/O to an open file descriptor.
+    };
+
+    IO(Mode _mode, const Option<int>& _fd, const Option<std::string>& _path)
+      : mode(_mode), fd(_fd), path(_path) {}
+
+    Mode mode;
+    Option<int> fd;
+    Option<std::string> path;
+  };
+
+  // Syntactic sugar to create IO descriptors.
+  static IO PIPE()
+  {
+    return IO(IO::PIPE, None(), None());
+  }
+
+  static IO PATH(const std::string& path)
+  {
+    return IO(IO::PATH, None(), path);
+  }
+
+  static IO FD(int fd)
+  {
+    return IO(IO::FD, fd, None());
+  }
+
   // Returns the pid for the subprocess.
   pid_t pid() const { return data->pid; }
 
-  // File descriptor accessors for input / output.
-  int in()  const { return data->in;  }
-  int out() const { return data->out; }
-  int err() const { return data->err; }
+  // The parent side of the pipe for stdin/stdout/stderr.
+  Option<int> in()  const { return data->in;  }
+  Option<int> out() const { return data->out; }
+  Option<int> err() const { return data->err; }
 
   // Returns a future from process::reap of this subprocess.
   // Discarding this future has no effect on the subprocess.
   Future<Option<int> > status() const { return data->status; }
 
 private:
-  Subprocess() : data(new Data()) {}
   friend Try<Subprocess> subprocess(
       const std::string& command,
+      const Subprocess::IO& in,
+      const Subprocess::IO& out,
+      const Subprocess::IO& err,
       const Option<std::map<std::string, std::string> >& environment,
       const Option<lambda::function<int()> >& setup);
 
@@ -47,21 +104,25 @@ private:
   {
     ~Data()
     {
-      os::close(in);
-      os::close(out);
-      os::close(err);
+      if (in.isSome()) { os::close(in.get()); }
+      if (out.isSome()) { os::close(out.get()); }
+      if (err.isSome()) { os::close(err.get()); }
     }
 
     pid_t pid;
 
+    // The parent side of the pipe for stdin/stdout/stderr. If the
+    // mode is not PIPE, None will be stored.
     // NOTE: stdin, stdout, stderr are macros on some systems, hence
     // these names instead.
-    int in;
-    int out;
-    int err;
+    Option<int> in;
+    Option<int> out;
+    Option<int> err;
 
     Future<Option<int> > status;
   };
+
+  Subprocess() : data(new Data()) {}
 
   memory::shared_ptr<Data> data;
 };
@@ -78,8 +139,26 @@ private:
 // TODO(dhamon): Add an option to not combine the two environments.
 Try<Subprocess> subprocess(
     const std::string& command,
+    const Subprocess::IO& in,
+    const Subprocess::IO& out,
+    const Subprocess::IO& err,
     const Option<std::map<std::string, std::string> >& environment = None(),
     const Option<lambda::function<int()> >& setup = None());
+
+
+inline Try<Subprocess> subprocess(
+    const std::string& command,
+    const Option<std::map<std::string, std::string> >& environment = None(),
+    const Option<lambda::function<int()> >& setup = None())
+{
+  return subprocess(
+      command,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      environment,
+      setup);
+}
 
 } // namespace process {
 
