@@ -108,7 +108,17 @@ public:
                    MasterDetector* _detector,
                    pthread_mutex_t* _mutex,
                    pthread_cond_t* _cond)
-    : ProcessBase(ID::generate("scheduler")),
+      // We use a UUID here to ensure that the master can reliably
+      // distinguish between scheduler runs. Otherwise the master may
+      // receive a delayed ExitedEvent enqueued behind a
+      // re-registration, and deactivate the framework incorrectly.
+      // TODO(bmahler): Investigate better ways to solve this problem.
+      // Check if bidirectional links in Erlang provides better
+      // semantics:
+      // http://www.erlang.org/doc/reference_manual/processes.html#id84804.
+      // Consider using unique PIDs throughout libprocess and relying
+      // on name registration to identify the process without the PID.
+    : ProcessBase("scheduler-" + UUID::random().toString()),
       metrics(*this),
       driver(_driver),
       scheduler(_scheduler),
