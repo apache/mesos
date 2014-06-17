@@ -206,6 +206,28 @@ TEST_F(RoutingTest, LinkExists)
 }
 
 
+TEST_F(RoutingTest, Eth0)
+{
+  Result<string> eth0 = link::eth0();
+  EXPECT_FALSE(eth0.isError());
+
+  if (eth0.isSome()) {
+    ASSERT_SOME_TRUE(link::exists(eth0.get()));
+  }
+}
+
+
+TEST_F(RoutingTest, Lo)
+{
+  Result<string> lo = link::lo();
+  EXPECT_FALSE(lo.isError());
+
+  if (lo.isSome()) {
+    ASSERT_SOME_TRUE(link::exists(lo.get()));
+  }
+}
+
+
 TEST_F(RoutingVethTest, ROOT_LinkCreate)
 {
   ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));

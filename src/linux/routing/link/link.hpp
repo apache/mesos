@@ -37,6 +37,20 @@
 namespace routing {
 namespace link {
 
+// Returns the name of the public facing interface of the host (
+// 'eth0' on most machines). The interface returned is the first
+// interface in the routing table that has an empty 'destination'.
+// Returns None if such an interface cannot be found.
+Result<std::string> eth0();
+
+
+// Returns the name of the loopback interface of the host (the 'lo'
+// device on most machines). The interface returned has flag
+// IFF_LOOPBACK set on it. Returns None if no loopback interface can
+// be found on the host.
+Result<std::string> lo();
+
+
 // Returns true if the link exists.
 Try<bool> exists(const std::string& link);
 
