@@ -237,6 +237,29 @@ public:
         "                       }\n"
         "                     ]\n"
         "}");
+
+    add(&Flags::rate_limits,
+        "rate_limits",
+        "The value could be a JSON formatted string of rate limits\n"
+        "or a file path containing the JSON formatted rate limits used\n"
+        "for framework rate limiting.\n"
+        "Path could be of the form 'file:///path/to/file'\n"
+        "or '/path/to/file'.\n"
+        "\n"
+        "See the RateLimits protobuf in mesos.proto for the expected format.\n"
+        "\n"
+        "Example:\n"
+        "{\n"
+        "  \"limits\": [\n"
+        "    {\n"
+        "      \"principal\": \"foo\",\n"
+        "      \"qps\": 55.5\n"
+        "    },\n"
+        "    {\n"
+        "      \"principal\": \"bar\"\n"
+        "    }\n"
+        "  ]\n"
+        "}");
   }
 
   bool version;
@@ -264,6 +287,7 @@ public:
   bool authenticate_slaves;
   Option<std::string> credentials;
   Option<ACLs> acls;
+  Option<JSON::Object> rate_limits;
 };
 
 } // namespace mesos {

@@ -746,3 +746,33 @@ message ACLs {
   repeated ACL.HTTPGet http_get = 4;
   repeated ACL.HTTPPut http_put = 5;
 }
+
+
+/**
+ * Rate (queries per second, QPS) limit for messages from a framework to master.
+ * Strictly speaking they are the combined rate from all frameworks of the same
+ * principal.
+ */
+message RateLimit {
+  // Leaving QPS unset gives it unlimited rate (i.e., not throttled).
+  optional double qps = 1;
+
+  // Principal of framework(s) to be throttled. Should match
+  // FrameworkInfo.princpal and Credential.principal (if using authentication).
+  required string principal = 2;
+}
+
+
+/**
+ * Collection of RateLimit.
+ * Frameworks without rate limits defined here are not throttled.
+ * TODO(xujyan): Currently when a framework is not specified in 'limits' it is
+ * not throttled. This can be done more explicitly by adding a RateLimit entry
+ * without setting its 'qps'. We should consider adding an optional
+ * 'aggregate_default_qps' which can be used to throttle the frameworks not
+ * specified here.
+ */
+message RateLimits {
+  // Items should have unique principals.
+  repeated RateLimit limits = 1;
+}

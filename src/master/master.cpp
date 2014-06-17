@@ -45,6 +45,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
@@ -348,6 +349,17 @@ void Master::initialize()
 
   if (authorizer.isSome()) {
     LOG(INFO) << "Authorization enabled";
+  }
+
+  if (flags.rate_limits.isSome()) {
+    Try<RateLimits> limits_ =
+      ::protobuf::parse<RateLimits>(flags.rate_limits.get());
+    if (limits_.isError()) {
+      EXIT(1) << "Invalid RateLimits format: " << limits_.error()
+              << " (see --rate_limits flag)";
+    }
+    limits = limits_.get();
+    LOG(INFO) << "Framework rate limiting enabled";
   }
 
   hashmap<string, RoleInfo> roleInfos;
