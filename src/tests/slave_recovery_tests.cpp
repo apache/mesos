@@ -30,6 +30,7 @@
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
 #include <process/owned.hpp>
+#include <process/reap.hpp>
 
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
@@ -1436,12 +1437,39 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   // Wait for TASK_RUNNING update.
   AWAIT_READY(status);
 
+  // Capture the container ID.
+  Future<hashset<ContainerID> > containers =
+    containerizer1.get()->containers();
+
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *containers.get().begin();
+
   this->Stop(slave.get());
   delete containerizer1.get();
 
-  // Shut down the executor manually so that it doesn't hang around
-  // after the test finishes.
+  // Get the executor's pid so we can reap it to properly simulate a
+  // reboot.
+  string pidPath = paths::getForkedPidPath(
+        paths::getMetaRootDir(flags.work_dir),
+        slaveId,
+        frameworkId,
+        executorId,
+        containerId);
+
+  Try<string> read = os::read(pidPath);
+  ASSERT_SOME(read);
+
+  Try<pid_t> pid = numify<pid_t>(read.get());
+  ASSERT_SOME(pid);
+
+  Future<Option<int> > executorStatus = process::reap(pid.get());
+
+  // Shut down the executor manually and wait until it's been reaped.
   process::post(executorPid, ShutdownExecutorMessage());
+
+  AWAIT_READY(executorStatus);
 
   // Modify the boot ID to simulate a reboot.
   ASSERT_SOME(os::write(
