@@ -157,7 +157,12 @@ protected:
 private:
   void sample()
   {
-    Try<Subprocess> _perf = subprocess(command);
+    Try<Subprocess> _perf = subprocess(
+        command,
+        Subprocess::PIPE(),
+        Subprocess::PIPE(),
+        Subprocess::PIPE());
+
     if (_perf.isError()) {
       promise.fail("Failed to launch perf process: " + _perf.error());
       terminate(self());
@@ -165,7 +170,7 @@ private:
     }
     perf = _perf.get();
 
-    Try<Nothing> nonblock = os::nonblock(perf.get().out());
+    Try<Nothing> nonblock = os::nonblock(perf.get().out().get());
     if (nonblock.isError()) {
       promise.fail("Failed to set nonblock on stdout for perf process: " +
                     nonblock.error());
@@ -173,7 +178,7 @@ private:
       return;
     }
 
-    nonblock = os::nonblock(perf.get().err());
+    nonblock = os::nonblock(perf.get().err().get());
     if (nonblock.isError()) {
       promise.fail("Failed to set nonblock on stderr for perf process: " +
                     nonblock.error());
@@ -184,8 +189,8 @@ private:
     // Start reading from stdout and stderr now. We don't use stderr
     // but must read from it to avoid the subprocess blocking on the
     // pipe.
-    output.push_back(process::io::read(perf.get().out()));
-    output.push_back(process::io::read(perf.get().err()));
+    output.push_back(process::io::read(perf.get().out().get()));
+    output.push_back(process::io::read(perf.get().err().get()));
 
     // Wait for the process to exit.
     perf.get().status()

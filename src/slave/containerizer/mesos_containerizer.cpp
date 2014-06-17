@@ -658,7 +658,13 @@ Future<Nothing> MesosContainerizerProcess::fetch(
   LOG(INFO) << "Fetching URIs for container '" << containerId
             << "' using command '" << command << "'";
 
-  Try<Subprocess> fetcher = subprocess(command, environment);
+  Try<Subprocess> fetcher = subprocess(
+      command,
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      environment);
+
   if (fetcher.isError()) {
     return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
   }
@@ -693,7 +699,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
 
   // Redirect takes care of nonblocking and close-on-exec for the
   // supplied file descriptors.
-  io::redirect(fetcher.get().out(), out.get());
+  io::redirect(fetcher.get().out().get(), out.get());
 
   // Redirect does 'dup' the file descriptor, hence we can close the
   // original now.
@@ -722,7 +728,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     }
   }
 
-  io::redirect(fetcher.get().err(), err.get());
+  io::redirect(fetcher.get().err().get(), err.get());
 
   os::close(err.get());
 

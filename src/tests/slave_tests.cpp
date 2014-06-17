@@ -346,7 +346,12 @@ TEST_F(SlaveTest, MesosExecutorWithOverride)
     .WillOnce(FutureArg<1>(&status2));
 
   Try<process::Subprocess> executor =
-    process::subprocess(executorCommand, environment);
+    process::subprocess(
+        executorCommand,
+        process::Subprocess::PIPE(),
+        process::Subprocess::PIPE(),
+        process::Subprocess::PIPE(),
+        environment);
 
   ASSERT_SOME(executor);
 

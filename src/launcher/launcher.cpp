@@ -206,13 +206,19 @@ process::Future<Option<int> > Operation::launch(
   // Prepare the command: 'mesos-launcher <operation_name> ...'.
   string command = strings::join(" ", realpath.get(), name());
 
-  Try<Subprocess> s = subprocess(command, environment);
+  Try<Subprocess> s = subprocess(
+      command,
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      environment);
+
   if (s.isError()) {
     return Failure("Launch subprocess failed: " + s.error());
   }
 
-  io::redirect(s.get().out(), stdout);
-  io::redirect(s.get().err(), stderr);
+  io::redirect(s.get().out().get(), stdout);
+  io::redirect(s.get().err().get(), stderr);
 
   return s.get().status();
 }
