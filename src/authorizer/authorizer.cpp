@@ -233,15 +233,9 @@ private:
 };
 
 
-Try<Owned<Authorizer> > Authorizer::create(const JSON::Object& acls_)
+Try<Owned<Authorizer> > Authorizer::create(const ACLs& acls)
 {
-  // Convert ACLs from JSON to Protobuf.
-  Try<ACLs> acls = protobuf::parse<ACLs>(acls_);
-  if (acls.isError()) {
-    return Error("Invalid ACLs format: " + acls.error());
-  }
-
-  Try<Owned<LocalAuthorizer> > authorizer = LocalAuthorizer::create(acls.get());
+  Try<Owned<LocalAuthorizer> > authorizer = LocalAuthorizer::create(acls);
 
   if (authorizer.isError()) {
     return Error(authorizer.error());

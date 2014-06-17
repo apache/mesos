@@ -43,7 +43,7 @@ public:
   virtual ~Authorizer() {}
 
   // Attempts to create an Authorizer based on the ACLs.
-  static Try<process::Owned<Authorizer> > create(const JSON::Object& acls);
+  static Try<process::Owned<Authorizer> > create(const ACLs& acls);
 
   // Returns true if the ACL can be satisfied or false otherwise.
   // A failed future indicates a transient failure and the user

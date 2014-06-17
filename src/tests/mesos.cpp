@@ -102,7 +102,7 @@ master::Flags MesosTest::CreateMasterFlags()
   flags.credentials = "file://" + path;
 
   // Set default ACLs.
-  flags.acls = JSON::Object();
+  flags.acls = ACLs();
 
   // Use the replicated log (without ZooKeeper) by default.
   flags.registry = "replicated_log";

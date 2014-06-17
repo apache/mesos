@@ -77,7 +77,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedTask)
   acl->mutable_users()->add_values("foo");
 
   master::Flags flags = CreateMasterFlags();
-  flags.acls = JSON::Protobuf(acls);
+  flags.acls = acls;
 
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
@@ -155,7 +155,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
   acl->mutable_users()->add_values("foo");
 
   master::Flags flags = CreateMasterFlags();
-  flags.acls = JSON::Protobuf(acls);
+  flags.acls = acls;
 
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
@@ -614,7 +614,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedRole)
 
   master::Flags flags = CreateMasterFlags();
   flags.roles = "foo";
-  flags.acls = JSON::Protobuf(acls);
+  flags.acls = acls;
 
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
@@ -655,7 +655,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedRole)
 
   master::Flags flags = CreateMasterFlags();
   flags.roles = "foo";
-  flags.acls = JSON::Protobuf(acls);
+  flags.acls = acls;
 
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);

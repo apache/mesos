@@ -25,10 +25,15 @@
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
+#include <stout/protobuf.hpp>
+
+#include "common/parse.hpp"
 
 #include "logging/flags.hpp"
 
 #include "master/constants.hpp"
+
+#include "mesos/mesos.hpp"
 
 namespace mesos {
 namespace internal {
@@ -258,7 +263,7 @@ public:
   bool authenticate_frameworks;
   bool authenticate_slaves;
   Option<std::string> credentials;
-  Option<JSON::Object> acls;
+  Option<ACLs> acls;
 };
 
 } // namespace mesos {

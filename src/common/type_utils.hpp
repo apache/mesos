@@ -114,6 +114,14 @@ inline std::ostream& operator << (
 }
 
 
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const ACLs& acls)
+{
+  return stream << acls.DebugString();
+}
+
+
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() == right.value();

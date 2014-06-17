@@ -331,6 +331,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	authorizer/authorizer.hpp					\
 	common/attributes.hpp						\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
+	common/parse.hpp						\
 	common/protobuf_utils.hpp					\
 	common/http.hpp							\
 	common/lock.hpp							\
