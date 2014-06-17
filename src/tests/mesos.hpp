@@ -405,6 +405,18 @@ ACTION(DeclineOffers)
 }
 
 
+// Like DeclineOffers, but takes a custom filters object.
+ACTION_P(DeclineOffers, filters)
+{
+  SchedulerDriver* driver = arg0;
+  std::vector<Offer> offers = arg1;
+
+  for (size_t i = 0; i < offers.size(); i++) {
+    driver->declineOffer(offers[i].id(), filters);
+  }
+}
+
+
 // Definition of a mock Executor to be used in tests with gmock.
 class MockExecutor : public Executor
 {

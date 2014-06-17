@@ -322,6 +322,108 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
 }
 
 
+// Helper that simply increments the value by reference.
+ACTION_P(Increment, value) { *value += 1; }
+
+
+// This test ensures that frameworks that have the same share get an
+// equal number of allocations over time (rather than the same
+// framework getting all the allocations because it's name is
+// lexicographically ordered first).
+TEST_F(DRFAllocatorTest, SameShareAllocations)
+{
+  MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master> > master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Start the first scheduler.
+  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo1.set_name("framework1");
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
+
+  Future<Nothing> registered1;
+  EXPECT_CALL(sched1, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&registered1));
+
+  driver1.start();
+
+  AWAIT_READY(registered1);
+
+  // Start the second scheduler.
+  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo2.set_name("framework2");
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
+
+  Future<Nothing> registered2;
+  EXPECT_CALL(sched2, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&registered2));
+
+  driver2.start();
+
+  AWAIT_READY(registered2);
+
+  // Set filter timeout to 0 so that both frameworks are eligible
+  // for allocation during every allocation interval.
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  int allocations1 = 0;
+  EXPECT_CALL(sched1, resourceOffers(_, _))
+    .WillRepeatedly(DoAll(Increment(&allocations1),
+                          DeclineOffers(filters)));
+
+  int allocations2 = 0;
+  EXPECT_CALL(sched2, resourceOffers(_, _))
+    .WillRepeatedly(DoAll(Increment(&allocations2),
+                          DeclineOffers(filters)));
+
+  EXPECT_CALL(allocator, resourcesUnused(_, _, _, _))
+    .WillRepeatedly(DoDefault());
+
+  // Start the slave.
+  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  // Continuously do allocations.
+  Clock::pause();
+  while(allocations1 + allocations2 < 10) {
+    Clock::advance(masterFlags.allocation_interval);
+    Clock::settle();
+  }
+
+  // Each framework should get equal number of allocations.
+  ASSERT_EQ(allocations1, allocations2);
+
+  Clock::resume();
+
+  driver1.stop();
+  driver1.join();
+
+  driver2.stop();
+  driver2.join();
+
+  Shutdown();
+}
+
+
 class ReservationAllocatorTest : public MesosTest {};
 
 
@@ -1740,9 +1842,3 @@ TYPED_TEST(AllocatorTest, RoleTest)
 
   this->Shutdown();
 }
-
-
-// TODO(benh): Add a DRF allocator test which ensures that frameworks
-// that have the same share get an equal number of allocations over
-// time (rather than the same framework getting all the allocations
-// because it's name is lexicographically ordered first.
