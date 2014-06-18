@@ -285,6 +285,10 @@ Future<mesos::PerfStatistics> sample(
     const set<pid_t>& pids,
     const Duration& duration)
 {
+  if (!supported()) {
+    return Failure("Perf is not supported");
+  }
+
   const string command = internal::command(events, pids, duration);
   internal::PerfSampler* sampler = new internal::PerfSampler(command, duration);
   Future<hashmap<string, mesos::PerfStatistics> > future = sampler->future();
@@ -311,6 +315,10 @@ Future<hashmap<string, mesos::PerfStatistics> > sample(
     const set<string>& cgroups,
     const Duration& duration)
 {
+  if (!supported()) {
+    return Failure("Perf is not supported");
+  }
+
   const string command = internal::command(events, cgroups, duration);
   internal::PerfSampler* sampler = new internal::PerfSampler(command, duration);
   Future<hashmap<string, mesos::PerfStatistics> > future = sampler->future();
@@ -331,6 +339,24 @@ bool valid(const set<string>& events)
   command << " true 2>/dev/null";
 
   return (os::system(command.str()) == 0);
+}
+
+
+bool supported()
+{
+  // Require Linux kernel version >= 2.6.38 for "-x" and >= 2.6.39 for
+  // "--cgroup"
+  Try<os::Release> release = os::release();
+
+  // This is not expected to ever be an Error.
+  CHECK_SOME(release);
+
+  os::Release required;
+  required.version = 2;
+  required.major = 6;
+  required.minor = 39;
+
+  return required <= release.get();
 }
 
 

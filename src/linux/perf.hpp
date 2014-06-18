@@ -69,6 +69,11 @@ process::Future<mesos::PerfStatistics> sample(
 bool valid(const std::set<std::string>& events);
 
 
+// Returns whether perf is supported on this host. Returns false if
+// the kernel is too old (requires >= 2.6.39).
+bool supported();
+
+
 // Note: Exposed for testing purposes.
 Try<hashmap<std::string, mesos::PerfStatistics> > parse(
     const std::string& output);

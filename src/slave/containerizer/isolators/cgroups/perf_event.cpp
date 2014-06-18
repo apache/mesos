@@ -65,6 +65,10 @@ Try<Isolator*> CgroupsPerfEventIsolatorProcess::create(const Flags& flags)
 {
   LOG(INFO) << "Creating PerfEvent isolator";
 
+  if (!perf::supported()) {
+    return Error("Perf is not supported");
+  }
+
   if (flags.perf_duration > flags.perf_interval) {
     return Error("Sampling perf for duration (" +
                  stringify(flags.perf_duration) +
