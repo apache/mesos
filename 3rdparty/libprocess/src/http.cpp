@@ -79,6 +79,15 @@ Future<Response> request(
     return Failure("Failed to cloexec: " + cloexec.error());
   }
 
+  // We use inet_ntop since inet_ntoa is not thread-safe!
+  char ip[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, (in_addr*) &upid.ip, ip, INET_ADDRSTRLEN) == NULL) {
+    return Failure(ErrnoError("Failed to get human-readable IP address for '" +
+                              stringify(upid.ip) + "'"));
+  }
+
+  const string host = string(ip) + ":" + stringify(upid.port);
+
   sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
@@ -87,7 +96,7 @@ Future<Response> request(
 
   if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
     os::close(s);
-    return Failure(string("Failed to connect: ") + strerror(errno));
+    return Failure(ErrnoError("Failed to connect to '" + host + "'"));
   }
 
   std::ostringstream out;
@@ -111,14 +120,8 @@ Future<Response> request(
     headers = _headers.get();
   }
 
-  // Need to specify the 'Host' header. We use inet_ntop since
-  // inet_ntoa is not thread-safe!
-  char ip[INET_ADDRSTRLEN];
-  if (inet_ntop(AF_INET, (in_addr*) &upid.ip, ip, INET_ADDRSTRLEN) == NULL) {
-    return Failure(ErrnoError("Failed to create 'Host' header"));
-  }
-
-  headers["Host"] = string(ip) + ":" + stringify(upid.port);
+  // Need to specify the 'Host' header.
+  headers["Host"] = host;
 
   // Tell the server to close the connection when it's done.
   headers["Connection"] = "close";
