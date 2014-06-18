@@ -105,6 +105,7 @@ public:
                    Scheduler* _scheduler,
                    const FrameworkInfo& _framework,
                    const Option<Credential>& _credential,
+                   const string& schedulerId,
                    MasterDetector* _detector,
                    pthread_mutex_t* _mutex,
                    pthread_cond_t* _cond)
@@ -118,7 +119,7 @@ public:
       // http://www.erlang.org/doc/reference_manual/processes.html#id84804.
       // Consider using unique PIDs throughout libprocess and relying
       // on name registration to identify the process without the PID.
-    : ProcessBase("scheduler-" + UUID::random().toString()),
+    : ProcessBase(schedulerId),
       metrics(*this),
       driver(_driver),
       scheduler(_scheduler),
@@ -1095,7 +1096,7 @@ void MesosSchedulerDriver::initialize() {
   }
 
   // Initialize libprocess.
-  process::initialize();
+  process::initialize(schedulerId);
 
   // TODO(benh): Replace whitespace in framework.name() with '_'?
   logging::initialize(framework.name(), flags);
@@ -1151,13 +1152,14 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     Scheduler* _scheduler,
     const FrameworkInfo& _framework,
     const string& _master)
-  : scheduler(_scheduler),
+  : detector(NULL),
+    scheduler(_scheduler),
     framework(_framework),
     master(_master),
     process(NULL),
     status(DRIVER_NOT_STARTED),
     credential(NULL),
-    detector(NULL)
+    schedulerId("scheduler-" + UUID::random().toString())
 {
   initialize();
 }
@@ -1170,13 +1172,14 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     const FrameworkInfo& _framework,
     const string& _master,
     const Credential& _credential)
-  : scheduler(_scheduler),
+  : detector(NULL),
+    scheduler(_scheduler),
     framework(_framework),
     master(_master),
     process(NULL),
     status(DRIVER_NOT_STARTED),
     credential(new Credential(_credential)),
-    detector(NULL)
+    schedulerId("scheduler-" + UUID::random().toString())
 {
   initialize();
 }
@@ -1246,11 +1249,25 @@ Status MesosSchedulerDriver::start()
 
   if (credential == NULL) {
     process = new SchedulerProcess(
-        this, scheduler, framework, None(), detector, &mutex, &cond);
+        this,
+        scheduler,
+        framework,
+        None(),
+        schedulerId,
+        detector,
+        &mutex,
+        &cond);
   } else {
     const Credential& cred = *credential;
     process = new SchedulerProcess(
-        this, scheduler, framework, cred, detector, &mutex, &cond);
+        this,
+        scheduler,
+        framework,
+        cred,
+        schedulerId,
+        detector,
+        &mutex,
+        &cond);
   }
 
   spawn(process);

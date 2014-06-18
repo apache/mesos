@@ -417,7 +417,13 @@ public:
   virtual Status reconcileTasks(
       const std::vector<TaskStatus>& statuses);
 
+protected:
+  // Used to detect (i.e., choose) the master.
+  internal::MasterDetector* detector;
+
 private:
+  void initialize();
+
   Scheduler* scheduler;
   FrameworkInfo framework;
   std::string master;
@@ -439,11 +445,8 @@ private:
 
   const Credential* credential;
 
-  void initialize();
-
-protected:
-  // Used to detect (i.e., choose) the master.
-  internal::MasterDetector* detector;
+  // Scheduler process ID.
+  std::string schedulerId;
 };
 
 
