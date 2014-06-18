@@ -381,6 +381,8 @@ void Master::initialize()
                 Owned<RateLimiter>(new RateLimiter(limit_.qps())))
             : Option<Owned<RateLimiter> >::none());
     }
+
+    LOG(INFO) << "Framework rate limiting enabled";
   }
 
   hashmap<string, RoleInfo> roleInfos;
