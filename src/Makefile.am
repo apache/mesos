@@ -81,10 +81,15 @@ MESOS_CPPFLAGS += -I$(top_srcdir)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(STOUT)/include
 MESOS_CPPFLAGS += -I../include
+
+# Protobuf headers that depend on mesos.pb.h need this.
+MESOS_CPPFLAGS += -I../include/mesos
+
 MESOS_CPPFLAGS += -I../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(PICOJSON)
 MESOS_CPPFLAGS += -I../$(GLOG)/src
+
 
 if WITH_BUNDLED_LEVELDB
   MESOS_CPPFLAGS += -I../$(LEVELDB)/include
@@ -155,17 +160,24 @@ BUILT_SOURCES += $(REGISTRY_PROTOS)
 CLEANFILES += $(REGISTRY_PROTOS)
 
 # Targets for generating protocol buffer code.
+# For the include headers, place the header files in the include
+# directory and leave the cc files in src.
 %.pb.cc %.pb.h: $(top_srcdir)/include/mesos/%.proto
 	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/mesos $^
+	mv ../include/mesos/*.pb.cc .
 
 containerizer/%.pb.cc containerizer/%.pb.h: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
+	$(MKDIR_P) ../include/mesos/containerizer
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/mesos $^
+	mv ../include/mesos/containerizer/*.pb.cc $(@D)
 
 scheduler/%.pb.cc scheduler/%.pb.h: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
+	$(MKDIR_P) ../include/mesos/scheduler
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/mesos $^
+	mv ../include/mesos/scheduler/*.pb.cc $(@D)
 
 %.pb.cc %.pb.h: %.proto
 	$(MKDIR_P) $(@D)
@@ -267,7 +279,7 @@ pkginclude_HEADERS =							\
 
 nodist_pkginclude_HEADERS =						\
   ../include/mesos/mesos.hpp						\
-  mesos.pb.h
+  ../include/mesos/mesos.pb.h
 
 containerizerdir = $(pkgincludedir)/containerizer
 
@@ -275,7 +287,7 @@ containerizer_HEADERS =							\
   $(top_srcdir)/include/mesos/containerizer/containerizer.hpp		\
   $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 
-nodist_containerizer_HEADERS = containerizer/containerizer.pb.h
+nodist_containerizer_HEADERS = ../include/mesos/containerizer/containerizer.pb.h
 
 schedulerdir = $(pkgincludedir)/scheduler
 
@@ -283,7 +295,7 @@ scheduler_HEADERS =							\
   $(top_srcdir)/include/mesos/scheduler/scheduler.hpp			\
   $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 
-nodist_scheduler_HEADERS = scheduler/scheduler.pb.h
+nodist_scheduler_HEADERS = ../include/mesos/scheduler/scheduler.pb.h
 
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp

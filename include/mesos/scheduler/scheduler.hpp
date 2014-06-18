@@ -20,6 +20,6 @@
 #define __SCHEDULER_PROTO_HPP__
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
-#include <scheduler/scheduler.pb.h>
+#include <mesos/scheduler/scheduler.pb.h>
 
 #endif // __SCHEDULER_PROTO_HPP__

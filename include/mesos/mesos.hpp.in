@@ -19,7 +19,7 @@
 #ifndef __MESOS_HPP__
 #define __MESOS_HPP__
 
-#include <mesos.pb.h> // ONLY USEFUL AFTER RUNNING PROTOC.
+#include <mesos/mesos.pb.h> // ONLY USEFUL AFTER RUNNING PROTOC.
 
 #define MESOS_VERSION "@PACKAGE_VERSION@"
 
