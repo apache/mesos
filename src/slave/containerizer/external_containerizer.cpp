@@ -1119,6 +1119,7 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      None(),
       environment,
       lambda::bind(&setup, sandbox.isSome() ? sandbox.get().directory
                                             : string()));
