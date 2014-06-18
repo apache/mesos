@@ -10,6 +10,7 @@
 
 #include <process/future.hpp>
 
+#include <stout/flags.hpp>
 #include <stout/lambda.hpp>
 #include <stout/memory.hpp>
 #include <stout/option.hpp>
@@ -45,6 +46,7 @@ public:
         const IO& in,
         const IO& out,
         const IO& err,
+        const Option<flags::FlagsBase>& flags,
         const Option<std::map<std::string, std::string> >& environment,
         const Option<lambda::function<int()> >& setup);
 
@@ -94,9 +96,10 @@ public:
 private:
   friend Try<Subprocess> subprocess(
       const std::string& command,
-      const Subprocess::IO& in,
-      const Subprocess::IO& out,
-      const Subprocess::IO& err,
+      const IO& in,
+      const IO& out,
+      const IO& err,
+      const Option<flags::FlagsBase>& flags,
       const Option<std::map<std::string, std::string> >& environment,
       const Option<lambda::function<int()> >& setup);
 
@@ -142,12 +145,14 @@ Try<Subprocess> subprocess(
     const Subprocess::IO& in,
     const Subprocess::IO& out,
     const Subprocess::IO& err,
+    const Option<flags::FlagsBase>& flags = None(),
     const Option<std::map<std::string, std::string> >& environment = None(),
     const Option<lambda::function<int()> >& setup = None());
 
 
 inline Try<Subprocess> subprocess(
     const std::string& command,
+    const Option<flags::FlagsBase>& flags = None(),
     const Option<std::map<std::string, std::string> >& environment = None(),
     const Option<lambda::function<int()> >& setup = None())
 {
@@ -156,6 +161,7 @@ inline Try<Subprocess> subprocess(
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
+      flags,
       environment,
       setup);
 }

@@ -16,6 +16,7 @@
 #include <stout/foreach.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
@@ -86,10 +87,11 @@ static Try<Nothing> cloexec(int stdinFd[2], int stdoutFd[2], int stderrFd[2])
 
 // Runs the provided command in a subprocess.
 Try<Subprocess> subprocess(
-    const string& command,
+    const string& _command,
     const Subprocess::IO& in,
     const Subprocess::IO& out,
     const Subprocess::IO& err,
+    const Option<flags::FlagsBase>& flags,
     const Option<map<string, string> >& environment,
     const Option<lambda::function<int()> >& setup)
 {
@@ -217,6 +219,22 @@ Try<Subprocess> subprocess(
     return Error("Failed to cloexec: " + cloexec.error());
   }
 
+  // Prepare the command to execute. If the user specifies the
+  // 'flags', we will stringify it and append it to the command.
+  string command = _command;
+
+  if (flags.isSome()) {
+    foreachpair (const string& name, const flags::Flag& flag, flags.get()) {
+      Option<string> value = flag.stringify(flags.get());
+      if (value.isSome()) {
+        // TODO(jieyu): Need a better way to escape quotes. For
+        // example, what if 'value.get()' contains a single quote?
+        string argument = "--" + name + "='" + value.get() + "'";
+        command = strings::join(" ", command, argument);
+      }
+    }
+  }
+
   // We need to do this construction before doing the fork as it
   // might not be async-safe.
   // TODO(tillt): Consider optimizing this to not pass an empty map
@@ -281,9 +299,12 @@ Try<Subprocess> subprocess(
       }
     }
 
+    // TODO(jieyu): Consider providing an optional way to launch the
+    // subprocess without using the shell (similar to 'shell=False'
+    // used in python subprocess.Popen).
     execle("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL, envp());
 
-    ABORT("Failed to execle '/bin sh -c ", command.c_str(), "'\n");
+    ABORT("Failed to execle '/bin/sh -c ", command.c_str(), "'\n");
   }
 
   // Parent.

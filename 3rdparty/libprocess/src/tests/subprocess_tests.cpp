@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -25,6 +26,7 @@ using namespace process;
 
 using std::map;
 using std::string;
+using std::vector;
 
 
 class SubprocessTest: public TemporaryDirectoryTest {};
@@ -500,6 +502,114 @@ TEST_F(SubprocessTest, Default)
 }
 
 
+struct Flags : public flags::FlagsBase
+{
+  Flags()
+  {
+    add(&b, "b", "bool");
+    add(&i, "i", "int");
+    add(&s, "s", "string");
+    add(&d, "d", "Duration");
+    add(&y, "y", "Bytes");
+    add(&j, "j", "JSON::Object");
+  }
+
+  Option<bool> b;
+  Option<int> i;
+  Option<string> s;
+  Option<Duration> d;
+  Option<Bytes> y;
+  Option<JSON::Object> j;
+};
+
+
+TEST_F(SubprocessTest, Flags)
+{
+  Clock::pause();
+
+  Flags flags;
+  flags.b = true;
+  flags.i = 42;
+  flags.s = "hello";
+  flags.d = Seconds(10);
+  flags.y = Bytes(100);
+
+  JSON::Object object;
+  object.values["strings"] = "string";
+  object.values["integer1"] = 1;
+  object.values["integer2"] = -1;
+  object.values["double1"] = 1;
+  object.values["double2"] = -1;
+  object.values["double3"] = -1.42;
+
+  JSON::Object nested;
+  nested.values["string"] = "string";
+  object.values["nested"] = nested;
+
+  JSON::Array array;
+  array.values.push_back(nested);
+  object.values["array"] = array;
+
+  flags.j = object;
+
+  string out = path::join(os::getcwd(), "stdout");
+
+  Try<Subprocess> s = subprocess(
+      "echo",
+      Subprocess::PIPE(),
+      Subprocess::PATH(out),
+      Subprocess::PIPE(),
+      flags);
+
+  ASSERT_SOME(s);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  // Parse the output and make sure that it matches the flags we
+  // specified in the beginning.
+  Try<string> read = os::read(out);
+  ASSERT_SOME(read);
+
+  // TODO(jieyu): Consider testing the case where escaped spaces exist
+  // in the arguments.
+  vector<string> split = strings::split(read.get(), " ");
+  int argc = split.size() + 1;
+  char** argv = new char*[argc];
+  argv[0] = (char*) "command";
+  for (int i = 1; i < argc; i++) {
+    argv[i] = ::strdup(split[i - 1].c_str());
+  }
+
+  Flags flags2;
+  Try<Nothing> load = flags2.load(None(), argc, argv);
+  ASSERT_SOME(load);
+  EXPECT_EQ(flags.b, flags2.b);
+  EXPECT_EQ(flags.i, flags2.i);
+  EXPECT_EQ(flags.s, flags2.s);
+  EXPECT_EQ(flags.d, flags2.d);
+  EXPECT_EQ(flags.y, flags2.y);
+  EXPECT_EQ(flags.j, flags2.j);
+
+  for (int i = 1; i < argc; i++) {
+    ::free(argv[i]);
+  }
+  delete argv;
+
+  Clock::resume();
+}
+
+
 TEST_F(SubprocessTest, Environment)
 {
   Clock::pause();
@@ -513,6 +623,7 @@ TEST_F(SubprocessTest, Environment)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      None(),
       environment);
 
   ASSERT_SOME(s);
@@ -543,6 +654,7 @@ TEST_F(SubprocessTest, Environment)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      None(),
       environment);
 
   ASSERT_SOME(s);
@@ -580,6 +692,7 @@ TEST_F(SubprocessTest, EnvironmentWithSpaces)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      None(),
       environment);
 
   ASSERT_SOME(s);
@@ -617,6 +730,7 @@ TEST_F(SubprocessTest, EnvironmentWithSpacesAndQuotes)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      None(),
       environment);
 
   ASSERT_SOME(s);
@@ -656,6 +770,7 @@ TEST_F(SubprocessTest, EnvironmentOverride)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      None(),
       environment);
 
   ASSERT_SOME(s);
@@ -705,6 +820,7 @@ TEST_F(SubprocessTest, Setup)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       None(),
+      None(),
       lambda::bind(&setupChdir, directory.get()));
 
   ASSERT_SOME(s);
@@ -746,6 +862,7 @@ TEST_F(SubprocessTest, SetupStatus)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       None(),
+      None(),
       lambda::bind(&setupStatus, 1));
 
   ASSERT_SOME(s);
@@ -771,6 +888,7 @@ TEST_F(SubprocessTest, SetupStatus)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      None(),
       None(),
       lambda::bind(&setupStatus, 0));
 
