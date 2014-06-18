@@ -46,7 +46,6 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
-#include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
@@ -355,15 +354,8 @@ void Master::initialize()
   }
 
   if (flags.rate_limits.isSome()) {
-    Try<RateLimits> limits =
-      ::protobuf::parse<RateLimits>(flags.rate_limits.get());
-    if (limits.isError()) {
-      EXIT(1) << "Invalid RateLimits format: " << limits.error()
-              << " (see --rate_limits flag)";
-    }
-
     // Add framework rate limiters.
-    foreach (const RateLimit& limit_, limits.get().limits()) {
+    foreach (const RateLimit& limit_, flags.rate_limits.get().limits()) {
       if (limiters.contains(limit_.principal())) {
         EXIT(1) << "Duplicate principal " << limit_.principal()
                 << " found in RateLimits configuration";

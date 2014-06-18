@@ -88,7 +88,7 @@ public:
     // metrics endpoint (because it also throttles requests but at
     // 2qps) don't mess with framework rate limiting.
     limit->set_qps(1);
-    flags.rate_limits = JSON::Protobuf(limits);
+    flags.rate_limits = limits;
 
     return flags;
   }
@@ -106,7 +106,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   RateLimits limits;
   RateLimit* limit = limits.mutable_limits()->Add();
   limit->set_principal(DEFAULT_CREDENTIAL.principal());
-  flags.rate_limits = JSON::Protobuf(limits);
+  flags.rate_limits = limits;
 
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
@@ -363,7 +363,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   RateLimit* limit2 = limits.mutable_limits()->Add();
   limit2->set_principal("framework2");
   limit2->set_qps(0.5);
-  flags.rate_limits = JSON::Protobuf(limits);
+  flags.rate_limits = limits;
 
   flags.authenticate_frameworks = false;
 

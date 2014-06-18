@@ -287,7 +287,7 @@ public:
   bool authenticate_slaves;
   Option<std::string> credentials;
   Option<ACLs> acls;
-  Option<JSON::Object> rate_limits;
+  Option<RateLimits> rate_limits;
 };
 
 } // namespace mesos {

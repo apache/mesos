@@ -38,6 +38,20 @@ inline Try<mesos::ACLs> parse(const std::string& value)
   return protobuf::parse<mesos::ACLs>(json.get());
 }
 
+
+template<>
+inline Try<mesos::RateLimits> parse(const std::string& value)
+{
+  // Convert from string or file to JSON.
+  Try<JSON::Object> json = parse<JSON::Object>(value);
+  if (json.isError()) {
+    return Error(json.error());
+  }
+
+  // Convert from JSON to Protobuf.
+  return protobuf::parse<mesos::RateLimits>(json.get());
+}
+
 } // namespace flags {
 
 #endif // __COMMON_PARSE_HPP__

@@ -122,6 +122,14 @@ inline std::ostream& operator << (
 }
 
 
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const RateLimits& limits)
+{
+  return stream << limits.DebugString();
+}
+
+
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() == right.value();
