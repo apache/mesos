@@ -813,10 +813,12 @@ inline Try<std::list<std::string> > find(
 }
 
 
-// TODO(idownes): Refactor to return a Result<string>, returning
-// None() and ErrnoError as appropriate rather than LOG(FATAL).
-inline std::string user()
+inline Result<std::string> user(Option<uid_t> uid = None())
 {
+  if (uid.isNone()) {
+    uid = ::getuid();
+  }
+
   int size = sysconf(_SC_GETPW_R_SIZE_MAX);
   if (size == -1) {
     // Initial value for buffer size.
@@ -829,12 +831,12 @@ inline std::string user()
   while (true) {
     char* buffer = new char[size];
 
-    if (getpwuid_r(::getuid(), &passwd, buffer, size, &result) == 0) {
+    if (getpwuid_r(uid.get(), &passwd, buffer, size, &result) == 0) {
       // getpwuid_r will return 0 but set result == NULL if the uid is
       // not found.
       if (result == NULL) {
         delete[] buffer;
-        LOG(FATAL) << "Failed to find username for uid " << ::getuid();
+        return None();
       }
 
       std::string user(passwd.pw_name);
@@ -843,7 +845,7 @@ inline std::string user()
     } else {
       if (errno != ERANGE) {
         delete[] buffer;
-        PLOG(FATAL) << "Failed to get username information";
+        return ErrnoError();
       }
 
       // getpwuid_r set ERANGE so try again with a larger buffer.
@@ -851,8 +853,6 @@ inline std::string user()
       delete[] buffer;
     }
   }
-
-  return UNREACHABLE();
 }
 
 

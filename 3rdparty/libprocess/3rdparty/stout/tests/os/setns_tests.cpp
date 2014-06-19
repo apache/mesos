@@ -24,7 +24,10 @@ static void* child(void* arg)
 
 TEST(OsSetnsTest, setns)
 {
-  if (os::user() != "root") {
+  Result<string> user = os::user();
+  ASSERT_SOME(user);
+
+  if (user.get() != "root") {
     return;
   }
 
