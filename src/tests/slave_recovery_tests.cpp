@@ -1777,6 +1777,80 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 }
 
 
+// The slave should shutdown when it receives a SIGUSR1 signal.
+TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<TypeParam*> containerizer = TypeParam::create(flags, true);
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))  // Initial offer.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task.
+
+  Future<Nothing> statusUpdate;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureSatisfy(&statusUpdate))
+    .WillRepeatedly(Return());
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Wait for TASK_RUNNING update to be acknowledged.
+  AWAIT_READY(statusUpdate);
+
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  Future<Nothing> signaled =
+    FUTURE_DISPATCH(_, &Slave::signaled);
+
+  // Send SIGUSR1 signal to the slave.
+  kill(getpid(), SIGUSR1);
+
+  AWAIT_READY(signaled);
+  AWAIT_READY(executorTerminated);
+
+  // Make sure the slave terminates.
+  ASSERT_TRUE(process::wait(slave.get(), Seconds(10)));
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+  delete containerizer.get();
+}
+
+
 // The checkpointing slave fails to do recovery and tries to register
 // as a new slave. The master should give it a new id and transition
 // all the tasks of the old slave to LOST.
