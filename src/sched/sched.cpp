@@ -1117,7 +1117,10 @@ void MesosSchedulerDriver::initialize() {
 
   // See FrameWorkInfo in include/mesos/mesos.proto:
   if (framework.user().empty()) {
-    framework.set_user(os::user());
+    Result<string> user = os::user();
+    CHECK_SOME(user);
+
+    framework.set_user(user.get());
   }
   if (framework.hostname().empty()) {
     framework.set_hostname(os::hostname().get());

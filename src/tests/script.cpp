@@ -139,7 +139,10 @@ void execute(const string& script)
 
     mesos::ACL::RunTasks* run = acls.add_run_tasks();
     run->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-    run->mutable_users()->add_values(os::user());
+
+    Result<string> user = os::user();
+    CHECK_SOME(user) << "Failed to get current user name";
+    run->mutable_users()->add_values(user.get());
 
     mesos::ACL::ReceiveOffers* offer = acls.add_receive_offers();
     offer->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());

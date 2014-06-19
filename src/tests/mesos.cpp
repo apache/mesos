@@ -349,9 +349,12 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
   slave::Flags flags = MesosTest::CreateSlaveFlags();
 
 #ifdef __linux__
+  Result<string> user = os::user();
+  EXPECT_SOME(user);
+
   // Use cgroup isolators if they're available and we're root.
   // TODO(idownes): Refactor the cgroups/non-cgroups code.
-  if (cgroups::enabled() && os::user() == "root") {
+  if (cgroups::enabled() && user.get() == "root") {
     flags.isolation = "cgroups/cpu,cgroups/mem";
     flags.cgroups_hierarchy = baseHierarchy;
     flags.cgroups_root = TEST_CGROUPS_ROOT + "_" + UUID::random().toString();
@@ -372,7 +375,10 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 #ifdef __linux__
 void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 {
-  if (cgroups::enabled() && os::user() == "root") {
+  Result<string> user = os::user();
+  EXPECT_SOME(user);
+
+  if (cgroups::enabled() && user.get() == "root") {
     // Clean up any testing hierarchies.
     Try<std::set<string> > hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
@@ -387,7 +393,10 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 
 void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
 {
-  if (cgroups::enabled() && os::user() == "root") {
+  Result<string> user = os::user();
+  EXPECT_SOME(user);
+
+  if (cgroups::enabled() && user.get() == "root") {
     // Clean up any testing hierarchies.
     Try<std::set<string> > hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
@@ -410,7 +419,10 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
   subsystems.insert("freezer");
   subsystems.insert("perf_event");
 
-  if (cgroups::enabled() && os::user() == "root") {
+  Result<string> user = os::user();
+  EXPECT_SOME(user);
+
+  if (cgroups::enabled() && user.get() == "root") {
     foreach (const string& subsystem, subsystems) {
       // Establish the base hierarchy if this is the first subsystem checked.
       if (baseHierarchy.empty()) {
@@ -456,7 +468,10 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
 {
   MesosTest::TearDown();
 
-  if (cgroups::enabled() && os::user() == "root") {
+  Result<string> user = os::user();
+  EXPECT_SOME(user);
+
+  if (cgroups::enabled() && user.get() == "root") {
     foreach (const string& subsystem, subsystems) {
       string hierarchy = path::join(baseHierarchy, subsystem);
 

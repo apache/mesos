@@ -177,7 +177,10 @@ public:
     // TODO(benh): Make FrameworkInfo.user be optional and add a
     // 'user' to either TaskInfo or CommandInfo.
     if (call.framework_info().user() == "") {
-      call.mutable_framework_info()->set_user(os::user());
+      Result<string> user = os::user();
+      CHECK_SOME(user);
+
+      call.mutable_framework_info()->set_user(user.get());
     }
 
     // Only a REGISTER should not have set the framework ID.

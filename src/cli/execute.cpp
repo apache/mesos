@@ -283,6 +283,16 @@ int main(int argc, char** argv)
     return -1;
   }
 
+  Result<string> user = os::user();
+  if (!user.isSome()) {
+    if (user.isError()) {
+      cerr << "Failed to get username: " << user.error() << endl;
+    } else {
+      cerr << "No username for uid " << ::getuid() << endl;
+    }
+    return -1;
+  }
+
   // Copy the package to HDFS if requested save it's location as a URI
   // for passing to the command (in CommandInfo).
   Option<string> uri = None();
@@ -298,7 +308,7 @@ int main(int argc, char** argv)
     // already been uploaded before ...).
 
     // Store the file at '/user/package'.
-    string path = path::join("/", os::user(), flags.package.get());
+    string path = path::join("/", user.get(), flags.package.get());
 
     // Check if the file exists and remove it if we're overwriting.
     Try<bool> exists = hdfs.exists(path);
@@ -333,7 +343,7 @@ int main(int argc, char** argv)
       uri);
 
   FrameworkInfo framework;
-  framework.set_user(os::user());
+  framework.set_user(user.get());
   framework.set_name("");
   framework.set_checkpoint(flags.checkpoint);
 

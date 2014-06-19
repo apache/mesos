@@ -429,11 +429,13 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
   task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
 
-  // Command executor will run as user running test.
-  string user = os::user();
+  Result<string> user = os::user();
+  CHECK_SOME(user) << "Failed to get current user name"
+                   << (user.isError() ? ": " + user.error() : "");
 
+  // Command executor will run as user running test.
   CommandInfo command;
-  command.set_value("test `whoami` = " + user);
+  command.set_value("test `whoami` = " + user.get());
 
   task.mutable_command()->MergeFrom(command);
 
