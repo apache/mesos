@@ -131,7 +131,7 @@ Try<Subprocess> subprocess(
       break;
     }
     default:
-      return UNREACHABLE();
+      return Try<Subprocess>(UNREACHABLE());
   }
 
   // Prepare the file descriptor(s) for stdout.
@@ -170,7 +170,7 @@ Try<Subprocess> subprocess(
       break;
     }
     default:
-      return UNREACHABLE();
+      return Try<Subprocess>(UNREACHABLE());
   }
 
   // Prepare the file descriptor(s) for stderr.
@@ -209,7 +209,7 @@ Try<Subprocess> subprocess(
       break;
     }
     default:
-      return UNREACHABLE();
+      return Try<Subprocess>(UNREACHABLE());
   }
 
   // TODO(jieyu): Consider using O_CLOEXEC for atomic close-on-exec.
