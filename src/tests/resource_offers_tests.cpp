@@ -523,7 +523,7 @@ TEST_F(MultipleExecutorsTest, TasksExecutorInfoDiffers)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
   Try<PID<Slave> > slave = StartSlave(&exec);
-  ASSERT_SOME(master);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
