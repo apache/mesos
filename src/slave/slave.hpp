@@ -309,6 +309,9 @@ public:
   // Schedules a 'path' for gc based on its modification time.
   Future<Nothing> garbageCollect(const std::string& path);
 
+  // Called when the slave was signaled from the specified user.
+  void signaled(int signal, int uid);
+
 private:
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);

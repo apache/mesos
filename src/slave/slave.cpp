@@ -138,6 +138,28 @@ Slave::~Slave()
 }
 
 
+lambda::function<void(int, int)> signaledWrapper;
+
+
+static void signalHandler(int sig, siginfo_t* siginfo, void* context)
+{
+  signaledWrapper(sig, siginfo->si_uid);
+}
+
+
+void Slave::signaled(int signal, int uid)
+{
+  if (signal == SIGUSR1) {
+    Result<string> user = os::user(uid);
+
+    shutdown(
+        UPID(),
+        "Received SIGUSR1 signal" +
+        (user.isSome() ? " from user " + user.get() : ""));
+  }
+}
+
+
 void Slave::initialize()
 {
   LOG(INFO) << "Slave started on " << string(self()).substr(6);
@@ -413,6 +435,24 @@ void Slave::initialize()
             << ". Please run the slave with '--help' to see the valid options";
   }
 
+  struct sigaction action;
+  memset(&action, 0, sizeof(struct sigaction));
+
+  // Do not block additional signals while in the handler.
+  sigemptyset(&action.sa_mask);
+
+  // The SA_SIGINFO flag tells sigaction() to use
+  // the sa_sigaction field, not sa_handler.
+  action.sa_flags = SA_SIGINFO;
+
+  signaledWrapper = defer(self(), &Slave::signaled, lambda::_1, lambda::_2);
+
+  action.sa_sigaction = signalHandler;
+
+  if (sigaction(SIGUSR1, &action, NULL) < 0) {
+    EXIT(1) << "Failed to set sigaction: " << strerror(errno);
+  }
+
   // Do recovery.
   async(&state::recover, metaDir, flags.strict)
     .then(defer(self(), &Slave::recover, lambda::_1))
@@ -467,8 +507,12 @@ void Slave::shutdown(const UPID& from, const string& message)
     return;
   }
 
-  LOG(INFO) << "Slave asked to shut down by " << from
-            << (message.empty() ? "" : " because '" + message + "'");
+  if (from) {
+    LOG(INFO) << "Slave asked to shut down by " << from
+              << (message.empty() ? "" : " because '" + message + "'");
+  } else {
+    LOG(INFO) << message << "; shutting down";
+  }
 
   state = TERMINATING;
 
