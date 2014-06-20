@@ -77,7 +77,12 @@ public:
     // We retry zookeeper_init until the timeout elapses because we've
     // seen cases where temporary DNS outages cause the slave to abort
     // here. See MESOS-1326 for more information.
-    const Timeout timeout_ = Timeout::in(timeout);
+    // ZooKeeper masks EAI_AGAIN as EINVAL and a name resolution timeout
+    // may be upwards of 30 seconds. As such, a 10 second timeout is not
+    // enough. Hard code this to 10 minutes to be sure we're trying again
+    // in the face of temporary name resolution failures. See MESOS-1523
+    // for more information.
+    const Timeout timeout_ = Timeout::in(Minutes(10));
 
     while (!timeout_.expired()) {
       zh = zookeeper_init(
