@@ -241,7 +241,7 @@ TEST_F(MesosSchedulerDriverTest, MetricsEndpoint)
 
   JSON::Object metrics = parse.get();
 
-  EXPECT_EQ(1u, metrics.values.count("scheduler/event_queue_size"));
+  EXPECT_EQ(1u, metrics.values.count("scheduler/message_event_queue_size"));
 
   driver.stop();
   driver.join();

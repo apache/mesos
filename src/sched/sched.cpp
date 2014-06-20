@@ -1010,37 +1010,29 @@ private:
   struct Metrics
   {
     Metrics(const SchedulerProcess& schedulerProcess)
-      : event_queue_size(
-          "scheduler/event_queue_size",
-          defer(schedulerProcess, &SchedulerProcess::_event_queue_size))
+      : message_event_queue_size(
+          "scheduler/message_event_queue_size",
+          defer(schedulerProcess, &SchedulerProcess::_message_event_queue_size))
     {
       // TODO(dhamon): When we start checking the return value of 'add' we may
       // get failures in situations where multiple SchedulerProcesses are active
       // (ie, the fault tolerance tests). At that point we'll need MESOS-1285 to
       // be fixed and to use self().id in the metric name.
-      process::metrics::add(event_queue_size);
+      process::metrics::add(message_event_queue_size);
     }
 
     ~Metrics()
     {
-      process::metrics::remove(event_queue_size);
+      process::metrics::remove(message_event_queue_size);
     }
 
     // Process metrics.
-    process::metrics::Gauge event_queue_size;
+    process::metrics::Gauge message_event_queue_size;
   } metrics;
 
-  double _event_queue_size()
+  double _message_event_queue_size()
   {
-    size_t size;
-
-    lock();
-    {
-      size = events.size();
-    }
-    unlock();
-
-    return static_cast<double>(size);
+    return static_cast<double>(eventCount<MessageEvent>());
   }
 
   MesosSchedulerDriver* driver;
