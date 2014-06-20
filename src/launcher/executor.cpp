@@ -62,6 +62,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -402,31 +403,35 @@ private:
   void launchHealthCheck(const TaskInfo& task)
   {
     if (task.has_health_check()) {
-      const HealthCheck& healthCheck = task.health_check();
-      JSON::Object json = JSON::Protobuf(healthCheck);
-      // TODO(tnachen): Use flags when subprocess handle arguments
-      // with quotes.
-      const string& healthCommand =
-        path::join(healthCheckDir, "mesos-health-check") + " --executor=\"" +
-         stringify(self()) + "\" --health_check_json='" + stringify(json) +
-         "' --task_id=" + task.task_id().value();
-      cout << "Launching health check process: " << healthCommand << endl;
+      JSON::Object json = JSON::Protobuf(task.health_check());
+
+      // Launch the subprocess using 'execve' style so that quotes can
+      // be properly handled.
+      vector<string> argv(4);
+      argv[0] = "mesos-health-check";
+      argv[1] = "--executor=" + stringify(self());
+      argv[2] = "--health_check_json=" + stringify(json);
+      argv[3] = "--task_id=" + task.task_id().value();
+
+      cout << "Launching health check process: "
+           << path::join(healthCheckDir, "mesos-health-check")
+           << " " << argv[1] << " " << argv[2] << " " << argv[3] << endl;
+
       Try<Subprocess> healthProcess =
         process::subprocess(
-          healthCommand,
+          path::join(healthCheckDir, "mesos-health-check"),
+          argv,
           Subprocess::PIPE(),
           Subprocess::FD(STDOUT_FILENO),
-          Subprocess::FD(STDERR_FILENO),
-          None(),
-          None(),
-          None());
+          Subprocess::FD(STDERR_FILENO));
+
       if (healthProcess.isError()) {
         cerr << "Unable to launch health process: " << healthProcess.error();
       } else {
-        const Subprocess& health = healthProcess.get();
-        healthPid = health.pid();
-        cout << "Health check process launched at pid: " << stringify(healthPid)
-             << endl;
+        healthPid = healthProcess.get().pid();
+
+        cout << "Health check process launched at pid: "
+             << stringify(healthPid) << endl;
       }
     }
   }

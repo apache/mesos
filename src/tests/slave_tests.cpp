@@ -351,7 +351,6 @@ TEST_F(SlaveTest, MesosExecutorWithOverride)
         process::Subprocess::PIPE(),
         process::Subprocess::PIPE(),
         process::Subprocess::PIPE(),
-        None(),
         environment);
 
   ASSERT_SOME(executor);

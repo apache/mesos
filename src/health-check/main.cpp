@@ -154,7 +154,6 @@ private:
           Subprocess::PIPE(),
           Subprocess::FD(STDERR_FILENO),
           Subprocess::FD(STDERR_FILENO),
-          None(),
           environment);
 
       if (external.isError()) {

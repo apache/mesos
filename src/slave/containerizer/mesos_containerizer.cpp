@@ -666,7 +666,6 @@ Future<Nothing> MesosContainerizerProcess::fetch(
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      None(),
       environment);
 
   if (fetcher.isError()) {

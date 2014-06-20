@@ -211,7 +211,6 @@ process::Future<Option<int> > Operation::launch(
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      None(),
       environment);
 
   if (s.isError()) {
