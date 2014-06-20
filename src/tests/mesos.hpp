@@ -83,33 +83,20 @@ protected:
   virtual slave::Flags CreateSlaveFlags();
 
   // Starts a master with the specified flags.
-  // Waits for the master to detect a leader (could be itself) before
-  // returning if 'wait' is set to true.
-  // TODO(xujyan): Return a future which becomes ready when the
-  // master detects a leader (when wait == true) and have the tests
-  // do AWAIT_READY.
   virtual Try<process::PID<master::Master> > StartMaster(
-      const Option<master::Flags>& flags = None(),
-      bool wait = true);
+      const Option<master::Flags>& flags = None());
 
   // Starts a master with the specified allocator process and flags.
-  // Waits for the master to detect a leader (could be itself) before
-  // returning if 'wait' is set to true.
-  // TODO(xujyan): Return a future which becomes ready when the
-  // master detects a leader (when wait == true) and have the tests
-  // do AWAIT_READY.
   virtual Try<process::PID<master::Master> > StartMaster(
       master::allocator::AllocatorProcess* allocator,
-      const Option<master::Flags>& flags = None(),
-      bool wait = true);
+      const Option<master::Flags>& flags = None());
 
   // Starts a master with the specified authorizer and flags.
   // Waits for the master to detect a leader (could be itself) before
   // returning if 'wait' is set to true.
   virtual Try<process::PID<master::Master> > StartMaster(
       Authorizer* authorizer,
-      const Option<master::Flags>& flags = None(),
-      bool wait = true);
+      const Option<master::Flags>& flags = None());
 
   // Starts a slave with the specified flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(

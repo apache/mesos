@@ -45,8 +45,6 @@ using std::string;
 
 using namespace process;
 
-using testing::_;
-
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -159,67 +157,28 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
 
 Try<process::PID<master::Master> > MesosTest::StartMaster(
-    const Option<master::Flags>& flags,
-    bool wait)
+    const Option<master::Flags>& flags)
 {
-  Future<Nothing> detected = FUTURE_DISPATCH(_, &master::Master::detected);
-
-  Try<process::PID<master::Master> > master = cluster.masters.start(
+  return cluster.masters.start(
       flags.isNone() ? CreateMasterFlags() : flags.get());
-
-  // Wait until the leader is detected because otherwise this master
-  // may reject authentication requests because it doesn't know it's
-  // the leader yet [MESOS-881].
-  if (wait && master.isSome() && !detected.await(Seconds(10))) {
-    return Error("Failed to wait " + stringify(Seconds(10)) +
-                 " for master to detect the leader");
-  }
-
-  return master;
 }
 
 
 Try<process::PID<master::Master> > MesosTest::StartMaster(
     master::allocator::AllocatorProcess* allocator,
-    const Option<master::Flags>& flags,
-    bool wait)
+    const Option<master::Flags>& flags)
 {
-  Future<Nothing> detected = FUTURE_DISPATCH(_, &master::Master::detected);
-
-  Try<process::PID<master::Master> > master = cluster.masters.start(
+  return cluster.masters.start(
       allocator, flags.isNone() ? CreateMasterFlags() : flags.get());
-
-  // Wait until the leader is detected because otherwise this master
-  // may reject authentication requests because it doesn't know it's
-  // the leader yet [MESOS-881].
-  if (wait && master.isSome() && !detected.await(Seconds(10))) {
-    return Error("Failed to wait " + stringify(Seconds(10)) +
-                 " for master to detect the leader");
-  }
-
-  return master;
 }
 
 
 Try<process::PID<master::Master> > MesosTest::StartMaster(
     Authorizer* authorizer,
-    const Option<master::Flags>& flags,
-    bool wait)
+    const Option<master::Flags>& flags)
 {
-  Future<Nothing> detected = FUTURE_DISPATCH(_, &master::Master::detected);
-
-  Try<process::PID<master::Master> > master = cluster.masters.start(
+  return cluster.masters.start(
       authorizer, flags.isNone() ? CreateMasterFlags() : flags.get());
-
-  // Wait until the leader is detected because otherwise this master
-  // may reject authentication requests because it doesn't know it's
-  // the leader yet [MESOS-881].
-  if (wait && master.isSome() && !detected.await(Seconds(10))) {
-    return Error("Failed to wait " + stringify(Seconds(10)) +
-                 " for master to detect the leader");
-  }
-
-  return master;
 }
 
 
