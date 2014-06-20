@@ -356,13 +356,13 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   master::Flags flags = CreateMasterFlags();
 
   // Configure RateLimits to be 1qps and 0.5qps for two frameworks.
+  // Rate for the second framework is implicitly specified via
+  // 'aggregate_default_qps'.
   RateLimits limits;
   RateLimit* limit1 = limits.mutable_limits()->Add();
   limit1->set_principal("framework1");
   limit1->set_qps(1);
-  RateLimit* limit2 = limits.mutable_limits()->Add();
-  limit2->set_principal("framework2");
-  limit2->set_qps(0.5);
+  limits.set_aggregate_default_qps(0.5);
   flags.rate_limits = limits;
 
   flags.authenticate_frameworks = false;

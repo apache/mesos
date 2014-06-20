@@ -495,13 +495,14 @@ private:
 
     // Principals of frameworks keyed by PID.
     // NOTE: Multiple PIDs can map to the same principal. The
-    // differences between this map and 'authenticated' are:
+    // principal is None when the framework doesn't specify it.
+    // The differences between this map and 'authenticated' are:
     // 1) This map only includes *registered* frameworks. The mapping
     //    is added when a framework (re-)registers.
     // 2) This map includes unauthenticated frameworks (when Master
     //    allows them) if they have principals specified in
     //    FrameworkInfo.
-    hashmap<process::UPID, std::string> principals;
+    hashmap<process::UPID, Option<std::string> > principals;
   } frameworks;
 
   hashmap<OfferID, Offer*> offers;
@@ -724,6 +725,10 @@ private:
   // Like Metrics::Frameworks, all frameworks of the same principal
   // are throttled together at a common rate limit.
   hashmap<std::string, Option<process::Owned<process::RateLimiter> > > limiters;
+
+  // The default limiter is for frameworks not specified in
+  // 'flags.rate_limits'.
+  Option<process::Owned<process::RateLimiter> > defaultLimiter;
 };
 
 

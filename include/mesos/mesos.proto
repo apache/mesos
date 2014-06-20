@@ -765,14 +765,15 @@ message RateLimit {
 
 /**
  * Collection of RateLimit.
- * Frameworks without rate limits defined here are not throttled.
- * TODO(xujyan): Currently when a framework is not specified in 'limits' it is
- * not throttled. This can be done more explicitly by adding a RateLimit entry
- * without setting its 'qps'. We should consider adding an optional
- * 'aggregate_default_qps' which can be used to throttle the frameworks not
- * specified here.
+ * Frameworks without rate limits defined here are not throttled
+ * unless 'aggregate_default_qps' is specified.
  */
 message RateLimits {
   // Items should have unique principals.
   repeated RateLimit limits = 1;
+
+  // All the frameworks not specified in 'limits' get this default
+  // rate. This rate is an aggregate rate for all of them, i.e.,
+  // their combined traffic is throttled together at this rate.
+  optional double aggregate_default_qps = 2;
 }

@@ -258,7 +258,8 @@ public:
         "    {\n"
         "      \"principal\": \"bar\"\n"
         "    }\n"
-        "  ]\n"
+        "  ],\n"
+        "  \"aggregate_default_qps\": 33.3\n"
         "}");
   }
 

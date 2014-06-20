@@ -374,6 +374,18 @@ void Master::initialize()
             : Option<Owned<RateLimiter> >::none());
     }
 
+    if (flags.rate_limits.get().has_aggregate_default_qps() &&
+        flags.rate_limits.get().aggregate_default_qps() <= 0) {
+      EXIT(1) << "Invalid aggregate_default_qps: "
+              << flags.rate_limits.get().aggregate_default_qps()
+              << ". It must be a positive number";
+    }
+
+    if (flags.rate_limits.get().has_aggregate_default_qps()) {
+      defaultLimiter = Owned<RateLimiter>(
+          new RateLimiter(flags.rate_limits.get().aggregate_default_qps()));
+    }
+
     LOG(INFO) << "Framework rate limiting enabled";
   }
 
@@ -779,13 +791,30 @@ void Master::exited(const UPID& pid)
 
 void Master::visit(const MessageEvent& event)
 {
+  // There are three cases about the message's UPID with respect to
+  // 'frameworks.principals':
+  // 1) if a <UPID, principal> pair exists and the principal is Some,
+  //    it's a framework with its principal specified.
+  // 2) if a <UPID, principal> pair exists and the principal is None,
+  //    it's a framework without a principal.
+  // 3) if a <UPID, principal> pair does not exist in the map, it's
+  //    either an unregistered framework or not a framework.
+  // The logic for framework message counters and rate limiting
+  // mainly concerns with whether the UPID is a *registered*
+  // framework and whether the framework has a principal so we use
+  // these two temp variables to simplify the condition checks below.
+  bool isRegisteredFramework =
+    frameworks.principals.contains(event.message->from);
+  const Option<string> principal = isRegisteredFramework
+    ? frameworks.principals[event.message->from]
+    : Option<string>::none();
+
   // Increment the "message_received" counter if the message is from
   // a framework and such a counter is configured for it.
   // See comments for 'Master::Metrics::Frameworks' and
   // 'Master::Frameworks::principals' for details.
-  const Option<string> principal =
-    frameworks.principals.get(event.message->from);
   if (principal.isSome()) {
+    // If the framework has a principal, the counter must exist.
     CHECK(metrics.frameworks.contains(principal.get()));
     Counter messages_received =
       metrics.frameworks.get(principal.get()).get()->messages_received;
@@ -814,19 +843,28 @@ void Master::visit(const MessageEvent& event)
     return;
   }
 
+  // Necessary to disambiguate below.
+  typedef void(Self::*F)(const MessageEvent&);
+
   // Throttle the message if it's a framework message and a
   // RateLimiter is configured for the framework's principal.
+  // The framework is throttled by the default RateLimiter if:
+  // 1) the default RateLimiter is configured (and)
+  // 2) the framework doesn't have a principal or its principal is
+  //    not specified in 'flags.rate_limits'.
   // The framework is not throttled if:
-  // 1) the principal is not specified by the framework (or)
-  // 2) the principal doesn't exist in RateLimits configuration (or)
-  // 3) the principal exists in RateLimits but 'qps' is not set.
+  // 1) the default RateLimiter is not configured to handle case 2)
+  //    above. (or)
+  // 2) the principal exists in RateLimits but 'qps' is not set.
   if (principal.isSome() &&
       limiters.contains(principal.get()) &&
       limiters[principal.get()].isSome()) {
-    // Necessary to disambiguate.
-    typedef void(Self::*F)(const MessageEvent&);
-
     limiters[principal.get()].get()->acquire()
+      .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
+  } else if ((principal.isNone() || !limiters.contains(principal.get())) &&
+             isRegisteredFramework &&
+             defaultLimiter.isSome()) {
+    defaultLimiter.get()->acquire()
       .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
   } else {
     _visit(event);
@@ -836,21 +874,29 @@ void Master::visit(const MessageEvent& event)
 
 void Master::visit(const process::ExitedEvent& event)
 {
-  // Throttle the message if it's a framework message and a
-  // RateLimiter is configured for the framework's principal.
+  // See comments in 'visit(const MessageEvent& event)' for which
+  // RateLimiter is used to throttle this UPID and when it is not
+  // throttled.
   // Note that throttling ExitedEvent is necessary so the order
   // between MessageEvents and ExitedEvents from the same PID is
   // maintained.
-  // See comments in 'visit(const MessageEvent& event)' for when a
-  // message is not throttled.
-  const Option<string> principal = frameworks.principals.get(event.pid);
+  bool isRegisteredFramework = frameworks.principals.contains(event.pid);
+  const Option<string> principal = isRegisteredFramework
+    ? frameworks.principals[event.pid]
+    : Option<string>::none();
+
+  // Necessary to disambiguate below.
+  typedef void(Self::*F)(const ExitedEvent&);
+
   if (principal.isSome() &&
       limiters.contains(principal.get()) &&
       limiters[principal.get()].isSome()) {
-    // Necessary to disambiguate.
-    typedef void(Self::*F)(const ExitedEvent&);
-
     limiters[principal.get()].get()->acquire()
+      .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
+  } else if ((principal.isNone() || !limiters.contains(principal.get())) &&
+             isRegisteredFramework &&
+             defaultLimiter.isSome()) {
+    defaultLimiter.get()->acquire()
       .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
   } else {
     _visit(event);
@@ -864,7 +910,9 @@ void Master::_visit(const MessageEvent& event)
   // mapping may be deleted in handling 'UnregisterFrameworkMessage'
   // but its counter still needs to be incremented for this message.
   const Option<string> principal =
-    frameworks.principals.get(event.message->from);
+    frameworks.principals.contains(event.message->from)
+      ? frameworks.principals[event.message->from]
+      : Option<string>::none();
 
   ProtobufProcess<Master>::visit(event);
 
@@ -3688,11 +3736,11 @@ void Master::addFramework(Framework* framework)
     principal = framework->info.principal();
   }
 
+  CHECK(!frameworks.principals.contains(framework->pid));
+  frameworks.principals.put(framework->pid, principal);
+
   // Export framework metrics if a principal is specified.
   if (principal.isSome()) {
-    CHECK(!frameworks.principals.contains(framework->pid));
-    frameworks.principals.put(framework->pid, principal.get());
-
     // Create new framework metrics if this framework is the first
     // one of this principal. Otherwise existing metrics are reused.
     if (!metrics.frameworks.contains(principal.get())) {
@@ -3843,11 +3891,13 @@ void Master::removeFramework(Framework* framework)
   // Remove the framework from authenticated.
   authenticated.erase(framework->pid);
 
-  // Remove the framework's message counters.
-  const Option<string> principal = frameworks.principals.get(framework->pid);
-  if (principal.isSome()) {
-    frameworks.principals.erase(framework->pid);
+  CHECK(frameworks.principals.contains(framework->pid));
+  const Option<string> principal = frameworks.principals[framework->pid];
 
+  frameworks.principals.erase(framework->pid);
+
+  // Remove the framework's message counters.
+  if (principal.isSome()) {
     // Remove the metrics for the principal if this framework is the
     // last one with this principal.
     if (!frameworks.principals.containsValue(principal.get())) {
