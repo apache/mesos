@@ -4480,9 +4480,15 @@ Master::Metrics::Metrics(const Master& master)
         "master/invalid_status_update_acknowledgements"),
     recovery_slave_removals(
         "master/recovery_slave_removals"),
-    message_event_queue_size(
-        "master/message_event_queue_size",
-        defer(master, &Master::_message_event_queue_size)),
+    event_queue_messages(
+        "master/event_queue_messages",
+        defer(master, &Master::_event_queue_messages)),
+    event_queue_dispatches(
+        "master/event_queue_dispatches",
+        defer(master, &Master::_event_queue_dispatches)),
+    event_queue_http_requests(
+        "master/event_queue_http_requests",
+        defer(master, &Master::_event_queue_http_requests)),
     slave_registrations(
         "master/slave_registrations"),
     slave_reregistrations(
@@ -4546,7 +4552,9 @@ Master::Metrics::Metrics(const Master& master)
 
   process::metrics::add(recovery_slave_removals);
 
-  process::metrics::add(message_event_queue_size);
+  process::metrics::add(event_queue_messages);
+  process::metrics::add(event_queue_dispatches);
+  process::metrics::add(event_queue_http_requests);
 
   process::metrics::add(slave_registrations);
   process::metrics::add(slave_reregistrations);
@@ -4637,7 +4645,9 @@ Master::Metrics::~Metrics()
 
   process::metrics::remove(recovery_slave_removals);
 
-  process::metrics::remove(message_event_queue_size);
+  process::metrics::remove(event_queue_messages);
+  process::metrics::remove(event_queue_dispatches);
+  process::metrics::remove(event_queue_http_requests);
 
   process::metrics::remove(slave_registrations);
   process::metrics::remove(slave_reregistrations);

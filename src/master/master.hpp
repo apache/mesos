@@ -640,7 +640,9 @@ private:
     process::metrics::Counter recovery_slave_removals;
 
     // Process metrics.
-    process::metrics::Gauge message_event_queue_size;
+    process::metrics::Gauge event_queue_messages;
+    process::metrics::Gauge event_queue_dispatches;
+    process::metrics::Gauge event_queue_http_requests;
 
     // Successful registry operations.
     process::metrics::Counter slave_registrations;
@@ -683,9 +685,19 @@ private:
     return offers.size();
   }
 
-  double _message_event_queue_size()
+  double _event_queue_messages()
   {
     return static_cast<double>(eventCount<process::MessageEvent>());
+  }
+
+  double _event_queue_dispatches()
+  {
+    return static_cast<double>(eventCount<process::DispatchEvent>());
+  }
+
+  double _event_queue_http_requests()
+  {
+    return static_cast<double>(eventCount<process::HttpEvent>());
   }
 
   double _tasks_staging();

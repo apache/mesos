@@ -1487,7 +1487,9 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 
   EXPECT_EQ(1u, stats.values.count("master/recovery_slave_removals"));
 
-  EXPECT_EQ(1u, stats.values.count("master/message_event_queue_size"));
+  EXPECT_EQ(1u, stats.values.count("master/event_queue_messages"));
+  EXPECT_EQ(1u, stats.values.count("master/event_queue_dispatches"));
+  EXPECT_EQ(1u, stats.values.count("master/event_queue_http_requests"));
 
   EXPECT_EQ(1u, stats.values.count("master/cpus_total"));
   EXPECT_EQ(1u, stats.values.count("master/cpus_used"));
