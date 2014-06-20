@@ -24,6 +24,7 @@
 
 using std::map;
 using std::string;
+using std::vector;
 
 namespace process {
 namespace internal {
@@ -85,15 +86,99 @@ static Try<Nothing> cloexec(int stdinFd[2], int stdoutFd[2], int stderrFd[2])
 }  // namespace internal {
 
 
-// Runs the provided command in a subprocess.
+static pid_t defaultClone(const lambda::function<int()>& func)
+{
+  pid_t pid = ::fork();
+  if (pid == -1) {
+    return -1;
+  } else if (pid == 0) {
+    // Child.
+    ::exit(func());
+    return UNREACHABLE();
+  } else {
+    // Parent.
+    return pid;
+  }
+}
+
+
+// The main entry of the child process. Note that this function has to
+// be async singal safe.
+static int childMain(
+    const string& path,
+    char** argv,
+    const Subprocess::IO& in,
+    const Subprocess::IO& out,
+    const Subprocess::IO& err,
+    os::ExecEnv* envp,
+    const Option<lambda::function<int()> >& setup,
+    int stdinFd[2],
+    int stdoutFd[2],
+    int stderrFd[2])
+{
+  // Close parent's end of the pipes.
+  if (in.isPipe()) {
+    while (::close(stdinFd[1]) == -1 && errno == EINTR);
+  }
+  if (out.isPipe()) {
+    while (::close(stdoutFd[0]) == -1 && errno == EINTR);
+  }
+  if (err.isPipe()) {
+    while (::close(stderrFd[0]) == -1 && errno == EINTR);
+  }
+
+  // Redirect I/O for stdin/stdout/stderr.
+  while (::dup2(stdinFd[0], STDIN_FILENO) == -1 && errno == EINTR);
+  while (::dup2(stdoutFd[1], STDOUT_FILENO) == -1 && errno == EINTR);
+  while (::dup2(stderrFd[1], STDERR_FILENO) == -1 && errno == EINTR);
+
+  // Close the copies. We need to make sure that we do not close the
+  // file descriptor assigned to stdin/stdout/stderr in case the
+  // parent has closed stdin/stdout/stderr when calling this
+  // function (in that case, a dup'ed file descriptor may have the
+  // same file descriptor number as stdin/stdout/stderr).
+  if (stdinFd[0] != STDIN_FILENO &&
+      stdinFd[0] != STDOUT_FILENO &&
+      stdinFd[0] != STDERR_FILENO) {
+    while (::close(stdinFd[0]) == -1 && errno == EINTR);
+  }
+  if (stdoutFd[1] != STDIN_FILENO &&
+      stdoutFd[1] != STDOUT_FILENO &&
+      stdoutFd[1] != STDERR_FILENO) {
+    while (::close(stdoutFd[1]) == -1 && errno == EINTR);
+  }
+  if (stderrFd[1] != STDIN_FILENO &&
+      stderrFd[1] != STDOUT_FILENO &&
+      stderrFd[1] != STDERR_FILENO) {
+    while (::close(stderrFd[1]) == -1 && errno == EINTR);
+  }
+
+  if (setup.isSome()) {
+    int status = setup.get()();
+    if (status != 0) {
+      _exit(status);
+    }
+  }
+
+  execve(path.c_str(), argv, (*envp)());
+
+  ABORT("Failed to execve in childMain\n");
+
+  return UNREACHABLE();
+}
+
+
 Try<Subprocess> subprocess(
-    const string& _command,
+    const string& path,
+    vector<string> argv,
     const Subprocess::IO& in,
     const Subprocess::IO& out,
     const Subprocess::IO& err,
     const Option<flags::FlagsBase>& flags,
     const Option<map<string, string> >& environment,
-    const Option<lambda::function<int()> >& setup)
+    const Option<lambda::function<int()> >& setup,
+    const Option<lambda::function<
+        pid_t(const lambda::function<int()>&)> >& _clone)
 {
   // File descriptors for redirecting stdin/stdout/stderr. These file
   // descriptors are used for different purposes depending on the
@@ -116,7 +201,7 @@ Try<Subprocess> subprocess(
       break;
     }
     case Subprocess::IO::PIPE: {
-      if (pipe(stdinFd) == -1) {
+      if (::pipe(stdinFd) == -1) {
         return ErrnoError("Failed to create pipe");
       }
       break;
@@ -147,7 +232,7 @@ Try<Subprocess> subprocess(
       break;
     }
     case Subprocess::IO::PIPE: {
-      if (pipe(stdoutFd) == -1) {
+      if (::pipe(stdoutFd) == -1) {
         // Save the errno as 'close' below might overwrite it.
         ErrnoError error("Failed to create pipe");
         internal::close(stdinFd, stdoutFd, stderrFd);
@@ -186,7 +271,7 @@ Try<Subprocess> subprocess(
       break;
     }
     case Subprocess::IO::PIPE: {
-      if (pipe(stderrFd) == -1) {
+      if (::pipe(stderrFd) == -1) {
         // Save the errno as 'close' below might overwrite it.
         ErrnoError error("Failed to create pipe");
         internal::close(stdinFd, stdoutFd, stderrFd);
@@ -219,95 +304,65 @@ Try<Subprocess> subprocess(
     return Error("Failed to cloexec: " + cloexec.error());
   }
 
-  // Prepare the command to execute. If the user specifies the
-  // 'flags', we will stringify it and append it to the command.
-  string command = _command;
-
+  // Prepare the arguments. If the user specifies the 'flags', we will
+  // stringify them and append them to the existing arguments.
   if (flags.isSome()) {
     foreachpair (const string& name, const flags::Flag& flag, flags.get()) {
       Option<string> value = flag.stringify(flags.get());
       if (value.isSome()) {
-        // TODO(jieyu): Need a better way to escape quotes. For
-        // example, what if 'value.get()' contains a single quote?
-        string argument = "--" + name + "='" + value.get() + "'";
-        command = strings::join(" ", command, argument);
+        argv.push_back("--" + name + "=" + value.get());
       }
     }
   }
 
-  // We need to do this construction before doing the fork as it
+  // The real arguments that will be passed to 'execve'. We need to
+  // construct them here before doing the clone as it might not be
+  // async signal safe.
+  char** _argv = new char*[argv.size() + 1];
+  for (int i = 0; i < argv.size(); i++) {
+    _argv[i] = (char*) argv[i].c_str();
+  }
+  _argv[argv.size()] = NULL;
+
+  // We need to do this construction before doing the clone as it
   // might not be async-safe.
   // TODO(tillt): Consider optimizing this to not pass an empty map
   // into the constructor or even further to use execl instead of
   // execle once we have no user supplied environment.
   os::ExecEnv envp(environment.get(map<string, string>()));
 
-  pid_t pid;
-  if ((pid = fork()) == -1) {
+  // Determine the function to clone the child process. If the user
+  // does not specify the clone function, we will use the default.
+  lambda::function<pid_t(const lambda::function<int()>&)> clone =
+    (_clone.isSome() ? _clone.get() : defaultClone);
+
+  // Now, clone the child process.
+  pid_t pid = clone(lambda::bind(
+      &childMain,
+      path,
+      _argv,
+      in,
+      out,
+      err,
+      &envp,
+      setup,
+      stdinFd,
+      stdoutFd,
+      stderrFd));
+
+  delete[] _argv;
+
+  if (pid == -1) {
     // Save the errno as 'close' below might overwrite it.
-    ErrnoError error("Failed to fork");
+    ErrnoError error("Failed to clone");
     internal::close(stdinFd, stdoutFd, stderrFd);
     return error;
   }
 
+  // Parent.
   Subprocess process;
   process.data->pid = pid;
 
-  if (process.data->pid == 0) {
-    // Child.
-    // Close parent's end of the pipes.
-    if (in.mode == Subprocess::IO::PIPE) {
-      while (::close(stdinFd[1]) == -1 && errno == EINTR);
-    }
-    if (out.mode == Subprocess::IO::PIPE) {
-      while (::close(stdoutFd[0]) == -1 && errno == EINTR);
-    }
-    if (err.mode == Subprocess::IO::PIPE) {
-      while (::close(stderrFd[0]) == -1 && errno == EINTR);
-    }
-
-    // Redirect I/O for stdin/stdout/stderr.
-    while (::dup2(stdinFd[0], STDIN_FILENO) == -1 && errno == EINTR);
-    while (::dup2(stdoutFd[1], STDOUT_FILENO) == -1 && errno == EINTR);
-    while (::dup2(stderrFd[1], STDERR_FILENO) == -1 && errno == EINTR);
-
-    // Close the copies. We need to make sure that we do not close the
-    // file descriptor assigned to stdin/stdout/stderr in case the
-    // parent has closed stdin/stdout/stderr when calling this
-    // function (in that case, a dup'ed file descriptor may have the
-    // same file descriptor number as stdin/stdout/stderr).
-    if (stdinFd[0] != STDIN_FILENO &&
-        stdinFd[0] != STDOUT_FILENO &&
-        stdinFd[0] != STDERR_FILENO) {
-      while (::close(stdinFd[0]) == -1 && errno == EINTR);
-    }
-    if (stdoutFd[1] != STDIN_FILENO &&
-        stdoutFd[1] != STDOUT_FILENO &&
-        stdoutFd[1] != STDERR_FILENO) {
-      while (::close(stdoutFd[1]) == -1 && errno == EINTR);
-    }
-    if (stderrFd[1] != STDIN_FILENO &&
-        stderrFd[1] != STDOUT_FILENO &&
-        stderrFd[1] != STDERR_FILENO) {
-      while (::close(stderrFd[1]) == -1 && errno == EINTR);
-    }
-
-    if (setup.isSome()) {
-      int status = setup.get()();
-      if (status != 0) {
-        _exit(status);
-      }
-    }
-
-    // TODO(jieyu): Consider providing an optional way to launch the
-    // subprocess without using the shell (similar to 'shell=False'
-    // used in python subprocess.Popen).
-    execle("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL, envp());
-
-    ABORT("Failed to execle '/bin/sh -c ", command.c_str(), "'\n");
-  }
-
-  // Parent.
   // Close the file descriptors that are created by this function. For
   // pipes, we close the child ends and store the parent ends (see the
   // code below).

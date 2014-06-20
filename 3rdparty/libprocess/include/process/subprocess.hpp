@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <process/future.hpp>
 
@@ -38,17 +39,25 @@ public:
   //   3. FD: Redirect to an open file descriptor.
   class IO
   {
+  public:
+    bool isPipe() const { return mode == PIPE; }
+    bool isPath() const { return mode == PATH; }
+    bool isFd() const { return mode == FD; }
+
   private:
     friend class Subprocess;
 
     friend Try<Subprocess> subprocess(
-        const std::string& command,
-        const IO& in,
-        const IO& out,
-        const IO& err,
+        const std::string& path,
+        std::vector<std::string> argv,
+        const Subprocess::IO& in,
+        const Subprocess::IO& out,
+        const Subprocess::IO& err,
         const Option<flags::FlagsBase>& flags,
         const Option<std::map<std::string, std::string> >& environment,
-        const Option<lambda::function<int()> >& setup);
+        const Option<lambda::function<int()> >& setup,
+        const Option<lambda::function<
+            pid_t(const lambda::function<int()>&)> >& clone);
 
     enum Mode
     {
@@ -95,13 +104,16 @@ public:
 
 private:
   friend Try<Subprocess> subprocess(
-      const std::string& command,
-      const IO& in,
-      const IO& out,
-      const IO& err,
+      const std::string& path,
+      std::vector<std::string> argv,
+      const Subprocess::IO& in,
+      const Subprocess::IO& out,
+      const Subprocess::IO& err,
       const Option<flags::FlagsBase>& flags,
       const Option<std::map<std::string, std::string> >& environment,
-      const Option<lambda::function<int()> >& setup);
+      const Option<lambda::function<int()> >& setup,
+      const Option<lambda::function<
+          pid_t(const lambda::function<int()>&)> >& clone);
 
   struct Data
   {
@@ -141,29 +153,86 @@ private:
 // must not contain any async unsafe code.
 // TODO(dhamon): Add an option to not combine the two environments.
 Try<Subprocess> subprocess(
-    const std::string& command,
+    const std::string& path,
+    std::vector<std::string> argv,
     const Subprocess::IO& in,
     const Subprocess::IO& out,
     const Subprocess::IO& err,
     const Option<flags::FlagsBase>& flags = None(),
     const Option<std::map<std::string, std::string> >& environment = None(),
-    const Option<lambda::function<int()> >& setup = None());
+    const Option<lambda::function<int()> >& setup = None(),
+    const Option<lambda::function<
+        pid_t(const lambda::function<int()>&)> >& clone = None());
+
+
+inline Try<Subprocess> subprocess(
+    const std::string& path,
+    std::vector<std::string> argv,
+    const Option<flags::FlagsBase>& flags = None(),
+    const Option<std::map<std::string, std::string> >& environment = None(),
+    const Option<lambda::function<int()> >& setup = None(),
+    const Option<lambda::function<
+        pid_t(const lambda::function<int()>&)> >& clone = None())
+{
+  return subprocess(
+      path,
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      flags,
+      environment,
+      setup,
+      clone);
+}
+
+
+// Overloads for launching a shell command. Currently, we do not
+// support flags for shell command variants due to the complexity
+// involved in escaping quotes in flags.
+inline Try<Subprocess> subprocess(
+    const std::string& command,
+    const Subprocess::IO& in,
+    const Subprocess::IO& out,
+    const Subprocess::IO& err,
+    const Option<std::map<std::string, std::string> >& environment = None(),
+    const Option<lambda::function<int()> >& setup = None(),
+    const Option<lambda::function<
+        pid_t(const lambda::function<int()>&)> >& clone = None())
+{
+  std::vector<std::string> argv(3);
+  argv[0] = "sh";
+  argv[1] = "-c";
+  argv[2] = command;
+
+  return subprocess(
+      "/bin/sh",
+      argv,
+      in,
+      out,
+      err,
+      None(),
+      environment,
+      setup,
+      clone);
+}
 
 
 inline Try<Subprocess> subprocess(
     const std::string& command,
-    const Option<flags::FlagsBase>& flags = None(),
     const Option<std::map<std::string, std::string> >& environment = None(),
-    const Option<lambda::function<int()> >& setup = None())
+    const Option<lambda::function<int()> >& setup = None(),
+    const Option<lambda::function<
+        pid_t(const lambda::function<int()>&)> >& clone = None())
 {
   return subprocess(
       command,
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      flags,
       environment,
-      setup);
+      setup,
+      clone);
 }
 
 } // namespace process {

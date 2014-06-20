@@ -509,6 +509,8 @@ struct Flags : public flags::FlagsBase
     add(&b, "b", "bool");
     add(&i, "i", "int");
     add(&s, "s", "string");
+    add(&s2, "s2", "string with single quote");
+    add(&s3, "s3", "string with double quote");
     add(&d, "d", "Duration");
     add(&y, "y", "Bytes");
     add(&j, "j", "JSON::Object");
@@ -517,6 +519,8 @@ struct Flags : public flags::FlagsBase
   Option<bool> b;
   Option<int> i;
   Option<string> s;
+  Option<string> s2;
+  Option<string> s3;
   Option<Duration> d;
   Option<Bytes> y;
   Option<JSON::Object> j;
@@ -531,6 +535,8 @@ TEST_F(SubprocessTest, Flags)
   flags.b = true;
   flags.i = 42;
   flags.s = "hello";
+  flags.s2 = "we're";
+  flags.s3 = "\"geek\"";
   flags.d = Seconds(10);
   flags.y = Bytes(100);
 
@@ -555,7 +561,8 @@ TEST_F(SubprocessTest, Flags)
   string out = path::join(os::getcwd(), "stdout");
 
   Try<Subprocess> s = subprocess(
-      "echo",
+      "/bin/echo",
+      vector<string>(1, "echo"),
       Subprocess::PIPE(),
       Subprocess::PATH(out),
       Subprocess::PIPE(),
@@ -597,6 +604,8 @@ TEST_F(SubprocessTest, Flags)
   EXPECT_EQ(flags.b, flags2.b);
   EXPECT_EQ(flags.i, flags2.i);
   EXPECT_EQ(flags.s, flags2.s);
+  EXPECT_EQ(flags.s2, flags2.s2);
+  EXPECT_EQ(flags.s3, flags2.s3);
   EXPECT_EQ(flags.d, flags2.d);
   EXPECT_EQ(flags.y, flags2.y);
   EXPECT_EQ(flags.j, flags2.j);
@@ -623,7 +632,6 @@ TEST_F(SubprocessTest, Environment)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      None(),
       environment);
 
   ASSERT_SOME(s);
@@ -654,7 +662,6 @@ TEST_F(SubprocessTest, Environment)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      None(),
       environment);
 
   ASSERT_SOME(s);
@@ -692,7 +699,6 @@ TEST_F(SubprocessTest, EnvironmentWithSpaces)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      None(),
       environment);
 
   ASSERT_SOME(s);
@@ -730,7 +736,6 @@ TEST_F(SubprocessTest, EnvironmentWithSpacesAndQuotes)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      None(),
       environment);
 
   ASSERT_SOME(s);
@@ -770,7 +775,6 @@ TEST_F(SubprocessTest, EnvironmentOverride)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      None(),
       environment);
 
   ASSERT_SOME(s);
@@ -820,7 +824,6 @@ TEST_F(SubprocessTest, Setup)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       None(),
-      None(),
       lambda::bind(&setupChdir, directory.get()));
 
   ASSERT_SOME(s);
@@ -862,7 +865,6 @@ TEST_F(SubprocessTest, SetupStatus)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       None(),
-      None(),
       lambda::bind(&setupStatus, 1));
 
   ASSERT_SOME(s);
@@ -888,7 +890,6 @@ TEST_F(SubprocessTest, SetupStatus)
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      None(),
       None(),
       lambda::bind(&setupStatus, 0));
 
