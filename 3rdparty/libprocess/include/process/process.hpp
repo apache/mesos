@@ -172,8 +172,17 @@ protected:
     pthread_mutex_unlock(&m);
   }
 
-  // Queue of received events, requires lock()ed access!
-  std::deque<Event*> events;
+  template<typename T>
+  size_t eventCount()
+  {
+    size_t count = 0U;
+
+    lock();
+    count = std::count_if(events.begin(), events.end(), isEventType<T>);
+    unlock();
+
+    return count;
+  }
 
 private:
   friend class SocketManager;
@@ -190,6 +199,12 @@ private:
     TERMINATING,
     TERMINATED
   } state;
+
+  template<typename T>
+  static bool isEventType(const Event* event)
+  {
+    return event->is<T>();
+  }
 
   // Mutex protecting internals.
   // TODO(benh): Consider replacing with a spinlock, on multi-core systems.
@@ -216,6 +231,9 @@ private:
 
   // Static assets(s) to provide.
   std::map<std::string, Asset> assets;
+
+  // Queue of received events, requires lock()ed access!
+  std::deque<Event*> events;
 
   // Active references.
   int refs;
