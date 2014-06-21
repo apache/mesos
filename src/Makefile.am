@@ -122,11 +122,11 @@ SCHEDULER_PROTO =							\
 
 CXX_PROTOS =								\
   mesos.pb.cc								\
-  mesos.pb.h								\
+  ../include/mesos/mesos.pb.h						\
   containerizer/containerizer.pb.cc					\
-  containerizer/containerizer.pb.h					\
+  ../include/mesos/containerizer/containerizer.pb.h			\
   scheduler/scheduler.pb.cc						\
-  scheduler/scheduler.pb.h
+  ../include/mesos/scheduler/scheduler.pb.h
 
 JAVA_PROTOS =								\
   java/generated/org/apache/mesos/Protos.java				\
@@ -162,18 +162,18 @@ CLEANFILES += $(REGISTRY_PROTOS)
 # Targets for generating protocol buffer code.
 # For the include headers, place the header files in the include
 # directory and leave the cc files in src.
-%.pb.cc %.pb.h: $(top_srcdir)/include/mesos/%.proto
+%.pb.cc ../include/mesos/%.pb.h: $(top_srcdir)/include/mesos/%.proto
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/mesos $^
 	mv ../include/mesos/*.pb.cc .
 
-containerizer/%.pb.cc containerizer/%.pb.h: $(CONTAINERIZER_PROTO)
+containerizer/%.pb.cc ../include/mesos/containerizer/%.pb.h: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/containerizer
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/mesos $^
 	mv ../include/mesos/containerizer/*.pb.cc $(@D)
 
-scheduler/%.pb.cc scheduler/%.pb.h: $(SCHEDULER_PROTO)
+scheduler/%.pb.cc ../include/mesos/scheduler/%.pb.h: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/scheduler
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/mesos $^
