@@ -16,30 +16,23 @@
  * limitations under the License.
  */
 
-#include <sstream>
-
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/io.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
-#include <stout/fatal.hpp>
 #include <stout/os.hpp>
-#include <stout/unreachable.hpp>
-
-#include <stout/os/execenv.hpp>
 
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
-#ifdef __linux__
-#include "slave/containerizer/linux_launcher.hpp"
-#endif // __linux__
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
+#ifdef __linux__
+#include "slave/containerizer/linux_launcher.hpp"
+#endif // __linux__
 
 #include "slave/containerizer/isolators/posix.hpp"
 #ifdef __linux__
@@ -47,6 +40,9 @@
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
 #include "slave/containerizer/isolators/cgroups/perf_event.hpp"
 #endif // __linux__
+
+#include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/launch.hpp"
 
 using std::list;
 using std::map;
@@ -378,134 +374,6 @@ Future<Nothing> MesosContainerizerProcess::__recover(
 }
 
 
-// This function is executed by the forked child and must remain
-// async-signal-safe.
-int execute(
-    const CommandInfo& command,
-    const string& directory,
-    const os::ExecEnv& envp,
-    uid_t uid,
-    gid_t gid,
-    bool redirectIO,
-    int pipeRead,
-    int pipeWrite,
-    const list<Option<CommandInfo> >& commands)
-{
-  if (close(pipeWrite) != 0) {
-    ABORT("Failed to close pipe[1]");
-  }
-
-  // Do a blocking read on the pipe until the parent signals us to continue.
-  char dummy;
-  ssize_t length;
-  while ((length = read(pipeRead, &dummy, sizeof(dummy))) == -1 &&
-         errno == EINTR);
-
-  if (length != sizeof(dummy)) {
-    // This will occur if the slave terminates during executor launch.
-    // There's a reasonable probability this will occur during slave restarts
-    // across a large/busy cluster so we log and exit non-zero rather than
-    // ABORT.
-    const char* message =
-      "Failed to synchronize with slave (it has probably exited)";
-
-    while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
-           errno == EINTR);
-
-    _exit(1);
-  }
-
-  if (close(pipeRead) != 0) {
-    ABORT("Failed to close pipe[0]");
-  }
-
-  // Change gid and uid.
-  if (setgid(gid) != 0) {
-    ABORT("Failed to set gid");
-  }
-
-  if (setuid(uid) != 0) {
-    ABORT("Failed to set uid");
-  }
-
-  // Enter working directory.
-  if (chdir(directory.c_str()) != 0) {
-    ABORT("Failed to chdir into work directory");
-  }
-
-  // Redirect output to files in working dir if required. We append because
-  // others (e.g., mesos-fetcher) may have already logged to the files.
-  // TODO(bmahler): It would be best if instead of closing stderr /
-  // stdout and redirecting, we instead always output to stderr /
-  // stdout. Also tee'ing their output into the work directory files
-  // when redirection is desired.
-  if (redirectIO) {
-    int fd;
-    while ((fd = open(
-        "stdout",
-        O_CREAT | O_WRONLY | O_APPEND,
-        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)) == -1 &&
-            errno == EINTR);
-    if (fd == -1) {
-      ABORT("Failed to open stdout");
-    }
-
-    int status;
-    while ((status = dup2(fd, STDOUT_FILENO)) == -1 && errno == EINTR);
-    if (status == -1) {
-      ABORT("Failed to dup2 for stdout");
-    }
-
-    if (close(fd) == -1) {
-      ABORT("Failed to close stdout fd");
-    }
-
-    while ((fd = open(
-        "stderr",
-        O_CREAT | O_WRONLY | O_APPEND,
-        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)) == -1 &&
-            errno == EINTR);
-    if (fd == -1) {
-      ABORT("Failed to open stderr");
-    }
-
-    while ((status = dup2(fd, STDERR_FILENO)) == -1 && errno == EINTR);
-    if (status == -1) {
-      ABORT("Failed to dup2 for stderr");
-    }
-
-    if (close(fd) == -1) {
-      ABORT("Failed to close stderr fd");
-    }
-  }
-
-  // Run additional preparation commands. These are run as the same user and
-  // with the environment as the slave.
-  // NOTE: os::system() is async-signal-safe.
-  foreach (const Option<CommandInfo>& command, commands) {
-    if (command.isSome()) {
-      // Block until the command completes.
-      int status = os::system(command.get().value());
-
-      if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
-        ABORT("Command '",
-              command.get().value().c_str(),
-              "' failed to execute successfully");
-      }
-    }
-  }
-
-  // Execute the command (via '/bin/sh -c command') with its environment.
-  execle("/bin/sh", "sh", "-c", command.value().c_str(), (char*) NULL, envp());
-
-  // If we get here, the execv call failed.
-  ABORT("Failed to execute command");
-
-  // This should not be reached.
-  return -1;
-}
-
-
 // Launching an executor involves the following steps:
 // 1. Call prepare on each isolator.
 // 2. Fork the executor. The forked child is blocked from exec'ing until it has
@@ -765,46 +633,52 @@ Future<Nothing> MesosContainerizerProcess::_launch(
     env[variable.name()] = variable.value();
   }
 
-  // Construct a representation of the environment suitable for
-  // passing to execle in the child. We construct it here because it
-  // is not async-signal-safe.
-  os::ExecEnv envp(env);
-
   // Use a pipe to block the child until it's been isolated.
   int pipes[2];
+
   // We assume this should not fail under reasonable conditions so we
   // use CHECK.
   CHECK(pipe(pipes) == 0);
 
-  // Determine the uid and gid for the child now because getpwnam is
-  // not async signal safe.
-  Result<uid_t> uid = os::getuid(user);
-  if (uid.isError() || uid.isNone()) {
-    return Failure("Invalid user: " + (uid.isError() ? uid.error()
-                                                     : "nonexistent"));
+  // Prepare the flags to pass to the launch process.
+  MesosContainerizerLaunch::Flags launchFlags;
+
+  launchFlags.command = JSON::Protobuf(executorInfo.command());
+  launchFlags.directory = directory;
+  launchFlags.user = user;
+  launchFlags.pipe_read = pipes[0];
+  launchFlags.pipe_write = pipes[1];
+
+  // Prepare the additional preparation commands.
+  // TODO(jieyu): Use JSON::Array once we have generic parse support.
+  JSON::Object object;
+  JSON::Array array;
+  foreach (const Option<CommandInfo>& command, commands) {
+    if (command.isSome()) {
+      array.values.push_back(JSON::Protobuf(command.get()));
+    }
   }
+  object.values["commands"] = array;
 
-  Result<gid_t> gid = os::getgid(user);
-  if (gid.isError() || gid.isNone()) {
-    return Failure("Invalid user: " + (gid.isError() ? gid.error()
-                                                     : "nonexistent"));
-  }
+  launchFlags.commands = object;
 
+  // Fork the child using launcher.
+  vector<string> argv(2);
+  argv[0] = "mesos-containerizer";
+  argv[1] = MesosContainerizerLaunch::NAME;
 
-  // Prepare a function for the forked child to exec() the executor.
-  lambda::function<int()> childFunction = lambda::bind(
-      &execute,
-      executorInfo.command(),
-      directory,
-      envp,
-      uid.get(),
-      gid.get(),
-      !local,
-      pipes[0],
-      pipes[1],
-      commands);
-
-  Try<pid_t> forked = launcher->fork(containerId, childFunction);
+  Try<pid_t> forked = launcher->fork(
+      containerId,
+      path::join(flags.launcher_dir, "mesos-containerizer"),
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      (local ? Subprocess::FD(STDOUT_FILENO)
+             : Subprocess::PATH(path::join(directory, "stdout"))),
+      (local ? Subprocess::FD(STDERR_FILENO)
+             : Subprocess::PATH(path::join(directory, "stderr"))),
+      launchFlags,
+      env,
+      None());
 
   if (forked.isError()) {
     return Failure("Failed to fork executor: " + forked.error());
@@ -834,8 +708,8 @@ Future<Nothing> MesosContainerizerProcess::_launch(
     }
   }
 
-  // Monitor the executor's pid. We keep the future because we'll refer to it
-  // again during container destroy.
+  // Monitor the executor's pid. We keep the future because we'll
+  // refer to it again during container destroy.
   Future<Option<int> > status = process::reap(pid);
   statuses.put(containerId, status);
   status.onAny(defer(self(), &Self::reaped, containerId));

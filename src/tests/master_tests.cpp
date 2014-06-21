@@ -50,7 +50,7 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
-#include "slave/containerizer/mesos_containerizer.hpp"
+#include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"

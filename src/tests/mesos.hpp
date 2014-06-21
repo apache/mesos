@@ -50,9 +50,11 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include "slave/containerizer/containerizer.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/slave.hpp"
+
+#include "slave/containerizer/containerizer.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/cluster.hpp"
 #include "tests/utils.hpp"

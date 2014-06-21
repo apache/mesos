@@ -23,7 +23,6 @@
 #include <vector>
 
 #include <stout/hashmap.hpp>
-#include <stout/lambda.hpp>
 #include <stout/multihashmap.hpp>
 
 #include "slave/containerizer/containerizer.hpp"
@@ -233,7 +232,6 @@ private:
   // Set of containers that are in process of being destroyed.
   hashset<ContainerID> destroying;
 };
-
 
 } // namespace slave {
 } // namespace internal {

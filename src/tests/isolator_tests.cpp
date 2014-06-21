@@ -29,6 +29,7 @@
 #include <process/owned.hpp>
 #include <process/reap.hpp>
 
+#include <stout/abort.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
@@ -84,23 +85,24 @@ using testing::Return;
 using testing::SaveArg;
 
 
-int execute(const std::string& command, int pipes[2])
+static int childSetup(int pipes[2])
 {
-  // In child process
-  ::close(pipes[1]);
+  // In child process.
+  while (::close(pipes[1]) == -1 && errno == EINTR);
 
   // Wait until the parent signals us to continue.
-  int buf;
-  while (::read(pipes[0], &buf, sizeof(buf)) == -1 && errno == EINTR);
-  ::close(pipes[0]);
-
-  execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
-
-  const char* message = "Child failed to exec";
-  while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
+  char dummy;
+  ssize_t length;
+  while ((length = ::read(pipes[0], &dummy, sizeof(dummy))) == -1 &&
          errno == EINTR);
 
-  _exit(1);
+  if (length != sizeof(dummy)) {
+    ABORT("Failed to synchronize with parent");
+  }
+
+  while (::close(pipes[0]) == -1 && errno == EINTR);
+
+  return 0;
 }
 
 
@@ -147,24 +149,38 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  lambda::function<int()> inChild = lambda::bind(&execute, command, pipes);
+  vector<string> argv(3);
+  argv[0] = "sh";
+  argv[1] = "-c";
+  argv[2] = command;
 
-  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      lambda::bind(&childSetup, pipes));
+
   ASSERT_SOME(pid);
 
   // Reap the forked child.
   Future<Option<int> > status = process::reap(pid.get());
 
   // Continue in the parent.
-  ::close(pipes[0]);
+  ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
-  int buf;
-  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
-  ::close(pipes[1]);
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+
+  ASSERT_SOME(os::close(pipes[1]));
 
   // Wait for the command to start.
   while (!os::exists(file));
@@ -238,24 +254,38 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  lambda::function<int()> inChild = lambda::bind(&execute, command, pipes);
+  vector<string> argv(3);
+  argv[0] = "sh";
+  argv[1] = "-c";
+  argv[2] = command;
 
-  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      lambda::bind(&childSetup, pipes));
+
   ASSERT_SOME(pid);
 
   // Reap the forked child.
   Future<Option<int> > status = process::reap(pid.get());
 
   // Continue in the parent.
-  ::close(pipes[0]);
+  ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
-  int buf;
-  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
-  ::close(pipes[1]);
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1],  &dummy, sizeof(dummy)));
+
+  ASSERT_SOME(os::close(pipes[1]));
 
   // Wait for the command to start.
   while (!os::exists(file));
@@ -335,24 +365,38 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  lambda::function<int()> inChild = lambda::bind(&execute, command, pipes);
+  vector<string> argv(3);
+  argv[0] = "sh";
+  argv[1] = "-c";
+  argv[2] = command;
 
-  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      lambda::bind(&childSetup, pipes));
+
   ASSERT_SOME(pid);
 
   // Reap the forked child.
   Future<Option<int> > status = process::reap(pid.get());
 
   // Continue in the parent.
-  ::close(pipes[0]);
+  ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
-  int buf;
-  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
-  ::close(pipes[1]);
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1],  &dummy, sizeof(dummy)));
+
+  ASSERT_SOME(os::close(pipes[1]));
 
   // Wait for the command to complete.
   AWAIT_READY(status);
@@ -413,24 +457,38 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  lambda::function<int()> inChild = lambda::bind(&execute, "exit 0", pipes);
+  vector<string> argv(3);
+  argv[0] = "sh";
+  argv[1] = "-c";
+  argv[2] = "exit 0";
 
-  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      lambda::bind(&childSetup, pipes));
+
   ASSERT_SOME(pid);
 
   // Reap the forked child.
   Future<Option<int> > status = process::reap(pid.get());
 
   // Continue in the parent.
-  ::close(pipes[0]);
+  ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
-  int buf;
-  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
-  ::close(pipes[1]);
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1],  &dummy, sizeof(dummy)));
+
+  ASSERT_SOME(os::close(pipes[1]));
 
   // Wait for the command to complete successfully.
   AWAIT_READY(status);
@@ -466,13 +524,20 @@ TYPED_TEST_CASE(MemIsolatorTest, MemIsolatorTypes);
 // posix_memalign, mlock, memset and perror are not safe.
 int consumeMemory(const Bytes& _size, const Duration& duration, int pipes[2])
 {
-  // In child process
-  ::close(pipes[1]);
+  // In child process.
+  while (::close(pipes[1]) == -1 && errno == EINTR);
 
-  int buf;
   // Wait until the parent signals us to continue.
-  while (::read(pipes[0], &buf, sizeof(buf)) == -1 && errno == EINTR);
-  ::close(pipes[0]);
+  char dummy;
+  ssize_t length;
+  while ((length = ::read(pipes[0], &dummy, sizeof(dummy))) == -1 &&
+         errno == EINTR);
+
+  if (length != sizeof(dummy)) {
+    ABORT("Failed to synchronize with parent");
+  }
+
+  while (::close(pipes[0]) == -1 && errno == EINTR);
 
   size_t size = static_cast<size_t>(_size.bytes());
   void* buffer = NULL;
@@ -522,28 +587,33 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  lambda::function<int()> inChild = lambda::bind(
-      &consumeMemory,
-      Megabytes(256),
-      Seconds(10),
-      pipes);
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      vector<string>(),
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      lambda::bind(&consumeMemory, Megabytes(256), Seconds(10), pipes));
 
-  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
   ASSERT_SOME(pid);
 
   // Set up the reaper to wait on the forked child.
   Future<Option<int> > status = process::reap(pid.get());
 
   // Continue in the parent.
-  ::close(pipes[0]);
+  ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
-  int buf;
-  ASSERT_LT(0, ::write(pipes[1], &buf, sizeof(buf)));
-  ::close(pipes[1]);
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+
+  ASSERT_SOME(os::close(pipes[1]));
 
   // Wait up to 5 seconds for the child process to consume 256 MB of memory;
   ResourceStatistics statistics;

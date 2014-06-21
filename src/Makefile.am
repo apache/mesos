@@ -247,10 +247,11 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/slave.cpp							\
 	slave/http.cpp							\
 	slave/containerizer/containerizer.cpp				\
+	slave/containerizer/external_containerizer.cpp			\
 	slave/containerizer/isolator.cpp				\
 	slave/containerizer/launcher.cpp				\
-	slave/containerizer/mesos_containerizer.cpp			\
-	slave/containerizer/external_containerizer.cpp			\
+	slave/containerizer/mesos/containerizer.cpp			\
+	slave/containerizer/mesos/launch.cpp				\
 	slave/status_update_manager.cpp					\
 	exec/exec.cpp							\
 	common/lock.cpp							\
@@ -365,16 +366,17 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/registrar.hpp						\
 	master/master.hpp master/sorter.hpp				\
 	messages/messages.hpp slave/constants.hpp			\
-	slave/containerizer/linux_launcher.hpp				\
 	slave/containerizer/containerizer.hpp				\
+	slave/containerizer/external_containerizer.hpp			\
 	slave/containerizer/isolator.hpp				\
+	slave/containerizer/launcher.hpp				\
+	slave/containerizer/linux_launcher.hpp				\
+	slave/containerizer/mesos/containerizer.hpp			\
+	slave/containerizer/mesos/launch.hpp				\
+	slave/containerizer/isolators/posix.hpp				\
 	slave/containerizer/isolators/cgroups/cpushare.hpp		\
 	slave/containerizer/isolators/cgroups/mem.hpp			\
 	slave/containerizer/isolators/cgroups/perf_event.hpp		\
-	slave/containerizer/isolators/posix.hpp				\
-	slave/containerizer/launcher.hpp				\
-	slave/containerizer/mesos_containerizer.hpp			\
-	slave/containerizer/external_containerizer.hpp			\
 	slave/flags.hpp slave/gc.hpp slave/monitor.hpp			\
 	slave/paths.hpp slave/state.hpp					\
 	slave/status_update_manager.hpp					\
@@ -561,6 +563,11 @@ pkglibexec_PROGRAMS += mesos-executor
 mesos_executor_SOURCES = launcher/executor.cpp
 mesos_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_executor_LDADD = libmesos.la
+
+pkglibexec_PROGRAMS += mesos-containerizer
+mesos_containerizer_SOURCES = slave/containerizer/mesos/main.cpp
+mesos_containerizer_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_containerizer_LDADD = libmesos.la
 
 pkglibexec_PROGRAMS += mesos-health-check
 mesos_health_check_SOURCES = health-check/main.cpp

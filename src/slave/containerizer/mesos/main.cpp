@@ -16,26 +16,19 @@
  * limitations under the License.
  */
 
-#include <map>
-#include <utility>
+#include <stout/none.hpp>
+#include <stout/subcommand.hpp>
 
-#include <gtest/gtest.h>
+#include "slave/containerizer/mesos/launch.hpp"
 
-#include <stout/foreach.hpp>
-#include <stout/proc.hpp>
-#include <stout/stringify.hpp>
-
-#include "slave/containerizer/mesos/containerizer.hpp"
-
-#include "tests/script.hpp"
-
-using namespace mesos;
-using namespace mesos::internal;
 using namespace mesos::internal::slave;
 
-using std::map;
 
-// Run the balloon framework under a mesos containerizer.
-TEST_SCRIPT(ContainerizerTest,
-            ROOT_CGROUPS_BalloonFramework,
-            "balloon_framework_test.sh")
+int main(int argc, char** argv)
+{
+  return Subcommand::dispatch(
+      None(),
+      argc,
+      argv,
+      new MesosContainerizerLaunch());
+}

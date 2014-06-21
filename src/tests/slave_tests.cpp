@@ -43,10 +43,11 @@
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/gc.hpp"
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/flags.hpp"
