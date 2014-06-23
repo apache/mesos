@@ -27,6 +27,8 @@ public:
     pthread_mutex_destroy(&mutex);
   }
 
+  // Signals the state change of the gate to any (at least one) or
+  // all (if 'all' is true) of the threads waiting on it.
   void open(bool all = true)
   {
     pthread_mutex_lock(&mutex);
@@ -38,6 +40,8 @@ public:
     pthread_mutex_unlock(&mutex);
   }
 
+  // Blocks the current thread until the gate's state changes from
+  // the current state.
   void wait()
   {
     pthread_mutex_lock(&mutex);
@@ -52,6 +56,9 @@ public:
     pthread_mutex_unlock(&mutex);
   }
 
+  // Gets the current state of the gate and notifies the gate about
+  // the intention to wait for its state change.
+  // Call 'leave()' if no longer interested in the state change.
   state_t approach()
   {
     state_t old;
@@ -64,6 +71,9 @@ public:
     return old;
   }
 
+  // Blocks the current thread until the gate's state changes from
+  // the specified 'old' state. The 'old' state can be obtained by
+  // calling 'approach()'.
   void arrive(state_t old)
   {
     pthread_mutex_lock(&mutex);
@@ -76,6 +86,8 @@ public:
     pthread_mutex_unlock(&mutex);
   }
 
+  // Notifies the gate that a waiter (the current thread) is no
+  // longer waiting for the gate's state change.
   void leave()
   {
     pthread_mutex_lock(&mutex);
@@ -85,6 +97,8 @@ public:
     pthread_mutex_unlock(&mutex);
   }
 
+  // Returns true if there is no one waiting on the gate's state
+  // change.
   bool empty()
   {
     bool occupied = true;
