@@ -265,6 +265,8 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/containerizer.cpp				\
 	slave/containerizer/composing.cpp				\
 	slave/containerizer/composing.hpp				\
+	slave/containerizer/docker.cpp					\
+	slave/containerizer/docker.hpp					\
 	slave/containerizer/external_containerizer.cpp			\
 	slave/containerizer/isolator.cpp				\
 	slave/containerizer/launcher.cpp				\
