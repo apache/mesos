@@ -1129,6 +1129,30 @@ inline Try<std::string> sysname()
 // The OS release level.
 struct Release
 {
+  bool operator == (const Release& other)
+  {
+    return version == other.version &&
+      major == other.major &&
+      minor == other.minor;
+  }
+
+  bool operator < (const Release& other)
+  {
+    // Lexicographic ordering.
+    if (version != other.version) {
+      return version < other.version;
+    } else if (major != other.major) {
+      return major < other.major;
+    } else {
+      return minor < other.minor;
+    }
+  }
+
+  bool operator <= (const Release& other)
+  {
+    return *this < other || *this == other;
+  }
+
   int version;
   int major;
   int minor;
