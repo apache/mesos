@@ -34,6 +34,7 @@
 #ifdef __linux__
 #include "slave/containerizer/linux_launcher.hpp"
 #endif // __linux__
+#include "slave/containerizer/composing.hpp"
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
@@ -153,12 +154,42 @@ Try<Resources> Containerizer::resources(const Flags& flags)
 
 Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
 {
-  if (flags.isolation == "external") {
-    return new ExternalContainerizer(flags);
+  // TODO(benh): We need to store which containerizer or
+  // containerizers were being used. See MESOS-1663.
+
+  // Create containerizer(s).
+  vector<Containerizer*> containerizers;
+
+  foreach (const string& type, strings::split(flags.containerizers, ",")) {
+    if (type == "mesos") {
+      Try<MesosContainerizer*> containerizer =
+        MesosContainerizer::create(flags, local);
+      if (containerizer.isError()) {
+        return Error("Could not create MesosContainerizer: " +
+                     containerizer.error());
+      } else {
+        containerizers.push_back(containerizer.get());
+      }
+    } else if (type == "external") {
+      Try<Containerizer*> containerizer =
+        ExternalContainerizer::create(flags, local);
+      if (containerizer.isError()) {
+        return Error("Could not create ExternalContainerizer: " +
+                     containerizer.error());
+      } else {
+        containerizers.push_back(containerizer.get());
+      }
+    } else {
+      return Error("Unknown or unsupported containerizer: " + type);
+    }
   }
 
-  Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, local);
+  if (containerizers.size() == 1) {
+    return containerizers.front();
+  }
+
+  Try<ComposingContainerizer*> containerizer =
+    ComposingContainerizer::create(containerizers);
 
   if (containerizer.isError()) {
     return Error(containerizer.error());
