@@ -4,9 +4,12 @@
 #include <stout/lambda.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/result.hpp>
+
+#include <stout/os/read.hpp>
+
 #include <process/check.hpp>
 #include <process/collect.hpp>
-#include <process/io.hpp>
 
 #include "docker/docker.hpp"
 
@@ -17,6 +20,16 @@ using std::map;
 using std::string;
 using std::vector;
 
+
+string Docker::Container::id() const
+{
+  map<string, JSON::Value>::const_iterator entry =
+    json.values.find("Id");
+  CHECK(entry != json.values.end());
+  JSON::Value value = entry->second;
+  CHECK(value.is<JSON::String>());
+  return value.as<JSON::String>().value;
+}
 
 string Docker::Container::name() const
 {
@@ -29,10 +42,16 @@ string Docker::Container::name() const
 }
 
 
-Future<Option<int> > Docker::run(const string& image) const
+Future<Option<int> > Docker::run(
+    const string& image,
+    const string& command,
+    const string& name) const
 {
+  VLOG(1) << "Running " << path << " run --name=" << name << " "
+          << image << " " << command;
+
   Try<Subprocess> s = subprocess(
-      path + " run " + image,
+      path + " run --name=" + name + " " + image + " " + command,
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE());
@@ -47,6 +66,8 @@ Future<Option<int> > Docker::run(const string& image) const
 
 Future<Option<int> > Docker::kill(const string& container) const
 {
+  VLOG(1) << "Running " << path << " kill " << container;
+
   Try<Subprocess> s = subprocess(
       path + " kill " + container,
       Subprocess::PIPE(),
@@ -63,6 +84,8 @@ Future<Option<int> > Docker::kill(const string& container) const
 
 Future<Docker::Container> Docker::inspect(const string& container) const
 {
+  VLOG(1) << "Running " << path << " inspect " << container;
+
   Try<Subprocess> s = subprocess(
       path + " inspect " + container,
       Subprocess::PIPE(),
@@ -70,7 +93,6 @@ Future<Docker::Container> Docker::inspect(const string& container) const
       Subprocess::PIPE());
 
   if (s.isError()) {
-    // TODO(benh): Include stdout and stderr in error message.
     return Failure(s.error());
   }
 
@@ -79,24 +101,73 @@ Future<Docker::Container> Docker::inspect(const string& container) const
 }
 
 
+namespace os {
+
+inline Result<std::string> read(
+    int fd,
+    Option<size_t> size = None(),
+    size_t chunk = 16 * 4096)
+{
+  std::string result;
+
+  while (size.isNone() || result.size() < size.get()) {
+    char buffer[chunk];
+    ssize_t length = ::read(fd, buffer, chunk);
+
+    if (length < 0) {
+      // TODO(bmahler): Handle a non-blocking fd? (EAGAIN, EWOULDBLOCK)
+      if (errno == EINTR) {
+        continue;
+      }
+      return ErrnoError();
+    } else if (length == 0) {
+      // Reached EOF before expected! Only return as much data as
+      // available or None if we haven't read anything yet.
+      if (result.size() > 0) {
+        return result;
+      }
+      return None();
+    }
+
+    result.append(buffer, length);
+  }
+
+  return result;
+}
+
+} // namespace os {
+
+
 Future<Docker::Container> Docker::_inspect(const Subprocess& s)
 {
-  // Check the exit status of 'docker ps'.
+  // Check the exit status of 'docker inspect'.
   CHECK_READY(s.status());
 
   Option<int> status = s.status().get();
 
   if (status.isSome() && status.get() != 0) {
-    // TODO(benh): Include stdout and stderr in error message.
-    return Failure("Failed to do 'docker ps'");
+    // TODO(benh): Include stderr in error message.
+    Result<string> read = os::read(s.err().get());
+    return Failure("Failed to do 'docker inspect': " +
+                   (read.isSome()
+                    ? read.get()
+                    : " exited with status " + stringify(status.get())));
   }
 
   // Read to EOF.
   // TODO(benh): Read output asynchronously.
   CHECK_SOME(s.out());
-  string output = io::read(s.out().get()).get();
+  Result<string> output = os::read(s.out().get());
 
-  Try<JSON::Array> parse = JSON::parse<JSON::Array>(output);
+  if (output.isError()) {
+    // TODO(benh): Include stderr in error message.
+    return Failure("Failed to read output: " + output.error());
+  } else if (output.isNone()) {
+    // TODO(benh): Include stderr in error message.
+    return Failure("No output available");
+  }
+
+  Try<JSON::Array> parse = JSON::parse<JSON::Array>(output.get());
 
   if (parse.isError()) {
     return Failure("Failed to parse JSON: " + parse.error());
@@ -119,6 +190,8 @@ Future<Docker::Container> Docker::_inspect(const Subprocess& s)
 
 Future<list<Docker::Container> > Docker::ps() const
 {
+  VLOG(1) << "Running " << path << " ps";
+
   Try<Subprocess> s = subprocess(
       path + " ps",
       Subprocess::PIPE(),
@@ -144,16 +217,24 @@ Future<list<Docker::Container> > Docker::_ps(
   Option<int> status = s.status().get();
 
   if (status.isSome() && status.get() != 0) {
-    // TODO(benh): Include stdout and stderr in error message.
+    // TODO(benh): Include stderr in error message.
     return Failure("Failed to do 'docker ps'");
   }
 
   // Read to EOF.
   // TODO(benh): Read output asynchronously.
   CHECK_SOME(s.out());
-  string output = io::read(s.out().get()).get();
+  Result<string> output = os::read(s.out().get());
 
-  vector<string> lines = strings::split(output, "\n");
+  if (output.isError()) {
+    // TODO(benh): Include stderr in error message.
+    return Failure("Failed to read output: " + output.error());
+  } else if (output.isNone()) {
+    // TODO(benh): Include stderr in error message.
+    return Failure("No output available");
+  }
+
+  vector<string> lines = strings::tokenize(output.get(), "\n");
 
   // Skip the header.
   CHECK_NE(0, lines.size());
@@ -163,7 +244,7 @@ Future<list<Docker::Container> > Docker::_ps(
 
   foreach (const string& line, lines) {
     // Inspect the container.
-    futures.push_back(docker.inspect(strings::split(line, "\n")[0]));
+    futures.push_back(docker.inspect(strings::split(line, " ")[0]));
   }
 
   return collect(futures);

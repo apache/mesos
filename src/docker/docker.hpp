@@ -37,6 +37,9 @@ public:
   public:
     Container(const JSON::Object& json) : json(json) {}
 
+    // Returns the ID of the container.
+    std::string id() const;
+
     // Returns the name of the container.
     std::string name() const;
 
@@ -48,20 +51,26 @@ public:
   Docker(const std::string& path) : path(path) {}
 
   // Performs 'docker run IMAGE'.
-  process::Future<Option<int> > run(const std::string& image) const;
+  process::Future<Option<int> > run(
+      const std::string& image,
+      const std::string& command,
+      const std::string& name) const;
 
   // Performs 'docker kill CONTAINER'.
-  process::Future<Option<int> > kill(const std::string& container) const;
+  process::Future<Option<int> > kill(
+      const std::string& container) const;
 
   // Performs 'docker inspect CONTAINER'.
-  process::Future<Container> inspect(const std::string& container) const;
+  process::Future<Container> inspect(
+      const std::string& container) const;
 
   // Performs 'docker ps'.
   process::Future<std::list<Container> > ps() const;
 
 private:
   // Continuations.
-  static process::Future<Container> _inspect(const process::Subprocess& s);
+  static process::Future<Container> _inspect(
+      const process::Subprocess& s);
   static process::Future<std::list<Container> > _ps(
       const Docker& docker,
       const process::Subprocess& s);
