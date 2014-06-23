@@ -145,6 +145,9 @@ public:
 
 private:
   process::Future<Nothing> _recover(
+      const std::list<state::RunState>& recoverable);
+
+  process::Future<Nothing> __recover(
       const std::list<state::RunState>& recovered);
 
   process::Future<std::list<Option<CommandInfo> > > prepare(

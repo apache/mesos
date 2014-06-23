@@ -39,7 +39,8 @@ public:
   virtual ~Launcher() {}
 
   // Recover the necessary state for each container listed in state.
-  virtual Try<Nothing> recover(const std::list<state::RunState>& states) = 0;
+  virtual process::Future<Nothing> recover(
+      const std::list<state::RunState>& states) = 0;
 
   // Fork a new process in the containerized context. The child will call the
   // specified function and the parent will return the child's pid.
@@ -65,7 +66,8 @@ public:
 
   virtual ~PosixLauncher() {}
 
-  virtual Try<Nothing> recover(const std::list<state::RunState>& states);
+  virtual process::Future<Nothing> recover(
+      const std::list<state::RunState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,

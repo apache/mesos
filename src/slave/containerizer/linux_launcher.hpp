@@ -34,7 +34,8 @@ public:
 
   virtual ~LinuxLauncher() {}
 
-  virtual Try<Nothing> recover(const std::list<state::RunState>& states);
+  virtual process::Future<Nothing> recover(
+      const std::list<state::RunState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,

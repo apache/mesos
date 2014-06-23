@@ -47,18 +47,18 @@ Try<Launcher*> PosixLauncher::create(const Flags& flags)
 }
 
 
-Try<Nothing> PosixLauncher::recover(const list<RunState>& states)
+Future<Nothing> PosixLauncher::recover(const list<RunState>& states)
 {
   foreach (const RunState& state, states) {
     if (state.id.isNone()) {
-      return Error("ContainerID is required to recover");
+      return Failure("ContainerID is required to recover");
     }
 
     const ContainerID& containerId = state.id.get();
 
     if (state.forkedPid.isNone()) {
-      return Error("Executor pid is required to recover container " +
-                   stringify(containerId));
+      return Failure("Executor pid is required to recover container " +
+                     stringify(containerId));
     }
     pid_t pid = state.forkedPid.get();
 
@@ -69,8 +69,8 @@ Try<Nothing> PosixLauncher::recover(const list<RunState>& states)
       // before it hears about the termination of the earlier executor (also
       // unlikely). Regardless, the launcher can't do anything sensible so this
       // is considered an error.
-      return Error("Detected duplicate pid " + stringify(pid) +
-                   " for container " + stringify(containerId));
+      return Failure("Detected duplicate pid " + stringify(pid) +
+                     " for container " + stringify(containerId));
     }
 
     pids.put(containerId, pid);

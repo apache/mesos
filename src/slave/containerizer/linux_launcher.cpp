@@ -23,6 +23,8 @@
 
 #include <vector>
 
+#include <process/collect.hpp>
+
 #include <stout/abort.hpp>
 #include <stout/hashset.hpp>
 #include <stout/path.hpp>
@@ -73,13 +75,19 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
 }
 
 
-Try<Nothing> LinuxLauncher::recover(const std::list<state::RunState>& states)
+Future<Nothing> _recover(const Future<list<Nothing> >& futures)
+{
+  return Nothing();
+}
+
+
+Future<Nothing> LinuxLauncher::recover(const std::list<state::RunState>& states)
 {
   hashset<string> cgroups;
 
   foreach (const RunState& state, states) {
     if (state.id.isNone()) {
-      return Error("ContainerID is required to recover");
+      return Failure("ContainerID is required to recover");
     }
     const ContainerID& containerId = state.id.get();
 
@@ -95,8 +103,8 @@ Try<Nothing> LinuxLauncher::recover(const std::list<state::RunState>& states)
     }
 
     if (state.forkedPid.isNone()) {
-      return Error("Executor pid is required to recover container " +
-                   stringify(containerId));
+      return Failure("Executor pid is required to recover container " +
+                     stringify(containerId));
     }
     pid_t pid = state.forkedPid.get();
 
@@ -107,8 +115,8 @@ Try<Nothing> LinuxLauncher::recover(const std::list<state::RunState>& states)
       // before it hears about the termination of the earlier executor (also
       // unlikely). Regardless, the launcher can't do anything sensible so this
       // is considered an error.
-      return Error("Detected duplicate pid " + stringify(pid) +
-                   " for container " + stringify(containerId));
+      return Failure("Detected duplicate pid " + stringify(pid) +
+                     " for container " + stringify(containerId));
     }
 
     pids.put(containerId, pid);
@@ -118,20 +126,25 @@ Try<Nothing> LinuxLauncher::recover(const std::list<state::RunState>& states)
 
   Try<vector<string> > orphans = cgroups::get(hierarchy, flags.cgroups_root);
   if (orphans.isError()) {
-    return Error(orphans.error());
+    return Failure(orphans.error());
   }
+
+  list<Future<Nothing> > futures;
 
   foreach (const string& orphan, orphans.get()) {
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup"
                 << " '" << path::join("freezer", orphan) << "'";
-      // Do not wait on the destroy to complete so we don't block
-      // recovery.
-      cgroups::destroy(hierarchy, orphan, cgroups::DESTROY_TIMEOUT);
+      // We must wait for all cgroups to be destroyed; isolators
+      // assume all processes have been terminated for any orphaned
+      // containers before Isolator::recover() is called.
+      futures.push_back(
+          cgroups::destroy(hierarchy, orphan, cgroups::DESTROY_TIMEOUT));
     }
   }
 
-  return Nothing();
+  return collect(futures)
+    .then(lambda::bind(&_recover, lambda::_1));
 }
 
 
