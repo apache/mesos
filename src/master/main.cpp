@@ -186,6 +186,12 @@ int main(int argc, char** argv)
       EXIT(1) << "--work_dir needed for replicated log based registry";
     }
 
+    Try<Nothing> mkdir = os::mkdir(flags.work_dir.get());
+    if (mkdir.isError()) {
+      EXIT(1) << "Failed to create work directory '" << flags.work_dir.get()
+              << "': " << mkdir.error();
+    }
+
     if (zk.isSome()) {
       // Use replicated log with ZooKeeper.
       if (flags.quorum.isNone()) {
