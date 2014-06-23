@@ -36,6 +36,7 @@
 #endif // __linux__
 #include "slave/containerizer/composing.hpp"
 #include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/docker.hpp"
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
 #include "slave/containerizer/external_containerizer.hpp"
@@ -166,6 +167,16 @@ Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
         MesosContainerizer::create(flags, local);
       if (containerizer.isError()) {
         return Error("Could not create MesosContainerizer: " +
+                     containerizer.error());
+      } else {
+        containerizers.push_back(containerizer.get());
+      }
+    }  else if (type == "docker") {
+      Docker docker("docker");
+      Try<DockerContainerizer*> containerizer =
+        DockerContainerizer::create(flags, local, docker);
+      if (containerizer.isError()) {
+        return Error("Could not create DockerContainerizer: " +
                      containerizer.error());
       } else {
         containerizers.push_back(containerizer.get());

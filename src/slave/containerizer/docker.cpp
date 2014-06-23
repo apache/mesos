@@ -403,6 +403,9 @@ Future<Nothing> DockerContainerizerProcess::_recover(
     const list<Docker::Container>& containers)
 {
   foreach (const Docker::Container& container, containers) {
+    VLOG(1) << "Checking if Docker container named '"
+            << container.name() << "' was started by Mesos";
+
     Option<ContainerID> id = parse(container);
 
     // Ignore containers that Mesos didn't start.
@@ -410,12 +413,15 @@ Future<Nothing> DockerContainerizerProcess::_recover(
       continue;
     }
 
+    VLOG(1) << "Checking if Mesos container with ID '"
+            << stringify(id.get()) << "' has been orphaned";
+
     // Check if we're watching an executor for this container ID and
     // if not, kill the Docker container.
     if (!statuses.keys().contains(id.get())) {
       // TODO(benh): Retry 'docker kill' if it failed but the container
       // still exists (asynchronously).
-      docker.kill(container.name());
+      docker.kill(container.id());
     }
   }
 
@@ -478,10 +484,18 @@ Future<bool> DockerContainerizerProcess::launch(
             << "' (and executor '" << executorInfo.executor_id()
             << "') of framework '" << executorInfo.framework_id() << "'";
 
+  // Extract the Docker image.
+  string image = command.container().image();
+  image = strings::remove(image, "docker://", strings::PREFIX);
+
+  // Construct the Docker container name.
+  string name = DOCKER_NAME_PREFIX + stringify(containerId);
+
   // Start a docker container then launch the executor (but destroy
   // the Docker container if launching the executor failed).
-  return docker.run(command.container().image())
-    .then(defer(self(), &Self::_launch,
+  return docker.run(image, command.value(), name)
+    .then(defer(self(),
+                &Self::_launch,
                 containerId,
                 taskInfo,
                 executorInfo,
@@ -674,17 +688,23 @@ void DockerContainerizerProcess::reaped(const ContainerID& containerId)
 Option<ContainerID> DockerContainerizerProcess::parse(
     const Docker::Container& container)
 {
-  if (!strings::startsWith(container.name(), DOCKER_NAME_PREFIX)) {
-    return None();
+  Option<string> name = None();
+
+  if (strings::startsWith(container.name(), DOCKER_NAME_PREFIX)) {
+    name = strings::remove(
+        container.name(), DOCKER_NAME_PREFIX, strings::PREFIX);
+  } else if (strings::startsWith(container.name(), "/" + DOCKER_NAME_PREFIX)) {
+    name = strings::remove(
+        container.name(), "/" + DOCKER_NAME_PREFIX, strings::PREFIX);
   }
 
-  string name = strings::remove(
-      container.name(), DOCKER_NAME_PREFIX, strings::PREFIX);
+  if (name.isSome()) {
+    ContainerID id;
+    id.set_value(name.get());
+    return id;
+  }
 
-  ContainerID id;
-  id.set_value(name);
-
-  return id;
+  return None();
 }
 
 
