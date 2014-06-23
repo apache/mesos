@@ -130,10 +130,7 @@ public interface SchedulerDriver {
   Status launchTasks(Collection<OfferID> offerIds, Collection<TaskInfo> tasks);
 
   /**
-   * @deprecated Use launchTasks(
-   *                     Collection<OfferID> offerId,
-   *                     Collection<TaskInfo> tasks,
-   *                     Filters filters) instead.
+   * @deprecated Use {@link #launchTasks(Collection, Collection, Filters)}.
    *
    * @param offerId The offer ID.
    * @param tasks The collection of tasks to be launched.
@@ -145,9 +142,7 @@ public interface SchedulerDriver {
                      Filters filters);
 
   /**
-   * @deprecated Use launchTasks(
-   *                     Collection<OfferID> offerId,
-   *                     Collection<TaskInfo> tasks) instead.
+   * @deprecated Use {@link #launchTasks(Collection, Collection)}.
    *
    * @param offerId The offer ID.
    * @param tasks The collection of tasks to be launched.

@@ -36,13 +36,14 @@ import java.util.concurrent.Future;
  * other writes have been performed on the variable since your fetch.
  *
  * Example:
- *
+ * {@code
  *   State state = new ZooKeeperState();
  *   Future<Variable> variable = state.fetch("machines");
  *   Variable machines = variable.get();
  *   machines = machines.mutate(...);
  *   variable = state.store(machines);
  *   machines = variable.get();
+ * }
  */
 public interface State {
   /**
