@@ -153,7 +153,7 @@ Future<Nothing> ExternalContainerizer::recover(
 }
 
 
-Future<Nothing> ExternalContainerizer::launch(
+Future<bool> ExternalContainerizer::launch(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -175,7 +175,7 @@ Future<Nothing> ExternalContainerizer::launch(
 }
 
 
-Future<Nothing> ExternalContainerizer::launch(
+Future<bool> ExternalContainerizer::launch(
     const ContainerID& containerId,
     const TaskInfo& taskInfo,
     const ExecutorInfo& executorInfo,
@@ -418,7 +418,7 @@ Future<Nothing> ExternalContainerizerProcess::___recover()
 }
 
 
-Future<Nothing> ExternalContainerizerProcess::launch(
+Future<bool> ExternalContainerizerProcess::launch(
     const ContainerID& containerId,
     const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executor,
@@ -527,7 +527,7 @@ Future<Nothing> ExternalContainerizerProcess::launch(
 }
 
 
-Future<Nothing> ExternalContainerizerProcess::_launch(
+Future<bool> ExternalContainerizerProcess::_launch(
     const ContainerID& containerId,
     const Future<Option<int> >& future)
 {
@@ -546,13 +546,13 @@ Future<Nothing> ExternalContainerizerProcess::_launch(
   // have gotten chained up.
   actives[containerId]->launched.set(Nothing());
 
-  return Nothing();
+  return true;
 }
 
 
 void ExternalContainerizerProcess::__launch(
     const ContainerID& containerId,
-    const Future<Nothing>& future)
+    const Future<bool>& future)
 {
   VLOG(1) << "Launch confirmation callback triggered on container '"
           << containerId << "'";

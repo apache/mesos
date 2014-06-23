@@ -73,7 +73,7 @@ TestContainerizer::~TestContainerizer()
 }
 
 
-Future<Nothing> TestContainerizer::_launch(
+Future<bool> TestContainerizer::_launch(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -137,11 +137,11 @@ Future<Nothing> TestContainerizer::_launch(
       new Promise<containerizer::Termination>());
   promises[containerId] = promise;
 
-  return Nothing();
+  return true;
 }
 
 
-Future<Nothing> TestContainerizer::launch(
+Future<bool> TestContainerizer::launch(
     const ContainerID& containerId,
     const TaskInfo& taskInfo,
     const ExecutorInfo& executorInfo,

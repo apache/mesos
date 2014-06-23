@@ -66,7 +66,7 @@ public:
 
   MOCK_METHOD7(
       launch,
-      process::Future<Nothing>(
+      process::Future<bool>(
           const ContainerID&,
           const ExecutorInfo&,
           const std::string&,
@@ -75,7 +75,7 @@ public:
           const process::PID<slave::Slave>&,
           bool checkpoint));
 
-  virtual process::Future<Nothing> launch(
+  virtual process::Future<bool> launch(
       const ContainerID& containerId,
       const TaskInfo& taskInfo,
       const ExecutorInfo& executorInfo,
@@ -113,7 +113,7 @@ private:
   void setup();
 
   // Default 'launch' implementation.
-  process::Future<Nothing> _launch(
+  process::Future<bool> _launch(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,

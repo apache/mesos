@@ -303,7 +303,7 @@ TEST_F(SlaveTest, MesosExecutorWithOverride)
   Future<Nothing> launch;
   EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&launch),
-                    Return(Future<Nothing>())));
+                    Return(Future<bool>())));
 
   // Expect wait after launch is called. wait() will fail if not
   // intercepted here as the container will never be registered within

@@ -3209,7 +3209,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   Future<Nothing> launch;
   EXPECT_CALL(*containerizer1, launch(_, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&launch),
-                    Return(Future<Nothing>())));
+                    Return(Future<bool>())));
 
   // Ensure that wait doesn't complete so that containerizer doesn't
   // return a failure on 'wait' due to the pending launch.

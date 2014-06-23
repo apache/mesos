@@ -81,7 +81,7 @@ public:
   virtual process::Future<Nothing> recover(
       const Option<state::SlaveState>& state);
 
-  virtual process::Future<Nothing> launch(
+  virtual process::Future<bool> launch(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
@@ -90,7 +90,7 @@ public:
       const process::PID<Slave>& slavePid,
       bool checkpoint);
 
-  virtual process::Future<Nothing> launch(
+  virtual process::Future<bool> launch(
       const ContainerID& containerId,
       const TaskInfo& task,
       const ExecutorInfo& executorInfo,
@@ -130,7 +130,7 @@ public:
   process::Future<Nothing> recover(const Option<state::SlaveState>& state);
 
   // Start the containerized executor.
-  process::Future<Nothing> launch(
+  process::Future<bool> launch(
       const ContainerID& containerId,
       const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
@@ -219,13 +219,13 @@ private:
 
   process::Future<Nothing> ___recover();
 
-  process::Future<Nothing> _launch(
+  process::Future<bool> _launch(
       const ContainerID& containerId,
       const process::Future<Option<int> >& future);
 
   void __launch(
       const ContainerID& containerId,
-      const process::Future<Nothing>& future);
+      const process::Future<bool>& future);
 
   process::Future<containerizer::Termination> _wait(
       const ContainerID& containerId);

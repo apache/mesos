@@ -77,7 +77,7 @@ class MockExternalContainerizer : public slave::ExternalContainerizer
 public:
   MOCK_METHOD8(
       launch,
-      process::Future<Nothing>(
+      process::Future<bool>(
           const ContainerID&,
           const TaskInfo&,
           const ExecutorInfo&,
@@ -98,7 +98,7 @@ public:
       .WillRepeatedly(Invoke(this, &MockExternalContainerizer::_launch));
   }
 
-  process::Future<Nothing> _launch(
+  process::Future<bool> _launch(
       const ContainerID& containerId,
       const TaskInfo& taskInfo,
       const ExecutorInfo& executorInfo,

@@ -312,7 +312,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   ContainerID containerId;
   containerId.set_value("test_container");
 
-  process::Future<Nothing> launch = containerizer.get()->launch(
+  process::Future<bool> launch = containerizer.get()->launch(
       containerId,
       CREATE_EXECUTOR_INFO("executor", "exit 0"),
       directory,
@@ -356,7 +356,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   ContainerID containerId;
   containerId.set_value("test_container");
 
-  Future<Nothing> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer.get()->launch(
       containerId,
       CREATE_EXECUTOR_INFO("executor", "exit 0"),
       directory,
@@ -409,7 +409,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   ContainerID containerId;
   containerId.set_value("test_container");
 
-  Future<Nothing> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer.get()->launch(
       containerId,
       CREATE_EXECUTOR_INFO("executor", "exit 0"),
       directory,
@@ -462,7 +462,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   string command =
     "(echo '" + errMsg + "' 1>&2) && echo '" + outMsg + "'";
 
-  process::Future<Nothing> launch = containerizer.get()->launch(
+  process::Future<bool> launch = containerizer.get()->launch(
       containerId,
       CREATE_EXECUTOR_INFO("executor", command),
       directory,

@@ -199,7 +199,7 @@ public:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const ContainerID& containerId,
-      const process::Future<Nothing>& future);
+      const process::Future<bool>& future);
 
   void executorTerminated(
       const FrameworkID& frameworkId,
