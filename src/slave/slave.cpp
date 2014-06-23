@@ -2305,6 +2305,7 @@ void Slave::executorMessage(
 
 void Slave::ping(const UPID& from, const string& body)
 {
+  VLOG(1) << "Received ping from " << from;
   send(from, "PONG");
 }
 
