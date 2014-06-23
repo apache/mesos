@@ -57,6 +57,7 @@
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
 #include "common/protobuf_utils.hpp"
+#include "common/status_utils.hpp"
 
 #include "credentials/credentials.hpp"
 
@@ -90,6 +91,8 @@ using process::UPID;
 using process::metrics::Counter;
 
 using memory::shared_ptr;
+
+using namespace mesos::internal::status;
 
 namespace mesos {
 namespace internal {
@@ -3179,11 +3182,8 @@ void Master::exitedExecutor(
 
     LOG(INFO) << "Executor " << executorId
               << " of framework " << frameworkId
-              << " on slave " << *slave
-              << (WIFEXITED(status) ? " has exited with status "
-                                     : " has terminated with signal ")
-              << (WIFEXITED(status) ? stringify(WEXITSTATUS(status))
-                                     : strsignal(WTERMSIG(status)));
+              << " on slave " << *slave << " "
+              << WSTRINGIFY(status);
 
     allocator->resourcesRecovered(
         frameworkId, slaveId, Resources(executor.resources()));

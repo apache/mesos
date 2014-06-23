@@ -31,6 +31,8 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include "common/status_utils.hpp"
+
 #include "mesos/mesos.hpp"
 
 #include "tests/environment.hpp"
@@ -39,6 +41,8 @@
 #include "tests/script.hpp"
 
 using std::string;
+
+using namespace mesos::internal::status;
 
 namespace mesos {
 namespace internal {
@@ -77,13 +81,8 @@ void execute(const string& script)
     while (wait(&status) != pid || WIFSTOPPED(status));
     CHECK(WIFEXITED(status) || WIFSIGNALED(status));
 
-    if (WIFEXITED(status)) {
-      if (WEXITSTATUS(status) != 0) {
-        FAIL() << script << " exited with status " << WEXITSTATUS(status);
-      }
-    } else {
-      FAIL() << script << " terminated with signal '"
-             << strsignal(WTERMSIG(status)) << "'";
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+      FAIL() << script << " " << WSTRINGIFY(status);
     }
   } else {
     // In child process. DO NOT USE GLOG!

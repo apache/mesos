@@ -131,8 +131,8 @@ message FrameworkInfo {
 /**
  * Describes a health check for a task or executor (or any arbitrary
  * process/command). A "strategy" is picked by specifying one of the
- * optional fields, currently only 'http' is supported. Specifying
- * more than one strategy is an error.
+ * optional fields, currently only 'http' and 'command' are
+ * supported. Specifying more than one strategy is an error.
  */
 message HealthCheck {
   // Describes an HTTP health check.
@@ -179,7 +179,7 @@ message HealthCheck {
   optional double timeout_seconds = 4 [default = 20.0];
 
   // Number of consecutive failures until considered unhealthy.
-  optional uint32 failures = 5 [default = 3];
+  optional uint32 consecutive_failures = 5 [default = 3];
 
   // Amount of time to allow failed health checks since launch.
   optional double grace_period_seconds = 6 [default = 10.0];

@@ -64,6 +64,7 @@
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
+#include "common/status_utils.hpp"
 
 #include "credentials/credentials.hpp"
 
@@ -97,6 +98,8 @@ namespace internal {
 namespace slave {
 
 using namespace state;
+
+using namespace mesos::internal::status;
 
 Slave::Slave(const slave::Flags& _flags,
              MasterDetector* _detector,
@@ -2505,13 +2508,8 @@ void Slave::executorTerminated(
   } else {
     status = termination.get().status();
     LOG(INFO) << "Executor '" << executorId
-              << "' of framework " << frameworkId
-              << (WIFEXITED(status)
-                  ? " has exited with status "
-                  : " has terminated with signal ")
-              << (WIFEXITED(status)
-                  ? stringify(WEXITSTATUS(status))
-                  : strsignal(WTERMSIG(status)));
+              << "' of framework " << frameworkId << " "
+              << WSTRINGIFY(status);
   }
 
   Framework* framework = getFramework(frameworkId);

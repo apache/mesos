@@ -43,6 +43,7 @@
 #include <stout/uuid.hpp>
 
 #include "common/type_utils.hpp"
+#include "common/status_utils.hpp"
 
 #include "slave/paths.hpp"
 
@@ -61,6 +62,9 @@ using std::vector;
 using tuples::tuple;
 
 using namespace process;
+
+using namespace mesos::internal::status;
+
 
 namespace mesos {
 namespace internal {
@@ -87,14 +91,8 @@ static Option<Error> validate(
 
   // The status is a waitpid-result which has to be checked for SIGNAL
   // based termination before masking out the exit-code.
-  if (!WIFEXITED(status.get())) {
-    return Error(string("External containerizer terminated by signal ") +
-                 strsignal(WTERMSIG(status.get())));
-  }
-
-  if (WEXITSTATUS(status.get()) != 0) {
-    return Error("External containerizer failed (status: " +
-                 stringify(WEXITSTATUS(status.get())) + ")");
+  if (!WIFEXITED(status.get()) || WEXITSTATUS(status.get()) != 0) {
+    return Error("Externel containerizer " + WSTRINGIFY(status.get()));
   }
 
   return None();

@@ -430,10 +430,18 @@ inline std::ostream& operator << (
     std::ostream& stream,
     const StatusUpdate& update)
 {
-  return stream
+  stream
     << update.status().state()
     << " (UUID: " << UUID::fromBytes(update.uuid())
-    << ") for task " << update.status().task_id()
+    << ") for task " << update.status().task_id();
+
+  if (update.status().has_healthy()) {
+    stream
+      << " in health state "
+      << (update.status().healthy() ? "healthy" : "unhealthy");
+  }
+
+  return stream
     << " of framework " << update.framework_id();
 }
 

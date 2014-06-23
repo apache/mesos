@@ -390,3 +390,21 @@ message Archive {
   repeated Framework frameworks = 1;
 }
 
+// Message describing task current health status that is sent by
+// the task health checker to the command executor.
+// The command executor reports the task status back to the
+// on each receive. If the health checker configured faiure
+// condition meets, then kill_task flag will be set to true which
+// the executor on message receive will kill the task.
+message TaskHealthStatus {
+  required TaskID task_id = 1;
+
+  required bool healthy = 2;
+
+  // Flag to initiate task kill.
+  optional bool kill_task = 3 [default = false];
+
+  // Number of consecutive counts in current status.
+  // This will not be populated if task is healthy.
+  optional int32 consecutive_failures = 4;
+}

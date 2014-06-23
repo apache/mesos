@@ -343,6 +343,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	authorizer/authorizer.hpp					\
 	common/attributes.hpp						\
 	common/build.hpp common/date_utils.hpp common/factory.hpp	\
+        common/status_utils.hpp                                         \
 	common/parse.hpp						\
 	common/protobuf_utils.hpp					\
 	common/http.hpp							\
@@ -562,6 +563,11 @@ pkglibexec_PROGRAMS += mesos-executor
 mesos_executor_SOURCES = launcher/executor.cpp
 mesos_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_executor_LDADD = libmesos.la
+
+pkglibexec_PROGRAMS += mesos-health-check
+mesos_health_check_SOURCES = health-check/main.cpp
+mesos_health_check_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_health_check_LDADD = libmesos.la
 
 pkglibexec_PROGRAMS += mesos-usage
 mesos_usage_SOURCES = usage/main.cpp
@@ -982,6 +988,7 @@ mesos_tests_SOURCES =				\
   tests/environment.cpp				\
   tests/examples_tests.cpp			\
   tests/exception_tests.cpp			\
+  tests/health_check_tests.cpp                  \
   tests/fault_tolerance_tests.cpp		\
   tests/files_tests.cpp				\
   tests/flags.cpp				\
