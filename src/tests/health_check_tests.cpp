@@ -112,7 +112,7 @@ public:
 
 
 // Testing a healthy task reporting one healthy status to scheduler.
-TEST_F(HealthCheckTest, HealthyTask)
+TEST_F(DISABLED_HealthCheckTest, HealthyTask)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -170,7 +170,7 @@ TEST_F(HealthCheckTest, HealthyTask)
 
 
 // Testing killing task after number of consecutive failures.
-TEST_F(HealthCheckTest, ConsecutiveFailures)
+TEST_F(DISABLED_HealthCheckTest, ConsecutiveFailures)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -254,7 +254,7 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
 
 
 // Testing command using environment variable.
-TEST_F(HealthCheckTest, EnvironmentSetup)
+TEST_F(DISABLED_HealthCheckTest, EnvironmentSetup)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -317,7 +317,7 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
 
 
 // Testing grace period that ignores all failed task failures.
-TEST_F(HealthCheckTest, GracePeriod)
+TEST_F(DISABLED_HealthCheckTest, GracePeriod)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
