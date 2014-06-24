@@ -1933,6 +1933,11 @@ TEST_F(FaultToleranceTest, SlaveReregisterTerminatedExecutor)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status2));
 
+  // We drop the 'UpdateFrameworkMessage' from the master to slave to
+  // stop the status update manager from retrying the update that was
+  // already sent due to the new master detection.
+  DROP_PROTOBUFS(UpdateFrameworkMessage(), _, _);
+
   detector.appoint(master.get());
 
   AWAIT_READY(status2);
