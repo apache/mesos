@@ -54,7 +54,9 @@ using std::queue;
 using std::string;
 using std::map;
 
-class HealthCheckTest : public MesosTest
+
+// Temporarily disabled due to MESOS-1533.
+class DISABLED_HealthCheckTest : public MesosTest
 {
 public:
   vector<TaskInfo> populateTasks(
