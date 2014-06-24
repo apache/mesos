@@ -105,11 +105,18 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
   driver.start();
 
   AWAIT_READY(status);
 
   EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Make sure the slave handles status update acknowledgement so that
+  // it doesn't try to retry the update after master failover.
+  AWAIT_READY(_statusUpdateAcknowledgement);
 
   // Stop the slave from reregistering with the new master until the
   // framework has reregistered.
@@ -125,15 +132,15 @@ TYPED_TEST(AllocatorZooKeeperTest, FrameworkReregistersFirst)
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
-  Try<PID<Master> > master2 = this->StartMaster(&allocator2);
-  ASSERT_SOME(master2);
-
   Future<Nothing> frameworkAdded;
   EXPECT_CALL(allocator2, frameworkAdded(_, _, _))
     .WillOnce(DoAll(InvokeFrameworkAdded(&allocator2),
                     FutureSatisfy(&frameworkAdded)));
 
   EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Try<PID<Master> > master2 = this->StartMaster(&allocator2);
+  ASSERT_SOME(master2);
 
   AWAIT_READY(frameworkAdded);
 
@@ -220,11 +227,18 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
   driver.start();
 
   AWAIT_READY(status);
 
   EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Make sure the slave handles status update acknowledgement so that
+  // it doesn't try to retry the update after master failover.
+  AWAIT_READY(_statusUpdateAcknowledgement);
 
   // Stop the framework from reregistering with the new master until the
   // slave has reregistered.
@@ -240,13 +254,13 @@ TYPED_TEST(AllocatorZooKeeperTest, SlaveReregistersFirst)
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
-  Try<PID<Master> > master2 = this->StartMaster(&allocator2);
-  ASSERT_SOME(master2);
-
   Future<Nothing> slaveAdded;
   EXPECT_CALL(allocator2, slaveAdded(_, _, _))
     .WillOnce(DoAll(InvokeSlaveAdded(&allocator2),
                     FutureSatisfy(&slaveAdded)));
+
+  Try<PID<Master> > master2 = this->StartMaster(&allocator2);
+  ASSERT_SOME(master2);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
