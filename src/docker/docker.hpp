@@ -68,6 +68,11 @@ public:
   process::Future<Option<int> > kill(
       const std::string& container) const;
 
+  // Performs 'docker rm (-f) CONTAINER'.
+  process::Future<Option<int> > rm(
+      const std::string& container,
+      const bool force = true) const;
+
   // Performs 'docker inspect CONTAINER'.
   process::Future<Container> inspect(
       const std::string& container) const;

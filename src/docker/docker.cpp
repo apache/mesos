@@ -111,6 +111,26 @@ Future<Option<int> > Docker::kill(const string& container) const
 }
 
 
+Future<Option<int> > Docker::rm(const string& container, const bool force) const
+{
+  string cmd = force ? " rm -f " : " rm ";
+
+  VLOG(1) << "Running " << path << cmd << container;
+
+  Try<Subprocess> s = subprocess(
+      path + cmd + container,
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
+
+  if (s.isError()) {
+    return Failure(s.error());
+  }
+
+  return s.get().status();
+}
+
+
 Future<Docker::Container> Docker::inspect(const string& container) const
 {
   VLOG(1) << "Running " << path << " inspect " << container;
