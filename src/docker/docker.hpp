@@ -47,6 +47,10 @@ public:
     // Returns the name of the container.
     std::string name() const;
 
+    // Returns the Pid of the container.
+    // Note: If it returns 0, it means the container is not running.
+    pid_t pid() const;
+
   private:
     JSON::Object json; // JSON returned from 'docker inspect'.
   };

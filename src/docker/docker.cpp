@@ -55,6 +55,21 @@ string Docker::Container::name() const
   return value.as<JSON::String>().value;
 }
 
+pid_t Docker::Container::pid() const
+{
+  map<string, JSON::Value>::const_iterator state =
+    json.values.find("State");
+  CHECK(state != json.values.end());
+  JSON::Value value = state->second;
+  CHECK(value.is<JSON::Object>());
+
+  map<string, JSON::Value>::const_iterator entry =
+    value.as<JSON::Object>().values.find("Pid");
+  CHECK(entry != json.values.end());
+  JSON::Value pid = entry->second;
+  CHECK(pid.is<JSON::Number>());
+  return pid_t(pid.as<JSON::Number>().value);
+}
 
 Future<Option<int> > Docker::run(
     const string& image,
