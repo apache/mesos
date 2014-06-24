@@ -154,13 +154,9 @@ Try<DockerContainerizer*> DockerContainerizer::create(
     bool local,
     const Docker& docker)
 {
-  // Try out the Docker command so that
-  Future<list<Docker::Container> > containers = docker.ps();
-
-  if (!containers.await(Seconds(3))) {
-    return Error("Failed to use Docker: Timed out");
-  } else if (containers.isFailed()) {
-    return Error("Failed to use Docker: " + containers.failure());
+  Try<Nothing> validation = Docker::validateDocker(docker);
+  if (validation.isError()) {
+    return Error(validation.error());
   }
 
   return new DockerContainerizer(flags, local, docker);

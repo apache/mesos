@@ -26,12 +26,16 @@
 #include <process/subprocess.hpp>
 
 #include <stout/json.hpp>
+#include <stout/nothing.hpp>
 #include <stout/option.hpp>
 
 // Abstraction for working with Docker (modeled on CLI).
 class Docker
 {
 public:
+  // Validate Docker support
+  static Try<Nothing> validateDocker(const Docker& docker);
+
   class Container
   {
   public:

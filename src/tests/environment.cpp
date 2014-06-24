@@ -25,6 +25,8 @@
 #include <list>
 #include <string>
 
+#include "docker/docker.hpp"
+
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 
@@ -70,6 +72,7 @@ Environment* environment;
 //   'CGROUPS_' : Disable test if cgroups support isn't present.
 //   'NOHIERARCHY_' : Disable test if there is already a cgroups
 //       hierarchy mounted.
+//   'DOCKER_': Disable test if Docker is not supported.
 //
 // These flags can be composed in any order, but must come after
 // 'DISABLED_'. In addition, we disable tests that attempt to use the
@@ -126,6 +129,12 @@ static bool enable(const ::testing::TestInfo& test)
       return false;
     }
 #endif
+
+    if (strings::contains(name, "DOCKER_")) {
+      Docker docker("docker");
+      Try<Nothing> validate = Docker::validateDocker(docker);
+      return !validate.isError();
+    }
 
     // Filter out benchmark tests when we run 'make check'.
     if (strings::contains(name, "BENCHMARK_") && !flags.benchmark) {
@@ -332,4 +341,3 @@ Try<string> Environment::mkdtemp()
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
-

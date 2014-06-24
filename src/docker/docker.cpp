@@ -21,6 +21,20 @@ using std::string;
 using std::vector;
 
 
+Try<Nothing> Docker::validateDocker(const Docker &docker)
+{
+  Future<list<Docker::Container> > containers = docker.ps();
+
+  if (!containers.await(Seconds(3))) {
+    return Error("Failed to use Docker: Timed out");
+  } else if (containers.isFailed()) {
+    return Error("Failed to use Docker: " + containers.failure());
+  }
+
+  return Nothing();
+}
+
+
 string Docker::Container::id() const
 {
   map<string, JSON::Value>::const_iterator entry =
