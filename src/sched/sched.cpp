@@ -1188,11 +1188,14 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
   // method of the Scheduler instance that is being destructed! Note
   // that we could add a method to libprocess that told us whether or
   // not this was about to be deadlock, and possibly report this back
-  // to the user somehow. Note that we will also wait forever if
-  // MesosSchedulerDriver::stop was never called. It might make sense
-  // to try and add some more debug output for the case where we wait
-  // indefinitely due to deadlock ...
+  // to the user somehow. It might make sense to try and add some more
+  // debug output for the case where we wait indefinitely due to
+  // deadlock.
   if (process != NULL) {
+    // We call 'terminate()' here to ensure that SchedulerProcess
+    // terminates even if the user forgot to call stop/abort on the
+    // driver.
+    terminate(process);
     wait(process);
     delete process;
   }
