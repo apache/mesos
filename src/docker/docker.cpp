@@ -217,12 +217,14 @@ Future<Docker::Container> Docker::_inspect(const Subprocess& s)
 }
 
 
-Future<list<Docker::Container> > Docker::ps() const
+Future<list<Docker::Container> > Docker::ps(const bool all) const
 {
-  VLOG(1) << "Running " << path << " ps";
+  string cmd = all ? " ps -a" : " ps";
+
+  VLOG(1) << "Running " << path << cmd;
 
   Try<Subprocess> s = subprocess(
-      path + " ps",
+      path + cmd,
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE());
