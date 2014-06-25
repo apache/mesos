@@ -81,6 +81,8 @@ public:
   process::Future<std::list<Container> > ps(
       const bool all = true) const;
 
+  process::Future<std::string> info() const;
+
 private:
   // Continuations.
   static process::Future<Container> _inspect(

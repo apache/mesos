@@ -23,12 +23,12 @@ using std::vector;
 
 Try<Nothing> Docker::validateDocker(const Docker &docker)
 {
-  Future<list<Docker::Container> > containers = docker.ps();
+  Future<std::string> info = docker.info();
 
-  if (!containers.await(Seconds(3))) {
+  if (!info.await(Seconds(3))) {
     return Error("Failed to use Docker: Timed out");
-  } else if (containers.isFailed()) {
-    return Error("Failed to use Docker: " + containers.failure());
+  } else if (info.isFailed()) {
+    return Error("Failed to use Docker: " + info.failure());
   }
 
   return Nothing();
@@ -299,4 +299,33 @@ Future<list<Docker::Container> > Docker::_ps(
   }
 
   return collect(futures);
+}
+
+Future<std::string> Docker::info() const
+{
+  std::string cmd = path + " info";
+
+  VLOG(1) << "Running " << cmd;
+
+  Try<Subprocess> s = subprocess(
+      cmd,
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
+
+  if (s.isError()) {
+    return Failure(s.error());
+  }
+
+  Result<string> output = os::read(s.get().out().get());
+
+  if (output.isError()) {
+    // TODO(benh): Include stderr in error message.
+    return Failure("Failed to read output: " + output.error());
+  } else if (output.isNone()) {
+    // TODO(benh): Include stderr in error message.
+    return Failure("No output available");
+  }
+
+  return output.get();
 }

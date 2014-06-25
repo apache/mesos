@@ -133,6 +133,14 @@ static bool enable(const ::testing::TestInfo& test)
     if (strings::contains(name, "DOCKER_")) {
       Docker docker("docker");
       Try<Nothing> validate = Docker::validateDocker(docker);
+      if (validate.isError()) {
+	std::cerr
+          << "-------------------------------------------------------------\n"
+          << "Skipping Docker tests because validation failed\n"
+	  << "[Error] " + validate.error() + "\n"
+          << "-------------------------------------------------------------"
+          << std::endl;
+      }
       return !validate.isError();
     }
 
