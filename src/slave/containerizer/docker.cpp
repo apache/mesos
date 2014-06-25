@@ -100,7 +100,9 @@ public:
   virtual Future<containerizer::Termination> wait(
       const ContainerID& containerId);
 
-  virtual void destroy(const ContainerID& containerId);
+  virtual void destroy(
+      const ContainerID& containerId,
+      const bool& killed = true);
 
   virtual process::Future<hashset<ContainerID> > containers();
 
@@ -117,6 +119,16 @@ private:
       const SlaveID& slaveId,
       const PID<Slave>& slavePid,
       bool checkpoint);
+
+  void _destroy(
+      const ContainerID& containerId,
+      const bool& killed,
+      const Future<Option<int> >& future);
+
+  void __destroy(
+      const ContainerID& containerId,
+      const bool& killed,
+      const Future<Option<int > >& status);
 
   // Call back for when the executor exits. This will trigger
   // container destroy.
@@ -151,10 +163,10 @@ private:
 
 Try<DockerContainerizer*> DockerContainerizer::create(
     const Flags& flags,
-    bool local,
-    const Docker& docker)
+    bool local)
 {
-  Try<Nothing> validation = Docker::validateDocker(docker);
+  Docker docker(flags.docker);
+  Try<Nothing> validation = Docker::validate(docker);
   if (validation.isError()) {
     return Error(validation.error());
   }
@@ -259,7 +271,7 @@ Future<containerizer::Termination> DockerContainerizer::wait(
 
 void DockerContainerizer::destroy(const ContainerID& containerId)
 {
-  dispatch(process, &DockerContainerizerProcess::destroy, containerId);
+  dispatch(process, &DockerContainerizerProcess::destroy, containerId, true);
 }
 
 
@@ -499,7 +511,7 @@ Future<bool> DockerContainerizerProcess::launch(
                 slaveId,
                 slavePid,
                 checkpoint))
-    .onFailed(defer(self(), &Self::destroy, containerId));
+    .onFailed(defer(self(), &Self::destroy, containerId, false));
 }
 
 
@@ -535,11 +547,10 @@ Future<bool> DockerContainerizerProcess::_launch(
     "docker wait " + DOCKER_NAME_PREFIX + stringify(containerId);
 
   Try<Subprocess> s = subprocess(
-      executorInfo.command().value() + "--override " + override,
+      executorInfo.command().value() + " --override " + override,
       Subprocess::PIPE(),
       Subprocess::PATH(path::join(directory, "stdout")),
       Subprocess::PATH(path::join(directory, "stderr")),
-      None(),
       env,
       lambda::bind(&setup, directory));
 
@@ -629,7 +640,9 @@ Future<containerizer::Termination> DockerContainerizerProcess::wait(
 }
 
 
-void DockerContainerizerProcess::destroy(const ContainerID& containerId)
+void DockerContainerizerProcess::destroy(
+    const ContainerID& containerId,
+    const bool& killed)
 {
   if (!promises.contains(containerId)) {
     LOG(WARNING) << "Ignoring destroy of unknown container: " << containerId;
@@ -658,7 +671,47 @@ void DockerContainerizerProcess::destroy(const ContainerID& containerId)
 
   // TODO(benh): Retry 'docker kill' if it failed but the container
   // still exists (asynchronously).
-  docker.kill(DOCKER_NAME_PREFIX + stringify(containerId));
+  docker.kill(DOCKER_NAME_PREFIX + stringify(containerId))
+    .onAny(defer(self(), &Self::_destroy, containerId, killed, lambda::_1));
+}
+
+
+void DockerContainerizerProcess::_destroy(
+    const ContainerID& containerId,
+    const bool& killed,
+    const Future<Option<int> >& future)
+{
+  if (!future.isReady()) {
+    promises[containerId]->fail(
+        "Failed to destroy container: " +
+        (future.isFailed() ? future.failure() : "discarded future"));
+
+    destroying.erase(containerId);
+
+    return;
+  }
+
+  statuses.get(containerId).get()
+    .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
+}
+
+
+void DockerContainerizerProcess::__destroy(
+    const ContainerID& containerId,
+    const bool& killed,
+    const Future<Option<int> >& status)
+{
+  containerizer::Termination termination;
+  termination.set_killed(killed);
+  if (status.isReady() && status.get().isSome()) {
+    termination.set_status(status.get().get());
+  }
+
+  promises[containerId]->set(termination);
+
+  destroying.erase(containerId);
+  promises.erase(containerId);
+  statuses.erase(containerId);
 }
 
 
@@ -677,7 +730,7 @@ void DockerContainerizerProcess::reaped(const ContainerID& containerId)
   LOG(INFO) << "Executor for container '" << containerId << "' has exited";
 
   // The executor has exited so destroy the container.
-  destroy(containerId);
+  destroy(containerId, false);
 }
 
 

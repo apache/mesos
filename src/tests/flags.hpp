@@ -61,16 +61,23 @@ public:
 
     path = os::realpath(BUILD_DIR);
     CHECK_SOME(path);
+
     add(&Flags::build_dir,
         "build_dir",
         "Where to find the build directory",
         path.get());
+
+    add(&Flags::docker,
+        "docker",
+        "Where to find docker executable",
+        "docker");
   }
 
   bool verbose;
   bool benchmark;
   std::string source_dir;
   std::string build_dir;
+  std::string docker;
 };
 
 // Global flags for running the tests.

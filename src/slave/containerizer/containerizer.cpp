@@ -171,10 +171,9 @@ Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
       } else {
         containerizers.push_back(containerizer.get());
       }
-    }  else if (type == "docker") {
-      Docker docker("docker");
+    } else if (type == "docker") {
       Try<DockerContainerizer*> containerizer =
-        DockerContainerizer::create(flags, local, docker);
+        DockerContainerizer::create(flags, local);
       if (containerizer.isError()) {
         return Error("Could not create DockerContainerizer: " +
                      containerizer.error());

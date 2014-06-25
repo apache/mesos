@@ -21,7 +21,7 @@ using std::string;
 using std::vector;
 
 
-Try<Nothing> Docker::validateDocker(const Docker &docker)
+Try<Nothing> Docker::validate(const Docker &docker)
 {
   Future<std::string> info = docker.info();
 
@@ -76,11 +76,11 @@ Future<Option<int> > Docker::run(
     const string& command,
     const string& name) const
 {
-  VLOG(1) << "Running " << path << " run --name=" << name << " "
+  VLOG(1) << "Running " << path << " run -d --name=" << name << " "
           << image << " " << command;
 
   Try<Subprocess> s = subprocess(
-      path + " run --name=" + name + " " + image + " " + command,
+      path + " run -d --name=" + name + " " + image + " " + command,
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE());

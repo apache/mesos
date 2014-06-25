@@ -34,7 +34,7 @@ class Docker
 {
 public:
   // Validate Docker support
-  static Try<Nothing> validateDocker(const Docker& docker);
+  static Try<Nothing> validate(const Docker& docker);
 
   class Container
   {

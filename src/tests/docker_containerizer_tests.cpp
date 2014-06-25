@@ -33,28 +33,68 @@ using namespace mesos::internal::tests;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
+using mesos::internal::slave::DockerContainerizer;
 
 using process::Future;
 using process::PID;
 
 using std::vector;
 using std::list;
+using std::string;
 
 using testing::_;
+using testing::DoDefault;
 using testing::Eq;
 using testing::Return;
 
 class DockerContainerizerTest : public MesosTest {};
 
-TEST_F(DockerContainerizerTest, DOCKER_Launch) {
+class MockDockerContainerizer : public slave::DockerContainerizer {
+public:
+  MockDockerContainerizer(
+    const slave::Flags& flags,
+    bool local,
+    const Docker& docker) : DockerContainerizer(flags, local, docker) {}
+
+  process::Future<bool> launch(
+    const ContainerID& containerId,
+    const TaskInfo& taskInfo,
+    const ExecutorInfo& executorInfo,
+    const std::string& directory,
+    const Option<std::string>& user,
+    const SlaveID& slaveId,
+    const process::PID<Slave>& slavePid,
+    bool checkpoint)
+  {
+    // Keeping the last launched container id
+    lastContainerId = containerId;
+    return slave::DockerContainerizer::launch(
+             containerId,
+             taskInfo,
+             executorInfo,
+             directory,
+             user,
+             slaveId,
+             slavePid,
+             checkpoint);
+  }
+
+  ContainerID lastContainerId;
+};
+
+
+TEST_F(DockerContainerizerTest, DOCKER_Launch)
+{
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation.clear();
-  flags.containerizers = "docker";
 
-  Try<PID<Slave> > slave = StartSlave(flags);
+  Docker docker("docker");
+
+  MockDockerContainerizer dockerContainer(flags, true, docker);
+
+  Try<PID<Slave> > slave = StartSlave((slave::Containerizer*) &dockerContainer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -72,6 +112,8 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch) {
 
   driver.start();
 
+  AWAIT_READY(frameworkId);
+
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
@@ -84,13 +126,9 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch) {
   task.mutable_resources()->CopyFrom(offer.resources());
 
   CommandInfo command;
-
-  CommandInfo::ContainerInfo* containerInfo =
-    task.mutable_command()->mutable_container();
-
+  CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
   containerInfo->set_image("docker://busybox");
-
-  command.set_value("sleep 30");
+  command.set_value("sleep 120");
 
   task.mutable_command()->CopyFrom(command);
 
@@ -100,19 +138,34 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch) {
   tasks.push_back(task);
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusRunning));
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_READY(statusRunning);
-  ASSERT_EQ(TASK_RUNNING, statusRunning.get().state());
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
-  Docker docker("docker");
   Future<list<Docker::Container> > containers = docker.ps();
 
   AWAIT_READY(containers);
 
   ASSERT_TRUE(containers.get().size() > 0);
+
+  bool foundContainer = false;
+  string expectedName = "mesos-" + dockerContainer.lastContainerId.value();
+
+  foreach(const Docker::Container& container, containers.get()) {
+    // Docker inspect name contains an extra slash in the beginning
+    if (strings::contains(container.name(), expectedName)) {
+      foundContainer = true;
+      break;
+    }
+  }
+
+  ASSERT_TRUE(foundContainer);
+
+  AWAIT_READY(docker.kill(expectedName));
 
   driver.stop();
   driver.join();

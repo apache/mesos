@@ -37,8 +37,7 @@ class DockerContainerizer : public Containerizer
 public:
   static Try<DockerContainerizer*> create(
       const Flags& flags,
-      bool local,
-      const Docker& docker);
+      bool local);
 
   DockerContainerizer(
       const Flags& flags,

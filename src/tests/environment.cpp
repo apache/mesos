@@ -131,17 +131,22 @@ static bool enable(const ::testing::TestInfo& test)
 #endif
 
     if (strings::contains(name, "DOCKER_")) {
-      Docker docker("docker");
-      Try<Nothing> validate = Docker::validateDocker(docker);
+      Docker docker(flags.docker);
+      Try<Nothing> validate = Docker::validate(docker);
       if (validate.isError()) {
-	std::cerr
+        std::cerr
           << "-------------------------------------------------------------\n"
           << "Skipping Docker tests because validation failed\n"
-	  << "[Error] " + validate.error() + "\n"
+          << "[Error] " + validate.error() + "\n"
           << "-------------------------------------------------------------"
           << std::endl;
       }
+
+#ifdef __linux__
+      return user.get() == "root" && !validate.isError();
+#else
       return !validate.isError();
+#endif
     }
 
     // Filter out benchmark tests when we run 'make check'.

@@ -277,6 +277,11 @@ public:
         "The default container image to use if not specified by a task,\n"
         "when using external containerizer");
 
+    add(&Flags::docker,
+        "docker",
+        "The path to the docker executable for docker containerizer.",
+        "docker");
+
 #ifdef WITH_NETWORK_ISOLATOR
     add(&Flags::ephemeral_ports_per_container,
         "ephemeral_ports_per_container",
@@ -342,6 +347,7 @@ public:
   Option<std::string> containerizer_path;
   std::string containerizers;
   Option<std::string> default_container_image;
+  std::string docker;
 #ifdef WITH_NETWORK_ISOLATOR
   uint16_t ephemeral_ports_per_container;
   Option<std::string> private_resources;
