@@ -68,6 +68,7 @@ EXTRA_DIST =					\
   include/stout/stopwatch.hpp			\
   include/stout/stringify.hpp			\
   include/stout/strings.hpp			\
+  include/stout/subcommand.hpp			\
   include/stout/tests/utils.hpp			\
   include/stout/thread.hpp			\
   include/stout/try.hpp				\
@@ -105,5 +106,6 @@ EXTRA_DIST =					\
   tests/set_tests.cpp				\
   tests/some_tests.cpp				\
   tests/strings_tests.cpp			\
+  tests/subcommand_tests.cpp			\
   tests/thread_tests.cpp			\
   tests/uuid_tests.cpp
