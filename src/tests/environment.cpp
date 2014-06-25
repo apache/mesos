@@ -38,8 +38,6 @@
 #include "linux/cgroups.hpp"
 #endif
 
-#include "launcher/launcher.hpp"
-
 #include "logging/logging.hpp"
 
 #include "tests/environment.hpp"
@@ -245,9 +243,6 @@ void Environment::SetUp()
 #endif
     os::setenv("MESOS_NATIVE_JAVA_LIBRARY", path);
   }
-
-  // Set the default path for the launcher.
-  launcher::setDefaultPath(path::join(tests::flags.build_dir, "src"));
 
   if (!GTEST_IS_THREADSAFE) {
     EXIT(1) << "Testing environment is not thread safe, bailing!";
