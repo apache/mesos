@@ -753,7 +753,11 @@ Future<Nothing> MesosContainerizerProcess::exec(
     const ContainerID& containerId,
     int pipeWrite)
 {
-  CHECK(promises.contains(containerId));
+  // The container may be destroyed before we exec the executor so return
+  // failure here.
+  if (!promises.contains(containerId)) {
+    return Failure("Container destroyed during launch");
+  }
 
   // Now that we've contained the child we can signal it to continue by
   // writing to the pipe.
