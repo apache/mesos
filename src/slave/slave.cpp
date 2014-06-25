@@ -274,11 +274,24 @@ void Slave::initialize()
   CHECK_SOME(os::mkdir(flags.work_dir))
     << "Failed to create slave work directory '" << flags.work_dir << "'";
 
-  Try<Resources> _resources = Containerizer::resources(flags);
-  if (_resources.isError()) {
-    EXIT(1) << "Failed to determine slave resources: " << _resources.error();
+  Try<Resources> resources = Containerizer::resources(flags);
+  if (resources.isError()) {
+    EXIT(1) << "Failed to determine slave resources: " << resources.error();
   }
-  LOG(INFO) << "Slave resources: " << _resources.get();
+  LOG(INFO) << "Slave resources: " << resources.get();
+
+#ifdef WITH_NETWORK_ISOLATOR
+  // Resources that are not exposed to the frameworks, but managed by
+  // the slave privately.
+  Try<Resources> privateResources = Resources::parse(
+      flags.private_resources.get(""), flags.default_role);
+
+  if (privateResources.isError()) {
+    EXIT(1) << "Failed to determine slave private resources: "
+            << privateResources.error();
+  }
+  LOG(INFO) << "Slave private resources: " << privateResources.get();
+#endif
 
   if (flags.attributes.isSome()) {
     attributes = Attributes::parse(flags.attributes.get());
@@ -302,9 +315,13 @@ void Slave::initialize()
   // Initialize slave info.
   info.set_hostname(hostname);
   info.set_port(self().port);
-  info.mutable_resources()->CopyFrom(_resources.get());
+  info.mutable_resources()->CopyFrom(resources.get());
   info.mutable_attributes()->CopyFrom(attributes);
   info.set_checkpoint(flags.checkpoint);
+
+#ifdef WITH_NETWORK_ISOLATOR
+  info.mutable_private_resources()->CopyFrom(privateResources.get());
+#endif
 
   LOG(INFO) << "Slave hostname: " << info.hostname();
   LOG(INFO) << "Slave checkpoint: " << stringify(flags.checkpoint);

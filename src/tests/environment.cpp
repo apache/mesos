@@ -144,6 +144,14 @@ static bool enable(const ::testing::TestInfo& test)
     }
   }
 
+#ifdef WITH_NETWORK_ISOLATOR
+  // Currently, the network isolator does not support multiple slaves.
+  if (strings::contains(test.name(), "MultipleSlaves") &&
+      os::user().isSome() && os::user().get() == "root") {
+    return false;
+  }
+#endif
+
   return true;
 }
 

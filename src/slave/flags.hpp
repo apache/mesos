@@ -56,8 +56,10 @@ public:
 
     add(&Flags::isolation,
         "isolation",
-        "Isolation mechanisms to use, e.g., 'posix/cpu,posix/mem'\n"
-        "or 'cgroups/cpu,cgroups/mem' or 'external'.",
+        "Isolation mechanisms to use, e.g., 'posix/cpu,posix/mem', or\n"
+        "'cgroups/cpu,cgroups/mem', or network/port_mapping\n"
+        "(configure with flag: --with-network-isolator to enable),\n"
+        "or 'external'.",
         "posix/cpu,posix/mem");
 
     add(&Flags::default_role,
@@ -254,6 +256,34 @@ public:
         "default_container_image",
         "The default container image to use if not specified by a task,\n"
         "when using external containerizer");
+
+#ifdef WITH_NETWORK_ISOLATOR
+    add(&Flags::ephemeral_ports_per_container,
+        "ephemeral_ports_per_container",
+        "Number of ephemeral ports allocated to a container by the network\n"
+        "isolator. This number has to be a power of 2.\n",
+        DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER);
+
+    add(&Flags::private_resources,
+        "private_resources",
+        "The resources that will be manged by the slave locally, and not\n"
+        "exposed to Mesos master and frameworks. It shares the same format\n"
+        "as the 'resources' flag. One example of such type of resources\n"
+        "is ephemeral ports when port mapping network isolator is enabled.\n"
+        "Use 'ports:[x-y]' to specify the ephemeral ports that will be\n"
+        "locally managed.\n");
+
+    add(&Flags::eth0_name,
+        "eth0_name",
+        "The name of the public network interface (e.g., eth0). If it is\n"
+        "not specified, the network isolator will try to guess it based\n"
+        "on the host default gateway.");
+
+    add(&Flags::lo_name,
+        "lo_name",
+        "The name of the loopback network interface (e.g., lo). If it is\n"
+        "not specified, the network isolator will try to guess it.");
+#endif // WITH_NETWORK_ISOLATOR
   }
 
   bool version;
@@ -291,6 +321,12 @@ public:
   Option<std::string> credential;
   Option<std::string> containerizer_path;
   Option<std::string> default_container_image;
+#ifdef WITH_NETWORK_ISOLATOR
+  uint16_t ephemeral_ports_per_container;
+  Option<std::string> private_resources;
+  Option<std::string> eth0_name;
+  Option<std::string> lo_name;
+#endif
 };
 
 } // namespace mesos {

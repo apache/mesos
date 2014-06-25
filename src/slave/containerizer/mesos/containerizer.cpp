@@ -40,6 +40,9 @@
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
 #include "slave/containerizer/isolators/cgroups/perf_event.hpp"
 #endif // __linux__
+#ifdef WITH_NETWORK_ISOLATOR
+#include "slave/containerizer/isolators/network/port_mapping.hpp"
+#endif
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
@@ -130,6 +133,9 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   creators["cgroups/mem"] = &CgroupsMemIsolatorProcess::create;
   creators["cgroups/perf_event"] = &CgroupsPerfEventIsolatorProcess::create;
 #endif // __linux__
+#ifdef WITH_NETWORK_ISOLATOR
+  creators["network/port_mapping"] = &PortMappingIsolatorProcess::create;
+#endif
 
   vector<Owned<Isolator> > isolators;
 
@@ -148,8 +154,10 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   }
 
 #ifdef __linux__
-  // Use cgroups on Linux if any cgroups isolators are used.
-  Try<Launcher*> launcher = strings::contains(isolation, "cgroups")
+  // Determine which launcher to use based on the isolation flag.
+  Try<Launcher*> launcher =
+    (strings::contains(isolation, "cgroups") ||
+     strings::contains(isolation, "network/port_mapping"))
     ? LinuxLauncher::create(flags)
     : PosixLauncher::create(flags);
 #else

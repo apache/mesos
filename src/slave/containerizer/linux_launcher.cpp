@@ -28,6 +28,7 @@
 #include <stout/abort.hpp>
 #include <stout/hashset.hpp>
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 
 #include "linux/cgroups.hpp"
 
@@ -57,6 +58,12 @@ LinuxLauncher::LinuxLauncher(
     hierarchy(_hierarchy) {}
 
 
+// An old glibc might not have this symbol.
+#ifndef CLONE_NEWNET
+#define CLONE_NEWNET 0x40000000
+#endif
+
+
 Try<Launcher*> LinuxLauncher::create(const Flags& flags)
 {
   Try<string> hierarchy = cgroups::prepare(
@@ -74,6 +81,15 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   // TODO(idownes): Inspect the isolation flag to determine namespaces
   // to use.
   int namespaces = 0;
+
+#ifdef WITH_NETWORK_ISOLATOR
+  // The network port mapping isolator requires network (CLONE_NEWNET)
+  // and mount (CLONE_NEWNS) namespaces.
+  if (strings::contains(flags.isolation, "network/port_mapping")) {
+    namespaces |= CLONE_NEWNET;
+    namespaces |= CLONE_NEWNS;
+  }
+#endif
 
   return new LinuxLauncher(flags, namespaces, hierarchy.get());
 }

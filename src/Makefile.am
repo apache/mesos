@@ -337,6 +337,10 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/queueing/handle.hpp				\
 	linux/routing/queueing/ingress.hpp				\
 	linux/routing/queueing/internal.hpp
+
+  libmesos_no_3rdparty_la_SOURCES +=					\
+	slave/containerizer/isolators/network/port_mapping.cpp		\
+	slave/containerizer/isolators/network/port_mapping.hpp
 endif
 
 libmesos_no_3rdparty_la_SOURCES +=					\
@@ -568,6 +572,13 @@ pkglibexec_PROGRAMS += mesos-containerizer
 mesos_containerizer_SOURCES = slave/containerizer/mesos/main.cpp
 mesos_containerizer_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_containerizer_LDADD = libmesos.la
+
+if WITH_NETWORK_ISOLATOR
+pkglibexec_PROGRAMS += mesos-network-helper
+mesos_network_helper_SOURCES = slave/containerizer/isolators/network/helper.cpp
+mesos_network_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_network_helper_LDADD = libmesos.la
+endif
 
 pkglibexec_PROGRAMS += mesos-health-check
 mesos_health_check_SOURCES = health-check/main.cpp

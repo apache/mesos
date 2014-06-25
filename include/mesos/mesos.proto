@@ -292,6 +292,10 @@ message SlaveInfo {
   optional SlaveID id = 6;
   optional bool checkpoint = 7 [default = false];
 
+  // Resources that are managed locally by the slave, and not exposed
+  // to master and frameworks.
+  repeated Resource private_resources = 9;
+
   // Deprecated!
   optional string webui_hostname = 2;
   optional int32 webui_port = 4 [default = 8081];
@@ -404,10 +408,19 @@ message ResourceStatistics {
   optional uint64 mem_mapped_file_bytes = 12;
 
   // TODO(bmahler): Add disk usage.
-  // TODO(bmahler): Add network usage?
 
   // Perf statistics.
   optional PerfStatistics perf = 13;
+
+  // Network Usage Information:
+  optional uint64 net_rx_packets = 14;
+  optional uint64 net_rx_bytes = 15;
+  optional uint64 net_rx_errors = 16;
+  optional uint64 net_rx_dropped = 17;
+  optional uint64 net_tx_packets = 18;
+  optional uint64 net_tx_bytes = 19;
+  optional uint64 net_tx_errors = 20;
+  optional uint64 net_tx_dropped = 21;
 }
 
 

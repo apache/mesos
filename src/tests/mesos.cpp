@@ -33,6 +33,7 @@
 #include "linux/cgroups.hpp"
 #endif
 
+#include "slave/constants.hpp"
 #include "slave/containerizer/containerizer.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
@@ -326,6 +327,13 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
   }
 #else
   flags.isolation = "posix/cpu,posix/mem";
+#endif
+
+#ifdef WITH_NETWORK_ISOLATOR
+  if (user.get() == "root") {
+    flags.isolation += ",network/port_mapping";
+    flags.private_resources = "ports:" + slave::DEFAULT_EPHEMERAL_PORTS;
+  }
 #endif
 
   return flags;
