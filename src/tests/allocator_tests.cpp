@@ -368,7 +368,11 @@ TEST_F(DRFAllocatorTest, SameShareAllocations)
   MesosSchedulerDriver driver2(
       &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
+  // We need to retire this expectation on the first match because
+  // framework1 can match this expectation first in which case
+  // framework2 should be able to match the expectation above.
+  EXPECT_CALL(allocator, frameworkAdded(_, _, _))
+    .RetiresOnSaturation();
 
   Future<Nothing> registered2;
   EXPECT_CALL(sched2, registered(_, _, _))
