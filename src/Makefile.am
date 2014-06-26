@@ -1066,11 +1066,11 @@ if HAS_JAVA
   mesos_tests_LDFLAGS = $(AM_LDFLAGS)
   mesos_tests_DEPENDENCIES += $(EXAMPLES_JAR)
 
-  EXAMPLESSCRIPTSJAVA = examples/java/test-framework			\
-			examples/java/test-executor			\
-			examples/java/test-exception-framework		\
-			examples/java/test-multiple-executors-framework \
-			examples/java/test-log
+  EXAMPLESCRIPTSJAVA = examples/java/test-framework			\
+                       examples/java/test-executor			\
+                       examples/java/test-exception-framework		\
+                       examples/java/test-multiple-executors-framework	\
+                       examples/java/test-log
 
   check_SCRIPTS += $(EXAMPLESCRIPTSJAVA)
   mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSJAVA)
