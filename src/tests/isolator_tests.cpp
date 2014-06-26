@@ -103,8 +103,6 @@ using mesos::internal::slave::LinuxLauncher;
 #endif // __linux__
 #ifdef WITH_NETWORK_ISOLATOR
 using mesos::internal::slave::MesosContainerizerLaunch;
-#endif // WITH_NETWORK_ISOLATOR
-#ifdef WITH_NETWORK_ISOLATOR
 using mesos::internal::slave::PortMappingIsolatorProcess;
 #endif // WITH_NETWORK_ISOLATOR
 using mesos::internal::slave::PosixLauncher;
@@ -765,23 +763,23 @@ public:
   {
     ASSERT_SOME(routing::check())
       << "-------------------------------------------------------------\n"
-      << "We cannot run any PortMappingIsolatorTests because your libnl\n"
-      << "library is not new enough. You can either install a\n"
+      << "We cannot run any PortMappingIsolatorTests because your\n"
+      << "libnl library is not new enough. You can either install a\n"
       << "new libnl library, or disable this test case\n"
       << "-------------------------------------------------------------";
 
     ASSERT_SOME_EQ(0, os::shell(NULL, "which nc"))
       << "-------------------------------------------------------------\n"
       << "We cannot run any PortMappingIsolatorTests because 'nc'\n"
-      << "could not be found. You can either install a\n"
-      << "nc, or disable this test case\n"
+      << "could not be found. You can either install 'nc', or disable\n"
+      << "this test case\n"
       << "-------------------------------------------------------------";
 
-    ASSERT_SOME_EQ(0, os::shell(NULL, "arping -V"))
+    ASSERT_SOME_EQ(0, os::shell(NULL, "which arping"))
       << "-------------------------------------------------------------\n"
-      << "We cannot run some PortMappingIsolatorTests because 'arping -V'\n"
-      << "could not be run successfully. You can either check\n"
-      << "arping, or disable this test case\n"
+      << "We cannot run some PortMappingIsolatorTests because 'arping'\n"
+      << "could not be found. You can either isntall 'arping', or\n"
+      << "disable this test case\n"
       << "-------------------------------------------------------------";
   }
 
@@ -888,7 +886,7 @@ protected:
     Try<set<string> > links = net::links();
     ASSERT_SOME(links);
     foreach (const string& name, links.get()) {
-      if (strings::startsWith(name, "veth")) {
+      if (strings::startsWith(name, slave::VETH_PREFIX)) {
         ASSERT_SOME_TRUE(link::remove(name));
       }
     }

@@ -45,6 +45,10 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// The prefix this isolator uses for the virtual ethernet devices.
+extern const std::string VETH_PREFIX;
+
+
 // Responsible for allocating ephemeral ports for the port mapping
 // network isolator. This class is exposed mainly for unit testing.
 class EphemeralPortsAllocator

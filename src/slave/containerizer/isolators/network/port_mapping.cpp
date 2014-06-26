@@ -88,6 +88,9 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+const std::string VETH_PREFIX = "mesos";
+
+
 // The root directory where we bind mount all the namespace handles.
 // We choose the directory '/var/run/netns' so that we can use
 // iproute2 suite (e.g., ip netns show/exec) to inspect or enter the
@@ -165,15 +168,17 @@ static uint32_t roundDownToPowerOfTwo(uint32_t x)
 // executor process.
 static string veth(pid_t pid)
 {
-  return "veth" + stringify(pid);
+  return VETH_PREFIX + stringify(pid);
 }
 
 
 // Extracts the pid from the given veth name.
 static Option<pid_t> getPid(string veth)
 {
-  if (strings::startsWith(veth, "veth")) {
-    Try<pid_t> pid = numify<pid_t>(veth.substr(strlen("veth")));
+  if (strings::startsWith(veth, VETH_PREFIX)) {
+    Try<pid_t> pid = numify<pid_t>(
+        strings::remove(veth, VETH_PREFIX, strings::PREFIX));
+
     if (pid.isSome()) {
       return pid.get();
     }
@@ -1071,7 +1076,7 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
   hashset<pid_t> pids;
   foreach (const string& name, links.get()) {
     Option<pid_t> pid = getPid(name);
-    // Not all links follow the naming: veth{pid}, so we simply
+    // Not all links follow the naming: mesos{pid}, so we simply
     // continue, e.g., eth0.
     if (pid.isNone()) {
       continue;
