@@ -951,6 +951,13 @@ clean-python:
 PHONY_TARGETS += clean-python
 
 
+# Standalone test binaries.
+bin_PROGRAMS += mesos-load-generator-framework
+mesos_load_generator_framework_SOURCES = examples/load_generator_framework.cpp
+mesos_load_generator_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_load_generator_framework_LDADD = libmesos.la
+
+
 # Test (make check) binaries.
 check_PROGRAMS += low-level-scheduler-libprocess
 low_level_scheduler_libprocess_SOURCES = examples/low_level_scheduler_libprocess.cpp
