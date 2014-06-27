@@ -1832,7 +1832,8 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
 // belong to some currently unregistered frameworks will appear in the
 // "orphan_tasks" field in the state.json. And those unregistered frameworks
 // will appear in the "unregistered_frameworks" field.
-TEST_F(MasterTest, OrphanTasks)
+// NOTE: Temporarily disabled due to MESOS-1543.
+TEST_F(MasterTest, DISABLED_OrphanTasks)
 {
   // Start a master.
   Try<PID<Master> > master = StartMaster();
