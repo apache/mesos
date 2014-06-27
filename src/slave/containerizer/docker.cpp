@@ -425,11 +425,11 @@ Future<Nothing> DockerContainerizerProcess::_recover(
             << stringify(id.get()) << "' has been orphaned";
 
     // Check if we're watching an executor for this container ID and
-    // if not, kill the Docker container.
+    // if not, rm -f the Docker container.
     if (!statuses.keys().contains(id.get())) {
-      // TODO(benh): Retry 'docker kill' if it failed but the container
+      // TODO(benh): Retry 'docker rm -f' if it failed but the container
       // still exists (asynchronously).
-      docker.kill(container.id());
+      docker.rm(container.id());
     }
   }
 
@@ -658,7 +658,7 @@ void DockerContainerizerProcess::destroy(
 
   LOG(INFO) << "Destroying container '" << containerId << "'";
 
-  // Do a 'docker kill' which we'll then find out about in '_wait'
+  // Do a 'docker rm -f' which we'll then find out about in '_wait'
   // after the mesos-executor exits because it's doing a 'docker wait'
   // (via --override).
   //
@@ -667,11 +667,11 @@ void DockerContainerizerProcess::destroy(
   // 'statuses') but if that is the case then we're doing a destroy
   // because we failed to launch the mesos-executor (see defer at
   // bottom of 'launch') so no need to do anything after a successful
-  // 'docker kill'.
+  // 'docker rm -f'.
 
-  // TODO(benh): Retry 'docker kill' if it failed but the container
+  // TODO(benh): Retry 'docker rm -f' if it failed but the container
   // still exists (asynchronously).
-  docker.kill(DOCKER_NAME_PREFIX + stringify(containerId))
+  docker.rm(DOCKER_NAME_PREFIX + stringify(containerId))
     .onAny(defer(self(), &Self::_destroy, containerId, killed, lambda::_1));
 }
 

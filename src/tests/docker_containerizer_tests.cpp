@@ -165,7 +165,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   ASSERT_TRUE(foundContainer);
 
-  AWAIT_READY(docker.kill(expectedName));
+  dockerContainer.destroy(dockerContainer.lastContainerId);
 
   driver.stop();
   driver.join();
