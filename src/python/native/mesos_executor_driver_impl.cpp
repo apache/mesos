@@ -167,7 +167,6 @@ int MesosExecutorDriverImpl_init(MesosExecutorDriverImpl *self,
   }
 
   if (self->driver != NULL) {
-    self->driver->stop();
     delete self->driver;
     self->driver = NULL;
   }
@@ -190,7 +189,6 @@ int MesosExecutorDriverImpl_init(MesosExecutorDriverImpl *self,
 void MesosExecutorDriverImpl_dealloc(MesosExecutorDriverImpl* self)
 {
   if (self->driver != NULL) {
-    self->driver->stop();
     // We need to wrap the driver destructor in an "allow threads"
     // macro since the MesosExecutorDriver destructor waits for the
     // ExecutorProcess to terminate and there might be a thread that

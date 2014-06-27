@@ -598,8 +598,10 @@ MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
 
 MesosExecutorDriver::~MesosExecutorDriver()
 {
-  // Just as in SchedulerProcess, we might wait here indefinitely if
-  // MesosExecutorDriver::stop has not been invoked.
+  // Just like with the MesosSchedulerDriver it's possible to get a
+  // deadlock here. Otherwise we terminate the ExecutorProcess and
+  // wait for it before deleting.
+  terminate(process);
   wait(process);
   delete process;
 
