@@ -197,11 +197,12 @@ public:
   /**
    * Stops the scheduler driver. If the 'failover' flag is set to
    * false then it is expected that this framework will never
-   * reconnect to Mesos and all of its executors and tasks can be
-   * terminated. Otherwise, all executors and tasks will remain
-   * running (for some framework specific failover timeout) allowing the
-   * scheduler to reconnect (possibly in the same process, or from a
-   * different process, for example, on a different machine).
+   * reconnect to Mesos. So Mesos will unregister the framework
+   * and shutdown all its tasks and executors. If 'failover' is true,
+   * all executors and tasks will remain running (for some framework
+   * specific failover timeout) allowing the scheduler to reconnect
+   * (possibly in the same process, or from a different process, for
+   * example, on a different machine).
    */
   virtual Status stop(bool failover = false) = 0;
 
