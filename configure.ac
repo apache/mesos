@@ -810,20 +810,37 @@ if test "x$with_network_isolator" = "xyes"; then
 -------------------------------------------------------------------
 Network isolator is only supported on Linux!
 -------------------------------------------------------------------
-        ])])
+  ])])
 
-  # Check for libnl.
+  # Check for libnl (both headers and libraries).
   AC_CHECK_LIB([nl-3], [nl_connect], [],
                [AC_MSG_ERROR([cannot find libnl-3
 -------------------------------------------------------------------
-We need libnl-3 for network isolator!
+We need libnl-3 for building network isolator!
 -------------------------------------------------------------------
   ])])
 
+  AC_CHECK_HEADERS([netlink/netlink.h libnl3/netlink/netlink.h],
+                   [break]
+                   [AC_MSG_ERROR([cannot find libnl-3 headers
+-------------------------------------------------------------------
+We need libnl-3 headers for building network isolator!
+-------------------------------------------------------------------
+  ])])
+
+  # Check for libnl-route (both headers and libraries).
   AC_CHECK_LIB([nl-route-3], [rtnl_cls_alloc], [],
                [AC_MSG_ERROR([cannot find libnl-route-3
 -------------------------------------------------------------------
-We need libnl-route-3 for network isolator!
+We need libnl-route-3 for building network isolator!
+-------------------------------------------------------------------
+  ])])
+
+  AC_CHECK_HEADERS([netlink/route/rtnl.h libnl3/netlink/route/rtnl.h],
+                   [break]
+                   [AC_MSG_ERROR([cannot find libnl-route-3 headers
+-------------------------------------------------------------------
+We need libnl-route-3 headers for building network isolator!
 -------------------------------------------------------------------
   ])])
 
