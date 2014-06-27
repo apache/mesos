@@ -25,6 +25,7 @@
 
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
@@ -129,8 +130,13 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       }
       storage = new state::InMemoryStorage();
     } else if (flags.registry == "replicated_log") {
+      // For local runs, we use a temporary work directory.
       if (flags.work_dir.isNone()) {
-        EXIT(1) << "--work_dir needed for replicated log based registry";
+        CHECK_SOME(os::mkdir("/tmp/mesos/local"));
+
+        Try<string> directory = os::mkdtemp("/tmp/mesos/local/XXXXXX");
+        CHECK_SOME(directory);
+        flags.work_dir = directory.get();
       }
 
       // TODO(vinod): Add support for replicated log with ZooKeeper.
