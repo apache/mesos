@@ -77,7 +77,8 @@ public:
   // only the command value is used.
   process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo);
+      const ExecutorInfo& executorInfo,
+      const std::string& directory);
 
   // Isolate the executor.
   process::Future<Nothing> isolate(
@@ -119,7 +120,8 @@ public:
 
   virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo) = 0;
+      const ExecutorInfo& executorInfo,
+      const std::string& directory) = 0;
 
   virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,

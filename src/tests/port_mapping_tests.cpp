@@ -357,8 +357,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   ContainerID containerId1;
   containerId1.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir1 = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir1);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId1, executorInfo);
+    isolator.get()->prepare(containerId1, executorInfo, dir1.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -411,8 +416,14 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   executorInfo.mutable_resources()->CopyFrom(
       Resources::parse(container2Ports).get());
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir2 = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir2);
+
   Future<Option<CommandInfo> > preparation2 =
-    isolator.get()->prepare(containerId2, executorInfo);
+    isolator.get()->prepare(containerId2, executorInfo, dir2.get());
+
   AWAIT_READY(preparation2);
   ASSERT_SOME(preparation2.get());
 
@@ -493,8 +504,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   ContainerID containerId1;
   containerId1.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir1 = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir1);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId1, executorInfo);
+    isolator.get()->prepare(containerId1, executorInfo, dir1.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -548,8 +564,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   executorInfo.mutable_resources()->CopyFrom(
       Resources::parse(container2Ports).get());
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir2 = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir2);
+
   Future<Option<CommandInfo> > preparation2 =
-    isolator.get()->prepare(containerId2, executorInfo);
+    isolator.get()->prepare(containerId2, executorInfo, dir2.get());
   AWAIT_READY(preparation2);
   ASSERT_SOME(preparation2.get());
 
@@ -631,8 +652,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
   ContainerID containerId;
   containerId.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo);
+    isolator.get()->prepare(containerId, executorInfo, dir.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -740,8 +766,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   ContainerID containerId;
   containerId.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo);
+    isolator.get()->prepare(containerId, executorInfo, dir.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -856,8 +887,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternalTest)
   ContainerID containerId;
   containerId.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo);
+    isolator.get()->prepare(containerId, executorInfo, dir.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -929,8 +965,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternalTest)
   ContainerID containerId;
   containerId.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo);
+    isolator.get()->prepare(containerId, executorInfo, dir.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -1006,8 +1047,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternalTest)
   ContainerID containerId;
   containerId.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo);
+    isolator.get()->prepare(containerId, executorInfo, dir.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -1088,8 +1134,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNSTest)
   ContainerID containerId;
   containerId.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo);
+    isolator.get()->prepare(containerId, executorInfo, dir.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -1166,8 +1217,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainersTest)
   ContainerID containerId1;
   containerId1.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir1 = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir1);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId1, executorInfo);
+    isolator.get()->prepare(containerId1, executorInfo, dir1.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -1205,8 +1261,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainersTest)
   executorInfo.mutable_resources()->CopyFrom(
       Resources::parse(container2Ports).get());
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir2 = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir2);
+
   Future<Option<CommandInfo> > preparation2 =
-    isolator.get()->prepare(containerId2, executorInfo);
+    isolator.get()->prepare(containerId2, executorInfo, dir2.get());
   AWAIT_FAILED(preparation2);
 
   // Ensure all processes are killed.
@@ -1258,8 +1319,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
   ContainerID containerId;
   containerId.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo);
+    isolator.get()->prepare(containerId, executorInfo, dir.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -1374,8 +1440,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
   ContainerID containerId;
   containerId.set_value("container1");
 
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir1 = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir1);
+
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo);
+    isolator.get()->prepare(containerId, executorInfo, dir1.get());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 

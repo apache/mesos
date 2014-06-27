@@ -1437,7 +1437,8 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
 
 Future<Option<CommandInfo> > PortMappingIsolatorProcess::prepare(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo)
+    const ExecutorInfo& executorInfo,
+    const string& directory)
 {
   if (unmanaged.contains(containerId)) {
     return Failure("Asked to prepare an unmanaged container");

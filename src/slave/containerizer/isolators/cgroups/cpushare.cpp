@@ -249,7 +249,8 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
 
 Future<Option<CommandInfo> > CgroupsCpushareIsolatorProcess::prepare(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo)
+    const ExecutorInfo& executorInfo,
+    const string& directory)
 {
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");

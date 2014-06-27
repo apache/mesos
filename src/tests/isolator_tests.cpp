@@ -148,10 +148,13 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   ContainerID containerId;
   containerId.set_value("user_cpu_usage");
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
-
-  Try<string> dir = os::mkdtemp();
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
+
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
 
   // Max out a single core in userspace. This will run for at most one second.
@@ -230,8 +233,6 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
 
   delete isolator.get();
   delete launcher.get();
-
-  CHECK_SOME(os::rmdir(dir.get()));
 }
 
 
@@ -252,10 +253,13 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   ContainerID containerId;
   containerId.set_value("system_cpu_usage");
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
-
-  Try<string> dir = os::mkdtemp();
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
+
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
 
   // Generating random numbers is done by the kernel and will max out a single
@@ -335,8 +339,6 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
 
   delete isolator.get();
   delete launcher.get();
-
-  CHECK_SOME(os::rmdir(dir.get()));
 }
 
 
@@ -364,7 +366,12 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
   ContainerID containerId;
   containerId.set_value("mesos_test_cfs_cpu_limit");
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
 
   // Generate random numbers to max out a single core. We'll run this for 0.5
   // seconds of wall time so it should consume approximately 250 ms of total
@@ -465,7 +472,12 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
   ContainerID containerId;
   containerId.set_value("mesos_test_cfs_big_cpu_limit");
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -594,7 +606,12 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   ContainerID containerId;
   containerId.set_value("memory_usage");
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -681,7 +698,12 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
   ContainerID containerId;
   containerId.set_value("test");
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+  // Use a relative temporary directory so it gets cleaned up
+  // automatically with the test.
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
 
   // This first sample is likely to be empty because perf hasn't
   // completed yet but we should still have the required fields.

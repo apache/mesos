@@ -45,7 +45,8 @@ public:
 
   virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo)
+      const ExecutorInfo& executorInfo,
+      const std::string& directory)
   {
     return commandInfo;
   }
