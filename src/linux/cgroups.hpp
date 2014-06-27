@@ -175,14 +175,16 @@ Try<bool> mounted(
 
 
 // Create a cgroup under a given hierarchy. This function will return error if
-// the given hierarchy is not valid. The cgroup will NOT be created recursively.
-// In other words, if the parent cgroup does not exist, this function will just
-// return error.
+// the given hierarchy is not valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   recursive   Will create nested cgroups
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-Try<Nothing> create(const std::string& hierarchy, const std::string& cgroup);
+Try<Nothing> create(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    bool recursive = false);
 
 
 // Remove a cgroup under a given hierarchy. This function will return error if

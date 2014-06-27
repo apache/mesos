@@ -270,17 +270,19 @@ static Try<Nothing> cloneCpusetCpusMems(
 // given cgroup is a relative path to the given hierarchy. This
 // function assumes the given hierarchy is valid and is currently
 // mounted with a cgroup virtual file system. The function also
-// assumes the given cgroup is valid. This function will not create
-// directories recursively, which means it will return error if any of
-// the parent cgroups do not exist.
+// assumes the given cgroup is valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   recursive   Create nest cgroup structure
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<Nothing> create(const string& hierarchy, const string& cgroup)
+static Try<Nothing> create(
+    const string& hierarchy,
+    const string& cgroup,
+    bool recursive)
 {
   string path = path::join(hierarchy, cgroup);
-  Try<Nothing> mkdir = os::mkdir(path, false); // Do NOT create recursively.
+  Try<Nothing> mkdir = os::mkdir(path, recursive);
   if (mkdir.isError()) {
     return Error(
         "Failed to create directory '" + path + "': " + mkdir.error());
@@ -487,7 +489,7 @@ Try<string> prepare(
 
   if (!exists.get()) {
     // No cgroup exists, create it.
-    Try<Nothing> create = cgroups::create(hierarchy, cgroup);
+    Try<Nothing> create = cgroups::create(hierarchy, cgroup, true);
     if (create.isError()) {
       return Error("Failed to create root cgroup " +
                    path::join(hierarchy, cgroup) +
@@ -834,14 +836,17 @@ Try<bool> mounted(const string& hierarchy, const string& subsystems)
 }
 
 
-Try<Nothing> create(const string& hierarchy, const string& cgroup)
+Try<Nothing> create(
+    const string& hierarchy,
+    const string& cgroup,
+    bool recursive)
 {
   Option<Error> error = verify(hierarchy);
   if (error.isSome()) {
     return error.get();
   }
 
-  return internal::create(hierarchy, cgroup);
+  return internal::create(hierarchy, cgroup, recursive);
 }
 
 
