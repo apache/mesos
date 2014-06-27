@@ -30,12 +30,12 @@
 namespace mesos {
 namespace internal {
 
-ResourceStatistics usage(pid_t pid, bool mem, bool cpus)
+Try<ResourceStatistics> usage(pid_t pid, bool mem, bool cpus)
 {
   Try<os::ProcessTree> pstree = os::pstree(pid);
 
   if (pstree.isError()) {
-    return ResourceStatistics();
+    return Error("Failed to get usage: " + pstree.error());
   }
 
   ResourceStatistics statistics;

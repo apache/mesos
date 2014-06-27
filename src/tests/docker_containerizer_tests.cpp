@@ -172,3 +172,89 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   Shutdown();
 }
+
+// This test tests DockerContainerizer::usage()
+TEST_F(DockerContainerizerTest, DOCKER_Usage)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Docker docker("docker");
+
+  MockDockerContainerizer dockerContainer(flags, true, docker);
+
+  Try<PID<Slave> > slave = StartSlave((slave::Containerizer*) &dockerContainer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  CommandInfo command;
+  CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
+  containerInfo->set_image("docker://busybox");
+  command.set_value("sleep 120");
+
+  task.mutable_command()->CopyFrom(command);
+
+  Future<TaskStatus> statusRunning;
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  // Usage() should fail since the container is not launched.
+  Future<ResourceStatistics> usage =
+    dockerContainer.usage(dockerContainer.lastContainerId);
+
+  AWAIT_FAILED(usage);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  usage = dockerContainer.usage(dockerContainer.lastContainerId);
+  AWAIT_READY(usage);
+  // TODO(yifan): Verify the usage.
+
+  dockerContainer.destroy(dockerContainer.lastContainerId);
+
+  // Usage() should fail again since the container is destroyed
+  usage = dockerContainer.usage(dockerContainer.lastContainerId);
+  AWAIT_FAILED(usage);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}

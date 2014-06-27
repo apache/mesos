@@ -160,7 +160,12 @@ public:
     }
 
     // Use 'mesos-usage' but only request 'cpus_' values.
-    return mesos::internal::usage(pids.get(containerId).get(), false, true);
+    Try<ResourceStatistics> usage =
+      mesos::internal::usage(pids.get(containerId).get(), false, true);
+    if (usage.isError()) {
+      return Failure(usage.error());
+    }
+    return usage.get();
   }
 
 private:
@@ -188,7 +193,12 @@ public:
     }
 
     // Use 'mesos-usage' but only request 'mem_' values.
-    return mesos::internal::usage(pids.get(containerId).get(), true, false);
+    Try<ResourceStatistics> usage =
+      mesos::internal::usage(pids.get(containerId).get(), true, false);
+    if (usage.isError()) {
+      return Failure(usage.error());
+    }
+    return usage.get();
   }
 
 private:

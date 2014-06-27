@@ -36,6 +36,9 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/docker.hpp"
 
+#include "usage/usage.hpp"
+
+
 using std::list;
 using std::map;
 using std::string;
@@ -129,6 +132,10 @@ private:
       const ContainerID& containerId,
       const bool& killed,
       const Future<Option<int > >& status);
+
+  Future<ResourceStatistics> _usage(
+    const ContainerID& containerId,
+    const Future<Docker::Container> container);
 
   // Call back for when the executor exits. This will trigger
   // container destroy.
@@ -623,9 +630,35 @@ Future<Nothing> DockerContainerizerProcess::update(
 Future<ResourceStatistics> DockerContainerizerProcess::usage(
     const ContainerID& containerId)
 {
-  // TODO(benh): Implement! Look up Docker container ID then read
-  // cgroups files ala ./isolators/cgroups/cpushare.cpp.
-  return ResourceStatistics();
+#ifndef __linux__
+  return Failure("Does not support usage() on non-linux platform");
+#endif // __linux__
+
+  if (!promises.contains(containerId)) {
+    return Failure("Unknown container: " + stringify(containerId));
+  }
+
+  // Construct the Docker container name.
+  string name = DOCKER_NAME_PREFIX + stringify(containerId);
+  return docker.inspect(name)
+    .then(defer(self(), &Self::_usage, containerId, lambda::_1));
+}
+
+
+Future<ResourceStatistics> DockerContainerizerProcess::_usage(
+    const ContainerID& containerId,
+    const Future<Docker::Container> container)
+{
+  pid_t pid = container.get().pid();
+  if (pid == 0) {
+    return Failure("Container is not running");
+  }
+  Try<ResourceStatistics> usage =
+    mesos::internal::usage(pid, true, true);
+  if (usage.isError()) {
+    return Failure(usage.error());
+  }
+  return usage.get();
 }
 
 

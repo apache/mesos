@@ -29,7 +29,7 @@ namespace internal {
 // Collects resource usage of a process tree rooted at 'pid'. Only
 // collects the 'mem_*' values if 'mem' is true and the 'cpus_*'
 // values if 'cpus' is true.
-ResourceStatistics usage(pid_t pid, bool mem = true, bool cpus = true);
+Try<ResourceStatistics> usage(pid_t pid, bool mem = true, bool cpus = true);
 
 } // namespace internal {
 } // namespace mesos {
