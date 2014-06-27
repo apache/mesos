@@ -395,7 +395,10 @@ static Try<Nothing> write(
     return Error("Failed to open file " + path);
   }
 
-  file << value << std::endl;
+  // NOTE: cgroups convention does not append a endln!
+  // Recent kernels will cause operations to fail if 'endl' is
+  // appended to the control file.
+  file << value;
 
   if (file.fail()) {
     ErrnoError error; // TODO(jieyu): Does std::ifstream actually set errno?
