@@ -214,7 +214,6 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
 
 
   if (self->driver != NULL) {
-    self->driver->stop();
     delete self->driver;
     self->driver = NULL;
   }
@@ -244,7 +243,6 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
 void MesosSchedulerDriverImpl_dealloc(MesosSchedulerDriverImpl* self)
 {
   if (self->driver != NULL) {
-    self->driver->stop();
     // We need to wrap the driver destructor in an "allow threads"
     // macro since the MesosSchedulerDriver destructor waits for the
     // SchedulerProcess to terminate and there might be a thread that

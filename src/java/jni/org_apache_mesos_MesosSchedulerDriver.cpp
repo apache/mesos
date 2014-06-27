@@ -548,10 +548,12 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_finalize
   MesosSchedulerDriver* driver =
     (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
 
-  // Call stop just in case.
-  driver->stop();
-  driver->join();
-
+  // Note that we DO NOT want to call 'abort' or 'stop' as this may be
+  // misinterpreted by the scheduler. It is possible, however, that
+  // since we haven't called 'abort' or 'stop' there are still threads
+  // executing within the scheduler callbacks but the
+  // MesosSchedulerDriver destructor will wait until this is not the
+  // case before returning.
   delete driver;
 
   jfieldID __scheduler = env->GetFieldID(clazz, "__scheduler", "J");
