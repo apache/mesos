@@ -60,7 +60,7 @@ TEST(DockerTest, DOCKER_interface)
   }
 
   // Start the container.
-  status = docker.run("busybox", "sleep 120", containerName);
+  status = docker.run("busybox", "sleep 120", containerName, resources);
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
 
@@ -139,7 +139,7 @@ TEST(DockerTest, DOCKER_interface)
   // directly, instead of killing and rm.
   //
   // First, Invoke docker.run()
-  status = docker.run("busybox", "sleep 120", containerName);
+  status = docker.run("busybox", "sleep 120", containerName, resources);
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
 

@@ -136,7 +136,7 @@ private:
 
   Future<ResourceStatistics> _usage(
     const ContainerID& containerId,
-    const Future<Docker::Container> container);
+    const Docker::Container& container);
 
   // Call back for when the executor exits. This will trigger
   // container destroy.
@@ -510,7 +510,7 @@ Future<bool> DockerContainerizerProcess::launch(
 
   // Start a docker container then launch the executor (but destroy
   // the Docker container if launching the executor failed).
-  return docker.run(image, command.value(), name)
+  return docker.run(image, command.value(), name, taskInfo.resources())
     .then(defer(self(),
                 &Self::_launch,
                 containerId,
@@ -634,33 +634,55 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
 {
 #ifndef __linux__
   return Failure("Does not support usage() on non-linux platform");
-#endif // __linux__
-
+#else
   if (!promises.contains(containerId)) {
     return Failure("Unknown container: " + stringify(containerId));
+  }
+
+  if (destroying.contains(containerId)) {
+    return Failure("Container is being removed: " + stringify(containerId));
   }
 
   // Construct the Docker container name.
   string name = DOCKER_NAME_PREFIX + stringify(containerId);
   return docker.inspect(name)
     .then(defer(self(), &Self::_usage, containerId, lambda::_1));
+#endif // __linux__
 }
 
 
 Future<ResourceStatistics> DockerContainerizerProcess::_usage(
     const ContainerID& containerId,
-    const Future<Docker::Container> container)
+    const Docker::Container& container)
 {
-  Option<pid_t> pid = container.get().pid();
+  Option<pid_t> pid = container.pid();
   if (pid.isNone()) {
     return Failure("Container is not running");
   }
-  Try<ResourceStatistics> usage =
+
+  // Note that here getting the root pid is enough because
+  // the root process acts as an 'init' process in the docker
+  // container, so no other child processes will escape it.
+  Try<ResourceStatistics> statistics =
     mesos::internal::usage(pid.get(), true, true);
-  if (usage.isError()) {
-    return Failure(usage.error());
+  if (statistics.isError()) {
+    return Failure(statistics.error());
   }
-  return usage.get();
+
+  ResourceStatistics result = statistics.get();
+
+  // Set the resource allocations.
+  Resources resource = resources[containerId];
+  Option<Bytes> mem = resource.mem();
+  if (mem.isSome()) {
+    result.set_mem_limit_bytes(mem.get().bytes());
+  }
+
+  Option<double> cpus = resource.cpus();
+  if (cpus.isSome()) {
+    result.set_cpus_limit(cpus.get());
+  }
+  return result;
 }
 
 
