@@ -813,10 +813,13 @@ Network isolator is only supported on Linux!
   ])])
 
   # Check for libnl (both headers and libraries).
-  AC_CHECK_LIB([nl-3], [nl_connect], [],
+  AC_CHECK_LIB([nl-3], [nl_has_capability], [],
                [AC_MSG_ERROR([cannot find libnl-3
 -------------------------------------------------------------------
 We need libnl-3 for building network isolator!
+
+Please install libnl3 (version 3.2.24 or higher):
+http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
 
@@ -825,22 +828,31 @@ We need libnl-3 for building network isolator!
                    [AC_MSG_ERROR([cannot find libnl-3 headers
 -------------------------------------------------------------------
 We need libnl-3 headers for building network isolator!
+
+Please install libnl3 (version 3.2.24 or higher):
+http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
 
   # Check for libnl-route (both headers and libraries).
-  AC_CHECK_LIB([nl-route-3], [rtnl_cls_alloc], [],
+  AC_CHECK_LIB([nl-route-3], [rtnl_link_veth_add], [],
                [AC_MSG_ERROR([cannot find libnl-route-3
 -------------------------------------------------------------------
 We need libnl-route-3 for building network isolator!
+
+Please install libnl3 (version 3.2.24 or higher):
+http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
 
-  AC_CHECK_HEADERS([netlink/route/rtnl.h libnl3/netlink/route/rtnl.h],
+  AC_CHECK_HEADERS([netlink/route/link/veth.h libnl3/netlink/route/link/veth.h],
                    [break]
                    [AC_MSG_ERROR([cannot find libnl-route-3 headers
 -------------------------------------------------------------------
 We need libnl-route-3 headers for building network isolator!
+
+Please install libnl3 (version 3.2.24 or higher):
+http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
 
