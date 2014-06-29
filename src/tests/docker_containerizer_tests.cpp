@@ -21,6 +21,7 @@
 
 #include <process/future.hpp>
 
+#include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
 #include "slave/slave.hpp"
@@ -66,7 +67,7 @@ public:
     const process::PID<Slave>& slavePid,
     bool checkpoint)
   {
-    // Keeping the last launched container id
+    // Keeping the last launched container id.
     lastContainerId = containerId;
     return slave::DockerContainerizer::launch(
              containerId,
@@ -90,7 +91,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker("docker");
+  Docker docker(tests::flags.docker);
 
   MockDockerContainerizer dockerContainer(flags, true, docker);
 
@@ -155,8 +156,8 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
   bool foundContainer = false;
   string expectedName = "mesos-" + dockerContainer.lastContainerId.value();
 
-  foreach(const Docker::Container& container, containers.get()) {
-    // Docker inspect name contains an extra slash in the beginning
+  foreach (const Docker::Container& container, containers.get()) {
+    // Docker inspect name contains an extra slash in the beginning.
     if (strings::contains(container.name(), expectedName)) {
       foundContainer = true;
       break;
@@ -173,7 +174,8 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
   Shutdown();
 }
 
-// This test tests DockerContainerizer::usage()
+
+// This test tests DockerContainerizer::usage().
 TEST_F(DockerContainerizerTest, DOCKER_Usage)
 {
   Try<PID<Master> > master = StartMaster();
@@ -181,7 +183,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker("docker");
+  Docker docker(tests::flags.docker);
 
   MockDockerContainerizer dockerContainer(flags, true, docker);
 
@@ -249,7 +251,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
 
   dockerContainer.destroy(dockerContainer.lastContainerId);
 
-  // Usage() should fail again since the container is destroyed
+  // Usage() should fail again since the container is destroyed.
   usage = dockerContainer.usage(dockerContainer.lastContainerId);
   AWAIT_FAILED(usage);
 
