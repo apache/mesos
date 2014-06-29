@@ -43,8 +43,6 @@ using mesos::internal::slave::Slave;
 using process::PID;
 
 using testing::_;
-using testing::Eq;
-using testing::Return;
 
 class CredentialsTest : public MesosTest {};
 

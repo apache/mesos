@@ -337,19 +337,16 @@ void Master::initialize()
     const string& path =
       strings::remove(flags.credentials.get(), "file://", strings::PREFIX);
 
-    Result<Credentials> _credentials = credentials::read(path);
-    if (_credentials.isError()) {
-      EXIT(1) << _credentials.error() << " (see --credentials flag)";
-    } else if (_credentials.isNone()) {
+    Result<Credentials> credentials = credentials::read(path);
+    if (credentials.isError()) {
+      EXIT(1) << credentials.error() << " (see --credentials flag)";
+    } else if (credentials.isNone()) {
       EXIT(1) << "Credentials file must contain at least one credential"
               << " (see --credentials flag)";
     }
 
-    // Give Authenticator access to credentials.
-    sasl::secrets::load(_credentials.get());
-
-    // Store credentials in master
-    this->credentials = _credentials.get();
+    // Load "registration" credentials into SASL based Authenticator.
+    sasl::secrets::load(credentials.get());
 
   } else if (flags.authenticate_frameworks || flags.authenticate_slaves) {
     EXIT(1) << "Authentication requires a credentials file"

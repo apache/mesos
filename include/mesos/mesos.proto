@@ -676,11 +676,17 @@ message Credential {
 
 
 /**
- * Credentials used for authentication
+ * Credentials used for authentication.
  *
  */
 message Credentials {
+  // Collection of credentials used to authenticate "registration" of
+  // either frameworks or slaves.
   repeated Credential registration = 1;
+
+  // Collection of credentails used to authenticate HTTP endpoints
+  // (where the common "username" and "password" are captured as
+  // 'principal' and 'secret' respectively).
   repeated Credential http = 2;
 }
 

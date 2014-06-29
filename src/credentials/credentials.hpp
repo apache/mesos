@@ -71,7 +71,7 @@ inline Result<Credentials> read(const std::string& path)
     }
 
     // Add the credential.
-    Credential *credential = credentials.add_registration();
+    Credential* credential = credentials.add_registration();
     credential->set_principal(pairs[0]);
     credential->set_secret(pairs[1]);
   }
@@ -101,7 +101,7 @@ inline Result<Credential> readCredential(const std::string& path)
                  << "credential file is NOT accessible by others.";
   }
 
-  // TODO(ijimenez) deprecate text support only JSON like acls
+  // TODO(ijimenez): Deprecate text support for only JSON ACLs.
   Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
   if (!json.isError()) {
     Try<Credential> credential = ::protobuf::parse<Credential>(json.get());

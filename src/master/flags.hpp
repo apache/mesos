@@ -232,7 +232,7 @@ public:
         "                      ]\n"
         "}\n"
         "Text file Example:\n"
-        "username:secret\n"
+        "username secret\n"
         );
 
     add(&Flags::acls,

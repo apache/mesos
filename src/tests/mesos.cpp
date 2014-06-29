@@ -93,7 +93,7 @@ master::Flags MesosTest::CreateMasterFlags()
 
   // JSON default format for credentials
   Credentials credentials;
-  Credential *credential = credentials.add_registration();
+  Credential* credential = credentials.add_registration();
   credential->set_principal(DEFAULT_CREDENTIAL.principal());
   credential->set_secret(DEFAULT_CREDENTIAL.secret());
   credential = credentials.add_http();
