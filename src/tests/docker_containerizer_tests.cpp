@@ -93,9 +93,9 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   Docker docker(tests::flags.docker);
 
-  MockDockerContainerizer dockerContainer(flags, true, docker);
+  MockDockerContainerizer dockerContainerizer(flags, true, docker);
 
-  Try<PID<Slave> > slave = StartSlave((slave::Containerizer*) &dockerContainer);
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -155,7 +155,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   bool foundContainer = false;
   string expectedName =
-    slave::DOCKER_NAME_PREFIX + dockerContainer.lastContainerId.value();
+    slave::DOCKER_NAME_PREFIX + dockerContainerizer.lastContainerId.value();
 
   foreach (const Docker::Container& container, containers.get()) {
     // Docker inspect name contains an extra slash in the beginning.
@@ -167,7 +167,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   ASSERT_TRUE(foundContainer);
 
-  dockerContainer.destroy(dockerContainer.lastContainerId);
+  dockerContainerizer.destroy(dockerContainerizer.lastContainerId);
 
   driver.stop();
   driver.join();
@@ -186,9 +186,9 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
 
   Docker docker(tests::flags.docker);
 
-  MockDockerContainerizer dockerContainer(flags, true, docker);
+  MockDockerContainerizer dockerContainerizer(flags, true, docker);
 
-  Try<PID<Slave> > slave = StartSlave((slave::Containerizer*) &dockerContainer);
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -237,7 +237,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
 
   // Usage() should fail since the container is not launched.
   Future<ResourceStatistics> usage =
-    dockerContainer.usage(dockerContainer.lastContainerId);
+    dockerContainerizer.usage(dockerContainerizer.lastContainerId);
 
   AWAIT_FAILED(usage);
 
@@ -246,14 +246,14 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
-  usage = dockerContainer.usage(dockerContainer.lastContainerId);
+  usage = dockerContainerizer.usage(dockerContainerizer.lastContainerId);
   AWAIT_READY(usage);
   // TODO(yifan): Verify the usage.
 
-  dockerContainer.destroy(dockerContainer.lastContainerId);
+  dockerContainerizer.destroy(dockerContainerizer.lastContainerId);
 
   // Usage() should fail again since the container is destroyed.
-  usage = dockerContainer.usage(dockerContainer.lastContainerId);
+  usage = dockerContainerizer.usage(dockerContainerizer.lastContainerId);
   AWAIT_FAILED(usage);
 
   driver.stop();
