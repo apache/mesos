@@ -368,12 +368,130 @@ else
 fi
 
 
+# Check if we should/can build with C++11.
+if test "x$with_cxx11" = "xyes"; then
+  AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+
+  case "$host_os" in
+  darwin* )
+    # If we're using clang, we need to pass -stdlib=libc++ too.
+    if test "x$CLANG" = "xyes"; then
+      CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+    fi
+
+    # GTEST on OSX needs its own tr1 tuple.
+    # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when in
+    # c++11 mode.
+    CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1"
+    ;;
+  esac
+
+  # Also pass the flags to 3rdparty libraries.
+  CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
+fi
+
+
 # Check for pthreads (uses m4/acx_pthread.m4).
 ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
 
 # Check for libunwind, and link it in if present.
 AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lunwind")
+
+
+AC_CHECK_LIB([z], [gzread], [],
+             [AC_MSG_ERROR([cannot find libz
+-------------------------------------------------------------------
+libz is required for mesos to build.
+-------------------------------------------------------------------
+])])
+
+
+AC_CHECK_LIB([curl], [curl_global_init], [],
+             [AC_MSG_ERROR([cannot find libcurl
+-------------------------------------------------------------------
+libcurl is required for mesos to build.
+-------------------------------------------------------------------
+])])
+
+
+# TODO(benh): Also check for md5 support so we can use the CRAM-MD5
+# mechanism. We can likely do a AC_CHECK_LIB looking for a particular
+# function only provided if md5 support is present.
+AC_CHECK_LIB([sasl2], [sasl_done], [],
+             [AC_MSG_ERROR([cannot find libsasl2
+-------------------------------------------------------------------
+We need libsasl2 for authentication!
+-------------------------------------------------------------------
+])])
+
+
+# Perform necessary configuration for network isolator.
+if test "x$with_network_isolator" = "xyes"; then
+  # Check for OS support.
+  AS_IF([test "$OS_NAME" = "linux"],
+        [],
+        [AC_MSG_ERROR([cannot build network isolator
+-------------------------------------------------------------------
+Network isolator is only supported on Linux!
+-------------------------------------------------------------------
+  ])])
+
+  # Check for libnl (both headers and libraries).
+  AC_CHECK_LIB([nl-3], [nl_has_capability], [],
+               [AC_MSG_ERROR([cannot find libnl-3
+-------------------------------------------------------------------
+We need libnl-3 for building network isolator!
+
+Please install libnl3 (version 3.2.24 or higher):
+http://www.infradead.org/~tgr/libnl/
+-------------------------------------------------------------------
+  ])])
+
+  AC_CHECK_HEADERS([netlink/netlink.h libnl3/netlink/netlink.h],
+                   [break]
+                   [AC_MSG_ERROR([cannot find libnl-3 headers
+-------------------------------------------------------------------
+We need libnl-3 headers for building network isolator!
+
+Please install libnl3 (version 3.2.24 or higher):
+http://www.infradead.org/~tgr/libnl/
+-------------------------------------------------------------------
+  ])])
+
+  # Check for libnl-route (both headers and libraries).
+  AC_CHECK_LIB([nl-route-3], [rtnl_link_veth_add], [],
+               [AC_MSG_ERROR([cannot find libnl-route-3
+-------------------------------------------------------------------
+We need libnl-route-3 for building network isolator!
+
+Please install libnl3 (version 3.2.24 or higher):
+http://www.infradead.org/~tgr/libnl/
+-------------------------------------------------------------------
+  ])])
+
+  AC_CHECK_HEADERS([netlink/route/link/veth.h libnl3/netlink/route/link/veth.h],
+                   [break]
+                   [AC_MSG_ERROR([cannot find libnl-route-3 headers
+-------------------------------------------------------------------
+We need libnl-route-3 headers for building network isolator!
+
+Please install libnl3 (version 3.2.24 or higher):
+http://www.infradead.org/~tgr/libnl/
+-------------------------------------------------------------------
+  ])])
+
+  # TODO(jieyu): Automatically detect the location where the libnl
+  # headers are installed.
+  LIBNL_CFLAGS=-I/usr/include/libnl3
+
+  AC_SUBST([LIBNL_CFLAGS])
+
+  AC_DEFINE([WITH_NETWORK_ISOLATOR])
+fi
+
+AM_CONDITIONAL([WITH_NETWORK_ISOLATOR],
+               [test "x$with_network_isolator" = "xyes"])
 
 
 # TODO(benh): Consider using AS_IF instead of just shell 'if'
@@ -661,7 +779,9 @@ __EOF__
 
   # Build that Python egg that links against that library. The build
   # settings are propagated to distutils.
-  CXX="$CXX" CC="$CC" CXXFLAGS="$CXXFLAGS" CFLAGS="$CFLAGS" \
+  # NOTE: We need to embed our CXXFLAGS in CFLAGS because distutils
+  # doesn't pull out CXXFLAGS automagically.
+  CXX="$CXX" CC="$CC" CFLAGS="$CFLAGS $CXXFLAGS" \
     LDFLAGS="$LDFLAGS" $PYTHON setup.py build_ext --inplace \
     --build-temp ./ 2>&1 >/dev/null
 
@@ -725,16 +845,16 @@ There are two possible workarounds for this issue:
   # When clang is being used, make sure that the distutils python-
   # config cflags extraction does not cause build errors (MESOS-1079).
   # TODO(tillt): Remove this once Apple distributed an updated Python.
-  PYTHON_CFLAGS="$CFLAGS"
   PYTHON_CPPFLAGS="$CPPFLAGS"
+  PYTHON_CFLAGS="$CFLAGS $CXXFLAGS" # distutils requires we embed CXXFLAGS.
   PYTHON_LDFLAGS="$LDFLAGS"
 
   AS_IF([test "x$CLANG" = "xyes"],
-	[PYTHON_CFLAGS="$PYTHON_CFLAGS -Qunused-arguments"
-	 PYTHON_CPPFLAGS="$PYTHON_CPPFLAGS -Qunused-arguments"])
+	[PYTHON_CPPFLAGS="$PYTHON_CPPFLAGS -Qunused-arguments"
+         PYTHON_CFLAGS="$PYTHON_CFLAGS -Qunused-arguments"])
 
-  AC_SUBST([PYTHON_CFLAGS])
   AC_SUBST([PYTHON_CPPFLAGS])
+  AC_SUBST([PYTHON_CFLAGS])
   AC_SUBST([PYTHON_EGG_POSTFIX])
   AC_SUBST([PYTHON_EGG_PUREPY_POSTFIX])
   AC_SUBST([PYTHON]) # Used by the example shell scripts and src/Makefile.am.
@@ -751,123 +871,6 @@ mesos-ec2 services will not function.
 fi
 
 AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
-
-AC_CHECK_LIB([z], [gzread], [],
-             [AC_MSG_ERROR([cannot find libz
--------------------------------------------------------------------
-libz is required for mesos to build.
--------------------------------------------------------------------
-])])
-
-AC_CHECK_LIB([curl], [curl_global_init], [],
-             [AC_MSG_ERROR([cannot find libcurl
--------------------------------------------------------------------
-libcurl is required for mesos to build.
--------------------------------------------------------------------
-])])
-
-
-# Check if we should/can build with C++11.
-if test "x$with_cxx11" = "xyes"; then
-  AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
-
-  case "$host_os" in
-  darwin* )
-    # If we're using clang, we need to pass -stdlib=libc++ too.
-    if test "x$CLANG" = "xyes"; then
-      CXXFLAGS="$CXXFLAGS -stdlib=libc++"
-    fi
-
-    # GTEST on OSX needs its own tr1 tuple.
-    # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when in
-    # c++11 mode.
-    CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1"
-    ;;
-  esac
-
-  # Also pass the flags to 3rdparty libraries.
-  CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
-fi
-
-
-# TODO(benh): Also check for md5 support so we can use the CRAM-MD5
-# mechanism. We can likely do a AC_CHECK_LIB looking for a particular
-# function only provided if md5 support is present.
-AC_CHECK_LIB([sasl2], [sasl_done], [],
-             [AC_MSG_ERROR([cannot find libsasl2
--------------------------------------------------------------------
-We need libsasl2 for authentication!
--------------------------------------------------------------------
-])])
-
-
-# Perform necessary configuration for network isolator.
-if test "x$with_network_isolator" = "xyes"; then
-  # Check for OS support.
-  AS_IF([test "$OS_NAME" = "linux"],
-        [],
-        [AC_MSG_ERROR([cannot build network isolator
--------------------------------------------------------------------
-Network isolator is only supported on Linux!
--------------------------------------------------------------------
-  ])])
-
-  # Check for libnl (both headers and libraries).
-  AC_CHECK_LIB([nl-3], [nl_has_capability], [],
-               [AC_MSG_ERROR([cannot find libnl-3
--------------------------------------------------------------------
-We need libnl-3 for building network isolator!
-
-Please install libnl3 (version 3.2.24 or higher):
-http://www.infradead.org/~tgr/libnl/
--------------------------------------------------------------------
-  ])])
-
-  AC_CHECK_HEADERS([netlink/netlink.h libnl3/netlink/netlink.h],
-                   [break]
-                   [AC_MSG_ERROR([cannot find libnl-3 headers
--------------------------------------------------------------------
-We need libnl-3 headers for building network isolator!
-
-Please install libnl3 (version 3.2.24 or higher):
-http://www.infradead.org/~tgr/libnl/
--------------------------------------------------------------------
-  ])])
-
-  # Check for libnl-route (both headers and libraries).
-  AC_CHECK_LIB([nl-route-3], [rtnl_link_veth_add], [],
-               [AC_MSG_ERROR([cannot find libnl-route-3
--------------------------------------------------------------------
-We need libnl-route-3 for building network isolator!
-
-Please install libnl3 (version 3.2.24 or higher):
-http://www.infradead.org/~tgr/libnl/
--------------------------------------------------------------------
-  ])])
-
-  AC_CHECK_HEADERS([netlink/route/link/veth.h libnl3/netlink/route/link/veth.h],
-                   [break]
-                   [AC_MSG_ERROR([cannot find libnl-route-3 headers
--------------------------------------------------------------------
-We need libnl-route-3 headers for building network isolator!
-
-Please install libnl3 (version 3.2.24 or higher):
-http://www.infradead.org/~tgr/libnl/
--------------------------------------------------------------------
-  ])])
-
-  # TODO(jieyu): Automatically detect the location where the libnl
-  # headers are installed.
-  LIBNL_CFLAGS=-I/usr/include/libnl3
-
-  AC_SUBST([LIBNL_CFLAGS])
-
-  AC_DEFINE([WITH_NETWORK_ISOLATOR])
-fi
-
-
-AM_CONDITIONAL([WITH_NETWORK_ISOLATOR],
-               [test "x$with_network_isolator" = "xyes"])
 
 
 AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])

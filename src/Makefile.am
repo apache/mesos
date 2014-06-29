@@ -924,7 +924,7 @@ $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py		\
 	  cp -pf $(srcdir)/python/src/mesos.py python/src;		\
 	fi
 	@LIBS="$(LIBS)" CC="$(CC)" CXX="$(CXX)"				\
-	CFLAGS="$(PYTHON_CFLAGS)" CPPFLAGS="$(PYTHON_CPPFLAGS)"		\
+	CPPFLAGS="$(PYTHON_CPPFLAGS)" CFLAGS="$(PYTHON_CFLAGS)"		\
 	LDFLAGS="$(PYTHON_LDFLAGS)"					\
 	PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) python/setup.py bdist_egg
 
