@@ -209,9 +209,31 @@ public:
 
     add(&Flags::credentials,
         "credentials",
-        "Path to a file with a list of credentials.\n"
-        "Each line contains 'principal' and 'secret' separated by whitespace.\n"
-        "Path could be of the form 'file:///path/to/file' or '/path/to/file'.");
+        "Either a path to a text file with a list of credentials,\n"
+        "each line containing 'principal' and 'secret' separated by "
+        "whitespace,\n"
+        "or, a path to a JSON-formatted file containing credentials\n"
+        "for identification/registration and http authentication."
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'."
+        "\n"
+        "JSON file Example:\n"
+        "{\n"
+        "  \"http\": [\n"
+        "             {\n"
+        "                \"principal\": \"username\",\n"
+        "                \"secret\": \"secret\",\n"
+        "             }\n"
+        "            ],\n"
+        "  \"identification\": [\n"
+        "                       {\n"
+        "                          \"principal\": \"username\",\n"
+        "                          \"secret\": \"secret\",\n"
+        "                       }\n"
+        "                      ]\n"
+        "}\n"
+        "Text file Example:\n"
+        "username:secret\n"
+        );
 
     add(&Flags::acls,
         "acls",

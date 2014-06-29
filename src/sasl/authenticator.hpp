@@ -466,17 +466,12 @@ void load(const std::map<std::string, std::string>& secrets)
   InMemoryAuxiliaryPropertyPlugin::load(properties);
 }
 
-
-// Load credentials into the in-memory auxiliary propery plugin
-// that is used by the authenticators.
-void load(const std::vector<Credential>& credentials)
+void load(const Credentials& c)
 {
   std::map<std::string, std::string> secrets;
-
-  foreach (const Credential& credential, credentials) {
-    secrets[credential.principal()] = credential.secret();
+  foreach(const Credential& registration, c.registration()) {
+    secrets[registration.principal()] = registration.secret();
   }
-
   load(secrets);
 }
 

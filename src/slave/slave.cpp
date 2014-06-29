@@ -255,16 +255,14 @@ void Slave::initialize()
     const string& path =
       strings::remove(flags.credential.get(), "file://", strings::PREFIX);
 
-    Result<vector<Credential> > credentials = credentials::read(path);
-    if (credentials.isError()) {
-      EXIT(1) << credentials.error() << " (see --credential flag)";
-    } else if (credentials.isNone()) {
+    Result<Credential> _credential = credentials::readCredential(path);
+    if (_credential.isError()) {
+      EXIT(1) << _credential.error() << " (see --credential flag)";
+    } else if (_credential.isNone()) {
       EXIT(1) << "Empty credential file '" << path
               << "' (see --credential flag)";
-    } else if (credentials.get().size() != 1) {
-      EXIT(1) << "Not expecting multiple credentials (see --credential flag)";
     } else {
-      credential = credentials.get()[0];
+      credential = _credential.get();
       LOG(INFO) << "Slave using credential for: "
                 << credential.get().principal();
     }

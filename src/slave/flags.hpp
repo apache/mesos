@@ -243,9 +243,18 @@ public:
 
     add(&Flags::credential,
         "credential",
-        "Path to a file containing a single line with\n"
-        "the 'principal' and 'secret' separated by whitespace.\n"
-        "Path could be of the form 'file:///path/to/file' or '/path/to/file'");
+        "Either a path to a text with a single line\n"
+        "containing 'principal' and 'secret' separated by "
+        "whitespace.\n"
+        "Or a path containing the JSON "
+        "formatted information used for one credential.\n"
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'."
+        "\n"
+        "Example:\n"
+        "{\n"
+        "    \"principal\": \"username\",\n"
+        "    \"secret\": \"secret\",\n"
+        "}");
 
     add(&Flags::containerizer_path,
         "containerizer_path",

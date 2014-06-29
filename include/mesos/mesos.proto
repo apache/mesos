@@ -676,6 +676,16 @@ message Credential {
 
 
 /**
+ * Credentials used for authentication
+ *
+ */
+message Credentials {
+  repeated Credential registration = 1;
+  repeated Credential http = 2;
+}
+
+
+/**
  * ACLs used for authorization.
  */
 message ACL {

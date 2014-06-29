@@ -91,12 +91,17 @@ master::Flags MesosTest::CreateMasterFlags()
 
   CHECK_SOME(fd);
 
-  const string& credentials =
-    DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
+  // JSON default format for credentials
+  Credentials credentials;
+  Credential *credential = credentials.add_registration();
+  credential->set_principal(DEFAULT_CREDENTIAL.principal());
+  credential->set_secret(DEFAULT_CREDENTIAL.secret());
+  credential = credentials.add_http();
+  credential->set_principal(DEFAULT_CREDENTIAL.principal());
+  credential->set_secret(DEFAULT_CREDENTIAL.secret());
 
-  CHECK_SOME(os::write(fd.get(), credentials))
-    << "Failed to write credentials to '" << path << "'";
-
+  CHECK_SOME(os::write(fd.get(), stringify(JSON::Protobuf(credentials))))
+     << "Failed to write credentials to '" << path << "'";
   CHECK_SOME(os::close(fd.get()));
 
   flags.credentials = "file://" + path;
@@ -137,11 +142,12 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   CHECK_SOME(fd);
 
-  const string& credential =
-    DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
+  Credential credential;
+  credential.set_principal(DEFAULT_CREDENTIAL.principal());
+  credential.set_secret(DEFAULT_CREDENTIAL.secret());
 
-  CHECK_SOME(os::write(fd.get(), credential))
-    << "Failed to write slave credential to '" << path << "'";
+  CHECK_SOME(os::write(fd.get(), stringify(JSON::Protobuf(credential))))
+     << "Failed to write slave credential to '" << path << "'";
 
   CHECK_SOME(os::close(fd.get()));
 

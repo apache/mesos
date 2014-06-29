@@ -370,6 +370,8 @@ protected:
   OfferID newOfferId();
   SlaveID newSlaveId();
 
+  Option<Credentials> credentials;
+
 private:
   // Inner class used to namespace HTTP route handlers (see
   // master/http.cpp for implementations).
