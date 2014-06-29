@@ -29,8 +29,14 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// Prefix used to name Docker containers in order to distinguish those
+// created by Mesos from those created manually.
+extern std::string DOCKER_NAME_PREFIX;
+
+
 // Forward declaration.
 class DockerContainerizerProcess;
+
 
 class DockerContainerizer : public Containerizer
 {

@@ -154,7 +154,8 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
   ASSERT_TRUE(containers.get().size() > 0);
 
   bool foundContainer = false;
-  string expectedName = "mesos-" + dockerContainer.lastContainerId.value();
+  string expectedName =
+    slave::DOCKER_NAME_PREFIX + dockerContainer.lastContainerId.value();
 
   foreach (const Docker::Container& container, containers.get()) {
     // Docker inspect name contains an extra slash in the beginning.

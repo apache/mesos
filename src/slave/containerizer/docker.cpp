@@ -55,9 +55,10 @@ using state::ExecutorState;
 using state::RunState;
 
 
-// Prefix included in every Docker container created by Mesos to
-// distinguish from Docker containers created manually.
-static string DOCKER_NAME_PREFIX = "mesos-";
+// Declared in header, see explanation there.
+// TODO(benh): At some point to run multiple slaves we'll need to make
+// the Docker container name creation include the slave ID.
+string DOCKER_NAME_PREFIX = "mesos-";
 
 
 class DockerContainerizerProcess
