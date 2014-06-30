@@ -67,7 +67,7 @@ inline Result<Credentials> read(const std::string& path)
     const std::vector<std::string>& pairs = strings::tokenize(line, " ");
     if (pairs.size() != 2) {
         return Error("Invalid credential format at line " +
-                     credentials.registration().size() + 1);
+                     stringify(credentials.registration().size() + 1));
     }
 
     // Add the credential.
