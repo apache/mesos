@@ -30,11 +30,18 @@
 
 #include "docker/docker.hpp"
 
+#ifdef __linux__
+#include "linux/cgroups.hpp"
+#endif // __linux__
+
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/docker.hpp"
+
+#include "slave/containerizer/isolators/cgroups/cpushare.hpp"
+#include "slave/containerizer/isolators/cgroups/mem.hpp"
 
 #include "usage/usage.hpp"
 
@@ -134,6 +141,11 @@ private:
       const bool& killed,
       const Future<Option<int > >& status);
 
+  process::Future<Nothing> _update(
+      const ContainerID& containerId,
+      const Resources& resources,
+      const Future<Docker::Container>& future);
+
   Future<ResourceStatistics> _usage(
     const ContainerID& containerId,
     const Docker::Container& container);
@@ -169,6 +181,30 @@ private:
 };
 
 
+Try<Nothing> DockerContainerizer::prepareCgroups(const Flags& flags)
+{
+#ifdef __linux__
+  std::vector<string> subsystems;
+  subsystems.push_back("cpu");
+  subsystems.push_back("cpuacct");
+  subsystems.push_back("memory");
+
+  foreach (const string& subsystem, subsystems) {
+    // We're assuming docker is under cgroup directory "docker".
+    Try<string> hierarchy =
+      cgroups::prepare(flags.cgroups_hierarchy, subsystem, "docker");
+
+    if (hierarchy.isError()) {
+      return Error(
+          "Failed to prepare cgroup hierarchy " + flags.cgroups_hierarchy +
+          " subsystem '" + subsystem + "' for Docker: " + hierarchy.error());
+    }
+  }
+#endif // __linux__
+  return Nothing();
+}
+
+
 Try<DockerContainerizer*> DockerContainerizer::create(
     const Flags& flags,
     bool local)
@@ -177,6 +213,11 @@ Try<DockerContainerizer*> DockerContainerizer::create(
   Try<Nothing> validation = Docker::validate(docker);
   if (validation.isError()) {
     return Error(validation.error());
+  }
+
+  Try<Nothing> prepare = prepareCgroups(flags);
+  if (prepare.isError()) {
+    return Error(prepare.error());
   }
 
   return new DockerContainerizer(flags, local, docker);
@@ -620,11 +661,106 @@ Future<bool> DockerContainerizerProcess::_launch(
 
 Future<Nothing> DockerContainerizerProcess::update(
     const ContainerID& containerId,
-    const Resources& resources)
+    const Resources& _resources)
 {
-  // TODO(benh): Right now we're only launching tasks so we don't
-  // expect the containers to be resized. This will need to get
-  // implemented to support executors.
+  if (!promises.contains(containerId)) {
+    LOG(WARNING)
+      << "Ignoring updating unknown container: "
+      << containerId.value();
+    return Nothing();
+  }
+
+#ifdef __linux__
+  if (!_resources.cpus().isSome() && !_resources.mem().isSome()) {
+    LOG(WARNING) << "Ignoring update as no supported resources are present";
+    return Nothing();
+  }
+
+  // Store the resources for usage()
+  resources.put(containerId, _resources);
+
+  return docker.inspect(DOCKER_NAME_PREFIX + stringify(containerId))
+    .then(defer(self(), &Self::_update, containerId, _resources, lambda::_1));
+#else
+  return Nothing();
+#endif // __linux__
+}
+
+
+Future<Nothing> DockerContainerizerProcess::_update(
+    const ContainerID& containerId,
+    const Resources& _resources,
+    const Future<Docker::Container>& future)
+{
+#ifdef __linux__
+  const string& id = path::join("docker", future.get().id());
+
+  // Update CPU shares.
+  if (_resources.cpus().isSome()) {
+    double cpuShares = _resources.cpus().get();
+
+    uint64_t shares =
+      std::max((uint64_t) (CPU_SHARES_PER_CPU * cpuShares), MIN_CPU_SHARES);
+
+    Try<Nothing> write =
+      cgroups::cpu::shares(
+          path::join(flags.cgroups_hierarchy, "cpu"), id, shares);
+
+    if (write.isError()) {
+      return Failure("Failed to update 'cpu.shares': " + write.error());
+    }
+
+    LOG(INFO)
+      << "Updated 'cpu.shares' to " << shares
+      << " for container " << containerId;
+  }
+
+  // Update Memory.
+  if (_resources.mem().isSome()) {
+    Bytes mem = _resources.mem().get();
+    Bytes limit = std::max(mem, MIN_MEMORY);
+
+    std::string memHierarchy =
+      path::join(flags.cgroups_hierarchy, "memory");
+
+    // Always set the soft limit.
+    Try<Nothing> write =
+      cgroups::memory::soft_limit_in_bytes(memHierarchy, id, limit);
+
+    if (write.isError()) {
+      return Failure("Failed to set 'memory.soft_limit_in_bytes': " +
+          write.error());
+    }
+
+    LOG(INFO)
+      << "Updated 'memory.soft_limit_in_bytes' to " << limit
+      << " for container " << containerId;
+
+    // Read the existing limit.
+    Try<Bytes> currentLimit =
+      cgroups::memory::limit_in_bytes(memHierarchy, id);
+
+    if (currentLimit.isError()) {
+      return Failure("Failed to read 'memory.limit_in_bytes': " +
+          currentLimit.error());
+    }
+
+    // Only update if new limit is higher.
+    if (limit > currentLimit.get()) {
+      write = cgroups::memory::limit_in_bytes(memHierarchy, id, limit);
+
+      if (write.isError()) {
+        return Failure("Failed to set 'memory.limit_in_bytes': " +
+            write.error());
+      }
+
+      LOG(INFO)
+        << "Updated 'memory.limit_in_bytes' to " << limit
+        << " for container " << containerId;
+    }
+  }
+#endif // __linux__
+
   return Nothing();
 }
 

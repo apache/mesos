@@ -22,6 +22,8 @@
 #include <process/future.hpp>
 #include <process/subprocess.hpp>
 
+#include "linux/cgroups.hpp"
+
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
@@ -62,6 +64,7 @@ public:
       const Docker& docker)
     : DockerContainerizer(flags, local, docker)
   {
+    DockerContainerizer::prepareCgroups(flags);
     EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launch));
   }
@@ -315,6 +318,123 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
 
   Shutdown();
 }
+
+
+#ifdef __linux__
+TEST_F(DockerContainerizerTest, DOCKER_Update)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Docker docker(tests::flags.docker);
+
+  MockDockerContainerizer dockerContainerizer(flags, true, docker);
+
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  CommandInfo command;
+  CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
+  containerInfo->set_image("docker://busybox");
+  command.set_value("sleep 180");
+
+  task.mutable_command()->CopyFrom(command);
+
+  Future<TaskStatus> statusRunning;
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+         Invoke(&dockerContainerizer,
+                &MockDockerContainerizer::_launch)));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(containerId);
+
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  string containerName = slave::DOCKER_NAME_PREFIX + containerId.get().value();
+  Future<Docker::Container> container = docker.inspect(containerName);
+
+  AWAIT_READY(container);
+
+  Try<Resources> newResources = Resources::parse("cpus:1;mem:128");
+
+  ASSERT_SOME(newResources);
+
+  Future<Nothing> update =
+    dockerContainerizer.update(containerId.get(), newResources.get());
+
+  AWAIT_READY(update);
+
+  string id = path::join("docker", container.get().id());
+
+  Try<Bytes> mem =
+    cgroups::memory::soft_limit_in_bytes(
+        path::join(flags.cgroups_hierarchy, "memory"), id);
+  ASSERT_SOME(mem);
+
+  Try<uint64_t> cpu =
+    cgroups::cpu::shares(
+        path::join(flags.cgroups_hierarchy, "cpu"), id);
+
+  ASSERT_SOME(cpu);
+
+  EXPECT_EQ(1024, cpu.get());
+  EXPECT_EQ(128, mem.get().megabytes());
+
+  Future<containerizer::Termination> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  dockerContainerizer.destroy(containerId.get());
+
+  AWAIT_READY(termination);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+#endif //__linux__
 
 
 TEST_F(DockerContainerizerTest, DOCKER_Recover)

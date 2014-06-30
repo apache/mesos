@@ -1846,6 +1846,25 @@ Try<Nothing> shares(
 }
 
 
+Try<uint64_t> shares(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  Try<string> read = cgroups::read(hierarchy, cgroup, "cpu.shares");
+
+  if (read.isError()) {
+    return Error(read.error());
+  }
+
+  uint64_t shares;
+  std::istringstream ss(read.get());
+
+  ss >> shares;
+
+  return shares;
+}
+
+
 Try<Nothing> cfs_period_us(
     const string& hierarchy,
     const string& cgroup,
