@@ -409,8 +409,9 @@ Future<Nothing> DockerContainerizerProcess::recover(
     }
   }
 
-  // Get the list of Docker containers in order to Remove any orphans.
-  return docker.ps()
+  // Get the list of all Docker containers (running and exited) in
+  // order to remove any orphans.
+  return docker.ps(true)
     .then(defer(self(), &Self::_recover, lambda::_1));
 }
 
@@ -437,7 +438,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
     if (!statuses.keys().contains(id.get())) {
       // TODO(benh): Retry 'docker rm -f' if it failed but the container
       // still exists (asynchronously).
-      docker.rm(container.id());
+      docker.rm(container.id(), true);
     }
   }
 
@@ -705,7 +706,7 @@ void DockerContainerizerProcess::destroy(
 
   // TODO(benh): Retry 'docker rm -f' if it failed but the container
   // still exists (asynchronously).
-  docker.rm(DOCKER_NAME_PREFIX + stringify(containerId))
+  docker.rm(DOCKER_NAME_PREFIX + stringify(containerId), true)
     .onAny(defer(self(), &Self::_destroy, containerId, killed, lambda::_1));
 }
 

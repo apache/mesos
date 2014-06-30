@@ -71,7 +71,7 @@ public:
   // Performs 'docker rm (-f) CONTAINER'.
   process::Future<Option<int> > rm(
       const std::string& container,
-      const bool force = true) const;
+      const bool force = false) const;
 
   // Performs 'docker inspect CONTAINER'.
   process::Future<Container> inspect(
@@ -79,7 +79,7 @@ public:
 
   // Performs 'docker ps (-a)'.
   process::Future<std::list<Container> > ps(
-      const bool all = true) const;
+      const bool all = false) const;
 
   process::Future<std::string> info() const;
 
