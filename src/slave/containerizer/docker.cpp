@@ -650,12 +650,12 @@ Future<ResourceStatistics> DockerContainerizerProcess::_usage(
     const ContainerID& containerId,
     const Future<Docker::Container> container)
 {
-  pid_t pid = container.get().pid();
-  if (pid == 0) {
+  Option<pid_t> pid = container.get().pid();
+  if (pid.isNone()) {
     return Failure("Container is not running");
   }
   Try<ResourceStatistics> usage =
-    mesos::internal::usage(pid, true, true);
+    mesos::internal::usage(pid.get(), true, true);
   if (usage.isError()) {
     return Failure(usage.error());
   }

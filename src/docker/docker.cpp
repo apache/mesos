@@ -55,7 +55,7 @@ string Docker::Container::name() const
   return value.as<JSON::String>().value;
 }
 
-pid_t Docker::Container::pid() const
+Option<pid_t> Docker::Container::pid() const
 {
   map<string, JSON::Value>::const_iterator state =
     json.values.find("State");
@@ -66,9 +66,13 @@ pid_t Docker::Container::pid() const
   map<string, JSON::Value>::const_iterator entry =
     value.as<JSON::Object>().values.find("Pid");
   CHECK(entry != json.values.end());
-  JSON::Value pid = entry->second;
-  CHECK(pid.is<JSON::Number>());
-  return pid_t(pid.as<JSON::Number>().value);
+  value = entry->second;
+  CHECK(value.is<JSON::Number>());
+  pid_t pid = pid_t(value.as<JSON::Number>().value);
+  if (pid == 0) {
+    return None();
+  }
+  return pid;
 }
 
 Future<Option<int> > Docker::run(
@@ -288,7 +292,7 @@ Future<list<Docker::Container> > Docker::_ps(
   vector<string> lines = strings::tokenize(output.get(), "\n");
 
   // Skip the header.
-  CHECK_NE(0, lines.size());
+  CHECK(!lines.empty());
   lines.erase(lines.begin());
 
   list<Future<Docker::Container> > futures;
