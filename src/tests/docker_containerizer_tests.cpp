@@ -45,42 +45,57 @@ using std::string;
 
 using testing::_;
 using testing::DoDefault;
-using testing::Eq;
+using testing::Invoke;
 using testing::Return;
 
 class DockerContainerizerTest : public MesosTest {};
 
-class MockDockerContainerizer : public slave::DockerContainerizer {
+class MockDockerContainerizer : public DockerContainerizer {
 public:
   MockDockerContainerizer(
-    const slave::Flags& flags,
-    bool local,
-    const Docker& docker) : DockerContainerizer(flags, local, docker) {}
-
-  process::Future<bool> launch(
-    const ContainerID& containerId,
-    const TaskInfo& taskInfo,
-    const ExecutorInfo& executorInfo,
-    const std::string& directory,
-    const Option<std::string>& user,
-    const SlaveID& slaveId,
-    const process::PID<Slave>& slavePid,
-    bool checkpoint)
+      const slave::Flags& flags,
+      bool local,
+      const Docker& docker)
+    : DockerContainerizer(flags, local, docker)
   {
-    // Keeping the last launched container id.
-    lastContainerId = containerId;
-    return slave::DockerContainerizer::launch(
-             containerId,
-             taskInfo,
-             executorInfo,
-             directory,
-             user,
-             slaveId,
-             slavePid,
-             checkpoint);
+    EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
+      .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launch));
   }
 
-  ContainerID lastContainerId;
+  MOCK_METHOD8(
+      launch,
+      process::Future<bool>(
+          const ContainerID&,
+          const TaskInfo&,
+          const ExecutorInfo&,
+          const std::string&,
+          const Option<std::string>&,
+          const SlaveID&,
+          const process::PID<slave::Slave>&,
+          bool checkpoint));
+
+  // Default 'launch' implementation (necessary because we can't just
+  // use &DockerContainerizer::launch with 'Invoke').
+  process::Future<bool> _launch(
+      const ContainerID& containerId,
+      const TaskInfo& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const string& directory,
+      const Option<string>& user,
+      const SlaveID& slaveId,
+      const PID<Slave>& slavePid,
+      bool checkpoint)
+  {
+    return DockerContainerizer::launch(
+        containerId,
+        taskInfo,
+        executorInfo,
+        directory,
+        user,
+        slaveId,
+        slavePid,
+        checkpoint);
+  }
 };
 
 
@@ -138,11 +153,19 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillRepeatedly(DoDefault());
 
   driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(containerId);
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
@@ -154,8 +177,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
   ASSERT_TRUE(containers.get().size() > 0);
 
   bool foundContainer = false;
-  string expectedName =
-    slave::DOCKER_NAME_PREFIX + dockerContainerizer.lastContainerId.value();
+  string expectedName = slave::DOCKER_NAME_PREFIX + containerId.get().value();
 
   foreach (const Docker::Container& container, containers.get()) {
     // Docker inspect name contains an extra slash in the beginning.
@@ -167,7 +189,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   ASSERT_TRUE(foundContainer);
 
-  dockerContainerizer.destroy(dockerContainerizer.lastContainerId);
+  dockerContainerizer.destroy(containerId.get());
 
   driver.stop();
   driver.join();
@@ -231,29 +253,32 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillRepeatedly(DoDefault());
 
-  // Usage() should fail since the container is not launched.
-  Future<ResourceStatistics> usage =
-    dockerContainerizer.usage(dockerContainerizer.lastContainerId);
-
-  AWAIT_FAILED(usage);
-
   driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(containerId);
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
-  usage = dockerContainerizer.usage(dockerContainerizer.lastContainerId);
+  Future<ResourceStatistics> usage =
+    dockerContainerizer.usage(containerId.get());
   AWAIT_READY(usage);
   // TODO(yifan): Verify the usage.
 
-  dockerContainerizer.destroy(dockerContainerizer.lastContainerId);
+  dockerContainerizer.destroy(containerId.get());
 
   // Usage() should fail again since the container is destroyed.
-  usage = dockerContainerizer.usage(dockerContainerizer.lastContainerId);
+  usage = dockerContainerizer.usage(containerId.get());
   AWAIT_FAILED(usage);
 
   driver.stop();
