@@ -23,6 +23,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -423,10 +424,22 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   // Speed up the tests by ensuring that the Master is recovered
   // before the test proceeds. Otherwise, authentication and
   // registration messages may be dropped, causing delayed retries.
-  // NOTE: The tests may still need to settle the Clock while it's
-  // paused to ensure that the Master finishes executing _recover().
-  if (!_recover.await(Seconds(10))) {
+  // NOTE: We use process::internal::await() to avoid awaiting a
+  // Future forever when the Clock is paused.
+  if (!process::internal::await(_recover, Seconds(10))) {
     LOG(FATAL) << "Failed to wait for _recover";
+  }
+
+  bool paused = process::Clock::paused();
+
+  // Need to settle the Clock to ensure that the Master finishes
+  // executing _recover() before we return.
+  process::Clock::pause();
+  process::Clock::settle();
+
+  // Return the Clock to its original state.
+  if (!paused) {
+    process::Clock::resume();
   }
 
   return pid;
