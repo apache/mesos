@@ -1832,8 +1832,7 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
 // belong to some currently unregistered frameworks will appear in the
 // "orphan_tasks" field in the state.json. And those unregistered frameworks
 // will appear in the "unregistered_frameworks" field.
-// NOTE: Temporarily disabled due to MESOS-1543.
-TEST_F(MasterTest, DISABLED_OrphanTasks)
+TEST_F(MasterTest, OrphanTasks)
 {
   // Start a master.
   Try<PID<Master> > master = StartMaster();
@@ -1930,6 +1929,10 @@ TEST_F(MasterTest, DISABLED_OrphanTasks)
   // The master failover.
   master = StartMaster();
   ASSERT_SOME(master);
+
+  // Settle the clock to ensure the master finishes
+  // executing _recover().
+  Clock::settle();
 
   // Simulate a new master detected event to the slave and the framework.
   detector.appoint(master.get());
