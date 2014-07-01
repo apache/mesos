@@ -601,6 +601,136 @@ TEST_F(MasterAuthorizationTest, ReconcileTask)
 }
 
 
+// This test verifies that two tasks each launched on a different
+// slave with same executor id but different executor info are
+// allowed even when the first task is pending due to authorization.
+TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
+{
+  MockAuthorizer authorizer;
+  Try<PID<Master> > master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  // Start the first slave.
+  MockExecutor exec1(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave> > slave1 = StartSlave(&exec1);
+  ASSERT_SOME(slave1);
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  // Launch the first task with the default executor id.
+  ExecutorInfo executor1;
+  executor1 = DEFAULT_EXECUTOR_INFO;
+  executor1.mutable_command()->set_value("exit 1");
+
+  TaskInfo task1 = createTask(
+      offers1.get()[0], executor1.command().value(), executor1.executor_id());
+
+  vector<TaskInfo> tasks1;
+  tasks1.push_back(task1);
+
+  // Return a pending future from authorizer.
+  Future<Nothing> future;
+  Promise<bool> promise;
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTasks&>()))
+    .WillOnce(DoAll(FutureSatisfy(&future),
+                    Return(promise.future())));
+
+  driver.launchTasks(offers1.get()[0].id(), tasks1);
+
+  // Wait until authorization is in progress.
+  AWAIT_READY(future);
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // Now start the second slave.
+  MockExecutor exec2(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave> > slave2 = StartSlave(&exec2);
+  ASSERT_SOME(slave2);
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+
+  // Now launch the second task with the same executor id but
+  // a different executor command.
+  ExecutorInfo executor2;
+  executor2 = executor1;
+  executor2.mutable_command()->set_value("exit 2");
+
+  TaskInfo task2 = createTask(
+      offers2.get()[0], executor2.command().value(), executor2.executor_id());
+
+  vector<TaskInfo> tasks2;
+  tasks2.push_back(task2);
+
+  EXPECT_CALL(exec2, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec2, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTasks&>()))
+    .WillOnce(Return(true));
+
+  driver.launchTasks(offers2.get()[0].id(), tasks2);
+
+  AWAIT_READY(status2);
+  ASSERT_EQ(TASK_RUNNING, status2.get().state());
+
+  EXPECT_CALL(exec1, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec1, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1));
+
+  // Complete authorization of 'task1'.
+  promise.set(true);
+
+  AWAIT_READY(status1);
+  ASSERT_EQ(TASK_RUNNING, status1.get().state());
+
+  EXPECT_CALL(exec1, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(exec2, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 // This test verifies that a framework registration with authorized
 // role is successful.
 TEST_F(MasterAuthorizationTest, AuthorizedRole)

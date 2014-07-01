@@ -1809,14 +1809,16 @@ struct ExecutorInfoChecker : TaskInfoVisitor
       if (slave.hasExecutor(framework.id, executorId)) {
         executorInfo = slave.executors.get(framework.id).get().get(executorId);
       } else {
-        // See if any of the pending tasks have the same executor.
+        // See if any of the pending tasks have the same executor
+        // on the same slave.
         // Note that picking the first matching executor is ok because
         // all the matching executors have been added to
         // 'framework.pendingTasks' after validation and hence have
         // the same executor info.
         foreachvalue (const TaskInfo& task_, framework.pendingTasks) {
           if (task_.has_executor() &&
-              task_.executor().executor_id() == executorId) {
+              task_.executor().executor_id() == executorId &&
+              task_.slave_id() == task.slave_id()) {
             executorInfo = task_.executor();
             break;
           }
