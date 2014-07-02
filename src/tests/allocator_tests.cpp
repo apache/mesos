@@ -1846,3 +1846,250 @@ TYPED_TEST(AllocatorTest, RoleTest)
 
   this->Shutdown();
 }
+
+
+// Checks that in the event of a master failure and the election of a
+// new master, if a framework reregisters before a slave that it has
+// resources on reregisters, all used and unused resources are
+// accounted for correctly.
+TYPED_TEST(AllocatorTest, FrameworkReregistersFirst)
+{
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
+
+  Try<PID<Master> > master = this->StartMaster(&this->allocator);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+
+  StandaloneMasterDetector slaveDetector(master.get());
+
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.resources = Option<string>("cpus:2;mem:1024");
+
+  Try<PID<Slave> > slave = this->StartSlave(&exec, &slaveDetector, flags);
+  ASSERT_SOME(slave);
+
+  EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
+
+  MockScheduler sched;
+  StandaloneMasterDetector schedulerDetector(master.get());
+  TestingMesosSchedulerDriver driver(&sched, &schedulerDetector);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // The framework should be offered all of the resources on the slave
+  // since it is the only framework running.
+  EXPECT_CALL(sched, resourceOffers(&driver, OfferEq(2, 1024)))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 500, "*"))
+    .WillRepeatedly(DeclineOffers());
+
+  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.start();
+
+  AWAIT_READY(status);
+
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Make sure the slave handles status update acknowledgement so that
+  // it doesn't try to retry the update after master failover.
+  AWAIT_READY(_statusUpdateAcknowledgement);
+
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
+
+  this->ShutdownMasters();
+
+  MockAllocatorProcess<TypeParam> allocator2;
+
+  EXPECT_CALL(allocator2, initialize(_, _, _));
+
+  Future<Nothing> frameworkAdded;
+  EXPECT_CALL(allocator2, frameworkAdded(_, _, _))
+    .WillOnce(DoAll(InvokeFrameworkAdded(&allocator2),
+                    FutureSatisfy(&frameworkAdded)));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Try<PID<Master> > master2 = this->StartMaster(&allocator2);
+  ASSERT_SOME(master2);
+
+  EXPECT_CALL(sched, disconnected(_));
+
+  // Inform the scheduler about the new master.
+  schedulerDetector.appoint(master2.get());
+
+  AWAIT_READY(frameworkAdded);
+
+  EXPECT_CALL(allocator2, slaveAdded(_, _, _));
+
+  Future<vector<Offer> > resourceOffers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&resourceOffers2));
+
+  // Inform the slave about the new master.
+  slaveDetector.appoint(master2.get());
+
+  AWAIT_READY(resourceOffers2);
+
+  // Since the task is still running on the slave, the framework
+  // should only be offered the resources not being used by the task.
+  EXPECT_THAT(resourceOffers2.get(), OfferEq(1, 524));
+
+  // Shut everything down.
+  EXPECT_CALL(allocator2, resourcesRecovered(_, _, _))
+    .WillRepeatedly(DoDefault());
+
+  EXPECT_CALL(allocator2, frameworkDeactivated(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(allocator2, frameworkRemoved(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  EXPECT_CALL(allocator2, slaveRemoved(_))
+    .Times(AtMost(1));
+
+  this->Shutdown();
+}
+
+
+// Checks that in the event of a master failure and the election of a
+// new master, if a slave reregisters before a framework that has
+// resources on reregisters, all used and unused resources are
+// accounted for correctly.
+TYPED_TEST(AllocatorTest, SlaveReregistersFirst)
+{
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
+
+  Try<PID<Master> > master = this->StartMaster(&this->allocator);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  StandaloneMasterDetector slaveDetector(master.get());
+
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.resources = Option<string>("cpus:2;mem:1024");
+
+  Try<PID<Slave> > slave = this->StartSlave(&exec, &slaveDetector, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  StandaloneMasterDetector schedulerDetector(master.get());
+  TestingMesosSchedulerDriver driver(&sched, &schedulerDetector);
+
+  EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
+
+  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // The framework should be offered all of the resources on the slave
+  // since it is the only framework running.
+  EXPECT_CALL(sched, resourceOffers(&driver, OfferEq(2, 1024)))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 500, "*"))
+    .WillRepeatedly(DeclineOffers());
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.start();
+
+  AWAIT_READY(status);
+
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Make sure the slave handles status update acknowledgement so that
+  // it doesn't try to retry the update after master failover.
+  AWAIT_READY(_statusUpdateAcknowledgement);
+
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
+
+  this->ShutdownMasters();
+
+  MockAllocatorProcess<TypeParam> allocator2;
+
+  EXPECT_CALL(allocator2, initialize(_, _, _));
+
+  Future<Nothing> slaveAdded;
+  EXPECT_CALL(allocator2, slaveAdded(_, _, _))
+    .WillOnce(DoAll(InvokeSlaveAdded(&allocator2),
+                    FutureSatisfy(&slaveAdded)));
+
+  Try<PID<Master> > master2 = this->StartMaster(&allocator2);
+  ASSERT_SOME(master2);
+
+  // Inform the slave about the new master.
+  slaveDetector.appoint(master2.get());
+
+  AWAIT_READY(slaveAdded);
+
+  EXPECT_CALL(sched, disconnected(_));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(allocator2, frameworkAdded(_, _, _));
+
+  Future<vector<Offer> > resourceOffers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&resourceOffers2));
+
+  // Inform the scheduler about the new master.
+  schedulerDetector.appoint(master2.get());
+
+  AWAIT_READY(resourceOffers2);
+
+  // Since the task is still running on the slave, the framework
+  // should only be offered the resources not being used by the task.
+  EXPECT_THAT(resourceOffers2.get(), OfferEq(1, 524));
+
+  // Shut everything down.
+  EXPECT_CALL(allocator2, resourcesRecovered(_, _, _))
+    .WillRepeatedly(DoDefault());
+
+  EXPECT_CALL(allocator2, frameworkDeactivated(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(allocator2, frameworkRemoved(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  EXPECT_CALL(allocator2, slaveRemoved(_))
+    .Times(AtMost(1));
+
+  this->Shutdown();
+}
