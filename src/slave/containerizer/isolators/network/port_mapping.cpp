@@ -709,7 +709,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   } else if (checkCommandTc.get() != 0) {
     return Error(
         "Check command 'tc' failed: non-zero exit code: " +
-        checkCommandTc.get());
+        stringify(checkCommandTc.get()));
   }
 
   Try<int> checkCommandIp = os::shell(NULL, "ip link show");
@@ -718,7 +718,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   } else if (checkCommandIp.get() != 0) {
     return Error(
         "Check command 'ip' failed: non-zero exit code: " +
-        checkCommandIp.get());
+        stringify(checkCommandIp.get()));
   }
 
   // Get 'ports' resource from 'resources' flag. These ports will be
@@ -1042,12 +1042,76 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
         ": " + write.error());
   }
 
-  // Create the bind mount directory.
+  // Self bind mount BIND_MOUNT_ROOT. Since we use a new mount
+  // namespace for each container, for this mount point, we set
+  // '--make-rshared' on the host and set '--make-rslave' inside each
+  // container. This is important because when we unmount the network
+  // namespace handles on the host, those handles will be unmounted in
+  // the containers as well, but NOT vice versa.
+
+  // We first create the bind mount directory if it does not exist.
   Try<Nothing> mkdir = os::mkdir(BIND_MOUNT_ROOT);
   if(mkdir.isError()) {
     return Error(
         "Failed to create the bind mount root directory at " +
         BIND_MOUNT_ROOT + ": " + mkdir.error());
+  }
+
+  // Now, check '/proc/mounts' to see if BIND_MOUNT_ROOT has already
+  // been self mounted.
+  Try<fs::MountTable> mountTable = fs::MountTable::read("/proc/mounts");
+  if (mountTable.isError()) {
+    return Error(
+        "Failed to the read the mount table at '/proc/mounts': " +
+        mountTable.error());
+  }
+
+  Option<fs::MountTable::Entry> bindMountRoot;
+  foreach (const fs::MountTable::Entry& entry, mountTable.get().entries) {
+    if (entry.dir == BIND_MOUNT_ROOT) {
+      bindMountRoot = entry;
+    }
+  }
+
+  // Self bind mount BIND_MOUNT_ROOT.
+  if (bindMountRoot.isNone()) {
+    // NOTE: Instead of using fs::mount to perform the bind mount, we
+    // use the shell command here because the syscall 'mount' does not
+    // update the mount table (i.e., /etc/mtab), which could cause
+    // issues for the shell command 'mount --make-rslave' inside the
+    // container. It's OK to use the blocking os::shell here because
+    // 'create' will only be invoked during initialization.
+    Try<int> mount = os::shell(
+        NULL,
+        "mount --bind %s %s",
+        BIND_MOUNT_ROOT.c_str(),
+        BIND_MOUNT_ROOT.c_str());
+
+    if (mount.isError()) {
+      return Error(
+          "Failed to self bind mount '" + BIND_MOUNT_ROOT +
+          "': " + mount.error());
+    } else if (mount.get() != 0) {
+      return Error(
+          "Failed to self bind mount '" + BIND_MOUNT_ROOT +
+          "': non-zero exit code: " + stringify(mount.get()));
+    }
+  }
+
+  // Mark the mount point BIND_MOUNT_ROOT as recursively shared.
+  Try<int> mountShared = os::shell(
+      NULL,
+      "mount --make-rshared %s",
+      BIND_MOUNT_ROOT.c_str());
+
+  if (mountShared.isError()) {
+    return Error(
+        "Failed to mark '" + BIND_MOUNT_ROOT + "' as recursively shared: " +
+        mountShared.error());
+  } else if (mountShared.get() != 0) {
+    return Error(
+        "Failed to mark '" + BIND_MOUNT_ROOT + "' as recursively shared: " +
+        "non-zero exit code: " + stringify(mountShared.get()));
   }
 
   return new Isolator(Owned<IsolatorProcess>(
@@ -1962,9 +2026,9 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   script << "mount -n -o remount -t sysfs none /sys\n";
   script << "mount -n -o remount -t proc none /proc\n";
 
-  // Umount all the mount objects in BIND_MOUNT_ROOT inside child to
-  // clear reference counts to the mount namespace.
-  script << "umount " << BIND_MOUNT_ROOT << "/*\n";
+  // Mark the mount point BIND_MOUNT_ROOT as slave mount so that
+  // changes in the container will not be propagated to the host.
+  script << "mount --make-rslave " << BIND_MOUNT_ROOT << "\n";
 
   // Configure lo and eth0.
   script << "ip link set " << lo << " address " << hostMAC
