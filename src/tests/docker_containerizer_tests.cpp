@@ -170,7 +170,8 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
-  Future<list<Docker::Container> > containers = docker.ps(true);
+  Future<list<Docker::Container> > containers =
+    docker.ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
 

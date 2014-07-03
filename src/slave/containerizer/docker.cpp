@@ -411,7 +411,7 @@ Future<Nothing> DockerContainerizerProcess::recover(
 
   // Get the list of all Docker containers (running and exited) in
   // order to remove any orphans.
-  return docker.ps(true)
+  return docker.ps(true, DOCKER_NAME_PREFIX)
     .then(defer(self(), &Self::_recover, lambda::_1));
 }
 
