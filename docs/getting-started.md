@@ -79,8 +79,8 @@ There are different ways you can get Mesos:
         # Change into build directory.
         $ cd build
 
-        # Start mesos master.
-        $ ./bin/mesos-master.sh --ip=127.0.0.1
+        # Start mesos master (***Ensure work directory exists and has proper permissions***).
+        $ ./bin/mesos-master.sh --ip=127.0.0.1 --work_dir=/var/lib/mesos
 
         # Start mesos slave.
         $ ./bin/mesos-slave.sh --master=127.0.0.1:5050
