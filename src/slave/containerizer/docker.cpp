@@ -438,7 +438,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
     if (!statuses.keys().contains(id.get())) {
       // TODO(benh): Retry 'docker rm -f' if it failed but the container
       // still exists (asynchronously).
-      docker.rm(container.id(), true);
+      docker.killAndRm(container.id());
     }
   }
 
@@ -706,7 +706,7 @@ void DockerContainerizerProcess::destroy(
 
   // TODO(benh): Retry 'docker rm -f' if it failed but the container
   // still exists (asynchronously).
-  docker.rm(DOCKER_NAME_PREFIX + stringify(containerId), true)
+  docker.killAndRm(DOCKER_NAME_PREFIX + stringify(containerId))
     .onAny(defer(self(), &Self::_destroy, containerId, killed, lambda::_1));
 }
 

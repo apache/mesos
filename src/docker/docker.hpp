@@ -73,6 +73,14 @@ public:
       const std::string& container,
       const bool force = false) const;
 
+  // Performs 'docker kill && docker rm'
+  // if 'docker kill' fails, then will do a 'docker rm -f'.
+  //
+  // TODO(yifan): Depreciate this when the docker provides
+  // something like 'docker rm --kill'.
+  process::Future<Option<int> > killAndRm(
+      const std::string& container) const;
+
   // Performs 'docker inspect CONTAINER'.
   process::Future<Container> inspect(
       const std::string& container) const;
@@ -90,6 +98,10 @@ private:
   static process::Future<std::list<Container> > _ps(
       const Docker& docker,
       const process::Subprocess& s);
+  static process::Future<Option<int> > _killAndRm(
+      const Docker& docker,
+      const std::string& container,
+      const Option<int>& status);
 
   const std::string path;
 };
