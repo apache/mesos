@@ -1909,7 +1909,8 @@ TYPED_TEST(AllocatorTest, FrameworkReregistersFirst)
   // it doesn't try to retry the update after master failover.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+    .WillRepeatedly(DoDefault());
 
   this->ShutdownMasters();
 
@@ -2032,7 +2033,8 @@ TYPED_TEST(AllocatorTest, SlaveReregistersFirst)
   // it doesn't try to retry the update after master failover.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+    .WillRepeatedly(DoDefault());
 
   this->ShutdownMasters();
 
