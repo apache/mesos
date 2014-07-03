@@ -69,7 +69,7 @@ public interface Scheduler {
    * Resources associated with an offer will not be re-offered to
    * _this_ framework until either (a) this framework has rejected
    * those resources (see {@link SchedulerDriver#launchTasks}) or (b)
-   * those resources have been rescinded (see {@link offerRescinded}).
+   * those resources have been rescinded (see {@link Scheduler#offerRescinded}).
    * Note that resources may be concurrently offered to more than one
    * framework at a time (depending on the allocator being used). In
    * that case, the first framework to launch tasks using those

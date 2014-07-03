@@ -57,7 +57,7 @@ public interface SchedulerDriver {
   /**
    * Stops the scheduler driver assuming no failover. This will
    * cause Mesos to unregister the framework and shutdown all
-   * its tasks and executors. Please see {@link #stop(failover)}
+   * its tasks and executors. Please see {@link #stop(boolean)}
    * for more details.
    *
    * @return The state of the driver after the call.
