@@ -33,6 +33,10 @@
 #include "linux/cgroups.hpp"
 #endif
 
+#ifdef WITH_NETWORK_ISOLATOR
+#include "linux/routing/utils.hpp"
+#endif
+
 #include "slave/constants.hpp"
 #include "slave/containerizer/containerizer.hpp"
 
@@ -46,6 +50,10 @@
 using std::string;
 
 using namespace process;
+
+#ifdef WITH_NETWORK_ISOLATOR
+using namespace routing;
+#endif
 
 namespace mesos {
 namespace internal {
@@ -336,7 +344,7 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 #endif
 
 #ifdef WITH_NETWORK_ISOLATOR
-  if (user.get() == "root") {
+  if (user.get() == "root" && routing::check().isSome()) {
     flags.isolation += ",network/port_mapping";
     flags.private_resources = "ports:" + slave::DEFAULT_EPHEMERAL_PORTS;
   }

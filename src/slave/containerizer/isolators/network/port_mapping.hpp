@@ -29,6 +29,7 @@
 #include <process/owned.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/interval.hpp>
 #include <stout/net.hpp>
 #include <stout/none.hpp>
@@ -48,6 +49,8 @@ namespace slave {
 // The prefix this isolator uses for the virtual ethernet devices.
 extern const std::string VETH_PREFIX;
 
+// The root directory where we bind mount all the namespace handles.
+extern const std::string BIND_MOUNT_ROOT;
 
 // Responsible for allocating ephemeral ports for the port mapping
 // network isolator. This class is exposed mainly for unit testing.
@@ -215,6 +218,10 @@ private:
   process::Owned<EphemeralPortsAllocator> ephemeralPortsAllocator;
 
   hashmap<ContainerID, Info*> infos;
+
+  // Recovered containers from a previous run that weren't managed by
+  // the network isolator.
+  hashset<ContainerID> unmanaged;
 };
 
 

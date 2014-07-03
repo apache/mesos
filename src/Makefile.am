@@ -1065,7 +1065,8 @@ if OS_LINUX
 endif
 
 if WITH_NETWORK_ISOLATOR
-  mesos_tests_SOURCES += tests/routing_tests.cpp
+  mesos_tests_SOURCES += tests/routing_tests.cpp			\
+  mesos_tests_SOURCES += tests/port_mapping_tests.cpp
 endif
 
 if HAS_JAVA

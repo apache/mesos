@@ -95,7 +95,7 @@ const std::string VETH_PREFIX = "mesos";
 // We choose the directory '/var/run/netns' so that we can use
 // iproute2 suite (e.g., ip netns show/exec) to inspect or enter the
 // network namespace. This is very useful for debugging purposes.
-static const string BIND_MOUNT_ROOT = "/var/run/netns";
+const string BIND_MOUNT_ROOT = "/var/run/netns";
 
 
 // The minimum number of ephemeral ports a container should have.
@@ -757,7 +757,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   // executor communication. If no 'ports' resource is found, we will
   // return error.
   if (ephemeralPorts.empty()) {
-    return Error("Local resources do not contain ports");
+    return Error("Private resources do not contain ports");
   }
 
   // Sanity check to make sure that the ephemeral ports specified do
@@ -1157,6 +1157,7 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
         delete info;
       }
       infos.clear();
+      unmanaged.clear();
 
       return Failure("ContainerID and pid are required to recover");
     }
@@ -1171,12 +1172,24 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
     VLOG(1) << "Recovering network isolator for container "
             << containerId << " with pid " << pid;
 
+    if (!pids.contains(pid)) {
+      // This is possible because the container was launched by the
+      // slave with network isolation disabled, so the pid could not
+      // be found in the device names in the system.
+      VLOG(1) << "Skipped recovery for container " << containerId
+              << "with pid " << pid << " as it was not managed by "
+              << "the network isolator";
+      unmanaged.insert(containerId);
+      continue;
+    }
+
     Result<Info*> recover = _recover(pid);
     if (recover.isError()) {
       foreachvalue (Info* info, infos) {
         delete info;
       }
       infos.clear();
+      unmanaged.clear();
 
       return Failure(
           "Failed to recover container " + stringify(containerId) +
@@ -1206,6 +1219,7 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
         delete info;
       }
       infos.clear();
+      unmanaged.clear();
 
       return Failure(
           "Failed to recover orphaned container with pid " +
@@ -1224,6 +1238,7 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
         delete info;
       }
       infos.clear();
+      unmanaged.clear();
 
       return Failure(
           "Failed to cleanup orphaned container with pid " +
@@ -1318,6 +1333,10 @@ Future<Option<CommandInfo> > PortMappingIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo)
 {
+  if (unmanaged.contains(containerId)) {
+    return Failure("Asked to prepare an unmanaged container");
+  }
+
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");
   }
@@ -1366,6 +1385,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     const ContainerID& containerId,
     pid_t pid)
 {
+  if (unmanaged.contains(containerId)) {
+    return Failure("Asked to isolate an unmanaged container");
+  }
+
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
@@ -1578,8 +1601,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
 Future<Limitation> PortMappingIsolatorProcess::watch(
     const ContainerID& containerId)
 {
-  if (!infos.contains(containerId)) {
-    return Failure("Unknown container");
+  if (unmanaged.contains(containerId)) {
+    LOG(WARNING) << "Ignoring watch for unmanaged container " << containerId;
+  } else if (!infos.contains(containerId)) {
+    LOG(WARNING) << "Ignoring watch for unknown container "  << containerId;
   }
 
   // Currently, we always return a pending future because limitation
@@ -1613,8 +1638,16 @@ Future<Nothing> PortMappingIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
+  // It is possible for the network isolator to be asked to update a
+  // container that isn't managed by it, for instance, containers
+  // recovered from a previous run without a network isolator.
+  if (unmanaged.contains(containerId)) {
+    return Nothing();
+  }
+
   if (!infos.contains(containerId)) {
-    return Failure("Unknown container");
+    LOG(WARNING) << "Ignoring update for unknown container " << containerId;
+    return Nothing();
   }
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
@@ -1769,8 +1802,13 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
 {
   ResourceStatistics result;
 
+  // Do nothing for unmanaged container.
+  if (unmanaged.contains(containerId)) {
+    return result;
+  }
+
   if (!infos.contains(containerId)) {
-    LOG(WARNING) << "Unknown container";
+    VLOG(1) << "Unknown container " << containerId;
     return result;
   }
 
@@ -1839,6 +1877,11 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
 Future<Nothing> PortMappingIsolatorProcess::cleanup(
       const ContainerID& containerId)
 {
+  if (unmanaged.contains(containerId)) {
+    unmanaged.erase(containerId);
+    return Nothing();
+  }
+
   if (!infos.contains(containerId)) {
     LOG(WARNING) << "Ignoring cleanup for unknown container " << containerId;
     return Nothing();

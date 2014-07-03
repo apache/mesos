@@ -38,10 +38,18 @@
 #include "linux/cgroups.hpp"
 #endif
 
+#ifdef WITH_NETWORK_ISOLATOR
+#include "linux/routing/utils.hpp"
+#endif
+
 #include "logging/logging.hpp"
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
+
+#ifdef WITH_NETWORK_ISOLATOR
+using namespace routing;
+#endif
 
 using std::list;
 using std::string;
@@ -145,9 +153,15 @@ static bool enable(const ::testing::TestInfo& test)
   }
 
 #ifdef WITH_NETWORK_ISOLATOR
+  // We can not run network isolator.
+  if (routing::check().isError() &&
+      (strings::contains(test.name(), "PortMappingIsolatorTest") ||
+       strings::contains(test.name(), "PortMappingMesosTest"))) {
+      return false;
+  }
+
   // Currently, the network isolator does not support multiple slaves.
-  if (strings::contains(test.name(), "MultipleSlaves") &&
-      os::user().isSome() && os::user().get() == "root") {
+  if (strings::contains(test.name(), "MultipleSlaves")) {
     return false;
   }
 #endif
