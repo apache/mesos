@@ -54,7 +54,26 @@ using testing::DoDefault;
 using testing::Invoke;
 using testing::Return;
 
-class DockerContainerizerTest : public MesosTest {};
+class DockerContainerizerTest : public MesosTest
+{
+public:
+  static bool containerExists(
+      const list<Docker::Container>& containers,
+      const ContainerID& containerId)
+  {
+    string expectedName = slave::DOCKER_NAME_PREFIX + containerId.value();
+
+    foreach (const Docker::Container& container, containers) {
+      // Docker inspect name contains an extra slash in the beginning.
+      if (strings::contains(container.name(), expectedName)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+};
+
 
 class MockDockerContainerizer : public DockerContainerizer {
 public:
@@ -64,12 +83,28 @@ public:
       const Docker& docker)
     : DockerContainerizer(flags, local, docker)
   {
+    EXPECT_CALL(*this, launch(_, _, _, _, _, _, _))
+      .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launchExecutor));
+
     EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launch));
 
     EXPECT_CALL(*this, update(_, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_update));
   }
+
+
+  MOCK_METHOD7(
+      launch,
+      process::Future<bool>(
+          const ContainerID&,
+          const ExecutorInfo&,
+          const std::string&,
+          const Option<std::string>&,
+          const SlaveID&,
+          const process::PID<slave::Slave>&,
+          bool checkpoint));
+
 
   MOCK_METHOD8(
       launch,
@@ -112,6 +147,25 @@ public:
         checkpoint);
   }
 
+  process::Future<bool> _launchExecutor(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const string& directory,
+      const Option<string>& user,
+      const SlaveID& slaveId,
+      const PID<Slave>& slavePid,
+      bool checkpoint)
+  {
+    return DockerContainerizer::launch(
+        containerId,
+        executorInfo,
+        directory,
+        user,
+        slaveId,
+        slavePid,
+        checkpoint);
+  }
+
   process::Future<Nothing> _update(
       const ContainerID& containerId,
       const Resources& resources)
@@ -121,6 +175,111 @@ public:
         resources);
   }
 };
+
+
+// Only enable executor launch on linux as other platforms
+// requires running linux VM and need special port forwarding
+// to get host networking to work.
+#ifdef __linux__
+TEST_F(DockerContainerizerTest, DOCKER_Launch_Executor)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Docker docker(tests::flags.docker);
+
+  MockDockerContainerizer dockerContainerizer(flags, true, docker);
+
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  ExecutorInfo executorInfo;
+  ExecutorID executorId;
+  executorId.set_value("e1");
+  executorInfo.mutable_executor_id()->CopyFrom(executorId);
+  CommandInfo command;
+  command.set_value("test-executor");
+  command.mutable_container()->set_image("docker:///mesos/test-executor");
+  executorInfo.mutable_command()->CopyFrom(command);
+
+  task.mutable_executor()->CopyFrom(executorInfo);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launchExecutor)));
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  AWAIT_READY_FOR(statusFinished, Seconds(60));
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  Future<list<Docker::Container> > containers =
+    docker.ps(true, slave::DOCKER_NAME_PREFIX);
+
+  AWAIT_READY(containers);
+
+  ASSERT_TRUE(containerExists(containers.get(), containerId.get()));
+
+  Future<containerizer::Termination> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+
+  containers = docker.ps(true, slave::DOCKER_NAME_PREFIX);
+  AWAIT_READY(containers);
+
+  ASSERT_FALSE(containerExists(containers.get(), containerId.get()));
+
+  Shutdown();
+}
+#endif // __linux__
 
 
 TEST_F(DockerContainerizerTest, DOCKER_Launch)
@@ -139,7 +298,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -199,18 +358,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   ASSERT_TRUE(containers.get().size() > 0);
 
-  bool foundContainer = false;
-  string expectedName = slave::DOCKER_NAME_PREFIX + containerId.get().value();
-
-  foreach (const Docker::Container& container, containers.get()) {
-    // Docker inspect name contains an extra slash in the beginning.
-    if (strings::contains(container.name(), expectedName)) {
-      foundContainer = true;
-      break;
-    }
-  }
-
-  ASSERT_TRUE(foundContainer);
+  ASSERT_TRUE(containerExists(containers.get(), containerId.get()));
 
   dockerContainerizer.destroy(containerId.get());
 
@@ -237,7 +385,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Kill)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -308,18 +456,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Kill)
 
   AWAIT_READY(containers);
 
-  bool foundContainer = false;
-  string expectedName = slave::DOCKER_NAME_PREFIX + containerId.get().value();
-
-  foreach (const Docker::Container& container, containers.get()) {
-    // Docker inspect name contains an extra slash in the beginning.
-    if (strings::contains(container.name(), expectedName)) {
-      foundContainer = true;
-      break;
-    }
-  }
-
-  ASSERT_FALSE(foundContainer);
+  ASSERT_FALSE(containerExists(containers.get(), containerId.get()));
 
   driver.stop();
   driver.join();
@@ -346,7 +483,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -465,7 +602,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -504,8 +641,8 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-         Invoke(&dockerContainerizer,
-                &MockDockerContainerizer::_launch)));
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))

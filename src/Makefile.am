@@ -1154,6 +1154,9 @@ EXTRA_DIST += examples/python/test_containerizer.py			\
 	      examples/python/test_framework.py
 
 
+# Docker test executor image files.
+EXTRA_DIST += tests/mesos_test_executor_docker_image/Dockerfile         \
+              tests/mesos_test_executor_docker_image/install.sh
 
 dist_check_SCRIPTS +=							\
   tests/balloon_framework_test.sh					\

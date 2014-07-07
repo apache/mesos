@@ -134,6 +134,23 @@ private:
       bool checkpoint,
       const Option<int>& status);
 
+  process::Future<bool> _launch(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const SlaveID& slaveId,
+      const PID<Slave>& slavePid,
+      bool checkpoint,
+      const Option<int>& status);
+
+  process::Future<bool> __launch(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const SlaveID& slaveId,
+      const PID<Slave>& slavePid,
+      bool checkpoint,
+      const Docker::Container& container);
+
+
   void _destroy(
       const ContainerID& containerId,
       const bool& killed,
@@ -470,8 +487,68 @@ Future<bool> DockerContainerizerProcess::launch(
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
-  // TODO(benh): Implement support for launching an ExecutorInfo.
-  return false;
+  if (promises.contains(containerId)) {
+    LOG(ERROR) << "Cannot start already running container '"
+               << containerId << "'";
+    return Failure("Container already started");
+  }
+
+  CommandInfo command = executorInfo.command();
+
+  if (!command.has_container()) {
+    return false;
+  }
+
+  string image = command.container().image();
+
+  // Check if we should try and launch this command.
+  if (!strings::startsWith(image, "docker:///")) {
+    return false;
+  }
+
+  Owned<Promise<containerizer::Termination> > promise(
+    new Promise<containerizer::Termination>());
+
+  promises.put(containerId, promise);
+
+  LOG(INFO) << "Starting container '" << containerId
+            << "' for executor '" << executorInfo.executor_id()
+            << "' and framework '" << executorInfo.framework_id() << "'";
+
+  // Extract the Docker image.
+  image = strings::remove(image, "docker:///", strings::PREFIX);
+
+  // Construct the Docker container name.
+  string name = DOCKER_NAME_PREFIX + stringify(containerId);
+
+  map<string, string> env = executorEnvironment(
+      executorInfo,
+      directory,
+      slaveId,
+      slavePid,
+      checkpoint,
+      flags.recovery_timeout);
+
+  // Include any environment variables from CommandInfo.
+  foreach (const Environment::Variable& variable,
+           command.environment().variables()) {
+    env[variable.name()] = variable.value();
+  }
+
+  Resources resources = executorInfo.resources();
+
+  // Start a docker container then launch the executor (but destroy
+  // the Docker container if launching the executor failed).
+  return docker.run(image, command.value(), name, resources, env)
+    .then(defer(self(),
+               &Self::_launch,
+               containerId,
+               executorInfo,
+               slaveId,
+               slavePid,
+               checkpoint,
+               lambda::_1))
+    .onFailed(defer(self(), &Self::destroy, containerId, false));
 }
 
 
@@ -638,6 +715,84 @@ Future<bool> DockerContainerizerProcess::_launch(
 
   // And finally watch for when the executor gets reaped.
   statuses[containerId] = process::reap(s.get().pid());
+
+  statuses[containerId]
+    .onAny(defer(self(), &Self::reaped, containerId));
+
+  return true;
+}
+
+
+Future<bool> DockerContainerizerProcess::_launch(
+    const ContainerID& containerId,
+    const ExecutorInfo& executorInfo,
+    const SlaveID& slaveId,
+    const PID<Slave>& slavePid,
+    bool checkpoint,
+    const Option<int>& status)
+{
+  if (status.isSome() && status.get() != 0) {
+    // Best effort kill and remove the container just in case.
+    docker.killAndRm(DOCKER_NAME_PREFIX + stringify(containerId));
+    return Failure("Failed to run the container (" +
+                   WSTRINGIFY(status.get()) + ")");
+  }
+
+  return docker.inspect(DOCKER_NAME_PREFIX + stringify(containerId))
+    .then(defer(self(),
+                &Self::__launch,
+                containerId,
+                executorInfo,
+                slaveId,
+                slavePid,
+                checkpoint,
+                lambda::_1));
+}
+
+
+Future<bool> DockerContainerizerProcess::__launch(
+    const ContainerID& containerId,
+    const ExecutorInfo& executorInfo,
+    const SlaveID& slaveId,
+    const PID<Slave>& slavePid,
+    bool checkpoint,
+    const Docker::Container& container)
+{
+  Option<int> pid = container.pid();
+
+  if (!pid.isSome()) {
+    return Failure("Unable to get executor pid after launch");
+  }
+
+  if (checkpoint) {
+    // TODO(tnachen): We might not be able to checkpoint
+    // if the slave dies before it can checkpoint while
+    // the executor is still running. Optinally we can consider
+    // recording the slave id and executor id as part of the
+    // docker container name so we can recover from this.
+    const string& path =
+      slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          slaveId,
+          executorInfo.framework_id(),
+          executorInfo.executor_id(),
+          containerId);
+
+    LOG(INFO) << "Checkpointing executor's forked pid "
+              << pid.get() << " to '" << path <<  "'";
+
+    Try<Nothing> checkpointed =
+      slave::state::checkpoint(path, stringify(pid.get()));
+
+    if (checkpointed.isError()) {
+      LOG(ERROR) << "Failed to checkpoint executor's forked pid to '"
+                 << path << "': " << checkpointed.error();
+
+      return Failure("Could not checkpoint executor's pid");
+    }
+  }
+
+  statuses[containerId] = process::reap(pid.get());
 
   statuses[containerId]
     .onAny(defer(self(), &Self::reaped, containerId));
@@ -865,6 +1020,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::_usage(
   if (cpus.isSome()) {
     result.set_cpus_limit(cpus.get());
   }
+
   return result;
 }
 

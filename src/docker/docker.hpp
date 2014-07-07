@@ -67,7 +67,8 @@ public:
       const std::string& image,
       const std::string& command,
       const std::string& name,
-      const mesos::Resources& resources) const;
+      const Option<mesos::Resources>& resources = None(),
+      const Option<std::map<std::string, std::string> >& env = None()) const;
 
   // Performs 'docker kill CONTAINER'.
   process::Future<Option<int> > kill(

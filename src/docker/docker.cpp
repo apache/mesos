@@ -116,27 +116,37 @@ Future<Option<int> > Docker::run(
     const string& image,
     const string& command,
     const string& name,
-    const mesos::Resources& resources) const
+    const Option<mesos::Resources>& resources,
+    const Option<map<string, string> >& env) const
 {
-  CHECK(resources.size() != 0);
 
   string cmd = " run -d";
 
-  // TODO(yifan): Support other resources (e.g. disk, ports).
-  Option<double> cpus = resources.cpus();
-  if (cpus.isSome()) {
-    uint64_t cpuShare =
-      std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
-    cmd += " -c " + stringify(cpuShare);
+  if (resources.isSome()) {
+    // TODO(yifan): Support other resources (e.g. disk, ports).
+    Option<double> cpus = resources.get().cpus();
+    if (cpus.isSome()) {
+      uint64_t cpuShare =
+	std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
+      cmd += " -c " + stringify(cpuShare);
+    }
+
+    Option<Bytes> mem = resources.get().mem();
+    if (mem.isSome()) {
+      Bytes memLimit = std::max(mem.get(), MIN_MEMORY);
+      cmd += " -m " + stringify(memLimit.bytes());
+    }
   }
 
-  Option<Bytes> mem = resources.mem();
-  if (mem.isSome()) {
-    Bytes memLimit = std::max(mem.get(), MIN_MEMORY);
-    cmd += " -m " + stringify(memLimit.bytes());
+  if (env.isSome()) {
+    foreachpair (string key, string value, env.get()) {
+      key = strings::replace(key, "\"", "\\\"");
+      value = strings::replace(value, "\"", "\\\"");
+      cmd += " -e \"" + key + "=" + value + "\"";
+    }
   }
 
-  cmd += " --name=" + name + " " + image + " " + command;
+  cmd += " --net=host --name=" + name + " " + image + " " + command;
 
   VLOG(1) << "Running " << path << cmd;
 
