@@ -107,7 +107,7 @@ Slave::Slave(const slave::Flags& _flags,
              Files* _files)
   : ProcessBase(process::ID::generate("slave")),
     state(RECOVERING),
-    http(*this),
+    http(this),
     flags(_flags),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     detector(_detector),

@@ -370,13 +370,15 @@ protected:
   OfferID newOfferId();
   SlaveID newSlaveId();
 
+  Option<Credentials> credentials;
+
 private:
   // Inner class used to namespace HTTP route handlers (see
   // master/http.cpp for implementations).
   class Http
   {
   public:
-    explicit Http(const Master& _master) : master(_master) {}
+    explicit Http(Master* _master) : master(_master) {}
 
     // /master/health
     process::Future<process::http::Response> health(
@@ -394,6 +396,10 @@ private:
     process::Future<process::http::Response> roles(
         const process::http::Request& request);
 
+    // /master/shutdown
+    process::Future<process::http::Response> shutdown(
+        const process::http::Request& request);
+
     // /master/state.json
     process::Future<process::http::Response> state(
         const process::http::Request& request);
@@ -409,10 +415,11 @@ private:
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
     const static std::string REDIRECT_HELP;
+    const static std::string SHUTDOWN_HELP;
     const static std::string TASKS_HELP;
 
   private:
-    const Master& master;
+    Master* master;
   } http;
 
   Master(const Master&);              // No copying.

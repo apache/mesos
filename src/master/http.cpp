@@ -28,6 +28,7 @@
 
 #include <process/metrics/metrics.hpp>
 
+#include <stout/base64.hpp>
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
@@ -63,6 +64,7 @@ using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::OK;
 using process::http::TemporaryRedirect;
+using process::http::Unauthorized;
 
 using process::metrics::internal::MetricsProcess;
 
@@ -323,7 +325,9 @@ Future<Response> Master::Http::redirect(const Request& request)
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
   // If there's no leader, redirect to this master's base url.
-  MasterInfo info = master.leader.isSome() ? master.leader.get() : master.info_;
+  MasterInfo info = master->leader.isSome()
+    ? master->leader.get()
+    : master->info_;
 
   Try<string> hostname =
     info.has_hostname() ? info.hostname() : net::getHostname(info.ip());
@@ -349,30 +353,30 @@ Future<Response> Master::Http::stats(const Request& request)
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
   JSON::Object object;
-  object.values["uptime"] = (Clock::now() - master.startTime).secs();
-  object.values["elected"] = master.elected() ? 1 : 0;
-  object.values["total_schedulers"] = master.frameworks.activated.size();
-  object.values["active_schedulers"] = master.getActiveFrameworks().size();
-  object.values["activated_slaves"] = master.slaves.activated.size();
-  object.values["deactivated_slaves"] = master.slaves.deactivated.size();
-  object.values["outstanding_offers"] = master.offers.size();
+  object.values["uptime"] = (Clock::now() - master->startTime).secs();
+  object.values["elected"] = master->elected() ? 1 : 0;
+  object.values["total_schedulers"] = master->frameworks.activated.size();
+  object.values["active_schedulers"] = master->getActiveFrameworks().size();
+  object.values["activated_slaves"] = master->slaves.activated.size();
+  object.values["deactivated_slaves"] = master->slaves.deactivated.size();
+  object.values["outstanding_offers"] = master->offers.size();
 
   // NOTE: These are monotonically increasing counters.
-  object.values["staged_tasks"] = master.stats.tasks[TASK_STAGING];
-  object.values["started_tasks"] = master.stats.tasks[TASK_STARTING];
-  object.values["finished_tasks"] = master.stats.tasks[TASK_FINISHED];
-  object.values["killed_tasks"] = master.stats.tasks[TASK_KILLED];
-  object.values["failed_tasks"] = master.stats.tasks[TASK_FAILED];
-  object.values["lost_tasks"] = master.stats.tasks[TASK_LOST];
-  object.values["valid_status_updates"] = master.stats.validStatusUpdates;
-  object.values["invalid_status_updates"] = master.stats.invalidStatusUpdates;
+  object.values["staged_tasks"] = master->stats.tasks[TASK_STAGING];
+  object.values["started_tasks"] = master->stats.tasks[TASK_STARTING];
+  object.values["finished_tasks"] = master->stats.tasks[TASK_FINISHED];
+  object.values["killed_tasks"] = master->stats.tasks[TASK_KILLED];
+  object.values["failed_tasks"] = master->stats.tasks[TASK_FAILED];
+  object.values["lost_tasks"] = master->stats.tasks[TASK_LOST];
+  object.values["valid_status_updates"] = master->stats.validStatusUpdates;
+  object.values["invalid_status_updates"] = master->stats.invalidStatusUpdates;
 
   // Get a count of all active tasks in the cluster i.e., the tasks
   // that are launched (TASK_STAGING, TASK_STARTING, TASK_RUNNING) but
   // haven't reached terminal state yet.
   // NOTE: This is a gauge representing an instantaneous value.
   int active_tasks = 0;
-  foreachvalue (Framework* framework, master.frameworks.activated) {
+  foreachvalue (Framework* framework, master->frameworks.activated) {
     active_tasks += framework->tasks.size();
   }
   object.values["active_tasks_gauge"] = active_tasks;
@@ -381,7 +385,7 @@ Future<Response> Master::Http::stats(const Request& request)
   // compute capacity of scalar resources.
   Resources totalResources;
   Resources usedResources;
-  foreachvalue (Slave* slave, master.slaves.activated) {
+  foreachvalue (Slave* slave, master->slaves.activated) {
     // Instead of accumulating all types of resources (which is
     // not necessary), we only accumulate scalar resources. This
     // helps us bypass a performance problem caused by range
@@ -469,39 +473,39 @@ Future<Response> Master::Http::state(const Request& request)
   object.values["build_date"] = build::DATE;
   object.values["build_time"] = build::TIME;
   object.values["build_user"] = build::USER;
-  object.values["start_time"] = master.startTime.secs();
+  object.values["start_time"] = master->startTime.secs();
 
-  if (master.electedTime.isSome()) {
-    object.values["elected_time"] = master.electedTime.get().secs();
+  if (master->electedTime.isSome()) {
+    object.values["elected_time"] = master->electedTime.get().secs();
   }
 
-  object.values["id"] = master.info().id();
-  object.values["pid"] = string(master.self());
-  object.values["hostname"] = master.info().hostname();
-  object.values["activated_slaves"] = master.slaves.activated.size();
-  object.values["deactivated_slaves"] = master.slaves.deactivated.size();
-  object.values["staged_tasks"] = master.stats.tasks[TASK_STAGING];
-  object.values["started_tasks"] = master.stats.tasks[TASK_STARTING];
-  object.values["finished_tasks"] = master.stats.tasks[TASK_FINISHED];
-  object.values["killed_tasks"] = master.stats.tasks[TASK_KILLED];
-  object.values["failed_tasks"] = master.stats.tasks[TASK_FAILED];
-  object.values["lost_tasks"] = master.stats.tasks[TASK_LOST];
+  object.values["id"] = master->info().id();
+  object.values["pid"] = string(master->self());
+  object.values["hostname"] = master->info().hostname();
+  object.values["activated_slaves"] = master->slaves.activated.size();
+  object.values["deactivated_slaves"] = master->slaves.deactivated.size();
+  object.values["staged_tasks"] = master->stats.tasks[TASK_STAGING];
+  object.values["started_tasks"] = master->stats.tasks[TASK_STARTING];
+  object.values["finished_tasks"] = master->stats.tasks[TASK_FINISHED];
+  object.values["killed_tasks"] = master->stats.tasks[TASK_KILLED];
+  object.values["failed_tasks"] = master->stats.tasks[TASK_FAILED];
+  object.values["lost_tasks"] = master->stats.tasks[TASK_LOST];
 
-  if (master.flags.cluster.isSome()) {
-    object.values["cluster"] = master.flags.cluster.get();
+  if (master->flags.cluster.isSome()) {
+    object.values["cluster"] = master->flags.cluster.get();
   }
 
-  if (master.leader.isSome()) {
-    object.values["leader"] = master.leader.get().pid();
+  if (master->leader.isSome()) {
+    object.values["leader"] = master->leader.get().pid();
   }
 
-  if (master.flags.log_dir.isSome()) {
-    object.values["log_dir"] = master.flags.log_dir.get();
+  if (master->flags.log_dir.isSome()) {
+    object.values["log_dir"] = master->flags.log_dir.get();
   }
 
   JSON::Object flags;
-  foreachpair (const string& name, const flags::Flag& flag, master.flags) {
-    Option<string> value = flag.stringify(master.flags);
+  foreachpair (const string& name, const flags::Flag& flag, master->flags) {
+    Option<string> value = flag.stringify(master->flags);
     if (value.isSome()) {
       flags.values[name] = value.get();
     }
@@ -511,7 +515,7 @@ Future<Response> Master::Http::state(const Request& request)
   // Model all of the slaves.
   {
     JSON::Array array;
-    foreachvalue (Slave* slave, master.slaves.activated) {
+    foreachvalue (Slave* slave, master->slaves.activated) {
       array.values.push_back(model(*slave));
     }
 
@@ -521,7 +525,7 @@ Future<Response> Master::Http::state(const Request& request)
   // Model all of the frameworks.
   {
     JSON::Array array;
-    foreachvalue (Framework* framework, master.frameworks.activated) {
+    foreachvalue (Framework* framework, master->frameworks.activated) {
       array.values.push_back(model(*framework));
     }
 
@@ -533,7 +537,7 @@ Future<Response> Master::Http::state(const Request& request)
     JSON::Array array;
 
     foreach (const memory::shared_ptr<Framework>& framework,
-             master.frameworks.completed) {
+             master->frameworks.completed) {
       array.values.push_back(model(*framework));
     }
 
@@ -545,12 +549,12 @@ Future<Response> Master::Http::state(const Request& request)
     JSON::Array array;
 
     // Find those orphan tasks.
-    foreachvalue (const Slave* slave, master.slaves.activated) {
+    foreachvalue (const Slave* slave, master->slaves.activated) {
       typedef hashmap<TaskID, Task*> TaskMap;
       foreachvalue (const TaskMap& tasks, slave->tasks) {
         foreachvalue (const Task* task, tasks) {
           CHECK_NOTNULL(task);
-          if (!master.frameworks.activated.contains(task->framework_id())) {
+          if (!master->frameworks.activated.contains(task->framework_id())) {
             array.values.push_back(model(*task));
           }
         }
@@ -567,9 +571,9 @@ Future<Response> Master::Http::state(const Request& request)
     JSON::Array array;
 
     // Find unregistered frameworks.
-    foreachvalue (const Slave* slave, master.slaves.activated) {
+    foreachvalue (const Slave* slave, master->slaves.activated) {
       foreachkey (const FrameworkID& frameworkId, slave->tasks) {
-        if (!master.frameworks.activated.contains(frameworkId)) {
+        if (!master->frameworks.activated.contains(frameworkId)) {
           array.values.push_back(frameworkId.value());
         }
       }
@@ -591,7 +595,7 @@ Future<Response> Master::Http::roles(const Request& request)
   // Model all of the roles.
   {
     JSON::Array array;
-    foreachvalue (Role* role, master.roles) {
+    foreachvalue (Role* role, master->roles) {
       array.values.push_back(model(*role));
     }
 
@@ -599,6 +603,58 @@ Future<Response> Master::Http::roles(const Request& request)
   }
 
   return OK(object, request.query.get("jsonp"));
+}
+
+
+const string Master::Http::SHUTDOWN_HELP = HELP(
+    TLDR(
+        "Shuts down a running framework."),
+    USAGE(
+        "/master/shutdown"),
+    DESCRIPTION(
+        "Please provide a \"frameworkId\" value designating the ",
+        "running framework to shut down.",
+        "Returns 200 OK if the framework was correctly shutdown."));
+
+
+Future<Response> Master::Http::shutdown(const Request& request)
+{
+  if (master->credentials.isNone()) {
+    return Unauthorized("Mesos master");
+  }
+  hashmap<string, string> values =
+    process::http::query::parse(request.body);
+  Option<string> frameworkId = values.get("frameworkId");
+  if (frameworkId.isNone()) {
+    return BadRequest();
+  }
+  FrameworkID id;
+  id.set_value(frameworkId.get());
+  Framework* framework = master->getFramework(id);
+
+  Option<string> authHeader = request.headers.get("Authorization");
+  if (authHeader.isNone()) {
+    return Unauthorized("Mesos master");
+  }
+  const string& decodedAuth =
+    base64::decode(strings::split(authHeader.get(), " ", 2)[1]);
+  const std::vector<string>& pairs = strings::split(decodedAuth, ":", 2);
+  if (pairs.size() != 2) {
+    return Unauthorized("Mesos master");
+  }
+
+  const string& username = pairs[0];
+  const string& password = pairs[1];
+
+  foreach (const Credential& credential, master->credentials.get().http()) {
+    if (credential.principal() == username &&
+        (!credential.has_secret() || credential.secret() == password)) {
+      // TODO(ijimenez) make removeFramework asynchronously
+      master->removeFramework(framework);
+      return OK();
+    }
+  }
+  return Unauthorized("Mesos master");
 }
 
 
@@ -680,11 +736,11 @@ Future<Response> Master::Http::tasks(const Request& request)
 
   // Construct framework list with both active and completed framwworks.
   vector<const Framework*> frameworks;
-  foreachvalue (Framework* framework, master.frameworks.activated) {
+  foreachvalue (Framework* framework, master->frameworks.activated) {
     frameworks.push_back(framework);
   }
   foreach (const memory::shared_ptr<Framework>& framework,
-           master.frameworks.completed) {
+           master->frameworks.completed) {
     frameworks.push_back(framework.get());
   }
 

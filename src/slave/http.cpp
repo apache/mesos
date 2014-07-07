@@ -245,20 +245,20 @@ Future<Response> Slave::Http::stats(const Request& request)
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
   JSON::Object object;
-  object.values["uptime"] = (Clock::now() - slave.startTime).secs();
-  object.values["total_frameworks"] = slave.frameworks.size();
-  object.values["registered"] = slave.master.isSome() ? "1" : "0";
-  object.values["recovery_errors"] = slave.recoveryErrors;
+  object.values["uptime"] = (Clock::now() - slave->startTime).secs();
+  object.values["total_frameworks"] = slave->frameworks.size();
+  object.values["registered"] = slave->master.isSome() ? "1" : "0";
+  object.values["recovery_errors"] = slave->recoveryErrors;
 
   // NOTE: These are monotonically increasing counters.
-  object.values["staged_tasks"] = slave.stats.tasks[TASK_STAGING];
-  object.values["started_tasks"] = slave.stats.tasks[TASK_STARTING];
-  object.values["finished_tasks"] = slave.stats.tasks[TASK_FINISHED];
-  object.values["killed_tasks"] = slave.stats.tasks[TASK_KILLED];
-  object.values["failed_tasks"] = slave.stats.tasks[TASK_FAILED];
-  object.values["lost_tasks"] = slave.stats.tasks[TASK_LOST];
-  object.values["valid_status_updates"] = slave.stats.validStatusUpdates;
-  object.values["invalid_status_updates"] = slave.stats.invalidStatusUpdates;
+  object.values["staged_tasks"] = slave->stats.tasks[TASK_STAGING];
+  object.values["started_tasks"] = slave->stats.tasks[TASK_STARTING];
+  object.values["finished_tasks"] = slave->stats.tasks[TASK_FINISHED];
+  object.values["killed_tasks"] = slave->stats.tasks[TASK_KILLED];
+  object.values["failed_tasks"] = slave->stats.tasks[TASK_FAILED];
+  object.values["lost_tasks"] = slave->stats.tasks[TASK_LOST];
+  object.values["valid_status_updates"] = slave->stats.validStatusUpdates;
+  object.values["invalid_status_updates"] = slave->stats.invalidStatusUpdates;
 
   // NOTE: These are gauges representing instantaneous values.
 
@@ -268,7 +268,7 @@ Future<Response> Slave::Http::stats(const Request& request)
   // Sent to executor (TASK_STAGING, TASK_STARTING, TASK_RUNNING).
   int launched_tasks = 0;
 
-  foreachvalue (Framework* framework, slave.frameworks) {
+  foreachvalue (Framework* framework, slave->frameworks) {
     foreachvalue (Executor* executor, framework->executors) {
       queued_tasks += executor->queuedTasks.size();
       launched_tasks += executor->launchedTasks.size();
@@ -337,45 +337,45 @@ Future<Response> Slave::Http::state(const Request& request)
   object.values["build_date"] = build::DATE;
   object.values["build_time"] = build::TIME;
   object.values["build_user"] = build::USER;
-  object.values["start_time"] = slave.startTime.secs();
-  object.values["id"] = slave.info.id().value();
-  object.values["pid"] = string(slave.self());
-  object.values["hostname"] = slave.info.hostname();
-  object.values["resources"] = model(slave.resources);
-  object.values["attributes"] = model(slave.attributes);
-  object.values["staged_tasks"] = slave.stats.tasks[TASK_STAGING];
-  object.values["started_tasks"] = slave.stats.tasks[TASK_STARTING];
-  object.values["finished_tasks"] = slave.stats.tasks[TASK_FINISHED];
-  object.values["killed_tasks"] = slave.stats.tasks[TASK_KILLED];
-  object.values["failed_tasks"] = slave.stats.tasks[TASK_FAILED];
-  object.values["lost_tasks"] = slave.stats.tasks[TASK_LOST];
+  object.values["start_time"] = slave->startTime.secs();
+  object.values["id"] = slave->info.id().value();
+  object.values["pid"] = string(slave->self());
+  object.values["hostname"] = slave->info.hostname();
+  object.values["resources"] = model(slave->resources);
+  object.values["attributes"] = model(slave->attributes);
+  object.values["staged_tasks"] = slave->stats.tasks[TASK_STAGING];
+  object.values["started_tasks"] = slave->stats.tasks[TASK_STARTING];
+  object.values["finished_tasks"] = slave->stats.tasks[TASK_FINISHED];
+  object.values["killed_tasks"] = slave->stats.tasks[TASK_KILLED];
+  object.values["failed_tasks"] = slave->stats.tasks[TASK_FAILED];
+  object.values["lost_tasks"] = slave->stats.tasks[TASK_LOST];
 
-  if (slave.master.isSome()) {
-    Try<string> masterHostname = net::getHostname(slave.master.get().ip);
+  if (slave->master.isSome()) {
+    Try<string> masterHostname = net::getHostname(slave->master.get().ip);
     if (masterHostname.isSome()) {
       object.values["master_hostname"] = masterHostname.get();
     }
   }
 
-  if (slave.flags.log_dir.isSome()) {
-    object.values["log_dir"] = slave.flags.log_dir.get();
+  if (slave->flags.log_dir.isSome()) {
+    object.values["log_dir"] = slave->flags.log_dir.get();
   }
 
   JSON::Array frameworks;
-  foreachvalue (Framework* framework, slave.frameworks) {
+  foreachvalue (Framework* framework, slave->frameworks) {
     frameworks.values.push_back(model(*framework));
   }
   object.values["frameworks"] = frameworks;
 
   JSON::Array completedFrameworks;
-  foreach (const Owned<Framework>& framework, slave.completedFrameworks) {
+  foreach (const Owned<Framework>& framework, slave->completedFrameworks) {
     completedFrameworks.values.push_back(model(*framework));
   }
   object.values["completed_frameworks"] = completedFrameworks;
 
   JSON::Object flags;
-  foreachpair (const string& name, const flags::Flag& flag, slave.flags) {
-    Option<string> value = flag.stringify(slave.flags);
+  foreachpair (const string& name, const flags::Flag& flag, slave->flags) {
+    Option<string> value = flag.stringify(slave->flags);
     if (value.isSome()) {
       flags.values[name] = value.get();
     }

@@ -321,7 +321,7 @@ private:
   class Http
   {
   public:
-    explicit Http(const Slave& _slave) : slave(_slave) {}
+    explicit Http(Slave* _slave) : slave(_slave) {}
 
     // /slave/health
     process::Future<process::http::Response> health(
@@ -338,7 +338,7 @@ private:
     static const std::string HEALTH_HELP;
 
   private:
-    const Slave& slave;
+    Slave* slave;
   } http;
 
   friend struct Framework;
