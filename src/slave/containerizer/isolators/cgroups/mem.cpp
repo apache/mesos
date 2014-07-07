@@ -55,9 +55,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// Memory subsystem constants.
-const Bytes MIN_MEMORY = Megabytes(32);
-
 
 template<class T>
 static Future<Option<T> > none() { return None(); }

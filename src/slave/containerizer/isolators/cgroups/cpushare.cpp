@@ -55,12 +55,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// CPU subsystem constants.
-const uint64_t CPU_SHARES_PER_CPU = 1024;
-const uint64_t MIN_CPU_SHARES = 10;
-const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
-const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
-
 
 template<class T>
 static Future<Option<T> > none() { return None(); }

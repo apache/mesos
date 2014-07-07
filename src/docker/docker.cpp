@@ -31,6 +31,11 @@
 
 #include "docker/docker.hpp"
 
+#include "slave/containerizer/isolators/cgroups/cpushare.hpp"
+#include "slave/containerizer/isolators/cgroups/mem.hpp"
+
+using namespace mesos::internal::slave;
+
 using namespace process;
 
 using std::list;
