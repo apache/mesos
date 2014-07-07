@@ -30,6 +30,7 @@
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
 #include <process/owned.hpp>
+#include <process/reap.hpp>
 
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
@@ -1330,8 +1331,6 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   // Wait for the slave to re-register.
   AWAIT_READY(slaveReregisteredMessage);
 
-  Clock::pause();
-
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
@@ -1348,6 +1347,8 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   // Wait for TASK_KILLED update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_KILLED, status.get().state());
+
+  Clock::pause();
 
   // Advance the clock until the allocator allocates
   // the recovered resources.
@@ -1436,12 +1437,39 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   // Wait for TASK_RUNNING update.
   AWAIT_READY(status);
 
+  // Capture the container ID.
+  Future<hashset<ContainerID> > containers =
+    containerizer1.get()->containers();
+
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *containers.get().begin();
+
   this->Stop(slave.get());
   delete containerizer1.get();
 
-  // Shut down the executor manually so that it doesn't hang around
-  // after the test finishes.
+  // Get the executor's pid so we can reap it to properly simulate a
+  // reboot.
+  string pidPath = paths::getForkedPidPath(
+        paths::getMetaRootDir(flags.work_dir),
+        slaveId,
+        frameworkId,
+        executorId,
+        containerId);
+
+  Try<string> read = os::read(pidPath);
+  ASSERT_SOME(read);
+
+  Try<pid_t> pid = numify<pid_t>(read.get());
+  ASSERT_SOME(pid);
+
+  Future<Option<int> > executorStatus = process::reap(pid.get());
+
+  // Shut down the executor manually and wait until it's been reaped.
   process::post(executorPid, ShutdownExecutorMessage());
+
+  AWAIT_READY(executorStatus);
 
   // Modify the boot ID to simulate a reboot.
   ASSERT_SOME(os::write(
@@ -1546,11 +1574,20 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   AWAIT_READY(status);
 
   this->Stop(slave.get());
-  delete containerizer1.get();
 
-  // Shut down the executor manually so that it doesn't hang around
-  // after the test finishes.
-  process::post(executorPid, ShutdownExecutorMessage());
+  // Destroy all the containers before we destroy the containerizer.
+  Future<hashset<ContainerID> > containers = containerizer1.get()->containers();
+  AWAIT_READY(containers);
+
+  foreach (const ContainerID& containerId, containers.get()) {
+    Future<containerizer::Termination> wait =
+      containerizer1.get()->wait(containerId);
+
+    containerizer1.get()->destroy(containerId);
+    AWAIT_READY(wait);
+  }
+
+  delete containerizer1.get();
 
   // Remove the symlink "latest" in the executor directory
   // to simulate a non-recoverable executor.
@@ -1737,6 +1774,80 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   this->Shutdown();
   delete containerizer2.get();
+}
+
+
+// The slave should shutdown when it receives a SIGUSR1 signal.
+TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Try<TypeParam*> containerizer = TypeParam::create(flags, true);
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))  // Initial offer.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(task); // Long-running task.
+
+  Future<Nothing> statusUpdate;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureSatisfy(&statusUpdate))
+    .WillRepeatedly(Return());
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Wait for TASK_RUNNING update to be acknowledged.
+  AWAIT_READY(statusUpdate);
+
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  Future<Nothing> signaled =
+    FUTURE_DISPATCH(_, &Slave::signaled);
+
+  // Send SIGUSR1 signal to the slave.
+  kill(getpid(), SIGUSR1);
+
+  AWAIT_READY(signaled);
+  AWAIT_READY(executorTerminated);
+
+  // Make sure the slave terminates.
+  ASSERT_TRUE(process::wait(slave.get(), Seconds(10)));
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+  delete containerizer.get();
 }
 
 
@@ -2344,14 +2455,14 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  Clock::pause();
-
   // Kill the task.
   driver2.killTask(task.task_id());
 
   // Wait for TASK_KILLED update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_KILLED, status.get().state());
+
+  Clock::pause();
 
   // Advance the clock until the allocator allocates
   // the recovered resources.
@@ -3056,33 +3167,46 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
     .WillOnce(DoAll(FutureSatisfy(&launch),
                     Return(Future<Nothing>())));
 
+  // Ensure that wait doesn't complete so that containerizer doesn't
+  // return a failure on 'wait' due to the pending launch.
+  EXPECT_CALL(*containerizer1, wait(_))
+    .WillOnce(Return(Future<containerizer::Termination>()));
+
+  // No status update should be sent for now.
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .Times(0);
+
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  // Once we get the launch restart the slave.
+  // Once we see the call to launch, restart the slave.
   AWAIT_READY(launch);
 
   this->Stop(slave.get());
   delete containerizer1;
 
   Future<TaskStatus> status;
+  // There is a race here where the Slave may reregister before we
+  // shut down. If it does, it causes the StatusUpdateManager to
+  // flush which will cause a duplicate status update to be sent. As
+  // such, we ignore any subsequent updates.
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  TestContainerizer* containerizer2 = new TestContainerizer();
-
-  slave = this->StartSlave(containerizer2, flags);
-  ASSERT_SOME(slave);
+  TestContainerizer containerizer2;
 
   Clock::pause();
+
+  slave = this->StartSlave(&containerizer2, flags);
+  ASSERT_SOME(slave);
 
   AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-
   Clock::resume();
 
   // Scheduler should receive the TASK_FAILED update.
@@ -3093,7 +3217,6 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   driver.join();
 
   this->Shutdown();
-  delete containerizer2;
 }
 
 
@@ -3197,3 +3320,154 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 
   delete containerizer2.get();
 }
+
+#ifdef __linux__
+// Test that the perf event isolator can be enabled on a new slave.
+// Previously created containers will not report perf statistics but
+// newly created containers will.
+TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a slave using a containerizer without a perf event
+  // isolator.
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.isolation = "cgroups/cpu,cgroups/mem";
+  flags.slave_subsystems = "";
+
+  Try<MesosContainerizer*> containerizer1 =
+    MesosContainerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Scheduler expectations.
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  SlaveID slaveId = offers1.get()[0].slave_id();
+
+  TaskInfo task1 = createTask(
+      slaveId, Resources::parse("cpus:0.5;mem:128").get(), "sleep 1000");
+  vector<TaskInfo> tasks1;
+  tasks1.push_back(task1);
+
+  // Message expectations.
+  Future<Message> registerExecutor =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers1.get()[0].id(), tasks1);
+
+  AWAIT_READY(registerExecutor);
+
+  Future<hashset<ContainerID> > containers = containerizer1.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId1 = *(containers.get().begin());
+
+  Future<ResourceStatistics> usage = containerizer1.get()->usage(containerId1);
+  AWAIT_READY(usage);
+
+  // There should not be any perf statistics.
+  EXPECT_FALSE(usage.get().has_perf());
+
+  this->Stop(slave.get());
+  delete containerizer1.get();
+
+  // Set up so we can wait until the new slave updates the container's
+  // resources (this occurs after the executor has re-registered).
+  Future<Nothing> update =
+    FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
+
+  // Start a slave using a containerizer with a perf event isolator.
+  flags.isolation = "cgroups/cpu,cgroups/mem,cgroups/perf_event";
+  flags.perf_events = "cycles,task-clock";
+  flags.perf_duration = Milliseconds(250);
+  flags.perf_interval = Milliseconds(500);
+
+  Try<MesosContainerizer*> containerizer2 =
+    MesosContainerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  slave = this->StartSlave(containerizer2.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+
+  // Wait until the containerizer is updated.
+  AWAIT_READY(update);
+
+  // The first container should not report perf statistics.
+  usage = containerizer2.get()->usage(containerId1);
+  AWAIT_READY(usage);
+
+  EXPECT_FALSE(usage.get().has_perf());
+
+  // Start a new container which will start reporting perf statistics.
+  TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
+  vector<TaskInfo> tasks2;
+  tasks2.push_back(task2);
+
+  // Message expectations.
+  registerExecutor =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers2.get()[0].id(), tasks2);
+
+  AWAIT_READY(registerExecutor);
+
+  containers = containerizer2.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(2u, containers.get().size());
+  EXPECT_TRUE(containers.get().contains(containerId1));
+
+  ContainerID containerId2;
+  foreach (const ContainerID containerId, containers.get()) {
+    if (containerId != containerId1) {
+      containerId2.CopyFrom(containerId);
+    }
+  }
+
+  usage = containerizer2.get()->usage(containerId2);
+  AWAIT_READY(usage);
+
+  EXPECT_TRUE(usage.get().has_perf());
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+  delete containerizer2.get();
+}
+#endif // __linux__

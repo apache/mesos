@@ -2,7 +2,7 @@
 layout: documentation
 ---
 
-# Getting Started with Apache Mesos
+# Getting Started
 
 ## Downloading Mesos
 
@@ -10,8 +10,8 @@ There are different ways you can get Mesos:
 
 1. Download the latest stable release from [Apache](http://mesos.apache.org/downloads/) (***Recommended***)
 
-        $ wget http://www.apache.org/dist/mesos/0.18.2/mesos-0.18.2.tar.gz
-        $ tar -zxf mesos-0.18.2.tar.gz
+        $ wget http://www.apache.org/dist/mesos/0.19.0/mesos-0.19.0.tar.gz
+        $ tar -zxf mesos-0.19.0.tar.gz
 
 2. Clone the Mesos git [repository](http://git-wip-us.apache.org/repos/asf/mesos.git) (***Advanced Users Only***)
 
@@ -79,8 +79,8 @@ There are different ways you can get Mesos:
         # Change into build directory.
         $ cd build
 
-        # Start mesos master.
-        $ ./bin/mesos-master.sh --ip=127.0.0.1
+        # Start mesos master (***Ensure work directory exists and has proper permissions***).
+        $ ./bin/mesos-master.sh --ip=127.0.0.1 --work_dir=/var/lib/mesos
 
         # Start mesos slave.
         $ ./bin/mesos-slave.sh --master=127.0.0.1:5050

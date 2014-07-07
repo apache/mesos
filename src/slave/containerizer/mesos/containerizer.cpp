@@ -16,36 +16,36 @@
  * limitations under the License.
  */
 
-#include <sstream>
-
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/io.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
-#include <stout/fatal.hpp>
 #include <stout/os.hpp>
-#include <stout/unreachable.hpp>
-
-#include <stout/os/execenv.hpp>
 
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
-#ifdef __linux__
-#include "slave/containerizer/linux_launcher.hpp"
-#endif // __linux__
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
+#ifdef __linux__
+#include "slave/containerizer/linux_launcher.hpp"
+#endif // __linux__
 
 #include "slave/containerizer/isolators/posix.hpp"
 #ifdef __linux__
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
+#include "slave/containerizer/isolators/cgroups/perf_event.hpp"
 #endif // __linux__
+#ifdef WITH_NETWORK_ISOLATOR
+#include "slave/containerizer/isolators/network/port_mapping.hpp"
+#endif
+
+#include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/launch.hpp"
 
 using std::list;
 using std::map;
@@ -131,7 +131,11 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #ifdef __linux__
   creators["cgroups/cpu"] = &CgroupsCpushareIsolatorProcess::create;
   creators["cgroups/mem"] = &CgroupsMemIsolatorProcess::create;
+  creators["cgroups/perf_event"] = &CgroupsPerfEventIsolatorProcess::create;
 #endif // __linux__
+#ifdef WITH_NETWORK_ISOLATOR
+  creators["network/port_mapping"] = &PortMappingIsolatorProcess::create;
+#endif
 
   vector<Owned<Isolator> > isolators;
 
@@ -150,8 +154,10 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   }
 
 #ifdef __linux__
-  // Use cgroups on Linux if any cgroups isolators are used.
-  Try<Launcher*> launcher = strings::contains(isolation, "cgroups")
+  // Determine which launcher to use based on the isolation flag.
+  Try<Launcher*> launcher =
+    (strings::contains(isolation, "cgroups") ||
+     strings::contains(isolation, "network/port_mapping"))
     ? LinuxLauncher::create(flags)
     : PosixLauncher::create(flags);
 #else
@@ -330,11 +336,14 @@ Future<Nothing> MesosContainerizerProcess::recover(
   }
 
   // Try to recover the launcher first.
-  Try<Nothing> recover = launcher->recover(recoverable);
-  if (recover.isError()) {
-    return Failure(recover.error());
-  }
+  return launcher->recover(recoverable)
+    .then(defer(self(), &Self::_recover, recoverable));
+}
 
+
+Future<Nothing> MesosContainerizerProcess::_recover(
+    const list<RunState>& recoverable)
+{
   // Then recover the isolators.
   list<Future<Nothing> > futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
@@ -343,11 +352,11 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
   // If all isolators recover then continue.
   return collect(futures)
-    .then(defer(self(), &Self::_recover, recoverable));
+    .then(defer(self(), &Self::__recover, recoverable));
 }
 
 
-Future<Nothing> MesosContainerizerProcess::_recover(
+Future<Nothing> MesosContainerizerProcess::__recover(
     const list<RunState>& recovered)
 {
   foreach (const RunState& run, recovered) {
@@ -370,125 +379,6 @@ Future<Nothing> MesosContainerizerProcess::_recover(
   }
 
   return Nothing();
-}
-
-
-// This function is executed by the forked child and must remain
-// async-signal-safe.
-int execute(
-    const CommandInfo& command,
-    const string& directory,
-    const os::ExecEnv& envp,
-    uid_t uid,
-    gid_t gid,
-    bool redirectIO,
-    int pipeRead,
-    int pipeWrite,
-    const list<Option<CommandInfo> >& commands)
-{
-  if (close(pipeWrite) != 0) {
-    ABORT("Failed to close pipe[1]");
-  }
-
-  // Do a blocking read on the pipe until the parent signals us to continue.
-  char dummy;
-  ssize_t length;
-  while ((length = read(pipeRead, &dummy, sizeof(dummy))) == -1 &&
-         errno == EINTR);
-
-  if (length != sizeof(dummy)) {
-    close(pipeRead);
-    ABORT("Failed to synchronize with parent");
-  }
-
-  if (close(pipeRead) != 0) {
-    ABORT("Failed to close pipe[0]");
-  }
-
-  // Change gid and uid.
-  if (setgid(gid) != 0) {
-    ABORT("Failed to set gid");
-  }
-
-  if (setuid(uid) != 0) {
-    ABORT("Failed to set uid");
-  }
-
-  // Enter working directory.
-  if (chdir(directory.c_str()) != 0) {
-    ABORT("Failed to chdir into work directory");
-  }
-
-  // Redirect output to files in working dir if required. We append because
-  // others (e.g., mesos-fetcher) may have already logged to the files.
-  // TODO(bmahler): It would be best if instead of closing stderr /
-  // stdout and redirecting, we instead always output to stderr /
-  // stdout. Also tee'ing their output into the work directory files
-  // when redirection is desired.
-  if (redirectIO) {
-    int fd;
-    while ((fd = open(
-        "stdout",
-        O_CREAT | O_WRONLY | O_APPEND,
-        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)) == -1 &&
-            errno == EINTR);
-    if (fd == -1) {
-      ABORT("Failed to open stdout");
-    }
-
-    int status;
-    while ((status = dup2(fd, STDOUT_FILENO)) == -1 && errno == EINTR);
-    if (status == -1) {
-      ABORT("Failed to dup2 for stdout");
-    }
-
-    if (close(fd) == -1) {
-      ABORT("Failed to close stdout fd");
-    }
-
-    while ((fd = open(
-        "stderr",
-        O_CREAT | O_WRONLY | O_APPEND,
-        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)) == -1 &&
-            errno == EINTR);
-    if (fd == -1) {
-      ABORT("Failed to open stderr");
-    }
-
-    while ((status = dup2(fd, STDERR_FILENO)) == -1 && errno == EINTR);
-    if (status == -1) {
-      ABORT("Failed to dup2 for stderr");
-    }
-
-    if (close(fd) == -1) {
-      ABORT("Failed to close stderr fd");
-    }
-  }
-
-  // Run additional preparation commands. These are run as the same user and
-  // with the environment as the slave.
-  // NOTE: os::system() is async-signal-safe.
-  foreach (const Option<CommandInfo>& command, commands) {
-    if (command.isSome()) {
-      // Block until the command completes.
-      int status = os::system(command.get().value());
-
-      if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
-        ABORT("Command '",
-              command.get().value().c_str(),
-              "' failed to execute successfully");
-      }
-    }
-  }
-
-  // Execute the command (via '/bin/sh -c command') with its environment.
-  execle("/bin/sh", "sh", "-c", command.value().c_str(), (char*) NULL, envp());
-
-  // If we get here, the execv call failed.
-  ABORT("Failed to execute command");
-
-  // This should not be reached.
-  return -1;
 }
 
 
@@ -647,7 +537,13 @@ Future<Nothing> MesosContainerizerProcess::fetch(
   LOG(INFO) << "Fetching URIs for container '" << containerId
             << "' using command '" << command << "'";
 
-  Try<Subprocess> fetcher = subprocess(command, environment);
+  Try<Subprocess> fetcher = subprocess(
+      command,
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      environment);
+
   if (fetcher.isError()) {
     return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
   }
@@ -682,7 +578,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
 
   // Redirect takes care of nonblocking and close-on-exec for the
   // supplied file descriptors.
-  io::redirect(fetcher.get().out(), out.get());
+  io::redirect(fetcher.get().out().get(), out.get());
 
   // Redirect does 'dup' the file descriptor, hence we can close the
   // original now.
@@ -711,7 +607,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     }
   }
 
-  io::redirect(fetcher.get().err(), err.get());
+  io::redirect(fetcher.get().err().get(), err.get());
 
   os::close(err.get());
 
@@ -745,46 +641,52 @@ Future<Nothing> MesosContainerizerProcess::_launch(
     env[variable.name()] = variable.value();
   }
 
-  // Construct a representation of the environment suitable for
-  // passing to execle in the child. We construct it here because it
-  // is not async-signal-safe.
-  os::ExecEnv envp(env);
-
   // Use a pipe to block the child until it's been isolated.
   int pipes[2];
+
   // We assume this should not fail under reasonable conditions so we
   // use CHECK.
   CHECK(pipe(pipes) == 0);
 
-  // Determine the uid and gid for the child now because getpwnam is
-  // not async signal safe.
-  Result<uid_t> uid = os::getuid(user);
-  if (uid.isError() || uid.isNone()) {
-    return Failure("Invalid user: " + (uid.isError() ? uid.error()
-                                                     : "nonexistent"));
+  // Prepare the flags to pass to the launch process.
+  MesosContainerizerLaunch::Flags launchFlags;
+
+  launchFlags.command = JSON::Protobuf(executorInfo.command());
+  launchFlags.directory = directory;
+  launchFlags.user = user;
+  launchFlags.pipe_read = pipes[0];
+  launchFlags.pipe_write = pipes[1];
+
+  // Prepare the additional preparation commands.
+  // TODO(jieyu): Use JSON::Array once we have generic parse support.
+  JSON::Object object;
+  JSON::Array array;
+  foreach (const Option<CommandInfo>& command, commands) {
+    if (command.isSome()) {
+      array.values.push_back(JSON::Protobuf(command.get()));
+    }
   }
+  object.values["commands"] = array;
 
-  Result<gid_t> gid = os::getgid(user);
-  if (gid.isError() || gid.isNone()) {
-    return Failure("Invalid user: " + (gid.isError() ? gid.error()
-                                                     : "nonexistent"));
-  }
+  launchFlags.commands = object;
 
+  // Fork the child using launcher.
+  vector<string> argv(2);
+  argv[0] = "mesos-containerizer";
+  argv[1] = MesosContainerizerLaunch::NAME;
 
-  // Prepare a function for the forked child to exec() the executor.
-  lambda::function<int()> childFunction = lambda::bind(
-      &execute,
-      executorInfo.command(),
-      directory,
-      envp,
-      uid.get(),
-      gid.get(),
-      !local,
-      pipes[0],
-      pipes[1],
-      commands);
-
-  Try<pid_t> forked = launcher->fork(containerId, childFunction);
+  Try<pid_t> forked = launcher->fork(
+      containerId,
+      path::join(flags.launcher_dir, "mesos-containerizer"),
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      (local ? Subprocess::FD(STDOUT_FILENO)
+             : Subprocess::PATH(path::join(directory, "stdout"))),
+      (local ? Subprocess::FD(STDERR_FILENO)
+             : Subprocess::PATH(path::join(directory, "stderr"))),
+      launchFlags,
+      env,
+      None());
 
   if (forked.isError()) {
     return Failure("Failed to fork executor: " + forked.error());
@@ -814,8 +716,8 @@ Future<Nothing> MesosContainerizerProcess::_launch(
     }
   }
 
-  // Monitor the executor's pid. We keep the future because we'll refer to it
-  // again during container destroy.
+  // Monitor the executor's pid. We keep the future because we'll
+  // refer to it again during container destroy.
   Future<Option<int> > status = process::reap(pid);
   statuses.put(containerId, status);
   status.onAny(defer(self(), &Self::reaped, containerId));
@@ -859,7 +761,11 @@ Future<Nothing> MesosContainerizerProcess::exec(
     const ContainerID& containerId,
     int pipeWrite)
 {
-  CHECK(promises.contains(containerId));
+  // The container may be destroyed before we exec the executor so return
+  // failure here.
+  if (!promises.contains(containerId)) {
+    return Failure("Container destroyed during launch");
+  }
 
   // Now that we've contained the child we can signal it to continue by
   // writing to the pipe.
@@ -896,7 +802,12 @@ Future<Nothing> MesosContainerizerProcess::update(
   // after recovery so we must check the promises hashmap (which is set during
   // recovery).
   if (!promises.contains(containerId)) {
-    return Failure("Unknown container: " + stringify(containerId));
+    // It is not considered a failure if the container is not known
+    // because the slave will attempt to update the container's
+    // resources on a task's terminal state change but the executor
+    // may have already exited and the container cleaned up.
+    LOG(WARNING) << "Ignoring update for unknown container: " << containerId;
+    return Nothing();
   }
 
   // Store the resources for usage().
@@ -910,7 +821,7 @@ Future<Nothing> MesosContainerizerProcess::update(
 
   // Wait for all isolators to complete.
   return collect(futures)
-    .then(lambda::bind(_nothing));
+    .then(lambda::bind(&_nothing));
 }
 
 

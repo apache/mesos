@@ -156,11 +156,13 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/set_tests.cpp			\
   $(STOUT)/tests/some_tests.cpp			\
   $(STOUT)/tests/strings_tests.cpp		\
+  $(STOUT)/tests/subcommand_tests.cpp		\
   $(STOUT)/tests/thread_tests.cpp		\
   $(STOUT)/tests/uuid_tests.cpp
 
 if OS_LINUX
   stout_tests_SOURCES += $(STOUT)/tests/proc_tests.cpp
+  stout_tests_SOURCES += $(STOUT)/tests/os/setns_tests.cpp
 endif
 
 stout_tests_CPPFLAGS =				\

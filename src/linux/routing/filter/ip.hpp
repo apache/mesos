@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 
+#include <boost/functional/hash.hpp>
+
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
@@ -88,6 +90,15 @@ inline std::ostream& operator << (
 }
 
 
+inline size_t hash_value(const PortRange& range)
+{
+  size_t seed = 0;
+  boost::hash_combine(seed, range.begin());
+  boost::hash_combine(seed, range.end());
+  return seed;
+}
+
+
 class Classifier
 {
 public:
@@ -145,6 +156,18 @@ Try<bool> create(
     const Classifier& classifier,
     const Option<Priority>& priority,
     const action::Redirect& redirect);
+
+
+// Creates an IP packet filter attached to the given parent on the
+// link which will stop the IP packets from being sent to the next
+// filter. Returns false if an IP packet filter attached to the given
+// parent with the same classifier already exists.
+Try<bool> create(
+    const std::string& link,
+    const queueing::Handle& parent,
+    const Classifier& classifier,
+    const Option<Priority>& priority,
+    const action::Terminal& terminal);
 
 
 // Removes the IP packet filter attached to the given parent that

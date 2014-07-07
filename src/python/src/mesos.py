@@ -152,13 +152,14 @@ class SchedulerDriver(object):
 
   def stop(self, failover=False):
     """
-      Stops the scheduler driver. If the 'failover' flag is set to False
-      then it is expected that this framework will never reconnect to Mesos
-      and all of its executors and tasks can be terminated.  Otherwise, all
-      executors and tasks will remain running (for some framework specific
-      failover timeout) allowing the scheduler to reconnect (possibly in the
-      same process, or from a different process, for example, on a different
-      machine.)
+      Stops the scheduler driver. If the 'failover' flag is set to
+      false then it is expected that this framework will never
+      reconnect to Mesos. So Mesos will unregister the framework
+      and shutdown all its tasks and executors. If 'failover' is true,
+      all executors and tasks will remain running (for some framework
+      specific failover timeout) allowing the scheduler to reconnect
+      (possibly in the same process, or from a different process, for
+      example, on a different machine).
     """
 
   def abort(self):
@@ -191,16 +192,15 @@ class SchedulerDriver(object):
       Scheduler.resourceOffers callback, asynchronously.
     """
 
-  def launchTasks(self, offerId, tasks, filters=None):
+  def launchTasks(self, offerIds, tasks, filters=None):
     """
       Launches the given set of tasks. Any resources remaining (i.e., not
       used by the tasks or their executors) will be considered declined.
       The specified filters are applied on all unused resources (see
       mesos.proto for a description of Filters.) Invoking this function with
-      an empty collection of tasks declines this offer in its entirety (see
-      Scheduler.declineOffer).  Note that currently tasks can only be
-      launched per offer.  In the future, frameworks will be allowed to
-      aggregate offers (resources) to launch their tasks.
+      an empty collection of tasks declines the offers in entirety (see
+      Scheduler.declineOffer). Note that passing a single offer is also
+      supported.
     """
 
   def killTask(self, taskId):
@@ -235,6 +235,7 @@ class SchedulerDriver(object):
       retransmitted in any reliable fashion.
     """
 
+  # TODO(bmahler): Add reconcileTasks!
 
 class Executor(object):
   """

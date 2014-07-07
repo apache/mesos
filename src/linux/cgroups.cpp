@@ -41,6 +41,7 @@
 #include <process/delay.hpp>
 #include <process/io.hpp>
 #include <process/process.hpp>
+#include <process/reap.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
@@ -269,17 +270,19 @@ static Try<Nothing> cloneCpusetCpusMems(
 // given cgroup is a relative path to the given hierarchy. This
 // function assumes the given hierarchy is valid and is currently
 // mounted with a cgroup virtual file system. The function also
-// assumes the given cgroup is valid. This function will not create
-// directories recursively, which means it will return error if any of
-// the parent cgroups do not exist.
+// assumes the given cgroup is valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   recursive   Create nest cgroup structure
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
-static Try<Nothing> create(const string& hierarchy, const string& cgroup)
+static Try<Nothing> create(
+    const string& hierarchy,
+    const string& cgroup,
+    bool recursive)
 {
   string path = path::join(hierarchy, cgroup);
-  Try<Nothing> mkdir = os::mkdir(path, false); // Do NOT create recursively.
+  Try<Nothing> mkdir = os::mkdir(path, recursive);
   if (mkdir.isError()) {
     return Error(
         "Failed to create directory '" + path + "': " + mkdir.error());
@@ -392,7 +395,10 @@ static Try<Nothing> write(
     return Error("Failed to open file " + path);
   }
 
-  file << value << std::endl;
+  // NOTE: cgroups convention does not append a endln!
+  // Recent kernels will cause operations to fail if 'endl' is
+  // appended to the control file.
+  file << value;
 
   if (file.fail()) {
     ErrnoError error; // TODO(jieyu): Does std::ifstream actually set errno?
@@ -486,7 +492,7 @@ Try<string> prepare(
 
   if (!exists.get()) {
     // No cgroup exists, create it.
-    Try<Nothing> create = cgroups::create(hierarchy, cgroup);
+    Try<Nothing> create = cgroups::create(hierarchy, cgroup, true);
     if (create.isError()) {
       return Error("Failed to create root cgroup " +
                    path::join(hierarchy, cgroup) +
@@ -833,14 +839,17 @@ Try<bool> mounted(const string& hierarchy, const string& subsystems)
 }
 
 
-Try<Nothing> create(const string& hierarchy, const string& cgroup)
+Try<Nothing> create(
+    const string& hierarchy,
+    const string& cgroup,
+    bool recursive)
 {
   Option<Error> error = verify(hierarchy);
   if (error.isSome()) {
     return error.get();
   }
 
-  return internal::create(hierarchy, cgroup);
+  return internal::create(hierarchy, cgroup, recursive);
 }
 
 
@@ -1296,303 +1305,129 @@ Future<uint64_t> listen(
   return future;
 }
 
-
 namespace internal {
 
+namespace freezer {
 
-// The process that freezes or thaws the cgroup.
+Try<string> state(const string& hierarchy, const string& cgroup)
+{
+  Try<string> state = cgroups::read(hierarchy, cgroup, "freezer.state");
+
+  if (state.isError()) {
+    return Error("Failed to read freezer state: " + state.error());
+  }
+
+  return strings::trim(state.get());
+}
+
+
+Try<Nothing> state(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& state)
+{
+  if (state != "FROZEN" && state != "THAWED") {
+    return Error("Invalid freezer state requested: " + state);
+  }
+
+  Try<Nothing> write = cgroups::write(
+      hierarchy, cgroup, "freezer.state", state);
+  if (write.isError()) {
+    return Error("Failed to write '" + state +
+                 "' to control 'freezer.state': " + write.error());
+  } else {
+    return Nothing();
+  }
+}
+
+} // namespace freezer {
+
 class Freezer : public Process<Freezer>
 {
 public:
-  Freezer(const string& _hierarchy,
-          const string& _cgroup,
-          const string& _action,
-          const Duration& _interval,
-          unsigned int _retries = FREEZE_RETRIES)
+  Freezer(
+      const string& _hierarchy,
+      const string& _cgroup)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
-      action(_action),
-      interval(_interval),
-      retries(_retries) {}
+      start(Clock::now()) {}
 
   virtual ~Freezer() {}
 
-  // Return a future indicating the state of the freezer.
-  Future<bool> future() { return promise.future(); }
-
-protected:
-  virtual void initialize()
-  {
-    // Stop the process if no one cares.
-    promise.future().onDiscard(lambda::bind(
-        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
-
-    CHECK(interval >= Seconds(0));
-
-    // Start the action.
-    CHECK(action == "FREEZE" || action == "THAW");
-    if (action == "FREEZE") {
-      freeze();
-    } else if (action == "THAW") {
-      thaw();
-    }
-  }
-
-  virtual void finalize()
-  {
-    promise.discard();
-  }
-
-private:
   void freeze()
   {
-    LOG(INFO) << "Trying to freeze cgroup " << path::join(hierarchy, cgroup);
-
-    Try<Nothing> write = internal::write(
-        hierarchy, cgroup, "freezer.state", "FROZEN");
-
-    if (write.isError()) {
-      promise.fail("Failed to write control 'freezer.state': " + write.error());
+    Try<Nothing> freeze =
+      internal::freezer::state(hierarchy, cgroup, "FROZEN");
+    if (freeze.isError()) {
+      promise.fail(freeze.error());
       terminate(self());
-    } else {
-      watchFrozen();
+      return;
     }
+
+    Try<string> state = internal::freezer::state(hierarchy, cgroup);
+    if (state.isError()) {
+      promise.fail(state.error());
+      terminate(self());
+      return;
+    }
+
+    if (state.get() == "FROZEN") {
+      LOG(INFO) << "Successfullly froze cgroup "
+                << path::join(hierarchy, cgroup)
+                << " after " << (Clock::now() - start);
+      promise.set(Nothing());
+      terminate(self());
+      return;
+    }
+
+    // Attempt to freeze the freezer cgroup again.
+    delay(Milliseconds(100), self(), &Self::freeze);
   }
 
   void thaw()
   {
-    LOG(INFO) << "Trying to thaw cgroup " << path::join(hierarchy, cgroup);
-
-    Try<Nothing> write = internal::write(
-        hierarchy, cgroup, "freezer.state", "THAWED");
-
-    if (write.isError()) {
-      promise.fail("Failed to write control 'freezer.state': " + write.error());
+    Try<Nothing> thaw = internal::freezer::state(hierarchy, cgroup, "THAWED");
+    if (thaw.isError()) {
+      promise.fail(thaw.error());
       terminate(self());
-    } else {
-      watchThawed();
+      return;
     }
-  }
 
-  void watchFrozen(unsigned int attempt = 0)
-  {
-    Try<string> state = internal::read(hierarchy, cgroup, "freezer.state");
-
+    Try<string> state = internal::freezer::state(hierarchy, cgroup);
     if (state.isError()) {
-      promise.fail("Failed to read control 'freezer.state': " + state.error());
+      promise.fail(state.error());
       terminate(self());
       return;
     }
 
-    if (strings::trim(state.get()) == "FROZEN") {
-      LOG(INFO) << "Successfully froze cgroup " << path::join(hierarchy, cgroup)
-                << " after " << attempt + 1 << " attempts";
-      promise.set(true);
-      terminate(self());
-      return;
-    } else if (strings::trim(state.get()) == "FREEZING") {
-      // The freezer.state is in FREEZING state. This is because not all the
-      // processes in the given cgroup can be frozen at the moment. The main
-      // cause is that some of the processes are in stopped/traced state ('T'
-      // state shown in ps command). It is likely that the freezer.state keeps
-      // in FREEZING state if these stopped/traced processes are not resumed.
-      // Therefore, here we send SIGCONT to those stopped/traced processes to
-      // make sure that the freezer can finish.
-      // TODO(jieyu): This code can be removed in the future as the newer
-      // version of the kernel solves this problem (e.g. Linux-3.2.0).
-      Try<set<pid_t> > pids = processes(hierarchy, cgroup);
-      if (pids.isError()) {
-        promise.fail("Failed to get processes of cgroup: " + pids.error());
-        terminate(self());
-        return;
-      }
-
-      // It appears possible for processes to go away while the cgroup
-      // is in the FREEZING state. We ignore such processes.
-      // See: https://issues.apache.org/jira/browse/MESOS-461
-      foreach (pid_t pid, pids.get()) {
-        Result<proc::ProcessStatus> status = proc::status(pid);
-
-        if (!status.isSome()) {
-          LOG(WARNING)
-            << "Failed to get process status for pid " << pid << ": "
-            << (status.isError() ? status.error() : "pid does not exist");
-          continue;
-        }
-
-        // Check whether the process is in stopped/traced state.
-        if (status.get().state == 'T') {
-          // Send a SIGCONT signal to the process.
-          if (::kill(pid, SIGCONT) == -1) {
-            promise.fail(
-                "Failed to send SIGCONT to process " + stringify(pid) +
-                ": " + string(strerror(errno)));
-            terminate(self());
-            return;
-          }
-        }
-      }
-
-      if (attempt > retries) {
-        LOG(WARNING) << "Unable to freeze " << path::join(hierarchy, cgroup)
-                     << " within " << retries + 1 << " attempts";
-        promise.set(false);
-        terminate(self());
-        return;
-      }
-
-      // Retry the freezing operation.
-      Try<Nothing> write = internal::write(
-          hierarchy, cgroup, "freezer.state", "FROZEN");
-
-      if (write.isError()) {
-        promise.fail(
-            "Failed to write control 'freezer.state': " + write.error());
-        terminate(self());
-        return;
-      }
-
-      // Not done yet, keep watching (and possibly retrying).
-      delay(interval, self(), &Freezer::watchFrozen, attempt + 1);
-    } else {
-      LOG(FATAL) << "Unexpected state: " << strings::trim(state.get())
-                 << " of cgroup " << path::join(hierarchy, cgroup);
-    }
-  }
-
-  void watchThawed()
-  {
-    Try<string> state = internal::read(hierarchy, cgroup, "freezer.state");
-
-    if (state.isError()) {
-      promise.fail("Failed to read control 'freezer.state': " + state.error());
+    if (state.get() == "THAWED") {
+      LOG(INFO) << "Successfullly thawed cgroup "
+                << path::join(hierarchy, cgroup)
+                << " after " << (Clock::now() - start);
+      promise.set(Nothing());
       terminate(self());
       return;
     }
 
-    if (strings::trim(state.get()) == "THAWED") {
-      LOG(INFO) << "Successfully thawed " << path::join(hierarchy, cgroup);
-      promise.set(true);
-      terminate(self());
-    } else if (strings::trim(state.get()) == "FROZEN") {
-      // Not done yet, keep watching.
-      delay(interval, self(), &Freezer::watchThawed);
-    } else {
-      LOG(FATAL) << "Unexpected state: " << strings::trim(state.get())
-                 << " of cgroup " << path::join(hierarchy, cgroup);
-    }
+    // Attempt to thaw the freezer cgroup again.
+    delay(Milliseconds(100), self(), &Self::thaw);
   }
 
-  const string hierarchy;
-  const string cgroup;
-  const string action;
-  const Duration interval;
-  const unsigned int retries;
-  Promise<bool> promise;
-};
-
-} // namespace internal {
-
-
-Future<bool> freeze(
-    const string& hierarchy,
-    const string& cgroup,
-    const Duration& interval,
-    unsigned int retries)
-{
-  Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
-  if (error.isSome()) {
-    return Failure(error.get());
-  }
-
-  if (interval < Seconds(0)) {
-    return Failure("Interval should be non-negative");
-  }
-
-  // Check the current freezer state.
-  Try<string> state = internal::read(hierarchy, cgroup, "freezer.state");
-  if (state.isError()) {
-    return Failure(
-        "Failed to read control 'freezer.state': " + state.error());
-  } else if (strings::trim(state.get()) == "FROZEN") {
-    // Immediately return success.
-    return true;
-  }
-
-  internal::Freezer* freezer =
-    new internal::Freezer(hierarchy, cgroup, "FREEZE", interval, retries);
-  Future<bool> future = freezer->future();
-  spawn(freezer, true);
-  return future;
-}
-
-
-Future<bool> thaw(
-    const string& hierarchy,
-    const string& cgroup,
-    const Duration& interval)
-{
-  Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
-  if (error.isSome()) {
-    return Failure(error.get());
-  }
-
-  if (interval < Seconds(0)) {
-    return Failure("Interval should be non-negative");
-  }
-
-  // Check the current freezer state.
-  Try<string> state = internal::read(hierarchy, cgroup, "freezer.state");
-  if (state.isError()) {
-    return Failure(
-        "Failed to read control 'freezer.state': " + state.error());
-  } else if (strings::trim(state.get()) == "THAWED") {
-    // Immediately return success.
-    return true;
-  }
-
-  internal::Freezer* freezer =
-    new internal::Freezer(hierarchy, cgroup, "THAW", interval);
-  Future<bool> future = freezer->future();
-  spawn(freezer, true);
-  return future;
-}
-
-
-namespace internal {
-
-// The process used to wait for a cgroup to become empty (no task in it).
-class EmptyWatcher: public Process<EmptyWatcher>
-{
-public:
-  EmptyWatcher(const string& _hierarchy,
-               const string& _cgroup,
-               const Duration& _interval,
-               unsigned int _retries = EMPTY_WATCHER_RETRIES)
-    : hierarchy(_hierarchy),
-      cgroup(_cgroup),
-      interval(_interval),
-      retries(_retries) {}
-
-  virtual ~EmptyWatcher() {}
-
-  // Return a future indicating the state of the watcher.
-  // There are three outcomes:
-  //   1. true:  the cgroup became empty.
-  //   2. false: the cgroup did not become empty within the retry limit.
-  //   3. error: invalid arguments, or an unexpected error occured.
-  Future<bool> future() { return promise.future(); }
+  Future<Nothing> future() { return promise.future(); }
 
 protected:
   virtual void initialize()
   {
-    // Stop when no one cares.
+    Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
+    if (error.isSome()) {
+      promise.fail("Invalid freezer cgroup: " + error.get().message);
+      terminate(self());
+      return;
+    }
+
+    // Stop attempting to freeze/thaw if nobody cares.
     promise.future().onDiscard(lambda::bind(
-        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
-
-    CHECK(interval >= Seconds(0));
-
-    check();
+          static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
   }
 
   virtual void finalize()
@@ -1601,36 +1436,10 @@ protected:
   }
 
 private:
-  void check(unsigned int attempt = 0)
-  {
-    Try<set<pid_t> > pids = processes(hierarchy, cgroup);
-    if (pids.isError()) {
-      promise.fail("Failed to get processes of cgroup: " + pids.error());
-      terminate(self());
-      return;
-    }
-
-    if (pids.get().empty()) {
-      promise.set(true);
-      terminate(self());
-      return;
-    } else {
-      if (attempt > retries) {
-        promise.set(false);
-        terminate(self());
-        return;
-      }
-
-      // Re-check needed.
-      delay(interval, self(), &EmptyWatcher::check, attempt + 1);
-    }
-  }
-
   const string hierarchy;
   const string cgroup;
-  const Duration interval;
-  const unsigned int retries;
-  Promise<bool> promise;
+  const Time start;
+  Promise<Nothing> promise;
 };
 
 
@@ -1638,119 +1447,111 @@ private:
 class TasksKiller : public Process<TasksKiller>
 {
 public:
-  TasksKiller(const string& _hierarchy,
-              const string& _cgroup,
-              const Duration& _interval)
-    : hierarchy(_hierarchy),
-      cgroup(_cgroup),
-      interval(_interval) {}
+  TasksKiller(const string& _hierarchy, const string& _cgroup)
+    : hierarchy(_hierarchy), cgroup(_cgroup) {}
 
   virtual ~TasksKiller() {}
 
   // Return a future indicating the state of the killer.
-  Future<bool> future() { return promise.future(); }
+  // Failure occurs if any process in the cgroup is unable to be
+  // killed.
+  Future<Nothing> future() { return promise.future(); }
 
 protected:
   virtual void initialize()
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
-          static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
-
-    CHECK(interval >= Seconds(0));
+        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
     killTasks();
   }
 
   virtual void finalize()
   {
-    // Cancel the chain of operations if the user discards the future.
-    if (promise.future().hasDiscard()) {
-      chain.discard();
-
-      // TODO(benh): Discard our promise only after 'chain' has
-      // completed (ready, failed, or discarded).
-      promise.discard();
-    }
+    chain.discard();
+    promise.discard();
   }
 
 private:
-  // The sequence of operations to kill a cgroup is as follows:
-  // SIGSTOP -> SIGKILL -> empty -> freeze -> SIGKILL -> thaw -> empty
-  // This process is repeated until the cgroup becomes empty.
   void killTasks() {
-    // Chain together the steps needed to kill the tasks. Note that we
-    // ignore the return values of freeze, kill, and thaw because,
-    // provided there are no errors, we'll just retry the chain as
-    // long as tasks still exist.
-    // Send stop signal to all tasks.
-    chain = kill(SIGSTOP)
-      // Now send kill signal.
-      .then(defer(self(), &Self::kill, SIGKILL))
-      // Wait until cgroup is empty.
-      .then(defer(self(), &Self::empty))
-      // Freeze cgroup.
-      .then(defer(self(), &Self::freeze))
-      // Send kill signal to any remaining tasks.
-      .then(defer(self(), &Self::kill, SIGKILL))
-      // Thaw cgroup to deliver signals.
-      .then(defer(self(), &Self::thaw))
-      // Wait until cgroup is empty.
-      .then(defer(self(), &Self::empty));
+    // Chain together the steps needed to kill all tasks in the cgroup.
+    chain = freeze()                     // Freeze the cgroup.
+      .then(defer(self(), &Self::kill))  // Send kill signal.
+      .then(defer(self(), &Self::thaw))  // Thaw cgroup to deliver signal.
+      .then(defer(self(), &Self::reap)); // Wait until all pids are reaped.
 
     chain.onAny(defer(self(), &Self::finished, lambda::_1));
   }
 
-  Future<bool> freeze()
+  Future<Nothing> freeze()
   {
-    return cgroups::freeze(hierarchy, cgroup, interval);
+    return cgroups::freezer::freeze(hierarchy, cgroup);
   }
 
-  Future<Nothing> kill(const int signal)
+  Future<Nothing> kill()
   {
-    Try<Nothing> kill = cgroups::kill(hierarchy, cgroup, signal);
+    Try<set<pid_t> > processes = cgroups::processes(hierarchy, cgroup);
+    if (processes.isError()) {
+      return Failure(processes.error());
+    }
+
+    // Reaping the frozen pids before we kill (and thaw) ensures we reap the
+    // correct pids.
+    foreach (const pid_t pid, processes.get()) {
+      statuses.push_back(process::reap(pid));
+    }
+
+    Try<Nothing> kill = cgroups::kill(hierarchy, cgroup, SIGKILL);
     if (kill.isError()) {
       return Failure(kill.error());
     }
+
     return Nothing();
   }
 
-  Future<bool> thaw()
+  Future<Nothing> thaw()
   {
-    return cgroups::thaw(hierarchy, cgroup, interval);
+    return cgroups::freezer::thaw(hierarchy, cgroup);
   }
 
-  Future<bool> empty()
+  Future<list<Option<int> > > reap()
   {
-    EmptyWatcher* watcher = new EmptyWatcher(hierarchy, cgroup, interval);
-    Future<bool> future = watcher->future();
-    spawn(watcher, true);
-    return future;
+    // Wait until we've reaped all processes.
+    return collect(statuses);
   }
 
-  void finished(const Future<bool>& empty)
+  void finished(const Future<list<Option<int> > >& future)
   {
-    if (empty.isDiscarded()) {
-      promise.discard();
+    if (future.isDiscarded()) {
+      promise.fail("Unexpected discard of future");
       terminate(self());
-    } else if (empty.isFailed()) {
-      promise.fail(empty.failure());
+      return;
+    } else if (future.isFailed()) {
+      promise.fail(future.failure());
       terminate(self());
-    } else if (empty.get()) {
-      promise.set(true);
-      terminate(self());
-    } else {
-      // The cgroup was not empty after the retry limit.
-      // We need to re-attempt the freeze/kill/thaw/watch chain.
-      killTasks();
+      return;
     }
+
+    // Verify the cgroup is now empty.
+    Try<set<pid_t> > processes = cgroups::processes(hierarchy, cgroup);
+    if (processes.isError() || !processes.get().empty()) {
+      promise.fail("Failed to kill all processes in cgroup: " +
+                   (processes.isError() ? processes.error()
+                                        : "processes remain"));
+      terminate(self());
+      return;
+    }
+
+    promise.set(Nothing());
+    terminate(self());
   }
 
   const string hierarchy;
   const string cgroup;
-  const Duration interval;
-  Promise<bool> promise;
-  Future<bool> chain; // Used to discard the "chain" of operations.
+  Promise<Nothing> promise;
+  list<Future<Option<int> > > statuses; // List of statuses for processes.
+  Future<list<Option<int> > > chain; // Used to discard all operations.
 };
 
 
@@ -1758,32 +1559,27 @@ private:
 class Destroyer : public Process<Destroyer>
 {
 public:
-  Destroyer(const string& _hierarchy,
-            const vector<string>& _cgroups,
-            const Duration& _interval)
-    : hierarchy(_hierarchy),
-      cgroups(_cgroups),
-      interval(_interval) {}
+  Destroyer(const string& _hierarchy, const vector<string>& _cgroups)
+    : hierarchy(_hierarchy), cgroups(_cgroups) {}
 
   virtual ~Destroyer() {}
 
   // Return a future indicating the state of the destroyer.
-  Future<bool> future() { return promise.future(); }
+  // Failure occurs if any cgroup fails to be destroyed.
+  Future<Nothing> future() { return promise.future(); }
 
 protected:
   virtual void initialize()
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
-          static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
-
-    CHECK(interval >= Seconds(0));
+        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
 
     // Kill tasks in the given cgroups in parallel. Use collect mechanism to
     // wait until all kill processes finish.
     foreach (const string& cgroup, cgroups) {
       internal::TasksKiller* killer =
-        new internal::TasksKiller(hierarchy, cgroup, interval);
+        new internal::TasksKiller(hierarchy, cgroup);
       killers.push_back(killer->future());
       spawn(killer, true);
     }
@@ -1794,18 +1590,12 @@ protected:
 
   virtual void finalize()
   {
-    // Cancel the operation if the user discards the future.
-    if (promise.future().hasDiscard()) {
-      discard<bool>(killers);
-
-      // TODO(benh): Discard our promise only after all 'killers' have
-      // completed (ready, failed, or discarded).
-      promise.discard();
-    }
+    discard(killers);
+    promise.discard();
   }
 
 private:
-  void killed(const Future<list<bool> >& kill)
+  void killed(const Future<list<Nothing> >& kill)
   {
     if (kill.isReady()) {
       remove();
@@ -1813,7 +1603,8 @@ private:
       promise.discard();
       terminate(self());
     } else if (kill.isFailed()) {
-      promise.fail("Failed to kill tasks in nested cgroups: " + kill.failure());
+      promise.fail("Failed to kill tasks in nested cgroups: " +
+                   kill.failure());
       terminate(self());
     }
   }
@@ -1830,31 +1621,23 @@ private:
       }
     }
 
-    promise.set(true);
+    promise.set(Nothing());
     terminate(self());
   }
 
   const string hierarchy;
   const vector<string> cgroups;
-  const Duration interval;
-  Promise<bool> promise;
+  Promise<Nothing> promise;
 
   // The killer processes used to atomically kill tasks in each cgroup.
-  list<Future<bool> > killers;
+  list<Future<Nothing> > killers;
 };
 
 } // namespace internal {
 
 
-Future<bool> destroy(
-    const string& hierarchy,
-    const string& cgroup,
-    const Duration& interval)
+Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
 {
-  if (interval < Seconds(0)) {
-    return Failure("Interval should be non-negative");
-  }
-
   // Construct the vector of cgroups to destroy.
   Try<vector<string> > cgroups = cgroups::get(hierarchy, cgroup);
   if (cgroups.isError()) {
@@ -1868,15 +1651,15 @@ Future<bool> destroy(
   }
 
   if (candidates.empty()) {
-    return true;
+    return Nothing();
   }
 
   // If the freezer subsystem is available, destroy the cgroups.
   Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
   if (error.isNone()) {
     internal::Destroyer* destroyer =
-      new internal::Destroyer(hierarchy, candidates, interval);
-    Future<bool> future = destroyer->future();
+      new internal::Destroyer(hierarchy, candidates);
+    Future<Nothing> future = destroyer->future();
     spawn(destroyer, true);
     return future;
   } else {
@@ -1889,7 +1672,28 @@ Future<bool> destroy(
     }
   }
 
-  return true;
+  return Nothing();
+}
+
+
+namespace {
+
+Future<Nothing> discard(Future<Nothing> future)
+{
+  future.discard();
+
+  return future;
+}
+
+} // namespace
+
+Future<Nothing> destroy(
+    const string& hierarchy,
+    const string& cgroup,
+    const Duration& timeout)
+{
+  return destroy(hierarchy, cgroup)
+    .after(timeout, lambda::bind(&discard, lambda::_1));
 }
 
 
@@ -2112,6 +1916,137 @@ Try<Bytes> max_usage_in_bytes(const string& hierarchy, const string& cgroup)
   return Bytes::parse(strings::trim(read.get()) + "B");
 }
 
+
+namespace oom {
+
+namespace {
+
+Nothing _nothing() { return Nothing(); }
+
+} // namespace {
+
+Future<Nothing> listen(const string& hierarchy, const string& cgroup)
+{
+  return cgroups::listen(hierarchy, cgroup, "memory.oom_control")
+    .then(lambda::bind(&_nothing));
+}
+
+
+namespace killer {
+
+Try<bool> enabled(const string& hierarchy, const string& cgroup)
+{
+  Try<bool> exists = cgroups::exists(hierarchy, cgroup, "memory.oom_control");
+
+  if (exists.isError() || !exists.get()) {
+    return Error("Could not find 'memory.oom_control' control file: " +
+                 (exists.isError() ? exists.error() : "does not exist"));
+  }
+
+  Try<string> read = cgroups::read(hierarchy, cgroup, "memory.oom_control");
+
+  if (read.isError()) {
+    return Error("Could not read 'memory.oom_control' control file: " +
+                 read.error());
+  }
+
+  map<string, vector<string> > pairs = strings::pairs(read.get(), "\n", " ");
+
+  if (pairs.count("oom_kill_disable") != 1 ||
+      pairs["oom_kill_disable"].size() != 1) {
+    return Error("Could not determine oom control state");
+  }
+
+  // Enabled if not disabled.
+  return pairs["oom_kill_disable"].front() == "0";
+}
+
+
+Try<Nothing> enable(const string& hierarchy, const string& cgroup)
+{
+  Try<bool> enabled = killer::enabled(hierarchy, cgroup);
+
+  if (enabled.isError()) {
+    return Error(enabled.error());
+  }
+
+  if (!enabled.get()) {
+    Try<Nothing> write = cgroups::write(
+        hierarchy, cgroup, "memory.oom_control", "0");
+
+    if (write.isError()) {
+      return Error("Could not write 'memory.oom_control' control file: " +
+                   write.error());
+    }
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> disable(const string& hierarchy, const string& cgroup)
+{
+  Try<bool> enabled = killer::enabled(hierarchy, cgroup);
+
+  if (enabled.isError()) {
+    return Error(enabled.error());
+  }
+
+  if (enabled.get()) {
+    Try<Nothing> write = cgroups::write(
+        hierarchy, cgroup, "memory.oom_control", "1");
+
+    if (write.isError()) {
+      return Error("Could not write 'memory.oom_control' control file: " +
+                   write.error());
+    }
+  }
+
+  return Nothing();
+}
+
+} // namespace killer {
+
+} // namespace oom {
+
 } // namespace memory {
+
+
+namespace freezer {
+
+Future<Nothing> freeze(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  LOG(INFO) << "Freezing cgroup " << path::join(hierarchy, cgroup);
+
+  internal::Freezer* freezer = new internal::Freezer(hierarchy, cgroup);
+
+  Future<Nothing> future = freezer->future();
+  spawn(freezer, true);
+
+  dispatch(freezer, &internal::Freezer::freeze);
+
+  return future;
+}
+
+
+Future<Nothing> thaw(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  LOG(INFO) << "Thawing cgroup " << path::join(hierarchy, cgroup);
+
+  internal::Freezer* freezer = new internal::Freezer(hierarchy, cgroup);
+
+  Future<Nothing> future = freezer->future();
+  spawn(freezer, true);
+
+  dispatch(freezer, &internal::Freezer::thaw);
+
+  return future;
+}
+
+} // namespace freezer {
 
 } // namespace cgroups {

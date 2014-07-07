@@ -23,6 +23,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -44,6 +45,8 @@
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif // __linux__
+
+#include "authorizer/authorizer.hpp"
 
 #include "log/log.hpp"
 
@@ -96,12 +99,25 @@ public:
     Try<process::PID<master::Master> > start(
         const master::Flags& flags = master::Flags());
 
+    // Start and manage a new master using the specified allocator
+    // process.
+    Try<process::PID<master::Master> > start(
+        master::allocator::AllocatorProcess* allocatorProcess,
+        const master::Flags& flags = master::Flags());
+
+    // Start and manage a new master using the specified authorizer.
+    Try<process::PID<master::Master> > start(
+        Authorizer* authorizer,
+        const master::Flags& flags = master::Flags());
+
     // Start and manage a new master using the specified flags.
-    // An allocator process may be specified in which case it will outlive
-    // the launched master.  If no allocator process is specified then
-    // the default allocator will be instantiated.
+    // An allocator process or authorizer may be specified in which
+    // case it will outlive the launched master. If either allocator
+    // process or authorizer is not specified then the default
+    // allocator or authorizer will be used.
     Try<process::PID<master::Master> > start(
         const Option<master::allocator::AllocatorProcess*>& allocatorProcess,
+        const Option<Authorizer*>& authorizer,
         const master::Flags& flags = master::Flags());
 
     // Stops and cleans up a master at the specified PID.
@@ -131,7 +147,8 @@ public:
           registrar(NULL),
           repairer(NULL),
           contender(NULL),
-          detector(NULL) {}
+          detector(NULL),
+          authorizer(None()) {}
 
       master::Master* master;
       master::allocator::Allocator* allocator;
@@ -143,6 +160,7 @@ public:
       master::Repairer* repairer;
       MasterContender* contender;
       MasterDetector* detector;
+      Option<Authorizer*> authorizer;
     };
 
     std::map<process::PID<master::Master>, Master> masters;
@@ -268,12 +286,29 @@ inline void Cluster::Masters::shutdown()
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const master::Flags& flags)
 {
-  return start(None(), flags);
+  return start(None(), None(), flags);
+}
+
+
+inline Try<process::PID<master::Master> > Cluster::Masters::start(
+    master::allocator::AllocatorProcess* allocator,
+    const master::Flags& flags)
+{
+  return start(allocator, None(), flags);
+}
+
+
+inline Try<process::PID<master::Master> > Cluster::Masters::start(
+    Authorizer* authorizer,
+    const master::Flags& flags)
+{
+  return start(None(), authorizer, flags);
 }
 
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const Option<master::allocator::AllocatorProcess*>& allocatorProcess,
+    const Option<Authorizer*>& authorizer,
     const master::Flags& flags)
 {
   // Disallow multiple masters when not using ZooKeeper.
@@ -350,6 +385,19 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
     master.detector = new StandaloneMasterDetector();
   }
 
+  if (authorizer.isSome()) {
+    CHECK_NOTNULL(authorizer.get());
+  } else if (flags.acls.isSome()) {
+    Try<process::Owned<Authorizer> > authorizer_ =
+      Authorizer::create(flags.acls.get());
+    if (authorizer_.isError()) {
+      return Error("Failed to initialize the authorizer: " +
+                   authorizer_.error() + " (see --acls flag)");
+    }
+    process::Owned<Authorizer> authorizer__ = authorizer_.get();
+    master.authorizer = authorizer__.release();
+  }
+
   master.master = new master::Master(
       master.allocator,
       master.registrar,
@@ -357,6 +405,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
       &cluster->files,
       master.contender,
       master.detector,
+      authorizer.isSome() ? authorizer : master.authorizer,
       flags);
 
   if (url.isNone()) {
@@ -375,8 +424,22 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   // Speed up the tests by ensuring that the Master is recovered
   // before the test proceeds. Otherwise, authentication and
   // registration messages may be dropped, causing delayed retries.
-  if (!_recover.await(Seconds(10))) {
+  // NOTE: We use process::internal::await() to avoid awaiting a
+  // Future forever when the Clock is paused.
+  if (!process::internal::await(_recover, Seconds(10))) {
     LOG(FATAL) << "Failed to wait for _recover";
+  }
+
+  bool paused = process::Clock::paused();
+
+  // Need to settle the Clock to ensure that the Master finishes
+  // executing _recover() before we return.
+  process::Clock::pause();
+  process::Clock::settle();
+
+  // Return the Clock to its original state.
+  if (!paused) {
+    process::Clock::resume();
   }
 
   return pid;
@@ -407,6 +470,10 @@ inline Try<Nothing> Cluster::Masters::stop(
 
   delete master.contender;
   delete master.detector;
+
+  if (master.authorizer.isSome()) {
+    delete master.authorizer.get();
+  }
 
   masters.erase(pid);
 

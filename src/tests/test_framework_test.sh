@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -x
-
 # Expecting MESOS_SOURCE_DIR and MESOS_BUILD_DIR to be in environment.
 
 env | grep MESOS_SOURCE_DIR >/dev/null

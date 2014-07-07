@@ -19,12 +19,22 @@
 #ifndef __MESOS_SCHEDULER_HPP__
 #define __MESOS_SCHEDULER_HPP__
 
+#if __cplusplus >= 201103L
+#include <functional>
+#else // __cplusplus >= 201103L
+#include <tr1/functional>
+#endif // __cplusplus >= 201103L
+
+#include <queue>
+
 #include <pthread.h>
 
 #include <string>
 #include <vector>
 
 #include <mesos/mesos.hpp>
+
+#include <mesos/scheduler/scheduler.hpp>
 
 
 /**
@@ -41,10 +51,14 @@ namespace mesos {
 // A few forward declarations.
 class SchedulerDriver;
 
+namespace scheduler {
+class MesosProcess;
+} // namespace scheduler {
+
 namespace internal {
 class MasterDetector;
 class SchedulerProcess;
-}
+} // namespace internal {
 
 
 /**
@@ -197,11 +211,12 @@ public:
   /**
    * Stops the scheduler driver. If the 'failover' flag is set to
    * false then it is expected that this framework will never
-   * reconnect to Mesos and all of its executors and tasks can be
-   * terminated. Otherwise, all executors and tasks will remain
-   * running (for some framework specific failover timeout) allowing the
-   * scheduler to reconnect (possibly in the same process, or from a
-   * different process, for example, on a different machine).
+   * reconnect to Mesos. So Mesos will unregister the framework
+   * and shutdown all its tasks and executors. If 'failover' is true,
+   * all executors and tasks will remain running (for some framework
+   * specific failover timeout) allowing the scheduler to reconnect
+   * (possibly in the same process, or from a different process, for
+   * example, on a different machine).
    */
   virtual Status stop(bool failover = false) = 0;
 
@@ -294,8 +309,12 @@ public:
                                       const std::string& data) = 0;
 
   /**
-   * Reconciliation of tasks causes the master to send status updates for tasks
-   * whose status differs from the status sent here.
+   * Allows the framework to query the status for non-terminal tasks.
+   * This causes the master to send back the latest task status for
+   * each task in 'statuses', if possible. Tasks that are no longer
+   * known will result in a TASK_LOST update. If statuses is empty,
+   * then the master will send the latest status for each task
+   * currently known.
    */
   virtual Status reconcileTasks(
       const std::vector<TaskStatus>& statuses) = 0;
@@ -399,7 +418,13 @@ public:
   virtual Status reconcileTasks(
       const std::vector<TaskStatus>& statuses);
 
+protected:
+  // Used to detect (i.e., choose) the master.
+  internal::MasterDetector* detector;
+
 private:
+  void initialize();
+
   Scheduler* scheduler;
   FrameworkInfo framework;
   std::string master;
@@ -421,13 +446,77 @@ private:
 
   const Credential* credential;
 
-  void initialize();
-
-protected:
-  // Used to detect (i.e., choose) the master.
-  internal::MasterDetector* detector;
+  // Scheduler process ID.
+  std::string schedulerId;
 };
 
+
+namespace scheduler {
+
+/**
+ * Interface to Mesos for a scheduler. Abstracts master detection
+ * (connection and disconnection) and authentication if some
+ * credentials are provided.
+ *
+ * Expects three callbacks, 'connected', 'disconnected', and
+ * 'received' which will get invoked _serially_ when it's determined
+ * that we've connected, disconnected, or received events from the
+ * master. Note that we drop events while disconnected but it's
+ * possible to receive a batch of events across a
+ * disconnected/connected transition before getting the disconnected
+ * and then connected callback.
+ * TODO(benh): Don't include events in 'received' that occured after a
+ * disconnected/connected transition.
+ **/
+class Mesos
+{
+public:
+  Mesos(const std::string& master,
+#if __cplusplus >= 201103L
+        const std::function<void(void)>& connected,
+        const std::function<void(void)>& disconnected,
+        const std::function<void(const std::queue<Event>&)>& received);
+#else // __cplusplus >= 201103L
+        const std::tr1::function<void(void)>& connected,
+        const std::tr1::function<void(void)>& disconnected,
+        const std::tr1::function<void(const std::queue<Event>&)>& received);
+#endif // __cplusplus >= 201103L
+
+  /**
+   * Same as the above constructor but takes 'credential' as argument.
+   *
+   * The credential will be used for authenticating with the master.
+   *
+   **/
+  Mesos(const std::string& master,
+        const Credential& credential,
+#if __cplusplus >= 201103L
+        const std::function<void(void)>& connected,
+        const std::function<void(void)>& disconnected,
+        const std::function<void(const std::queue<Event>&)>& received);
+#else // __cplusplus >= 201103L
+        const std::tr1::function<void(void)>& connected,
+        const std::tr1::function<void(void)>& disconnected,
+        const std::tr1::function<void(const std::queue<Event>&)>& received);
+#endif // __cplusplus >= 201103L
+
+  virtual ~Mesos();
+
+  /**
+   * Attempts to send a call to the master.
+   *
+   * Some local validation of calls is performed which may generate
+   * events without ever being sent to the master. This includes when
+   * calls are sent but no master is currently detected (i.e., we're
+   * disconnected).
+   */
+  virtual void send(const Call& call);
+
+private:
+  MesosProcess* process;
+};
+
+} // namespace scheduler {
 } // namespace mesos {
 
 #endif // __MESOS_SCHEDULER_HPP__

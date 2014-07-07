@@ -48,6 +48,8 @@ inline bool isTerminalState(const TaskState& state)
 }
 
 
+// TODO(vinod): Make SlaveID optional because 'StatusUpdate.SlaveID'
+// is optional.
 inline StatusUpdate createStatusUpdate(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,

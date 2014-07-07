@@ -1280,8 +1280,8 @@ void receiving_connect(struct ev_loop* loop, ev_io* watcher, int revents)
     // Connect failure.
     VLOG(1) << "Socket error while connecting";
     socket_manager->close(s);
-    DataDecoder* decoder = (DataDecoder*) watcher->data;
-    delete decoder;
+    Socket* socket = (Socket*) watcher->data;
+    delete socket;
     ev_io_stop(loop, watcher);
     delete watcher;
   } else {

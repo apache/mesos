@@ -30,20 +30,29 @@
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/future.hpp>
+#include <process/io.hpp>
 #include <process/process.hpp>
+#include <process/protobuf.hpp>
+#include <process/subprocess.hpp>
 #include <process/reap.hpp>
 #include <process/timer.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
+#include <stout/path.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
+#include "common/http.hpp"
 #include "common/type_utils.hpp"
+#include "common/status_utils.hpp"
 
 #include "logging/logging.hpp"
+
+#include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
 
@@ -53,32 +62,39 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
 
 using namespace process;
 
+using namespace mesos::internal::status;
 
-class CommandExecutorProcess : public Process<CommandExecutorProcess>
+
+class CommandExecutorProcess : public ProtobufProcess<CommandExecutorProcess>
 {
 public:
-  CommandExecutorProcess(Option<char**> override)
+  CommandExecutorProcess(Option<char**> override, const string& _healthCheckDir)
     : launched(false),
       killed(false),
       pid(-1),
+      healthPid(-1),
       escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
+      driver(None()),
+      healthCheckDir(_healthCheckDir),
       override(override) {}
 
   virtual ~CommandExecutorProcess() {}
 
   void registered(
-      ExecutorDriver* driver,
+      ExecutorDriver* _driver,
       const ExecutorInfo& executorInfo,
       const FrameworkInfo& frameworkInfo,
       const SlaveInfo& slaveInfo)
   {
     cout << "Registered executor on " << slaveInfo.hostname() << endl;
+    driver = _driver;
   }
 
   void reregistered(
@@ -106,7 +122,7 @@ public:
     CHECK(task.has_command()) << "Expecting task " << task.task_id()
                               << " to have a command!";
 
-    std::cout << "Starting task " << task.task_id() << std::endl;
+    cout << "Starting task " << task.task_id() << endl;
 
     // TODO(benh): Clean this up with the new 'Fork' abstraction.
     // Use pipes to determine which child has successfully changed
@@ -121,21 +137,19 @@ public:
     // Set the FD_CLOEXEC flags on these pipes
     Try<Nothing> cloexec = os::cloexec(pipes[0]);
     if (cloexec.isError()) {
-      std::cerr << "Failed to cloexec(pipe[0]): " << cloexec.error()
-                << std::endl;
+      cerr << "Failed to cloexec(pipe[0]): " << cloexec.error() << endl;
       abort();
     }
 
     cloexec = os::cloexec(pipes[1]);
     if (cloexec.isError()) {
-      std::cerr << "Failed to cloexec(pipe[1]): " << cloexec.error()
-                << std::endl;
+      cerr << "Failed to cloexec(pipe[1]): " << cloexec.error() << endl;
       abort();
     }
 
     if ((pid = fork()) == -1) {
-      std::cerr << "Failed to fork to run '" << task.command().value() << "': "
-                << strerror(errno) << std::endl;
+      cerr << "Failed to fork to run '" << task.command().value() << "': "
+           << strerror(errno) << endl;
       abort();
     }
 
@@ -149,7 +163,7 @@ public:
       while ((pid = setsid()) == -1) {
         perror("Could not put command in its own session, setsid");
 
-        std::cout << "Forking another process and retrying" << std::endl;
+        cout << "Forking another process and retrying" << endl;
 
         if ((pid = fork()) == -1) {
           perror("Failed to fork to launch command");
@@ -173,7 +187,7 @@ public:
       // The child has successfully setsid, now run the command.
 
       if (override.isNone()) {
-        std::cout << "sh -c '" << task.command().value() << "'" << std::endl;
+        cout << "sh -c '" << task.command().value() << "'" << endl;
         execl("/bin/sh", "sh", "-c",
               task.command().value().c_str(), (char*) NULL);
       } else {
@@ -182,9 +196,9 @@ public:
         // argv is guaranteed to be NULL terminated and we rely on
         // that fact to print command to be executed.
         for (int i = 0; argv[i] != NULL; i++) {
-          std::cout << argv[i] << " ";
+          cout << argv[i] << " ";
         }
-        std::cout << std::endl;
+        cout << endl;
 
         execvp(argv[0], argv);
       }
@@ -198,14 +212,16 @@ public:
 
     // Get the child's pid via the pipe.
     if (read(pipes[0], &pid, sizeof(pid)) == -1) {
-      std::cerr << "Failed to get child PID from pipe, read: "
-                << strerror(errno) << std::endl;
+      cerr << "Failed to get child PID from pipe, read: " << strerror(errno)
+           << endl;
       abort();
     }
 
     os::close(pipes[0]);
 
-    std::cout << "Forked command at " << pid << std::endl;
+    cout << "Forked command at " << pid << endl;
+
+    launchHealthCheck(task);
 
     // Monitor this process.
     process::reap(pid)
@@ -227,31 +243,35 @@ public:
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
   {
     shutdown(driver);
+    if (healthPid != -1) {
+      // Cleanup health check process
+      ::kill(healthPid, SIGKILL);
+    }
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
 
   void shutdown(ExecutorDriver* driver)
   {
-    std::cout << "Shutting down" << std::endl;
+    cout << "Shutting down" << endl;
 
     if (pid > 0 && !killed) {
-      std::cout << "Sending SIGTERM to process tree at pid "
-                << pid << std::endl;
+      cout << "Sending SIGTERM to process tree at pid "
+           << pid << endl;
 
       Try<std::list<os::ProcessTree> > trees =
         os::killtree(pid, SIGTERM, true, true);
 
       if (trees.isError()) {
-        std::cerr << "Failed to kill the process tree rooted at pid "
-                  << pid << ": " << trees.error() << std::endl;
+        cerr << "Failed to kill the process tree rooted at pid "
+             << pid << ": " << trees.error() << endl;
 
         // Send SIGTERM directly to process 'pid' as it may not have
         // received signal before os::killtree() failed.
         ::kill(pid, SIGTERM);
       } else {
-        std::cout << "Killing the following process trees:\n"
-                  << stringify(trees.get()) << std::endl;
+        cout << "Killing the following process trees:\n"
+             << stringify(trees.get()) << endl;
       }
 
       // TODO(nnielsen): Make escalationTimeout configurable through
@@ -266,6 +286,40 @@ public:
   }
 
   virtual void error(ExecutorDriver* driver, const string& message) {}
+
+protected:
+  virtual void initialize()
+  {
+    install<TaskHealthStatus>(
+        &CommandExecutorProcess::taskHealthUpdated,
+        &TaskHealthStatus::task_id,
+        &TaskHealthStatus::healthy,
+        &TaskHealthStatus::kill_task);
+  }
+
+  void taskHealthUpdated(
+      const TaskID& taskID,
+      const bool& healthy,
+      const bool& initiateTaskKill)
+  {
+    if (driver.isNone()) {
+      return;
+    }
+
+    cout << "Received task health update, healthy: "
+         << stringify(healthy) << endl;
+
+    TaskStatus status;
+    status.mutable_task_id()->CopyFrom(taskID);
+    status.set_healthy(healthy);
+    status.set_state(TASK_RUNNING);
+    driver.get()->sendStatusUpdate(status);
+
+    if (initiateTaskKill) {
+      killTask(driver.get(), taskID);
+    }
+  }
+
 
 private:
   void reaped(
@@ -301,13 +355,7 @@ private:
         state = TASK_FAILED;
       }
 
-      message = string("Command") +
-          (WIFEXITED(status)
-          ? " exited with status "
-          : " terminated with signal ") +
-          (WIFEXITED(status)
-          ? stringify(WEXITSTATUS(status))
-          : strsignal(WTERMSIG(status)));
+      message = "Command " + WSTRINGIFY(status);
     }
 
     cout << message << " (pid: " << pid << ")" << endl;
@@ -327,9 +375,9 @@ private:
 
   void escalated()
   {
-    std::cout << "Process " << pid << " did not terminate after "
-              << escalationTimeout << ", sending SIGKILL to "
-              << "process tree at " << pid << std::endl;
+    cout << "Process " << pid << " did not terminate after "
+         << escalationTimeout << ", sending SIGKILL to "
+         << "process tree at " << pid << endl;
 
     // TODO(nnielsen): Sending SIGTERM in the first stage of the
     // shutdown may leave orphan processes hanging off init. This
@@ -339,24 +387,63 @@ private:
       os::killtree(pid, SIGKILL, true, true);
 
     if (trees.isError()) {
-      std::cerr << "Failed to kill the process tree rooted at pid "
-                << pid << ": " << trees.error() << std::endl;
+      cerr << "Failed to kill the process tree rooted at pid "
+           << pid << ": " << trees.error() << endl;
 
       // Process 'pid' may not have received signal before
       // os::killtree() failed. To make sure process 'pid' is reaped
       // we send SIGKILL directly.
       ::kill(pid, SIGKILL);
     } else {
-      std::cout << "Killed the following process trees:\n"
-                << stringify(trees.get()) << std::endl;
+      cout << "Killed the following process trees:\n" << stringify(trees.get())
+           << endl;
+    }
+  }
+
+  void launchHealthCheck(const TaskInfo& task)
+  {
+    if (task.has_health_check()) {
+      JSON::Object json = JSON::Protobuf(task.health_check());
+
+      // Launch the subprocess using 'execve' style so that quotes can
+      // be properly handled.
+      vector<string> argv(4);
+      argv[0] = "mesos-health-check";
+      argv[1] = "--executor=" + stringify(self());
+      argv[2] = "--health_check_json=" + stringify(json);
+      argv[3] = "--task_id=" + task.task_id().value();
+
+      cout << "Launching health check process: "
+           << path::join(healthCheckDir, "mesos-health-check")
+           << " " << argv[1] << " " << argv[2] << " " << argv[3] << endl;
+
+      Try<Subprocess> healthProcess =
+        process::subprocess(
+          path::join(healthCheckDir, "mesos-health-check"),
+          argv,
+          Subprocess::PIPE(),
+          Subprocess::FD(STDOUT_FILENO),
+          Subprocess::FD(STDERR_FILENO));
+
+      if (healthProcess.isError()) {
+        cerr << "Unable to launch health process: " << healthProcess.error();
+      } else {
+        healthPid = healthProcess.get().pid();
+
+        cout << "Health check process launched at pid: "
+             << stringify(healthPid) << endl;
+      }
     }
   }
 
   bool launched;
   bool killed;
   pid_t pid;
+  pid_t healthPid;
   Duration escalationTimeout;
   Timer escalationTimer;
+  Option<ExecutorDriver*> driver;
+  string healthCheckDir;
   Option<char**> override;
 };
 
@@ -364,9 +451,9 @@ private:
 class CommandExecutor: public Executor
 {
 public:
-  CommandExecutor(Option<char**> override)
+  CommandExecutor(Option<char**> override, string healthCheckDir)
   {
-    process = new CommandExecutorProcess(override);
+    process = new CommandExecutorProcess(override, healthCheckDir);
     spawn(process);
   }
 
@@ -505,7 +592,7 @@ int main(int argc, char** argv)
     }
   }
 
-  mesos::internal::CommandExecutor executor(override);
+  mesos::internal::CommandExecutor executor(override, dirname(argv[0]));
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
 }

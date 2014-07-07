@@ -38,7 +38,7 @@ public interface Executor {
   /**
    * Invoked once the executor driver has been able to successfully
    * connect with Mesos. In particular, a scheduler can pass some
-   * data to it's executors through the {@link ExecutorInfo#data}
+   * data to it's executors through the {@link ExecutorInfo#getData()}
    * field. TODO(vinod): Add a new reregistered callback for when the executor
    * re-connects with a restarted slave.
    *
@@ -70,7 +70,7 @@ public interface Executor {
 
   /**
    * Invoked when a task has been launched on this executor (initiated
-   * via {@link Scheduler#launchTasks}. Note that this task can be
+   * via {@link SchedulerDriver#launchTasks}. Note that this task can be
    * realized with a thread, a process, or some simple computation,
    * however, no other callbacks will be invoked on this executor
    * until this callback has returned.

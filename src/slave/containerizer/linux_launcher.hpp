@@ -25,8 +25,8 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// Launcher for Linux systems with cgroups. Uses a freezer cgroup to track
-// pids.
+// Launcher for Linux systems with cgroups. Uses a freezer cgroup to
+// track pids.
 class LinuxLauncher : public Launcher
 {
 public:
@@ -34,11 +34,19 @@ public:
 
   virtual ~LinuxLauncher() {}
 
-  virtual Try<Nothing> recover(const std::list<state::RunState>& states);
+  virtual process::Future<Nothing> recover(
+      const std::list<state::RunState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,
-      const lambda::function<int()>& childFunction);
+      const std::string& path,
+      const std::vector<std::string>& argv,
+      const process::Subprocess::IO& in,
+      const process::Subprocess::IO& out,
+      const process::Subprocess::IO& err,
+      const Option<flags::FlagsBase>& flags,
+      const Option<std::map<std::string, std::string> >& environment,
+      const Option<lambda::function<int()> >& setup);
 
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
 
@@ -55,8 +63,8 @@ private:
 
   std::string cgroup(const ContainerID& containerId);
 
-  // The 'pid' is the process id of the child process and also the process
-  // group id and session id.
+  // The 'pid' is the process id of the child process and also the
+  // process group id and session id.
   hashmap<ContainerID, pid_t> pids;
 };
 

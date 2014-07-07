@@ -151,12 +151,16 @@ if __name__ == "__main__":
         credential.principal = os.getenv("DEFAULT_PRINCIPAL")
         credential.secret = os.getenv("DEFAULT_SECRET")
 
+        framework.principal = os.getenv("DEFAULT_PRINCIPAL")
+
         driver = mesos.MesosSchedulerDriver(
             TestScheduler(executor),
             framework,
             sys.argv[1],
             credential)
     else:
+        framework.principal = "test-framework-python"
+
         driver = mesos.MesosSchedulerDriver(
             TestScheduler(executor),
             framework,

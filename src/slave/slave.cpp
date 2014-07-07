@@ -64,6 +64,7 @@
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
+#include "common/status_utils.hpp"
 
 #include "credentials/credentials.hpp"
 
@@ -97,6 +98,8 @@ namespace internal {
 namespace slave {
 
 using namespace state;
+
+using namespace mesos::internal::status;
 
 Slave::Slave(const slave::Flags& _flags,
              MasterDetector* _detector,
@@ -135,6 +138,28 @@ Slave::~Slave()
 
   delete authenticatee;
   delete statusUpdateManager;
+}
+
+
+lambda::function<void(int, int)> signaledWrapper;
+
+
+static void signalHandler(int sig, siginfo_t* siginfo, void* context)
+{
+  signaledWrapper(sig, siginfo->si_uid);
+}
+
+
+void Slave::signaled(int signal, int uid)
+{
+  if (signal == SIGUSR1) {
+    Result<string> user = os::user(uid);
+
+    shutdown(
+        UPID(),
+        "Received SIGUSR1 signal" +
+        (user.isSome() ? " from user " + user.get() : ""));
+  }
 }
 
 
@@ -230,16 +255,14 @@ void Slave::initialize()
     const string& path =
       strings::remove(flags.credential.get(), "file://", strings::PREFIX);
 
-    Result<vector<Credential> > credentials = credentials::read(path);
-    if (credentials.isError()) {
-      EXIT(1) << credentials.error() << " (see --credential flag)";
-    } else if (credentials.isNone()) {
+    Result<Credential> _credential = credentials::readCredential(path);
+    if (_credential.isError()) {
+      EXIT(1) << _credential.error() << " (see --credential flag)";
+    } else if (_credential.isNone()) {
       EXIT(1) << "Empty credential file '" << path
               << "' (see --credential flag)";
-    } else if (credentials.get().size() != 1) {
-      EXIT(1) << "Not expecting multiple credentials (see --credential flag)";
     } else {
-      credential = credentials.get()[0];
+      credential = _credential.get();
       LOG(INFO) << "Slave using credential for: "
                 << credential.get().principal();
     }
@@ -249,11 +272,24 @@ void Slave::initialize()
   CHECK_SOME(os::mkdir(flags.work_dir))
     << "Failed to create slave work directory '" << flags.work_dir << "'";
 
-  Try<Resources> _resources = Containerizer::resources(flags);
-  if (_resources.isError()) {
-    EXIT(1) << "Failed to determine slave resources: " << _resources.error();
+  Try<Resources> resources = Containerizer::resources(flags);
+  if (resources.isError()) {
+    EXIT(1) << "Failed to determine slave resources: " << resources.error();
   }
-  LOG(INFO) << "Slave resources: " << _resources.get();
+  LOG(INFO) << "Slave resources: " << resources.get();
+
+#ifdef WITH_NETWORK_ISOLATOR
+  // Resources that are not exposed to the frameworks, but managed by
+  // the slave privately.
+  Try<Resources> privateResources = Resources::parse(
+      flags.private_resources.get(""), flags.default_role);
+
+  if (privateResources.isError()) {
+    EXIT(1) << "Failed to determine slave private resources: "
+            << privateResources.error();
+  }
+  LOG(INFO) << "Slave private resources: " << privateResources.get();
+#endif
 
   if (flags.attributes.isSome()) {
     attributes = Attributes::parse(flags.attributes.get());
@@ -277,9 +313,13 @@ void Slave::initialize()
   // Initialize slave info.
   info.set_hostname(hostname);
   info.set_port(self().port);
-  info.mutable_resources()->CopyFrom(_resources.get());
+  info.mutable_resources()->CopyFrom(resources.get());
   info.mutable_attributes()->CopyFrom(attributes);
   info.set_checkpoint(flags.checkpoint);
+
+#ifdef WITH_NETWORK_ISOLATOR
+  info.mutable_private_resources()->CopyFrom(privateResources.get());
+#endif
 
   LOG(INFO) << "Slave hostname: " << info.hostname();
   LOG(INFO) << "Slave checkpoint: " << stringify(flags.checkpoint);
@@ -413,6 +453,24 @@ void Slave::initialize()
             << ". Please run the slave with '--help' to see the valid options";
   }
 
+  struct sigaction action;
+  memset(&action, 0, sizeof(struct sigaction));
+
+  // Do not block additional signals while in the handler.
+  sigemptyset(&action.sa_mask);
+
+  // The SA_SIGINFO flag tells sigaction() to use
+  // the sa_sigaction field, not sa_handler.
+  action.sa_flags = SA_SIGINFO;
+
+  signaledWrapper = defer(self(), &Slave::signaled, lambda::_1, lambda::_2);
+
+  action.sa_sigaction = signalHandler;
+
+  if (sigaction(SIGUSR1, &action, NULL) < 0) {
+    EXIT(1) << "Failed to set sigaction: " << strerror(errno);
+  }
+
   // Do recovery.
   async(&state::recover, metaDir, flags.strict)
     .then(defer(self(), &Slave::recover, lambda::_1))
@@ -467,8 +525,12 @@ void Slave::shutdown(const UPID& from, const string& message)
     return;
   }
 
-  LOG(INFO) << "Slave asked to shut down by " << from
-            << (message.empty() ? "" : " because '" + message + "'");
+  if (from) {
+    LOG(INFO) << "Slave asked to shut down by " << from
+              << (message.empty() ? "" : " because '" + message + "'");
+  } else {
+    LOG(INFO) << message << "; shutting down";
+  }
 
   state = TERMINATING;
 
@@ -801,7 +863,12 @@ void Slave::doReliableRegistration(const Duration& duration)
     return;
   }
 
-  CHECK(state == DISCONNECTED || state == TERMINATING) << state;
+  if (state == TERMINATING) {
+    LOG(INFO) << "Skipping registration because slave is terminating";
+    return;
+  }
+
+  CHECK(state == DISCONNECTED) << state;
 
   if (info.id() == "") {
     // Registering for the first time.
@@ -2007,7 +2074,7 @@ void Slave::reregisterExecutorTimeout()
 // This can be called in two ways:
 // 1) When a status update from the executor is received.
 // 2) When slave generates task updates (e.g LOST/KILLED/FAILED).
-// NOTE: We set the pid in 'Slave::_statusUpdate()' to 'pid' so that
+// NOTE: We set the pid in 'Slave::__statusUpdate()' to 'pid' so that
 // whoever sent this update will get an ACK. This is important because
 // we allow executors to send updates for tasks that belong to other
 // executors. Currently we allow this because we cannot guarantee
@@ -2067,7 +2134,7 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
     // corresponding to this task because the task has been moved to
     // 'Executor::completedTasks'.
     statusUpdateManager->update(update, info.id())
-      .onAny(defer(self(), &Slave::_statusUpdate, lambda::_1, update, pid));
+      .onAny(defer(self(), &Slave::__statusUpdate, lambda::_1, update, pid));
 
     return;
   }
@@ -2100,37 +2167,74 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
        executor->launchedTasks.contains(status.task_id()))) {
     executor->terminateTask(status.task_id(), status.state());
 
-    // Tell the isolator to update the resources.
-    // TODO(idownes): Wait until this completes.
+    // Wait until the container's resources have been updated before
+    // sending the status update.
     CHECK_SOME(executor->resources);
-    containerizer->update(executor->containerId, executor->resources.get());
-  }
-
-  if (executor->checkpoint) {
-    // Ask the status update manager to checkpoint and reliably send the update.
-    statusUpdateManager->update(
-        update,
-        info.id(),
-        executor->id,
-        executor->containerId)
+    containerizer->update(executor->containerId, executor->resources.get())
       .onAny(defer(self(),
                    &Slave::_statusUpdate,
                    lambda::_1,
                    update,
-                   pid));
+                   pid,
+                   executor->id,
+                   executor->containerId,
+                   executor->checkpoint));
   } else {
-    // Ask the status update manager to just retry the update.
-    statusUpdateManager->update(update, info.id())
-      .onAny(defer(self(),
-                   &Slave::_statusUpdate,
-                   lambda::_1,
-                   update,
-                   pid));
+    // Immediately send the status update.
+    _statusUpdate(None(),
+                  update,
+                  pid,
+                  executor->id,
+                  executor->containerId,
+                  executor->checkpoint);
   }
 }
 
 
 void Slave::_statusUpdate(
+    const Option<Future<Nothing> >& future,
+    const StatusUpdate& update,
+    const UPID& pid,
+    const ExecutorID& executorId,
+    const ContainerID& containerId,
+    bool checkpoint)
+{
+  if (future.isSome() && !future.get().isReady()) {
+    LOG(ERROR) << "Failed to update resources for container " << containerId
+               << " of executor " << executorId
+               << " running task " << update.status().task_id()
+               << " on status update for terminal task, destroying container:"
+               << (future.get().isFailed() ? future.get().failure()
+                                           : "discarded");
+
+    containerizer->destroy(containerId);
+  }
+
+  if (checkpoint) {
+    // Ask the status update manager to checkpoint and reliably send the update.
+    statusUpdateManager->update(
+        update,
+        info.id(),
+        executorId,
+        containerId)
+      .onAny(defer(self(),
+                  &Slave::__statusUpdate,
+                  lambda::_1,
+                  update,
+                  pid));
+  } else {
+    // Ask the status update manager to just retry the update.
+    statusUpdateManager->update(update, info.id())
+      .onAny(defer(self(),
+                  &Slave::__statusUpdate,
+                  lambda::_1,
+                  update,
+                  pid));
+  }
+}
+
+
+void Slave::__statusUpdate(
     const Future<Nothing>& future,
     const StatusUpdate& update,
     const UPID& pid)
@@ -2216,6 +2320,7 @@ void Slave::executorMessage(
 
 void Slave::ping(const UPID& from, const string& body)
 {
+  VLOG(1) << "Received ping from " << from;
   send(from, "PONG");
 }
 
@@ -2291,6 +2396,13 @@ ExecutorInfo Slave::getExecutorInfo(
            : "No such file or directory") +
           "'; exit 1");
     }
+
+    // Add an allowance for the command executor. This does lead to a
+    // small overcommit of resources.
+    executor.mutable_resources()->MergeFrom(
+        Resources::parse(
+          "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +
+          "mem:" + stringify(DEFAULT_EXECUTOR_MEM.megabytes())).get());
 
     return executor;
   }
@@ -2412,13 +2524,8 @@ void Slave::executorTerminated(
   } else {
     status = termination.get().status();
     LOG(INFO) << "Executor '" << executorId
-              << "' of framework " << frameworkId
-              << (WIFEXITED(status)
-                  ? " has exited with status "
-                  : " has terminated with signal ")
-              << (WIFEXITED(status)
-                  ? stringify(WEXITSTATUS(status))
-                  : strsignal(WTERMSIG(status)));
+              << "' of framework " << frameworkId << " "
+              << WSTRINGIFY(status);
   }
 
   Framework* framework = getFramework(frameworkId);

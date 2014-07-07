@@ -5,6 +5,7 @@
 
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/future.hpp>
 #include <process/process.hpp>
 #include <process/timeout.hpp>
@@ -29,6 +30,7 @@ class RateLimiter
 {
 public:
   RateLimiter(int permits, const Duration& duration);
+  explicit RateLimiter(double permitsPerSecond);
   ~RateLimiter();
 
   // Returns a future that becomes ready when the permit is acquired.
@@ -46,11 +48,19 @@ private:
 class RateLimiterProcess : public Process<RateLimiterProcess>
 {
 public:
-  RateLimiterProcess(int _permits, const Duration& _duration)
-    : permits(_permits), duration(_duration)
+  RateLimiterProcess(int permits, const Duration& duration)
+    : ProcessBase(ID::generate("__limiter__"))
   {
     CHECK_GT(permits, 0);
     CHECK_GT(duration.secs(), 0);
+    permitsPerSecond = permits / duration.secs();
+  }
+
+  explicit RateLimiterProcess(double _permitsPerSecond)
+    : ProcessBase(ID::generate("__limiter__")),
+      permitsPerSecond(_permitsPerSecond)
+  {
+    CHECK_GT(permitsPerSecond, 0);
   }
 
   virtual void finalize()
@@ -78,8 +88,7 @@ public:
     }
 
     // No need to wait!
-    double rate = permits / duration.secs();
-    timeout = Seconds(1) / rate;
+    timeout = Seconds(1) / permitsPerSecond;
     return Nothing();
   }
 
@@ -97,8 +106,7 @@ private:
 
     promise->set(Nothing());
 
-    double rate = permits / duration.secs();
-    timeout = Seconds(1) / rate;
+    timeout = Seconds(1) / permitsPerSecond;
 
     // Repeat if necessary.
     if (!promises.empty()) {
@@ -106,8 +114,7 @@ private:
     }
   }
 
-  const int permits;
-  const Duration duration;
+  double permitsPerSecond;
 
   Timeout timeout;
 
@@ -118,6 +125,13 @@ private:
 inline RateLimiter::RateLimiter(int permits, const Duration& duration)
 {
   process = new RateLimiterProcess(permits, duration);
+  spawn(process);
+}
+
+
+inline RateLimiter::RateLimiter(double permitsPerSecond)
+{
+  process = new RateLimiterProcess(permitsPerSecond);
   spawn(process);
 }
 

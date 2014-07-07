@@ -20,6 +20,7 @@
 #define __TESTS_ZOOKEEPER_HPP__
 
 #include <pthread.h>
+#include <stdint.h>
 
 #include <gtest/gtest.h>
 
@@ -90,9 +91,9 @@ public:
     virtual ~TestWatcher();
 
     virtual void process(
-        ZooKeeper* zk,
         int type,
         int state,
+        int64_t sessionId,
         const std::string& path);
 
     // Blocks until the session event of the given state fires.

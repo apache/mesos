@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
+
 #include <glog/logging.h>
 
 #include <iostream>
@@ -62,7 +64,12 @@ public:
     // We bind the Watcher::process callback so we can pass it to the
     // C callback as a pointer and invoke it directly.
     callback = lambda::bind(
-        &Watcher::process, watcher, zk, lambda::_1, lambda::_2, lambda::_3);
+        &Watcher::process,
+        watcher,
+        lambda::_1,
+        lambda::_2,
+        lambda::_3,
+        lambda::_4);
   }
 
   virtual void initialize()
@@ -70,7 +77,12 @@ public:
     // We retry zookeeper_init until the timeout elapses because we've
     // seen cases where temporary DNS outages cause the slave to abort
     // here. See MESOS-1326 for more information.
-    const Timeout timeout_ = Timeout::in(timeout);
+    // ZooKeeper masks EAI_AGAIN as EINVAL and a name resolution timeout
+    // may be upwards of 30 seconds. As such, a 10 second timeout is not
+    // enough. Hard code this to 10 minutes to be sure we're trying again
+    // in the face of temporary name resolution failures. See MESOS-1523
+    // for more information.
+    const Timeout timeout_ = Timeout::in(Minutes(10));
 
     while (!timeout_.expired()) {
       zh = zookeeper_init(
@@ -378,16 +390,17 @@ private:
   // This method is registered as a watcher callback function and is
   // invoked by a single ZooKeeper event thread.
   static void event(
-      zhandle_t*,
+      zhandle_t* zh,
       int type,
       int state,
       const char* path,
       void* context)
   {
-    lambda::function<void(int, int, const string&)>* callback =
-      static_cast<lambda::function<void(int, int, const string&)>*>(context);
+    lambda::function<void(int, int, int64_t, const string&)>* callback =
+      static_cast<lambda::function<void(int, int, int64_t, const string&)>*>(
+          context);
 
-    (*callback)(type, state, string(path));
+    (*callback)(type, state, zoo_client_id(zh)->client_id, string(path));
   }
 
   static void voidCompletion(int ret, const void *data)
@@ -506,9 +519,9 @@ private:
 
   zhandle_t* zh; // ZooKeeper connection handle.
 
-  // Callback for invoking Watcher::process with the ZooKeeper*
-  // argument and Watcher* receiver already bound.
-  lambda::function<void(int, int, const string&)> callback;
+  // Callback for invoking Watcher::process with the 'Watcher*'
+  // receiver already bound.
+  lambda::function<void(int, int, int64_t, const string&)> callback;
 };
 
 

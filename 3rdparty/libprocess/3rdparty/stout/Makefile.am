@@ -52,6 +52,7 @@ EXTRA_DIST =					\
   include/stout/os/process.hpp			\
   include/stout/os/read.hpp			\
   include/stout/os/sendfile.hpp			\
+  include/stout/os/setns.hpp			\
   include/stout/os/shell.hpp			\
   include/stout/os/signals.hpp			\
   include/stout/os/permissions.hpp		\
@@ -67,6 +68,8 @@ EXTRA_DIST =					\
   include/stout/stopwatch.hpp			\
   include/stout/stringify.hpp			\
   include/stout/strings.hpp			\
+  include/stout/subcommand.hpp			\
+  include/stout/tests/utils.hpp			\
   include/stout/thread.hpp			\
   include/stout/try.hpp				\
   include/stout/tuple.hpp			\
@@ -93,6 +96,7 @@ EXTRA_DIST =					\
   tests/option_tests.cpp			\
   tests/os_tests.cpp				\
   tests/os/sendfile_tests.cpp			\
+  tests/os/setns_tests.cpp			\
   tests/os/signals_tests.cpp			\
   tests/proc_tests.cpp				\
   tests/protobuf_tests.cpp			\
@@ -102,6 +106,6 @@ EXTRA_DIST =					\
   tests/set_tests.cpp				\
   tests/some_tests.cpp				\
   tests/strings_tests.cpp			\
+  tests/subcommand_tests.cpp			\
   tests/thread_tests.cpp			\
-  tests/utils.hpp				\
   tests/uuid_tests.cpp

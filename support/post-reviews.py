@@ -140,7 +140,7 @@ for i in range(len(shas)):
     message = execute(['git',
 	               '--no-pager',
                        'log',
-                       '--pretty=format:%B',
+                       '--pretty=format:%s%n%b',
                        previous + '..' + sha])
 
     review_request_id = None

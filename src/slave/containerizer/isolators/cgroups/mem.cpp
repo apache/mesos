@@ -80,21 +80,15 @@ Try<Isolator*> CgroupsMemIsolatorProcess::create(const Flags& flags)
     return Error("Failed to create memory cgroup: " + hierarchy.error());
   }
 
-  // Make sure the kernel supports OOM controls.
-  Try<bool> exists = cgroups::exists(
-      hierarchy.get(), flags.cgroups_root, "memory.oom_control");
-  if (exists.isError() || !exists.get()) {
-    return Error("Failed to determine if 'memory.oom_control' control exists");
-  }
-
   // Make sure the kernel OOM-killer is enabled.
   // The Mesos OOM handler, as implemented, is not capable of handling
   // the oom condition by itself safely given the limitations Linux
   // imposes on this code path.
-  Try<Nothing> write = cgroups::write(
-      hierarchy.get(), flags.cgroups_root, "memory.oom_control", "0");
-  if (write.isError()) {
-    return Error("Failed to update memory.oom_control");
+  Try<Nothing> enable = cgroups::memory::oom::killer::enable(
+      hierarchy.get(), flags.cgroups_root);
+
+  if (enable.isError()) {
+    return Error(enable.error());
   }
 
   process::Owned<IsolatorProcess> process(
@@ -119,14 +113,10 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
     }
 
     const ContainerID& containerId = state.id.get();
+    const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
-    Info* info = new Info(
-        containerId, path::join(flags.cgroups_root, containerId.value()));
-    CHECK_NOTNULL(info);
-
-    Try<bool> exists = cgroups::exists(hierarchy, info->cgroup);
+    Try<bool> exists = cgroups::exists(hierarchy, cgroup);
     if (exists.isError()) {
-      delete info;
       foreachvalue (Info* info, infos) {
         delete info;
       }
@@ -137,15 +127,15 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
 
     if (!exists.get()) {
       VLOG(1) << "Couldn't find cgroup for container " << containerId;
-      // This may occur if the executor has exiting and the isolator has
+      // This may occur if the executor has exited and the isolator has
       // destroyed the cgroup but the slave dies before noticing this. This
       // will be detected when the containerizer tries to monitor the
       // executor's pid.
       continue;
     }
 
-    infos[containerId] = info;
-    cgroups.insert(info->cgroup);
+    infos[containerId] = new Info(containerId, cgroup);
+    cgroups.insert(cgroup);
 
     oomListen(containerId);
   }
@@ -170,7 +160,8 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
 
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup '" << orphan << "'";
-      cgroups::destroy(hierarchy, orphan);
+      // We don't wait on the destroy as we don't want to block recovery.
+      cgroups::destroy(hierarchy, orphan, cgroups::DESTROY_TIMEOUT);
     }
   }
 
@@ -186,27 +177,27 @@ Future<Option<CommandInfo> > CgroupsMemIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
+  // TODO(bmahler): Don't insert into 'infos' unless we create the
+  // cgroup successfully. It's safe for now because 'cleanup' gets
+  // called if we return a Failure, but cleanup will fail because
+  // the cgroup does not exist when cgroups::destroy is called.
   Info* info = new Info(
       containerId, path::join(flags.cgroups_root, containerId.value()));
 
-  infos[containerId] = CHECK_NOTNULL(info);
+  infos[containerId] = info;
 
   // Create a cgroup for this container.
   Try<bool> exists = cgroups::exists(hierarchy, info->cgroup);
 
   if (exists.isError()) {
     return Failure("Failed to prepare isolator: " + exists.error());
-  }
-
-  if (exists.get()) {
+  } else if (exists.get()) {
     return Failure("Failed to prepare isolator: cgroup already exists");
   }
 
-  if (!exists.get()) {
-    Try<Nothing> create = cgroups::create(hierarchy, info->cgroup);
-    if (create.isError()) {
-      return Failure("Failed to prepare isolator: " + create.error());
-    }
+  Try<Nothing> create = cgroups::create(hierarchy, info->cgroup);
+  if (create.isError()) {
+    return Failure("Failed to prepare isolator: " + create.error());
   }
 
   oomListen(containerId);
@@ -371,8 +362,11 @@ Future<ResourceStatistics> CgroupsMemIsolatorProcess::usage(
 Future<Nothing> CgroupsMemIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
+  // Multiple calls may occur during test clean up.
   if (!infos.contains(containerId)) {
-    return Failure("Unknown container");
+    VLOG(1) << "Ignoring cleanup request for unknown container: "
+            << containerId;
+    return Nothing();
   }
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
@@ -381,17 +375,29 @@ Future<Nothing> CgroupsMemIsolatorProcess::cleanup(
     info->oomNotifier.discard();
   }
 
-  return cgroups::destroy(hierarchy, info->cgroup)
-    .then(defer(PID<CgroupsMemIsolatorProcess>(this),
-                &CgroupsMemIsolatorProcess::_cleanup,
-                containerId));
+  return cgroups::destroy(hierarchy, info->cgroup, cgroups::DESTROY_TIMEOUT)
+    .onAny(defer(PID<CgroupsMemIsolatorProcess>(this),
+                 &CgroupsMemIsolatorProcess::_cleanup,
+                 containerId,
+                 lambda::_1));
 }
 
 
 Future<Nothing> CgroupsMemIsolatorProcess::_cleanup(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const Future<Nothing>& future)
 {
-  CHECK(infos.contains(containerId));
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  CHECK_NOTNULL(infos[containerId]);
+
+  if (!future.isReady()) {
+    return Failure("Failed to clean up container " + stringify(containerId) +
+                   " : " + (future.isFailed() ? future.failure()
+                                              : "discarded"));
+  }
 
   delete infos[containerId];
   infos.erase(containerId);
@@ -406,8 +412,7 @@ void CgroupsMemIsolatorProcess::oomListen(
   CHECK(infos.contains(containerId));
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
-  info->oomNotifier =
-    cgroups::listen(hierarchy, info->cgroup, "memory.oom_control");
+  info->oomNotifier = cgroups::memory::oom::listen(hierarchy, info->cgroup);
 
   // If the listening fails immediately, something very wrong
   // happened.  Therefore, we report a fatal error here.
@@ -430,7 +435,7 @@ void CgroupsMemIsolatorProcess::oomListen(
 
 void CgroupsMemIsolatorProcess::oomWaited(
     const ContainerID& containerId,
-    const Future<uint64_t>& future)
+    const Future<Nothing>& future)
 {
   if (future.isDiscarded()) {
     LOG(INFO) << "Discarded OOM notifier for container "

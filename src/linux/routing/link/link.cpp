@@ -32,6 +32,10 @@
 
 #include <netlink/route/link/veth.h>
 
+#include <set>
+#include <string>
+#include <vector>
+
 #include <process/delay.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
@@ -43,16 +47,68 @@
 #include <stout/os.hpp>
 
 #include "linux/routing/internal.hpp"
+#include "linux/routing/route.hpp"
 
 #include "linux/routing/link/internal.hpp"
 #include "linux/routing/link/link.hpp"
 
 using namespace process;
 
+using std::set;
 using std::string;
+using std::vector;
 
 namespace routing {
 namespace link {
+
+Result<string> eth0()
+{
+  Try<vector<route::Rule> > mainRoutingTable = route::table();
+  if (mainRoutingTable.isError()) {
+    return Error(
+        "Failed to retrieve the main routing table on the host: " +
+        mainRoutingTable.error());
+  }
+
+  foreach (const route::Rule& rule, mainRoutingTable.get()) {
+    if (rule.destination().isNone()) {
+      // Check if the public interface exists.
+      Try<bool> exists = link::exists(rule.link());
+      if (exists.isError()) {
+        return Error(
+            "Failed to check if " + rule.link() + " exists: " + exists.error());
+      } else if (!exists.get()) {
+        return Error(
+            rule.link() + " is in the routing table but not in the system");
+      }
+
+      return rule.link();
+    }
+  }
+
+  return None();
+}
+
+
+Result<string> lo()
+{
+  Try<set<string> > links = net::links();
+  if (links.isError()) {
+    return Error("Failed to get all the links: " + links.error());
+  }
+
+  foreach (const string& link, links.get()) {
+    Result<bool> test = link::internal::test(link, IFF_LOOPBACK);
+    if (test.isError()) {
+      return Error("Failed to check the flag on link: " + link);
+    } else if (test.get()) {
+      return link;
+    }
+  }
+
+  return None();
+}
+
 
 Try<bool> exists(const string& _link)
 {

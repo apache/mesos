@@ -440,6 +440,23 @@ Try<bool> create(
 }
 
 
+Try<bool> create(
+    const string& link,
+    const queueing::Handle& parent,
+    const Classifier& classifier,
+    const Option<Priority>& priority,
+    const action::Terminal& terminal)
+{
+  return internal::create(
+      link,
+      Filter<Classifier>(
+          parent,
+          classifier,
+          priority,
+          terminal));
+}
+
+
 Try<bool> remove(
     const string& link,
     const queueing::Handle& parent,

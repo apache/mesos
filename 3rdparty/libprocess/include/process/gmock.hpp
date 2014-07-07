@@ -48,6 +48,9 @@
 #define DROP_MESSAGES(name, from, to)           \
   process::DropMessages(name, from, to)
 
+#define EXPECT_NO_FUTURE_MESSAGES(name, from, to)       \
+  process::ExpectNoFutureMessages(name, from, to)
+
 #define DROP_DISPATCHES(pid, method)            \
   process::DropDispatches(pid, method)
 
@@ -310,6 +313,18 @@ void DropMessages(Name name, From from, To to)
   EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
     .With(MessageMatcher(name, from, to))
     .WillRepeatedly(testing::Return(true));
+  pthread_mutex_unlock(&filter->mutex);
+}
+
+
+template <typename Name, typename From, typename To>
+void ExpectNoFutureMessages(Name name, From from, To to)
+{
+  TestsFilter* filter = FilterTestEventListener::instance()->install();
+  pthread_mutex_lock(&filter->mutex);
+  EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
+    .With(MessageMatcher(name, from, to))
+    .Times(0);
   pthread_mutex_unlock(&filter->mutex);
 }
 

@@ -202,6 +202,7 @@ public class TestMultipleExecutorsFramework {
     FrameworkInfo framework = FrameworkInfo.newBuilder()
         .setUser("") // Have Mesos fill in the current user.
         .setName("Test Multiple Executors Framework (Java)")
+        .setPrincipal("test-multiple-executors-framework-java")
         .build();
 
     MesosSchedulerDriver driver = new MesosSchedulerDriver(

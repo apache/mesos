@@ -386,3 +386,19 @@ TEST(IntervalTest, Stream)
   set += (Bound<int>::closed(7), Bound<int>::closed(9));
   EXPECT_EQ("{[5,6)[7,10)}", stringify(set));
 }
+
+
+TEST(IntervalTest, InfixOperator)
+{
+  IntervalSet<int> set1(Bound<int>::closed(0), Bound<int>::closed(1));
+  IntervalSet<int> set2(Bound<int>::closed(2), Bound<int>::open(3));
+  IntervalSet<int> set3(Bound<int>::closed(0), Bound<int>::closed(2));
+
+  EXPECT_EQ(set3, set1 + set2);
+  EXPECT_EQ(set3, set1 + (Bound<int>::closed(2), Bound<int>::open(3)));
+  EXPECT_EQ(set3, set1 + 2);
+
+  EXPECT_EQ(set1, set3 - set2);
+  EXPECT_EQ(set2, set3 - (Bound<int>::closed(0), Bound<int>::closed(1)));
+  EXPECT_EQ(set1, set3 - 2);
+}

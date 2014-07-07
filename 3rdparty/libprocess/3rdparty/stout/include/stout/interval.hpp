@@ -238,6 +238,16 @@ public:
   }
 
   // Overloaded operators.
+  bool operator == (const IntervalSet<T>& that) const
+  {
+    return static_cast<const Base&>(*this) == static_cast<const Base&>(that);
+  }
+
+  bool operator != (const IntervalSet<T>& that) const
+  {
+    return !operator == (that);
+  }
+
   IntervalSet<T>& operator += (const T& value)
   {
     static_cast<Base&>(*this) += value;
@@ -321,6 +331,24 @@ template <typename T>
 bool Interval<T>::intersects(const IntervalSet<T>& set) const
 {
   return set.intersects(*this);
+}
+
+
+template <typename T, typename X>
+IntervalSet<T> operator + (const IntervalSet<T>& set, const X& x)
+{
+  IntervalSet<T> result(set);
+  result += x;
+  return result;
+}
+
+
+template <typename T, typename X>
+IntervalSet<T> operator - (const IntervalSet<T>& set, const X& x)
+{
+  IntervalSet<T> result(set);
+  result -= x;
+  return result;
 }
 
 

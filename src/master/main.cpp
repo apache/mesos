@@ -22,17 +22,21 @@
 
 #include <mesos/mesos.hpp>
 
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/check.hpp>
 #include <stout/exit.hpp>
 #include <stout/flags.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+
+#include "authorizer/authorizer.hpp"
 
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
@@ -64,6 +68,7 @@ using namespace zookeeper;
 
 using mesos::MasterInfo;
 
+using process::Owned;
 using process::UPID;
 
 using std::cerr;
@@ -181,6 +186,12 @@ int main(int argc, char** argv)
       EXIT(1) << "--work_dir needed for replicated log based registry";
     }
 
+    Try<Nothing> mkdir = os::mkdir(flags.work_dir.get());
+    if (mkdir.isError()) {
+      EXIT(1) << "Failed to create work directory '" << flags.work_dir.get()
+              << "': " << mkdir.error();
+    }
+
     if (zk.isSome()) {
       // Use replicated log with ZooKeeper.
       if (flags.quorum.isNone()) {
@@ -243,6 +254,17 @@ int main(int argc, char** argv)
   }
   detector = detector_.get();
 
+  Option<Authorizer*> authorizer = None();
+  if (flags.acls.isSome()) {
+    Try<Owned<Authorizer> > authorizer_ = Authorizer::create(flags.acls.get());
+    if (authorizer_.isError()) {
+      EXIT(1) << "Failed to initialize the authorizer: "
+              << authorizer_.error() << " (see --acls flag)";
+    }
+    Owned<Authorizer> authorizer__ = authorizer_.get();
+    authorizer = authorizer__.release();
+  }
+
   LOG(INFO) << "Starting Mesos master";
 
   Master* master =
@@ -253,6 +275,7 @@ int main(int argc, char** argv)
       &files,
       contender,
       detector,
+      authorizer,
       flags);
 
   if (zk.isNone()) {
@@ -276,6 +299,10 @@ int main(int argc, char** argv)
 
   delete contender;
   delete detector;
+
+  if (authorizer.isSome()) {
+    delete authorizer.get();
+  }
 
   return 0;
 }

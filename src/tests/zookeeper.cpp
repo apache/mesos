@@ -17,6 +17,7 @@
  */
 
 #include <signal.h>
+#include <stdint.h>
 
 #include <gtest/gtest.h>
 
@@ -116,9 +117,9 @@ ZooKeeperTest::TestWatcher::~TestWatcher()
 
 
 void ZooKeeperTest::TestWatcher::process(
-    ZooKeeper* zk,
     int type,
     int state,
+    int64_t sessionId,
     const string& path)
 {
   Lock lock(&mutex);

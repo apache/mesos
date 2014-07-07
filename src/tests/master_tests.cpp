@@ -46,10 +46,11 @@
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/gc.hpp"
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
@@ -81,6 +82,7 @@ using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
 using testing::Return;
+using testing::SaveArg;
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more master than slave-related are in this file.
@@ -134,12 +136,11 @@ TEST_F(MasterTest, TaskRunning)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  Future<Nothing> resourcesUpdated;
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
               update(_, Resources(offers.get()[0].resources())))
-    .WillOnce(DoAll(FutureSatisfy(&resourcesUpdated),
-                    Return(update)));
+    .WillOnce(DoAll(FutureSatisfy(&update),
+                    Return(Future<Nothing>())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -150,7 +151,7 @@ TEST_F(MasterTest, TaskRunning)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  AWAIT_READY(resourcesUpdated);
+  AWAIT_READY(update);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -210,12 +211,11 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  Future<Nothing> resourcesUpdated;
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
               update(_, Resources(offers.get()[0].resources())))
-    .WillOnce(DoAll(FutureSatisfy(&resourcesUpdated),
-                    Return(update)));
+    .WillOnce(DoAll(FutureSatisfy(&update),
+                    Return(Future<Nothing>())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -226,7 +226,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  AWAIT_READY(resourcesUpdated);
+  AWAIT_READY(update);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1402,102 +1402,6 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
 }
 
 
-// This test runs a task but intercepts the scheduler driver's
-// acknowledgement messages to the slave and instead sends them to
-// the master. This test is necessary to test that the
-// acknowledgement handling in the master is correct, but once the
-// driver sends these messages we should remove/update this test!
-TEST_F(MasterTest, StatusUpdateAcknowledgementsThroughMaster)
-{
-  Try<PID<Master> > master = StartMaster();
-  ASSERT_SOME(master);
-
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
-
-  Try<PID<Slave> > slave = StartSlave(&exec);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  MesosSchedulerDriver schedDriver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(sched, registered(&schedDriver, _, _))
-    .Times(1);
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(&schedDriver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  // We need to grab this message to get the scheduler's pid.
-  Future<process::Message> frameworkRegisteredMessage = FUTURE_MESSAGE(
-      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
-
-  schedDriver.start();
-
-  AWAIT_READY(frameworkRegisteredMessage);
-  const process::UPID schedulerPid = frameworkRegisteredMessage.get().to;
-
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
-
-  TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
-
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  Future<ExecutorDriver*> execDriver;
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .WillOnce(FutureArg<0>(&execDriver));
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
-
-  Future<TaskStatus> update;
-  EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
-    .WillOnce(FutureArg<1>(&update));
-
-  // Pause the clock to prevent status update retries on the slave.
-  Clock::pause();
-
-  // Intercept the status update acknowledgement and send it to the
-  // master instead!
-  Future<StatusUpdateAcknowledgementMessage> acknowledgementMessage =
-    DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(),
-                  schedulerPid,
-                  slave.get());
-
-  schedDriver.launchTasks(offers.get()[0].id(), tasks);
-
-  AWAIT_READY(update);
-  EXPECT_EQ(TASK_RUNNING, update.get().state());
-
-  AWAIT_READY(acknowledgementMessage);
-
-  Future<Nothing> _statusUpdateAcknowledgement =
-    FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdateAcknowledgement);
-
-  // Send the acknowledgement to the master.
-  process::post(schedulerPid, master.get(), acknowledgementMessage.get());
-
-  // Ensure the slave receives and properly handles the ACK.
-  // Clock::settle() ensures that the slave successfully
-  // executes Slave::_statusUpdateAcknowledgement().
-  AWAIT_READY(_statusUpdateAcknowledgement);
-  Clock::settle();
-
-  Clock::resume();
-
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
-
-  schedDriver.stop();
-  schedDriver.join();
-
-  Shutdown();
-}
-
-
 TEST_F(MasterTest, MetricsInStatsEndpoint)
 {
   Try<PID<Master> > master = StartMaster();
@@ -1583,7 +1487,9 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 
   EXPECT_EQ(1u, stats.values.count("master/recovery_slave_removals"));
 
-  EXPECT_EQ(1u, stats.values.count("master/event_queue_size"));
+  EXPECT_EQ(1u, stats.values.count("master/event_queue_messages"));
+  EXPECT_EQ(1u, stats.values.count("master/event_queue_dispatches"));
+  EXPECT_EQ(1u, stats.values.count("master/event_queue_http_requests"));
 
   EXPECT_EQ(1u, stats.values.count("master/cpus_total"));
   EXPECT_EQ(1u, stats.values.count("master/cpus_used"));
@@ -1920,3 +1826,175 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
 }
 
 #endif // MESOS_HAS_JAVA
+
+
+// This test ensures that when a master fails over, those tasks that
+// belong to some currently unregistered frameworks will appear in the
+// "orphan_tasks" field in the state.json. And those unregistered frameworks
+// will appear in the "unregistered_frameworks" field.
+TEST_F(MasterTest, OrphanTasks)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  StandaloneMasterDetector detector (master.get());
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave(&exec, &detector);
+  ASSERT_SOME(slave);
+
+  // Create a task on the slave.
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector);
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId))
+    .WillRepeatedly(Return()); // Ignore subsequent events.
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Get the master's state.
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  JSON::Object state = parse.get();
+  // Record the original framework and task info.
+  JSON::Array frameworks =
+    state.values["frameworks"].as<JSON::Array>();
+  JSON::Object activeFramework =
+    frameworks.values.front().as<JSON::Object>();
+  JSON::String activeFrameworkId =
+    activeFramework.values["id"].as<JSON::String>();
+  JSON::Array activeTasks =
+    activeFramework.values["tasks"].as<JSON::Array>();
+  JSON::Array orphanTasks =
+    state.values["orphan_tasks"].as<JSON::Array>();
+  JSON::Array unknownFrameworksArray =
+    state.values["unregistered_frameworks"].as<JSON::Array>();
+
+  EXPECT_EQ(1u, frameworks.values.size());
+  EXPECT_EQ(1u, activeTasks.values.size());
+  EXPECT_EQ(0u, orphanTasks.values.size());
+  EXPECT_EQ(0u, unknownFrameworksArray.values.size());
+  EXPECT_EQ(frameworkId.value(), activeFrameworkId.value);
+
+  EXPECT_CALL(sched, disconnected(&driver))
+    .Times(1);
+
+  // Stop the master.
+  Stop(master.get());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), _);
+
+  // Drop the reregisterFrameworkMessage to delay the framework
+  // from re-registration.
+  Future<ReregisterFrameworkMessage> reregisterFrameworkMessage =
+    DROP_PROTOBUF(ReregisterFrameworkMessage(), _, master.get());
+
+  Future<FrameworkRegisteredMessage> frameworkRegisteredMessage =
+    FUTURE_PROTOBUF(FrameworkRegisteredMessage(), master.get(), _);
+
+  Clock::pause();
+
+  // The master failover.
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Settle the clock to ensure the master finishes
+  // executing _recover().
+  Clock::settle();
+
+  // Simulate a new master detected event to the slave and the framework.
+  detector.appoint(master.get());
+
+  AWAIT_READY(slaveReregisteredMessage);
+  AWAIT_READY(reregisterFrameworkMessage);
+
+  // Get the master's state.
+  response = process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  // Verify that we have some orphan tasks and unregistered
+  // frameworks.
+  state = parse.get();
+  orphanTasks = state.values["orphan_tasks"].as<JSON::Array>();
+  EXPECT_EQ(activeTasks, orphanTasks);
+
+  unknownFrameworksArray =
+    state.values["unregistered_frameworks"].as<JSON::Array>();
+  EXPECT_EQ(1u, unknownFrameworksArray.values.size());
+
+  JSON::String unknownFrameworkId =
+    unknownFrameworksArray.values.front().as<JSON::String>();
+  EXPECT_EQ(activeFrameworkId, unknownFrameworkId);
+
+  // Advance the clock to let the framework re-register with the master.
+  Clock::advance(Seconds(1));
+  Clock::settle();
+  Clock::resume();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+
+  // Get the master's state.
+  response = process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  // Verify the orphan tasks and unregistered frameworks are removed.
+  state = parse.get();
+  unknownFrameworksArray =
+    state.values["unregistered_frameworks"].as<JSON::Array>();
+  EXPECT_EQ(0u, unknownFrameworksArray.values.size());
+
+  orphanTasks = state.values["orphan_tasks"].as<JSON::Array>();
+  EXPECT_EQ(0u, orphanTasks.values.size());
+
+  // Cleanup.
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}

@@ -56,6 +56,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
+#include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
 #include "sasl/authenticatee.hpp"
@@ -86,6 +87,7 @@ using std::vector;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
+using utils::copy;
 
 namespace mesos {
 namespace internal {
@@ -103,10 +105,21 @@ public:
                    Scheduler* _scheduler,
                    const FrameworkInfo& _framework,
                    const Option<Credential>& _credential,
+                   const string& schedulerId,
                    MasterDetector* _detector,
                    pthread_mutex_t* _mutex,
                    pthread_cond_t* _cond)
-    : ProcessBase(ID::generate("scheduler")),
+      // We use a UUID here to ensure that the master can reliably
+      // distinguish between scheduler runs. Otherwise the master may
+      // receive a delayed ExitedEvent enqueued behind a
+      // re-registration, and deactivate the framework incorrectly.
+      // TODO(bmahler): Investigate better ways to solve this problem.
+      // Check if bidirectional links in Erlang provides better
+      // semantics:
+      // http://www.erlang.org/doc/reference_manual/processes.html#id84804.
+      // Consider using unique PIDs throughout libprocess and relying
+      // on name registration to identify the process without the PID.
+    : ProcessBase(schedulerId),
       metrics(*this),
       driver(_driver),
       scheduler(_scheduler),
@@ -264,8 +277,7 @@ protected:
       // are here, making the 'discard' here a no-op. This is ok
       // because we set 'reauthenticate' here which enforces a retry
       // in '_authenticate'.
-      Future<bool> authenticating_ = authenticating.get();
-      authenticating_.discard();
+      copy(authenticating.get()).discard();
       reauthenticate = true;
       return;
     }
@@ -633,16 +645,21 @@ protected:
       return;
     }
 
-    // Acknowledge the status update.
-    if (pid != UPID()) {
-      VLOG(2) << "Sending ACK for status update " << update << " to " << pid;
+    // Don't acknowledge updates created by the driver or master.
+    if (from != UPID() && pid != UPID()) {
+      // We drop updates while we're disconnected.
+      CHECK(connected);
+      CHECK_SOME(master);
+
+      VLOG(2) << "Sending ACK for status update " << update
+              << " to " << master.get();
 
       StatusUpdateAcknowledgementMessage message;
       message.mutable_framework_id()->MergeFrom(framework.id());
       message.mutable_slave_id()->MergeFrom(update.slave_id());
       message.mutable_task_id()->MergeFrom(update.status().task_id());
       message.set_uuid(update.uuid());
-      send(pid, message);
+      send(master.get(), message);
     }
   }
 
@@ -889,7 +906,7 @@ protected:
       foreach (const TaskInfo& task, result) {
         // Keep only the slave PIDs where we run tasks so we can send
         // framework messages directly.
-        if (savedOffers.count(offerId) > 0) {
+        if (savedOffers.contains(offerId)) {
           if (savedOffers[offerId].count(task.slave_id()) > 0) {
             savedSlavePids[task.slave_id()] =
               savedOffers[offerId][task.slave_id()];
@@ -901,17 +918,9 @@ protected:
           LOG(WARNING) << "Attempting to launch task " << task.task_id()
                        << " with an unknown offer " << offerId;
         }
-
-        // Remove the offer since we saved all the PIDs we might use.
-        savedOffers.erase(offerId);
       }
-    }
-
-    // During upgrade, frameworks using new driver could send new
-    // launch tasks protobufs to old masters. To ensure support in
-    // this period, we set the offer id field.
-    if (offerIds.size() == 1) {
-      message.mutable_offer_id()->MergeFrom(offerIds[0]);
+      // Remove the offer since we saved all the PIDs we might use.
+      savedOffers.erase(offerId);
     }
 
     foreach (const TaskInfo& task, result) {
@@ -1001,37 +1010,29 @@ private:
   struct Metrics
   {
     Metrics(const SchedulerProcess& schedulerProcess)
-      : event_queue_size(
-          "scheduler/event_queue_size",
-          defer(schedulerProcess, &SchedulerProcess::_event_queue_size))
+      : event_queue_messages(
+          "scheduler/event_queue_messages",
+          defer(schedulerProcess, &SchedulerProcess::_event_queue_messages))
     {
       // TODO(dhamon): When we start checking the return value of 'add' we may
       // get failures in situations where multiple SchedulerProcesses are active
       // (ie, the fault tolerance tests). At that point we'll need MESOS-1285 to
       // be fixed and to use self().id in the metric name.
-      process::metrics::add(event_queue_size);
+      process::metrics::add(event_queue_messages);
     }
 
     ~Metrics()
     {
-      process::metrics::remove(event_queue_size);
+      process::metrics::remove(event_queue_messages);
     }
 
     // Process metrics.
-    process::metrics::Gauge event_queue_size;
+    process::metrics::Gauge event_queue_messages;
   } metrics;
 
-  double _event_queue_size()
+  double _event_queue_messages()
   {
-    size_t size;
-
-    lock();
-    {
-      size = events.size();
-    }
-    unlock();
-
-    return static_cast<double>(size);
+    return static_cast<double>(eventCount<MessageEvent>());
   }
 
   MesosSchedulerDriver* driver;
@@ -1087,7 +1088,7 @@ void MesosSchedulerDriver::initialize() {
   }
 
   // Initialize libprocess.
-  process::initialize();
+  process::initialize(schedulerId);
 
   // TODO(benh): Replace whitespace in framework.name() with '_'?
   logging::initialize(framework.name(), flags);
@@ -1108,7 +1109,10 @@ void MesosSchedulerDriver::initialize() {
 
   // See FrameWorkInfo in include/mesos/mesos.proto:
   if (framework.user().empty()) {
-    framework.set_user(os::user());
+    Result<string> user = os::user();
+    CHECK_SOME(user);
+
+    framework.set_user(user.get());
   }
   if (framework.hostname().empty()) {
     framework.set_hostname(os::hostname().get());
@@ -1143,13 +1147,14 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     Scheduler* _scheduler,
     const FrameworkInfo& _framework,
     const string& _master)
-  : scheduler(_scheduler),
+  : detector(NULL),
+    scheduler(_scheduler),
     framework(_framework),
     master(_master),
     process(NULL),
     status(DRIVER_NOT_STARTED),
     credential(NULL),
-    detector(NULL)
+    schedulerId("scheduler-" + UUID::random().toString())
 {
   initialize();
 }
@@ -1162,13 +1167,14 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     const FrameworkInfo& _framework,
     const string& _master,
     const Credential& _credential)
-  : scheduler(_scheduler),
+  : detector(NULL),
+    scheduler(_scheduler),
     framework(_framework),
     master(_master),
     process(NULL),
     status(DRIVER_NOT_STARTED),
     credential(new Credential(_credential)),
-    detector(NULL)
+    schedulerId("scheduler-" + UUID::random().toString())
 {
   initialize();
 }
@@ -1188,11 +1194,14 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
   // method of the Scheduler instance that is being destructed! Note
   // that we could add a method to libprocess that told us whether or
   // not this was about to be deadlock, and possibly report this back
-  // to the user somehow. Note that we will also wait forever if
-  // MesosSchedulerDriver::stop was never called. It might make sense
-  // to try and add some more debug output for the case where we wait
-  // indefinitely due to deadlock ...
+  // to the user somehow. It might make sense to try and add some more
+  // debug output for the case where we wait indefinitely due to
+  // deadlock.
   if (process != NULL) {
+    // We call 'terminate()' here to ensure that SchedulerProcess
+    // terminates even if the user forgot to call stop/abort on the
+    // driver.
+    terminate(process);
     wait(process);
     delete process;
   }
@@ -1238,11 +1247,25 @@ Status MesosSchedulerDriver::start()
 
   if (credential == NULL) {
     process = new SchedulerProcess(
-        this, scheduler, framework, None(), detector, &mutex, &cond);
+        this,
+        scheduler,
+        framework,
+        None(),
+        schedulerId,
+        detector,
+        &mutex,
+        &cond);
   } else {
     const Credential& cred = *credential;
     process = new SchedulerProcess(
-        this, scheduler, framework, cred, detector, &mutex, &cond);
+        this,
+        scheduler,
+        framework,
+        cred,
+        schedulerId,
+        detector,
+        &mutex,
+        &cond);
   }
 
   spawn(process);

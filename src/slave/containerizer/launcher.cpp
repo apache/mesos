@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include <unistd.h>
-
 #include <process/collect.hpp>
 #include <process/delay.hpp>
 #include <process/process.hpp>
@@ -32,7 +30,9 @@
 using namespace process;
 
 using std::list;
+using std::map;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -47,30 +47,31 @@ Try<Launcher*> PosixLauncher::create(const Flags& flags)
 }
 
 
-Try<Nothing> PosixLauncher::recover(const list<RunState>& states)
+Future<Nothing> PosixLauncher::recover(const list<RunState>& states)
 {
   foreach (const RunState& state, states) {
     if (state.id.isNone()) {
-      return Error("ContainerID is required to recover");
+      return Failure("ContainerID is required to recover");
     }
 
     const ContainerID& containerId = state.id.get();
 
     if (state.forkedPid.isNone()) {
-      return Error("Executor pid is required to recover container " +
-                   stringify(containerId));
+      return Failure("Executor pid is required to recover container " +
+                     stringify(containerId));
     }
     pid_t pid = state.forkedPid.get();
 
     if (pids.containsValue(pid)) {
-      // This should (almost) never occur. There is the possibility that a new
-      // executor is launched with the same pid as one that just exited (highly
-      // unlikely) and the slave dies after the new executor is launched but
-      // before it hears about the termination of the earlier executor (also
-      // unlikely). Regardless, the launcher can't do anything sensible so this
+      // This should (almost) never occur. There is the possibility
+      // that a new executor is launched with the same pid as one that
+      // just exited (highly unlikely) and the slave dies after the
+      // new executor is launched but before it hears about the
+      // termination of the earlier executor (also unlikely).
+      // Regardless, the launcher can't do anything sensible so this
       // is considered an error.
-      return Error("Detected duplicate pid " + stringify(pid) +
-                   " for container " + stringify(containerId));
+      return Failure("Detected duplicate pid " + stringify(pid) +
+                     " for container " + stringify(containerId));
     }
 
     pids.put(containerId, pid);
@@ -80,46 +81,66 @@ Try<Nothing> PosixLauncher::recover(const list<RunState>& states)
 }
 
 
+// The setup function in child before the exec.
+static int childSetup(const Option<lambda::function<int()> >& setup)
+{
+  // POSIX guarantees a forked child's pid does not match any existing
+  // process group id so only a single setsid() is required and the
+  // session id will be the pid.
+  // TODO(idownes): perror is not listed as async-signal-safe and
+  // should be reimplemented safely.
+  // TODO(jieyu): Move this logic to the subprocess (i.e.,
+  // mesos-containerizer launch).
+  if (::setsid() == -1) {
+    perror("Failed to put child in a new session");
+    _exit(1);
+  }
+
+  if (setup.isSome()) {
+    return setup.get()();
+  }
+
+  return 0;
+}
+
+
 Try<pid_t> PosixLauncher::fork(
     const ContainerID& containerId,
-    const lambda::function<int()>& childFunction)
+    const string& path,
+    const vector<string>& argv,
+    const Subprocess::IO& in,
+    const Subprocess::IO& out,
+    const Subprocess::IO& err,
+    const Option<flags::FlagsBase>& flags,
+    const Option<map<string, string> >& environment,
+    const Option<lambda::function<int()> >& setup)
 {
   if (pids.contains(containerId)) {
     return Error("Process has already been forked for container " +
                  stringify(containerId));
   }
 
-  pid_t pid;
+  Try<Subprocess> child = subprocess(
+      path,
+      argv,
+      in,
+      out,
+      err,
+      flags,
+      environment,
+      lambda::bind(&childSetup, setup));
 
-  if ((pid = ::fork()) == -1) {
-    return ErrnoError("Failed to fork");
+  if (child.isError()) {
+    return Error("Failed to fork a child process: " + child.error());
   }
 
-  if (pid == 0) {
-    // In child.
-    // POSIX guarantees a forked child's pid does not match any existing
-    // process group id so only a single setsid() is required and the session
-    // id will be the pid.
-    // TODO(idownes): perror is not listed as async-signal-safe and should be
-    // reimplemented safely.
-    if (setsid() == -1) {
-      perror("Failed to put child in a new session");
-      _exit(1);
-    }
-
-    // This function should exec() and therefore not return.
-    childFunction();
-
-    ABORT("Child failed to exec");
-  }
-
-  // parent.
-  LOG(INFO) << "Forked child with pid '" << pid
+  LOG(INFO) << "Forked child with pid '" << child.get().pid()
             << "' for container '" << containerId << "'";
-  // Store the pid (session id and process group id).
-  pids.put(containerId, pid);
 
-  return pid;
+  // Store the pid (session id and process group id).
+  pids.put(containerId, child.get().pid());
+
+  return child.get().pid();
 }
 
 

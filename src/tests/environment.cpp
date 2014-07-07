@@ -38,10 +38,18 @@
 #include "linux/cgroups.hpp"
 #endif
 
+#ifdef WITH_NETWORK_ISOLATOR
+#include "linux/routing/utils.hpp"
+#endif
+
 #include "logging/logging.hpp"
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
+
+#ifdef WITH_NETWORK_ISOLATOR
+using namespace routing;
+#endif
 
 using std::list;
 using std::string;
@@ -76,8 +84,11 @@ static bool enable(const ::testing::TestInfo& test)
   names.push_back(test.test_case_name());
   names.push_back(test.name());
 
+  Result<string> user = os::user();
+  CHECK_SOME(user);
+
   foreach (const string& name, names) {
-    if (strings::contains(name, "ROOT_") && os::user() != "root") {
+    if (strings::contains(name, "ROOT_") && user.get() != "root") {
       return false;
     }
 
@@ -109,7 +120,7 @@ static bool enable(const ::testing::TestInfo& test)
 
     // On Linux non-privileged users are limited to 64k of locked memory so we
     // cannot run the MemIsolatorTest.Usage.
-    if (strings::contains(name, "MemIsolatorTest") && os::user() != "root") {
+    if (strings::contains(name, "MemIsolatorTest") && user.get() != "root") {
       return false;
     }
 #endif
@@ -134,12 +145,26 @@ static bool enable(const ::testing::TestInfo& test)
     const string& type = test.type_param();
     if (strings::contains(type, "Cgroups")) {
 #ifdef __linux__
-      return os::user() == "root" && cgroups::enabled();
+      return user.get() == "root" && cgroups::enabled();
 #else
       return false;
 #endif
     }
   }
+
+#ifdef WITH_NETWORK_ISOLATOR
+  // We can not run network isolator.
+  if (routing::check().isError() &&
+      (strings::contains(test.name(), "PortMappingIsolatorTest") ||
+       strings::contains(test.name(), "PortMappingMesosTest"))) {
+      return false;
+  }
+
+  // Currently, the network isolator does not support multiple slaves.
+  if (strings::contains(test.name(), "MultipleSlaves")) {
+    return false;
+  }
+#endif
 
   return true;
 }

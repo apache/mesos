@@ -131,8 +131,8 @@ message FrameworkInfo {
 /**
  * Describes a health check for a task or executor (or any arbitrary
  * process/command). A "strategy" is picked by specifying one of the
- * optional fields, currently only 'http' is supported. Specifying
- * more than one strategy is an error.
+ * optional fields, currently only 'http' and 'command' are
+ * supported. Specifying more than one strategy is an error.
  */
 message HealthCheck {
   // Describes an HTTP health check.
@@ -179,7 +179,13 @@ message HealthCheck {
   optional double timeout_seconds = 4 [default = 20.0];
 
   // Number of consecutive failures until considered unhealthy.
-  optional uint32 failures = 5 [default = 3];
+  optional uint32 consecutive_failures = 5 [default = 3];
+
+  // Amount of time to allow failed health checks since launch.
+  optional double grace_period_seconds = 6 [default = 10.0];
+
+  // Command health check.
+  optional CommandInfo command = 7;
 }
 
 
@@ -232,10 +238,6 @@ message CommandInfo {
   // field is present both in FrameworkInfo and here, the CommandInfo
   // user value takes precedence.
   optional string user = 5;
-
-  // A health check for the command (currently in *alpha* and initial
-  // support will only be for TaskInfo's that have a CommandInfo).
-  optional HealthCheck health_check = 6;
 }
 
 
@@ -289,6 +291,10 @@ message SlaveInfo {
   repeated Attribute attributes = 5;
   optional SlaveID id = 6;
   optional bool checkpoint = 7 [default = false];
+
+  // Resources that are managed locally by the slave, and not exposed
+  // to master and frameworks.
+  repeated Resource private_resources = 9;
 
   // Deprecated!
   optional string webui_hostname = 2;
@@ -402,7 +408,19 @@ message ResourceStatistics {
   optional uint64 mem_mapped_file_bytes = 12;
 
   // TODO(bmahler): Add disk usage.
-  // TODO(bmahler): Add network usage?
+
+  // Perf statistics.
+  optional PerfStatistics perf = 13;
+
+  // Network Usage Information:
+  optional uint64 net_rx_packets = 14;
+  optional uint64 net_rx_bytes = 15;
+  optional uint64 net_rx_errors = 16;
+  optional uint64 net_rx_dropped = 17;
+  optional uint64 net_tx_packets = 18;
+  optional uint64 net_tx_bytes = 19;
+  optional uint64 net_tx_errors = 20;
+  optional uint64 net_tx_dropped = 21;
 }
 
 
@@ -431,6 +449,81 @@ message ResourceUsage {
 
   // If missing, the isolation module cannot provide resource usage.
   optional ResourceStatistics statistics = 6;
+}
+
+
+/**
+ * Describes a sample of events from "perf stat". Only available on
+ * Linux.
+ *
+ * NOTE: Each optional field matches the name of a perf event (see
+ * "perf list") with the following changes:
+ * 1. Names are downcased.
+ * 2. Hyphens ('-') are replaced with underscores ('_').
+ * 3. Events with alternate names use the name "perf stat" returns,
+ *    e.g., for the event "cycles OR cpu-cycles" perf always returns
+ *    cycles.
+ */
+message PerfStatistics {
+  required double timestamp = 1; // Start of sample interval, in seconds since the Epoch.
+  required double duration = 2;  // Duration of sample interval, in seconds.
+
+  // Hardware event.
+  optional uint64 cycles = 3;
+  optional uint64 stalled_cycles_frontend = 4;
+  optional uint64 stalled_cycles_backend = 5;
+  optional uint64 instructions = 6;
+  optional uint64 cache_references = 7;
+  optional uint64 cache_misses = 8;
+  optional uint64 branches = 9;
+  optional uint64 branch_misses = 10;
+  optional uint64 bus_cycles = 11;
+  optional uint64 ref_cycles = 12;
+
+  // Software event.
+  optional double cpu_clock = 13;
+  optional double task_clock = 14;
+  optional uint64 page_faults = 15;
+  optional uint64 minor_faults = 16;
+  optional uint64 major_faults = 17;
+  optional uint64 context_switches = 18;
+  optional uint64 cpu_migrations = 19;
+  optional uint64 alignment_faults = 20;
+  optional uint64 emulation_faults = 21;
+
+  // Hardware cache event.
+  optional uint64 l1_dcache_loads = 22;
+  optional uint64 l1_dcache_load_misses = 23;
+  optional uint64 l1_dcache_stores = 24;
+  optional uint64 l1_dcache_store_misses = 25;
+  optional uint64 l1_dcache_prefetches = 26;
+  optional uint64 l1_dcache_prefetch_misses = 27;
+  optional uint64 l1_icache_loads = 28;
+  optional uint64 l1_icache_load_misses = 29;
+  optional uint64 l1_icache_prefetches = 30;
+  optional uint64 l1_icache_prefetch_misses = 31;
+  optional uint64 llc_loads = 32;
+  optional uint64 llc_load_misses = 33;
+  optional uint64 llc_stores = 34;
+  optional uint64 llc_store_misses = 35;
+  optional uint64 llc_prefetches = 36;
+  optional uint64 llc_prefetch_misses = 37;
+  optional uint64 dtlb_loads = 38;
+  optional uint64 dtlb_load_misses = 39;
+  optional uint64 dtlb_stores = 40;
+  optional uint64 dtlb_store_misses = 41;
+  optional uint64 dtlb_prefetches = 42;
+  optional uint64 dtlb_prefetch_misses = 43;
+  optional uint64 itlb_loads = 44;
+  optional uint64 itlb_load_misses = 45;
+  optional uint64 branch_loads = 46;
+  optional uint64 branch_load_misses = 47;
+  optional uint64 node_loads = 48;
+  optional uint64 node_load_misses = 49;
+  optional uint64 node_stores = 50;
+  optional uint64 node_store_misses = 51;
+  optional uint64 node_prefetches = 52;
+  optional uint64 node_prefetch_misses = 53;
 }
 
 
@@ -476,6 +569,9 @@ message TaskInfo {
   optional ExecutorInfo executor = 5;
   optional CommandInfo command = 7;
   optional bytes data = 6;
+  // A health check for the task (currently in *alpha* and initial
+  // support will only be for TaskInfo's that have a CommandInfo).
+  optional HealthCheck health_check = 8;
 }
 
 
@@ -494,6 +590,8 @@ enum TaskState {
   TASK_FAILED = 3;   // TERMINAL.
   TASK_KILLED = 4;   // TERMINAL.
   TASK_LOST = 5;     // TERMINAL.
+
+  // TODO(benh): TASK_ERROR = 7; // TERMINAL.
 }
 
 
@@ -506,7 +604,13 @@ message TaskStatus {
   optional string message = 4; // Possible message explaining state.
   optional bytes data = 3;
   optional SlaveID slave_id = 5;
+  optional ExecutorID executor_id = 7; // TODO(benh): Use in master/slave.
   optional double timestamp = 6;
+
+  // Describes whether the task has been determined to be healthy
+  // (true) or unhealthy (false) according to the HealthCheck field in
+  // the command info.
+  optional bool healthy = 8;
 }
 
 
@@ -572,6 +676,22 @@ message Credential {
 
 
 /**
+ * Credentials used for authentication.
+ *
+ */
+message Credentials {
+  // Collection of credentials used to authenticate "registration" of
+  // either frameworks or slaves.
+  repeated Credential registration = 1;
+
+  // Collection of credentails used to authenticate HTTP endpoints
+  // (where the common "username" and "password" are captured as
+  // 'principal' and 'secret' respectively).
+  repeated Credential http = 2;
+}
+
+
+/**
  * ACLs used for authorization.
  */
 message ACL {
@@ -629,7 +749,7 @@ message ACL {
 }
 
 
-/*
+/**
  * Collection of ACL.
  *
  * Each authorization request is evaluated against the ACLs in the order
@@ -654,4 +774,35 @@ message ACLs {
   repeated ACL.ReceiveOffers receive_offers = 3;
   repeated ACL.HTTPGet http_get = 4;
   repeated ACL.HTTPPut http_put = 5;
+}
+
+
+/**
+ * Rate (queries per second, QPS) limit for messages from a framework to master.
+ * Strictly speaking they are the combined rate from all frameworks of the same
+ * principal.
+ */
+message RateLimit {
+  // Leaving QPS unset gives it unlimited rate (i.e., not throttled).
+  optional double qps = 1;
+
+  // Principal of framework(s) to be throttled. Should match
+  // FrameworkInfo.princpal and Credential.principal (if using authentication).
+  required string principal = 2;
+}
+
+
+/**
+ * Collection of RateLimit.
+ * Frameworks without rate limits defined here are not throttled
+ * unless 'aggregate_default_qps' is specified.
+ */
+message RateLimits {
+  // Items should have unique principals.
+  repeated RateLimit limits = 1;
+
+  // All the frameworks not specified in 'limits' get this default
+  // rate. This rate is an aggregate rate for all of them, i.e.,
+  // their combined traffic is throttled together at this rate.
+  optional double aggregate_default_qps = 2;
 }

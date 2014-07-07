@@ -19,9 +19,6 @@ namespace metrics {
 
 // A Metric that represents a timed event. It is templated on a Duration
 // subclass that specifies the unit to use for the Timer.
-// TODO(dhamon): Allow the user to choose the unit of duration.
-// We could do this by adding methods on Duration subclasses to return
-// the double value and unit string directly.
 template<class T>
 class Timer : public Metric
 {

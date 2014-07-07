@@ -131,6 +131,15 @@ inline Try<Nothing> attach(
       rtnl_act_put(act);
       return Error(std::string(nl_geterror(err)));
     }
+
+    // Automatically set the 'terminal' flag for u32 filters if a
+    // redirect action is attached.
+    err = rtnl_u32_set_cls_terminal(cls.get());
+    if (err != 0) {
+      return Error(
+          "Failed to set the terminal flag: " +
+          std::string(nl_geterror(err)));
+    }
   } else {
     rtnl_act_put(act);
     return Error("Unsupported classifier kind: " + kind);
@@ -145,6 +154,8 @@ inline Try<Nothing> attach(
     const Netlink<struct rtnl_cls>& cls,
     const action::Mirror& mirror)
 {
+  const std::string kind = rtnl_tc_get_kind(TC_CAST(cls.get()));
+
   foreach (const std::string& _link, mirror.links()) {
     Result<Netlink<struct rtnl_link> > link = link::internal::get(_link);
     if (link.isError()) {
@@ -173,7 +184,6 @@ inline Try<Nothing> attach(
     rtnl_mirred_set_action(act, TCA_EGRESS_MIRROR);
     rtnl_mirred_set_policy(act, TC_ACT_PIPE);
 
-    const std::string kind = rtnl_tc_get_kind(TC_CAST(cls.get()));
     if (kind == "basic") {
       err = rtnl_basic_add_action(cls.get(), act);
       if (err != 0) {
@@ -190,6 +200,42 @@ inline Try<Nothing> attach(
       rtnl_act_put(act);
       return Error("Unsupported classifier kind: " + kind);
     }
+  }
+
+  // Automatically set the 'terminal' flag for u32 filters if a mirror
+  // action is attached.
+  if (kind == "u32") {
+    int err = rtnl_u32_set_cls_terminal(cls.get());
+    if (err != 0) {
+      return Error(
+          "Failed to set the terminal flag: " +
+          std::string(nl_geterror(err)));
+    }
+  }
+
+  return Nothing();
+}
+
+
+// Attaches a terminal action to the libnl filter (rtnl_cls). It will
+// stop the packet from being passed to the next filter if a match is
+// found. This is only applied to u32 filters (which can match any
+// 32-bit value in a packet). This function will return error if the
+// user tries to attach a terminal action to a non-u32 filter.
+inline Try<Nothing> attach(
+    const Netlink<struct rtnl_cls>& cls,
+    const action::Terminal& terminal)
+{
+  const std::string kind = rtnl_tc_get_kind(TC_CAST(cls.get()));
+  if (kind != "u32") {
+    return Error("Cannot attach terminal action to a non-u32 filter.");
+  }
+
+  int err = rtnl_u32_set_cls_terminal(cls.get());
+  if (err != 0) {
+    return Error(
+        "Failed to set the terminal flag: " +
+        std::string(nl_geterror(err)));
   }
 
   return Nothing();
@@ -213,6 +259,12 @@ inline Try<Nothing> attach(
     dynamic_cast<const action::Mirror*>(action.get());
   if (mirror != NULL) {
     return attach(cls, *mirror);
+  }
+
+  const action::Terminal* terminal =
+    dynamic_cast<const action::Terminal*>(action.get());
+  if (terminal != NULL) {
+    return attach(cls, *terminal);
   }
 
   return Error("Unsupported action type");
@@ -246,20 +298,6 @@ Try<Netlink<struct rtnl_cls> > encodeFilter(
   Try<Nothing> encoding = encode(cls, filter.classifier());
   if (encoding.isError()) {
     return Error("Failed to encode the classifier " + encoding.error());
-  }
-
-  // Stop the packet from being passed to the next filter if a match
-  // is found. This is only applied to u32 filters (which can match
-  // any 32-bit value in a packet), and is not needed for other types
-  // fo fitlers.
-  // TODO(jieyu): Consider setting flowid.
-  if (rtnl_tc_get_kind(TC_CAST(cls.get())) == std::string("u32")) {
-    int err = rtnl_u32_set_cls_terminal(cls.get());
-    if (err != 0) {
-      return Error(
-          "Failed to mark the libnl filter as a terminal" +
-          std::string(nl_geterror(err)));
-    }
   }
 
   // Attach actions to the libnl filter.

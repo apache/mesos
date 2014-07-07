@@ -21,6 +21,7 @@
 
 #include "foreach.hpp"
 #include "format.hpp"
+#include "option.hpp"
 #include "stringify.hpp"
 
 namespace strings {
@@ -96,6 +97,8 @@ inline std::string replace(
 
 // Tokenizes the string using the delimiters.
 // Empty tokens will not be included in the result.
+// TODO(ijimenez): Support maximum number of tokens
+// to be returned.
 inline std::vector<std::string> tokenize(
     const std::string& s,
     const std::string& delims)
@@ -124,16 +127,21 @@ inline std::vector<std::string> tokenize(
 
 
 // Splits the string using the provided delimiters.
+// The string is split each time at the first character
+// that matches any of the characters specified in delims.
 // Empty tokens are allowed in the result.
+// Optionally, maximum number of tokens to be returned
+// can be specified.
 inline std::vector<std::string> split(
     const std::string& s,
-    const std::string& delims)
+    const std::string& delims,
+    const Option<unsigned int>& n = None())
 {
   std::vector<std::string> tokens;
   size_t offset = 0;
   size_t next = 0;
 
-  while (true) {
+  while (n.isNone() || n.get() > 0) {
     next = s.find_first_of(delims, offset);
     if (next == std::string::npos) {
       tokens.push_back(s.substr(offset));
@@ -142,6 +150,12 @@ inline std::vector<std::string> split(
 
     tokens.push_back(s.substr(offset, next - offset));
     offset = next + 1;
+
+    // Finish splitting if we've found enough tokens.
+    if (n.isSome() && tokens.size() == n.get() - 1) {
+      tokens.push_back(s.substr(offset));
+      break;
+    }
   }
   return tokens;
 }

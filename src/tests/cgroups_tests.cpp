@@ -30,6 +30,7 @@
 #include <vector>
 
 #include <sys/mman.h>
+#include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -48,6 +49,7 @@
 #include <stout/strings.hpp>
 
 #include "linux/cgroups.hpp"
+#include "linux/perf.hpp"
 
 #include "tests/mesos.hpp" // For TEST_CGROUPS_(HIERARCHY|ROOT).
 
@@ -501,7 +503,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
   std::string hierarchy = path::join(baseHierarchy, "memory");
   ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
   ASSERT_SOME(
-      cgroups::exists(hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control"))
+      cgroups::memory::oom::killer::enabled(hierarchy, TEST_CGROUPS_ROOT))
     << "-------------------------------------------------------------\n"
     << "We cannot run this test because it appears you do not have\n"
     << "a modern enough version of the Linux kernel. You won't be\n"
@@ -510,27 +512,23 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
     << "-------------------------------------------------------------";
 
   // Disable oom killer.
-  ASSERT_SOME(
-      cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control", "1"));
+  ASSERT_SOME(cgroups::memory::oom::killer::disable(
+        hierarchy, TEST_CGROUPS_ROOT));
 
   // Limit the memory usage of the test cgroup to 64MB.
-  size_t limit = 1024 * 1024 * 64;
-  ASSERT_SOME(cgroups::write(
-                  hierarchy,
-                  TEST_CGROUPS_ROOT,
-                  "memory.limit_in_bytes",
-                  stringify(limit)));
+  ASSERT_SOME(cgroups::memory::limit_in_bytes(
+      hierarchy, TEST_CGROUPS_ROOT, Megabytes(64)));
 
   // Listen on oom events for test cgroup.
-  Future<uint64_t> future = cgroups::listen(
-      hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control");
+  Future<Nothing> future =
+    cgroups::memory::oom::listen(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_FALSE(future.isFailed());
 
   // Test the cancellation.
   future.discard();
 
   // Test the normal operation below.
-  future = cgroups::listen(hierarchy, TEST_CGROUPS_ROOT, "memory.oom_control");
+  future = cgroups::memory::oom::listen(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_FALSE(future.isFailed());
 
   pid_t pid = ::fork();
@@ -601,35 +599,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Freeze)
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
 
-  if (pid > 0) {
-    // In parent process.
-    ::close(pipes[1]);
-
-    // Wait until child has assigned the cgroup.
-    ASSERT_LT(0, ::read(pipes[0], &dummy, sizeof(dummy)));
-    ::close(pipes[0]);
-
-    // Freeze the test cgroup.
-    Future<bool> freeze = cgroups::freeze(hierarchy, TEST_CGROUPS_ROOT);
-    freeze.await(Seconds(5));
-    ASSERT_TRUE(freeze.isReady());
-    EXPECT_EQ(true, freeze.get());
-
-    // Thaw the test cgroup.
-    Future<bool> thaw = cgroups::thaw(hierarchy, TEST_CGROUPS_ROOT);
-    thaw.await(Seconds(5));
-    ASSERT_TRUE(thaw.isReady());
-    EXPECT_EQ(true, thaw.get());
-
-    // Kill the child process.
-    ASSERT_NE(-1, ::kill(pid, SIGKILL));
-
-    // Wait for the child process.
-    int status;
-    EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-    ASSERT_TRUE(WIFSIGNALED(status));
-    EXPECT_EQ(SIGKILL, WTERMSIG(status));
-  } else {
+  if (pid == 0) {
     // In child process.
     ::close(pipes[0]);
 
@@ -656,6 +626,41 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Freeze)
     std::cerr << "Reach an unreachable statement!" << std::endl;
     abort();
   }
+
+  // In parent process.
+  ::close(pipes[1]);
+
+  // Wait until child has assigned the cgroup.
+  ASSERT_LT(0, ::read(pipes[0], &dummy, sizeof(dummy)));
+  ::close(pipes[0]);
+
+  // Freeze the test cgroup.
+  AWAIT_EXPECT_READY(cgroups::freezer::freeze(hierarchy, TEST_CGROUPS_ROOT));
+
+  // Thaw the test cgroup.
+  AWAIT_EXPECT_READY(cgroups::freezer::thaw(hierarchy, TEST_CGROUPS_ROOT));
+
+  // Kill the child process.
+  ASSERT_NE(-1, ::kill(pid, SIGKILL));
+
+  // Wait for the child process.
+  int status;
+  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
+  ASSERT_TRUE(WIFSIGNALED(status));
+  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+}
+
+
+TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_FreezeNonFreezer)
+{
+  std::string hierarchy = path::join(baseHierarchy, "cpu");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  AWAIT_EXPECT_FAILED(cgroups::freezer::freeze(hierarchy, TEST_CGROUPS_ROOT));
+  AWAIT_EXPECT_FAILED(cgroups::freezer::thaw(hierarchy, TEST_CGROUPS_ROOT));
+
+  // The cgroup is empty so we should still be able to destroy it.
+  AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
 }
 
 
@@ -748,15 +753,13 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Destroy)
     ASSERT_LT(0, ::read(pipes[0], &dummy, sizeof(dummy)));
     ::close(pipes[0]);
 
-    Future<bool> future = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
-    future.await(Seconds(5));
-    ASSERT_TRUE(future.isReady());
-    EXPECT_TRUE(future.get());
+    AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
 
+    // cgroups::destroy will reap all processes in the cgroup so we should
+    // *not* be able to reap it now.
     int status;
-    EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-    ASSERT_TRUE(WIFSIGNALED(status));
-    EXPECT_EQ(SIGKILL, WTERMSIG(status));
+    EXPECT_EQ(-1, ::waitpid(pid, &status, 0));
+    EXPECT_EQ(ECHILD, errno);
   } else {
     // In child process.
 
@@ -847,8 +850,169 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
   CHECK_SOME(cgroups::assign(hierarchy, "", ::getpid()));
 
   // Destroy the cgroup.
-  Future<bool> future = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
-  future.await(Seconds(5));
-  ASSERT_TRUE(future.isReady());
-  EXPECT_TRUE(future.get());
+  AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+}
+
+
+TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_DestroyStoppedProcess)
+{
+  std::string hierarchy = path::join(baseHierarchy, "freezer");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process.
+    while (true) { sleep(1); }
+
+    ABORT("Child should not reach this statement");
+  }
+
+  // In parent process.
+
+  // Put child into the freezer cgroup.
+  Try<Nothing> assign = cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, pid);
+
+  // Stop the child process.
+  EXPECT_EQ(0, kill(pid, SIGSTOP));
+
+  AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+
+  // cgroups::destroy will reap all processes in the cgroup so we should
+  // *not* be able to reap it now.
+  int status;
+  EXPECT_EQ(-1, ::waitpid(pid, &status, 0));
+  EXPECT_EQ(ECHILD, errno);
+}
+
+
+TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_DestroyTracedProcess)
+{
+  std::string hierarchy = path::join(baseHierarchy, "freezer");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process.
+    while (true) { sleep(1); }
+
+    ABORT("Child should not reach this statement");
+  }
+
+  // In parent process.
+  Try<Nothing> assign = cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, pid);
+  ASSERT_SOME(assign);
+
+  // Attach to the child process.
+  ASSERT_EQ(0, ptrace(PT_ATTACH, pid, NULL, NULL));
+
+  // Wait until the process is in traced state ('t' or 'T').
+  Duration elapsed = Duration::zero();
+  while (true) {
+    Result<proc::ProcessStatus> process = proc::status(pid);
+    ASSERT_SOME(process);
+
+    if (process.get().state == 'T' || process.get().state == 't') {
+      break;
+    }
+
+    if (elapsed > Seconds(1)) {
+      FAIL() << "Failed to wait for process to be traced";
+    }
+
+    os::sleep(Milliseconds(5));
+    elapsed += Milliseconds(5);
+  }
+
+  // Now destroy the cgroup.
+  AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+
+  // cgroups::destroy will reap all processes in the cgroup so we should
+  // *not* be able to reap it now.
+  int status;
+  EXPECT_EQ(-1, ::waitpid(pid, &status, 0));
+  EXPECT_EQ(ECHILD, errno);
+}
+
+
+class CgroupsAnyHierarchyWithPerfEventTest
+  : public CgroupsAnyHierarchyTest
+{
+public:
+  CgroupsAnyHierarchyWithPerfEventTest()
+    : CgroupsAnyHierarchyTest("perf_event") {}
+};
+
+
+TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
+{
+  int pipes[2];
+  int dummy;
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  std::string hierarchy = path::join(baseHierarchy, "perf_event");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  pid_t pid = ::fork();
+  ASSERT_NE(-1, pid);
+
+  if (pid == 0) {
+    // In child process.
+    ::close(pipes[1]);
+
+    // Wait until parent has assigned us to the cgroup.
+    ssize_t len;
+    while ((len = ::read(pipes[0], &dummy, sizeof(dummy))) == -1 &&
+           errno == EINTR);
+    ASSERT_EQ((ssize_t) sizeof(dummy), len);
+    ::close(pipes[0]);
+
+    while (true) { sleep(1); }
+
+    ABORT("Child should not reach here");
+  }
+
+  // In parent.
+  ::close(pipes[0]);
+
+  // Put child into the test cgroup.
+  ASSERT_SOME(cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, pid));
+
+  ssize_t len;
+  while ((len = ::write(pipes[1], &dummy, sizeof(dummy))) == -1 &&
+         errno == EINTR);
+  ASSERT_EQ((ssize_t) sizeof(dummy), len);
+  ::close(pipes[1]);
+
+  std::set<std::string> events;
+  // Hardware event.
+  events.insert("cycles");
+  // Software event.
+  events.insert("task-clock");
+
+  Future<mesos::PerfStatistics> statistics =
+    perf::sample(events, TEST_CGROUPS_ROOT, Seconds(1));
+  AWAIT_READY(statistics);
+
+  ASSERT_TRUE(statistics.get().has_cycles());
+  EXPECT_LT(0u, statistics.get().cycles());
+
+  ASSERT_TRUE(statistics.get().has_task_clock());
+  EXPECT_LT(0.0, statistics.get().task_clock());
+
+  // Kill the child process.
+  ASSERT_NE(-1, ::kill(pid, SIGKILL));
+
+  // Wait for the child process.
+  int status;
+  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
+  ASSERT_TRUE(WIFSIGNALED(status));
+  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+
+  // Destroy the cgroup.
+  Future<Nothing> destroy = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
+  AWAIT_READY(destroy);
 }

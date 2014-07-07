@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -15,16 +16,23 @@
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/list.hpp>
-#include <stout/os/read.hpp>
 #include <stout/path.hpp>
+
+#include <stout/os/read.hpp>
+
+#include <stout/tests/utils.hpp>
 
 using namespace process;
 
 using std::map;
 using std::string;
+using std::vector;
 
 
-TEST(Subprocess, status)
+class SubprocessTest: public TemporaryDirectoryTest {};
+
+
+TEST_F(SubprocessTest, Status)
 {
   Clock::pause();
 
@@ -43,8 +51,8 @@ TEST(Subprocess, status)
   ASSERT_SOME(s.get().status().get());
 
   int status = s.get().status().get().get();
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(0, WEXITSTATUS(status));
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
 
   // Exit 1.
   s = subprocess("exit 1");
@@ -61,8 +69,8 @@ TEST(Subprocess, status)
   ASSERT_SOME(s.get().status().get());
 
   status = s.get().status().get().get();
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(1, WEXITSTATUS(status));
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(1, WEXITSTATUS(status));
 
   // SIGTERM.
   s = subprocess("sleep 60");
@@ -81,8 +89,8 @@ TEST(Subprocess, status)
   ASSERT_SOME(s.get().status().get());
 
   status = s.get().status().get().get();
-  ASSERT_TRUE(WIFSIGNALED(status));
-  ASSERT_EQ(SIGTERM, WTERMSIG(status));
+  EXPECT_TRUE(WIFSIGNALED(status));
+  EXPECT_EQ(SIGTERM, WTERMSIG(status));
 
   // SIGKILL.
   s = subprocess("sleep 60");
@@ -101,25 +109,28 @@ TEST(Subprocess, status)
   ASSERT_SOME(s.get().status().get());
 
   status = s.get().status().get().get();
-  ASSERT_TRUE(WIFSIGNALED(status));
-  ASSERT_EQ(SIGKILL, WTERMSIG(status));
+  EXPECT_TRUE(WIFSIGNALED(status));
+  EXPECT_EQ(SIGKILL, WTERMSIG(status));
 
   Clock::resume();
 }
 
 
-TEST(Subprocess, output)
+TEST_F(SubprocessTest, PipeOutput)
 {
   Clock::pause();
 
   // Standard out.
-  Try<Subprocess> s = subprocess("echo hello");
+  Try<Subprocess> s = subprocess(
+      "echo hello",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
 
   ASSERT_SOME(s);
-
-  ASSERT_SOME(os::nonblock(s.get().out()));
-
-  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out()));
+  ASSERT_SOME(s.get().out());
+  ASSERT_SOME(os::nonblock(s.get().out().get()));
+  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
@@ -129,19 +140,22 @@ TEST(Subprocess, output)
 
   AWAIT_ASSERT_READY(s.get().status());
   ASSERT_SOME(s.get().status().get());
-  int status = s.get().status().get().get();
 
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(0, WEXITSTATUS(status));
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
 
   // Standard error.
-  s = subprocess("echo hello 1>&2");
+  s = subprocess(
+      "echo hello 1>&2",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
 
   ASSERT_SOME(s);
-
-  ASSERT_SOME(os::nonblock(s.get().err()));
-
-  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().err()));
+  ASSERT_SOME(s.get().err());
+  ASSERT_SOME(os::nonblock(s.get().err().get()));
+  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().err().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
@@ -151,28 +165,32 @@ TEST(Subprocess, output)
 
   AWAIT_ASSERT_READY(s.get().status());
   ASSERT_SOME(s.get().status().get());
+
   status = s.get().status().get().get();
-
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(0, WEXITSTATUS(status));
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
 
   Clock::resume();
 }
 
 
-TEST(Subprocess, input)
+TEST_F(SubprocessTest, PipeInput)
 {
   Clock::pause();
 
-  Try<Subprocess> s = subprocess("read word ; echo $word");
+  Try<Subprocess> s = subprocess(
+      "read word ; echo $word",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
 
   ASSERT_SOME(s);
+  ASSERT_SOME(s.get().in());
+  ASSERT_SOME(os::write(s.get().in().get(), "hello\n"));
 
-  ASSERT_SOME(os::write(s.get().in(), "hello\n"));
-
-  ASSERT_SOME(os::nonblock(s.get().out()));
-
-  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out()));
+  ASSERT_SOME(s.get().out());
+  ASSERT_SOME(os::nonblock(s.get().out().get()));
+  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
@@ -182,36 +200,41 @@ TEST(Subprocess, input)
 
   AWAIT_ASSERT_READY(s.get().status());
   ASSERT_SOME(s.get().status().get());
-  int status = s.get().status().get().get();
 
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(0, WEXITSTATUS(status));
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
 
   Clock::resume();
 }
 
 
-TEST(Subprocess, splice)
+TEST_F(SubprocessTest, PipeSplice)
 {
   Clock::pause();
 
-  Try<Subprocess> s = subprocess("echo 'hello world'");
+  Try<Subprocess> s = subprocess(
+      "echo 'hello world'",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
 
   ASSERT_SOME(s);
 
   // Create a temporary file for splicing into.
-  Try<string> path = os::mktemp();
-  ASSERT_SOME(path);
+  string path = path::join(os::getcwd(), "stdout");
 
   Try<int> fd = os::open(
-      path.get(),
-      O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      path,
+      O_WRONLY | O_CREAT | O_TRUNC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
   ASSERT_SOME(fd);
   ASSERT_SOME(os::nonblock(fd.get()));
 
-  ASSERT_SOME(os::nonblock(s.get().out()));
-
-  AWAIT_READY(io::splice(s.get().out(), fd.get()));
+  ASSERT_SOME(s.get().out());
+  ASSERT_SOME(os::nonblock(s.get().out().get()));
+  AWAIT_READY(io::splice(s.get().out().get(), fd.get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
@@ -221,13 +244,13 @@ TEST(Subprocess, splice)
 
   AWAIT_ASSERT_READY(s.get().status());
   ASSERT_SOME(s.get().status().get());
-  int status = s.get().status().get().get();
 
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(0, WEXITSTATUS(status));
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
 
   // Now make sure all the data is there!
-  Try<string> read = os::read(path.get());
+  Try<string> read = os::read(path);
   ASSERT_SOME(read);
   EXPECT_EQ("hello world\n", read.get());
 
@@ -235,20 +258,386 @@ TEST(Subprocess, splice)
 }
 
 
-TEST(Subprocess, environment)
+TEST_F(SubprocessTest, PathOutput)
+{
+  Clock::pause();
+
+  string out = path::join(os::getcwd(), "stdout");
+  string err = path::join(os::getcwd(), "stderr");
+
+  // Standard out.
+  Try<Subprocess> s = subprocess(
+      "echo hello",
+      Subprocess::PIPE(),
+      Subprocess::PATH(out),
+      Subprocess::PIPE());
+
+  ASSERT_SOME(s);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  Try<string> read = os::read(out);
+  ASSERT_SOME(read);
+  EXPECT_EQ("hello\n", read.get());
+
+  // Standard error.
+  s = subprocess(
+      "echo hello 1>&2",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PATH(err));
+
+  ASSERT_SOME(s);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  read = os::read(err);
+  ASSERT_SOME(read);
+  EXPECT_EQ("hello\n", read.get());
+
+  Clock::resume();
+}
+
+
+TEST_F(SubprocessTest, PathInput)
+{
+  Clock::pause();
+
+  string in = path::join(os::getcwd(), "stdin");
+
+  ASSERT_SOME(os::write(in, "hello\n"));
+
+  Try<Subprocess> s = subprocess(
+      "read word ; echo $word",
+      Subprocess::PATH(in),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
+
+  ASSERT_SOME(s);
+  ASSERT_SOME(s.get().out());
+  ASSERT_SOME(os::nonblock(s.get().out().get()));
+  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out().get()));
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  Clock::resume();
+}
+
+
+TEST_F(SubprocessTest, FdOutput)
+{
+  Clock::pause();
+
+  string out = path::join(os::getcwd(), "stdout");
+  string err = path::join(os::getcwd(), "stderr");
+
+  // Standard out.
+  Try<int> outFd = os::open(
+      out,
+      O_WRONLY | O_CREAT | O_APPEND,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
+  ASSERT_SOME(outFd);
+
+  Try<Subprocess> s = subprocess(
+      "echo hello",
+      Subprocess::PIPE(),
+      Subprocess::FD(outFd.get()),
+      Subprocess::PIPE());
+
+  ASSERT_SOME(os::close(outFd.get()));
+  ASSERT_SOME(s);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  Try<string> read = os::read(out);
+  ASSERT_SOME(read);
+  EXPECT_EQ("hello\n", read.get());
+
+  // Standard error.
+  Try<int> errFd = os::open(
+      err,
+      O_WRONLY | O_CREAT | O_APPEND,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
+  ASSERT_SOME(errFd);
+
+  s = subprocess(
+      "echo hello 1>&2",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::FD(errFd.get()));
+
+  ASSERT_SOME(os::close(errFd.get()));
+  ASSERT_SOME(s);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  read = os::read(err);
+  ASSERT_SOME(read);
+  EXPECT_EQ("hello\n", read.get());
+
+  Clock::resume();
+}
+
+
+TEST_F(SubprocessTest, FdInput)
+{
+  Clock::pause();
+
+  string in = path::join(os::getcwd(), "stdin");
+
+  ASSERT_SOME(os::write(in, "hello\n"));
+
+  Try<int> inFd = os::open(in, O_RDONLY, 0);
+  ASSERT_SOME(inFd);
+
+  Try<Subprocess> s = subprocess(
+      "read word ; echo $word",
+      Subprocess::FD(inFd.get()),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
+
+  ASSERT_SOME(os::close(inFd.get()));
+
+  ASSERT_SOME(s);
+  ASSERT_SOME(s.get().out());
+  ASSERT_SOME(os::nonblock(s.get().out().get()));
+  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out().get()));
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  Clock::resume();
+}
+
+
+TEST_F(SubprocessTest, Default)
+{
+  Clock::pause();
+
+  Try<Subprocess> s = subprocess("echo hello world");
+
+  ASSERT_SOME(s);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  Clock::resume();
+}
+
+
+struct Flags : public flags::FlagsBase
+{
+  Flags()
+  {
+    add(&b, "b", "bool");
+    add(&i, "i", "int");
+    add(&s, "s", "string");
+    add(&s2, "s2", "string with single quote");
+    add(&s3, "s3", "string with double quote");
+    add(&d, "d", "Duration");
+    add(&y, "y", "Bytes");
+    add(&j, "j", "JSON::Object");
+  }
+
+  Option<bool> b;
+  Option<int> i;
+  Option<string> s;
+  Option<string> s2;
+  Option<string> s3;
+  Option<Duration> d;
+  Option<Bytes> y;
+  Option<JSON::Object> j;
+};
+
+
+TEST_F(SubprocessTest, Flags)
+{
+  Clock::pause();
+
+  Flags flags;
+  flags.b = true;
+  flags.i = 42;
+  flags.s = "hello";
+  flags.s2 = "we're";
+  flags.s3 = "\"geek\"";
+  flags.d = Seconds(10);
+  flags.y = Bytes(100);
+
+  JSON::Object object;
+  object.values["strings"] = "string";
+  object.values["integer1"] = 1;
+  object.values["integer2"] = -1;
+  object.values["double1"] = 1;
+  object.values["double2"] = -1;
+  object.values["double3"] = -1.42;
+
+  JSON::Object nested;
+  nested.values["string"] = "string";
+  object.values["nested"] = nested;
+
+  JSON::Array array;
+  array.values.push_back(nested);
+  object.values["array"] = array;
+
+  flags.j = object;
+
+  string out = path::join(os::getcwd(), "stdout");
+
+  Try<Subprocess> s = subprocess(
+      "/bin/echo",
+      vector<string>(1, "echo"),
+      Subprocess::PIPE(),
+      Subprocess::PATH(out),
+      Subprocess::PIPE(),
+      flags);
+
+  ASSERT_SOME(s);
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  // Parse the output and make sure that it matches the flags we
+  // specified in the beginning.
+  Try<string> read = os::read(out);
+  ASSERT_SOME(read);
+
+  // TODO(jieyu): Consider testing the case where escaped spaces exist
+  // in the arguments.
+  vector<string> split = strings::split(read.get(), " ");
+  int argc = split.size() + 1;
+  char** argv = new char*[argc];
+  argv[0] = (char*) "command";
+  for (int i = 1; i < argc; i++) {
+    argv[i] = ::strdup(split[i - 1].c_str());
+  }
+
+  Flags flags2;
+  Try<Nothing> load = flags2.load(None(), argc, argv);
+  ASSERT_SOME(load);
+  EXPECT_EQ(flags.b, flags2.b);
+  EXPECT_EQ(flags.i, flags2.i);
+  EXPECT_EQ(flags.s, flags2.s);
+  EXPECT_EQ(flags.s2, flags2.s2);
+  EXPECT_EQ(flags.s3, flags2.s3);
+  EXPECT_EQ(flags.d, flags2.d);
+  EXPECT_EQ(flags.y, flags2.y);
+  EXPECT_EQ(flags.j, flags2.j);
+
+  for (int i = 1; i < argc; i++) {
+    ::free(argv[i]);
+  }
+  delete argv;
+
+  Clock::resume();
+}
+
+
+TEST_F(SubprocessTest, Environment)
 {
   Clock::pause();
 
   // Simple value.
   map<string, string> environment;
   environment["MESSAGE"] = "hello";
-  Try<Subprocess> s = subprocess("echo $MESSAGE", environment);
+
+  Try<Subprocess> s = subprocess(
+      "echo $MESSAGE",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      environment);
 
   ASSERT_SOME(s);
-
-  ASSERT_SOME(os::nonblock(s.get().out()));
-
-  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out()));
+  ASSERT_SOME(s.get().out());
+  ASSERT_SOME(os::nonblock(s.get().out().get()));
+  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
@@ -258,22 +647,27 @@ TEST(Subprocess, environment)
 
   AWAIT_ASSERT_READY(s.get().status());
   ASSERT_SOME(s.get().status().get());
-  int status = s.get().status().get().get();
 
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(0, WEXITSTATUS(status));
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
 
   // Multiple key-value pairs.
   environment.clear();
   environment["MESSAGE0"] = "hello";
   environment["MESSAGE1"] = "world";
-  s = subprocess("echo $MESSAGE0 $MESSAGE1", environment);
+
+  s = subprocess(
+      "echo $MESSAGE0 $MESSAGE1",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      environment);
 
   ASSERT_SOME(s);
-
-  ASSERT_SOME(os::nonblock(s.get().out()));
-
-  AWAIT_EXPECT_EQ("hello world\n", io::read(s.get().out()));
+  ASSERT_SOME(s.get().out());
+  ASSERT_SOME(os::nonblock(s.get().out().get()));
+  AWAIT_EXPECT_EQ("hello world\n", io::read(s.get().out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
@@ -283,27 +677,34 @@ TEST(Subprocess, environment)
 
   AWAIT_ASSERT_READY(s.get().status());
   ASSERT_SOME(s.get().status().get());
-  status = s.get().status().get().get();
 
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(0, WEXITSTATUS(status));
+  status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  Clock::resume();
 }
 
 
-TEST(Subprocess, environmentWithSpaces)
+TEST_F(SubprocessTest, EnvironmentWithSpaces)
 {
   Clock::pause();
 
   // Spaces in value.
   map<string, string> environment;
   environment["MESSAGE"] = "hello world";
-  Try<Subprocess> s = subprocess("echo $MESSAGE", environment);
+
+  Try<Subprocess> s = subprocess(
+      "echo $MESSAGE",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      environment);
 
   ASSERT_SOME(s);
-
-  ASSERT_SOME(os::nonblock(s.get().out()));
-
-  AWAIT_EXPECT_EQ("hello world\n", io::read(s.get().out()));
+  ASSERT_SOME(s.get().out());
+  ASSERT_SOME(os::nonblock(s.get().out().get()));
+  AWAIT_EXPECT_EQ("hello world\n", io::read(s.get().out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
@@ -313,27 +714,34 @@ TEST(Subprocess, environmentWithSpaces)
 
   AWAIT_ASSERT_READY(s.get().status());
   ASSERT_SOME(s.get().status().get());
-  int status = s.get().status().get().get();
 
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(0, WEXITSTATUS(status));
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  Clock::resume();
 }
 
 
-TEST(Subprocess, environmentWithSpacesAndQuotes)
+TEST_F(SubprocessTest, EnvironmentWithSpacesAndQuotes)
 {
   Clock::pause();
 
   // Spaces and quotes in value.
   map<string, string> environment;
   environment["MESSAGE"] = "\"hello world\"";
-  Try<Subprocess> s = subprocess("echo $MESSAGE", environment);
+
+  Try<Subprocess> s = subprocess(
+      "echo $MESSAGE",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      environment);
 
   ASSERT_SOME(s);
-
-  ASSERT_SOME(os::nonblock(s.get().out()));
-
-  AWAIT_EXPECT_EQ("\"hello world\"\n", io::read(s.get().out()));
+  ASSERT_SOME(s.get().out());
+  ASSERT_SOME(os::nonblock(s.get().out().get()));
+  AWAIT_EXPECT_EQ("\"hello world\"\n", io::read(s.get().out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
@@ -343,14 +751,16 @@ TEST(Subprocess, environmentWithSpacesAndQuotes)
 
   AWAIT_ASSERT_READY(s.get().status());
   ASSERT_SOME(s.get().status().get());
-  int status = s.get().status().get().get();
 
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(0, WEXITSTATUS(status));
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  Clock::resume();
 }
 
 
-TEST(Subprocess, environmentOverride)
+TEST_F(SubprocessTest, EnvironmentOverride)
 {
   Clock::pause();
 
@@ -359,13 +769,18 @@ TEST(Subprocess, environmentOverride)
 
   map<string, string> environment;
   environment["MESSAGE"] = "goodbye";
-  Try<Subprocess> s = subprocess("echo $MESSAGE", environment);
+
+  Try<Subprocess> s = subprocess(
+      "echo $MESSAGE",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      environment);
 
   ASSERT_SOME(s);
-
-  ASSERT_SOME(os::nonblock(s.get().out()));
-
-  AWAIT_EXPECT_EQ("goodbye\n", io::read(s.get().out()));
+  ASSERT_SOME(s.get().out());
+  ASSERT_SOME(os::nonblock(s.get().out().get()));
+  AWAIT_EXPECT_EQ("goodbye\n", io::read(s.get().out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
@@ -375,14 +790,16 @@ TEST(Subprocess, environmentOverride)
 
   AWAIT_ASSERT_READY(s.get().status());
   ASSERT_SOME(s.get().status().get());
-  int status = s.get().status().get().get();
 
-  ASSERT_TRUE(WIFEXITED(status));
-  ASSERT_EQ(0, WEXITSTATUS(status));
+  int status = s.get().status().get().get();
+  EXPECT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  Clock::resume();
 }
 
 
-int setupChdir(const string& directory)
+static int setupChdir(const string& directory)
 {
   // Keep everything async-signal safe.
   if (::chdir(directory.c_str()) == -1) {
@@ -393,7 +810,7 @@ int setupChdir(const string& directory)
 }
 
 
-TEST(Subprocess, setup)
+TEST_F(SubprocessTest, Setup)
 {
   Clock::pause();
 
@@ -403,6 +820,9 @@ TEST(Subprocess, setup)
   // chdir().
   Try<Subprocess> s = subprocess(
       "echo hello world > file",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
       None(),
       lambda::bind(&setupChdir, directory.get()));
 
@@ -428,19 +848,22 @@ TEST(Subprocess, setup)
 }
 
 
-int setupStatus(int ret)
+static int setupStatus(int ret)
 {
   return ret;
 }
 
 
-TEST(Subprocess, setupStatus)
+TEST_F(SubprocessTest, SetupStatus)
 {
   Clock::pause();
 
   // Exit 0 && setup 1.
   Try<Subprocess> s = subprocess(
       "exit 0",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
       None(),
       lambda::bind(&setupStatus, 1));
 
@@ -464,6 +887,9 @@ TEST(Subprocess, setupStatus)
   // Exit 1 && setup 0.
   s = subprocess(
       "exit 1",
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
       None(),
       lambda::bind(&setupStatus, 0));
 

@@ -37,8 +37,9 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/containerizer/external_containerizer.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
 
 using std::map;
 using std::string;

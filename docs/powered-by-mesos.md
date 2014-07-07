@@ -6,9 +6,9 @@ layout: documentation
 
 ## Organizations using Mesos
 
-* [Atlassian](http://www.atlassian.com)
-* [Atigeo](http://www.atigeo.com)
 * [Airbnb](http://www.airbnb.com)
+* [Atigeo](http://www.atigeo.com)
+* [Atlassian](http://www.atlassian.com)
 * [Categorize](http://categorize.co)
 * [CloudPhysics](http://cloudphysics.com)
 * [Conviva](http://www.conviva.com)
@@ -28,7 +28,6 @@ layout: documentation
 * [PayPal](https://www.paypal.com)
 * [Pinkbike](http://www.pinkbike.com)
 * [Sharethrough](http://www.sharethrough.com)
-* [Shopify](http://www.shopify.com)
 * [Sigmoid Analytics](http://www.sigmoidanalytics.com/)
 * [SiQueries](https://siqueries.com)
 * [Twitter](http://www.twitter.com)

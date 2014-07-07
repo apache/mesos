@@ -23,7 +23,6 @@
 #include <vector>
 
 #include <stout/hashmap.hpp>
-#include <stout/lambda.hpp>
 #include <stout/multihashmap.hpp>
 
 #include "slave/containerizer/containerizer.hpp"
@@ -145,6 +144,9 @@ public:
 
 private:
   process::Future<Nothing> _recover(
+      const std::list<state::RunState>& recoverable);
+
+  process::Future<Nothing> __recover(
       const std::list<state::RunState>& recovered);
 
   process::Future<std::list<Option<CommandInfo> > > prepare(
@@ -230,7 +232,6 @@ private:
   // Set of containers that are in process of being destroyed.
   hashset<ContainerID> destroying;
 };
-
 
 } // namespace slave {
 } // namespace internal {

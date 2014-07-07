@@ -62,6 +62,8 @@ SOURCES = [
 INCLUDE_DIRS = [
    os.path.join(abs_top_srcdir, 'include'),
    os.path.join(abs_top_builddir, 'include'),
+   # Needed for the *.pb.h protobuf includes.
+   os.path.join(abs_top_builddir, 'include', 'mesos'),
    os.path.join(abs_top_builddir, 'src'),
    os.path.join(abs_top_builddir, src_python_native),
    os.path.join(abs_top_builddir, protobuf, 'src'),

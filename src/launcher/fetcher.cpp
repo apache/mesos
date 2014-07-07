@@ -31,6 +31,9 @@ using namespace mesos;
 
 using std::string;
 
+const char FILE_URI_PREFIX[] = "file://";
+const char FILE_URI_LOCALHOST[] = "file://localhost";
+
 // Try to extract filename into directory. If filename is recognized as an
 // archive it will be extracted and true returned; if not recognized then false
 // will be returned. An Error is returned if the extraction command fails.
@@ -134,6 +137,19 @@ Try<string> fetch(
     return path;
   } else { // Copy the local resource.
     string local = uri;
+    bool fileUri = false;
+    if (strings::startsWith(local, string(FILE_URI_LOCALHOST))) {
+      local = local.substr(sizeof(FILE_URI_LOCALHOST) - 1);
+      fileUri = true;
+    } else if (strings::startsWith(local, string(FILE_URI_PREFIX))) {
+      local = local.substr(sizeof(FILE_URI_PREFIX) - 1);
+      fileUri = true;
+    }
+
+    if(fileUri && !strings::startsWith(local, "/")) {
+      return Error("File URI only supports absolute paths");
+    }
+
     if (local.find_first_of("/") != 0) {
       // We got a non-Hadoop and non-absolute path.
       if (os::hasenv("MESOS_FRAMEWORKS_HOME")) {

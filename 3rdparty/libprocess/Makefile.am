@@ -108,6 +108,7 @@ libprocess_la_SOURCES +=					\
   $(top_srcdir)/include/process/process.hpp			\
   $(top_srcdir)/include/process/profiler.hpp			\
   $(top_srcdir)/include/process/protobuf.hpp			\
+  $(top_srcdir)/include/process/queue.hpp			\
   $(top_srcdir)/include/process/reap.hpp			\
   $(top_srcdir)/include/process/run.hpp				\
   $(top_srcdir)/include/process/sequence.hpp			\
@@ -142,6 +143,7 @@ tests_SOURCES =							\
   src/tests/metrics_tests.cpp					\
   src/tests/owned_tests.cpp					\
   src/tests/process_tests.cpp					\
+  src/tests/queue_tests.cpp					\
   src/tests/reap_tests.cpp					\
   src/tests/sequence_tests.cpp					\
   src/tests/shared_tests.cpp					\

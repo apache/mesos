@@ -1,5 +1,4 @@
 #include <stdarg.h>
-#include <dlfcn.h>
 
 #include <glog/logging.h>
 
@@ -9,6 +8,7 @@
 #include <sstream>
 #include <vector>
 
+#include <stout/dynamiclibrary.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
@@ -63,25 +63,30 @@ Try<Jvm*> Jvm::create(
     libJvmPath = mesos::internal::build::JAVA_JVM_LIBRARY;
   }
 
-  void* handle = dlopen(libJvmPath.c_str(), RTLD_NOW);
+  static DynamicLibrary* libJvm = new DynamicLibrary();
+  Try<Nothing> openResult = libJvm->open(libJvmPath);
 
-  if (handle == NULL) {
-    return Error(dlerror());
+  if (openResult.isError()) {
+    return Error(openResult.error());
+  }
+
+  Try<void*> symbol = libJvm->loadSymbol("JNI_CreateJavaVM");
+
+  if (symbol.isError()) {
+    libJvm->close();
+    return Error(symbol.error());
   }
 
   // typedef function pointer to JNI.
   typedef jint (*fnptr_JNI_CreateJavaVM)(JavaVM**, void**, void*);
 
   fnptr_JNI_CreateJavaVM fn_JNI_CreateJavaVM =
-    (fnptr_JNI_CreateJavaVM)dlsym(handle, "JNI_CreateJavaVM");
+    (fnptr_JNI_CreateJavaVM)symbol.get();
 
-  if (fn_JNI_CreateJavaVM == NULL) {
-    return Error(dlerror());
-  }
+  int createResult = fn_JNI_CreateJavaVM(&jvm, JNIENV_CAST(&env), &vmArgs);
 
-  int result = fn_JNI_CreateJavaVM(&jvm, JNIENV_CAST(&env), &vmArgs);
-
-  if (result == JNI_ERR) {
+  if (createResult == JNI_ERR) {
+    libJvm->close();
     return Error("Failed to create JVM!");
   }
 

@@ -80,6 +80,21 @@ extern const Bytes DEFAULT_DISK;
 // Default ports range offered by the slave.
 extern const std::string DEFAULT_PORTS;
 
+// Default cpu resource given to a command executor.
+const double DEFAULT_EXECUTOR_CPUS = 0.1;
+
+// Default memory resource given to a command executor.
+const Bytes DEFAULT_EXECUTOR_MEM = Megabytes(32);
+
+#ifdef WITH_NETWORK_ISOLATOR
+// Default number of ephemeral ports allocated to a container by the
+// network isolator.
+extern const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER;
+
+// Default ephemeral port range reserved for the network isolator.
+extern const std::string DEFAULT_EPHEMERAL_PORTS;
+#endif
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

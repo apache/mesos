@@ -27,12 +27,20 @@
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
+#include "authorizer/authorizer.hpp"
+
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif
 
+#ifdef WITH_NETWORK_ISOLATOR
+#include "linux/routing/utils.hpp"
+#endif
+
+#include "slave/constants.hpp"
 #include "slave/containerizer/containerizer.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/environment.hpp"
@@ -43,7 +51,9 @@ using std::string;
 
 using namespace process;
 
-using testing::_;
+#ifdef WITH_NETWORK_ISOLATOR
+using namespace routing;
+#endif
 
 namespace mesos {
 namespace internal {
@@ -89,22 +99,30 @@ master::Flags MesosTest::CreateMasterFlags()
 
   CHECK_SOME(fd);
 
-  const string& credentials =
-    DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
+  // JSON default format for credentials
+  Credentials credentials;
+  Credential* credential = credentials.add_registration();
+  credential->set_principal(DEFAULT_CREDENTIAL.principal());
+  credential->set_secret(DEFAULT_CREDENTIAL.secret());
+  credential = credentials.add_http();
+  credential->set_principal(DEFAULT_CREDENTIAL.principal());
+  credential->set_secret(DEFAULT_CREDENTIAL.secret());
 
-  CHECK_SOME(os::write(fd.get(), credentials))
-    << "Failed to write credentials to '" << path << "'";
-
+  CHECK_SOME(os::write(fd.get(), stringify(JSON::Protobuf(credentials))))
+     << "Failed to write credentials to '" << path << "'";
   CHECK_SOME(os::close(fd.get()));
 
   flags.credentials = "file://" + path;
 
   // Set default ACLs.
-  flags.acls = JSON::Object();
+  flags.acls = ACLs();
 
   // Use the replicated log (without ZooKeeper) by default.
   flags.registry = "replicated_log";
   flags.registry_strict = true;
+
+  // On many test VMs, this default is too small.
+  flags.registry_store_timeout = flags.registry_store_timeout * 5;
 
   return flags;
 }
@@ -132,11 +150,12 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   CHECK_SOME(fd);
 
-  const string& credential =
-    DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
+  Credential credential;
+  credential.set_principal(DEFAULT_CREDENTIAL.principal());
+  credential.set_secret(DEFAULT_CREDENTIAL.secret());
 
-  CHECK_SOME(os::write(fd.get(), credential))
-    << "Failed to write slave credential to '" << path << "'";
+  CHECK_SOME(os::write(fd.get(), stringify(JSON::Protobuf(credential))))
+     << "Failed to write slave credential to '" << path << "'";
 
   CHECK_SOME(os::close(fd.get()));
 
@@ -154,45 +173,28 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
 
 Try<process::PID<master::Master> > MesosTest::StartMaster(
-    const Option<master::Flags>& flags,
-    bool wait)
+    const Option<master::Flags>& flags)
 {
-  Future<Nothing> detected = FUTURE_DISPATCH(_, &master::Master::detected);
-
-  Try<process::PID<master::Master> > master = cluster.masters.start(
+  return cluster.masters.start(
       flags.isNone() ? CreateMasterFlags() : flags.get());
-
-  // Wait until the leader is detected because otherwise this master
-  // may reject authentication requests because it doesn't know it's
-  // the leader yet [MESOS-881].
-  if (wait && master.isSome() && !detected.await(Seconds(10))) {
-    return Error("Failed to wait " + stringify(Seconds(10)) +
-                 " for master to detect the leader");
-  }
-
-  return master;
 }
 
 
 Try<process::PID<master::Master> > MesosTest::StartMaster(
     master::allocator::AllocatorProcess* allocator,
-    const Option<master::Flags>& flags,
-    bool wait)
+    const Option<master::Flags>& flags)
 {
-  Future<Nothing> detected = FUTURE_DISPATCH(_, &master::Master::detected);
-
-  Try<process::PID<master::Master> > master = cluster.masters.start(
+  return cluster.masters.start(
       allocator, flags.isNone() ? CreateMasterFlags() : flags.get());
+}
 
-  // Wait until the leader is detected because otherwise this master
-  // may reject authentication requests because it doesn't know it's
-  // the leader yet [MESOS-881].
-  if (wait && master.isSome() && !detected.await(Seconds(10))) {
-    return Error("Failed to wait " + stringify(Seconds(10)) +
-                 " for master to detect the leader");
-  }
 
-  return master;
+Try<process::PID<master::Master> > MesosTest::StartMaster(
+    Authorizer* authorizer,
+    const Option<master::Flags>& flags)
+{
+  return cluster.masters.start(
+      authorizer, flags.isNone() ? CreateMasterFlags() : flags.get());
 }
 
 
@@ -322,9 +324,12 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
   slave::Flags flags = MesosTest::CreateSlaveFlags();
 
 #ifdef __linux__
+  Result<string> user = os::user();
+  EXPECT_SOME(user);
+
   // Use cgroup isolators if they're available and we're root.
   // TODO(idownes): Refactor the cgroups/non-cgroups code.
-  if (cgroups::enabled() && os::user() == "root") {
+  if (cgroups::enabled() && user.get() == "root") {
     flags.isolation = "cgroups/cpu,cgroups/mem";
     flags.cgroups_hierarchy = baseHierarchy;
     flags.cgroups_root = TEST_CGROUPS_ROOT + "_" + UUID::random().toString();
@@ -338,6 +343,13 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
   flags.isolation = "posix/cpu,posix/mem";
 #endif
 
+#ifdef WITH_NETWORK_ISOLATOR
+  if (user.get() == "root" && routing::check().isSome()) {
+    flags.isolation += ",network/port_mapping";
+    flags.private_resources = "ports:" + slave::DEFAULT_EPHEMERAL_PORTS;
+  }
+#endif
+
   return flags;
 }
 
@@ -345,7 +357,10 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 #ifdef __linux__
 void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 {
-  if (cgroups::enabled() && os::user() == "root") {
+  Result<string> user = os::user();
+  EXPECT_SOME(user);
+
+  if (cgroups::enabled() && user.get() == "root") {
     // Clean up any testing hierarchies.
     Try<std::set<string> > hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
@@ -360,7 +375,10 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 
 void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
 {
-  if (cgroups::enabled() && os::user() == "root") {
+  Result<string> user = os::user();
+  EXPECT_SOME(user);
+
+  if (cgroups::enabled() && user.get() == "root") {
     // Clean up any testing hierarchies.
     Try<std::set<string> > hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
@@ -381,8 +399,12 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
   subsystems.insert("cpuacct");
   subsystems.insert("memory");
   subsystems.insert("freezer");
+  subsystems.insert("perf_event");
 
-  if (cgroups::enabled() && os::user() == "root") {
+  Result<string> user = os::user();
+  EXPECT_SOME(user);
+
+  if (cgroups::enabled() && user.get() == "root") {
     foreach (const string& subsystem, subsystems) {
       // Establish the base hierarchy if this is the first subsystem checked.
       if (baseHierarchy.empty()) {
@@ -428,7 +450,10 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
 {
   MesosTest::TearDown();
 
-  if (cgroups::enabled() && os::user() == "root") {
+  Result<string> user = os::user();
+  EXPECT_SOME(user);
+
+  if (cgroups::enabled() && user.get() == "root") {
     foreach (const string& subsystem, subsystems) {
       string hierarchy = path::join(baseHierarchy, subsystem);
 

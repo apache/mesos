@@ -41,6 +41,8 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
+#include "authorizer/authorizer.hpp"
+
 #include "messages/messages.hpp" // For google::protobuf::Message.
 
 #include "master/allocator.hpp"
@@ -48,9 +50,11 @@
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
-#include "slave/containerizer/containerizer.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/slave.hpp"
+
+#include "slave/containerizer/containerizer.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/cluster.hpp"
 #include "tests/utils.hpp"
@@ -81,25 +85,20 @@ protected:
   virtual slave::Flags CreateSlaveFlags();
 
   // Starts a master with the specified flags.
-  // Waits for the master to detect a leader (could be itself) before
-  // returning if 'wait' is set to true.
-  // TODO(xujyan): Return a future which becomes ready when the
-  // master detects a leader (when wait == true) and have the tests
-  // do AWAIT_READY.
   virtual Try<process::PID<master::Master> > StartMaster(
-      const Option<master::Flags>& flags = None(),
-      bool wait = true);
+      const Option<master::Flags>& flags = None());
 
   // Starts a master with the specified allocator process and flags.
-  // Waits for the master to detect a leader (could be itself) before
-  // returning if 'wait' is set to true.
-  // TODO(xujyan): Return a future which becomes ready when the
-  // master detects a leader (when wait == true) and have the tests
-  // do AWAIT_READY.
   virtual Try<process::PID<master::Master> > StartMaster(
       master::allocator::AllocatorProcess* allocator,
-      const Option<master::Flags>& flags = None(),
-      bool wait = true);
+      const Option<master::Flags>& flags = None());
+
+  // Starts a master with the specified authorizer and flags.
+  // Waits for the master to detect a leader (could be itself) before
+  // returning if 'wait' is set to true.
+  virtual Try<process::PID<master::Master> > StartMaster(
+      Authorizer* authorizer,
+      const Option<master::Flags>& flags = None());
 
   // Starts a slave with the specified flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
@@ -408,6 +407,18 @@ ACTION(DeclineOffers)
 }
 
 
+// Like DeclineOffers, but takes a custom filters object.
+ACTION_P(DeclineOffers, filters)
+{
+  SchedulerDriver* driver = arg0;
+  std::vector<Offer> offers = arg1;
+
+  for (size_t i = 0; i < offers.size(); i++) {
+    driver->declineOffer(offers[i].id(), filters);
+  }
+}
+
+
 // Definition of a mock Executor to be used in tests with gmock.
 class MockExecutor : public Executor
 {
@@ -466,6 +477,42 @@ public:
     // MesosSchedulerDriver::~MesosSchedulerDriver().
     detector = NULL;
   }
+};
+
+
+// Definition of a MockAuthozier that can be used in tests with gmock.
+class MockAuthorizer : public Authorizer
+{
+public:
+  MockAuthorizer()
+  {
+    using ::testing::An;
+    using ::testing::Return;
+
+    // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
+    // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
+    // for more details.
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::RunTasks&>()))
+      .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+      .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::HTTPGet&>()))
+      .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::HTTPPut&>()))
+      .WillRepeatedly(Return(true));
+  }
+
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::RunTasks& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::ReceiveOffers& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::HTTPGet& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::HTTPPut& request));
 };
 
 
@@ -812,6 +859,9 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
   DropProtobufs(message, from, to)
 
 
+#define EXPECT_NO_FUTURE_PROTOBUFS(message, from, to)              \
+  ExpectNoFutureProtobufs(message, from, to)
+
 // Forward declaration.
 template <typename T>
 T _FutureProtobuf(const process::Message& message);
@@ -844,6 +894,16 @@ void DropProtobufs(T t, From from, To to)
   { google::protobuf::Message* m = &t; (void) m; }
 
   process::DropMessages(testing::Eq(t.GetTypeName()), from, to);
+}
+
+
+template <typename T, typename From, typename To>
+void ExpectNoFutureProtobufs(T t, From from, To to)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &t; (void) m; }
+
+  process::ExpectNoFutureMessages(testing::Eq(t.GetTypeName()), from, to);
 }
 
 } // namespace tests {

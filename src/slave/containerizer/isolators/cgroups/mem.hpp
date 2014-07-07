@@ -73,7 +73,9 @@ public:
 private:
   CgroupsMemIsolatorProcess(const Flags& flags, const std::string& hierarchy);
 
-  virtual process::Future<Nothing> _cleanup(const ContainerID& containerId);
+  virtual process::Future<Nothing> _cleanup(
+      const ContainerID& containerId,
+      const process::Future<Nothing>& future);
 
   struct Info
   {
@@ -87,7 +89,7 @@ private:
     process::Promise<Limitation> limitation;
 
     // Used to cancel the OOM listening.
-    process::Future<uint64_t> oomNotifier;
+    process::Future<Nothing> oomNotifier;
   };
 
   // Start listening on OOM events. This function will create an
@@ -98,7 +100,7 @@ private:
   // result.
   void oomWaited(
       const ContainerID& containerId,
-      const process::Future<uint64_t>& future);
+      const process::Future<Nothing>& future);
 
   // This function is invoked when the OOM event happens.
   void oom(const ContainerID& containerId);
@@ -108,6 +110,7 @@ private:
   // The path to the cgroups subsystem hierarchy root.
   const std::string hierarchy;
 
+  // TODO(bmahler): Use Owned<Info>.
   hashmap<ContainerID, Info*> infos;
 };
 

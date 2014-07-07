@@ -126,14 +126,10 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
     }
 
     const ContainerID& containerId = state.id.get();
+    const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
-    Info* info = new Info(
-        containerId, path::join(flags.cgroups_root, containerId.value()));
-    CHECK_NOTNULL(info);
-
-    Try<bool> exists = cgroups::exists(hierarchies["cpu"], info->cgroup);
+    Try<bool> exists = cgroups::exists(hierarchies["cpu"], cgroup);
     if (exists.isError()) {
-      delete info;
       foreachvalue (Info* info, infos) {
         delete info;
       }
@@ -151,8 +147,8 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
       continue;
     }
 
-    infos[containerId] = info;
-    cgroups.insert(info->cgroup);
+    infos[containerId] = new Info(containerId, cgroup);;
+    cgroups.insert(cgroup);
   }
 
   // Remove orphans in the cpu hierarchy.
@@ -177,7 +173,9 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup"
                 << " '" << path::join("cpu", orphan) << "'";
-      cgroups::destroy(hierarchies["cpu"], orphan);
+      // We don't wait on the destroy as we don't want to block recovery.
+      cgroups::destroy(
+          hierarchies["cpu"], orphan, cgroups::DESTROY_TIMEOUT);
     }
   }
 
@@ -202,7 +200,9 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
     if (!cgroups.contains(orphan)) {
       LOG(INFO) << "Removing orphaned cgroup"
                 << " '" << path::join("cpuacct", orphan) << "'";
-      cgroups::destroy(hierarchies["cpuacct"], orphan);
+      // We don't wait on the destroy as we don't want to block recovery.
+      cgroups::destroy(
+          hierarchies["cpuacct"], orphan, cgroups::DESTROY_TIMEOUT);
     }
   }
 
@@ -218,27 +218,27 @@ Future<Option<CommandInfo> > CgroupsCpushareIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
+  // TODO(bmahler): Don't insert into 'infos' unless we create the
+  // cgroup successfully. It's safe for now because 'cleanup' gets
+  // called if we return a Failure, but cleanup will fail because
+  // the cgroup does not exist when cgroups::destroy is called.
   Info* info = new Info(
       containerId, path::join(flags.cgroups_root, containerId.value()));
 
-  infos[containerId] = CHECK_NOTNULL(info);
+  infos[containerId] = info;
 
   // Create a 'cpu' cgroup for this container.
   Try<bool> exists = cgroups::exists(hierarchies["cpu"], info->cgroup);
 
   if (exists.isError()) {
     return Failure("Failed to prepare isolator: " + exists.error());
-  }
-
-  if (exists.get()) {
+  } else if (exists.get()) {
     return Failure("Failed to prepare isolator: cgroup already exists");
   }
 
-  if (!exists.get()) {
-    Try<Nothing> create = cgroups::create(hierarchies["cpu"], info->cgroup);
-    if (create.isError()) {
-      return Failure("Failed to prepare isolator: " + create.error());
-    }
+  Try<Nothing> create = cgroups::create(hierarchies["cpu"], info->cgroup);
+  if (create.isError()) {
+    return Failure("Failed to prepare isolator: " + create.error());
   }
 
   // Create a 'cpuacct' cgroup for this container.
@@ -246,17 +246,13 @@ Future<Option<CommandInfo> > CgroupsCpushareIsolatorProcess::prepare(
 
   if (exists.isError()) {
     return Failure("Failed to prepare isolator: " + exists.error());
-  }
-
-  if (exists.get()) {
+  } else if (exists.get()) {
     return Failure("Failed to prepare isolator: cgroup already exists");
   }
 
-  if (!exists.get()) {
-    Try<Nothing> create = cgroups::create(hierarchies["cpuacct"], info->cgroup);
-    if (create.isError()) {
-      return Failure("Failed to prepare isolator: " + create.error());
-    }
+  create = cgroups::create(hierarchies["cpuacct"], info->cgroup);
+  if (create.isError()) {
+    return Failure("Failed to prepare isolator: " + create.error());
   }
 
   return update(containerId, executorInfo.resources())
@@ -410,62 +406,89 @@ Future<ResourceStatistics> CgroupsCpushareIsolatorProcess::usage(
     result.set_cpus_system_time_secs((double) system.get() / (double) ticks);
   }
 
-  // Add the cpu.stat information.
-  stat = cgroups::stat(hierarchies["cpu"], info->cgroup, "cpu.stat");
+  // Add the cpu.stat information only if CFS is enabled.
+  if (flags.cgroups_enable_cfs) {
+    stat = cgroups::stat(hierarchies["cpu"], info->cgroup, "cpu.stat");
 
-  if (stat.isError()) {
-    return Failure("Failed to read cpu.stat: " + stat.error());
-  }
+    if (stat.isError()) {
+      return Failure("Failed to read cpu.stat: " + stat.error());
+    }
 
-  Option<uint64_t> nr_periods = stat.get().get("nr_periods");
-  if (nr_periods.isSome()) {
-    result.set_cpus_nr_periods(nr_periods.get());
-  }
+    Option<uint64_t> nr_periods = stat.get().get("nr_periods");
+    if (nr_periods.isSome()) {
+      result.set_cpus_nr_periods(nr_periods.get());
+    }
 
-  Option<uint64_t> nr_throttled = stat.get().get("nr_throttled");
-  if (nr_throttled.isSome()) {
-    result.set_cpus_nr_throttled(nr_throttled.get());
-  }
+    Option<uint64_t> nr_throttled = stat.get().get("nr_throttled");
+    if (nr_throttled.isSome()) {
+      result.set_cpus_nr_throttled(nr_throttled.get());
+    }
 
-  Option<uint64_t> throttled_time = stat.get().get("throttled_time");
-  if (throttled_time.isSome()) {
-    result.set_cpus_throttled_time_secs(
-        Nanoseconds(throttled_time.get()).secs());
+    Option<uint64_t> throttled_time = stat.get().get("throttled_time");
+    if (throttled_time.isSome()) {
+      result.set_cpus_throttled_time_secs(
+          Nanoseconds(throttled_time.get()).secs());
+    }
   }
 
   return result;
 }
 
 
+namespace {
+
+Future<Nothing> _nothing() { return Nothing(); }
+
+} // namespace {
+
+
 Future<Nothing> CgroupsCpushareIsolatorProcess::cleanup(
     const ContainerID& containerId)
+{
+  // Multiple calls may occur during test clean up.
+  if (!infos.contains(containerId)) {
+    VLOG(1) << "Ignoring cleanup request for unknown container: "
+            << containerId;
+    return Nothing();
+  }
+
+  Info* info = CHECK_NOTNULL(infos[containerId]);
+
+  list<Future<Nothing> > futures;
+  foreachvalue (const string& hierarchy, hierarchies) {
+    futures.push_back(
+        cgroups::destroy(hierarchy, info->cgroup, cgroups::DESTROY_TIMEOUT));
+  }
+
+  return collect(futures)
+    .onAny(defer(PID<CgroupsCpushareIsolatorProcess>(this),
+                &CgroupsCpushareIsolatorProcess::_cleanup,
+                containerId,
+                lambda::_1))
+    .then(lambda::bind(&_nothing));
+}
+
+
+Future<list<Nothing> > CgroupsCpushareIsolatorProcess::_cleanup(
+    const ContainerID& containerId,
+    const Future<list<Nothing> >& future)
 {
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
 
-  Info* info = CHECK_NOTNULL(infos[containerId]);
+  CHECK_NOTNULL(infos[containerId]);
 
-  list<Future<bool> > futures;
-  futures.push_back(cgroups::destroy(hierarchies["cpu"], info->cgroup));
-  futures.push_back(cgroups::destroy(hierarchies["cpuacct"], info->cgroup));
-
-  return collect(futures)
-    .then(defer(PID<CgroupsCpushareIsolatorProcess>(this),
-                &CgroupsCpushareIsolatorProcess::_cleanup,
-                containerId));
-}
-
-
-Future<Nothing> CgroupsCpushareIsolatorProcess::_cleanup(
-    const ContainerID& containerId)
-{
-  CHECK(infos.contains(containerId));
+  if (!future.isReady()) {
+    return Failure("Failed to clean up container " + stringify(containerId) +
+                   " : " + (future.isFailed() ? future.failure()
+                                              : "discarded"));
+  }
 
   delete infos[containerId];
   infos.erase(containerId);
 
-  return Nothing();
+  return future;
 }
 
 

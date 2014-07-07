@@ -20,6 +20,7 @@
 
 #include <gmock/gmock.h>
 
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,8 @@
 #include <process/owned.hpp>
 #include <process/reap.hpp>
 
+#include <stout/abort.hpp>
+#include <stout/gtest.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
@@ -38,22 +41,27 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
-#ifdef __linux__
-#include "slave/containerizer/linux_launcher.hpp"
-#endif // __linux__
 #include "slave/containerizer/isolator.hpp"
-#include "slave/containerizer/launcher.hpp"
-
-#include "slave/containerizer/isolators/posix.hpp"
 #ifdef __linux__
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
+#include "slave/containerizer/isolators/cgroups/perf_event.hpp"
+#endif // __linux__
+#include "slave/containerizer/isolators/posix.hpp"
+
+#include "slave/containerizer/launcher.hpp"
+#ifdef __linux__
+#include "slave/containerizer/linux_launcher.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/launch.hpp"
 #endif // __linux__
 
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
+
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
@@ -63,16 +71,21 @@ using mesos::internal::master::Master;
 #ifdef __linux__
 using mesos::internal::slave::CgroupsCpushareIsolatorProcess;
 using mesos::internal::slave::CgroupsMemIsolatorProcess;
-using mesos::internal::slave::LinuxLauncher;
+using mesos::internal::slave::CgroupsPerfEventIsolatorProcess;
 #endif // __linux__
 using mesos::internal::slave::Isolator;
 using mesos::internal::slave::IsolatorProcess;
 using mesos::internal::slave::Launcher;
+#ifdef __linux__
+using mesos::internal::slave::LinuxLauncher;
+#endif // __linux__
 using mesos::internal::slave::PosixLauncher;
 using mesos::internal::slave::PosixCpuIsolatorProcess;
 using mesos::internal::slave::PosixMemIsolatorProcess;
-using mesos::internal::slave::Flags;
 
+
+using std::ostringstream;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -82,23 +95,24 @@ using testing::Return;
 using testing::SaveArg;
 
 
-int execute(const std::string& command, int pipes[2])
+static int childSetup(int pipes[2])
 {
-  // In child process
-  ::close(pipes[1]);
+  // In child process.
+  while (::close(pipes[1]) == -1 && errno == EINTR);
 
   // Wait until the parent signals us to continue.
-  int buf;
-  while (::read(pipes[0], &buf, sizeof(buf)) == -1 && errno == EINTR);
-  ::close(pipes[0]);
-
-  execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
-
-  const char* message = "Child failed to exec";
-  while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
+  char dummy;
+  ssize_t length;
+  while ((length = ::read(pipes[0], &dummy, sizeof(dummy))) == -1 &&
          errno == EINTR);
 
-  _exit(1);
+  if (length != sizeof(dummy)) {
+    ABORT("Failed to synchronize with parent");
+  }
+
+  while (::close(pipes[0]) == -1 && errno == EINTR);
+
+  return 0;
 }
 
 
@@ -116,7 +130,7 @@ TYPED_TEST_CASE(CpuIsolatorTest, CpuIsolatorTypes);
 
 TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
 {
-  Flags flags;
+  slave::Flags flags;
 
   Try<Isolator*> isolator = TypeParam::create(flags);
   CHECK_SOME(isolator);
@@ -145,24 +159,38 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  lambda::function<int()> inChild = lambda::bind(&execute, command, pipes);
+  vector<string> argv(3);
+  argv[0] = "sh";
+  argv[1] = "-c";
+  argv[2] = command;
 
-  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      lambda::bind(&childSetup, pipes));
+
   ASSERT_SOME(pid);
 
   // Reap the forked child.
   Future<Option<int> > status = process::reap(pid.get());
 
   // Continue in the parent.
-  ::close(pipes[0]);
+  ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
-  int buf;
-  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
-  ::close(pipes[1]);
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+
+  ASSERT_SOME(os::close(pipes[1]));
 
   // Wait for the command to start.
   while (!os::exists(file));
@@ -206,7 +234,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
 
 TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
 {
-  Flags flags;
+  slave::Flags flags;
 
   Try<Isolator*> isolator = TypeParam::create(flags);
   CHECK_SOME(isolator);
@@ -236,24 +264,38 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  lambda::function<int()> inChild = lambda::bind(&execute, command, pipes);
+  vector<string> argv(3);
+  argv[0] = "sh";
+  argv[1] = "-c";
+  argv[2] = command;
 
-  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      lambda::bind(&childSetup, pipes));
+
   ASSERT_SOME(pid);
 
   // Reap the forked child.
   Future<Option<int> > status = process::reap(pid.get());
 
   // Continue in the parent.
-  ::close(pipes[0]);
+  ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
-  int buf;
-  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
-  ::close(pipes[1]);
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+
+  ASSERT_SOME(os::close(pipes[1]));
 
   // Wait for the command to start.
   while (!os::exists(file));
@@ -300,7 +342,7 @@ class LimitedCpuIsolatorTest : public MesosTest {};
 
 TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
 {
-  Flags flags;
+  slave::Flags flags;
 
   // Enable CFS to cap CPU utilization.
   flags.cgroups_enable_cfs = true;
@@ -333,24 +375,38 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  lambda::function<int()> inChild = lambda::bind(&execute, command, pipes);
+  vector<string> argv(3);
+  argv[0] = "sh";
+  argv[1] = "-c";
+  argv[2] = command;
 
-  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      lambda::bind(&childSetup, pipes));
+
   ASSERT_SOME(pid);
 
   // Reap the forked child.
   Future<Option<int> > status = process::reap(pid.get());
 
   // Continue in the parent.
-  ::close(pipes[0]);
+  ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
-  int buf;
-  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
-  ::close(pipes[1]);
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+
+  ASSERT_SOME(os::close(pipes[1]));
 
   // Wait for the command to complete.
   AWAIT_READY(status);
@@ -387,7 +443,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
 // of cpus that an executor can use based on the slave cpus.
 TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
 {
-  Flags flags;
+  slave::Flags flags;
 
   // Enable CFS to cap CPU utilization.
   flags.cgroups_enable_cfs = true;
@@ -411,24 +467,38 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  lambda::function<int()> inChild = lambda::bind(&execute, "exit 0", pipes);
+  vector<string> argv(3);
+  argv[0] = "sh";
+  argv[1] = "-c";
+  argv[2] = "exit 0";
 
-  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      argv,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      lambda::bind(&childSetup, pipes));
+
   ASSERT_SOME(pid);
 
   // Reap the forked child.
   Future<Option<int> > status = process::reap(pid.get());
 
   // Continue in the parent.
-  ::close(pipes[0]);
+  ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
-  int buf;
-  ASSERT_LT(0, ::write(pipes[1],  &buf, sizeof(buf)));
-  ::close(pipes[1]);
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+
+  ASSERT_SOME(os::close(pipes[1]));
 
   // Wait for the command to complete successfully.
   AWAIT_READY(status);
@@ -464,13 +534,20 @@ TYPED_TEST_CASE(MemIsolatorTest, MemIsolatorTypes);
 // posix_memalign, mlock, memset and perror are not safe.
 int consumeMemory(const Bytes& _size, const Duration& duration, int pipes[2])
 {
-  // In child process
-  ::close(pipes[1]);
+  // In child process.
+  while (::close(pipes[1]) == -1 && errno == EINTR);
 
-  int buf;
   // Wait until the parent signals us to continue.
-  while (::read(pipes[0], &buf, sizeof(buf)) == -1 && errno == EINTR);
-  ::close(pipes[0]);
+  char dummy;
+  ssize_t length;
+  while ((length = ::read(pipes[0], &dummy, sizeof(dummy))) == -1 &&
+         errno == EINTR);
+
+  if (length != sizeof(dummy)) {
+    ABORT("Failed to synchronize with parent");
+  }
+
+  while (::close(pipes[0]) == -1 && errno == EINTR);
 
   size_t size = static_cast<size_t>(_size.bytes());
   void* buffer = NULL;
@@ -500,7 +577,7 @@ int consumeMemory(const Bytes& _size, const Duration& duration, int pipes[2])
 
 TYPED_TEST(MemIsolatorTest, MemUsage)
 {
-  Flags flags;
+  slave::Flags flags;
 
   Try<Isolator*> isolator = TypeParam::create(flags);
   CHECK_SOME(isolator);
@@ -520,28 +597,33 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  lambda::function<int()> inChild = lambda::bind(
-      &consumeMemory,
-      Megabytes(256),
-      Seconds(10),
-      pipes);
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      vector<string>(),
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      lambda::bind(&consumeMemory, Megabytes(256), Seconds(10), pipes));
 
-  Try<pid_t> pid = launcher.get()->fork(containerId, inChild);
   ASSERT_SOME(pid);
 
   // Set up the reaper to wait on the forked child.
   Future<Option<int> > status = process::reap(pid.get());
 
   // Continue in the parent.
-  ::close(pipes[0]);
+  ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
-  int buf;
-  ASSERT_LT(0, ::write(pipes[1], &buf, sizeof(buf)));
-  ::close(pipes[1]);
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+
+  ASSERT_SOME(os::close(pipes[1]));
 
   // Wait up to 5 seconds for the child process to consume 256 MB of memory;
   ResourceStatistics statistics;
@@ -576,3 +658,74 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   delete isolator.get();
   delete launcher.get();
 }
+
+
+#ifdef __linux__
+class PerfEventIsolatorTest : public MesosTest {};
+
+TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
+{
+  slave::Flags flags;
+
+  flags.perf_events = "cycles,task-clock";
+  flags.perf_duration = Milliseconds(250);
+  flags.perf_interval = Milliseconds(500);
+
+  Try<Isolator*> isolator = CgroupsPerfEventIsolatorProcess::create(flags);
+  CHECK_SOME(isolator);
+
+  ExecutorInfo executorInfo;
+
+  ContainerID containerId;
+  containerId.set_value("test");
+
+  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo));
+
+  // This first sample is likely to be empty because perf hasn't
+  // completed yet but we should still have the required fields.
+  Future<ResourceStatistics> statistics1 = isolator.get()->usage(containerId);
+  AWAIT_READY(statistics1);
+  ASSERT_TRUE(statistics1.get().has_perf());
+  EXPECT_TRUE(statistics1.get().perf().has_timestamp());
+  EXPECT_TRUE(statistics1.get().perf().has_duration());
+
+  // Wait until we get the next sample. We use a generous timeout of
+  // two seconds because we currently have a one second reap interval;
+  // when running perf with perf_duration of 250ms we won't notice the
+  // exit for up to one second.
+  ResourceStatistics statistics2;
+  Duration waited = Duration::zero();
+  do {
+    Future<ResourceStatistics> statistics = isolator.get()->usage(containerId);
+    AWAIT_READY(statistics);
+
+    statistics2 = statistics.get();
+
+    ASSERT_TRUE(statistics2.has_perf());
+
+    if (statistics1.get().perf().timestamp() !=
+        statistics2.perf().timestamp()) {
+      break;
+    }
+
+    os::sleep(Milliseconds(250));
+    waited += Milliseconds(250);
+  } while (waited < Seconds(2));
+
+  sleep(2);
+
+  EXPECT_NE(statistics1.get().perf().timestamp(),
+            statistics2.perf().timestamp());
+
+  EXPECT_TRUE(statistics2.perf().has_cycles());
+  EXPECT_LE(0u, statistics2.perf().cycles());
+
+  EXPECT_TRUE(statistics2.perf().has_task_clock());
+  EXPECT_LE(0.0, statistics2.perf().task_clock());
+
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete isolator.get();
+}
+
+#endif // __linux__

@@ -25,10 +25,15 @@
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
+#include <stout/protobuf.hpp>
+
+#include "common/parse.hpp"
 
 #include "logging/flags.hpp"
 
 #include "master/constants.hpp"
+
+#include "mesos/mesos.hpp"
 
 namespace mesos {
 namespace internal {
@@ -175,9 +180,10 @@ public:
         "Human readable name for the cluster,\n"
         "displayed in the webui.");
 
+    // TODO(vinod): Deprecate this in favor of '--acls'.
     add(&Flags::roles,
         "roles",
-        "A comma seperated list of the allocation\n"
+        "A comma separated list of the allocation\n"
         "roles that frameworks in this cluster may\n"
         "belong to.");
 
@@ -203,34 +209,80 @@ public:
 
     add(&Flags::credentials,
         "credentials",
-        "Path to a file with a list of credentials.\n"
-        "Each line contains 'principal' and 'secret' separated by whitespace.\n"
-        "Path could be of the form 'file:///path/to/file' or '/path/to/file'.");
+        "Either a path to a text file with a list of credentials,\n"
+        "each line containing 'principal' and 'secret' separated by "
+        "whitespace,\n"
+        "or, a path to a JSON-formatted file containing credentials\n"
+        "for identification/registration and http authentication."
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'."
+        "\n"
+        "JSON file Example:\n"
+        "{\n"
+        "  \"http\": [\n"
+        "             {\n"
+        "                \"principal\": \"username\",\n"
+        "                \"secret\": \"secret\",\n"
+        "             }\n"
+        "            ],\n"
+        "  \"identification\": [\n"
+        "                       {\n"
+        "                          \"principal\": \"username\",\n"
+        "                          \"secret\": \"secret\",\n"
+        "                       }\n"
+        "                      ]\n"
+        "}\n"
+        "Text file Example:\n"
+        "username secret\n"
+        );
 
-    // TODO(vinod): Expose this flag once the authorization feature is
-    // code complete.
-//  add(&Flags::acls,
-//      "acls",
-//      "The value could be a JSON formatted string of ACLs\n"
-//      "or a file path containing the JSON formatted ACLs used\n"
-//      "for authorization. Path could be of the form 'file:///path/to/file'\n"
-//      "or '/path/to/file'.\n"
-//      "\n"
-//      "See the ACL protobuf in mesos.proto for the expected format.\n"
-//      "\n"
-//      "Example:\n"
-//      "{\n"
-//      "  \"run_tasks\": [\n"
-//      "                  {\n"
-//      "                     \"principals\": { values: [\"foo\", \"bar\"] },\n"
-//      "                     \"users\": { values: [\"root\"] }\n"
-//      "                  },\n"
-//      "                  {\n"
-//      "                     \"principals\": { type: \"ANY\" },\n"
-//      "                     \"users\": { values: [\"guest\"] }\n"
-//      "                  }\n"
-//      "                ]\n"
-//      "}");
+    add(&Flags::acls,
+        "acls",
+        "The value could be a JSON formatted string of ACLs\n"
+        "or a file path containing the JSON formatted ACLs used\n"
+        "for authorization. Path could be of the form 'file:///path/to/file'\n"
+        "or '/path/to/file'.\n"
+        "\n"
+        "See the ACLs protobuf in mesos.proto for the expected format.\n"
+        "\n"
+        "Example:\n"
+        "{\n"
+        "  \"run_tasks\": [\n"
+        "                  {\n"
+        "                     \"principals\": { \"values\": [\"a\", \"b\"] },\n"
+        "                     \"users\": { \"values\": [\"root\"] }\n"
+        "                  }\n"
+        "                ],\n"
+        "  \"receive_offers\": [\n"
+        "                       {\n"
+        "                          \"principals\": { \"type\": \"ANY\" },\n"
+        "                          \"roles\": { \"values\": [\"foo\"] }\n"
+        "                       }\n"
+        "                     ]\n"
+        "}");
+
+    add(&Flags::rate_limits,
+        "rate_limits",
+        "The value could be a JSON formatted string of rate limits\n"
+        "or a file path containing the JSON formatted rate limits used\n"
+        "for framework rate limiting.\n"
+        "Path could be of the form 'file:///path/to/file'\n"
+        "or '/path/to/file'.\n"
+        "\n"
+        "See the RateLimits protobuf in mesos.proto for the expected format.\n"
+        "\n"
+        "Example:\n"
+        "{\n"
+        "  \"limits\": [\n"
+        "    {\n"
+        "      \"principal\": \"foo\",\n"
+        "      \"qps\": 55.5\n"
+        "    },\n"
+        "    {\n"
+        "      \"principal\": \"bar\"\n"
+        "    }\n"
+        "  ],\n"
+        "  \"aggregate_default_qps\": 33.3\n"
+        "}");
   }
 
   bool version;
@@ -257,7 +309,8 @@ public:
   bool authenticate_frameworks;
   bool authenticate_slaves;
   Option<std::string> credentials;
-  Option<JSON::Object> acls;
+  Option<ACLs> acls;
+  Option<RateLimits> rate_limits;
 };
 
 } // namespace mesos {

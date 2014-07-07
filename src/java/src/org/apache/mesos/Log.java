@@ -75,8 +75,15 @@ public class Log {
       return bytes;
     }
 
-    /* A Position is (and should only be) invoked by the underlying JNI. */
-    private Position(long value) {
+    /**
+     * Creates a position identified by an integral {@code value}.
+     * <p>
+     * Positions are typically only created by the log implementation. Log
+     * users should only ever need to call this constructor in unit tests.
+     *
+     * @param value the marker for this position in the log.
+     */
+    public Position(long value) {
       this.value = value;
     }
 
@@ -91,8 +98,16 @@ public class Log {
     public final Position position;
     public final byte[] data;
 
-    /* An Entry is (and should only be) invoked by the underlying JNI. */
-    private Entry(Position position, byte[] data) {
+    /**
+     * Creates a log entry.
+     * <p>
+     * Entries are typically only created by the log implementation. Log
+     * users should only ever need to call this constructor in unit tests.
+     *
+     * @param position the unique position of this entry within the log.
+     * @param data the content stored in this entry.
+     */
+    public Entry(Position position, byte[] data) {
       this.position = position;
       this.data = data;
     }

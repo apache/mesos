@@ -24,13 +24,14 @@
 
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {
 namespace credentials {
 
-inline Result<std::vector<Credential> > read(const std::string& path)
+inline Result<Credentials> read(const std::string& path)
 {
   LOG(INFO) << "Loading credentials for authentication from '" << path << "'";
 
@@ -52,22 +53,76 @@ inline Result<std::vector<Credential> > read(const std::string& path)
                  << "credentials file is NOT accessible by others.";
   }
 
-  std::vector<Credential> credentials;
+  // TODO(ijimenez) deprecate text support only JSON like acls
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
+  if (!json.isError()) {
+    Try<Credentials> credentials = ::protobuf::parse<Credentials>(json.get());
+    if (!credentials.isError()) {
+      return credentials.get();
+    }
+  }
+
+  Credentials credentials;
   foreach (const std::string& line, strings::tokenize(read.get(), "\n")) {
     const std::vector<std::string>& pairs = strings::tokenize(line, " ");
     if (pairs.size() != 2) {
-      return Error("Invalid credential format at line: " +
-                   stringify(credentials.size() + 1));
+        return Error("Invalid credential format at line " +
+                     stringify(credentials.registration().size() + 1));
     }
 
     // Add the credential.
-    Credential credential;
-    credential.set_principal(pairs[0]);
-    credential.set_secret(pairs[1]);
-    credentials.push_back(credential);
+    Credential* credential = credentials.add_registration();
+    credential->set_principal(pairs[0]);
+    credential->set_secret(pairs[1]);
+  }
+  return credentials;
+}
+
+
+inline Result<Credential> readCredential(const std::string& path)
+{
+  LOG(INFO) << "Loading credential for authentication from '" << path << "'";
+
+  Try<std::string> read = os::read(path);
+  if (read.isError()) {
+    return Error("Failed to read credential file '" + path +
+                 "': " + read.error());
+  } else if (read.get().empty()) {
+    return None();
   }
 
-  return credentials;
+  Try<os::Permissions> permissions = os::permissions(path);
+  if (permissions.isError()) {
+    LOG(WARNING) << "Failed to stat credential file '" << path
+                 << "': " << permissions.error();
+  } else if (permissions.get().others.rwx) {
+    LOG(WARNING) << "Permissions on credential file '" << path
+                 << "' are too open. It is recommended that your "
+                 << "credential file is NOT accessible by others.";
+  }
+
+  // TODO(ijimenez): Deprecate text support for only JSON ACLs.
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
+  if (!json.isError()) {
+    Try<Credential> credential = ::protobuf::parse<Credential>(json.get());
+    if (!credential.isError()) {
+      return credential.get();
+    }
+  }
+
+  Credential credential;
+  const std::vector<std::string>& line = strings::tokenize(read.get(), "\n");
+  if (line.size() != 1) {
+    return Error("Expecting only one credential");
+  }
+  const std::vector<std::string>& pairs = strings::tokenize(line[0], " ");
+  if (pairs.size() != 2) {
+    return Error("Invalid credential format");
+  }
+  // Add the credential.
+  credential.set_principal(pairs[0]);
+  credential.set_secret(pairs[1]);
+  return credential;
 }
 
 } // namespace credentials {

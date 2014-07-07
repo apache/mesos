@@ -56,8 +56,10 @@ public:
 
     add(&Flags::isolation,
         "isolation",
-        "Isolation mechanisms to use, e.g., 'posix/cpu,posix/mem'\n"
-        "or 'cgroups/cpu,cgroups/mem' or 'external'.",
+        "Isolation mechanisms to use, e.g., 'posix/cpu,posix/mem', or\n"
+        "'cgroups/cpu,cgroups/mem', or network/port_mapping\n"
+        "(configure with flag: --with-network-isolator to enable),\n"
+        "or 'external'.",
         "posix/cpu,posix/mem");
 
     add(&Flags::default_role,
@@ -213,13 +215,46 @@ public:
         "Present functionality is intended for resource monitoring and\n"
         "no cgroup limits are set, they are inherited from the root mesos\n"
         "cgroup.");
+
+    add(&Flags::perf_events,
+        "perf_events",
+        "List of command-separated perf events to sample for each container\n"
+        "when using the perf_event isolator. Default is none.\n"
+        "Run command 'perf list' to see all events. Event names are\n"
+        "sanitized by downcasing and replacing hyphens with underscores\n"
+        "when reported in the PerfStatistics protobuf, e.g., cpu-cycles\n"
+        "becomes cpu_cycles; see the PerfStatistics protobuf for all names.");
+
+    add(&Flags::perf_interval,
+        "perf_interval",
+        "Interval between the start of perf stat samples. Perf samples are\n"
+        "obtained periodically according to perf_interval and the most\n"
+        "recently obtained sample is returned rather than sampling on\n"
+        "demand. For this reason, perf_interval is independent of the\n"
+        "resource monitoring interval",
+        Seconds(60));
+
+    add(&Flags::perf_duration,
+        "perf_duration",
+        "Duration of a perf stat sample. The duration must be less\n"
+        "that the perf_interval.",
+        Seconds(10));
 #endif
 
     add(&Flags::credential,
         "credential",
-        "Path to a file containing a single line with\n"
-        "the 'principal' and 'secret' separated by whitespace.\n"
-        "Path could be of the form 'file:///path/to/file' or '/path/to/file'");
+        "Either a path to a text with a single line\n"
+        "containing 'principal' and 'secret' separated by "
+        "whitespace.\n"
+        "Or a path containing the JSON "
+        "formatted information used for one credential.\n"
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'."
+        "\n"
+        "Example:\n"
+        "{\n"
+        "    \"principal\": \"username\",\n"
+        "    \"secret\": \"secret\",\n"
+        "}");
 
     add(&Flags::containerizer_path,
         "containerizer_path",
@@ -230,6 +265,34 @@ public:
         "default_container_image",
         "The default container image to use if not specified by a task,\n"
         "when using external containerizer");
+
+#ifdef WITH_NETWORK_ISOLATOR
+    add(&Flags::ephemeral_ports_per_container,
+        "ephemeral_ports_per_container",
+        "Number of ephemeral ports allocated to a container by the network\n"
+        "isolator. This number has to be a power of 2.\n",
+        DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER);
+
+    add(&Flags::private_resources,
+        "private_resources",
+        "The resources that will be manged by the slave locally, and not\n"
+        "exposed to Mesos master and frameworks. It shares the same format\n"
+        "as the 'resources' flag. One example of such type of resources\n"
+        "is ephemeral ports when port mapping network isolator is enabled.\n"
+        "Use 'ports:[x-y]' to specify the ephemeral ports that will be\n"
+        "locally managed.\n");
+
+    add(&Flags::eth0_name,
+        "eth0_name",
+        "The name of the public network interface (e.g., eth0). If it is\n"
+        "not specified, the network isolator will try to guess it based\n"
+        "on the host default gateway.");
+
+    add(&Flags::lo_name,
+        "lo_name",
+        "The name of the loopback network interface (e.g., lo). If it is\n"
+        "not specified, the network isolator will try to guess it.");
+#endif // WITH_NETWORK_ISOLATOR
   }
 
   bool version;
@@ -260,10 +323,19 @@ public:
   Option<std::string> cgroups_subsystems;
   bool cgroups_enable_cfs;
   Option<std::string> slave_subsystems;
+  Option<std::string> perf_events;
+  Duration perf_interval;
+  Duration perf_duration;
 #endif
   Option<std::string> credential;
   Option<std::string> containerizer_path;
   Option<std::string> default_container_image;
+#ifdef WITH_NETWORK_ISOLATOR
+  uint16_t ephemeral_ports_per_container;
+  Option<std::string> private_resources;
+  Option<std::string> eth0_name;
+  Option<std::string> lo_name;
+#endif
 };
 
 } // namespace mesos {

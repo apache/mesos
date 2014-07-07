@@ -43,6 +43,7 @@
 #include <stout/uuid.hpp>
 
 #include "common/type_utils.hpp"
+#include "common/status_utils.hpp"
 
 #include "slave/paths.hpp"
 
@@ -61,6 +62,9 @@ using std::vector;
 using tuples::tuple;
 
 using namespace process;
+
+using namespace mesos::internal::status;
+
 
 namespace mesos {
 namespace internal {
@@ -87,14 +91,8 @@ static Option<Error> validate(
 
   // The status is a waitpid-result which has to be checked for SIGNAL
   // based termination before masking out the exit-code.
-  if (!WIFEXITED(status.get())) {
-    return Error(string("External containerizer terminated by signal ") +
-                 strsignal(WTERMSIG(status.get())));
-  }
-
-  if (WEXITSTATUS(status.get()) != 0) {
-    return Error("External containerizer failed (status: " +
-                 stringify(WEXITSTATUS(status.get())) + ")");
+  if (!WIFEXITED(status.get()) || WEXITSTATUS(status.get()) != 0) {
+    return Error("Externel containerizer " + WSTRINGIFY(status.get()));
   }
 
   return None();
@@ -626,7 +624,7 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
     &::protobuf::read<containerizer::Termination>;
 
   Future<Result<containerizer::Termination> > future = async(
-      read, invoked.get().out(), false, false);
+      read, invoked.get().out().get(), false, false);
 
   // Await both, a protobuf Message from the subprocess as well as
   // its exit.
@@ -817,7 +815,7 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
     &::protobuf::read<ResourceStatistics>;
 
   Future<Result<ResourceStatistics> > future = async(
-      read, invoked.get().out(), false, false);
+      read, invoked.get().out().get(), false, false);
 
   // Await both, a protobuf Message from the subprocess as well as
   // its exit.
@@ -955,7 +953,7 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::containers()
     &::protobuf::read<containerizer::Containers>;
 
   Future<Result<containerizer::Containers> > future = async(
-      read, invoked.get().out(), false, false);
+      read, invoked.get().out().get(), false, false);
 
   // Await both, a protobuf Message from the subprocess as well as
   // its exit.
@@ -1116,6 +1114,9 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
   // the child-context.
   Try<Subprocess> external = process::subprocess(
       execute,
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
       environment,
       lambda::bind(&setup, sandbox.isSome() ? sandbox.get().directory
                                             : string()));
@@ -1128,11 +1129,11 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
   // Sync parent and child process to make sure we have done the
   // setsid within the child context before continuing.
   int sync;
-  while (::read(external.get().out(), &sync, sizeof(sync)) == -1 &&
+  while (::read(external.get().out().get(), &sync, sizeof(sync)) == -1 &&
          errno == EINTR);
 
   // Set stderr into non-blocking mode.
-  Try<Nothing> nonblock = os::nonblock(external.get().err());
+  Try<Nothing> nonblock = os::nonblock(external.get().err().get());
   if (nonblock.isError()) {
     return Error("Failed to accept nonblock: " + nonblock.error());
   }
@@ -1170,14 +1171,14 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
 
   // TODO(tillt): Consider adding an overload to io::redirect
   // that accepts a file path as 'to' for further reducing code.
-  io::redirect(external.get().err(), err.get());
+  io::redirect(external.get().err().get(), err.get());
 
   // Redirect does 'dup' the file descriptor, hence we can close the
   // original now.
   os::close(err.get());
 
   VLOG(2) << "Subprocess pid: " << external.get().pid() << ", "
-          << "output pipe: " << external.get().out();
+          << "output pipe: " << external.get().out().get();
 
   return external;
 }
@@ -1196,7 +1197,7 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
 
   // Transmit protobuf data via stdout towards the external
   // containerizer. Each message is prefixed by its total size.
-  Try<Nothing> write = ::protobuf::write(external.get().in(), message);
+  Try<Nothing> write = ::protobuf::write(external.get().in().get(), message);
   if (write.isError()) {
     return Error("Failed to write protobuf to pipe: " + write.error());
   }

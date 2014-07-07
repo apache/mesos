@@ -42,11 +42,12 @@ public interface SchedulerDriver {
   /**
    * Stops the scheduler driver. If the 'failover' flag is set to
    * false then it is expected that this framework will never
-   * reconnect to Mesos and all of it's executors and tasks can be
-   * terminated. Otherwise, all executors and tasks will remain
-   * running (for some master specified failover timeout) allowing the
-   * scheduler to reconnect (possibly in the same process, or from a
-   * different process, for example, on a different machine).
+   * reconnect to Mesos. So Mesos will unregister the framework
+   * and shutdown all its tasks and executors. If 'failover' is true,
+   * all executors and tasks will remain running (for some framework
+   * specific failover timeout) allowing the scheduler to reconnect
+   * (possibly in the same process, or from a different process, for
+   * example, on a different machine).
    *
    * @param failover Whether framework failover is expected.
    * @return The state of the driver after the call.
@@ -54,7 +55,10 @@ public interface SchedulerDriver {
   Status stop(boolean failover);
 
   /**
-   * Stops the scheduler driver assuming no failover.
+   * Stops the scheduler driver assuming no failover. This will
+   * cause Mesos to unregister the framework and shutdown all
+   * its tasks and executors. Please see {@link #stop(boolean)}
+   * for more details.
    *
    * @return The state of the driver after the call.
    */
@@ -130,10 +134,7 @@ public interface SchedulerDriver {
   Status launchTasks(Collection<OfferID> offerIds, Collection<TaskInfo> tasks);
 
   /**
-   * @deprecated Use launchTasks(
-   *                     Collection<OfferID> offerId,
-   *                     Collection<TaskInfo> tasks,
-   *                     Filters filters) instead.
+   * @deprecated Use {@link #launchTasks(Collection, Collection, Filters)}.
    *
    * @param offerId The offer ID.
    * @param tasks The collection of tasks to be launched.
@@ -145,9 +146,7 @@ public interface SchedulerDriver {
                      Filters filters);
 
   /**
-   * @deprecated Use launchTasks(
-   *                     Collection<OfferID> offerId,
-   *                     Collection<TaskInfo> tasks) instead.
+   * @deprecated Use {@link #launchTasks(Collection, Collection)}.
    *
    * @param offerId The offer ID.
    * @param tasks The collection of tasks to be launched.
@@ -212,10 +211,14 @@ public interface SchedulerDriver {
                               byte[] data);
 
   /**
-   * Reconciliation of tasks causes the master to send status updates for tasks
-   * whose status differs from the status sent here.
+   * Allows the framework to query the status for non-terminal tasks.
+   * This causes the master to send back the latest task status for
+   * each task in 'statuses', if possible. Tasks that are no longer
+   * known will result in a TASK_LOST update. If statuses is empty,
+   * then the master will send the latest status for each task
+   * currently known.
    *
-   * @param statuses The collection of tasks and statuses to reconcile.
+   * @param statuses The collection of non-terminal TaskStatuses to reconcile.
    * @return The state of the driver after the call.
    */
   Status reconcileTasks(Collection<TaskStatus> statuses);

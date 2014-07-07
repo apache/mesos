@@ -59,6 +59,9 @@
 
 #include "messages/messages.hpp"
 
+namespace process {
+class RateLimiter; // Forward declaration.
+}
 
 namespace mesos {
 namespace internal {
@@ -86,10 +89,10 @@ class SlaveObserver;
 class WhitelistWatcher;
 
 struct Framework;
-struct Slave;
-struct Role;
 struct OfferVisitor;
-
+struct Role;
+struct Slave;
+struct TaskInfoVisitor;
 
 class Master : public ProtobufProcess<Master>
 {
@@ -100,6 +103,7 @@ public:
          Files* files,
          MasterContender* contender,
          MasterDetector* detector,
+         const Option<Authorizer*>& authorizer,
          const Flags& flags = Flags());
 
   virtual ~Master();
@@ -126,7 +130,6 @@ public:
   void launchTasks(
       const process::UPID& from,
       const FrameworkID& frameworkId,
-      const OfferID& offerId,
       const std::vector<TaskInfo>& tasks,
       const Filters& filters,
       const std::vector<OfferID>& offerIds);
@@ -235,6 +238,11 @@ protected:
   virtual void finalize();
   virtual void exited(const process::UPID& pid);
   virtual void visit(const process::MessageEvent& event);
+  virtual void visit(const process::ExitedEvent& event);
+
+  // Continuations of visit().
+  void _visit(const process::MessageEvent& event);
+  void _visit(const process::ExitedEvent& event);
 
   // Recovers state from the registrar.
   process::Future<Nothing> recover();
@@ -275,6 +283,19 @@ protected:
       const std::vector<ExecutorInfo>& executors,
       const std::vector<Task>& tasks);
 
+  // 'registerFramework()' continuation.
+  void _registerFramework(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      const process::Future<Option<Error> >& validationError);
+
+  // 'reregisterFramework()' continuation.
+  void _reregisterFramework(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      bool failover,
+      const process::Future<Option<Error> >& validationError);
+
   // Add a framework.
   void addFramework(Framework* framework);
 
@@ -310,11 +331,27 @@ protected:
       const std::vector<StatusUpdate>& updates,
       const process::Future<bool>& removed);
 
-  // Launch a task from a task description, and returned the consumed
-  // resources for the task and possibly it's executor.
-  Resources launchTask(const TaskInfo& task,
-                       Framework* framework,
-                       Slave* slave);
+  // Validates the task including authorization.
+  // Returns None if the task is valid.
+  // Returns Error if the task is invalid.
+  // Returns Failure if authorization returns 'Failure'.
+  process::Future<Option<Error> > validateTask(
+      const TaskInfo& task,
+      Framework* framework,
+      Slave* slave,
+      const Resources& totalResources);
+
+  // Launch a task from a task description.
+  void launchTask(const TaskInfo& task, Framework* framework, Slave* slave);
+
+  // 'launchTasks()' continuation.
+  void _launchTasks(
+      const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const std::vector<TaskInfo>& tasks,
+      const Resources& totalResources,
+      const Filters& filters,
+      const process::Future<std::list<process::Future<Option<Error> > > >& f);
 
   // Remove a task.
   void removeTask(Task* task);
@@ -402,6 +439,8 @@ private:
   MasterContender* contender;
   MasterDetector* detector;
 
+  const Option<Authorizer*> authorizer;
+
   MasterInfo info_;
 
   // Indicates when recovery is complete. Recovery begins once the
@@ -453,6 +492,17 @@ private:
 
     hashmap<FrameworkID, Framework*> activated;
     boost::circular_buffer<memory::shared_ptr<Framework> > completed;
+
+    // Principals of frameworks keyed by PID.
+    // NOTE: Multiple PIDs can map to the same principal. The
+    // principal is None when the framework doesn't specify it.
+    // The differences between this map and 'authenticated' are:
+    // 1) This map only includes *registered* frameworks. The mapping
+    //    is added when a framework (re-)registers.
+    // 2) This map includes unauthenticated frameworks (when Master
+    //    allows them) if they have principals specified in
+    //    FrameworkInfo.
+    hashmap<process::UPID, Option<std::string> > principals;
   } frameworks;
 
   hashmap<OfferID, Offer*> offers;
@@ -468,8 +518,6 @@ private:
 
   // Principals of authenticated frameworks/slaves keyed by PID.
   hashmap<process::UPID, std::string> authenticated;
-
-  Option<process::Owned<Authorizer> > authorizer;
 
   int64_t nextFrameworkId; // Used to give each framework a unique ID.
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.
@@ -515,6 +563,48 @@ private:
     // Message counters.
     process::metrics::Counter dropped_messages;
 
+    // Metrics specific to frameworks of a common principal.
+    // These metrics have names prefixed by "frameworks/<principal>/".
+    struct Frameworks
+    {
+      // Counters for messages from all frameworks of this principal.
+      // Note: We only count messages from active scheduler
+      // *instances* while they are *registered*. i.e., messages
+      // prior to the completion of (re)registration
+      // (AuthenticateMessage and (Re)RegisterFrameworkMessage) and
+      // messages from an inactive scheduler instance (after the
+      // framework has failed over) are not counted.
+
+      // Framework messages received (before processing).
+      process::metrics::Counter messages_received;
+
+      // Framework messages processed.
+      // NOTE: This doesn't include dropped messages. Processing of
+      // a message may be throttled by a RateLimiter if one is
+      // configured for this principal. Also due to Master's
+      // asynchronous nature, this doesn't necessarily mean the work
+      // requested by this message has finished.
+      process::metrics::Counter messages_processed;
+
+      explicit Frameworks(const std::string& principal)
+        : messages_received("frameworks/" + principal + "/messages_received"),
+          messages_processed("frameworks/" + principal + "/messages_processed")
+      {
+        process::metrics::add(messages_received);
+        process::metrics::add(messages_processed);
+      }
+
+      ~Frameworks()
+      {
+        process::metrics::remove(messages_received);
+        process::metrics::remove(messages_processed);
+      }
+    };
+
+    // Per-framework-principal metrics keyed by the framework
+    // principal.
+    hashmap<std::string, process::Owned<Frameworks> > frameworks;
+
     // Messages from schedulers.
     process::metrics::Counter messages_register_framework;
     process::metrics::Counter messages_reregister_framework;
@@ -551,7 +641,9 @@ private:
     process::metrics::Counter recovery_slave_removals;
 
     // Process metrics.
-    process::metrics::Gauge event_queue_size;
+    process::metrics::Gauge event_queue_messages;
+    process::metrics::Gauge event_queue_dispatches;
+    process::metrics::Gauge event_queue_http_requests;
 
     // Successful registry operations.
     process::metrics::Counter slave_registrations;
@@ -594,17 +686,19 @@ private:
     return offers.size();
   }
 
-  double _event_queue_size()
+  double _event_queue_messages()
   {
-    size_t size;
+    return static_cast<double>(eventCount<process::MessageEvent>());
+  }
 
-    lock();
-    {
-      size = events.size();
-    }
-    unlock();
+  double _event_queue_dispatches()
+  {
+    return static_cast<double>(eventCount<process::DispatchEvent>());
+  }
 
-    return static_cast<double>(size);
+  double _event_queue_http_requests()
+  {
+    return static_cast<double>(eventCount<process::HttpEvent>());
   }
 
   double _tasks_staging();
@@ -618,6 +712,23 @@ private:
   process::Time startTime; // Start time used to calculate uptime.
 
   Option<process::Time> electedTime; // Time when this master is elected.
+
+  // Validates the framework including authorization.
+  // Returns None if the framework is valid.
+  // Returns Error if the framework is invalid.
+  // Returns Failure if authorization returns 'Failure'.
+  process::Future<Option<Error> > validate(
+      const FrameworkInfo& frameworkInfo,
+      const process::UPID& from);
+
+  // RateLimiters keyed by the framework principal.
+  // Like Metrics::Frameworks, all frameworks of the same principal
+  // are throttled together at a common rate limit.
+  hashmap<std::string, Option<process::Owned<process::RateLimiter> > > limiters;
+
+  // The default limiter is for frameworks not specified in
+  // 'flags.rate_limits'.
+  Option<process::Owned<process::RateLimiter> > defaultLimiter;
 };
 
 
@@ -890,6 +1001,10 @@ struct Framework
   process::Time registeredTime;
   process::Time reregisteredTime;
   process::Time unregisteredTime;
+
+  // Tasks that have not yet been launched because they are being
+  // validated (e.g., authorized).
+  hashmap<TaskID, TaskInfo> pendingTasks;
 
   hashmap<TaskID, Task*> tasks;
 

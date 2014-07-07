@@ -155,7 +155,6 @@ message ResourceOffersMessage {
 
 message LaunchTasksMessage {
   required FrameworkID framework_id = 1;
-  optional OfferID offer_id = 2; // Deprecated.
   repeated TaskInfo tasks = 3;
   required Filters filters = 5;
   repeated OfferID offer_ids = 6;
@@ -209,9 +208,15 @@ message LostSlaveMessage {
 }
 
 
+// Allows the framework to query the status for non-terminal tasks.
+// This causes the master to send back the latest task status for
+// each task in 'statuses', if possible. Tasks that are no longer
+// known will result in a TASK_LOST update. If statuses is empty,
+// then the master will send the latest status for each task
+// currently known.
 message ReconcileTasksMessage {
   required FrameworkID framework_id = 1;
-  repeated TaskStatus statuses = 2;
+  repeated TaskStatus statuses = 2; // Should be non-terminal only.
 }
 
 
@@ -385,3 +390,21 @@ message Archive {
   repeated Framework frameworks = 1;
 }
 
+// Message describing task current health status that is sent by
+// the task health checker to the command executor.
+// The command executor reports the task status back to the
+// on each receive. If the health checker configured faiure
+// condition meets, then kill_task flag will be set to true which
+// the executor on message receive will kill the task.
+message TaskHealthStatus {
+  required TaskID task_id = 1;
+
+  required bool healthy = 2;
+
+  // Flag to initiate task kill.
+  optional bool kill_task = 3 [default = false];
+
+  // Number of consecutive counts in current status.
+  // This will not be populated if task is healthy.
+  optional int32 consecutive_failures = 4;
+}

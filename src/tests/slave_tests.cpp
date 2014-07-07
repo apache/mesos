@@ -43,10 +43,11 @@
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/gc.hpp"
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/flags.hpp"
@@ -346,7 +347,12 @@ TEST_F(SlaveTest, MesosExecutorWithOverride)
     .WillOnce(FutureArg<1>(&status2));
 
   Try<process::Subprocess> executor =
-    process::subprocess(executorCommand, environment);
+    process::subprocess(
+        executorCommand,
+        process::Subprocess::PIPE(),
+        process::Subprocess::PIPE(),
+        process::Subprocess::PIPE(),
+        environment);
 
   ASSERT_SOME(executor);
 
@@ -423,11 +429,13 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
   task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
 
-  // Command executor will run as user running test.
-  string user = os::user();
+  Result<string> user = os::user();
+  CHECK_SOME(user) << "Failed to get current user name"
+                   << (user.isError() ? ": " + user.error() : "");
 
+  // Command executor will run as user running test.
   CommandInfo command;
-  command.set_value("test `whoami` = " + user);
+  command.set_value("test `whoami` = " + user.get());
 
   task.mutable_command()->MergeFrom(command);
 
@@ -541,8 +549,6 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
 
 // This test ensures that a status update acknowledgement from a
 // non-leading master is ignored.
-// TODO(bmahler): This test will need to be updated once all
-// acknowledgements go through the master.
 TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
 {
   Try<PID<Master> > master = StartMaster();
@@ -596,12 +602,15 @@ TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
   // Pause the clock to prevent status update retries on the slave.
   Clock::pause();
 
-  // Intercept the status update acknowledgement and send it to the
-  // master instead!
+  // Intercept the acknowledgement sent to the slave so that we can
+  // spoof the master's pid.
   Future<StatusUpdateAcknowledgementMessage> acknowledgementMessage =
     DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(),
-                  schedulerPid,
+                  master.get(),
                   slave.get());
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdateAcknowledgement);
 
   schedDriver.launchTasks(offers.get()[0].id(), tasks);
 
@@ -610,25 +619,10 @@ TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
 
   AWAIT_READY(acknowledgementMessage);
 
-  // Intercept the status update acknowledgement from the master
-  // to the slave so that we can spoof a non-leading master pid.
-  Future<StatusUpdateAcknowledgementMessage> acknowledgementMessage2 =
-    DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(),
-                  master.get(),
-                  slave.get());
-
-  // Send the acknowledgment to the master.
-  process::post(schedulerPid, master.get(), acknowledgementMessage.get());
-
-  AWAIT_READY(acknowledgementMessage2);
-
-  Future<Nothing> _statusUpdateAcknowledgement =
-    FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdateAcknowledgement);
-
   // Send the acknowledgement to the slave with a non-leading master.
   process::post(
-      schedulerPid,
       process::UPID("master@localhost:1"),
+      slave.get(),
       acknowledgementMessage.get());
 
   // Make sure the acknowledgement was ignored.
@@ -706,6 +700,197 @@ TEST_F(SlaveTest, MetricsInStatsEndpoint)
 
   EXPECT_EQ(1u, stats.values.count("slave/valid_framework_messages"));
   EXPECT_EQ(1u, stats.values.count("slave/invalid_framework_messages"));
+
+  Shutdown();
+}
+
+
+// This test ensures that when a previously unregistered slave is shutting
+// down, it will not keep trying to re-register with the master.
+TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Create a MockExecutor to enable us to catch ShutdownExecutorMessage later.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  // Create a StandaloneMasterDetector to enable the slave to trigger
+  // re-registeration later.
+  StandaloneMasterDetector detector(master.get());
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Make the executor_shutdown_grace_period to be much longer
+  // than REGISTER_RETRY_INTERVAL, so that the slave will at least
+  // call doReliableRegistration() once before the slave is actually
+  // terminated.
+  flags.executor_shutdown_grace_period = slave::REGISTER_RETRY_INTERVAL_MAX * 2;
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave(&exec, &detector, flags);
+  ASSERT_SOME(slave);
+
+  // Create a task on the slave.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  // Launch a task that uses less resource than the default(cpus:2, mem:1024).
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Pause the clock here so that after detecting a new master,
+  // the slave will not send multiple reregister messages
+  // before we change its state to TERMINATING.
+  Clock::pause();
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    DROP_PROTOBUF(SlaveReregisteredMessage(), master.get(), slave.get());
+
+  // Simulate a new master detected event to the scheduler,
+  // so that the slave will do a re-registration.
+  detector.appoint(master.get());
+
+  // Make sure the slave has entered doReliableRegistration()
+  // before we change the slave's state.
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Setup an expectation that the master should not receive any
+  // ReregisterSlaveMessage in the future.
+  EXPECT_NO_FUTURE_PROTOBUFS(
+      ReregisterSlaveMessage(), slave.get(), master.get());
+
+  // Drop the ShutdownExecutorMessage, so that the slave will
+  // stay in TERMINATING for a while.
+  DROP_PROTOBUFS(ShutdownExecutorMessage(), slave.get(), _);
+
+  // Send a ShutdownMessage instead of calling Stop() directly
+  // to avoid blocking.
+  process::post(slave.get(), ShutdownMessage());
+
+  // Advance the clock to trigger doReliableRegistration().
+  Clock::advance(slave::REGISTER_RETRY_INTERVAL_MAX * 2);
+  Clock::settle();
+  Clock::resume();
+
+  // Clean up.
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies the slave will destroy a container if, when
+// receiving a terminal status task update, updating the container's
+// resources fails.
+TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFails)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  TestContainerizer containerizer(&exec);
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  // Start two tasks.
+  vector<TaskInfo> tasks;
+
+  tasks.push_back(createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:0.1;mem:32").get(),
+      "sleep 1000",
+      exec.id));
+
+  tasks.push_back(createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:0.1;mem:32").get(),
+      "sleep 1000",
+      exec.id));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1, status2, status3, status4;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillOnce(FutureArg<1>(&status3))
+    .WillOnce(FutureArg<1>(&status4));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  // Set up the containerizer so the next update() will fail.
+  EXPECT_CALL(containerizer, update(_, _))
+    .WillOnce(Return(process::Failure("update() failed")))
+    .WillRepeatedly(Return(Nothing()));
+
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
+
+  // Kill one of the tasks. The failed update should result in the
+  // second task going lost when the container is destroyed.
+  driver.killTask(tasks[0].task_id());
+
+  AWAIT_READY(status3);
+  EXPECT_EQ(TASK_KILLED, status3.get().state());
+
+  AWAIT_READY(status4);
+  EXPECT_EQ(TASK_LOST, status4.get().state());
+
+  driver.stop();
+  driver.join();
 
   Shutdown();
 }
