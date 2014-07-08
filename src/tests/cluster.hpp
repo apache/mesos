@@ -426,7 +426,9 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   // registration messages may be dropped, causing delayed retries.
   // NOTE: We use process::internal::await() to avoid awaiting a
   // Future forever when the Clock is paused.
-  if (!process::internal::await(_recover, Seconds(10))) {
+  if (!process::internal::await(
+          _recover,
+          flags.registry_fetch_timeout + flags.registry_store_timeout)) {
     LOG(FATAL) << "Failed to wait for _recover";
   }
 
