@@ -1020,6 +1020,11 @@ no_executor_framework_SOURCES = examples/no_executor_framework.cpp
 no_executor_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 no_executor_framework_LDADD = libmesos.la
 
+check_PROGRAMS += docker-no-executor-framework
+docker_no_executor_framework_SOURCES = examples/docker_no_executor_framework.cpp
+docker_no_executor_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
+docker_no_executor_framework_LDADD = libmesos.la
+
 check_PROGRAMS += balloon-framework
 balloon_framework_SOURCES = examples/balloon_framework.cpp
 balloon_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
