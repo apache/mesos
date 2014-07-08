@@ -20,6 +20,7 @@
 #include <gtest/gtest.h>
 
 #include <process/future.hpp>
+#include <process/subprocess.hpp>
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
@@ -31,6 +32,7 @@
 
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::slave::state;
 using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
@@ -312,4 +314,92 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
   driver.join();
 
   Shutdown();
+}
+
+
+TEST_F(DockerContainerizerTest, DOCKER_Recover)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Docker docker(tests::flags.docker);
+
+  MockDockerContainerizer dockerContainerizer(flags, true, docker);
+
+  ContainerID containerId;
+  containerId.set_value("c1");
+  ContainerID reapedContainerId;
+  reapedContainerId.set_value("c2");
+
+  Resources resources = Resources::parse("cpus:1;mem:512").get();
+
+  Future<Option<int> > d1 =
+    docker.run(
+        "busybox",
+        "sleep 360",
+        slave::DOCKER_NAME_PREFIX + stringify(containerId),
+        resources);
+
+  Future<Option<int> > d2 =
+    docker.run(
+        "busybox",
+        "sleep 360",
+        slave::DOCKER_NAME_PREFIX + stringify(reapedContainerId),
+        resources);
+
+  AWAIT_READY(d1);
+  AWAIT_READY(d2);
+
+  SlaveState slaveState;
+  FrameworkState frameworkState;
+
+  ExecutorID execId;
+  execId.set_value("e1");
+
+  ExecutorState execState;
+  ExecutorInfo execInfo;
+  execState.info = execInfo;
+  execState.latest = containerId;
+
+  Try<process::Subprocess> wait =
+    process::subprocess(
+        "docker wait " +
+        slave::DOCKER_NAME_PREFIX +
+        stringify(containerId));
+
+  ASSERT_SOME(wait);
+
+  Try<process::Subprocess> reaped =
+    process::subprocess(
+        "docker wait " +
+        slave::DOCKER_NAME_PREFIX +
+        stringify(reapedContainerId));
+
+  ASSERT_SOME(reaped);
+
+  FrameworkID frameworkId;
+
+  RunState runState;
+  runState.id = containerId;
+  runState.forkedPid = wait.get().pid();
+  execState.runs.put(containerId, runState);
+  frameworkState.executors.put(execId, execState);
+
+  slaveState.frameworks.put(frameworkId, frameworkState);
+
+  Future<Nothing> recover = dockerContainerizer.recover(slaveState);
+
+  AWAIT_READY(recover);
+
+  Future<containerizer::Termination> termination =
+    dockerContainerizer.wait(containerId);
+
+  ASSERT_FALSE(termination.isFailed());
+
+  AWAIT_FAILED(dockerContainerizer.wait(reapedContainerId));
+
+  dockerContainerizer.destroy(containerId);
+
+  AWAIT_READY(termination);
+
+  AWAIT_READY(reaped.get().status());
 }
