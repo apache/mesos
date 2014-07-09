@@ -380,11 +380,23 @@ Try<hashmap<std::string, uint64_t> > stat(
 // Cpu controls.
 namespace cpu {
 
+// Returns the cgroup that the specified pid is a member of within the
+// hierarchy that the 'cpu' subsytem is mounted or None if the
+// subsystem is not mounted or the pid is not a member of a cgroup.
+Result<std::string> cgroup(pid_t pid);
+
+
 // Sets the cpu shares using cpu.shares.
 Try<Nothing> shares(
     const std::string& hierarchy,
     const std::string& cgroup,
     uint64_t shares);
+
+
+// Returns the cpu shares from cpu.shares.
+Try<uint64_t> shares(
+    const std::string& hierarchy,
+    const std::string& cgroup);
 
 
 // Sets the cfs period using cpu.cfs_period_us.
@@ -411,6 +423,12 @@ Try<Nothing> cfs_quota_us(
 
 // Memory controls.
 namespace memory {
+
+// Returns the cgroup that the specified pid is a member of within the
+// hierarchy that the 'memory' subsytem is mounted or None if the
+// subsystem is not mounted or the pid is not a member of a cgroup.
+Result<std::string> cgroup(pid_t pid);
+
 
 // Returns the memory limit from memory.limit_in_bytes.
 Try<Bytes> limit_in_bytes(
