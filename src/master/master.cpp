@@ -93,8 +93,6 @@ using process::metrics::Counter;
 
 using memory::shared_ptr;
 
-using namespace mesos::internal::status;
-
 namespace mesos {
 namespace internal {
 namespace master {

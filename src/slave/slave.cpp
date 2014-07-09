@@ -100,8 +100,6 @@ namespace slave {
 
 using namespace state;
 
-using namespace mesos::internal::status;
-
 Slave::Slave(const slave::Flags& _flags,
              MasterDetector* _detector,
              Containerizer* _containerizer,

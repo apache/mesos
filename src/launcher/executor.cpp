@@ -69,9 +69,6 @@ namespace internal {
 
 using namespace process;
 
-using namespace mesos::internal::status;
-
-
 class CommandExecutorProcess : public ProtobufProcess<CommandExecutorProcess>
 {
 public:

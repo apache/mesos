@@ -63,9 +63,6 @@ using tuples::tuple;
 
 using namespace process;
 
-using namespace mesos::internal::status;
-
-
 namespace mesos {
 namespace internal {
 namespace slave {

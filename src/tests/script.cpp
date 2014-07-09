@@ -42,8 +42,6 @@
 
 using std::string;
 
-using namespace mesos::internal::status;
-
 namespace mesos {
 namespace internal {
 namespace tests {

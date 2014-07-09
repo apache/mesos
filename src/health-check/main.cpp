@@ -60,8 +60,6 @@ namespace internal {
 
 using namespace process;
 
-using namespace mesos::internal::status;
-
 class HealthCheckerProcess : public ProtobufProcess<HealthCheckerProcess>
 {
 public:

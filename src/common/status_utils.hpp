@@ -24,10 +24,6 @@
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
 
-namespace mesos {
-namespace internal {
-namespace status {
-
 inline std::string WSTRINGIFY(int status)
 {
   std::string message;
@@ -40,9 +36,5 @@ inline std::string WSTRINGIFY(int status)
   }
   return message;
 }
-
-} // namespace status {
-} // namespace internal {
-} // namespace mesos {
 
 #endif // __STATUS_UTILS_HPP__
