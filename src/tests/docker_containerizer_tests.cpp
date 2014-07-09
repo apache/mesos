@@ -66,6 +66,9 @@ public:
   {
     EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launch));
+
+    EXPECT_CALL(*this, update(_, _))
+      .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_update));
   }
 
   MOCK_METHOD8(
@@ -79,6 +82,12 @@ public:
           const SlaveID&,
           const process::PID<slave::Slave>&,
           bool checkpoint));
+
+  MOCK_METHOD2(
+      update,
+      process::Future<Nothing>(
+          const ContainerID&,
+          const Resources&));
 
   // Default 'launch' implementation (necessary because we can't just
   // use &DockerContainerizer::launch with 'Invoke').
@@ -101,6 +110,15 @@ public:
         slaveId,
         slavePid,
         checkpoint);
+  }
+
+  process::Future<Nothing> _update(
+      const ContainerID& containerId,
+      const Resources& resources)
+  {
+    return DockerContainerizer::update(
+        containerId,
+        resources);
   }
 };
 
@@ -264,6 +282,10 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
+
+  // We ignore all update calls to prevent resizing cgroup limits.
+  EXPECT_CALL(dockerContainerizer, update(_, _))
+    .WillRepeatedly(Return(Nothing()));
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
