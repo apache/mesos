@@ -28,6 +28,8 @@
 #include <stout/hashset.hpp>
 #include <stout/os.hpp>
 
+#include "common/status_utils.hpp"
+
 #include "docker/docker.hpp"
 
 #ifdef __linux__
@@ -129,7 +131,8 @@ private:
       const std::string& directory,
       const SlaveID& slaveId,
       const PID<Slave>& slavePid,
-      bool checkpoint);
+      bool checkpoint,
+      const Option<int>& status);
 
   void _destroy(
       const ContainerID& containerId,
@@ -398,10 +401,10 @@ Future<Nothing> DockerContainerizerProcess::recover(
         CHECK_SOME(run.get().forkedPid);
         pid_t pid = run.get().forkedPid.get();
 
-        Future<Option<int > > status = process::reap(pid);
+        statuses[containerId] = process::reap(pid);
 
-        statuses[containerId] = status;
-        status.onAny(defer(self(), &Self::reaped, containerId));
+        statuses[containerId]
+          .onAny(defer(self(), &Self::reaped, containerId));
 
         if (pids.containsValue(pid)) {
           // This should (almost) never occur. There is the
@@ -531,7 +534,8 @@ Future<bool> DockerContainerizerProcess::launch(
                 directory,
                 slaveId,
                 slavePid,
-                checkpoint))
+                checkpoint,
+                lambda::_1))
     .onFailed(defer(self(), &Self::destroy, containerId, false));
 }
 
@@ -543,8 +547,17 @@ Future<bool> DockerContainerizerProcess::_launch(
     const string& directory,
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
-    bool checkpoint)
+    bool checkpoint,
+    const Option<int>& status)
 {
+  // Try and see if the run failed.
+  if (status.isSome() && status.get() != 0) {
+    // Best effort kill and remove the container just in case.
+    docker.killAndRm(DOCKER_NAME_PREFIX + stringify(containerId));
+    return Failure("Failed to run the container (" +
+                   WSTRINGIFY(status.get()) + ")");
+  }
+
   // Prepare environment variables for the executor.
   map<string, string> env = executorEnvironment(
       executorInfo,
@@ -562,10 +575,13 @@ Future<bool> DockerContainerizerProcess::_launch(
 
   // Construct the mesos-executor "override" to do a 'docker wait'
   // using the "name" we gave the container (to distinguish it from
-  // Docker containers not created by Mesos).
-  // TODO(benh): Get full path to 'docker'.
+  // Docker containers not created by Mesos). Note, however, that we
+  // don't want the exit status from 'docker wait' but rather the exit
+  // status from the container, hence the use of /bin/bash.
   string override =
-    flags.docker + " wait " + DOCKER_NAME_PREFIX + stringify(containerId);
+    "/bin/bash -c 'exit `" +
+    flags.docker + " wait " + DOCKER_NAME_PREFIX + stringify(containerId) +
+    "`'";
 
   Try<Subprocess> s = subprocess(
       executorInfo.command().value() + " --override " + override,
@@ -621,10 +637,10 @@ Future<bool> DockerContainerizerProcess::_launch(
   }
 
   // And finally watch for when the executor gets reaped.
-  Future<Option<int> > status = process::reap(s.get().pid());
+  statuses[containerId] = process::reap(s.get().pid());
 
-  statuses.put(containerId, status);
-  status.onAny(defer(self(), &Self::reaped, containerId));
+  statuses[containerId]
+    .onAny(defer(self(), &Self::reaped, containerId));
 
   return true;
 }
@@ -915,7 +931,17 @@ void DockerContainerizerProcess::_destroy(
     return;
   }
 
-  statuses.get(containerId).get()
+  // It's possible we've been asked to destroy a container that we
+  // aren't actually reaping any status because we failed to start the
+  // container in the first place (e.g., because we returned a Failure
+  // in 'launch' or '_launch'). In this case, we just put a None
+  // status in place so that the rest of the destroy workflow
+  // completes.
+  if (!statuses.contains(containerId)) {
+    statuses[containerId] = None();
+  }
+
+  statuses[containerId]
     .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
 }
 
