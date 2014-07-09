@@ -293,10 +293,15 @@ TEST_F(DockerContainerizerTest, DOCKER_Kill)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusKilled));
 
+  Future<containerizer::Termination> termination =
+    dockerContainerizer.wait(containerId.get());
+
   driver.killTask(task.task_id());
 
   AWAIT_READY(statusKilled);
   EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
+
+  AWAIT_READY(termination);
 
   Future<list<Docker::Container> > containers =
     docker.ps(true, slave::DOCKER_NAME_PREFIX);
