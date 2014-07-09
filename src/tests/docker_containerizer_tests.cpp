@@ -419,8 +419,8 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
 
   ASSERT_SOME(cpu);
 
-  EXPECT_EQ(1024, cpu.get());
-  EXPECT_EQ(128, mem.get().megabytes());
+  EXPECT_EQ(1024u, cpu.get());
+  EXPECT_EQ(128u, mem.get().megabytes());
 
   Future<containerizer::Termination> termination =
     dockerContainerizer.wait(containerId.get());
