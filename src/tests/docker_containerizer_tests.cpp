@@ -221,6 +221,108 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 }
 
 
+TEST_F(DockerContainerizerTest, DOCKER_Kill)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Docker docker(tests::flags.docker);
+
+  MockDockerContainerizer dockerContainerizer(flags, true, docker);
+
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  CommandInfo command;
+  CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
+  containerInfo->set_image("docker://busybox");
+  command.set_value("sleep 120");
+
+  task.mutable_command()->CopyFrom(command);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  Future<TaskStatus> statusKilled;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
+
+  Future<list<Docker::Container> > containers =
+    docker.ps(true, slave::DOCKER_NAME_PREFIX);
+
+  AWAIT_READY(containers);
+
+  bool foundContainer = false;
+  string expectedName = slave::DOCKER_NAME_PREFIX + containerId.get().value();
+
+  foreach (const Docker::Container& container, containers.get()) {
+    // Docker inspect name contains an extra slash in the beginning.
+    if (strings::contains(container.name(), expectedName)) {
+      foundContainer = true;
+      break;
+    }
+  }
+
+  ASSERT_FALSE(foundContainer);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 // This test tests DockerContainerizer::usage().
 TEST_F(DockerContainerizerTest, DOCKER_Usage)
 {
@@ -391,8 +493,6 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
 
   task.mutable_command()->CopyFrom(command);
 
-  Future<TaskStatus> statusRunning;
-
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
@@ -402,6 +502,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
          Invoke(&dockerContainerizer,
                 &MockDockerContainerizer::_launch)));
 
+  Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillRepeatedly(DoDefault());
