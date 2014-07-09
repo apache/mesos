@@ -64,7 +64,6 @@ public:
       const Docker& docker)
     : DockerContainerizer(flags, local, docker)
   {
-    DockerContainerizer::prepareCgroups(flags);
     EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launch));
   }

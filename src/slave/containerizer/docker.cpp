@@ -144,7 +144,7 @@ private:
   process::Future<Nothing> _update(
       const ContainerID& containerId,
       const Resources& resources,
-      const Future<Docker::Container>& future);
+      const Docker::Container& container);
 
   Future<ResourceStatistics> _usage(
     const ContainerID& containerId,
@@ -181,30 +181,6 @@ private:
 };
 
 
-Try<Nothing> DockerContainerizer::prepareCgroups(const Flags& flags)
-{
-#ifdef __linux__
-  std::vector<string> subsystems;
-  subsystems.push_back("cpu");
-  subsystems.push_back("cpuacct");
-  subsystems.push_back("memory");
-
-  foreach (const string& subsystem, subsystems) {
-    // We're assuming docker is under cgroup directory "docker".
-    Try<string> hierarchy =
-      cgroups::prepare(flags.cgroups_hierarchy, subsystem, "docker");
-
-    if (hierarchy.isError()) {
-      return Error(
-          "Failed to prepare cgroup hierarchy " + flags.cgroups_hierarchy +
-          " subsystem '" + subsystem + "' for Docker: " + hierarchy.error());
-    }
-  }
-#endif // __linux__
-  return Nothing();
-}
-
-
 Try<DockerContainerizer*> DockerContainerizer::create(
     const Flags& flags,
     bool local)
@@ -213,11 +189,6 @@ Try<DockerContainerizer*> DockerContainerizer::create(
   Try<Nothing> validation = Docker::validate(docker);
   if (validation.isError()) {
     return Error(validation.error());
-  }
-
-  Try<Nothing> prepare = prepareCgroups(flags);
-  if (prepare.isError()) {
-    return Error(prepare.error());
   }
 
   return new DockerContainerizer(flags, local, docker);
@@ -594,7 +565,7 @@ Future<bool> DockerContainerizerProcess::_launch(
   // Docker containers not created by Mesos).
   // TODO(benh): Get full path to 'docker'.
   string override =
-    "docker wait " + DOCKER_NAME_PREFIX + stringify(containerId);
+    flags.docker + " wait " + DOCKER_NAME_PREFIX + stringify(containerId);
 
   Try<Subprocess> s = subprocess(
       executorInfo.command().value() + " --override " + override,
@@ -690,21 +661,64 @@ Future<Nothing> DockerContainerizerProcess::update(
 Future<Nothing> DockerContainerizerProcess::_update(
     const ContainerID& containerId,
     const Resources& _resources,
-    const Future<Docker::Container>& future)
+    const Docker::Container& container)
 {
 #ifdef __linux__
-  const string& id = path::join("docker", future.get().id());
+  // Determine the the cgroups hierarchies where the 'cpu' and
+  // 'memory' subsystems are mounted (they may be the same). Note that
+  // we make these static so we can reuse the result for subsequent
+  // calls.
+  static Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  static Result<string> memoryHierarchy = cgroups::hierarchy("memory");
 
-  // Update CPU shares.
-  if (_resources.cpus().isSome()) {
+  if (cpuHierarchy.isError()) {
+    return Failure("Failed to determine the cgroup hierarchy "
+                   "where the 'cpu' subsystem is mounted: " +
+                   cpuHierarchy.error());
+  }
+
+  if (memoryHierarchy.isError()) {
+    return Failure("Failed to determine the cgroup hierarchy "
+                   "where the 'memory' subsystem is mounted: " +
+                   memoryHierarchy.error());
+  }
+
+  // We need to find the cgroup(s) this container is currently running
+  // in for both the hierarchy with the 'cpu' subsystem attached and
+  // the hierarchy with the 'memory' subsystem attached so we can
+  // update the proper cgroup control files.
+
+  // First check that this container still appears to be running.
+  Option<pid_t> pid = container.pid();
+  if (pid.isNone()) {
+    return Nothing();
+  }
+
+  // Determine the cgroup for the 'cpu' subsystem (based on the
+  // container's pid).
+  Result<string> cpuCgroup = cgroups::cpu::cgroup(pid.get());
+
+  if (cpuCgroup.isError()) {
+    return Failure("Failed to determine cgroup for the 'cpu' subsystem: " +
+                   cpuCgroup.error());
+  } else if (cpuCgroup.isNone()) {
+    LOG(WARNING)
+      << "Container " << containerId
+      << " does not appear to be a member of a cgroup "
+      << "where the 'cpu' subsystem is mounted";
+  }
+
+  // And update the CPU shares (if applicable).
+  if (cpuHierarchy.isSome() &&
+      cpuCgroup.isSome() &&
+      _resources.cpus().isSome()) {
     double cpuShares = _resources.cpus().get();
 
     uint64_t shares =
       std::max((uint64_t) (CPU_SHARES_PER_CPU * cpuShares), MIN_CPU_SHARES);
 
     Try<Nothing> write =
-      cgroups::cpu::shares(
-          path::join(flags.cgroups_hierarchy, "cpu"), id, shares);
+      cgroups::cpu::shares(cpuHierarchy.get(), cpuCgroup.get(), shares);
 
     if (write.isError()) {
       return Failure("Failed to update 'cpu.shares': " + write.error());
@@ -712,24 +726,38 @@ Future<Nothing> DockerContainerizerProcess::_update(
 
     LOG(INFO)
       << "Updated 'cpu.shares' to " << shares
+      << " at " << path::join(cpuHierarchy.get(), cpuCgroup.get())
       << " for container " << containerId;
   }
 
-  // Update Memory.
-  if (_resources.mem().isSome()) {
+  // Now determine the cgroup for the 'memory' subsystem.
+  Result<string> memoryCgroup = cgroups::memory::cgroup(pid.get());
+
+  if (memoryCgroup.isError()) {
+    return Failure("Failed to determine cgroup for the 'memory' subsystem: " +
+                   memoryCgroup.error());
+  } else if (memoryCgroup.isNone()) {
+    LOG(WARNING)
+      << "Container " << containerId
+      << " does not appear to be a member of a cgroup "
+      << "where the 'memory' subsystem is mounted";
+  }
+
+  // And update the memory limits (if applicable).
+  if (memoryHierarchy.isSome() &&
+      memoryCgroup.isSome() &&
+      _resources.mem().isSome()) {
     Bytes mem = _resources.mem().get();
     Bytes limit = std::max(mem, MIN_MEMORY);
 
-    std::string memHierarchy =
-      path::join(flags.cgroups_hierarchy, "memory");
-
     // Always set the soft limit.
     Try<Nothing> write =
-      cgroups::memory::soft_limit_in_bytes(memHierarchy, id, limit);
+      cgroups::memory::soft_limit_in_bytes(
+          memoryHierarchy.get(), memoryCgroup.get(), limit);
 
     if (write.isError()) {
       return Failure("Failed to set 'memory.soft_limit_in_bytes': " +
-          write.error());
+                     write.error());
     }
 
     LOG(INFO)
@@ -738,24 +766,27 @@ Future<Nothing> DockerContainerizerProcess::_update(
 
     // Read the existing limit.
     Try<Bytes> currentLimit =
-      cgroups::memory::limit_in_bytes(memHierarchy, id);
+      cgroups::memory::limit_in_bytes(
+          memoryHierarchy.get(), memoryCgroup.get());
 
     if (currentLimit.isError()) {
       return Failure("Failed to read 'memory.limit_in_bytes': " +
-          currentLimit.error());
+                     currentLimit.error());
     }
 
     // Only update if new limit is higher.
     if (limit > currentLimit.get()) {
-      write = cgroups::memory::limit_in_bytes(memHierarchy, id, limit);
+      write = cgroups::memory::limit_in_bytes(
+          memoryHierarchy.get(), memoryCgroup.get(), limit);
 
       if (write.isError()) {
         return Failure("Failed to set 'memory.limit_in_bytes': " +
-            write.error());
+                       write.error());
       }
 
       LOG(INFO)
         << "Updated 'memory.limit_in_bytes' to " << limit
+        << " at " << path::join(memoryHierarchy.get(), memoryCgroup.get())
         << " for container " << containerId;
     }
   }
