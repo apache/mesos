@@ -405,18 +405,32 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
 
   AWAIT_READY(update);
 
-  string id = path::join("docker", container.get().id());
+  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  Result<string> memoryHierarchy = cgroups::hierarchy("memory");
 
-  Try<Bytes> mem =
-    cgroups::memory::soft_limit_in_bytes(
-        path::join(flags.cgroups_hierarchy, "memory"), id);
-  ASSERT_SOME(mem);
+  ASSERT_SOME(cpuHierarchy);
+  ASSERT_SOME(memoryHierarchy);
 
-  Try<uint64_t> cpu =
-    cgroups::cpu::shares(
-        path::join(flags.cgroups_hierarchy, "cpu"), id);
+  Option<pid_t> pid = container.get().pid();
+  ASSERT_SOME(pid);
+
+  Result<string> cpuCgroup = cgroups::cpu::cgroup(pid.get());
+  ASSERT_SOME(cpuCgroup);
+
+  Result<string> memoryCgroup = cgroups::memory::cgroup(pid.get());
+  ASSERT_SOME(memoryCgroup);
+
+  Try<uint64_t> cpu = cgroups::cpu::shares(
+      cpuHierarchy.get(),
+      cpuCgroup.get());
 
   ASSERT_SOME(cpu);
+
+  Try<Bytes> mem = cgroups::memory::soft_limit_in_bytes(
+      memoryHierarchy.get(),
+      memoryCgroup.get());
+
+  ASSERT_SOME(mem);
 
   EXPECT_EQ(1024u, cpu.get());
   EXPECT_EQ(128u, mem.get().megabytes());
@@ -481,7 +495,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Recover)
 
   Try<process::Subprocess> wait =
     process::subprocess(
-        "docker wait " +
+        tests::flags.docker + " wait " +
         slave::DOCKER_NAME_PREFIX +
         stringify(containerId));
 
@@ -489,7 +503,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Recover)
 
   Try<process::Subprocess> reaped =
     process::subprocess(
-        "docker wait " +
+        tests::flags.docker + " wait " +
         slave::DOCKER_NAME_PREFIX +
         stringify(reapedContainerId));
 
