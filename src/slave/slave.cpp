@@ -2420,6 +2420,21 @@ void Slave::executorLaunched(
     const ContainerID& containerId,
     const Future<Nothing>& future)
 {
+  // Set up callback for executor termination. Note that we do this
+  // regardless of whether or not we have successfully launched the
+  // executor because even if we failed to launch the executor the
+  // result of calling 'wait' will make sure everything gets properly
+  // cleaned up. Note that we do this here instead of where we do
+  // Containerizer::launch because we want to guarantee the contract
+  // with the Containerizer that we won't call 'wait' until after the
+  // launch has completed.
+  containerizer->wait(containerId)
+    .onAny(defer(self(),
+                 &Self::executorTerminated,
+                 frameworkId,
+                 executorId,
+                 lambda::_1));
+
   if (!future.isReady()) {
     // The containerizer will clean up if the launch fails we'll just log this
     // and leave the executor registration to timeout.
@@ -3515,14 +3530,6 @@ Executor* Framework::launchExecutor(
                executor->id,
                containerId,
                lambda::_1));
-
-  // Set up callback for executor termination.
-  slave->containerizer->wait(containerId)
-    .onAny(defer(slave,
-                 &Slave::executorTerminated,
-                 id,
-                 executor->id,
-                 lambda::_1));
 
   // Make sure the executor registers within the given timeout.
   delay(slave->flags.executor_registration_timeout,
