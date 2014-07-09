@@ -31,6 +31,8 @@
 
 #include "docker/docker.hpp"
 
+#include "linux/cgroups.hpp"
+
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
 
@@ -46,6 +48,16 @@ using std::vector;
 
 Try<Nothing> Docker::validate(const Docker &docker)
 {
+  // Make sure that cgroups are mounted, and at least the 'cpu'
+  // subsystem is attached.
+  Result<string> hierarchy = cgroups::hierarchy("cpu");
+
+  if (hierarchy.isNone()) {
+    return Error("Failed to find a mounted cgroups hierarchy "
+                 "for the 'cpu' subsystem, you probably need "
+                 "to mount cgroups manually!");
+  }
+
   Future<std::string> info = docker.info();
 
   if (!info.await(Seconds(3))) {
