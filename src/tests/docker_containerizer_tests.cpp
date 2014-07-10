@@ -167,7 +167,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   CommandInfo command;
   CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
-  containerInfo->set_image("docker://busybox");
+  containerInfo->set_image("docker:///busybox");
   command.set_value("sleep 120");
 
   task.mutable_command()->CopyFrom(command);
@@ -265,7 +265,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Kill)
 
   CommandInfo command;
   CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
-  containerInfo->set_image("docker://busybox");
+  containerInfo->set_image("docker:///busybox");
   command.set_value("sleep 120");
 
   task.mutable_command()->CopyFrom(command);
@@ -374,7 +374,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
 
   CommandInfo command;
   CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
-  containerInfo->set_image("docker://busybox");
+  containerInfo->set_image("docker:///busybox");
 
   // Run a CPU intensive command, so we can measure utime and stime later.
   command.set_value("dd if=/dev/zero of=/dev/null");
@@ -493,7 +493,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
 
   CommandInfo command;
   CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
-  containerInfo->set_image("docker://busybox");
+  containerInfo->set_image("docker:///busybox");
   command.set_value("sleep 180");
 
   task.mutable_command()->CopyFrom(command);

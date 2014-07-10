@@ -499,7 +499,7 @@ Future<bool> DockerContainerizerProcess::launch(
 
   // Check if we should try and launch this command.
   if (!command.has_container() ||
-      !strings::startsWith(command.container().image(), "docker")) {
+      !strings::startsWith(command.container().image(), "docker:///")) {
     return false;
   }
 
@@ -518,7 +518,7 @@ Future<bool> DockerContainerizerProcess::launch(
 
   // Extract the Docker image.
   string image = command.container().image();
-  image = strings::remove(image, "docker://", strings::PREFIX);
+  image = strings::remove(image, "docker:///", strings::PREFIX);
 
   // Construct the Docker container name.
   string name = DOCKER_NAME_PREFIX + stringify(containerId);

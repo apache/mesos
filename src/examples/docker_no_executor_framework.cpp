@@ -104,7 +104,7 @@ public:
         // Use Docker to run the task.
         CommandInfo::ContainerInfo* container =
           task.mutable_command()->mutable_container();
-        container->set_image("docker://busybox");
+        container->set_image("docker:///busybox");
 
         Resource* resource;
 
