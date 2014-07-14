@@ -37,6 +37,7 @@ git clone --shared ${MESOS_GIT_LOCAL} --branch ${TAG} mesos
 pushd mesos
 
 # Ensure configure.ac has the correct version.
+echo "Confirming that configure.ac contains ${VERSION}"
 grep "\[mesos\], \[${VERSION}\]" configure.ac
 
 echo "${GREEN}Updating configure.ac to include the release candidate.${NORMAL}"
