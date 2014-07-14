@@ -1,3 +1,16 @@
+Release Notes - Mesos - Version 0.19.1
+--------------------------------------
+* This is a bug fix release.
+
+** Bug
+    * [MESOS-1448] - Mesos Fetcher doesn't support URLs that have 30X redirects.
+    * [MESOS-1534] - Scheduler process is not explicitly terminated in the destructor of MesosSchedulerDriver.
+    * [MESOS-1538] - A container destruction in the middle of a launch leads to CHECK failure.
+    * [MESOS-1539] - No longer able to spin up Mesos master in local mode.
+    * [MESOS-1550] - MesosSchedulerDriver should never, ever, call 'stop'.
+    * [MESOS-1551] - Master does not create work directory when missing.
+
+
 Release Notes - Mesos - Version 0.19.0
 --------------------------------------
 * The primary feature of this release is the "Registrar". This is the addition
