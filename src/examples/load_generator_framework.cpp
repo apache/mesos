@@ -28,6 +28,7 @@
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
+#include <stout/strings.hpp>
 
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
@@ -244,7 +245,10 @@ public:
 
     add(&Flags::secret,
         "secret",
-        "The secret used to authenticate this framework");
+        "The secret used to authenticate this framework.\n"
+        "If the value starts with '/' or 'file://' it will be parsed as the\n"
+        "path to a file containing the secret. Otherwise the string value is\n"
+        "treated as the secret");
 
     add(&Flags::qps,
         "qps",
@@ -338,9 +342,26 @@ int main(int argc, char** argv)
       EXIT(1) << "Expecting --secret when --authenticate is set";
     }
 
+    string secret = flags.secret.get();
+
+    // If --secret is specified as a file containing the secret,
+    // replace 'secret' with the content.
+    if (strings::startsWith(flags.secret.get(), "/") ||
+        strings::startsWith(flags.secret.get(), "file://")) {
+      const std::string& path =
+        strings::remove(flags.secret.get(), "file://", strings::PREFIX);
+
+      Try<std::string> read = os::read(path);
+      if (read.isError()) {
+        EXIT(1) << "Error reading secret file '" + path + "': " + read.error();
+      }
+
+      secret = read.get();
+    }
+
     Credential credential;
     credential.set_principal(flags.principal);
-    credential.set_secret(flags.secret.get());
+    credential.set_secret(strings::trim(secret));
 
     framework.set_principal(flags.principal);
 
