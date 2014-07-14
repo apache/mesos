@@ -151,7 +151,11 @@ private:
       Try<Subprocess> external =
         process::subprocess(
           command.value(),
-          Subprocess::PIPE(),
+          // Reading from STDIN instead of PIPE because scripts
+          // seeing an open STDIN pipe might behave differently
+          // and we do not expect to pass any value from STDIN
+          // or PIPE.
+          Subprocess::FD(STDIN_FILENO),
           Subprocess::FD(STDERR_FILENO),
           Subprocess::FD(STDERR_FILENO),
           environment);
@@ -162,9 +166,18 @@ private:
         Future<Option<int> > status = external.get().status();
         status.await(Seconds(check.timeout_seconds()));
 
-        if (status.isFailed()) {
-          promise.fail("Shell command check failed with status: " +
-                        status.failure());
+        if (!status.isReady()) {
+          string msg = "Shell command check failed with reason: ";
+          if (status.isFailed()) {
+            msg += "failed with error: " + status.failure();
+          } else if (status.isDiscarded()) {
+            msg += "status future discarded";
+          } else {
+            msg += "status still pending after timeout " +
+                   stringify(Seconds(check.timeout_seconds()));
+          }
+
+          promise.fail(msg);
           return;
         }
 
