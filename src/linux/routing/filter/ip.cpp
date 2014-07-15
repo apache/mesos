@@ -72,6 +72,29 @@ Try<Nothing> encode<ip::Classifier>(
 
   // TODO(jieyu): Do we need to check the protocol (e.g., TCP/UDP)?
 
+  // This filter ignores IP packets that contain IP options. In other
+  // words, we only match those IP packets with header length equal to
+  // 5 bytes.
+  //
+  // Format of an IP packet at offset 0 (IHL is an abbrevation for
+  // Internet Header Length).
+  //        +--------+--------+--------+--------+
+  //        |    IHL |   X    |   X    |   X    |
+  //        +--------+--------+--------+--------+
+  // Offset:     0        1        2        3
+  err = rtnl_u32_add_key(
+      cls.get(),
+      htonl(0x05000000),
+      htonl(0x0f000000),
+      0, // Offset from which to start matching.
+      0);
+
+  if (err != 0) {
+    return Error(
+        "Failed to add selector for IP header length: " +
+        string(nl_geterror(err)));
+  }
+
   if (classifier.destinationMAC().isSome()) {
     // Since we set the protocol of this classifier to be ETH_P_IP
     // above, all IP packets that contain 802.1Q tag (i.e., VLAN tag)
@@ -219,6 +242,7 @@ Result<ip::Classifier> decode<ip::Classifier>(
 
   // Raw values.
   Option<uint32_t> protocol;
+  Option<uint32_t> headerLength;
   Option<uint32_t> valueDestinationMAC1;
   Option<uint32_t> valueDestinationMAC2;
   Option<uint32_t> valueDestinationIP;
@@ -266,6 +290,11 @@ Result<ip::Classifier> decode<ip::Classifier>(
       protocol = value;
     }
 
+    // IP header length.
+    if (offset == 0 && mask == 0x0f000000) {
+      headerLength = value;
+    }
+
     // First two bytes of the destination MAC address.
     if (offset == -16 && mask == 0x0000ffff) {
       valueDestinationMAC1 = value;
@@ -295,6 +324,13 @@ Result<ip::Classifier> decode<ip::Classifier>(
 
   // IP packet filters do not check IP protocol field.
   if (protocol.isSome()) {
+    return None();
+  }
+
+  // IP packet filters only handle IP packets without options.
+  // NOTE: We also allow an IP packet filter which does not check for
+  // IP header length (for backwards compatibility).
+  if (headerLength.isSome() && headerLength.get() != 0x05000000) {
     return None();
   }
 
