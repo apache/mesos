@@ -113,9 +113,11 @@ $(GPERFTOOLS)-build-stamp: $(GPERFTOOLS)-stamp
 	touch $@
 endif
 
+if WITH_BUNDLED_LIBEV
 $(LIBEV)/libev.la: $(LIBEV)-stamp
 	cd $(LIBEV) && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
+endif
 
 $(PROTOBUF)/src/protoc $(PROTOBUF)/src/libprotobuf.la: $(PROTOBUF)-build-stamp
 
@@ -198,9 +200,12 @@ check-local: stout-tests
 ALL_LOCAL =				\
   $(STOUT)/Makefile			\
   $(GLOG)/libglog.la			\
-  $(LIBEV)/libev.la			\
   $(PROTOBUF)/src/libprotobuf.la	\
   $(PROTOBUF)/src/protoc
+
+if WITH_BUNDLED_LIBEV
+  ALL_LOCAL += $(LIBEV)/libev.la
+endif
 
 if WITH_BUNDLED_BOOST
   ALL_LOCAL += $(BOOST)-stamp

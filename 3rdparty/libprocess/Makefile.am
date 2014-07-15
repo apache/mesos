@@ -59,10 +59,16 @@ else
   HTTP_PARSER_LIB = -lhttp_parser
 endif
 
+if WITH_BUNDLED_LIBEV
+  LIBEV_LIB = $(LIBEV)/libev.la
+else
+  LIBEV_LIB = -lev
+endif
+
 libprocess_la_LIBADD =			\
   $(GLOG)/libglog.la			\
   $(HTTP_PARSER_LIB)			\
-  $(LIBEV)/libev.la
+  $(LIBEV_LIB)
 
 if HAS_GPERFTOOLS
 libprocess_la_CPPFLAGS += -I$(GPERFTOOLS)/src
@@ -164,7 +170,7 @@ tests_LDADD =				\
   libprocess.la				\
   $(GLOG)/libglog.la			\
   $(HTTP_PARSER_LIB)			\
-  $(LIBEV)/libev.la
+  $(LIBEV_LIB)
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
