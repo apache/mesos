@@ -421,7 +421,9 @@ private:
         process::subprocess(
           path::join(healthCheckDir, "mesos-health-check"),
           argv,
-          Subprocess::PIPE(),
+          // Intentionally not sending STDIN to avoid health check
+          // commands that expect STDIN input to block.
+          Subprocess::PATH("/dev/null"),
           Subprocess::FD(STDOUT_FILENO),
           Subprocess::FD(STDERR_FILENO));
 
