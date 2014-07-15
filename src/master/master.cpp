@@ -3040,18 +3040,23 @@ void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
 }
 
 
-void Master::unregisterSlave(const SlaveID& slaveId)
+void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 {
   ++metrics.messages_unregister_slave;
 
   LOG(INFO) << "Asked to unregister slave " << slaveId;
 
-  // TODO(benh): Check that only the slave is asking to unregister?
-  if (slaves.activated.contains(slaveId)) {
-    removeSlave(slaves.activated[slaveId]);
+  Slave* slave = getSlave(slaveId);
+
+  if (slave != NULL) {
+    if (slave->pid != from) {
+      LOG(WARNING) << "Ignoring unregister slave message from " << from
+                   << " because it is not the slave " << slave->pid;
+      return;
+    }
+    removeSlave(slave);
   }
 }
-
 
 
 // NOTE: We cannot use 'from' here to identify the slave as this is

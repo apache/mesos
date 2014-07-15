@@ -166,6 +166,7 @@ public:
       const std::vector<Archive::Framework>& completedFrameworks);
 
   void unregisterSlave(
+      const process::UPID& from,
       const SlaveID& slaveId);
 
   void statusUpdate(

@@ -529,7 +529,11 @@ void Slave::shutdown(const UPID& from, const string& message)
     LOG(INFO) << "Slave asked to shut down by " << from
               << (message.empty() ? "" : " because '" + message + "'");
   } else {
-    LOG(INFO) << message << "; shutting down";
+    LOG(INFO) << message << "; unregistering and shutting down";
+
+    UnregisterSlaveMessage message_;
+    message_.mutable_slave_id()->MergeFrom(info.id());
+    send(master.get(), message_);
   }
 
   state = TERMINATING;

@@ -1818,15 +1818,22 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
   vector<TaskInfo> tasks;
   tasks.push_back(task); // Long-running task.
 
-  Future<Nothing> statusUpdate;
+  Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureSatisfy(&statusUpdate))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&status));
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  // Wait for TASK_RUNNING update to be acknowledged.
-  AWAIT_READY(statusUpdate);
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status.get().state());
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(_, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
 
   Future<Nothing> executorTerminated =
     FUTURE_DISPATCH(_, &Slave::executorTerminated);
@@ -1834,11 +1841,20 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
   Future<Nothing> signaled =
     FUTURE_DISPATCH(_, &Slave::signaled);
 
+  Future<UnregisterSlaveMessage> unregisterSlaveMessage =
+    FUTURE_PROTOBUF(UnregisterSlaveMessage(), slave.get(), master.get());
+
   // Send SIGUSR1 signal to the slave.
   kill(getpid(), SIGUSR1);
 
   AWAIT_READY(signaled);
+  AWAIT_READY(unregisterSlaveMessage);
   AWAIT_READY(executorTerminated);
+
+  // The master should send a TASK_LOST and slaveLost.
+  AWAIT_READY(status2);
+  ASSERT_EQ(TASK_LOST, status2.get().state());
+  AWAIT_READY(slaveLost);
 
   // Make sure the slave terminates.
   ASSERT_TRUE(process::wait(slave.get(), Seconds(10)));
