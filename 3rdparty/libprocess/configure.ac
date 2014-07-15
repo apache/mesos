@@ -77,6 +77,13 @@ AC_ARG_WITH([boost],
 		           location prefixed by the given path]),
 	    [without_bundled_boost=yes], [])
 
+AC_ARG_WITH([picojson],
+        AS_HELP_STRING([--with-picojson@<:@=DIR@:>@],
+                   [excludes building and using the bundled picojson
+                   package in lieu of an installed version at a
+                   location prefixed by the given path]),
+        [without_bundled_picojson=yes], [])
+
 AC_ARG_WITH([http-parser],
 	    AS_HELP_STRING([--with-http-parser@<:@=DIR@:>@],
 			   [excludes building and using the bundled http-parser
@@ -123,6 +130,10 @@ if test -n "`echo $with_boost`"; then
   CPPFLAGS="$CPPFLAGS -I${with_boost}/include"
 fi
 
+if test -n "`echo $with_picojson`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_picojson}/include"
+fi
+
 if test -n "`echo $with_http-parser`"; then
   CPPFLAGS="$CPPFLAGS -I${with_http-parser}/include"
 fi
@@ -153,6 +164,33 @@ else
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_BOOST], [test "x$with_bundled_boost" = "xyes"])
+
+# Check if user has asked us to use a preinstalled picojson, or if they asked
+# us to ignore all bundled libraries while compiling and linking.
+if test "x$without_bundled_picojson" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([picojson.h], [found_picojson=yes])
+
+  if test "x$found_picojson" = "xyes"; then
+    with_bundled_picojson=no
+  else
+    AC_MSG_ERROR([cannot find picojson
+-------------------------------------------------------------------
+You have requested the use of a non-bundled picojson but no suitable
+picojson could be found.
+
+You may want specify the location of picojson by providing a prefix
+path via --with-picojson=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_picojson=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_PICOJSON], [test "x$with_bundled_picojson" = "xyes"])
 
 
 # Check if user has asked us to use a preinstalled http-parser, or if they asked

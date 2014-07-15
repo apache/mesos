@@ -85,9 +85,11 @@ MESOS_CPPFLAGS += -I../include
 # Protobuf headers that depend on mesos.pb.h need this.
 MESOS_CPPFLAGS += -I../include/mesos
 
+# Header only dependencies will be ignored for --disable-bundled.
 MESOS_CPPFLAGS += -I../$(BOOST)
-MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(PICOJSON)
+
+MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(GLOG)/src
 
 

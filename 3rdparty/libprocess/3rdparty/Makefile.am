@@ -171,11 +171,14 @@ stout_tests_CPPFLAGS =				\
   -I$(GTEST)/include				\
   -I$(GMOCK)/include				\
   -I$(PROTOBUF)/src				\
-  -I$(PICOJSON)					\
   $(AM_CPPFLAGS)
 
 if WITH_BUNDLED_BOOST
   stout_tests_CPPFLAGS += -I$(BOOST)
+endif
+
+if WITH_BUNDLED_PICOJSON
+  stout_tests_CPPFLAGS += -I$(PICOJSON)
 endif
 
 stout_tests_LDADD =			\
@@ -197,11 +200,14 @@ ALL_LOCAL =				\
   $(GLOG)/libglog.la			\
   $(LIBEV)/libev.la			\
   $(PROTOBUF)/src/libprotobuf.la	\
-  $(PROTOBUF)/src/protoc		\
-  $(PICOJSON)-stamp
+  $(PROTOBUF)/src/protoc
 
 if WITH_BUNDLED_BOOST
   ALL_LOCAL += $(BOOST)-stamp
+endif
+
+if WITH_BUNDLED_PICOJSON
+  ALL_LOCAL += $(PICOJSON)-stamp
 endif
 
 if HAS_GPERFTOOLS
