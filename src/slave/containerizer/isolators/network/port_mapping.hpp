@@ -28,6 +28,9 @@
 
 #include <process/owned.hpp>
 
+#include <process/metrics/metrics.hpp>
+#include <process/metrics/counter.hpp>
+
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/interval.hpp>
@@ -107,6 +110,49 @@ private:
 // for unit testing.
 std::vector<routing::filter::ip::PortRange> getPortRanges(
     const IntervalSet<uint16_t>& ports);
+
+
+// Define the metrics used by the port mapping network isolator.
+// NOTE: We do not put this class inside PortMappingIsolatorProcess
+// because it is also used by some functions that are not part of
+// PortMappingIsolatorProcess.
+struct PortMappingMetrics
+{
+  PortMappingMetrics();
+  ~PortMappingMetrics();
+
+  process::metrics::Counter adding_eth0_ip_filters_errors;
+  process::metrics::Counter adding_eth0_ip_filters_already_exist;
+  process::metrics::Counter adding_lo_ip_filters_errors;
+  process::metrics::Counter adding_lo_ip_filters_already_exist;
+  process::metrics::Counter adding_veth_ip_filters_errors;
+  process::metrics::Counter adding_veth_ip_filters_already_exist;
+  process::metrics::Counter adding_veth_icmp_filters_errors;
+  process::metrics::Counter adding_veth_icmp_filters_already_exist;
+  process::metrics::Counter adding_veth_arp_filters_errors;
+  process::metrics::Counter adding_veth_arp_filters_already_exist;
+  process::metrics::Counter adding_eth0_icmp_filters_errors;
+  process::metrics::Counter adding_eth0_icmp_filters_already_exist;
+  process::metrics::Counter adding_eth0_arp_filters_errors;
+  process::metrics::Counter adding_eth0_arp_filters_already_exist;
+  process::metrics::Counter removing_eth0_ip_filters_errors;
+  process::metrics::Counter removing_eth0_ip_filters_do_not_exist;
+  process::metrics::Counter removing_lo_ip_filters_errors;
+  process::metrics::Counter removing_lo_ip_filters_do_not_exist;
+  process::metrics::Counter removing_veth_ip_filters_errors;
+  process::metrics::Counter removing_veth_ip_filters_do_not_exist;
+  process::metrics::Counter removing_eth0_icmp_filters_errors;
+  process::metrics::Counter removing_eth0_icmp_filters_do_not_exist;
+  process::metrics::Counter removing_eth0_arp_filters_errors;
+  process::metrics::Counter removing_eth0_arp_filters_do_not_exist;
+  process::metrics::Counter updating_eth0_icmp_filters_errors;
+  process::metrics::Counter updating_eth0_icmp_filters_already_exist;
+  process::metrics::Counter updating_eth0_icmp_filters_do_not_exist;
+  process::metrics::Counter updating_eth0_arp_filters_errors;
+  process::metrics::Counter updating_eth0_arp_filters_already_exist;
+  process::metrics::Counter updating_eth0_arp_filters_do_not_exist;
+  process::metrics::Counter updating_container_ip_filters_errors;
+};
 
 
 // Provides network isolation using port mapping. Each container is
@@ -222,6 +268,8 @@ private:
   // Recovered containers from a previous run that weren't managed by
   // the network isolator.
   hashset<ContainerID> unmanaged;
+
+  PortMappingMetrics metrics;
 };
 
 
