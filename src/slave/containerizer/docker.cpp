@@ -1055,15 +1055,19 @@ void DockerContainerizerProcess::destroy(
   LOG(INFO) << "Destroying container '" << containerId << "'";
 
   // Do a 'docker rm -f' which we'll then find out about in '_wait'
-  // after the mesos-executor exits because it's doing a 'docker wait'
-  // (via --override).
+  // after we've reaped either the container's root process (in the
+  // event that we had just launched a container for an executor) or
+  // the mesos-executor (in the case we launched a container for a
+  // task). As a reminder, the mesos-executor exits because it's doing
+  // a 'docker wait' on the container using the --override flag of
+  // mesos-executor.
   //
-  // NOTE: We might not actually have a mesos-executor running (which
-  // we could check by looking if 'containerId' is a key in
-  // 'statuses') but if that is the case then we're doing a destroy
-  // because we failed to launch the mesos-executor (see defer at
-  // bottom of 'launch') so no need to do anything after a successful
-  // 'docker rm -f'.
+  // NOTE: We might not actually have a container or mesos-executor
+  // running (which we could check by looking if 'containerId' is a
+  // key in 'statuses'). If that is the case then we're doing a
+  // destroy because we failed to launch (see defer at bottom of
+  // 'launch'). We try and destroy regardless for now, just to be
+  // safe.
 
   // TODO(benh): Retry 'docker rm -f' if it failed but the container
   // still exists (asynchronously).
