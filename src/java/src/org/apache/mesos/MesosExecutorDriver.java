@@ -25,14 +25,14 @@ import org.apache.mesos.Protos.*;
  * Concrete implementation of an ExecutorDriver that connects an
  * Executor with a Mesos slave. The MesosExecutorDriver is
  * thread-safe.
- *
+ * <p>
  * The driver is responsible for invoking the Executor callbacks as it
  * communicates with the Mesos slave.
- *
+ * <p>
  * Note that blocking on the MesosExecutorDriver (e.g., via {@link
  * #join}) doesn't affect the executor callbacks in anyway because
  * they are handled by a different thread.
- *
+ * <p>
  * See src/examples/java/TestExecutor.java for an example of using the
  * MesosExecutorDriver.
  */
@@ -43,6 +43,11 @@ public class MesosExecutorDriver implements ExecutorDriver {
 
   /**
    * Creates a new driver that uses the specified Executor.
+   *
+   * @param executor    The instance of the executor that will be used
+   *                    to connect to the slave.
+   *
+   * @see Executor
    */
   public MesosExecutorDriver(Executor executor) {
     if (executor == null) {
@@ -56,6 +61,8 @@ public class MesosExecutorDriver implements ExecutorDriver {
 
   /**
    * See ExecutorDriver for descriptions of these.
+   *
+   * @see ExecutorDriver
    */
   public native Status start();
   public native Status stop();

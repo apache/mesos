@@ -35,7 +35,9 @@ public interface SchedulerDriver {
    * Starts the scheduler driver. This needs to be called before any
    * other driver calls are made.
    *
-   * @return The state of the driver after the call.
+   * @return    The state of the driver after the call.
+   *
+   * @see Status
    */
   Status start();
 
@@ -49,8 +51,11 @@ public interface SchedulerDriver {
    * (possibly in the same process, or from a different process, for
    * example, on a different machine).
    *
-   * @param failover Whether framework failover is expected.
-   * @return The state of the driver after the call.
+   * @param failover    Whether framework failover is expected.
+   *
+   * @return            The state of the driver after the call.
+   *
+   * @see Status
    */
   Status stop(boolean failover);
 
@@ -78,7 +83,7 @@ public interface SchedulerDriver {
 
   /**
    * Waits for the driver to be stopped or aborted, possibly
-   * _blocking_ the current thread indefinitely. The return status of
+   * <i>blocking</i> the current thread indefinitely. The return status of
    * this function can be used to determine if the driver was aborted
    * (see mesos.proto for a description of Status).
    *
@@ -100,8 +105,12 @@ public interface SchedulerDriver {
    * framework via {@link Scheduler#resourceOffers} callback,
    * asynchronously.
    *
-   * @param requests The resource requests.
-   * @return The state of the driver after the call.
+   * @param requests    The resource requests.
+   *
+   * @return            The state of the driver after the call.
+   *
+   * @see Request
+   * @see Status
    */
   Status requestResources(Collection<Request> requests);
 
@@ -115,10 +124,16 @@ public interface SchedulerDriver {
    * Invoking this function with an empty collection of tasks declines
    * offers in their entirety (see {@link #declineOffer}).
    *
-   * @param offerIds The collection of offer IDs.
-   * @param tasks The collection of tasks to be launched.
-   * @param filters The filters to set for any remaining resources.
-   * @return The state of the driver after the call.
+   * @param offerIds    The collection of offer IDs.
+   * @param tasks       The collection of tasks to be launched.
+   * @param filters     The filters to set for any remaining resources.
+   *
+   * @return            The state of the driver after the call.
+  *
+   * @see OfferID
+   * @see TaskInfo
+   * @see Filters
+   * @see Status
    */
   Status launchTasks(Collection<OfferID> offerIds,
                      Collection<TaskInfo> tasks,
@@ -127,30 +142,33 @@ public interface SchedulerDriver {
   /**
    * Launches the given set of tasks. See above for details.
    *
-   * @param offerIds The collection of offer IDs.
-   * @param tasks The collection of tasks to be launched.
-   * @return The state of the driver after the call.
+   * @param offerIds    The collection of offer IDs.
+   * @param tasks       The collection of tasks to be launched.
+   *
+   * @return            The state of the driver after the call.
    */
   Status launchTasks(Collection<OfferID> offerIds, Collection<TaskInfo> tasks);
 
   /**
-   * @deprecated Use {@link #launchTasks(Collection, Collection, Filters)}.
+   * @deprecated Use {@link #launchTasks(Collection, Collection, Filters)} instead.
    *
    * @param offerId The offer ID.
-   * @param tasks The collection of tasks to be launched.
+   * @param tasks   The collection of tasks to be launched.
    * @param filters The filters to set for any remaining resources.
-   * @return The state of the driver after the call.
+   *
+   * @return        The state of the driver after the call.
    */
   Status launchTasks(OfferID offerId,
                      Collection<TaskInfo> tasks,
                      Filters filters);
 
   /**
-   * @deprecated Use {@link #launchTasks(Collection, Collection)}.
+   * @deprecated Use {@link #launchTasks(Collection, Collection)} instead.
    *
    * @param offerId The offer ID.
-   * @param tasks The collection of tasks to be launched.
-   * @return The state of the driver after the call.
+   * @param tasks   The collection of tasks to be launched.
+   *
+   * @return        The state of the driver after the call.
    */
   Status launchTasks(OfferID offerId, Collection<TaskInfo> tasks);
 
@@ -161,8 +179,9 @@ public interface SchedulerDriver {
    * the future Likewise, if unregistered / disconnected, the request
    * will be dropped (these semantics may be changed in the future).
    *
-   * @param taskId The ID of the task to be killed.
-   * @return The state of the driver after the call.
+   * @param taskId  The ID of the task to be killed.
+   *
+   * @return        The state of the driver after the call.
    */
   Status killTask(TaskID taskId);
 
@@ -175,7 +194,12 @@ public interface SchedulerDriver {
    *
    * @param offerId The ID of the offer to be declined.
    * @param filters The filters to set for any remaining resources.
-   * @return The state of the driver after the call.
+   *
+   * @return        The state of the driver after the call.
+   *
+   * @see OfferID
+   * @see Filters
+   * @see Status
    */
   Status declineOffer(OfferID offerId, Filters filters);
 
@@ -183,7 +207,11 @@ public interface SchedulerDriver {
    * Declines an offer in its entirety. See above for details.
    *
    * @param offerId The ID of the offer to be declined.
-   * @return The state of the driver after the call.
+   *
+   * @return        The state of the driver after the call.
+   *
+   * @see OfferID
+   * @see Status
    */
   Status declineOffer(OfferID offerId);
 
@@ -192,7 +220,9 @@ public interface SchedulerDriver {
    * #launchTasks}). This enables the framework to receive offers
    * from those filtered slaves.
    *
-   * @return The state of the driver after the call.
+   * @return    The state of the driver after the call.
+   *
+   * @see Status
    */
   Status reviveOffers();
 
@@ -201,10 +231,14 @@ public interface SchedulerDriver {
    * messages are best effort; do not expect a framework message to be
    * retransmitted in any reliable fashion.
    *
-   * @param executorId The ID of the executor to send the message to.
-   * @param slaveId The ID of the slave that is running the executor.
-   * @param data The message.
-   * @return The state of the driver after the call.
+   * @param executorId  The ID of the executor to send the message to.
+   * @param slaveId     The ID of the slave that is running the executor.
+   * @param data        The message.
+   *
+   * @return            The state of the driver after the call.
+   *
+   * @see ExecutorID
+   * @see SlaveID
    */
   Status sendFrameworkMessage(ExecutorID executorId,
                               SlaveID slaveId,
@@ -218,8 +252,12 @@ public interface SchedulerDriver {
    * then the master will send the latest status for each task
    * currently known.
    *
-   * @param statuses The collection of non-terminal TaskStatuses to reconcile.
-   * @return The state of the driver after the call.
+   * @param statuses    The collection of non-terminal TaskStatuses to reconcile.
+   *
+   * @return            The state of the driver after the call.
+   *
+   * @see TaskStatus
+   * @see SlaveID
    */
   Status reconcileTasks(Collection<TaskStatus> statuses);
 }

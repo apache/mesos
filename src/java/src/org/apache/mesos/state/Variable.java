@@ -37,7 +37,8 @@ public class Variable {
    * Updates the current value of this variable.
    *
    * @param value The new value.
-   * @return A variable representing the new value.
+   *
+   * @return      A variable representing the new value.
    */
   public native Variable mutate(byte[] value);
 

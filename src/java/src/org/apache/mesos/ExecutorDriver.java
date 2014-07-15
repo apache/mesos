@@ -32,14 +32,18 @@ public interface ExecutorDriver {
    * Starts the executor driver. This needs to be called before any
    * other driver calls are made.
    *
-   * @return The state of the driver after the call.
+   * @return    The state of the driver after the call.
+   *
+   * @see Status
    */
   public Status start();
 
   /**
    * Stops the executor driver.
    *
-   * @return The state of the driver after the call.
+   * @return    The state of the driver after the call.
+   *
+   * @see Status
    */
   public Status stop();
 
@@ -52,27 +56,33 @@ public interface ExecutorDriver {
    * the same process ... although this functionality is currently not
    * supported for executors).
    *
-   * @return The state of the driver after the call.
+   * @return    The state of the driver after the call.
+   *
+   * @see Status
    */
   public Status abort();
-  
+
   /**
    * Waits for the driver to be stopped or aborted, possibly
    * _blocking_ the current thread indefinitely. The return status of
    * this function can be used to determine if the driver was aborted
    * (see mesos.proto for a description of Status).
    *
-   * @return The state of the driver after the call.
+   * @return    The state of the driver after the call.
+   *
+   * @see Status
    */
   public Status join();
-  
+
   /**
    * Starts and immediately joins (i.e., blocks on) the driver.
    *
-   * @return The state of the driver after the call.
+   * @return    The state of the driver after the call.
+   *
+   * @see Status
    */
   public Status run();
- 
+
   /**
    * Sends a status update to the framework scheduler, retrying as
    * necessary until an acknowledgement has been received or the
@@ -80,18 +90,24 @@ public interface ExecutorDriver {
    * will be sent). See {@link Scheduler#statusUpdate} for more
    * information about status update acknowledgements.
    *
-   * @param status The status update to send.
-   * @return The state of the driver after the call.
+   * @param status  The status update to send.
+   *
+   * @return        The state of the driver after the call.
+   *
+   * @see Status
    */
   public Status sendStatusUpdate(TaskStatus status);
-  
+
   /**
    * Sends a message to the framework scheduler. These messages are
    * best effort; do not expect a framework message to be
    * retransmitted in any reliable fashion.
    *
-   * @param data The message data.
-   * @return The state of the driver after the call.
+   * @param data    The message payload.
+   *
+   * @return        The state of the driver after the call.
+   *
+   * @see Status
    */
   public Status sendFrameworkMessage(byte[] data);
 }

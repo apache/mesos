@@ -26,7 +26,7 @@ public class LevelDBState extends AbstractState {
   /**
    * Constructs a new instance of LevelDBState.
    *
-   * @param path absolute path to database.
+   * @param path  Absolute path to database.
    */
   public LevelDBState(String path) {
     initialize(path);

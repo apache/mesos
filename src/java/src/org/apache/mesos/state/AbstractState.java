@@ -178,7 +178,8 @@ public abstract class AbstractState implements State {
       }
 
       @Override
-      public Iterator<String> get() throws InterruptedException, ExecutionException {
+      public Iterator<String> get() throws  InterruptedException,
+                                            ExecutionException {
         return __names_get(future);
       }
 

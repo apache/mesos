@@ -31,20 +31,20 @@ import java.util.Map;
  * Concrete implementation of a SchedulerDriver that connects a
  * Scheduler with a Mesos master. The MesosSchedulerDriver is
  * thread-safe.
- *
+ * <p>
  * Note that scheduler failover is supported in Mesos. After a
  * scheduler is registered with Mesos it may failover (to a new
  * process on the same machine or across multiple machines) by
  * creating a new driver with the ID given to it in {@link
  * Scheduler#registered}.
- *
+ * <p>
  * The driver is responsible for invoking the Scheduler callbacks as
  * it communicates with the Mesos master.
- *
+ * <p>
  * Note that blocking on the MesosSchedulerDriver (e.g., via {@link
  * #join}) doesn't affect the scheduler callbacks in anyway because
  * they are handled by a different thread.
- *
+ * <p>
  * See src/examples/java/TestFramework.java for an example of using
  * the MesosSchedulerDriver.
  */
@@ -56,26 +56,33 @@ public class MesosSchedulerDriver implements SchedulerDriver {
   /**
    * Creates a new driver for the specified scheduler. The master
    * should be one of:
-   *
+   * <pre>
+   * {@code
    *     host:port
    *     zk://host1:port1,host2:port2,.../path
    *     zk://username:password@host1:port1,host2:port2,.../path
    *     file:///path/to/file (where file contains one of the above)
-   *
+   * }
+   * </pre>
+   * <p>
    * The driver will attempt to "failover" if the specified
    * FrameworkInfo includes a valid FrameworkID.
-   *
+   * <p>
    * Any Mesos configuration options are read from environment
    * variables, as well as any configuration files found through the
    * environment variables.
+   * <p>
    *
-   * TODO(vinod): Deprecate this in favor the constructor that takes
-   * 'credential' as parameter.
+   * @param scheduler The scheduler implementation which callbacks are invoked
+   *                  upon scheduler events.
+   * @param framework The frameworkInfo describing the current framework.
+   * @param master    The address to the currently active Mesos master.
    */
-  public MesosSchedulerDriver(
-      Scheduler scheduler,
-      FrameworkInfo framework,
-      String master) {
+   // TODO(vinod): Deprecate this in favor the constructor that takes
+   //              'credential' as parameter.
+  public MesosSchedulerDriver(Scheduler scheduler,
+                              FrameworkInfo framework,
+                              String master) {
     if (scheduler == null) {
       throw new NullPointerException("Not expecting a null Scheduler");
     }
@@ -99,12 +106,19 @@ public class MesosSchedulerDriver implements SchedulerDriver {
   /**
    * Same as the above constructor, except that it accepts 'credential'
    * as a parameter.
+   *
+   * @param scheduler   The scheduler implementation which callbacks are invoked
+   *                    upon scheduler events.
+   * @param framework   The frameworkInfo describing the current framework.
+   * @param master      The address to the currently active Mesos master.
+   * @param credential  The credentials that will be used used to authenticate
+   *                    calls from this scheduler.
    */
-  public MesosSchedulerDriver(
-      Scheduler scheduler,
-      FrameworkInfo framework,
-      String master,
-      Credential credential) {
+  public MesosSchedulerDriver(Scheduler scheduler,
+                              FrameworkInfo framework,
+                              String master,
+                              Credential credential) {
+
     if (scheduler == null) {
       throw new NullPointerException("Not expecting a null Scheduler");
     }
@@ -129,16 +143,16 @@ public class MesosSchedulerDriver implements SchedulerDriver {
     initialize();
   }
 
-
-  /**
-   * See SchedulerDriver for descriptions of these.
-   */
   public native Status start();
+
   public native Status stop(boolean failover);
+
   public Status stop() {
     return stop(false);
   }
+
   public native Status abort();
+
   public native Status join();
 
   public Status run() {
@@ -148,21 +162,14 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   public native Status requestResources(Collection<Request> requests);
 
-  /**
-   * @deprecated Replaced by launchTasks using offer list.
-   */
   public Status launchTasks(OfferID offerId,
                             Collection<TaskInfo> tasks) {
     return launchTasks(offerId, tasks, Filters.newBuilder().build());
   }
 
-  /**
-   * @deprecated Replaced by launchTasks using offer list.
-   */
   public native Status launchTasks(OfferID offerId,
                                    Collection<TaskInfo> tasks,
                                    Filters filters);
-
   public Status launchTasks(Collection<OfferID> offerIds,
                             Collection<TaskInfo> tasks) {
     return launchTasks(offerIds, tasks, Filters.newBuilder().build());
