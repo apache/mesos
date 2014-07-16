@@ -17,6 +17,8 @@
  */
 
 #include <libgen.h>
+#include <pthread.h>
+#include <unistd.h>
 
 #include <iostream>
 #include <string>
@@ -24,15 +26,12 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include <process/delay.hpp>
-#include <process/process.hpp>
 #include <process/protobuf.hpp>
 
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
 #include <stout/check.hpp>
-#include <stout/duration.hpp>
 #include <stout/exit.hpp>
 #include <stout/flags.hpp>
 #include <stout/foreach.hpp>
@@ -62,7 +61,7 @@ using mesos::scheduler::Event;
 const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 32;
 
-class LowLevelScheduler : public process::Process<LowLevelScheduler>
+class LowLevelScheduler
 {
 public:
   LowLevelScheduler(const FrameworkInfo& _framework,
@@ -71,13 +70,17 @@ public:
     : framework(_framework),
       executor(_executor),
       mesos(master,
-            process::defer(self(), &Self::connected),
-            process::defer(self(), &Self::disconnected),
-            process::defer(self(), &Self::received, lambda::_1)),
+            lambda::bind(&LowLevelScheduler::connected, this),
+            lambda::bind(&LowLevelScheduler::disconnected, this),
+            lambda::bind(&LowLevelScheduler::received, this, lambda::_1)),
       state(INITIALIZING),
       tasksLaunched(0),
       tasksFinished(0),
-      totalTasks(5) {}
+      totalTasks(5)
+  {
+    pthread_mutex_init(&mutex, NULL);
+    pthread_cond_init(&cond, 0);
+  }
 
   LowLevelScheduler(const FrameworkInfo& _framework,
                     const ExecutorInfo& _executor,
@@ -87,24 +90,39 @@ public:
       executor(_executor),
       mesos(master,
             credential,
-            process::defer(self(), &Self::connected),
-            process::defer(self(), &Self::disconnected),
-            process::defer(self(), &Self::received, lambda::_1)),
+            lambda::bind(&LowLevelScheduler::connected, this),
+            lambda::bind(&LowLevelScheduler::disconnected, this),
+            lambda::bind(&LowLevelScheduler::received, this, lambda::_1)),
       state(INITIALIZING),
       tasksLaunched(0),
       tasksFinished(0),
-      totalTasks(5) {}
+      totalTasks(5)
+  {
+    pthread_mutex_init(&mutex, NULL);
+    pthread_cond_init(&cond, 0);
+  }
 
-  ~LowLevelScheduler() {}
+  ~LowLevelScheduler()
+  {
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&cond);
+  }
 
   void connected(void)
   {
-    doReliableRegistration();
+    pthread_mutex_lock(&mutex);
+    state = CONNECTED;
+
+    // Unblock the main thread calling wait().
+    pthread_cond_signal(&cond);
+    pthread_mutex_unlock(&mutex);
   }
 
   void disconnected(void)
   {
+    pthread_mutex_lock(&mutex);
     state = DISCONNECTED;
+    pthread_mutex_unlock(&mutex);
   }
 
   void received(queue<Event> events)
@@ -117,8 +135,11 @@ public:
         case Event::REGISTERED: {
           cout << endl << "Received a REGISTERED event" << endl;
 
-          framework.mutable_id()->CopyFrom(event.registered().framework_id());
+          pthread_mutex_lock(&mutex);
           state = REGISTERED;
+          pthread_mutex_unlock(&mutex);
+
+          framework.mutable_id()->CopyFrom(event.registered().framework_id());
 
           cout << "Framework '" << event.registered().framework_id().value()
                << "' registered with Master '"
@@ -129,10 +150,12 @@ public:
         case Event::REREGISTERED: {
           cout << endl << "Received a REREGISTERED event" << endl;
 
+          pthread_mutex_lock(&mutex);
           state = REGISTERED;
+          pthread_mutex_unlock(&mutex);
 
           cout << "Framework '" << event.reregistered().framework_id().value()
-               << "' re-registered to Master '"
+               << "' re-registered with Master '"
                << event.reregistered().master_info().id() << "'" << endl;
           break;
         }
@@ -183,7 +206,7 @@ public:
               }
             }
             cout << endl;
-          } else if (event.failure().has_slave_id()) {
+          } else {
             // Slave failed.
             cout << "Slave '" << event.failure().slave_id().value()
                  << "' terminated" << endl;
@@ -194,13 +217,41 @@ public:
         case Event::ERROR: {
           cout << endl << "Received an ERROR event: "
                << event.error().message() << endl;
-          process::terminate(self());
+          finalize();
           break;
         }
 
         default: {
           EXIT(1) << "Received an UNKNOWN event";
         }
+      }
+    }
+  }
+
+  void wait(void)
+  {
+    pthread_mutex_lock(&mutex);
+    if (state == INITIALIZING) {
+      // wait for connected() to be called.
+      pthread_cond_wait(&cond, &mutex);
+    }
+
+    // CONNECTED state.
+    pthread_mutex_unlock(&mutex);
+
+    while (true) {
+      pthread_mutex_lock(&mutex);
+      if (state == CONNECTED ||
+          state == DISCONNECTED) {
+        pthread_mutex_unlock(&mutex);
+        doRegistration();
+        sleep(1);
+      } else if (state == DONE) {
+        pthread_mutex_unlock(&mutex);
+        break;
+      } else {
+        pthread_cond_wait(&cond, &mutex);
+        pthread_mutex_unlock(&mutex);
       }
     }
   }
@@ -229,8 +280,7 @@ private:
 
         TaskInfo task;
         task.set_name("Task " + lexical_cast<string>(taskId));
-        task.mutable_task_id()->set_value(
-            lexical_cast<string>(taskId));
+        task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
         task.mutable_executor()->MergeFrom(executor);
 
@@ -245,8 +295,8 @@ private:
       }
 
       Call call;
-      call.mutable_framework_info()->CopyFrom(framework);
       call.set_type(Call::LAUNCH);
+      call.mutable_framework_info()->CopyFrom(framework);
 
       Call::Launch* launch = call.mutable_launch();
       foreach (const TaskInfo& taskInfo, tasks) {
@@ -269,8 +319,8 @@ private:
     cout << endl;
 
     Call call;
-    call.mutable_framework_info()->CopyFrom(framework);
     call.set_type(Call::ACKNOWLEDGE);
+    call.mutable_framework_info()->CopyFrom(framework);
 
     Call::Acknowledge* ack = call.mutable_acknowledge();
     ack->mutable_slave_id()->CopyFrom(status.slave_id());
@@ -284,35 +334,40 @@ private:
     }
 
     if (tasksFinished == totalTasks) {
-      process::terminate(self());
+      finalize();
     }
   }
 
-  void doReliableRegistration()
+  void doRegistration()
   {
-    if (state == REGISTERED) {
+    pthread_mutex_lock(&mutex);
+    if (state != CONNECTED &&
+        state != DISCONNECTED) {
+      pthread_mutex_unlock(&mutex);
       return;
     }
 
     Call call;
     call.mutable_framework_info()->CopyFrom(framework);
     call.set_type(
-        state == INITIALIZING ? Call::REGISTER : Call::REREGISTER);
+        state == CONNECTED ? Call::REGISTER : Call::REREGISTER);
+    pthread_mutex_unlock(&mutex);
 
     mesos.send(call);
-
-    process::delay(Seconds(1),
-                   self(),
-                   &Self::doReliableRegistration);
   }
 
   void finalize(void)
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(framework);
     call.set_type(Call::UNREGISTER);
+    call.mutable_framework_info()->CopyFrom(framework);
 
     mesos.send(call);
+
+    pthread_mutex_lock(&mutex);
+    state = DONE;
+    pthread_cond_signal(&cond);
+    pthread_mutex_unlock(&mutex);
   }
 
   FrameworkInfo framework;
@@ -321,13 +376,18 @@ private:
 
   enum State {
     INITIALIZING = 0,
-    REGISTERED = 1,
-    DISCONNECTED = 2
+    CONNECTED = 1,
+    REGISTERED = 2,
+    DISCONNECTED = 3,
+    DONE = 4
   } state;
 
   int tasksLaunched;
   int tasksFinished;
   const int totalTasks;
+
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
 };
 
 
@@ -376,7 +436,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
-  framework.set_name("Low-Level Scheduler using libprocess (C++)");
+  framework.set_name("Low-Level Scheduler using pthread (C++)");
   framework.set_role(role);
 
   // TODO(vinod): Make checkpointing the default when it is default
@@ -391,8 +451,6 @@ int main(int argc, char** argv)
   executor.mutable_command()->set_value(uri);
   executor.set_name("Test Executor (C++)");
   executor.set_source("cpp_test");
-
-  process::initialize();
 
   LowLevelScheduler* scheduler;
   if (os::hasenv("MESOS_AUTHENTICATE")) {
@@ -415,14 +473,13 @@ int main(int argc, char** argv)
     scheduler =
       new LowLevelScheduler(framework, executor, master.get(), credential);
   } else {
-    framework.set_principal("low-level-scheduler-cpp");
+    framework.set_principal("low-level-scheduler-pthread-cpp");
 
     scheduler =
       new LowLevelScheduler(framework, executor, master.get());
   }
 
-  process::spawn(scheduler);
-  process::wait(scheduler);
+  scheduler->wait();
   delete scheduler;
 
   return 0;

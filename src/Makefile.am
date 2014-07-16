@@ -966,6 +966,11 @@ low_level_scheduler_libprocess_SOURCES = examples/low_level_scheduler_libprocess
 low_level_scheduler_libprocess_CPPFLAGS = $(MESOS_CPPFLAGS)
 low_level_scheduler_libprocess_LDADD = libmesos.la
 
+check_PROGRAMS += low-level-scheduler-pthread
+low_level_scheduler_pthread_SOURCES = examples/low_level_scheduler_pthread.cpp
+low_level_scheduler_pthread_CPPFLAGS = $(MESOS_CPPFLAGS)
+low_level_scheduler_pthread_LDADD = libmesos.la
+
 check_PROGRAMS += test-framework
 test_framework_SOURCES = examples/test_framework.cpp
 test_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -1114,6 +1119,7 @@ EXTRA_DIST += examples/python/test_containerizer.py			\
 dist_check_SCRIPTS +=							\
   tests/balloon_framework_test.sh					\
   tests/low_level_scheduler_libprocess_test.sh						\
+  tests/low_level_scheduler_pthread_test.sh						\
   tests/test_framework_test.sh						\
   tests/no_executor_framework_test.sh					\
   tests/java_exception_test.sh						\
