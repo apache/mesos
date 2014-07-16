@@ -705,23 +705,25 @@ TEST_F(SlaveTest, MetricsInStatsEndpoint)
 }
 
 
-// This test ensures that when a previously unregistered slave is shutting
-// down, it will not keep trying to re-register with the master.
+// This test ensures that when a slave is shutting down, it will not
+// try to re-register with the master.
 TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
 {
   // Start a master.
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  // Create a MockExecutor to enable us to catch ShutdownExecutorMessage later.
+  // Create a MockExecutor to enable us to catch
+  // ShutdownExecutorMessage later.
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
   // Create a StandaloneMasterDetector to enable the slave to trigger
-  // re-registeration later.
+  // re-registration later.
   StandaloneMasterDetector detector(master.get());
   slave::Flags flags = CreateSlaveFlags();
 
-  // Make the executor_shutdown_grace_period to be much longer
-  // than REGISTER_RETRY_INTERVAL, so that the slave will at least
+  // Make the executor_shutdown_grace_period to be much longer than
+  // REGISTER_RETRY_INTERVAL, so that the slave will at least call
   // call doReliableRegistration() once before the slave is actually
   // terminated.
   flags.executor_shutdown_grace_period = slave::REGISTER_RETRY_INTERVAL_MAX * 2;
@@ -738,7 +740,8 @@ TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  // Launch a task that uses less resource than the default(cpus:2, mem:1024).
+  // Launch a task that uses less resource than the
+  // default(cpus:2, mem:1024).
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -767,7 +770,7 @@ TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     DROP_PROTOBUF(SlaveReregisteredMessage(), master.get(), slave.get());
 
-  // Simulate a new master detected event to the scheduler,
+  // Simulate a new master detected event on the slave,
   // so that the slave will do a re-registration.
   detector.appoint(master.get());
 
@@ -786,7 +789,7 @@ TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
 
   // Send a ShutdownMessage instead of calling Stop() directly
   // to avoid blocking.
-  process::post(slave.get(), ShutdownMessage());
+  process::post(master.get(), slave.get(), ShutdownMessage());
 
   // Advance the clock to trigger doReliableRegistration().
   Clock::advance(slave::REGISTER_RETRY_INTERVAL_MAX * 2);

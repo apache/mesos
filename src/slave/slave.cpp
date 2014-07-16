@@ -515,9 +515,6 @@ void Slave::finalize()
 
 void Slave::shutdown(const UPID& from, const string& message)
 {
-  // Allow shutdown message only if
-  // 1) Its a message received from the registered master or
-  // 2) If its called locally (e.g tests)
   if (from && master != from) {
     LOG(WARNING) << "Ignoring shutdown message from " << from
                  << " because it is not from the registered master: "
