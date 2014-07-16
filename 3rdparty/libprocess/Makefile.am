@@ -5,7 +5,10 @@ ACLOCAL_AMFLAGS = -I m4
 
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = 3rdparty .
+# NOTE: The libprocess headers were moved to the Makefile in "include"
+# subdirectory to make it easy to preserve the directory structure of
+# the header files during installation.
+SUBDIRS = 3rdparty . include
 
 include 3rdparty/versions.am
 
@@ -74,67 +77,6 @@ if HAS_GPERFTOOLS
 libprocess_la_CPPFLAGS += -I$(GPERFTOOLS)/src
 libprocess_la_LIBADD += $(GPERFTOOLS)/libprofiler.la
 endif
-
-# Headers.
-libprocess_la_SOURCES +=					\
-  $(top_srcdir)/include/process/async.hpp			\
-  $(top_srcdir)/include/process/check.hpp			\
-  $(top_srcdir)/include/process/clock.hpp			\
-  $(top_srcdir)/include/process/collect.hpp			\
-  $(top_srcdir)/include/process/defer.hpp			\
-  $(top_srcdir)/include/process/deferred.hpp			\
-  $(top_srcdir)/include/process/delay.hpp			\
-  $(top_srcdir)/include/process/dispatch.hpp			\
-  $(top_srcdir)/include/process/event.hpp			\
-  $(top_srcdir)/include/process/executor.hpp			\
-  $(top_srcdir)/include/process/filter.hpp			\
-  $(top_srcdir)/include/process/future.hpp			\
-  $(top_srcdir)/include/process/gc.hpp				\
-  $(top_srcdir)/include/process/gmock.hpp			\
-  $(top_srcdir)/include/process/gtest.hpp			\
-  $(top_srcdir)/include/process/help.hpp			\
-  $(top_srcdir)/include/process/http.hpp			\
-  $(top_srcdir)/include/process/id.hpp				\
-  $(top_srcdir)/include/process/internal.hpp			\
-  $(top_srcdir)/include/process/io.hpp				\
-  $(top_srcdir)/include/process/latch.hpp			\
-  $(top_srcdir)/include/process/limiter.hpp			\
-  $(top_srcdir)/include/process/logging.hpp			\
-  $(top_srcdir)/include/process/message.hpp			\
-  $(top_srcdir)/include/process/metrics/counter.hpp		\
-  $(top_srcdir)/include/process/metrics/gauge.hpp		\
-  $(top_srcdir)/include/process/metrics/metric.hpp		\
-  $(top_srcdir)/include/process/metrics/metrics.hpp		\
-  $(top_srcdir)/include/process/metrics/timer.hpp		\
-  $(top_srcdir)/include/process/mime.hpp			\
-  $(top_srcdir)/include/process/mutex.hpp			\
-  $(top_srcdir)/include/process/once.hpp			\
-  $(top_srcdir)/include/process/owned.hpp			\
-  $(top_srcdir)/include/process/pid.hpp				\
-  $(top_srcdir)/include/process/process.hpp			\
-  $(top_srcdir)/include/process/profiler.hpp			\
-  $(top_srcdir)/include/process/protobuf.hpp			\
-  $(top_srcdir)/include/process/queue.hpp			\
-  $(top_srcdir)/include/process/reap.hpp			\
-  $(top_srcdir)/include/process/run.hpp				\
-  $(top_srcdir)/include/process/sequence.hpp			\
-  $(top_srcdir)/include/process/shared.hpp			\
-  $(top_srcdir)/include/process/socket.hpp			\
-  $(top_srcdir)/include/process/statistics.hpp			\
-  $(top_srcdir)/include/process/system.hpp			\
-  $(top_srcdir)/include/process/subprocess.hpp			\
-  $(top_srcdir)/include/process/time.hpp			\
-  $(top_srcdir)/include/process/timeout.hpp			\
-  $(top_srcdir)/include/process/timer.hpp			\
-  $(top_srcdir)/include/process/timeseries.hpp
-
-# C++11 Headers.
-libprocess_la_SOURCES +=					\
-  $(top_srcdir)/include/process/c++11/defer.hpp			\
-  $(top_srcdir)/include/process/c++11/deferred.hpp		\
-  $(top_srcdir)/include/process/c++11/delay.hpp			\
-  $(top_srcdir)/include/process/c++11/dispatch.hpp		\
-  $(top_srcdir)/include/process/c++11/executor.hpp
 
 # Tests.
 check_PROGRAMS = tests
