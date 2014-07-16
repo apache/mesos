@@ -38,17 +38,26 @@ public:
 
   void unlock()
   {
+    // NOTE: We need to grab the promise 'date->promises.front()' but
+    // set it outside of the critical section because setting it might
+    // trigger callbacks that try to reacquire the lock.
+    Owned<Promise<Nothing> > promise;
+
     internal::acquire(&data->lock);
     {
       if (!data->promises.empty()) {
         // TODO(benh): Skip a future that has been discarded?
-        data->promises.front()->set(Nothing());
+        promise = data->promises.front();
         data->promises.pop();
       } else {
         data->locked = false;
       }
     }
     internal::release(&data->lock);
+
+    if (promise.get() != NULL) {
+      promise->set(Nothing());
+    }
   }
 
 private:

@@ -20,6 +20,9 @@ public:
 
   void put(const T& t)
   {
+    // NOTE: We need to grab the promise 'date->promises.front()' but
+    // set it outside of the critical section because setting it might
+    // trigger callbacks that try to reacquire the lock.
     Owned<Promise<T> > promise;
 
     internal::acquire(&data->lock);
