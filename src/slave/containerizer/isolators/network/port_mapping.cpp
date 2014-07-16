@@ -29,6 +29,7 @@
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
+#include <process/pid.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/error.hpp>
@@ -124,145 +125,6 @@ static net::IP LOOPBACK_IP = net::IP::fromDotDecimal("127.0.0.1/8").get();
 static const Interval<uint16_t> WELL_KNOWN_PORTS =
   (Bound<uint16_t>::closed(0), Bound<uint16_t>::open(1024));
 
-
-/////////////////////////////////////////////////
-// Implementation for PortMappingMetrics.
-/////////////////////////////////////////////////
-
-
-PortMappingMetrics::PortMappingMetrics()
-  : adding_eth0_ip_filters_errors(
-        "port_mapping/adding_eth0_ip_filters_errors"),
-    adding_eth0_ip_filters_already_exist(
-        "port_mapping/adding_eth0_ip_filters_already_exist"),
-    adding_lo_ip_filters_errors(
-        "port_mapping/adding_lo_ip_filters_errors"),
-    adding_lo_ip_filters_already_exist(
-        "port_mapping/adding_lo_ip_filters_already_exist"),
-    adding_veth_ip_filters_errors(
-        "port_mapping/adding_veth_ip_filters_errors"),
-    adding_veth_ip_filters_already_exist(
-        "port_mapping/adding_veth_ip_filters_already_exist"),
-    adding_veth_icmp_filters_errors(
-        "port_mapping/adding_veth_icmp_filters_errors"),
-    adding_veth_icmp_filters_already_exist(
-        "port_mapping/adding_veth_icmp_filters_already_exist"),
-    adding_veth_arp_filters_errors(
-        "port_mapping/adding_veth_arp_filters_errors"),
-    adding_veth_arp_filters_already_exist(
-        "port_mapping/adding_veth_arp_filters_already_exist"),
-    adding_eth0_icmp_filters_errors(
-        "port_mapping/adding_eth0_icmp_filters_errors"),
-    adding_eth0_icmp_filters_already_exist(
-        "port_mapping/adding_eth0_icmp_filters_already_exist"),
-    adding_eth0_arp_filters_errors(
-        "port_mapping/adding_eth0_arp_filters_errors"),
-    adding_eth0_arp_filters_already_exist(
-        "port_mapping/adding_eth0_arp_filters_already_exist"),
-    removing_eth0_ip_filters_errors(
-        "port_mapping/removing_eth0_ip_filters_errors"),
-    removing_eth0_ip_filters_do_not_exist(
-        "port_mapping/removing_eth0_ip_filters_do_not_exist"),
-    removing_lo_ip_filters_errors(
-        "port_mapping/removing_lo_ip_filters_errors"),
-    removing_lo_ip_filters_do_not_exist(
-        "port_mapping/removing_lo_ip_filters_do_not_exist"),
-    removing_veth_ip_filters_errors(
-        "port_mapping/removing_veth_ip_filters_errors"),
-    removing_veth_ip_filters_do_not_exist(
-        "port_mapping/removing_veth_ip_filters_do_not_exist"),
-    removing_eth0_icmp_filters_errors(
-        "port_mapping/removing_eth0_icmp_filters_errors"),
-    removing_eth0_icmp_filters_do_not_exist(
-        "port_mapping/removing_eth0_icmp_filters_do_not_exist"),
-    removing_eth0_arp_filters_errors(
-        "port_mapping/removing_eth0_arp_filters_errors"),
-    removing_eth0_arp_filters_do_not_exist(
-        "port_mapping/removing_eth0_arp_filters_do_not_exist"),
-    updating_eth0_icmp_filters_errors(
-        "port_mapping/updating_eth0_icmp_filters_errors"),
-    updating_eth0_icmp_filters_already_exist(
-        "port_mapping/updating_eth0_icmp_filters_already_exist"),
-    updating_eth0_icmp_filters_do_not_exist(
-        "port_mapping/updating_eth0_icmp_filters_do_not_exist"),
-    updating_eth0_arp_filters_errors(
-        "port_mapping/updating_eth0_arp_filters_errors"),
-    updating_eth0_arp_filters_already_exist(
-        "port_mapping/updating_eth0_arp_filters_already_exist"),
-    updating_eth0_arp_filters_do_not_exist(
-        "port_mapping/updating_eth0_arp_filters_do_not_exist"),
-    updating_container_ip_filters_errors(
-        "port_mapping/updating_container_ip_filters_errors")
-{
-  process::metrics::add(adding_eth0_ip_filters_errors);
-  process::metrics::add(adding_eth0_ip_filters_already_exist);
-  process::metrics::add(adding_lo_ip_filters_errors);
-  process::metrics::add(adding_lo_ip_filters_already_exist);
-  process::metrics::add(adding_veth_ip_filters_errors);
-  process::metrics::add(adding_veth_ip_filters_already_exist);
-  process::metrics::add(adding_veth_icmp_filters_errors);
-  process::metrics::add(adding_veth_icmp_filters_already_exist);
-  process::metrics::add(adding_veth_arp_filters_errors);
-  process::metrics::add(adding_veth_arp_filters_already_exist);
-  process::metrics::add(adding_eth0_icmp_filters_errors);
-  process::metrics::add(adding_eth0_icmp_filters_already_exist);
-  process::metrics::add(adding_eth0_arp_filters_errors);
-  process::metrics::add(adding_eth0_arp_filters_already_exist);
-  process::metrics::add(removing_eth0_ip_filters_errors);
-  process::metrics::add(removing_eth0_ip_filters_do_not_exist);
-  process::metrics::add(removing_lo_ip_filters_errors);
-  process::metrics::add(removing_lo_ip_filters_do_not_exist);
-  process::metrics::add(removing_veth_ip_filters_errors);
-  process::metrics::add(removing_veth_ip_filters_do_not_exist);
-  process::metrics::add(removing_eth0_icmp_filters_errors);
-  process::metrics::add(removing_eth0_icmp_filters_do_not_exist);
-  process::metrics::add(removing_eth0_arp_filters_errors);
-  process::metrics::add(removing_eth0_arp_filters_do_not_exist);
-  process::metrics::add(updating_eth0_icmp_filters_errors);
-  process::metrics::add(updating_eth0_icmp_filters_already_exist);
-  process::metrics::add(updating_eth0_icmp_filters_do_not_exist);
-  process::metrics::add(updating_eth0_arp_filters_errors);
-  process::metrics::add(updating_eth0_arp_filters_already_exist);
-  process::metrics::add(updating_eth0_arp_filters_do_not_exist);
-  process::metrics::add(updating_container_ip_filters_errors);
-}
-
-
-PortMappingMetrics::~PortMappingMetrics()
-{
-  process::metrics::remove(adding_eth0_ip_filters_errors);
-  process::metrics::remove(adding_eth0_ip_filters_already_exist);
-  process::metrics::remove(adding_lo_ip_filters_errors);
-  process::metrics::remove(adding_lo_ip_filters_already_exist);
-  process::metrics::remove(adding_veth_ip_filters_errors);
-  process::metrics::remove(adding_veth_ip_filters_already_exist);
-  process::metrics::remove(adding_veth_icmp_filters_errors);
-  process::metrics::remove(adding_veth_icmp_filters_already_exist);
-  process::metrics::remove(adding_veth_arp_filters_errors);
-  process::metrics::remove(adding_veth_arp_filters_already_exist);
-  process::metrics::remove(adding_eth0_icmp_filters_errors);
-  process::metrics::remove(adding_eth0_icmp_filters_already_exist);
-  process::metrics::remove(adding_eth0_arp_filters_errors);
-  process::metrics::remove(adding_eth0_arp_filters_already_exist);
-  process::metrics::remove(removing_eth0_ip_filters_errors);
-  process::metrics::remove(removing_eth0_ip_filters_do_not_exist);
-  process::metrics::remove(removing_lo_ip_filters_errors);
-  process::metrics::remove(removing_lo_ip_filters_do_not_exist);
-  process::metrics::remove(removing_veth_ip_filters_errors);
-  process::metrics::remove(removing_veth_ip_filters_do_not_exist);
-  process::metrics::remove(removing_eth0_icmp_filters_errors);
-  process::metrics::remove(removing_eth0_icmp_filters_do_not_exist);
-  process::metrics::remove(removing_eth0_arp_filters_errors);
-  process::metrics::remove(removing_eth0_arp_filters_do_not_exist);
-  process::metrics::remove(updating_eth0_icmp_filters_errors);
-  process::metrics::remove(updating_eth0_icmp_filters_already_exist);
-  process::metrics::remove(updating_eth0_icmp_filters_do_not_exist);
-  process::metrics::remove(updating_eth0_arp_filters_errors);
-  process::metrics::remove(updating_eth0_arp_filters_already_exist);
-  process::metrics::remove(updating_eth0_arp_filters_do_not_exist);
-  process::metrics::remove(updating_container_ip_filters_errors);
-}
-
 /////////////////////////////////////////////////
 // Helper functions for the isolator.
 /////////////////////////////////////////////////
@@ -339,257 +201,83 @@ static IntervalSet<uint16_t> getIntervalSet(const Value::Ranges& ranges)
   return set;
 }
 
+/////////////////////////////////////////////////
+// Implementation for PortMappingUpdate.
+/////////////////////////////////////////////////
 
-// Helper function to set up IP filters on the host side for a given
-// port range.
-static Try<Nothing> addHostIPFilters(
-    const PortRange& range,
-    const string& eth0,
-    const string& lo,
-    const string& veth,
-    const net::MAC& hostMAC,
-    const net::IP& hostIP,
-    PortMappingMetrics metrics)
+const std::string PortMappingUpdate::NAME = "update";
+
+
+PortMappingUpdate::Flags::Flags()
 {
-  // Add an IP packet filter from host eth0 to veth of the container
-  // such that any incoming IP packet will be properly redirected to
-  // the corresponding container based on its destination port.
-  Try<bool> hostEth0ToVeth = filter::ip::create(
-      eth0,
-      ingress::HANDLE,
-      ip::Classifier(hostMAC, net::IP(hostIP.address()), None(), range),
-      Priority(IP_FILTER_PRIORITY, NORMAL),
-      action::Redirect(veth));
+  add(&help,
+      "help",
+      "Prints this help message",
+      false);
 
-  if (hostEth0ToVeth.isError()) {
-    ++metrics.adding_eth0_ip_filters_errors;
+  add(&eth0_name,
+      "eth0_name",
+      "The name of the public network interface (e.g., eth0)");
 
-    return Error(
-        "Failed to create an IP packet filter from host " +
-        eth0 + " to " + veth + ": " + hostEth0ToVeth.error());
-  } else if (!hostEth0ToVeth.get()) {
-    ++metrics.adding_eth0_ip_filters_already_exist;
+  add(&lo_name,
+      "lo_name",
+      "The name of the loopback network interface (e.g., lo)");
 
-    return Error(
-        "The IP packet filter from host " + eth0 + " to " +
-        veth + " already exists");
-  }
+  add(&pid,
+      "pid",
+      "The pid of the process whose namespaces we will enter");
 
-  // Add an IP packet filter from host lo to veth of the container
-  // such that any internally generated IP packet will be properly
-  // redirected to the corresponding container based on its
-  // destination port.
-  Try<bool> hostLoToVeth = filter::ip::create(
-      lo,
-      ingress::HANDLE,
-      ip::Classifier(None(), None(), None(), range),
-      Priority(IP_FILTER_PRIORITY, NORMAL),
-      action::Redirect(veth));
+  add(&ports_to_add,
+      "ports_to_add",
+      "A collection of port ranges (formatted as a JSON object)\n"
+      "for which to add IP filters. E.g.,\n"
+      "--ports_to_add={\"range\":[{\"begin\":4,\"end\":8}]}");
 
-  if (hostLoToVeth.isError()) {
-    ++metrics.adding_lo_ip_filters_errors;
-
-    return Error(
-        "Failed to create an IP packet filter from host " +
-        lo + " to " + veth + ": " + hostLoToVeth.error());
-  } else if (!hostLoToVeth.get()) {
-    ++metrics.adding_lo_ip_filters_already_exist;
-
-    return Error(
-        "The IP packet filter from host " + lo + " to " +
-        veth + " already exists");
-  }
-
-  // Add two IP packet filters (one for public IP and one for loopback
-  // IP) from veth of the container to host lo to properly redirect IP
-  // packets sent from one container to either the host or another
-  // container. Notice that here we also check the source port of a
-  // packet. If the source port is not within the port ranges
-  // allocated for the container, the packet will get dropped.
-  Try<bool> vethToHostLoPublic = filter::ip::create(
-      veth,
-      ingress::HANDLE,
-      ip::Classifier(None(), net::IP(hostIP.address()), range, None()),
-      Priority(IP_FILTER_PRIORITY, NORMAL),
-      action::Redirect(lo));
-
-  if (vethToHostLoPublic.isError()) {
-    ++metrics.adding_veth_ip_filters_errors;
-
-    return Error(
-        "Failed to create an IP packet filter (for public IP) from " +
-        veth + " to host " + lo + ": " + vethToHostLoPublic.error());
-  } else if (!vethToHostLoPublic.get()) {
-    ++metrics.adding_veth_ip_filters_already_exist;
-
-    return Error(
-        "The IP packet filter (for public IP) from " +
-        veth + " to host " + lo + " already exists");
-  }
-
-  Try<bool> vethToHostLoLoopback = filter::ip::create(
-      veth,
-      ingress::HANDLE,
-      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), range, None()),
-      Priority(IP_FILTER_PRIORITY, NORMAL),
-      action::Redirect(lo));
-
-  if (vethToHostLoLoopback.isError()) {
-    ++metrics.adding_veth_ip_filters_errors;
-
-    return Error(
-        "Failed to create an IP packet filter (for loopback IP) from " +
-        veth + " to host " + lo + ": " + vethToHostLoLoopback.error());
-  } else if (!vethToHostLoLoopback.get()) {
-    ++metrics.adding_veth_ip_filters_already_exist;
-
-    return Error(
-        "The IP packet filter (for loopback IP) from " +
-        veth + " to host " + lo + " already exists");
-  }
-
-  // Add an IP packet filter from veth of the container to host eth0
-  // to properly redirect IP packets sent from one container to
-  // external hosts. This filter has a lower priority compared to the
-  // 'vethToHostLo' filter because it does not check the destination
-  // IP. Notice that here we also check the source port of a packet.
-  // If the source port is not within the port ranges allocated for
-  // the container, the packet will get dropped.
-  Try<bool> vethToHostEth0 = filter::ip::create(
-      veth,
-      ingress::HANDLE,
-      ip::Classifier(None(), None(), range, None()),
-      Priority(IP_FILTER_PRIORITY, LOW),
-      action::Redirect(eth0));
-
-  if (vethToHostEth0.isError()) {
-    ++metrics.adding_veth_ip_filters_errors;
-
-    return Error(
-        "Failed to create an IP packet filter from " + veth +
-        " to host " + eth0 + ": " + vethToHostEth0.error());
-  } else if (!vethToHostEth0.get()) {
-    ++metrics.adding_veth_ip_filters_already_exist;
-
-    return Error(
-        "The IP packet filter from " + veth +
-        " to host " + eth0 + " already exists");
-  }
-
-  return Nothing();
+  add(&ports_to_remove,
+      "ports_to_remove",
+      "A collection of port ranges (formatted as a JSON object)\n"
+      "for which to remove IP filters. E.g.,\n"
+      "--ports_to_remove={\"range\":[{\"begin\":4,\"end\":8}]}");
 }
 
 
-// Helper function to remove IP filters from the host side for a given
-// port range.
-static Try<Nothing> removeHostIPFilters(
-    const PortRange& range,
-    const string& eth0,
-    const string& lo,
-    const string& veth,
-    const net::MAC& hostMAC,
-    const net::IP& hostIP,
-    PortMappingMetrics metrics)
+// The following two helper functions allow us to convert from a
+// collection of port ranges to a JSON object and vice versa. They
+// will be used for the port mapping update operation.
+template <typename Iterable>
+JSON::Object json(const Iterable& ranges)
 {
-  // Remove the IP packet filter from host eth0 to veth of the container
-  Try<bool> hostEth0ToVeth = filter::ip::remove(
-      eth0,
-      ingress::HANDLE,
-      ip::Classifier(hostMAC, net::IP(hostIP.address()), None(), range));
+  Value::Ranges values;
+  foreach (const PortRange& range, ranges) {
+    Value::Range value;
+    value.set_begin(range.begin());
+    value.set_end(range.end());
 
-  if (hostEth0ToVeth.isError()) {
-    ++metrics.removing_eth0_ip_filters_errors;
+    values.add_range()->CopyFrom(value);
+  }
+  return JSON::Protobuf(values);
+}
 
-    return Error(
-        "Failed to remove the IP packet filter from host " +
-        eth0 + " to " + veth + ": " + hostEth0ToVeth.error());
-  } else if (!hostEth0ToVeth.get()) {
-    ++metrics.removing_eth0_ip_filters_do_not_exist;
 
-    LOG(ERROR) << "The IP packet filter from host " << eth0
-               << " to " << veth << " does not exist";
+static Try<vector<PortRange> > parse(const JSON::Object& object)
+{
+  Try<Value::Ranges> parsing = protobuf::parse<Value::Ranges>(object);
+  if (parsing.isError()) {
+    return Error("Failed to parse JSON: " + parsing.error());
   }
 
-  // Remove the IP packet filter from host lo to veth of the container
-  Try<bool> hostLoToVeth = filter::ip::remove(
-      lo,
-      ingress::HANDLE,
-      ip::Classifier(None(), None(), None(), range));
+  vector<PortRange> ranges;
+  Value::Ranges values = parsing.get();
+  for (int i = 0; i < values.range_size(); i++) {
+    const Value::Range& value = values.range(i);
+    Try<PortRange> range = PortRange::fromBeginEnd(value.begin(), value.end());
+    if (range.isError()) {
+      return Error("Invalid port range: " + range.error());
+    }
 
-  if (hostLoToVeth.isError()) {
-    ++metrics.removing_lo_ip_filters_errors;
-
-    return Error(
-        "Failed to remove the IP packet filter from host " +
-        lo + " to " + veth + ": " + hostLoToVeth.error());
-  } else if (!hostLoToVeth.get()) {
-    ++metrics.removing_lo_ip_filters_do_not_exist;
-
-    LOG(ERROR) << "The IP packet filter from host " << lo
-               << " to " << veth << " does not exist";
+    ranges.push_back(range.get());
   }
-
-  // Remove the IP packet filter from veth of the container to
-  // host lo for the public IP.
-  Try<bool> vethToHostLoPublic = filter::ip::remove(
-      veth,
-      ingress::HANDLE,
-      ip::Classifier(None(), net::IP(hostIP.address()), range, None()));
-
-  if (vethToHostLoPublic.isError()) {
-    ++metrics.removing_lo_ip_filters_errors;
-
-    return Error(
-        "Failed to remove the IP packet filter (for public IP) from " +
-        veth + " to host " + lo + ": " + vethToHostLoPublic.error());
-  } else if (!vethToHostLoPublic.get()) {
-    ++metrics.removing_lo_ip_filters_do_not_exist;
-
-    LOG(ERROR) << "The IP packet filter (for public IP) from "
-               << veth << " to host " << lo << " does not exist";
-  }
-
-  // Remove the IP packet filter from veth of the container to
-  // host lo for the loopback IP.
-  Try<bool> vethToHostLoLoopback = filter::ip::remove(
-      veth,
-      ingress::HANDLE,
-      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), range, None()));
-
-  if (vethToHostLoLoopback.isError()) {
-    ++metrics.removing_veth_ip_filters_errors;
-
-    return Error(
-        "Failed to remove the IP packet filter (for loopback IP) from " +
-        veth + " to host " + lo + ": " + vethToHostLoLoopback.error());
-  } else if (!vethToHostLoLoopback.get()) {
-    ++metrics.removing_veth_ip_filters_do_not_exist;
-
-    LOG(ERROR) << "The IP packet filter (for loopback IP) from "
-               << veth << " to host " << lo << " does not exist";
-  }
-
-  // Remove the IP packet filter from veth of the container to
-  // host eth0.
-  Try<bool> vethToHostEth0 = filter::ip::remove(
-      veth,
-      ingress::HANDLE,
-      ip::Classifier(None(), None(), range, None()));
-
-  if (vethToHostEth0.isError()) {
-    ++metrics.removing_veth_ip_filters_errors;
-
-    return Error(
-        "Failed to remove the IP packet filter from " + veth +
-        " to host " + eth0 + ": " + vethToHostEth0.error());
-  } else if (!vethToHostEth0.get()) {
-    ++metrics.removing_veth_ip_filters_do_not_exist;
-
-    LOG(ERROR) << "The IP packet filter from " << veth
-               << " to host " << eth0 << " does not exist";
-  }
-
-  return Nothing();
+  return ranges;
 }
 
 
@@ -688,85 +376,6 @@ static Try<Nothing> removeContainerIPFilters(
   return Nothing();
 }
 
-/////////////////////////////////////////////////
-// Implementation for PortMappingUpdate.
-/////////////////////////////////////////////////
-
-const std::string PortMappingUpdate::NAME = "update";
-
-
-PortMappingUpdate::Flags::Flags()
-{
-  add(&help,
-      "help",
-      "Prints this help message",
-      false);
-
-  add(&eth0_name,
-      "eth0_name",
-      "The name of the public network interface (e.g., eth0)");
-
-  add(&lo_name,
-      "lo_name",
-      "The name of the loopback network interface (e.g., lo)");
-
-  add(&pid,
-      "pid",
-      "The pid of the process whose namespaces we will enter");
-
-  add(&ports_to_add,
-      "ports_to_add",
-      "A collection of port ranges (formatted as a JSON object)\n"
-      "for which to add IP filters. E.g.,\n"
-      "--ports_to_add={\"range\":[{\"begin\":4,\"end\":8}]}");
-
-  add(&ports_to_remove,
-      "ports_to_remove",
-      "A collection of port ranges (formatted as a JSON object)\n"
-      "for which to remove IP filters. E.g.,\n"
-      "--ports_to_remove={\"range\":[{\"begin\":4,\"end\":8}]}");
-}
-
-
-// The following two helper functions allow us to convert from a
-// collection of port ranges to a JSON object and vice versa. They
-// will be used for the port mapping update operation.
-template <typename Iterable>
-JSON::Object json(const Iterable& ranges)
-{
-  Value::Ranges values;
-  foreach (const PortRange& range, ranges) {
-    Value::Range value;
-    value.set_begin(range.begin());
-    value.set_end(range.end());
-
-    values.add_range()->CopyFrom(value);
-  }
-  return JSON::Protobuf(values);
-}
-
-
-static Try<vector<PortRange> > parse(const JSON::Object& object)
-{
-  Try<Value::Ranges> parsing = protobuf::parse<Value::Ranges>(object);
-  if (parsing.isError()) {
-    return Error("Failed to parse JSON: " + parsing.error());
-  }
-
-  vector<PortRange> ranges;
-  Value::Ranges values = parsing.get();
-  for (int i = 0; i < values.range_size(); i++) {
-    const Value::Range& value = values.range(i);
-    Try<PortRange> range = PortRange::fromBeginEnd(value.begin(), value.end());
-    if (range.isError()) {
-      return Error("Invalid port range: " + range.error());
-    }
-
-    ranges.push_back(range.get());
-  }
-  return ranges;
-}
-
 
 int PortMappingUpdate::execute()
 {
@@ -856,6 +465,140 @@ int PortMappingUpdate::execute()
 /////////////////////////////////////////////////
 // Implementation for the isolator.
 /////////////////////////////////////////////////
+
+PortMappingIsolatorProcess::Metrics::Metrics()
+  : adding_eth0_ip_filters_errors(
+        "port_mapping/adding_eth0_ip_filters_errors"),
+    adding_eth0_ip_filters_already_exist(
+        "port_mapping/adding_eth0_ip_filters_already_exist"),
+    adding_lo_ip_filters_errors(
+        "port_mapping/adding_lo_ip_filters_errors"),
+    adding_lo_ip_filters_already_exist(
+        "port_mapping/adding_lo_ip_filters_already_exist"),
+    adding_veth_ip_filters_errors(
+        "port_mapping/adding_veth_ip_filters_errors"),
+    adding_veth_ip_filters_already_exist(
+        "port_mapping/adding_veth_ip_filters_already_exist"),
+    adding_veth_icmp_filters_errors(
+        "port_mapping/adding_veth_icmp_filters_errors"),
+    adding_veth_icmp_filters_already_exist(
+        "port_mapping/adding_veth_icmp_filters_already_exist"),
+    adding_veth_arp_filters_errors(
+        "port_mapping/adding_veth_arp_filters_errors"),
+    adding_veth_arp_filters_already_exist(
+        "port_mapping/adding_veth_arp_filters_already_exist"),
+    adding_eth0_icmp_filters_errors(
+        "port_mapping/adding_eth0_icmp_filters_errors"),
+    adding_eth0_icmp_filters_already_exist(
+        "port_mapping/adding_eth0_icmp_filters_already_exist"),
+    adding_eth0_arp_filters_errors(
+        "port_mapping/adding_eth0_arp_filters_errors"),
+    adding_eth0_arp_filters_already_exist(
+        "port_mapping/adding_eth0_arp_filters_already_exist"),
+    removing_eth0_ip_filters_errors(
+        "port_mapping/removing_eth0_ip_filters_errors"),
+    removing_eth0_ip_filters_do_not_exist(
+        "port_mapping/removing_eth0_ip_filters_do_not_exist"),
+    removing_lo_ip_filters_errors(
+        "port_mapping/removing_lo_ip_filters_errors"),
+    removing_lo_ip_filters_do_not_exist(
+        "port_mapping/removing_lo_ip_filters_do_not_exist"),
+    removing_veth_ip_filters_errors(
+        "port_mapping/removing_veth_ip_filters_errors"),
+    removing_veth_ip_filters_do_not_exist(
+        "port_mapping/removing_veth_ip_filters_do_not_exist"),
+    removing_eth0_icmp_filters_errors(
+        "port_mapping/removing_eth0_icmp_filters_errors"),
+    removing_eth0_icmp_filters_do_not_exist(
+        "port_mapping/removing_eth0_icmp_filters_do_not_exist"),
+    removing_eth0_arp_filters_errors(
+        "port_mapping/removing_eth0_arp_filters_errors"),
+    removing_eth0_arp_filters_do_not_exist(
+        "port_mapping/removing_eth0_arp_filters_do_not_exist"),
+    updating_eth0_icmp_filters_errors(
+        "port_mapping/updating_eth0_icmp_filters_errors"),
+    updating_eth0_icmp_filters_already_exist(
+        "port_mapping/updating_eth0_icmp_filters_already_exist"),
+    updating_eth0_icmp_filters_do_not_exist(
+        "port_mapping/updating_eth0_icmp_filters_do_not_exist"),
+    updating_eth0_arp_filters_errors(
+        "port_mapping/updating_eth0_arp_filters_errors"),
+    updating_eth0_arp_filters_already_exist(
+        "port_mapping/updating_eth0_arp_filters_already_exist"),
+    updating_eth0_arp_filters_do_not_exist(
+        "port_mapping/updating_eth0_arp_filters_do_not_exist"),
+    updating_container_ip_filters_errors(
+        "port_mapping/updating_container_ip_filters_errors")
+{
+  process::metrics::add(adding_eth0_ip_filters_errors);
+  process::metrics::add(adding_eth0_ip_filters_already_exist);
+  process::metrics::add(adding_lo_ip_filters_errors);
+  process::metrics::add(adding_lo_ip_filters_already_exist);
+  process::metrics::add(adding_veth_ip_filters_errors);
+  process::metrics::add(adding_veth_ip_filters_already_exist);
+  process::metrics::add(adding_veth_icmp_filters_errors);
+  process::metrics::add(adding_veth_icmp_filters_already_exist);
+  process::metrics::add(adding_veth_arp_filters_errors);
+  process::metrics::add(adding_veth_arp_filters_already_exist);
+  process::metrics::add(adding_eth0_icmp_filters_errors);
+  process::metrics::add(adding_eth0_icmp_filters_already_exist);
+  process::metrics::add(adding_eth0_arp_filters_errors);
+  process::metrics::add(adding_eth0_arp_filters_already_exist);
+  process::metrics::add(removing_eth0_ip_filters_errors);
+  process::metrics::add(removing_eth0_ip_filters_do_not_exist);
+  process::metrics::add(removing_lo_ip_filters_errors);
+  process::metrics::add(removing_lo_ip_filters_do_not_exist);
+  process::metrics::add(removing_veth_ip_filters_errors);
+  process::metrics::add(removing_veth_ip_filters_do_not_exist);
+  process::metrics::add(removing_eth0_icmp_filters_errors);
+  process::metrics::add(removing_eth0_icmp_filters_do_not_exist);
+  process::metrics::add(removing_eth0_arp_filters_errors);
+  process::metrics::add(removing_eth0_arp_filters_do_not_exist);
+  process::metrics::add(updating_eth0_icmp_filters_errors);
+  process::metrics::add(updating_eth0_icmp_filters_already_exist);
+  process::metrics::add(updating_eth0_icmp_filters_do_not_exist);
+  process::metrics::add(updating_eth0_arp_filters_errors);
+  process::metrics::add(updating_eth0_arp_filters_already_exist);
+  process::metrics::add(updating_eth0_arp_filters_do_not_exist);
+  process::metrics::add(updating_container_ip_filters_errors);
+}
+
+
+PortMappingIsolatorProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(adding_eth0_ip_filters_errors);
+  process::metrics::remove(adding_eth0_ip_filters_already_exist);
+  process::metrics::remove(adding_lo_ip_filters_errors);
+  process::metrics::remove(adding_lo_ip_filters_already_exist);
+  process::metrics::remove(adding_veth_ip_filters_errors);
+  process::metrics::remove(adding_veth_ip_filters_already_exist);
+  process::metrics::remove(adding_veth_icmp_filters_errors);
+  process::metrics::remove(adding_veth_icmp_filters_already_exist);
+  process::metrics::remove(adding_veth_arp_filters_errors);
+  process::metrics::remove(adding_veth_arp_filters_already_exist);
+  process::metrics::remove(adding_eth0_icmp_filters_errors);
+  process::metrics::remove(adding_eth0_icmp_filters_already_exist);
+  process::metrics::remove(adding_eth0_arp_filters_errors);
+  process::metrics::remove(adding_eth0_arp_filters_already_exist);
+  process::metrics::remove(removing_eth0_ip_filters_errors);
+  process::metrics::remove(removing_eth0_ip_filters_do_not_exist);
+  process::metrics::remove(removing_lo_ip_filters_errors);
+  process::metrics::remove(removing_lo_ip_filters_do_not_exist);
+  process::metrics::remove(removing_veth_ip_filters_errors);
+  process::metrics::remove(removing_veth_ip_filters_do_not_exist);
+  process::metrics::remove(removing_eth0_icmp_filters_errors);
+  process::metrics::remove(removing_eth0_icmp_filters_do_not_exist);
+  process::metrics::remove(removing_eth0_arp_filters_errors);
+  process::metrics::remove(removing_eth0_arp_filters_do_not_exist);
+  process::metrics::remove(updating_eth0_icmp_filters_errors);
+  process::metrics::remove(updating_eth0_icmp_filters_already_exist);
+  process::metrics::remove(updating_eth0_icmp_filters_do_not_exist);
+  process::metrics::remove(updating_eth0_arp_filters_errors);
+  process::metrics::remove(updating_eth0_arp_filters_already_exist);
+  process::metrics::remove(updating_eth0_arp_filters_do_not_exist);
+  process::metrics::remove(updating_container_ip_filters_errors);
+}
+
 
 Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 {
@@ -1640,15 +1383,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     LOG(INFO) << "Adding IP packet filters with ports " << range
               << " for container " << containerId;
 
-    Try<Nothing> add = addHostIPFilters(
-        range,
-        eth0,
-        lo,
-        veth(pid),
-        hostMAC,
-        hostIP,
-        metrics);
-
+    Try<Nothing> add = addHostIPFilters(range, veth(pid));
     if (add.isError()) {
       return Failure(
           "Failed to add IP packet filter with ports " +
@@ -1818,10 +1553,9 @@ Future<Limitation> PortMappingIsolatorProcess::watch(
 }
 
 
-static void _update(
+void PortMappingIsolatorProcess::_update(
     const Future<Option<int> >& status,
-    const ContainerID& containerId,
-    PortMappingMetrics metrics)
+    const ContainerID& containerId)
 {
   if (!status.isReady()) {
     ++metrics.updating_container_ip_filters_errors;
@@ -1943,15 +1677,7 @@ Future<Nothing> PortMappingIsolatorProcess::update(
     LOG(INFO) << "Adding IP packet filters with ports " << range
               << " for container " << containerId;
 
-    Try<Nothing> add = addHostIPFilters(
-        range,
-        eth0,
-        lo,
-        veth(pid),
-        hostMAC,
-        hostIP,
-        metrics);
-
+    Try<Nothing> add = addHostIPFilters(range, veth(pid));
     if (add.isError()) {
       return Failure(
           "Failed to add IP packet filter with ports " +
@@ -1964,16 +1690,7 @@ Future<Nothing> PortMappingIsolatorProcess::update(
     LOG(INFO) << "Removing IP packet filters with ports " << range
               << " for container with pid " << pid;
 
-    Try<Nothing> removing =
-      removeHostIPFilters(
-          range,
-          eth0,
-          lo,
-          veth(pid),
-          hostMAC,
-          hostIP,
-          metrics);
-
+    Try<Nothing> removing = removeHostIPFilters(range, veth(pid));
     if (removing.isError()) {
       return Failure(
           "Failed to remove IP packet filter with ports " +
@@ -2007,7 +1724,11 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   }
 
   return s.get().status()
-    .onAny(lambda::bind(&_update, lambda::_1, containerId, metrics))
+    .onAny(defer(
+        PID<PortMappingIsolatorProcess>(this),
+        &PortMappingIsolatorProcess::_update,
+        lambda::_1,
+        containerId))
     .then(lambda::bind(&_nothing));
 }
 
@@ -2143,16 +1864,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     LOG(INFO) << "Removing IP packet filters with ports " << range
               << " for container with pid " << pid;
 
-    Try<Nothing> removing =
-      removeHostIPFilters(
-          range,
-          eth0,
-          lo,
-          veth(pid),
-          hostMAC,
-          hostIP,
-          metrics);
-
+    Try<Nothing> removing = removeHostIPFilters(range, veth(pid));
     if (removing.isError()) {
       return Error(
           "Failed to remove IP packet filter with ports " +
@@ -2283,6 +1995,250 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
 
   return Nothing();
 }
+
+
+// Helper function to set up IP filters on the host side for a given
+// port range.
+Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
+    const PortRange& range,
+    const string& veth)
+{
+  // Add an IP packet filter from host eth0 to veth of the container
+  // such that any incoming IP packet will be properly redirected to
+  // the corresponding container based on its destination port.
+  Try<bool> hostEth0ToVeth = filter::ip::create(
+      eth0,
+      ingress::HANDLE,
+      ip::Classifier(hostMAC, net::IP(hostIP.address()), None(), range),
+      Priority(IP_FILTER_PRIORITY, NORMAL),
+      action::Redirect(veth));
+
+  if (hostEth0ToVeth.isError()) {
+    ++metrics.adding_eth0_ip_filters_errors;
+
+    return Error(
+        "Failed to create an IP packet filter from host " +
+        eth0 + " to " + veth + ": " + hostEth0ToVeth.error());
+  } else if (!hostEth0ToVeth.get()) {
+    ++metrics.adding_eth0_ip_filters_already_exist;
+
+    return Error(
+        "The IP packet filter from host " + eth0 + " to " +
+        veth + " already exists");
+  }
+
+  // Add an IP packet filter from host lo to veth of the container
+  // such that any internally generated IP packet will be properly
+  // redirected to the corresponding container based on its
+  // destination port.
+  Try<bool> hostLoToVeth = filter::ip::create(
+      lo,
+      ingress::HANDLE,
+      ip::Classifier(None(), None(), None(), range),
+      Priority(IP_FILTER_PRIORITY, NORMAL),
+      action::Redirect(veth));
+
+  if (hostLoToVeth.isError()) {
+    ++metrics.adding_lo_ip_filters_errors;
+
+    return Error(
+        "Failed to create an IP packet filter from host " +
+        lo + " to " + veth + ": " + hostLoToVeth.error());
+  } else if (!hostLoToVeth.get()) {
+    ++metrics.adding_lo_ip_filters_already_exist;
+
+    return Error(
+        "The IP packet filter from host " + lo + " to " +
+        veth + " already exists");
+  }
+
+  // Add two IP packet filters (one for public IP and one for loopback
+  // IP) from veth of the container to host lo to properly redirect IP
+  // packets sent from one container to either the host or another
+  // container. Notice that here we also check the source port of a
+  // packet. If the source port is not within the port ranges
+  // allocated for the container, the packet will get dropped.
+  Try<bool> vethToHostLoPublic = filter::ip::create(
+      veth,
+      ingress::HANDLE,
+      ip::Classifier(None(), net::IP(hostIP.address()), range, None()),
+      Priority(IP_FILTER_PRIORITY, NORMAL),
+      action::Redirect(lo));
+
+  if (vethToHostLoPublic.isError()) {
+    ++metrics.adding_veth_ip_filters_errors;
+
+    return Error(
+        "Failed to create an IP packet filter (for public IP) from " +
+        veth + " to host " + lo + ": " + vethToHostLoPublic.error());
+  } else if (!vethToHostLoPublic.get()) {
+    ++metrics.adding_veth_ip_filters_already_exist;
+
+    return Error(
+        "The IP packet filter (for public IP) from " +
+        veth + " to host " + lo + " already exists");
+  }
+
+  Try<bool> vethToHostLoLoopback = filter::ip::create(
+      veth,
+      ingress::HANDLE,
+      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), range, None()),
+      Priority(IP_FILTER_PRIORITY, NORMAL),
+      action::Redirect(lo));
+
+  if (vethToHostLoLoopback.isError()) {
+    ++metrics.adding_veth_ip_filters_errors;
+
+    return Error(
+        "Failed to create an IP packet filter (for loopback IP) from " +
+        veth + " to host " + lo + ": " + vethToHostLoLoopback.error());
+  } else if (!vethToHostLoLoopback.get()) {
+    ++metrics.adding_veth_ip_filters_already_exist;
+
+    return Error(
+        "The IP packet filter (for loopback IP) from " +
+        veth + " to host " + lo + " already exists");
+  }
+
+  // Add an IP packet filter from veth of the container to host eth0
+  // to properly redirect IP packets sent from one container to
+  // external hosts. This filter has a lower priority compared to the
+  // 'vethToHostLo' filter because it does not check the destination
+  // IP. Notice that here we also check the source port of a packet.
+  // If the source port is not within the port ranges allocated for
+  // the container, the packet will get dropped.
+  Try<bool> vethToHostEth0 = filter::ip::create(
+      veth,
+      ingress::HANDLE,
+      ip::Classifier(None(), None(), range, None()),
+      Priority(IP_FILTER_PRIORITY, LOW),
+      action::Redirect(eth0));
+
+  if (vethToHostEth0.isError()) {
+    ++metrics.adding_veth_ip_filters_errors;
+
+    return Error(
+        "Failed to create an IP packet filter from " + veth +
+        " to host " + eth0 + ": " + vethToHostEth0.error());
+  } else if (!vethToHostEth0.get()) {
+    ++metrics.adding_veth_ip_filters_already_exist;
+
+    return Error(
+        "The IP packet filter from " + veth +
+        " to host " + eth0 + " already exists");
+  }
+
+  return Nothing();
+}
+
+
+// Helper function to remove IP filters from the host side for a given
+// port range.
+Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
+    const PortRange& range,
+    const string& veth)
+{
+  // Remove the IP packet filter from host eth0 to veth of the container
+  Try<bool> hostEth0ToVeth = filter::ip::remove(
+      eth0,
+      ingress::HANDLE,
+      ip::Classifier(hostMAC, net::IP(hostIP.address()), None(), range));
+
+  if (hostEth0ToVeth.isError()) {
+    ++metrics.removing_eth0_ip_filters_errors;
+
+    return Error(
+        "Failed to remove the IP packet filter from host " +
+        eth0 + " to " + veth + ": " + hostEth0ToVeth.error());
+  } else if (!hostEth0ToVeth.get()) {
+    ++metrics.removing_eth0_ip_filters_do_not_exist;
+
+    LOG(ERROR) << "The IP packet filter from host " << eth0
+               << " to " << veth << " does not exist";
+  }
+
+  // Remove the IP packet filter from host lo to veth of the container
+  Try<bool> hostLoToVeth = filter::ip::remove(
+      lo,
+      ingress::HANDLE,
+      ip::Classifier(None(), None(), None(), range));
+
+  if (hostLoToVeth.isError()) {
+    ++metrics.removing_lo_ip_filters_errors;
+
+    return Error(
+        "Failed to remove the IP packet filter from host " +
+        lo + " to " + veth + ": " + hostLoToVeth.error());
+  } else if (!hostLoToVeth.get()) {
+    ++metrics.removing_lo_ip_filters_do_not_exist;
+
+    LOG(ERROR) << "The IP packet filter from host " << lo
+               << " to " << veth << " does not exist";
+  }
+
+  // Remove the IP packet filter from veth of the container to
+  // host lo for the public IP.
+  Try<bool> vethToHostLoPublic = filter::ip::remove(
+      veth,
+      ingress::HANDLE,
+      ip::Classifier(None(), net::IP(hostIP.address()), range, None()));
+
+  if (vethToHostLoPublic.isError()) {
+    ++metrics.removing_lo_ip_filters_errors;
+
+    return Error(
+        "Failed to remove the IP packet filter (for public IP) from " +
+        veth + " to host " + lo + ": " + vethToHostLoPublic.error());
+  } else if (!vethToHostLoPublic.get()) {
+    ++metrics.removing_lo_ip_filters_do_not_exist;
+
+    LOG(ERROR) << "The IP packet filter (for public IP) from "
+               << veth << " to host " << lo << " does not exist";
+  }
+
+  // Remove the IP packet filter from veth of the container to
+  // host lo for the loopback IP.
+  Try<bool> vethToHostLoLoopback = filter::ip::remove(
+      veth,
+      ingress::HANDLE,
+      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), range, None()));
+
+  if (vethToHostLoLoopback.isError()) {
+    ++metrics.removing_veth_ip_filters_errors;
+
+    return Error(
+        "Failed to remove the IP packet filter (for loopback IP) from " +
+        veth + " to host " + lo + ": " + vethToHostLoLoopback.error());
+  } else if (!vethToHostLoLoopback.get()) {
+    ++metrics.removing_veth_ip_filters_do_not_exist;
+
+    LOG(ERROR) << "The IP packet filter (for loopback IP) from "
+               << veth << " to host " << lo << " does not exist";
+  }
+
+  // Remove the IP packet filter from veth of the container to
+  // host eth0.
+  Try<bool> vethToHostEth0 = filter::ip::remove(
+      veth,
+      ingress::HANDLE,
+      ip::Classifier(None(), None(), range, None()));
+
+  if (vethToHostEth0.isError()) {
+    ++metrics.removing_veth_ip_filters_errors;
+
+    return Error(
+        "Failed to remove the IP packet filter from " + veth +
+        " to host " + eth0 + ": " + vethToHostEth0.error());
+  } else if (!vethToHostEth0.get()) {
+    ++metrics.removing_veth_ip_filters_do_not_exist;
+
+    LOG(ERROR) << "The IP packet filter from " << veth
+               << " to host " << eth0 << " does not exist";
+  }
+
+  return Nothing();
+}
+
 
 // This function returns the scripts that need to be run in child
 // context before child execs to complete network isolation.

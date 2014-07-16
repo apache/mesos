@@ -112,49 +112,6 @@ std::vector<routing::filter::ip::PortRange> getPortRanges(
     const IntervalSet<uint16_t>& ports);
 
 
-// Define the metrics used by the port mapping network isolator.
-// NOTE: We do not put this class inside PortMappingIsolatorProcess
-// because it is also used by some functions that are not part of
-// PortMappingIsolatorProcess.
-struct PortMappingMetrics
-{
-  PortMappingMetrics();
-  ~PortMappingMetrics();
-
-  process::metrics::Counter adding_eth0_ip_filters_errors;
-  process::metrics::Counter adding_eth0_ip_filters_already_exist;
-  process::metrics::Counter adding_lo_ip_filters_errors;
-  process::metrics::Counter adding_lo_ip_filters_already_exist;
-  process::metrics::Counter adding_veth_ip_filters_errors;
-  process::metrics::Counter adding_veth_ip_filters_already_exist;
-  process::metrics::Counter adding_veth_icmp_filters_errors;
-  process::metrics::Counter adding_veth_icmp_filters_already_exist;
-  process::metrics::Counter adding_veth_arp_filters_errors;
-  process::metrics::Counter adding_veth_arp_filters_already_exist;
-  process::metrics::Counter adding_eth0_icmp_filters_errors;
-  process::metrics::Counter adding_eth0_icmp_filters_already_exist;
-  process::metrics::Counter adding_eth0_arp_filters_errors;
-  process::metrics::Counter adding_eth0_arp_filters_already_exist;
-  process::metrics::Counter removing_eth0_ip_filters_errors;
-  process::metrics::Counter removing_eth0_ip_filters_do_not_exist;
-  process::metrics::Counter removing_lo_ip_filters_errors;
-  process::metrics::Counter removing_lo_ip_filters_do_not_exist;
-  process::metrics::Counter removing_veth_ip_filters_errors;
-  process::metrics::Counter removing_veth_ip_filters_do_not_exist;
-  process::metrics::Counter removing_eth0_icmp_filters_errors;
-  process::metrics::Counter removing_eth0_icmp_filters_do_not_exist;
-  process::metrics::Counter removing_eth0_arp_filters_errors;
-  process::metrics::Counter removing_eth0_arp_filters_do_not_exist;
-  process::metrics::Counter updating_eth0_icmp_filters_errors;
-  process::metrics::Counter updating_eth0_icmp_filters_already_exist;
-  process::metrics::Counter updating_eth0_icmp_filters_do_not_exist;
-  process::metrics::Counter updating_eth0_arp_filters_errors;
-  process::metrics::Counter updating_eth0_arp_filters_already_exist;
-  process::metrics::Counter updating_eth0_arp_filters_do_not_exist;
-  process::metrics::Counter updating_container_ip_filters_errors;
-};
-
-
 // Provides network isolation using port mapping. Each container is
 // assigned a fixed set of ports (including ephemeral ports). The
 // isolator will set up filters on the host such that network traffic
@@ -221,6 +178,45 @@ private:
     Option<pid_t> pid;
   };
 
+  // Define the metrics used by the port mapping network isolator.
+  struct Metrics
+  {
+    Metrics();
+    ~Metrics();
+
+    process::metrics::Counter adding_eth0_ip_filters_errors;
+    process::metrics::Counter adding_eth0_ip_filters_already_exist;
+    process::metrics::Counter adding_lo_ip_filters_errors;
+    process::metrics::Counter adding_lo_ip_filters_already_exist;
+    process::metrics::Counter adding_veth_ip_filters_errors;
+    process::metrics::Counter adding_veth_ip_filters_already_exist;
+    process::metrics::Counter adding_veth_icmp_filters_errors;
+    process::metrics::Counter adding_veth_icmp_filters_already_exist;
+    process::metrics::Counter adding_veth_arp_filters_errors;
+    process::metrics::Counter adding_veth_arp_filters_already_exist;
+    process::metrics::Counter adding_eth0_icmp_filters_errors;
+    process::metrics::Counter adding_eth0_icmp_filters_already_exist;
+    process::metrics::Counter adding_eth0_arp_filters_errors;
+    process::metrics::Counter adding_eth0_arp_filters_already_exist;
+    process::metrics::Counter removing_eth0_ip_filters_errors;
+    process::metrics::Counter removing_eth0_ip_filters_do_not_exist;
+    process::metrics::Counter removing_lo_ip_filters_errors;
+    process::metrics::Counter removing_lo_ip_filters_do_not_exist;
+    process::metrics::Counter removing_veth_ip_filters_errors;
+    process::metrics::Counter removing_veth_ip_filters_do_not_exist;
+    process::metrics::Counter removing_eth0_icmp_filters_errors;
+    process::metrics::Counter removing_eth0_icmp_filters_do_not_exist;
+    process::metrics::Counter removing_eth0_arp_filters_errors;
+    process::metrics::Counter removing_eth0_arp_filters_do_not_exist;
+    process::metrics::Counter updating_eth0_icmp_filters_errors;
+    process::metrics::Counter updating_eth0_icmp_filters_already_exist;
+    process::metrics::Counter updating_eth0_icmp_filters_do_not_exist;
+    process::metrics::Counter updating_eth0_arp_filters_errors;
+    process::metrics::Counter updating_eth0_arp_filters_already_exist;
+    process::metrics::Counter updating_eth0_arp_filters_do_not_exist;
+    process::metrics::Counter updating_container_ip_filters_errors;
+  } metrics;
+
   PortMappingIsolatorProcess(
       const Flags& _flags,
       const std::string& _eth0,
@@ -241,12 +237,25 @@ private:
       managedNonEphemeralPorts(_managedNonEphemeralPorts),
       ephemeralPortsAllocator(_ephemeralPortsAllocator) {}
 
-  // Return the scripts that will be executed in the child context.
-  std::string scripts(Info* info);
-
   // Continuations.
   Try<Nothing> _cleanup(Info* info);
   Result<Info*> _recover(pid_t pid);
+
+  void _update(
+      const process::Future<Option<int> >& status,
+      const ContainerID& containerId);
+
+  // Helper functions.
+  Try<Nothing> addHostIPFilters(
+      const routing::filter::ip::PortRange& range,
+      const std::string& veth);
+
+  Try<Nothing> removeHostIPFilters(
+      const routing::filter::ip::PortRange& range,
+      const std::string& veth);
+
+  // Return the scripts that will be executed in the child context.
+  std::string scripts(Info* info);
 
   const Flags flags;
 
@@ -268,8 +277,6 @@ private:
   // Recovered containers from a previous run that weren't managed by
   // the network isolator.
   hashset<ContainerID> unmanaged;
-
-  PortMappingMetrics metrics;
 };
 
 
