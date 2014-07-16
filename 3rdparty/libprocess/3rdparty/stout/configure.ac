@@ -10,5 +10,6 @@ AC_LANG([C++])
 AM_INIT_AUTOMAKE([1.10])
 
 AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([include/Makefile])
 
 AC_OUTPUT
