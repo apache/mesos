@@ -78,6 +78,7 @@ public:
   CommandExecutorProcess(Option<char**> override, const string& _healthCheckDir)
     : launched(false),
       killed(false),
+      killedByHealthCheck(false),
       pid(-1),
       healthPid(-1),
       escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
@@ -316,6 +317,7 @@ protected:
     driver.get()->sendStatusUpdate(status);
 
     if (initiateTaskKill) {
+      killedByHealthCheck = true;
       killTask(driver.get(), taskID);
     }
   }
@@ -364,6 +366,9 @@ private:
     taskStatus.mutable_task_id()->MergeFrom(taskId);
     taskStatus.set_state(state);
     taskStatus.set_message(message);
+    if (killed && killedByHealthCheck) {
+      taskStatus.set_healthy(false);
+    }
 
     driver->sendStatusUpdate(taskStatus);
 
@@ -440,6 +445,7 @@ private:
 
   bool launched;
   bool killed;
+  bool killedByHealthCheck;
   pid_t pid;
   pid_t healthPid;
   Duration escalationTimeout;

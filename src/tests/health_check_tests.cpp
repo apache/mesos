@@ -244,6 +244,7 @@ TEST_F(DISABLED_HealthCheckTest, ConsecutiveFailures)
 
   AWAIT_READY(statusKilled);
   EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
+  EXPECT_TRUE(statusKilled.get().has_healthy());
   EXPECT_FALSE(statusKilled.get().healthy());
 
   driver.stop();
