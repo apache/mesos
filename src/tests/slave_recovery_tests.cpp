@@ -3057,17 +3057,19 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   this->Stop(slave2.get());
   delete containerizer2.get();
 
-  Future<Nothing> _recover1 = FUTURE_DISPATCH(_, &Slave::_recover);
   Future<Nothing> _recover2 = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover1 = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
   Future<SlaveReregisteredMessage> slaveReregisteredMessage2 =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart both slaves using the same flags with new containerizers.
   Try<TypeParam*> containerizer3 = TypeParam::create(flags1, true);
   ASSERT_SOME(containerizer3);
+
+  Clock::pause();
 
   slave1 = this->StartSlave(containerizer3.get(), flags1);
   ASSERT_SOME(slave1);
@@ -3077,8 +3079,6 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 
   slave2 = this->StartSlave(containerizer4.get(), flags2);
   ASSERT_SOME(slave2);
-
-  Clock::pause();
 
   AWAIT_READY(_recover1);
   AWAIT_READY(_recover2);
@@ -3104,9 +3104,9 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
     .WillOnce(FutureArg<1>(&status2))
     .WillRepeatedly(Return());        // Ignore subsequent updates.
 
-  Future<Nothing> executorTerminated1 =
-    FUTURE_DISPATCH(_, &Slave::executorTerminated);
   Future<Nothing> executorTerminated2 =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+  Future<Nothing> executorTerminated1 =
     FUTURE_DISPATCH(_, &Slave::executorTerminated);
 
   Future<vector<Offer> > offers;
