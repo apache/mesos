@@ -494,6 +494,19 @@ private:
     // unbounded manner.
     // TODO(bmahler): Ideally we could use a cache with set semantics.
     Cache<SlaveID, Nothing> removed;
+
+    bool transitioning(const Option<SlaveID>& slaveId)
+    {
+      if (slaveId.isSome()) {
+        return recovered.contains(slaveId.get()) ||
+               reregistering.contains(slaveId.get()) ||
+               removing.contains(slaveId.get());
+      } else {
+        return !recovered.empty() ||
+               !reregistering.empty() ||
+               !removing.empty();
+      }
+    }
   } slaves;
 
   struct Frameworks

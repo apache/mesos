@@ -54,11 +54,14 @@ using mesos::internal::slave::Slave;
 using process::Clock;
 using process::Future;
 using process::PID;
+using process::Promise;
 
 using std::vector;
 
 using testing::_;
+using testing::An;
 using testing::AtMost;
+using testing::DoAll;
 using testing::Return;
 
 
@@ -266,65 +269,6 @@ TEST_F(ReconciliationTest, UnknownSlave)
   // Framework should receive TASK_LOST because the slave is unknown.
   AWAIT_READY(update);
   EXPECT_EQ(TASK_LOST, update.get().state());
-
-  driver.stop();
-  driver.join();
-
-  Shutdown();
-}
-
-
-// This test verifies that reconciliation of a task that belongs to an
-// unknown slave but with non-strict registry doesn't result in a
-// status update.
-TEST_F(ReconciliationTest, UnknownSlaveNonStrictRegistry)
-{
-  master::Flags flags = CreateMasterFlags();
-  flags.registry_strict = false; // Non-strict registry.
-  Try<PID<Master> > master = StartMaster(flags);
-  ASSERT_SOME(master);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
-
-  driver.start();
-
-  // Wait until the framework is registered.
-  AWAIT_READY(frameworkId);
-
-  // Framework should not receive any update.
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .Times(0);
-
-  vector<TaskStatus> statuses;
-
-  // Create a task status with a random slave id (and task id).
-  TaskStatus status;
-  status.mutable_task_id()->set_value(UUID::random().toString());
-  status.mutable_slave_id()->set_value(UUID::random().toString());
-  status.set_state(TASK_RUNNING);
-
-  statuses.push_back(status);
-
-  Future<ReconcileTasksMessage> reconcileTasksMessage =
-    FUTURE_PROTOBUF(ReconcileTasksMessage(), _ , _);
-
-  Clock::pause();
-
-  driver.reconcileTasks(statuses);
-
-  // Make sure the master received the reconcile tasks message.
-  AWAIT_READY(reconcileTasksMessage);
-
-  // The Clock::settle() will ensure that framework would receive
-  // a status update if it is sent by the master. In this test it
-  // shouldn't receive any.
-  Clock::settle();
 
   driver.stop();
   driver.join();
@@ -616,6 +560,109 @@ TEST_F(ReconciliationTest, ImplicitTerminalTask)
   // When making an implicit reconciliation request, the master
   // should not send back terminal tasks.
   vector<TaskStatus> statuses;
+  driver.reconcileTasks(statuses);
+
+  // Make sure the master received the reconcile tasks message.
+  AWAIT_READY(reconcileTasksMessage);
+
+  // The Clock::settle() will ensure that framework would receive
+  // a status update if it is sent by the master. In this test it
+  // shouldn't receive any.
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// This test ensures that reconciliation requests for tasks that are
+// pending (due to validation/authorization) do not result in status
+// updates.
+TEST_F(ReconciliationTest, PendingTask)
+{
+  MockAuthorizer authorizer;
+  Try<PID<Master> > master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  // Wait for the slave to register and get the slave id.
+  AWAIT_READY(slaveRegisteredMessage);
+  const SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Framework should not receive any update.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  // Return a pending future from authorizer.
+  Future<Nothing> future;
+  Promise<bool> promise;
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTasks&>()))
+    .WillOnce(DoAll(FutureSatisfy(&future),
+                    Return(promise.future())));
+
+  TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  // Wait until authorization is in progress.
+  AWAIT_READY(future);
+
+  // First send an implicit reconciliation request for this task,
+  // there should be no updates.
+  Future<ReconcileTasksMessage> reconcileTasksMessage =
+    FUTURE_PROTOBUF(ReconcileTasksMessage(), _ , _);
+
+  Clock::pause();
+
+  vector<TaskStatus> statuses;
+  driver.reconcileTasks(statuses);
+
+  // Make sure the master received the reconcile tasks message.
+  AWAIT_READY(reconcileTasksMessage);
+
+  // The Clock::settle() will ensure that framework would receive
+  // a status update if it is sent by the master. In this test it
+  // shouldn't receive any.
+  Clock::settle();
+
+  // Now send an explicit reconciliation request for this task;
+  // there should be no updates.
+  TaskStatus status;
+  status.mutable_task_id()->CopyFrom(task.task_id());
+  status.mutable_slave_id()->CopyFrom(slaveId);
+  status.set_state(TASK_STAGING);
+  statuses.push_back(status);
+
+  reconcileTasksMessage = FUTURE_PROTOBUF(ReconcileTasksMessage(), _ , _);
+
   driver.reconcileTasks(statuses);
 
   // Make sure the master received the reconcile tasks message.

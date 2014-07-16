@@ -3261,6 +3261,11 @@ void Master::reconcileTasks(
           task->state(),
           "Reconciliation: Latest task state");
 
+      VLOG(1) << "Sending implicit reconciliation state "
+              << update.status().state()
+              << " for task " << update.status().task_id()
+              << " of framework " << frameworkId;
+
       // TODO(bmahler): Consider using forward(); might lead to too
       // much logging.
       StatusUpdateMessage message;
@@ -3273,73 +3278,72 @@ void Master::reconcileTasks(
 
   // Explicit reconciliation.
   LOG(INFO) << "Performing explicit task state reconciliation for "
-            << statuses.size() << " task statuses of framework " << frameworkId;
+            << statuses.size() << " tasks of framework " << frameworkId;
 
   // Explicit reconciliation occurs for the following cases:
-  //   (1) If the slave is unknown, we send TASK_LOST.
-  //   (2) If the task is missing on the slave, we send TASK_LOST.
-  //   (3) Otherwise, we send the latest state.
+  //   (1) Task is known, but pending: no-op.
+  //   (2) Task is known: send the latest state.
+  //   (3) Task is unknown, slave is registered: TASK_LOST.
+  //   (4) Task is unknown, slave is transitioning: no-op.
+  //   (5) Task is unknown, slave is unknown: TASK_LOST.
   //
-  // (1) is applicable only when operating with a strict registry.
+  // When using a non-strict registry, case (5) may result in
+  // a TASK_LOST for a task that may later be non-terminal. This
+  // is better than no reply at all because the framework can take
+  // action for TASK_LOST. Later, if the task is running, the
+  // framework can discover it with implicit reconciliation and will
+  // be able to kill it.
   foreach (const TaskStatus& status, statuses) {
-    if (!status.has_slave_id()) {
-      LOG(WARNING) << "Status for task " << status.task_id()
-                   << " from framework " << frameworkId
-                   << " does not include slave id; cannot reconcile";
-      continue;
+    Option<SlaveID> slaveId = None();
+    if (status.has_slave_id()) {
+      slaveId = status.slave_id();
     }
+
+    Option<StatusUpdate> update = None();
+    Task* task = framework->getTask(status.task_id());
 
     if (framework->pendingTasks.contains(status.task_id())) {
-      LOG(WARNING) << "Status for task " << status.task_id()
-                   << " from framework " << frameworkId
-                   << " is unknown since the task is pending";
-      continue;
-    }
-
-    Option<StatusUpdate> update;
-
-    // Check for a removed slave (case 1).
-    if (flags.registry_strict &&
-        !slaves.recovered.contains(status.slave_id()) &&
-        !slaves.reregistering.contains(status.slave_id()) &&
-        !slaves.registered.contains(status.slave_id()) &&
-        !slaves.removing.contains(status.slave_id())) {
-      // Slave is unknown or removed!
+      // (1) Task is known, but pending: no-op.
+      LOG(INFO) << "Ignoring reconciliation request of task "
+                << status.task_id() << " from framework " << frameworkId
+                << " because the task is pending";
+    } else if (task != NULL) {
+      // (2) Task is known: send the latest state.
       update = protobuf::createStatusUpdate(
           frameworkId,
-          status.slave_id(),
+          task->slave_id(),
+          task->task_id(),
+          task->state(),
+          "Reconciliation: Latest task state");
+    } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
+      // (3) Task is unknown, slave is registered: TASK_LOST.
+      update = protobuf::createStatusUpdate(
+          frameworkId,
+          slaveId.get(),
           status.task_id(),
           TASK_LOST,
-          "Reconciliation: Slave is unknown/removed");
-    }
-
-    // Check for a known slave / task (cases (2) and (3)).
-    if (slaves.registered.contains(status.slave_id())) {
-      Slave* slave = CHECK_NOTNULL(slaves.registered[status.slave_id()]);
-      Task* task = slave->getTask(frameworkId, status.task_id());
-
-      if (task == NULL) {
-        // Case (2).
-        // TODO(bmahler): Leverage completed tasks if we track these
-        // in the future.
-        update = protobuf::createStatusUpdate(
-            frameworkId,
-            status.slave_id(),
-            status.task_id(),
-            TASK_LOST,
-            "Reconciliation: Task is unknown to the slave");
-      } else {
-        // Case (3).
-        update = protobuf::createStatusUpdate(
-            frameworkId,
-            task->slave_id(),
-            task->task_id(),
-            task->state(),
-            "Reconciliation: Latest task state");
-      }
+          "Reconciliation: Task is unknown to the slave");
+    } else if (slaves.transitioning(slaveId)) {
+      // (4) Task is unknown, slave is transitionary: no-op.
+      LOG(INFO) << "Ignoring reconciliation request of task "
+                << status.task_id() << " from framework " << frameworkId
+                << " because there are transitional slaves";
+    } else {
+      // (5) Task is unknown, slave is unknown: TASK_LOST.
+      update = protobuf::createStatusUpdate(
+          frameworkId,
+          slaveId,
+          status.task_id(),
+          TASK_LOST,
+          "Reconciliation: Task is unknown");
     }
 
     if (update.isSome()) {
+      VLOG(1) << "Sending explicit reconciliation state "
+              << update.get().status().state()
+              << " for task " << update.get().status().task_id()
+              << " of framework " << frameworkId;
+
       // TODO(bmahler): Consider using forward(); might lead to too
       // much logging.
       StatusUpdateMessage message;
