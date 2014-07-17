@@ -2249,7 +2249,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  EXPECT_CALL(allocator, slaveDisconnected(_));
+  EXPECT_CALL(allocator, slaveDeactivated(_));
 
   this->Stop(slave.get());
   delete containerizer1.get();
@@ -2290,7 +2290,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  EXPECT_CALL(allocator, slaveReconnected(_));
+  EXPECT_CALL(allocator, slaveActivated(_));
   EXPECT_CALL(allocator, resourcesRecovered(_, _, _));
 
   Future<TaskStatus> status;

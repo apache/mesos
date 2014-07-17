@@ -421,13 +421,13 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .Times(AtMost(1));
 
-  Future<Nothing> slaveDisconnected =
-    FUTURE_DISPATCH(_, &AllocatorProcess::slaveDisconnected);
+  Future<Nothing> slaveDeactivated =
+    FUTURE_DISPATCH(_, &AllocatorProcess::slaveDeactivated);
 
   // Now stop the slave.
   Stop(slave.get());
 
-  AWAIT_READY(slaveDisconnected);
+  AWAIT_READY(slaveDeactivated);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))

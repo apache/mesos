@@ -357,7 +357,7 @@ TEST_F(FaultToleranceTest, PartitionedSlaveReregistration)
 // partition, the master will remove a partitioned slave, thus sending
 // its tasks to LOST. At this point, when the partition is removed,
 // the slave may attempt to send updates if it was unaware that the
-// master deactivated it. We've already notified frameworks that these
+// master removed it. We've already notified frameworks that these
 // tasks were LOST, so we have to have the slave shut down.
 TEST_F(FaultToleranceTest, PartitionedSlaveStatusUpdates)
 {
@@ -468,7 +468,7 @@ TEST_F(FaultToleranceTest, PartitionedSlaveStatusUpdates)
 // network partition, the master will remove a partitioned slave, thus
 // sending its tasks to LOST. At this point, when the partition is
 // removed, the slave may attempt to send exited executor messages if
-// it was unaware that the master deactivated it. We've already
+// it was unaware that the master removed it. We've already
 // notified frameworks that the tasks under the executors were LOST,
 // so we have to have the slave shut down.
 TEST_F(FaultToleranceTest, PartitionedSlaveExitedExecutor)

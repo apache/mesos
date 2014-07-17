@@ -548,11 +548,11 @@ public:
     ON_CALL(*this, slaveRemoved(_))
       .WillByDefault(InvokeSlaveRemoved(this));
 
-    ON_CALL(*this, slaveDisconnected(_))
-      .WillByDefault(InvokeSlaveDisconnected(this));
+    ON_CALL(*this, slaveDeactivated(_))
+      .WillByDefault(InvokeSlaveDeactivated(this));
 
-    ON_CALL(*this, slaveReconnected(_))
-      .WillByDefault(InvokeSlaveReconnected(this));
+    ON_CALL(*this, slaveActivated(_))
+      .WillByDefault(InvokeSlaveReactivated(this));
 
     ON_CALL(*this, updateWhitelist(_))
       .WillByDefault(InvokeUpdateWhitelist(this));
@@ -590,8 +590,8 @@ public:
                                 const SlaveInfo&,
                                 const hashmap<FrameworkID, Resources>&));
   MOCK_METHOD1(slaveRemoved, void(const SlaveID&));
-  MOCK_METHOD1(slaveDisconnected, void(const SlaveID&));
-  MOCK_METHOD1(slaveReconnected, void(const SlaveID&));
+  MOCK_METHOD1(slaveDeactivated, void(const SlaveID&));
+  MOCK_METHOD1(slaveActivated, void(const SlaveID&));
   MOCK_METHOD1(updateWhitelist, void(const Option<hashset<std::string> >&));
   MOCK_METHOD2(resourcesRequested, void(const FrameworkID&,
                                         const std::vector<Request>&));
@@ -687,20 +687,20 @@ ACTION_P(InvokeSlaveRemoved, allocator)
 }
 
 
-ACTION_P(InvokeSlaveDisconnected, allocator)
+ACTION_P(InvokeSlaveDeactivated, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::slaveDisconnected,
+      &master::allocator::AllocatorProcess::slaveDeactivated,
       arg0);
 }
 
 
-ACTION_P(InvokeSlaveReconnected, allocator)
+ACTION_P(InvokeSlaveReactivated, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::slaveReconnected,
+      &master::allocator::AllocatorProcess::slaveActivated,
       arg0);
 }
 

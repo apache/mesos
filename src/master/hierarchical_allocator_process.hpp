@@ -60,7 +60,7 @@ struct Slave
 
   explicit Slave(const SlaveInfo& _info)
     : available(_info.resources()),
-      connected(true),
+      activated(true),
       whitelisted(false),
       checkpoint(_info.checkpoint()),
       info(_info) {}
@@ -72,9 +72,9 @@ struct Slave
   // Contains all of the resources currently free on this slave.
   Resources available;
 
-  // Whether the slave is connected. Resources are not offered for
-  // disconnected slaves until they reconnect.
-  bool connected;
+  // Whether the slave is activated. Resources are not offered for
+  // deactivated slaves until they are reactivated.
+  bool activated;
 
   // Indicates if the resources on this slave should be offered to
   // frameworks.
@@ -145,10 +145,10 @@ public:
   void slaveRemoved(
       const SlaveID& slaveId);
 
-  void slaveDisconnected(
+  void slaveDeactivated(
       const SlaveID& slaveId);
 
-  void slaveReconnected(
+  void slaveActivated(
       const SlaveID& slaveId);
 
   void updateWhitelist(
@@ -472,29 +472,29 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveRemoved(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveDisconnected(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveDeactivated(
     const SlaveID& slaveId)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
 
-  slaves[slaveId].connected = false;
+  slaves[slaveId].activated = false;
 
-  LOG(INFO) << "Slave " << slaveId << " disconnected";
+  LOG(INFO) << "Slave " << slaveId << " deactivated";
 }
 
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveReconnected(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveActivated(
     const SlaveID& slaveId)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
 
-  slaves[slaveId].connected = true;
+  slaves[slaveId].activated = true;
 
-  LOG(INFO)<< "Slave " << slaveId << " reconnected";
+  LOG(INFO)<< "Slave " << slaveId << " reactivated";
 }
 
 
@@ -744,7 +744,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         bool filtered = isFiltered(frameworkId, slaveId, resources);
 
         if (!filtered &&
-            slaves[slaveId].connected &&
+            slaves[slaveId].activated &&
             slaves[slaveId].whitelisted &&
             allocatable(resources)) {
           VLOG(1)

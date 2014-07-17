@@ -312,7 +312,6 @@ protected:
   // executors and recover the resources.
   void removeFramework(Slave* slave, Framework* framework);
 
-  // TODO(adam-mesos): Rename deactivate to disconnect, or v.v.
   void deactivate(Framework* framework);
   void disconnect(Slave* slave);
 
@@ -457,7 +456,7 @@ private:
 
   struct Slaves
   {
-    Slaves() : deactivated(MAX_DEACTIVATED_SLAVES) {}
+    Slaves() : removed(MAX_REMOVED_SLAVES) {}
 
     // Imposes a time limit for slaves that we recover from the
     // registry to re-register with the master.
@@ -476,7 +475,7 @@ private:
     // these slaves until the registrar determines their fate.
     hashset<SlaveID> reregistering;
 
-    hashmap<SlaveID, Slave*> activated;
+    hashmap<SlaveID, Slave*> registered;
 
     // Slaves that are in the process of being removed from the
     // registrar. Think of these as being partially removed: we must
@@ -484,21 +483,21 @@ private:
     // from the registry.
     hashset<SlaveID> removing;
 
-    // We track deactivated slaves to preserve the consistency
+    // We track removed slaves to preserve the consistency
     // semantics of the pre-registrar code when a non-strict registrar
-    // is being used. That is, if we deactivate a slave, we must make
+    // is being used. That is, if we remove a slave, we must make
     // an effort to prevent it from (re-)registering, sending updates,
     // etc. We keep a cache here to prevent this from growing in an
     // unbounded manner.
     // TODO(bmahler): Ideally we could use a cache with set semantics.
-    Cache<SlaveID, Nothing> deactivated;
+    Cache<SlaveID, Nothing> removed;
   } slaves;
 
   struct Frameworks
   {
     Frameworks() : completed(MAX_COMPLETED_FRAMEWORKS) {}
 
-    hashmap<FrameworkID, Framework*> activated;
+    hashmap<FrameworkID, Framework*> registered;
     boost::circular_buffer<memory::shared_ptr<Framework> > completed;
 
     // Principals of frameworks keyed by PID.
@@ -686,7 +685,7 @@ private:
 
   double _frameworks_inactive()
   {
-    return frameworks.activated.size() - _frameworks_active();
+    return frameworks.registered.size() - _frameworks_active();
   }
 
   double _outstanding_offers()
@@ -740,7 +739,6 @@ private:
 };
 
 
-// A connected (or disconnected, checkpointing) slave.
 struct Slave
 {
   Slave(const SlaveInfo& _info,

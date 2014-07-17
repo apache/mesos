@@ -88,12 +88,12 @@ public:
   virtual void slaveRemoved(
       const SlaveID& slaveId) = 0;
 
-  // No longer offers resources for the disconnected slave.
-  virtual void slaveDisconnected(
+  // No longer offers resources for the deactivated slave.
+  virtual void slaveDeactivated(
       const SlaveID& slaveId) = 0;
 
-  // Resumes resource offers for the reconnected slave.
-  virtual void slaveReconnected(
+  // Offers resources for the activated slave.
+  virtual void slaveActivated(
       const SlaveID& slaveId) = 0;
 
   virtual void updateWhitelist(
@@ -167,10 +167,10 @@ public:
   void slaveRemoved(
       const SlaveID& slaveId);
 
-  void slaveDisconnected(
+  void slaveDeactivated(
       const SlaveID& slaveId);
 
-  void slaveReconnected(
+  void slaveActivated(
       const SlaveID& slaveId);
 
   void updateWhitelist(
@@ -299,20 +299,20 @@ inline void Allocator::slaveRemoved(const SlaveID& slaveId)
 }
 
 
-inline void Allocator::slaveDisconnected(const SlaveID& slaveId)
+inline void Allocator::slaveDeactivated(const SlaveID& slaveId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::slaveDisconnected,
+      &AllocatorProcess::slaveDeactivated,
       slaveId);
 }
 
 
-inline void Allocator::slaveReconnected(const SlaveID& slaveId)
+inline void Allocator::slaveActivated(const SlaveID& slaveId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::slaveReconnected,
+      &AllocatorProcess::slaveActivated,
       slaveId);
 }
 

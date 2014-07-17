@@ -72,8 +72,8 @@ extern const Duration MIN_SLAVE_REREGISTER_TIMEOUT;
 // production use-cases.
 extern const double RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT;
 
-// Maximum number of deactivated slaves to store in the cache.
-extern const size_t MAX_DEACTIVATED_SLAVES;
+// Maximum number of removed slaves to store in the cache.
+extern const size_t MAX_REMOVED_SLAVES;
 
 // Maximum number of completed frameworks to store in the cache.
 // TODO(thomasm): Make configurable.

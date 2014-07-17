@@ -348,6 +348,7 @@ static Future<Response> _stats(
     const Response& response);
 
 
+// TODO(alexandra.sava): Add stats for registered and removed slaves.
 Future<Response> Master::Http::stats(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
@@ -355,10 +356,10 @@ Future<Response> Master::Http::stats(const Request& request)
   JSON::Object object;
   object.values["uptime"] = (Clock::now() - master->startTime).secs();
   object.values["elected"] = master->elected() ? 1 : 0;
-  object.values["total_schedulers"] = master->frameworks.activated.size();
+  object.values["total_schedulers"] = master->frameworks.registered.size();
   object.values["active_schedulers"] = master->getActiveFrameworks().size();
-  object.values["activated_slaves"] = master->slaves.activated.size();
-  object.values["deactivated_slaves"] = master->slaves.deactivated.size();
+  object.values["activated_slaves"] = master->_slaves_active();
+  object.values["deactivated_slaves"] = master->_slaves_inactive();
   object.values["outstanding_offers"] = master->offers.size();
 
   // NOTE: These are monotonically increasing counters.
@@ -376,7 +377,7 @@ Future<Response> Master::Http::stats(const Request& request)
   // haven't reached terminal state yet.
   // NOTE: This is a gauge representing an instantaneous value.
   int active_tasks = 0;
-  foreachvalue (Framework* framework, master->frameworks.activated) {
+  foreachvalue (Framework* framework, master->frameworks.registered) {
     active_tasks += framework->tasks.size();
   }
   object.values["active_tasks_gauge"] = active_tasks;
@@ -385,7 +386,7 @@ Future<Response> Master::Http::stats(const Request& request)
   // compute capacity of scalar resources.
   Resources totalResources;
   Resources usedResources;
-  foreachvalue (Slave* slave, master->slaves.activated) {
+  foreachvalue (Slave* slave, master->slaves.registered) {
     // Instead of accumulating all types of resources (which is
     // not necessary), we only accumulate scalar resources. This
     // helps us bypass a performance problem caused by range
@@ -482,8 +483,8 @@ Future<Response> Master::Http::state(const Request& request)
   object.values["id"] = master->info().id();
   object.values["pid"] = string(master->self());
   object.values["hostname"] = master->info().hostname();
-  object.values["activated_slaves"] = master->slaves.activated.size();
-  object.values["deactivated_slaves"] = master->slaves.deactivated.size();
+  object.values["activated_slaves"] = master->_slaves_active();
+  object.values["deactivated_slaves"] = master->_slaves_inactive();
   object.values["staged_tasks"] = master->stats.tasks[TASK_STAGING];
   object.values["started_tasks"] = master->stats.tasks[TASK_STARTING];
   object.values["finished_tasks"] = master->stats.tasks[TASK_FINISHED];
@@ -515,7 +516,7 @@ Future<Response> Master::Http::state(const Request& request)
   // Model all of the slaves.
   {
     JSON::Array array;
-    foreachvalue (Slave* slave, master->slaves.activated) {
+    foreachvalue (Slave* slave, master->slaves.registered) {
       array.values.push_back(model(*slave));
     }
 
@@ -525,7 +526,7 @@ Future<Response> Master::Http::state(const Request& request)
   // Model all of the frameworks.
   {
     JSON::Array array;
-    foreachvalue (Framework* framework, master->frameworks.activated) {
+    foreachvalue (Framework* framework, master->frameworks.registered) {
       array.values.push_back(model(*framework));
     }
 
@@ -549,12 +550,12 @@ Future<Response> Master::Http::state(const Request& request)
     JSON::Array array;
 
     // Find those orphan tasks.
-    foreachvalue (const Slave* slave, master->slaves.activated) {
+    foreachvalue (const Slave* slave, master->slaves.registered) {
       typedef hashmap<TaskID, Task*> TaskMap;
       foreachvalue (const TaskMap& tasks, slave->tasks) {
         foreachvalue (const Task* task, tasks) {
           CHECK_NOTNULL(task);
-          if (!master->frameworks.activated.contains(task->framework_id())) {
+          if (!master->frameworks.registered.contains(task->framework_id())) {
             array.values.push_back(model(*task));
           }
         }
@@ -571,9 +572,9 @@ Future<Response> Master::Http::state(const Request& request)
     JSON::Array array;
 
     // Find unregistered frameworks.
-    foreachvalue (const Slave* slave, master->slaves.activated) {
+    foreachvalue (const Slave* slave, master->slaves.registered) {
       foreachkey (const FrameworkID& frameworkId, slave->tasks) {
-        if (!master->frameworks.activated.contains(frameworkId)) {
+        if (!master->frameworks.registered.contains(frameworkId)) {
           array.values.push_back(frameworkId.value());
         }
       }
@@ -736,7 +737,7 @@ Future<Response> Master::Http::tasks(const Request& request)
 
   // Construct framework list with both active and completed framwworks.
   vector<const Framework*> frameworks;
-  foreachvalue (Framework* framework, master->frameworks.activated) {
+  foreachvalue (Framework* framework, master->frameworks.registered) {
     frameworks.push_back(framework);
   }
   foreach (const memory::shared_ptr<Framework>& framework,
