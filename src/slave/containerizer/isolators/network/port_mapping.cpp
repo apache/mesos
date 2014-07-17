@@ -1857,6 +1857,23 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
 
   pid_t pid = info->pid.get();
 
+  // If the bind mount does not exist, there is no need to proceed as
+  // there will be nothing to cleanup.
+  const string target = path::join(BIND_MOUNT_ROOT, stringify(pid));
+  if (!os::exists(target)) {
+    return Error("The bind mount at '" + target + "' does not exist");
+  }
+
+  // NOTE: The 'isolate()' function above may fail at any point if the
+  // child process with 'pid' is gone (e.g., killed by a user, failed
+  // to load shared libraries, etc.). Therefore, this cleanup function
+  // needs to deal with cases where filters/veth/mount are not
+  // installed or do not exist. Also, we choose to continue on each
+  // single failure so that we can clean up filters/veth/mount as much
+  // as possible. We concatenate all the error messages and report
+  // them at the end.
+  vector<string> errors;
+
   // Remove the IP filters on eth0 and lo for non-ephemeral port
   // ranges and the ephemeral port range.
   foreach (const PortRange& range,
@@ -1866,7 +1883,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
 
     Try<Nothing> removing = removeHostIPFilters(range, veth(pid));
     if (removing.isError()) {
-      return Error(
+      errors.push_back(
           "Failed to remove IP packet filter with ports " +
           stringify(range) + " for container with pid " +
           stringify(pid) + ": " + removing.error());
@@ -1899,7 +1916,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     if (icmpEth0ToVeth.isError()) {
       ++metrics.removing_eth0_icmp_filters_errors;
 
-      return Error(
+      errors.push_back(
           "Failed to remove the ICMP packet filter on host " + eth0 +
           ": " + icmpEth0ToVeth.error());
     } else if (!icmpEth0ToVeth.get()) {
@@ -1917,7 +1934,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     if (arpEth0ToVeth.isError()) {
       ++metrics.removing_eth0_arp_filters_errors;
 
-      return Error(
+      errors.push_back(
           "Failed to remove the ARP packet filter on host " + eth0 +
           ": " + arpEth0ToVeth.error());
     } else if (!arpEth0ToVeth.get()) {
@@ -1941,13 +1958,13 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     if (icmpEth0ToVeth.isError()) {
       ++metrics.updating_eth0_icmp_filters_errors;
 
-      return Error(
+      errors.push_back(
           "Failed to update the ICMP mirror action from host " + eth0 +
           " to " + veth(pid) + ": " + icmpEth0ToVeth.error());
     } else if (!icmpEth0ToVeth.get()) {
       ++metrics.updating_eth0_icmp_filters_do_not_exist;
 
-      return Error(
+      errors.push_back(
           "The ICMP packet filter on host " + eth0 + " does not exist");
     }
 
@@ -1959,40 +1976,42 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     if (arpEth0ToVeth.isError()) {
       ++metrics.updating_eth0_arp_filters_errors;
 
-      return Error(
+      errors.push_back(
           "Failed to update the ARP mirror action from host " + eth0 +
           " to " + veth(pid) + ": " + arpEth0ToVeth.error());
     } else if (!arpEth0ToVeth.get()) {
       ++metrics.updating_eth0_arp_filters_do_not_exist;
 
-      return Error(
+      errors.push_back(
           "The ARP packet filter on host " + eth0 + " does not exist");
     }
   }
 
   // Release the bind mount for this container.
-  const string target = path::join(BIND_MOUNT_ROOT, stringify(pid));
-
   Try<Nothing> unmount = fs::unmount(target, MNT_DETACH);
   if (unmount.isError()) {
-    return Error("Failed to umount: " + unmount.error());
+    errors.push_back("Failed to umount: " + unmount.error());
   }
 
   Try<Nothing> rm = os::rm(target);
   if (rm.isError()) {
-    return Error("Failed to remove " + target + ": " + rm.error());
+    errors.push_back("Failed to remove " + target + ": " + rm.error());
   }
 
   // We manually remove veth to avoid having to wait for the kernel to
   // do it.
   Try<bool> remove = link::remove(veth(pid));
   if (remove.isError()) {
-    return Error(
+    errors.push_back(
         "Failed to remove the link " + veth(pid) + ": " + remove.error());
   }
 
-  LOG(INFO) << "Successfully removed the link " << veth(pid);
+  // If any error happens along the way, return error.
+  if (!errors.empty()) {
+    return Error(strings::join(", ", errors));
+  }
 
+  LOG(INFO) << "Successfully performed cleanup for pid " << pid;
   return Nothing();
 }
 
