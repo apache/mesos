@@ -600,7 +600,11 @@ int main(int argc, char** argv)
     }
   }
 
-  mesos::internal::CommandExecutor executor(override, dirname(argv[0]));
+  string path = os::getenv("MESOS_LAUNCHER_DIR", false);
+  if (path.empty()) {
+    path = os::realpath(dirname(argv[0])).get();
+  }
+  mesos::internal::CommandExecutor executor(override, path);
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
 }

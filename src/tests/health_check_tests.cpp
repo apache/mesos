@@ -26,6 +26,7 @@
 #include "slave/slave.hpp"
 
 #include "tests/containerizer.hpp"
+#include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
@@ -55,8 +56,7 @@ using std::string;
 using std::map;
 
 
-// Temporarily disabled due to MESOS-1533.
-class DISABLED_HealthCheckTest : public MesosTest
+class HealthCheckTest : public MesosTest
 {
 public:
   vector<TaskInfo> populateTasks(
@@ -75,6 +75,12 @@ public:
 
     CommandInfo command;
     command.set_value(cmd);
+    Environment::Variable* variable =
+      command.mutable_environment()->add_variables();
+    // We need to set the correct directory to launch health check process
+    // instead of the default for tests.
+    variable->set_name("MESOS_LAUNCHER_DIR");
+    variable->set_value(path::join(tests::flags.build_dir, "src"));
 
     task.mutable_command()->CopyFrom(command);
 
@@ -84,11 +90,11 @@ public:
     healthCommand.set_value(healthCmd);
 
     if (env.isSome()) {
-      foreachpair (const string& name, const string variable, env.get()) {
-        Environment_Variable* var =
+      foreachpair (const string& name, const string value, env.get()) {
+        Environment::Variable* variable =
           healthCommand.mutable_environment()->mutable_variables()->Add();
-        var->set_name(name);
-        var->set_value(variable);
+        variable->set_name(name);
+        variable->set_value(value);
       }
     }
 
@@ -112,7 +118,7 @@ public:
 
 
 // Testing a healthy task reporting one healthy status to scheduler.
-TEST_F(DISABLED_HealthCheckTest, HealthyTask)
+TEST_F(HealthCheckTest, HealthyTask)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -170,7 +176,7 @@ TEST_F(DISABLED_HealthCheckTest, HealthyTask)
 
 
 // Testing killing task after number of consecutive failures.
-TEST_F(DISABLED_HealthCheckTest, ConsecutiveFailures)
+TEST_F(HealthCheckTest, ConsecutiveFailures)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -255,7 +261,7 @@ TEST_F(DISABLED_HealthCheckTest, ConsecutiveFailures)
 
 
 // Testing command using environment variable.
-TEST_F(DISABLED_HealthCheckTest, EnvironmentSetup)
+TEST_F(HealthCheckTest, EnvironmentSetup)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -318,7 +324,7 @@ TEST_F(DISABLED_HealthCheckTest, EnvironmentSetup)
 
 
 // Testing grace period that ignores all failed task failures.
-TEST_F(DISABLED_HealthCheckTest, GracePeriod)
+TEST_F(HealthCheckTest, GracePeriod)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
