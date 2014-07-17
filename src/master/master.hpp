@@ -357,7 +357,10 @@ protected:
   void removeTask(Task* task);
 
   // Forwards the update to the framework.
-  Try<Nothing> forward(const StatusUpdate& update, const process::UPID& pid);
+  void forward(
+      const StatusUpdate& update,
+      const process::UPID& acknowledgee,
+      Framework* framework);
 
   // Remove an offer and optionally rescind the offer as well.
   void removeOffer(Offer* offer, bool rescind = false);

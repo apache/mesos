@@ -2038,11 +2038,7 @@ void Master::launchTasks(
           TASK_LOST,
           "Task launched without offers");
 
-      LOG(INFO) << "Sending status update " << update
-                << " for launch task attempt without offers";
-      StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update);
-      send(framework->pid, message);
+      forward(update, UPID(), framework);
     }
     return;
   }
@@ -2117,12 +2113,7 @@ void Master::launchTasks(
           TASK_LOST,
           "Task launched with invalid offers: " + error.get().message);
 
-      LOG(INFO) << "Sending status update " << update
-                << " for launch task attempt on invalid offers: "
-                << stringify(offerIds);
-      StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update);
-      send(framework->pid, message);
+      forward(update, UPID(), framework);
     }
     return;
   }
@@ -2333,12 +2324,7 @@ void Master::_launchTasks(
           TASK_LOST,
           (slave == NULL ? "Slave removed" : "Slave disconnected"));
 
-      LOG(INFO) << "Sending status update " << update << ": "
-                << (slave == NULL ? "Slave removed" : "Slave disconnected");
-
-      StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update);
-      send(framework->pid, message);
+      forward(update, UPID(), framework);
     }
 
     // Tell the allocator about the recovered resources.
@@ -2374,12 +2360,7 @@ void Master::_launchTasks(
           TASK_LOST,
           error);
 
-      LOG(INFO)
-        << "Sending status update " << update << ": " << error;
-
-      StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update);
-      send(framework->pid, message);
+      forward(update, UPID(), framework);
 
       continue;
     }
@@ -2405,12 +2386,7 @@ void Master::_launchTasks(
           TASK_LOST,
           error);
 
-      LOG(INFO) << "Sending status update " << update << " for invalid task: "
-                << error;
-
-      StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update);
-      send(framework->pid, message);
+      forward(update, UPID(), framework);
 
       continue;
     }
@@ -2491,16 +2467,14 @@ void Master::killTask(
     // Remove from pending tasks.
     framework->pendingTasks.erase(taskId);
 
-    StatusUpdateMessage message;
-    StatusUpdate* update = message.mutable_update();
-    update->mutable_framework_id()->MergeFrom(frameworkId);
-    TaskStatus* status = update->mutable_status();
-    status->mutable_task_id()->MergeFrom(taskId);
-    status->set_state(TASK_KILLED);
-    status->set_message("Killed pending task");
-    update->set_timestamp(Clock::now().secs());
-    update->set_uuid(UUID::random().toBytes());
-    send(framework->pid, message);
+    const StatusUpdate& update = protobuf::createStatusUpdate(
+        frameworkId,
+        None(),
+        taskId,
+        TASK_KILLED,
+        "Killed pending task");
+
+    forward(update, UPID(), framework);
 
     return;
   }
@@ -2534,16 +2508,14 @@ void Master::killTask(
         << " because it cannot be found; sending TASK_LOST since there are"
         << " no transitionary slaves";
 
-      StatusUpdateMessage message;
-      StatusUpdate* update = message.mutable_update();
-      update->mutable_framework_id()->MergeFrom(frameworkId);
-      TaskStatus* status = update->mutable_status();
-      status->mutable_task_id()->MergeFrom(taskId);
-      status->set_state(TASK_LOST);
-      status->set_message("Attempted to kill an unknown task");
-      update->set_timestamp(Clock::now().secs());
-      update->set_uuid(UUID::random().toBytes());
-      send(framework->pid, message);
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          frameworkId,
+          None(),
+          taskId,
+          TASK_LOST,
+          "Attempted to kill an unknown task");
+
+      forward(update, UPID(), framework);
     } else {
       // For a non-strict registry, the slave holding this task could
       // be readmitted even if we have no knowledge of it.
@@ -3085,7 +3057,9 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     return;
   }
 
-  if (!slaves.registered.contains(update.slave_id())) {
+  Slave* slave = getSlave(update.slave_id());
+
+  if (slave == NULL) {
     LOG(WARNING) << "Ignoring status update " << update
                  << " from unknown slave " << pid
                  << " with id " << update.slave_id();
@@ -3094,17 +3068,19 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     return;
   }
 
-  Slave* slave = CHECK_NOTNULL(slaves.registered[update.slave_id()]);
+  Framework* framework = getFramework(update.framework_id());
 
-  // Forward the update to the framework.
-  Try<Nothing> _forward = forward(update, pid);
-  if (_forward.isError()) {
+  if (framework == NULL) {
     LOG(WARNING) << "Ignoring status update " << update
-                 << " from slave " << *slave << ": " << _forward.error();
+                 << " from slave " << *slave
+                 << " because the framework is unknown";
     stats.invalidStatusUpdates++;
     metrics.invalid_status_updates++;
     return;
   }
+
+  // Forward the update to the framework.
+  forward(update, pid, framework);
 
   // Lookup the task and see if we need to update anything locally.
   const TaskStatus& status = update.status();
@@ -3138,19 +3114,26 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 }
 
 
-Try<Nothing> Master::forward(const StatusUpdate& update, const UPID& pid)
+void Master::forward(
+    const StatusUpdate& update,
+    const UPID& acknowledgee,
+    Framework* framework)
 {
-  Framework* framework = getFramework(update.framework_id());
-  if (framework == NULL) {
-    return Error("Unknown framework " + stringify(update.framework_id()));
+  CHECK_NOTNULL(framework);
+
+  if (!acknowledgee) {
+    LOG(INFO) << "Sending status update " << update
+              << update.status().has_message()
+                 ? " '" + update.status().message() + "'"
+                 : "";
+  } else {
+    LOG(INFO) << "Forwarding status update " << update;
   }
 
-  // Pass on the (transformed) status update to the framework.
   StatusUpdateMessage message;
   message.mutable_update()->MergeFrom(update);
-  message.set_pid(pid);
+  message.set_pid(acknowledgee);
   send(framework->pid, message);
-  return Nothing();
 }
 
 
@@ -3271,13 +3254,15 @@ void Master::reconcileTasks(
 
     // TODO(bmahler): Consider sending completed tasks?
     foreachvalue (Task* task, framework->tasks) {
-      StatusUpdate update = protobuf::createStatusUpdate(
+      const StatusUpdate& update = protobuf::createStatusUpdate(
           frameworkId,
           task->slave_id(),
           task->task_id(),
           task->state(),
           "Reconciliation: Latest task state");
 
+      // TODO(bmahler): Consider using forward(); might lead to too
+      // much logging.
       StatusUpdateMessage message;
       message.mutable_update()->CopyFrom(update);
       send(framework->pid, message);
@@ -3355,6 +3340,8 @@ void Master::reconcileTasks(
     }
 
     if (update.isSome()) {
+      // TODO(bmahler): Consider using forward(); might lead to too
+      // much logging.
       StatusUpdateMessage message;
       message.mutable_update()->CopyFrom(update.get());
       send(framework->pid, message);
@@ -4218,10 +4205,13 @@ void Master::_removeSlave(
 
   // Forward the LOST updates on to the framework.
   foreach (const StatusUpdate& update, updates) {
-    Try<Nothing> _forward = forward(update, UPID());
-    if (_forward.isError()) {
-      LOG(WARNING) << "Unable to send update " << update << " on to framework "
-                   << update.framework_id() << ": " << _forward.error();
+    Framework* framework = getFramework(update.framework_id());
+
+    if (framework == NULL) {
+      LOG(WARNING) << "Dropping update " << update << " because the framework "
+                   << "is unknown";
+    } else {
+      forward(update, UPID(), framework);
     }
   }
 

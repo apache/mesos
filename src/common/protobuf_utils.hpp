@@ -48,11 +48,9 @@ inline bool isTerminalState(const TaskState& state)
 }
 
 
-// TODO(vinod): Make SlaveID optional because 'StatusUpdate.SlaveID'
-// is optional.
 inline StatusUpdate createStatusUpdate(
     const FrameworkID& frameworkId,
-    const SlaveID& slaveId,
+    const Option<SlaveID>& slaveId,
     const TaskID& taskId,
     const TaskState& state,
     const std::string& message = "",
@@ -63,7 +61,10 @@ inline StatusUpdate createStatusUpdate(
   update.set_timestamp(process::Clock::now().secs());
   update.set_uuid(UUID::random().toBytes());
   update.mutable_framework_id()->MergeFrom(frameworkId);
-  update.mutable_slave_id()->MergeFrom(slaveId);
+
+  if (slaveId.isSome()) {
+    update.mutable_slave_id()->MergeFrom(slaveId.get());
+  }
 
   if (executorId.isSome()) {
     update.mutable_executor_id()->MergeFrom(executorId.get());
@@ -71,7 +72,11 @@ inline StatusUpdate createStatusUpdate(
 
   TaskStatus* status = update.mutable_status();
   status->mutable_task_id()->MergeFrom(taskId);
-  status->mutable_slave_id()->MergeFrom(slaveId);
+
+  if (slaveId.isSome()) {
+    status->mutable_slave_id()->MergeFrom(slaveId.get());
+  }
+
   status->set_state(state);
   status->set_message(message);
   status->set_timestamp(update.timestamp());
