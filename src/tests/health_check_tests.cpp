@@ -176,7 +176,8 @@ TEST_F(HealthCheckTest, HealthyTask)
 
 
 // Testing killing task after number of consecutive failures.
-TEST_F(HealthCheckTest, ConsecutiveFailures)
+// Temporarily disabled due to MESOS-1613.
+TEST_F(HealthCheckTest, DISABLED_ConsecutiveFailures)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
