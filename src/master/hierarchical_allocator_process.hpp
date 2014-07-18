@@ -19,6 +19,9 @@
 #ifndef __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
 #define __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
 
+#include <algorithm>
+#include <vector>
+
 #include <mesos/resources.hpp>
 
 #include <process/delay.hpp>
@@ -675,7 +678,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
 template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
-    const hashset<SlaveID>& slaveIds)
+    const hashset<SlaveID>& slaveIds_)
 {
   CHECK(initialized);
 
@@ -684,56 +687,66 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     return;
   }
 
-  if (slaveIds.empty()) {
+  if (slaveIds_.empty()) {
     VLOG(1) << "No resources available to allocate!";
     return;
   }
 
-  foreach (const std::string& role, roleSorter->sort()) {
-    foreach (const std::string& frameworkIdValue, sorters[role]->sort()) {
-      FrameworkID frameworkId;
-      frameworkId.set_value(frameworkIdValue);
+  // Randomize the order in which slaves' resources are allocated.
+  // TODO(vinod): Implement a smarter sorting algorithm.
+  std::vector<SlaveID> slaveIds(slaveIds_.begin(), slaveIds_.end());
+  std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
-      Resources allocatedResources;
-      hashmap<SlaveID, Resources> offerable;
-      foreach (const SlaveID& slaveId, slaveIds) {
+  hashmap<FrameworkID, hashmap<SlaveID, Resources> > offerable;
+  foreach (const SlaveID& slaveId, slaveIds) {
+    // If the slave is not activated or whitelisted, ignore it.
+    if (!slaves[slaveId].activated || !slaves[slaveId].whitelisted) {
+      continue;
+    }
+
+    foreach (const std::string& role, roleSorter->sort()) {
+      foreach (const std::string& frameworkIdValue, sorters[role]->sort()) {
+        FrameworkID frameworkId;
+        frameworkId.set_value(frameworkIdValue);
+
         Resources unreserved = slaves[slaveId].available.extract("*");
         Resources resources = unreserved;
-
         if (role != "*") {
           resources += slaves[slaveId].available.extract(role);
         }
 
-        // Check whether or not this framework filters this slave.
-        bool filtered = isFiltered(frameworkId, slaveId, resources);
-
-        if (!filtered &&
-            slaves[slaveId].activated &&
-            slaves[slaveId].whitelisted &&
-            allocatable(resources)) {
-          VLOG(1)
-            << "Offering " << resources << " on slave " << slaveId
-            << " to framework " << frameworkId;
-
-          offerable[slaveId] = resources;
-
-          // Update framework and slave resources.
-          slaves[slaveId].available -= resources;
-
-          // We only count resources not reserved for this role
-          // in the share the sorter considers.
-          allocatedResources += unreserved;
+        // If the resources are not allocatable, ignore.
+        if (!allocatable(resources)) {
+          continue;
         }
-      }
 
-      if (!offerable.empty()) {
-        sorters[role]->add(allocatedResources);
-        sorters[role]->allocated(frameworkIdValue, allocatedResources);
-        roleSorter->allocated(role, allocatedResources);
+        // If the framework filters these resources, ignore.
+        if (isFiltered(frameworkId, slaveId, resources)) {
+          continue;
+        }
 
-        dispatch(master, &Master::offer, frameworkId, offerable);
+        VLOG(1)
+          << "Offering " << resources << " on slave " << slaveId
+          << " to framework " << frameworkId;
+
+        offerable[frameworkId][slaveId] = resources;
+
+        // Update slave resources.
+        slaves[slaveId].available -= resources;
+
+        // Update the sorters.
+        // We only count resources not reserved for this role
+        // in the share the sorter considers.
+        sorters[role]->add(unreserved);
+        sorters[role]->allocated(frameworkIdValue, unreserved);
+        roleSorter->allocated(role, unreserved);
       }
     }
+  }
+
+  // Now offer the resources to each framework.
+  foreachkey (const FrameworkID& frameworkId, offerable) {
+    dispatch(master, &Master::offer, frameworkId, offerable[frameworkId]);
   }
 }
 
