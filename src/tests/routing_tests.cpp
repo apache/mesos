@@ -993,3 +993,77 @@ TEST_F(RoutingVethTest, ROOT_IPFilterRemove)
   ASSERT_SOME(classifiers);
   EXPECT_EQ(0u, classifiers.get().size());
 }
+
+
+// Test the workaround introduced for MESOS-1617.
+TEST_F(RoutingVethTest, ROOT_HandleGeneration)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  Result<net::MAC> mac = net::mac(TEST_VETH_LINK);
+  ASSERT_SOME(mac);
+
+  net::IP ip = net::IP(0x01020304); // 1.2.3.4
+
+  Try<ip::PortRange> sourcePorts1 =
+    ip::PortRange::fromBeginEnd(1024, 1027);
+
+  ASSERT_SOME(sourcePorts1);
+
+  Try<ip::PortRange> destinationPorts1 =
+    ip::PortRange::fromBeginEnd(2000, 2000);
+
+  ASSERT_SOME(destinationPorts1);
+
+  Try<ip::PortRange> sourcePorts2 =
+    ip::PortRange::fromBeginEnd(3024, 3025);
+
+  ASSERT_SOME(sourcePorts2);
+
+  Try<ip::PortRange> destinationPorts2 =
+    ip::PortRange::fromBeginEnd(4000, 4003);
+
+  ASSERT_SOME(destinationPorts2);
+
+  ip::Classifier classifier1 =
+    ip::Classifier(
+        mac.get(),
+        ip,
+        sourcePorts1.get(),
+        destinationPorts1.get());
+
+  ip::Classifier classifier2 =
+    ip::Classifier(
+        mac.get(),
+        ip,
+        sourcePorts2.get(),
+        destinationPorts2.get());
+
+  // Use handle 800:00:fff for the first filter.
+  EXPECT_SOME_TRUE(ip::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      classifier1,
+      Priority(2, 1),
+      U32Handle(0x800, 0x0, 0xfff),
+      action::Redirect(TEST_PEER_LINK)));
+
+  // With the workaround, this filter should be assigned a handle
+  // different than 800:00:fff.
+  EXPECT_SOME_TRUE(ip::create(
+      TEST_VETH_LINK,
+      ingress::HANDLE,
+      classifier2,
+      Priority(2, 1),
+      action::Redirect(TEST_PEER_LINK)));
+
+  // Try to remove the second filter. If we don't have the workaround,
+  // removing the second filter will return false since the kernel
+  // will find the handle matches the first filter.
+  EXPECT_SOME_TRUE(ip::remove(TEST_VETH_LINK, ingress::HANDLE, classifier2));
+}

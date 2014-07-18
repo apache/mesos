@@ -124,6 +124,7 @@ Try<bool> create(
           parent,
           Classifier(),
           priority,
+          None(),
           redirect));
 }
 
@@ -140,6 +141,7 @@ Try<bool> create(
           parent,
           Classifier(),
           priority,
+          None(),
           mirror));
 }
 
@@ -160,6 +162,7 @@ Try<bool> update(
       Filter<Classifier>(
           parent,
           Classifier(),
+          None(),
           None(),
           mirror));
 }

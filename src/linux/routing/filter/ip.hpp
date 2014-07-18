@@ -158,6 +158,18 @@ Try<bool> create(
     const action::Redirect& redirect);
 
 
+// Same as above, but allow the user to specify the handle. This
+// interface is exposed only for testing MESOS-1617.
+// TODO(jieyu): Revisit this once the kernel bug is fixed.
+Try<bool> create(
+    const std::string& link,
+    const queueing::Handle& parent,
+    const Classifier& classifier,
+    const Option<Priority>& priority,
+    const Option<Handle>& handle,
+    const action::Redirect& redirect);
+
+
 // Creates an IP packet filter attached to the given parent on the
 // link which will stop the IP packets from being sent to the next
 // filter. Returns false if an IP packet filter attached to the given

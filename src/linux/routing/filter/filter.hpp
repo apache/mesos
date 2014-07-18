@@ -26,6 +26,7 @@
 #include <stout/option.hpp>
 
 #include "linux/routing/filter/action.hpp"
+#include "linux/routing/filter/handle.hpp"
 #include "linux/routing/filter/priority.hpp"
 
 #include "linux/routing/queueing/handle.hpp"
@@ -51,20 +52,24 @@ public:
   // Creates a filter with no action.
   Filter(const queueing::Handle& _parent,
          const Classifier& _classifier,
-         const Option<Priority>& _priority)
+         const Option<Priority>& _priority,
+         const Option<Handle>& _handle)
     : parent_(_parent),
       classifier_(_classifier),
-      priority_(_priority) {}
+      priority_(_priority),
+      handle_(_handle) {}
 
   // TODO(jieyu): Support arbitrary number of actions.
   template <typename Action>
   Filter(const queueing::Handle& _parent,
          const Classifier& _classifier,
          const Option<Priority>& _priority,
+         const Option<Handle>& _handle,
          const Action& action)
     : parent_(_parent),
       classifier_(_classifier),
-      priority_(_priority)
+      priority_(_priority),
+      handle_(_handle)
   {
     attach(action);
   }
@@ -76,9 +81,10 @@ public:
     actions_.push_back(process::Shared<action::Action>(new A(action)));
   }
 
-  const queueing::Handle parent() const { return parent_; }
+  const queueing::Handle& parent() const { return parent_; }
   const Classifier& classifier() const { return classifier_; }
   const Option<Priority>& priority() const { return priority_; }
+  const Option<Handle>& handle() const { return handle_; }
 
   // Returns all the actions attached to this filter.
   const std::vector<process::Shared<action::Action> >& actions() const
@@ -96,6 +102,9 @@ private:
 
   // The priority of this filter.
   Option<Priority> priority_;
+
+  // The handle of this filter.
+  Option<Handle> handle_;
 
   // The set of actions attached to this filer. Note that we use
   // Shared here to make Filter copyable.

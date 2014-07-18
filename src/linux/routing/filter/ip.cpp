@@ -472,6 +472,26 @@ Try<bool> create(
           parent,
           classifier,
           priority,
+          None(),
+          redirect));
+}
+
+
+Try<bool> create(
+    const string& link,
+    const queueing::Handle& parent,
+    const Classifier& classifier,
+    const Option<Priority>& priority,
+    const Option<Handle>& handle,
+    const action::Redirect& redirect)
+{
+  return internal::create(
+      link,
+      Filter<Classifier>(
+          parent,
+          classifier,
+          priority,
+          handle,
           redirect));
 }
 
@@ -489,6 +509,7 @@ Try<bool> create(
           parent,
           classifier,
           priority,
+          None(),
           terminal));
 }
 
