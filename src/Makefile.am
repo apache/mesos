@@ -46,7 +46,7 @@ pkglocalstatedir = $(localstatedir)/$(PACKAGE)
 
 # Protocol buffer compiler.
 PROTOC = ../$(PROTOBUF)/src/protoc
-PROTOCFLAGS = -I$(top_srcdir)/include/mesos -I$(srcdir)
+PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir)
 
 # Initialize variables here so we can use += operator everywhere else.
 lib_LTLIBRARIES =
@@ -166,19 +166,19 @@ CLEANFILES += $(REGISTRY_PROTOS)
 # directory and leave the cc files in src.
 %.pb.cc ../include/mesos/%.pb.h: $(top_srcdir)/include/mesos/%.proto
 	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/mesos $^
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/*.pb.cc .
 
 containerizer/%.pb.cc ../include/mesos/containerizer/%.pb.h: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/containerizer
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/mesos $^
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/containerizer/*.pb.cc $(@D)
 
 scheduler/%.pb.cc ../include/mesos/scheduler/%.pb.h: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/scheduler
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/mesos $^
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/scheduler/*.pb.cc $(@D)
 
 %.pb.cc %.pb.h: %.proto

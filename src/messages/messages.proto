@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import "mesos.proto";
+import "mesos/mesos.proto";
 
 package mesos.internal;
 
