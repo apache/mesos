@@ -24,12 +24,12 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <mesos/resources.hpp>
+#include <mesos/scheduler.hpp>
+
 #include <process/delay.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
-
-#include <mesos/resources.hpp>
-#include <mesos/scheduler.hpp>
 
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
@@ -38,6 +38,7 @@
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
+#include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -97,12 +98,12 @@ public:
 
   ~LowLevelScheduler() {}
 
-  void connected(void)
+  void connected()
   {
     doReliableRegistration();
   }
 
-  void disconnected(void)
+  void disconnected()
   {
     state = DISCONNECTED;
   }
@@ -306,7 +307,7 @@ private:
                    &Self::doReliableRegistration);
   }
 
-  void finalize(void)
+  void finalize()
   {
     Call call;
     call.mutable_framework_info()->CopyFrom(framework);
@@ -379,11 +380,9 @@ int main(int argc, char** argv)
   framework.set_name("Low-Level Scheduler using libprocess (C++)");
   framework.set_role(role);
 
-  // TODO(vinod): Make checkpointing the default when it is default
-  // on the slave.
   if (os::hasenv("MESOS_CHECKPOINT")) {
-    cout << "Enabling checkpoint for the framework" << endl;
-    framework.set_checkpoint(true);
+    framework.set_checkpoint(
+        numify<bool>(os::getenv("MESOS_CHECKPOINT")).get());
   }
 
   ExecutorInfo executor;

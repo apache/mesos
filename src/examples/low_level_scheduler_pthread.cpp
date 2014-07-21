@@ -26,10 +26,10 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include <process/protobuf.hpp>
-
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
+
+#include <process/protobuf.hpp>
 
 #include <stout/check.hpp>
 #include <stout/exit.hpp>
@@ -37,6 +37,7 @@
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
+#include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -108,7 +109,7 @@ public:
     pthread_cond_destroy(&cond);
   }
 
-  void connected(void)
+  void connected()
   {
     pthread_mutex_lock(&mutex);
     state = CONNECTED;
@@ -118,7 +119,7 @@ public:
     pthread_mutex_unlock(&mutex);
   }
 
-  void disconnected(void)
+  void disconnected()
   {
     pthread_mutex_lock(&mutex);
     state = DISCONNECTED;
@@ -228,7 +229,7 @@ public:
     }
   }
 
-  void wait(void)
+  void wait()
   {
     pthread_mutex_lock(&mutex);
     if (state == INITIALIZING) {
@@ -356,7 +357,7 @@ private:
     mesos.send(call);
   }
 
-  void finalize(void)
+  void finalize()
   {
     Call call;
     call.set_type(Call::UNREGISTER);
@@ -439,11 +440,9 @@ int main(int argc, char** argv)
   framework.set_name("Low-Level Scheduler using pthread (C++)");
   framework.set_role(role);
 
-  // TODO(vinod): Make checkpointing the default when it is default
-  // on the slave.
   if (os::hasenv("MESOS_CHECKPOINT")) {
-    cout << "Enabling checkpoint for the framework" << endl;
-    framework.set_checkpoint(true);
+    framework.set_checkpoint(
+        numify<bool>(os::getenv("MESOS_CHECKPOINT")).get());
   }
 
   ExecutorInfo executor;

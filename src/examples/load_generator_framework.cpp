@@ -19,12 +19,13 @@
 #include <iostream>
 #include <string>
 
+#include <mesos/scheduler.hpp>
+
 #include <process/defer.hpp>
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
-#include <mesos/scheduler.hpp>
-
+#include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
 
@@ -323,6 +324,11 @@ int main(int argc, char** argv)
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Load Generator Framework (C++)");
+
+  if (os::hasenv("MESOS_CHECKPOINT")) {
+    framework.set_checkpoint(
+        numify<bool>(os::getenv("MESOS_CHECKPOINT")).get());
+  }
 
   MesosSchedulerDriver* driver;
   if (flags.authenticate) {

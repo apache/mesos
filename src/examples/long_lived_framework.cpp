@@ -25,6 +25,7 @@
 
 #include <mesos/scheduler.hpp>
 
+#include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
@@ -178,11 +179,9 @@ int main(int argc, char** argv)
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Long Lived Framework (C++)");
 
-  // TODO(vinod): Make checkpointing the default when it is default
-  // on the slave.
   if (os::hasenv("MESOS_CHECKPOINT")) {
-    cout << "Enabling checkpoint for the framework" << endl;
-    framework.set_checkpoint(true);
+    framework.set_checkpoint(
+        numify<bool>(os::getenv("MESOS_CHECKPOINT")).get());
   }
 
   MesosSchedulerDriver* driver;
