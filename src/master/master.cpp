@@ -3123,9 +3123,9 @@ void Master::forward(
 
   if (!acknowledgee) {
     LOG(INFO) << "Sending status update " << update
-              << update.status().has_message()
-                 ? " '" + update.status().message() + "'"
-                 : "";
+              << (update.status().has_message()
+                  ? " '" + update.status().message() + "'"
+                  : "");
   } else {
     LOG(INFO) << "Forwarding status update " << update;
   }
