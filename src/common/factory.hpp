@@ -26,7 +26,6 @@
 
 #include <stout/fatal.hpp>
 
-
 // These two macros create a Factory class that constructs instances of
 // subclasses of a type T, whose constructors take a parameter of type P,
 // based on a registered name for each subclass. To use them:

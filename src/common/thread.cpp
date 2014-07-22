@@ -16,26 +16,37 @@
  * limitations under the License.
  */
 
-#ifndef __DATE_UTILS_HPP__
-#define __DATE_UTILS_HPP__
+#include <stout/lambda.hpp>
 
-#include <string>
+#include "common/thread.hpp"
 
-namespace mesos {
-namespace internal {
+namespace thread {
 
-/**
- * Utility functions for dealing with dates.
- */
-namespace DateUtils {
-/**
- * Get the current date in the format used for Mesos IDs (YYYYMMDD-hhmmss).
- */
-std::string currentDate();
+static void* __run(void* arg)
+{
+  lambda::function<void(void)>* function =
+    reinterpret_cast<lambda::function<void(void)>*>(arg);
+  (*function)();
+  delete function;
+  return 0;
+}
 
 
-} // namespace DateUtils {
-} // namespace internal {
-} // namespace mesos {
+bool start(const lambda::function<void(void)>& f, bool detach /*= false*/)
+{
+  lambda::function<void(void)>* __f = new lambda::function<void(void)>(f);
 
-#endif
+  pthread_t t;
+  if (pthread_create(&t, NULL, __run, __f) != 0) {
+    return false;
+  }
+
+  if (detach && pthread_detach(t) != 0) {
+    return false;
+  }
+
+  return true;
+}
+
+
+} // namespace thread {

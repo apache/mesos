@@ -36,4 +36,3 @@ JSON::Object model(const Task& task);
 } // namespace mesos {
 
 #endif // __COMMON_HTTP_HPP__
-

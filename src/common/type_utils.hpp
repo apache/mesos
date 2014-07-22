@@ -21,11 +21,6 @@
 
 #include <boost/functional/hash.hpp>
 
-#include <google/protobuf/descriptor.h>
-
-#include <mesos/mesos.hpp>
-#include <mesos/resources.hpp>
-
 #include <stout/uuid.hpp>
 
 #include "common/attributes.hpp"
@@ -258,30 +253,7 @@ inline bool operator < (const ContainerID& left, const ContainerID& right)
 }
 
 
-inline bool operator == (const Environment& left, const Environment& right)
-{
-  if (left.variables().size() != right.variables().size()) {
-    return false;
-  }
-
-  for (int i = 0; i < left.variables().size(); i++) {
-    const std::string& name = left.variables().Get(i).name();
-    const std::string& value = left.variables().Get(i).value();
-    bool found = false;
-    for (int j = 0; j < right.variables().size(); j++) {
-      if (name == right.variables().Get(j).name() &&
-          value == right.variables().Get(j).value()) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      return false;
-    }
-  }
-
-  return true;
-}
+bool operator == (const Environment& left, const Environment& right);
 
 
 inline bool operator == (
@@ -294,73 +266,13 @@ inline bool operator == (
 }
 
 
-inline bool operator == (const CommandInfo& left, const CommandInfo& right)
-{
-  if (left.uris().size() != right.uris().size()) {
-    return false;
-  }
+bool operator == (const CommandInfo& left, const CommandInfo& right);
 
-  for (int i=0; i<left.uris().size(); i++) {
-    bool found = false;
-    for (int j=0; j<right.uris().size(); j++) {
-      if (left.uris().Get(i) == right.uris().Get(j)) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      return false;
-    }
-  }
+bool operator == (const ExecutorInfo& left, const ExecutorInfo& right);
 
-  return left.has_environment() == right.has_environment() &&
-    (!left.has_environment() || (left.environment() == right.environment())) &&
-    left.value() == right.value();
-}
+bool operator == (const SlaveInfo& left, const SlaveInfo& right);
 
-
-inline bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
-{
-  return left.executor_id() == right.executor_id() &&
-    left.has_framework_id() == right.has_framework_id() &&
-    (!left.has_framework_id() ||
-    (left.framework_id() == right.framework_id())) &&
-    left.command() == right.command() &&
-    Resources(left.resources()) == Resources(right.resources()) &&
-    left.has_name() == right.has_name() &&
-    (!left.has_name() || (left.name() == right.name())) &&
-    left.has_source() == right.has_source() &&
-    (!left.has_source() || (left.source() == right.source())) &&
-    left.has_data() == right.has_data() &&
-    (!left.has_data() || (left.data() == right.data()));
-}
-
-
-inline bool operator == (const SlaveInfo& left, const SlaveInfo& right)
-{
-  // NOTE: We don't compare 'webui_hostname' and 'webui_port' since
-  // they're deprecated and do not carry any semantic meaning.
-  return left.hostname() == right.hostname() &&
-    Resources(left.resources()) == Resources(right.resources()) &&
-    internal::Attributes(left.attributes()) ==
-    internal::Attributes(right.attributes()) &&
-    left.has_id() == right.has_id() &&
-    (!left.has_id() || (left.id() == right.id())) &&
-    left.has_checkpoint() == right.has_checkpoint() &&
-    (!left.has_checkpoint() || (left.checkpoint() == right.checkpoint()));
-}
-
-
-inline bool operator == (const MasterInfo& left, const MasterInfo& right)
-{
-  return left.id() == right.id() &&
-    left.ip() == right.ip() &&
-    left.port() == right.port() &&
-    left.has_pid() == right.has_pid() &&
-    (!left.has_pid() || (left.pid() == right.pid())) &&
-    left.has_hostname() == right.has_hostname() &&
-    (!left.has_hostname() || (left.hostname() == right.hostname()));
-}
+bool operator == (const MasterInfo& left, const MasterInfo& right);
 
 
 inline std::size_t hash_value(const FrameworkID& frameworkId)
@@ -413,37 +325,11 @@ inline std::size_t hash_value(const ContainerID& containerId)
 
 namespace internal {
 
-inline bool operator == (const Task& left, const Task& right)
-{
-  return left.name() == right.name() &&
-    left.task_id() == right.task_id() &&
-    left.framework_id() == right.framework_id() &&
-    left.slave_id() == right.slave_id() &&
-    left.state() == right.state() &&
-    Resources(left.resources()) == Resources(right.resources()) &&
-    left.has_executor_id() == right.has_executor_id() &&
-    (!left.has_executor_id() || (left.executor_id() == right.executor_id()));
-}
+bool operator == (const Task& left, const Task& right);
 
-
-inline std::ostream& operator << (
+std::ostream& operator << (
     std::ostream& stream,
-    const StatusUpdate& update)
-{
-  stream
-    << update.status().state()
-    << " (UUID: " << UUID::fromBytes(update.uuid())
-    << ") for task " << update.status().task_id();
-
-  if (update.status().has_healthy()) {
-    stream
-      << " in health state "
-      << (update.status().healthy() ? "healthy" : "unhealthy");
-  }
-
-  return stream
-    << " of framework " << update.framework_id();
-}
+    const StatusUpdate& update);
 
 
 inline std::ostream& operator << (
@@ -454,7 +340,8 @@ inline std::ostream& operator << (
     << StatusUpdateRecord::Type_descriptor()->FindValueByNumber(type)->name();
 }
 
-}} // namespace mesos { namespace internal {
+} // namespace internal {
+} // namespace mesos {
 
 
 namespace mesos {

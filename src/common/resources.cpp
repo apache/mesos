@@ -30,7 +30,6 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
-
 using std::ostream;
 using std::string;
 using std::vector;
@@ -174,6 +173,144 @@ ostream& operator << (ostream& stream, const Resource& resource)
   }
 
   return stream;
+}
+
+
+Resources Resources::allocatable() const
+{
+  Resources result;
+
+  foreach (const Resource& resource, resources) {
+    if (isAllocatable(resource)) {
+      result.resources.Add()->MergeFrom(resource);
+    }
+  }
+
+  return result;
+}
+
+
+bool Resources::operator == (const Resources& that) const
+{
+  if (size() != that.size()) {
+    return false;
+  }
+
+  foreach (const Resource& resource, resources) {
+    Option<Resource> option = that.get(resource);
+    if (option.isNone()) {
+      return false;
+      } else {
+      if (!(resource == option.get())) {
+        return false;
+      }
+    }
+  }
+
+    return true;
+}
+
+
+bool Resources::operator <= (const Resources& that) const
+{
+  foreach (const Resource& resource, resources) {
+    Option<Resource> option = that.get(resource);
+    if (option.isNone()) {
+      return false;
+    } else {
+      if (!(resource <= option.get())) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+
+Resources Resources::operator + (const Resources& that) const
+{
+  Resources result(*this);
+
+  foreach (const Resource& resource, that.resources) {
+    result += resource;
+  }
+
+  return result;
+}
+
+
+Resources Resources::operator - (const Resources& that) const
+{
+  Resources result(*this);
+
+  foreach (const Resource& resource, that.resources) {
+    result -= resource;
+  }
+
+  return result;
+}
+
+
+Resources& Resources::operator += (const Resources& that)
+{
+  foreach (const Resource& resource, that.resources) {
+    *this += resource;
+  }
+
+  return *this;
+}
+
+
+Resources& Resources::operator -= (const Resources& that)
+{
+  foreach (const Resource& resource, that.resources) {
+    *this -= resource;
+  }
+
+  return *this;
+}
+
+
+Resources Resources::operator + (const Resource& that) const
+{
+  Resources result;
+
+  bool added = false;
+
+  foreach (const Resource& resource, resources) {
+    if (matches(resource, that)) {
+      result.resources.Add()->MergeFrom(resource + that);
+      added = true;
+    } else {
+      result.resources.Add()->MergeFrom(resource);
+    }
+  }
+
+  if (!added) {
+    result.resources.Add()->MergeFrom(that);
+  }
+
+  return result;
+}
+
+
+Resources Resources::operator - (const Resource& that) const
+{
+  Resources result;
+
+  foreach (const Resource& resource, resources) {
+    if (matches(resource, that)) {
+      Resource r = resource - that;
+      if (!isZero(r)) {
+        result.resources.Add()->MergeFrom(r);
+      }
+    } else {
+      result.resources.Add()->MergeFrom(resource);
+    }
+  }
+
+  return result;
 }
 
 
@@ -546,5 +683,95 @@ bool Resources::isZero(const Resource& resource)
 
   return false;
 }
+
+
+template <>
+Value::Scalar Resources::get(
+    const std::string& name,
+    const Value::Scalar& scalar) const
+{
+  Value::Scalar total;
+  bool found = false;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.name() == name &&
+        resource.type() == Value::SCALAR) {
+      total += resource.scalar();
+      found = true;
+    }
+  }
+
+  if (found) {
+    return total;
+  }
+
+  return scalar;
+}
+
+
+template <>
+Value::Ranges Resources::get(
+    const std::string& name,
+    const Value::Ranges& ranges) const
+{
+  Value::Ranges total;
+  bool found = false;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.name() == name &&
+        resource.type() == Value::RANGES) {
+      total += resource.ranges();
+      found = true;
+    }
+  }
+
+  if (found) {
+    return total;
+  }
+
+  return ranges;
+}
+
+
+template <>
+Value::Set Resources::get(
+    const std::string& name,
+    const Value::Set& set) const
+{
+  Value::Set total;
+  bool found = false;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.name() == name &&
+        resource.type() == Value::SET) {
+      total += resource.set();
+      found = true;
+    }
+  }
+
+  if (found) {
+    return total;
+  }
+
+  return set;
+}
+
+
+std::ostream& operator << (
+    std::ostream& stream,
+    const Resources& resources)
+{
+  mesos::Resources::const_iterator it = resources.begin();
+
+  while (it != resources.end()) {
+    stream << *it;
+    if (++it != resources.end()) {
+      stream << "; ";
+    }
+  }
+
+  return stream;
+}
+
 
 } // namespace mesos {

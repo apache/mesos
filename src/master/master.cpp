@@ -41,6 +41,7 @@
 #include <stout/lambda.hpp>
 #include <stout/memory.hpp>
 #include <stout/multihashmap.hpp>
+#include <stout/net.hpp>
 #include <stout/nothing.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>

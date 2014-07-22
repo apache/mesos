@@ -45,6 +45,7 @@
 #include <stout/exit.hpp>
 #include <stout/fs.hpp>
 #include <stout/lambda.hpp>
+#include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>

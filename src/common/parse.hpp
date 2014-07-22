@@ -14,14 +14,14 @@
 #ifndef __COMMON_PARSE_HPP__
 #define __COMMON_PARSE_HPP__
 
+#include <mesos/mesos.hpp>
+
 #include <stout/error.hpp>
 #include <stout/json.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
 #include <stout/flags/parse.hpp>
-
-#include "mesos/mesos.hpp"
 
 namespace flags {
 

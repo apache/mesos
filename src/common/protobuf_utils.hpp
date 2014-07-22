@@ -21,106 +21,36 @@
 
 #include <string>
 
-#include <process/pid.hpp>
-#include <process/process.hpp>
-#include <process/protobuf.hpp>
-
-#include <stout/net.hpp>
-#include <stout/none.hpp>
-#include <stout/stringify.hpp>
-#include <stout/try.hpp>
-#include <stout/uuid.hpp>
-
-#include "common/type_utils.hpp"
+#include <stout/option.hpp>
 
 #include "messages/messages.hpp"
+
+// Forward declaration (in lieu of an include).
+namespace process {
+struct UPID;
+}
 
 namespace mesos {
 namespace internal {
 namespace protobuf {
 
-inline bool isTerminalState(const TaskState& state)
-{
-  return (state == TASK_FINISHED ||
-          state == TASK_FAILED ||
-          state == TASK_KILLED ||
-          state == TASK_LOST);
-}
+bool isTerminalState(const TaskState& state);
 
-
-inline StatusUpdate createStatusUpdate(
+StatusUpdate createStatusUpdate(
     const FrameworkID& frameworkId,
     const Option<SlaveID>& slaveId,
     const TaskID& taskId,
     const TaskState& state,
     const std::string& message = "",
-    const Option<ExecutorID>& executorId = None())
-{
-  StatusUpdate update;
+    const Option<ExecutorID>& executorId = None());
 
-  update.set_timestamp(process::Clock::now().secs());
-  update.set_uuid(UUID::random().toBytes());
-  update.mutable_framework_id()->MergeFrom(frameworkId);
-
-  if (slaveId.isSome()) {
-    update.mutable_slave_id()->MergeFrom(slaveId.get());
-  }
-
-  if (executorId.isSome()) {
-    update.mutable_executor_id()->MergeFrom(executorId.get());
-  }
-
-  TaskStatus* status = update.mutable_status();
-  status->mutable_task_id()->MergeFrom(taskId);
-
-  if (slaveId.isSome()) {
-    status->mutable_slave_id()->MergeFrom(slaveId.get());
-  }
-
-  status->set_state(state);
-  status->set_message(message);
-  status->set_timestamp(update.timestamp());
-
-  return update;
-}
-
-
-inline Task createTask(const TaskInfo& task,
-                       const TaskState& state,
-                       const ExecutorID& executorId,
-                       const FrameworkID& frameworkId)
-{
-  Task t;
-  t.mutable_framework_id()->MergeFrom(frameworkId);
-  t.set_state(state);
-  t.set_name(task.name());
-  t.mutable_task_id()->MergeFrom(task.task_id());
-  t.mutable_slave_id()->MergeFrom(task.slave_id());
-  t.mutable_resources()->MergeFrom(task.resources());
-
-  if (!task.has_command()) {
-    t.mutable_executor_id()->MergeFrom(executorId);
-  }
-
-  return t;
-}
+Task createTask(const TaskInfo& task,
+                const TaskState& state,
+                const ExecutorID& executorId,
+                const FrameworkID& frameworkId);
 
 // Helper function that creates a MasterInfo from UPID.
-inline MasterInfo createMasterInfo(const process::UPID& pid)
-{
-  MasterInfo info;
-  info.set_id(stringify(pid) + "-" + UUID::random().toString());
-  info.set_ip(pid.ip);
-  info.set_port(pid.port);
-  info.set_pid(pid);
-
-  Try<std::string> hostname = net::getHostname(pid.ip);
-  if (hostname.isSome()) {
-    info.set_hostname(hostname.get());
-  }
-
-  return info;
-}
+MasterInfo createMasterInfo(const process::UPID& pid);
 
 } // namespace protobuf
 } // namespace internal {

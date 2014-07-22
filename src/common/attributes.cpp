@@ -21,6 +21,8 @@
 
 #include <glog/logging.h>
 
+#include <mesos/values.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/strings.hpp>
 
@@ -52,6 +54,57 @@ std::ostream& operator << (std::ostream& stream, const Attribute& attribute)
 
 
 namespace internal {
+
+
+bool Attributes::operator == (const Attributes& that) const
+{
+  if (size() != that.size()) {
+    return false;
+  }
+
+  foreach (const Attribute& attribute, attributes) {
+    Option<Attribute> maybeAttribute = that.get(attribute);
+    if (maybeAttribute.isNone()) {
+        return false;
+    }
+    const Attribute& thatAttribute = maybeAttribute.get();
+    switch (attribute.type()) {
+    case Value::SCALAR:
+      if (!(attribute.scalar() == thatAttribute.scalar())) {
+        return false;
+      }
+      break;
+    case Value::RANGES:
+      if (!(attribute.ranges() == thatAttribute.ranges())) {
+        return false;
+      }
+      break;
+    case Value::TEXT:
+      if (!(attribute.text() == thatAttribute.text())) {
+        return false;
+      }
+      break;
+    case Value::SET:
+      LOG(FATAL) << "Sets not supported for attributes";
+    }
+  }
+
+  return true;
+}
+
+
+const Option<Attribute> Attributes::get(const Attribute& thatAttribute) const
+{
+  foreach (const Attribute& attribute, attributes) {
+    if (attribute.name() == thatAttribute.name() &&
+        attribute.type() == thatAttribute.type()) {
+      return attribute;
+    }
+  }
+
+  return None();
+}
+
 
 Attribute Attributes::parse(const std::string& name, const std::string& text)
 {
@@ -104,6 +157,79 @@ Attributes Attributes::parse(const string& s)
 
   return attributes;
 }
+
+
+bool Attributes::isValid(const Attribute& attribute)
+{
+  if (!attribute.has_name() ||
+      attribute.name() == "" ||
+      !attribute.has_type() ||
+      !Value::Type_IsValid(attribute.type())) {
+    return false;
+    }
+
+  if (attribute.type() == Value::SCALAR) {
+    return attribute.has_scalar();
+  } else if (attribute.type() == Value::RANGES) {
+    return attribute.has_ranges();
+  } else if (attribute.type() == Value::TEXT) {
+    return attribute.has_text();
+  } else if (attribute.type() == Value::SET) {
+    // Attributes doesn't support set.
+    return false;
+  }
+
+    return false;
+}
+
+
+template <>
+Value::Scalar Attributes::get(
+    const std::string& name,
+    const Value::Scalar& scalar) const
+{
+  foreach (const Attribute& attribute, attributes) {
+    if (attribute.name() == name &&
+        attribute.type() == Value::SCALAR) {
+      return attribute.scalar();
+    }
+  }
+
+  return scalar;
+}
+
+
+template <>
+Value::Ranges Attributes::get(
+    const std::string& name,
+    const Value::Ranges& ranges) const
+{
+  foreach (const Attribute& attribute, attributes) {
+    if (attribute.name() == name &&
+        attribute.type() == Value::RANGES) {
+      return attribute.ranges();
+    }
+  }
+
+  return ranges;
+}
+
+
+template <>
+Value::Text Attributes::get(
+    const std::string& name,
+    const Value::Text& text) const
+{
+  foreach (const Attribute& attribute, attributes) {
+    if (attribute.name() == name &&
+        attribute.type() == Value::TEXT) {
+      return attribute.text();
+    }
+  }
+
+  return text;
+}
+
 
 } // namespace internal {
 } // namespace mesos {

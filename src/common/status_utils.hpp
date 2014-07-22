@@ -22,7 +22,7 @@
 #include <string>
 
 #include <stout/option.hpp>
-#include "stout/stringify.hpp"
+#include <stout/stringify.hpp>
 
 namespace mesos {
 namespace internal {

@@ -22,6 +22,8 @@
 #include <list>
 #include <string>
 
+#include <mesos/resources.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>

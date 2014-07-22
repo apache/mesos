@@ -22,43 +22,22 @@
 
 using std::string;
 
-using namespace mesos::internal;
-
-
-// Static fields in DateUtils
-bool DateUtils::useMockDate = false;
-string DateUtils::mockDate = "";
-
+namespace mesos {
+namespace internal {
+namespace DateUtils {
 
 // Get the current date in the format used for Mesos IDs (YYYYMMDD-hhmmss).
-string DateUtils::currentDate()
+string currentDate()
 {
-  if (useMockDate) {
-    return mockDate;
-  } else {
-    time_t rawtime;
-    struct tm* timeinfo;
-    time(&rawtime);
-    timeinfo = localtime(&rawtime);
-    char date[32];
-    strftime(date, sizeof(date), "%Y%m%d-%H%M%S", timeinfo);
-    return date;
-  }
+  time_t rawtime;
+  struct tm* timeinfo;
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+  char date[32];
+  strftime(date, sizeof(date), "%Y%m%d-%H%M%S", timeinfo);
+  return string(date);
 }
 
-
-// Unit test utility method that makes this class return a fixed string
-// as the date instead of looking up the current time.
-void DateUtils::setMockDate(string date)
-{
-  useMockDate = true;
-  mockDate = date;
-}
-
-
-// Disable usage of the mock date set through setMockDate.
-void DateUtils::clearMockDate()
-{
-  useMockDate = false;
-  mockDate = "";
-}
+} // namespace DateUtils {
+} // namespace internal {
+} // namespace mesos {

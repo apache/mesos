@@ -32,7 +32,6 @@
 #include <stout/foreach.hpp>
 #include <stout/strings.hpp>
 
-
 using std::max;
 using std::min;
 using std::ostream;

@@ -225,13 +225,19 @@ nodist_libmesos_no_3rdparty_la_SOURCES =				\
 
 libmesos_no_3rdparty_la_SOURCES =					\
 	authorizer/authorizer.cpp					\
-	sasl/authenticatee.hpp						\
-	sasl/authenticator.hpp						\
-	sasl/auxprop.hpp						\
-	sasl/auxprop.cpp						\
-	sched/sched.cpp							\
-	scheduler/scheduler.cpp						\
+	common/attributes.cpp						\
+	common/date_utils.cpp						\
+	common/http.cpp							\
+	common/lock.cpp							\
+	common/protobuf_utils.cpp					\
+	common/resources.cpp						\
+	common/thread.cpp						\
+	common/type_utils.cpp						\
+	common/values.cpp						\
+	exec/exec.cpp							\
+	files/files.cpp							\
 	local/local.cpp							\
+	logging/logging.cpp						\
 	master/contender.cpp						\
 	master/constants.cpp						\
 	master/detector.cpp						\
@@ -242,12 +248,18 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/registry.proto                                           \
 	master/registrar.cpp						\
 	master/repairer.cpp						\
+	sasl/authenticatee.hpp						\
+	sasl/authenticator.hpp						\
+	sasl/auxprop.hpp						\
+	sasl/auxprop.cpp						\
+	sched/sched.cpp							\
+	scheduler/scheduler.cpp						\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
+	slave/http.cpp							\
 	slave/monitor.cpp						\
 	slave/state.cpp							\
 	slave/slave.cpp							\
-	slave/http.cpp							\
 	slave/containerizer/containerizer.cpp				\
 	slave/containerizer/external_containerizer.cpp			\
 	slave/containerizer/isolator.cpp				\
@@ -255,15 +267,6 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/mesos/containerizer.cpp			\
 	slave/containerizer/mesos/launch.cpp				\
 	slave/status_update_manager.cpp					\
-	exec/exec.cpp							\
-	common/lock.cpp							\
-	common/http.cpp							\
-	common/date_utils.cpp						\
-	common/resources.cpp						\
-	common/attributes.cpp						\
-	common/values.cpp						\
-	files/files.cpp							\
-	logging/logging.cpp						\
 	usage/usage.cpp							\
 	zookeeper/contender.cpp						\
 	zookeeper/detector.cpp						\
@@ -301,12 +304,12 @@ nodist_scheduler_HEADERS = ../include/mesos/scheduler/scheduler.pb.h
 
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
+  libmesos_no_3rdparty_la_SOURCES += linux/fs.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/perf.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/cpushare.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/mem.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/perf_event.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/linux_launcher.cpp
-  libmesos_no_3rdparty_la_SOURCES += linux/fs.cpp
 else
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
@@ -316,10 +319,10 @@ if WITH_NETWORK_ISOLATOR
   libmesos_no_3rdparty_la_SOURCES +=					\
 	linux/routing/route.cpp						\
 	linux/routing/utils.cpp						\
-	linux/routing/link/link.cpp					\
 	linux/routing/filter/arp.cpp					\
 	linux/routing/filter/icmp.cpp					\
 	linux/routing/filter/ip.cpp					\
+	linux/routing/link/link.cpp					\
 	linux/routing/queueing/handle.cpp				\
 	linux/routing/queueing/ingress.cpp
 
@@ -348,58 +351,76 @@ endif
 libmesos_no_3rdparty_la_SOURCES +=					\
 	authorizer/authorizer.hpp					\
 	common/attributes.hpp						\
-	common/build.hpp common/date_utils.hpp common/factory.hpp	\
-        common/status_utils.hpp                                         \
-	common/parse.hpp						\
-	common/protobuf_utils.hpp					\
+	common/build.hpp						\
+	common/date_utils.hpp						\
+	common/factory.hpp						\
 	common/http.hpp							\
 	common/lock.hpp							\
-	common/type_utils.hpp common/thread.hpp				\
+	common/parse.hpp						\
+	common/protobuf_utils.hpp					\
+	common/status_utils.hpp						\
+	common/type_utils.hpp						\
+	common/thread.hpp						\
 	credentials/credentials.hpp					\
-	examples/utils.hpp files/files.hpp				\
+	examples/utils.hpp						\
+	files/files.hpp							\
 	hdfs/hdfs.hpp							\
 	linux/cgroups.hpp						\
+	linux/fs.hpp							\
 	linux/perf.hpp							\
-	linux/fs.hpp local/flags.hpp local/local.hpp			\
-	logging/flags.hpp logging/logging.hpp				\
+	local/flags.hpp							\
+	local/local.hpp							\
+	logging/flags.hpp						\
+	logging/logging.hpp						\
 	master/allocator.hpp						\
 	master/contender.hpp						\
 	master/constants.hpp						\
 	master/detector.hpp						\
-	master/repairer.hpp						\
-	master/drf_sorter.hpp master/flags.hpp				\
+	master/drf_sorter.hpp						\
+	master/flags.hpp						\
 	master/hierarchical_allocator_process.hpp			\
+	master/master.hpp						\
+	master/repairer.hpp						\
 	master/registrar.hpp						\
-	master/master.hpp master/sorter.hpp				\
-	messages/messages.hpp slave/constants.hpp			\
+	master/sorter.hpp						\
+	messages/messages.hpp						\
+	slave/constants.hpp						\
+	slave/flags.hpp							\
+	slave/gc.hpp							\
+	slave/monitor.hpp						\
+	slave/paths.hpp							\
+	slave/slave.hpp							\
+	slave/state.hpp							\
+	slave/status_update_manager.hpp					\
 	slave/containerizer/containerizer.hpp				\
 	slave/containerizer/external_containerizer.hpp			\
 	slave/containerizer/isolator.hpp				\
 	slave/containerizer/launcher.hpp				\
 	slave/containerizer/linux_launcher.hpp				\
-	slave/containerizer/mesos/containerizer.hpp			\
-	slave/containerizer/mesos/launch.hpp				\
 	slave/containerizer/isolators/posix.hpp				\
 	slave/containerizer/isolators/cgroups/cpushare.hpp		\
 	slave/containerizer/isolators/cgroups/mem.hpp			\
 	slave/containerizer/isolators/cgroups/perf_event.hpp		\
-	slave/flags.hpp slave/gc.hpp slave/monitor.hpp			\
-	slave/paths.hpp slave/state.hpp					\
-	slave/status_update_manager.hpp					\
-	slave/slave.hpp							\
-	tests/environment.hpp tests/script.hpp				\
-	tests/zookeeper.hpp tests/flags.hpp tests/utils.hpp		\
+	slave/containerizer/mesos/containerizer.hpp			\
+	slave/containerizer/mesos/launch.hpp				\
 	tests/cluster.hpp						\
 	tests/containerizer.hpp						\
+	tests/environment.hpp						\
+	tests/flags.hpp							\
 	tests/isolator.hpp						\
 	tests/mesos.hpp							\
+	tests/script.hpp						\
+	tests/utils.hpp							\
+	tests/zookeeper.hpp						\
 	tests/zookeeper_test_server.hpp					\
 	usage/usage.hpp							\
 	zookeeper/authentication.hpp					\
 	zookeeper/contender.hpp						\
 	zookeeper/detector.hpp						\
-	zookeeper/group.hpp zookeeper/watcher.hpp			\
-	zookeeper/zookeeper.hpp zookeeper/url.hpp
+	zookeeper/group.hpp						\
+	zookeeper/url.hpp						\
+	zookeeper/watcher.hpp						\
+	zookeeper/zookeeper.hpp
 
 libmesos_no_3rdparty_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
@@ -1078,11 +1099,12 @@ if WITH_NETWORK_ISOLATOR
 endif
 
 if HAS_JAVA
-  mesos_tests_SOURCES += tests/zookeeper.cpp				\
+  mesos_tests_SOURCES += tests/group_tests.cpp				\
+			 tests/registrar_zookeeper_tests.cpp		\
+			 tests/zookeeper.cpp				\
                          tests/zookeeper_test_server.cpp		\
-                         tests/zookeeper_tests.cpp			\
-                         tests/group_tests.cpp				\
-                         tests/registrar_zookeeper_tests.cpp
+                         tests/zookeeper_tests.cpp
+
   mesos_tests_CPPFLAGS += $(JAVA_CPPFLAGS)
   mesos_tests_CPPFLAGS += -DZOOKEEPER_VERSION=\"$(ZOOKEEPER_VERSION)\"
   mesos_tests_LDFLAGS = $(AM_LDFLAGS)
@@ -1101,31 +1123,32 @@ endif
 if HAS_PYTHON
   mesos_tests_DEPENDENCIES += $(MESOS_EGG)
 
-  EXAMPLESCRIPTSPYTHON = examples/python/test_framework.py		\
+  EXAMPLESCRIPTSPYTHON = examples/python/test_containerizer.py		\
+			 examples/python/test-containerizer		\
+			 examples/python/test_framework.py		\
 			 examples/python/test-framework			\
 			 examples/python/test_executor.py		\
 			 examples/python/test-executor			\
-			 examples/python/test_containerizer.py		\
-			 examples/python/test-containerizer
   check_SCRIPTS += $(EXAMPLESCRIPTSPYTHON)
   mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSPYTHON)
 endif
 
 EXTRA_DIST += examples/python/test_containerizer.py			\
-	      examples/python/test_framework.py				\
-	      examples/python/test_executor.py
+	      examples/python/test_executor.py				\
+	      examples/python/test_framework.py
+
 
 
 dist_check_SCRIPTS +=							\
   tests/balloon_framework_test.sh					\
-  tests/low_level_scheduler_libprocess_test.sh						\
-  tests/low_level_scheduler_pthread_test.sh						\
-  tests/test_framework_test.sh						\
-  tests/no_executor_framework_test.sh					\
+  tests/low_level_scheduler_libprocess_test.sh				\
+  tests/low_level_scheduler_pthread_test.sh				\
   tests/java_exception_test.sh						\
   tests/java_framework_test.sh						\
   tests/java_log_test.sh						\
-  tests/python_framework_test.sh
+  tests/no_executor_framework_test.sh					\
+  tests/python_framework_test.sh					\
+  tests/test_framework_test.sh
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
