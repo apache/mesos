@@ -75,12 +75,12 @@ EXTRA_OBJECTS = [
   os.path.join(abs_top_builddir, 'src', '.libs', 'libmesos_no_3rdparty.a'),
   os.path.join(abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a'),
   os.path.join(abs_top_builddir, libprocess, '.libs', 'libprocess.a'),
-  os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a'),
-  os.path.join(abs_top_builddir, libev, '.libs', 'libev.a'),
+  os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a')
 ]
 
 # For leveldb, we need to check for the presence of libleveldb.a, since
 # it is possible to disable leveldb inside mesos.
+libev = os.path.join(abs_top_builddir, libev, '.libs', 'libev.a')
 libleveldb = os.path.join(abs_top_builddir, leveldb, 'libleveldb.a')
 libzookeeper = os.path.join(
     abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a')
@@ -94,6 +94,11 @@ if os.path.exists(libzookeeper):
   EXTRA_OBJECTS.append(libzookeeper)
 else:
   EXTRA_OBJECTS.append('-lzookeeper_mt')
+
+if os.path.exists(libev):
+  EXTRA_OBJECTS.append(libev)
+else:
+  EXTRA_OBJECTS.append('-lev')
 
 # For gperftools, we need to check for the presence of libprofiler.a, since
 # it is possible to disable perftools inside libprocess.
