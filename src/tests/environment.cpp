@@ -94,7 +94,9 @@ static bool enable(const ::testing::TestInfo& test)
 
     if (strings::contains(name, "CGROUPS_")) {
 #ifdef __linux__
-      return cgroups::enabled();
+      if (!cgroups::enabled()) {
+        return false;
+      }
 #else
       return false;
 #endif
