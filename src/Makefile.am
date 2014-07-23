@@ -539,7 +539,7 @@ lib_LTLIBRARIES += libmesos.la
 # Include as part of the distribution.
 libmesos_la_SOURCES = $(MESOS_PROTO) $(CONTAINERIZER_PROTO) $(SCHEDULER_PROTO)
 
-libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION)
 
 # Since we just include the convenience library (and no sources), we
 # need to tell libtool to build this as a C++ library.
