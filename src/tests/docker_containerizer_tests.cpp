@@ -229,7 +229,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch_Executor)
   executorInfo.mutable_executor_id()->CopyFrom(executorId);
   CommandInfo command;
   command.set_value("test-executor");
-  command.mutable_container()->set_image("docker:///mesos/test-executor");
+  command.mutable_container()->set_image("docker:///mesosphere/test-executor");
   executorInfo.mutable_command()->CopyFrom(command);
 
   task.mutable_executor()->CopyFrom(executorInfo);

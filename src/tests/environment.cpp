@@ -144,38 +144,7 @@ static bool enable(const ::testing::TestInfo& test)
       }
 
 #ifdef __linux__
-      if (user.get() == "root" && !validate.isError()) {
-        // Install docker test executor image for testing launching
-        // executor in docker image.
-	Try<process::Subprocess> install = 
-          process::subprocess(
-	      path::join(
-                flags.source_dir,
-		"src",
-                "tests",
-                "mesos_test_executor_docker_image",
-                "install.sh"));
-
-        if (install.isError()) {
-	  std::cerr
-            << "Unable to launch test executor install script: "
-	    << install.error()
-            << std::endl;
-          return false;
-        }
-
-	process::Future<Option<int> > status = install.get().status();
-        status.await(Minutes(2));
-
-	if (!status.isReady() || !status.get().isSome() || status.get() != 0) {
-	  std::cerr << "Unable to install test executor";
-          return false;
-	}
-
-        return true;
-      }
-
-      return false;
+      return user.get() == "root" && !validate.isError();
 #else
       return !validate.isError();
 #endif
