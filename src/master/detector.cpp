@@ -94,6 +94,21 @@ void discard(std::set<Promise<T>* >* promises)
   promises->clear();
 }
 
+
+// Helper for discarding an individual promise in the set.
+template <typename T>
+void discard(std::set<Promise<T>* >* promises, const Future<T>& future)
+{
+  foreach (Promise<T>* promise, *promises) {
+    if (promise->future() == future) {
+      promise->discard();
+      promises->erase(promise);
+      delete promise;
+      return;
+    }
+  }
+}
+
 } // namespace promises {
 
 
@@ -127,11 +142,21 @@ public:
     }
 
     Promise<Option<MasterInfo> >* promise = new Promise<Option<MasterInfo> >();
+
+    promise->future()
+      .onDiscard(defer(self(), &Self::discard, promise->future()));
+
     promises.insert(promise);
     return promise->future();
   }
 
 private:
+  void discard(const Future<Option<MasterInfo> >& future)
+  {
+    // Discard the promise holding this future.
+    promises::discard(&promises, future);
+  }
+
   Option<MasterInfo> leader; // The appointed master.
   set<Promise<Option<MasterInfo> >*> promises;
 };
@@ -149,6 +174,8 @@ public:
   Future<Option<MasterInfo> > detect(const Option<MasterInfo>& previous);
 
 private:
+  void discard(const Future<Option<MasterInfo> >& future);
+
   // Invoked when the group leadership has changed.
   void detected(const Future<Option<Group::Membership> >& leader);
 
@@ -293,6 +320,14 @@ void ZooKeeperMasterDetectorProcess::initialize()
 }
 
 
+void ZooKeeperMasterDetectorProcess::discard(
+    const Future<Option<MasterInfo> >& future)
+{
+  // Discard the promise holding this future.
+  promises::discard(&promises, future);
+}
+
+
 Future<Option<MasterInfo> > ZooKeeperMasterDetectorProcess::detect(
     const Option<MasterInfo>& previous)
 {
@@ -307,6 +342,10 @@ Future<Option<MasterInfo> > ZooKeeperMasterDetectorProcess::detect(
   }
 
   Promise<Option<MasterInfo> >* promise = new Promise<Option<MasterInfo> >();
+
+  promise->future()
+    .onDiscard(defer(self(), &Self::discard, promise->future()));
+
   promises.insert(promise);
   return promise->future();
 }

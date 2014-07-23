@@ -167,6 +167,16 @@ TEST(BasicMasterContenderDetectorTest, Detector)
   // No one has appointed the leader so we are pending.
   EXPECT_TRUE(detected.isPending());
 
+  // Ensure that the future can be discarded.
+  detected.discard();
+
+  AWAIT_DISCARDED(detected);
+
+  detected = detector.detect();
+
+  // Still no leader appointed yet.
+  EXPECT_TRUE(detected.isPending());
+
   detector.appoint(master);
 
   AWAIT_READY(detected);
@@ -202,7 +212,28 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
   ZooKeeperMasterDetector detector(url.get());
 
   Future<Option<MasterInfo> > leader = detector.detect();
+
+  AWAIT_READY(leader);
   EXPECT_SOME_EQ(master, leader.get());
+
+  leader = detector.detect(leader.get());
+
+  // No change to leadership.
+  ASSERT_TRUE(leader.isPending());
+
+  // Ensure we can discard the future.
+  leader.discard();
+
+  AWAIT_DISCARDED(leader);
+
+  // After the discard, we can re-detect correctly.
+  leader = detector.detect(None());
+
+  AWAIT_READY(leader);
+  EXPECT_SOME_EQ(master, leader.get());
+
+  // Now test that a session expiration causes candidacy to be lost
+  // and the future to become ready.
   Future<Nothing> lostCandidacy = contended.get();
   leader = detector.detect(leader.get());
 
@@ -210,8 +241,6 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
   AWAIT_READY(sessionId);
   server->expireSession(sessionId.get().get());
 
-  // Session expiration causes candidacy to be lost and the
-  // Future<Nothing> to be fulfilled.
   AWAIT_READY(lostCandidacy);
   AWAIT_READY(leader);
   EXPECT_NONE(leader.get());
