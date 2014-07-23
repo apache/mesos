@@ -23,6 +23,7 @@
 
 #include <string>
 
+#include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 
 namespace mesos {
@@ -51,6 +52,11 @@ extern const double MIN_CPUS;
 extern const Bytes MIN_MEM;
 
 // Amount of time within which a slave PING should be received.
+// NOTE: The slave uses these PING constants to determine when
+// the master has stopped sending pings. If these are made
+// configurable, then we'll need to rely on upper/lower bounds
+// to ensure that the slave is not unnecessarily triggering
+// re-registrations.
 extern const Duration SLAVE_PING_TIMEOUT;
 
 // Maximum number of ping timeouts until slave is considered failed.

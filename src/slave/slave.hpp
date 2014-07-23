@@ -246,6 +246,10 @@ public:
 
   Nothing detachFile(const std::string& path);
 
+  // Triggers a re-detection of the master when the slave does
+  // not receive a ping.
+  void pingTimeout(process::Future<Option<MasterInfo> > future);
+
   void authenticate();
 
   // Helper routine to lookup a framework.
@@ -430,6 +434,13 @@ private:
   ResourceMonitor monitor;
 
   StatusUpdateManager* statusUpdateManager;
+
+  // Master detection future.
+  process::Future<Option<MasterInfo> > detection;
+
+  // Timer for triggering re-detection when no ping is received from
+  // the master.
+  process::Timer pingTimer;
 
   // Flag to indicate if recovery, including reconciling (i.e., reconnect/kill)
   // with executors is finished.

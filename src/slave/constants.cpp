@@ -18,6 +18,8 @@
 
 #include <stdint.h>
 
+#include "master/constants.hpp"
+
 #include "slave/constants.hpp"
 
 namespace mesos {
@@ -30,6 +32,8 @@ const Duration EXECUTOR_REREGISTER_TIMEOUT = Seconds(2);
 const Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT = Seconds(3);
 const Duration STATUS_UPDATE_RETRY_INTERVAL_MIN = Seconds(10);
 const Duration STATUS_UPDATE_RETRY_INTERVAL_MAX = Minutes(10);
+const Duration MASTER_PING_TIMEOUT =
+  master::SLAVE_PING_TIMEOUT * master::MAX_SLAVE_PING_TIMEOUTS;
 const Duration REGISTRATION_BACKOFF_FACTOR = Seconds(1);
 const Duration REGISTER_RETRY_INTERVAL_MAX = Minutes(1);
 const Duration GC_DELAY = Weeks(1);

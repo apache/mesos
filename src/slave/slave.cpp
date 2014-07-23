@@ -585,19 +585,24 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
     state = DISCONNECTED;
   }
 
-  CHECK(!_master.isDiscarded());
-
   if (_master.isFailed()) {
     EXIT(1) << "Failed to detect a master: " << _master.failure();
   }
 
-  if (_master.get().isSome()) {
-    master = UPID(_master.get().get().pid());
-  } else {
-    master = None();
-  }
+  Option<MasterInfo> latest;
 
-  if (master.isSome()) {
+  if (_master.isDiscarded()) {
+    LOG(INFO) << "No pings from master received within " << MASTER_PING_TIMEOUT;
+    latest = None();
+    master = None();
+  } else if (_master.get().isNone()) {
+    LOG(INFO) << "Lost leading master";
+    latest = None();
+    master = None();
+  } else {
+    latest = _master.get();
+    master = UPID(_master.get().get().pid());
+
     LOG(INFO) << "New master detected at " << master.get();
     link(master.get());
 
@@ -642,13 +647,11 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
             &Slave::doReliableRegistration,
             flags.registration_backoff_factor * 2); // Backoff
     }
-  } else {
-    LOG(INFO) << "Lost leading master";
   }
 
   // Keep detecting masters.
   LOG(INFO) << "Detecting new master";
-  detector->detect(_master.get())
+  detection = detector->detect(latest)
     .onAny(defer(self(), &Slave::detected, lambda::_1));
 }
 
@@ -781,6 +784,18 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
         LOG(INFO) << "Checkpointing SlaveInfo to '" << path << "'";
         CHECK_SOME(state::checkpoint(path, info));
       }
+
+      // If we don't get a ping from the master, trigger a
+      // re-registration. This needs to be done once registered,
+      // in case we never receive an initial ping.
+      Timer::cancel(pingTimer);
+
+      pingTimer = delay(
+          MASTER_PING_TIMEOUT,
+          self(),
+          &Slave::pingTimeout,
+          detection);
+
       break;
     }
     case RUNNING:
@@ -2324,7 +2339,32 @@ void Slave::executorMessage(
 void Slave::ping(const UPID& from, const string& body)
 {
   VLOG(1) << "Received ping from " << from;
+
+  // If we don't get a ping from the master, trigger a
+  // re-registration. This can occur when the master no
+  // longer considers the slave to be registered, so it is
+  // essential for the slave to attempt a re-registration
+  // when this occurs.
+  Timer::cancel(pingTimer);
+
+  pingTimer = delay(
+      MASTER_PING_TIMEOUT,
+      self(),
+      &Slave::pingTimeout,
+      detection);
+
   send(from, "PONG");
+}
+
+
+void Slave::pingTimeout(Future<Option<MasterInfo> > future)
+{
+  // It's possible that a new ping arrived since the timeout fired
+  // and we were unable to cancel this timeout. If this occurs, don't
+  // bother trying to re-detect.
+  if (pingTimer.timeout().expired()) {
+    future.discard();
+  }
 }
 
 
@@ -3211,7 +3251,7 @@ void Slave::__recover(const Future<Nothing>& future)
   }
 
   // Start detecting masters.
-  detector->detect()
+  detection = detector->detect()
     .onAny(defer(self(), &Slave::detected, lambda::_1));
 }
 

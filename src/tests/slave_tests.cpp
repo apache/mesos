@@ -67,6 +67,7 @@ using mesos::internal::slave::MesosContainerizerProcess;
 
 using process::Clock;
 using process::Future;
+using process::Message;
 using process::Owned;
 using process::PID;
 
@@ -896,4 +897,82 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFails)
   driver.join();
 
   Shutdown();
+}
+
+
+// This test ensures that the slave will re-register with the master
+// if it does not receive any pings after registering.
+TEST_F(SlaveTest, PingTimeoutNoPings)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Block all pings to the slave.
+  DROP_MESSAGES(Eq("PING"), _, _);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Advance to the ping timeout to trigger a re-detection and
+  // re-registration.
+  Future<Nothing> detected = FUTURE_DISPATCH(_, &Slave::detected);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Clock::pause();
+  Clock::advance(slave::MASTER_PING_TIMEOUT);
+
+  AWAIT_READY(detected);
+  AWAIT_READY(slaveReregisteredMessage);
+}
+
+
+// This test ensures that the slave will re-register with the master
+// if it stops receiving pings.
+TEST_F(SlaveTest, PingTimeoutSomePings)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  Clock::pause();
+
+  // Ensure a ping reaches the slave.
+  Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+
+  Clock::advance(master::SLAVE_PING_TIMEOUT);
+
+  AWAIT_READY(ping);
+
+  // Now block further pings from the master and advance
+  // the clock to trigger a re-detection and re-registration on
+  // the slave.
+  DROP_MESSAGES(Eq("PING"), _, _);
+
+  Future<Nothing> detected = FUTURE_DISPATCH(_, &Slave::detected);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Clock::advance(slave::MASTER_PING_TIMEOUT);
+
+  AWAIT_READY(detected);
+  AWAIT_READY(slaveReregisteredMessage);
 }

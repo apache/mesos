@@ -45,6 +45,9 @@ extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;
 extern const Duration RESOURCE_MONITORING_INTERVAL;
 
+// If no pings received within this timeout, then the slave will
+// trigger a re-detection of the master to cause a re-registration.
+extern const Duration MASTER_PING_TIMEOUT;
 
 // Default backoff interval used by the slave to wait before registration.
 extern const Duration REGISTRATION_BACKOFF_FACTOR;
