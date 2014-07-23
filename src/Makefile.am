@@ -1128,7 +1128,8 @@ if HAS_PYTHON
 			 examples/python/test_framework.py		\
 			 examples/python/test-framework			\
 			 examples/python/test_executor.py		\
-			 examples/python/test-executor			\
+			 examples/python/test-executor
+
   check_SCRIPTS += $(EXAMPLESCRIPTSPYTHON)
   mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSPYTHON)
 endif
