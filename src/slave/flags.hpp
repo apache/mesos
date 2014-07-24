@@ -77,17 +77,17 @@ public:
 
     add(&Flags::work_dir,
         "work_dir",
-        "Where to place framework work directories\n",
+        "Directory path to place framework work directories\n",
         "/tmp/mesos");
 
     add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
         "launcher_dir",
-        "Location of Mesos binaries",
+        "Directory path of Mesos binaries",
         PKGLIBEXECDIR);
 
     add(&Flags::hadoop_home,
         "hadoop_home",
-        "Where to find Hadoop installed (for\n"
+        "Path to find Hadoop installed (for\n"
         "fetching framework executors from HDFS)\n"
         "(no default, look for HADOOP_HOME in\n"
         "environment or find hadoop on PATH)",
@@ -102,7 +102,7 @@ public:
 
     add(&Flags::frameworks_home,
         "frameworks_home",
-        "Directory prepended to relative executor URIs",
+        "Directory path prepended to relative executor URIs",
         "");
 
     add(&Flags::registration_backoff_factor,

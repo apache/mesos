@@ -47,7 +47,7 @@ public:
 
     add(&Flags::log_dir,
         "log_dir",
-        "Location to put log files (no default, nothing\n"
+        "Directory path to put log files (no default, nothing\n"
         "is written to disk unless specified;\n"
         "does not affect logging to stderr)");
 

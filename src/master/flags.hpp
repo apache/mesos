@@ -61,7 +61,8 @@ public:
 
     add(&Flags::work_dir,
         "work_dir",
-        "Where to store the persistent information stored in the Registry.");
+        "Directory path to store the persistent information stored in the Registry.\n",
+        "(example: /tmp/meso )");
 
     // TODO(bmahler): Consider removing 'in_memory' as it was only
     // used before 'replicated_log' was implemented.
@@ -145,7 +146,7 @@ public:
 
     add(&Flags::webui_dir,
         "webui_dir",
-        "Location of the webui files/assets",
+        "Directory path of the webui files/assets",
         PKGDATADIR "/webui");
 
     add(&Flags::whitelist,
