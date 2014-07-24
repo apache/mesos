@@ -568,7 +568,7 @@ public:
 
   // Converts this weak reference to a concrete future. Returns none
   // if the conversion is not successful.
-  Option<Future<T> > get();
+  Option<Future<T> > get() const;
 
 private:
   memory::weak_ptr<typename Future<T>::Data> data;
@@ -581,7 +581,7 @@ WeakFuture<T>::WeakFuture(const Future<T>& future)
 
 
 template <typename T>
-Option<Future<T> > WeakFuture<T>::get()
+Option<Future<T> > WeakFuture<T>::get() const
 {
   Future<T> future;
   future.data = data.lock();
