@@ -108,7 +108,7 @@ public:
     add(&Flags::registration_backoff_factor,
         "registration_backoff_factor",
         "Slave initially picks a random amount of time between [0, b], where\n"
-        "b = register_backoff_factor, to (re-)register with a new master.\n"
+        "b = registration_backoff_factor, to (re-)register with a new master.\n"
         "Subsequent retries are exponentially backed off based on this\n"
         "interval (e.g., 1st retry uses a random value between [0, b * 2^1],\n"
         "2nd retry between [0, b * 2^2], 3rd retry between [0, b * 2^3] etc)\n"
