@@ -41,15 +41,11 @@ class DockerContainerizerProcess;
 class DockerContainerizer : public Containerizer
 {
 public:
-  static Try<DockerContainerizer*> create(
-      const Flags& flags,
-      bool local);
+  static Try<DockerContainerizer*> create(const Flags& flags);
 
-  static Try<Nothing> prepareCgroups(const Flags& flags);
-
+  // This is only public for tests.
   DockerContainerizer(
       const Flags& flags,
-      bool local,
       const Docker& docker);
 
   virtual ~DockerContainerizer();

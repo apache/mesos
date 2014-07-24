@@ -29,7 +29,6 @@
 
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
-#include <process/subprocess.hpp>
 
 #include <stout/check.hpp>
 #include <stout/error.hpp>
@@ -131,28 +130,29 @@ static bool enable(const ::testing::TestInfo& test)
     }
 #endif
 
-    if (strings::contains(name, "DOCKER_")) {
-      Docker docker(flags.docker);
-      Try<Nothing> validate = Docker::validate(docker);
-      if (validate.isError()) {
-        std::cerr
-          << "-------------------------------------------------------------\n"
-          << "Skipping Docker tests because validation failed\n"
-          << "[Error] " + validate.error() + "\n"
-          << "-------------------------------------------------------------"
-          << std::endl;
-      }
-
-#ifdef __linux__
-      return user.get() == "root" && !validate.isError();
-#else
-      return !validate.isError();
-#endif
-    }
-
     // Filter out benchmark tests when we run 'make check'.
     if (strings::contains(name, "BENCHMARK_") && !flags.benchmark) {
       return false;
+    }
+
+    if (strings::contains(name, "DOCKER_")) {
+      Try<Docker> docker = Docker::create(flags.docker);
+      if (docker.isError()) {
+        std::cerr
+          << "-------------------------------------------------------------\n"
+          << "Skipping Docker tests because validation failed\n"
+          << "[Error] " + docker.error() + "\n"
+          << "-------------------------------------------------------------"
+          << std::endl;
+
+        return false;
+      }
+
+#ifdef __linux__
+      if (user.get() != "root") {
+        return false;
+      }
+#endif
     }
   }
 
@@ -170,7 +170,9 @@ static bool enable(const ::testing::TestInfo& test)
     const string& type = test.type_param();
     if (strings::contains(type, "Cgroups")) {
 #ifdef __linux__
-      return user.get() == "root" && cgroups::enabled();
+      if (user.get() != "root" || !cgroups::enabled()) {
+        return false;
+      }
 #else
       return false;
 #endif

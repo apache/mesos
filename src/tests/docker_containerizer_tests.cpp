@@ -57,15 +57,15 @@ using testing::Return;
 class DockerContainerizerTest : public MesosTest
 {
 public:
-  static bool containerExists(
+  static bool exists(
       const list<Docker::Container>& containers,
       const ContainerID& containerId)
   {
-    string expectedName = slave::DOCKER_NAME_PREFIX + containerId.value();
+    string expectedName = slave::DOCKER_NAME_PREFIX + stringify(containerId);
 
     foreach (const Docker::Container& container, containers) {
       // Docker inspect name contains an extra slash in the beginning.
-      if (strings::contains(container.name(), expectedName)) {
+      if (strings::contains(container.name, expectedName)) {
         return true;
       }
     }
@@ -79,9 +79,8 @@ class MockDockerContainerizer : public DockerContainerizer {
 public:
   MockDockerContainerizer(
       const slave::Flags& flags,
-      bool local,
       const Docker& docker)
-    : DockerContainerizer(flags, local, docker)
+    : DockerContainerizer(flags, docker)
   {
     EXPECT_CALL(*this, launch(_, _, _, _, _, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launchExecutor));
@@ -188,9 +187,9 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch_Executor)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker(tests::flags.docker);
+  Docker docker = Docker::create(tests::flags.docker, false).get();
 
-  MockDockerContainerizer dockerContainerizer(flags, true, docker);
+  MockDockerContainerizer dockerContainerizer(flags, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
   ASSERT_SOME(slave);
@@ -262,7 +261,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch_Executor)
 
   AWAIT_READY(containers);
 
-  ASSERT_TRUE(containerExists(containers.get(), containerId.get()));
+  ASSERT_TRUE(exists(containers.get(), containerId.get()));
 
   Future<containerizer::Termination> termination =
     dockerContainerizer.wait(containerId.get());
@@ -275,7 +274,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch_Executor)
   containers = docker.ps(true, slave::DOCKER_NAME_PREFIX);
   AWAIT_READY(containers);
 
-  ASSERT_FALSE(containerExists(containers.get(), containerId.get()));
+  ASSERT_FALSE(exists(containers.get(), containerId.get()));
 
   Shutdown();
 }
@@ -289,9 +288,9 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker(tests::flags.docker);
+  Docker docker = Docker::create(tests::flags.docker, false).get();
 
-  MockDockerContainerizer dockerContainerizer(flags, true, docker);
+  MockDockerContainerizer dockerContainerizer(flags, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
   ASSERT_SOME(slave);
@@ -358,7 +357,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 
   ASSERT_TRUE(containers.get().size() > 0);
 
-  ASSERT_TRUE(containerExists(containers.get(), containerId.get()));
+  ASSERT_TRUE(exists(containers.get(), containerId.get()));
 
   dockerContainerizer.destroy(containerId.get());
 
@@ -376,9 +375,9 @@ TEST_F(DockerContainerizerTest, DOCKER_Kill)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker(tests::flags.docker);
+  Docker docker = Docker::create(tests::flags.docker, false).get();
 
-  MockDockerContainerizer dockerContainerizer(flags, true, docker);
+  MockDockerContainerizer dockerContainerizer(flags, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
   ASSERT_SOME(slave);
@@ -456,7 +455,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Kill)
 
   AWAIT_READY(containers);
 
-  ASSERT_FALSE(containerExists(containers.get(), containerId.get()));
+  ASSERT_FALSE(exists(containers.get(), containerId.get()));
 
   driver.stop();
   driver.join();
@@ -474,9 +473,9 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>("cpus:2;mem:1024");
 
-  Docker docker(tests::flags.docker);
+  Docker docker = Docker::create(tests::flags.docker).get();
 
-  MockDockerContainerizer dockerContainerizer(flags, true, docker);
+  MockDockerContainerizer dockerContainerizer(flags, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -593,9 +592,9 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker(tests::flags.docker);
+  Docker docker = Docker::create(tests::flags.docker).get();
 
-  MockDockerContainerizer dockerContainerizer(flags, true, docker);
+  MockDockerContainerizer dockerContainerizer(flags, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
   ASSERT_SOME(slave);
@@ -676,7 +675,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
   ASSERT_SOME(cpuHierarchy);
   ASSERT_SOME(memoryHierarchy);
 
-  Option<pid_t> pid = container.get().pid();
+  Option<pid_t> pid = container.get().pid;
   ASSERT_SOME(pid);
 
   Result<string> cpuCgroup = cgroups::cpu::cgroup(pid.get());
@@ -715,13 +714,20 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
 #endif //__linux__
 
 
-TEST_F(DockerContainerizerTest, DOCKER_Recover)
+// Disabling recover test as the docker rm in recover is async.
+// Even though we wait for the container to finish, when the wait
+// returns docker rm might still be in progress.
+// TODO(tnachen): Re-enable test when we wait for the async kill
+// to finish. One way to do this is to mock the Docker interface
+// and let the mocked docker collect all the remove futures and
+// at the end of the test wait for all of them before the test exits.
+TEST_F(DockerContainerizerTest, DISABLED_DOCKER_Recover)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker(tests::flags.docker);
+  Docker docker = Docker::create(tests::flags.docker).get();
 
-  MockDockerContainerizer dockerContainerizer(flags, true, docker);
+  MockDockerContainerizer dockerContainerizer(flags, docker);
 
   ContainerID containerId;
   containerId.set_value("c1");
@@ -730,14 +736,14 @@ TEST_F(DockerContainerizerTest, DOCKER_Recover)
 
   Resources resources = Resources::parse("cpus:1;mem:512").get();
 
-  Future<Option<int> > d1 =
+  Future<Nothing> d1 =
     docker.run(
         "busybox",
         "sleep 360",
         slave::DOCKER_NAME_PREFIX + stringify(containerId),
         resources);
 
-  Future<Option<int> > d2 =
+  Future<Nothing> d2 =
     docker.run(
         "busybox",
         "sleep 360",

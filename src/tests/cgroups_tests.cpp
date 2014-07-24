@@ -288,6 +288,19 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_SubsystemsHierarchy)
 }
 
 
+TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_FindCgroupSubsystems)
+{
+  pid_t pid = ::getpid();
+  Result<std::string> cpuHierarchy = cgroups::cpu::cgroup(pid);
+  EXPECT_FALSE(cpuHierarchy.isError());
+  EXPECT_SOME(cpuHierarchy);
+
+  Result<std::string> memHierarchy = cgroups::memory::cgroup(pid);
+  EXPECT_FALSE(memHierarchy.isError());
+  EXPECT_SOME(memHierarchy);
+}
+
+
 TEST_F(CgroupsNoHierarchyTest, ROOT_CGROUPS_NOHIERARCHY_MountUnmountHierarchy)
 {
   EXPECT_ERROR(cgroups::mount("/tmp", "cpu"));

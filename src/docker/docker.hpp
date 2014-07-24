@@ -37,55 +37,50 @@
 class Docker
 {
 public:
-  // Validate Docker support
-  static Try<Nothing> validate(const Docker& docker);
+  // Create Docker abstraction and optionally validate docker.
+  static Try<Docker> create(const std::string& path, bool validate = true);
 
   class Container
   {
   public:
-    Container(const JSON::Object& json) : json(json) {}
+    static Try<Container> create(const JSON::Object& json);
 
     // Returns the ID of the container.
-    std::string id() const;
+    std::string id;
 
     // Returns the name of the container.
-    std::string name() const;
+    std::string name;
 
-    // Returns the Pid of the container, or None if the container is
+    // Returns the pid of the container, or None if the container is
     // not running.
-    Option<pid_t> pid() const;
+    Option<pid_t> pid;
 
   private:
-    JSON::Object json; // JSON returned from 'docker inspect'.
+    Container(
+        const std::string& _id,
+        const std::string& _name,
+        const Option<pid_t>& _pid)
+      : id(_id), name(_name), pid(_pid) {}
   };
 
-  // Uses the specified path to the Docker CLI tool.
-  Docker(const std::string& path) : path(path) {}
-
   // Performs 'docker run IMAGE'.
-  process::Future<Option<int> > run(
+  process::Future<Nothing> run(
       const std::string& image,
       const std::string& command,
       const std::string& name,
       const Option<mesos::Resources>& resources = None(),
       const Option<std::map<std::string, std::string> >& env = None()) const;
 
-  // Performs 'docker kill CONTAINER'.
-  process::Future<Option<int> > kill(
-      const std::string& container) const;
+  // Performs 'docker kill CONTAINER'. If remove is true then a rm -f
+  // will be called when kill failed, otherwise a failure is returned.
+  process::Future<Nothing> kill(
+      const std::string& container,
+      bool remove = false) const;
 
   // Performs 'docker rm (-f) CONTAINER'.
-  process::Future<Option<int> > rm(
+  process::Future<Nothing> rm(
       const std::string& container,
-      const bool force = false) const;
-
-  // Performs 'docker kill && docker rm'
-  // if 'docker kill' fails, then will do a 'docker rm -f'.
-  //
-  // TODO(yifan): Depreciate this when the docker provides
-  // something like 'docker rm --kill'.
-  process::Future<Option<int> > killAndRm(
-      const std::string& container) const;
+      bool force = false) const;
 
   // Performs 'docker inspect CONTAINER'.
   process::Future<Container> inspect(
@@ -93,23 +88,37 @@ public:
 
   // Performs 'docker ps (-a)'.
   process::Future<std::list<Container> > ps(
-      const bool all = false,
+      bool all = false,
       const Option<std::string>& prefix = None()) const;
 
-  process::Future<std::string> info() const;
-
 private:
-  // Continuations.
-  static process::Future<Container> _inspect(
-      const process::Subprocess& s);
-  static process::Future<std::list<Container> > _ps(
-      const Docker& docker,
-      const process::Subprocess& s,
-      const Option<std::string>& prefix);
-  static process::Future<Option<int> > _killAndRm(
+  // Uses the specified path to the Docker CLI tool.
+  Docker(const std::string& _path) : path(_path) {};
+
+  static process::Future<Nothing> _kill(
       const Docker& docker,
       const std::string& container,
-      const Option<int>& status);
+      const std::string& cmd,
+      const process::Subprocess& s,
+      bool remove);
+
+  static process::Future<Container> _inspect(
+      const std::string& cmd,
+      const process::Subprocess& s);
+
+  static process::Future<Container> __inspect(
+      const std::string& output);
+
+  static process::Future<std::list<Container> > _ps(
+      const Docker& docker,
+      const std::string& cmd,
+      const process::Subprocess& s,
+      const Option<std::string>& prefix);
+
+  static process::Future<std::list<Container> > __ps(
+      const Docker& docker,
+      const Option<std::string>& prefix,
+      const std::string& output);
 
   const std::string path;
 };

@@ -279,7 +279,7 @@ public:
 
     add(&Flags::docker,
         "docker",
-        "The path to the docker executable for docker containerizer.",
+        "The absolute path to the docker executable for docker containerizer.",
         "docker");
 
 #ifdef WITH_NETWORK_ISOLATOR

@@ -176,7 +176,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
-  framework.set_name("No Executor Framework (C++)");
+  framework.set_name("Docker No Executor Framework (C++)");
 
   // TODO(vinod): Make checkpointing the default when it is default
   // on the slave.

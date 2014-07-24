@@ -28,8 +28,6 @@
 #include <stout/hashset.hpp>
 #include <stout/os.hpp>
 
-#include "common/status_utils.hpp"
-
 #include "docker/docker.hpp"
 
 #ifdef __linux__
@@ -75,11 +73,10 @@ class DockerContainerizerProcess
 {
 public:
   DockerContainerizerProcess(
-      const Flags& flags,
-      bool local,
-      const Docker& docker)
-    : flags(flags),
-      docker(docker) {}
+      const Flags& _flags,
+      const Docker& _docker)
+    : flags(_flags),
+      docker(_docker) {}
 
   virtual process::Future<Nothing> recover(
       const Option<state::SlaveState>& state);
@@ -115,7 +112,7 @@ public:
 
   virtual void destroy(
       const ContainerID& containerId,
-      const bool& killed = true);
+      bool killed = true); // process is either killed or reaped.
 
   virtual process::Future<hashset<ContainerID> > containers();
 
@@ -131,16 +128,14 @@ private:
       const std::string& directory,
       const SlaveID& slaveId,
       const PID<Slave>& slavePid,
-      bool checkpoint,
-      const Option<int>& status);
+      bool checkpoint);
 
   process::Future<bool> _launch(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const SlaveID& slaveId,
       const PID<Slave>& slavePid,
-      bool checkpoint,
-      const Option<int>& status);
+      bool checkpoint);
 
   process::Future<bool> __launch(
       const ContainerID& containerId,
@@ -150,16 +145,15 @@ private:
       bool checkpoint,
       const Docker::Container& container);
 
-
   void _destroy(
       const ContainerID& containerId,
-      const bool& killed,
-      const Future<Option<int> >& future);
+      bool killed,
+      const Future<Nothing>& future);
 
   void __destroy(
       const ContainerID& containerId,
-      const bool& killed,
-      const Future<Option<int > >& status);
+      bool killed,
+      const Future<Option<int> >& status);
 
   process::Future<Nothing> _update(
       const ContainerID& containerId,
@@ -174,9 +168,7 @@ private:
   // container destroy.
   void reaped(const ContainerID& containerId);
 
-  // Parse the ContainerID from a Docker container and return None if
-  // the container was not launched from Mesos.
-  Option<ContainerID> parse(const Docker::Container& container);
+  static std::string containerName(const ContainerID& containerId);
 
   const Flags flags;
 
@@ -201,26 +193,48 @@ private:
 };
 
 
-Try<DockerContainerizer*> DockerContainerizer::create(
-    const Flags& flags,
-    bool local)
+// Parse the ContainerID from a Docker container and return None if
+// the container was not launched from Mesos.
+Option<ContainerID> parse(
+    const Docker::Container& container)
 {
-  Docker docker(flags.docker);
-  Try<Nothing> validation = Docker::validate(docker);
-  if (validation.isError()) {
-    return Error(validation.error());
+  Option<string> name = None();
+
+  if (strings::startsWith(container.name, DOCKER_NAME_PREFIX)) {
+    name = strings::remove(
+        container.name, DOCKER_NAME_PREFIX, strings::PREFIX);
+  } else if (strings::startsWith(container.name, "/" + DOCKER_NAME_PREFIX)) {
+    name = strings::remove(
+        container.name, "/" + DOCKER_NAME_PREFIX, strings::PREFIX);
   }
 
-  return new DockerContainerizer(flags, local, docker);
+  if (name.isSome()) {
+    ContainerID id;
+    id.set_value(name.get());
+    return id;
+  }
+
+  return None();
+}
+
+
+Try<DockerContainerizer*> DockerContainerizer::create(
+    const Flags& flags)
+{
+  Try<Docker> docker = Docker::create(flags.docker);
+  if (docker.isError()) {
+    return Error(docker.error());
+  }
+
+  return new DockerContainerizer(flags, docker.get());
 }
 
 
 DockerContainerizer::DockerContainerizer(
     const Flags& flags,
-    bool local,
     const Docker& docker)
 {
-  process = new DockerContainerizerProcess(flags, local, docker);
+  process = new DockerContainerizerProcess(flags, docker);
   spawn(process);
 }
 
@@ -355,6 +369,12 @@ static int setup(const string& directory)
 }
 
 
+string DockerContainerizerProcess::containerName(const ContainerID& containerId)
+{
+  return DOCKER_NAME_PREFIX + stringify(containerId);
+}
+
+
 Future<Nothing> DockerContainerizerProcess::recover(
     const Option<SlaveState>& state)
 {
@@ -415,7 +435,6 @@ Future<Nothing> DockerContainerizerProcess::recover(
 
         promises.put(containerId, promise);
 
-        CHECK_SOME(run.get().forkedPid);
         pid_t pid = run.get().forkedPid.get();
 
         statuses[containerId] = process::reap(pid);
@@ -429,8 +448,7 @@ Future<Nothing> DockerContainerizerProcess::recover(
           // pid as one that just exited (highly unlikely) and the
           // slave dies after the new executor is launched but before
           // it hears about the termination of the earlier executor
-          // (also unlikely). Regardless, the launcher can't do
-          // anything sensible so this is considered an error.
+          // (also unlikely).
           return Failure(
               "Detected duplicate pid " + stringify(pid) +
               " for container " + stringify(containerId));
@@ -453,7 +471,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
 {
   foreach (const Docker::Container& container, containers) {
     VLOG(1) << "Checking if Docker container named '"
-            << container.name() << "' was started by Mesos";
+            << container.name << "' was started by Mesos";
 
     Option<ContainerID> id = parse(container);
 
@@ -470,7 +488,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
     if (!statuses.keys().contains(id.get())) {
       // TODO(benh): Retry 'docker rm -f' if it failed but the container
       // still exists (asynchronously).
-      docker.killAndRm(container.id());
+      docker.kill(container.id, true);
     }
   }
 
@@ -488,14 +506,13 @@ Future<bool> DockerContainerizerProcess::launch(
     bool checkpoint)
 {
   if (promises.contains(containerId)) {
-    LOG(ERROR) << "Cannot start already running container '"
-               << containerId << "'";
     return Failure("Container already started");
   }
 
   CommandInfo command = executorInfo.command();
 
   if (!command.has_container()) {
+    LOG(INFO) << "No container info found, skipping launch";
     return false;
   }
 
@@ -503,6 +520,7 @@ Future<bool> DockerContainerizerProcess::launch(
 
   // Check if we should try and launch this command.
   if (!strings::startsWith(image, "docker:///")) {
+    LOG(INFO) << "No docker image found, skipping launch";
     return false;
   }
 
@@ -519,7 +537,7 @@ Future<bool> DockerContainerizerProcess::launch(
   image = strings::remove(image, "docker:///", strings::PREFIX);
 
   // Construct the Docker container name.
-  string name = DOCKER_NAME_PREFIX + stringify(containerId);
+  string name = containerName(containerId);
 
   map<string, string> env = executorEnvironment(
       executorInfo,
@@ -546,8 +564,7 @@ Future<bool> DockerContainerizerProcess::launch(
                executorInfo,
                slaveId,
                slavePid,
-               checkpoint,
-               lambda::_1))
+               checkpoint))
     .onFailed(defer(self(), &Self::destroy, containerId, false));
 }
 
@@ -563,12 +580,11 @@ Future<bool> DockerContainerizerProcess::launch(
     bool checkpoint)
 {
   if (promises.contains(containerId)) {
-    LOG(ERROR) << "Cannot start already running container '"
-               << containerId << "'";
     return Failure("Container already started");
   }
 
   if (!taskInfo.has_command()) {
+    LOG(WARNING) << "Not expecting call without command info";
     return false;
   }
 
@@ -577,6 +593,8 @@ Future<bool> DockerContainerizerProcess::launch(
   // Check if we should try and launch this command.
   if (!command.has_container() ||
       !strings::startsWith(command.container().image(), "docker:///")) {
+    LOG(INFO) << "No container info or container image is not docker image, "
+              << "skipping launch";
     return false;
   }
 
@@ -598,7 +616,7 @@ Future<bool> DockerContainerizerProcess::launch(
   image = strings::remove(image, "docker:///", strings::PREFIX);
 
   // Construct the Docker container name.
-  string name = DOCKER_NAME_PREFIX + stringify(containerId);
+  string name = containerName(containerId);
 
   // Start a docker container then launch the executor (but destroy
   // the Docker container if launching the executor failed).
@@ -611,8 +629,7 @@ Future<bool> DockerContainerizerProcess::launch(
                 directory,
                 slaveId,
                 slavePid,
-                checkpoint,
-                lambda::_1))
+                checkpoint))
     .onFailed(defer(self(), &Self::destroy, containerId, false));
 }
 
@@ -624,17 +641,8 @@ Future<bool> DockerContainerizerProcess::_launch(
     const string& directory,
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
-    bool checkpoint,
-    const Option<int>& status)
+    bool checkpoint)
 {
-  // Try and see if the run failed.
-  if (status.isSome() && status.get() != 0) {
-    // Best effort kill and remove the container just in case.
-    docker.killAndRm(DOCKER_NAME_PREFIX + stringify(containerId));
-    return Failure("Failed to run the container (" +
-                   WSTRINGIFY(status.get()) + ")");
-  }
-
   // Prepare environment variables for the executor.
   map<string, string> env = executorEnvironment(
       executorInfo,
@@ -656,9 +664,8 @@ Future<bool> DockerContainerizerProcess::_launch(
   // don't want the exit status from 'docker wait' but rather the exit
   // status from the container, hence the use of /bin/bash.
   string override =
-    "/bin/bash -c 'exit `" +
-    flags.docker + " wait " + DOCKER_NAME_PREFIX + stringify(containerId) +
-    "`'";
+    "/bin/sh -c 'exit `" +
+    flags.docker + " wait " + containerName(containerId) + "`'";
 
   Try<Subprocess> s = subprocess(
       executorInfo.command().value() + " --override " + override,
@@ -708,9 +715,9 @@ Future<bool> DockerContainerizerProcess::_launch(
          errno == EINTR);
 
   if (length != sizeof(c)) {
+    string error = string(strerror(errno));
     os::close(s.get().in().get());
-    return Failure("Failed to synchronize with child process: " +
-                   string(strerror(errno)));
+    return Failure("Failed to synchronize with child process: " + error);
   }
 
   // And finally watch for when the executor gets reaped.
@@ -728,17 +735,9 @@ Future<bool> DockerContainerizerProcess::_launch(
     const ExecutorInfo& executorInfo,
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
-    bool checkpoint,
-    const Option<int>& status)
+    bool checkpoint)
 {
-  if (status.isSome() && status.get() != 0) {
-    // Best effort kill and remove the container just in case.
-    docker.killAndRm(DOCKER_NAME_PREFIX + stringify(containerId));
-    return Failure("Failed to run the container (" +
-                   WSTRINGIFY(status.get()) + ")");
-  }
-
-  return docker.inspect(DOCKER_NAME_PREFIX + stringify(containerId))
+  return docker.inspect(containerName(containerId))
     .then(defer(self(),
                 &Self::__launch,
                 containerId,
@@ -758,18 +757,18 @@ Future<bool> DockerContainerizerProcess::__launch(
     bool checkpoint,
     const Docker::Container& container)
 {
-  Option<int> pid = container.pid();
+  Option<int> pid = container.pid;
 
   if (!pid.isSome()) {
     return Failure("Unable to get executor pid after launch");
   }
 
   if (checkpoint) {
-    // TODO(tnachen): We might not be able to checkpoint
-    // if the slave dies before it can checkpoint while
-    // the executor is still running. Optinally we can consider
-    // recording the slave id and executor id as part of the
-    // docker container name so we can recover from this.
+    // TODO(tnachen): We might not be able to checkpoint if the slave
+    // dies before it can checkpoint while the executor is still
+    // running. Optinally we can consider recording the slave id and
+    // executor id as part of the docker container name so we can
+    // recover from this.
     const string& path =
       slave::paths::getForkedPidPath(
           slave::paths::getMetaRootDir(flags.work_dir),
@@ -806,11 +805,13 @@ Future<Nothing> DockerContainerizerProcess::update(
     const Resources& _resources)
 {
   if (!promises.contains(containerId)) {
-    LOG(WARNING)
-      << "Ignoring updating unknown container: "
-      << containerId.value();
+    LOG(WARNING) << "Ignoring updating unknown container: "
+                 << containerId;
     return Nothing();
   }
+
+  // Store the resources for usage()
+  resources.put(containerId, _resources);
 
 #ifdef __linux__
   if (!_resources.cpus().isSome() && !_resources.mem().isSome()) {
@@ -818,10 +819,7 @@ Future<Nothing> DockerContainerizerProcess::update(
     return Nothing();
   }
 
-  // Store the resources for usage()
-  resources.put(containerId, _resources);
-
-  return docker.inspect(DOCKER_NAME_PREFIX + stringify(containerId))
+  return docker.inspect(containerName(containerId))
     .then(defer(self(), &Self::_update, containerId, _resources, lambda::_1));
 #else
   return Nothing();
@@ -860,7 +858,7 @@ Future<Nothing> DockerContainerizerProcess::_update(
   // update the proper cgroup control files.
 
   // First check that this container still appears to be running.
-  Option<pid_t> pid = container.pid();
+  Option<pid_t> pid = container.pid;
   if (pid.isNone()) {
     return Nothing();
   }
@@ -873,10 +871,9 @@ Future<Nothing> DockerContainerizerProcess::_update(
     return Failure("Failed to determine cgroup for the 'cpu' subsystem: " +
                    cpuCgroup.error());
   } else if (cpuCgroup.isNone()) {
-    LOG(WARNING)
-      << "Container " << containerId
-      << " does not appear to be a member of a cgroup "
-      << "where the 'cpu' subsystem is mounted";
+    LOG(WARNING) << "Container " << containerId
+                 << " does not appear to be a member of a cgroup "
+                 << "where the 'cpu' subsystem is mounted";
   }
 
   // And update the CPU shares (if applicable).
@@ -895,10 +892,9 @@ Future<Nothing> DockerContainerizerProcess::_update(
       return Failure("Failed to update 'cpu.shares': " + write.error());
     }
 
-    LOG(INFO)
-      << "Updated 'cpu.shares' to " << shares
-      << " at " << path::join(cpuHierarchy.get(), cpuCgroup.get())
-      << " for container " << containerId;
+    LOG(INFO) << "Updated 'cpu.shares' to " << shares
+              << " at " << path::join(cpuHierarchy.get(), cpuCgroup.get())
+              << " for container " << containerId;
   }
 
   // Now determine the cgroup for the 'memory' subsystem.
@@ -908,16 +904,16 @@ Future<Nothing> DockerContainerizerProcess::_update(
     return Failure("Failed to determine cgroup for the 'memory' subsystem: " +
                    memoryCgroup.error());
   } else if (memoryCgroup.isNone()) {
-    LOG(WARNING)
-      << "Container " << containerId
-      << " does not appear to be a member of a cgroup "
-      << "where the 'memory' subsystem is mounted";
+    LOG(WARNING) << "Container " << containerId
+                 << " does not appear to be a member of a cgroup "
+                 << "where the 'memory' subsystem is mounted";
   }
 
   // And update the memory limits (if applicable).
   if (memoryHierarchy.isSome() &&
       memoryCgroup.isSome() &&
       _resources.mem().isSome()) {
+    // TODO(tnachen): investigate and handle OOM with docker.
     Bytes mem = _resources.mem().get();
     Bytes limit = std::max(mem, MIN_MEMORY);
 
@@ -931,9 +927,8 @@ Future<Nothing> DockerContainerizerProcess::_update(
                      write.error());
     }
 
-    LOG(INFO)
-      << "Updated 'memory.soft_limit_in_bytes' to " << limit
-      << " for container " << containerId;
+    LOG(INFO) << "Updated 'memory.soft_limit_in_bytes' to " << limit
+              << " for container " << containerId;
 
     // Read the existing limit.
     Try<Bytes> currentLimit =
@@ -946,6 +941,9 @@ Future<Nothing> DockerContainerizerProcess::_update(
     }
 
     // Only update if new limit is higher.
+    // TODO(benh): Introduce a MemoryWatcherProcess which monitors the
+    // discrepancy between usage and soft limit and introduces a
+    // "manual oom" if necessary.
     if (limit > currentLimit.get()) {
       write = cgroups::memory::limit_in_bytes(
           memoryHierarchy.get(), memoryCgroup.get(), limit);
@@ -955,10 +953,9 @@ Future<Nothing> DockerContainerizerProcess::_update(
                        write.error());
       }
 
-      LOG(INFO)
-        << "Updated 'memory.limit_in_bytes' to " << limit
-        << " at " << path::join(memoryHierarchy.get(), memoryCgroup.get())
-        << " for container " << containerId;
+      LOG(INFO) << "Updated 'memory.limit_in_bytes' to " << limit << " at "
+                << path::join(memoryHierarchy.get(), memoryCgroup.get())
+                << " for container " << containerId;
     }
   }
 #endif // __linux__
@@ -982,7 +979,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
   }
 
   // Construct the Docker container name.
-  string name = DOCKER_NAME_PREFIX + stringify(containerId);
+  string name = containerName(containerId);
   return docker.inspect(name)
     .then(defer(self(), &Self::_usage, containerId, lambda::_1));
 #endif // __linux__
@@ -993,7 +990,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::_usage(
     const ContainerID& containerId,
     const Docker::Container& container)
 {
-  Option<pid_t> pid = container.pid();
+  Option<pid_t> pid = container.pid;
   if (pid.isNone()) {
     return Failure("Container is not running");
   }
@@ -1038,7 +1035,7 @@ Future<containerizer::Termination> DockerContainerizerProcess::wait(
 
 void DockerContainerizerProcess::destroy(
     const ContainerID& containerId,
-    const bool& killed)
+    bool killed)
 {
   if (!promises.contains(containerId)) {
     LOG(WARNING) << "Ignoring destroy of unknown container: " << containerId;
@@ -1071,15 +1068,15 @@ void DockerContainerizerProcess::destroy(
 
   // TODO(benh): Retry 'docker rm -f' if it failed but the container
   // still exists (asynchronously).
-  docker.killAndRm(DOCKER_NAME_PREFIX + stringify(containerId))
+  docker.kill(containerName(containerId), true)
     .onAny(defer(self(), &Self::_destroy, containerId, killed, lambda::_1));
 }
 
 
 void DockerContainerizerProcess::_destroy(
     const ContainerID& containerId,
-    const bool& killed,
-    const Future<Option<int> >& future)
+    bool killed,
+    const Future<Nothing>& future)
 {
   if (!future.isReady()) {
     promises[containerId]->fail(
@@ -1108,7 +1105,7 @@ void DockerContainerizerProcess::_destroy(
 
 void DockerContainerizerProcess::__destroy(
     const ContainerID& containerId,
-    const bool& killed,
+    bool killed,
     const Future<Option<int> >& status)
 {
   containerizer::Termination termination;
@@ -1116,6 +1113,8 @@ void DockerContainerizerProcess::__destroy(
   if (status.isReady() && status.get().isSome()) {
     termination.set_status(status.get().get());
   }
+  termination.set_message(killed ?
+                          "Docker task killed" : "Docker process terminated");
 
   promises[containerId]->set(termination);
 
@@ -1141,29 +1140,6 @@ void DockerContainerizerProcess::reaped(const ContainerID& containerId)
 
   // The executor has exited so destroy the container.
   destroy(containerId, false);
-}
-
-
-Option<ContainerID> DockerContainerizerProcess::parse(
-    const Docker::Container& container)
-{
-  Option<string> name = None();
-
-  if (strings::startsWith(container.name(), DOCKER_NAME_PREFIX)) {
-    name = strings::remove(
-        container.name(), DOCKER_NAME_PREFIX, strings::PREFIX);
-  } else if (strings::startsWith(container.name(), "/" + DOCKER_NAME_PREFIX)) {
-    name = strings::remove(
-        container.name(), "/" + DOCKER_NAME_PREFIX, strings::PREFIX);
-  }
-
-  if (name.isSome()) {
-    ContainerID id;
-    id.set_value(name.get());
-    return id;
-  }
-
-  return None();
 }
 
 

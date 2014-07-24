@@ -20,14 +20,17 @@
 #include <vector>
 
 #include <stout/lambda.hpp>
-#include <stout/strings.hpp>
-
+#include <stout/os.hpp>
 #include <stout/result.hpp>
+#include <stout/strings.hpp>
 
 #include <stout/os/read.hpp>
 
 #include <process/check.hpp>
 #include <process/collect.hpp>
+#include <process/io.hpp>
+
+#include "common/status_utils.hpp"
 
 #include "docker/docker.hpp"
 
@@ -46,8 +49,66 @@ using std::string;
 using std::vector;
 
 
-Try<Nothing> Docker::validate(const Docker &docker)
+template<class T>
+static Future<T> failure(
+    const string& cmd,
+    int status,
+    const string& err)
 {
+  return Failure(
+      "Failed to '" + cmd + "': exit status = " +
+      WSTRINGIFY(status) + " stderr = " + err);
+}
+
+
+// Asynchronously read stderr from subprocess.
+static Future<string> err(const Subprocess& s)
+{
+  CHECK_SOME(s.err());
+
+  Try<Nothing> nonblock = os::nonblock(s.err().get());
+  if (nonblock.isError()) {
+    return Failure("Cannot set nonblock for stderr: " + nonblock.error());
+  }
+
+  // TODO(tnachen): Although unlikely, it's possible to not capture
+  // the caller's failure message if io::read stderr fails. Can
+  // chain a callback to at least log.
+  return io::read(s.err().get());
+}
+
+
+static Future<Nothing> _checkError(const string& cmd, const Subprocess& s)
+{
+  Option<int> status = s.status().get();
+  if (status.isNone()) {
+    return Failure("No status found for '" + cmd + "'");
+  }
+
+  if (status.get() != 0) {
+    // TODO(tnachen): Consider returning stdout as well.
+    return err(s).then(
+        lambda::bind(failure<Nothing>, cmd, status.get(), lambda::_1));
+  }
+
+  return Nothing();
+}
+
+
+// Returns a failure if no status or non-zero status returned from
+// subprocess.
+static Future<Nothing> checkError(const string& cmd, const Subprocess& s)
+{
+  return s.status().then(lambda::bind(_checkError, cmd, s));
+}
+
+
+Try<Docker> Docker::create(const string& path, bool validate)
+{
+  if (!validate) {
+    return Docker(path);
+  }
+
   // Make sure that cgroups are mounted, and at least the 'cpu'
   // subsystem is attached.
   Result<string> hierarchy = cgroups::hierarchy("cpu");
@@ -58,76 +119,109 @@ Try<Nothing> Docker::validate(const Docker &docker)
                  "to mount cgroups manually!");
   }
 
-  Future<std::string> info = docker.info();
+  std::string cmd = path + " info";
 
-  if (!info.await(Seconds(3))) {
-    return Error("Failed to use Docker: Timed out");
-  } else if (info.isFailed()) {
-    return Error("Failed to use Docker: " + info.failure());
+  Try<Subprocess> s = subprocess(
+      cmd,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE(),
+      Subprocess::PATH("/dev/null"));
+
+  if (s.isError()) {
+    return Error(s.error());
   }
 
-  return Nothing();
+  Try<Nothing> nonblock = os::nonblock(s.get().out().get());
+  if (nonblock.isError()) {
+    return Error("Failed to accept nonblock stdout:" + nonblock.error());
+  }
+
+  Future<string> output = io::read(s.get().out().get());
+
+  if (!output.await(Seconds(5))) {
+    return Error("Docker info failed with time out");
+  } else if (output.isFailed()) {
+    return Error("Docker info failed: " + output.failure());
+  }
+
+  return Docker(path);
 }
 
 
-string Docker::Container::id() const
+Try<Docker::Container> Docker::Container::create(const JSON::Object& json)
 {
   map<string, JSON::Value>::const_iterator entry =
     json.values.find("Id");
-  CHECK(entry != json.values.end());
-  JSON::Value value = entry->second;
-  CHECK(value.is<JSON::String>());
-  return value.as<JSON::String>().value;
-}
+  if (entry == json.values.end()) {
+    return Error("Unable to find Id in container");
+  }
 
-string Docker::Container::name() const
-{
-  map<string, JSON::Value>::const_iterator entry =
-    json.values.find("Name");
-  CHECK(entry != json.values.end());
-  JSON::Value value = entry->second;
-  CHECK(value.is<JSON::String>());
-  return value.as<JSON::String>().value;
-}
+  JSON::Value idValue = entry->second;
+  if (!idValue.is<JSON::String>()) {
+    return Error("Id in container is not a string type");
+  }
 
-Option<pid_t> Docker::Container::pid() const
-{
-  map<string, JSON::Value>::const_iterator state =
-    json.values.find("State");
-  CHECK(state != json.values.end());
-  JSON::Value value = state->second;
-  CHECK(value.is<JSON::Object>());
+  string id = idValue.as<JSON::String>().value;
 
-  map<string, JSON::Value>::const_iterator entry =
-    value.as<JSON::Object>().values.find("Pid");
-  CHECK(entry != json.values.end());
-  // TODO(yifan) reload operator '=' to reuse the value variable above.
+  entry = json.values.find("Name");
+  if (entry == json.values.end()) {
+    return Error("Unable to find Name in container");
+  }
+
+  JSON::Value nameValue = entry->second;
+  if (!nameValue.is<JSON::String>()) {
+    return Error("Name in container is not string type");
+  }
+
+  string name = nameValue.as<JSON::String>().value;
+
+  entry = json.values.find("State");
+  if (entry == json.values.end()) {
+    return Error("Unable to find State in container");
+  }
+
+  JSON::Value stateValue = entry->second;
+  if (!stateValue.is<JSON::Object>()) {
+    return Error("State in container is not object type");
+  }
+
+  entry = stateValue.as<JSON::Object>().values.find("Pid");
+  if (entry == json.values.end()) {
+    return Error("Unable to find Pid in State");
+  }
+
+  // TODO(yifan): Reload operator '=' to reuse the value variable above.
   JSON::Value pidValue = entry->second;
-  CHECK(pidValue.is<JSON::Number>());
+  if (!pidValue.is<JSON::Number>()) {
+    return Error("Pid in State is not number type");
+  }
 
   pid_t pid = pid_t(pidValue.as<JSON::Number>().value);
-  if (pid == 0) {
-    return None();
+
+  Option<pid_t> optionalPid;
+  if (pid != 0) {
+    optionalPid = pid;
   }
-  return pid;
+
+  return Docker::Container(id, name, optionalPid);
 }
 
-Future<Option<int> > Docker::run(
+
+Future<Nothing> Docker::run(
     const string& image,
     const string& command,
     const string& name,
     const Option<mesos::Resources>& resources,
     const Option<map<string, string> >& env) const
 {
-
-  string cmd = " run -d";
+  string cmd = path + " run -d";
 
   if (resources.isSome()) {
     // TODO(yifan): Support other resources (e.g. disk, ports).
     Option<double> cpus = resources.get().cpus();
     if (cpus.isSome()) {
       uint64_t cpuShare =
-	std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
+        std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
       cmd += " -c " + stringify(cpuShare);
     }
 
@@ -139,6 +233,8 @@ Future<Option<int> > Docker::run(
   }
 
   if (env.isSome()) {
+    // TODO(tnachen): Use subprocess with args instead once we can
+    // handle splitting command string into args.
     foreachpair (string key, string value, env.get()) {
       key = strings::replace(key, "\"", "\\\"");
       value = strings::replace(value, "\"", "\\\"");
@@ -148,88 +244,96 @@ Future<Option<int> > Docker::run(
 
   cmd += " --net=host --name=" + name + " " + image + " " + command;
 
-  VLOG(1) << "Running " << path << cmd;
+  VLOG(1) << "Running " << cmd;
 
   Try<Subprocess> s = subprocess(
-      path + cmd,
-      Subprocess::PIPE(),
-      Subprocess::PIPE(),
-      Subprocess::PIPE());
-
-  if (s.isError()) {
-    return Failure(s.error());
-  }
-  return s.get().status();
-}
-
-
-Future<Option<int> > Docker::kill(const string& container) const
-{
-  VLOG(1) << "Running " << path << " kill " << container;
-
-  Try<Subprocess> s = subprocess(
-      path + " kill " + container,
-      Subprocess::PIPE(),
-      Subprocess::PIPE(),
+      cmd,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"),
       Subprocess::PIPE());
 
   if (s.isError()) {
     return Failure(s.error());
   }
 
-  return s.get().status();
+  return checkError(cmd, s.get());
 }
 
 
-Future<Option<int> > Docker::rm(
-    const string& container,
-    const bool force) const
+Future<Nothing> Docker::kill(const string& container, bool remove) const
 {
-  string cmd = force ? " rm -f " : " rm ";
+  const string cmd = path + " kill " + container;
 
-  VLOG(1) << "Running " << path << cmd << container;
+  VLOG(1) << "Running " << cmd;
 
   Try<Subprocess> s = subprocess(
-      path + cmd + container,
-      Subprocess::PIPE(),
-      Subprocess::PIPE(),
+      cmd,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"),
       Subprocess::PIPE());
 
   if (s.isError()) {
     return Failure(s.error());
   }
 
-  return s.get().status();
+  return s.get().status()
+    .then(lambda::bind(
+        &Docker::_kill,
+        *this,
+        container,
+        cmd,
+        s.get(),
+        remove));
 }
 
-
-Future<Option<int> > Docker::killAndRm(const string& container) const
-{
-  return kill(container)
-    .then(lambda::bind(Docker::_killAndRm, *this, container, lambda::_1));
-}
-
-
-Future<Option<int> > Docker::_killAndRm(
+Future<Nothing> Docker::_kill(
     const Docker& docker,
     const string& container,
-    const Option<int>& status)
+    const string& cmd,
+    const Subprocess& s,
+    bool remove)
 {
-  // If 'kill' fails, then do a 'rm -f'.
-  if (status.isNone()) {
-    return docker.rm(container, true);
+  Option<int> status = s.status().get();
+
+  if (remove) {
+    bool force = !status.isSome() || status.get() != 0;
+    return docker.rm(container, force);
   }
-  return docker.rm(container);
+
+  return checkError(cmd, s);
+}
+
+
+Future<Nothing> Docker::rm(
+    const string& container,
+    bool force) const
+{
+  const string cmd = path + (force ? " rm -f " : " rm ") + container;
+
+  VLOG(1) << "Running " << cmd;
+
+  Try<Subprocess> s = subprocess(
+      cmd,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE());
+
+  if (s.isError()) {
+    return Failure(s.error());
+  }
+
+  return checkError(cmd, s.get());
 }
 
 
 Future<Docker::Container> Docker::inspect(const string& container) const
 {
-  VLOG(1) << "Running " << path << " inspect " << container;
+  const string cmd =  path + " inspect " + container;
+  VLOG(1) << "Running " << cmd;
 
   Try<Subprocess> s = subprocess(
-      path + " inspect " + container,
-      Subprocess::PIPE(),
+      cmd,
+      Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -238,88 +342,61 @@ Future<Docker::Container> Docker::inspect(const string& container) const
   }
 
   return s.get().status()
-    .then(lambda::bind(&Docker::_inspect, s.get()));
+    .then(lambda::bind(&Docker::_inspect, cmd, s.get()));
 }
 
 
-namespace os {
-
-inline Result<std::string> read(
-    int fd,
-    Option<size_t> size = None(),
-    size_t chunk = 16 * 4096)
-{
-  std::string result;
-
-  while (size.isNone() || result.size() < size.get()) {
-    char buffer[chunk];
-    ssize_t length = ::read(fd, buffer, chunk);
-
-    if (length < 0) {
-      // TODO(bmahler): Handle a non-blocking fd? (EAGAIN, EWOULDBLOCK)
-      if (errno == EINTR) {
-        continue;
-      }
-      return ErrnoError();
-    } else if (length == 0) {
-      // Reached EOF before expected! Only return as much data as
-      // available or None if we haven't read anything yet.
-      if (result.size() > 0) {
-        return result;
-      }
-      return None();
-    }
-
-    result.append(buffer, length);
-  }
-
-  return result;
-}
-
-} // namespace os {
-
-
-Future<Docker::Container> Docker::_inspect(const Subprocess& s)
+Future<Docker::Container> Docker::_inspect(
+    const string& cmd,
+    const Subprocess& s)
 {
   // Check the exit status of 'docker inspect'.
   CHECK_READY(s.status());
 
   Option<int> status = s.status().get();
 
-  if (status.isSome() && status.get() != 0) {
-    // TODO(benh): Include stderr in error message.
-    Result<string> read = os::read(s.err().get());
-    return Failure("Failed to do 'docker inspect': " +
-                   (read.isSome()
-                    ? read.get()
-                    : " exited with status " + stringify(status.get())));
+  if (!status.isSome()) {
+    return Failure("No status found from '" + cmd + "'");
+  } else if (status.get() != 0) {
+    return err(s).then(
+        lambda::bind(
+            failure<Docker::Container>,
+            cmd,
+            status.get(),
+            lambda::_1));
   }
 
   // Read to EOF.
-  // TODO(benh): Read output asynchronously.
   CHECK_SOME(s.out());
-  Result<string> output = os::read(s.out().get());
-
-  if (output.isError()) {
-    // TODO(benh): Include stderr in error message.
-    return Failure("Failed to read output: " + output.error());
-  } else if (output.isNone()) {
-    // TODO(benh): Include stderr in error message.
-    return Failure("No output available");
+  Try<Nothing> nonblock = os::nonblock(s.out().get());
+  if (nonblock.isError()) {
+    return Failure("Failed to accept nonblock stdout:" + nonblock.error());
   }
+  Future<string> output = io::read(s.out().get());
+  return output.then(lambda::bind(&Docker::__inspect, lambda::_1));
+}
 
-  Try<JSON::Array> parse = JSON::parse<JSON::Array>(output.get());
+
+Future<Docker::Container> Docker::__inspect(const string& output)
+{
+  Try<JSON::Array> parse = JSON::parse<JSON::Array>(output);
 
   if (parse.isError()) {
     return Failure("Failed to parse JSON: " + parse.error());
   }
 
   JSON::Array array = parse.get();
-
-  // Skip the container if it no longer exists.
+  // Only return if only one container identified with name.
   if (array.values.size() == 1) {
     CHECK(array.values.front().is<JSON::Object>());
-    return Docker::Container(array.values.front().as<JSON::Object>());
+    Try<Docker::Container> container =
+      Docker::Container::create(array.values.front().as<JSON::Object>());
+
+    if (container.isError()) {
+      return Failure("Unable to create container: " + container.error());
+    }
+
+    return container.get();
   }
 
   // TODO(benh): Handle the case where the short container ID was
@@ -330,16 +407,16 @@ Future<Docker::Container> Docker::_inspect(const Subprocess& s)
 
 
 Future<list<Docker::Container> > Docker::ps(
-    const bool all,
+    bool all,
     const Option<string>& prefix) const
 {
-  string cmd = all ? " ps -a" : " ps";
+  string cmd = path + (all ? " ps -a" : " ps");
 
-  VLOG(1) << "Running " << path << cmd;
+  VLOG(1) << "Running " << cmd;
 
   Try<Subprocess> s = subprocess(
-      path + cmd,
-      Subprocess::PIPE(),
+      cmd,
+      Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -348,39 +425,46 @@ Future<list<Docker::Container> > Docker::ps(
   }
 
   return s.get().status()
-    .then(lambda::bind(&Docker::_ps, *this, s.get(), prefix));
+    .then(lambda::bind(&Docker::_ps, *this, cmd, s.get(), prefix));
 }
 
 
 Future<list<Docker::Container> > Docker::_ps(
     const Docker& docker,
+    const string& cmd,
     const Subprocess& s,
     const Option<string>& prefix)
 {
-  // Check the exit status of 'docker ps'.
-  CHECK_READY(s.status());
-
   Option<int> status = s.status().get();
 
-  if (status.isSome() && status.get() != 0) {
-    // TODO(benh): Include stderr in error message.
-    return Failure("Failed to do 'docker ps'");
+  if (!status.isSome()) {
+    return Failure("No status found from '" + cmd + "'");
+  } else if (status.get() != 0) {
+    return err(s).then(
+        lambda::bind(
+            failure<list<Docker::Container> >,
+            cmd,
+            status.get(),
+            lambda::_1));
   }
 
   // Read to EOF.
-  // TODO(benh): Read output asynchronously.
   CHECK_SOME(s.out());
-  Result<string> output = os::read(s.out().get());
-
-  if (output.isError()) {
-    // TODO(benh): Include stderr in error message.
-    return Failure("Failed to read output: " + output.error());
-  } else if (output.isNone()) {
-    // TODO(benh): Include stderr in error message.
-    return Failure("No output available");
+  Try<Nothing> nonblock = os::nonblock(s.out().get());
+  if (nonblock.isError()) {
+    return Failure("Failed to accept nonblock stdout:" + nonblock.error());
   }
+  Future<string> output = io::read(s.out().get());
+  return output.then(lambda::bind(&Docker::__ps, docker, prefix, lambda::_1));
+}
 
-  vector<string> lines = strings::tokenize(output.get(), "\n");
+
+Future<list<Docker::Container> > Docker::__ps(
+    const Docker& docker,
+    const Option<string>& prefix,
+    const string& output)
+{
+  vector<string> lines = strings::tokenize(output, "\n");
 
   // Skip the header.
   CHECK(!lines.empty());
@@ -392,6 +476,7 @@ Future<list<Docker::Container> > Docker::_ps(
     // Inspect the containers that we are interested in depending on
     // whether or not a 'prefix' was specified.
     vector<string> columns = strings::split(strings::trim(line), " ");
+    // We expect the name column to be the last column from ps.
     string name = columns[columns.size() - 1];
     if (prefix.isNone()) {
       futures.push_back(docker.inspect(name));
@@ -401,34 +486,4 @@ Future<list<Docker::Container> > Docker::_ps(
   }
 
   return collect(futures);
-}
-
-
-Future<std::string> Docker::info() const
-{
-  std::string cmd = path + " info";
-
-  VLOG(1) << "Running " << cmd;
-
-  Try<Subprocess> s = subprocess(
-      cmd,
-      Subprocess::PIPE(),
-      Subprocess::PIPE(),
-      Subprocess::PIPE());
-
-  if (s.isError()) {
-    return Failure(s.error());
-  }
-
-  Result<string> output = os::read(s.get().out().get());
-
-  if (output.isError()) {
-    // TODO(benh): Include stderr in error message.
-    return Failure("Failed to read output: " + output.error());
-  } else if (output.isNone()) {
-    // TODO(benh): Include stderr in error message.
-    return Failure("No output available");
-  }
-
-  return output.get();
 }
