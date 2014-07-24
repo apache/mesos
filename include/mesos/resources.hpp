@@ -244,6 +244,9 @@ private:
 };
 
 
+std::ostream& operator << (std::ostream& stream, const Resources& resources);
+
+
 inline std::ostream& operator << (
     std::ostream& stream,
     const google::protobuf::RepeatedPtrField<Resource>& resources)
