@@ -901,28 +901,6 @@ void discard(const std::list<Future<T> >& futures)
 }
 
 
-template <class T>
-void fail(const std::vector<Promise<T>*>& promises, const std::string& message)
-{
-  typename std::vector<Promise<T>*>::const_iterator iterator;
-  for (iterator = promises.begin(); iterator != promises.end(); ++iterator) {
-    Promise<T>* promise = *iterator;
-    promise->fail(message);
-  }
-}
-
-
-template <class T>
-void fail(const std::list<Promise<T>*>& promises, const std::string& message)
-{
-  typename std::list<Promise<T>*>::const_iterator iterator;
-  for (iterator = promises.begin(); iterator != promises.end(); ++iterator) {
-    Promise<T>* promise = *iterator;
-    promise->fail(message);
-  }
-}
-
-
 template <typename T>
 bool Promise<T>::discard(Future<T> future)
 {
