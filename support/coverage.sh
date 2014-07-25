@@ -36,7 +36,7 @@ lcov --directory . -c -o mesos_test.info
 
 # Remove output for external libraries and generated files.
 LCOV_FILTERS="/usr/include/*"
-LCOV_FILTERS+="/usr/lib/jvm/*"
+LCOV_FILTERS+=" /usr/lib/jvm/*"
 LCOV_FILTERS+=" mesos/build/*"
 LCOV_FILTERS+=" build/3rdparty/distribute-*"
 LCOV_FILTERS+=" build/3rdparty/leveldb*"
