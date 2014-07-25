@@ -29,6 +29,8 @@
 #include <stout/json.hpp>
 #include <stout/net.hpp>
 
+#include "linux/fs.hpp"
+
 #include "linux/routing/utils.hpp"
 
 #include "linux/routing/filter/ip.hpp"
@@ -84,6 +86,13 @@ using testing::_;
 using testing::Eq;
 using testing::Return;
 
+
+// An old glibc might not have this symbol.
+#ifndef MNT_DETACH
+#define MNT_DETACH 2
+#endif
+
+
 static void cleanup(const string& eth0, const string& lo)
 {
   // Clean up the ingress qdisc on eth0 and lo if exists.
@@ -109,7 +118,15 @@ static void cleanup(const string& eth0, const string& lo)
   }
 
   foreach (const string& file, os::ls(slave::BIND_MOUNT_ROOT)) {
-    CHECK_SOME(os::rm(file));
+    string target = path::join(slave::BIND_MOUNT_ROOT, file);
+
+    // NOTE: Here, we ignore the unmount errors because previous tests
+    // may have created the file and died before mounting.
+    mesos::internal::fs::unmount(target, MNT_DETACH);
+
+    // Use best effort to remove the bind mount file, but it is okay
+    // the file can't be removed at this point.
+    os::rm(target);
   }
 }
 

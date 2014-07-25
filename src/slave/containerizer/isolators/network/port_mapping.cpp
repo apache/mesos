@@ -1993,6 +1993,13 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     errors.push_back("Failed to umount: " + unmount.error());
   }
 
+  // MNT_DETACH does a lazy umount, which means umount will eventually
+  // succeed when the mount point becomes idle, but possiblely not
+  // soon enough every time for this remove to go through, e.g,
+  // someone entered into the container for debugging purpose. In that
+  // case remove will fail, which is okay, because we only leaked an
+  // empty file, which could also be reused later if the pid (the name
+  // of the file) is used later.
   Try<Nothing> rm = os::rm(target);
   if (rm.isError()) {
     errors.push_back("Failed to remove " + target + ": " + rm.error());
