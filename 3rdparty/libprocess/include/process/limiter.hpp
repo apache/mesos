@@ -105,6 +105,7 @@ private:
     promises.pop_front();
 
     promise->set(Nothing());
+    delete promise;
 
     timeout = Seconds(1) / permitsPerSecond;
 
