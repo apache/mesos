@@ -77,17 +77,17 @@ public:
 
     add(&Flags::work_dir,
         "work_dir",
-        "Where to place framework work directories\n",
+        "Directory path to place framework work directories\n",
         "/tmp/mesos");
 
     add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
         "launcher_dir",
-        "Location of Mesos binaries",
+        "Directory path of Mesos binaries",
         PKGLIBEXECDIR);
 
     add(&Flags::hadoop_home,
         "hadoop_home",
-        "Where to find Hadoop installed (for\n"
+        "Path to find Hadoop installed (for\n"
         "fetching framework executors from HDFS)\n"
         "(no default, look for HADOOP_HOME in\n"
         "environment or find hadoop on PATH)",
@@ -102,13 +102,13 @@ public:
 
     add(&Flags::frameworks_home,
         "frameworks_home",
-        "Directory prepended to relative executor URIs",
+        "Directory path prepended to relative executor URIs",
         "");
 
     add(&Flags::registration_backoff_factor,
         "registration_backoff_factor",
         "Slave initially picks a random amount of time between [0, b], where\n"
-        "b = register_backoff_factor, to (re-)register with a new master.\n"
+        "b = registration_backoff_factor, to (re-)register with a new master.\n"
         "Subsequent retries are exponentially backed off based on this\n"
         "interval (e.g., 1st retry uses a random value between [0, b * 2^1],\n"
         "2nd retry between [0, b * 2^2], 3rd retry between [0, b * 2^3] etc)\n"

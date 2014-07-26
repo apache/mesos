@@ -82,7 +82,7 @@ int main(int argc, char** argv)
             "May be one of:\n"
             "  zk://host1:port1,host2:port2,.../path\n"
             "  zk://username:password@host1:port1,host2:port2,.../path\n"
-            "  file://path/to/file (where file contains one of the above)");
+            "  file:///path/to/file (where file contains one of the above)");
 
   bool help;
   flags.add(&help,
