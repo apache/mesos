@@ -1060,6 +1060,7 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
     return Failure("Failed to get all the links: " + links.error());
   }
 
+  // The 'pids' here are extracted from veth devices.
   hashset<pid_t> pids;
   foreach (const string& name, links.get()) {
     Option<pid_t> pid = getPid(name);
@@ -1096,17 +1097,29 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
             << containerId << " with pid " << pid;
 
     if (!pids.contains(pid)) {
-      // This is possible because the container was launched by the
-      // slave with network isolation disabled, so the pid could not
-      // be found in the device names in the system.
+      // There are two possible cases here:
+      //
+      // 1) The container was launched by the slave with network
+      //    isolation disabled, so the pid could not be found in the
+      //    device names in the system.
+      //
+      // 2) The container was launched by the slave with network
+      //    isolation enabled, but veth is removed (because the
+      //    corresponding container is destroyed), but the slave
+      //    restarts before it is able to write the sentinel file.
+      //
+      // In both cases, we treat the container as unmanaged. For case
+      // (2), it's safe to do so because the container has already
+      // been destroyed.
       VLOG(1) << "Skipped recovery for container " << containerId
-              << "with pid " << pid << " as it was not managed by "
-              << "the network isolator";
+              << "with pid " << pid << " as either it was not managed by "
+              << "the network isolator or it has already been destroyed";
+
       unmanaged.insert(containerId);
       continue;
     }
 
-    Result<Info*> recover = _recover(pid);
+    Try<Info*> recover = _recover(pid);
     if (recover.isError()) {
       foreachvalue (Info* info, infos) {
         delete info;
@@ -1117,15 +1130,6 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
       return Failure(
           "Failed to recover container " + stringify(containerId) +
           " with pid " + stringify(pid) + ": " + recover.error());
-    } else if (recover.isNone()) {
-      LOG(WARNING) << "Cannot recover container " << containerId
-                   << " with pid " << pid
-                   << ". It may have already been destroyed";
-
-      // This may occur if the executor has exited and the isolator
-      // has destroyed the container but the slave dies before
-      // noticing this.
-      continue;
     }
 
     infos[containerId] = recover.get();
@@ -1136,7 +1140,7 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
 
   // If there are orphaned containers left, clean them up.
   foreach (pid_t pid, pids) {
-    Result<Info*> recover = _recover(pid);
+    Try<Info*> recover = _recover(pid);
     if (recover.isError()) {
       foreachvalue (Info* info, infos) {
         delete info;
@@ -1147,11 +1151,6 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
       return Failure(
           "Failed to recover orphaned container with pid " +
           stringify(pid) + ": " + recover.error());
-    } else if (recover.isNone()) {
-      // If the control reaches here, a serious problem has occurred
-      // because our link (veth) has been unexpectedly deleted.
-      LOG(FATAL) << "The veth for orphaned container with pid "
-                 << pid << " has been unexpectedly deleted";
     }
 
     // The recovery should fail if we cannot cleanup an orphan.
@@ -1175,10 +1174,15 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
 }
 
 
-Result<PortMappingIsolatorProcess::Info*>
+Try<PortMappingIsolatorProcess::Info*>
 PortMappingIsolatorProcess::_recover(pid_t pid)
 {
   // Get all the IP filters on veth.
+  // NOTE: We only look at veth devices to recover port ranges
+  // assigned to each container. That's the reason why we need to make
+  // sure that we add filters to veth before adding filters to host
+  // eth0 and host lo. Also, we need to make sure we remove filters
+  // from host eth0 and host lo before removing filters from veth.
   Result<vector<ip::Classifier> > classifiers =
     ip::classifiers(veth(pid), ingress::HANDLE);
 
@@ -1187,15 +1191,9 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
         "Failed to get all the IP filters on " + veth(pid) +
         ": " + classifiers.error());
   } else if (classifiers.isNone()) {
-    // Since we bind mount the network namespace handle (which causes
-    // an extra reference), the veth should be present even if the
-    // executor has exited. However, we may encounter a case where the
-    // veth is removed (because the corresponding container is
-    // destroyed), but the slave restarts before it is able to write
-    // the sentinel file. In that case, when the slave restarts, it
-    // will try to recover a container that has already been
-    // destroyed. To distinguish this case, we return None here.
-    return None();
+    return Error(
+        "Failed to get all the IP filters on " + veth(pid) +
+        ": link does not exist");
   }
 
   IntervalSet<uint16_t> nonEphemeralPorts;
@@ -1230,25 +1228,35 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
     }
   }
 
+  Info* info = NULL;
+
   if (ephemeralPorts.empty()) {
-    return Error("No ephemeral ports found");
+    // NOTE: This is possible because the slave may crash while
+    // calling 'isolate()', leaving a partially isolated container. To
+    // clean up this partially isolated container, we still create an
+    // Info struct here and let the 'cleanup' function clean it up
+    // later.
+    LOG(WARNING) << "No ephemeral ports found for container with pid "
+                 << stringify(pid) << ". This could happen if slave crashes "
+                 << "while isolating a container";
+
+    info = new Info(nonEphemeralPorts, Interval<uint16_t>(), pid);
+  } else {
+    if (ephemeralPorts.intervalCount() != 1) {
+      return Error("Each container should have only one ephemeral port range");
+    }
+
+    // Tell the allocator that this ephemeral port range is used.
+    ephemeralPortsAllocator->allocate(*ephemeralPorts.begin());
+
+    info = new Info(nonEphemeralPorts, *ephemeralPorts.begin(), pid);
+
+    VLOG(1) << "Recovered network isolator for container with pid " << pid
+            << " non-ephemeral port ranges " << nonEphemeralPorts
+            << " and ephemeral port range " << *ephemeralPorts.begin();
   }
 
-  if (ephemeralPorts.intervalCount() != 1) {
-    return Error("Each container should have only one ephemeral port range");
-  }
-
-  // Tell the allocator that this ephemeral port range is used.
-  ephemeralPortsAllocator->allocate(*ephemeralPorts.begin());
-
-  Info* info = new Info(nonEphemeralPorts, *ephemeralPorts.begin(), pid);
-  CHECK_NOTNULL(info);
-
-  VLOG(1) << "Recovered network isolator for container with pid " << pid
-          << " non-ephemeral port ranges " << nonEphemeralPorts
-          << " and ephemeral port range " << *ephemeralPorts.begin();
-
-  return info;
+  return CHECK_NOTNULL(info);
 }
 
 
@@ -1857,13 +1865,6 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
 
   pid_t pid = info->pid.get();
 
-  // If the bind mount does not exist, there is no need to proceed as
-  // there will be nothing to cleanup.
-  const string target = path::join(BIND_MOUNT_ROOT, stringify(pid));
-  if (!os::exists(target)) {
-    return Error("The bind mount at '" + target + "' does not exist");
-  }
-
   // NOTE: The 'isolate()' function above may fail at any point if the
   // child process with 'pid' is gone (e.g., killed by a user, failed
   // to load shared libraries, etc.). Therefore, this cleanup function
@@ -1881,7 +1882,9 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     LOG(INFO) << "Removing IP packet filters with ports " << range
               << " for container with pid " << pid;
 
-    Try<Nothing> removing = removeHostIPFilters(range, veth(pid));
+    // No need to remove filters on veth as they will be automatically
+    // removed by the kernel when we remove the link below.
+    Try<Nothing> removing = removeHostIPFilters(range, veth(pid), false);
     if (removing.isError()) {
       errors.push_back(
           "Failed to remove IP packet filter with ports " +
@@ -1891,7 +1894,9 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
   }
 
   // Free the ephemeral ports used by this container.
-  ephemeralPortsAllocator->deallocate(info->ephemeralPorts);
+  if (info->ephemeralPorts != Interval<uint16_t>()) {
+    ephemeralPortsAllocator->deallocate(info->ephemeralPorts);
+  }
 
   LOG(INFO) << "Freed ephemeral ports " << info->ephemeralPorts
             << " for container with pid " << pid;
@@ -1988,6 +1993,8 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
   }
 
   // Release the bind mount for this container.
+  const string target = path::join(BIND_MOUNT_ROOT, stringify(pid));
+
   Try<Nothing> unmount = fs::unmount(target, MNT_DETACH);
   if (unmount.isError()) {
     errors.push_back("Failed to umount: " + unmount.error());
@@ -1999,7 +2006,8 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
   // someone entered into the container for debugging purpose. In that
   // case remove will fail, which is okay, because we only leaked an
   // empty file, which could also be reused later if the pid (the name
-  // of the file) is used later.
+  // of the file) is used again. However, we still return error to
+  // indicate that the cleanup hasn't been successful.
   Try<Nothing> rm = os::rm(target);
   if (rm.isError()) {
     errors.push_back("Failed to remove " + target + ": " + rm.error());
@@ -2029,53 +2037,39 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
     const PortRange& range,
     const string& veth)
 {
-  // Add an IP packet filter from host eth0 to veth of the container
-  // such that any incoming IP packet will be properly redirected to
-  // the corresponding container based on its destination port.
-  Try<bool> hostEth0ToVeth = filter::ip::create(
-      eth0,
+  // NOTE: The order in which these filters are added is important!
+  // For each port range, we need to make sure that we don't try to
+  // add filters on host eth0 and host lo until we have successfully
+  // added filters on veth. This is because the slave could crash
+  // while we are adding filters, we want to make sure we don't leak
+  // any filters on host eth0 and host lo.
+
+  // Add an IP packet filter from veth of the container to host eth0
+  // to properly redirect IP packets sent from one container to
+  // external hosts. This filter has a lower priority compared to the
+  // 'vethToHostLo' filter because it does not check the destination
+  // IP. Notice that here we also check the source port of a packet.
+  // If the source port is not within the port ranges allocated for
+  // the container, the packet will get dropped.
+  Try<bool> vethToHostEth0 = filter::ip::create(
+      veth,
       ingress::HANDLE,
-      ip::Classifier(hostMAC, net::IP(hostIP.address()), None(), range),
-      Priority(IP_FILTER_PRIORITY, NORMAL),
-      action::Redirect(veth));
+      ip::Classifier(None(), None(), range, None()),
+      Priority(IP_FILTER_PRIORITY, LOW),
+      action::Redirect(eth0));
 
-  if (hostEth0ToVeth.isError()) {
-    ++metrics.adding_eth0_ip_filters_errors;
-
-    return Error(
-        "Failed to create an IP packet filter from host " +
-        eth0 + " to " + veth + ": " + hostEth0ToVeth.error());
-  } else if (!hostEth0ToVeth.get()) {
-    ++metrics.adding_eth0_ip_filters_already_exist;
+  if (vethToHostEth0.isError()) {
+    ++metrics.adding_veth_ip_filters_errors;
 
     return Error(
-        "The IP packet filter from host " + eth0 + " to " +
-        veth + " already exists");
-  }
-
-  // Add an IP packet filter from host lo to veth of the container
-  // such that any internally generated IP packet will be properly
-  // redirected to the corresponding container based on its
-  // destination port.
-  Try<bool> hostLoToVeth = filter::ip::create(
-      lo,
-      ingress::HANDLE,
-      ip::Classifier(None(), None(), None(), range),
-      Priority(IP_FILTER_PRIORITY, NORMAL),
-      action::Redirect(veth));
-
-  if (hostLoToVeth.isError()) {
-    ++metrics.adding_lo_ip_filters_errors;
+        "Failed to create an IP packet filter from " + veth +
+        " to host " + eth0 + ": " + vethToHostEth0.error());
+  } else if (!vethToHostEth0.get()) {
+    ++metrics.adding_veth_ip_filters_already_exist;
 
     return Error(
-        "Failed to create an IP packet filter from host " +
-        lo + " to " + veth + ": " + hostLoToVeth.error());
-  } else if (!hostLoToVeth.get()) {
-    ++metrics.adding_lo_ip_filters_already_exist;
-
-    return Error(
-        "The IP packet filter from host " + lo + " to " +
-        veth + " already exists");
+        "The IP packet filter from " + veth +
+        " to host " + eth0 + " already exists");
   }
 
   // Add two IP packet filters (one for public IP and one for loopback
@@ -2126,32 +2120,53 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
         veth + " to host " + lo + " already exists");
   }
 
-  // Add an IP packet filter from veth of the container to host eth0
-  // to properly redirect IP packets sent from one container to
-  // external hosts. This filter has a lower priority compared to the
-  // 'vethToHostLo' filter because it does not check the destination
-  // IP. Notice that here we also check the source port of a packet.
-  // If the source port is not within the port ranges allocated for
-  // the container, the packet will get dropped.
-  Try<bool> vethToHostEth0 = filter::ip::create(
-      veth,
+  // Add an IP packet filter from host eth0 to veth of the container
+  // such that any incoming IP packet will be properly redirected to
+  // the corresponding container based on its destination port.
+  Try<bool> hostEth0ToVeth = filter::ip::create(
+      eth0,
       ingress::HANDLE,
-      ip::Classifier(None(), None(), range, None()),
-      Priority(IP_FILTER_PRIORITY, LOW),
-      action::Redirect(eth0));
+      ip::Classifier(hostMAC, net::IP(hostIP.address()), None(), range),
+      Priority(IP_FILTER_PRIORITY, NORMAL),
+      action::Redirect(veth));
 
-  if (vethToHostEth0.isError()) {
-    ++metrics.adding_veth_ip_filters_errors;
-
-    return Error(
-        "Failed to create an IP packet filter from " + veth +
-        " to host " + eth0 + ": " + vethToHostEth0.error());
-  } else if (!vethToHostEth0.get()) {
-    ++metrics.adding_veth_ip_filters_already_exist;
+  if (hostEth0ToVeth.isError()) {
+    ++metrics.adding_eth0_ip_filters_errors;
 
     return Error(
-        "The IP packet filter from " + veth +
-        " to host " + eth0 + " already exists");
+        "Failed to create an IP packet filter from host " +
+        eth0 + " to " + veth + ": " + hostEth0ToVeth.error());
+  } else if (!hostEth0ToVeth.get()) {
+    ++metrics.adding_eth0_ip_filters_already_exist;
+
+    return Error(
+        "The IP packet filter from host " + eth0 + " to " +
+        veth + " already exists");
+  }
+
+  // Add an IP packet filter from host lo to veth of the container
+  // such that any internally generated IP packet will be properly
+  // redirected to the corresponding container based on its
+  // destination port.
+  Try<bool> hostLoToVeth = filter::ip::create(
+      lo,
+      ingress::HANDLE,
+      ip::Classifier(None(), None(), None(), range),
+      Priority(IP_FILTER_PRIORITY, NORMAL),
+      action::Redirect(veth));
+
+  if (hostLoToVeth.isError()) {
+    ++metrics.adding_lo_ip_filters_errors;
+
+    return Error(
+        "Failed to create an IP packet filter from host " +
+        lo + " to " + veth + ": " + hostLoToVeth.error());
+  } else if (!hostLoToVeth.get()) {
+    ++metrics.adding_lo_ip_filters_already_exist;
+
+    return Error(
+        "The IP packet filter from host " + lo + " to " +
+        veth + " already exists");
   }
 
   return Nothing();
@@ -2159,11 +2174,17 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
 
 
 // Helper function to remove IP filters from the host side for a given
-// port range.
+// port range. The boolean flag 'removeFiltersOnVeth' indicates if we
+// need to remove filters on veth.
 Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
     const PortRange& range,
-    const string& veth)
+    const string& veth,
+    bool removeFiltersOnVeth)
 {
+  // NOTE: Similar to above. The order in which these filters are
+  // removed is important. We need to remove filters on host eth0 and
+  // host lo first before we remove filters on veth.
+
   // Remove the IP packet filter from host eth0 to veth of the container
   Try<bool> hostEth0ToVeth = filter::ip::remove(
       eth0,
@@ -2200,6 +2221,12 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
 
     LOG(ERROR) << "The IP packet filter from host " << lo
                << " to " << veth << " does not exist";
+  }
+
+  // Now, we try to remove filters on veth. No need to proceed if the
+  // user does not ask us to do so.
+  if (!removeFiltersOnVeth) {
+    return Nothing();
   }
 
   // Remove the IP packet filter from veth of the container to

@@ -239,7 +239,7 @@ private:
 
   // Continuations.
   Try<Nothing> _cleanup(Info* info);
-  Result<Info*> _recover(pid_t pid);
+  Try<Info*> _recover(pid_t pid);
 
   void _update(
       const process::Future<Option<int> >& status,
@@ -252,7 +252,8 @@ private:
 
   Try<Nothing> removeHostIPFilters(
       const routing::filter::ip::PortRange& range,
-      const std::string& veth);
+      const std::string& veth,
+      bool removeFiltersOnVeth = true);
 
   // Return the scripts that will be executed in the child context.
   std::string scripts(Info* info);
