@@ -121,7 +121,10 @@ private:
   void success()
   {
     VLOG(1) << "Check passed";
-    if (initializing) {
+
+    // Send a healthy status update on the first success,
+    // and on the first success following failure(s).
+    if (initializing || consecutiveFailures > 0) {
       TaskHealthStatus taskHealthStatus;
       taskHealthStatus.set_healthy(true);
       taskHealthStatus.mutable_task_id()->CopyFrom(taskID);

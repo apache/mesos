@@ -174,6 +174,93 @@ TEST_F(HealthCheckTest, HealthyTask)
   Shutdown();
 }
 
+// Testing health status change reporting to scheduler.
+TEST_F(HealthCheckTest, HealthStatusChange)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "posix/cpu,posix/mem";
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false);
+  CHECK_SOME(containerizer);
+
+  Try<PID<Slave> > slave = StartSlave(containerizer.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Create a temporary file.
+  Try<string> temporaryPath = os::mktemp();
+  ASSERT_SOME(temporaryPath);
+  string tmpPath = temporaryPath.get();
+
+  // This command fails every other invocation.
+  // For all runs i in Nat0, the following case i % 2 applies:
+  //
+  // Case 0:
+  //   - Remove the temporary file.
+  //
+  // Case 1:
+  //   - Attempt to remove the nonexistent temporary file.
+  //   - Create the temporary file.
+  //   - Exit with a non-zero status.
+  string alt = "rm " + tmpPath + " || (touch " + tmpPath + " && exit 1)";
+
+  vector<TaskInfo> tasks = populateTasks(
+      "sleep 20", alt, offers.get()[0], 0, 3);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealth1;
+  Future<TaskStatus> statusHealth2;
+  Future<TaskStatus> statusHealth3;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealth1))
+    .WillOnce(FutureArg<1>(&statusHealth2))
+    .WillOnce(FutureArg<1>(&statusHealth3));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusHealth1);
+  EXPECT_EQ(TASK_RUNNING, statusHealth1.get().state());
+  EXPECT_TRUE(statusHealth1.get().healthy());
+
+  AWAIT_READY(statusHealth2);
+  EXPECT_EQ(TASK_RUNNING, statusHealth2.get().state());
+  EXPECT_FALSE(statusHealth2.get().healthy());
+
+  AWAIT_READY(statusHealth3);
+  EXPECT_EQ(TASK_RUNNING, statusHealth3.get().state());
+  EXPECT_TRUE(statusHealth3.get().healthy());
+
+  os::rm(tmpPath); // Clean up the temporary file.
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
 
 // Testing killing task after number of consecutive failures.
 // Temporarily disabled due to MESOS-1613.
