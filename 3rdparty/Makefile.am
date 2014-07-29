@@ -42,6 +42,11 @@ EXTRA_DIST =		\
   $(LEVELDB).tar.gz	\
   $(ZOOKEEPER).tar.gz
 
+# We need to patch leveldb to prevent it from linking to snappy and
+# tcmalloc; see MESOS-1054, MESOS-1624.
+EXTRA_DIST +=		\
+  $(LEVELDB).patch
+
 CLEAN_EXTRACTED =	\
   $(DISTRIBUTE)		\
   $(LEVELDB)		\
