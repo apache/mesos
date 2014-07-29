@@ -48,6 +48,7 @@ namespace zookeeper {
 class URL
 {
 public:
+  // TODO(kensipe): Add support for "file://" based urls.
   static Try<URL> parse(const std::string& url);
 
   const Option<Authentication> authentication;

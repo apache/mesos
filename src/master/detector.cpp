@@ -112,7 +112,6 @@ Try<MasterDetector*> MasterDetector::create(const string& master)
   if (master == "") {
     return new StandaloneMasterDetector();
   } else if (master.find("zk://") == 0) {
-    // TODO(kensipe): Add support for "--zk=file://".
     Try<URL> url = URL::parse(master);
     if (url.isError()) {
       return Error(url.error());

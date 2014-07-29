@@ -199,7 +199,6 @@ int main(int argc, char** argv)
                 << " registry when using ZooKeeper";
       }
 
-      // TODO(kensipe): Add support for "--zk=file://".
       string zk_;
       if (strings::startsWith(zk.get(), "file://")) {
         const string& path = zk.get().substr(7);
