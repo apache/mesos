@@ -195,12 +195,25 @@ int main(int argc, char** argv)
     if (zk.isSome()) {
       // Use replicated log with ZooKeeper.
       if (flags.quorum.isNone()) {
-        EXIT(1) << "Need to specify --quorum for replicated log based registry"
-                << " when using ZooKeeper";
+        EXIT(1) << "Need to specify --quorum for replicated log based"
+                << " registry when using ZooKeeper";
       }
 
-      // TODO(vinod): Add support for "--zk=file://".
-      Try<URL> url = URL::parse(zk.get());
+      // TODO(kensipe): Add support for "--zk=file://".
+      string zk_;
+      if (strings::startsWith(zk.get(), "file://")) {
+        const string& path = zk.get().substr(7);
+        const Try<string> read = os::read(path);
+        if (read.isError()) {
+          EXIT(1) << "Failed to read from file at '" + path + "': "
+                  << read.error();
+        }
+        zk_ = read.get();
+      } else {
+        zk_ = zk.get();
+      }
+
+      Try<URL> url = URL::parse(zk_);
       if (url.isError()) {
         EXIT(1) << "Error parsing ZooKeeper URL: " << url.error();
       }

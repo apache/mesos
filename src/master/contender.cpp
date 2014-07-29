@@ -76,6 +76,7 @@ Try<MasterContender*> MasterContender::create(const string& zk)
   if (zk == "") {
     return new StandaloneMasterContender();
   } else if (strings::startsWith(zk, "zk://")) {
+    // TODO(kensipe): Add support for "--zk=file://".
     Try<zookeeper::URL> url = URL::parse(zk);
     if (url.isError()) {
       return Error(url.error());
