@@ -117,7 +117,9 @@ static void cleanup(const string& eth0, const string& lo)
     }
   }
 
-  foreach (const string& file, os::ls(slave::BIND_MOUNT_ROOT)) {
+  Try<list<string> > entries = os::ls(slave::BIND_MOUNT_ROOT);
+  ASSERT_SOME(entries);
+  foreach (const string& file, entries.get()) {
     string target = path::join(slave::BIND_MOUNT_ROOT, file);
 
     // NOTE: Here, we ignore the unmount errors because previous tests
@@ -1578,8 +1580,9 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   }
 
   // Expect no files in bind mount directory.
-  list<string> files = os::ls(slave::BIND_MOUNT_ROOT);
-  EXPECT_EQ(0u, files.size());
+  Try<list<string>> files = os::ls(slave::BIND_MOUNT_ROOT);
+  ASSERT_SOME(files);
+  EXPECT_EQ(0u, files.get().size());
 
   driver.stop();
   driver.join();
