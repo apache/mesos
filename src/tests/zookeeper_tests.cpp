@@ -199,12 +199,12 @@ TEST_F(ZooKeeperTest, LeaderDetector)
 
 TEST_F(ZooKeeperTest, LeaderDetectorTimeoutHandling)
 {
-  Seconds timeout(10);
+  Duration timeout = Seconds(10);
+
   Group group(server->connectString(), timeout, "/test/");
   LeaderDetector detector(&group);
 
-  Future<Group::Membership> membership1 = group.join("member 1");
-  AWAIT_READY(membership1);
+  AWAIT_READY(group.join("member 1"));
 
   Future<Option<Group::Membership> > leader = detector.detect();
 
@@ -228,35 +228,23 @@ TEST_F(ZooKeeperTest, LeaderDetectorTimeoutHandling)
   Clock::settle();
   Clock::advance(timeout);
 
-  AWAIT_READY(leader);
-
-  Clock::resume();
-
   // The detect operation times out.
-  EXPECT_NONE(leader.get());
-
-  // Re-detect.
-  leader = detector.detect(leader.get());
-
-  Future<Nothing> connected = FUTURE_DISPATCH(
-      group.process->self(),
-      &GroupProcess::connected);
-  server->startNetwork();
-
-  AWAIT_READY(connected);
-  AWAIT_READY(leader);
-  EXPECT_SOME(leader.get());
-
-  // Wait until the old membership expires on ZK and re-detect.
-  // (Restarting network doesn't delete old ZNode automatically).
-  AWAIT_READY(leader.get().get().cancelled());
-  leader = detector.detect(leader.get());
   AWAIT_READY(leader);
   EXPECT_NONE(leader.get());
+}
+
+
+TEST_F(ZooKeeperTest, LeaderDetectorCancellationHandling)
+{
+  Duration timeout = Seconds(10);
+
+  Group group(server->connectString(), timeout, "/test/");
+  LeaderDetector detector(&group);
 
   AWAIT_READY(group.join("member 1"));
 
-  leader = detector.detect(leader.get());
+  Future<Option<Group::Membership> > leader = detector.detect();
+
   AWAIT_READY(leader);
   EXPECT_SOME(leader.get());
 
@@ -264,6 +252,7 @@ TEST_F(ZooKeeperTest, LeaderDetectorTimeoutHandling)
   Future<bool> cancelled = group.cancel(leader.get().get());
   AWAIT_READY(cancelled);
   EXPECT_TRUE(cancelled.get());
+
   leader = detector.detect(leader.get());
   AWAIT_READY(leader);
   EXPECT_NONE(leader.get());
