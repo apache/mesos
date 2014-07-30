@@ -37,6 +37,7 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/json.hpp>
 #include <stout/stringify.hpp>
 
 #include "common/protobuf_utils.hpp"
@@ -654,18 +655,6 @@ TEST_F(FaultToleranceTest, MasterFailover)
 }
 
 
-// TODO(adam-mesos): Use real JSON parser (see stout/json.hpp TODOs).
-bool isJsonValueEmpty(const string& text, const string& key)
-{
-  string sub = text.substr(text.find(key));
-  size_t index = sub.find(":") + 1;
-  // This will not retrieve the entire value if the value is
-  // an object/array since it will stop at the first comma,
-  // but this is good enough to figure out if the value is empty.
-  return (sub.substr(index, sub.find(",") - index) == "[]");
-}
-
-
 // This test ensures that a failed over master recovers completed tasks
 // from a slave's re-registration when the slave thinks the framework has
 // completed (but the framework has not actually completed yet from master's
@@ -688,12 +677,20 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   // Verify master/slave have 0 completed/running frameworks.
   Future<Response> masterState = process::http::get(master.get(), "state.json");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
+
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
       "application/json",
       "Content-Type",
       masterState);
-  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
-  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(masterState.get().body);
+  ASSERT_SOME(parse);
+  JSON::Object masterJSON = parse.get();
+
+  EXPECT_EQ(0u,
+    masterJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(0u,
+    masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   // Step 2. Create/start framework.
   StandaloneMasterDetector schedDetector(master.get());
@@ -718,9 +715,10 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   EXPECT_NE(0u, offers.get().size());
 
   // Step 3. Create/launch a task.
-  TaskInfo task = createTask(offers.get()[0], "exit 1", DEFAULT_EXECUTOR_ID);
+  TaskInfo task =
+    createTask(offers.get()[0], "sleep 10000", DEFAULT_EXECUTOR_ID);
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Short-lived task.
+  tasks.push_back(task); // Long lasting task
 
   EXPECT_CALL(executor, registered(_, _, _, _));
   EXPECT_CALL(executor, launchTask(_, _))
@@ -737,12 +735,26 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
 
   // Verify master and slave recognize the running task/framework.
   masterState = process::http::get(master.get(), "state.json");
-  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
-  EXPECT_FALSE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+
+  parse = JSON::parse<JSON::Object>(masterState.get().body);
+  ASSERT_SOME(parse);
+  masterJSON = parse.get();
+
+  EXPECT_EQ(0u,
+    masterJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(1u,
+    masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   Future<Response> slaveState = process::http::get(slave.get(), "state.json");
-  EXPECT_TRUE(isJsonValueEmpty(slaveState.get().body, "completed_frameworks"));
-  EXPECT_FALSE(isJsonValueEmpty(slaveState.get().body, "\"frameworks\""));
+
+  parse = JSON::parse<JSON::Object>(slaveState.get().body);
+  ASSERT_SOME(parse);
+  JSON::Object slaveJSON = parse.get();
+
+  EXPECT_EQ(0u,
+    slaveJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(1u,
+    slaveJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   // Step 4. Kill task.
   EXPECT_CALL(executor, killTask(_, _))
@@ -757,13 +769,28 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   AWAIT_READY(statusKilled);
   ASSERT_EQ(TASK_KILLED, statusKilled.get().state());
 
+  // At this point, the task is killed, but the framework is still
+  // running.  This is because the executor has to time-out before
+  // it exits.
   masterState = process::http::get(master.get(), "state.json");
-  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
-  EXPECT_FALSE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
+  parse = JSON::parse<JSON::Object>(masterState.get().body);
+  ASSERT_SOME(parse);
+  masterJSON = parse.get();
+
+  EXPECT_EQ(0u,
+    masterJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(1u,
+    masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   slaveState = process::http::get(slave.get(), "state.json");
-  EXPECT_TRUE(isJsonValueEmpty(slaveState.get().body, "completed_frameworks"));
-  EXPECT_FALSE(isJsonValueEmpty(slaveState.get().body, "\"frameworks\""));
+  parse = JSON::parse<JSON::Object>(slaveState.get().body);
+  ASSERT_SOME(parse);
+  slaveJSON = parse.get();
+
+  EXPECT_EQ(0u,
+    slaveJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(1u,
+    slaveJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   // Step 5. Kill the executor.
   Future<Nothing> executorTerminated =
@@ -783,8 +810,14 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
 
   // Verify slave sees completed framework.
   slaveState = process::http::get(slave.get(), "state.json");
-  EXPECT_FALSE(isJsonValueEmpty(slaveState.get().body, "completed_frameworks"));
-  EXPECT_TRUE(isJsonValueEmpty(slaveState.get().body, "\"frameworks\""));
+  parse = JSON::parse<JSON::Object>(slaveState.get().body);
+  ASSERT_SOME(parse);
+  slaveJSON = parse.get();
+
+  EXPECT_EQ(1u,
+    slaveJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(0u,
+    slaveJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   // Step 6. Simulate failed over master by restarting the master.
   Stop(master.get());
@@ -818,8 +851,14 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   Clock::resume();
 
   masterState = process::http::get(master.get(), "state.json");
-  EXPECT_FALSE(isJsonValueEmpty(masterState.get().body, "\"frameworks\""));
-  EXPECT_TRUE(isJsonValueEmpty(masterState.get().body, "completed_frameworks"));
+  parse = JSON::parse<JSON::Object>(masterState.get().body);
+  ASSERT_SOME(parse);
+  masterJSON = parse.get();
+
+  EXPECT_EQ(0u,
+    masterJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(1u,
+    masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   driver.stop();
   driver.join();
