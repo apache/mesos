@@ -1309,6 +1309,9 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage =
+      FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
@@ -1322,6 +1325,9 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   Clock::pause();
 
   AWAIT_READY(_recover);
+
+  // Wait for the executor to re-register.
+  AWAIT_READY(reregisterExecutorMessage);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
@@ -2440,10 +2446,10 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<ReregisterExecutorMessage> reregisterExecutorMessage =
-      FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-      FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
   Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
@@ -2895,6 +2901,12 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage2 =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage1 =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
@@ -2908,6 +2920,10 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   Clock::pause();
 
   AWAIT_READY(_recover);
+
+  // Wait for the executors to re-register.
+  AWAIT_READY(reregisterExecutorMessage1);
+  AWAIT_READY(reregisterExecutorMessage2);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
