@@ -314,8 +314,8 @@ public:
   Option<RateLimits> rate_limits;
 };
 
-} // namespace mesos {
-} // namespace internal {
 } // namespace master {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __MASTER_FLAGS_HPP__

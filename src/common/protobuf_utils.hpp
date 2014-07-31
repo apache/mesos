@@ -52,7 +52,7 @@ Task createTask(const TaskInfo& task,
 // Helper function that creates a MasterInfo from UPID.
 MasterInfo createMasterInfo(const process::UPID& pid);
 
-} // namespace protobuf
+} // namespace protobuf {
 } // namespace internal {
 } // namespace mesos {
 

@@ -132,6 +132,7 @@ PyObject* createPythonProtobuf(const T& t, const char* typeName)
                              str.size());
 }
 
-}} /* namespace mesos { namespace python { */
+} // namespace python {
+} // namespace mesos {
 
 #endif /* MODULE_HPP */

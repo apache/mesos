@@ -880,7 +880,8 @@ void Slave::doReliableRegistration(const Duration& duration)
   } else {
     // Re-registering, so send tasks running.
     ReregisterSlaveMessage message;
-    message.mutable_slave_id()->CopyFrom(info.id()); // TODO: deprecate this.
+    // TODO(bmahler): deprecate this.
+    message.mutable_slave_id()->CopyFrom(info.id());
     message.mutable_slave()->CopyFrom(info);
 
     foreachvalue (Framework* framework, frameworks) {

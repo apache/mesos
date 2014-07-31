@@ -128,8 +128,8 @@ private:
   process::Timer timer;
 };
 
-} // namespace mesos {
-} // namespace internal {
 } // namespace slave {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __SLAVE_GC_HPP__

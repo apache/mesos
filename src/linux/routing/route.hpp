@@ -59,7 +59,7 @@ Try<std::vector<Rule> > table();
 // Returns the default gateway of this host.
 Result<net::IP> defaultGateway();
 
-} // namespace route
-} // namespace routing
+} // namespace route {
+} // namespace routing {
 
 #endif // __LINUX_ROUTING_ROUTE_HPP__

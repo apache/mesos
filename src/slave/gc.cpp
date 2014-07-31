@@ -206,6 +206,6 @@ void GarbageCollector::prune(const Duration& d)
   dispatch(process, &GarbageCollectorProcess::prune, d);
 }
 
-} // namespace mesos {
-} // namespace internal {
 } // namespace slave {
+} // namespace internal {
+} // namespace mesos {

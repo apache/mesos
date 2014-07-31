@@ -1289,10 +1289,11 @@ Status MesosSchedulerDriver::stop(bool failover)
     dispatch(process, &SchedulerProcess::stop, failover);
   }
 
-  // TODO: It might make more sense to clean up our local cluster here than in
-  // the destructor. However, what would be even better is to allow multiple
-  // local clusters to exist (i.e. not use global vars in local.cpp) so that
-  // ours can just be an instance variable in MesosSchedulerDriver.
+  // TODO(benh): It might make more sense to clean up our local
+  // cluster here than in the destructor. However, what would be even
+  // better is to allow multiple local clusters to exist (i.e. not use
+  // global vars in local.cpp) so that ours can just be an instance
+  // variable in MesosSchedulerDriver.
 
   bool aborted = status == DRIVER_ABORTED;
 

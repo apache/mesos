@@ -1060,7 +1060,7 @@ Try<set<pid_t> > tasks(
   return pids;
 }
 
-} // namespace internal
+} // namespace internal {
 
 
 // NOTE: It is possible for a process pid to be in more than one cgroup if it
@@ -1685,7 +1685,7 @@ Future<Nothing> discard(Future<Nothing> future)
   return future;
 }
 
-} // namespace
+} // namespace {
 
 Future<Nothing> destroy(
     const string& hierarchy,

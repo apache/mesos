@@ -113,7 +113,7 @@ Try<bool> setMTU(const std::string& link, unsigned int mtu);
 // Returns the statistics of the link.
 Result<hashmap<std::string, uint64_t> > statistics(const std::string& link);
 
-} // namespace link
-} // namespace routing
+} // namespace link {
+} // namespace routing {
 
 #endif // __LINUX_ROUTING_LINK_LINK_HPP__

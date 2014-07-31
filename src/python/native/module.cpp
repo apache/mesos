@@ -67,7 +67,7 @@ PyMethodDef MODULE_METHODS[] = {
   {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
-} /* end namespace */
+} // namespace {
 
 
 /**

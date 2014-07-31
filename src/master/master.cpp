@@ -1428,8 +1428,9 @@ void Master::_reregisterFramework(
       // pid, given the existing libprocess primitives (PID does not
       // identify the libprocess Process instance).
 
-      // TODO: Should we check whether the new scheduler has given
-      // us a different framework name, user name or executor info?
+      // TODO(benh): Should we check whether the new scheduler has
+      // given us a different framework name, user name or executor
+      // info?
       LOG(INFO) << "Framework " << frameworkInfo.id() << " failed over";
       failoverFramework(framework, from);
     } else if (from != framework->pid) {

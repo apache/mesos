@@ -40,6 +40,6 @@ inline double getScalarResource(const Offer& offer, const std::string& name)
   return value;
 }
 
-} // namespace mesos
+} // namespace mesos {
 
 #endif // __EXAMPLES_UTILS_HPP__

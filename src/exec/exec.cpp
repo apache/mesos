@@ -469,7 +469,7 @@ protected:
       stopwatch.start();
     }
 
-    // TODO: Pass an argument to shutdown to tell it this is abnormal?
+    // TODO(benh): Pass an argument to shutdown to tell it this is abnormal?
     executor->shutdown(driver);
 
     VLOG(1) << "Executor::shutdown took " << stopwatch.elapsed();

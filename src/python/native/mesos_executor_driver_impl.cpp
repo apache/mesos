@@ -345,4 +345,5 @@ PyObject* MesosExecutorDriverImpl_sendFrameworkMessage(
   return PyInt_FromLong(status); // Sets an exception if creating the int fails
 }
 
-}} /* namespace mesos { namespace python { */
+} // namespace python {
+} // namespace mesos {

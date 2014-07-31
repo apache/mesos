@@ -96,8 +96,8 @@ extern const std::string MASTER_INFO_LABEL;
 // TODO(vinod): Master detector/contender should use this timeout.
 extern const Duration ZOOKEEPER_SESSION_TIMEOUT;
 
-} // namespace mesos {
-} // namespace internal {
 } // namespace master {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __MASTER_CONSTANTS_HPP__

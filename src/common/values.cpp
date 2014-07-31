@@ -191,7 +191,7 @@ static void add(Value::Ranges* result, int64_t begin, int64_t end)
   range->set_end(end);
 }
 
-}
+} // namespace ranges {
 
 
 // Coalesce the given 'range' into already coalesced 'ranges'.
@@ -588,4 +588,4 @@ bool operator == (const Value::Text& left, const Value::Text& right)
   return left.value() == right.value();
 }
 
-} // namespace mesos
+} // namespace mesos {

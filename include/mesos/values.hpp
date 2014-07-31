@@ -61,9 +61,9 @@ namespace values {
 
 Try<Value> parse(const std::string& text);
 
-} // namespace values
-} // namespace internal
+} // namespace values {
+} // namespace internal {
 
-} // namespace mesos
+} // namespace mesos {
 
 #endif // __VALUES_HPP__

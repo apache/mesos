@@ -41,6 +41,6 @@ Repairer::~Repairer()
 }
 
 
-} // namespace mesos {
-} // namespace internal {
 } // namespace master {
+} // namespace internal {
+} // namespace mesos {

@@ -136,5 +136,5 @@ Result<net::IP> defaultGateway()
   return None();
 }
 
-} // namespace route
-} // namespace routing
+} // namespace route {
+} // namespace routing {

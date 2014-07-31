@@ -365,6 +365,6 @@ inline std::ostream& operator << (
 
 } // namespace log {
 } // namespace internal {
-} // namespace mesos
+} // namespace mesos {
 
 #endif // __TYPE_UTILS_HPP__

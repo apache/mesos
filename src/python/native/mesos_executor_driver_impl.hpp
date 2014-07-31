@@ -99,6 +99,7 @@ PyObject* MesosExecutorDriverImpl_sendFrameworkMessage(
     MesosExecutorDriverImpl* self,
     PyObject* args);
 
-}} /* namespace mesos { namespace python { */
+} // namespace python {
+} // namespace mesos {
 
 #endif /* MESOS_EXECUTOR_DRIVER_IMPL_HPP */

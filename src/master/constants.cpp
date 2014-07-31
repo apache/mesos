@@ -42,6 +42,6 @@ const Duration WHITELIST_WATCH_INTERVAL = Seconds(5);
 const uint32_t TASK_LIMIT = 100;
 const std::string MASTER_INFO_LABEL = "info";
 const Duration ZOOKEEPER_SESSION_TIMEOUT = Seconds(10);
-} // namespace mesos {
-} // namespace internal {
 } // namespace master {
+} // namespace internal {
+} // namespace mesos {

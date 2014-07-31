@@ -41,9 +41,8 @@ inline std::string WSTRINGIFY(int status)
   return message;
 }
 
-} // namespace status
-} // namespace internal
-} // namespace mesos
+} // namespace status {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __STATUS_UTILS_HPP__
-
