@@ -1777,16 +1777,16 @@ class _NamespaceInfo(_BlockInfo):
     if self.name:
       # Named namespace
       if not Match((r'};*\s*(//|/\*).*\bnamespace\s+' + re.escape(self.name) +
-                    r'[\*/\.\\\s]*$'),
+                    r'[\*/\.\\\s]* {$'),
                    line):
         error(filename, linenum, 'readability/namespace', 5,
-              'Namespace should be terminated with "// namespace %s"' %
+              'Namespace should be terminated with "// namespace %s {"' %
               self.name)
     else:
       # Anonymous namespace
-      if not Match(r'};*\s*(//|/\*).*\bnamespace[\*/\.\\\s]*$', line):
+      if not Match(r'};*\s*(//|/\*).*\bnamespace[\*/\.\\\s]* {$', line):
         error(filename, linenum, 'readability/namespace', 5,
-              'Namespace should be terminated with "// namespace"')
+              'Namespace should be terminated with "// namespace {"')
 
 
 class _PreprocessorInfo(object):

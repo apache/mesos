@@ -1,5 +1,5 @@
---- support/cpplint.py.orig	2014-05-01 18:17:51.480890494 -0700
-+++ support/cpplint.py	2014-05-01 18:20:52.068887876 -0700
+--- support/cpplint.py.orig	2014-07-16 15:35:35.000000000 -0700
++++ support/cpplint.py	2014-07-16 15:57:34.000000000 -0700
 @@ -28,6 +28,8 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -27,6 +27,27 @@
  
  def ParseNolintSuppressions(filename, raw_line, linenum, error):
    """Updates the global list of error-suppressions.
+@@ -1775,16 +1777,16 @@
+     if self.name:
+       # Named namespace
+       if not Match((r'};*\s*(//|/\*).*\bnamespace\s+' + re.escape(self.name) +
+-                    r'[\*/\.\\\s]*$'),
++                    r'[\*/\.\\\s]* {$'),
+                    line):
+         error(filename, linenum, 'readability/namespace', 5,
+-              'Namespace should be terminated with "// namespace %s"' %
++              'Namespace should be terminated with "// namespace %s {"' %
+               self.name)
+     else:
+       # Anonymous namespace
+-      if not Match(r'};*\s*(//|/\*).*\bnamespace[\*/\.\\\s]*$', line):
++      if not Match(r'};*\s*(//|/\*).*\bnamespace[\*/\.\\\s]* {$', line):
+         error(filename, linenum, 'readability/namespace', 5,
+-              'Namespace should be terminated with "// namespace"')
++              'Namespace should be terminated with "// namespace {"')
+
+
+ class _PreprocessorInfo(object):
 @@ -1993,11 +1995,9 @@
        if access_match:
          classinfo.access = access_match.group(2)

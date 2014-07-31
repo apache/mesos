@@ -12,6 +12,8 @@ import sys
 active_rules = ['build/class',
                 'build/deprecated',
                 'build/endif_comment',
+                'readability/todo',
+                'readability/namespace',
                 'runtime/vlog',
                 'whitespace/blank_line',
                 'whitespace/comma',
