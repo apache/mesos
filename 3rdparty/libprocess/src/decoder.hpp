@@ -18,7 +18,8 @@
 // TODO(bmahler): Upgrade our http_parser to the latest version.
 namespace process {
 
-// TODO: Make DataDecoder abstract and make RequestDecoder a concrete subclass.
+// TODO(benh): Make DataDecoder abstract and make RequestDecoder a
+// concrete subclass.
 class DataDecoder
 {
 public:
@@ -196,7 +197,7 @@ private:
 
       if (url.field_set & (1 << UF_QUERY)) {
         decoder->query.append(
-            data + url.field_data[UF_QUERY].off, 
+            data + url.field_data[UF_QUERY].off,
             url.field_data[UF_QUERY].len);
       }
     }

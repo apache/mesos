@@ -72,7 +72,8 @@ std::vector<T> convert(const google::protobuf::RepeatedPtrField<T>& items)
   return result;
 }
 
-}} // namespace google { namespace protobuf {
+} // namespace protobuf {
+} // namespace google {
 
 
 template <typename T>

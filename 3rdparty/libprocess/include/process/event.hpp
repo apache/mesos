@@ -200,6 +200,6 @@ private:
   TerminateEvent& operator = (const TerminateEvent&);
 };
 
-} // namespace event {
+} // namespace process {
 
 #endif // __PROCESS_EVENT_HPP__

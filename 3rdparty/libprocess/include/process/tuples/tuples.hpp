@@ -149,7 +149,8 @@ struct deserializer
 };
 
 
-}} // namespace process { namespace tuples {
+} // namespace tuples {
+} // namespace process {
 
 
 #endif // __PROCESS_TUPLES_HPP__

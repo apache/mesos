@@ -113,7 +113,7 @@ private:
   memory::shared_ptr<Data> data;
 };
 
-} // namespace metrics
-} // namespace process
+} // namespace metrics {
+} // namespace process {
 
 #endif // __PROCESS_METRICS_TIMER_HPP__

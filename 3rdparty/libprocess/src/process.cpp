@@ -2820,7 +2820,7 @@ void ProcessManager::cleanup(ProcessBase* process)
       CHECK(process->events.empty());
 
       processes.erase(process->pid.id);
- 
+
       // Lookup gate to wake up waiting threads.
       map<ProcessBase*, Gate*>::iterator it = gates.find(process);
       if (it != gates.end()) {
@@ -3009,7 +3009,7 @@ void ProcessManager::enqueue(ProcessBase* process)
     CHECK(find(runq.begin(), runq.end(), process) == runq.end());
     runq.push_back(process);
   }
-    
+
   // Wake up the processing thread if necessary.
   gate->open();
 }
@@ -4073,7 +4073,7 @@ void ____splice(
 }
 #endif // __cplusplus >= 201103L
 
-} // namespace internal
+} // namespace internal {
 
 
 Future<string> read(int fd)
