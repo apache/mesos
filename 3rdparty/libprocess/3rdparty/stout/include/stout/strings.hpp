@@ -308,6 +308,6 @@ inline std::string upper(const std::string& s)
   return result;
 }
 
-} // namespaces strings {
+} // namespace strings {
 
 #endif // __STOUT_STRINGS_HPP__

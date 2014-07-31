@@ -32,6 +32,6 @@ using std::tr1::make_tuple;
 using std::tr1::get;
 #endif // __cplusplus >= 201103L
 
-} // namespace tuples
+} // namespace tuples {
 
 #endif // __STOUT_TUPLE_HPP__
