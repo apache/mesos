@@ -1580,7 +1580,7 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   }
 
   // Expect no files in bind mount directory.
-  Try<list<string>> files = os::ls(slave::BIND_MOUNT_ROOT);
+  Try<list<string> > files = os::ls(slave::BIND_MOUNT_ROOT);
   ASSERT_SOME(files);
   EXPECT_EQ(0u, files.get().size());
 
