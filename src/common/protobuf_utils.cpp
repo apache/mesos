@@ -117,6 +117,6 @@ MasterInfo createMasterInfo(const process::UPID& pid)
 }
 
 
-} // namespace protobuf
+} // namespace protobuf {
 } // namespace internal {
 } // namespace mesos {
