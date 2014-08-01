@@ -20,15 +20,16 @@ import os
 import sys
 import time
 
-import mesos
-import mesos_pb2
+import mesos.interface
+from mesos.interface import mesos_pb2
+import mesos.native
 
 TOTAL_TASKS = 5
 
 TASK_CPUS = 1
 TASK_MEM = 32
 
-class TestScheduler(mesos.Scheduler):
+class TestScheduler(mesos.interface.Scheduler):
     def __init__(self, executor):
         self.executor = executor
         self.taskData = {}
@@ -153,7 +154,7 @@ if __name__ == "__main__":
 
         framework.principal = os.getenv("DEFAULT_PRINCIPAL")
 
-        driver = mesos.MesosSchedulerDriver(
+        driver = mesos.native.MesosSchedulerDriver(
             TestScheduler(executor),
             framework,
             sys.argv[1],
@@ -161,7 +162,7 @@ if __name__ == "__main__":
     else:
         framework.principal = "test-framework-python"
 
-        driver = mesos.MesosSchedulerDriver(
+        driver = mesos.native.MesosSchedulerDriver(
             TestScheduler(executor),
             framework,
             sys.argv[1])

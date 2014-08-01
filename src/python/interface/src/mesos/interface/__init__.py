@@ -23,26 +23,13 @@
 from __future__ import print_function
 
 import sys
-import _mesos
-
-
-# Alias the implementations from _mesos.
-
-# TODO(wickman): Make Mesos{Scheduler,Executor}DriverImpl inherit from the
-# superclasses defined here.
-MesosSchedulerDriver = _mesos.MesosSchedulerDriverImpl
-MesosExecutorDriver = _mesos.MesosExecutorDriverImpl
-
 
 __all__ = (
   'Executor',
   'ExecutorDriver'
-  'MesosExecutorDriver',
-  'MesosSchedulerDriver',
   'Scheduler',
   'SchedulerDriver',
 )
-
 
 class Scheduler(object):
   """
@@ -152,14 +139,13 @@ class SchedulerDriver(object):
 
   def stop(self, failover=False):
     """
-      Stops the scheduler driver. If the 'failover' flag is set to
-      false then it is expected that this framework will never
-      reconnect to Mesos. So Mesos will unregister the framework
-      and shutdown all its tasks and executors. If 'failover' is true,
-      all executors and tasks will remain running (for some framework
-      specific failover timeout) allowing the scheduler to reconnect
-      (possibly in the same process, or from a different process, for
-      example, on a different machine).
+      Stops the scheduler driver. If the 'failover' flag is set to False
+      then it is expected that this framework will never reconnect to Mesos
+      and all of its executors and tasks can be terminated.  Otherwise, all
+      executors and tasks will remain running (for some framework specific
+      failover timeout) allowing the scheduler to reconnect (possibly in the
+      same process, or from a different process, for example, on a different
+      machine.)
     """
 
   def abort(self):

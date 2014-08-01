@@ -822,6 +822,31 @@ There are two possible workarounds for this issue:
 -------------------------------------------------------------------])])
         ])
 
+  AC_MSG_CHECKING([for an old installation of the Mesos egg (before 0.20.0)])
+
+  $PYTHON -c "import mesos; mesos._mesos" &> /dev/null
+
+  if test $? = 0; then
+    pymodulelocation=`python -c \
+      "import mesos; import os; print os.path.dirname(mesos.__path__[[0]])" \
+      2> /dev/null`
+  fi
+
+  AS_IF([test -z "$pymodulelocation"],
+        [AC_MSG_RESULT([no])],
+        [AC_MSG_ERROR([yes
+-------------------------------------------------------------------
+It appears that you currently have a native Python egg installed
+from a version before 0.20.0. This conflicts with the egg in this
+version.
+
+There are two possible workarounds for this issue:
+    1. Disable Python bindings by configuring with --disable-python.
+    2. Uninstall the legacy egg from your Python installation. This
+       might require you doing:
+         rm -rf $pymodulelocation
+-------------------------------------------------------------------])])
+
   # Determine how the generated Python egg's will get named, used in
   # the Makefile to keep the targets from being rerun.
   PYTHON_EGG_POSTFIX=`$PYTHON -c \
@@ -841,6 +866,9 @@ There are two possible workarounds for this issue:
   AC_CONFIG_FILES([src/examples/python/test-containerizer],
                   [chmod +x src/examples/python/test-containerizer])
   AC_CONFIG_FILES([src/python/setup.py])
+  AC_CONFIG_FILES([src/python/interface/setup.py])
+  AC_CONFIG_FILES([src/python/native/ext_modules.py])
+  AC_CONFIG_FILES([src/python/native/setup.py])
 
   # When clang is being used, make sure that the distutils python-
   # config cflags extraction does not cause build errors (MESOS-1079).

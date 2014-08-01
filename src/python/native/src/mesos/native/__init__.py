@@ -14,25 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config = {
-    'name': 'mesos',
-    'version': '@PACKAGE_VERSION@',
-    'description': 'Python bindings for mesos',
-    'author': 'Apache Mesos',
-    'author_email': 'mesos@apache.com',
-    'url': 'http://pypi.python.org/pypi/mesos',
-    'namespace_packages': [ 'mesos' ],
-    'packages': [ 'mesos' ],
-    'package_dir': { '': 'src' },
-    'install_requires': [
-        'mesos.interface',
-        'mesos.native'
-    ],
-    'license': 'Apache 2.0',
-    'keywords': 'mesos',
-    'classifiers': [ ]
-}
+from ._mesos import MesosExecutorDriverImpl
+from ._mesos import MesosSchedulerDriverImpl
 
-from setuptools import setup
-
-setup(**config)
+MesosExecutorDriver = MesosExecutorDriverImpl
+MesosSchedulerDriver = MesosSchedulerDriverImpl

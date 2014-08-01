@@ -5,6 +5,11 @@ layout: documentation
 # Upgrading Mesos
 This document serves as a guide for users who wish to upgrade an existing mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
+## Upgrading from 0.19.x to 0.20.x.
+
+* Python bindings have changed their structure. There are now sub-modules which allow you to use either the interfaces and/or the native driver.
+    - `import mesos.native` for the native drivers
+    - `import mesos.interface` for the stub implementations and protobufs
 
 ## Upgrading from 0.18.x to 0.19.x.
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import mesos
-import mesos_pb2
+import mesos.interface
+import mesos.native
+from mesos.interface import mesos_pb2
 import os
 import sys
 import time
@@ -36,7 +37,7 @@ def mpiexec():
   call([MPICH2PATH + 'mpdallexit', MPD_PID])
 
 
-class MPIScheduler(mesos.Scheduler):
+class MPIScheduler(mesos.interface.Scheduler):
 
   def __init__(self, options, ip, port):
     self.mpdsLaunched = 0
@@ -209,7 +210,7 @@ if __name__ == "__main__":
   else:
     framework.name = "MPI: %s" % MPI_PROGRAM[0]
 
-  driver = mesos.MesosSchedulerDriver(
+  driver = mesos.native.MesosSchedulerDriver(
     scheduler,
     framework,
     args[0])

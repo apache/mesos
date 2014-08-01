@@ -40,10 +40,9 @@ import sys
 import struct
 import time
 import google
-import mesos
-import mesos_pb2
-import containerizer_pb2
 
+from mesos.interface import containerizer_pb2
+from mesos.interface import mesos_pb2
 
 # Render a string describing how to use this script.
 def use(argv0, methods):

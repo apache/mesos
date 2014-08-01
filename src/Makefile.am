@@ -135,8 +135,8 @@ JAVA_PROTOS =								\
   java/generated/org/apache/mesos/containerizer/Protos.java
 
 PYTHON_PROTOS =								\
-  python/src/mesos_pb2.py						\
-  python/src/containerizer_pb2.py
+  python/interface/src/mesos/interface/mesos_pb2.py			\
+  python/interface/src/mesos/interface/containerizer_pb2.py
 
 BUILT_SOURCES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
 CLEANFILES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
@@ -198,19 +198,19 @@ java/generated/org/apache/mesos/scheduler/Protos.java: $(SCHEDULER_PROTO)
 	$(MKDIR_P)  $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
-python/src/mesos_pb2.py: $(MESOS_PROTO)
+python/interface/src/mesos/interface/mesos_pb2.py: $(MESOS_PROTO)
 	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --python_out=python/src $^
+	$(PROTOC) $(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
 
-python/src/containerizer_pb2.py: $(CONTAINERIZER_PROTO)
+python/interface/src/mesos/interface/containerizer_pb2.py: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/containerizer		\
-		$(PROTOCFLAGS) --python_out=python/src $^
+		$(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
 
-python/src/scheduler_pb2.py: $(SCHEDULER_PROTO)
+python/interface/src/mesos/interface/scheduler_pb2.py: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/scheduler		\
-		$(PROTOCFLAGS) --python_out=python/src $^
+		$(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
 
 # We even use a convenience library for most of Mesos so that we can
 # exclude third party libraries so setuptools/distribute can build a
@@ -892,16 +892,24 @@ PHONY_TARGETS += clean-java
 
 # Python files listed outside HAS_PYTHON so they are included with the
 # distribution unconditionally.
-EXTRA_DIST += python/src/mesos.py					\
-	      python/native/mesos_executor_driver_impl.cpp		\
-	      python/native/mesos_executor_driver_impl.hpp		\
-	      python/native/mesos_scheduler_driver_impl.cpp		\
-	      python/native/mesos_scheduler_driver_impl.hpp		\
-	      python/native/module.cpp python/native/module.hpp		\
-	      python/native/proxy_executor.cpp				\
-	      python/native/proxy_executor.hpp				\
-	      python/native/proxy_scheduler.cpp				\
-	      python/native/proxy_scheduler.hpp
+PYTHON_SOURCE =									\
+	python/src/mesos/__init__.py						\
+	python/interface/src/mesos/__init__.py					\
+	python/interface/src/mesos/interface/__init__.py			\
+	python/native/src/mesos/__init__.py					\
+	python/native/src/mesos/native/__init__.py				\
+	python/native/src/mesos/native/mesos_executor_driver_impl.cpp		\
+	python/native/src/mesos/native/mesos_executor_driver_impl.hpp		\
+	python/native/src/mesos/native/mesos_scheduler_driver_impl.cpp		\
+	python/native/src/mesos/native/mesos_scheduler_driver_impl.hpp		\
+	python/native/src/mesos/native/module.cpp				\
+	python/native/src/mesos/native/module.hpp				\
+	python/native/src/mesos/native/proxy_executor.cpp			\
+	python/native/src/mesos/native/proxy_executor.hpp			\
+	python/native/src/mesos/native/proxy_scheduler.cpp			\
+	python/native/src/mesos/native/proxy_scheduler.hpp
+
+EXTRA_DIST += $(PYTHON_SOURCE)
 
 if HAS_PYTHON
 # Used for building Python eggs.
@@ -921,7 +929,7 @@ $(PROTOBUF_EGG):
 
 CLEANFILES += $(PROTOBUF_EGG)
 
-# This builds a Python egg against libmesos_no_3rdparty.a that is
+# This builds the mesos.native egg against libmesos_no_3rdparty.a that is
 # self-contained. It currently depends on the libraries in 3rdparty
 # being built as .a's. (If this is changed, the setup.py will need to
 # be edited).
@@ -936,43 +944,39 @@ CLEANFILES += $(PROTOBUF_EGG)
 # system versions of our dependencies (since we won't be able to
 # create a standalone egg anyways).
 
-MESOS_EGG = python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
+PHONY_TARGETS += $(PYTHON_SOURCE)
 
-$(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py		\
-              $(PYTHON_PROTOS) libmesos_no_3rdparty.la			\
-              $(PROTOBUF_EGG)
-	@echo "Building Mesos Python egg ..."
-	@if test "$(top_srcdir)" != "$(top_builddir)"; then		\
-	  $(MKDIR_P) python/src;					\
-	  cp -pf $(srcdir)/python/src/mesos.py python/src;		\
-	fi
-	@LIBS="$(LIBS)" CC="$(CC)" CXX="$(CXX)"				\
-	CPPFLAGS="$(PYTHON_CPPFLAGS)" CFLAGS="$(PYTHON_CFLAGS)"		\
-	LDFLAGS="$(PYTHON_LDFLAGS)"					\
-	PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) python/setup.py bdist_egg
+$(PYTHON_SOURCE):
+	test "$(top_srcdir)" = "$(top_builddir)" ||				\
+		($(MKDIR_P) $(@D) && cp -pf $(srcdir)/$@ $@)
 
-CLEANFILES += $(MESOS_EGG) python/build/temp.*/native/*.o python/build/lib.*/*
+MESOS_EGGS =										\
+	python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg		\
+	python/interface/dist/mesos.interface-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg	\
+	python/native/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
+
+$(MESOS_EGGS):									\
+		$(PYTHON_PROTOS)						\
+		$(PYTHON_SOURCE)						\
+		libmesos_no_3rdparty.la						\
+		$(PROTOBUF_EGG)
+	@cd `echo $@ | awk -F"dist" '{print $$1}'` &&				\
+	LIBS="$(LIBS)" CC="$(CC)" CXX="$(CXX)"					\
+	CFLAGS="$(PYTHON_CFLAGS)" CPPFLAGS="$(PYTHON_CPPFLAGS)"			\
+	LDFLAGS="$(PYTHON_LDFLAGS)"						\
+	PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) setup.py bdist_egg
+
+CLEANFILES += $(MESOS_EGGS) python/*/build python/*/dist $(PYTHON_SOURCE)
 
 # Make sure the egg gets built via 'make all'.
-all-local: $(MESOS_EGG)
+all-local: $(MESOS_EGGS)
 endif # HAS_PYTHON
 
-# Note that to clean up the copied Python files we have to 'chmod u+w
-# python/native' because creating a distribution can eliminate write
-# permissions for the owner which are conserved even after we 'cp -p'
-# so we won't be able to delete the files until we update permissions.
-#
-# We remove mesos-*.egg here to make sure any older versions of the
-# egg or versions for different architectures are removed.
 clean-python:
-	test "$(top_srcdir)" = "$(top_builddir)" ||			\
-	  (chmod -R u+w python/native;					\
-	   rm -rf python/src/mesos.py python/native)
-	-rm -rf python/src/mesos.egg-info python/build
-	-rm -f python/dist/mesos-*.egg
+	find python -name "build" -o -name "dist" -o -name "*.pyc"		\
+		-o -name "*.egg-info" | xargs rm -rf
 
 PHONY_TARGETS += clean-python
-
 
 # Test (make check) binaries.
 check_PROGRAMS += low-level-scheduler-libprocess

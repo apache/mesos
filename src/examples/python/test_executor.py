@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,10 +20,11 @@ import sys
 import threading
 import time
 
-import mesos
-import mesos_pb2
+import mesos.interface
+from mesos.interface import mesos_pb2
+import mesos.native
 
-class MyExecutor(mesos.Executor):
+class MyExecutor(mesos.interface.Executor):
     def launchTask(self, driver, task):
         # Create a thread to run the task. Tasks should always be run in new
         # threads or processes, rather than inside launchTask itself.
@@ -54,5 +55,5 @@ class MyExecutor(mesos.Executor):
 
 if __name__ == "__main__":
     print "Starting executor"
-    driver = mesos.MesosExecutorDriver(MyExecutor())
+    driver = mesos.native.MesosExecutorDriver(MyExecutor())
     sys.exit(0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1)

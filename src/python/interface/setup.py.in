@@ -15,19 +15,16 @@
 # limitations under the License.
 
 config = {
-    'name': 'mesos',
+    'name': 'mesos.interface',
     'version': '@PACKAGE_VERSION@',
-    'description': 'Python bindings for mesos',
+    'description': 'Mesos interfaces',
     'author': 'Apache Mesos',
-    'author_email': 'mesos@apache.com',
-    'url': 'http://pypi.python.org/pypi/mesos',
+    'author_email': 'dev@mesos.apache.org',
+    'url': 'http://pypi.python.org/pypi/mesos.interface',
     'namespace_packages': [ 'mesos' ],
-    'packages': [ 'mesos' ],
+    'packages': [ 'mesos', 'mesos.interface' ],
     'package_dir': { '': 'src' },
-    'install_requires': [
-        'mesos.interface',
-        'mesos.native'
-    ],
+    'install_requires': [ 'protobuf>=2.5.0,<3' ],
     'license': 'Apache 2.0',
     'keywords': 'mesos',
     'classifiers': [ ]

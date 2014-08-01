@@ -79,7 +79,7 @@ PyMODINIT_FUNC init_mesos(void)
   PyEval_InitThreads();
 
   // Import the mesos_pb2 module (on which we depend for protobuf classes)
-  mesos_pb2 = PyImport_ImportModule("mesos_pb2");
+  mesos_pb2 = PyImport_ImportModule("mesos.interface.mesos_pb2");
   if (mesos_pb2 == NULL)
     return;
 
