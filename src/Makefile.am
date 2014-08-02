@@ -200,7 +200,8 @@ java/generated/org/apache/mesos/scheduler/Protos.java: $(SCHEDULER_PROTO)
 
 python/interface/src/mesos/interface/mesos_pb2.py: $(MESOS_PROTO)
 	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
+	$(PROTOC) -I$(top_srcdir)/include/mesos				\
+		$(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
 
 python/interface/src/mesos/interface/containerizer_pb2.py: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
