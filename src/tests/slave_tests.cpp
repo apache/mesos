@@ -299,16 +299,15 @@ TEST_F(SlaveTest, MesosExecutorWithOverride)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  // Expect the launch but don't do anything as we'll be launching the
-  // executor ourselves manually below.
+  // Expect the launch and just assume it was sucessful since we'll be
+  // launching the executor ourselves manually below.
   Future<Nothing> launch;
   EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&launch),
-                    Return(Future<bool>())));
+                    Return(true)));
 
-  // Expect wait after launch is called. wait() will fail if not
-  // intercepted here as the container will never be registered within
-  // the TestContainerizer when launch() is intercepted above.
+  // Expect wait after launch is called but don't return anything
+  // until after we've finished everything below.
   Future<Nothing> wait;
   process::Promise<containerizer::Termination> promise;
   EXPECT_CALL(containerizer, wait(_))
@@ -363,6 +362,8 @@ TEST_F(SlaveTest, MesosExecutorWithOverride)
 
   AWAIT_READY(status2);
   ASSERT_EQ(TASK_FINISHED, status2.get().state());
+
+  AWAIT_READY(wait);
 
   containerizer::Termination termination;
   termination.set_killed(false);

@@ -3211,11 +3211,6 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
     .WillOnce(DoAll(FutureSatisfy(&launch),
                     Return(Future<bool>())));
 
-  // Ensure that wait doesn't complete so that containerizer doesn't
-  // return a failure on 'wait' due to the pending launch.
-  EXPECT_CALL(*containerizer1, wait(_))
-    .WillOnce(Return(Future<containerizer::Termination>()));
-
   // No status update should be sent for now.
   EXPECT_CALL(sched, statusUpdate(_, _))
     .Times(0);
