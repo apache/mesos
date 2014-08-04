@@ -651,8 +651,8 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
     char* buffer = new char[size];
 
     if (getpwnam_r(user.get().c_str(), &passwd, buffer, size, &result) == 0) {
-      // getpwnam_r will return 0 but set result == NULL if the user
-      // is not found.
+      // The usual interpretation of POSIX is that getpwnam_r will
+      // return 0 but set result == NULL if the user is not found.
       if (result == NULL) {
         delete[] buffer;
         return None();
@@ -662,6 +662,17 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
       delete[] buffer;
       return uid;
     } else {
+      // RHEL7 (and possibly other systems) will return non-zero and
+      // set one of the following errors for "The given name or uid
+      // was not found." See 'man getpwnam_r'. We only check for the
+      // errors explicitly listed, and do not consider the ellipsis.
+      if (errno == ENOENT ||
+          errno == ESRCH ||
+          errno == EBADF ||
+          errno == EPERM) {
+        return None();
+      }
+
       if (errno != ERANGE) {
         delete[] buffer;
         return ErrnoError("Failed to get username information");
@@ -695,8 +706,8 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
     char* buffer = new char[size];
 
     if (getpwnam_r(user.get().c_str(), &passwd, buffer, size, &result) == 0) {
-      // getpwnam_r will return 0 but set result == NULL if the user
-      // is not found.
+      // The usual interpretation of POSIX is that getpwnam_r will
+      // return 0 but set result == NULL if the group is not found.
       if (result == NULL) {
         delete[] buffer;
         return None();
@@ -706,6 +717,17 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
       delete[] buffer;
       return gid;
     } else {
+      // RHEL7 (and possibly other systems) will return non-zero and
+      // set one of the following errors for "The given name or uid
+      // was not found." See 'man getpwnam_r'. We only check for the
+      // errors explicitly listed, and do not consider the ellipsis.
+      if (errno == ENOENT ||
+          errno == ESRCH ||
+          errno == EBADF ||
+          errno == EPERM) {
+        return None();
+      }
+
       if (errno != ERANGE) {
         delete[] buffer;
         return ErrnoError("Failed to get username information");
