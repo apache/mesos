@@ -345,8 +345,15 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 
 #ifdef WITH_NETWORK_ISOLATOR
   if (user.get() == "root" && routing::check().isSome()) {
-    flags.isolation += ",network/port_mapping";
-    flags.private_resources = "ports:" + slave::DEFAULT_EPHEMERAL_PORTS;
+    flags.isolation = strings::join(
+        ",",
+        flags.isolation,
+        "network/port_mapping");
+
+    flags.resources = strings::join(
+        ";",
+        flags.resources.get(),
+        "ephemeral_ports:" + slave::DEFAULT_EPHEMERAL_PORTS);
   }
 #endif
 

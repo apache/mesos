@@ -292,10 +292,6 @@ message SlaveInfo {
   optional SlaveID id = 6;
   optional bool checkpoint = 7 [default = false];
 
-  // Resources that are managed locally by the slave, and not exposed
-  // to master and frameworks.
-  repeated Resource private_resources = 9;
-
   // Deprecated!
   optional string webui_hostname = 2;
   optional int32 webui_port = 4 [default = 8081];

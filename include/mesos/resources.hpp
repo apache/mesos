@@ -188,8 +188,13 @@ public:
   Option<double> cpus() const;
   Option<Bytes> mem() const;
   Option<Bytes> disk() const;
+
   // TODO(vinod): Provide a Ranges abstraction.
   Option<Value::Ranges> ports() const;
+
+  // TODO(jieyu): Consider returning an EphemeralPorts abstraction
+  // which holds the ephemeral ports allocation logic.
+  Option<Value::Ranges> ephemeral_ports() const;
 
   typedef google::protobuf::RepeatedPtrField<Resource>::iterator
   iterator;

@@ -75,15 +75,14 @@ public:
   // exhausting available ephemeral ports).
   Try<Interval<uint16_t> > allocate();
 
-  // Mark an ephemeral port range allocated. This is used in
-  // 'recover'.
+  // Mark the specified ephemeral port range as allocated.
   void allocate(const Interval<uint16_t>& ports);
 
-  // Deallocate an ephemeral port range.
+  // Deallocate the specified ephemeral port range.
   void deallocate(const Interval<uint16_t>& ports);
 
-  // Return true if the port range 'ports' is managed by the
-  // allocator, regardless it has been allocated to use or not.
+  // Return true if the specified ephemeral port range is managed by
+  // the allocator, regardless it has been allocated to use or not.
   bool isManaged(const Interval<uint16_t>& ports)
   {
     return (free + used).contains(ports);

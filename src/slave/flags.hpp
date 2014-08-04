@@ -289,15 +289,6 @@ public:
         "isolator. This number has to be a power of 2.\n",
         DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER);
 
-    add(&Flags::private_resources,
-        "private_resources",
-        "The resources that will be manged by the slave locally, and not\n"
-        "exposed to Mesos master and frameworks. It shares the same format\n"
-        "as the 'resources' flag. One example of such type of resources\n"
-        "is ephemeral ports when port mapping network isolator is enabled.\n"
-        "Use 'ports:[x-y]' to specify the ephemeral ports that will be\n"
-        "locally managed.\n");
-
     add(&Flags::eth0_name,
         "eth0_name",
         "The name of the public network interface (e.g., eth0). If it is\n"
@@ -350,7 +341,6 @@ public:
   std::string docker;
 #ifdef WITH_NETWORK_ISOLATOR
   uint16_t ephemeral_ports_per_container;
-  Option<std::string> private_resources;
   Option<std::string> eth0_name;
   Option<std::string> lo_name;
 #endif

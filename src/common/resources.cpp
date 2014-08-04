@@ -517,6 +517,27 @@ Option<Value::Ranges> Resources::ports() const
 }
 
 
+Option<Value::Ranges> Resources::ephemeral_ports() const
+{
+  Value::Ranges total;
+  bool found = false;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.name() == "ephemeral_ports" &&
+        resource.type() == Value::RANGES) {
+      total += resource.ranges();
+      found = true;
+    }
+  }
+
+  if (found) {
+    return total;
+  }
+
+  return None();
+}
+
+
 Try<Resource> Resources::parse(
     const string& name,
     const string& text,

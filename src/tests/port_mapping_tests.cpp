@@ -216,7 +216,7 @@ protected:
 
     port = 31001;
 
-    // errorPort is not in resources and private_resources.
+    // 'errorPort' is not in 'ports' or 'ephemeral_ports'.
     errorPort = 32502;
 
     container1Ready = path::join(os::getcwd(), "container1_ready");
@@ -237,9 +237,12 @@ protected:
     slave::Flags flags;
 
     flags.launcher_dir = path::join(tests::flags.build_dir, "src");
-    flags.resources = "cpus:2;mem:1024;disk:1024;ports:[31000-32000]";
+
+    flags.resources =
+      ("cpus:2;mem:1024;disk:1024;ports:[31000-32000];ephemeral_ports:" +
+       slave::DEFAULT_EPHEMERAL_PORTS);
+
     flags.isolation = "network/port_mapping";
-    flags.private_resources = "ports:" + slave::DEFAULT_EPHEMERAL_PORTS;
 
     return flags;
   }
@@ -1286,7 +1289,6 @@ TEST_F(PortMappingMesosTest, ROOT_RecoverMixedContainersTest)
   // slave.
   isolations.erase(it);
   flagsNoNetworkIsolator.isolation = strings::join(",", isolations);
-  flagsNoNetworkIsolator.private_resources = "";
 
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);

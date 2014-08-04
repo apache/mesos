@@ -644,10 +644,6 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
         stringify(checkCommandIp.get()));
   }
 
-  // Get 'ports' resource from 'resources' flag. These ports will be
-  // treated as non-ephemeral ports.
-  IntervalSet<uint16_t> nonEphemeralPorts;
-
   Try<Resources> resources = Resources::parse(
       flags.resources.get(""),
       flags.default_role);
@@ -656,31 +652,25 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     return Error("Failed to parse --resources: " + resources.error());
   }
 
+  // Get 'ports' resource from 'resources' flag. These ports will be
+  // treated as non-ephemeral ports.
+  IntervalSet<uint16_t> nonEphemeralPorts;
   if (resources.get().ports().isSome()) {
     nonEphemeralPorts = getIntervalSet(resources.get().ports().get());
   }
 
-  // Get 'ports' resource from 'private_resources' flag. These ports
+  // Get 'ephemeral_ports' resource from 'resources' flag. These ports
   // will be allocated to each container as ephemeral ports.
   IntervalSet<uint16_t> ephemeralPorts;
-
-  resources = Resources::parse(
-      flags.private_resources.get(""),
-      flags.default_role);
-
-  if (resources.isError()) {
-    return Error("Failed to parse --private_resources: " + resources.error());
-  }
-
-  if (resources.get().ports().isSome()) {
-    ephemeralPorts = getIntervalSet(resources.get().ports().get());
+  if (resources.get().ephemeral_ports().isSome()) {
+    ephemeralPorts = getIntervalSet(resources.get().ephemeral_ports().get());
   }
 
   // Each container requires at least one ephemeral port for slave
-  // executor communication. If no 'ports' resource is found, we will
-  // return error.
+  // executor communication. If no 'ephemeral_ports' resource is
+  // found, we will return error.
   if (ephemeralPorts.empty()) {
-    return Error("Private resources do not contain ports");
+    return Error("Ephemeral ports are not specified");
   }
 
   // Sanity check to make sure that the ephemeral ports specified do
@@ -1290,17 +1280,27 @@ Future<Option<CommandInfo> > PortMappingIsolatorProcess::prepare(
     }
   }
 
-  // Determine the ephemeral ports used by this container.
+  // TODO(jieyu): For now, we simply ignore the 'ephemeral_ports'
+  // specified in the executor info. However, this behavior needs to
+  // be changed once the master can make default allocations for
+  // ephemeral ports.
+  if (resources.ephemeral_ports().isSome()) {
+    LOG(WARNING) << "Ignoring the specified ephemeral_ports '"
+                 << resources.ephemeral_ports().get()
+                 << "' for container" << containerId
+                 << " of executor " << executorInfo.executor_id();
+  }
+
+  // Allocate the ephemeral ports used by this container.
   Try<Interval<uint16_t> > ephemeralPorts = ephemeralPortsAllocator->allocate();
   if (ephemeralPorts.isError()) {
     return Failure(
         "Failed to allocate ephemeral ports: " + ephemeralPorts.error());
   }
 
-  infos[containerId] =
-    CHECK_NOTNULL(new Info(nonEphemeralPorts, ephemeralPorts.get()));
+  infos[containerId] = new Info(nonEphemeralPorts, ephemeralPorts.get());
 
-  LOG(INFO) << "Allocated non-ephemeral ports " << nonEphemeralPorts
+  LOG(INFO) << "Using non-ephemeral ports " << nonEphemeralPorts
             << " and ephemeral ports " << ephemeralPorts.get()
             << " for container " << containerId << " of executor "
             << executorInfo.executor_id();
@@ -1603,6 +1603,16 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   if (!infos.contains(containerId)) {
     LOG(WARNING) << "Ignoring update for unknown container " << containerId;
     return Nothing();
+  }
+
+  // TODO(jieyu): For now, we simply ignore the 'ephemeral_ports'
+  // specified in 'resources'. However, this behavior needs to be
+  // changed once the master can make default allocations for
+  // ephemeral ports.
+  if (resources.ephemeral_ports().isSome()) {
+    LOG(WARNING) << "Ignoring the specified ephemeral_ports '"
+                 << resources.ephemeral_ports().get()
+                 << "' for container" << containerId;
   }
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
