@@ -283,6 +283,11 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
+  // Ignore offerRescinded calls. The scheduler might receive it
+  // because the slave might re-register due to ping timeout.
+  EXPECT_CALL(sched, offerRescinded(_, _))
+    .WillRepeatedly(Return());
+
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -499,6 +504,11 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // Ignore offerRescinded calls. The scheduler might receive it
+  // because the slave might re-register due to ping timeout.
+  EXPECT_CALL(sched, offerRescinded(_, _))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
