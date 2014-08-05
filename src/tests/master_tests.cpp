@@ -1721,8 +1721,14 @@ TEST_F(MasterTest, RecoveredSlaveReregisters)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureSatisfy(&registered));
 
+  // Ignore all offer related calls. The scheduler might receive
+  // offerRescinded calls because the slave might re-register due to
+  // ping timeout.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(Return()); // Ignore offers.
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillRepeatedly(Return());
 
   driver.start();
 
