@@ -921,6 +921,11 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
 
   AWAIT_READY(slaveRegisteredMessage);
 
+  // Ensure the slave processes the registration message and schedules
+  // the ping timeout, before we advance the clock.
+  Clock::pause();
+  Clock::settle();
+
   // Advance to the ping timeout to trigger a re-detection and
   // re-registration.
   Future<Nothing> detected = FUTURE_DISPATCH(_, &Slave::detected);
@@ -928,7 +933,6 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  Clock::pause();
   Clock::advance(slave::MASTER_PING_TIMEOUT);
 
   AWAIT_READY(detected);
