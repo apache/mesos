@@ -42,6 +42,9 @@ namespace master {
 // TODO(vinod): Move constants that are only used in flags to
 // 'master/flags.hpp'.
 
+// TODO(jieyu): Use static functions for all the constants. See more
+// details in MESOS-1023.
+
 // Maximum number of slot offers to have outstanding for each framework.
 extern const int MAX_OFFERS_PER_FRAMEWORK;
 

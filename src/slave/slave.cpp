@@ -590,7 +590,9 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
   Option<MasterInfo> latest;
 
   if (_master.isDiscarded()) {
-    LOG(INFO) << "No pings from master received within " << MASTER_PING_TIMEOUT;
+    LOG(INFO) << "No pings from master received within "
+              << MASTER_PING_TIMEOUT();
+
     latest = None();
     master = None();
   } else if (_master.get().isNone()) {
@@ -789,7 +791,7 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
       Timer::cancel(pingTimer);
 
       pingTimer = delay(
-          MASTER_PING_TIMEOUT,
+          MASTER_PING_TIMEOUT(),
           self(),
           &Slave::pingTimeout,
           detection);
@@ -2346,7 +2348,7 @@ void Slave::ping(const UPID& from, const string& body)
   Timer::cancel(pingTimer);
 
   pingTimer = delay(
-      MASTER_PING_TIMEOUT,
+      MASTER_PING_TIMEOUT(),
       self(),
       &Slave::pingTimeout,
       detection);

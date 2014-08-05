@@ -34,6 +34,9 @@ namespace slave {
 // So we've moved these to have external linkage but perhaps in the future
 // we can revert this.
 
+// TODO(jieyu): Use static functions for all the constants. See more
+// details in MESOS-1023.
+
 extern const Duration EXECUTOR_REGISTRATION_TIMEOUT;
 extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 extern const Duration EXECUTOR_REREGISTER_TIMEOUT;
@@ -44,10 +47,6 @@ extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MAX;
 extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;
 extern const Duration RESOURCE_MONITORING_INTERVAL;
-
-// If no pings received within this timeout, then the slave will
-// trigger a re-detection of the master to cause a re-registration.
-extern const Duration MASTER_PING_TIMEOUT;
 
 // Default backoff interval used by the slave to wait before registration.
 extern const Duration REGISTRATION_BACKOFF_FACTOR;
@@ -97,6 +96,10 @@ extern const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER;
 // Default ephemeral port range reserved for the network isolator.
 extern const std::string DEFAULT_EPHEMERAL_PORTS;
 #endif
+
+// If no pings received within this timeout, then the slave will
+// trigger a re-detection of the master to cause a re-registration.
+Duration MASTER_PING_TIMEOUT();
 
 } // namespace slave {
 } // namespace internal {

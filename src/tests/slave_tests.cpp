@@ -933,7 +933,7 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  Clock::advance(slave::MASTER_PING_TIMEOUT);
+  Clock::advance(slave::MASTER_PING_TIMEOUT());
 
   AWAIT_READY(detected);
   AWAIT_READY(slaveReregisteredMessage);
@@ -976,7 +976,7 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  Clock::advance(slave::MASTER_PING_TIMEOUT);
+  Clock::advance(slave::MASTER_PING_TIMEOUT());
 
   AWAIT_READY(detected);
   AWAIT_READY(slaveReregisteredMessage);
