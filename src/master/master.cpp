@@ -3416,6 +3416,28 @@ void Master::offer(const FrameworkID& frameworkId,
       continue;
     }
 
+#ifdef WITH_NETWORK_ISOLATOR
+    // TODO(dhamon): This flag is required as the static allocation of
+    // ephemeral ports leads to a maximum number of containers that can
+    // be created on each slave. Once MESOS-1654 is fixed and ephemeral
+    // ports are a first class resource, this can be removed.
+    if (flags.max_executors_per_slave.isSome()) {
+      // Check that we haven't hit the executor limit.
+      size_t numExecutors = 0;
+      foreachkey (const FrameworkID& frameworkId, slave->executors) {
+        numExecutors += slave->executors[frameworkId].keys().size();
+      }
+
+      if (numExecutors >= flags.max_executors_per_slave.get()) {
+        LOG(WARNING) << "Master returning resources offered because slave "
+                     << *slave << " has reached the maximum number of "
+                     << "executors";
+        allocator->resourcesRecovered(frameworkId, slaveId, offered);
+        continue;
+      }
+    }
+#endif  // WITH_NETWORK_ISOLATOR
+
     Offer* offer = new Offer();
     offer->mutable_id()->MergeFrom(newOfferId());
     offer->mutable_framework_id()->MergeFrom(framework->id);

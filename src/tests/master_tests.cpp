@@ -2004,3 +2004,45 @@ TEST_F(MasterTest, OrphanTasks)
 
   Shutdown();
 }
+
+
+#ifdef WITH_NETWORK_ISOLATOR
+TEST_F(MasterTest, MaxExecutorsPerSlave)
+{
+  master::Flags flags = CreateMasterFlags();
+  flags.max_executors_per_slave = 0;
+
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<MasterInfo> masterInfo;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<2>(&masterInfo));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .Times(0);
+
+  driver.start();
+
+  AWAIT_READY(masterInfo);
+  EXPECT_EQ(master.get().port, masterInfo.get().port());
+  EXPECT_EQ(master.get().ip, masterInfo.get().ip());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+#endif  // WITH_NETWORK_ISOLATOR

@@ -284,6 +284,12 @@ public:
         "  ],\n"
         "  \"aggregate_default_qps\": 33.3\n"
         "}");
+
+#ifdef WITH_NETWORK_ISOLATOR
+    add(&Flags::max_executors_per_slave,
+        "max_executors_per_slave",
+        "A maximum number of executors to allow per slave.");
+#endif  // WITH_NETWORK_ISOLATOR
   }
 
   bool version;
@@ -312,6 +318,10 @@ public:
   Option<std::string> credentials;
   Option<ACLs> acls;
   Option<RateLimits> rate_limits;
+
+#ifdef WITH_NETWORK_ISOLATOR
+  Option<size_t> max_executors_per_slave;
+#endif  // WITH_NETWORK_ISOLATOR
 };
 
 } // namespace master {
