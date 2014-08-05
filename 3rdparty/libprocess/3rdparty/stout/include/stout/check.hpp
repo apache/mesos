@@ -80,7 +80,7 @@ struct _CheckFatal
       : file(_file),
         line(_line)
   {
-    out << type << "(" << expression << "): " << error;
+    out << type << "(" << expression << "): " << error << " ";
   }
 
   ~_CheckFatal()
