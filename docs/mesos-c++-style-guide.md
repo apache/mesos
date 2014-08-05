@@ -30,17 +30,17 @@ The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide
 
 <pre>
 // 1: OK.
-allocator->resourcesUnused(frameworkId, slaveId, resources, filters);
+allocator->resourcesRecovered(frameworkId, slaveId, resources, filters);
 
 // 2: Don't use.
-allocator->resourcesUnused(frameworkId, slaveId,
+allocator->resourcesRecovered(frameworkId, slaveId,
                            resources, filters);
 
 // 3: Don't use in this case due to "jaggedness".
-allocator->resourcesUnused(frameworkId,
-                           slaveId,
-                           resources,
-                           filters);
+allocator->resourcesRecovered(frameworkId,
+                              slaveId,
+                              resources,
+                              filters);
 
 // 3: In this case, 3 is OK.
 foobar(someArgument,
@@ -48,14 +48,14 @@ foobar(someArgument,
        theLastArgument);
 
 // 4: OK.
-allocator->resourcesUnused(
+allocator->resourcesRecovered(
     frameworkId,
     slaveId,
     resources,
     filters);
 
 // 5: OK.
-allocator->resourcesUnused(
+allocator->resourcesRecovered(
     frameworkId, slaveId, resources, filters);
 </pre>
 

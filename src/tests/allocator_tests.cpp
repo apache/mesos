@@ -294,7 +294,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   EXPECT_THAT(offers5.get(), OfferEq(1, 512));
 
   // Shut everything down.
-  EXPECT_CALL(allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(allocator, frameworkDeactivated(_))
@@ -397,7 +397,7 @@ TEST_F(DRFAllocatorTest, SameShareAllocations)
     .WillRepeatedly(DoAll(Increment(&allocations2),
                           DeclineOffers(filters)));
 
-  EXPECT_CALL(allocator, resourcesUnused(_, _, _, _))
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   // Start the slave.
@@ -565,7 +565,7 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   AWAIT_READY(resourceOffers4);
 
   // Shut everything down.
-  EXPECT_CALL(allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(allocator, frameworkDeactivated(_))
@@ -652,8 +652,8 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 400)))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 100, "role1"));
 
-  EXPECT_CALL(allocator, resourcesUnused(_, _, _, _))
-    .WillOnce(InvokeUnusedWithFilters(&allocator, 0));
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _, _))
+    .WillOnce(InvokeResourcesRecoveredWithFilters(&allocator, 0));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -710,7 +710,7 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   status.mutable_task_id()->MergeFrom(taskInfo.task_id());
   status.set_state(TASK_FINISHED);
 
-  EXPECT_CALL(allocator, resourcesRecovered(_, _, _));
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _, _));
 
   // After the task finishes, its resources should be reoffered to
   // framework1.
@@ -723,7 +723,7 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   AWAIT_READY(resourceOffers3);
 
   // Shut everything down.
-  EXPECT_CALL(allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(allocator, frameworkDeactivated(_))
@@ -811,7 +811,7 @@ TYPED_TEST(AllocatorTest, MockAllocator)
   AWAIT_READY(resourceOffers);
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -871,10 +871,10 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(2, 1024)))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"));
 
-  Future<Nothing> resourcesUnused;
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
-    .WillOnce(DoAll(InvokeResourcesUnused(&this->allocator),
-                    FutureSatisfy(&resourcesUnused)));
+  Future<Nothing> resourcesRecovered;
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
+    .WillOnce(DoAll(InvokeResourcesRecovered(&this->allocator),
+                    FutureSatisfy(&resourcesRecovered)));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -889,7 +889,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   // We need to wait until the allocator knows about the unused
   // resources to start the second framework so that we get the
   // expected offer.
-  AWAIT_READY(resourcesUnused);
+  AWAIT_READY(resourcesRecovered);
 
   FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
   frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
@@ -915,7 +915,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   AWAIT_READY(resourceOffers);
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -994,7 +994,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   FrameworkID frameworkId;
   SlaveID slaveId;
   Resources savedResources;
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     // "Catches" the resourcesRecovered call from the master, so
     // that it doesn't get processed until we redispatch it after
     // the frameworkRemoved trigger.
@@ -1014,13 +1014,13 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 
   AWAIT_READY(frameworkRemoved);
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillOnce(DoDefault());
 
   // Re-dispatch the resourcesRecovered call which we "caught"
   // earlier now that the framework has been removed, to test
   // that recovering resources from a removed framework works.
-  this->a->resourcesRecovered(frameworkId, slaveId, savedResources);
+  this->a->resourcesRecovered(frameworkId, slaveId, savedResources, None());
 
   // TODO(benh): Seems like we should wait for the above
   // resourcesRecovered to be executed.
@@ -1051,7 +1051,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   AWAIT_READY(resourceOffers);
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -1120,10 +1120,10 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
   // We don't filter the unused resources to make sure that
   // they get offered to the framework as soon as it fails over.
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
-    .WillOnce(InvokeUnusedWithFilters(&this->allocator, 0))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
+    .WillOnce(InvokeResourcesRecoveredWithFilters(&this->allocator, 0))
     // For subsequent offers.
-    .WillRepeatedly(InvokeUnusedWithFilters(&this->allocator, 0));
+    .WillRepeatedly(InvokeResourcesRecoveredWithFilters(&this->allocator, 0));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1177,7 +1177,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   AWAIT_READY(resourceOffers);
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -1255,10 +1255,10 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
     .WillOnce(LaunchTasks(executor1, 1, 2, 512, "*"));
 
   // The framework does not use all the resources.
-  Future<Nothing> resourcesUnused;
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
-    .WillOnce(DoAll(InvokeResourcesUnused(&this->allocator),
-                    FutureSatisfy(&resourcesUnused)));
+  Future<Nothing> resourcesRecovered;
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
+    .WillOnce(DoAll(InvokeResourcesRecovered(&this->allocator),
+                    FutureSatisfy(&resourcesRecovered)));
 
   EXPECT_CALL(exec1, registered(_, _, _, _));
 
@@ -1276,7 +1276,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   // We need to wait until the allocator knows about the unused
   // resources to start the second framework so that we get the
   // expected offer.
-  AWAIT_READY(resourcesUnused);
+  AWAIT_READY(resourcesRecovered);
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
@@ -1298,7 +1298,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(1, 512)))
     .WillOnce(LaunchTasks(executor2, 1, 1, 256, "*"));
 
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _));
 
   EXPECT_CALL(exec2, registered(_, _, _, _));
 
@@ -1311,7 +1311,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 
   // Shut everything down but check that framework 2 gets the
   // resources from framework 1 after it is shutdown.
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -1381,7 +1381,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 1024)))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 512, "*"));
 
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1401,7 +1401,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   // is killed).
   AWAIT_READY(launchTask);
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .Times(2);
 
   Future<Nothing> slaveRemoved;
@@ -1439,7 +1439,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
             Resources::parse(flags2.resources.get()).get());
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -1503,9 +1503,9 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   // on slave1 from the task launch won't get reoffered
   // immediately and will get combined with slave2's
   // resources for a single offer.
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
-    .WillOnce(InvokeUnusedWithFilters(&this->allocator, 0.1))
-    .WillRepeatedly(InvokeUnusedWithFilters(&this->allocator, 0));
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
+    .WillOnce(InvokeResourcesRecoveredWithFilters(&this->allocator, 0.1))
+    .WillRepeatedly(InvokeResourcesRecoveredWithFilters(&this->allocator, 0));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1538,7 +1538,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   AWAIT_READY(resourceOffers);
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -1604,10 +1604,10 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   // don't send the TASK_FINISHED status update below until after the
   // allocator knows about the unused resources so that it can
   // aggregate them with the resources from the finished task.
-  Future<Nothing> resourcesUnused;
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _))
-    .WillRepeatedly(DoAll(InvokeResourcesUnused(&this->allocator),
-                          FutureSatisfy(&resourcesUnused)));
+  Future<Nothing> resourcesRecovered;
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
+    .WillRepeatedly(DoAll(InvokeResourcesRecovered(&this->allocator),
+                          FutureSatisfy(&resourcesRecovered)));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1628,13 +1628,13 @@ TYPED_TEST(AllocatorTest, TaskFinished)
 
   AWAIT_READY(launchTask);
 
-  AWAIT_READY(resourcesUnused);
+  AWAIT_READY(resourcesRecovered);
 
   TaskStatus status;
   status.mutable_task_id()->MergeFrom(taskInfo.task_id());
   status.set_state(TASK_FINISHED);
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _));
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _));
 
   // After the first task gets killed.
   Future<Nothing> resourceOffers;
@@ -1646,7 +1646,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   AWAIT_READY(resourceOffers);
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -1748,7 +1748,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   Clock::resume();
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
@@ -1885,7 +1885,7 @@ TYPED_TEST(AllocatorTest, FrameworkReregistersFirst)
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 500, "*"))
     .WillRepeatedly(DeclineOffers());
 
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1909,7 +1909,7 @@ TYPED_TEST(AllocatorTest, FrameworkReregistersFirst)
   // it doesn't try to retry the update after master failover.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   this->ShutdownMasters();
@@ -1951,7 +1951,7 @@ TYPED_TEST(AllocatorTest, FrameworkReregistersFirst)
   EXPECT_THAT(resourceOffers2.get(), OfferEq(1, 524));
 
   // Shut everything down.
-  EXPECT_CALL(allocator2, resourcesRecovered(_, _, _))
+  EXPECT_CALL(allocator2, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(allocator2, frameworkDeactivated(_))
@@ -2001,7 +2001,7 @@ TYPED_TEST(AllocatorTest, SlaveReregistersFirst)
 
   EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
 
-  EXPECT_CALL(this->allocator, resourcesUnused(_, _, _, _));
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _));
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -2033,7 +2033,7 @@ TYPED_TEST(AllocatorTest, SlaveReregistersFirst)
   // it doesn't try to retry the update after master failover.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   this->ShutdownMasters();
@@ -2075,7 +2075,7 @@ TYPED_TEST(AllocatorTest, SlaveReregistersFirst)
   EXPECT_THAT(resourceOffers2.get(), OfferEq(1, 524));
 
   // Shut everything down.
-  EXPECT_CALL(allocator2, resourcesRecovered(_, _, _))
+  EXPECT_CALL(allocator2, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
   EXPECT_CALL(allocator2, frameworkDeactivated(_))

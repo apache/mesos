@@ -271,15 +271,15 @@ TEST_F(MasterAuthorizationTest, KillTask)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status.get().state());
 
-  Future<Nothing> resourcesUnused =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesUnused);
+  Future<Nothing> resourcesRecovered =
+    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
 
   // Now complete authorization.
   promise.set(true);
 
   // No task launch should happen resulting in all resources being
   // returned to the allocator.
-  AWAIT_READY(resourcesUnused);
+  AWAIT_READY(resourcesRecovered);
 
   driver.stop();
   driver.join();

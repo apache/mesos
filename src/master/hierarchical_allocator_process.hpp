@@ -158,16 +158,11 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
 
-  void resourcesUnused(
+  void resourcesRecovered(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
       const Option<Filters>& filters);
-
-  void resourcesRecovered(
-      const FrameworkID& frameworkId,
-      const SlaveID& slaveId,
-      const Resources& resources);
 
   void offersRevived(
       const FrameworkID& frameworkId);
@@ -531,81 +526,11 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRequested(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesUnused(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources,
     const Option<Filters>& filters)
-{
-  CHECK(initialized);
-
-  if (resources.allocatable().size() == 0) {
-    return;
-  }
-
-  VLOG(1) << "Framework " << frameworkId
-          << " left " << resources.allocatable()
-          << " unused on slave " << slaveId;
-
-  // Update resources allocated to framework. It is
-  // not possible for the role to not be in roles
-  // because resourcesUnused is only called as the
-  // result of a valid task launch by an active
-  // framework that doesn't use the entire offer.
-  CHECK(frameworks.contains(frameworkId));
-  const std::string& role = frameworks[frameworkId].role();
-  sorters[role]->unallocated(frameworkId.value(), resources);
-  sorters[role]->remove(resources);
-  roleSorter->unallocated(role, resources);
-
-  // Update resources allocatable on slave.
-  CHECK(slaves.contains(slaveId));
-  slaves[slaveId].available += resources;
-
-  // Create a refused resources filter.
-  Try<Duration> seconds_ = Duration::create(Filters().refuse_seconds());
-  CHECK_SOME(seconds_);
-  Duration seconds = seconds_.get();
-
-  // Update the value of 'seconds' if the input isSome() and is
-  // valid.
-  if (filters.isSome()) {
-    seconds_ = Duration::create(filters.get().refuse_seconds());
-    if (seconds_.isError()) {
-      LOG(WARNING) << "Using the default value of 'refuse_seconds' to create "
-                   << "the refused resources filter because the input value is "
-                   << "invalid: " << seconds_.error();
-    } else if (seconds_.get() < Duration::zero()) {
-      LOG(WARNING) << "Using the default value of 'refuse_seconds' to create "
-                   << "the refused resources filter because the input value is "
-                   << "negative";
-    } else {
-      seconds = seconds_.get();
-    }
-  }
-
-  if (seconds != Duration::zero()) {
-    LOG(INFO) << "Framework " << frameworkId
-              << " filtered slave " << slaveId
-              << " for " << seconds;
-
-    // Create a new filter and delay it's expiration.
-    Filter* filter =
-      new RefusedFilter(slaveId, resources, process::Timeout::in(seconds));
-
-    frameworks[frameworkId].filters.insert(filter);
-
-    delay(seconds, self(), &Self::expire, frameworkId, filter);
-  }
-}
-
-
-template <class RoleSorter, class FrameworkSorter>
-void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
-    const FrameworkID& frameworkId,
-    const SlaveID& slaveId,
-    const Resources& resources)
 {
   CHECK(initialized);
 
@@ -636,6 +561,45 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
               << " (total allocatable: " << slaves[slaveId].available
               << ") on slave " << slaveId
               << " from framework " << frameworkId;
+  }
+
+  // Create a filter for this slave/framework pair if both exist.
+  if (frameworks.contains(frameworkId) && slaves.contains(slaveId)) {
+    // Create a refused resources filter.
+    Try<Duration> seconds_ = Duration::create(Filters().refuse_seconds());
+    CHECK_SOME(seconds_);
+    Duration seconds = seconds_.get();
+
+    // Update the value of 'seconds' if the input isSome() and is
+    // valid.
+    if (filters.isSome()) {
+      seconds_ = Duration::create(filters.get().refuse_seconds());
+      if (seconds_.isError()) {
+        LOG(WARNING) << "Using the default value of 'refuse_seconds' to create "
+                     << "the refused resources filter because the input value is "
+                     << "invalid: " << seconds_.error();
+      } else if (seconds_.get() < Duration::zero()) {
+        LOG(WARNING) << "Using the default value of 'refuse_seconds' to create "
+                     << "the refused resources filter because the input value is "
+                     << "negative";
+      } else {
+        seconds = seconds_.get();
+      }
+    }
+
+    if (seconds != Duration::zero()) {
+      VLOG(1) << "Framework " << frameworkId
+              << " filtered slave " << slaveId
+              << " for " << seconds;
+
+      // Create a new filter and delay its expiration.
+      Filter* filter =
+        new RefusedFilter(slaveId, resources, process::Timeout::in(seconds));
+
+      frameworks[frameworkId].filters.insert(filter);
+
+      delay(seconds, self(), &Self::expire, frameworkId, filter);
+    }
   }
 }
 

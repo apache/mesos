@@ -103,21 +103,15 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests) = 0;
 
-  // Whenever resources offered to a framework go unused (e.g.,
-  // refused) the master invokes this callback.
-  virtual void resourcesUnused(
+  // Whenever resources are "recovered" in the cluster (e.g., a task
+  // finishes, an offer is removed because a framework has failed or
+  // is failing over), or a framework refuses them, the master
+  // invokes this callback.
+  virtual void resourcesRecovered(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
       const Option<Filters>& filters) = 0;
-
-  // Whenever resources are "recovered" in the cluster (e.g., a task
-  // finishes, an offer is removed because a framework has failed or
-  // is failing over) the master invokes this callback.
-  virtual void resourcesRecovered(
-      const FrameworkID& frameworkId,
-      const SlaveID& slaveId,
-      const Resources& resources) = 0;
 
   // Whenever a framework that has filtered resources wants to revive
   // offers for those resources the master invokes this callback.
@@ -180,16 +174,11 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
 
-  void resourcesUnused(
+  void resourcesRecovered(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
       const Option<Filters>& filters);
-
-  void resourcesRecovered(
-      const FrameworkID& frameworkId,
-      const SlaveID& slaveId,
-      const Resources& resources);
 
   void offersRevived(
       const FrameworkID& frameworkId);
@@ -339,7 +328,7 @@ inline void Allocator::resourcesRequested(
 }
 
 
-inline void Allocator::resourcesUnused(
+inline void Allocator::resourcesRecovered(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources,
@@ -347,25 +336,11 @@ inline void Allocator::resourcesUnused(
 {
   process::dispatch(
       process,
-      &AllocatorProcess::resourcesUnused,
+      &AllocatorProcess::resourcesRecovered,
       frameworkId,
       slaveId,
       resources,
       filters);
-}
-
-
-inline void Allocator::resourcesRecovered(
-    const FrameworkID& frameworkId,
-    const SlaveID& slaveId,
-    const Resources& resources)
-{
-  process::dispatch(
-      process,
-      &AllocatorProcess::resourcesRecovered,
-      frameworkId,
-      slaveId,
-      resources);
 }
 
 

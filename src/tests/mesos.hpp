@@ -560,10 +560,7 @@ public:
     ON_CALL(*this, resourcesRequested(_, _))
       .WillByDefault(InvokeResourcesRequested(this));
 
-    ON_CALL(*this, resourcesUnused(_, _, _, _))
-      .WillByDefault(InvokeResourcesUnused(this));
-
-    ON_CALL(*this, resourcesRecovered(_, _, _))
+    ON_CALL(*this, resourcesRecovered(_, _, _, _))
       .WillByDefault(InvokeResourcesRecovered(this));
 
     ON_CALL(*this, offersRevived(_))
@@ -595,13 +592,10 @@ public:
   MOCK_METHOD1(updateWhitelist, void(const Option<hashset<std::string> >&));
   MOCK_METHOD2(resourcesRequested, void(const FrameworkID&,
                                         const std::vector<Request>&));
-  MOCK_METHOD4(resourcesUnused, void(const FrameworkID&,
-                                     const SlaveID&,
-                                     const Resources&,
-                                     const Option<Filters>& filters));
-  MOCK_METHOD3(resourcesRecovered, void(const FrameworkID&,
+  MOCK_METHOD4(resourcesRecovered, void(const FrameworkID&,
                                         const SlaveID&,
-                                        const Resources&));
+                                        const Resources&,
+                                        const Option<Filters>& filters));
   MOCK_METHOD1(offersRevived, void(const FrameworkID&));
 
   T real;
@@ -724,34 +718,6 @@ ACTION_P(InvokeResourcesRequested, allocator)
 }
 
 
-
-ACTION_P(InvokeResourcesUnused, allocator)
-{
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::resourcesUnused,
-      arg0,
-      arg1,
-      arg2,
-      arg3);
-}
-
-
-ACTION_P2(InvokeUnusedWithFilters, allocator, timeout)
-{
-  Filters filters;
-  filters.set_refuse_seconds(timeout);
-
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::resourcesUnused,
-      arg0,
-      arg1,
-      arg2,
-      filters);
-}
-
-
 ACTION_P(InvokeResourcesRecovered, allocator)
 {
   process::dispatch(
@@ -759,7 +725,23 @@ ACTION_P(InvokeResourcesRecovered, allocator)
       &master::allocator::AllocatorProcess::resourcesRecovered,
       arg0,
       arg1,
-      arg2);
+      arg2,
+      arg3);
+}
+
+
+ACTION_P2(InvokeResourcesRecoveredWithFilters, allocator, timeout)
+{
+  Filters filters;
+  filters.set_refuse_seconds(timeout);
+
+  process::dispatch(
+      allocator->real,
+      &master::allocator::AllocatorProcess::resourcesRecovered,
+      arg0,
+      arg1,
+      arg2,
+      filters);
 }
 
 

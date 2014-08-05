@@ -2297,7 +2297,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   EXPECT_CALL(allocator, slaveActivated(_));
-  EXPECT_CALL(allocator, resourcesRecovered(_, _, _));
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _, _));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -2348,7 +2348,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   // If there was an outstanding offer, we can get a call to
   // resourcesRecovered when we stop the scheduler.
-  EXPECT_CALL(allocator, resourcesRecovered(_, _, _))
+  EXPECT_CALL(allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(Return());
 
   driver.stop();
