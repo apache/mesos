@@ -3460,8 +3460,20 @@ void Master::offer(const FrameworkID& frameworkId,
     framework->addOffer(offer);
     slave->addOffer(offer);
 
+    // TODO(jieyu): For now, we strip 'ephemeral_ports' resource from
+    // offers so that frameworks do not see this resource. This is a
+    // short term workaround. Revisit this once we resolve MESOS-1654.
+    Offer offer_ = *offer;
+    offer_.clear_resources();
+
+    foreach (const Resource& resource, offered) {
+      if (resource.name() != "ephemeral_ports") {
+        offer_.add_resources()->CopyFrom(resource);
+      }
+    }
+
     // Add the offer *AND* the corresponding slave's PID.
-    message.add_offers()->MergeFrom(*offer);
+    message.add_offers()->MergeFrom(offer_);
     message.add_pids(slave->pid);
   }
 

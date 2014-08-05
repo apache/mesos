@@ -2006,6 +2006,51 @@ TEST_F(MasterTest, OrphanTasks)
 }
 
 
+// This test verifies that the master will strip ephemeral ports
+// resource from offers so that frameworks cannot see it.
+TEST_F(MasterTest, IgnoreEphemeralPortsResource)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  string resourcesWithoutEphemeralPorts =
+    "cpus:2;mem:1024;disk:1024;ports:[31000-32000]";
+
+  string resourcesWithEphemeralPorts =
+    resourcesWithoutEphemeralPorts + ";ephemeral_ports:[30001-30999]";
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = resourcesWithEphemeralPorts;
+
+  Try<PID<Slave> > slave = StartSlave(flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers.get().size());
+
+  EXPECT_EQ(
+      Resources(offers.get()[0].resources()),
+      Resources::parse(resourcesWithoutEphemeralPorts).get());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 #ifdef WITH_NETWORK_ISOLATOR
 TEST_F(MasterTest, MaxExecutorsPerSlave)
 {
