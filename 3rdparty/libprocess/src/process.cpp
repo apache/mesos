@@ -1034,7 +1034,7 @@ void recv_data(struct ev_loop* loop, ev_io* watcher, int revents)
         const char* error = strerror(errno);
         VLOG(1) << "Socket error while receiving: " << error;
       } else {
-        VLOG(1) << "Socket closed while receiving";
+        VLOG(2) << "Socket closed while receiving";
       }
       socket_manager->close(s);
       delete decoder;
@@ -1095,7 +1095,7 @@ void ignore_data(struct ev_loop* loop, ev_io* watcher, int revents)
         const char* error = strerror(errno);
         VLOG(1) << "Socket error while receiving: " << error;
       } else {
-        VLOG(1) << "Socket closed while receiving";
+        VLOG(2) << "Socket closed while receiving";
       }
       socket_manager->close(s);
       ev_io_stop(loop, watcher);
