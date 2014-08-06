@@ -40,7 +40,7 @@ using std::string;
 
 
 // This test tests the functionality of the  docker's interfaces.
-TEST(DockerTest, DOCKER_interface)
+TEST(DockerTest, ROOT_DOCKER_interface)
 {
   string containerName = "mesos-docker-test";
   Resources resources = Resources::parse("cpus:1;mem:512").get();

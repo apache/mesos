@@ -180,7 +180,7 @@ public:
 // requires running linux VM and need special port forwarding
 // to get host networking to work.
 #ifdef __linux__
-TEST_F(DockerContainerizerTest, DOCKER_Launch_Executor)
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -281,7 +281,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch_Executor)
 #endif // __linux__
 
 
-TEST_F(DockerContainerizerTest, DOCKER_Launch)
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -368,7 +368,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Launch)
 }
 
 
-TEST_F(DockerContainerizerTest, DOCKER_Kill)
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -465,7 +465,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Kill)
 
 
 // This test tests DockerContainerizer::usage().
-TEST_F(DockerContainerizerTest, DOCKER_Usage)
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -585,7 +585,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Usage)
 
 
 #ifdef __linux__
-TEST_F(DockerContainerizerTest, DOCKER_Update)
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -721,7 +721,7 @@ TEST_F(DockerContainerizerTest, DOCKER_Update)
 // to finish. One way to do this is to mock the Docker interface
 // and let the mocked docker collect all the remove futures and
 // at the end of the test wait for all of them before the test exits.
-TEST_F(DockerContainerizerTest, DISABLED_DOCKER_Recover)
+TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
 {
   slave::Flags flags = CreateSlaveFlags();
 

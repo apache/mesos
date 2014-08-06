@@ -136,6 +136,7 @@ static bool enable(const ::testing::TestInfo& test)
     }
 
     if (strings::contains(name, "DOCKER_")) {
+#ifdef __linux__
       Try<Docker> docker = Docker::create(flags.docker);
       if (docker.isError()) {
         std::cerr
@@ -147,12 +148,9 @@ static bool enable(const ::testing::TestInfo& test)
 
         return false;
       }
-
-#ifdef __linux__
-      if (user.get() != "root") {
-        return false;
-      }
-#endif
+#else
+      return false;
+#endif // __linux__
     }
   }
 
