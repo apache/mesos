@@ -752,21 +752,13 @@ template <typename T>
 class AllocatorTest : public MesosTest
 {
 protected:
-  virtual void SetUp()
+  void StopAllocator()
   {
-    MesosTest::SetUp();
-    a = new Allocator(&allocator);
-  }
-
-
-  virtual void TearDown()
-  {
-    delete a;
-    MesosTest::TearDown();
+    process::terminate(allocator.real);
+    process::wait(allocator.real);
   }
 
   MockAllocatorProcess<T> allocator;
-  Allocator* a;
 };
 
 
@@ -1020,7 +1012,11 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   // Re-dispatch the resourcesRecovered call which we "caught"
   // earlier now that the framework has been removed, to test
   // that recovering resources from a removed framework works.
-  this->a->resourcesRecovered(frameworkId, slaveId, savedResources, None());
+  this->allocator.resourcesRecovered(
+      frameworkId,
+      slaveId,
+      savedResources,
+      None());
 
   // TODO(benh): Seems like we should wait for the above
   // resourcesRecovered to be executed.
@@ -1913,6 +1909,7 @@ TYPED_TEST(AllocatorTest, FrameworkReregistersFirst)
     .WillRepeatedly(DoDefault());
 
   this->ShutdownMasters();
+  this->StopAllocator();
 
   MockAllocatorProcess<TypeParam> allocator2;
 
@@ -2037,6 +2034,7 @@ TYPED_TEST(AllocatorTest, SlaveReregistersFirst)
     .WillRepeatedly(DoDefault());
 
   this->ShutdownMasters();
+  this->StopAllocator();
 
   MockAllocatorProcess<TypeParam> allocator2;
 
