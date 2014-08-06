@@ -92,6 +92,9 @@ MESOS_CPPFLAGS += -I../$(PICOJSON)
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(GLOG)/src
 
+if WITH_BUNDLED_GLOG
+  MESOS_CPPFLAGS += -I../$(GLOG)/src
+endif
 
 if WITH_BUNDLED_LEVELDB
   MESOS_CPPFLAGS += -I../$(LEVELDB)/include
@@ -552,7 +555,12 @@ libmesos_la_LIBADD = libmesos_no_3rdparty.la
 # library each time. (Currently, we don't support platforms where this is not
 # possible.)
 libmesos_la_LIBADD += ../$(PROTOBUF)/src/libprotobuf.la
-libmesos_la_LIBADD += ../$(GLOG)/libglog.la
+
+if WITH_BUNDLED_GLOG
+  libmesos_la_LIBADD += ../$(GLOG)/libglog.la
+else
+  libmesos_la_LIBADD += -lglog
+endif
 
 if WITH_BUNDLED_LEVELDB
 # We need to directly include the leveldb library in order to avoid

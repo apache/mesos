@@ -158,6 +158,13 @@ AC_ARG_WITH([leveldb],
 			   location prefixed by the given path]),
 	    [without_bundled_leveldb=yes], [])
 
+AC_ARG_WITH([glog],
+        AS_HELP_STRING([--with-glog@<:@=DIR@:>@],
+                   [excludes building and using the bundled glog
+                   package in lieu of an installed version at a
+                   location prefixed by the given path]),
+        [without_bundled_glog=yes], [])
+
 AC_ARG_WITH([cxx11],
 	    AS_HELP_STRING([--without-cxx11],
                            [builds Mesos without C++11 support (deprecated)]),
@@ -240,6 +247,11 @@ elif test "x$enable_bundled" = "xno"; then
   CPPFLAGS="$CPPFLAGS -I/usr/include/zookeeper"
 fi
 
+if test -n "`echo $with_glog`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_glog}/src"
+  LDFLAGS="$LDFLAGS -L${with_glog}/lib"
+fi
+
 # Check if user has asked us to use a preinstalled LevelDB, or if they asked
 # us to ignore all bundled libraries while compiling and linking.
 if test "x$without_bundled_leveldb" = "xyes" || \
@@ -266,6 +278,35 @@ correct if you're already doing this.
 else
   with_bundled_leveldb=yes
 fi
+
+# Check if user has asked us to use a preinstalled glog, or if they asked
+# us to ignore all bundled libraries while compiling and linking.
+if test "x$without_bundled_glog" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([glog/logging.h],
+                   [AC_CHECK_LIB([glog],
+                                 [_init],
+                                 [found_glog=yes])])
+  if test "x$found_glog" = "xyes"; then
+    with_bundled_glog=no
+  else
+    AC_MSG_ERROR([cannot find glog
+-------------------------------------------------------------------
+You have requested the use of a non-bundled glog but no suitable
+glog could be found.
+
+You may want specify the location of glog by providing a prefix
+path via --with-glog=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_glog=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_GLOG], [test "x$with_bundled_glog" = "xyes"])
 
 AM_CONDITIONAL([WITH_BUNDLED_LEVELDB],
 	       [test "x$with_bundled_leveldb" = "xyes"])

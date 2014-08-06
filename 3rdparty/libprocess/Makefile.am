@@ -48,10 +48,16 @@ libprocess_la_CPPFLAGS =		\
   -I$(srcdir)/include			\
   -I$(srcdir)/$(STOUT)/include		\
   -I$(BOOST)				\
-  -I$(GLOG)/src				\
   -I$(LIBEV)				\
   -I$(PICOJSON)				\
   $(AM_CPPFLAGS)
+
+if WITH_BUNDLED_GLOG
+  libprocess_la_CPPFLAGS += -I$(GLOG)/src
+  LIBGLOG = $(GLOG)/libglog.la
+else
+  LIBGLOG = -lglog
+endif
 
 if WITH_BUNDLED_HTTP_PARSER
   RY_HTTP_PARSER = 3rdparty/ry-http-parser-$(RY_HTTP_PARSER_VERSION)
@@ -69,7 +75,7 @@ else
 endif
 
 libprocess_la_LIBADD =			\
-  $(GLOG)/libglog.la			\
+  $(LIBGLOG)				\
   $(HTTP_PARSER_LIB)			\
   $(LIBEV_LIB)
 
@@ -110,7 +116,7 @@ tests_CPPFLAGS =			\
 tests_LDADD =				\
   3rdparty/libgmock.la			\
   libprocess.la				\
-  $(GLOG)/libglog.la			\
+  $(LIBGLOG)				\
   $(HTTP_PARSER_LIB)			\
   $(LIBEV_LIB)
 

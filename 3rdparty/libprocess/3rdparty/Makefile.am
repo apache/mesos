@@ -95,7 +95,7 @@ BUILT_SOURCES += $(nodist_libgmock_la_SOURCES)
 $(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
 $(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
 
-
+if WITH_BUNDLED_GLOG
 # NOTE: We explicitely set GTEST_CONFIG=no so that we don't attempt to
 # build glog against a system installed gtest (there's no reason to
 # "test" glog and it's highly likely it will cause a compilation bug
@@ -103,6 +103,7 @@ $(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
 $(GLOG)/libglog.la: $(GLOG)-stamp
 	cd $(GLOG) && ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
+endif
 
 if HAS_GPERFTOOLS
 $(GPERFTOOLS)/libprofiler.la: $(GPERFTOOLS)-build-stamp
@@ -169,7 +170,6 @@ endif
 
 stout_tests_CPPFLAGS =				\
   -I$(srcdir)/$(STOUT)/include			\
-  -I$(GLOG)/src					\
   -I$(GTEST)/include				\
   -I$(GMOCK)/include				\
   -I$(PROTOBUF)/src				\
@@ -183,10 +183,17 @@ if WITH_BUNDLED_PICOJSON
   stout_tests_CPPFLAGS += -I$(PICOJSON)
 endif
 
+if WITH_BUNDLED_GLOG
+  stout_tests_CPPFLAGS += -I$(GLOG)/src
+  LIBGLOG = $(GLOG)/libglog.la
+else
+  LIBGLOG = -lglog
+endif
+
 stout_tests_LDADD =			\
   libgmock.la				\
-  $(GLOG)/libglog.la			\
   $(PROTOBUF)/src/libprotobuf.la	\
+  $(LIBGLOG)				\
   -ldl
 
 # We use a check-local target for now to avoid the parallel test
@@ -199,7 +206,6 @@ check-local: stout-tests
 # Dependencies for all-local.
 ALL_LOCAL =				\
   $(STOUT)/Makefile			\
-  $(GLOG)/libglog.la			\
   $(PROTOBUF)/src/libprotobuf.la	\
   $(PROTOBUF)/src/protoc
 
@@ -213,6 +219,10 @@ endif
 
 if WITH_BUNDLED_PICOJSON
   ALL_LOCAL += $(PICOJSON)-stamp
+endif
+
+if WITH_BUNDLED_GLOG
+  ALL_LOCAL += $(LIBGLOG)
 endif
 
 if HAS_GPERFTOOLS
