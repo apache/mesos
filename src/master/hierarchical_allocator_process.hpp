@@ -576,12 +576,12 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
       seconds_ = Duration::create(filters.get().refuse_seconds());
       if (seconds_.isError()) {
         LOG(WARNING) << "Using the default value of 'refuse_seconds' to create "
-                     << "the refused resources filter because the input value is "
-                     << "invalid: " << seconds_.error();
+                     << "the refused resources filter because the input value "
+                     << "is invalid: " << seconds_.error();
       } else if (seconds_.get() < Duration::zero()) {
         LOG(WARNING) << "Using the default value of 'refuse_seconds' to create "
-                     << "the refused resources filter because the input value is "
-                     << "negative";
+                     << "the refused resources filter because the input value "
+                     << "is negative";
       } else {
         seconds = seconds_.get();
       }

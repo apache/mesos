@@ -2410,7 +2410,8 @@ void Master::_launchTasks(
 
   if (unusedResources.allocatable().size() > 0) {
     // Tell the allocator about the unused (e.g., refused) resources.
-    allocator->resourcesRecovered(frameworkId, slaveId, unusedResources, filters);
+    allocator->resourcesRecovered(
+        frameworkId, slaveId, unusedResources, filters);
   }
 }
 
