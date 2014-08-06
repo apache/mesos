@@ -954,6 +954,166 @@ TEST_F(RateLimitingTest, SchedulerFailover)
   Shutdown();
 }
 
+
+TEST_F(RateLimitingTest, CapacityReached)
+{
+  master::Flags flags = CreateMasterFlags();
+  RateLimits limits;
+  RateLimit* limit = limits.mutable_limits()->Add();
+  limit->set_principal(DEFAULT_CREDENTIAL.principal());
+  limit->set_qps(1);
+  limit->set_capacity(2);
+  flags.rate_limits = limits;
+
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Clock::pause();
+
+  // Advance before the test so that the 1st call to Metrics endpoint
+  // is not throttled. MetricsProcess which hosts the endpoint
+  // throttles requests at 2qps and its singleton instance is shared
+  // across tests.
+  Clock::advance(Milliseconds(501));
+
+  MockScheduler sched;
+
+  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
+  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  // Use a long failover timeout so the master doesn't unregister the
+  // framework right away when it aborts.
+  frameworkInfo.set_failover_timeout(10);
+
+  // Create MesosSchedulerDriver on the heap because of the need to
+  // destroy it during the test due to MESOS-1456.
+  MesosSchedulerDriver* driver = new MesosSchedulerDriver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(driver, _, _))
+    .Times(1);
+
+  // Grab the stuff we need to replay the RegisterFrameworkMessage.
+  Future<RegisterFrameworkMessage> registerFrameworkMessage = FUTURE_PROTOBUF(
+      RegisterFrameworkMessage(), _, master.get());
+  Future<process::Message> frameworkRegisteredMessage = FUTURE_MESSAGE(
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+
+  ASSERT_EQ(DRIVER_RUNNING, driver->start());
+
+  AWAIT_READY(registerFrameworkMessage);
+  AWAIT_READY(frameworkRegisteredMessage);
+
+  const process::UPID schedulerPid = frameworkRegisteredMessage.get().to;
+
+  // Keep sending duplicate RegisterFrameworkMessages. Master sends
+  // FrameworkRegisteredMessage back after processing each of them.
+  {
+    Future<process::Message> duplicateFrameworkRegisteredMessage =
+      FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
+                     master.get(),
+                     _);
+
+    process::post(schedulerPid, master.get(), registerFrameworkMessage.get());
+
+    // The first message is not throttled because it's at the head of
+    // the queue.
+    AWAIT_READY(duplicateFrameworkRegisteredMessage);
+
+    // Verify that one message is received and processed (after
+    // registration).
+    JSON::Object metrics = METRICS_SNAPSHOT;
+
+    const string& messages_received =
+      "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
+    EXPECT_EQ(1u, metrics.values.count(messages_received));
+    EXPECT_EQ(1, metrics.values[messages_received].as<JSON::Number>().value);
+
+    const string& messages_processed =
+      "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
+    EXPECT_EQ(1u, metrics.values.count(messages_processed));
+    EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
+  }
+
+  // The subsequent messages are going to be throttled.
+  Future<process::Message> frameworkErrorMessage =
+    FUTURE_MESSAGE(Eq(FrameworkErrorMessage().GetTypeName()),
+                   master.get(),
+                   _);
+
+  // Send two messages which will be queued up. This will reach but not
+  // exceed the capacity.
+  for (int i = 0; i < 2; i++) {
+    process::post(schedulerPid, master.get(), registerFrameworkMessage.get());
+  }
+
+  // Settle to make sure no error is sent just yet.
+  Clock::settle();
+  EXPECT_TRUE(frameworkErrorMessage.isPending());
+
+  // The 3rd message results in an immediate error.
+  Future<Nothing> error;
+  EXPECT_CALL(sched, error(
+      driver,
+      "Message mesos.internal.RegisterFrameworkMessage dropped: capacity(2) "
+      "exceeded"))
+    .WillOnce(FutureSatisfy(&error));
+
+  process::post(schedulerPid, master.get(), registerFrameworkMessage.get());
+  AWAIT_READY(frameworkErrorMessage);
+
+  // Settle to make sure scheduler aborts and its
+  // DeactivateFrameworkMessage is received by master.
+  Clock::settle();
+
+  AWAIT_READY(error);
+
+  // Stop the driver but indicate it wants to failover.
+  EXPECT_EQ(DRIVER_ABORTED, driver->stop(true));
+  EXPECT_EQ(DRIVER_STOPPED, driver->join());
+  delete driver;
+
+  // Wait for half a second for metrics endpoint.
+  Clock::advance(Milliseconds(501));
+
+  {
+    JSON::Object metrics = METRICS_SNAPSHOT;
+
+    const string& messages_received =
+      "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
+    EXPECT_EQ(1u, metrics.values.count(messages_received));
+    EXPECT_EQ(5, metrics.values[messages_received].as<JSON::Number>().value);
+    const string& messages_processed =
+      "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
+    EXPECT_EQ(1u, metrics.values.count(messages_processed));
+    // Four messages not processed, two in the queue and two dropped.
+    EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
+  }
+
+  // Advance three times for the two pending messages and the exited
+  // event to be processed.
+  for (int i = 0; i < 3; i++) {
+    Clock::advance(Milliseconds(1001));
+    Clock::settle();
+  }
+
+  // Counters are not removed because the scheduler is not
+  // unregistered and the master expects it to failover.
+  JSON::Object metrics = METRICS_SNAPSHOT;
+
+  const string& messages_received =
+    "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
+  EXPECT_EQ(1u, metrics.values.count(messages_received));
+  EXPECT_EQ(5, metrics.values[messages_received].as<JSON::Number>().value);
+  const string& messages_processed =
+    "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
+  EXPECT_EQ(1u, metrics.values.count(messages_processed));
+  // Two messages are dropped.
+  EXPECT_EQ(3, metrics.values[messages_processed].as<JSON::Number>().value);
+
+  Shutdown();
+}
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

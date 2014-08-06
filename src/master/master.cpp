@@ -84,7 +84,6 @@ using process::Owned;
 using process::PID;
 using process::Process;
 using process::Promise;
-using process::RateLimiter;
 using process::Time;
 using process::Timer;
 using process::UPID;
@@ -371,12 +370,18 @@ void Master::initialize()
                 << ". It must be a positive number";
       }
 
-      limiters.put(
-          limit_.principal(),
-          limit_.has_qps()
-            ? Option<Owned<RateLimiter> >::some(
-                Owned<RateLimiter>(new RateLimiter(limit_.qps())))
-            : Option<Owned<RateLimiter> >::none());
+      if (limit_.has_qps()) {
+        Option<uint64_t> capacity;
+        if (limit_.has_capacity()) {
+          capacity = limit_.capacity();
+        }
+        limiters.put(
+            limit_.principal(),
+            Owned<BoundedRateLimiter>(
+                new BoundedRateLimiter(limit_.qps(), capacity)));
+      } else {
+        limiters.put(limit_.principal(), None());
+      }
     }
 
     if (flags.rate_limits.get().has_aggregate_default_qps() &&
@@ -387,8 +392,13 @@ void Master::initialize()
     }
 
     if (flags.rate_limits.get().has_aggregate_default_qps()) {
-      defaultLimiter = Owned<RateLimiter>(
-          new RateLimiter(flags.rate_limits.get().aggregate_default_qps()));
+      Option<uint64_t> capacity;
+      if (flags.rate_limits.get().has_aggregate_default_capacity()) {
+        capacity = flags.rate_limits.get().aggregate_default_capacity();
+      }
+      defaultLimiter = Owned<BoundedRateLimiter>(
+          new BoundedRateLimiter(
+              flags.rate_limits.get().aggregate_default_qps(), capacity));
     }
 
     LOG(INFO) << "Framework rate limiting enabled";
@@ -851,9 +861,6 @@ void Master::visit(const MessageEvent& event)
     return;
   }
 
-  // Necessary to disambiguate below.
-  typedef void(Self::*F)(const MessageEvent&);
-
   // Throttle the message if it's a framework message and a
   // RateLimiter is configured for the framework's principal.
   // The framework is throttled by the default RateLimiter if:
@@ -864,30 +871,42 @@ void Master::visit(const MessageEvent& event)
   // 1) the default RateLimiter is not configured to handle case 2)
   //    above. (or)
   // 2) the principal exists in RateLimits but 'qps' is not set.
-  if (principal.isSome() &&
-      limiters.contains(principal.get()) &&
-      limiters[principal.get()].isSome()) {
-    limiters[principal.get()].get()->acquire()
-      .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
+  Option<Owned<BoundedRateLimiter> > limiter;
+  if (principal.isSome() && limiters.contains(principal.get())) {
+    limiter = limiters[principal.get()];
   } else if ((principal.isNone() || !limiters.contains(principal.get())) &&
-             isRegisteredFramework &&
-             defaultLimiter.isSome()) {
-    defaultLimiter.get()->acquire()
-      .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
+             isRegisteredFramework) {
+    limiter = defaultLimiter;
+  }
+
+  // Now throttle the message if a limiter is found, unless its
+  // capacity is already reached.
+  if (limiter.isSome()) {
+    if (limiter.get()->capacity.isNone() ||
+        limiter.get()->messages < limiter.get()->capacity.get()) {
+      limiter.get()->messages++;
+      limiter.get()->limiter->acquire()
+        .onReady(defer(self(), &Self::throttled, event, principal));
+    } else {
+      exceededCapacity(
+          event,
+          principal,
+          limiter.get()->capacity.get());
+    }
   } else {
     _visit(event);
   }
 }
 
 
-void Master::visit(const process::ExitedEvent& event)
+void Master::visit(const ExitedEvent& event)
 {
   // See comments in 'visit(const MessageEvent& event)' for which
   // RateLimiter is used to throttle this UPID and when it is not
   // throttled.
   // Note that throttling ExitedEvent is necessary so the order
   // between MessageEvents and ExitedEvents from the same PID is
-  // maintained.
+  // maintained. Also ExitedEvents are not subject to the capacity.
   bool isRegisteredFramework = frameworks.principals.contains(event.pid);
   const Option<string> principal = isRegisteredFramework
     ? frameworks.principals[event.pid]
@@ -899,16 +918,32 @@ void Master::visit(const process::ExitedEvent& event)
   if (principal.isSome() &&
       limiters.contains(principal.get()) &&
       limiters[principal.get()].isSome()) {
-    limiters[principal.get()].get()->acquire()
+    limiters[principal.get()].get()->limiter->acquire()
       .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
   } else if ((principal.isNone() || !limiters.contains(principal.get())) &&
              isRegisteredFramework &&
              defaultLimiter.isSome()) {
-    defaultLimiter.get()->acquire()
+    defaultLimiter.get()->limiter->acquire()
       .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
   } else {
     _visit(event);
   }
+}
+
+
+void Master::throttled(
+    const MessageEvent& event,
+    const Option<std::string>& principal)
+{
+  // We already know a RateLimiter is used to throttle this event so
+  // here we only need to determine which.
+  if (principal.isSome()) {
+    limiters[principal.get()].get()->messages--;
+  } else {
+    defaultLimiter.get()->messages--;
+  }
+
+  _visit(event);
 }
 
 
@@ -933,6 +968,30 @@ void Master::_visit(const MessageEvent& event)
       metrics.frameworks.get(principal.get()).get()->messages_processed;
     ++messages_processed;
   }
+}
+
+
+void Master::exceededCapacity(
+    const MessageEvent& event,
+    const Option<string>& principal,
+    uint64_t capacity)
+{
+  LOG(WARNING) << "Dropping message " << event.message->name << " from "
+               << event.message->from
+               << (principal.isSome() ? "(" + principal.get() + ")" : "")
+               << ": capacity(" << capacity << ") exceeded";
+
+  // Send an error to the framework which will abort the scheduler
+  // driver.
+  // NOTE: The scheduler driver will send back a
+  // DeactivateFrameworkMessage which may be dropped as well but this
+  // should be fine because the scheduler is already informed of an
+  // unrecoverable error and should take action to recover.
+  FrameworkErrorMessage message;
+  message.set_message(
+      "Message " + event.message->name +
+      " dropped: capacity(" + stringify(capacity) + ") exceeded");
+  send(event.message->from, message);
 }
 
 

@@ -241,9 +241,24 @@ protected:
   virtual void visit(const process::MessageEvent& event);
   virtual void visit(const process::ExitedEvent& event);
 
+  // Invoked when the message is ready to be executed after
+  // being throttled.
+  // 'principal' being None indicates it is throttled by
+  // 'defaultLimiter'.
+  void throttled(
+      const process::MessageEvent& event,
+      const Option<std::string>& principal);
+
   // Continuations of visit().
   void _visit(const process::MessageEvent& event);
   void _visit(const process::ExitedEvent& event);
+
+  // Helper method invoked when the capacity for a framework
+  // principal is exceeded.
+  void exceededCapacity(
+      const process::MessageEvent& event,
+      const Option<std::string>& principal,
+      uint64_t capacity);
 
   // Recovers state from the registrar.
   process::Future<Nothing> recover();
@@ -744,14 +759,30 @@ private:
       const FrameworkInfo& frameworkInfo,
       const process::UPID& from);
 
-  // RateLimiters keyed by the framework principal.
+  struct BoundedRateLimiter
+  {
+    BoundedRateLimiter(double qps, Option<uint64_t> _capacity)
+      : limiter(new process::RateLimiter(qps)),
+        capacity(_capacity),
+        messages(0) {}
+
+    process::Owned<process::RateLimiter> limiter;
+    const Option<uint64_t> capacity;
+
+    // Number of outstanding messages for this RateLimiter.
+    // NOTE: ExitedEvents are throttled but not counted towards
+    // the capacity here.
+    uint64_t messages;
+  };
+
+  // BoundedRateLimiters keyed by the framework principal.
   // Like Metrics::Frameworks, all frameworks of the same principal
   // are throttled together at a common rate limit.
-  hashmap<std::string, Option<process::Owned<process::RateLimiter> > > limiters;
+  hashmap<std::string, Option<process::Owned<BoundedRateLimiter> > > limiters;
 
   // The default limiter is for frameworks not specified in
   // 'flags.rate_limits'.
-  Option<process::Owned<process::RateLimiter> > defaultLimiter;
+  Option<process::Owned<BoundedRateLimiter> > defaultLimiter;
 };
 
 

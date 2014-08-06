@@ -779,26 +779,39 @@ message ACLs {
  * principal.
  */
 message RateLimit {
-  // Leaving QPS unset gives it unlimited rate (i.e., not throttled).
+  // Leaving QPS unset gives it unlimited rate (i.e., not throttled),
+  // which also implies unlimited capacity.
   optional double qps = 1;
 
   // Principal of framework(s) to be throttled. Should match
   // FrameworkInfo.princpal and Credential.principal (if using authentication).
   required string principal = 2;
+
+  // Max number of outstanding messages from frameworks of this principal
+  // allowed by master before the next message is dropped and an error is sent
+  // back to the sender. Messages received before the capacity is reached are
+  // still going to be processed after the error is sent.
+  // If unspecified, this principal is assigned unlimited capacity.
+  // NOTE: This value is ignored if 'qps' is not set.
+  optional uint64 capacity = 3;
 }
 
 
 /**
  * Collection of RateLimit.
- * Frameworks without rate limits defined here are not throttled
- * unless 'aggregate_default_qps' is specified.
+ * Frameworks without rate limits defined here are not throttled unless
+ * 'aggregate_default_qps' is specified.
  */
 message RateLimits {
   // Items should have unique principals.
   repeated RateLimit limits = 1;
 
-  // All the frameworks not specified in 'limits' get this default
-  // rate. This rate is an aggregate rate for all of them, i.e.,
-  // their combined traffic is throttled together at this rate.
+  // All the frameworks not specified in 'limits' get this default rate.
+  // This rate is an aggregate rate for all of them, i.e., their combined
+  // traffic is throttled together at this rate.
   optional double aggregate_default_qps = 2;
+
+  // All the frameworks not specified in 'limits' get this default capacity.
+  // This is an aggregate value similar to 'aggregate_default_qps'.
+  optional uint64 aggregate_default_capacity = 3;
 }

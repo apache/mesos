@@ -211,7 +211,12 @@ public:
       const SlaveID&,
       int) {}
 
-  virtual void error(SchedulerDriver*, const string&) {}
+  virtual void error(SchedulerDriver*, const string& error)
+  {
+    // Terminating process with EXIT here because we cannot interrupt
+    // LoadGenerator's long-running loop.
+    EXIT(1) << "Error received: " << error;
+  }
 
 private:
   LoadGenerator* generator;
