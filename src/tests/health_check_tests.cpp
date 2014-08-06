@@ -150,7 +150,8 @@ TEST_F(HealthCheckTest, HealthyTask)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  vector<TaskInfo> tasks = populateTasks("sleep 20", "exit 0", offers.get()[0]);
+  vector<TaskInfo> tasks =
+    populateTasks("sleep 120", "exit 0", offers.get()[0]);
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusHealth;
@@ -224,7 +225,7 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   string alt = "rm " + tmpPath + " || (touch " + tmpPath + " && exit 1)";
 
   vector<TaskInfo> tasks = populateTasks(
-      "sleep 20", alt, offers.get()[0], 0, 3);
+      "sleep 120", alt, offers.get()[0], 0, 3);
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusHealth1;
@@ -264,7 +265,7 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 
 // Testing killing task after number of consecutive failures.
 // Temporarily disabled due to MESOS-1613.
-TEST_F(HealthCheckTest, DISABLED_ConsecutiveFailures)
+TEST_F(HealthCheckTest, ConsecutiveFailures)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -273,7 +274,7 @@ TEST_F(HealthCheckTest, DISABLED_ConsecutiveFailures)
   flags.isolation = "posix/cpu,posix/mem";
 
   Try<MesosContainerizer*> containerizer =
-  MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());
@@ -284,7 +285,7 @@ TEST_F(HealthCheckTest, DISABLED_ConsecutiveFailures)
     &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
-  .Times(1);
+    .Times(1);
 
   Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -297,7 +298,7 @@ TEST_F(HealthCheckTest, DISABLED_ConsecutiveFailures)
   EXPECT_NE(0u, offers.get().size());
 
   vector<TaskInfo> tasks = populateTasks(
-    "sleep 20", "exit 1", offers.get()[0], 0, 4);
+    "sleep 120", "exit 1", offers.get()[0], 0, 4);
 
   // Expecting four unhealthy updates and one final kill update.
   Future<TaskStatus> statusRunning;
@@ -386,7 +387,7 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
   env["STATUS"] = "0";
 
   vector<TaskInfo> tasks = populateTasks(
-    "sleep 20", "exit $STATUS", offers.get()[0], 0, None(), env);
+    "sleep 120", "exit $STATUS", offers.get()[0], 0, None(), env);
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusHealth;
@@ -445,7 +446,7 @@ TEST_F(HealthCheckTest, GracePeriod)
   EXPECT_NE(0u, offers.get().size());
 
   vector<TaskInfo> tasks = populateTasks(
-    "sleep 20", "exit 1", offers.get()[0], 6);
+    "sleep 120", "exit 1", offers.get()[0], 6);
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusHealth;
