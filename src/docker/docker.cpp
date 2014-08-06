@@ -124,24 +124,25 @@ Try<Docker> Docker::create(const string& path, bool validate)
   Try<Subprocess> s = subprocess(
       cmd,
       Subprocess::PATH("/dev/null"),
-      Subprocess::PIPE(),
+      Subprocess::PATH("/dev/null"),
       Subprocess::PATH("/dev/null"));
 
   if (s.isError()) {
     return Error(s.error());
   }
 
-  Try<Nothing> nonblock = os::nonblock(s.get().out().get());
-  if (nonblock.isError()) {
-    return Error("Failed to accept nonblock stdout:" + nonblock.error());
-  }
+  Future<Option<int> > status = s.get().status();
 
-  Future<string> output = io::read(s.get().out().get());
-
-  if (!output.await(Seconds(5))) {
+  if (!status.await(Seconds(5))) {
     return Error("Docker info failed with time out");
-  } else if (output.isFailed()) {
-    return Error("Docker info failed: " + output.failure());
+  } else if (status.isFailed()) {
+    return Error("Docker info failed: " + status.failure());
+  } else if (!status.get().isSome() || status.get().get() != 0) {
+    string msg = "Docker info failed to execute";
+    if (status.get().isSome()) {
+      msg += ", exited with status (" + WSTRINGIFY(status.get().get()) + ")";
+    }
+    return Error(msg);
   }
 
   return Docker(path);
