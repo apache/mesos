@@ -2599,6 +2599,8 @@ void Slave::executorTerminated(
     case Executor::REGISTERING:
     case Executor::RUNNING:
     case Executor::TERMINATING: {
+      ++metrics.executors_terminated;
+
       executor->state = Executor::TERMINATED;
 
       // Stop monitoring the executor's container.
@@ -3340,6 +3342,48 @@ double Slave::_tasks_running()
 }
 
 
+double Slave::_executors_registering()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      if (executor->state == Executor::REGISTERING) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+
+double Slave::_executors_running()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      if (executor->state == Executor::RUNNING) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+
+double Slave::_executors_terminating()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      if (executor->state == Executor::TERMINATING) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+
 Slave::Metrics::Metrics(const Slave& slave)
   : uptime_secs(
         "slave/uptime_secs",
@@ -3369,6 +3413,17 @@ Slave::Metrics::Metrics(const Slave& slave)
         "slave/tasks_killed"),
     tasks_lost(
         "slave/tasks_lost"),
+    executors_registering(
+        "slave/executors_registering",
+        defer(slave, &Slave::_executors_registering)),
+    executors_running(
+        "slave/executors_running",
+        defer(slave, &Slave::_executors_running)),
+    executors_terminating(
+        "slave/executors_terminating",
+        defer(slave, &Slave::_executors_terminating)),
+    executors_terminated(
+        "slave/executors_terminated"),
     valid_status_updates(
         "slave/valid_status_updates"),
     invalid_status_updates(
@@ -3393,6 +3448,11 @@ Slave::Metrics::Metrics(const Slave& slave)
   process::metrics::add(tasks_failed);
   process::metrics::add(tasks_killed);
   process::metrics::add(tasks_lost);
+
+  process::metrics::add(executors_registering);
+  process::metrics::add(executors_running);
+  process::metrics::add(executors_terminating);
+  process::metrics::add(executors_terminated);
 
   process::metrics::add(valid_status_updates);
   process::metrics::add(invalid_status_updates);
@@ -3419,6 +3479,11 @@ Slave::Metrics::~Metrics()
   process::metrics::remove(tasks_failed);
   process::metrics::remove(tasks_killed);
   process::metrics::remove(tasks_lost);
+
+  process::metrics::remove(executors_registering);
+  process::metrics::remove(executors_running);
+  process::metrics::remove(executors_terminating);
+  process::metrics::remove(executors_terminated);
 
   process::metrics::remove(valid_status_updates);
   process::metrics::remove(invalid_status_updates);
@@ -3698,6 +3763,8 @@ void Framework::recoverExecutor(const ExecutorState& state)
   // and all updates are acknowledged) in the previous run, we
   // transition its state to 'TERMINATED' and gc the directories.
   if (run.get().completed) {
+    ++slave->metrics.executors_terminated;
+
     executor->state = Executor::TERMINATED;
 
     CHECK_SOME(run.get().id);

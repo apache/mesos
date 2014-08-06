@@ -371,6 +371,10 @@ private:
   double _tasks_starting();
   double _tasks_running();
 
+  double _executors_registering();
+  double _executors_running();
+  double _executors_terminating();
+
   const Flags flags;
 
   SlaveInfo info;
@@ -420,6 +424,11 @@ private:
     process::metrics::Counter tasks_failed;
     process::metrics::Counter tasks_killed;
     process::metrics::Counter tasks_lost;
+
+    process::metrics::Gauge executors_registering;
+    process::metrics::Gauge executors_running;
+    process::metrics::Gauge executors_terminating;
+    process::metrics::Counter executors_terminated;
 
     process::metrics::Counter valid_status_updates;
     process::metrics::Counter invalid_status_updates;

@@ -697,6 +697,11 @@ TEST_F(SlaveTest, MetricsInStatsEndpoint)
   EXPECT_EQ(1u, stats.values.count("slave/tasks_killed"));
   EXPECT_EQ(1u, stats.values.count("slave/tasks_lost"));
 
+  EXPECT_EQ(1u, stats.values.count("slave/executors_registering"));
+  EXPECT_EQ(1u, stats.values.count("slave/executors_running"));
+  EXPECT_EQ(1u, stats.values.count("slave/executors_terminating"));
+  EXPECT_EQ(1u, stats.values.count("slave/executors_terminated"));
+
   EXPECT_EQ(1u, stats.values.count("slave/valid_status_updates"));
   EXPECT_EQ(1u, stats.values.count("slave/invalid_status_updates"));
 
