@@ -27,10 +27,10 @@ TEST_SCRIPT(ExamplesTest, NoExecutorFramework, "no_executor_framework_test.sh")
 
 // Disabled the low lever scheduler tests for now due to MESOS-1612
 // and MESOS-1614.
-//TEST_SCRIPT(ExamplesTest, LowLevelSchedulerLibprocess,
-//            "low_level_scheduler_libprocess_test.sh")
-//TEST_SCRIPT(ExamplesTest, LowLevelSchedulerPthread,
-//            "low_level_scheduler_pthread_test.sh")
+TEST_SCRIPT(ExamplesTest, LowLevelSchedulerLibprocess,
+            "low_level_scheduler_libprocess_test.sh")
+TEST_SCRIPT(ExamplesTest, LowLevelSchedulerPthread,
+            "low_level_scheduler_pthread_test.sh")
 
 #ifdef MESOS_HAS_JAVA
 TEST_SCRIPT(ExamplesTest, JavaFramework, "java_framework_test.sh")
