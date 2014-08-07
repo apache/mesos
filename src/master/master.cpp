@@ -871,27 +871,35 @@ void Master::visit(const MessageEvent& event)
   // 1) the default RateLimiter is not configured to handle case 2)
   //    above. (or)
   // 2) the principal exists in RateLimits but 'qps' is not set.
-  Option<Owned<BoundedRateLimiter> > limiter;
-  if (principal.isSome() && limiters.contains(principal.get())) {
-    limiter = limiters[principal.get()];
-  } else if ((principal.isNone() || !limiters.contains(principal.get())) &&
-             isRegisteredFramework) {
-    limiter = defaultLimiter;
-  }
+  if (principal.isSome() &&
+      limiters.contains(principal.get()) &&
+      limiters[principal.get()].isSome()) {
+    const Owned<BoundedRateLimiter>& limiter = limiters[principal.get()].get();
 
-  // Now throttle the message if a limiter is found, unless its
-  // capacity is already reached.
-  if (limiter.isSome()) {
-    if (limiter.get()->capacity.isNone() ||
-        limiter.get()->messages < limiter.get()->capacity.get()) {
-      limiter.get()->messages++;
-      limiter.get()->limiter->acquire()
+    if (limiter->capacity.isNone() ||
+        limiter->messages < limiter->capacity.get()) {
+      limiter->messages++;
+      limiter->limiter->acquire()
         .onReady(defer(self(), &Self::throttled, event, principal));
     } else {
       exceededCapacity(
           event,
           principal,
-          limiter.get()->capacity.get());
+          limiter->capacity.get());
+    }
+  } else if ((principal.isNone() || !limiters.contains(principal.get())) &&
+             isRegisteredFramework &&
+             defaultLimiter.isSome()) {
+    if (defaultLimiter.get()->capacity.isNone() ||
+        defaultLimiter.get()->messages < defaultLimiter.get()->capacity.get()) {
+      defaultLimiter.get()->messages++;
+      defaultLimiter.get()->limiter->acquire()
+        .onReady(defer(self(), &Self::throttled, event, None()));
+    } else {
+      exceededCapacity(
+          event,
+          principal,
+          defaultLimiter.get()->capacity.get());
     }
   } else {
     _visit(event);
@@ -938,8 +946,10 @@ void Master::throttled(
   // We already know a RateLimiter is used to throttle this event so
   // here we only need to determine which.
   if (principal.isSome()) {
+    CHECK_SOME(limiters[principal.get()]);
     limiters[principal.get()].get()->messages--;
   } else {
+    CHECK_SOME(defaultLimiter);
     defaultLimiter.get()->messages--;
   }
 
