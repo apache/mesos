@@ -92,9 +92,6 @@ const Bytes DEFAULT_EXECUTOR_MEM = Megabytes(32);
 // Default number of ephemeral ports allocated to a container by the
 // network isolator.
 extern const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER;
-
-// Default ephemeral port range reserved for the network isolator.
-extern const std::string DEFAULT_EPHEMERAL_PORTS;
 #endif
 
 // If no pings received within this timeout, then the slave will

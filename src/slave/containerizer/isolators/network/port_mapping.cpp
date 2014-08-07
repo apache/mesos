@@ -100,8 +100,7 @@ const string BIND_MOUNT_ROOT = "/var/run/netns";
 
 
 // The minimum number of ephemeral ports a container should have.
-static const uint16_t MIN_EPHEMERAL_PORTS_SIZE =
-    DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER;
+static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
 
 
 // The primary priority used by each type of filter.

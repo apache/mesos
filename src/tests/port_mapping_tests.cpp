@@ -238,9 +238,15 @@ protected:
 
     flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
+    // NOTE: By default, Linux sets host ip local port range to
+    // [32768, 61000]. We set 'ephemeral_ports' resource so that it
+    // does not overlap with the host ip local port range.
     flags.resources =
-      ("cpus:2;mem:1024;disk:1024;ports:[31000-32000];ephemeral_ports:" +
-       slave::DEFAULT_EPHEMERAL_PORTS);
+      "cpus:2;mem:1024;disk:1024;ports:[31000-32000];"
+      "ephemeral_ports:[30001-30999]";
+
+    // NOTE: '16' should be enough for all our tests.
+    flags.ephemeral_ports_per_container = 16;
 
     flags.isolation = "network/port_mapping";
 

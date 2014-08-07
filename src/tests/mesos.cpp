@@ -350,10 +350,16 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
         flags.isolation,
         "network/port_mapping");
 
+    // NOTE: By default, Linux sets host ip local port range to
+    // [32768, 61000]. We set 'ephemeral_ports' resource so that it
+    // does not overlap with the host ip local port range.
     flags.resources = strings::join(
         ";",
         flags.resources.get(),
-        "ephemeral_ports:" + slave::DEFAULT_EPHEMERAL_PORTS);
+        "ephemeral_ports:[30001-30999]");
+
+    // NOTE: '16' should be enough for all our tests.
+    flags.ephemeral_ports_per_container = 16;
   }
 #endif
 
