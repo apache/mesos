@@ -2467,7 +2467,7 @@ void Slave::executorLaunched(
                << "' failed to start: "
                << (future.isFailed() ? future.failure() : " future discarded");
     return;
-  } else if (future.get()) {
+  } else if (!future.get()) {
     LOG(ERROR) << "Container '" << containerId
                << "' for executor '" << executorId
                << "' of framework '" << frameworkId
