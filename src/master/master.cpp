@@ -1276,7 +1276,7 @@ Future<Option<Error> > Master::validate(
     << "Authorizing framework principal '" << frameworkInfo.principal()
     << "' to receive offers for role '" << frameworkInfo.role() << "'";
 
-  mesos::ACL::ReceiveOffers request;
+  mesos::ACL::RegisterFramework request;
   if (frameworkInfo.has_principal()) {
     request.mutable_principals()->add_values(frameworkInfo.principal());
   } else {
@@ -2286,7 +2286,7 @@ Future<Option<Error> > Master::validateTask(
     << "Authorizing framework principal '" << framework->info.principal()
     << "' to launch task " << task.task_id() << " as user '" << user << "'";
 
-  mesos::ACL::RunTasks request;
+  mesos::ACL::RunTask request;
   if (framework->info.has_principal()) {
     request.mutable_principals()->add_values(framework->info.principal());
   } else {

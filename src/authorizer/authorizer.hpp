@@ -49,13 +49,11 @@ public:
   // A failed future indicates a transient failure and the user
   // can (should) retry.
   virtual process::Future<bool> authorize(
-      const ACL::RunTasks& request) = 0;
+      const ACL::RegisterFramework& request) = 0;
   virtual process::Future<bool> authorize(
-      const ACL::ReceiveOffers& request) = 0;
+      const ACL::RunTask& request) = 0;
   virtual process::Future<bool> authorize(
-      const ACL::HTTPGet& request) = 0;
-  virtual process::Future<bool> authorize(
-      const ACL::HTTPPut& request) = 0;
+      const ACL::ShutdownFramework& request) = 0;
 
 protected:
   Authorizer() {}
@@ -71,10 +69,12 @@ public:
   virtual ~LocalAuthorizer();
 
   // Implementation of Authorizer interface.
-  virtual process::Future<bool> authorize(const ACL::RunTasks& request);
-  virtual process::Future<bool> authorize(const ACL::ReceiveOffers& request);
-  virtual process::Future<bool> authorize(const ACL::HTTPGet& request);
-  virtual process::Future<bool> authorize(const ACL::HTTPPut& request);
+  virtual process::Future<bool> authorize(
+      const ACL::RegisterFramework& request);
+  virtual process::Future<bool> authorize(
+      const ACL::RunTask& request);
+  virtual process::Future<bool> authorize(
+      const ACL::ShutdownFramework& request);
 
 private:
   LocalAuthorizer(const ACLs& acls);

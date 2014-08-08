@@ -53,7 +53,7 @@ inline Result<Credentials> read(const std::string& path)
                  << "credentials file is NOT accessible by others.";
   }
 
-  // TODO(ijimenez) deprecate text support only JSON like acls
+  // TODO(ijimenez): Deprecate text and support only JSON like ACLs.
   Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
   if (!json.isError()) {
     Try<Credentials> credentials = ::protobuf::parse<Credentials>(json.get());
@@ -67,11 +67,11 @@ inline Result<Credentials> read(const std::string& path)
     const std::vector<std::string>& pairs = strings::tokenize(line, " ");
     if (pairs.size() != 2) {
         return Error("Invalid credential format at line " +
-                     stringify(credentials.registration().size() + 1));
+                     stringify(credentials.credentials().size() + 1));
     }
 
     // Add the credential.
-    Credential* credential = credentials.add_registration();
+    Credential* credential = credentials.add_credentials();
     credential->set_principal(pairs[0]);
     credential->set_secret(pairs[1]);
   }

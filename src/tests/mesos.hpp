@@ -492,27 +492,22 @@ public:
     // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
     // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
     // for more details.
-    EXPECT_CALL(*this, authorize(An<const mesos::ACL::RunTasks&>()))
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::RegisterFramework&>()))
       .WillRepeatedly(Return(true));
 
-    EXPECT_CALL(*this, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::RunTask&>()))
       .WillRepeatedly(Return(true));
 
-    EXPECT_CALL(*this, authorize(An<const mesos::ACL::HTTPGet&>()))
-      .WillRepeatedly(Return(true));
-
-    EXPECT_CALL(*this, authorize(An<const mesos::ACL::HTTPPut&>()))
+    EXPECT_CALL(*this, authorize(An<const mesos::ACL::ShutdownFramework&>()))
       .WillRepeatedly(Return(true));
   }
 
   MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::RunTasks& request));
+      authorize, process::Future<bool>(const ACL::RegisterFramework& request));
   MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::ReceiveOffers& request));
+      authorize, process::Future<bool>(const ACL::RunTask& request));
   MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::HTTPGet& request));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::HTTPPut& request));
+      authorize, process::Future<bool>(const ACL::ShutdownFramework& request));
 };
 
 

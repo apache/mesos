@@ -64,9 +64,9 @@ using testing::Return;
 class ShutdownTest : public MesosTest {};
 
 // Testing /master/shutdown so this endopoint  shuts down
-// designated framework or return adequate error
+// designated framework or return adequate error.
 
-// Testing route with authorization header and good credentials
+// Testing route with authorization header and good credentials.
 TEST_F(ShutdownTest, ShutdownEndpoint)
 {
   Try<PID<Master> > master = StartMaster();
@@ -105,7 +105,7 @@ TEST_F(ShutdownTest, ShutdownEndpoint)
 }
 
 
-// Testing route with bad credentials
+// Testing route with bad credentials.
 TEST_F(ShutdownTest, ShutdownEndpointBadCredentials)
 {
   Try<PID<Master> > master = StartMaster();
@@ -145,7 +145,106 @@ TEST_F(ShutdownTest, ShutdownEndpointBadCredentials)
 }
 
 
-// Testing route without frameworkId value
+// Testing route with good ACLs.
+TEST_F(ShutdownTest, ShutdownEndpointGoodACLs)
+{
+  // Setup ACLs so that the default principal can shutdown the
+  // framework.
+  ACLs acls;
+  mesos::ACL::ShutdownFramework* acl = acls.add_shutdown_frameworks();
+  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl->mutable_framework_principals()->add_values(
+      DEFAULT_CREDENTIAL.principal());
+
+  master::Flags flags = CreateMasterFlags();
+  flags.acls = acls;
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  ASSERT_EQ(DRIVER_RUNNING, driver.start());
+
+  AWAIT_READY(frameworkId);
+
+  hashmap<string, string> headers;
+  headers["Authorization"] = "Basic " +
+    base64::encode(DEFAULT_CREDENTIAL.principal() +
+                   ":" + DEFAULT_CREDENTIAL.secret());
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "shutdown",
+      headers,
+      "frameworkId=" + frameworkId.get().value());
+
+  AWAIT_READY(response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// Testing route with bad ACLs.
+TEST_F(ShutdownTest, ShutdownEndpointBadACLs)
+{
+  // Setup ACLs so that no principal can do shutdown the framework.
+  ACLs acls;
+  mesos::ACL::ShutdownFramework* acl = acls.add_shutdown_frameworks();
+  acl->mutable_principals()->set_type(mesos::ACL::Entity::NONE);
+  acl->mutable_framework_principals()->add_values(
+      DEFAULT_CREDENTIAL.principal());
+
+  master::Flags flags = CreateMasterFlags();
+  flags.acls = acls;
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  ASSERT_EQ(DRIVER_RUNNING, driver.start());
+
+  AWAIT_READY(frameworkId);
+
+  hashmap<string, string> headers;
+  headers["Authorization"] = "Basic " +
+    base64::encode(DEFAULT_CREDENTIAL.principal() +
+                   ":" + DEFAULT_CREDENTIAL.secret());
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "shutdown",
+      headers,
+      "frameworkId=" + frameworkId.get().value());
+
+  AWAIT_READY(response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status,
+      response);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// Testing route without frameworkId value.
 TEST_F(ShutdownTest, ShutdownEndpointNoFrameworkId)
 {
   Try<PID<Master> > master = StartMaster();
@@ -177,7 +276,7 @@ TEST_F(ShutdownTest, ShutdownEndpointNoFrameworkId)
 }
 
 
-// Testing route without authorization header
+// Testing route without authorization header.
 TEST_F(ShutdownTest, ShutdownEndpointNoHeader)
 {
   Try<PID<Master> > master = StartMaster();

@@ -658,12 +658,13 @@ message Parameters {
 
 
 /**
- * Credential used for authentication.
+ * Credential used in various places for authentication and
+ * authorization.
  *
- * NOTE: The 'principal' is used for authenticating the framework or slave
- * with the master. This is different from 'FrameworkInfo.user'
- * which is used to determine the user under which the framework's
- * executors/tasks are run.
+ * NOTE: A 'principal' is different from 'FrameworkInfo.user'. The
+ * former is used for authentication and authorization while the
+ * latter is used to determine the default user under which the
+ * framework's executors/tasks are run.
  */
 message Credential {
   required string principal = 1;
@@ -672,18 +673,12 @@ message Credential {
 
 
 /**
- * Credentials used for authentication.
- *
+ * Credentials used for framework authentication, HTTP authentication
+ * (where the common 'username' and 'password' are captured as
+ * 'principal' and 'secret' respectively), etc.
  */
 message Credentials {
-  // Collection of credentials used to authenticate "registration" of
-  // either frameworks or slaves.
-  repeated Credential registration = 1;
-
-  // Collection of credentails used to authenticate HTTP endpoints
-  // (where the common "username" and "password" are captured as
-  // 'principal' and 'secret' respectively).
-  repeated Credential http = 2;
+  repeated Credential credentials = 1;
 }
 
 
@@ -707,7 +702,15 @@ message ACL {
   }
 
   // ACLs.
-  message RunTasks {
+  message RegisterFramework {
+    // Subjects.
+    required Entity principals = 1; // Framework principals.
+
+    // Objects.
+    required Entity roles = 2; // Roles for resource offers.
+  }
+
+  message RunTask {
     // Subjects.
     required Entity principals = 1; // Framework principals.
 
@@ -715,32 +718,14 @@ message ACL {
     required Entity users = 2; // Users to run the tasks/executors as.
   }
 
-  message ReceiveOffers {
+  // Which principals are authorized to shutdown frameworks of other
+  // principals.
+  message ShutdownFramework {
     // Subjects.
-    required Entity principals = 1; // Framework principals.
+    required Entity principals = 1;
 
     // Objects.
-    required Entity roles = 2; // Resource roles that can be offered.
-  }
-
-  message HTTPGet {
-    // Subjects (At least one of these should be set).
-    optional Entity usernames = 1; // HTTP authentication based usernames.
-    optional Entity ips = 2;
-    optional Entity hostnames = 3;
-
-    // Objects.
-    required Entity urls = 4;
-  }
-
-  message HTTPPut {
-    // Subjects (At least one of these should be set).
-    optional Entity usernames = 1; // HTTP authentication based usernames.
-    optional Entity ips = 2;
-    optional Entity hostnames = 3;
-
-    // Objects.
-    required Entity urls = 4;
+    required Entity framework_principals = 2;
   }
 }
 
@@ -766,10 +751,9 @@ message ACL {
  */
 message ACLs {
   optional bool permissive = 1 [default = true];
-  repeated ACL.RunTasks run_tasks = 2;
-  repeated ACL.ReceiveOffers receive_offers = 3;
-  repeated ACL.HTTPGet http_get = 4;
-  repeated ACL.HTTPPut http_put = 5;
+  repeated ACL.RegisterFramework register_frameworks = 2;
+  repeated ACL.RunTask run_tasks = 3;
+  repeated ACL.ShutdownFramework shutdown_frameworks = 4;
 }
 
 

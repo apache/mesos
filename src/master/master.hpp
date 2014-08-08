@@ -437,6 +437,16 @@ private:
     const static std::string TASKS_HELP;
 
   private:
+    // Helper for doing authentication, returns the credential used if
+    // the authentication was successful (or none if no credentials
+    // have been given to the master), otherwise an Error.
+    Result<Credential> authenticate(const process::http::Request& request);
+
+    // Continuations.
+    process::Future<process::http::Response> _shutdown(
+        const FrameworkID& id,
+        bool authorized = true);
+
     Master* master;
   } http;
 

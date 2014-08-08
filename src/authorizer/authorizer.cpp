@@ -54,24 +54,9 @@ public:
   LocalAuthorizerProcess(const ACLs& _acls)
     : ProcessBase(process::ID::generate("authorizer")), acls(_acls) {}
 
-  Future<bool> authorize(const ACL::RunTasks& request)
+  Future<bool> authorize(const ACL::RegisterFramework& request)
   {
-    foreach (const ACL::RunTasks& acl, acls.run_tasks()) {
-      // ACL matches if both subjects and objects match.
-      if (matches(request.principals(), acl.principals()) &&
-          matches(request.users(), acl.users())) {
-        // ACL is allowed if both subjects and objects are allowed.
-        return allows(request.principals(), acl.principals()) &&
-               allows(request.users(), acl.users());
-      }
-    }
-
-    return acls.permissive(); // None of the ACLs match.
-  }
-
-  Future<bool> authorize(const ACL::ReceiveOffers& request)
-  {
-    foreach (const ACL::ReceiveOffers& acl, acls.receive_offers()) {
+    foreach (const ACL::RegisterFramework& acl, acls.register_frameworks()) {
       // ACL matches if both subjects and objects match.
       if (matches(request.principals(), acl.principals()) &&
           matches(request.roles(), acl.roles())) {
@@ -84,43 +69,38 @@ public:
     return acls.permissive(); // None of the ACLs match.
   }
 
-  Future<bool> authorize(const ACL::HTTPGet& request)
+  Future<bool> authorize(const ACL::RunTask& request)
   {
-    foreach (const ACL::HTTPGet& acl, acls.http_get()) {
+    foreach (const ACL::RunTask& acl, acls.run_tasks()) {
       // ACL matches if both subjects and objects match.
-      if (matches(request.usernames(), acl.usernames()) &&
-          matches(request.ips(), acl.ips()) &&
-          matches(request.hostnames(), acl.hostnames()) &&
-          matches(request.urls(), acl.urls())) {
+      if (matches(request.principals(), acl.principals()) &&
+          matches(request.users(), acl.users())) {
         // ACL is allowed if both subjects and objects are allowed.
-        return allows(request.usernames(), acl.usernames()) &&
-               allows(request.ips(), acl.ips()) &&
-               allows(request.hostnames(), acl.hostnames()) &&
-               allows(request.urls(), acl.urls());
+        return allows(request.principals(), acl.principals()) &&
+               allows(request.users(), acl.users());
       }
     }
 
     return acls.permissive(); // None of the ACLs match.
   }
 
-  Future<bool> authorize(const ACL::HTTPPut& request)
+  Future<bool> authorize(const ACL::ShutdownFramework& request)
   {
-    foreach (const ACL::HTTPPut& acl, acls.http_put()) {
+    foreach (const ACL::ShutdownFramework& acl, acls.shutdown_frameworks()) {
       // ACL matches if both subjects and objects match.
-      if (matches(request.usernames(), acl.usernames()) &&
-          matches(request.ips(), acl.ips()) &&
-          matches(request.hostnames(), acl.hostnames()) &&
-          matches(request.urls(), acl.urls())) {
+      if (matches(request.principals(), acl.principals()) &&
+          matches(request.framework_principals(),
+                  acl.framework_principals())) {
         // ACL is allowed if both subjects and objects are allowed.
-        return allows(request.usernames(), acl.usernames()) &&
-               allows(request.ips(), acl.ips()) &&
-               allows(request.hostnames(), acl.hostnames()) &&
-               allows(request.urls(), acl.urls());
+        return allows(request.principals(), acl.principals()) &&
+               allows(request.framework_principals(),
+                      acl.framework_principals());
       }
     }
 
     return acls.permissive(); // None of the ACLs match.
   }
+
 private:
   // Match matrix:
   //
@@ -263,61 +243,36 @@ LocalAuthorizer::~LocalAuthorizer()
 
 Try<Owned<LocalAuthorizer> > LocalAuthorizer::create(const ACLs& acls)
 {
-  // Validate ACLs.
-  foreach (const ACL::HTTPGet& acl, acls.http_get()) {
-    // At least one of the subjects should be set.
-    if (acl.has_usernames() + acl.has_ips() + acl.has_hostnames() < 1) {
-      return Error("At least one of the subjects should be set for ACL: " +
-                    acl.DebugString());
-    }
-  }
-
-  foreach (const ACL::HTTPPut& acl, acls.http_put()) {
-    // At least one of the subjects should be set.
-    if (acl.has_usernames() + acl.has_ips() + acl.has_hostnames() < 1) {
-       return Error("At least one of the subjects should be set for ACL: " +
-                     acl.DebugString());
-     }
-  }
-
   return new LocalAuthorizer(acls);
 }
 
 
-Future<bool> LocalAuthorizer::authorize(const ACL::RunTasks& request)
+Future<bool> LocalAuthorizer::authorize(const ACL::RegisterFramework& request)
 {
   // Necessary to disambiguate.
-  typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::RunTasks&);
+  typedef Future<bool>(LocalAuthorizerProcess::*F)(
+      const ACL::RegisterFramework&);
 
   return dispatch(
       process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
 }
 
 
-Future<bool> LocalAuthorizer::authorize(const ACL::ReceiveOffers& request)
+Future<bool> LocalAuthorizer::authorize(const ACL::RunTask& request)
 {
   // Necessary to disambiguate.
-  typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::ReceiveOffers&);
+  typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::RunTask&);
 
   return dispatch(
       process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
 }
 
 
-Future<bool> LocalAuthorizer::authorize(const ACL::HTTPGet& request)
+Future<bool> LocalAuthorizer::authorize(const ACL::ShutdownFramework& request)
 {
   // Necessary to disambiguate.
-  typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::HTTPGet&);
-
-  return dispatch(
-      process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
-}
-
-
-Future<bool> LocalAuthorizer::authorize(const ACL::HTTPPut& request)
-{
-  // Necessary to disambiguate.
-  typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::HTTPPut&);
+  typedef Future<bool>(LocalAuthorizerProcess::*F)(
+      const ACL::ShutdownFramework&);
 
   return dispatch(
       process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);

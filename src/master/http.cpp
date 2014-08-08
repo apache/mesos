@@ -39,6 +39,8 @@
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
 
+#include "authorizer/authorizer.hpp"
+
 #include "common/attributes.hpp"
 #include "common/build.hpp"
 #include "common/http.hpp"
@@ -620,42 +622,80 @@ const string Master::Http::SHUTDOWN_HELP = HELP(
 
 Future<Response> Master::Http::shutdown(const Request& request)
 {
-  if (master->credentials.isNone()) {
-    return Unauthorized("Mesos master");
+  if (request.method != "POST") {
+    return BadRequest("Expecting POST");
   }
+
+  // Parse the query string in the request body (since this is a POST)
+  // in order to determine the framework ID to shutdown.
   hashmap<string, string> values =
     process::http::query::parse(request.body);
-  Option<string> frameworkId = values.get("frameworkId");
-  if (frameworkId.isNone()) {
-    return BadRequest();
+
+  if (values.get("frameworkId").isNone()) {
+    return BadRequest("Missing 'frameworkId' query parameter");
   }
+
   FrameworkID id;
-  id.set_value(frameworkId.get());
+  id.set_value(values.get("frameworkId").get());
+
   Framework* framework = master->getFramework(id);
 
-  Option<string> authHeader = request.headers.get("Authorization");
-  if (authHeader.isNone()) {
-    return Unauthorized("Mesos master");
+  if (framework == NULL) {
+    return BadRequest("No framework found with specified ID");
   }
-  const string& decodedAuth =
-    base64::decode(strings::split(authHeader.get(), " ", 2)[1]);
-  const std::vector<string>& pairs = strings::split(decodedAuth, ":", 2);
-  if (pairs.size() != 2) {
+
+  Result<Credential> credential = authenticate(request);
+
+  if (credential.isError()) {
+    return Unauthorized("Mesos master", credential.error());
+  }
+
+  // Skip authorization if no ACLs were provided to the master.
+  if (master->authorizer.isNone()) {
+    return _shutdown(id);
+  }
+
+  mesos::ACL::ShutdownFramework shutdown;
+
+  if (credential.isSome()) {
+    shutdown.mutable_principals()->add_values(credential.get().principal());
+  } else {
+    shutdown.mutable_principals()->set_type(ACL::Entity::ANY);
+  }
+
+  if (framework->info.has_principal()) {
+    shutdown.mutable_framework_principals()->add_values(
+        framework->info.principal());
+  } else {
+    shutdown.mutable_framework_principals()->set_type(ACL::Entity::ANY);
+  }
+
+  lambda::function<Future<Response>(bool)> _shutdown =
+    lambda::bind(&Master::Http::_shutdown, this, id, lambda::_1);
+
+  return master->authorizer.get()->authorize(shutdown)
+    .then(defer(master->self(), _shutdown));
+}
+
+
+Future<Response> Master::Http::_shutdown(
+    const FrameworkID& id,
+    bool authorized)
+{
+  if (!authorized) {
     return Unauthorized("Mesos master");
   }
 
-  const string& username = pairs[0];
-  const string& password = pairs[1];
+  Framework* framework = master->getFramework(id);
 
-  foreach (const Credential& credential, master->credentials.get().http()) {
-    if (credential.principal() == username &&
-        (!credential.has_secret() || credential.secret() == password)) {
-      // TODO(ijimenez) make removeFramework asynchronously
-      master->removeFramework(framework);
-      return OK();
-    }
+  if (framework == NULL) {
+    return BadRequest("No framework found with ID " + stringify(id));
   }
-  return Unauthorized("Mesos master");
+
+  // TODO(ijimenez): Do 'removeFramework' asynchronously.
+  master->removeFramework(framework);
+
+  return OK();
 }
 
 
@@ -777,6 +817,44 @@ Future<Response> Master::Http::tasks(const Request& request)
   object.values["tasks"] = array;
 
   return OK(object, request.query.get("jsonp"));
+}
+
+
+Result<Credential> Master::Http::authenticate(const Request& request)
+{
+  // By default, assume everyone is authenticated if no credentials
+  // were provided.
+  if (master->credentials.isNone()) {
+    return None();
+  }
+
+  Option<string> authorization = request.headers.get("Authorization");
+
+  if (authorization.isNone()) {
+    return Error("Missing 'Authorization' request header");
+  }
+
+  const string& decoded =
+    base64::decode(strings::split(authorization.get(), " ", 2)[1]);
+
+  const vector<string>& pairs = strings::split(decoded, ":", 2);
+
+  if (pairs.size() != 2) {
+    return Error("Malformed 'Authorization' request header");
+  }
+
+  const string& username = pairs[0];
+  const string& password = pairs[1];
+
+  foreach (const Credential& credential,
+          master->credentials.get().credentials()) {
+    if (credential.principal() == username &&
+        credential.secret() == password) {
+      return credential;
+    }
+  }
+
+  return Error("Could not authenticate '" + username + "'");
 }
 
 

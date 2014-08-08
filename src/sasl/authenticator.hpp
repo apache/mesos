@@ -466,11 +466,11 @@ void load(const std::map<std::string, std::string>& secrets)
   InMemoryAuxiliaryPropertyPlugin::load(properties);
 }
 
-void load(const Credentials& c)
+void load(const Credentials& credentials)
 {
   std::map<std::string, std::string> secrets;
-  foreach(const Credential& registration, c.registration()) {
-    secrets[registration.principal()] = registration.secret();
+  foreach(const Credential& credential, credentials.credentials()) {
+    secrets[credential.principal()] = credential.secret();
   }
   load(secrets);
 }

@@ -72,7 +72,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedTask)
 {
   // Setup ACLs so that the framework can launch tasks as "foo".
   ACLs acls;
-  mesos::ACL::RunTasks* acl = acls.add_run_tasks();
+  mesos::ACL::RunTask* acl = acls.add_run_tasks();
   acl->mutable_principals()->add_values(DEFAULT_FRAMEWORK_INFO.principal());
   acl->mutable_users()->add_values("foo");
 
@@ -150,7 +150,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
 {
   // Setup ACLs so that no framework can launch as "foo".
   ACLs acls;
-  mesos::ACL::RunTasks* acl = acls.add_run_tasks();
+  mesos::ACL::RunTask* acl = acls.add_run_tasks();
   acl->mutable_principals()->set_type(mesos::ACL::Entity::NONE);
   acl->mutable_users()->add_values("foo");
 
@@ -251,7 +251,7 @@ TEST_F(MasterAuthorizationTest, KillTask)
   // Return a pending future from authorizer.
   Future<Nothing> future;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTasks&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
     .WillOnce(DoAll(FutureSatisfy(&future),
                     Return(promise.future())));
 
@@ -325,7 +325,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
   // Return a pending future from authorizer.
   Future<Nothing> future;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTasks&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
     .WillOnce(DoAll(FutureSatisfy(&future),
                     Return(promise.future())));
 
@@ -409,7 +409,7 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
   // Return a pending future from authorizer.
   Future<Nothing> future;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTasks&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
     .WillOnce(DoAll(FutureSatisfy(&future),
                     Return(promise.future())));
 
@@ -491,7 +491,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemoved)
   // Return a pending future from authorizer.
   Future<Nothing> future;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTasks&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
     .WillOnce(DoAll(FutureSatisfy(&future),
                     Return(promise.future())));
 
@@ -560,7 +560,7 @@ TEST_F(MasterAuthorizationTest, ReconcileTask)
   // Return a pending future from authorizer.
   Future<Nothing> future;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTasks&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
     .WillOnce(DoAll(FutureSatisfy(&future),
                     Return(promise.future())));
 
@@ -649,7 +649,7 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   // Return a pending future from authorizer.
   Future<Nothing> future;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTasks&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
     .WillOnce(DoAll(FutureSatisfy(&future),
                     Return(promise.future())));
 
@@ -694,7 +694,7 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status2));
 
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTasks&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
     .WillOnce(Return(true));
 
   driver.launchTasks(offers2.get()[0].id(), tasks2);
@@ -738,7 +738,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedRole)
   // Setup ACLs so that the framework can receive offers for role
   // "foo".
   ACLs acls;
-  mesos::ACL::ReceiveOffers* acl = acls.add_receive_offers();
+  mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
   acl->mutable_principals()->add_values(DEFAULT_FRAMEWORK_INFO.principal());
   acl->mutable_roles()->add_values("foo");
 
@@ -779,7 +779,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedRole)
   // Setup ACLs so that no framework can receive offers for role
   // "foo".
   ACLs acls;
-  mesos::ACL::ReceiveOffers* acl = acls.add_receive_offers();
+  mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
   acl->mutable_principals()->set_type(mesos::ACL::Entity::NONE);
   acl->mutable_roles()->add_values("foo");
 
@@ -840,7 +840,7 @@ TEST_F(MasterAuthorizationTest, DuplicateRegistration)
   Promise<bool> promise1;
   Future<Nothing> future2;
   Promise<bool> promise2;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
     .WillOnce(DoAll(FutureSatisfy(&future1),
                     Return(promise1.future())))
     .WillOnce(DoAll(FutureSatisfy(&future2),
@@ -906,7 +906,7 @@ TEST_F(MasterAuthorizationTest, DuplicateReregistration)
   Promise<bool> promise2;
   Future<Nothing> future3;
   Promise<bool> promise3;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
     .WillOnce(Return(true))
     .WillOnce(DoAll(FutureSatisfy(&future2),
                     Return(promise2.future())))
@@ -974,7 +974,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
   // Return a pending future from authorizer.
   Future<Nothing> future;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
     .WillOnce(DoAll(FutureSatisfy(&future),
                     Return(promise.future())));
 
@@ -1032,7 +1032,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
   // Return a pending future from authorizer after first attempt.
   Future<Nothing> future2;
   Promise<bool> promise2;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::ReceiveOffers&>()))
+  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
     .WillOnce(Return(true))
     .WillOnce(DoAll(FutureSatisfy(&future2),
                     Return(promise2.future())));

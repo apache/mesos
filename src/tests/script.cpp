@@ -135,16 +135,16 @@ void execute(const string& script)
     ACLs acls;
     acls.set_permissive(false);
 
-    mesos::ACL::RunTasks* run = acls.add_run_tasks();
+    mesos::ACL::RunTask* run = acls.add_run_tasks();
     run->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
 
     Result<string> user = os::user();
     CHECK_SOME(user) << "Failed to get current user name";
     run->mutable_users()->add_values(user.get());
 
-    mesos::ACL::ReceiveOffers* offer = acls.add_receive_offers();
-    offer->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-    offer->mutable_roles()->add_values("*");
+    mesos::ACL::RegisterFramework* register_ = acls.add_register_frameworks();
+    register_->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    register_->mutable_roles()->add_values("*");
 
     const string& aclsPath = path::join(directory.get(), "acls");
 

@@ -6,11 +6,10 @@ layout: documentation
 
 Mesos 0.20.0 adds support for framework authorization. Authorization allows
 
- 1. Frameworks to only launch tasks/executors as authorized `users`.
- 2. Frameworks to be able to receive offers for authorized `roles`.
- 3. HTTP endpoints exposed by Mesos to be accessible to authorized `clients`.
+ 1. Frameworks to (re-)register with authorized `roles`.
+ 2. Frameworks to launch tasks/executors as authorized `users`.
+ 3. Authorized `principals` to shutdown framework(s) through "/shutdown" HTTP endpoint.
 
-> NOTE: While ACLs support for HTTP is present, currently access to the HTTP endpoints are not authorized.
 
 ## ACLs
 
@@ -20,40 +19,41 @@ Each ACL specifies a set of `Subjects` that can perform an `Action` on a set of 
 
 The currently supported `Actions` are :
 
-1. "run_tasks" : Run tasks/executors
-2. "receive_offers" : Receive offers
-3. "http_get" : HTTP GET access
-4. "http_put" : HTTP_PUT access
+1. "register_frameworks" : Register Frameworks
+2. "run_tasks" : Run tasks/executors
+3. "shutdown_frameworks" : Shutdown frameworks
 
 The currently supported `Subjects` are :
 
-1. "principals" : Framework principals (used by "run_tasks" and "receive_offers" actions)
-2. "usernames" : Username used in HTTP Basic/Digest authentication. (used by "http_get" and "http_put" actions)
-3. "ips" : IP Addresses of the clients (used by "http_get" and "http_put" actions)
-4. "hostnames" : Hostnames of the clients (used by "http_get" and "http_put" actions)
+1. "principals"
+	- Framework principals (used by "register_frameworks" and "run_tasks" actions)
+	- Usernames (used by "shutdown_frameworks" action)
 
 The currently supported `Objects` are :
 
-1. "users" : Unix user to launch the task/executor as (used by "run_tasks" action)
-2. "roles" : Resource roles to receive offers from (used by "receive_offers" action)
-3. "urls" : HTTP URL endpoint exposed by the master (used by "http_get" and "http_put" actions)
+1. "roles" : Resource roles that framework can register with (used by "register_frameworks" action)
+2. "users" : Unix user to launch the task/executor as (used by "run_tasks" action)
+3. "framework_principals" : Framework principals that can be shutdown by HTTP POST (used by "shutdown_frameworks" action).
 
-> NOTE: Both `Subjects` and `Objects` can take a list of strings or special values (`ANY` and `NONE`).
+> NOTE: Both `Subjects` and `Objects` can take a list of strings or special values (`ANY` or `NONE`).
 
 
 ## How does it work?
 
-The Mesos master checks the ACLs to verify whether a request is authorized or not. For example, when  a framework launches a task, "run_tasks" ACLs are checked to see if the framework (`FrameworkInfo.principal`) is authorized to run the task/executor as the given user. If not authorized, the launch is rejected and the framework gets a TASK_LOST.
+The Mesos master checks the ACLs to verify whether a request is authorized or not.
 
-Similarly, when a framework (re-)registers the Mesos master checks whether it is authorized to receive offers for given resource role (`FrameworkInfo.role`). If not authorized, the framework is not allowed to (re-)register and gets an Error message back.
+For example, when a framework (re-)registers with the master, the "register_frameworks" ACLs are checked to see if the framework (`FrameworkInfo.principal`) is authorized to receive offers for the given resource role (`FrameworkInfo.role`). If not authorized, the framework is not allowed to (re-)register and gets an `Error` message back (which aborts the scheduler driver).
 
-While not yet implemented, GET/PUT access to HTTP endpoints exposed by the Mesos master will be authorized in a similar way.
+Similarly, when a framework launches a task(s), "run_tasks" ACLs are checked to see if the framework (`FrameworkInfo.principal`) is authorized to run the task/executor as the given `user`. If not authorized, the launch is rejected and the framework gets a TASK_LOST.
+
+In the same vein, when a user/principal attempts to shutdown a framework through the "/shutdown" HTTP endpoint on the master, "shutdown_frameworks" ACLs are checked to see if the `principal` is authorized to shutdown the given framework. If not authorized, the shutdown is rejected and the user receives an `Unauthorized` HTTP response.
+
 
 There are couple of important things to note:
 
 1. ACLs are matched in the order that they are setup. In other words, the first matching ACL determines whether a request is authorized or not.
 
-2. If none of the specified ACLs match the given request, whether the request is authorized or not is defined by `ACLs.permissive` field. By default this "true" i.e., a non-matching request is authorized.
+2. If none of the specified ACLs match the given request, whether the request is authorized or not is defined by `ACLs.permissive` field. By default this is "true" i.e., a non-matching request is authorized.
 
 
 ## Examples
@@ -66,7 +66,7 @@ There are couple of important things to note:
                                "principals": { "values": ["foo", "bar"] },
                                "users": { "values": ["alice"] }
                              }
-                           ],
+                           ]
             }
 
 2. Any framework can run tasks as user `guest`.
@@ -77,7 +77,7 @@ There are couple of important things to note:
                                "principals": { "type": "ANY" },
                                "users": { "values": ["guest"] }
                              }
-                           ],
+                           ]
             }
 
 3. No framework can run tasks as `root`.
@@ -88,7 +88,7 @@ There are couple of important things to note:
                                "principals": { "type": "NONE" },
                                "users": { "values": ["root"] }
                              }
-                           ],
+                           ]
             }
 
 
@@ -102,52 +102,66 @@ There are couple of important things to note:
                              },
                              {
                                "principals": { "values": [ "foo" ] },
-                               "users": { "type": ["NONE"] }
+                               "users": { "type": "NONE" }
                              }
-                           ],
+                           ]
             }
 
 
 
 
-5. Framework `foo` can be offered resources for `analytics` and `ads` roles.
+5. Framework `foo` can register with `analytics` and `ads` roles.
 
             {
-              "receive_offers": [
-                                  {
-                                    "principals": { "values": ["foo"] },
-                                    "roles": { "values": ["analytics", "ads"] }
-                                  }
-                                ],
+              "register_frameworks": [
+                                       {
+                                         "principals": { "values": ["foo"] },
+                                         "roles": { "values": ["analytics", "ads"] }
+                                       }
+                                     ]
             }
 
 
-6. Only framework `foo` and no one else can be offered resources for `analytics` role.
+6. Only framework `foo` and no one else can register with `analytics` role.
 
             {
-              "receive_offers": [
-                                  {
-                                    "principals": { "values": ["foo"] },
-                                    "roles": { "values": ["analytics"] }
-                                  },
-                                  {
-                                    "principals": { "type": "NONE" },
-                                    "roles": { "values": ["analytics"] }
-                                  }
-                                ],
+              "register_frameworks": [
+                                       {
+                                         "principals": { "values": ["foo"] },
+                                         "roles": { "values": ["analytics"] }
+                                       },
+                                       {
+                                         "principals": { "type": "NONE" },
+                                         "roles": { "values": ["analytics"] }
+                                       }
+                                     ]
             }
 
-7. Framework `foo` can only receive offers for `analytics` role but no other roles. Also, no other framework can receive offers for any role.
+7. Framework `foo` can only register with `analytics` role but no other roles. Also, no other framework can register with any roles.
 
             {
               "permissive" : "false",
 
-              "receive_offers": [
-                                  {
-                                    "principals": { "values": ["foo"] },
-                                    "roles": { "values": ["analytics"] }
-                                  }
-                                ],
+              "register_frameworks": [
+                                       {
+                                         "principals": { "values": ["foo"] },
+                                         "roles": { "values": ["analytics"] }
+                                       }
+                                     ]
+            }
+
+
+8. Only `ops` principal can shutdown any frameworks through "/shutdown" HTTP endpoint.
+
+            {
+              "permissive" : "false",
+
+              "shutdown_frameworks": [
+                                       {
+                                         "principals": { "values": ["ops"] },
+                                         "framework_principals": { "type": "ANY" }
+                                       }
+                                     ]
             }
 
 
@@ -161,20 +175,5 @@ As part of this feature, a new flag was added to the master.
             or '/path/to/file'.
             See the ACLs protobuf in mesos.proto for the expected format.
 
-            Example:
-            {
-              "run_tasks": [
-                             {
-                               "principals": { "values": ["a", "b"] },
-                               "users": { "values": ["root"] }
-                             }
-                           ],
-              "receive_offers": [
-                                  {
-                                    "principals": { "type": "ANY" },
-                                    "roles": { "values": ["foo"] }
-                                  }
-                                ]
-            }
 
 **For the complete list of master options: ./mesos-master.sh --help**
