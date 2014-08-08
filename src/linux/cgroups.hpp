@@ -45,6 +45,13 @@ namespace cgroups {
 // explicitly specified.
 const Duration DESTROY_TIMEOUT = Seconds(60);
 
+
+// Freezing a cgroup may get stuck (see MESOS-1689 for details). To
+// workaround, we may want to thaw the cgroup and retry freezing it.
+// This is the suggested retry interval.
+const Duration FREEZE_RETRY_INTERVAL = Seconds(10);
+
+
 // Default number of assign attempts when moving threads to a cgroup.
 const unsigned int THREAD_ASSIGN_RETRIES = 100;
 

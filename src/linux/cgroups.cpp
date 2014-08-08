@@ -1470,10 +1470,30 @@ protected:
   virtual void finalize()
   {
     chain.discard();
+
+    // TODO(jieyu): Wait until 'chain' is in DISCARDED state before
+    // discarding 'promise'.
     promise.discard();
   }
 
 private:
+  static Future<Nothing> freezeTimedout(
+      Future<Nothing> future,
+      const PID<TasksKiller>& pid,
+      const string& hierarchy,
+      const string& cgroup)
+  {
+    // Cancel the freeze operation.
+    // TODO(jieyu): Wait until 'future' is in DISCARDED state before
+    // starting retry.
+    future.discard();
+
+    // Thaw the cgroup before trying to freeze again to allow any
+    // pending signals to be delivered. See MESOS-1689 for details.
+    return cgroups::freezer::thaw(hierarchy, cgroup)
+      .then(defer(pid, &Self::freeze));
+  }
+
   void killTasks() {
     // Chain together the steps needed to kill all tasks in the cgroup.
     chain = freeze()                     // Freeze the cgroup.
@@ -1486,7 +1506,16 @@ private:
 
   Future<Nothing> freeze()
   {
-    return cgroups::freezer::freeze(hierarchy, cgroup);
+    // TODO(jieyu): This is a workaround for MESOS-1689. We will move
+    // away from freezer once we have pid namespace support.
+    return cgroups::freezer::freeze(hierarchy, cgroup).after(
+        FREEZE_RETRY_INTERVAL,
+        lambda::bind(
+            &freezeTimedout,
+            lambda::_1,
+            self(),
+            hierarchy,
+            cgroup));
   }
 
   Future<Nothing> kill()
