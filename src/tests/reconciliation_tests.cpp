@@ -578,8 +578,7 @@ TEST_F(ReconciliationTest, ImplicitTerminalTask)
 
 
 // This test ensures that reconciliation requests for tasks that are
-// pending (due to validation/authorization) do not result in status
-// updates.
+// pending are exposed in reconciliation.
 TEST_F(ReconciliationTest, PendingTask)
 {
   MockAuthorizer authorizer;
@@ -615,10 +614,6 @@ TEST_F(ReconciliationTest, PendingTask)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Framework should not receive any update.
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .Times(0);
-
   // Return a pending future from authorizer.
   Future<Nothing> future;
   Promise<bool> promise;
@@ -635,43 +630,34 @@ TEST_F(ReconciliationTest, PendingTask)
   // Wait until authorization is in progress.
   AWAIT_READY(future);
 
-  // First send an implicit reconciliation request for this task,
-  // there should be no updates.
-  Future<ReconcileTasksMessage> reconcileTasksMessage =
-    FUTURE_PROTOBUF(ReconcileTasksMessage(), _ , _);
-
-  Clock::pause();
+  // First send an implicit reconciliation request for this task.
+  Future<TaskStatus> update;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&update));
 
   vector<TaskStatus> statuses;
   driver.reconcileTasks(statuses);
 
-  // Make sure the master received the reconcile tasks message.
-  AWAIT_READY(reconcileTasksMessage);
+  AWAIT_READY(update);
+  EXPECT_EQ(TASK_STAGING, update.get().state());
+  EXPECT_TRUE(update.get().has_slave_id());
 
-  // The Clock::settle() will ensure that framework would receive
-  // a status update if it is sent by the master. In this test it
-  // shouldn't receive any.
-  Clock::settle();
+  // Now send an explicit reconciliation request for this task.
+  Future<TaskStatus> update2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&update2));
 
-  // Now send an explicit reconciliation request for this task;
-  // there should be no updates.
   TaskStatus status;
   status.mutable_task_id()->CopyFrom(task.task_id());
   status.mutable_slave_id()->CopyFrom(slaveId);
   status.set_state(TASK_STAGING);
   statuses.push_back(status);
 
-  reconcileTasksMessage = FUTURE_PROTOBUF(ReconcileTasksMessage(), _ , _);
-
   driver.reconcileTasks(statuses);
 
-  // Make sure the master received the reconcile tasks message.
-  AWAIT_READY(reconcileTasksMessage);
-
-  // The Clock::settle() will ensure that framework would receive
-  // a status update if it is sent by the master. In this test it
-  // shouldn't receive any.
-  Clock::settle();
+  AWAIT_READY(update2);
+  EXPECT_EQ(TASK_STAGING, update2.get().state());
+  EXPECT_TRUE(update2.get().has_slave_id());
 
   driver.stop();
   driver.join();

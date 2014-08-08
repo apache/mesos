@@ -3302,7 +3302,26 @@ void Master::reconcileTasks(
     LOG(INFO) << "Performing implicit task state reconciliation for framework "
               << frameworkId;
 
-    // TODO(bmahler): Consider sending completed tasks?
+    foreachvalue (const TaskInfo& task, framework->pendingTasks) {
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          frameworkId,
+          task.slave_id(),
+          task.task_id(),
+          TASK_STAGING,
+          "Reconciliation: Latest task state");
+
+      VLOG(1) << "Sending implicit reconciliation state "
+              << update.status().state()
+              << " for task " << update.status().task_id()
+              << " of framework " << frameworkId;
+
+      // TODO(bmahler): Consider using forward(); might lead to too
+      // much logging.
+      StatusUpdateMessage message;
+      message.mutable_update()->CopyFrom(update);
+      send(framework->pid, message);
+    }
+
     foreachvalue (Task* task, framework->tasks) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
           frameworkId,
@@ -3331,7 +3350,7 @@ void Master::reconcileTasks(
             << statuses.size() << " tasks of framework " << frameworkId;
 
   // Explicit reconciliation occurs for the following cases:
-  //   (1) Task is known, but pending: no-op.
+  //   (1) Task is known, but pending: TASK_STAGING.
   //   (2) Task is known: send the latest state.
   //   (3) Task is unknown, slave is registered: TASK_LOST.
   //   (4) Task is unknown, slave is transitioning: no-op.
@@ -3353,10 +3372,14 @@ void Master::reconcileTasks(
     Task* task = framework->getTask(status.task_id());
 
     if (framework->pendingTasks.contains(status.task_id())) {
-      // (1) Task is known, but pending: no-op.
-      LOG(INFO) << "Ignoring reconciliation request of task "
-                << status.task_id() << " from framework " << frameworkId
-                << " because the task is pending";
+      // (1) Task is known, but pending: TASK_STAGING.
+      const TaskInfo& task_ = framework->pendingTasks[status.task_id()];
+      update = protobuf::createStatusUpdate(
+          frameworkId,
+          task_.slave_id(),
+          task_.task_id(),
+          TASK_STAGING,
+          "Reconciliation: Latest task state");
     } else if (task != NULL) {
       // (2) Task is known: send the latest state.
       update = protobuf::createStatusUpdate(
