@@ -31,12 +31,27 @@ private:
 
   template <typename _F> friend struct _Defer;
 
-  friend Deferred<void(void)> defer(const std::tr1::function<void(void)>& f);
+  friend Deferred<void(void)> defer(
+      const UPID& pid,
+      const std::tr1::function<void(void)>& f);
+
+  friend Deferred<void(void)> defer(
+      const std::tr1::function<void(void)>& f);
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename A)>                                 \
   friend Deferred<void(ENUM_PARAMS(N, A))> defer(                       \
+      const UPID& pid,                                                  \
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f);            \
+                                                                        \
+  template <ENUM_PARAMS(N, typename A)>                                 \
+  friend Deferred<void(ENUM_PARAMS(N, A))> defer(                       \
+      const std::tr1::function<void(ENUM_PARAMS(N, A))>& f);            \
+                                                                        \
+  template <typename R, ENUM_PARAMS(N, typename A)>                     \
+  friend Deferred<Future<R>(ENUM_PARAMS(N, A))> defer(                  \
+      const UPID& pid,                                                  \
+      const std::tr1::function<Future<R>(ENUM_PARAMS(N, A))>& f);       \
                                                                         \
   template <typename R, ENUM_PARAMS(N, typename A)>                     \
   friend Deferred<Future<R>(ENUM_PARAMS(N, A))> defer(                  \

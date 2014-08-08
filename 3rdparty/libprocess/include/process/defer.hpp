@@ -384,6 +384,18 @@ inline void dispatcher(
 
 
 // Now we define defer calls for functions and bind statements.
+inline Deferred<void(void)> defer(
+    const UPID& pid,
+    const std::tr1::function<void(void)>& f)
+{
+  return std::tr1::function<void(void)>(
+      std::tr1::bind(&internal::dispatcher,
+                     pid,
+                     f));
+}
+
+
+// Now we define defer calls for functions and bind statements.
 inline Deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
 {
   if (__process__ != NULL) {
@@ -405,6 +417,18 @@ inline Deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename A)>                                 \
   Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
+      const UPID& pid,                                                  \
+      const std::tr1::function<void(ENUM_PARAMS(N, A))>& f)             \
+  {                                                                     \
+    return std::tr1::function<void(ENUM_PARAMS(N, A))>(                 \
+        std::tr1::bind(&internal::CAT(dispatcher, N)<ENUM_PARAMS(N, A)>, \
+                       pid,                                             \
+                       f,                                               \
+                       ENUM_BINARY_PARAMS(N, internal::_, () INTERCEPT))); \
+  }                                                                     \
+                                                                        \
+  template <ENUM_PARAMS(N, typename A)>                                 \
+  Deferred<void(ENUM_PARAMS(N, A))> defer(                              \
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f)             \
   {                                                                     \
     if (__process__ != NULL) {                                          \
@@ -416,6 +440,18 @@ inline Deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
     }                                                                   \
                                                                         \
     return __executor__->defer(f);                                      \
+  }                                                                     \
+                                                                        \
+  template <typename R, ENUM_PARAMS(N, typename A)>                     \
+  Deferred<Future<R>(ENUM_PARAMS(N, A))> defer(                         \
+      const UPID& pid,                                                  \
+      const std::tr1::function<Future<R>(ENUM_PARAMS(N, A))>& f)        \
+  {                                                                     \
+    return std::tr1::function<Future<R>(ENUM_PARAMS(N, A))>(            \
+        std::tr1::bind(&internal::CAT(dispatcher, N)<ENUM_PARAMS(N, A)>, \
+                       pid,                                             \
+                       f,                                               \
+                       ENUM_BINARY_PARAMS(N, internal::_, () INTERCEPT))); \
   }                                                                     \
                                                                         \
   template <typename R, ENUM_PARAMS(N, typename A)>                     \
