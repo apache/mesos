@@ -1099,7 +1099,8 @@ mesos_tests_SOURCES =				\
   tests/status_update_manager_tests.cpp		\
   tests/utils.cpp				\
   tests/values_tests.cpp			\
-  tests/zookeeper_url_tests.cpp
+  tests/zookeeper_url_tests.cpp			\
+  tests/common/http_tests.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"

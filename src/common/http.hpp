@@ -19,18 +19,33 @@
 #ifndef __COMMON_HTTP_HPP__
 #define __COMMON_HTTP_HPP__
 
+#include <vector>
+
+#include <mesos/mesos.hpp>
+
 #include <stout/json.hpp>
 
 namespace mesos {
+
 class Resources;
 
 namespace internal {
+
 class Attributes;
 class Task;
 
+
 JSON::Object model(const Resources& resources);
 JSON::Object model(const Attributes& attributes);
+
+// These are the two identical ways to model a task, depending on
+// whether you have a 'Task' or a 'TaskInfo' available.
 JSON::Object model(const Task& task);
+JSON::Object model(
+    const TaskInfo& task,
+    const FrameworkID& frameworkId,
+    const TaskState& state,
+    const std::vector<TaskStatus>& statuses);
 
 } // namespace internal {
 } // namespace mesos {

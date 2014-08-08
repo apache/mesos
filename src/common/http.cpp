@@ -16,12 +16,8 @@
  * limitations under the License.
  */
 
-#include <map>
-#include <string>
+#include <vector>
 
-#include <glog/logging.h>
-
-#include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
 #include <stout/foreach.hpp>
@@ -32,14 +28,13 @@
 
 #include "messages/messages.hpp"
 
-using std::map;
-using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
 
-// TODO(bmahler): Kill these in favor of automatic Proto->JSON Conversion (when
-// it becomes available).
+// TODO(bmahler): Kill these in favor of automatic Proto->JSON
+// Conversion (when it becomes available).
 
 JSON::Object model(const Resources& resources)
 {
@@ -118,7 +113,13 @@ JSON::Object model(const Task& task)
   object.values["id"] = task.task_id().value();
   object.values["name"] = task.name();
   object.values["framework_id"] = task.framework_id().value();
-  object.values["executor_id"] = task.executor_id().value();
+
+  if (task.has_executor_id()) {
+    object.values["executor_id"] = task.executor_id().value();
+  } else {
+    object.values["executor_id"] = "";
+  }
+
   object.values["slave_id"] = task.slave_id().value();
   object.values["state"] = TaskState_Name(task.state());
   object.values["resources"] = model(task.resources());
@@ -131,6 +132,39 @@ JSON::Object model(const Task& task)
 
   return object;
 }
+
+
+// TODO(bmahler): Expose the executor name / source.
+JSON::Object model(
+    const TaskInfo& task,
+    const FrameworkID& frameworkId,
+    const TaskState& state,
+    const vector<TaskStatus>& statuses)
+{
+  JSON::Object object;
+  object.values["id"] = task.task_id().value();
+  object.values["name"] = task.name();
+  object.values["framework_id"] = frameworkId.value();
+
+  if (task.has_executor()) {
+    object.values["executor_id"] = task.executor().executor_id().value();
+  } else {
+    object.values["executor_id"] = "";
+  }
+
+  object.values["slave_id"] = task.slave_id().value();
+  object.values["state"] = TaskState_Name(state);
+  object.values["resources"] = model(task.resources());
+
+  JSON::Array array;
+  foreach (const TaskStatus& status, statuses) {
+    array.values.push_back(model(status));
+  }
+  object.values["statuses"] = array;
+
+  return object;
+}
+
 
 }  // namespace internal {
 }  // namespace mesos {

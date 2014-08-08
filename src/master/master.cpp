@@ -2155,6 +2155,9 @@ void Master::launchTasks(
           TASK_LOST,
           "Task launched with invalid offers: " + error.get().message);
 
+      metrics.tasks_lost++;
+      stats.tasks[TASK_LOST]++;
+
       forward(update, UPID(), framework);
     }
     return;
@@ -2177,6 +2180,8 @@ void Master::launchTasks(
     // NOTE: We need to do this here after validation because of the
     // way task validators work.
     framework->pendingTasks[task.task_id()] = task;
+
+    stats.tasks[TASK_STAGING]++;
   }
 
   // Wait for all the tasks to be validated.
@@ -2322,8 +2327,6 @@ void Master::launchTask(
   message.mutable_task()->MergeFrom(task);
   send(slave->pid, message);
 
-  stats.tasks[TASK_STAGING]++;
-
   return;
 }
 
@@ -2361,6 +2364,9 @@ void Master::_launchTasks(
           TASK_LOST,
           (slave == NULL ? "Slave removed" : "Slave disconnected"));
 
+      metrics.tasks_lost++;
+      stats.tasks[TASK_LOST]++;
+
       forward(update, UPID(), framework);
     }
 
@@ -2397,6 +2403,9 @@ void Master::_launchTasks(
           TASK_LOST,
           error);
 
+      metrics.tasks_lost++;
+      stats.tasks[TASK_LOST]++;
+
       forward(update, UPID(), framework);
 
       continue;
@@ -2422,6 +2431,9 @@ void Master::_launchTasks(
           task.task_id(),
           TASK_LOST,
           error);
+
+      metrics.tasks_lost++;
+      stats.tasks[TASK_LOST]++;
 
       forward(update, UPID(), framework);
 
@@ -4470,6 +4482,11 @@ double Master::_slaves_inactive()
 double Master::_tasks_staging()
 {
   double count = 0.0;
+
+  // Add the tasks pending validation / authorization.
+  foreachvalue (Framework* framework, frameworks.registered) {
+    count += framework->pendingTasks.size();
+  }
 
   foreachvalue (Slave* slave, slaves.registered) {
     typedef hashmap<TaskID, Task*> TaskMap;

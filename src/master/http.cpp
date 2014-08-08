@@ -127,6 +127,12 @@ JSON::Object model(const Framework& framework)
   // Model all of the tasks associated with a framework.
   {
     JSON::Array array;
+
+    foreachvalue (const TaskInfo& task, framework.pendingTasks) {
+      vector<TaskStatus> statuses;
+      array.values.push_back(model(task, framework.id, TASK_STAGING, statuses));
+    }
+
     foreachvalue (Task* task, framework.tasks) {
       array.values.push_back(model(*task));
     }
@@ -175,6 +181,7 @@ JSON::Object model(const Slave& slave)
   object.values["attributes"] = model(slave.info.attributes());
   return object;
 }
+
 
 // Returns a JSON object modeled after a Role.
 JSON::Object model(const Role& role)
