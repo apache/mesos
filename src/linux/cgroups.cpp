@@ -1963,7 +1963,76 @@ Try<Nothing> limit_in_bytes(
     const Bytes& limit)
 {
   return cgroups::write(
-      hierarchy, cgroup, "memory.limit_in_bytes", stringify(limit.bytes()));
+      hierarchy,
+      cgroup,
+      "memory.limit_in_bytes",
+      stringify(limit.bytes()));
+}
+
+
+Result<Bytes> memsw_limit_in_bytes(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  Try<bool> exists = cgroups::exists(
+      hierarchy, cgroup, "memory.memsw.limit_in_bytes");
+
+  if (exists.isError()) {
+    return Error(
+        "Could not check for existence of 'memory.memsw.limit_in_bytes': " +
+        exists.error());
+  }
+
+  if (!exists.get()) {
+    return None();
+  }
+
+  Try<string> read = cgroups::read(
+      hierarchy, cgroup, "memory.memsw.limit_in_bytes");
+
+  if (read.isError()) {
+    return Error(read.error());
+  }
+
+  Try<Bytes> bytes = Bytes::parse(strings::trim(read.get()) + "B");
+
+  if (bytes.isError()) {
+    return Error(bytes.error());
+  }
+
+  return bytes.get();
+}
+
+
+Try<bool> memsw_limit_in_bytes(
+    const string& hierarchy,
+    const string& cgroup,
+    const Bytes& limit)
+{
+  Try<bool> exists = cgroups::exists(
+      hierarchy, cgroup, "memory.memsw.limit_in_bytes");
+
+  if (exists.isError()) {
+    return Error(
+        "Could not check for existence of 'memory.memsw.limit_in_bytes': " +
+        exists.error());
+  }
+
+  if (!exists.get()) {
+    return false;
+  }
+
+  Try<Nothing> write = cgroups::write(
+      hierarchy,
+      cgroup,
+      "memory.memsw.limit_in_bytes",
+      stringify(limit.bytes()));
+
+  if (write.isError()) {
+    return Error(write.error());
+  }
+
+  return true;
 }
 
 

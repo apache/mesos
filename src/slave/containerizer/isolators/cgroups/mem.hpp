@@ -74,7 +74,10 @@ public:
       const ContainerID& containerId);
 
 private:
-  CgroupsMemIsolatorProcess(const Flags& flags, const std::string& hierarchy);
+  CgroupsMemIsolatorProcess(
+      const Flags& flags,
+      const std::string& hierarchy,
+      bool limitSwap);
 
   virtual process::Future<Nothing> _cleanup(
       const ContainerID& containerId,
@@ -112,6 +115,8 @@ private:
 
   // The path to the cgroups subsystem hierarchy root.
   const std::string hierarchy;
+
+  const bool limitSwap;
 
   // TODO(bmahler): Use Owned<Info>.
   hashmap<ContainerID, Info*> infos;

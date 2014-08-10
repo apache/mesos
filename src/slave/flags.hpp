@@ -209,6 +209,13 @@ public:
         "via the CFS bandwidth limiting subfeature.\n",
         false);
 
+    // TODO(antonl): Set default to true in future releases.
+    add(&Flags::cgroups_limit_swap,
+        "cgroups_limit_swap",
+        "Cgroups feature flag to enable memory limits on both memory and\n"
+        "swap instead of just memory.\n",
+        false);
+
     add(&Flags::slave_subsystems,
         "slave_subsystems",
         "List of comma-separated cgroup subsystems to run the slave binary\n"
@@ -329,6 +336,7 @@ public:
   std::string cgroups_root;
   Option<std::string> cgroups_subsystems;
   bool cgroups_enable_cfs;
+  bool cgroups_limit_swap;
   Option<std::string> slave_subsystems;
   Option<std::string> perf_events;
   Duration perf_interval;

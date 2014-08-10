@@ -455,6 +455,23 @@ Try<Nothing> limit_in_bytes(
     const Bytes& limit);
 
 
+// Returns the memory limit from memory.memsw.limit_in_bytes. Returns
+// none if memory.memsw.limit_in_bytes is not supported (e.g., when
+// swap is turned off).
+Result<Bytes> memsw_limit_in_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Sets the memory limit using memory.memsw.limit_in_bytes. Returns
+// false if memory.memsw.limit_in_bytes is not supported (e.g., when
+// swap is turned off).
+Try<bool> memsw_limit_in_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Bytes& limit);
+
+
 // Returns the soft memory limit from memory.soft_limit_in_bytes.
 Try<Bytes> soft_limit_in_bytes(
     const std::string& hierarchy,
