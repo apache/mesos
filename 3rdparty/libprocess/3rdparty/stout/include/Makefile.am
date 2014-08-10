@@ -67,6 +67,7 @@ nobase_include_HEADERS =		\
   stout/stringify.hpp			\
   stout/strings.hpp			\
   stout/subcommand.hpp			\
+  stout/svn.hpp				\
   stout/tests/utils.hpp			\
   stout/thread.hpp			\
   stout/try.hpp				\
