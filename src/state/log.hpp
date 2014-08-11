@@ -26,7 +26,7 @@ class LogStorageProcess;
 class LogStorage : public Storage
 {
 public:
-  LogStorage(log::Log* log);
+  LogStorage(log::Log* log, size_t diffsBetweenSnapshots = 0);
 
   virtual ~LogStorage();
 

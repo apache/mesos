@@ -89,6 +89,8 @@ MESOS_CPPFLAGS += -I$(top_srcdir)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(STOUT)/include
 MESOS_CPPFLAGS += -I../include
+MESOS_CPPFLAGS += -I/usr/include/subversion-1
+MESOS_CPPFLAGS += -I/usr/include/apr-1
 
 # Protobuf headers that depend on mesos.pb.h need this.
 MESOS_CPPFLAGS += -I../include/mesos
@@ -581,7 +583,11 @@ libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION)
 libmesos_la_LIBTOOLFLAGS = --tag=CXX
 
 # Add the convenience library.
-libmesos_la_LIBADD = libmesos_no_3rdparty.la
+libmesos_la_LIBADD = 		\
+  libmesos_no_3rdparty.la	\
+  -lsvn_subr-1			\
+  -lsvn_delta-1			\
+  -lapr-1
 
 libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
 

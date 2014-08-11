@@ -41,7 +41,28 @@ public class LogState extends AbstractState {
                   String znode,
                   long quorum,
                   String path) {
-    initialize(servers, timeout, unit, znode, quorum, path);
+    initialize(servers, timeout, unit, znode, quorum, path, 0);
+  }
+
+  /**
+   * Constructs a new instance of LogState.
+   *
+   * @param servers List of ZooKeeper servers, e.g., 'ip1:port1,ip2:port2'.
+   * @param timeout ZooKeeper session timeout.
+   * @param unit    Unit for session timeout.
+   * @param znode   Path to znode where log replicas should be found.
+   * @param quorum  Number of replicas necessary to persist a write.
+   * @param path    Path the local replica uses to read/write data.
+   * @param diffsBetweenSnapshots Number of diffs to write between snapshots.
+   */
+  public LogState(String servers,
+                  long timeout,
+                  TimeUnit unit,
+                  String znode,
+                  long quorum,
+                  String path,
+                  int diffsBetweenSnapshots) {
+    initialize(servers, timeout, unit, znode, quorum, path, diffsBetweenSnapshots);
   }
 
   protected native void initialize(String servers,
@@ -49,7 +70,8 @@ public class LogState extends AbstractState {
                                    TimeUnit unit,
                                    String znode,
                                    long quorum,
-                                   String path);
+                                   String path,
+                                   int diffsBetweenSnapshots);
 
   protected native void finalize();
 

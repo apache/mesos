@@ -30,11 +30,19 @@ message Entry {
 message Operation {
   enum Type {
     SNAPSHOT = 1;
+    DIFF = 3;
     EXPUNGE = 2;
   }
 
   // Describes a "snapshot" operation.
   message Snapshot {
+    required Entry entry = 1;
+  }
+
+  // Describes a "diff" operation where the 'value' of the entry is
+  // just the diff itself, but the 'uuid' represents the UUID of the
+  // entry after applying this diff.
+  message Diff {
     required Entry entry = 1;
   }
 
@@ -45,5 +53,6 @@ message Operation {
 
   required Type type = 1;
   optional Snapshot snapshot = 2;
+  optional Diff diff = 4;
   optional Expunge expunge = 3;
 }

@@ -22,7 +22,7 @@ extern "C" {
 /*
  * Class:     org_apache_mesos_state_LogState
  * Method:    initialize
- * Signature: (Ljava/lang/String;JLjava/util/concurrent/TimeUnit;Ljava/lang/String;JLjava/lang/String;)V
+ * Signature: (Ljava/lang/String;JLjava/util/concurrent/TimeUnit;Ljava/lang/String;JLjava/lang/String;I)V
  */
 JNIEXPORT void JNICALL Java_org_apache_mesos_state_LogState_initialize
   (JNIEnv* env,
@@ -32,7 +32,8 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_LogState_initialize
    jobject junit,
    jstring jznode,
    jlong jquorum,
-   jstring jpath)
+   jstring jpath,
+   jint jdiffsBetweenSnapshots)
 {
   string servers = construct<string>(env, jservers);
 
@@ -56,7 +57,9 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_LogState_initialize
 
   // Create the C++ Storage and State instances and initialize the
   // __storage and __state variables.
-  Storage* storage = new LogStorage(log);
+  int diffsBetweenSnapshots = jdiffsBetweenSnapshots;
+
+  Storage* storage = new LogStorage(log, diffsBetweenSnapshots);
   State* state = new State(storage);
 
   clazz = env->GetObjectClass(thiz);

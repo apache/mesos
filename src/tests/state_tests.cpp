@@ -18,8 +18,10 @@
 
 #include <gmock/gmock.h>
 
+#include <list>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -33,13 +35,18 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include <stout/protobuf.hpp>
+
 #include "common/type_utils.hpp"
 
 #include "log/log.hpp"
 #include "log/replica.hpp"
+
 #include "log/tool/initialize.hpp"
 
 #include "master/registry.hpp"
+
+#include "messages/state.hpp"
 
 #include "state/in_memory.hpp"
 #include "state/leveldb.hpp"
@@ -60,6 +67,7 @@ using namespace mesos::internal::log;
 using namespace process;
 
 using state::LevelDBStorage;
+using state::Operation;
 using state::Storage;
 #ifdef MESOS_HAS_JAVA
 using state::ZooKeeperStorage;
@@ -68,8 +76,10 @@ using state::ZooKeeperStorage;
 using state::protobuf::State;
 using state::protobuf::Variable;
 
+using std::list;
 using std::set;
 using std::string;
+using std::vector;
 
 using mesos::internal::tests::TemporaryDirectoryTest;
 
@@ -84,7 +94,7 @@ void FetchAndStoreAndFetch(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  EXPECT_TRUE(slaves1.slaves().size() == 0);
+  ASSERT_EQ(0, slaves1.slaves().size());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -101,7 +111,7 @@ void FetchAndStoreAndFetch(State* state)
   variable = future1.get();
 
   Slaves slaves2 = variable.get();
-  ASSERT_TRUE(slaves2.slaves().size() == 1);
+  ASSERT_EQ(1, slaves2.slaves().size());
   EXPECT_EQ("localhost", slaves2.slaves(0).info().hostname());
 }
 
@@ -114,7 +124,7 @@ void FetchAndStoreAndStoreAndFetch(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  EXPECT_TRUE(slaves1.slaves().size() == 0);
+  ASSERT_EQ(0, slaves1.slaves().size());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -137,7 +147,7 @@ void FetchAndStoreAndStoreAndFetch(State* state)
   variable = future1.get();
 
   Slaves slaves2 = variable.get();
-  ASSERT_TRUE(slaves2.slaves().size() == 1);
+  ASSERT_EQ(1, slaves2.slaves().size());
   EXPECT_EQ("localhost", slaves2.slaves(0).info().hostname());
 }
 
@@ -150,7 +160,7 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
   Variable<Slaves> variable1 = future1.get();
 
   Slaves slaves1 = variable1.get();
-  EXPECT_TRUE(slaves1.slaves().size() == 0);
+  ASSERT_EQ(0, slaves1.slaves().size());
 
   Slave* slave1 = slaves1.add_slaves();
   slave1->mutable_info()->set_hostname("localhost1");
@@ -162,7 +172,7 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
   ASSERT_SOME(future2.get());
 
   Slaves slaves2 = variable1.get();
-  EXPECT_TRUE(slaves2.slaves().size() == 0);
+  ASSERT_EQ(0, slaves2.slaves().size());
 
   Slave* slave2 = slaves2.add_slaves();
   slave2->mutable_info()->set_hostname("localhost2");
@@ -179,7 +189,7 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
   variable1 = future1.get();
 
   slaves1 = variable1.get();
-  ASSERT_TRUE(slaves1.slaves().size() == 1);
+  ASSERT_EQ(1, slaves1.slaves().size());
   EXPECT_EQ("localhost1", slaves1.slaves(0).info().hostname());
 }
 
@@ -192,7 +202,7 @@ void FetchAndStoreAndExpungeAndFetch(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  EXPECT_TRUE(slaves1.slaves().size() == 0);
+  ASSERT_EQ(0, slaves1.slaves().size());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -227,7 +237,7 @@ void FetchAndStoreAndExpungeAndExpunge(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  EXPECT_TRUE(slaves1.slaves().size() == 0);
+  ASSERT_EQ(0, slaves1.slaves().size());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -258,7 +268,7 @@ void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  EXPECT_TRUE(slaves1.slaves().size() == 0);
+  ASSERT_EQ(0, slaves1.slaves().size());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -285,7 +295,7 @@ void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
   variable = future1.get();
 
   Slaves slaves2 = variable.get();
-  ASSERT_TRUE(slaves2.slaves().size() == 1);
+  ASSERT_EQ(1, slaves2.slaves().size());
   EXPECT_EQ("localhost", slaves2.slaves(0).info().hostname());
 }
 
@@ -298,7 +308,7 @@ void Names(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  EXPECT_TRUE(slaves1.slaves().size() == 0);
+  ASSERT_EQ(0, slaves1.slaves().size());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -311,7 +321,7 @@ void Names(State* state)
 
   Future<set<string> > names = state->names();
   AWAIT_READY(names);
-  ASSERT_TRUE(names.get().size() == 1);
+  ASSERT_EQ(1u, names.get().size());
   EXPECT_NE(names.get().find("slaves"), names.get().end());
 }
 
@@ -490,7 +500,7 @@ protected:
     pids.insert(replica2->pid());
 
     log = new Log(2, path1, pids);
-    storage = new state::LogStorage(log);
+    storage = new state::LogStorage(log, 1024);
     state = new State(storage);
   }
 
@@ -573,7 +583,7 @@ TEST_F(LogStateTest, Timeout)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  EXPECT_TRUE(slaves1.slaves().size() == 0);
+  ASSERT_EQ(0, slaves1.slaves().size());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -598,6 +608,72 @@ TEST_F(LogStateTest, Timeout)
   AWAIT_FAILED(future3);
 
   Clock::resume();
+}
+
+
+TEST_F(LogStateTest, Diff)
+{
+  Future<Variable<Slaves>> future1 = state->fetch<Slaves>("slaves");
+  AWAIT_READY(future1);
+
+  Variable<Slaves> variable = future1.get();
+
+  Slaves slaves = variable.get();
+  ASSERT_EQ(0, slaves.slaves().size());
+
+  for (size_t i = 0; i < 1024; i++) {
+    Slave* slave = slaves.add_slaves();
+    slave->mutable_info()->set_hostname("localhost" + stringify(i));
+  }
+
+  variable = variable.mutate(slaves);
+
+  Future<Option<Variable<Slaves>>> future2 = state->store(variable);
+  AWAIT_READY(future2);
+  ASSERT_SOME(future2.get());
+
+  variable = future2.get().get();
+
+  Slave* slave = slaves.add_slaves();
+  slave->mutable_info()->set_hostname("localhost1024");
+
+  variable = variable.mutate(slaves);
+
+  future2 = state->store(variable);
+  AWAIT_READY(future2);
+  ASSERT_SOME(future2.get());
+
+  Log::Reader reader(log);
+
+  Future<Log::Position> beginning = reader.beginning();
+  Future<Log::Position> ending = reader.ending();
+
+  AWAIT_READY(beginning);
+  AWAIT_READY(ending);
+
+  Future<list<Log::Entry>> entries = reader.read(beginning.get(), ending.get());
+
+  AWAIT_READY(entries);
+
+  // Convert each Log::Entry to a Operation.
+  vector<Operation> operations;
+
+  foreach (const Log::Entry& entry, entries.get()) {
+    // Parse the Operation from the Log::Entry.
+    Operation operation;
+
+    google::protobuf::io::ArrayInputStream stream(
+        entry.data.data(),
+        entry.data.size());
+
+    ASSERT_TRUE(operation.ParseFromZeroCopyStream(&stream));
+
+    operations.push_back(operation);
+  }
+
+  ASSERT_EQ(2u, operations.size());
+  EXPECT_EQ(Operation::SNAPSHOT, operations[0].type());
+  EXPECT_EQ(Operation::DIFF, operations[1].type());
 }
 
 
