@@ -343,7 +343,7 @@ inline void dispatcher(
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename A)>                                 \
-  void CAT(invoker, N)(                                                 \
+  void CAT(vinvoker, N)(                                                \
       ProcessBase* _,                                                   \
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f,             \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
@@ -351,20 +351,55 @@ inline void dispatcher(
     f(ENUM_PARAMS(N, a));                                               \
   }                                                                     \
                                                                         \
+  template <typename R, ENUM_PARAMS(N, typename A)>                     \
+  void CAT(invoker, N)(                                                 \
+      ProcessBase* _,                                                   \
+      const std::tr1::function<Future<R>(ENUM_PARAMS(N, A))>& f,        \
+      const std::tr1::shared_ptr<Promise<R> >& promise,                 \
+      ENUM_BINARY_PARAMS(N, A, a))                                      \
+  {                                                                     \
+    if (promise->future().hasDiscard()) {                               \
+      promise->discard();                                               \
+    } else {                                                            \
+      promise->set(f(ENUM_PARAMS(N, a)));                               \
+    }                                                                   \
+  }                                                                     \
+                                                                        \
   template <ENUM_PARAMS(N, typename A)>                                 \
-  void CAT(dispatcher, N)(                                              \
+  void CAT(vdispatcher, N)(                                             \
       const UPID& pid,                                                  \
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f,             \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
   {                                                                     \
     std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > invoker( \
         new std::tr1::function<void(ProcessBase*)>(                     \
-            std::tr1::bind(&internal::CAT(invoker, N)<ENUM_PARAMS(N, A)>, \
+            std::tr1::bind(&internal::CAT(vinvoker, N)<ENUM_PARAMS(N, A)>, \
                            std::tr1::placeholders::_1,                  \
                            f,                                           \
                            ENUM_PARAMS(N, a))));                        \
                                                                         \
     internal::dispatch(pid, invoker);                                   \
+  }                                                                     \
+                                                                        \
+  template <typename R, ENUM_PARAMS(N, typename A)>                     \
+  Future<R> CAT(dispatcher, N)(                                         \
+      const UPID& pid,                                                  \
+      const std::tr1::function<Future<R>(ENUM_PARAMS(N, A))>& f,        \
+      ENUM_BINARY_PARAMS(N, A, a))                                      \
+  {                                                                     \
+    std::tr1::shared_ptr<Promise<R> > promise(new Promise<R>());        \
+                                                                        \
+    std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > invoker( \
+        new std::tr1::function<void(ProcessBase*)>(                     \
+            std::tr1::bind(&internal::CAT(invoker, N)<R, ENUM_PARAMS(N, A)>, \
+                           std::tr1::placeholders::_1,                  \
+                           f,                                           \
+                           promise,                                     \
+                           ENUM_PARAMS(N, a))));                        \
+                                                                        \
+    internal::dispatch(pid, invoker);                                   \
+                                                                        \
+    return promise->future();                                           \
   }
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
@@ -421,7 +456,7 @@ inline Deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
       const std::tr1::function<void(ENUM_PARAMS(N, A))>& f)             \
   {                                                                     \
     return std::tr1::function<void(ENUM_PARAMS(N, A))>(                 \
-        std::tr1::bind(&internal::CAT(dispatcher, N)<ENUM_PARAMS(N, A)>, \
+        std::tr1::bind(&internal::CAT(vdispatcher, N)<ENUM_PARAMS(N, A)>, \
                        pid,                                             \
                        f,                                               \
                        ENUM_BINARY_PARAMS(N, internal::_, () INTERCEPT))); \
@@ -433,7 +468,7 @@ inline Deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
   {                                                                     \
     if (__process__ != NULL) {                                          \
       return std::tr1::function<void(ENUM_PARAMS(N, A))>(               \
-          std::tr1::bind(&internal::CAT(dispatcher, N)<ENUM_PARAMS(N, A)>, \
+          std::tr1::bind(&internal::CAT(vdispatcher, N)<ENUM_PARAMS(N, A)>, \
                          __process__->self(),                           \
                          f,                                             \
                          ENUM_BINARY_PARAMS(N, internal::_, () INTERCEPT))); \
@@ -448,7 +483,7 @@ inline Deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
       const std::tr1::function<Future<R>(ENUM_PARAMS(N, A))>& f)        \
   {                                                                     \
     return std::tr1::function<Future<R>(ENUM_PARAMS(N, A))>(            \
-        std::tr1::bind(&internal::CAT(dispatcher, N)<ENUM_PARAMS(N, A)>, \
+        std::tr1::bind(&internal::CAT(dispatcher, N)<R, ENUM_PARAMS(N, A)>, \
                        pid,                                             \
                        f,                                               \
                        ENUM_BINARY_PARAMS(N, internal::_, () INTERCEPT))); \
@@ -460,7 +495,7 @@ inline Deferred<void(void)> defer(const std::tr1::function<void(void)>& f)
   {                                                                     \
     if (__process__ != NULL) {                                          \
       return std::tr1::function<Future<R>(ENUM_PARAMS(N, A))>(          \
-          std::tr1::bind(&internal::CAT(dispatcher, N)<ENUM_PARAMS(N, A)>, \
+          std::tr1::bind(&internal::CAT(dispatcher, N)<R, ENUM_PARAMS(N, A)>, \
                          __process__->self(),                           \
                          f,                                             \
                          ENUM_BINARY_PARAMS(N, internal::_, () INTERCEPT))); \

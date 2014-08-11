@@ -327,6 +327,12 @@ public:
     return then(lambda::function<X(const T&)>(lambda::bind(f)));
   }
 
+  template <typename X>
+  Future<X> then(const Deferred<Future<X>(T)>& f) const
+  {
+    return then(lambda::function<Future<X>(const T&)>(f));
+  }
+
 #if __cplusplus >= 201103L
 private:
   template <typename F, typename X = typename internal::unwrap<typename std::result_of<F(const T&)>::type>::type> // NOLINT(whitespace/line_length)
