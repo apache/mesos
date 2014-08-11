@@ -22,6 +22,7 @@
 #include <list>
 #include <map>
 #include <string>
+#include <vector>
 
 #include <boost/type_traits/is_arithmetic.hpp>
 #include <boost/utility/enable_if.hpp>
@@ -29,6 +30,8 @@
 
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
+#include <stout/result.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
@@ -79,6 +82,23 @@ struct Number
 
 struct Object
 {
+  // Returns the JSON value (specified by the type) given a "path"
+  // into the structure, for example:
+  //
+  //   Result<JSON::Array> array = object.find<JSON::Array>("nested.array");
+  //
+  // Will return 'None' if no field could be found called 'array'
+  // within a field called 'nested' of 'object' (where 'nested' must
+  // also be a JSON object).
+  //
+  // Returns an error if a JSON value of the wrong type is found, or
+  // an intermediate JSON value is not an object that we can do a
+  // recursive find on.
+  //
+  // TODO(benh): Support paths that index, e.g., 'nested.array[4].field'.
+  template <typename T>
+  Result<T> find(const std::string& path) const;
+
   std::map<std::string, Value> values;
 };
 
@@ -159,18 +179,73 @@ struct Value : internal::Variant
     : internal::Variant(value) {}
 
   template <typename T>
-  bool is() const
-  {
-    const T* t = boost::get<T>(this);
-    return t != NULL;
-  }
+  bool is() const;
 
   template <typename T>
-  const T& as() const
-  {
-    return *CHECK_NOTNULL(boost::get<T>(this));
-  }
+  const T& as() const;
 };
+
+
+template <typename T>
+bool Value::is() const
+{
+  const T* t = boost::get<T>(this);
+  return t != NULL;
+}
+
+
+template <>
+inline bool Value::is<Value>() const
+{
+  return true;
+}
+
+
+template <typename T>
+const T& Value::as() const
+{
+  return *CHECK_NOTNULL(boost::get<T>(this));
+}
+
+
+template <>
+inline const Value& Value::as<Value>() const
+{
+  return *this;
+}
+
+
+
+template <typename T>
+Result<T> Object::find(const std::string& path) const
+{
+  const std::vector<std::string>& names = strings::split(path, ".", 2);
+
+  if (names.empty()) {
+    return None();
+  }
+
+  std::map<std::string, Value>::const_iterator entry = values.find(names[0]);
+
+  if (entry == values.end()) {
+    return None();
+  }
+
+  const Value& value = entry->second;
+
+  if (names.size() == 1) {
+    if (!value.is<T>()) {
+      // TODO(benh): Use a visitor to print out the type found.
+      return Error("Found JSON value of wrong type");
+    }
+    return value.as<T>();
+  } else if (!value.is<Object>()) {
+    // TODO(benh): Use a visitor to print out the intermediate type.
+    return Error("Intermediate JSON value not an object");
+  }
+
+  return value.as<Object>().find<T>(names[1]);
+}
 
 
 struct Comparator : boost::static_visitor<bool>

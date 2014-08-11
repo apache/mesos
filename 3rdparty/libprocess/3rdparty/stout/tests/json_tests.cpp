@@ -175,3 +175,59 @@ TEST(JsonTest, parse)
 
   EXPECT_SOME_EQ(object, JSON::parse(stringify(object)));
 }
+
+
+TEST(JsonTest, Find)
+{
+  JSON::Object object;
+
+  JSON::Object nested1;
+
+  JSON::Object nested2;
+  nested2.values["string"] = "string";
+  nested2.values["integer"] = -1;
+  nested2.values["double"] = -1.42;
+  nested2.values["null"] = JSON::Null();
+
+  JSON::Array array;
+  array.values.push_back("hello");
+
+  nested2.values["array"] = array;
+
+  nested1.values["nested2"] = nested2;
+
+  object.values["nested1"] = nested1;
+
+  ASSERT_NONE(object.find<JSON::String>("nested.nested.string"));
+  ASSERT_NONE(object.find<JSON::String>("nested1.nested2.none"));
+
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array.foo"));
+
+  ASSERT_SOME_EQ(
+      JSON::String("string"),
+      object.find<JSON::String>("nested1.nested2.string"));
+
+  ASSERT_SOME_EQ(
+      JSON::Number(-1),
+      object.find<JSON::Number>("nested1.nested2.integer"));
+
+  ASSERT_SOME_EQ(
+      JSON::Number(-1.42),
+      object.find<JSON::Number>("nested1.nested2.double"));
+
+  ASSERT_SOME_EQ(
+      JSON::Null(),
+      object.find<JSON::Null>("nested1.nested2.null"));
+
+  Result<JSON::Array> result =
+    object.find<JSON::Array>("nested1.nested2.array");
+
+  ASSERT_SOME(result);
+  ASSERT_FALSE(result.get().values.empty());
+  ASSERT_TRUE(result.get().values.front().is<JSON::String>());
+  ASSERT_EQ("hello", result.get().values.front().as<JSON::String>());
+
+  // Also test getting JSON::Value when you don't know the type.
+  ASSERT_SOME(object.find<JSON::Value>("nested1.nested2.null"));
+}
