@@ -1059,11 +1059,12 @@ mesos_tests_SOURCES =				\
   tests/containerizer.cpp			\
   tests/containerizer_tests.cpp			\
   tests/credentials_tests.cpp			\
-  tests/docker_tests.cpp			\
   tests/docker_containerizer_tests.cpp          \
+  tests/docker_tests.cpp			\
   tests/environment.cpp				\
   tests/examples_tests.cpp			\
   tests/exception_tests.cpp			\
+  tests/external_containerizer_test.cpp		\
   tests/health_check_tests.cpp                  \
   tests/fault_tolerance_tests.cpp		\
   tests/fetcher_tests.cpp                       \
@@ -1071,7 +1072,6 @@ mesos_tests_SOURCES =				\
   tests/flags.cpp				\
   tests/gc_tests.cpp				\
   tests/isolator_tests.cpp			\
-  tests/external_containerizer_test.cpp		\
   tests/log_tests.cpp				\
   tests/logging_tests.cpp			\
   tests/main.cpp				\
@@ -1098,6 +1098,7 @@ mesos_tests_SOURCES =				\
   tests/state_tests.cpp				\
   tests/status_update_manager_tests.cpp		\
   tests/utils.cpp				\
+  tests/values_tests.cpp			\
   tests/zookeeper_url_tests.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
