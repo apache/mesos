@@ -231,8 +231,20 @@ message CommandInfo {
 
   optional Environment environment = 2;
 
-  // Actual command (i.e., 'echo hello world').
-  required string value = 3;
+  // Whether the command will be executed via shell (i.e., /bin/sh -c)
+  // or not. If it is set to true, the 'value' below will be used as
+  // the shell command. Otherwise, the command will be executed via
+  // execve using the specified 'argv' below.
+  optional bool shell = 6 [default = true];
+
+  // The shell command (i.e., 'echo hello world').
+  // NOTE: This field is changed from 'required' to 'optional' in
+  // 0.20.0. It will only cause issues if a new framework is
+  // connecting to an old master.
+  optional string value = 3;
+
+  // The argument list.
+  repeated string argv = 7;
 
   // Enables executor and tasks to run as a specific user. If the user
   // field is present both in FrameworkInfo and here, the CommandInfo
