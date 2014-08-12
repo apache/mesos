@@ -45,6 +45,14 @@ import java.util.Map;
  * #join}) doesn't affect the scheduler callbacks in anyway because
  * they are handled by a different thread.
  * <p>
+ * <p>
+ * Note that the driver uses GLOG to do its own logging. GLOG flags can
+ * be set via environment variables, prefixing the flag name with
+ * "GLOG_", e.g., "GLOG_v=1". For Mesos specific logging flags see
+ * src/logging/flags.hpp. Mesos flags can also be set via environment
+ * variables, prefixing the flag name with "MESOS_", e.g.,
+ * "MESOS_QUIET=1".
+ * <p>
  * See src/examples/java/TestFramework.java for an example of using
  * the MesosSchedulerDriver.
  */

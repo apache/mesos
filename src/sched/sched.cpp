@@ -1090,8 +1090,13 @@ void MesosSchedulerDriver::initialize() {
   // Initialize libprocess.
   process::initialize(schedulerId);
 
+  // Initialize logging.
   // TODO(benh): Replace whitespace in framework.name() with '_'?
-  logging::initialize(framework.name(), flags);
+  if (flags.initialize_driver_logging) {
+    logging::initialize(framework.name(), flags);
+  } else {
+    VLOG(1) << "Disabling initialization of GLOG logging";
+  }
 
   // Initialize mutex and condition variable. TODO(benh): Consider
   // using a libprocess Latch rather than a pthread mutex and

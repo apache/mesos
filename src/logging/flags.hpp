@@ -55,12 +55,19 @@ public:
         "logbufsecs",
         "How many seconds to buffer log messages for",
         0);
+
+    add(&Flags::initialize_driver_logging,
+        "initialize_driver_logging",
+        "Whether to automatically initialize google logging of scheduler\n"
+        "and/or executor drivers.",
+        true);
   }
 
   bool quiet;
   std::string logging_level;
   Option<std::string> log_dir;
   int logbufsecs;
+  bool initialize_driver_logging;
 };
 
 } // namespace logging {

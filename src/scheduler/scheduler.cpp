@@ -127,7 +127,12 @@ public:
     // want to use flags to initialize libprocess).
     process::initialize();
 
-    logging::initialize("mesos", flags);
+    // Initialize logging.
+    if (flags.initialize_driver_logging) {
+      logging::initialize("mesos", flags);
+    } else {
+      VLOG(1) << "Disabling initialization of GLOG logging";
+    }
 
     LOG(INFO) << "Version: " << MESOS_VERSION;
 

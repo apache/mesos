@@ -48,6 +48,7 @@
 #include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
 
+#include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
 #include "messages/messages.hpp"
@@ -581,6 +582,17 @@ MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
+  // Load any logging flags from the environment.
+  logging::Flags flags;
+
+  Try<Nothing> load = flags.load("MESOS_");
+
+  if (load.isError()) {
+    status = DRIVER_ABORTED;
+    executor->error(this, load.error());
+    return;
+  }
+
   // Create mutex and condition variable
   pthread_mutexattr_t attr;
   pthread_mutexattr_init(&attr);
@@ -592,7 +604,12 @@ MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
   // Initialize libprocess.
   process::initialize();
 
-  // TODO(benh): Initialize glog.
+  // Initialize logging.
+  if (flags.initialize_driver_logging) {
+    logging::initialize("mesos", flags);
+  } else {
+    VLOG(1) << "Disabling initialization of GLOG logging";
+  }
 }
 
 
