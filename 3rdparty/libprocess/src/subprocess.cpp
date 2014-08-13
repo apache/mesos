@@ -160,9 +160,9 @@ static int childMain(
     }
   }
 
-  execve(path.c_str(), argv, (*envp)());
+  os::execvpe(path.c_str(), argv, (*envp)());
 
-  ABORT("Failed to execve in childMain\n");
+  ABORT("Failed to os::execvpe in childMain\n");
 
   return UNREACHABLE();
 }
@@ -315,8 +315,8 @@ Try<Subprocess> subprocess(
     }
   }
 
-  // The real arguments that will be passed to 'execve'. We need to
-  // construct them here before doing the clone as it might not be
+  // The real arguments that will be passed to 'os::execvpe'. We need
+  // to construct them here before doing the clone as it might not be
   // async signal safe.
   char** _argv = new char*[argv.size() + 1];
   for (int i = 0; i < argv.size(); i++) {
