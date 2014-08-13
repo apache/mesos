@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <string.h>
 #include <unistd.h>
 
 #include <iostream>
@@ -105,6 +106,19 @@ int MesosContainerizerLaunch::execute()
     return 1;
   }
 
+  // Validate the command.
+  if (command.get().shell()) {
+    if (!command.get().has_value()) {
+      cerr << "Shell command is not specified" << endl;
+      return 1;
+    }
+  } else {
+    if (!command.get().has_value()) {
+      cerr << "Executable path is not specified" << endl;
+      return 1;
+    }
+  }
+
   Try<Nothing> close = os::close(flags.pipe_write.get());
   if (close.isError()) {
     cerr << "Failed to close pipe[1]: " << close.error() << endl;
@@ -162,10 +176,22 @@ int MesosContainerizerLaunch::execute()
         return 1;
       }
 
+      // TODO(jieyu): Currently, we only accept shell commands for the
+      // preparation commands.
+      if (!parse.get().shell()) {
+        cerr << "Preparation commands need to be shell commands" << endl;
+        return 1;
+      }
+
+      if (!parse.get().has_value()) {
+        cerr << "The 'value' of a preparation command is not specified" << endl;
+        return 1;
+      }
+
       // Block until the command completes.
       int status = os::system(parse.get().value());
       if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
-        cerr << "Failed to execute a preparation command" << endl;
+        cerr << "Failed to execute a preparation shell command" << endl;
         return 1;
       }
     }
@@ -196,14 +222,25 @@ int MesosContainerizerLaunch::execute()
   map<string, string> env;
   os::ExecEnv envp(env);
 
-  // Execute the command (via '/bin/sh -c command') with its environment.
-  execle(
-      "/bin/sh",
-      "sh",
-      "-c",
-      command.get().value().c_str(),
-      (char*) NULL,
-      envp());
+  if (command.get().shell()) {
+    // Execute the command using shell.
+    execle(
+        "/bin/sh",
+        "sh",
+        "-c",
+        command.get().value().c_str(),
+        (char*) NULL,
+        envp());
+  } else {
+    // Use execve to launch the command.
+    char** argv = new char*[command.get().argv_size() + 1];
+    for (int i = 0; i < command.get().argv_size(); i++) {
+      argv[i] = strdup(command.get().argv(i).c_str());
+    }
+    argv[command.get().argv_size()] = NULL;
+
+    execve(command.get().value().c_str(), argv, envp());
+  }
 
   // If we get here, the execle call failed.
   cerr << "Failed to execute command" << endl;
