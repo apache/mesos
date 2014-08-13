@@ -231,7 +231,7 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
   CommandInfo command;
   command.set_shell(false);
   command.set_value("/bin/true");
-  command.add_argv("true");
+  command.add_arguments("true");
 
   vector<TaskInfo> tasks =
     populateTasks("sleep 120", command, offers.get()[0]);

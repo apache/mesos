@@ -2410,7 +2410,7 @@ ExecutorInfo Slave::getExecutorInfo(
       } else {
         string args =
           task.command().value() + ", " +
-          strings::join(", ", task.command().argv());
+          strings::join(", ", task.command().arguments());
 
         if (args.length() > 15) {
           name += "(Command: [" + args.substr(0, 12) + "...])";

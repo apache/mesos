@@ -163,11 +163,11 @@ public:
     }
 
     // Prepare the argv before fork as it's not async signal safe.
-    char **argv = new char*[task.command().argv_size() + 1];
-    for (int i = 0; i < task.command().argv_size(); i++) {
-      argv[i] = (char*) task.command().argv(i).c_str();
+    char **argv = new char*[task.command().arguments().size() + 1];
+    for (int i = 0; i < task.command().arguments().size(); i++) {
+      argv[i] = (char*) task.command().arguments(i).c_str();
     }
-    argv[task.command().argv_size()] = NULL;
+    argv[task.command().arguments().size()] = NULL;
 
     // Prepare the messages before fork as it's not async signal safe.
     string command;
@@ -176,7 +176,7 @@ public:
     } else {
       command =
         "[" + task.command().value() + ", " +
-        strings::join(", ", task.command().argv()) + "]";
+        strings::join(", ", task.command().arguments()) + "]";
     }
 
     if ((pid = fork()) == -1) {

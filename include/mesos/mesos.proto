@@ -231,20 +231,22 @@ message CommandInfo {
 
   optional Environment environment = 2;
 
-  // Whether the command will be executed via shell (i.e., /bin/sh -c)
-  // or not. If it is set to true, the 'value' below will be used as
-  // the shell command. Otherwise, the command will be executed via
-  // execve using the specified 'argv' below.
-  optional bool shell = 6 [default = true];
-
-  // The shell command (i.e., 'echo hello world').
-  // NOTE: This field is changed from 'required' to 'optional' in
-  // 0.20.0. It will only cause issues if a new framework is
+  // There are two ways to specify the command:
+  // 1) If 'shell == true', the command will be launched via shell
+  //		(i.e., /bin/sh -c 'value'). The 'value' specified will be
+  //		treated as the shell command. The 'arguments' will be ignored.
+  // 2) If 'shell == false', the command will be launched by passing
+  //		arguments to an executable. The 'value' specified will be
+  //		treated as the filename of the executable. The 'arguments'
+  //		will be treated as the arguments to the executable. This is
+  //		similar to how POSIX exec families launch processes (i.e.,
+  //		execlp(value, arguments(0), arguments(1), ...)).
+  // NOTE: The field 'value' is changed from 'required' to 'optional'
+  // in 0.20.0. It will only cause issues if a new framework is
   // connecting to an old master.
+  optional bool shell = 6 [default = true];
   optional string value = 3;
-
-  // The argument list.
-  repeated string argv = 7;
+  repeated string arguments = 7;
 
   // Enables executor and tasks to run as a specific user. If the user
   // field is present both in FrameworkInfo and here, the CommandInfo

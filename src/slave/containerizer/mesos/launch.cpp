@@ -233,11 +233,11 @@ int MesosContainerizerLaunch::execute()
         envp());
   } else {
     // Use execve to launch the command.
-    char** argv = new char*[command.get().argv_size() + 1];
-    for (int i = 0; i < command.get().argv_size(); i++) {
-      argv[i] = strdup(command.get().argv(i).c_str());
+    char** argv = new char*[command.get().arguments().size() + 1];
+    for (int i = 0; i < command.get().arguments().size(); i++) {
+      argv[i] = strdup(command.get().arguments(i).c_str());
     }
-    argv[command.get().argv_size()] = NULL;
+    argv[command.get().arguments().size()] = NULL;
 
     execve(command.get().value().c_str(), argv, envp());
   }

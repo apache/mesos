@@ -69,13 +69,13 @@ bool operator == (const CommandInfo& left, const CommandInfo& right)
     }
   }
 
-  if (left.argv().size() != right.argv().size()) {
+  if (left.arguments().size() != right.arguments().size()) {
     return false;
   }
 
   // The order of argv is important.
-  for (int i = 0; i < left.argv().size(); i++) {
-    if (left.argv().Get(i) != right.argv().Get(i)) {
+  for (int i = 0; i < left.arguments().size(); i++) {
+    if (left.arguments().Get(i) != right.arguments().Get(i)) {
       return false;
     }
   }

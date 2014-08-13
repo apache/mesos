@@ -183,7 +183,7 @@ private:
       }
 
       vector<string> argv;
-      foreach (const string& arg, command.argv()) {
+      foreach (const string& arg, command.arguments()) {
         argv.push_back(arg);
       }
 

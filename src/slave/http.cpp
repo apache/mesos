@@ -93,7 +93,7 @@ JSON::Object model(const CommandInfo& command)
   }
 
   JSON::Array argv;
-  foreach (const string& arg, command.argv()) {
+  foreach (const string& arg, command.arguments()) {
     argv.values.push_back(arg);
   }
   object.values["argv"] = argv;
