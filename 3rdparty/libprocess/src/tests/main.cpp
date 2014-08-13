@@ -1,6 +1,8 @@
-#include <gtest/gtest.h>
+#include <glog/logging.h>
 
 #include <gmock/gmock.h>
+
+#include <gtest/gtest.h>
 
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -13,6 +15,10 @@ int main(int argc, char** argv)
 
   // Initialize libprocess.
   process::initialize();
+
+  // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
+  // by default.
+  google::InstallFailureSignalHandler();
 
   // Add the libprocess test event listeners.
   ::testing::TestEventListeners& listeners =
