@@ -841,6 +841,40 @@ Future<bool> DockerContainerizerProcess::__launch(
   statuses[containerId]
     .onAny(defer(self(), &Self::reaped, containerId));
 
+  // Redirect the logs into stdout/stderr.
+  //
+  // TODO(benh): This is an intermediate solution for now until we can
+  // reliably stream the logs either from the CLI or from the REST
+  // interface directly. The problem is that it's possible that the
+  // 'docker logs --follow' command will be started AFTER the
+  // container has already terminated, and thus it will continue
+  // running forever because the container has stopped. Unfortunately,
+  // when we later remove the container that still doesn't cause the
+  // 'logs' process to exit. Thus, we wait some period of time until
+  // after the container has terminated in order to let any log data
+  // get flushed, then we kill the 'logs' process ourselves.  A better
+  // solution would be to first "create" the container, then start
+  // following the logs, then finally "start" the container so that
+  // when the container terminates Docker will properly close the log
+  // stream and 'docker logs' will exit. For more information, please
+  // see: https://github.com/docker/docker/issues/7020
+
+  string logs =
+    "logs() {\n"
+    "  " + flags.docker + " logs --follow $1 &\n"
+    "  pid=$!\n"
+    "  " + flags.docker + " wait $1 >/dev/null 2>&1\n"
+    "  sleep 10" // Sleep 10 seconds to make sure the logs are flushed.
+    "  kill -TERM $pid >/dev/null 2>&1 &\n"
+    "}\n"
+    "logs " + containerName(containerId);
+
+  subprocess(
+      logs,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(path::join(directory, "stdout")),
+      Subprocess::PATH(path::join(directory, "stderr")));
+
   return true;
 }
 

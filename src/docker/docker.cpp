@@ -117,7 +117,7 @@ Try<Docker> Docker::create(const string& path, bool validate)
 
   if (hierarchy.isNone()) {
     return Error("Failed to find a mounted cgroups hierarchy "
-                 "for the 'cpu' subsystem, you probably need "
+                 "for the 'cpu' subsystem; you probably need "
                  "to mount cgroups manually!");
   }
 
@@ -136,13 +136,15 @@ Try<Docker> Docker::create(const string& path, bool validate)
   Future<Option<int> > status = s.get().status();
 
   if (!status.await(Seconds(5))) {
-    return Error("Docker info failed with time out");
+    return Error("Timed out waiting for '" + cmd + "'");
   } else if (status.isFailed()) {
-    return Error("Docker info failed: " + status.failure());
+    return Error("Failed to execute '" + cmd + "': " + status.failure());
   } else if (!status.get().isSome() || status.get().get() != 0) {
-    string msg = "Docker info failed to execute";
+    string msg = "Failed to execute '" + cmd "': ";
     if (status.get().isSome()) {
-      msg += ", exited with status (" + WSTRINGIFY(status.get().get()) + ")";
+      msg += "exited with status " + WSTRINGIFY(status.get().get());
+    } else {
+      msg += "unknown exit status";
     }
     return Error(msg);
   }

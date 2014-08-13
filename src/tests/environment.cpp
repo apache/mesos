@@ -309,6 +309,8 @@ void Environment::TearDown()
   directories.clear();
 
   // Make sure we haven't left any child processes lying around.
+  // TODO(benh): Look for processes in the same group or session that
+  // might have been reparented.
   Try<os::ProcessTree> pstree = os::pstree(0);
 
   if (pstree.isSome() && !pstree.get().children.empty()) {

@@ -165,6 +165,9 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   flags.registration_backoff_factor = Milliseconds(10);
 
+  // Make sure that the slave uses the same 'docker' as the tests.
+  flags.docker = tests::flags.docker;
+
   return flags;
 }
 

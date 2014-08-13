@@ -92,7 +92,6 @@ public:
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_update));
   }
 
-
   MOCK_METHOD7(
       launch,
       process::Future<bool>(
@@ -103,7 +102,6 @@ public:
           const SlaveID&,
           const process::PID<slave::Slave>&,
           bool checkpoint));
-
 
   MOCK_METHOD8(
       launch,
@@ -852,4 +850,109 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
   AWAIT_READY(termination);
 
   AWAIT_READY(reaped.get().status());
+}
+
+
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Docker docker = Docker::create(tests::flags.docker, false).get();
+
+  MockDockerContainerizer dockerContainerizer(flags, docker);
+
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  string uuid = UUID::random().toString();
+
+  CommandInfo command;
+  command.set_value("echo out" + uuid + " ; echo err" + uuid + " 1>&2");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<ContainerID> containerId;
+  Future<string> directory;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    FutureArg<3>(&directory),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY(directory);
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  AWAIT_READY_FOR(statusFinished, Seconds(60));
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  // Now check that the proper output is in stderr and stdout (which
+  // might also contain other things, hence the use of a UUID).
+  Try<string> read = os::read(path::join(directory.get(), "stderr"));
+
+  ASSERT_SOME(read);
+  EXPECT_TRUE(strings::contains(read.get(), "err" + uuid));
+  EXPECT_FALSE(strings::contains(read.get(), "out" + uuid));
+
+  read = os::read(path::join(directory.get(), "stdout"));
+
+  ASSERT_SOME(read);
+  EXPECT_TRUE(strings::contains(read.get(), "out" + uuid));
+  EXPECT_FALSE(strings::contains(read.get(), "err" + uuid));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
 }
