@@ -83,13 +83,26 @@ using process::http::Request;
 JSON::Object model(const CommandInfo& command)
 {
   JSON::Object object;
-  object.values["value"] = command.value();
+
+  if (command.has_shell()) {
+    object.values["shell"] = command.shell();
+  }
+
+  if (command.has_value()) {
+    object.values["value"] = command.value();
+  }
+
+  JSON::Array argv;
+  foreach (const string& arg, command.argv()) {
+    argv.values.push_back(arg);
+  }
+  object.values["argv"] = argv;
 
   if (command.has_environment()) {
     JSON::Object environment;
     JSON::Array variables;
     foreach(const Environment_Variable& variable,
-        command.environment().variables()) {
+            command.environment().variables()) {
       JSON::Object variableObject;
       variableObject.values["name"] = variable.name();
       variableObject.values["value"] = variable.value();
