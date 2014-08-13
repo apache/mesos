@@ -48,10 +48,10 @@ TEST(ValuesTest, ValidInput)
   ASSERT_SOME(result2);
   ASSERT_EQ(Value::RANGES, result2.get().type());
   EXPECT_EQ(2, result2.get().ranges().range_size());
-  EXPECT_EQ(10000, result2.get().ranges().range(0).begin());
-  EXPECT_EQ(20000, result2.get().ranges().range(0).end());
-  EXPECT_EQ(30000, result2.get().ranges().range(1).begin());
-  EXPECT_EQ(50000, result2.get().ranges().range(1).end());
+  EXPECT_EQ(10000u, result2.get().ranges().range(0).begin());
+  EXPECT_EQ(20000u, result2.get().ranges().range(0).end());
+  EXPECT_EQ(30000u, result2.get().ranges().range(1).begin());
+  EXPECT_EQ(50000u, result2.get().ranges().range(1).end());
 
   // Test parsing set type.
   Try<Value> result3 = parse("{sda1, sda2}");
