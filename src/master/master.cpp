@@ -2249,6 +2249,8 @@ Future<Option<Error> > Master::validateTask(
 
   // TODO(benh): Add a HealthCheckChecker visitor.
 
+  // TODO(jieyu): Add a CommandInfoCheck visitor.
+
   // Invoke each visitor.
   Option<Error> error = None();
   foreach (TaskInfoVisitor* visitor, taskVisitors) {

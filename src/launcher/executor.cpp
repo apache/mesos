@@ -24,6 +24,7 @@
 #include <iostream>
 #include <list>
 #include <string>
+#include <vector>
 
 #include <mesos/executor.hpp>
 
@@ -117,8 +118,24 @@ public:
       return;
     }
 
+    // Sanity checks.
     CHECK(task.has_command()) << "Expecting task " << task.task_id()
                               << " to have a command!";
+
+    // TODO(jieyu): For now, we just fail the executor if the task's
+    // CommandInfo is not valid. The framework will receive
+    // TASK_FAILED for the task, and will most likely find out the
+    // cause with some debugging. This is a temporary solution. A more
+    // correct solution is to perform this validation at master side.
+    if (task.command().shell()) {
+      CHECK(task.command().has_value())
+        << "Shell command of task " << task.task_id()
+        << " is not specified!";
+    } else {
+      CHECK(task.command().has_value())
+        << "Executable of task " << task.task_id()
+        << " is not specified!";
+    }
 
     cout << "Starting task " << task.task_id() << endl;
 
@@ -145,12 +162,30 @@ public:
       abort();
     }
 
+    // Prepare the argv before fork as it's not async signal safe.
+    char **argv = new char*[task.command().argv_size() + 1];
+    for (int i = 0; i < task.command().argv_size(); i++) {
+      argv[i] = (char*) task.command().argv(i).c_str();
+    }
+    argv[task.command().argv_size()] = NULL;
+
+    // Prepare the messages before fork as it's not async signal safe.
+    string command;
+    if (task.command().shell()) {
+      command = "sh -c '" + task.command().value() + "'";
+    } else {
+      command =
+        "[" + task.command().value() + ", " +
+        strings::join(", ", task.command().argv()) + "]";
+    }
+
     if ((pid = fork()) == -1) {
-      cerr << "Failed to fork to run '" << task.command().value() << "': "
+      cerr << "Failed to fork to run " << command << ": "
            << strerror(errno) << endl;
       abort();
     }
 
+    // TODO(jieyu): Make the child process async signal safe.
     if (pid == 0) {
       // In child process, we make cleanup easier by putting process
       // into it's own session.
@@ -183,11 +218,19 @@ public:
       os::close(pipes[1]);
 
       // The child has successfully setsid, now run the command.
-
       if (override.isNone()) {
-        cout << "sh -c '" << task.command().value() << "'" << endl;
-        execl("/bin/sh", "sh", "-c",
-              task.command().value().c_str(), (char*) NULL);
+        cout << command << endl;
+
+        if (task.command().shell()) {
+          execl(
+              "/bin/sh",
+              "sh",
+              "-c",
+              task.command().value().c_str(),
+              (char*) NULL);
+        } else {
+          execvp(task.command().value().c_str(), argv);
+        }
       } else {
         char** argv = override.get();
 
@@ -204,6 +247,8 @@ public:
       perror("Failed to exec");
       abort();
     }
+
+    delete[] argv;
 
     // In parent process.
     os::close(pipes[1]);

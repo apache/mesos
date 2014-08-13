@@ -2391,13 +2391,33 @@ ExecutorInfo Slave::getExecutorInfo(
 
     // Prepare an executor name which includes information on the
     // command being launched.
-    string name =
-      "(Task: " + task.task_id().value() + ") " + "(Command: sh -c '";
+    string name = "(Task: " + task.task_id().value() + ") ";
 
-    if (task.command().value().length() > 15) {
-      name += task.command().value().substr(0, 12) + "...')";
+    if (task.command().shell()) {
+      if (!task.command().has_value()) {
+        name += "(Command: NO COMMAND)";
+      } else {
+        name += "(Command: sh -c '";
+        if (task.command().value().length() > 15) {
+          name += task.command().value().substr(0, 12) + "...')";
+        } else {
+          name += task.command().value() + "')";
+        }
+      }
     } else {
-      name += task.command().value() + "')";
+      if (!task.command().has_value()) {
+        name += "(Command: NO EXECUTABLE)";
+      } else {
+        string args =
+          task.command().value() + ", " +
+          strings::join(", ", task.command().argv());
+
+        if (args.length() > 15) {
+          name += "(Command: [" + args.substr(0, 12) + "...])";
+        } else {
+          name += "(Command: [" + args + "])";
+        }
+      }
     }
 
     executor.set_name("Command Executor " + name);
