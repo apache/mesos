@@ -1748,6 +1748,9 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   Clock::resume();
 
+  EXPECT_CALL(sched, slaveLost(_, _))
+    .Times(AtMost(1));
+
   this->Stop(slave.get(), true); // Send a "shut down".
   delete containerizer1.get();
 
