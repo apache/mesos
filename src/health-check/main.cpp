@@ -176,7 +176,7 @@ private:
           Subprocess::FD(STDERR_FILENO),
           environment);
     } else {
-      // Use the execve variant.
+      // Use the exec variant.
       if (!command.has_value()) {
         promise.fail("Executable path is not specified");
         return;

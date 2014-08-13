@@ -232,14 +232,14 @@ int MesosContainerizerLaunch::execute()
         (char*) NULL,
         envp());
   } else {
-    // Use execve to launch the command.
+    // Use os::execvpe to launch the command.
     char** argv = new char*[command.get().arguments().size() + 1];
     for (int i = 0; i < command.get().arguments().size(); i++) {
       argv[i] = strdup(command.get().arguments(i).c_str());
     }
     argv[command.get().arguments().size()] = NULL;
 
-    execve(command.get().value().c_str(), argv, envp());
+    os::execvpe(command.get().value().c_str(), argv, envp());
   }
 
   // If we get here, the execle call failed.

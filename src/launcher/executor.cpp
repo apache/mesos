@@ -452,7 +452,7 @@ private:
     if (task.has_health_check()) {
       JSON::Object json = JSON::Protobuf(task.health_check());
 
-      // Launch the subprocess using 'execve' style so that quotes can
+      // Launch the subprocess using 'exec' style so that quotes can
       // be properly handled.
       vector<string> argv(4);
       argv[0] = "mesos-health-check";
