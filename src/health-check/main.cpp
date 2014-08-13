@@ -18,28 +18,31 @@
 
 #include <signal.h>
 #include <stdio.h>
-#include <iostream>
-#include <string>
 #include <string.h>
 #include <unistd.h>
 
+#include <iostream>
+#include <string>
+#include <vector>
+
 #include <mesos/mesos.hpp>
 
-#include <process/pid.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/future.hpp>
 #include <process/io.hpp>
+#include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/duration.hpp>
-#include <stout/os.hpp>
-#include <stout/option.hpp>
 #include <stout/flags.hpp>
-#include <stout/protobuf.hpp>
 #include <stout/json.hpp>
+#include <stout/option.hpp>
+#include <stout/os.hpp>
+#include <stout/protobuf.hpp>
+#include <stout/strings.hpp>
 
 #include "common/status_utils.hpp"
 
@@ -50,8 +53,9 @@ using namespace mesos;
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::string;
 using std::map;
+using std::string;
+using std::vector;
 
 using process::UPID;
 
@@ -137,61 +141,96 @@ private:
   {
     if (check.has_http()) {
       promise.fail("HTTP health check is not supported");
-    } else if (check.has_command()) {
-      const CommandInfo& command = check.command();
+      return;
+    }
 
-      map<string, string> environment;
+    if (!check.has_command()) {
+      promise.fail("No check found in health check");
+      return;
+    }
 
-      foreach (const Environment_Variable& variable,
-               command.environment().variables()) {
-        environment[variable.name()] = variable.value();
+    const CommandInfo& command = check.command();
+
+    map<string, string> environment;
+    foreach (const Environment_Variable& variable,
+             command.environment().variables()) {
+      environment[variable.name()] = variable.value();
+    }
+
+    // Launch the subprocess.
+    Option<Try<Subprocess> > external;
+
+    if (command.shell()) {
+      // Use the shell variant.
+      if (!command.has_value()) {
+        promise.fail("Shell command is not specified");
+        return;
       }
 
-      VLOG(2) << "Launching health command: " << command.value();
+      VLOG(2) << "Launching health command '" << command.value() << "'";
 
-      Try<Subprocess> external =
-        process::subprocess(
+      external = process::subprocess(
           command.value(),
-          // Reading from STDIN instead of PIPE because scripts
-          // seeing an open STDIN pipe might behave differently
-          // and we do not expect to pass any value from STDIN
-          // or PIPE.
-          Subprocess::FD(STDIN_FILENO),
+          Subprocess::PATH("/dev/null"),
           Subprocess::FD(STDERR_FILENO),
           Subprocess::FD(STDERR_FILENO),
           environment);
-
-      if (external.isError()) {
-        promise.fail("Error creating subprocess for healthcheck");
-      } else {
-        Future<Option<int> > status = external.get().status();
-        status.await(Seconds(check.timeout_seconds()));
-
-        if (!status.isReady()) {
-          string msg = "Shell command check failed with reason: ";
-          if (status.isFailed()) {
-            msg += "failed with error: " + status.failure();
-          } else if (status.isDiscarded()) {
-            msg += "status future discarded";
-          } else {
-            msg += "status still pending after timeout " +
-                   stringify(Seconds(check.timeout_seconds()));
-          }
-
-          promise.fail(msg);
-          return;
-        }
-
-        int statusCode = status.get().get();
-        if (statusCode != 0) {
-          string message = "Health command check " + WSTRINGIFY(statusCode);
-          failure(message);
-        } else {
-          success();
-        }
-      }
     } else {
-      promise.fail("No check found in health check");
+      // Use the execve variant.
+      if (!command.has_value()) {
+        promise.fail("Executable path is not specified");
+        return;
+      }
+
+      vector<string> argv;
+      foreach (const string& arg, command.argv()) {
+        argv.push_back(arg);
+      }
+
+      VLOG(2) << "Launching health command [" << command.value() << ", "
+              << strings::join(", ", argv) << "]";
+
+      external = process::subprocess(
+          command.value(),
+          argv,
+          Subprocess::PATH("/dev/null"),
+          Subprocess::FD(STDERR_FILENO),
+          Subprocess::FD(STDERR_FILENO),
+          None(),
+          environment);
+    }
+
+    CHECK_SOME(external);
+
+    if (external.get().isError()) {
+      promise.fail("Error creating subprocess for healthcheck");
+      return;
+    }
+
+    Future<Option<int> > status = external.get().get().status();
+    status.await(Seconds(check.timeout_seconds()));
+
+    if (!status.isReady()) {
+      string msg = "Command check failed with reason: ";
+      if (status.isFailed()) {
+        msg += "failed with error: " + status.failure();
+      } else if (status.isDiscarded()) {
+        msg += "status future discarded";
+      } else {
+        msg += "status still pending after timeout " +
+               stringify(Seconds(check.timeout_seconds()));
+      }
+
+      promise.fail(msg);
+      return;
+    }
+
+    int statusCode = status.get().get();
+    if (statusCode != 0) {
+      string message = "Health command check " + WSTRINGIFY(statusCode);
+      failure(message);
+    } else {
+      success();
     }
   }
 

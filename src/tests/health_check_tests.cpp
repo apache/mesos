@@ -60,12 +60,32 @@ class HealthCheckTest : public MesosTest
 {
 public:
   vector<TaskInfo> populateTasks(
-    const string& cmd,
-    const string& healthCmd,
-    const Offer& offer,
-    const int gracePeriodSeconds = 0,
-    const Option<int>& consecutiveFailures = None(),
-    const Option<map<string, string> >& env = None())
+      const string& cmd,
+      const string& healthCmd,
+      const Offer& offer,
+      int gracePeriodSeconds = 0,
+      const Option<int>& consecutiveFailures = None(),
+      const Option<map<string, string> >& env = None())
+  {
+    CommandInfo healthCommand;
+    healthCommand.set_value(healthCmd);
+
+    return populateTasks(
+        cmd,
+        healthCommand,
+        offer,
+        gracePeriodSeconds,
+        consecutiveFailures,
+        env);
+  }
+
+  vector<TaskInfo> populateTasks(
+      const string& cmd,
+      CommandInfo healthCommand,
+      const Offer& offer,
+      int gracePeriodSeconds = 0,
+      const Option<int>& consecutiveFailures = None(),
+      const Option<map<string, string> >& env = None())
   {
     TaskInfo task;
     task.set_name("");
@@ -75,8 +95,10 @@ public:
 
     CommandInfo command;
     command.set_value(cmd);
+
     Environment::Variable* variable =
       command.mutable_environment()->add_variables();
+
     // We need to set the correct directory to launch health check process
     // instead of the default for tests.
     variable->set_name("MESOS_LAUNCHER_DIR");
@@ -85,9 +107,6 @@ public:
     task.mutable_command()->CopyFrom(command);
 
     HealthCheck healthCheck;
-
-    CommandInfo healthCommand;
-    healthCommand.set_value(healthCmd);
 
     if (env.isSome()) {
       foreachpair (const string& name, const string value, env.get()) {
@@ -174,6 +193,71 @@ TEST_F(HealthCheckTest, HealthyTask)
 
   Shutdown();
 }
+
+
+// Same as above, but use the non-shell version of the health command.
+TEST_F(HealthCheckTest, HealthyTaskNonShell)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "posix/cpu,posix/mem";
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false);
+  CHECK_SOME(containerizer);
+
+  Try<PID<Slave> > slave = StartSlave(containerizer.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/true");
+  command.add_argv("true");
+
+  vector<TaskInfo> tasks =
+    populateTasks("sleep 120", command, offers.get()[0]);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealth;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealth));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusHealth);
+  EXPECT_EQ(TASK_RUNNING, statusHealth.get().state());
+  EXPECT_TRUE(statusHealth.get().healthy());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
 
 // Testing health status change reporting to scheduler.
 TEST_F(HealthCheckTest, HealthStatusChange)
@@ -262,6 +346,7 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 
   Shutdown();
 }
+
 
 // Testing killing task after number of consecutive failures.
 // Temporarily disabled due to MESOS-1613.
