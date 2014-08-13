@@ -114,6 +114,22 @@ inline char** environ()
 }
 
 
+// Returns the address of os::environ().
+inline char*** environp()
+{
+  // Accessing the list of environment variables is platform-specific.
+  // On OS X, the 'environ' symbol isn't visible to shared libraries,
+  // so we must use the _NSGetEnviron() function (see 'man environ' on
+  // OS X). On other platforms, it's fine to access 'environ' from
+  // shared libraries.
+#ifdef __APPLE__
+  return _NSGetEnviron();
+#else
+  return &::environ;
+#endif
+}
+
+
 inline hashmap<std::string, std::string> environment()
 {
   char** environ = os::environ();
@@ -575,6 +591,27 @@ inline int system(const std::string& command)
 
     return status;
   }
+}
+
+
+// This function is a portable version of execvpe ('p' means searching
+// executable from PATH and 'e' means setting environments). We add
+// this function because it is not available on all systems.
+//
+// NOTE: This function is not thread safe. It is supposed to be used
+// only after fork (when there is only one thread). This function is
+// async signal safe.
+inline int execvpe(const char* file, char** argv, char** envp)
+{
+  char** saved = os::environ();
+
+  *os::environp() = envp;
+
+  int result = execvp(file, argv);
+
+  *os::environp() = saved;
+
+  return result;
 }
 
 
