@@ -799,3 +799,38 @@ message RateLimits {
   // This is an aggregate value similar to 'aggregate_default_qps'.
   optional uint64 aggregate_default_capacity = 3;
 }
+
+
+/**
+ * Describes a volume mapping either from host to container or vice
+ * versa. Both paths can either refer to a directory or a file.
+ */
+message Volume {
+  // Absolute path pointing to a directory or file in the container.
+  required string container_path = 1;
+
+  // Absolute path pointing to a directory or file on the host.
+  optional string host_path = 2;
+
+  enum Mode {
+    RW = 1; // read-write.
+    RO = 2; // read-only.
+  }
+
+  required Mode mode = 3;
+}
+
+
+/**
+ * Describes a container configuration and allows extensible
+ * configurations for different container implementation.
+ */
+message ContainerInfo {
+  // All container implementation types.
+  enum Type {
+    DOCKER = 1;
+  }
+
+  required Type type = 1;
+  repeated Volume volumes = 2;
+}
