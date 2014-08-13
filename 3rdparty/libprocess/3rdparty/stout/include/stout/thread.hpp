@@ -14,6 +14,7 @@
 #ifndef __STOUT_THREAD_HPP__
 #define __STOUT_THREAD_HPP__
 
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h> // For perror.
 #include <stdlib.h> // For abort.
@@ -23,15 +24,29 @@ struct ThreadLocal
 {
   ThreadLocal()
   {
-    if (pthread_key_create(&key, NULL) != 0) {
+    errno = pthread_key_create(&key, NULL);
+
+    if (errno != 0) {
       perror("Failed to create thread local, pthread_key_create");
+      abort();
+    }
+  }
+
+  ~ThreadLocal()
+  {
+    errno = pthread_key_delete(key);
+
+    if (errno != 0) {
+      perror("Failed to destruct thread local, pthread_key_delete");
       abort();
     }
   }
 
   ThreadLocal<T>& operator = (T* t)
   {
-    if (pthread_setspecific(key, t) != 0) {
+    errno = pthread_setspecific(key, t);
+
+    if (errno != 0) {
       perror("Failed to set thread local, pthread_setspecific");
       abort();
     }
