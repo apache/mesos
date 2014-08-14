@@ -19,8 +19,7 @@ PYTHON=@PYTHON@
 DISTRIBUTE_EGG=`echo ${MESOS_BUILD_DIR}/3rdparty/distribute-*/dist/*.egg`
 
 test ! -e ${DISTRIBUTE_EGG} && \
-  echo "${RED}Failed to find ${DISTRIBUTE_EGG}${NORMAL}" && \
-  exit 1
+  echo "${RED}Failed to find ${DISTRIBUTE_EGG} verify PYTHONPATH${NORMAL}"
 
 PROTOBUF=${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-*
 PROTOBUF_EGG=`echo ${PROTOBUF}/python/dist/protobuf*.egg`

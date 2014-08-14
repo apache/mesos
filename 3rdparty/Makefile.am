@@ -65,6 +65,7 @@ CLEAN_EXTRACTED =	\
 ALL_LOCAL = # Initialize ALL_LOCAL so we can add to it.
 
 if HAS_PYTHON
+if WITH_BUNDLED_DISTRIBUTE
   DISTRIBUTE_EGG = \
     $(DISTRIBUTE)/dist/$(DISTRIBUTE)$(PYTHON_EGG_PUREPY_POSTFIX).egg
 
@@ -72,6 +73,7 @@ if HAS_PYTHON
 	cd $(DISTRIBUTE) && $(PYTHON) setup.py bdist_egg
 
   ALL_LOCAL += $(DISTRIBUTE_EGG)
+endif
 endif
 
 if WITH_BUNDLED_LEVELDB

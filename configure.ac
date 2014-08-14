@@ -179,6 +179,13 @@ AC_ARG_WITH([gmock],
                    location prefixed by the given path]),
         [without_bundled_gmock=yes], [])
 
+AC_ARG_ENABLE([bundled-distribute],
+        AS_HELP_STRING([--disable-bundled-distribute],
+                   [excludes building and using the bundled distribute
+                   package in lieu of an installed version in
+                   in PYTHONPATH]),
+        [without_bundled_distribute=yes], [])
+
 AC_ARG_WITH([cxx11],
 	    AS_HELP_STRING([--without-cxx11],
                            [builds Mesos without C++11 support (deprecated)]),
@@ -1010,6 +1017,44 @@ There are two possible workarounds for this issue:
 -------------------------------------------------------------------
 mesos-ec2 services will not function.
 -------------------------------------------------------------------]))
+
+  # Check if user has asked us to use a preinstalled distribute, or if
+  # they asked us to ignore all bundled libraries while compiling and linking.
+  if test "x$without_bundled_distribute" = "xyes" || \
+     test "x$enable_bundled" != "xyes"; then
+
+    AC_PYTHON_MODULE([distutils], [no])
+    if test "x$HAVE_PYMOD_distutils" = "xno"; then
+      AC_PYTHON_MODULE([setuptools], [no])
+
+      if test "x$HAVE_PYMOD_setuptools" = "xyes"; then
+        found_distribute=yes
+      fi
+
+    else
+      found_distribute=yes
+    fi
+
+    if test "x$found_distribute" = "xyes"; then
+      with_bundled_distribute=no
+    else
+      AC_MSG_ERROR([cannot find distribute
+-------------------------------------------------------------------
+You have requested the use of a non-bundled distribute but no suitable
+distribute could be found.
+
+You may want specify the location of distribute by providing a prefix
+path via --with-distribute=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+    fi
+  else
+    with_bundled_distribute=yes
+  fi
+
+  AM_CONDITIONAL([WITH_BUNDLED_DISTRIBUTE],
+      [test "x$with_bundled_distribute" = "xyes"])
 
   has_python=yes
 fi
