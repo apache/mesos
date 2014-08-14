@@ -263,6 +263,10 @@ message ExecutorInfo {
   required ExecutorID executor_id = 1;
   optional FrameworkID framework_id = 8; // TODO(benh): Make this required.
   required CommandInfo command = 7;
+  // Executor provided with a container will launch the container
+  // with the executor's CommandInfo and we expect the container to
+  // act as a Mesos executor.
+  optional ContainerInfo container = 11;
   repeated Resource resources = 5;
   optional string name = 9;
 
@@ -578,6 +582,9 @@ message TaskInfo {
   repeated Resource resources = 4;
   optional ExecutorInfo executor = 5;
   optional CommandInfo command = 7;
+  // Task provided with a container will launch the container as part
+  // of this task paired with the task's CommandInfo.
+  optional ContainerInfo container = 9;
   optional bytes data = 6;
   // A health check for the task (currently in *alpha* and initial
   // support will only be for TaskInfo's that have a CommandInfo).
@@ -845,6 +852,13 @@ message ContainerInfo {
     DOCKER = 1;
   }
 
+  message DockerInfo {
+    // The docker image that is going to be passed to the registry.
+    required string image = 1;
+  }
+
   required Type type = 1;
   repeated Volume volumes = 2;
+
+  optional DockerInfo docker = 3;
 }

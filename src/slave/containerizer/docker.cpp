@@ -21,12 +21,15 @@
 #include <string>
 
 #include <process/defer.hpp>
+#include <process/io.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/os.hpp>
+
+#include "common/status_utils.hpp"
 
 #include "docker/docker.hpp"
 
@@ -117,6 +120,19 @@ public:
   virtual process::Future<hashset<ContainerID> > containers();
 
 private:
+  process::Future<Nothing> fetch(
+      const ContainerID& containerId,
+      const CommandInfo& commandInfo,
+      const std::string& directory);
+
+  process::Future<Nothing> _fetch(
+      const ContainerID& containerId,
+      const Option<int>& status);
+
+  process::Future<Nothing> _fetchFailed(
+      const ContainerID& containerId,
+      const std::string& failure);
+
   // Continuations and helpers.
   process::Future<Nothing> _recover(
       const std::list<Docker::Container>& containers);
@@ -133,11 +149,28 @@ private:
   process::Future<bool> _launch(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
+      const string& directory,
       const SlaveID& slaveId,
       const PID<Slave>& slavePid,
       bool checkpoint);
 
   process::Future<bool> __launch(
+      const ContainerID& containerId,
+      const TaskInfo& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const SlaveID& slaveId,
+      const PID<Slave>& slavePid,
+      bool checkpoint);
+
+  process::Future<bool> __launch(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const SlaveID& slaveId,
+      const PID<Slave>& slavePid,
+      bool checkpoint);
+
+  process::Future<bool> ___launch(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const SlaveID& slaveId,
@@ -195,8 +228,7 @@ private:
 
 // Parse the ContainerID from a Docker container and return None if
 // the container was not launched from Mesos.
-Option<ContainerID> parse(
-    const Docker::Container& container)
+Option<ContainerID> parse(const Docker::Container& container)
 {
   Option<string> name = None();
 
@@ -218,8 +250,7 @@ Option<ContainerID> parse(
 }
 
 
-Try<DockerContainerizer*> DockerContainerizer::create(
-    const Flags& flags)
+Try<DockerContainerizer*> DockerContainerizer::create(const Flags& flags)
 {
   Try<Docker> docker = Docker::create(flags.docker);
   if (docker.isError()) {
@@ -244,6 +275,85 @@ DockerContainerizer::~DockerContainerizer()
   terminate(process);
   process::wait(process);
   delete process;
+}
+
+
+Future<Nothing> DockerContainerizerProcess::fetch(
+    const ContainerID& containerId,
+    const CommandInfo& commandInfo,
+    const string& directory)
+{
+  if (commandInfo.uris().size() == 0) {
+    return Nothing();
+  }
+
+  Result<string> realpath = os::realpath(
+      path::join(flags.launcher_dir, "mesos-fetcher"));
+  if (!realpath.isSome()) {
+    LOG(ERROR) << "Failed to determine the canonical path "
+               << "for the mesos-fetcher '"
+               << path::join(flags.launcher_dir, "mesos-fetcher")
+               << "': "
+               << (realpath.isError() ? realpath.error() :
+                   "No such file or directory");
+    return Failure("Could not fetch URIs: failed to find mesos-fetcher");
+  }
+
+  map<string, string> fetcherEnv = fetcherEnvironment(
+      commandInfo,
+      directory,
+      None(),
+      flags);
+
+  VLOG(1) << "Starting to fetch URIs for container: " << containerId
+          << ", directory: " << directory;
+
+  Try<Subprocess> fetcher = subprocess(
+      realpath.get(),
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(path::join(directory, "stdout")),
+      Subprocess::PATH(path::join(directory, "stderr")),
+      fetcherEnv);
+
+  if (fetcher.isError()) {
+    return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
+  }
+
+  const Future<Option<int> >& status = fetcher.get().status();
+
+  return status
+    .onFailed(defer(self(), &Self::_fetchFailed, containerId, lambda::_1))
+    .then(defer(self(), &Self::_fetch, containerId, lambda::_1));
+}
+
+
+Future<Nothing> DockerContainerizerProcess::_fetchFailed(
+    const ContainerID& containerId,
+    const string& failure)
+{
+  containerizer::Termination termination;
+  termination.set_message("Fetch failed for container: " + failure);
+  promises[containerId]->set(termination);
+  promises.erase(containerId);
+  return Nothing();
+}
+
+
+Future<Nothing> DockerContainerizerProcess::_fetch(
+    const ContainerID& containerId,
+    const Option<int>& status)
+{
+  if (!status.isSome()) {
+    return _fetchFailed(
+        containerId,
+        "No status available from fetch");
+  } else if (status.get() != 0) {
+    return _fetchFailed(
+        containerId,
+        "Fetch failed with status " + WSTRINGIFY(status.get()));
+  }
+
+  return Nothing();
 }
 
 
@@ -509,63 +619,36 @@ Future<bool> DockerContainerizerProcess::launch(
     return Failure("Container already started");
   }
 
-  CommandInfo command = executorInfo.command();
-
-  if (!command.has_container()) {
+  if (!executorInfo.has_container()) {
     LOG(INFO) << "No container info found, skipping launch";
     return false;
   }
 
-  string image = command.container().image();
+  ContainerInfo containerInfo = executorInfo.container();
 
-  // Check if we should try and launch this command.
-  if (!strings::startsWith(image, "docker:///")) {
-    LOG(INFO) << "No docker image found, skipping launch";
+  if (containerInfo.type() != ContainerInfo::DOCKER) {
+    LOG(INFO) << "Skipping non-docker container";
     return false;
   }
+
+  LOG(INFO) << "Starting container '" << containerId
+            << "' for executor '" << executorInfo.executor_id()
+            << "' and framework '" << executorInfo.framework_id() << "'";
 
   Owned<Promise<containerizer::Termination> > promise(
     new Promise<containerizer::Termination>());
 
   promises.put(containerId, promise);
 
-  LOG(INFO) << "Starting container '" << containerId
-            << "' for executor '" << executorInfo.executor_id()
-            << "' and framework '" << executorInfo.framework_id() << "'";
-
-  // Extract the Docker image.
-  image = strings::remove(image, "docker:///", strings::PREFIX);
-
-  // Construct the Docker container name.
-  string name = containerName(containerId);
-
-  map<string, string> env = executorEnvironment(
-      executorInfo,
-      directory,
-      slaveId,
-      slavePid,
-      checkpoint,
-      flags.recovery_timeout);
-
-  // Include any environment variables from CommandInfo.
-  foreach (const Environment::Variable& variable,
-           command.environment().variables()) {
-    env[variable.name()] = variable.value();
-  }
-
-  Resources resources = executorInfo.resources();
-
-  // Start a docker container then launch the executor (but destroy
-  // the Docker container if launching the executor failed).
-  return docker.run(image, command.value(), name, resources, env)
+  return fetch(containerId, executorInfo.command(), directory)
     .then(defer(self(),
-               &Self::_launch,
-               containerId,
-               executorInfo,
-               slaveId,
-               slavePid,
-               checkpoint))
-    .onFailed(defer(self(), &Self::destroy, containerId, false));
+                &Self::_launch,
+                containerId,
+                executorInfo,
+                directory,
+                slaveId,
+                slavePid,
+                checkpoint));
 }
 
 
@@ -583,46 +666,78 @@ Future<bool> DockerContainerizerProcess::launch(
     return Failure("Container already started");
   }
 
-  if (!taskInfo.has_command()) {
-    LOG(WARNING) << "Not expecting call without command info";
+  if (!taskInfo.has_container()) {
+    LOG(INFO) << "No container info found, skipping launch";
     return false;
   }
 
-  const CommandInfo& command = taskInfo.command();
+  ContainerInfo containerInfo = executorInfo.container();
 
-  // Check if we should try and launch this command.
-  if (!command.has_container() ||
-      !strings::startsWith(command.container().image(), "docker:///")) {
-    LOG(INFO) << "No container info or container image is not docker image, "
-              << "skipping launch";
+  if (containerInfo.type() != ContainerInfo::DOCKER) {
+    LOG(INFO) << "Skipping non-docker container";
     return false;
   }
-
-  Owned<Promise<containerizer::Termination> > promise(
-      new Promise<containerizer::Termination>());
-
-  promises.put(containerId, promise);
-
-  // Store the resources for usage().
-  resources.put(containerId, taskInfo.resources());
 
   LOG(INFO) << "Starting container '" << containerId
             << "' for task '" << taskInfo.task_id()
             << "' (and executor '" << executorInfo.executor_id()
             << "') of framework '" << executorInfo.framework_id() << "'";
 
+  Owned<Promise<containerizer::Termination> > promise(
+    new Promise<containerizer::Termination>());
+
+  promises.put(containerId, promise);
+
+  const CommandInfo& command = taskInfo.command();
+
+  return fetch(containerId, command, directory)
+    .then(defer(self(),
+                &Self::_launch,
+                containerId,
+                taskInfo,
+                executorInfo,
+                directory,
+                slaveId,
+                slavePid,
+                checkpoint));
+}
+
+
+Future<bool> DockerContainerizerProcess::_launch(
+    const ContainerID& containerId,
+    const TaskInfo& taskInfo,
+    const ExecutorInfo& executorInfo,
+    const string& directory,
+    const SlaveID& slaveId,
+    const PID<Slave>& slavePid,
+    bool checkpoint)
+{
+  // Store the resources for usage().
+  resources.put(containerId, taskInfo.resources());
+
+  const ContainerInfo& container = taskInfo.container();
+
   // Extract the Docker image.
-  string image = command.container().image();
-  image = strings::remove(image, "docker:///", strings::PREFIX);
+  string image = container.docker().image();
 
   // Construct the Docker container name.
   string name = containerName(containerId);
 
-  // Start a docker container then launch the executor (but destroy
-  // the Docker container if launching the executor failed).
-  return docker.run(image, command.value(), name, taskInfo.resources())
+  const CommandInfo& command = taskInfo.command();
+
+  // Start a docker container and docker logs then launch the executor
+  // (but destroy the Docker container if launching the executor
+  // failed). Docker logs will automatically exit once the container
+  // is stopped.
+  return docker.run(
+      container,
+      command,
+      name,
+      directory,
+      flags.docker_sandbox_directory,
+      taskInfo.resources())
     .then(defer(self(),
-                &Self::_launch,
+                &Self::__launch,
                 containerId,
                 taskInfo,
                 executorInfo,
@@ -634,7 +749,7 @@ Future<bool> DockerContainerizerProcess::launch(
 }
 
 
-Future<bool> DockerContainerizerProcess::_launch(
+Future<bool> DockerContainerizerProcess::__launch(
     const ContainerID& containerId,
     const TaskInfo& taskInfo,
     const ExecutorInfo& executorInfo,
@@ -652,7 +767,7 @@ Future<bool> DockerContainerizerProcess::_launch(
       checkpoint,
       flags.recovery_timeout);
 
-  // Include any enviroment variables from CommandInfo.
+  // Include any enviroment variables from ExecutorInfo.
   foreach (const Environment::Variable& variable,
            executorInfo.command().environment().variables()) {
     env[variable.name()] = variable.value();
@@ -733,13 +848,68 @@ Future<bool> DockerContainerizerProcess::_launch(
 Future<bool> DockerContainerizerProcess::_launch(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
+    const string& directory,
+    const SlaveID& slaveId,
+    const PID<Slave>& slavePid,
+    bool checkpoint)
+{
+  Owned<Promise<containerizer::Termination> > promise(
+      new Promise<containerizer::Termination>());
+
+  promises.put(containerId, promise);
+
+  // Construct the Docker container name.
+  string name = containerName(containerId);
+
+  map<string, string> env = executorEnvironment(
+      executorInfo,
+      directory,
+      slaveId,
+      slavePid,
+      checkpoint,
+      flags.recovery_timeout);
+
+  // Include any environment variables from CommandInfo.
+  foreach (const Environment::Variable& variable,
+           executorInfo.command().environment().variables()) {
+    env[variable.name()] = variable.value();
+  }
+
+  const ContainerInfo& container = executorInfo.container();
+  const CommandInfo& command = executorInfo.command();
+
+  // Start a docker container which is an executor and docker logs.
+  // Docker logs will automatically exit once the container is
+  // stopped.
+  return docker.run(
+      container,
+      command,
+      name,
+      directory,
+      flags.docker_sandbox_directory,
+      None(),
+      env)
+    .then(defer(self(),
+                &Self::__launch,
+                containerId,
+                executorInfo,
+                slaveId,
+                slavePid,
+                checkpoint))
+    .onFailed(defer(self(), &Self::destroy, containerId, false));
+}
+
+
+Future<bool> DockerContainerizerProcess::__launch(
+    const ContainerID& containerId,
+    const ExecutorInfo& executorInfo,
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
   return docker.inspect(containerName(containerId))
-    .then(defer(self(),
-                &Self::__launch,
+     .then(defer(self(),
+                &Self::___launch,
                 containerId,
                 executorInfo,
                 slaveId,
@@ -749,7 +919,7 @@ Future<bool> DockerContainerizerProcess::_launch(
 }
 
 
-Future<bool> DockerContainerizerProcess::__launch(
+Future<bool> DockerContainerizerProcess::___launch(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const SlaveID& slaveId,

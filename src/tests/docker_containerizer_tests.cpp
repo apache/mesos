@@ -226,10 +226,19 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   ExecutorID executorId;
   executorId.set_value("e1");
   executorInfo.mutable_executor_id()->CopyFrom(executorId);
+
   CommandInfo command;
   command.set_value("test-executor");
-  command.mutable_container()->set_image("docker:///mesosphere/test-executor");
   executorInfo.mutable_command()->CopyFrom(command);
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("mesosphere/test-executor");
+
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+  executorInfo.mutable_container()->CopyFrom(containerInfo);
 
   task.mutable_executor()->CopyFrom(executorInfo);
 
@@ -324,11 +333,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   task.mutable_resources()->CopyFrom(offer.resources());
 
   CommandInfo command;
-  CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
-  containerInfo->set_image("docker:///busybox");
-  command.set_value("sleep 120");
+  command.set_value("sleep 1000");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -411,11 +426,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   task.mutable_resources()->CopyFrom(offer.resources());
 
   CommandInfo command;
-  CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
-  containerInfo->set_image("docker:///busybox");
-  command.set_value("sleep 120");
+  command.set_value("sleep 1000");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -509,13 +530,18 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   task.mutable_resources()->CopyFrom(offer.resources());
 
   CommandInfo command;
-  CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
-  containerInfo->set_image("docker:///busybox");
-
   // Run a CPU intensive command, so we can measure utime and stime later.
   command.set_value("dd if=/dev/zero of=/dev/null");
 
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
   task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -628,11 +654,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   task.mutable_resources()->CopyFrom(offer.resources());
 
   CommandInfo command;
-  CommandInfo::ContainerInfo* containerInfo = command.mutable_container();
-  containerInfo->set_image("docker:///busybox");
-  command.set_value("sleep 180");
+  command.set_value("sleep 1000");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -736,18 +768,32 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
 
   Resources resources = Resources::parse("cpus:1;mem:512").get();
 
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_value("sleep 1000");
+
   Future<Nothing> d1 =
     docker.run(
-        "busybox",
-        "sleep 360",
+        containerInfo,
+        commandInfo,
         slave::DOCKER_NAME_PREFIX + stringify(containerId),
+        flags.work_dir,
+        flags.docker_sandbox_directory,
         resources);
 
   Future<Nothing> d2 =
     docker.run(
-        "busybox",
-        "sleep 360",
+        containerInfo,
+        commandInfo,
         slave::DOCKER_NAME_PREFIX + stringify(reapedContainerId),
+        flags.work_dir,
+        flags.docker_sandbox_directory,
         resources);
 
   AWAIT_READY(d1);

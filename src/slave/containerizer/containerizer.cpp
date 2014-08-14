@@ -269,6 +269,42 @@ map<string, string> executorEnvironment(
   return env;
 }
 
+
+// Helper method to build the environment map used to launch fetcher.
+map<string, string> fetcherEnvironment(
+    const CommandInfo& commandInfo,
+    const std::string& directory,
+    const Option<std::string>& user,
+    const Flags& flags)
+{
+  // Prepare the environment variables to pass to mesos-fetcher.
+  string uris = "";
+  foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
+    uris += uri.value() + "+" +
+    (uri.has_executable() && uri.executable() ? "1" : "0") +
+    (uri.extract() ? "X" : "N");
+    uris += " ";
+  }
+  // Remove extra space at the end.
+  uris = strings::trim(uris);
+
+  map<string, string> environment;
+  environment["MESOS_EXECUTOR_URIS"] = uris;
+  environment["MESOS_WORK_DIRECTORY"] = directory;
+  if (user.isSome()) {
+    environment["MESOS_USER"] = user.get();
+  }
+  if (!flags.frameworks_home.empty()) {
+    environment["MESOS_FRAMEWORKS_HOME"] = flags.frameworks_home;
+  }
+  if (!flags.hadoop_home.empty()) {
+    environment["HADOOP_HOME"] = flags.hadoop_home;
+  }
+
+  return environment;
+}
+
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

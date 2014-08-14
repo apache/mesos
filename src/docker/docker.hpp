@@ -65,9 +65,11 @@ public:
 
   // Performs 'docker run IMAGE'.
   process::Future<Nothing> run(
-      const std::string& image,
-      const std::string& command,
+      const mesos::ContainerInfo& containerInfo,
+      const mesos::CommandInfo& commandInfo,
       const std::string& name,
+      const std::string& sandboxDirectory,
+      const std::string& mappedDirectory,
       const Option<mesos::Resources>& resources = None(),
       const Option<std::map<std::string, std::string> >& env = None()) const;
 

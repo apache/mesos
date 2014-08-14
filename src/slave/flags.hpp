@@ -289,6 +289,12 @@ public:
         "The absolute path to the docker executable for docker containerizer.",
         "docker");
 
+    add(&Flags::docker_sandbox_directory,
+        "docker_sandbox_directory",
+        "The absolute path for the directory in the container where the sandbox\n"
+        "is mapped to",
+        "/mnt/mesos/sandbox");
+
 #ifdef WITH_NETWORK_ISOLATOR
     add(&Flags::ephemeral_ports_per_container,
         "ephemeral_ports_per_container",
@@ -347,6 +353,7 @@ public:
   std::string containerizers;
   Option<std::string> default_container_image;
   std::string docker;
+  std::string docker_sandbox_directory;
 #ifdef WITH_NETWORK_ISOLATOR
   uint16_t ephemeral_ports_per_container;
   Option<std::string> eth0_name;

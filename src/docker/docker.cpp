@@ -39,6 +39,8 @@
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
 
+using namespace mesos;
+
 using namespace mesos::internal::slave;
 
 using namespace process;
@@ -209,12 +211,20 @@ Try<Docker::Container> Docker::Container::create(const JSON::Object& json)
 
 
 Future<Nothing> Docker::run(
-    const string& image,
-    const string& command,
+    const ContainerInfo& containerInfo,
+    const CommandInfo& commandInfo,
     const string& name,
-    const Option<mesos::Resources>& resources,
+    const string& sandboxDirectory,
+    const string& mappedDirectory,
+    const Option<Resources>& resources,
     const Option<map<string, string> >& env) const
 {
+  if (!containerInfo.has_docker()) {
+    return Failure("No docker info found in container info");
+  }
+
+  const ContainerInfo::DockerInfo& dockerInfo = containerInfo.docker();
+
   string cmd = path + " run -d";
 
   if (resources.isSome()) {
@@ -243,15 +253,66 @@ Future<Nothing> Docker::run(
     }
   }
 
-  cmd += " --net=host --name=" + name + " " + image + " " + command;
+  foreach (const Environment::Variable& variable,
+           commandInfo.environment().variables()) {
+    // TODO(tnachen): Use subprocess with args instead once we can
+    // handle splitting command string into args.
+    string key = strings::replace(variable.name(), "\"", "\\\"");
+    string value = strings::replace(variable.value(), "\"", "\\\"");
+    cmd += " -e \"" + key + "=" + value + "\"";
+  }
+
+  cmd += " -e \"MESOS_SANDBOX=" + mappedDirectory + "\"";
+
+  foreach (const Volume& volume, containerInfo.volumes()) {
+    string volumeConfig = volume.container_path();
+    if (volume.has_host_path()) {
+      volumeConfig = volume.host_path() + ":" + volumeConfig;
+      if (volume.has_mode()) {
+        switch (volume.mode()) {
+          case Volume::RW: volumeConfig += ":rw"; break;
+          case Volume::RO: volumeConfig += ":ro"; break;
+          default: return Failure("Unsupported volume mode");
+        }
+      }
+    } else if (volume.has_mode() && !volume.has_host_path()) {
+      return Failure("Host path is required with mode");
+    }
+
+    cmd += " -v=" + volumeConfig;
+  }
+
+  // Mapping sandbox directory into the contianer mapped directory.
+  cmd += " -v=" + sandboxDirectory + ":" + mappedDirectory;
+
+  const string& image = dockerInfo.image();
+
+  // TODO(tnachen): Support more network options other than host
+  // networking that docker provides (ie: BRIDGE). We currently
+  // require host networking since if the docker container is
+  // expected to be an executor it needs to be able to communicate
+  // with the slave by the slave's PID. There can be more future work
+  // to allow a bridge to connect but this is not yet implemented.
+  cmd += " --net=host --name=" + name + " " + image + " " +
+         commandInfo.value();
 
   VLOG(1) << "Running " << cmd;
+
+  map<string, string> environment;
+
+  // Currently the Docker CLI picks up dockerconfig by looking for
+  // the config file in the $HOME directory. If one of the URIs
+  // provided is a docker config file we want docker to be able to
+  // pick it up from the sandbox directory where we store all the
+  // URI downloads.
+  environment["HOME"] = sandboxDirectory;
 
   Try<Subprocess> s = subprocess(
       cmd,
       Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PIPE());
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      environment);
 
   if (s.isError()) {
     return Failure(s.error());

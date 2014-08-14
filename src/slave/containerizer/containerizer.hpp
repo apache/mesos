@@ -134,6 +134,14 @@ std::map<std::string, std::string> executorEnvironment(
     bool checkpoint,
     const Duration& recoveryTimeout);
 
+
+std::map<std::string, std::string> fetcherEnvironment(
+    const CommandInfo& commandInfo,
+    const std::string& directory,
+    const Option<std::string>& user,
+    const Flags& flags);
+
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

@@ -28,10 +28,12 @@
 
 #include "mesos/resources.hpp"
 
+#include "tests/environment.hpp"
 #include "tests/flags.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::tests;
 
 using namespace process;
 
@@ -57,8 +59,28 @@ TEST(DockerTest, ROOT_DOCKER_interface)
     EXPECT_NE("/" + containerName, container.name);
   }
 
+  Try<string> directory = environment->mkdtemp();
+  CHECK_SOME(directory) << "Failed to create temporary directory";
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_value("sleep 120");
+
   // Start the container.
-  status = docker.run("busybox", "sleep 120", containerName, resources);
+  status = docker.run(
+      containerInfo,
+      commandInfo,
+      containerName,
+      directory.get(),
+      "/mnt/mesos/sandbox",
+      resources);
+
   AWAIT_READY(status);
 
   // Should be able to see the container now.
@@ -132,7 +154,14 @@ TEST(DockerTest, ROOT_DOCKER_interface)
 
   // Start the container again, this time we will do a "rm -f"
   // directly, instead of killing and rm.
-  status = docker.run("busybox", "sleep 120", containerName, resources);
+  status = docker.run(
+      containerInfo,
+      commandInfo,
+      containerName,
+      directory.get(),
+      "/mnt/mesos/sandbox",
+      resources);
+
   AWAIT_READY(status);
 
   // Verify that the container is there.
