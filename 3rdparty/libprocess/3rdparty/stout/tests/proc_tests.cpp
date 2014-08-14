@@ -78,6 +78,8 @@ void* threadFunction(void*)
   // Newly created threads have PTHREAD_CANCEL_ENABLE and
   // PTHREAD_CANCEL_DEFERRED so they can be cancelled from the main thread.
   while (true) { sleep(1); }
+
+  return NULL;
 }
 
 
@@ -102,7 +104,7 @@ TEST(ProcTest, MultipleThreads)
   EXPECT_EQ(1u, threads.get().count(::getpid()));
 
   // Terminate the threads.
-  for (int i = 0; i < numThreads; i++)
+  for (size_t i = 0; i < numThreads; i++)
   {
     EXPECT_EQ(0, pthread_cancel(pthreads[i]));
     EXPECT_EQ(0, pthread_join(pthreads[i], NULL));

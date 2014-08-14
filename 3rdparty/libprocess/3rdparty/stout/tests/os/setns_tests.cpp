@@ -19,6 +19,8 @@ static void* child(void* arg)
   // Newly created threads have PTHREAD_CANCEL_ENABLE and
   // PTHREAD_CANCEL_DEFERRED so they can be cancelled.
   while (true) { os::sleep(Seconds(1)); }
+
+  return NULL;
 }
 
 
