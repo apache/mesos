@@ -51,7 +51,7 @@ using std::string;
 using std::vector;
 
 
-template<class T>
+template <typename T>
 static Future<T> failure(
     const string& cmd,
     int status,
@@ -225,7 +225,10 @@ Future<Nothing> Docker::run(
 
   const ContainerInfo::DockerInfo& dockerInfo = containerInfo.docker();
 
-  string cmd = path + " run -d";
+  vector<string> argv;
+  argv.push_back(path);
+  argv.push_back("run");
+  argv.push_back("-d");
 
   if (resources.isSome()) {
     // TODO(yifan): Support other resources (e.g. disk, ports).
@@ -233,36 +236,33 @@ Future<Nothing> Docker::run(
     if (cpus.isSome()) {
       uint64_t cpuShare =
         std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
-      cmd += " -c " + stringify(cpuShare);
+      argv.push_back("-c");
+      argv.push_back(stringify(cpuShare));
     }
 
     Option<Bytes> mem = resources.get().mem();
     if (mem.isSome()) {
       Bytes memLimit = std::max(mem.get(), MIN_MEMORY);
-      cmd += " -m " + stringify(memLimit.bytes());
+      argv.push_back("-m");
+      argv.push_back(stringify(memLimit.bytes()));
     }
   }
 
   if (env.isSome()) {
-    // TODO(tnachen): Use subprocess with args instead once we can
-    // handle splitting command string into args.
     foreachpair (string key, string value, env.get()) {
-      key = strings::replace(key, "\"", "\\\"");
-      value = strings::replace(value, "\"", "\\\"");
-      cmd += " -e \"" + key + "=" + value + "\"";
+      argv.push_back("-e");
+      argv.push_back(key + "=" + value);
     }
   }
 
   foreach (const Environment::Variable& variable,
            commandInfo.environment().variables()) {
-    // TODO(tnachen): Use subprocess with args instead once we can
-    // handle splitting command string into args.
-    string key = strings::replace(variable.name(), "\"", "\\\"");
-    string value = strings::replace(variable.value(), "\"", "\\\"");
-    cmd += " -e \"" + key + "=" + value + "\"";
+    argv.push_back("-e");
+    argv.push_back(variable.name() + "=" + variable.value());
   }
 
-  cmd += " -e \"MESOS_SANDBOX=" + mappedDirectory + "\"";
+  argv.push_back("-e");
+  argv.push_back("MESOS_SANDBOX=" + mappedDirectory);
 
   foreach (const Volume& volume, containerInfo.volumes()) {
     string volumeConfig = volume.container_path();
@@ -279,11 +279,13 @@ Future<Nothing> Docker::run(
       return Failure("Host path is required with mode");
     }
 
-    cmd += " -v=" + volumeConfig;
+    argv.push_back("-v");
+    argv.push_back(volumeConfig);
   }
 
   // Mapping sandbox directory into the contianer mapped directory.
-  cmd += " -v=" + sandboxDirectory + ":" + mappedDirectory;
+  argv.push_back("-v");
+  argv.push_back(sandboxDirectory + ":" + mappedDirectory);
 
   const string& image = dockerInfo.image();
 
@@ -293,8 +295,28 @@ Future<Nothing> Docker::run(
   // expected to be an executor it needs to be able to communicate
   // with the slave by the slave's PID. There can be more future work
   // to allow a bridge to connect but this is not yet implemented.
-  cmd += " --net=host --name=" + name + " " + image + " " +
-         commandInfo.value();
+  argv.push_back("--net");
+  argv.push_back("host");
+
+  argv.push_back("--name");
+  argv.push_back(name);
+  argv.push_back(image);
+
+  if (commandInfo.shell()) {
+    argv.push_back("/bin/sh");
+    argv.push_back("-c");
+    argv.push_back(commandInfo.value());
+  } else {
+    if (commandInfo.has_value()) {
+      argv.push_back(commandInfo.value());
+    }
+
+    foreach (const string& argument, commandInfo.arguments()) {
+      argv.push_back(argument);
+    }
+  }
+
+  string cmd = strings::join(" ", argv);
 
   VLOG(1) << "Running " << cmd;
 
@@ -308,10 +330,12 @@ Future<Nothing> Docker::run(
   environment["HOME"] = sandboxDirectory;
 
   Try<Subprocess> s = subprocess(
-      cmd,
+      path,
+      argv,
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      None(),
       environment);
 
   if (s.isError()) {
