@@ -27,8 +27,7 @@ PROTOBUF_EGG=${PROTOBUF}/python/dist/
 PROTOBUF_EGG+=protobuf-2.5.0@PYTHON_EGG_PUREPY_POSTFIX@.egg
 
 test ! -e ${PROTOBUF_EGG} && \
-  echo "${RED}Failed to find ${PROTOBUF_EGG}${NORMAL}" && \
-  exit 1
+  echo "${RED}Failed to find ${PROTOBUF_EGG} check your PYTHONPATH ${NORMAL}"
 
 MESOS_EGGS=""
 for egg in interface native; do

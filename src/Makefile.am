@@ -18,6 +18,7 @@
 # which is necessary for dealing with naming conflicts, i.e,,
 # master/http.cpp and slave/http.cpp.
 AUTOMAKE_OPTIONS = subdir-objects
+MESOS_BUILD_DIR=@abs_top_builddir@
 
 include ../3rdparty/versions.am
 include ../3rdparty/libprocess/3rdparty/versions.am
@@ -44,8 +45,13 @@ PICOJSON = $(LIBPROCESS)/3rdparty/picojson-$(PICOJSON_VERSION)
 pkglibexecdir = $(libexecdir)/$(PACKAGE)
 pkglocalstatedir = $(localstatedir)/$(PACKAGE)
 
-# Protocol buffer compiler.
-PROTOC = ../$(PROTOBUF)/src/protoc
+if WITH_BUNDLED_PROTOBUF
+  # Protocol buffer compiler.
+  PROTOC = ../$(PROTOBUF)/src/protoc
+else
+  PROTOC = @PROTOCOMPILER@
+endif
+
 PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir)
 
 # Initialize variables here so we can use += operator everywhere else.
@@ -107,6 +113,10 @@ endif
 
 if WITH_NETWORK_ISOLATOR
   MESOS_CPPFLAGS += $(LIBNL_CFLAGS)
+endif
+
+if WITH_BUNDLED_PROTOBUF
+  MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 endif
 
 # README: we build the Mesos library out of a collection of
@@ -554,8 +564,6 @@ libmesos_la_LIBADD = libmesos_no_3rdparty.la
 # For non-convenience libraries we need to link them in to make the shared
 # library each time. (Currently, we don't support platforms where this is not
 # possible.)
-libmesos_la_LIBADD += ../$(PROTOBUF)/src/libprotobuf.la
-
 if WITH_BUNDLED_GLOG
   libmesos_la_LIBADD += ../$(GLOG)/libglog.la
 else
@@ -576,6 +584,12 @@ if WITH_BUNDLED_ZOOKEEPER
   libmesos_la_LIBADD += ../$(ZOOKEEPER)/libzookeeper_mt.la
 else
   libmesos_la_LIBADD += -lzookeeper_mt
+endif
+
+if WITH_BUNDLED_PROTOBUF
+  libmesos_la_LIBADD += ../$(PROTOBUF)/src/libprotobuf.la
+else
+  libmesos_la_LIBADD += -lprotobuf
 endif
 
 libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
@@ -781,8 +795,6 @@ EXTRA_DIST += $(EXAMPLES_SOURCE)
 
 
 if HAS_JAVA
-# Protobuf jar, copied there by Maven.
-PROTOBUF_JAR = java/target/protobuf-java-$(PROTOBUF_VERSION).jar
 
 $(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) java/mesos.pom
 	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
@@ -847,44 +859,44 @@ BUILT_SOURCES += $(nodist_libjava_la_SOURCES)
 
 java/jni/org_apache_mesos_MesosSchedulerDriver.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
 	  org.apache.mesos.MesosSchedulerDriver
 
 java/jni/org_apache_mesos_MesosExecutorDriver.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
           org.apache.mesos.MesosExecutorDriver
 
 java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
 	  org.apache.mesos.Log
 
 java/jni/org_apache_mesos_state_AbstractState.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
 	  org.apache.mesos.state.AbstractState
 
 java/jni/org_apache_mesos_state_LevelDBState.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
 	  org.apache.mesos.state.LevelDBState
 
 java/jni/org_apache_mesos_state_Variable.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
 	  org.apache.mesos.state.Variable
 
 java/jni/org_apache_mesos_state_ZooKeeperState.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):$(PROTOBUF_JAR)				\
+	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
 	  org.apache.mesos.state.ZooKeeperState
 
 $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
 	$(MKDIR_P) examples/java
 	$(JAVA_HOME)/bin/javac -source 1.6 -target 1.6			\
-          -cp ../$(ZOOKEEPER_JAR):$(PROTOBUF_JAR):$(MESOS_JAR):$(srcdir)/examples/java	\
+          -cp ../$(ZOOKEEPER_JAR):@PROTOBUF_JAR@:$(MESOS_JAR):$(srcdir)/examples/java	\
           -sourcepath $(srcdir)/examples/java -d examples/java	        \
           $(srcdir)/examples/java/*.java
 	$(JAVA_HOME)/bin/jar cf $@ -C examples/java .
@@ -932,17 +944,19 @@ DISTRIBUTE_EGG_SUFFIX = $(DISTRIBUTE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg
 DISTRIBUTE_EGG = \
   $(abs_top_builddir)/$(DISTRIBUTE)/dist/distribute-$(DISTRIBUTE_EGG_SUFFIX)
 
-# Build a protobuf Python egg.
-PROTOBUF_EGG_SUFFIX = $(PROTOBUF_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg
-PROTOBUF_EGG = ../$(PROTOBUF)/python/dist/protobuf-$(PROTOBUF_EGG_SUFFIX)
+if WITH_BUNDLED_PROTOBUF
+  # Build a protobuf Python egg.
+  PROTOBUF_EGG_SUFFIX = $(PROTOBUF_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg
+  PROTOBUF_EGG = ../$(PROTOBUF)/python/dist/protobuf-$(PROTOBUF_EGG_SUFFIX)
 
-$(PROTOBUF_EGG):
+  $(PROTOBUF_EGG):
 	@echo "Building protobuf Python egg ..."
 	cd ../$(PROTOBUF)/python && \
           CC="$(CC)" CXX="$(CXX)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" \
 	  PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) setup.py build bdist_egg
 
-CLEANFILES += $(PROTOBUF_EGG)
+  CLEANFILES += $(PROTOBUF_EGG)
+endif
 
 # This builds the mesos.native egg against libmesos_no_3rdparty.a that is
 # self-contained. It currently depends on the libraries in 3rdparty

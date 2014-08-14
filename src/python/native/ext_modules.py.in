@@ -64,7 +64,6 @@ LIBRARY_DIRS = []
 
 EXTRA_OBJECTS = [
     os.path.join(abs_top_builddir, 'src', '.libs', 'libmesos_no_3rdparty.a'),
-    os.path.join(abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a'),
     os.path.join(abs_top_builddir, libprocess, '.libs', 'libprocess.a')
 ]
 
@@ -75,6 +74,8 @@ libglog = os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a')
 libleveldb = os.path.join(abs_top_builddir, leveldb, 'libleveldb.a')
 libzookeeper = os.path.join(
     abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a')
+libprotobuf = os.path.join(
+    abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a')
 
 if os.path.exists(libleveldb):
     EXTRA_OBJECTS.append(libleveldb)
@@ -95,6 +96,11 @@ if os.path.exists(libglog):
     EXTRA_OBJECTS.append(libglog)
 else:
     EXTRA_OBJECTS.append('-lglog')
+
+if os.path.exists(libprotobuf):
+  EXTRA_OBJECTS.append(libprotobuf)
+else:
+  EXTRA_OBJECTS.append('-lprotobuf')
 
 # For gperftools, we need to check for the presence of libprofiler.a, since
 # it is possible to disable perftools inside libprocess.

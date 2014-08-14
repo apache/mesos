@@ -106,6 +106,13 @@ AC_ARG_WITH([http-parser],
                            location prefixed by the given path]),
             [without_bundled_http_parser=yes], [])
 
+AC_ARG_WITH([protobuf],
+        AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
+                       [excludes building and using the bundled protobuf
+                       package in lieu of an installed version at a
+                       location prefixed by the given path]),
+        [without_bundled_protobuf=yes], [])
+
 AC_ARG_WITH([zlib],
             AS_HELP_STRING([--without-zlib],
                            [disables zlib compression, which means the webui
@@ -117,6 +124,8 @@ AC_ARG_WITH([cxx11],
                            [builds libprocess without C++11 support (deprecated)]),
             [], [with_cxx11=yes])
 
+# There is no prefix installation of the JAR.
+AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
 
 # Do some OS specific setup.
 case "${target_os}" in
@@ -156,6 +165,12 @@ fi
 
 if test -n "`echo $with_http-parser`"; then
   CPPFLAGS="$CPPFLAGS -I${with_http-parser}/include"
+fi
+
+if test -n "`echo $with_protobuf`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_protobuf}/include"
+  LDFLAGS="$LDFLAGS -I${with_protobuf}/lib"
+  PROTOBUFPREFIX=${with_protobuf}
 fi
 
 # Check if user has asked us to use a preinstalled libev, or if they asked
@@ -298,6 +313,52 @@ fi
 AM_CONDITIONAL([WITH_BUNDLED_HTTP_PARSER],
                [test "x$with_bundled_http_parser" = "xyes"])
 
+# Check if user has asked us to use a preinstalled protobuf, or if they asked
+# us to ignore all bundled libraries while compiling and linking.
+if test "x$without_bundled_protobuf" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check for protobuf.
+  PKG_CHECK_MODULES([PROTOBUFPREFIX],
+                    [protobuf],
+                    [found_protobuf=yes])
+
+  if test "x$found_protobuf" = "xyes"; then
+    with_bundled_protobuf=no
+    if test -z "`echo $PROTOBUF_JAR`"; then
+      PROTOBUF_JAR="/usr/share/java/protobuf.jar"
+    fi
+
+    AC_CHECK_FILE($PROTOBUF_JAR,
+                  [],
+                  [AC_MSG_ERROR([cannot find PROTOBUF_JAR=$PROTOBUF_JAR])])
+
+    AC_CHECK_TOOL([PROTOC], [protoc])
+
+    if test -z "`echo $PROTOC`"; then
+      AC_MSG_ERROR([protoc not found in PATH])
+    fi
+
+  else
+    AC_MSG_ERROR([cannot find protobuf
+-------------------------------------------------------------------
+You have requested the use of a non-bundled protobuf but no suitable
+protobuf could be found.
+
+You may want specify the location of protobuf by providing a prefix
+path via --with-protobuf=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_protobuf=yes
+  PROTOBUF_JAR="\${MESOS_BUILD_DIR}/src/java/target/protobuf-java-2.5.0.jar"
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
+               [test "x$with_bundled_protobuf" = "xyes"])
+
+AC_SUBST([PROTOBUF_JAR])
 
 # Default to gcc toolchain (we rely on some atomic builtins for now,
 # that are also present with clang).

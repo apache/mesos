@@ -57,6 +57,7 @@ CLEAN_EXTRACTED =	\
   $(RY_HTTP_PARSER)	\
   $(PICOJSON)
 
+ALL_LOCAL = # Initialize ALL_LOCAL so we can add to it.
 
 # This is where the magic happens: we use stamp files as dependencies
 # which cause the packages to get extracted as necessary. We also
@@ -77,6 +78,19 @@ if WITH_BUNDLED_HTTP_PARSER
   $(RY_HTTP_PARSER)/http_parser.c: $(RY_HTTP_PARSER)-stamp
 endif
 
+if WITH_BUNDLED_PROTOBUF
+  $(PROTOBUF)/src/protoc $(PROTOBUF)/src/libprotobuf.la: $(PROTOBUF)-build-stamp
+
+  $(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
+	cd $(PROTOBUF) && ./configure $(CONFIGURE_ARGS) && \
+          $(MAKE) $(AM_MAKEFLAGS)
+	touch $@
+
+  LIBPROTOBUF = $(PROTOBUF)/src/libprotobuf.la
+
+else
+  LIBPROTOBUF = -lprotobuf
+endif
 
 # Convenience library for gmock/gtest.
 check_LTLIBRARIES = libgmock.la
@@ -119,13 +133,6 @@ $(LIBEV)/libev.la: $(LIBEV)-stamp
 	cd $(LIBEV) && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 endif
-
-$(PROTOBUF)/src/protoc $(PROTOBUF)/src/libprotobuf.la: $(PROTOBUF)-build-stamp
-
-$(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
-	cd $(PROTOBUF) && ./configure $(CONFIGURE_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS)
-	touch $@
 
 # Tests for stout.
 check_PROGRAMS = stout-tests
@@ -192,8 +199,8 @@ endif
 
 stout_tests_LDADD =			\
   libgmock.la				\
-  $(PROTOBUF)/src/libprotobuf.la	\
   $(LIBGLOG)				\
+  $(LIBPROTOBUF)			\
   -ldl
 
 # We use a check-local target for now to avoid the parallel test
@@ -204,10 +211,12 @@ check-local: stout-tests
 	./stout-tests
 
 # Dependencies for all-local.
-ALL_LOCAL =				\
-  $(STOUT)/Makefile			\
-  $(PROTOBUF)/src/libprotobuf.la	\
-  $(PROTOBUF)/src/protoc
+ALL_LOCAL += $(STOUT)/Makefile
+
+if WITH_BUNDLED_PROTOBUF
+  ALL_LOCAL += $(PROTOBUF)/src/libprotobuf.la
+  ALL_LOCAL += $(PROTOBUF)/src/protoc
+endif
 
 if WITH_BUNDLED_LIBEV
   ALL_LOCAL += $(LIBEV)/libev.la

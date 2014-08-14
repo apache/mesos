@@ -165,6 +165,13 @@ AC_ARG_WITH([glog],
                    location prefixed by the given path]),
         [without_bundled_glog=yes], [])
 
+AC_ARG_WITH([protobuf],
+        AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
+                       [excludes building and using the bundled protobuf
+                       package in lieu of an installed version at a
+                       location prefixed by the given path]),
+        [without_bundled_protobuf=yes], [])
+
 AC_ARG_WITH([cxx11],
 	    AS_HELP_STRING([--without-cxx11],
                            [builds Mesos without C++11 support (deprecated)]),
@@ -175,12 +182,6 @@ AC_ARG_WITH([network-isolator],
                            [builds the network isolator]),
             [], [with_network_isolator=no])
 
-# TODO(benh): Support --without-included-protobuf,
-# --without-included-glog, etc. Doing this for protobuf is
-# considerably more tricky because we need to make sure that 'protoc'
-# exists, that a protobuf JAR exists or we can make one, that a
-# protobuf egg exists or we can make one, etc.
-
 AC_ARG_VAR([JAVA_HOME], [location of Java Development Kit (JDK)])
 
 AC_ARG_VAR([JAVA_CPPFLAGS], [preprocessor flags for JNI])
@@ -188,6 +189,8 @@ AC_ARG_VAR([JAVA_CPPFLAGS], [preprocessor flags for JNI])
 AC_ARG_VAR([JAVA_JVM_LIBRARY], [full path to libjvm.so])
 
 AC_ARG_VAR([MAVEN_HOME], [looks for mvn at MAVEN_HOME/bin/mvn])
+
+AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
 
 AC_ARG_VAR([PYTHON], [which Python interpreter to use])
 
@@ -235,6 +238,19 @@ fi
 if test -n "`echo $with_leveldb`"; then
   CPPFLAGS="$CPPFLAGS -I${with_leveldb}/include"
   LDFLAGS="$LDFLAGS -L${with_leveldb}/lib"
+fi
+
+if test -n "`echo $with_protobuf`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_protobuf}/include"
+  LDFLAGS="$LDFLAGS -L${with_protobuf}/lib"
+  PROTOBUFPREFIX="${with_protobuf}"
+  PROTOCOMPILER="${with_protobuf}/bin/protoc"
+elif test "x$enable_bundled" = "xno"; then
+  PROTOCOMPILER="protoc"
+
+# In the 'else' case src/Makefile.am will use the bundled
+# protoc from 3rdparty.
+
 fi
 
 # Check if ZooKeeper prefix path was supplied and if so, add it to
@@ -340,6 +356,58 @@ fi
 
 AM_CONDITIONAL([WITH_BUNDLED_ZOOKEEPER],
                [test "x$with_bundled_zookeeper" = "xyes"])
+
+# Check if user has asked us to use a preinstalled protobuf, or if they asked
+# us to ignore all bundled libraries while compiling and linking.
+if test "x$without_bundled_protobuf" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check for protobuf.
+  PKG_CHECK_MODULES([PROTOBUFPREFIX],
+                    [protobuf],
+                    [found_protobuf=yes])
+
+  if test "x$found_protobuf" = "xyes"; then
+    with_bundled_protobuf=no
+    if test -z "`echo $PROTOBUF_JAR`"; then
+      PROTOBUF_JAR="${PROTOBUFPREFIX}/usr/share/java/protobuf.jar"
+    fi
+
+    AC_CHECK_FILE($PROTOBUF_JAR,
+                  [],
+                  [AC_MSG_ERROR([cannot find PROTOBUF_JAR=$PROTOBUF_JAR])])
+
+    AC_CHECK_TOOL([PROTOBUF_COMPILER], $PROTOCOMPILER)
+
+    if test -z "`echo $PROTOBUF_COMPILER`"; then
+      AC_MSG_ERROR([protoc not found in PATH])
+    fi
+
+    if test "x$enable_python" = "xyes"; then
+        AC_PYTHON_MODULE([google.protobuf], [yes])
+    fi
+
+  else
+    AC_MSG_ERROR([cannot find protobuf
+-------------------------------------------------------------------
+You have requested the use of a non-bundled protobuf but no suitable
+protobuf could be found.
+
+You may want specify the location of protobuf by providing a prefix
+path via --with-protobuf=DIR, or check that the path you provided is
+correct if youre already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_protobuf=yes
+  PROTOBUF_JAR="\${MESOS_BUILD_DIR}/src/java/target/protobuf-java-2.5.0.jar"
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
+               [test "x$with_bundled_protobuf" = "xyes"])
+
+AC_SUBST([PROTOBUF_JAR])
+AC_SUBST([PROTOCOMPILER])
 
 # Check if we're using clang.
 AC_MSG_CHECKING([if compiling with clang])

@@ -12,7 +12,7 @@ JAVA=${JAVA-${JAVA_HOME}/bin/java}
 # Use colors for errors.
 . ${MESOS_SOURCE_DIR}/support/colors.sh
 
-PROTOBUF_JAR=${MESOS_BUILD_DIR}/src/java/target/protobuf-java-2.5.0.jar
+PROTOBUF_JAR=@PROTOBUF_JAR@
 
 test ! -e ${PROTOBUF_JAR} && \
   echo "${RED}Failed to find ${PROTOBUF_JAR}${NORMAL}" && \

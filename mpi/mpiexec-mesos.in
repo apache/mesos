@@ -25,9 +25,9 @@ test ! -e ${DISTRIBUTE_EGG} && \
 PROTOBUF=${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-*
 PROTOBUF_EGG=`echo ${PROTOBUF}/python/dist/protobuf*.egg`
 
+# Just warn in the case when build with --disable-bundled.
 test ! -e ${PROTOBUF_EGG} && \
-  echo "${RED}Failed to find ${PROTOBUF_EGG}${NORMAL}" && \
-  exit 1
+  echo "${RED}Failed to find ${PROTOBUF_EGG} check your PYTHONPATH${NORMAL}"
 
 MESOS_EGGS=""
 for egg in interface native; do
