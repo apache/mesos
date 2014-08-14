@@ -172,6 +172,13 @@ AC_ARG_WITH([protobuf],
                        location prefixed by the given path]),
         [without_bundled_protobuf=yes], [])
 
+AC_ARG_WITH([gmock],
+        AS_HELP_STRING([--with-gmock@<:@=DIR@:>@],
+                   [excludes building and using the bundled gmock
+                   package in lieu of an installed version at a
+                   location prefixed by the given path]),
+        [without_bundled_gmock=yes], [])
+
 AC_ARG_WITH([cxx11],
 	    AS_HELP_STRING([--without-cxx11],
                            [builds Mesos without C++11 support (deprecated)]),

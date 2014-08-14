@@ -49,6 +49,7 @@ AC_CONFIG_SUBDIRS([3rdparty/stout])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([include/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
+AC_CONFIG_FILES([3rdparty/gmock_sources.cc])
 
 AC_ARG_ENABLE([install],
               AS_HELP_STRING([--enable-install],
@@ -98,6 +99,13 @@ AC_ARG_WITH([glog],
                    package in lieu of an installed version at a
                    location prefixed by the given path]),
         [without_bundled_glog=yes], [])
+
+AC_ARG_WITH([gmock],
+        AS_HELP_STRING([--with-gmock@<:@=DIR@:>@],
+                   [excludes building and using the bundled gmock
+                   package in lieu of an installed version at a
+                   location prefixed by the given path]),
+        [without_bundled_gmock=yes], [])
 
 AC_ARG_WITH([http-parser],
             AS_HELP_STRING([--with-http-parser@<:@=DIR@:>@],
@@ -163,6 +171,22 @@ if test -n "`echo $with_glog`"; then
   LDFLAGS="$LDFLAGS -L${with_glog}/lib"
 fi
 
+GMOCKSRC="gmock-all.cc"
+GTESTSRC="gtest-all.cc"
+
+if test -n "`echo $with_gmock`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_gmock} -I${with_gmock}/include \
+    -I${with_gmock}/src -I${with_gmock}/gtest -I${with_gmock}/gtest/include \
+    -I${with_gmock}/gtest/src"
+
+elif test "x$enable_bundled" != "xyes"; then
+  CPPFLAGS="$CPPFLAGS -I/usr/src/gmock"
+  # On system installations the deps are handled separately.
+  # So insert a placeholder for substitution.
+  GTESTSRC="stdio.h"
+  check_gtest=yes
+fi
+
 if test -n "`echo $with_http-parser`"; then
   CPPFLAGS="$CPPFLAGS -I${with_http-parser}/include"
 fi
@@ -172,6 +196,45 @@ if test -n "`echo $with_protobuf`"; then
   LDFLAGS="$LDFLAGS -I${with_protobuf}/lib"
   PROTOBUFPREFIX=${with_protobuf}
 fi
+
+# Check if user has asked us to use a preinstalled gmock, or if they asked
+# us to ignore all bundled libraries while compiling and linking.
+if test "x$without_bundled_gmock" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+
+  AC_CHECK_HEADER($GMOCKSRC,
+                [found_gmock=yes],
+                [])
+  if test "x$found_gmock" = "xyes"; then
+
+    if test "x$check_gtest" = "xyes"; then
+    AC_CHECK_LIB([gtest],
+                 [_init],
+                 [],
+                 [AC_MSG_ERROR([gtest missing])])
+    fi
+
+    with_bundled_gmock=no
+  else
+    AC_MSG_ERROR([cannot find gmock
+-------------------------------------------------------------------
+You have requested the use of a non-bundled gmock but no suitable
+gmock could be found.
+
+You may want specify the location of gmock by providing a prefix
+path via --with-gmock=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_gmock=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_GMOCK], [test "x$with_bundled_gmock" = "xyes"])
+AM_CONDITIONAL([LINKGTEST], [test "check_gtest" = "xyes"])
+AC_SUBST([GMOCKSRC])
+AC_SUBST([GTESTSRC])
 
 # Check if user has asked us to use a preinstalled libev, or if they asked
 # us to ignore all bundled libraries while compiling and linking.

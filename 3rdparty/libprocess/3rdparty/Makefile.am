@@ -94,20 +94,25 @@ endif
 
 # Convenience library for gmock/gtest.
 check_LTLIBRARIES = libgmock.la
-nodist_libgmock_la_SOURCES =		\
-  $(GTEST)/src/gtest-all.cc		\
-  $(GMOCK)/src/gmock-all.cc
-libgmock_la_CPPFLAGS =			\
-  -I$(GTEST)/include -I$(GTEST)		\
-  -I$(GMOCK)/include -I$(GMOCK)
+nodist_libgmock_la_SOURCES = gmock_sources.cc
+
+if WITH_BUNDLED_GMOCK
+  libgmock_la_CPPFLAGS =			\
+  -I$(GTEST)/include -I$(GTEST) -I$(GTEST)/src	\
+  -I$(GMOCK)/include -I$(GMOCK) -I$(GMOCK)/src
+
+  gmock_sources.cc: $(GMOCK)-stamp
+endif
+
+if LINKGTEST
+  libgmock_la_LIBADD = -lgtest
+endif
 
 
 # We list the sources in BUILT_SOURCES to make sure that the package
 # gets unarchived first.
 BUILT_SOURCES += $(nodist_libgmock_la_SOURCES)
 
-$(GMOCK)/src/gmock-all.cc: $(GMOCK)-stamp
-$(GTEST)/src/gtest-all.cc: $(GMOCK)-stamp
 
 if WITH_BUNDLED_GLOG
 # NOTE: We explicitely set GTEST_CONFIG=no so that we don't attempt to
@@ -177,10 +182,13 @@ endif
 
 stout_tests_CPPFLAGS =				\
   -I$(srcdir)/$(STOUT)/include			\
-  -I$(GTEST)/include				\
-  -I$(GMOCK)/include				\
   -I$(PROTOBUF)/src				\
   $(AM_CPPFLAGS)
+
+if WITH_BUNDLED_GMOCK
+  stout_tests_CPPFLAGS += -I$(GTEST)/include
+  stout_tests_CPPFLAGS += -I$(GMOCK)/include
+endif
 
 if WITH_BUNDLED_BOOST
   stout_tests_CPPFLAGS += -I$(BOOST)
