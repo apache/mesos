@@ -28,6 +28,7 @@
 
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
+#include <stout/glog.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
@@ -65,33 +66,7 @@ namespace logging {
 string argv0;
 
 
-// NOTE: We use RAW_LOG instead of LOG because RAW_LOG doesn't
-// allocate any memory or grab locks. And according to
-// https://code.google.com/p/google-glog/issues/detail?id=161
-// it should work in 'most' cases in signal handlers.
-void handler(int signal)
-{
-  if (signal == SIGTERM) {
-    RAW_LOG(WARNING, "Received signal SIGTERM; exiting.");
-
-    // Setup the default handler for SIGTERM so that we don't print
-    // a stack trace.
-    struct sigaction action;
-    memset(&action, 0, sizeof(action));
-    sigemptyset(&action.sa_mask);
-    action.sa_handler = SIG_DFL;
-    sigaction(signal, &action, NULL);
-    raise(signal);
-  } else if (signal == SIGPIPE) {
-    RAW_LOG(WARNING, "Received signal SIGPIPE; escalating to SIGABRT");
-    raise(SIGABRT);
-  } else {
-    RAW_LOG(FATAL, "Unexpected signal in signal handler: %d", signal);
-  }
-}
-
-
-google::LogSeverity getLogSeverity(const string& logging_level)
+google::LogSeverity getLogSeverity(const std::string& logging_level)
 {
   if (logging_level == "INFO") {
     return google::INFO;
@@ -109,7 +84,7 @@ google::LogSeverity getLogSeverity(const string& logging_level)
 void initialize(
     const string& _argv0,
     const Flags& flags,
-    bool installFailureSignalHandler)
+    bool _installFailureSignalHandler)
 {
   static Once* initialized = new Once();
 
@@ -172,32 +147,8 @@ void initialize(
   VLOG(1) << "Logging to " <<
     (flags.log_dir.isSome() ? flags.log_dir.get() : "STDERR");
 
-  if (installFailureSignalHandler) {
-    // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
-    // by default.
-    google::InstallFailureSignalHandler();
-
-    // Set up our custom signal handlers.
-    struct sigaction action;
-    action.sa_handler = handler;
-
-    // Do not block additional signals while in the handler.
-    sigemptyset(&action.sa_mask);
-    action.sa_flags = 0;
-
-    // Set up the SIGPIPE signal handler to escalate to SIGABRT
-    // in order to have the glog handler catch it and print all
-    // of its lovely information.
-    if (sigaction(SIGPIPE, &action, NULL) < 0) {
-      PLOG(FATAL) << "Failed to set sigaction";
-    }
-
-    // We also do not want SIGTERM to dump a stacktrace, as this
-    // can imply that we crashed, when we were in fact terminated
-    // by user request.
-    if (sigaction(SIGTERM, &action, NULL) < 0) {
-      PLOG(FATAL) << "Failed to set sigaction";
-    }
+  if (_installFailureSignalHandler) {
+    installFailureSignalHandler();
   }
 
   initialized->done();

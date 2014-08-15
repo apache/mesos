@@ -19,6 +19,7 @@ nobase_include_HEADERS =		\
   stout/foreach.hpp			\
   stout/format.hpp			\
   stout/fs.hpp				\
+  stout/glog.hpp			\
   stout/gtest.hpp			\
   stout/gzip.hpp			\
   stout/hashmap.hpp			\

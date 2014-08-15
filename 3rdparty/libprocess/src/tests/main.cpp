@@ -8,6 +8,8 @@
 #include <process/gtest.hpp>
 #include <process/process.hpp>
 
+#include <stout/glog.hpp>
+
 int main(int argc, char** argv)
 {
   // Initialize Google Mock/Test.
@@ -16,9 +18,8 @@ int main(int argc, char** argv)
   // Initialize libprocess.
   process::initialize();
 
-  // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
-  // by default.
-  google::InstallFailureSignalHandler();
+  // Install default signal handler.
+  installFailureSignalHandler();
 
   // Add the libprocess test event listeners.
   ::testing::TestEventListeners& listeners =

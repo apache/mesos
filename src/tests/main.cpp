@@ -89,7 +89,7 @@ int main(int argc, char** argv)
   }
 
   // Initialize logging.
-  logging::initialize(argv[0], flags);
+  logging::initialize(argv[0], flags, true);
 
   // Initialize gmock/gtest.
   testing::InitGoogleTest(&argc, argv);

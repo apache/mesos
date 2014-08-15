@@ -4,14 +4,15 @@
 
 #include <gtest/gtest.h>
 
+#include <stout/glog.hpp>
+
 int main(int argc, char** argv)
 {
   // Initialize Google Mock/Test.
   testing::InitGoogleMock(&argc, argv);
 
-  // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
-  // by default.
-  google::InstallFailureSignalHandler();
+  // Install default signal handler.
+  installFailureSignalHandler();
 
   return RUN_ALL_TESTS();
 }
