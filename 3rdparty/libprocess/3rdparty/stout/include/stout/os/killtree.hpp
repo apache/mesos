@@ -48,6 +48,10 @@ inline Option<Process> process(pid_t, const std::list<Process>&);
 // process tree.
 // Returns the process trees that were succesfully or unsuccessfully
 // signaled. Note that the process trees can be stringified.
+// TODO(benh): Allow excluding the root pid from stopping, killing,
+// and continuing so as to provide a means for expressing "kill all of
+// my children". This is non-trivial because of the current
+// implementation.
 inline Try<std::list<ProcessTree> > killtree(
     pid_t pid,
     int signal,
