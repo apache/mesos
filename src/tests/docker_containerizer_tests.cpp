@@ -372,8 +372,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   ASSERT_TRUE(exists(containers.get(), containerId.get()));
 
-  dockerContainerizer.destroy(containerId.get());
-
   driver.stop();
   driver.join();
 
@@ -596,7 +594,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
 
   AWAIT_READY(termination);
 
-  // Usage() should fail again since the container is destroyed
+  // Usage() should fail again since the container is destroyed.
   Future<ResourceStatistics> usage =
     dockerContainerizer.usage(containerId.get());
   AWAIT_FAILED(usage);
@@ -728,13 +726,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 
   EXPECT_EQ(1024u, cpu.get());
   EXPECT_EQ(128u, mem.get().megabytes());
-
-  Future<containerizer::Termination> termination =
-    dockerContainerizer.wait(containerId.get());
-
-  dockerContainerizer.destroy(containerId.get());
-
-  AWAIT_READY(termination);
 
   driver.stop();
   driver.join();

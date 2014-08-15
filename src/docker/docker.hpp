@@ -34,6 +34,8 @@
 
 
 // Abstraction for working with Docker (modeled on CLI).
+//
+// TODO(benh): Make futures returned by functions be discardable.
 class Docker
 {
 public:
@@ -92,6 +94,15 @@ public:
   process::Future<std::list<Container> > ps(
       bool all = false,
       const Option<std::string>& prefix = None()) const;
+
+  // Performs a 'docker logs --follow' and sends the output into a
+  // 'stderr' and 'stdout' file in the specfied directory.
+  //
+  // TODO(benh): Return the file descriptors, or some struct around
+  // them so others can do what they want with stdout/stderr.
+  process::Future<Nothing> logs(
+      const std::string& container,
+      const std::string& directory);
 
 private:
   // Uses the specified path to the Docker CLI tool.

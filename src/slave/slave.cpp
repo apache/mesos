@@ -2204,7 +2204,7 @@ void Slave::_statusUpdate(
     LOG(ERROR) << "Failed to update resources for container " << containerId
                << " of executor " << executorId
                << " running task " << update.status().task_id()
-               << " on status update for terminal task, destroying container:"
+               << " on status update for terminal task, destroying container: "
                << (future.get().isFailed() ? future.get().failure()
                                            : "discarded");
 
