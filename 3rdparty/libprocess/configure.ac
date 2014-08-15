@@ -166,6 +166,11 @@ if test -n "`echo $with_picojson`"; then
   CPPFLAGS="$CPPFLAGS -I${with_picojson}/include"
 fi
 
+if test -n "`echo $with_libev`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_libev}/include"
+  LDFLAGS="$LDFLAGS -L${with_libev}/lib"
+fi
+
 if test -n "`echo $with_glog`"; then
   CPPFLAGS="$CPPFLAGS -I${with_glog}/src"
   LDFLAGS="$LDFLAGS -L${with_glog}/lib"
@@ -189,6 +194,7 @@ fi
 
 if test -n "`echo $with_http-parser`"; then
   CPPFLAGS="$CPPFLAGS -I${with_http-parser}/include"
+  LDFLAGS="$LDFLAGS -I${with_http-parser}/lib"
 fi
 
 if test -n "`echo $with_protobuf`"; then
