@@ -155,6 +155,13 @@ Try<Resources> Containerizer::resources(const Flags& flags)
 
 Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
 {
+  if (flags.isolation == "external") {
+    LOG(WARNING) << "The 'external' isolation flag is deprecated, "
+                 << "please update your flags to"
+                 << " '--containerizers=external'.";
+    return ExternalContainerizer::create(flags, local);
+  }
+
   // TODO(benh): We need to store which containerizer or
   // containerizers were being used. See MESOS-1663.
 
