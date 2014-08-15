@@ -63,23 +63,6 @@ static Future<T> failure(
 }
 
 
-// Asynchronously read stderr from subprocess.
-static Future<string> err(const Subprocess& s)
-{
-  CHECK_SOME(s.err());
-
-  Try<Nothing> nonblock = os::nonblock(s.err().get());
-  if (nonblock.isError()) {
-    return Failure("Cannot set nonblock for stderr: " + nonblock.error());
-  }
-
-  // TODO(tnachen): Although unlikely, it's possible to not capture
-  // the caller's failure message if io::read stderr fails. Can
-  // chain a callback to at least log.
-  return io::read(s.err().get());
-}
-
-
 static Future<Nothing> _checkError(const string& cmd, const Subprocess& s)
 {
   Option<int> status = s.status().get();
@@ -89,8 +72,9 @@ static Future<Nothing> _checkError(const string& cmd, const Subprocess& s)
 
   if (status.get() != 0) {
     // TODO(tnachen): Consider returning stdout as well.
-    return err(s).then(
-        lambda::bind(failure<Nothing>, cmd, status.get(), lambda::_1));
+    CHECK_SOME(s.err());
+    return io::read(s.err().get())
+      .then(lambda::bind(failure<Nothing>, cmd, status.get(), lambda::_1));
   }
 
   return Nothing();
@@ -101,7 +85,8 @@ static Future<Nothing> _checkError(const string& cmd, const Subprocess& s)
 // subprocess.
 static Future<Nothing> checkError(const string& cmd, const Subprocess& s)
 {
-  return s.status().then(lambda::bind(_checkError, cmd, s));
+  return s.status()
+    .then(lambda::bind(_checkError, cmd, s));
 }
 
 
@@ -417,6 +402,7 @@ Future<Nothing> Docker::rm(
 Future<Docker::Container> Docker::inspect(const string& container) const
 {
   const string cmd =  path + " inspect " + container;
+
   VLOG(1) << "Running " << cmd;
 
   Try<Subprocess> s = subprocess(
@@ -446,22 +432,19 @@ Future<Docker::Container> Docker::_inspect(
   if (!status.isSome()) {
     return Failure("No status found from '" + cmd + "'");
   } else if (status.get() != 0) {
-    return err(s).then(
-        lambda::bind(
-            failure<Docker::Container>,
-            cmd,
-            status.get(),
-            lambda::_1));
+    CHECK_SOME(s.err());
+    return io::read(s.err().get())
+      .then(lambda::bind(
+                failure<Docker::Container>,
+                cmd,
+                status.get(),
+                lambda::_1));
   }
 
   // Read to EOF.
   CHECK_SOME(s.out());
-  Try<Nothing> nonblock = os::nonblock(s.out().get());
-  if (nonblock.isError()) {
-    return Failure("Failed to accept nonblock stdout:" + nonblock.error());
-  }
-  Future<string> output = io::read(s.out().get());
-  return output.then(lambda::bind(&Docker::__inspect, lambda::_1));
+  return io::read(s.out().get())
+    .then(lambda::bind(&Docker::__inspect, lambda::_1));
 }
 
 
@@ -576,22 +559,19 @@ Future<list<Docker::Container> > Docker::_ps(
   if (!status.isSome()) {
     return Failure("No status found from '" + cmd + "'");
   } else if (status.get() != 0) {
-    return err(s).then(
-        lambda::bind(
-            failure<list<Docker::Container> >,
-            cmd,
-            status.get(),
-            lambda::_1));
+    CHECK_SOME(s.err());
+    return io::read(s.err().get())
+      .then(lambda::bind(
+                failure<list<Docker::Container> >,
+                cmd,
+                status.get(),
+                lambda::_1));
   }
 
   // Read to EOF.
   CHECK_SOME(s.out());
-  Try<Nothing> nonblock = os::nonblock(s.out().get());
-  if (nonblock.isError()) {
-    return Failure("Failed to accept nonblock stdout:" + nonblock.error());
-  }
-  Future<string> output = io::read(s.out().get());
-  return output.then(lambda::bind(&Docker::__ps, docker, prefix, lambda::_1));
+  return io::read(s.out().get())
+    .then(lambda::bind(&Docker::__ps, docker, prefix, lambda::_1));
 }
 
 
