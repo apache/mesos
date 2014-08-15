@@ -282,17 +282,18 @@ public:
     add(&Flags::default_container_image,
         "default_container_image",
         "The default container image to use if not specified by a task,\n"
-        "when using external containerizer");
+        "when using external containerizer.\n");
 
     add(&Flags::docker,
         "docker",
-        "The absolute path to the docker executable for docker containerizer.",
+        "The absolute path to the docker executable for docker\n"
+        "containerizer.\n",
         "docker");
 
     add(&Flags::docker_sandbox_directory,
         "docker_sandbox_directory",
-        "The absolute path for the directory in the container where the sandbox\n"
-        "is mapped to",
+        "The absolute path for the directory in the container where the\n"
+        "sandbox is mapped to.\n",
         "/mnt/mesos/sandbox");
 
 #ifdef WITH_NETWORK_ISOLATOR
