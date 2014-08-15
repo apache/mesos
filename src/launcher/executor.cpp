@@ -118,23 +118,27 @@ public:
       return;
     }
 
-    // Sanity checks.
-    CHECK(task.has_command()) << "Expecting task " << task.task_id()
-                              << " to have a command!";
+    // Skip sanity checks for TaskInfo if override is provided since
+    // the executor will be running the override command.
+    if (override.isNone()) {
+      // Sanity checks.
+      CHECK(task.has_command()) << "Expecting task " << task.task_id()
+                                << " to have a command!";
 
-    // TODO(jieyu): For now, we just fail the executor if the task's
-    // CommandInfo is not valid. The framework will receive
-    // TASK_FAILED for the task, and will most likely find out the
-    // cause with some debugging. This is a temporary solution. A more
-    // correct solution is to perform this validation at master side.
-    if (task.command().shell()) {
-      CHECK(task.command().has_value())
-        << "Shell command of task " << task.task_id()
-        << " is not specified!";
-    } else {
-      CHECK(task.command().has_value())
-        << "Executable of task " << task.task_id()
-        << " is not specified!";
+      // TODO(jieyu): For now, we just fail the executor if the task's
+      // CommandInfo is not valid. The framework will receive
+      // TASK_FAILED for the task, and will most likely find out the
+      // cause with some debugging. This is a temporary solution. A more
+      // correct solution is to perform this validation at master side.
+      if (task.command().shell()) {
+        CHECK(task.command().has_value())
+          << "Shell command of task " << task.task_id()
+          << " is not specified!";
+      } else {
+        CHECK(task.command().has_value())
+          << "Executable of task " << task.task_id()
+          << " is not specified!";
+      }
     }
 
     cout << "Starting task " << task.task_id() << endl;
@@ -169,9 +173,16 @@ public:
     }
     argv[task.command().arguments().size()] = NULL;
 
-    // Prepare the messages before fork as it's not async signal safe.
+    // Prepare the command log message.
     string command;
-    if (task.command().shell()) {
+    if (override.isSome()) {
+      char** argv = override.get();
+      // argv is guaranteed to be NULL terminated and we rely on
+      // that fact to print command to be executed.
+      for (int i = 0; argv[i] != NULL; i++) {
+        command += string(argv[i]) + " ";
+      }
+    } else if (task.command().shell()) {
       command = "sh -c '" + task.command().value() + "'";
     } else {
       command =
@@ -217,10 +228,10 @@ public:
 
       os::close(pipes[1]);
 
+      cout << command << endl;
+
       // The child has successfully setsid, now run the command.
       if (override.isNone()) {
-        cout << command << endl;
-
         if (task.command().shell()) {
           execl(
               "/bin/sh",
@@ -233,14 +244,6 @@ public:
         }
       } else {
         char** argv = override.get();
-
-        // argv is guaranteed to be NULL terminated and we rely on
-        // that fact to print command to be executed.
-        for (int i = 0; argv[i] != NULL; i++) {
-          cout << argv[i] << " ";
-        }
-        cout << endl;
-
         execvp(argv[0], argv);
       }
 
