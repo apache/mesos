@@ -209,7 +209,7 @@ TEST_F(SubprocessTest, PipeInput)
 }
 
 
-TEST_F(SubprocessTest, PipeSplice)
+TEST_F(SubprocessTest, PipeRedirect)
 {
   Clock::pause();
 
@@ -234,7 +234,7 @@ TEST_F(SubprocessTest, PipeSplice)
 
   ASSERT_SOME(s.get().out());
   ASSERT_SOME(os::nonblock(s.get().out().get()));
-  AWAIT_READY(io::splice(s.get().out().get(), fd.get()));
+  AWAIT_READY(io::redirect(s.get().out().get(), fd.get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {

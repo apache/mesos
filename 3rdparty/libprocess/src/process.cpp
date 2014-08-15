@@ -4183,29 +4183,6 @@ void ____splice(
 }
 #endif // __cplusplus >= 201103L
 
-} // namespace internal {
-
-
-Future<string> read(int fd)
-{
-  process::initialize();
-
-  // TODO(benh): Wrap up this data as a struct, use 'Owner'.
-  // TODO(bmahler): For efficiency, use a rope for the buffer.
-  memory::shared_ptr<string> buffer(new string());
-  boost::shared_array<char> data(new char[BUFFERED_READ_SIZE]);
-
-  return internal::_read(fd, buffer, data, BUFFERED_READ_SIZE);
-}
-
-
-Future<Nothing> write(int fd, const std::string& data)
-{
-  process::initialize();
-
-  return internal::_write(fd, Owned<string>(new string(data)), 0);
-}
-
 
 Future<Nothing> splice(int from, int to, size_t chunk)
 {
@@ -4219,9 +4196,98 @@ Future<Nothing> splice(int from, int to, size_t chunk)
 
   Future<Nothing> future = promise->future();
 
-  internal::_splice(from, to, chunk, data, promise);
+  _splice(from, to, chunk, data, promise);
 
   return future;
+}
+
+} // namespace internal {
+
+
+Future<string> read(int fd)
+{
+  process::initialize();
+
+  // Get our own copy of the file descriptor so that we're in control
+  // of the lifetime and don't crash if/when someone by accidently
+  // closes the file descriptor before discarding this future. We can
+  // also make sure it's non-blocking and will close-on-exec. Start by
+  // checking we've got a "valid" file descriptor before dup'ing.
+  if (fd < 0) {
+    return Failure(strerror(EBADF));
+  }
+
+  fd = dup(fd);
+  if (fd == -1) {
+    return Failure(ErrnoError("Failed to duplicate file descriptor"));
+  }
+
+  // Set the close-on-exec flag.
+  Try<Nothing> cloexec = os::cloexec(fd);
+  if (cloexec.isError()) {
+    os::close(fd);
+    return Failure(
+        "Failed to set close-on-exec on duplicated file descriptor: " +
+        cloexec.error());
+  }
+
+  // Make the file descriptor is non-blocking.
+  Try<Nothing> nonblock = os::nonblock(fd);
+  if (nonblock.isError()) {
+    os::close(fd);
+    return Failure(
+        "Failed to make duplicated file descriptor non-blocking: " +
+        nonblock.error());
+  }
+
+  // TODO(benh): Wrap up this data as a struct, use 'Owner'.
+  // TODO(bmahler): For efficiency, use a rope for the buffer.
+  memory::shared_ptr<string> buffer(new string());
+  boost::shared_array<char> data(new char[BUFFERED_READ_SIZE]);
+
+  return internal::_read(fd, buffer, data, BUFFERED_READ_SIZE)
+    .onAny(lambda::bind(&os::close, fd));
+}
+
+
+Future<Nothing> write(int fd, const std::string& data)
+{
+  process::initialize();
+
+  // Get our own copy of the file descriptor so that we're in control
+  // of the lifetime and don't crash if/when someone by accidently
+  // closes the file descriptor before discarding this future. We can
+  // also make sure it's non-blocking and will close-on-exec. Start by
+  // checking we've got a "valid" file descriptor before dup'ing.
+  if (fd < 0) {
+    return Failure(strerror(EBADF));
+  }
+
+  fd = dup(fd);
+  if (fd == -1) {
+    return Failure(ErrnoError("Failed to duplicate file descriptor"));
+  }
+
+  // Set the close-on-exec flag.
+  Try<Nothing> cloexec = os::cloexec(fd);
+  if (cloexec.isError()) {
+    os::close(fd);
+    return Failure(
+        "Failed to set close-on-exec on duplicated file descriptor: " +
+        cloexec.error());
+  }
+
+  // Make the file descriptor is non-blocking.
+  Try<Nothing> nonblock = os::nonblock(fd);
+  if (nonblock.isError()) {
+    os::close(fd);
+    return Failure(
+        "Failed to make duplicated file descriptor non-blocking: " +
+        nonblock.error());
+  }
+
+  return internal::_write(fd, Owned<string>(new string(data)), 0)
+    .onAny(lambda::bind(&os::close, fd));
 }
 
 
@@ -4289,7 +4355,7 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
     return Failure("Failed to make 'to' non-blocking: " + nonblock.error());
   }
 
-  return splice(from, to.get(), chunk)
+  return internal::splice(from, to.get(), chunk)
     .onAny(lambda::bind(&os::close, from))
     .onAny(lambda::bind(&os::close, to.get()));
 }

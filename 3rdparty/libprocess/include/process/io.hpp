@@ -40,6 +40,10 @@ Future<size_t> read(int fd, void* data, size_t size);
 // Performs a series of asynchronous reads, until EOF is reached.
 // NOTE: When using this, ensure the sender will close the connection
 // so that EOF can be reached.
+//
+// NOTE: the specified file descriptor is duplicated and set to
+// close-on-exec and made non-blocking (which will return a failure if
+// these operations can not be performed).
 Future<std::string> read(int fd);
 
 
@@ -55,14 +59,11 @@ Future<size_t> write(int fd, void* data, size_t size);
 
 // Performs a series of asynchronous writes until all of data has been
 // written or an error occured in which case a failure is returned.
+//
+// NOTE: the specified file descriptor is duplicated and set to
+// close-on-exec and made non-blocking (which will return a failure if
+// these operations can not be performed).
 Future<Nothing> write(int fd, const std::string& data);
-
-
-// Splices data from one file descriptor to another. Returns when
-// end-of-file is reached on the input file descriptor or returns a
-// failure if an error occurred while reading or writing. Note that
-// both the 'from' and 'to' file descriptors must be non-blocking.
-Future<Nothing> splice(int from, int to, size_t chunk = 4096);
 
 
 // Redirect output from 'from' file descriptor to 'to' file descriptor
@@ -70,7 +71,6 @@ Future<Nothing> splice(int from, int to, size_t chunk = 4096);
 // redirect output we duplicate the 'from' and 'to' file descriptors
 // so we can control their lifetimes. Returns after EOF has been hit
 // on 'from' or some form of failure has occured.
-// TODO(benh): Consider subsuming lower-level 'splice'.
 Future<Nothing> redirect(int from, Option<int> to, size_t chunk = 4096);
 
 } // namespace io {
