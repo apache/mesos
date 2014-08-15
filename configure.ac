@@ -53,10 +53,10 @@ AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"], [CFLAGS="-g"])
 AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"], [CXXFLAGS="-g"])
 
 # Save the configure arguments so we can pass them to any third-party
-# libraries that we might run configure on (see
-# 3rdparty/Makefile.am). One downside of our strategy for shipping and
-# building third-party libraries is that we can't expose options from
-# nested third-party configure scripts.
+# libraries that we might run configure on (see 3rdparty/Makefile.am).
+# One downside of our strategy for shipping and building third-party
+# libraries is that we can't expose options from nested third-party
+# configure scripts.
 CONFIGURE_ARGS="$ac_configure_args"
 AC_SUBST(CONFIGURE_ARGS)
 
@@ -139,55 +139,55 @@ AC_ARG_ENABLE([optimize],
               [], [enable_optimize=yes])
 
 AC_ARG_ENABLE([bundled],
-	      AS_HELP_STRING([--disable-bundled],
-			     [build against preinstalled dependencies instead
-			     of bundled libraries]),
-	      [enable_bundled=no], [enable_bundled=yes])
+              AS_HELP_STRING([--disable-bundled],
+                             [build against preinstalled dependencies instead
+                              of bundled libraries]),
+              [enable_bundled=no], [enable_bundled=yes])
 
 AC_ARG_WITH([zookeeper],
-	    AS_HELP_STRING([--with-zookeeper@<:@=DIR@:>@],
-			   [excludes building and using the bundled ZooKeeper
-			   package in lieu of an installed version at a
-			   location prefixed by the given path]),
-	    [without_bundled_zookeeper=yes], [])
+            AS_HELP_STRING([--with-zookeeper@<:@=DIR@:>@],
+                           [excludes building and using the bundled ZooKeeper
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_zookeeper=yes], [])
 
 AC_ARG_WITH([leveldb],
-	    AS_HELP_STRING([--with-leveldb@<:@=DIR@:>@],
-			   [excludes building and using the bundled LevelDB
-			   package in lieu of an installed version at a
-			   location prefixed by the given path]),
-	    [without_bundled_leveldb=yes], [])
+            AS_HELP_STRING([--with-leveldb@<:@=DIR@:>@],
+                           [excludes building and using the bundled LevelDB
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_leveldb=yes], [])
 
 AC_ARG_WITH([glog],
-        AS_HELP_STRING([--with-glog@<:@=DIR@:>@],
-                   [excludes building and using the bundled glog
-                   package in lieu of an installed version at a
-                   location prefixed by the given path]),
-        [without_bundled_glog=yes], [])
+            AS_HELP_STRING([--with-glog@<:@=DIR@:>@],
+                           [excludes building and using the bundled glog
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_glog=yes], [])
 
 AC_ARG_WITH([protobuf],
-        AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
-                       [excludes building and using the bundled protobuf
-                       package in lieu of an installed version at a
-                       location prefixed by the given path]),
-        [without_bundled_protobuf=yes], [])
+            AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
+                           [excludes building and using the bundled protobuf
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_protobuf=yes], [])
 
 AC_ARG_WITH([gmock],
-        AS_HELP_STRING([--with-gmock@<:@=DIR@:>@],
-                   [excludes building and using the bundled gmock
-                   package in lieu of an installed version at a
-                   location prefixed by the given path]),
-        [without_bundled_gmock=yes], [])
+            AS_HELP_STRING([--with-gmock@<:@=DIR@:>@],
+                           [excludes building and using the bundled gmock
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_gmock=yes], [])
 
 AC_ARG_ENABLE([bundled-distribute],
-        AS_HELP_STRING([--disable-bundled-distribute],
-                   [excludes building and using the bundled distribute
-                   package in lieu of an installed version in
-                   in PYTHONPATH]),
-        [without_bundled_distribute=yes], [])
+              AS_HELP_STRING([--disable-bundled-distribute],
+                             [excludes building and using the bundled distribute
+                              package in lieu of an installed version in
+                              in PYTHONPATH]),
+              [without_bundled_distribute=yes], [])
 
 AC_ARG_WITH([cxx11],
-	    AS_HELP_STRING([--without-cxx11],
+            AS_HELP_STRING([--without-cxx11],
                            [builds Mesos without C++11 support (deprecated)]),
             [], [with_cxx11=yes])
 
@@ -242,9 +242,11 @@ if test "x$enable_optimize" = "xyes"; then
 fi
 
 
-# Attempt to use preinstalled dependencies instead of the bundled versions in
-# cases where the user specified their location (--with-XXX=DIR) or asked us
-# to attempt to detect them (--disable-bundled).
+# Attempt to use preinstalled dependencies instead of the bundled
+# versions in cases where the user specified their location
+# (--with-XXX=DIR) or asked us to attempt to detect them
+# (--disable-bundled).
+
 
 # Check if LevelDB prefix path was supplied and if so, add it to
 # CPPFLAGS while extending it by /include and to LDFLAGS while
@@ -254,36 +256,41 @@ if test -n "`echo $with_leveldb`"; then
   LDFLAGS="$LDFLAGS -L${with_leveldb}/lib"
 fi
 
+
+# Check if protobuf prefix path was supplied and if so, add it to
+# CPPFLAGS while extending it by /include and to LDFLAGS while
+# extending it by /lib.
 if test -n "`echo $with_protobuf`"; then
   CPPFLAGS="$CPPFLAGS -I${with_protobuf}/include"
   LDFLAGS="$LDFLAGS -L${with_protobuf}/lib"
-  PROTOBUFPREFIX="${with_protobuf}"
-  PROTOCOMPILER="${with_protobuf}/bin/protoc"
-elif test "x$enable_bundled" = "xno"; then
-  PROTOCOMPILER="protoc"
-
-# In the 'else' case src/Makefile.am will use the bundled
-# protoc from 3rdparty.
-
 fi
 
+
 # Check if ZooKeeper prefix path was supplied and if so, add it to
-# CPPFLAGS while extending it by /include and to LDFLAGS while
-# extending it by /lib.
+# CPPFLAGS while extending it by /include/zookeeper and to LDFLAGS
+# while extending it by /lib.
+# NOTE: The reason we append /include/zookeeper is because in mesos,
+# we include <zookeeper.h> rather than <zookeeper/zookeeper.h>.
 if test -n "`echo $with_zookeeper`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_zookeeper}/include"
+  CPPFLAGS="$CPPFLAGS -I${with_zookeeper}/include/zookeeper"
   LDFLAGS="$LDFLAGS -L${with_zookeeper}/lib"
 elif test "x$enable_bundled" = "xno"; then
   CPPFLAGS="$CPPFLAGS -I/usr/include/zookeeper"
 fi
 
+
+# Check if glog prefix path was supplied and if so, add it to CPPFLAGS
+# while extending it by /include and to LDFLAGS while extending it by
+# /lib.
 if test -n "`echo $with_glog`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_glog}/src"
+  CPPFLAGS="$CPPFLAGS -I${with_glog}/include"
   LDFLAGS="$LDFLAGS -L${with_glog}/lib"
 fi
 
-# Check if user has asked us to use a preinstalled LevelDB, or if they asked
-# us to ignore all bundled libraries while compiling and linking.
+
+# Check if user has asked us to use a preinstalled LevelDB, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
 if test "x$without_bundled_leveldb" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
   # Check if headers and library were located.
@@ -291,6 +298,7 @@ if test "x$without_bundled_leveldb" = "xyes" || \
                    [AC_CHECK_LIB([leveldb],
                                  [leveldb_open],
                                  [found_leveldb=yes])])
+
   if test "x$found_leveldb" = "xyes"; then
     with_bundled_leveldb=no
   else
@@ -309,15 +317,23 @@ else
   with_bundled_leveldb=yes
 fi
 
-# Check if user has asked us to use a preinstalled glog, or if they asked
-# us to ignore all bundled libraries while compiling and linking.
+
+AM_CONDITIONAL([WITH_BUNDLED_LEVELDB],
+               [test "x$with_bundled_leveldb" = "xyes"])
+
+
+# Check if user has asked us to use a preinstalled glog, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
 if test "x$without_bundled_glog" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
   # Check if headers and library were located.
   AC_CHECK_HEADERS([glog/logging.h],
-                   [AC_CHECK_LIB([glog],
-                                 [_init],
-                                 [found_glog=yes])])
+                   [AC_LINK_IFELSE(
+                        [AC_LANG_PROGRAM([#include <glog/logging.h>], [])],
+                        [TEST_LIBS="$TEST_LIBS -lglog"] [found_glog=yes],
+                        [AC_MSG_WARN([glog is not installed.])])])
+
   if test "x$found_glog" = "xyes"; then
     with_bundled_glog=no
   else
@@ -336,20 +352,22 @@ else
   with_bundled_glog=yes
 fi
 
-AM_CONDITIONAL([WITH_BUNDLED_GLOG], [test "x$with_bundled_glog" = "xyes"])
 
-AM_CONDITIONAL([WITH_BUNDLED_LEVELDB],
-	       [test "x$with_bundled_leveldb" = "xyes"])
+AM_CONDITIONAL([WITH_BUNDLED_GLOG],
+               [test "x$with_bundled_glog" = "xyes"])
 
-# Check if user has asked us to use a preinstalled ZooKeeper or if they asked
-# us to ignore all bundled libraries while compiling and linking.
+
+# Check if user has asked us to use a preinstalled ZooKeeper or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
 if test "x$without_bundled_zookeeper" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
   # Check if headers and library were located.
   AC_CHECK_HEADERS([zookeeper.h],
                    [AC_CHECK_LIB([zookeeper_mt],
-				 [zookeeper_init],
-				 [found_zookeeper=yes])])
+                                 [zookeeper_init],
+                                 [found_zookeeper=yes])])
+
   if test "x$found_zookeeper" = "xyes"; then
     with_bundled_zookeeper=no
   else
@@ -368,13 +386,23 @@ else
   with_bundled_zookeeper=yes
 fi
 
+
 AM_CONDITIONAL([WITH_BUNDLED_ZOOKEEPER],
                [test "x$with_bundled_zookeeper" = "xyes"])
 
-# Check if user has asked us to use a preinstalled protobuf, or if they asked
-# us to ignore all bundled libraries while compiling and linking.
+
+# Check if user has asked us to use a preinstalled protobuf, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
 if test "x$without_bundled_protobuf" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
+  # Use the system default prefix if not specified.
+  if test -n "`echo $with_protobuf`"; then
+    PROTOBUFPREFIX="${with_protobuf}"
+  elif test "x$enable_bundled" != "xyes"; then
+    PROTOBUFPREFIX="/usr"
+  fi
+
   # Check for protobuf.
   PKG_CHECK_MODULES([PROTOBUFPREFIX],
                     [protobuf],
@@ -383,21 +411,23 @@ if test "x$without_bundled_protobuf" = "xyes" || \
   if test "x$found_protobuf" = "xyes"; then
     with_bundled_protobuf=no
     if test -z "`echo $PROTOBUF_JAR`"; then
-      PROTOBUF_JAR="${PROTOBUFPREFIX}/usr/share/java/protobuf.jar"
+      PROTOBUF_JAR="${PROTOBUFPREFIX}/share/java/protobuf.jar"
     fi
 
-    AC_CHECK_FILE($PROTOBUF_JAR,
+    AC_CHECK_FILE([$PROTOBUF_JAR],
                   [],
                   [AC_MSG_ERROR([cannot find PROTOBUF_JAR=$PROTOBUF_JAR])])
 
-    AC_CHECK_TOOL([PROTOBUF_COMPILER], $PROTOCOMPILER)
+    AC_CHECK_TOOL([PROTOCOMPILER_TEST], [protoc], [], [$PROTOBUFPREFIX/bin])
 
-    if test -z "`echo $PROTOBUF_COMPILER`"; then
+    if test -z "`echo $PROTOCOMPILER_TEST`"; then
       AC_MSG_ERROR([protoc not found in PATH])
     fi
 
+    PROTOCOMPILER="$PROTOBUFPREFIX/bin/protoc"
+
     if test "x$enable_python" = "xyes"; then
-        AC_PYTHON_MODULE([google.protobuf], [yes])
+      AC_PYTHON_MODULE([google.protobuf], [yes])
     fi
 
   else
@@ -417,11 +447,13 @@ else
   PROTOBUF_JAR="\${MESOS_BUILD_DIR}/src/java/target/protobuf-java-2.5.0.jar"
 fi
 
+
 AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
                [test "x$with_bundled_protobuf" = "xyes"])
 
 AC_SUBST([PROTOBUF_JAR])
 AC_SUBST([PROTOCOMPILER])
+
 
 # Check if we're using clang.
 AC_MSG_CHECKING([if compiling with clang])

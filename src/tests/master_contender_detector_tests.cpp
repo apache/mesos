@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include <zookeeper.h>
-
 #include <gmock/gmock.h>
 
 #include <fstream>

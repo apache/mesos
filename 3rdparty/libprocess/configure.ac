@@ -94,18 +94,18 @@ AC_ARG_WITH([libev],
             [without_bundled_libev=yes], [])
 
 AC_ARG_WITH([glog],
-        AS_HELP_STRING([--with-glog@<:@=DIR@:>@],
-                   [excludes building and using the bundled glog
-                   package in lieu of an installed version at a
-                   location prefixed by the given path]),
-        [without_bundled_glog=yes], [])
+            AS_HELP_STRING([--with-glog@<:@=DIR@:>@],
+                           [excludes building and using the bundled glog
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_glog=yes], [])
 
 AC_ARG_WITH([gmock],
-        AS_HELP_STRING([--with-gmock@<:@=DIR@:>@],
-                   [excludes building and using the bundled gmock
-                   package in lieu of an installed version at a
-                   location prefixed by the given path]),
-        [without_bundled_gmock=yes], [])
+            AS_HELP_STRING([--with-gmock@<:@=DIR@:>@],
+                           [excludes building and using the bundled gmock
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_gmock=yes], [])
 
 AC_ARG_WITH([http-parser],
             AS_HELP_STRING([--with-http-parser@<:@=DIR@:>@],
@@ -115,11 +115,11 @@ AC_ARG_WITH([http-parser],
             [without_bundled_http_parser=yes], [])
 
 AC_ARG_WITH([protobuf],
-        AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
-                       [excludes building and using the bundled protobuf
-                       package in lieu of an installed version at a
-                       location prefixed by the given path]),
-        [without_bundled_protobuf=yes], [])
+            AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
+                           [excludes building and using the bundled protobuf
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_protobuf=yes], [])
 
 AC_ARG_WITH([zlib],
             AS_HELP_STRING([--without-zlib],
@@ -149,7 +149,7 @@ case "${target_os}" in
 esac
 
 # Include directories used by package managers (e.g., MacPorts).
-if test "x$enable_bundled" = "xno" && \
+if test "x$enable_bundled" != "xyes" && \
    test "x$OS_NAME" = "xdarwin"; then
   CPPFLAGS="$CPPFLAGS -I/opt/local/include"
 fi
@@ -172,7 +172,7 @@ if test -n "`echo $with_libev`"; then
 fi
 
 if test -n "`echo $with_glog`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_glog}/src"
+  CPPFLAGS="$CPPFLAGS -I${with_glog}/include"
   LDFLAGS="$LDFLAGS -L${with_glog}/lib"
 fi
 
@@ -192,34 +192,34 @@ elif test "x$enable_bundled" != "xyes"; then
   check_gtest=yes
 fi
 
-if test -n "`echo $with_http-parser`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_http-parser}/include"
-  LDFLAGS="$LDFLAGS -I${with_http-parser}/lib"
+if test -n "`echo $with_http_parser`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_http_parser}/include"
+  LDFLAGS="$LDFLAGS -L${with_http_parser}/lib"
 fi
 
 if test -n "`echo $with_protobuf`"; then
   CPPFLAGS="$CPPFLAGS -I${with_protobuf}/include"
-  LDFLAGS="$LDFLAGS -I${with_protobuf}/lib"
-  PROTOBUFPREFIX=${with_protobuf}
+  LDFLAGS="$LDFLAGS -L${with_protobuf}/lib"
 fi
 
-# Check if user has asked us to use a preinstalled gmock, or if they asked
-# us to ignore all bundled libraries while compiling and linking.
+# Check if user has asked us to use a preinstalled gmock, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
 if test "x$without_bundled_gmock" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
-
+  # Check if headers and library were located.
   AC_CHECK_HEADER($GMOCKSRC,
-                [found_gmock=yes],
-                [])
+                  [found_gmock=yes],
+                  [])
+
   if test "x$found_gmock" = "xyes"; then
-
     if test "x$check_gtest" = "xyes"; then
-    AC_CHECK_LIB([gtest],
-                 [_init],
-                 [],
-                 [AC_MSG_ERROR([gtest missing])])
+      # TODO(jieyu): Symbol _init is not availble for libs on OS X.
+      AC_CHECK_LIB([gtest],
+                   [_init],
+                   [],
+                   [AC_MSG_ERROR([gtest missing])])
     fi
-
     with_bundled_gmock=no
   else
     AC_MSG_ERROR([cannot find gmock
@@ -242,8 +242,9 @@ AM_CONDITIONAL([LINKGTEST], [test "check_gtest" = "xyes"])
 AC_SUBST([GMOCKSRC])
 AC_SUBST([GTESTSRC])
 
-# Check if user has asked us to use a preinstalled libev, or if they asked
-# us to ignore all bundled libraries while compiling and linking.
+# Check if user has asked us to use a preinstalled libev, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
 if test "x$without_bundled_libev" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
   # Check if headers and library were located.
@@ -270,8 +271,9 @@ fi
 
 AM_CONDITIONAL([WITH_BUNDLED_LIBEV], [test "x$with_bundled_libev" = "xyes"])
 
-# Check if user has asked us to use a preinstalled Boost, or if they asked
-# us to ignore all bundled libraries while compiling and linking.
+# Check if user has asked us to use a preinstalled Boost, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
 if test "x$without_bundled_boost" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
   # Check if headers and library were located.
@@ -297,8 +299,9 @@ fi
 
 AM_CONDITIONAL([WITH_BUNDLED_BOOST], [test "x$with_bundled_boost" = "xyes"])
 
-# Check if user has asked us to use a preinstalled picojson, or if they asked
-# us to ignore all bundled libraries while compiling and linking.
+# Check if user has asked us to use a preinstalled picojson, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
 if test "x$without_bundled_picojson" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
   # Check if headers and library were located.
@@ -325,15 +328,18 @@ fi
 AM_CONDITIONAL([WITH_BUNDLED_PICOJSON], [test "x$with_bundled_picojson" = "xyes"])
 
 
-# Check if user has asked us to use a preinstalled glog, or if they asked
-# us to ignore all bundled libraries while compiling and linking.
+# Check if user has asked us to use a preinstalled glog, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
 if test "x$without_bundled_glog" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
   # Check if headers and library were located.
   AC_CHECK_HEADERS([glog/logging.h],
-                   [AC_CHECK_LIB([glog],
-                                 [_init],
-                                 [found_glog=yes])])
+                   [AC_LINK_IFELSE(
+                        [AC_LANG_PROGRAM([#include <glog/logging.h>],[])],
+                        [TEST_LIBS="$TEST_LIBS -lglog"] [found_glog=yes],
+                        [AC_MSG_WARN([glog is not installed.])])])
+
   if test "x$found_glog" = "xyes"; then
     with_bundled_glog=no
   else
@@ -354,12 +360,16 @@ fi
 
 AM_CONDITIONAL([WITH_BUNDLED_GLOG], [test "x$with_bundled_glog" = "xyes"])
 
-# Check if user has asked us to use a preinstalled http-parser, or if they asked
-# us to ignore all bundled libraries while compiling and linking.
-if test "x$without_bundled_http_parse" = "xyes" || \
+# Check if user has asked us to use a preinstalled http-parser, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_http_parser" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
   # Check if headers and library were located.
-  AC_CHECK_HEADERS([http_parser.h], [found_http_parser=yes])
+  AC_CHECK_HEADERS([http_parser.h],
+                   [AC_CHECK_LIB([http_parser],
+                                 [http_parser_init],
+                                 [found_http_parser=yes])])
 
   if test "x$found_http_parser" = "xyes"; then
     with_bundled_http_parser=no
@@ -382,10 +392,18 @@ fi
 AM_CONDITIONAL([WITH_BUNDLED_HTTP_PARSER],
                [test "x$with_bundled_http_parser" = "xyes"])
 
-# Check if user has asked us to use a preinstalled protobuf, or if they asked
-# us to ignore all bundled libraries while compiling and linking.
+# Check if user has asked us to use a preinstalled protobuf, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
 if test "x$without_bundled_protobuf" = "xyes" || \
    test "x$enable_bundled" != "xyes"; then
+  # Use the system default prefix if not specified.
+  if test -n "`echo $with_protobuf`"; then
+    PROTOBUFPREFIX="${with_protobuf}"
+  elif test "x$enable_bundled" != "xyes"; then
+    PROTOBUFPREFIX="/usr"
+  fi
+
   # Check for protobuf.
   PKG_CHECK_MODULES([PROTOBUFPREFIX],
                     [protobuf],
@@ -394,16 +412,16 @@ if test "x$without_bundled_protobuf" = "xyes" || \
   if test "x$found_protobuf" = "xyes"; then
     with_bundled_protobuf=no
     if test -z "`echo $PROTOBUF_JAR`"; then
-      PROTOBUF_JAR="/usr/share/java/protobuf.jar"
+      PROTOBUF_JAR="${PROTOBUFPREFIX}/share/java/protobuf.jar"
     fi
 
-    AC_CHECK_FILE($PROTOBUF_JAR,
+    AC_CHECK_FILE([$PROTOBUF_JAR],
                   [],
                   [AC_MSG_ERROR([cannot find PROTOBUF_JAR=$PROTOBUF_JAR])])
 
-    AC_CHECK_TOOL([PROTOC], [protoc])
+    AC_CHECK_TOOL([PROTOCOMPILER_TEST], [protoc], [], [$PROTOBUFPREFIX/bin])
 
-    if test -z "`echo $PROTOC`"; then
+    if test -z "`echo $PROTOCOMPILER_TEST`"; then
       AC_MSG_ERROR([protoc not found in PATH])
     fi
 
