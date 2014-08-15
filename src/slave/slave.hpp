@@ -526,11 +526,8 @@ struct Executor
 
   process::UPID pid;
 
-  // Currently consumed resources. It is an option type as the
-  // executor info will not be known up-front and the executor
-  // resources therefore cannot be known until after the containerizer
-  // has launched the container.
-  Option<Resources> resources;
+  // Currently consumed resources.
+  Resources resources;
 
   // Tasks can be found in one of the following four data structures:
 

@@ -167,10 +167,7 @@ JSON::Object model(const Executor& executor)
   object.values["source"] = executor.info.source();
   object.values["container"] = executor.containerId.value();
   object.values["directory"] = executor.directory;
-
-  if (executor.resources.isSome()) {
-    object.values["resources"] = model(executor.resources.get());
-  }
+  object.values["resources"] = model(executor.resources);
 
   JSON::Array tasks;
   foreach (Task* task, executor.launchedTasks.values()) {
