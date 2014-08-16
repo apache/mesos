@@ -170,22 +170,6 @@ private:
     }
     perf = _perf.get();
 
-    Try<Nothing> nonblock = os::nonblock(perf.get().out().get());
-    if (nonblock.isError()) {
-      promise.fail("Failed to set nonblock on stdout for perf process: " +
-                    nonblock.error());
-      terminate(self());
-      return;
-    }
-
-    nonblock = os::nonblock(perf.get().err().get());
-    if (nonblock.isError()) {
-      promise.fail("Failed to set nonblock on stderr for perf process: " +
-                    nonblock.error());
-      terminate(self());
-      return;
-    }
-
     // Start reading from stdout and stderr now. We don't use stderr
     // but must read from it to avoid the subprocess blocking on the
     // pipe.
