@@ -106,13 +106,14 @@ Try<Docker> Docker::create(const string& path, bool validate)
                  "to mount cgroups manually!");
   }
 
-  std::string cmd = path + " info";
+  // Validate the version (and that we can use Docker at all).
+  string cmd = path + " version";
 
   Try<Subprocess> s = subprocess(
       cmd,
       Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"));
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
 
   if (s.isError()) {
     return Error(s.error());
@@ -134,7 +135,37 @@ Try<Docker> Docker::create(const string& path, bool validate)
     return Error(msg);
   }
 
-  return Docker(path);
+  CHECK_SOME(s.get().out());
+
+  Future<string> output = io::read(s.get().out().get());
+
+  if (!output.await(Seconds(5))) {
+    return Error("Timed out reading output from '" + cmd + "'");
+  } else if (output.isFailed()) {
+    return Error("Failed to read output from '" + cmd + "': " +
+                 output.failure());
+  }
+
+  foreach (string line, strings::split(output.get(), "\n")) {
+    line = strings::trim(line);
+    if (strings::startsWith(line, "Client version: ")) {
+      line = line.substr(strlen("Client version: "));
+      vector<string> version = strings::split(line, ".");
+      if (version.size() < 1) {
+        return Error("Failed to parse Docker version '" + line + "'");
+      }
+      Try<int> major = numify<int>(version[0]);
+      if (major.isError()) {
+        return Error("Failed to parse Docker major version '" +
+                     version[0] + "'");
+      } else if (major.get() < 1) {
+        break;
+      }
+      return Docker(path);
+    }
+  }
+
+  return Error("Insufficient version of Docker! Please upgrade to >= 1.0.0");
 }
 
 
