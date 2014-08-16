@@ -502,8 +502,6 @@ Future<Nothing> MesosContainerizerProcess::fetch(
   LOG(INFO) << "Fetching URIs for container '" << containerId
             << "' using command '" << command << "'";
 
-  // NOTE: It's important that we create a pipe for the mesos-fetcher
-  // stdin so that when the slave exits it will terminate itself.
   Try<Subprocess> fetcher = subprocess(
       command,
       Subprocess::PIPE(),

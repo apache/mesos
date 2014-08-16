@@ -20,8 +20,6 @@
 
 #include <mesos/mesos.hpp>
 
-#include <process/io.hpp>
-
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -193,53 +191,9 @@ Try<string> fetch(
 }
 
 
-// A helper function for abnormally cancelling the fetching because
-// our parent has died (e.g., the slave).
-process::Future<Nothing> cancel()
-{
-  // We don't easily have a handle on any of the children we've
-  // potentially started since they're hidden behind os::system,
-  // net::download, HDFS, etc, so we just do a killtree on all of our
-  // children.
-  //
-  // TODO(benh): This still isn't sufficient because we might be in
-  // the middle of forking a process. What we really need to do is run
-  // os::kiltree "outside" of this process so that we can pause this
-  // process too!
-  Try<os::ProcessTree> pstree = os::pstree(0);
-
-  if (pstree.isSome() && !pstree.get().children.empty()) {
-    foreach (const os::ProcessTree& child, pstree.get().children) {
-      // NOTE: We don't follow groups or sessions because it's
-      // possible we'll end up killing ourselves, or worse, the slave!
-      os::killtree(child.process.pid, 9);
-    }
-  }
-
-  EXIT(1) << "Cancelled fetching because stdin was closed "
-          << "(e.g., because the parent has exited)";
-
-  return Nothing();
-}
-
-
 int main(int argc, char* argv[])
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  // The current semantics of the mesos-fetcher is that it should
-  // terminate if/when its parent terminates. To support this, we read
-  // from stdin and if/when we get back an EOF then we "cancel" any
-  // fetching and exit so we don't become an orphan (which would be
-  // especially bad in the event calling something like HDFS ends up
-  // hung indefinitely).
-  //
-  // TODO(benh): Introduce a timeout for fetching each URI that can be
-  // set via flags on the slave.
-  //
-  // TODO(benh): Introduce a flag here for changing these semantics.
-  process::io::read(STDIN_FILENO)
-    .then(lambda::bind(&cancel));
 
   CommandInfo commandInfo;
   // Construct URIs from the encoded environment string.
