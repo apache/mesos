@@ -390,8 +390,6 @@ Future<Nothing> DockerContainerizerProcess::fetch(
   VLOG(1) << "Starting to fetch URIs for container: " << containerId
           << ", directory: " << directory;
 
-  // NOTE: It's important that we create a pipe for the mesos-fetcher
-  // stdin so that when the slave exits it will terminate itself.
   Try<Subprocess> fetcher = subprocess(
       realpath.get(),
       Subprocess::PIPE(),
@@ -777,11 +775,33 @@ Future<bool> DockerContainerizerProcess::launch(
     return false;
   }
 
-  ContainerInfo containerInfo = executorInfo.container();
+  ContainerInfo containerInfo = taskInfo.container();
 
   if (containerInfo.type() != ContainerInfo::DOCKER) {
     LOG(INFO) << "Skipping non-docker container";
     return false;
+  }
+
+  // Before we do anything else we first make sure the stdout/stderr
+  // files exist and have the right file ownership.
+  Try<Nothing> touch = os::touch(path::join(directory, "stdout"));
+
+  if (touch.isError()) {
+    return Failure("Failed to touch 'stdout': " + touch.error());
+  }
+
+  touch = os::touch(path::join(directory, "stderr"));
+
+  if (touch.isError()) {
+    return Failure("Failed to touch 'stderr': " + touch.error());
+  }
+
+  if (user.isSome()) {
+    Try<Nothing> chown = os::chown(user.get(), directory, true);
+
+    if (chown.isError()) {
+      return Failure("Failed to chown: " + chown.error());
+    }
   }
 
   LOG(INFO) << "Starting container '" << containerId
@@ -1001,6 +1021,28 @@ Future<bool> DockerContainerizerProcess::launch(
   if (containerInfo.type() != ContainerInfo::DOCKER) {
     LOG(INFO) << "Skipping non-docker container";
     return false;
+  }
+
+  // Before we do anything else we first make sure the stdout/stderr
+  // files exist and have the right file ownership.
+  Try<Nothing> touch = os::touch(path::join(directory, "stdout"));
+
+  if (touch.isError()) {
+    return Failure("Failed to touch 'stdout': " + touch.error());
+  }
+
+  touch = os::touch(path::join(directory, "stderr"));
+
+  if (touch.isError()) {
+    return Failure("Failed to touch 'stderr': " + touch.error());
+  }
+
+  if (user.isSome()) {
+    Try<Nothing> chown = os::chown(user.get(), directory, true);
+
+    if (chown.isError()) {
+      return Failure("Failed to chown: " + chown.error());
+    }
   }
 
   LOG(INFO) << "Starting container '" << containerId
