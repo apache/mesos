@@ -1466,7 +1466,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 // parse and can even properly use for sending other messages, but the
 // current implementation of 'UPID::operator bool ()' fails if the IP
 // component of a PID is '0'.
-TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_SlaveRecoveryExecutorContainer)
+TEST_F(DockerContainerizerTest,
+       DISABLED_ROOT_DOCKER_SlaveRecoveryExecutorContainer)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);

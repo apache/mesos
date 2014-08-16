@@ -494,7 +494,7 @@ Future<Nothing> DockerContainerizerProcess::_pull(
   CHECK_SOME(s.err());
   return io::read(s.err().get())
     .then(defer(self(), &Self::__pull, s, lambda::_1));
- }
+}
 
 
 Future<Nothing> DockerContainerizerProcess::__pull(
