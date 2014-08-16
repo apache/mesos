@@ -1550,6 +1550,14 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_SlaveRecoveryExecutorContai
                     Invoke(dockerContainerizer1,
                            &MockDockerContainerizer::_launchExecutor)));
 
+  // We need to wait until the container's pid has been been
+  // checkpointed so that when the next slave recovers it won't treat
+  // the executor as having gone lost! We know this has completed
+  // after Containerizer::launch returns and the
+  // Slave::executorLaunched gets dispatched.
+  Future<Nothing> executorLaunched =
+    FUTURE_DISPATCH(_, &Slave::executorLaunched);
+
   // The test-executor in the image immediately sends a TASK_RUNNING
   // followed by TASK_FINISHED (no sleep/delay in between) so we need
   // to drop the first TWO updates that come from the executor rather
@@ -1567,32 +1575,7 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_SlaveRecoveryExecutorContai
   AWAIT_READY(containerId);
   AWAIT_READY(slaveId);
 
-  // We also need to wait until the container's pid has been been
-  // checkpointed so that when the next slave recovers it won't treat
-  // the executor as having gone lost!
-  string path = slave::paths::getForkedPidPath(
-      slave::paths::getMetaRootDir(flags.work_dir),
-      slaveId.get(),
-      frameworkId.get(),
-      executorId,
-      containerId.get());
-
-  Duration waited = Duration::zero();
-  do {
-    if (os::exists(path)) {
-      Try<string> read = os::read(path);
-      if (read.isSome() && read.get() != "") {
-        break;
-      }
-    }
-    os::sleep(Milliseconds(100));
-    waited += Milliseconds(100);
-  } while (waited < Seconds(3));
-
-  ASSERT_TRUE(os::exists(path));
-  ASSERT_SOME_NE("", os::read(path));
-
-  // Stop the slave before the status update is received.
+  AWAIT_READY(executorLaunched);
   AWAIT_READY(statusUpdateMessage1);
   AWAIT_READY(statusUpdateMessage2);
 
