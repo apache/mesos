@@ -734,6 +734,26 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   EXPECT_EQ(1024u, cpu.get());
   EXPECT_EQ(128u, mem.get().megabytes());
 
+  newResources = Resources::parse("cpus:1;mem:144");
+
+  // Issue second update that uses the cached pid instead of inspect.
+  update = dockerContainerizer.update(containerId.get(), newResources.get());
+
+  AWAIT_READY(update);
+
+  cpu = cgroups::cpu::shares(cpuHierarchy.get(), cpuCgroup.get());
+
+  ASSERT_SOME(cpu);
+
+  mem = cgroups::memory::soft_limit_in_bytes(
+      memoryHierarchy.get(),
+      memoryCgroup.get());
+
+  ASSERT_SOME(mem);
+
+  EXPECT_EQ(1024u, cpu.get());
+  EXPECT_EQ(144u, mem.get().megabytes());
+
   driver.stop();
   driver.join();
 

@@ -227,6 +227,11 @@ private:
       const Resources& resources,
       const Docker::Container& container);
 
+  process::Future<Nothing> __update(
+      const ContainerID& containerId,
+      const Resources& resources,
+      pid_t pid);
+
   Future<ResourceStatistics> _usage(
     const ContainerID& containerId,
     const Docker::Container& container);
@@ -301,6 +306,10 @@ private:
     // The docker pull subprocess is stored so we can killtree the
     // pid when destroy is called while docker is pulling the image.
     Option<Subprocess> pull;
+
+    // Once the container is running, this saves the pid of the
+    // running container.
+    Option<pid_t> pid;
   };
 
   hashmap<ContainerID, Container*> containers_;
@@ -1237,13 +1246,26 @@ Future<Nothing> DockerContainerizerProcess::update(
     return Nothing();
   }
 
+  Container* container = containers_[containerId];
+
+  if (container->state == Container::DESTROYING)  {
+    LOG(INFO) << "Ignoring updating container '" << containerId
+              << "' that is being destroyed";
+    return Nothing();
+  }
+
   // Store the resources for usage().
-  containers_[containerId]->resources = _resources;
+  container->resources = _resources;
 
 #ifdef __linux__
   if (!_resources.cpus().isSome() && !_resources.mem().isSome()) {
     LOG(WARNING) << "Ignoring update as no supported resources are present";
     return Nothing();
+  }
+
+  // Skip inspecting the docker container if we already have the pid.
+  if (container->pid.isSome()) {
+    return __update(containerId, _resources, container->pid.get());
   }
 
   return docker.inspect(containerName(containerId))
@@ -1258,6 +1280,27 @@ Future<Nothing> DockerContainerizerProcess::_update(
     const ContainerID& containerId,
     const Resources& _resources,
     const Docker::Container& container)
+{
+  if (container.pid.isNone()) {
+    return Nothing();
+  }
+
+  if (!containers_.contains(containerId)) {
+    LOG(INFO) << "Container has been removed after docker inspect, "
+              << "skipping update";
+    return Nothing();
+  }
+
+  containers_[containerId]->pid = container.pid.get();
+
+  return __update(containerId, _resources, container.pid.get());
+}
+
+
+Future<Nothing> DockerContainerizerProcess::__update(
+    const ContainerID& containerId,
+    const Resources& _resources,
+    pid_t pid)
 {
 #ifdef __linux__
   // Determine the the cgroups hierarchies where the 'cpu' and
@@ -1284,15 +1327,9 @@ Future<Nothing> DockerContainerizerProcess::_update(
   // the hierarchy with the 'memory' subsystem attached so we can
   // update the proper cgroup control files.
 
-  // First check that this container still appears to be running.
-  Option<pid_t> pid = container.pid;
-  if (pid.isNone()) {
-    return Nothing();
-  }
-
   // Determine the cgroup for the 'cpu' subsystem (based on the
   // container's pid).
-  Result<string> cpuCgroup = cgroups::cpu::cgroup(pid.get());
+  Result<string> cpuCgroup = cgroups::cpu::cgroup(pid);
 
   if (cpuCgroup.isError()) {
     return Failure("Failed to determine cgroup for the 'cpu' subsystem: " +
@@ -1325,7 +1362,7 @@ Future<Nothing> DockerContainerizerProcess::_update(
   }
 
   // Now determine the cgroup for the 'memory' subsystem.
-  Result<string> memoryCgroup = cgroups::memory::cgroup(pid.get());
+  Result<string> memoryCgroup = cgroups::memory::cgroup(pid);
 
   if (memoryCgroup.isError()) {
     return Failure("Failed to determine cgroup for the 'memory' subsystem: " +
