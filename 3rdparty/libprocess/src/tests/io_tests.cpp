@@ -128,11 +128,6 @@ TEST(IO, BufferedRead)
   Try<int> fd = os::open("file", O_RDONLY);
   ASSERT_SOME(fd);
 
-  // Read from blocking fd.
-  AWAIT_EXPECT_FAILED(io::read(fd.get()));
-
-  // Read from non-blocking fd.
-  ASSERT_TRUE(os::nonblock(fd.get()).isSome());
   AWAIT_EXPECT_EQ(data, io::read(fd.get()));
 
   ASSERT_SOME(os::close(fd.get()));
@@ -140,27 +135,19 @@ TEST(IO, BufferedRead)
   // Now read from pipes.
   int pipes[2];
 
-  // Create a blocking pipe.
+  // Test on a closed pipe.
   ASSERT_NE(-1, ::pipe(pipes));
-
-  // Test on a blocking pipe.
-  AWAIT_EXPECT_FAILED(io::read(pipes[0]));
-
   ASSERT_SOME(os::close(pipes[0]));
   ASSERT_SOME(os::close(pipes[1]));
 
-  // Test on a closed pipe.
   AWAIT_EXPECT_FAILED(io::read(pipes[0]));
 
-  // Create a nonblocking pipe for reading.
-  ASSERT_NE(-1, ::pipe(pipes));
-  ASSERT_SOME(os::nonblock(pipes[0]));
-
   // Test a successful read from the pipe.
-  Future<string> future = io::read(pipes[0]);
+  ASSERT_NE(-1, ::pipe(pipes));
 
   // At first, the future will not be ready until we write to and
   // close the pipe.
+  Future<string> future = io::read(pipes[0]);
   ASSERT_FALSE(future.isReady());
 
   ASSERT_SOME(os::write(pipes[1], data));
