@@ -806,7 +806,7 @@ Future<bool> DockerContainerizerProcess::launch(
   }
 
   if (user.isSome()) {
-    Try<Nothing> chown = os::chown(user.get(), directory, true);
+    Try<Nothing> chown = os::chown(user.get(), directory);
 
     if (chown.isError()) {
       return Failure("Failed to chown: " + chown.error());
@@ -1047,7 +1047,7 @@ Future<bool> DockerContainerizerProcess::launch(
   }
 
   if (user.isSome()) {
-    Try<Nothing> chown = os::chown(user.get(), directory, true);
+    Try<Nothing> chown = os::chown(user.get(), directory);
 
     if (chown.isError()) {
       return Failure("Failed to chown: " + chown.error());
