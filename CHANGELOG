@@ -5,26 +5,26 @@ This release includes a lot of new cool features. The major new features are
 listed below:
 
 * Docker support in Mesos.
-	* Users now can launch executors/tasks within Docker containers.
-	* Mesos now supports running multiple containerizers simultaneously. The slave
-		can dynamically choose a containerizer to launch containers based on the
-		configuration of executors/tasks.
+  * Users now can launch executors/tasks within Docker containers.
+  * Mesos now supports running multiple containerizers simultaneously. The slave
+    can dynamically choose a containerizer to launch containers based on the
+    configuration of executors/tasks.
 
 * Container level network monitoring for mesos containerizer.
-	* Network statistics for each active container can be retrieved through the
-		/monitor/statistics.json endpoint on the slave.
-	* Completely transparent to the tasks running on the slave. No need to change
-	  the service discovery mechanism for tasks.
+  * Network statistics for each active container can be retrieved through the
+    /monitor/statistics.json endpoint on the slave.
+  * Completely transparent to the tasks running on the slave. No need to change
+    the service discovery mechanism for tasks.
 
 * Framework authorization.
-	* Allows frameworks to (re-)register with authorized roles.
-	* Allows frameworks to launch tasks/executors as authorized users.
-	* Allows authorized principals to shutdown framework(s) through HTTP endpoint.
+  * Allows frameworks to (re-)register with authorized roles.
+  * Allows frameworks to launch tasks/executors as authorized users.
+  * Allows authorized principals to shutdown framework(s) through HTTP endpoint.
 
 * Framework rate limiting.
-	* In a multi-framework environment, this feature aims to protect the
-		throughput of high-SLA (e.g., production, service) frameworks by having the
-		master throttle messages from other (e.g., development, batch) frameworks.
+  * In a multi-framework environment, this feature aims to protect the
+    throughput of high-SLA (e.g., production, service) frameworks by having the
+    master throttle messages from other (e.g., development, batch) frameworks.
 
 * Enable building against installed third-party dependencies.
 
