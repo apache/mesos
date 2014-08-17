@@ -3,13 +3,57 @@ layout: documentation
 ---
 
 # Upgrading Mesos
+
 This document serves as a guide for users who wish to upgrade an existing mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
 ## Upgrading from 0.19.x to 0.20.x.
 
-* Python bindings have changed their structure. There are now sub-modules which allow you to use either the interfaces and/or the native driver.
-    - `import mesos.native` for the native drivers
-    - `import mesos.interface` for the stub implementations and protobufs
+NOTE: The Mesos API has been changed slightly in this release. The CommandInfo has been changed (see below), which makes launching a command more flexible. The 'value' field has been changed from _required_ to _optional_. However, it will not cause any issue during the upgrade (since the existing schedulers always set this field).
+
+```
+message CommandInfo {
+  ...
+  // There are two ways to specify the command:
+  // 1) If 'shell == true', the command will be launched via shell
+  //    (i.e., /bin/sh -c 'value'). The 'value' specified will be
+  //    treated as the shell command. The 'arguments' will be ignored.
+  // 2) If 'shell == false', the command will be launched by passing
+  //    arguments to an executable. The 'value' specified will be
+  //    treated as the filename of the executable. The 'arguments'
+  //    will be treated as the arguments to the executable. This is
+  //    similar to how POSIX exec families launch processes (i.e.,
+  //    execlp(value, arguments(0), arguments(1), ...)).
+  optional bool shell = 6 [default = true];
+  optional string value = 3;
+  repeated string arguments = 7;
+  ...
+}
+```
+
+NOTE: The Python bindings are also changing in this release. There are now sub-modules which allow you to use either the interfaces and/or the native driver.
+
+* `import mesos.native` for the native drivers
+* `import mesos.interface` for the stub implementations and protobufs
+
+To ensure a smooth upgrade, we recommend to upgrade your python framework and executor first. You will be able to either import using the new configuration or the old. Replace the existing imports with something like the following:
+
+```
+    try:
+        from mesos.native import MesosExecutorDriver, MesosSchedulerDriver
+        from mesos.interface import Executor, Scheduler
+        from mesos.interface import mesos_pb2
+    except ImportError:
+        from mesos import Executor, MesosExecutorDriver, MesosSchedulerDriver, Scheduler
+        import mesos_pb2
+```
+
+In order to upgrade a running cluster:
+
+* Install the new master binaries and restart the masters.
+* Install the new slave binaries and restart the slaves.
+* Upgrade the schedulers by linking the latest native library (install the latest mesos jar and python egg if necessary).
+* Restart the schedulers.
+* Upgrade the executors by linking the latest native library (install the latest mesos jar and python egg if necessary).
 
 ## Upgrading from 0.18.x to 0.19.x.
 
