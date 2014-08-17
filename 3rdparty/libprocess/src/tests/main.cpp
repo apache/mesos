@@ -19,7 +19,9 @@ int main(int argc, char** argv)
   process::initialize();
 
   // Install default signal handler.
-  installFailureSignalHandler();
+  // TODO(jieyu): We temporarily disable this since it causes some
+  // flaky tests. Re-enable it once we find the root cause.
+  // installFailureSignalHandler();
 
   // Add the libprocess test event listeners.
   ::testing::TestEventListeners& listeners =
