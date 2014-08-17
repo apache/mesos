@@ -28,6 +28,17 @@ listed below:
 
 * Enable building against installed third-party dependencies.
 
+* Python namespace for the bindings has been restructured.
+
+* HTTP endpoint changes.
+  * [MESOS-1188] - "deactivated_slaves" represents inactive slaves in "/stats.json" and "/state.json".
+  * [MESOS-1390] - "/shutdown" authenticated endpoint has been added to master to shutdown a framework.
+
+* Deprecations.
+  * [MESOS-1219] - Master should disallow completed frameworks from re-registering with same framework id.
+  * [MESOS-1695] - "/stats.json" on the slave exposes "registered" value as string instead of integer.
+
+
 This release also includes several bug fixes and stability improvements.
 
 
