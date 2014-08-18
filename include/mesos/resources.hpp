@@ -67,6 +67,8 @@ bool matches(const Resource& left, const Resource& right);
 std::ostream& operator << (std::ostream& stream, const Resource& resource);
 
 
+// TODO(bmahler): Ensure that the underlying resources are kept
+// in a flattened state: MESOS-1714.
 class Resources
 {
 public:

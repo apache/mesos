@@ -3608,7 +3608,9 @@ Executor* Framework::launchExecutor(
   // has non-zero resources to work with when the executor has
   // no resources. This should be revisited after MESOS-600.
   ExecutorInfo executorInfo_ = executor->info;
-  executorInfo_.mutable_resources()->MergeFrom(taskInfo.resources());
+  Resources resources = executorInfo_.resources();
+  resources += taskInfo.resources();
+  executorInfo_.mutable_resources()->CopyFrom(resources);
 
   // The command (either in form of task or executor command) can
   // define a specific user to run as. If present, this precedes the
