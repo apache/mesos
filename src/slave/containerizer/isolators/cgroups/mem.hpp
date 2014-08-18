@@ -19,28 +19,15 @@
 #ifndef __MEM_ISOLATOR_HPP__
 #define __MEM_ISOLATOR_HPP__
 
-#include <stdint.h>
-
-#include <mesos/resources.hpp>
-
-#include <process/future.hpp>
-
-#include <stout/nothing.hpp>
-#include <stout/try.hpp>
-
-#include "mesos/resources.hpp"
+#include <stout/hashmap.hpp>
 
 #include "slave/containerizer/isolator.hpp"
 
-#include "slave/flags.hpp"
+#include "slave/containerizer/isolators/cgroups/constants.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
-
-// Memory subsystem constants.
-const Bytes MIN_MEMORY = Megabytes(32);
-
 
 class CgroupsMemIsolatorProcess : public IsolatorProcess
 {

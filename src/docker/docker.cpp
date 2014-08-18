@@ -34,7 +34,9 @@
 
 #include "docker/docker.hpp"
 
+#ifdef __linux__
 #include "linux/cgroups.hpp"
+#endif // __linux__
 
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
@@ -96,6 +98,7 @@ Try<Docker> Docker::create(const string& path, bool validate)
     return Docker(path);
   }
 
+#ifdef __linux__
   // Make sure that cgroups are mounted, and at least the 'cpu'
   // subsystem is attached.
   Result<string> hierarchy = cgroups::hierarchy("cpu");
@@ -105,6 +108,7 @@ Try<Docker> Docker::create(const string& path, bool validate)
                  "for the 'cpu' subsystem; you probably need "
                  "to mount cgroups manually!");
   }
+#endif // __linux__
 
   // Validate the version (and that we can use Docker at all).
   string cmd = path + " version";

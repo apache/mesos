@@ -21,19 +21,13 @@
 
 #include <set>
 
-#include "linux/perf.hpp"
-
-#include <mesos/resources.hpp>
-
-#include <process/future.hpp>
 #include <process/time.hpp>
 
 #include <stout/hashmap.hpp>
-#include <stout/try.hpp>
+
+#include "linux/perf.hpp"
 
 #include "slave/containerizer/isolator.hpp"
-
-#include "slave/flags.hpp"
 
 namespace mesos {
 namespace internal {
