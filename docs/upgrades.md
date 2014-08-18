@@ -8,7 +8,7 @@ This document serves as a guide for users who wish to upgrade an existing mesos 
 
 ## Upgrading from 0.19.x to 0.20.x.
 
-NOTE: The Mesos API has been changed slightly in this release. The CommandInfo has been changed (see below), which makes launching a command more flexible. The 'value' field has been changed from _required_ to _optional_. However, it will not cause any issue during the upgrade (since the existing schedulers always set this field).
+**NOTE**: The Mesos API has been changed slightly in this release. The CommandInfo has been changed (see below), which makes launching a command more flexible. The 'value' field has been changed from _required_ to _optional_. However, it will not cause any issue during the upgrade (since the existing schedulers always set this field).
 
 ```
 message CommandInfo {
@@ -30,7 +30,7 @@ message CommandInfo {
 }
 ```
 
-NOTE: The Python bindings are also changing in this release. There are now sub-modules which allow you to use either the interfaces and/or the native driver.
+**NOTE**: The Python bindings are also changing in this release. There are now sub-modules which allow you to use either the interfaces and/or the native driver.
 
 * `import mesos.native` for the native drivers
 * `import mesos.interface` for the stub implementations and protobufs
@@ -47,6 +47,8 @@ To ensure a smooth upgrade, we recommend to upgrade your python framework and ex
         import mesos_pb2
 ```
 
+**NOTE**: If you're using a pure language binding, please ensure that it sends status update acknowledgements through the master before upgrading.
+
 In order to upgrade a running cluster:
 
 * Install the new master binaries and restart the masters.
@@ -57,9 +59,9 @@ In order to upgrade a running cluster:
 
 ## Upgrading from 0.18.x to 0.19.x.
 
-NOTE: There are new required flags on the master (`--work_dir` and `--quorum`) to support the *Registrar* feature, which adds replicated state on the masters.
+**NOTE**: There are new required flags on the master (`--work_dir` and `--quorum`) to support the *Registrar* feature, which adds replicated state on the masters.
 
-NOTE: No required upgrade ordering across components.
+**NOTE**: No required upgrade ordering across components.
 
 In order to upgrade a running cluster:
 
@@ -74,7 +76,7 @@ In order to upgrade a running cluster:
 
 In order to upgrade a running cluster:
 
-Note: This upgrade requires a system reboot for slaves that use Linux cgroups for isolation.
+**NOTE**: This upgrade requires a system reboot for slaves that use Linux cgroups for isolation.
 
 * Install the new master binaries and restart the masters.
 * Upgrade the schedulers by linking the latest native library and mesos jar (if necessary).
