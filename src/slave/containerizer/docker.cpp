@@ -45,8 +45,7 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/docker.hpp"
 
-#include "slave/containerizer/isolators/cgroups/cpushare.hpp"
-#include "slave/containerizer/isolators/cgroups/mem.hpp"
+#include "slave/containerizer/isolators/cgroups/constants.hpp"
 
 #include "usage/usage.hpp"
 

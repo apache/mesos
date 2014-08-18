@@ -19,27 +19,17 @@
 #ifndef __CPUSHARE_ISOLATOR_HPP__
 #define __CPUSHARE_ISOLATOR_HPP__
 
-#include <mesos/resources.hpp>
-
-#include <process/future.hpp>
+#include <string>
 
 #include <stout/hashmap.hpp>
-#include <stout/try.hpp>
 
 #include "slave/containerizer/isolator.hpp"
 
-#include "slave/flags.hpp"
+#include "slave/containerizer/isolators/cgroups/constants.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
-
-// CPU subsystem constants.
-const uint64_t CPU_SHARES_PER_CPU = 1024;
-const uint64_t MIN_CPU_SHARES = 10;
-const Duration CPU_CFS_PERIOD = Milliseconds(100); // Linux default.
-const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
-
 
 // Use the Linux cpu cgroup controller for cpu isolation which uses the
 // Completely Fair Scheduler (CFS).
