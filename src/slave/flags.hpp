@@ -74,7 +74,7 @@ public:
     add(&Flags::attributes,
         "attributes",
         "Attributes of machine, in the form:\n"
-        "rack:2 or 'rack:2,u:1'");
+        "rack:2 or 'rack:2;u:1'");
 
     add(&Flags::work_dir,
         "work_dir",
