@@ -260,7 +260,7 @@ Future<Response> Slave::Http::stats(const Request& request)
   JSON::Object object;
   object.values["uptime"] = (Clock::now() - slave->startTime).secs();
   object.values["total_frameworks"] = slave->frameworks.size();
-  object.values["registered"] = slave->master.isSome() ? "1" : "0";
+  object.values["registered"] = slave->master.isSome() ? 1 : 0;
   object.values["recovery_errors"] = slave->recoveryErrors;
 
   // NOTE: These are monotonically increasing counters.
