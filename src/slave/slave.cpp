@@ -3337,6 +3337,12 @@ double Slave::_tasks_staging()
 
     foreachvalue (Executor* executor, framework->executors) {
       count += executor->queuedTasks.size();
+
+      foreach (Task* task, executor->launchedTasks.values()) {
+        if (task->state() == TASK_STAGING) {
+          count++;
+        }
+      }
     }
   }
   return count;
