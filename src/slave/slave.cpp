@@ -3333,6 +3333,8 @@ double Slave::_tasks_staging()
 {
   double count = 0.0;
   foreachvalue (Framework* framework, frameworks) {
+    count += framework->pending.size();
+
     foreachvalue (Executor* executor, framework->executors) {
       count += executor->queuedTasks.size();
     }
