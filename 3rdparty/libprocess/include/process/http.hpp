@@ -194,7 +194,7 @@ struct OK : Response
       out << jsonp.get() << "(";
     }
 
-    JSON::render(out, value);
+    out << value;
 
     if (jsonp.isSome()) {
       out << ");";
