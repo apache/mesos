@@ -42,7 +42,6 @@
 #include <stout/linkedhashmap.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
-#include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -586,7 +585,8 @@ struct Framework
 
   UPID pid;
 
-  multihashmap<ExecutorID, TaskID> pending; // Executors with pending tasks.
+  // Executors with pending tasks.
+  hashmap<ExecutorID, hashmap<TaskID, TaskInfo> > pending;
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;

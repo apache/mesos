@@ -79,10 +79,10 @@ StatusUpdate createStatusUpdate(
 }
 
 
-Task createTask(const TaskInfo& task,
-                       const TaskState& state,
-                       const ExecutorID& executorId,
-                       const FrameworkID& frameworkId)
+Task createTask(
+    const TaskInfo& task,
+    const TaskState& state,
+    const FrameworkID& frameworkId)
 {
   Task t;
   t.mutable_framework_id()->MergeFrom(frameworkId);
@@ -92,8 +92,8 @@ Task createTask(const TaskInfo& task,
   t.mutable_slave_id()->MergeFrom(task.slave_id());
   t.mutable_resources()->MergeFrom(task.resources());
 
-  if (!task.has_command()) {
-    t.mutable_executor_id()->MergeFrom(executorId);
+  if (task.has_executor()) {
+    t.mutable_executor_id()->CopyFrom(task.executor().executor_id());
   }
 
   return t;

@@ -50,7 +50,7 @@ TEST(HTTP, ModelTask)
   slaveId.set_value("s");
 
   ExecutorID executorId;
-  executorId.set_value("e");
+  executorId.set_value("t");
 
   FrameworkID frameworkId;
   frameworkId.set_value("f");
@@ -74,7 +74,7 @@ TEST(HTTP, ModelTask)
   task.mutable_slave_id()->CopyFrom(slaveId);
   task.mutable_command()->set_value("echo hello");
 
-  Task task_ = protobuf::createTask(task, state, executorId, frameworkId);
+  Task task_ = protobuf::createTask(task, state, frameworkId);
   task_.add_statuses()->CopyFrom(statuses[0]);
 
   JSON::Value object = model(task, frameworkId, state, statuses);

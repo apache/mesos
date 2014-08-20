@@ -262,7 +262,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
                 .tasks.contains(task.task_id()));
 
   const Task& t = mesos::internal::protobuf::createTask(
-      task, TASK_STAGING, executorId, frameworkId);
+      task, TASK_STAGING, frameworkId);
 
   ASSERT_SOME_EQ(
       t,

@@ -892,6 +892,18 @@ void Slave::doReliableRegistration(const Duration& duration)
     message.mutable_slave()->CopyFrom(info);
 
     foreachvalue (Framework* framework, frameworks) {
+      // TODO(bmahler): We need to send the executors for these
+      // pending tasks, and we need to send exited events if they
+      // cannot be launched: MESOS-1715 MESOS-1720.
+
+      typedef hashmap<TaskID, TaskInfo> TaskMap;
+      foreachvalue (const TaskMap& tasks, framework->pending) {
+        foreachvalue (const TaskInfo& task, tasks) {
+          message.add_tasks()->CopyFrom(protobuf::createTask(
+              task, TASK_STAGING, framework->id));
+        }
+      }
+
       foreachvalue (Executor* executor, framework->executors) {
         // Add launched, terminated, and queued tasks.
         // Note that terminated executors will only have terminated
@@ -904,7 +916,7 @@ void Slave::doReliableRegistration(const Duration& duration)
         }
         foreach (const TaskInfo& task, executor->queuedTasks.values()) {
           message.add_tasks()->CopyFrom(protobuf::createTask(
-              task, TASK_STAGING, executor->id, framework->id));
+              task, TASK_STAGING, framework->id));
         }
 
         // Do not re-register with Command Executors because the
@@ -1076,7 +1088,7 @@ void Slave::runTask(
   // removed and the framework and top level executor directories
   // are not scheduled for deletion before '_runTask()' is called.
   CHECK_NOTNULL(framework);
-  framework->pending.put(executorId, task.task_id());
+  framework->pending[executorId][task.task_id()] = task;
 
   // If we are about to create a new executor, unschedule the top
   // level work and meta directories from getting gc'ed.
@@ -1128,7 +1140,10 @@ void Slave::_runTask(
   Framework* framework = getFramework(frameworkId);
   CHECK_NOTNULL(framework);
 
-  framework->pending.remove(executorId, task.task_id());
+  framework->pending[executorId].erase(task.task_id());
+  if (framework->pending[executorId].empty()) {
+    framework->pending.erase(executorId);
+  }
 
   // We don't send a status update here because a terminating
   // framework cannot send acknowledgements.
@@ -3329,7 +3344,10 @@ double Slave::_tasks_staging()
 {
   double count = 0.0;
   foreachvalue (Framework* framework, frameworks) {
-    count += framework->pending.size();
+    typedef hashmap<TaskID, TaskInfo> TaskMap;
+    foreachvalue (const TaskMap& tasks, framework->pending) {
+      count += tasks.size();
+    }
 
     foreachvalue (Executor* executor, framework->executors) {
       count += executor->queuedTasks.size();
@@ -3895,8 +3913,7 @@ Task* Executor::addTask(const TaskInfo& task)
   CHECK(!launchedTasks.contains(task.task_id()))
     << "Duplicate task " << task.task_id();
 
-  Task* t = new Task(
-      protobuf::createTask(task, TASK_STAGING, id, frameworkId));
+  Task* t = new Task(protobuf::createTask(task, TASK_STAGING, frameworkId));
 
   launchedTasks[task.task_id()] = t;
 
@@ -3916,7 +3933,7 @@ void Executor::terminateTask(
   // Remove the task if it's queued.
   if (queuedTasks.contains(taskId)) {
     task = new Task(
-        protobuf::createTask(queuedTasks[taskId], state, id, frameworkId));
+        protobuf::createTask(queuedTasks[taskId], state, frameworkId));
     queuedTasks.erase(taskId);
   } else if (launchedTasks.contains(taskId)) {
     // Update the resources if it's been launched.
@@ -3965,7 +3982,7 @@ void Executor::checkpointTask(const TaskInfo& task)
   if (checkpoint) {
     CHECK_NOTNULL(slave);
 
-    const Task& t = protobuf::createTask(task, TASK_STAGING, id, frameworkId);
+    const Task& t = protobuf::createTask(task, TASK_STAGING, frameworkId);
     const string& path = paths::getTaskInfoPath(
         slave->metaDir,
         slave->info.id(),

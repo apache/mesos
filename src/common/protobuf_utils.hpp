@@ -44,10 +44,10 @@ StatusUpdate createStatusUpdate(
     const std::string& message = "",
     const Option<ExecutorID>& executorId = None());
 
-Task createTask(const TaskInfo& task,
-                const TaskState& state,
-                const ExecutorID& executorId,
-                const FrameworkID& frameworkId);
+Task createTask(
+    const TaskInfo& task,
+    const TaskState& state,
+    const FrameworkID& frameworkId);
 
 // Helper function that creates a MasterInfo from UPID.
 MasterInfo createMasterInfo(const process::UPID& pid);
