@@ -1629,7 +1629,8 @@ void initialize(const string& delegate)
   addr.sin_port = htons(__port__);
 
   if (bind(__s__, (sockaddr*) &addr, sizeof(addr)) < 0) {
-    PLOG(FATAL) << "Failed to initialize, bind";
+    PLOG(FATAL) << "Failed to initialize, bind "
+                << inet_ntoa(addr.sin_addr) << ":" << __port__;
   }
 
   // Lookup and store assigned ip and assigned port.
