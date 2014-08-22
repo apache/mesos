@@ -441,17 +441,15 @@ Future<Nothing> DockerContainerizerProcess::pull(
   argv.push_back(flags.docker);
   argv.push_back("pull");
 
-  vector<string> parts = strings::split(dockerInfo.image(), ":");
-
-  if (parts.size() > 2) {
-    return Failure("Not expecting multiple ':' in image: " +
-                   dockerInfo.image());
-  }
-
-  if (parts.size() == 2) {
+  // Check if the specified image has a tag. Also split on "/" in case
+  // the user specified a registry server (ie: localhost:5000/image)
+  // to get the actual image name. If no tag was given we add a
+  // 'latest' tag to avoid pulling down the repository.
+  vector<string> parts = strings::split(dockerInfo.image(), "/");
+  if (strings::contains(parts.back(), ":")) {
     argv.push_back(dockerInfo.image());
   } else {
-    argv.push_back(parts[0] + ":latest");
+    argv.push_back(dockerInfo.image() + ":latest");
   }
 
   VLOG(1) << "Running " << strings::join(" ", argv);
