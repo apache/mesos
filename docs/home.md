@@ -6,14 +6,15 @@ layout: documentation
 
 ## Running Mesos
 
-* [Configuration](/documentation/latest/configuration/) for command-line arguments
-* [Docker Containerizer](/documentation/latest/docker-containerizer/) for launching a Docker image as a Task, or as an Executor
+* [Configuration](/documentation/latest/configuration/) for command-line arguments.
+* [Docker Containerizer](/documentation/latest/docker-containerizer/) for launching a Docker image as a Task, or as an Executor.
+* [Framework Authorization](/documentation/latest/authorization/)
 * [Framework Rate Limiting](/documentation/latest/framework-rate-limiting/)
 * [High Availability](/documentation/latest/high-availability/) for running multiple masters simultaneously.
 * [Logging and Debugging](/documentation/latest/logging-and-debugging/) for viewing Mesos and framework logs.
 * [Network Monitoring](/documentation/latest/network-monitoring/)
-* [Slave Recovery](/documentation/latest/slave-recovery/) for doing seamless upgrades
-* [Tools](/documentation/latest/tools/) for setting up and running a Mesos cluster
+* [Slave Recovery](/documentation/latest/slave-recovery/) for doing seamless upgrades.
+* [Tools](/documentation/latest/tools/) for setting up and running a Mesos cluster.
 
 ## Running Mesos Frameworks
 
