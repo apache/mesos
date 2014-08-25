@@ -371,14 +371,16 @@ Future<bool> MesosContainerizerProcess::launch(
     return Failure("Container already started");
   }
 
-  // TODO(tillt): The slave should expose which containerization
-  // mechanisms it supports to avoid scheduling tasks that it cannot
-  // run.
+  if (executorInfo.has_container()) {
+    // We return false as this containerizer does not support
+    // handling ContainerInfo.
+    return false;
+  }
+
   const CommandInfo& command = executorInfo.command();
   if (command.has_container()) {
     // We return false as this containerizer does not support
-    // handling ContainerInfo. Users have to be made aware of this
-    // lack of support to prevent confusion in the task configuration.
+    // handling ContainerInfo.
     return false;
   }
 
@@ -412,7 +414,7 @@ Future<bool> MesosContainerizerProcess::launch(
 
 Future<bool> MesosContainerizerProcess::launch(
     const ContainerID& containerId,
-    const TaskInfo&,
+    const TaskInfo& taskInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user,
@@ -420,6 +422,12 @@ Future<bool> MesosContainerizerProcess::launch(
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
+  if (taskInfo.has_container()) {
+    // We return false as this containerizer does not support
+    // handling ContainerInfo.
+    return false;
+  }
+
   return launch(
       containerId,
       executorInfo,
