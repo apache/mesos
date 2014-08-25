@@ -823,7 +823,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
     const Resources& resources)
 {
   // TODO(benh): For now, only make offers when there is some cpu
-  // and memory left. This is an artifact of the original code that
+  // or memory left. This is an artifact of the original code that
   // only offered when there was at least 1 cpu "unit" available,
   // and without doing this a framework might get offered resources
   // with only memory available (which it obviously will decline)
@@ -833,8 +833,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
   Option<double> cpus = resources.cpus();
   Option<Bytes> mem = resources.mem();
 
-  if (cpus.isSome() && mem.isSome()) {
-    return cpus.get() >= MIN_CPUS && mem.get() > MIN_MEM;
+  if (cpus.isSome() || mem.isSome()) {
+    return cpus.get() >= MIN_CPUS || mem.get() > MIN_MEM;
   }
 
   return false;
