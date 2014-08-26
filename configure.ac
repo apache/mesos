@@ -180,17 +180,17 @@ AC_ARG_WITH([gmock],
             [without_bundled_gmock=yes], [])
 
 AC_ARG_WITH([curl],
-            AS_HELP_STRING([--with-curl=DIR],
+            AS_HELP_STRING([--with-curl=@<:@=DIR@:>@],
                            [specify where to locate the curl library]),
             [], [])
 
 AC_ARG_WITH([sasl2],
-            AS_HELP_STRING([--with-sasl=DIR],
+            AS_HELP_STRING([--with-sasl=@<:@=DIR@:>@],
                            [specify where to locate the sasl2 library]),
             [], [])
 
 AC_ARG_WITH([zlib],
-            AS_HELP_STRING([--with-zlib=DIR],
+            AS_HELP_STRING([--with-zlib=@<:@=DIR@:>@],
                            [specify where to locate the zlib library]),
             [], [])
 
@@ -569,11 +569,9 @@ ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lunwind")
 
 
-# Check if Zlib prefix path was provided, and if so, add it to
+# Check if zlib prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
-# suffixes
-#
-
+# suffixes.
 if test -n "`echo $with_zlib`" ; then
     CPPFLAGS="-I${with_zlib}/include $CPPFLAGS"
     LDFLAGS="-L${with_zlib}/lib $LDFLAGS"
@@ -590,9 +588,7 @@ libz is required for mesos to build.
 
 # Check if Libcurl prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
-# suffixes
-#
-
+# suffixes.
 if test -n "`echo $with_curl`" ; then
     CPPFLAGS="-I${with_curl}/include $CPPFLAGS"
     LDFLAGS="-L${with_curl}/lib $LDFLAGS"
@@ -618,9 +614,7 @@ We need libsasl2 for authentication!
 
 # Check if Sasl2  prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
-# suffixes
-#
-
+# suffixes.
 if test -n "`echo $with_sasl2`" ; then
     CPPFLAGS="-I${with_sasl2}/include $CPPFLAGS"
     LDFLAGS="-L${with_sasl2}/lib $LDFLAGS"
