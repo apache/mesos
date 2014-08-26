@@ -53,6 +53,7 @@
 #include <stout/flags.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
+#include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
@@ -1089,6 +1090,15 @@ void MesosSchedulerDriver::initialize() {
 
   // Initialize libprocess.
   process::initialize(schedulerId);
+
+  if (stringify(net::IP(ntohl(process::ip()))) == "127.0.0.1") {
+    LOG(WARNING) << "\n**************************************************\n"
+                 << "Scheduler driver bound to loopback interface!"
+                 << " Cannot communicate with remote master(s)."
+                 << " You might want to set 'LIBPROCESS_IP' environment"
+                 << " variable to use a routable IP address.\n"
+                 << "**************************************************";
+  }
 
   // Initialize logging.
   // TODO(benh): Replace whitespace in framework.name() with '_'?

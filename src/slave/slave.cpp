@@ -166,6 +166,15 @@ void Slave::initialize()
 {
   LOG(INFO) << "Slave started on " << string(self()).substr(6);
 
+  if (stringify(net::IP(ntohl(self().ip))) == "127.0.0.1") {
+    LOG(WARNING) << "\n**************************************************\n"
+                 << "Slave bound to loopback interface!"
+                 << " Cannot communicate with remote master(s)."
+                 << " You might want to set '--ip' flag to a routable"
+                 << " IP address.\n"
+                 << "**************************************************";
+  }
+
 #ifdef __linux__
   // Move the slave into its own cgroup for each of the specified subsystems.
   // NOTE: Any subsystem configuration is inherited from the mesos root cgroup

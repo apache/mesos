@@ -286,6 +286,15 @@ void Master::initialize()
   LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
             << " started on " << string(self()).substr(7);
 
+  if (stringify(net::IP(ntohl(self().ip))) == "127.0.0.1") {
+    LOG(WARNING) << "\n**************************************************\n"
+                 << "Master bound to loopback interface!"
+                 << " Cannot communicate with remote schedulers or slaves."
+                 << " You might want to set '--ip' flag to a routable"
+                 << " IP address.\n"
+                 << "**************************************************";
+  }
+
   // NOTE: We enforce a minimum slave re-register timeout because the
   // slave bounds its (re-)registration retries based on the minimum.
   if (flags.slave_reregister_timeout < MIN_SLAVE_REREGISTER_TIMEOUT) {

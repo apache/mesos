@@ -47,6 +47,7 @@
 #include <stout/error.hpp>
 #include <stout/flags.hpp>
 #include <stout/lambda.hpp>
+#include <stout/net.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -126,6 +127,15 @@ public:
     // Initialize libprocess (done here since at some point we might
     // want to use flags to initialize libprocess).
     process::initialize();
+
+    if (stringify(net::IP(ntohl(self().ip))) == "127.0.0.1") {
+      LOG(WARNING) << "\n**************************************************\n"
+                   << "Scheduler driver bound to loopback interface!"
+                   << " Cannot communicate with remote master(s)."
+                   << " You might want to set 'LIBPROCESS_IP' environment"
+                   << " variable to use a routable IP address.\n"
+                   << "**************************************************";
+    }
 
     // Initialize logging.
     if (flags.initialize_driver_logging) {
