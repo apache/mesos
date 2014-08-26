@@ -179,6 +179,21 @@ AC_ARG_WITH([gmock],
                             location prefixed by the given path]),
             [without_bundled_gmock=yes], [])
 
+AC_ARG_WITH([curl],
+            AS_HELP_STRING([--with-curl=DIR],
+                           [specify where to locate the curl library]),
+            [], [])
+
+AC_ARG_WITH([sasl2],
+            AS_HELP_STRING([--with-sasl=DIR],
+                           [specify where to locate the sasl2 library]),
+            [], [])
+
+AC_ARG_WITH([zlib],
+            AS_HELP_STRING([--with-zlib=DIR],
+                           [specify where to locate the zlib library]),
+            [], [])
+
 AC_ARG_ENABLE([bundled-distribute],
               AS_HELP_STRING([--disable-bundled-distribute],
                              [excludes building and using the bundled distribute
@@ -554,6 +569,17 @@ ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lunwind")
 
 
+# Check if Zlib prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes
+#
+
+if test -n "`echo $with_zlib`" ; then
+    CPPFLAGS="-I${with_zlib}/include $CPPFLAGS"
+    LDFLAGS="-L${with_zlib}/lib $LDFLAGS"
+fi
+
+
 AC_CHECK_LIB([z], [gzread], [],
              [AC_MSG_ERROR([cannot find libz
 -------------------------------------------------------------------
@@ -561,6 +587,16 @@ libz is required for mesos to build.
 -------------------------------------------------------------------
 ])])
 
+
+# Check if Libcurl prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes
+#
+
+if test -n "`echo $with_curl`" ; then
+    CPPFLAGS="-I${with_curl}/include $CPPFLAGS"
+    LDFLAGS="-L${with_curl}/lib $LDFLAGS"
+fi
 
 AC_CHECK_LIB([curl], [curl_global_init], [],
              [AC_MSG_ERROR([cannot find libcurl
@@ -580,6 +616,15 @@ We need libsasl2 for authentication!
 -------------------------------------------------------------------
 ])])
 
+# Check if Sasl2  prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes
+#
+
+if test -n "`echo $with_sasl2`" ; then
+    CPPFLAGS="-I${with_sasl2}/include $CPPFLAGS"
+    LDFLAGS="-L${with_sasl2}/lib $LDFLAGS"
+fi
 
 # Perform necessary configuration for network isolator.
 if test "x$with_network_isolator" = "xyes"; then
