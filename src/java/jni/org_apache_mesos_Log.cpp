@@ -31,7 +31,6 @@
 #include "org_apache_mesos_Log.h"
 #include "org_apache_mesos_Log_Reader.h"
 #include "org_apache_mesos_Log_Writer.h"
-#include "org_apache_mesos_Log_Writer.h"
 
 using namespace mesos;
 using namespace mesos::internal::log;

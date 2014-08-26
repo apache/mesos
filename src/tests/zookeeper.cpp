@@ -28,7 +28,6 @@
 #include <jvm/jvm.hpp>
 
 #include <jvm/org/apache/log4j.hpp>
-#include <jvm/org/apache/log4j.hpp>
 
 #include <stout/check.hpp>
 #include <stout/lambda.hpp>
@@ -186,4 +185,3 @@ ZooKeeperTest::TestWatcher::awaitEvent(
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
-

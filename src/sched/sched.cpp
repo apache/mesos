@@ -35,9 +35,8 @@
 
 #include <process/defer.hpp>
 #include <process/delay.hpp>
-#include <process/future.hpp>
-#include <process/id.hpp>
 #include <process/dispatch.hpp>
+#include <process/future.hpp>
 #include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -65,14 +64,12 @@
 #include "common/lock.hpp"
 #include "common/type_utils.hpp"
 
-#include "master/detector.hpp"
-
 #include "local/local.hpp"
-
-#include "master/detector.hpp"
 
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
+
+#include "master/detector.hpp"
 
 #include "messages/messages.hpp"
 

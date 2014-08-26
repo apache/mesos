@@ -61,8 +61,6 @@
 
 #include "local/local.hpp"
 
-#include "master/detector.hpp"
-
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
