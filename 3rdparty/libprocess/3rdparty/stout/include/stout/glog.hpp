@@ -35,10 +35,17 @@
 // it should work in 'most' cases in signal handlers.
 namespace internal {
 
-inline void handler(int signal)
+inline void handler(int signal, siginfo_t *siginfo, void *context)
 {
   if (signal == SIGTERM) {
-    RAW_LOG(WARNING, "Received signal SIGTERM; exiting.");
+    if (siginfo->si_code == SI_USER ||
+        siginfo->si_code == SI_QUEUE ||
+        siginfo->si_code <= 0) {
+      RAW_LOG(WARNING, "Received signal SIGTERM from process %d of user %d; "
+                       "exiting", siginfo->si_pid, siginfo->si_uid);
+    } else {
+      RAW_LOG(WARNING, "Received signal SIGTERM; exiting");
+    }
 
     // Setup the default handler for SIGTERM so that we don't print
     // a stack trace.
@@ -70,11 +77,14 @@ inline void installFailureSignalHandler()
 
   // Set up our custom signal handlers.
   struct sigaction action;
-  action.sa_handler = internal::handler;
+  action.sa_sigaction = internal::handler;
 
   // Do not block additional signals while in the handler.
   sigemptyset(&action.sa_mask);
-  action.sa_flags = 0;
+
+  // The SA_SIGINFO flag tells sigaction() to use
+  // the sa_sigaction field, not sa_handler.
+  action.sa_flags = SA_SIGINFO;
 
   // Set up the SIGPIPE signal handler to escalate to SIGABRT
   // in order to have the glog handler catch it and print all
