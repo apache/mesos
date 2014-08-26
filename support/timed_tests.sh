@@ -45,7 +45,11 @@ while [ $(($(date +"%s") - $start)) -lt $duration ]; do
   running=`ps p $test_cmd_pid h | wc -l`
   if [ $running -eq 0 ]; then
     echo "Test finished"
-    exit 0
+    # Get the exit status.
+    wait $test_cmd_pid
+    exit_status=$?
+    echo "Exit status: $exit_status"
+    exit $exit_status
   fi
 
   sleep 5
