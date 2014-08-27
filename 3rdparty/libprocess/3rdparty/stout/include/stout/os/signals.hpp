@@ -17,11 +17,23 @@
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
+#include <string.h>
 #include <unistd.h>
 
 namespace os {
 
 namespace signals {
+
+// Resets the signal handler to the default handler of the signal.
+inline int reset(int signal)
+{
+  struct sigaction action;
+  memset(&action, 0, sizeof(action));
+  sigemptyset(&action.sa_mask);
+  action.sa_handler = SIG_DFL;
+  return sigaction(signal, &action, NULL);
+}
+
 
 // Returns true iff the signal is pending.
 inline bool pending(int signal)

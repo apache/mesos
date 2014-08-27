@@ -4,17 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <stout/glog.hpp>
-
 int main(int argc, char** argv)
 {
   // Initialize Google Mock/Test.
   testing::InitGoogleMock(&argc, argv);
 
-  // Install default signal handler.
-  // TODO(jieyu): We temporarily disable this since it causes some
-  // flaky tests. Re-enable it once we find the root cause.
-  installFailureSignalHandler();
+  // Install GLOG's signal handler.
+  google::InstallFailureSignalHandler();
 
   return RUN_ALL_TESTS();
 }
