@@ -1,3 +1,5 @@
+#include <signal.h>
+
 #include <glog/logging.h>
 
 #include <gmock/gmock.h>
@@ -8,7 +10,7 @@
 #include <process/gtest.hpp>
 #include <process/process.hpp>
 
-#include <stout/glog.hpp>
+#include <stout/os/signals.hpp>
 
 int main(int argc, char** argv)
 {
@@ -18,10 +20,13 @@ int main(int argc, char** argv)
   // Initialize libprocess.
   process::initialize();
 
-  // Install default signal handler.
-  // TODO(jieyu): We temporarily disable this since it causes some
-  // flaky tests. Re-enable it once we find the root cause.
-  installFailureSignalHandler();
+  // Install GLOG's signal handler.
+  google::InstallFailureSignalHandler();
+
+  // We reset the GLOG's signal handler for SIGTERM because
+  // 'SubprocessTest.Status' sends SIGTERM to a subprocess which
+  // results in a stack trace otherwise.
+  os::signals::reset(SIGTERM);
 
   // Add the libprocess test event listeners.
   ::testing::TestEventListeners& listeners =
