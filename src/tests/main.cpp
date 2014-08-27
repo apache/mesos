@@ -95,9 +95,12 @@ int main(int argc, char** argv)
   // Initialize logging.
   logging::initialize(argv[0], flags, true);
 
-  // We reset SIGPIPE default handler because some Mesos tests
-  // run an in-process ZooKeeper which results in SIGPIPE during
-  // ZooKeeeper server shutdown. See MESOS-1729 for details.
+  // We reset the signal handler setup by 'logging::initialize()'
+  // because some Mesos tests run an in-process ZooKeeper which
+  // results in SIGPIPE during ZooKeeeper server shutdown. See
+  // MESOS-1729 for details. This is ok because if a non-ZooKeeper
+  // test throws a SIGPIPE the default handler will still terminate
+  // the process, thus not masking SIGPIPE issues elsewhere.
   os::signals::reset(SIGPIPE);
 
   // Initialize gmock/gtest.
