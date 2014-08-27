@@ -405,9 +405,12 @@ if test "x$without_bundled_protobuf" = "xyes" || \
   fi
 
   # Check for protobuf.
-  PKG_CHECK_MODULES([PROTOBUFPREFIX],
-                    [protobuf],
-                    [found_protobuf=yes])
+  # TODO(jieyu): Symbol _init is not available for libs on OS X.
+  # Consider checking lib using AX_CXX_CHECK_LIB.
+  AC_CHECK_HEADERS([google/protobuf/message.h],
+                   [AC_CHECK_LIB([protobuf],
+                                 [_init],
+                                 [found_protobuf=yes])])
 
   if test "x$found_protobuf" = "xyes"; then
     with_bundled_protobuf=no
