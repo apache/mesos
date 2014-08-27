@@ -159,7 +159,15 @@ Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
     LOG(WARNING) << "The 'external' isolation flag is deprecated, "
                  << "please update your flags to"
                  << " '--containerizers=external'.";
-    return ExternalContainerizer::create(flags, local);
+
+    Try<ExternalContainerizer*> containerizer =
+        ExternalContainerizer::create(flags);
+    if (containerizer.isError()) {
+      return Error("Could not create ExternalContainerizer: " +
+                   containerizer.error());
+    }
+
+    return containerizer.get();
   }
 
   // TODO(benh): We need to store which containerizer or
@@ -188,8 +196,8 @@ Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
         containerizers.push_back(containerizer.get());
       }
     } else if (type == "external") {
-      Try<Containerizer*> containerizer =
-        ExternalContainerizer::create(flags, local);
+      Try<ExternalContainerizer*> containerizer =
+        ExternalContainerizer::create(flags);
       if (containerizer.isError()) {
         return Error("Could not create ExternalContainerizer: " +
                      containerizer.error());

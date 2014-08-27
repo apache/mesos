@@ -74,6 +74,8 @@ class ExternalContainerizerProcess;
 class ExternalContainerizer : public Containerizer
 {
 public:
+  static Try<ExternalContainerizer*> create(const Flags& flags);
+
   ExternalContainerizer(const Flags& flags);
 
   virtual ~ExternalContainerizer();
