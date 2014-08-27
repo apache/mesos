@@ -73,6 +73,12 @@ using state::RunState;
 using state::SlaveState;
 
 
+Try<ExternalContainerizer*> ExternalContainerizer::create(const Flags& flags)
+{
+  return new ExternalContainerizer(flags);
+}
+
+
 // Validate the invocation result.
 static Option<Error> validate(
     const Future<Option<int> >& future)
