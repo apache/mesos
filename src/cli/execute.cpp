@@ -102,6 +102,11 @@ public:
         "checkpoint",
         "Enable checkpointing for the framework (requires slave checkpointing)",
         false);
+
+    add(&docker_image,
+        "docker_image",
+        "Docker image that follows the Docker CLI naming <image>:<tag>."
+        "(ie: ubuntu, busybox:latest).");
   }
 
   Option<string> master;
@@ -113,6 +118,7 @@ public:
   Option<string> package;
   bool overwrite;
   bool checkpoint;
+  Option<string> docker_image;
 };
 
 
@@ -123,11 +129,13 @@ public:
       const string& _name,
       const string& _command,
       const string& _resources,
-      const Option<string>& _uri)
+      const Option<string>& _uri,
+      const Option<string>& _dockerImage)
     : name(_name),
       command(_command),
       resources(_resources),
       uri(_uri),
+      dockerImage(_dockerImage),
       launched(false) {}
 
   virtual ~CommandScheduler() {}
@@ -171,6 +179,17 @@ public:
         task.mutable_command()->set_value(command);
         if (uri.isSome()) {
           task.mutable_command()->add_uris()->set_value(uri.get());
+        }
+
+        if (dockerImage.isSome()) {
+          ContainerInfo containerInfo;
+          containerInfo.set_type(ContainerInfo::DOCKER);
+
+          ContainerInfo::DockerInfo dockerInfo;
+          dockerInfo.set_image(dockerImage.get());
+
+          containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+          task.mutable_container()->CopyFrom(containerInfo);
         }
 
         vector<TaskInfo> tasks;
@@ -228,7 +247,7 @@ private:
   const string command;
   const string resources;
   const Option<string> uri;
-
+  const Option<string> dockerImage;
   bool launched;
 };
 
@@ -336,11 +355,18 @@ int main(int argc, char** argv)
     uri = "hdfs://" + flags.hdfs + path;
   }
 
+  Option<string> dockerImage;
+
+  if (flags.docker_image.isSome()) {
+    dockerImage = flags.docker_image.get();
+  }
+
   CommandScheduler scheduler(
       flags.name.get(),
       flags.command.get(),
       flags.resources,
-      uri);
+      uri,
+      dockerImage);
 
   FrameworkInfo framework;
   framework.set_user(user.get());
