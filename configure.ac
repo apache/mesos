@@ -201,11 +201,6 @@ AC_ARG_ENABLE([bundled-distribute],
                               in PYTHONPATH]),
               [without_bundled_distribute=yes], [])
 
-AC_ARG_WITH([cxx11],
-            AS_HELP_STRING([--without-cxx11],
-                           [builds Mesos without C++11 support (deprecated)]),
-            [], [with_cxx11=yes])
-
 AC_ARG_WITH([network-isolator],
             AS_HELP_STRING([--with-network-isolator],
                            [builds the network isolator]),
@@ -489,14 +484,7 @@ AC_LANG_POP([C++])
 AC_MSG_RESULT([$CLANG])
 AC_SUBST([CLANG])
 
-# Force enable C++11 if compiling with clang.
-# Force disable C++11 if compiling with g++-4.7.
-if test "x$CLANG" = "xyes"; then
-  if test "x$with_cxx11" != "xyes"; then
-    AC_MSG_WARN([Force enabling C++11 for Clang build])
-  fi
-  with_cxx11=yes
-else
+if test "x$CLANG" = "xno"; then
   # Check the version of gcc and add any flags as appropriate. Note
   # that '-dumpversion' works for clang as well but as of clang 3.3 it
   # reports version 4.2.1 (for gcc backwards compatibility).
@@ -528,40 +516,38 @@ else
     CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedefs"
   fi
 
-  # Check for GCC version == 4.7 and disable C++11. The C++11 version
+  # Check for GCC version == 4.7 and fatal. The C++11 version
   # of libprocess' Future uses features that 4.7 doesn't support. The
   # non-C++11 version of libprocess' Future uses std::tr1 code that is
-  # only available without-cxx11.
+  # only available in non-C++11 builds.
   AX_COMPARE_VERSION([$GCC_VERSION], [eq2], [4.7],
                      [is_gxx47=yes], [is_gxx47=no])
   if test "x$is_gxx47" = "xyes"; then
-    AC_MSG_WARN([Force disabling C++11 for g++-4.7 build])
-    with_cxx11=no
+    AC_MSG_ERROR([Unable to build with g++-4.7 due to std::tr1 and C++11 mismatches])
   fi
 fi
 
 
-# Check if we should/can build with C++11.
-if test "x$with_cxx11" = "xyes"; then
-  AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+# Ensure we can build the C++11 features we expect, and set the std
+# CXXFLAG as appropriate.
+AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 
-  case "$host_os" in
-  darwin* )
-    # If we're using clang, we need to pass -stdlib=libc++ too.
-    if test "x$CLANG" = "xyes"; then
-      CXXFLAGS="$CXXFLAGS -stdlib=libc++"
-    fi
+case "$host_os" in
+darwin* )
+  # If we're using clang, we need to pass -stdlib=libc++ too.
+  if test "x$CLANG" = "xyes"; then
+    CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+  fi
 
-    # GTEST on OSX needs its own tr1 tuple.
-    # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when in
-    # c++11 mode.
-    CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1"
-    ;;
-  esac
+  # GTEST on OSX needs its own tr1 tuple.
+  # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when in
+  # c++11 mode.
+  CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1"
+  ;;
+esac
 
-  # Also pass the flags to 3rdparty libraries.
-  CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
-fi
+# Also pass the flags to 3rdparty libraries.
+CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
 
 
 # Check for pthreads (uses m4/acx_pthread.m4).
