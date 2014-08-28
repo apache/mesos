@@ -141,7 +141,7 @@ public:
   const T& get() const;
 
   // Returns the failure message associated with this future.
-  std::string failure() const;
+  const std::string& failure() const;
 
   // Type of the callback functions that can get invoked when the
   // future gets set, fails, or is discarded.
@@ -1170,7 +1170,7 @@ const T& Future<T>::get() const
 
 
 template <typename T>
-std::string Future<T>::failure() const
+const std::string& Future<T>::failure() const
 {
   if (data->state != FAILED) {
     ABORT("Future::failure() but state != FAILED");
