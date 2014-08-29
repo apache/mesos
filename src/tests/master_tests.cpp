@@ -1770,6 +1770,10 @@ class MasterZooKeeperTest : public MesosZooKeeperTest {};
 TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
 {
   ASSERT_SOME(StartMaster());
+
+  Future<process::Message> slaveRegisteredMessage =
+    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+
   ASSERT_SOME(StartSlave());
 
   MockScheduler sched;
@@ -1784,8 +1788,6 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
 
   Future<process::Message> frameworkRegisteredMessage =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
-  Future<process::Message> slaveRegisteredMessage =
-    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
 
   driver.start();
 
