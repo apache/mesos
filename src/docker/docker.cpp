@@ -325,6 +325,9 @@ Future<Nothing> Docker::run(
   argv.push_back(image);
 
   if (commandInfo.shell()) {
+    if (!commandInfo.has_value()) {
+      return Failure("Shell specified but no command value provided");
+    }
     argv.push_back("/bin/sh");
     argv.push_back("-c");
     argv.push_back(commandInfo.value());

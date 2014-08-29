@@ -41,7 +41,7 @@ using std::list;
 using std::string;
 
 
-// This test tests the functionality of the  docker's interfaces.
+// This test tests the functionality of the docker's interfaces.
 TEST(DockerTest, ROOT_DOCKER_interface)
 {
   string containerName = "mesos-docker-test";
@@ -192,4 +192,30 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   foreach (const Docker::Container& container, containers.get()) {
     EXPECT_NE("/" + containerName, container.name);
   }
+}
+
+
+TEST(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
+{
+  Docker docker = Docker::create(tests::flags.docker, false).get();
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_shell(true);
+
+  Future<Nothing> run = docker.run(
+      containerInfo,
+      commandInfo,
+      "testContainer",
+      "dir",
+      "/mnt/mesos/sandbox",
+      None());
+
+  ASSERT_TRUE(run.isFailed());
 }
