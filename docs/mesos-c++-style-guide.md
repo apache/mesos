@@ -82,3 +82,11 @@ Try&lt;Duration&gt; failoverTimeout =
 * 1 blank line at the end of the file.
 * Elements outside classes (classes, structs, global functions, etc.) should be spaced apart by 2 blank lines.
 * Elements inside classes (member variables and functions) should not be spaced apart by more than 1 blank line.
+
+## C++11
+We still support older compilers. The whitelist of supported C++11 features is:
+* Static assertions.
+* Multiple right angle brackets.
+* Type inference (`auto` and `decltype`).
+* Rvalue references.
+* Variadic templates.
