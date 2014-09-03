@@ -2491,7 +2491,9 @@ void Slave::executorLaunched(
     LOG(ERROR) << "Container '" << containerId
                << "' for executor '" << executorId
                << "' of framework '" << frameworkId
-               << "' failed to start: TaskInfo/ExecutorInfo not supported";
+               << "' failed to start: None of the enabled containerizers ("
+               << flags.containerizers << ") could create a container for the "
+               << "provided TaskInfo/ExecutorInfo message.";
     return;
   }
 
