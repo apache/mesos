@@ -562,6 +562,8 @@ libmesos_la_LIBTOOLFLAGS = --tag=CXX
 # Add the convenience library.
 libmesos_la_LIBADD = libmesos_no_3rdparty.la
 
+libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
+
 # For non-convenience libraries we need to link them in to make the shared
 # library each time. (Currently, we don't support platforms where this is not
 # possible.)
@@ -593,7 +595,6 @@ else
   libmesos_la_LIBADD += -lprotobuf
 endif
 
-libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
 
 # Binaries.
 sbin_PROGRAMS += mesos-master

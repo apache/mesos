@@ -159,6 +159,34 @@ TEST(ResourcesTest, Resources)
 }
 
 
+TEST(ResourcesTest, Ports)
+{
+  // Extract one Value::Range.
+  Resources r = Resources::parse("ports:[10000-20000, 30000-50000]").get();
+  Option<Value::Ranges> ports = r.ports(5);
+  EXPECT_SOME(ports);
+  EXPECT_EQ("[10000-10004]", stringify(ports.get()));
+
+  // Extract two Value::Ranges.
+  r = Resources::parse("ports:[10000-10000, 20000-50000]").get();
+  ports = r.ports(5);
+  EXPECT_SOME(ports);
+  EXPECT_EQ("[10000-10000, 20000-20003]", stringify(ports.get()));
+
+  // Extract mutiple Value::Ranges.
+  r = Resources::parse("ports:[10000-10001, 10003-10004, 10007-10009,"
+                       "10020-20000]").get();
+  ports = r.ports(10);
+  EXPECT_SOME(ports);
+  EXPECT_EQ("[10000-10001, 10003-10004, 10007-10009, 10020-10022]",
+            stringify(ports.get()));
+
+  // Not enough ports.
+  r = Resources::parse("ports:[10000-10004]").get();
+  EXPECT_TRUE(r.ports(10).isNone());
+}
+
+
 TEST(ResourcesTest, Printing)
 {
   Resources r = Resources::parse("cpus:45.55;"
