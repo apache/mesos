@@ -576,7 +576,7 @@ void CgroupsMemIsolatorProcess::oom(const ContainerID& containerId)
 
   Resource mem = Resources::parse(
       "mem",
-      stringify(usage.isSome() ? usage.get().bytes() : 0),
+      stringify(usage.isSome() ? usage.get().megabytes() : 0),
       "*").get();
 
   info->limitation.set(Limitation(mem, message.str()));
