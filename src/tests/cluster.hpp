@@ -62,6 +62,7 @@
 #include "master/repairer.hpp"
 
 #include "slave/flags.hpp"
+#include "slave/gc.hpp"
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/slave.hpp"
 
@@ -92,33 +93,11 @@ public:
 
     void shutdown();
 
-    // Start and manage a new master using the specified flags.
-    // This overload is shorthand to specify that you want default
-    // master objects and is equivalent to passing None to all of
-    // the required arguments of the other overload.
+    // Start a new master with the provided flags and injections.
     Try<process::PID<master::Master> > start(
-        const master::Flags& flags = master::Flags());
-
-    // Start and manage a new master using the specified allocator
-    // process.
-    Try<process::PID<master::Master> > start(
-        master::allocator::AllocatorProcess* allocatorProcess,
-        const master::Flags& flags = master::Flags());
-
-    // Start and manage a new master using the specified authorizer.
-    Try<process::PID<master::Master> > start(
-        Authorizer* authorizer,
-        const master::Flags& flags = master::Flags());
-
-    // Start and manage a new master using the specified flags.
-    // An allocator process or authorizer may be specified in which
-    // case it will outlive the launched master. If either allocator
-    // process or authorizer is not specified then the default
-    // allocator or authorizer will be used.
-    Try<process::PID<master::Master> > start(
-        const Option<master::allocator::AllocatorProcess*>& allocatorProcess,
-        const Option<Authorizer*>& authorizer,
-        const master::Flags& flags = master::Flags());
+        const master::Flags& flags = master::Flags(),
+        const Option<master::allocator::AllocatorProcess*>& allocator = None(),
+        const Option<Authorizer*>& authorizer = None());
 
     // Stops and cleans up a master at the specified PID.
     Try<Nothing> stop(const process::PID<master::Master>& pid);
@@ -137,30 +116,24 @@ public:
     // Encapsulates a single master's dependencies.
     struct Master
     {
-      Master()
-        : master(NULL),
-          allocator(NULL),
-          allocatorProcess(NULL),
-          log(NULL),
-          storage(NULL),
-          state(NULL),
-          registrar(NULL),
-          repairer(NULL),
-          contender(NULL),
-          detector(NULL),
-          authorizer(None()) {}
+      Master() : master(NULL) {}
+
+      process::Owned<master::allocator::AllocatorProcess> allocatorProcess;
+      process::Owned<master::allocator::Allocator> allocator;
+
+      process::Owned<log::Log> log;
+      process::Owned<state::Storage> storage;
+      process::Owned<state::protobuf::State> state;
+      process::Owned<master::Registrar> registrar;
+
+      process::Owned<master::Repairer> repairer;
+
+      process::Owned<MasterContender> contender;
+      process::Owned<MasterDetector> detector;
+
+      process::Owned<Authorizer> authorizer;
 
       master::Master* master;
-      master::allocator::Allocator* allocator;
-      master::allocator::AllocatorProcess* allocatorProcess;
-      log::Log* log;
-      state::Storage* storage;
-      state::protobuf::State* state;
-      master::Registrar* registrar;
-      master::Repairer* repairer;
-      MasterContender* contender;
-      MasterDetector* detector;
-      Option<Authorizer*> authorizer;
     };
 
     std::map<process::PID<master::Master>, Master> masters;
@@ -176,29 +149,12 @@ public:
     // Stop and clean up all slaves.
     void shutdown();
 
-    // Start and manage a new slave with a process isolator using the
-    // specified flags.
+    // Start a new slave with the provided flags and injections.
     Try<process::PID<slave::Slave> > start(
-        const slave::Flags& flags = slave::Flags());
-
-    // Start and manage a new slave injecting the specified isolator.
-    // The isolator is expected to outlive the launched slave (i.e.,
-    // until it is stopped via Slaves::stop).
-    Try<process::PID<slave::Slave> > start(
-        slave::Containerizer* containerizer,
-        const slave::Flags& flags = slave::Flags());
-
-    // Start and manage a new slave injecting the specified Master
-    // Detector. The detector is expected to outlive the launched
-    // slave (i.e., until it is stopped via Slaves::stop).
-    Try<process::PID<slave::Slave> > start(
-        const Option<MasterDetector*>& detector,
-        const slave::Flags& flags = slave::Flags());
-
-    Try<process::PID<slave::Slave> > start(
-        slave::Containerizer* containerizer,
-        const Option<MasterDetector*>& detector,
-        const slave::Flags& flags = slave::Flags());
+        const slave::Flags& flags = slave::Flags(),
+        const Option<slave::Containerizer*>& containerizer = None(),
+        const Option<MasterDetector*>& detector = None(),
+        const Option<slave::GarbageCollector*>& gc = None());
 
     // Stops and cleans up a slave at the specified PID. If 'shutdown'
     // is true than the slave is sent a shutdown message instead of
@@ -221,19 +177,15 @@ public:
       Slave()
         : containerizer(NULL),
           createdContainerizer(false),
-          slave(NULL),
-          detector(NULL) {}
+          slave(NULL) {}
 
-      // Register the slave's containerizer here.
       slave::Containerizer* containerizer;
-      // Record if we created the containerizer so we know to delete it when
-      // stopping the slave.
-      bool createdContainerizer;
-      slave::Slave* slave;
-      process::Owned<MasterDetector> detector;
+      bool createdContainerizer; // Whether we own the containerizer.
 
-      // Set to the slave::flags used for the slave.
+      process::Owned<slave::GarbageCollector> gc;
+      process::Owned<MasterDetector> detector;
       slave::Flags flags;
+      slave::Slave* slave;
     };
 
     std::map<process::PID<slave::Slave>, Slave> slaves;
@@ -284,32 +236,9 @@ inline void Cluster::Masters::shutdown()
 
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
-    const master::Flags& flags)
-{
-  return start(None(), None(), flags);
-}
-
-
-inline Try<process::PID<master::Master> > Cluster::Masters::start(
-    master::allocator::AllocatorProcess* allocator,
-    const master::Flags& flags)
-{
-  return start(allocator, None(), flags);
-}
-
-
-inline Try<process::PID<master::Master> > Cluster::Masters::start(
-    Authorizer* authorizer,
-    const master::Flags& flags)
-{
-  return start(None(), authorizer, flags);
-}
-
-
-inline Try<process::PID<master::Master> > Cluster::Masters::start(
+    const master::Flags& flags,
     const Option<master::allocator::AllocatorProcess*>& allocatorProcess,
-    const Option<Authorizer*>& authorizer,
-    const master::Flags& flags)
+    const Option<Authorizer*>& authorizer)
 {
   // Disallow multiple masters when not using ZooKeeper.
   if (!masters.empty() && url.isNone()) {
@@ -319,14 +248,13 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   Master master;
 
   if (allocatorProcess.isNone()) {
-    master.allocatorProcess =
-        new master::allocator::HierarchicalDRFAllocatorProcess();
-    master.allocator =
-        new master::allocator::Allocator(master.allocatorProcess);
+    master.allocatorProcess.reset(
+        new master::allocator::HierarchicalDRFAllocatorProcess());
+    master.allocator.reset(
+        new master::allocator::Allocator(master.allocatorProcess.get()));
   } else {
-    master.allocatorProcess = NULL;
-    master.allocator =
-        new master::allocator::Allocator(allocatorProcess.get());
+    master.allocator.reset(
+        new master::allocator::Allocator(allocatorProcess.get()));
   }
 
   if (flags.registry == "in_memory") {
@@ -335,7 +263,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
           "Cannot use '--registry_strict' when using in-memory storage based"
           " registry");
     }
-    master.storage = new state::InMemoryStorage();
+    master.storage.reset(new state::InMemoryStorage());
   } else if (flags.registry == "replicated_log") {
     if (flags.work_dir.isNone()) {
       return Error(
@@ -349,40 +277,40 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
             "Need to specify --quorum for replicated log based registry"
             " when using ZooKeeper");
       }
-      master.log = new log::Log(
+      master.log.reset(new log::Log(
           flags.quorum.get(),
           path::join(flags.work_dir.get(), "replicated_log"),
           url.get().servers,
           flags.zk_session_timeout,
           path::join(url.get().path, "log_replicas"),
           url.get().authentication,
-          flags.log_auto_initialize);
+          flags.log_auto_initialize));
     } else {
-      master.log = new log::Log(
+      master.log.reset(new log::Log(
           1,
           path::join(flags.work_dir.get(), "replicated_log"),
           std::set<process::UPID>(),
-          flags.log_auto_initialize);
+          flags.log_auto_initialize));
     }
 
-    master.storage = new state::LogStorage(master.log);
+    master.storage.reset(new state::LogStorage(master.log.get()));
   } else {
     return Error("'" + flags.registry + "' is not a supported option for"
                  " registry persistence");
   }
 
-  CHECK_NOTNULL(master.storage);
+  CHECK_NOTNULL(master.storage.get());
 
-  master.state = new state::protobuf::State(master.storage);
-  master.registrar = new master::Registrar(flags, master.state);
-  master.repairer = new master::Repairer();
+  master.state.reset(new state::protobuf::State(master.storage.get()));
+  master.registrar.reset(new master::Registrar(flags, master.state.get()));
+  master.repairer.reset(new master::Repairer());
 
   if (url.isSome()) {
-    master.contender = new ZooKeeperMasterContender(url.get());
-    master.detector = new ZooKeeperMasterDetector(url.get());
+    master.contender.reset(new ZooKeeperMasterContender(url.get()));
+    master.detector.reset(new ZooKeeperMasterDetector(url.get()));
   } else {
-    master.contender = new StandaloneMasterContender();
-    master.detector = new StandaloneMasterDetector();
+    master.contender.reset(new StandaloneMasterContender());
+    master.detector.reset(new StandaloneMasterDetector());
   }
 
   if (authorizer.isSome()) {
@@ -395,23 +323,25 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
                    authorizer_.error() + " (see --acls flag)");
     }
     process::Owned<Authorizer> authorizer__ = authorizer_.get();
-    master.authorizer = authorizer__.release();
+    master.authorizer = authorizer__;
   }
 
   master.master = new master::Master(
-      master.allocator,
-      master.registrar,
-      master.repairer,
+      master.allocator.get(),
+      master.registrar.get(),
+      master.repairer.get(),
       &cluster->files,
-      master.contender,
-      master.detector,
-      authorizer.isSome() ? authorizer : master.authorizer,
+      master.contender.get(),
+      master.detector.get(),
+      authorizer.isSome() ? authorizer : master.authorizer.get(),
       flags);
 
   if (url.isNone()) {
     // This means we are using the StandaloneMasterDetector.
-    CHECK_NOTNULL(dynamic_cast<StandaloneMasterDetector*>(master.detector))
-        ->appoint(master.master->info());
+    StandaloneMasterDetector* detector_ = CHECK_NOTNULL(
+        dynamic_cast<StandaloneMasterDetector*>(master.detector.get()));
+
+    detector_->appoint(master.master->info());
   }
 
   process::Future<Nothing> _recover =
@@ -460,22 +390,6 @@ inline Try<Nothing> Cluster::Masters::stop(
   process::terminate(master.master);
   process::wait(master.master);
   delete master.master;
-
-  delete master.allocator; // Terminates and waits for allocator process.
-  delete master.allocatorProcess; // May be NULL.
-
-  delete master.repairer;
-  delete master.registrar;
-  delete master.state;
-  delete master.storage;
-  delete master.log;
-
-  delete master.contender;
-  delete master.detector;
-
-  if (master.authorizer.isSome()) {
-    delete master.authorizer.get();
-  }
 
   masters.erase(pid);
 
@@ -537,103 +451,44 @@ inline void Cluster::Slaves::shutdown()
 
 
 inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    const slave::Flags& flags)
-{
-  // TODO(benh): Create a work directory if using the default.
-
-  Slave slave;
-
-  slave.flags = flags;
-
-  // Create a new containerizer for this slave.
-  Try<slave::Containerizer*> containerizer =
-    slave::Containerizer::create(flags, true);
-  CHECK_SOME(containerizer);
-
-  slave.containerizer = containerizer.get();
-  slave.createdContainerizer = true;
-
-  // Get a detector for the master(s).
-  slave.detector = masters->detector();
-
-  slave.slave = new slave::Slave(
-      flags, slave.detector.get(), slave.containerizer, &cluster->files);
-  process::PID<slave::Slave> pid = process::spawn(slave.slave);
-
-  slaves[pid] = slave;
-
-  return pid;
-}
-
-
-inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    slave::Containerizer* containerizer,
-    const slave::Flags& flags)
-{
-  return start(containerizer, None(), flags);
-}
-
-
-inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
+    const slave::Flags& flags,
+    const Option<slave::Containerizer*>& containerizer,
     const Option<MasterDetector*>& detector,
-    const slave::Flags& flags)
+    const Option<slave::GarbageCollector*>& gc)
 {
   // TODO(benh): Create a work directory if using the default.
 
   Slave slave;
 
-  slave.flags = flags;
+  if (containerizer.isSome()) {
+    slave.containerizer = containerizer.get();
+  } else {
+    Try<slave::Containerizer*> containerizer =
+      slave::Containerizer::create(flags, true);
+    CHECK_SOME(containerizer);
 
-  // Create a new containerizer for this slave.
-  Try<slave::Containerizer*> containerizer =
-    slave::Containerizer::create(flags, true);
-  CHECK_SOME(containerizer);
-
-  slave.containerizer = containerizer.get();
-  slave.createdContainerizer = true;
+    slave.containerizer = containerizer.get();
+    slave.createdContainerizer = true;
+  }
 
   // Get a detector for the master(s) if one wasn't provided.
   if (detector.isNone()) {
     slave.detector = masters->detector();
   }
+
+  // Create a garbage collector if one wasn't provided.
+  if (gc.isNone()) {
+    slave.gc.reset(new slave::GarbageCollector());
+  }
+
+  slave.flags = flags;
 
   slave.slave = new slave::Slave(
       flags,
       detector.get(slave.detector.get()),
       slave.containerizer,
-      &cluster->files);
-
-  process::PID<slave::Slave> pid = process::spawn(slave.slave);
-
-  slaves[pid] = slave;
-
-  return pid;
-}
-
-
-inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
-    slave::Containerizer* containerizer,
-    const Option<MasterDetector*>& detector,
-    const slave::Flags& flags)
-{
-  // TODO(benh): Create a work directory if using the default.
-
-  Slave slave;
-
-  slave.containerizer = containerizer;
-
-  slave.flags = flags;
-
-  // Get a detector for the master(s) if one wasn't provided.
-  if (detector.isNone()) {
-    slave.detector = masters->detector();
-  }
-
-  slave.slave = new slave::Slave(
-      flags,
-      detector.get(slave.detector.get()),
-      containerizer,
-      &cluster->files);
+      &cluster->files,
+      gc.get(slave.gc.get()));
 
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 

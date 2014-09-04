@@ -89,7 +89,8 @@ public:
   Slave(const Flags& flags,
         MasterDetector* detector,
         Containerizer* containerizer,
-        Files* files);
+        Files* files,
+        GarbageCollector* gc);
 
   virtual ~Slave();
 
@@ -438,7 +439,7 @@ private:
 
   process::Time startTime;
 
-  GarbageCollector gc;
+  GarbageCollector* gc;
   ResourceMonitor monitor;
 
   StatusUpdateManager* statusUpdateManager;

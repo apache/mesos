@@ -52,7 +52,7 @@ class GarbageCollector
 {
 public:
   GarbageCollector();
-  ~GarbageCollector();
+  virtual ~GarbageCollector();
 
   // Schedules the specified path for removal after the specified
   // duration of time has elapsed. If the path is already scheduled,
@@ -64,18 +64,20 @@ public:
   // was rescheduled.
   // Note that you currently cannot discard a returned future, instead
   // you must call unschedule.
-  process::Future<Nothing> schedule(const Duration& d, const std::string& path);
+  virtual process::Future<Nothing> schedule(
+      const Duration& d,
+      const std::string& path);
 
   // Unschedules the specified path for removal.
   // The future will be true if the path has been unscheduled.
   // The future will be false if the path is not scheduled for
   // removal, or the path has already being removed.
   // Note that you currently cannot discard a returned future.
-  process::Future<bool> unschedule(const std::string& path);
+  virtual process::Future<bool> unschedule(const std::string& path);
 
   // Deletes all the directories, whose scheduled garbage collection time
   // is within the next 'd' duration of time.
-  void prune(const Duration& d);
+  virtual void prune(const Duration& d);
 
 private:
   GarbageCollectorProcess* process;

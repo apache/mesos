@@ -50,6 +50,7 @@
 #include "master/repairer.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
+#include "slave/gc.hpp"
 #include "slave/slave.hpp"
 
 #include "state/in_memory.hpp"
@@ -70,6 +71,7 @@ using mesos::internal::master::Registrar;
 using mesos::internal::master::Repairer;
 
 using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::GarbageCollector;
 using mesos::internal::slave::Slave;
 
 using process::Owned;
@@ -100,6 +102,7 @@ static StandaloneMasterDetector* detector = NULL;
 static MasterContender* contender = NULL;
 static Option<Authorizer*> authorizer = None();
 static Files* files = NULL;
+static vector<GarbageCollector*>* garbageCollectors = NULL;
 
 
 PID<Master> launch(const Flags& flags, Allocator* _allocator)
@@ -193,6 +196,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
   PID<Master> pid = process::spawn(master);
 
+  garbageCollectors = new vector<GarbageCollector*>();
+
   vector<UPID> pids;
 
   for (int i = 0; i < flags.num_slaves; i++) {
@@ -204,6 +209,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
               << "slave flags from the environment: " << load.error();
     }
 
+    garbageCollectors->push_back(new GarbageCollector());
+
     Try<Containerizer*> containerizer = Containerizer::create(flags, true);
     if (containerizer.isError()) {
       EXIT(1) << "Failed to create a containerizer: " << containerizer.error();
@@ -214,7 +221,12 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     // NOTE: At this point detector is already initialized by the
     // Master.
-    Slave* slave = new Slave(flags, detector, containerizer.get(), files);
+    Slave* slave = new Slave(
+        flags,
+        detector,
+        containerizer.get(),
+        files,
+        garbageCollectors->back());
     slaves[containerizer.get()] = slave;
     pids.push_back(process::spawn(slave));
   }
@@ -261,6 +273,13 @@ void shutdown()
 
     delete files;
     files = NULL;
+
+    foreach (GarbageCollector* gc, *garbageCollectors) {
+      delete gc;
+    }
+
+    delete garbageCollectors;
+    garbageCollectors = NULL;
 
     delete registrar;
     registrar = NULL;

@@ -185,7 +185,8 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
     const Option<master::Flags>& flags)
 {
   return cluster.masters.start(
-      allocator, flags.isNone() ? CreateMasterFlags() : flags.get());
+      flags.isNone() ? CreateMasterFlags() : flags.get(),
+      allocator);
 }
 
 
@@ -194,7 +195,9 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
     const Option<master::Flags>& flags)
 {
   return cluster.masters.start(
-      authorizer, flags.isNone() ? CreateMasterFlags() : flags.get());
+      flags.isNone() ? CreateMasterFlags() : flags.get(),
+      None(),
+      authorizer);
 }
 
 
@@ -230,7 +233,8 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
     const Option<slave::Flags>& flags)
 {
   return cluster.slaves.start(
-      containerizer, flags.isNone() ? CreateSlaveFlags() : flags.get());
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      containerizer);
 }
 
 
@@ -240,9 +244,9 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
     const Option<slave::Flags>& flags)
 {
   return cluster.slaves.start(
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
       containerizer,
-      detector,
-      flags.isNone() ? CreateSlaveFlags() : flags.get());
+      detector);
 }
 
 
@@ -251,7 +255,22 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
     const Option<slave::Flags>& flags)
 {
   return cluster.slaves.start(
-      detector, flags.isNone() ? CreateSlaveFlags() : flags.get());
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      None(),
+      detector);
+}
+
+
+Try<PID<slave::Slave> > MesosTest::StartSlave(
+    MasterDetector* detector,
+    slave::GarbageCollector* gc,
+    const Option<slave::Flags>& flags)
+{
+  return cluster.slaves.start(
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      None(),
+      detector,
+      gc);
 }
 
 
@@ -263,9 +282,9 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
   slave::Containerizer* containerizer = new TestContainerizer(executor);
 
   Try<process::PID<slave::Slave> > pid = cluster.slaves.start(
-      containerizer,
-      detector,
-      flags.isNone() ? CreateSlaveFlags() : flags.get());
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+          containerizer,
+      detector);
 
   if (pid.isError()) {
     delete containerizer;

@@ -100,6 +100,25 @@ protected:
       Authorizer* authorizer,
       const Option<master::Flags>& flags = None());
 
+  // TODO(bmahler): Consider adding a builder style interface, e.g.
+  //
+  // Try<PID<Slave> > slave =
+  //   Slave().With(flags)
+  //          .With(executor)
+  //          .With(containerizer)
+  //          .With(detector)
+  //          .With(gc)
+  //          .Start();
+  //
+  // Or options:
+  //
+  // Injections injections;
+  // injections.executor = executor;
+  // injections.containerizer = containerizer;
+  // injections.detector = detector;
+  // injections.gc = gc;
+  // Try<PID<Slave> > slave = StartSlave(injections);
+
   // Starts a slave with the specified flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
       const Option<slave::Flags>& flags = None());
@@ -123,6 +142,12 @@ protected:
   // Starts a slave with the specified MasterDetector and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
       MasterDetector* detector,
+      const Option<slave::Flags>& flags = None());
+
+  // Starts a slave with the specified MasterDetector, GC, and flags.
+  virtual Try<process::PID<slave::Slave> > StartSlave(
+      MasterDetector* detector,
+      slave::GarbageCollector* gc,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified mock executor, MasterDetector
@@ -477,6 +502,39 @@ public:
     // MesosSchedulerDriver::~MesosSchedulerDriver().
     detector = NULL;
   }
+};
+
+
+class MockGarbageCollector : public slave::GarbageCollector
+{
+public:
+  MockGarbageCollector()
+  {
+    using ::testing::_;
+    using ::testing::Return;
+
+    // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
+    // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
+    // for more details.
+    EXPECT_CALL(*this, schedule(_, _))
+      .WillRepeatedly(Return(Nothing()));
+
+    EXPECT_CALL(*this, unschedule(_))
+      .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*this, prune(_))
+      .WillRepeatedly(Return());
+  }
+
+  MOCK_METHOD2(
+      schedule,
+      process::Future<Nothing>(const Duration& d, const std::string& path));
+  MOCK_METHOD1(
+      unschedule,
+      process::Future<bool>(const std::string& path));
+  MOCK_METHOD1(
+      prune,
+      void(const Duration& d));
 };
 
 

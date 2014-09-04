@@ -615,10 +615,10 @@ TEST_F(ReconciliationTest, PendingTask)
   EXPECT_NE(0u, offers.get().size());
 
   // Return a pending future from authorizer.
-  Future<Nothing> future;
+  Future<Nothing> authorize;
   Promise<bool> promise;
   EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
-    .WillOnce(DoAll(FutureSatisfy(&future),
+    .WillOnce(DoAll(FutureSatisfy(&authorize),
                     Return(promise.future())));
 
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
@@ -628,7 +628,7 @@ TEST_F(ReconciliationTest, PendingTask)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   // Wait until authorization is in progress.
-  AWAIT_READY(future);
+  AWAIT_READY(authorize);
 
   // First send an implicit reconciliation request for this task.
   Future<TaskStatus> update;

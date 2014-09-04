@@ -103,7 +103,8 @@ using namespace state;
 Slave::Slave(const slave::Flags& _flags,
              MasterDetector* _detector,
              Containerizer* _containerizer,
-             Files* _files)
+             Files* _files,
+             GarbageCollector* _gc)
   : ProcessBase(process::ID::generate("slave")),
     state(RECOVERING),
     http(this),
@@ -113,6 +114,7 @@ Slave::Slave(const slave::Flags& _flags,
     containerizer(_containerizer),
     files(_files),
     metrics(*this),
+    gc(_gc),
     monitor(containerizer),
     statusUpdateManager(new StatusUpdateManager()),
     metaDir(paths::getMetaRootDir(flags.work_dir)),
@@ -1000,7 +1002,7 @@ void Slave::doReliableRegistration(const Duration& duration)
 // TODO(vinod): Can we avoid this helper?
 Future<bool> Slave::unschedule(const string& path)
 {
-  return gc.unschedule(path);
+  return gc->unschedule(path);
 }
 
 
@@ -3077,7 +3079,7 @@ void Slave::_checkDiskUsage(const Future<double>& usage)
     // the next 'gc_delay - age'. Since a directory is always
     // scheduled for deletion 'gc_delay' into the future, only directories
     // that are at least 'age' old are deleted.
-    gc.prune(flags.gc_delay - age(usage.get()));
+    gc->prune(flags.gc_delay - age(usage.get()));
   }
   delay(flags.disk_watch_interval, self(), &Slave::checkDiskUsage);
 }
@@ -3335,7 +3337,7 @@ Future<Nothing> Slave::garbageCollect(const string& path)
   // GC based on the modification time.
   Duration delay = flags.gc_delay - (Clock::now() - time.get());
 
-  return gc.schedule(delay, path);
+  return gc->schedule(delay, path);
 }
 
 

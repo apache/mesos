@@ -33,6 +33,7 @@
 
 #include "logging/logging.hpp"
 
+#include "slave/gc.hpp"
 #include "slave/slave.hpp"
 
 using namespace mesos::internal;
@@ -149,7 +150,10 @@ int main(int argc, char** argv)
   LOG(INFO) << "Starting Mesos slave";
 
   Files files;
-  Slave* slave = new Slave(flags, detector.get(), containerizer.get(), &files);
+  GarbageCollector gc;
+
+  Slave* slave =
+    new Slave(flags, detector.get(), containerizer.get(), &files, &gc);
   process::spawn(slave);
 
   process::wait(slave->self());

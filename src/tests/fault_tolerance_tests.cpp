@@ -65,6 +65,7 @@ using process::Future;
 using process::Message;
 using process::Owned;
 using process::PID;
+using process::Promise;
 using process::UPID;
 using process::http::OK;
 using process::http::Response;
