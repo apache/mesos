@@ -2219,6 +2219,75 @@ TEST_F(FaultToleranceTest, ReconcileLostTasks)
 }
 
 
+// This test verifies that the slave reports pending tasks when
+// re-registering, otherwise the master will report them as being
+// lost.
+TEST_F(FaultToleranceTest, ReconcilePendingTasks)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get());
+
+  Try<PID<Slave> > slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // No TASK_LOST updates should occur!
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  // We drop the _runTask dispatch to ensure the task remains
+  // pending in the slave.
+  DROP_DISPATCH(slave.get(), &Slave::_runTask);
+
+  TaskInfo task1;
+  task1.set_name("test task");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task1.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks1;
+  tasks1.push_back(task1);
+
+  driver.launchTasks(offers.get()[0].id(), tasks1);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Simulate a spurious master change event (e.g., due to ZooKeeper
+  // expiration) at the slave to force re-registration.
+  detector.appoint(master.get());
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 // This test verifies that when the slave re-registers, the master
 // does not send TASK_LOST update for a task that has reached terminal
 // state but is waiting for an acknowledgement.
