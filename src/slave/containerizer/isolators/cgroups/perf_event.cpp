@@ -329,8 +329,7 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::cleanup(
 Future<Nothing> CgroupsPerfEventIsolatorProcess::_cleanup(
     const ContainerID& containerId)
 {
-  if (!infos.contains(containerId))
-  {
+  if (!infos.contains(containerId)) {
     return Nothing();
   }
 

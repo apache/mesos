@@ -1705,16 +1705,34 @@ Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
 }
 
 
-namespace {
-
-Future<Nothing> discard(Future<Nothing> future)
+static void __destroy(
+    const Future<Nothing>& future,
+    const Owned<Promise<Nothing> >& promise,
+    const Duration& timeout)
 {
-  future.discard();
-
-  return future;
+  if (future.isReady()) {
+    promise->set(future.get());
+  } else if (future.isFailed()) {
+    promise->fail(future.failure());
+  } else {
+    promise->fail("Timed out after " + stringify(timeout));
+  }
 }
 
-} // namespace {
+
+static Future<Nothing> _destroy(
+    Future<Nothing> future,
+    const Duration& timeout)
+{
+  Owned<Promise<Nothing> > promise(new Promise<Nothing>());
+  Future<Nothing> _future = promise->future();
+
+  future.discard();
+  future.onAny(lambda::bind(&__destroy, lambda::_1, promise, timeout));
+
+  return _future;
+}
+
 
 Future<Nothing> destroy(
     const string& hierarchy,
@@ -1722,7 +1740,7 @@ Future<Nothing> destroy(
     const Duration& timeout)
 {
   return destroy(hierarchy, cgroup)
-    .after(timeout, lambda::bind(&discard, lambda::_1));
+    .after(timeout, lambda::bind(&_destroy, lambda::_1, timeout));
 }
 
 
