@@ -333,26 +333,14 @@ Try<pid_t> LinuxLauncher::fork(
 }
 
 
-Future<Nothing> _destroy(
-    const ContainerID& containerId,
-    const process::Future<Nothing>& destroyed)
-{
-  if (!destroyed.isReady()) {
-    return Failure("Failed to destroy launcher: " +
-                   (destroyed.isFailed() ? destroyed.failure() : "discarded"));
-  }
-
-  return Nothing();
-}
-
-
 Future<Nothing> LinuxLauncher::destroy(const ContainerID& containerId)
 {
   pids.erase(containerId);
 
   return cgroups::destroy(
-      hierarchy, cgroup(containerId), cgroups::DESTROY_TIMEOUT)
-    .onAny(lambda::bind(&_destroy, containerId, lambda::_1));
+      hierarchy,
+      cgroup(containerId),
+      cgroups::DESTROY_TIMEOUT);
 }
 
 

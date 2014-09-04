@@ -909,7 +909,6 @@ void MesosContainerizerProcess::_destroy(
         (future.isFailed() ? future.failure() : "discarded future"));
 
     destroying.erase(containerId);
-
     return;
   }
 
