@@ -377,6 +377,9 @@ protected:
       const process::UPID& acknowledgee,
       Framework* framework);
 
+  // Remove an offer after specified timeout
+  void offerTimeout(const OfferID& offerId);
+
   // Remove an offer and optionally rescind the offer as well.
   void removeOffer(Offer* offer, bool rescind = false);
 
@@ -554,6 +557,7 @@ private:
   } frameworks;
 
   hashmap<OfferID, Offer*> offers;
+  hashmap<OfferID, process::Timer> offerTimers;
 
   hashmap<std::string, Role*> roles;
 

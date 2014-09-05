@@ -2093,3 +2093,180 @@ TEST_F(MasterTest, MaxExecutorsPerSlave)
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 #endif  // WITH_NETWORK_ISOLATOR
+
+
+// This test verifies that when the Framework has not responded to
+// an offer within the default timeout, the offer is rescinded.
+TEST_F(MasterTest, OfferTimeout)
+{
+  master::Flags masterFlags = MesosTest::CreateMasterFlags();
+  masterFlags.offer_timeout = Seconds(30);
+  Try<PID<Master> > master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  Future<vector<Offer> > offers1;
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(FutureArg<1>(&offers2));
+
+  // Expect offer rescinded.
+  Future<Nothing> offerRescinded;
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillOnce(FutureSatisfy(&offerRescinded));
+
+  Future<Nothing> resourcesRecovered =
+    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+
+  driver.start();
+
+  AWAIT_READY(registered);
+  AWAIT_READY(offers1);
+  ASSERT_EQ(1u, offers1.get().size());
+
+  // Now advance the clock, we need to resume it afterwards to
+  // allow the allocator to make a new allocation decision.
+  Clock::pause();
+  Clock::advance(masterFlags.offer_timeout.get());
+  Clock::resume();
+
+  AWAIT_READY(offerRescinded);
+
+  AWAIT_READY(resourcesRecovered);
+
+  // Expect that the resources are re-offered to the framework after
+  // the rescind.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(1u, offers2.get().size());
+
+  EXPECT_EQ(offers1.get()[0].resources(), offers2.get()[0].resources());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// Offer should not be rescinded if it's accepted.
+TEST_F(MasterTest, OfferNotRescindedOnceUsed)
+{
+  master::Flags masterFlags = MesosTest::CreateMasterFlags();
+  masterFlags.offer_timeout = Seconds(30);
+  Try<PID<Master> > master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  // We don't expect any rescinds if the offer has been accepted.
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(0);
+
+  driver.start();
+  AWAIT_READY(registered);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Now advance to the offer timeout, we need to settle the clock to
+  // ensure that the offer rescind timeout would be processed
+  // if triggered.
+  Clock::pause();
+  Clock::advance(masterFlags.offer_timeout.get());
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// Offer should not be rescinded if it has been declined.
+TEST_F(MasterTest, OfferNotRescindedOnceDeclined)
+{
+  master::Flags masterFlags = MesosTest::CreateMasterFlags();
+  masterFlags.offer_timeout = Seconds(30);
+  Try<PID<Master> > master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillRepeatedly(DeclineOffers()); // Decline all offers.
+
+  Future<LaunchTasksMessage> launchTasksMessage =
+    FUTURE_PROTOBUF(LaunchTasksMessage(), _, _);
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(0);
+
+  driver.start();
+  AWAIT_READY(registered);
+
+  // Wait for the framework to decline the offers.
+  AWAIT_READY(launchTasksMessage);
+
+  // Now advance to the offer timeout, we need to settle the clock to
+  // ensure that the offer rescind timeout would be processed
+  // if triggered.
+  Clock::pause();
+  Clock::advance(masterFlags.offer_timeout.get());
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
