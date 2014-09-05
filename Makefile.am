@@ -24,6 +24,8 @@ EXTRA_DIST =
 
 PHONY_TARGETS =
 
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = mesos.pc
 
 # Since we generate several files in src/ with config.status, make
 # sure they're regenerated before we recurse into the src directory.
