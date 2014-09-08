@@ -1372,7 +1372,7 @@ public:
     }
 
     if (state.get() == "FROZEN") {
-      LOG(INFO) << "Successfullly froze cgroup "
+      LOG(INFO) << "Successfully froze cgroup "
                 << path::join(hierarchy, cgroup)
                 << " after " << (Clock::now() - start);
       promise.set(Nothing());
@@ -1479,18 +1479,21 @@ protected:
 private:
   static Future<Nothing> freezeTimedout(
       Future<Nothing> future,
-      const PID<TasksKiller>& pid,
-      const string& hierarchy,
-      const string& cgroup)
+      const PID<TasksKiller>& pid)
   {
     // Cancel the freeze operation.
     // TODO(jieyu): Wait until 'future' is in DISCARDED state before
     // starting retry.
     future.discard();
 
-    // Thaw the cgroup before trying to freeze again to allow any
+    // We attempt to kill the processes before we thaw again,
+    // due to a bug in the kernel. See MESOS-1758 for more details.
+    // We thaw the cgroup before trying to freeze again to allow any
     // pending signals to be delivered. See MESOS-1689 for details.
-    return cgroups::freezer::thaw(hierarchy, cgroup)
+    // This is a short term hack until we have PID namespace support.
+    return Future<bool>(true)
+      .then(defer(pid, &Self::kill))
+      .then(defer(pid, &Self::thaw))
       .then(defer(pid, &Self::freeze));
   }
 
@@ -1510,12 +1513,7 @@ private:
     // away from freezer once we have pid namespace support.
     return cgroups::freezer::freeze(hierarchy, cgroup).after(
         FREEZE_RETRY_INTERVAL,
-        lambda::bind(
-            &freezeTimedout,
-            lambda::_1,
-            self(),
-            hierarchy,
-            cgroup));
+        lambda::bind(&freezeTimedout, lambda::_1, self()));
   }
 
   Future<Nothing> kill()
