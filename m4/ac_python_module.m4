@@ -1,17 +1,17 @@
 dnl @synopsis AC_PYTHON_MODULE(modname[, fatal])
 dnl
-dnl Checks for Python module.
+dnl Checks for Python 2 module.
 dnl
 dnl If fatal is non-empty then absence of a module will trigger an
 dnl error.
 dnl
 dnl @category InstalledPackages
 dnl @author Andrew Collier <colliera@nu.ac.za>.
-dnl @version 2004-07-14
+dnl @version 2014-09-08
 dnl @license AllPermissive
 
 AC_DEFUN([AC_PYTHON_MODULE],[
-	AC_MSG_CHECKING(python module: $1)
+	AC_MSG_CHECKING(python2 module: $1)
 	python -c "import $1" 2>/dev/null
 	if test $? -eq 0;
 	then
