@@ -216,15 +216,24 @@ python/interface/src/mesos/interface/mesos_pb2.py: $(MESOS_PROTO)
 	$(PROTOC) -I$(top_srcdir)/include/mesos				\
 		$(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
 
-python/interface/src/mesos/interface/containerizer_pb2.py: $(CONTAINERIZER_PROTO)
+# All python protocol buffer code that imports from mesos.proto has
+# to get patched using sed, removing the leading 'mesos.' namespace
+# qualifier due to the flat hierachy in the resulting mesos.interface
+# egg. See MESOS-1750 for more.
+python/interface/src/mesos/interface/containerizer_pb2.py:		\
+		$(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/containerizer		\
-		$(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
+		$(PROTOCFLAGS)						\
+		--python_out=python/interface/src/mesos/interface $^
+	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
 
 python/interface/src/mesos/interface/scheduler_pb2.py: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/scheduler		\
-		$(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
+		$(PROTOCFLAGS)						\
+		--python_out=python/interface/src/mesos/interface $^
+	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
 
 # We even use a convenience library for most of Mesos so that we can
 # exclude third party libraries so setuptools/distribute can build a
