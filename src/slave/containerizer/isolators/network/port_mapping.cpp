@@ -890,6 +890,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   // feature only exists on kernel 3.6 or newer.
   const string loRouteLocalnet =
     path::join("/proc/sys/net/ipv4/conf", lo.get(), "route_localnet");
+
   if (!os::exists(loRouteLocalnet)) {
     // TODO(jieyu): Consider supporting running the isolator if this
     // feature is not available. We need to conditionally disable
@@ -1361,6 +1362,19 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     return Failure(
         "Failed to create virtual ethernet pair: " +
         createVethPair.error());
+  }
+
+  // Disable IPv6 for veth as IPv6 packets won't be forwarded anyway.
+  const string disableIPv6 =
+    path::join("/proc/sys/net/ipv6/conf", veth(pid), "disable_ipv6");
+
+  if (os::exists(disableIPv6)) {
+    Try<Nothing> write = os::write(disableIPv6, "1");
+    if (write.isError()) {
+      return Failure(
+          "Failed to disable IPv6 for " + veth(pid) +
+          ": " + write.error());
+    }
   }
 
   // Sets the MAC address of veth to match the MAC address of the host
@@ -2322,6 +2336,9 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   // Mark the mount point BIND_MOUNT_ROOT as slave mount so that
   // changes in the container will not be propagated to the host.
   script << "mount --make-rslave " << BIND_MOUNT_ROOT << "\n";
+
+  // Disable IPv6 as IPv6 packets won't be forwarded anyway.
+  script << "echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6\n";
 
   // Configure lo and eth0.
   script << "ip link set " << lo << " address " << hostMAC
