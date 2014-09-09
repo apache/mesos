@@ -3,7 +3,7 @@
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 
-deploy_dir=@localstatedir@/@PACKAGE@/deploy
+deploy_dir=@sysconfdir@/@PACKAGE@
 
 # Increase the default number of open file descriptors.
 ulimit -n 8192

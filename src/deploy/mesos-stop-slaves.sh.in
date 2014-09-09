@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 prefix=@prefix@
-DEPLOY_DIR=@localstatedir@/@PACKAGE@/deploy
+DEPLOY_DIR=@sysconfdir@/@PACKAGE@
 
 # Pull in deploy specific options.
 test -e ${DEPLOY_DIR}/mesos-deploy-env.sh && \

@@ -39,11 +39,11 @@ PROTOBUF = $(LIBPROCESS)/3rdparty/protobuf-$(PROTOBUF_VERSION)
 PICOJSON = $(LIBPROCESS)/3rdparty/picojson-$(PICOJSON_VERSION)
 
 
-# Unfortunatley, 'pkglibexecdir' and 'pkglocalstatedir' are not set
+# Unfortunatley, 'pkglibexecdir' and 'pkgsysconfdir' are not set
 # before automake 1.11, so we need to set them manually (until we in
 # the future assume an automake version).
 pkglibexecdir = $(libexecdir)/$(PACKAGE)
-pkglocalstatedir = $(localstatedir)/$(PACKAGE)
+pkgsysconfdir = $(sysconfdir)/$(PACKAGE)
 
 if WITH_BUNDLED_PROTOBUF
   # Protocol buffer compiler.
@@ -64,7 +64,7 @@ dist_bin_SCRIPTS =
 dist_pkglibexec_SCRIPTS =
 nobase_dist_pkgdata_DATA =
 nodist_sbin_SCRIPTS =
-nobase_pkglocalstate_DATA =
+pkgsysconf_DATA =
 check_PROGRAMS =
 dist_check_SCRIPTS =
 check_SCRIPTS =
@@ -695,7 +695,7 @@ dist_mesospythonpkglibexec_SCRIPTS =					\
 # package name (i.e., 'mesos') as part of the path (i.e.,
 # /path/to/mesos/webui versus something like /path/to/webui). Note
 # that 'datadir' (e.g., /usr/local/share) is for read-only "data" and
-# 'localstatedir' (e.g., /usr/local/var) is for modifiable "data".
+# 'sysconfdir' (e.g., /usr/local/var) is for modifiable "data".
 nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/controllers.js					\
   webui/master/static/js/app.js						\
@@ -760,9 +760,9 @@ nodist_sbin_SCRIPTS += deploy/mesos-daemon.sh				\
   deploy/mesos-start-slaves.sh deploy/mesos-stop-cluster.sh		\
   deploy/mesos-stop-masters.sh deploy/mesos-stop-slaves.sh
 
-nobase_pkglocalstate_DATA += deploy/mesos-deploy-env.sh.template	\
-                             deploy/mesos-master-env.sh.template	\
-                             deploy/mesos-slave-env.sh.template
+pkgsysconf_DATA += deploy/mesos-deploy-env.sh.template	\
+                   deploy/mesos-master-env.sh.template	\
+                   deploy/mesos-slave-env.sh.template
 
 # Need to explicitly add this because by default DATA files are not
 # included in distributions.
