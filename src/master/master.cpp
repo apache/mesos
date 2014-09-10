@@ -649,6 +649,37 @@ void Master::finalize()
 {
   LOG(INFO) << "Master terminating";
 
+  // Remove the slaves.
+  foreachvalue (Slave* slave, slaves.registered) {
+    // Remove tasks.
+    foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
+      foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
+        removeTask(task);
+      }
+    }
+
+    // Remove executors.
+    foreachkey (const FrameworkID& frameworkId, utils::copy(slave->executors)) {
+      foreachkey (const ExecutorID& executorId,
+                  utils::copy(slave->executors[frameworkId])) {
+        removeExecutor(slave, frameworkId, executorId);
+      }
+    }
+
+    // Remove offers.
+    foreach (Offer* offer, utils::copy(slave->offers)) {
+      removeOffer(offer);
+    }
+
+    // Terminate the slave observer.
+    terminate(slave->observer);
+    wait(slave->observer);
+
+    delete slave->observer;
+    delete slave;
+  }
+  slaves.registered.clear();
+
   // Remove the frameworks.
   // Note we are not deleting the pointers to the frameworks from the
   // allocator or the roles because it is unnecessary bookkeeping at
@@ -657,49 +688,17 @@ void Master::finalize()
     // Remove pending tasks from the framework.
     framework->pendingTasks.clear();
 
-    // Remove pointers to the framework's tasks in slaves.
-    foreachvalue (Task* task, utils::copy(framework->tasks)) {
-      Slave* slave = getSlave(task->slave_id());
-      // Since we only find out about tasks when the slave re-registers,
-      // it must be the case that the slave exists!
-      CHECK(slave != NULL)
-        << "Unknown slave " << task->slave_id()
-        << " in the task " << task->task_id();
-
-      removeTask(task);
-    }
-
-    // Remove the framework's offers (if they weren't removed before).
-    foreach (Offer* offer, utils::copy(framework->offers)) {
-      removeOffer(offer);
-    }
+    // No tasks/executors/offers should remain since the slaves
+    // have been removed.
+    CHECK(framework->tasks.empty());
+    CHECK(framework->executors.empty());
+    CHECK(framework->offers.empty());
 
     delete framework;
   }
   frameworks.registered.clear();
 
-  CHECK_EQ(offers.size(), 0UL);
-
-  foreachvalue (Slave* slave, slaves.registered) {
-    // Remove tasks that are in the slave but not in any framework.
-    // This could happen when the framework has yet to re-register
-    // after master failover.
-    // NOTE: keys() and values() are used because slave->tasks is
-    //       modified by removeTask()!
-    foreach (const FrameworkID& frameworkId, slave->tasks.keys()) {
-      foreach (Task* task, slave->tasks[frameworkId].values()) {
-        removeTask(task);
-      }
-    }
-
-    // Kill the slave observer.
-    terminate(slave->observer);
-    wait(slave->observer);
-
-    delete slave->observer;
-    delete slave;
-  }
-  slaves.registered.clear();
+  CHECK(offers.empty());
 
   foreachvalue (Future<Nothing> future, authenticating) {
     // NOTE: This is necessary during tests because a copy of
@@ -3282,33 +3281,22 @@ void Master::exitedExecutor(
 
   Slave* slave = CHECK_NOTNULL(slaves.registered[slaveId]);
 
-  // Tell the allocator about the recovered resources.
-  if (slave->hasExecutor(frameworkId, executorId)) {
-    ExecutorInfo executor = slave->executors[frameworkId][executorId];
-
-    LOG(INFO) << "Executor " << executorId
-              << " of framework " << frameworkId
-              << " on slave " << *slave << " "
-              << WSTRINGIFY(status);
-
-    allocator->resourcesRecovered(
-        frameworkId, slaveId, Resources(executor.resources()), None());
-
-    // Remove executor from slave and framework.
-    slave->removeExecutor(frameworkId, executorId);
-  } else {
-    LOG(WARNING) << "Ignoring unknown exited executor "
-                 << executorId << " on slave " << *slave;
+  if (!slave->hasExecutor(frameworkId, executorId)) {
+    LOG(WARNING) << "Ignoring unknown exited executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " on slave " << *slave;
+    return;
   }
 
-  Framework* framework = getFramework(frameworkId);
-  if (framework != NULL) {
-    framework->removeExecutor(slave->id, executorId);
+  LOG(INFO) << "Executor " << executorId
+            << " of framework " << frameworkId
+            << " on slave " << *slave << " "
+            << WSTRINGIFY(status);
 
-    // TODO(benh): Send the framework its executor's exit status?
-    // Or maybe at least have something like
-    // Scheduler::executorLost?
-  }
+  removeExecutor(slave, frameworkId, executorId);
+
+  // TODO(benh): Send the framework its executor's exit status?
+  // Or maybe at least have something like Scheduler::executorLost?
 }
 
 
@@ -3820,26 +3808,14 @@ void Master::reconcile(
     foreachkey (const ExecutorID& executorId,
                 utils::copy(slave->executors[frameworkId])) {
       if (!slaveExecutors.contains(frameworkId, executorId)) {
-        LOG(WARNING) << "Removing executor " << executorId << " of framework "
-                     << frameworkId << " as it is unknown to the slave "
-                     << *slave;
+        // TODO(bmahler): Reconcile executors correctly between the
+        // master and the slave, see:
+        // MESOS-1466, MESOS-1800, and MESOS-1720.
+        LOG(WARNING) << "Executor " << executorId
+                     << " of framework " << frameworkId
+                     << " possibly unknown to the slave " << *slave;
 
-        // TODO(bmahler): This is duplicated in several locations, we
-        // may benefit from a method for removing an executor from
-        // all the relevant data structures and the allocator, akin
-        // to removeTask().
-        allocator->resourcesRecovered(
-            frameworkId,
-            slave->id,
-            slave->executors[frameworkId][executorId].resources(),
-            None());
-
-        slave->removeExecutor(frameworkId, executorId);
-
-        if (frameworks.registered.contains(frameworkId)) {
-          frameworks.registered[frameworkId]->removeExecutor(
-              slave->id, executorId);
-        }
+        removeExecutor(slave, frameworkId, executorId);
       }
     }
   }
@@ -4045,15 +4021,9 @@ void Master::removeFramework(Framework* framework)
   foreachkey (const SlaveID& slaveId, framework->executors) {
     Slave* slave = getSlave(slaveId);
     if (slave != NULL) {
-      foreachpair (const ExecutorID& executorId,
-                   const ExecutorInfo& executorInfo,
-                   framework->executors[slaveId]) {
-        allocator->resourcesRecovered(
-            framework->id,
-            slave->id,
-            executorInfo.resources(),
-            None());
-        slave->removeExecutor(framework->id, executorId);
+      foreachkey (const ExecutorID& executorId,
+                  utils::copy(framework->executors[slaveId])) {
+        removeExecutor(slave, framework->id, executorId);
       }
     }
   }
@@ -4134,14 +4104,7 @@ void Master::removeFramework(Slave* slave, Framework* framework)
   if (slave->executors.contains(framework->id)) {
     foreachkey (const ExecutorID& executorId,
                 utils::copy(slave->executors[framework->id])) {
-      allocator->resourcesRecovered(
-          framework->id,
-          slave->id,
-          slave->executors[framework->id][executorId].resources(),
-          None());
-
-      framework->removeExecutor(slave->id, executorId);
-      slave->removeExecutor(framework->id, executorId);
+      removeExecutor(slave, framework->id, executorId);
     }
   }
 }
@@ -4313,6 +4276,14 @@ void Master::removeSlave(Slave* slave)
     }
   }
 
+  // Remove executors from the slave for proper resource accounting.
+  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->executors)) {
+    foreachkey (const ExecutorID& executorId,
+                utils::copy(slave->executors[frameworkId])) {
+      removeExecutor(slave, frameworkId, executorId);
+    }
+  }
+
   foreach (Offer* offer, utils::copy(slave->offers)) {
     // TODO(vinod): We don't need to call 'Allocator::resourcesRecovered'
     // once MESOS-621 is fixed.
@@ -4321,24 +4292,6 @@ void Master::removeSlave(Slave* slave)
 
     // Remove and rescind offers.
     removeOffer(offer, true); // Rescind!
-  }
-
-  // Remove executors from the slave for proper resource accounting.
-  foreachkey (const FrameworkID& frameworkId, slave->executors) {
-    Framework* framework = getFramework(frameworkId);
-    if (framework != NULL) {
-      foreachkey (const ExecutorID& executorId, slave->executors[frameworkId]) {
-        // TODO(vinod): We don't need to call 'Allocator::resourcesRecovered'
-        // once MESOS-621 is fixed.
-        allocator->resourcesRecovered(
-            frameworkId,
-            slave->id,
-            slave->executors[frameworkId][executorId].resources(),
-            None());
-
-        framework->removeExecutor(slave->id, executorId);
-      }
-    }
   }
 
   // Mark the slave as being removed.
@@ -4452,6 +4405,32 @@ void Master::removeTask(Task* task)
   }
 
   delete task;
+}
+
+
+void Master::removeExecutor(
+    Slave* slave,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  CHECK_NOTNULL(slave);
+  CHECK(slave->hasExecutor(frameworkId, executorId));
+
+  ExecutorInfo executor = slave->executors[frameworkId][executorId];
+
+  LOG(INFO) << "Removing executor '" << executorId
+            << "' with resources " << executor.resources()
+            << " of framework " << frameworkId << " on slave " << *slave;
+
+  allocator->resourcesRecovered(
+    frameworkId, slave->id, executor.resources(), None());
+
+  Framework* framework = getFramework(frameworkId);
+  if (framework != NULL) { // The framework might not be re-registered yet.
+    framework->removeExecutor(slave->id, executorId);
+  }
+
+  slave->removeExecutor(frameworkId, executorId);
 }
 
 

@@ -368,8 +368,14 @@ protected:
       const Filters& filters,
       const process::Future<std::list<process::Future<Option<Error> > > >& f);
 
-  // Remove a task.
+  // Remove a task and recover its resources.
   void removeTask(Task* task);
+
+  // Remove an executor and recover its resources.
+  void removeExecutor(
+      Slave* slave,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
 
   // Forwards the update to the framework.
   void forward(
@@ -897,14 +903,15 @@ struct Slave
   void removeExecutor(const FrameworkID& frameworkId,
                       const ExecutorID& executorId)
   {
-    if (hasExecutor(frameworkId, executorId)) {
-      // Update the resources in use to reflect removing this executor.
-      resourcesInUse -= executors[frameworkId][executorId].resources();
+    CHECK(hasExecutor(frameworkId, executorId))
+      << "Unknown executor " << executorId << " of framework " << frameworkId;
 
-      executors[frameworkId].erase(executorId);
-      if (executors[frameworkId].size() == 0) {
-        executors.erase(frameworkId);
-      }
+    // Update the resources in use to reflect removing this executor.
+    resourcesInUse -= executors[frameworkId][executorId].resources();
+
+    executors[frameworkId].erase(executorId);
+    if (executors[frameworkId].empty()) {
+      executors.erase(frameworkId);
     }
   }
 
@@ -1047,14 +1054,17 @@ struct Framework
   void removeExecutor(const SlaveID& slaveId,
                       const ExecutorID& executorId)
   {
-    if (hasExecutor(slaveId, executorId)) {
-      // Update our resources to reflect removing this executor.
-      resources -= executors[slaveId][executorId].resources();
+    CHECK(hasExecutor(slaveId, executorId))
+      << "Unknown executor " << executorId
+      << " of framework " << id
+      << " of slave " << slaveId;
 
-      executors[slaveId].erase(executorId);
-      if (executors[slaveId].size() == 0) {
-        executors.erase(slaveId);
-      }
+    // Update our resources to reflect removing this executor.
+    resources -= executors[slaveId][executorId].resources();
+
+    executors[slaveId].erase(executorId);
+    if (executors[slaveId].empty()) {
+      executors.erase(slaveId);
     }
   }
 
