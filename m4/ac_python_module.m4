@@ -12,7 +12,7 @@ dnl @license AllPermissive
 
 AC_DEFUN([AC_PYTHON_MODULE],[
 	AC_MSG_CHECKING(python2 module: $1)
-	python -c "import $1" 2>/dev/null
+	python2 -c "import $1" 2>/dev/null
 	if test $? -eq 0;
 	then
 		AC_MSG_RESULT(yes)
