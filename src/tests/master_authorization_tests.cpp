@@ -766,7 +766,8 @@ TEST_F(MasterAuthorizationTest, DuplicateRegistration)
     .WillOnce(DoAll(FutureSatisfy(&authorize1),
                     Return(promise1.future())))
     .WillOnce(DoAll(FutureSatisfy(&authorize2),
-                    Return(promise2.future())));
+                    Return(promise2.future())))
+    .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
 
   driver.start();
 
@@ -833,7 +834,8 @@ TEST_F(MasterAuthorizationTest, DuplicateReregistration)
     .WillOnce(DoAll(FutureSatisfy(&authorize2),
                     Return(promise2.future())))
     .WillOnce(DoAll(FutureSatisfy(&authorize3),
-                    Return(promise3.future())));
+                    Return(promise3.future())))
+    .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
 
   driver.start();
 
@@ -898,7 +900,8 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
   Promise<bool> promise;
   EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
     .WillOnce(DoAll(FutureSatisfy(&authorize),
-                    Return(promise.future())));
+                    Return(promise.future())))
+    .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
 
   driver.start();
 
@@ -957,7 +960,8 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
   EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
     .WillOnce(Return(true))
     .WillOnce(DoAll(FutureSatisfy(&authorize2),
-                    Return(promise2.future())));
+                    Return(promise2.future())))
+    .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
 
   driver.start();
 
