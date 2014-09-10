@@ -80,7 +80,7 @@ int MesosExecutorDriverImpl_traverse(MesosExecutorDriverImpl* self,
  */
 int MesosExecutorDriverImpl_clear(MesosExecutorDriverImpl* self);
 
-// MesosExecutorDriverImpl methods
+// MesosExecutorDriverImpl methods.
 PyObject* MesosExecutorDriverImpl_start(MesosExecutorDriverImpl* self);
 
 PyObject* MesosExecutorDriverImpl_stop(MesosExecutorDriverImpl* self);

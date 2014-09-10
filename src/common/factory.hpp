@@ -74,7 +74,7 @@
 
 
 
-// Helper classes for the factory macros
+// Helper classes for the factory macros.
 
 namespace mesos { namespace internal { namespace factory {
 

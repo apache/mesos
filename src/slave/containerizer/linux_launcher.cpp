@@ -192,8 +192,8 @@ static pid_t clone(const lambda::function<int()>& func, int namespaces)
 
   return ::clone(
       childMain,
-      &stack[sizeof(stack)/sizeof(stack[0]) - 1],  // stack grows down
-      namespaces | SIGCHLD,   // Specify SIGCHLD as child termination signal
+      &stack[sizeof(stack)/sizeof(stack[0]) - 1],  // stack grows down.
+      namespaces | SIGCHLD,   // Specify SIGCHLD as child termination signal.
       (void*) &func);
 }
 

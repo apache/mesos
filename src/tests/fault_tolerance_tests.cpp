@@ -719,7 +719,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   TaskInfo task =
     createTask(offers.get()[0], "sleep 10000", DEFAULT_EXECUTOR_ID);
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long lasting task
+  tasks.push_back(task); // Long lasting task.
 
   EXPECT_CALL(executor, registered(_, _, _, _));
   EXPECT_CALL(executor, launchTask(_, _))

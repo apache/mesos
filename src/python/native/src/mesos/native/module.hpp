@@ -124,7 +124,7 @@ PyObject* createPythonProtobuf(const T& t, const char* typeName)
     return NULL;
   }
 
-  // Propagates any exception that might happen in FromString
+  // Propagates any exception that might happen in FromString.
   return PyObject_CallMethod(type,
                              (char*) "FromString",
                              (char*) "s#",

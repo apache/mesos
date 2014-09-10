@@ -872,7 +872,7 @@ TEST_F(RateLimitingTest, SchedulerFailover)
   EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
     .WillOnce(FutureSatisfy(&sched1Error));
 
-  // Grab the stuff we need to replay the ReregisterFrameworkMessage
+  // Grab the stuff we need to replay the ReregisterFrameworkMessage.
   Future<process::Message> frameworkRegisteredMessage = FUTURE_MESSAGE(
       Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
   Future<ReregisterFrameworkMessage> reregisterFrameworkMessage =

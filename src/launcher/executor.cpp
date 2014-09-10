@@ -153,7 +153,7 @@ public:
       abort();
     }
 
-    // Set the FD_CLOEXEC flags on these pipes
+    // Set the FD_CLOEXEC flags on these pipes.
     Try<Nothing> cloexec = os::cloexec(pipes[0]);
     if (cloexec.isError()) {
       cerr << "Failed to cloexec(pipe[0]): " << cloexec.error() << endl;
@@ -290,7 +290,7 @@ public:
   {
     shutdown(driver);
     if (healthPid != -1) {
-      // Cleanup health check process
+      // Cleanup health check process.
       ::kill(healthPid, SIGKILL);
     }
   }

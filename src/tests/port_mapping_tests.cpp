@@ -1394,7 +1394,7 @@ TEST_F(PortMappingMesosTest, ROOT_RecoverMixedContainersTest)
   TaskInfo task2 = createTask(offer2, "sleep 1000");
 
   vector<TaskInfo> tasks2;
-  tasks2.push_back(task2); // Long-running task
+  tasks2.push_back(task2); // Long-running task.
 
   EXPECT_CALL(sched1, statusUpdate(_, _));
 

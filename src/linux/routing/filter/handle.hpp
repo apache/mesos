@@ -55,6 +55,7 @@ public:
   // |   htid     |  hash  |    node    |
   // +------------+--------+------------+
   //     12 bits    8 bits     12 bits
+  // NOLINT(readability/ending_punctuation)
   U32Handle(uint32_t htid, uint32_t hash, uint32_t node)
     : Handle(((htid & 0xfff) << 20) + ((hash & 0xff) << 12) + (node & 0xfff)) {}
 

@@ -593,7 +593,7 @@ MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
     return;
   }
 
-  // Create mutex and condition variable
+  // Create mutex and condition variable.
   pthread_mutexattr_t attr;
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);

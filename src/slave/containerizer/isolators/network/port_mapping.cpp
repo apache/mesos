@@ -2194,7 +2194,7 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
   // removed is important. We need to remove filters on host eth0 and
   // host lo first before we remove filters on veth.
 
-  // Remove the IP packet filter from host eth0 to veth of the container
+  // Remove the IP packet filter from host eth0 to veth of the container.
   Try<bool> hostEth0ToVeth = filter::ip::remove(
       eth0,
       ingress::HANDLE,
@@ -2213,7 +2213,7 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
                << " to " << veth << " does not exist";
   }
 
-  // Remove the IP packet filter from host lo to veth of the container
+  // Remove the IP packet filter from host lo to veth of the container.
   Try<bool> hostLoToVeth = filter::ip::remove(
       lo,
       ingress::HANDLE,

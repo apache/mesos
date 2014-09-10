@@ -387,7 +387,7 @@ PyObject* MesosSchedulerDriverImpl_requestResources(
   for (int i = 0; i < len; i++) {
     PyObject* requestObj = PyList_GetItem(requestsObj, i);
     if (requestObj == NULL) {
-      return NULL; // Exception will have been set by PyList_GetItem
+      return NULL; // Exception will have been set by PyList_GetItem.
     }
     Request request;
     if (!readPythonProtobuf(requestObj, &request)) {
@@ -455,7 +455,7 @@ PyObject* MesosSchedulerDriverImpl_launchTasks(MesosSchedulerDriverImpl* self,
   for (int i = 0; i < len; i++) {
     PyObject* taskObj = PyList_GetItem(tasksObj, i);
     if (taskObj == NULL) {
-      return NULL; // Exception will have been set by PyList_GetItem
+      return NULL; // Exception will have been set by PyList_GetItem.
     }
     TaskInfo task;
     if (!readPythonProtobuf(taskObj, &task)) {

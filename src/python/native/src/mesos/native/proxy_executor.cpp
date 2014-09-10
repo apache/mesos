@@ -56,7 +56,7 @@ void ProxyExecutor::registered(ExecutorDriver* driver,
   if (executorInfoObj == NULL ||
       frameworkInfoObj == NULL ||
       slaveInfoObj == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonExecutor,
@@ -94,7 +94,7 @@ void ProxyExecutor::reregistered(ExecutorDriver* driver,
   slaveInfoObj = createPythonProtobuf(slaveInfo, "SlaveInfo");
 
   if (slaveInfoObj == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonExecutor,
@@ -147,7 +147,7 @@ void ProxyExecutor::launchTask(ExecutorDriver* driver,
 
   taskObj = createPythonProtobuf(task, "TaskInfo");
   if (taskObj == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonExecutor,
@@ -180,7 +180,7 @@ void ProxyExecutor::killTask(ExecutorDriver* driver,
 
   taskIdObj = createPythonProtobuf(taskId, "TaskID");
   if (taskIdObj == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonExecutor,
@@ -266,7 +266,7 @@ void ProxyExecutor::error(ExecutorDriver* driver, const string& message)
 cleanup:
   if (PyErr_Occurred()) {
     PyErr_Print();
-    // No need for driver.stop(); it should stop itself
+    // No need for driver.stop(); it should stop itself.
   }
   Py_XDECREF(res);
 }

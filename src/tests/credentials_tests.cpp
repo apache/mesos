@@ -69,7 +69,7 @@ TEST_F(CredentialsTest, authenticatedSlave)
 
 // Test verifing well executed credential authentication
 // using text formatted credentials so as to test
-// backwards compatibility
+// backwards compatibility.
 TEST_F(CredentialsTest, authenticatedSlaveText)
 {
   master::Flags flags = CreateMasterFlags();

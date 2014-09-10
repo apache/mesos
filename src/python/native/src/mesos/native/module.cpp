@@ -75,7 +75,7 @@ PyMethodDef MODULE_METHODS[] = {
  */
 PyMODINIT_FUNC init_mesos(void)
 {
-  // Ensure that the interpreter's threading support is enabled
+  // Ensure that the interpreter's threading support is enabled.
   PyEval_InitThreads();
 
   // Import the mesos_pb2 module (on which we depend for protobuf classes)
@@ -83,13 +83,13 @@ PyMODINIT_FUNC init_mesos(void)
   if (mesos_pb2 == NULL)
     return;
 
-  // Initialize our Python types
+  // Initialize our Python types.
   if (PyType_Ready(&MesosSchedulerDriverImplType) < 0)
     return;
   if (PyType_Ready(&MesosExecutorDriverImplType) < 0)
     return;
 
-  // Create the _mesos module and add our types to it
+  // Create the _mesos module and add our types to it.
   PyObject* module = Py_InitModule("_mesos", MODULE_METHODS);
   Py_INCREF(&MesosSchedulerDriverImplType);
   PyModule_AddObject(module,

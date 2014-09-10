@@ -243,7 +243,7 @@ PyObject* MesosExecutorDriverImpl_start(MesosExecutorDriverImpl* self)
   }
 
   Status status = self->driver->start();
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets an exception if creating the int fails.
 }
 
 
@@ -255,7 +255,7 @@ PyObject* MesosExecutorDriverImpl_stop(MesosExecutorDriverImpl* self)
   }
 
   Status status = self->driver->stop();
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets an exception if creating the int fails.
 }
 
 
@@ -267,7 +267,7 @@ PyObject* MesosExecutorDriverImpl_abort(MesosExecutorDriverImpl* self)
   }
 
   Status status = self->driver->abort();
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets an exception if creating the int fails.
 }
 
 
@@ -282,7 +282,7 @@ PyObject* MesosExecutorDriverImpl_join(MesosExecutorDriverImpl* self)
   Py_BEGIN_ALLOW_THREADS
   status = self->driver->join();
   Py_END_ALLOW_THREADS
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets an exception if creating the int fails.
 }
 
 
@@ -297,7 +297,7 @@ PyObject* MesosExecutorDriverImpl_run(MesosExecutorDriverImpl* self)
   Py_BEGIN_ALLOW_THREADS
   status = self->driver->run();
   Py_END_ALLOW_THREADS
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets an exception if creating the int fails.
 }
 
 
@@ -322,7 +322,7 @@ PyObject* MesosExecutorDriverImpl_sendStatusUpdate(
   }
 
   Status status = self->driver->sendStatusUpdate(taskStatus);
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets an exception if creating the int fails.
 }
 
 
@@ -342,7 +342,7 @@ PyObject* MesosExecutorDriverImpl_sendFrameworkMessage(
   }
 
   Status status = self->driver->sendFrameworkMessage(string(data, length));
-  return PyInt_FromLong(status); // Sets an exception if creating the int fails
+  return PyInt_FromLong(status); // Sets an exception if creating the int fails.
 }
 
 } // namespace python {

@@ -292,7 +292,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   AWAIT_READY(offers5);
 
   // Even though framework4 doesn't have any resources, user2 has a
-  // lower share than user1, so framework2 receives slave4's resources
+  // lower share than user1, so framework2 receives slave4's resources.
   EXPECT_THAT(offers5.get(), OfferEq(1, 512));
 
   // Shut everything down.

@@ -99,7 +99,7 @@ master::Flags MesosTest::CreateMasterFlags()
 
   CHECK_SOME(fd);
 
-  // JSON default format for credentials
+  // JSON default format for credentials.
   Credentials credentials;
   Credential* credential = credentials.add_credentials();
   credential->set_principal(DEFAULT_CREDENTIAL.principal());
@@ -474,7 +474,7 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
       CHECK_SOME(cgroups);
 
       foreach (const string& cgroup, cgroups.get()) {
-        // Remove any cgroups that start with TEST_CGROUPS_ROOT
+        // Remove any cgroups that start with TEST_CGROUPS_ROOT.
         if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
           AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
         }

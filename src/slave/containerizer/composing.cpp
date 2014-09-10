@@ -523,7 +523,7 @@ void ComposingContainerizerProcess::destroy(const ContainerID& containerId)
 }
 
 
-// TODO(benh): Move into stout/hashset.hpp
+// TODO(benh): Move into stout/hashset.hpp.
 template <typename Elem>
 hashset<Elem> merge(const std::list<hashset<Elem> >& list)
 {

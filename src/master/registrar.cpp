@@ -162,7 +162,7 @@ private:
     Timer<Milliseconds> state_store;
   } metrics;
 
-  // Gauge handlers
+  // Gauge handlers.
   double _queued_operations()
   {
     return operations.size();

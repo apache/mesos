@@ -285,7 +285,7 @@ protected:
   void fileAttached(const process::Future<Nothing>& result,
                     const std::string& path);
 
-  // Return connected frameworks that are not in the process of being removed
+  // Return connected frameworks that are not in the process of being removed.
   std::vector<Framework*> getActiveFrameworks() const;
 
   // Invoked when the contender has entered the contest.

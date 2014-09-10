@@ -49,12 +49,12 @@ void ProxyScheduler::registered(SchedulerDriver* driver,
 
   fid = createPythonProtobuf(frameworkId, "FrameworkID");
   if (fid == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   minfo = createPythonProtobuf(masterInfo, "MasterInfo");
   if (minfo == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonScheduler,
@@ -89,7 +89,7 @@ void ProxyScheduler::reregistered(SchedulerDriver* driver,
 
   minfo = createPythonProtobuf(masterInfo, "MasterInfo");
   if (minfo == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonScheduler,
@@ -153,7 +153,7 @@ void ProxyScheduler::resourceOffers(SchedulerDriver* driver,
     if (offer == NULL) {
       goto cleanup;
     }
-    PyList_SetItem(list, i, offer); // Steals the reference to offer
+    PyList_SetItem(list, i, offer); // Steals the reference to offer.
   }
 
   res = PyObject_CallMethod(impl->pythonScheduler,
@@ -187,7 +187,7 @@ void ProxyScheduler::offerRescinded(SchedulerDriver* driver,
 
   oid = createPythonProtobuf(offerId, "OfferID");
   if (oid == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonScheduler,
@@ -220,7 +220,7 @@ void ProxyScheduler::statusUpdate(SchedulerDriver* driver,
 
   stat = createPythonProtobuf(status, "TaskStatus");
   if (stat == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonScheduler,
@@ -256,12 +256,12 @@ void ProxyScheduler::frameworkMessage(SchedulerDriver* driver,
 
   eid = createPythonProtobuf(executorId, "ExecutorID");
   if (eid == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   sid = createPythonProtobuf(slaveId, "SlaveID");
   if (sid == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonScheduler,
@@ -297,7 +297,7 @@ void ProxyScheduler::slaveLost(SchedulerDriver* driver, const SlaveID& slaveId)
 
   sid = createPythonProtobuf(slaveId, "SlaveID");
   if (sid == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonScheduler,
@@ -335,7 +335,7 @@ void ProxyScheduler::executorLost(SchedulerDriver* driver,
   slaveIdObj = createPythonProtobuf(slaveId, "SlaveID");
 
   if (executorIdObj == NULL || slaveIdObj == NULL) {
-    goto cleanup; // createPythonProtobuf will have set an exception
+    goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   res = PyObject_CallMethod(impl->pythonScheduler,
@@ -377,7 +377,7 @@ void ProxyScheduler::error(SchedulerDriver* driver, const string& message)
 cleanup:
   if (PyErr_Occurred()) {
     PyErr_Print();
-    // No need for driver.stop(); it should stop itself
+    // No need for driver.stop(); it should stop itself.
   }
   Py_XDECREF(res);
 }

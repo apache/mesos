@@ -1052,12 +1052,12 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   Offer offer1 = offer;
   offer1.mutable_resources()->CopyFrom(
       Resources::parse("cpus:1;mem:512").get());
-  tasks.push_back(createTask(offer1, "sleep 1000")); // Long-running task
+  tasks.push_back(createTask(offer1, "sleep 1000")); // Long-running task.
 
   Offer offer2 = offer;
   offer2.mutable_resources()->CopyFrom(
       Resources::parse("cpus:1;mem:512").get());
-  tasks.push_back(createTask(offer2, "sleep 1000")); // Long-running task
+  tasks.push_back(createTask(offer2, "sleep 1000")); // Long-running task,
 
   ASSERT_LE(Resources(offer1.resources()) + Resources(offer2.resources()),
             Resources(offer.resources()));
@@ -1153,7 +1153,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task
+  tasks.push_back(task); // Long-running task.
 
   Future<Nothing> update;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -1292,7 +1292,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task
+  tasks.push_back(task); // Long-running task.
 
   EXPECT_CALL(sched, statusUpdate(_, _));
 
@@ -1417,7 +1417,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task
+  tasks.push_back(task); // Long-running task.
 
   // Capture the slave and framework ids.
   SlaveID slaveId = offers1.get()[0].slave_id();
@@ -1553,7 +1553,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task
+  tasks.push_back(task); // Long-running task.
 
   // Capture the slave and framework ids.
   SlaveID slaveId = offers1.get()[0].slave_id();
@@ -1926,7 +1926,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task
+  tasks.push_back(task); // Long-running task.
 
   // Capture the slave and framework ids.
   SlaveID slaveId = offers.get()[0].slave_id();
@@ -2035,13 +2035,14 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task
+  tasks.push_back(task); // Long-running task.
 
   // Capture the slave and framework ids.
   SlaveID slaveId = offers1.get()[0].slave_id();
   FrameworkID frameworkId = offers1.get()[0].framework_id();
 
-  EXPECT_CALL(sched, statusUpdate(_, _)); // TASK_RUNNING
+  // Expecting TASK_RUNNING status.
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
   Future<Nothing> _statusUpdateAcknowledgement =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
@@ -2138,14 +2139,15 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   SlaveID slaveId = offers.get()[0].slave_id();
   FrameworkID frameworkId = offers.get()[0].framework_id();
 
-  EXPECT_CALL(sched, statusUpdate(_, _)); // TASK_RUNNING
+  // Expecting TASK_RUNNING status.
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
   Future<Nothing> _statusUpdateAcknowledgement =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task
+  tasks.push_back(task); // Long-running task.
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
@@ -2246,7 +2248,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   // re-registers by wiping the relevant meta directory.
   TaskInfo task = createTask(offers1.get()[0], "sleep 10");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task
+  tasks.push_back(task); // Long-running task.
 
   EXPECT_CALL(sched, statusUpdate(_, _));
 
@@ -2705,7 +2707,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
   vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long-running task
+  tasks.push_back(task); // Long-running task.
 
   EXPECT_CALL(sched, statusUpdate(_, _));
 
@@ -2855,7 +2857,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   // Framework 1 launches a task.
   TaskInfo task1 = createTask(offer1, "sleep 1000");
   vector<TaskInfo> tasks1;
-  tasks1.push_back(task1); // Long-running task
+  tasks1.push_back(task1); // Long-running task.
 
   EXPECT_CALL(sched1, statusUpdate(_, _));
 
@@ -2894,7 +2896,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
 
   vector<TaskInfo> tasks2;
-  tasks2.push_back(task2); // Long-running task
+  tasks2.push_back(task2); // Long-running task.
 
   EXPECT_CALL(sched2, statusUpdate(_, _));
 

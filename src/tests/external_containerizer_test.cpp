@@ -193,7 +193,7 @@ TEST_F(ExternalContainerizerTest, DISABLED_Launch)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return()); // Ignore rest for now
+    .WillRepeatedly(Return()); // Ignore rest for now.
 
   Future<ContainerID> containerId;
   EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))

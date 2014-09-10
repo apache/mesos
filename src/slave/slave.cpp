@@ -637,7 +637,7 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
       delay(duration,
             self(),
             &Slave::doReliableRegistration,
-            flags.registration_backoff_factor * 2); // Backoff
+            flags.registration_backoff_factor * 2); // Backoff.
     }
   }
 
@@ -3499,7 +3499,7 @@ Slave::Metrics::Metrics(const Slave& slave)
 
 Slave::Metrics::~Metrics()
 {
-  // TODO(dhamon): Check return values of unregistered metrics
+  // TODO(dhamon): Check return values of unregistered metrics.
   process::metrics::remove(uptime_secs);
   process::metrics::remove(registered);
 
@@ -3629,7 +3629,7 @@ Executor* Framework::launchExecutor(
     // when it has registered to the slave.
     launch = slave->containerizer->launch(
         containerId,
-        executorInfo_, // modified to include the task's resources
+        executorInfo_, // modified to include the task's resources.
         executor->directory,
         slave->flags.switch_user ? Option<string>(user) : None(),
         slave->info.id(),

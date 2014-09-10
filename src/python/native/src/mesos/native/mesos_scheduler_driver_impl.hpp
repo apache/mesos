@@ -80,7 +80,7 @@ int MesosSchedulerDriverImpl_traverse(MesosSchedulerDriverImpl* self,
  */
 int MesosSchedulerDriverImpl_clear(MesosSchedulerDriverImpl* self);
 
-// MesosSchedulerDriverImpl methods
+// MesosSchedulerDriverImpl methods.
 PyObject* MesosSchedulerDriverImpl_start(MesosSchedulerDriverImpl* self);
 
 PyObject* MesosSchedulerDriverImpl_stop(

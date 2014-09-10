@@ -201,9 +201,9 @@ int main(int argc, char* argv[])
   foreach (const std::string& token, strings::tokenize(uris, " ")) {
     // Delimiter between URI, execute permission and extract options
     // Expected format: {URI}+[01][XN]
-    //  {URI} - The actual URI for the asset to fetch
-    //  [01]  - 1 if the execute permission should be set else 0
-    //  [XN]  - X if we should extract the URI (if it's compressed) else N
+    //  {URI} - The actual URI for the asset to fetch.
+    //  [01]  - 1 if the execute permission should be set else 0.
+    //  [XN]  - X if we should extract the URI (if it's compressed) else N.
     size_t pos = token.rfind("+");
     CHECK(pos != std::string::npos)
       << "Invalid executor uri token in env " << token;

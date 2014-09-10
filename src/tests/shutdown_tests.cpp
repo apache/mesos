@@ -293,7 +293,7 @@ TEST_F(ShutdownTest, ShutdownEndpointNoHeader)
   ASSERT_EQ(DRIVER_RUNNING, driver.start());
 
   AWAIT_READY(frameworkId);
-    
+
   Future<Response> response = process::http::post(
       master.get(),
       "shutdown",
