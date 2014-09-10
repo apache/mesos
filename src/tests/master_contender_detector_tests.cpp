@@ -490,7 +490,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
 TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
 {
   // Use an arbitrary timeout value.
-  Duration sessionTimeout(Seconds(5));
+  Duration sessionTimeout(Seconds(10));
 
   Try<zookeeper::URL> url = zookeeper::URL::parse(
         "zk://" + server->connectString() + "/mesos");

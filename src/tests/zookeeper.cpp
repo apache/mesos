@@ -50,7 +50,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-const Duration ZooKeeperTest::NO_TIMEOUT = Milliseconds(5000);
+const Duration ZooKeeperTest::NO_TIMEOUT = Seconds(10);
 
 
 void ZooKeeperTest::SetUpTestCase()
