@@ -691,7 +691,7 @@ public:
 
   virtual ~ReqResProcess()
   {
-    // Discard the promise
+    // Discard the promise.
     promise.discard();
   }
 

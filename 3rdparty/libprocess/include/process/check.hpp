@@ -110,6 +110,6 @@ Option<std::string> _checkFailed(const process::Future<T>& f)
   return None();
 }
 
-// TODO(dhamon): CHECK_NPENDING, CHECK_NREADY, etc
+// TODO(dhamon): CHECK_NPENDING, CHECK_NREADY, etc.
 
 #endif // __PROCESS_CHECK_HPP__

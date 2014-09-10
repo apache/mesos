@@ -47,7 +47,7 @@ public:
 protected:
   virtual void initialize()
   {
-    // TODO(dhamon): Check return values
+    // TODO(dhamon): Check return values.
     metrics::add(load_1min);
     metrics::add(load_5min);
     metrics::add(load_15min);

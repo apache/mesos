@@ -82,7 +82,7 @@ public:
     //                    +-->| F |              +-->| F |  +-->| F |
     //                        +---+                  +---+      +---+
     //
-    // Initial =>  Added one callback  =>    Added two callbacks
+    // Initial =>  Added one callback  =>    Added two callbacks.
 
     // Setup the "notification" from 'F' to 'N' so that when a
     // callback is done, signal the notifier ('N').

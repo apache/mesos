@@ -39,7 +39,7 @@ struct Request
   // Tracked by: https://issues.apache.org/jira/browse/MESOS-328.
   hashmap<std::string, std::string> headers;
   std::string method;
-  std::string url; // path?query#fragment
+  std::string url; // (path?query#fragment)
   std::string path;
   std::string fragment;
   hashmap<std::string, std::string> query;
@@ -483,7 +483,7 @@ inline Try<std::string> decode(const std::string& s)
       continue;
     }
 
-    // We now expect two more characters: % HEXDIG HEXDIG
+    // We now expect two more characters: "% HEXDIG HEXDIG"
     if (i + 2 >= s.length() || !isxdigit(s[i+1]) || !isxdigit(s[i+2])) {
       return Error(
           "Malformed % escape in '" + s + "': '" + s.substr(i, 3) + "'");
