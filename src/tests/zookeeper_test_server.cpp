@@ -115,11 +115,11 @@ std::string ZooKeeperTestServer::connectString() const
 void ZooKeeperTestServer::shutdownNetwork()
 {
   if (connectionFactory != NULL && started) {
+    LOG(INFO) << "Shutting down ZooKeeperTestServer on port " << port;
     connectionFactory->shutdown();
     delete connectionFactory;
     connectionFactory = NULL;
     started = false;
-    LOG(INFO) << "Shutdown ZooKeeperTestServer on port " << port;
   }
 }
 
