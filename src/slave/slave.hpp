@@ -499,6 +499,9 @@ struct Executor
   // Returns true if there are any queued/launched/terminated tasks.
   bool incompleteTasks();
 
+  // Returns true if this is a command executor.
+  bool isCommandExecutor();
+
   enum State {
     REGISTERING,  // Executor is launched but not (re-)registered yet.
     RUNNING,      // Executor has (re-)registered.
@@ -521,8 +524,6 @@ struct Executor
   const std::string directory;
 
   const bool checkpoint;
-
-  const bool commandExecutor;
 
   process::UPID pid;
 
@@ -549,6 +550,8 @@ struct Executor
 private:
   Executor(const Executor&);              // No copying.
   Executor& operator = (const Executor&); // No assigning.
+
+  bool commandExecutor;
 };
 
 
