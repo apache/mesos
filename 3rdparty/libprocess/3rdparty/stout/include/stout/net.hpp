@@ -174,6 +174,7 @@ inline Try<std::set<std::string> > links()
 // +--------+--------+--------+--------+--------+--------+
 //
 //     01   :   23   :   45   :   67   :   89   :   ab
+// NOLINT(readability/ending_punctuation)
 class MAC
 {
 public:

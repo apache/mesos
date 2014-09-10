@@ -105,7 +105,7 @@ struct Wait {};
 
 struct Fork
 {
-  //  -+- parent
+  //  -+- parent.
   Fork(const Option<void(*)(void)>& _function,
        const Exec& _exec)
     : function(_function),
@@ -114,7 +114,7 @@ struct Fork
   Fork(const Exec& _exec) : exec(_exec) {}
 
   //  -+- parent
-  //   \--- child
+  //   \--- child.
   Fork(const Option<void(*)(void)>& _function,
        const Fork& fork1)
     : function(_function)
@@ -140,9 +140,10 @@ struct Fork
     children.push_back(fork1);
   }
 
-  //  -+- parent
+
+  // -+- parent
   //   |--- child
-  //   \--- child
+  //   \--- child.
   Fork(const Option<void(*)(void)>& _function,
        const Fork& fork1,
        const Fork& fork2)
@@ -174,10 +175,11 @@ struct Fork
     children.push_back(fork2);
   }
 
-  //  -+- parent
+
+  // -+- parent
   //   |--- child
   //   |--- child
-  //   \--- child
+  //   \--- child.
   Fork(const Option<void(*)(void)>& _function,
        const Fork& fork1,
        const Fork& fork2,

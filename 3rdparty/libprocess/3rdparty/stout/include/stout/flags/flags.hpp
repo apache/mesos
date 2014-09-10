@@ -412,7 +412,7 @@ inline Try<Nothing> FlagsBase::load(
 
     // Stop parsing flags after '--' is encountered.
     if (arg == "--") {
-      // Save the rest of the arguments
+      // Save the rest of the arguments.
       for (int j = i + 1; j < *argc; j++) {
         args.push_back((*argv)[j]);
       }
@@ -551,7 +551,7 @@ inline std::string FlagsBase::usage() const
 
   std::string usage;
 
-  std::map<std::string, std::string> col1; // key -> col 1 string
+  std::map<std::string, std::string> col1; // key -> col 1 string.
 
   // Construct string for the first column and store width of column.
   size_t width = 0;
