@@ -28,6 +28,7 @@ layout: documentation
 * [Oscar Insurance](https://www.hioscar.com/)
 * [PayPal](https://www.paypal.com)
 * [Pinkbike](http://www.pinkbike.com)
+* [Qubit](http://www.qubitproducts.com)
 * [Sailthru](http://www.sailthru.com)
 * [Sharethrough](http://www.sharethrough.com)
 * [Sigmoid Analytics](http://www.sigmoidanalytics.com/)
