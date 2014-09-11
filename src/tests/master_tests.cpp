@@ -2273,3 +2273,82 @@ TEST_F(MasterTest, OfferNotRescindedOnceDeclined)
 
   Shutdown();
 }
+
+
+// This test ensures that the master releases resources for tasks
+// when they terminate, even if no acknowledgements occur.
+TEST_F(MasterTest, UnacknowledgedTerminalTask)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master> > master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:64";
+  Try<PID<Slave> > slave = StartSlave(&containerizer, slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Launch a framework and get a task into a terminal state.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers1;
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(FutureArg<1>(&offers1),
+                    LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*")))
+    .WillOnce(FutureArg<1>(&offers2)); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_FINISHED));
+
+  // Capture the status update message from the slave to the master.
+  Future<StatusUpdateMessage> update =
+    FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get());
+
+  // Drop the status updates forwarded to the framework to ensure
+  // that the task remains terminal and unacknowledged in the master.
+  DROP_PROTOBUFS(StatusUpdateMessage(), master.get(), _);
+
+  driver.start();
+
+  // Wait until the framework is registered.
+  AWAIT_READY(frameworkId);
+  AWAIT_READY(offers1);
+
+  // Once the update is sent, the master should re-offer the
+  // resources consumed by the task.
+  AWAIT_READY(update);
+
+  // Don't wait around for the allocation interval.
+  Clock::pause();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::resume();
+
+  AWAIT_READY(offers2);
+
+  EXPECT_FALSE(offers1.get().empty());
+  EXPECT_FALSE(offers2.get().empty());
+
+  // Ensure we get all of the resources back.
+  EXPECT_EQ(offers1.get()[0].resources(), offers2.get()[0].resources());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}

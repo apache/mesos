@@ -3151,6 +3151,10 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 // now sent by the StatusUpdateManagerProcess and master itself when
 // it generates TASK_LOST messages. Only 'pid' can be used to identify
 // the slave.
+// TODO(bmahler): The master will not release resources until the
+// slave receives acknowlegements for all non-terminal updates. This
+// means if a framework is down, the resources will remain allocated
+// even though the tasks are terminal on the slaves!
 void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 {
   ++metrics.messages_status_update;
