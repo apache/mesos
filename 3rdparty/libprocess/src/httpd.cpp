@@ -92,7 +92,7 @@ public:
     parser.on_message_complete  = NULL;
 
     http_parser_execute(&parser, raw.c_str(), raw.length());
-    
+
     if (http_parser_has_error(&parser)) {
       //cerr << "parser error" << endl;
       abort();
