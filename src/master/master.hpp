@@ -839,7 +839,6 @@ struct Slave
     LOG(INFO) << "Adding task " << task->task_id()
               << " with resources " << task->resources()
               << " on slave " << id << " (" << info.hostname() << ")";
-    resourcesInUse += task->resources();
   }
 
   void removeTask(Task* task)
@@ -854,10 +853,6 @@ struct Slave
     }
 
     killedTasks.remove(task->framework_id(), task->task_id());
-    LOG(INFO) << "Removing task " << task->task_id()
-              << " with resources " << task->resources()
-              << " on slave " << id << " (" << info.hostname() << ")";
-    resourcesInUse -= task->resources();
   }
 
   void addOffer(Offer* offer)
@@ -867,7 +862,6 @@ struct Slave
     VLOG(1) << "Adding offer " << offer->id()
             << " with resources " << offer->resources()
             << " on slave " << id << " (" << info.hostname() << ")";
-    resourcesOffered += offer->resources();
   }
 
   void removeOffer(Offer* offer)
@@ -877,7 +871,6 @@ struct Slave
     VLOG(1) << "Removing offer " << offer->id()
             << " with resources " << offer->resources()
             << " on slave " << id << " (" << info.hostname() << ")";
-    resourcesOffered -= offer->resources();
   }
 
   bool hasExecutor(const FrameworkID& frameworkId,
@@ -895,9 +888,6 @@ struct Slave
       << " of framework " << frameworkId;
 
     executors[frameworkId][executorInfo.executor_id()] = executorInfo;
-
-    // Update the resources in use to reflect running this executor.
-    resourcesInUse += executorInfo.resources();
   }
 
   void removeExecutor(const FrameworkID& frameworkId,
@@ -906,13 +896,30 @@ struct Slave
     CHECK(hasExecutor(frameworkId, executorId))
       << "Unknown executor " << executorId << " of framework " << frameworkId;
 
-    // Update the resources in use to reflect removing this executor.
-    resourcesInUse -= executors[frameworkId][executorId].resources();
-
     executors[frameworkId].erase(executorId);
     if (executors[frameworkId].empty()) {
       executors.erase(frameworkId);
     }
+  }
+
+  Resources used() const
+  {
+    Resources used;
+
+    foreachkey (const FrameworkID& frameworkId, tasks) {
+      foreachvalue (const Task* task, tasks.find(frameworkId)->second) {
+        used += task->resources();
+      }
+    }
+
+    foreachkey (const FrameworkID& frameworkId, executors) {
+      foreachvalue (const ExecutorInfo& executorInfo,
+                    executors.find(frameworkId)->second) {
+        used += executorInfo.resources();
+      }
+    }
+
+    return used;
   }
 
   const SlaveID id;
@@ -926,9 +933,6 @@ struct Slave
   // We mark a slave 'disconnected' when it has checkpointing
   // enabled because we expect it reregister after recovery.
   bool disconnected;
-
-  Resources resourcesOffered; // Resources offered.
-  Resources resourcesInUse;   // Resources used by tasks and executors.
 
   // Executors running on this slave.
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > executors;

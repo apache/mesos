@@ -405,7 +405,7 @@ Future<Response> Master::Http::stats(const Request& request)
         totalResources += resource;
       }
     }
-    foreach (const Resource& resource, slave->resourcesInUse) {
+    foreach (const Resource& resource, slave->used()) {
       if (resource.type() == Value::SCALAR) {
         usedResources += resource;
       }

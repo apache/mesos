@@ -3763,10 +3763,10 @@ void Master::reconcile(
   // missing from the slave. This could happen if the task was
   // dropped by the slave (e.g., slave exited before getting the
   // task or the task was launched while slave was in recovery).
-  // NOTE: keys() and values() are used since statusUpdate()
-  //       modifies slave->tasks.
-  foreach (const FrameworkID& frameworkId, slave->tasks.keys()) {
-    foreach (Task* task, slave->tasks[frameworkId].values()) {
+  // NOTE: copies are used because statusUpdate() modifies
+  //       slave->tasks.
+  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
+    foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
       if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
         LOG(WARNING) << "Sending TASK_LOST for task " << task->task_id()
                      << " of framework " << task->framework_id()
@@ -4010,10 +4010,11 @@ void Master::removeFramework(Framework* framework)
 
   // Remove the framework's offers (if they weren't removed before).
   foreach (Offer* offer, utils::copy(framework->offers)) {
-    allocator->resourcesRecovered(offer->framework_id(),
-                                  offer->slave_id(),
-                                  Resources(offer->resources()),
-                                  None());
+    allocator->resourcesRecovered(
+        offer->framework_id(),
+        offer->slave_id(),
+        offer->resources(),
+        None());
     removeOffer(offer);
   }
 
@@ -4078,9 +4079,9 @@ void Master::removeFramework(Slave* slave, Framework* framework)
 
   // Remove pointers to framework's tasks in slaves, and send status
   // updates.
-  // NOTE: values() is used because statusUpdate() modifies
+  // NOTE: A copy is used because statusUpdate() modifies
   //       slave->tasks.
-  foreach (Task* task, slave->tasks[framework->id].values()) {
+  foreachvalue (Task* task, utils::copy(slave->tasks[framework->id])) {
     // Remove tasks that belong to this framework.
     if (task->framework_id() == framework->id) {
       // A framework might not actually exist because the master failed
@@ -4257,8 +4258,8 @@ void Master::removeSlave(Slave* slave)
   // updates. Rather, build up the updates so that we can send them
   // after the slave is removed from the registry.
   vector<StatusUpdate> updates;
-  foreach (const FrameworkID& frameworkId, slave->tasks.keys()) {
-    foreach (Task* task, slave->tasks[frameworkId].values()) {
+  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
+    foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
           task->framework_id(),
           task->slave_id(),
@@ -4372,6 +4373,21 @@ void Master::removeTask(Task* task)
 {
   CHECK_NOTNULL(task);
 
+  Slave* slave = CHECK_NOTNULL(getSlave(task->slave_id()));
+
+  if (!protobuf::isTerminalState(task->state())) {
+    LOG(WARNING) << "Removing task " << task->task_id()
+                 << " with resources " << task->resources()
+                 << " of framework " << task->framework_id()
+                 << " on slave " << *slave
+                 << " in non-terminal state " << task->state();
+  } else {
+    LOG(INFO) << "Removing task " << task->task_id()
+              << " with resources " << task->resources()
+              << " of framework " << task->framework_id()
+              << " on slave " << *slave;
+  }
+
   // Remove from framework.
   Framework* framework = getFramework(task->framework_id());
   if (framework != NULL) { // A framework might not be re-connected yet.
@@ -4379,15 +4395,13 @@ void Master::removeTask(Task* task)
   }
 
   // Remove from slave.
-  Slave* slave = getSlave(task->slave_id());
-  CHECK_NOTNULL(slave);
   slave->removeTask(task);
 
   // Tell the allocator about the recovered resources.
   allocator->resourcesRecovered(
       task->framework_id(),
       task->slave_id(),
-      Resources(task->resources()),
+      task->resources(),
       None());
 
   // Update the task state metric.
@@ -4396,12 +4410,7 @@ void Master::removeTask(Task* task)
     case TASK_FAILED:   ++metrics.tasks_failed;   break;
     case TASK_KILLED:   ++metrics.tasks_killed;   break;
     case TASK_LOST:     ++metrics.tasks_lost;     break;
-    default:
-      LOG(WARNING) << "Removing task " << task->task_id()
-                   << " of framework " << task->framework_id()
-                   << " and slave " << task->slave_id()
-                   << " in non-terminal state " << task->state();
-      break;
+    default: break;
   }
 
   delete task;
@@ -4934,7 +4943,7 @@ double Master::_resources_used(const std::string& name)
   double used = 0.0;
 
   foreachvalue (Slave* slave, slaves.registered) {
-    foreach (const Resource& resource, slave->resourcesInUse) {
+    foreach (const Resource& resource, slave->used()) {
       if (resource.name() == name && resource.type() == Value::SCALAR) {
         used += resource.scalar().value();
       }
