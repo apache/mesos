@@ -47,6 +47,7 @@
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
 
+#include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
 
 #include "files/files.hpp"
@@ -368,7 +369,11 @@ protected:
       const Filters& filters,
       const process::Future<std::list<process::Future<Option<Error> > > >& f);
 
-  // Remove a task and recover its resources.
+  // Transitions the task, and recovers resources if the task becomes
+  // terminal.
+  void updateTask(Task* task, const TaskStatus& status);
+
+  // Removes the task.
   void removeTask(Task* task);
 
   // Remove an executor and recover its resources.
@@ -908,7 +913,9 @@ struct Slave
 
     foreachkey (const FrameworkID& frameworkId, tasks) {
       foreachvalue (const Task* task, tasks.find(frameworkId)->second) {
-        used += task->resources();
+        if (!protobuf::isTerminalState(task->state())) {
+          used += task->resources();
+        }
       }
     }
 
