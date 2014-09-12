@@ -1182,7 +1182,8 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
 
   Future<vector<Offer> > offers3;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers3));
+    .WillOnce(FutureArg<1>(&offers3))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Kill 1st task.
   TaskID taskId1 = task1.task_id();
@@ -1275,7 +1276,8 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   // Test that offers cannot span multiple slaves.
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers2));
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   Try<PID<Slave> > slave2 = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave2);
@@ -1353,7 +1355,8 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   // Kill 2nd task and get offer for full slave.
   Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
