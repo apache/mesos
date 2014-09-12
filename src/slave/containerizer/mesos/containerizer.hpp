@@ -193,8 +193,8 @@ private:
   // cleanup.
   void ___destroy(
       const ContainerID& containerId,
-      const process::Future<Option<int > >& status,
-      const process::Future<std::list<Nothing> >& futures);
+      const process::Future<Option<int> >& status,
+      const process::Future<std::list<process::Future<Nothing>>>& cleanups);
 
   // Call back for when an isolator limits a container and impacts the
   // processes. This will trigger container destruction.
