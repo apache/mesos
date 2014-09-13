@@ -2254,7 +2254,7 @@ TEST_F(FaultToleranceTest, ReconcilePendingTasks)
 
   // We drop the _runTask dispatch to ensure the task remains
   // pending in the slave.
-  DROP_DISPATCH(slave.get(), &Slave::_runTask);
+  Future<Nothing> _runTask = DROP_DISPATCH(slave.get(), &Slave::_runTask);
 
   TaskInfo task1;
   task1.set_name("test task");
@@ -2267,6 +2267,8 @@ TEST_F(FaultToleranceTest, ReconcilePendingTasks)
   tasks1.push_back(task1);
 
   driver.launchTasks(offers.get()[0].id(), tasks1);
+
+  AWAIT_READY(_runTask);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
