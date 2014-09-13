@@ -552,8 +552,36 @@ inline int execvpe(const char* file, char** argv, char** envp)
 }
 
 
+inline Try<Nothing> chown(
+    uid_t uid,
+    gid_t gid,
+    const std::string& path,
+    bool recursive)
+{
+  if (recursive) {
+    // TODO(bmahler): Consider walking the file tree instead. We would need
+    // to be careful to not miss dotfiles.
+    std::string command =
+      "chown -R " + stringify(uid) + ':' + stringify(gid) + " '" + path + "'";
+
+    int status = os::system(command);
+    if (status != 0) {
+      return ErrnoError(
+          "Failed to execute '" + command +
+          "' (exit status: " + stringify(status) + ")");
+    }
+  } else {
+    if (::chown(path.c_str(), uid, gid) < 0) {
+      return ErrnoError();
+    }
+  }
+
+  return Nothing();
+}
+
+
 // Changes the specified path's user and group ownership to that of
-// the specified user..
+// the specified user.
 inline Try<Nothing> chown(
     const std::string& user,
     const std::string& path,
@@ -564,25 +592,7 @@ inline Try<Nothing> chown(
     return ErrnoError("Failed to get user information for '" + user + "'");
   }
 
-  if (recursive) {
-    // TODO(bmahler): Consider walking the file tree instead. We would need
-    // to be careful to not miss dotfiles.
-    std::string command = "chown -R " + stringify(passwd->pw_uid) + ':' +
-      stringify(passwd->pw_gid) + " '" + path + "'";
-
-    int status = os::system(command);
-    if (status != 0) {
-      return ErrnoError(
-          "Failed to execute '" + command +
-          "' (exit status: " + stringify(status) + ")");
-    }
-  } else {
-    if (::chown(path.c_str(), passwd->pw_uid, passwd->pw_gid) < 0) {
-      return ErrnoError();
-    }
-  }
-
-  return Nothing();
+  return chown(passwd->pw_uid, passwd->pw_gid, path, recursive);
 }
 
 
