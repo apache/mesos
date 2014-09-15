@@ -41,6 +41,8 @@ using zookeeper::GroupProcess;
 
 using process::Future;
 
+using std::string;
+
 using testing::_;
 
 class GroupTest : public ZooKeeperTest {};
@@ -60,9 +62,10 @@ TEST_F(GroupTest, Group)
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
-  Future<std::string> data = group.data(membership.get());
+  Future<Option<string> > data = group.data(membership.get());
 
-  AWAIT_EXPECT_EQ("hello world", data);
+  AWAIT_READY(data);
+  EXPECT_SOME_EQ("hello world", data.get());
 
   Future<bool> cancellation = group.cancel(membership.get());
 
@@ -116,13 +119,37 @@ TEST_F(GroupTest, GroupDataWithDisconnect)
 
   server->shutdownNetwork();
 
-  Future<std::string> data = group.data(membership.get());
+  Future<Option<string> > data = group.data(membership.get());
 
   EXPECT_TRUE(data.isPending());
 
   server->startNetwork();
 
-  AWAIT_EXPECT_EQ("hello world", data);
+  AWAIT_READY(data);
+  EXPECT_SOME_EQ("hello world", data.get());
+}
+
+
+TEST_F(GroupTest, GroupDataWithRemovedMembership)
+{
+  Group group(server->connectString(), NO_TIMEOUT, "/test/");
+
+  Future<Group::Membership> membership = group.join("hello world");
+
+  AWAIT_READY(membership);
+
+  Future<std::set<Group::Membership> > memberships = group.watch();
+
+  AWAIT_READY(memberships);
+  EXPECT_EQ(1u, memberships.get().size());
+  EXPECT_EQ(1u, memberships.get().count(membership.get()));
+
+  AWAIT_EXPECT_EQ(true, group.cancel(membership.get()));
+
+  Future<Option<string> > data = group.data(membership.get());
+
+  AWAIT_READY(data);
+  EXPECT_NONE(data.get());
 }
 
 
@@ -140,9 +167,10 @@ TEST_F(GroupTest, GroupCancelWithDisconnect)
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
-  Future<std::string> data = group.data(membership.get());
+  Future<Option<string> > data = group.data(membership.get());
 
-  AWAIT_EXPECT_EQ("hello world", data);
+  AWAIT_READY(data);
+  EXPECT_SOME_EQ("hello world", data.get());
 
   server->shutdownNetwork();
 
@@ -378,7 +406,7 @@ TEST_F(GroupTest, LabelledGroup)
 
   // Join a group with label.
   Future<Group::Membership> membership = group.join(
-      "hello world", std::string("testlabel"));
+      "hello world", string("testlabel"));
 
   AWAIT_READY(membership);
 
@@ -388,9 +416,10 @@ TEST_F(GroupTest, LabelledGroup)
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
-  Future<std::string> data = group.data(membership.get());
+  Future<Option<string> > data = group.data(membership.get());
 
-  AWAIT_EXPECT_EQ("hello world", data);
+  AWAIT_READY(data);
+  EXPECT_SOME_EQ("hello world", data.get());
 
   Future<bool> cancellation = group.cancel(membership.get());
 

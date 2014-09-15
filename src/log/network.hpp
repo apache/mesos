@@ -121,8 +121,8 @@ private:
 
   // Helper for handling time outs when collecting membership
   // data. For now, a timeout is treated as a failure.
-  static process::Future<std::list<std::string> > timedout(
-      process::Future<std::list<std::string> > datas)
+  static process::Future<std::list<Option<std::string> > > timedout(
+      process::Future<std::list<Option<std::string> > > datas)
   {
     datas.discard();
     return process::Failure("Timed out");
@@ -139,7 +139,8 @@ private:
   void watched(const process::Future<std::set<zookeeper::Group::Membership> >&);
 
   // Invoked when group members data has been collected.
-  void collected(const process::Future<std::list<std::string> >& datas);
+  void collected(
+      const process::Future<std::list<Option<std::string> > >& datas);
 
   zookeeper::Group group;
   process::Future<std::set<zookeeper::Group::Membership> > memberships;
@@ -423,7 +424,7 @@ inline void ZooKeeperNetwork::watched(
   LOG(INFO) << "ZooKeeper group memberships changed";
 
   // Get data for each membership in order to convert them to PIDs.
-  std::list<process::Future<std::string> > futures;
+  std::list<process::Future<Option<std::string> > > futures;
 
   foreach (const zookeeper::Group::Membership& membership, memberships.get()) {
     futures.push_back(group.data(membership));
@@ -436,7 +437,7 @@ inline void ZooKeeperNetwork::watched(
 
 
 inline void ZooKeeperNetwork::collected(
-    const process::Future<std::list<std::string> >& datas)
+    const process::Future<std::list<Option<std::string> > >& datas)
 {
   if (datas.isFailed()) {
     LOG(WARNING) << "Failed to get data for ZooKeeper group members: "
@@ -452,10 +453,14 @@ inline void ZooKeeperNetwork::collected(
 
   std::set<process::UPID> pids;
 
-  foreach (const std::string& data, datas.get()) {
-    process::UPID pid(data);
-    CHECK(pid) << "Failed to parse '" << data << "'";
-    pids.insert(pid);
+  foreach (const Option<std::string>& data, datas.get()) {
+    // Data could be None if the membership is gone before its
+    // content can be read.
+    if (data.isSome()) {
+      process::UPID pid(data.get());
+      CHECK(pid) << "Failed to parse '" << data.get() << "'";
+      pids.insert(pid);
+    }
   }
 
   LOG(INFO) << "ZooKeeper group PIDs: " << stringify(pids);

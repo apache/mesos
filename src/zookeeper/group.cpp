@@ -210,7 +210,7 @@ Future<bool> GroupProcess::cancel(const Group::Membership& membership)
 }
 
 
-Future<string> GroupProcess::data(const Group::Membership& membership)
+Future<Option<string> > GroupProcess::data(const Group::Membership& membership)
 {
   if (error.isSome()) {
     return Failure(error.get());
@@ -224,7 +224,7 @@ Future<string> GroupProcess::data(const Group::Membership& membership)
   // client can assume a happens-before ordering of operations (i.e.,
   // the first request will happen before the second, etc).
 
-  Result<string> result = doData(membership);
+  Result<Option<string> > result = doData(membership);
 
   if (result.isNone()) { // Try again later.
     Data* data = new Data(membership);
@@ -649,7 +649,8 @@ Result<bool> GroupProcess::doCancel(const Group::Membership& membership)
 }
 
 
-Result<string> GroupProcess::doData(const Group::Membership& membership)
+Result<Option<string> > GroupProcess::doData(
+    const Group::Membership& membership)
 {
   CHECK_EQ(state, READY);
 
@@ -662,16 +663,18 @@ Result<string> GroupProcess::doData(const Group::Membership& membership)
 
   int code = zk->get(path, false, &result, NULL);
 
-  if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
+  if (code == ZNONODE) {
+    return Option<string>::none();
+  } else if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
     CHECK_NE(zk->getState(), ZOO_AUTH_FAILED_STATE);
-    return None();
+    return None(); // Try again later.
   } else if (code != ZOK) {
     return Error(
         "Failed to get data for ephemeral node '" + path +
         "' in ZooKeeper: " + zk->message(code));
   }
 
-  return result;
+  return Some(result);
 }
 
 
@@ -844,7 +847,7 @@ Try<bool> GroupProcess::sync()
   while (!pending.datas.empty()) {
     Data* data = pending.datas.front();
     // TODO(benh): Ignore if future has been discarded?
-    Result<string> result = doData(data->membership);
+    Result<Option<string> > result = doData(data->membership);
     if (result.isNone()) {
       return false; // Try again later.
     } else if (result.isError()) {
@@ -992,7 +995,7 @@ Future<bool> Group::cancel(const Group::Membership& membership)
 }
 
 
-Future<string> Group::data(const Group::Membership& membership)
+Future<Option<string> > Group::data(const Group::Membership& membership)
 {
   return dispatch(process, &GroupProcess::data, membership);
 }

@@ -180,7 +180,9 @@ private:
   void detected(const Future<Option<Group::Membership> >& leader);
 
   // Invoked when we have fetched the data associated with the leader.
-  void fetched(const Group::Membership& membership, const Future<string>& data);
+  void fetched(
+      const Group::Membership& membership,
+      const Future<Option<string> >& data);
 
   Owned<Group> group;
   LeaderDetector detector;
@@ -388,13 +390,18 @@ void ZooKeeperMasterDetectorProcess::detected(
 
 void ZooKeeperMasterDetectorProcess::fetched(
     const Group::Membership& membership,
-    const Future<string>& data)
+    const Future<Option<string> >& data)
 {
   CHECK(!data.isDiscarded());
 
   if (data.isFailed()) {
     leader = None();
     promises::fail(&promises, data.failure());
+    return;
+  } else if (data.get().isNone()) {
+    // Membership is gone before we can read its data.
+    leader = None();
+    promises::set(&promises, leader);
     return;
   }
 
@@ -404,12 +411,12 @@ void ZooKeeperMasterDetectorProcess::fetched(
   if (label.isNone()) {
     // If we are here it means some masters are still creating znodes
     // with the old format.
-    UPID pid = UPID(data.get());
+    UPID pid = UPID(data.get().get());
     LOG(WARNING) << "Leading master " << pid << " has data in old format";
     leader = protobuf::createMasterInfo(pid);
   } else if (label.isSome() && label.get() == master::MASTER_INFO_LABEL) {
     MasterInfo info;
-    if (!info.ParseFromString(data.get())) {
+    if (!info.ParseFromString(data.get().get())) {
       leader = None();
       promises::fail(&promises, "Failed to parse data into MasterInfo");
       return;
