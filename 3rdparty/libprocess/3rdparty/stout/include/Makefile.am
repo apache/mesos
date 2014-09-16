@@ -70,4 +70,5 @@ nobase_include_HEADERS =		\
   stout/tuple.hpp			\
   stout/unreachable.hpp			\
   stout/utils.hpp			\
-  stout/uuid.hpp
+  stout/uuid.hpp			\
+  stout/version.hpp

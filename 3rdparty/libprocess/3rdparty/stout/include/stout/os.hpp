@@ -1181,6 +1181,7 @@ inline Try<std::string> sysname()
 
 
 // The OS release level.
+// TODO(karya): Replace struct Release with Version from version.hpp.
 struct Release
 {
   bool operator == (const Release& other)
