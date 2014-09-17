@@ -214,8 +214,69 @@ TEST(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
       commandInfo,
       "testContainer",
       "dir",
-      "/mnt/mesos/sandbox",
-      None());
+      "/mnt/mesos/sandbox");
 
   ASSERT_TRUE(run.isFailed());
+}
+
+
+TEST(DockerTest, ROOT_DOCKER_CheckPortResource)
+{
+  string containerName = "mesos-docker-port-resource-test";
+  Docker docker = Docker::create(tests::flags.docker, false).get();
+
+  // Make sure the container is removed.
+  Future<Nothing> remove = docker.rm(containerName, true);
+
+  ASSERT_TRUE(process::internal::await(remove, Seconds(10)));
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
+
+  ContainerInfo::DockerInfo::PortMapping portMapping;
+  portMapping.set_host_port(10000);
+  portMapping.set_container_port(80);
+
+  dockerInfo.add_port_mappings()->CopyFrom(portMapping);
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_shell(false);
+  commandInfo.set_value("true");
+
+  Resources resources =
+    Resources::parse("ports:[9998-9999];ports:[10001-11000]").get();
+
+  Future<Nothing> run = docker.run(
+      containerInfo,
+      commandInfo,
+      containerName,
+      "dir",
+      "/mnt/mesos/sandbox",
+      resources);
+
+  // Port should be out side of the provided ranges.
+  AWAIT_EXPECTED_FAILED(run);
+
+  resources = Resources::parse("ports:[9998-9999];ports:[10000-11000]").get();
+
+  Try<string> directory = environment->mkdtemp();
+  CHECK_SOME(directory) << "Failed to create temporary directory";
+
+  run = docker.run(
+      containerInfo,
+      commandInfo,
+      containerName,
+      directory.get(),
+      "/mnt/mesos/sandbox",
+      resources);
+
+  AWAIT_READY(run);
+
+  Future<Nothing> status = docker.rm(containerName, true);
+  AWAIT_READY(status);
 }

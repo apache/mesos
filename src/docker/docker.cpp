@@ -253,7 +253,7 @@ Future<Nothing> Docker::run(
   argv.push_back("-d");
 
   if (resources.isSome()) {
-    // TODO(yifan): Support other resources (e.g. disk, ports).
+    // TODO(yifan): Support other resources (e.g. disk).
     Option<double> cpus = resources.get().cpus();
     if (cpus.isSome()) {
       uint64_t cpuShare =
@@ -311,14 +311,59 @@ Future<Nothing> Docker::run(
 
   const string& image = dockerInfo.image();
 
-  // TODO(tnachen): Support more network options other than host
-  // networking that docker provides (ie: BRIDGE). We currently
-  // require host networking since if the docker container is
-  // expected to be an executor it needs to be able to communicate
-  // with the slave by the slave's PID. There can be more future work
-  // to allow a bridge to connect but this is not yet implemented.
   argv.push_back("--net");
-  argv.push_back("host");
+  string network;
+  switch (dockerInfo.network()) {
+    case ContainerInfo::DockerInfo::HOST: network = "host"; break;
+    case ContainerInfo::DockerInfo::BRIDGE: network = "bridge"; break;
+    default: return Failure("Unsupported Network mode: " +
+                            stringify(dockerInfo.network()));
+  }
+
+  argv.push_back(network);
+
+  if (dockerInfo.port_mappings().size() > 0) {
+    if (network != "bridge") {
+      return Failure("Port mappings are only supported for bridge network");
+    }
+
+    if (!resources.isSome()) {
+      return Failure("Port mappings require resources");
+    }
+
+    Option<Value::Ranges> portRanges = resources.get().ports();
+
+    if (!portRanges.isSome()) {
+      return Failure("Port mappings require port resources");
+    }
+
+    foreach (const ContainerInfo::DockerInfo::PortMapping& mapping,
+             dockerInfo.port_mappings()) {
+      bool found = false;
+      foreach (const Value::Range& range, portRanges.get().range()) {
+        if (mapping.host_port() >= range.begin() &&
+            mapping.host_port() <= range.end()) {
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        return Failure("Port [" + stringify(mapping.host_port()) + "] not " +
+                       "included in resources");
+      }
+
+      string portMapping = stringify(mapping.host_port()) + ":" +
+                           stringify(mapping.container_port());
+
+      if (mapping.has_protocol()) {
+        portMapping += "/" + strings::lower(mapping.protocol());
+      }
+
+      argv.push_back("-p");
+      argv.push_back(portMapping);
+    }
+  }
 
   argv.push_back("--name");
   argv.push_back(name);

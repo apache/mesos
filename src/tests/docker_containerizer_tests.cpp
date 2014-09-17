@@ -240,7 +240,122 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("mesosphere/test-executor");
+  dockerInfo.set_image("tnachen/test-executor");
+
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+  executorInfo.mutable_container()->CopyFrom(containerInfo);
+
+  task.mutable_executor()->CopyFrom(executorInfo);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launchExecutor)));
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  AWAIT_READY_FOR(statusFinished, Seconds(60));
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  Future<list<Docker::Container> > containers =
+    docker.ps(true, slave::DOCKER_NAME_PREFIX);
+
+  AWAIT_READY(containers);
+
+  ASSERT_TRUE(exists(containers.get(), containerId.get()));
+
+  Future<containerizer::Termination> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+
+  containers = docker.ps(true, slave::DOCKER_NAME_PREFIX);
+  AWAIT_READY(containers);
+
+  ASSERT_FALSE(exists(containers.get(), containerId.get()));
+
+  Shutdown();
+}
+
+
+// This test verifies that a custom executor can be launched and
+// registered with the slave with docker bridge network enabled.
+// We're assuming that the custom executor is registering it's public
+// ip instead of 0.0.0.0 or equivelent to the slave as that's the
+// default behavior for libprocess.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Docker docker = Docker::create(tests::flags.docker, false).get();
+
+  MockDockerContainerizer dockerContainerizer(flags, docker);
+
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  ExecutorInfo executorInfo;
+  ExecutorID executorId;
+  executorId.set_value("e1");
+  executorInfo.mutable_executor_id()->CopyFrom(executorId);
+
+  CommandInfo command;
+  command.set_value("test-executor");
+  executorInfo.mutable_command()->CopyFrom(command);
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("tnachen/test-executor");
+  dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
   executorInfo.mutable_container()->CopyFrom(containerInfo);
@@ -1629,4 +1744,133 @@ TEST_F(DockerContainerizerTest,
   Shutdown();
 
   delete dockerContainerizer2;
+}
+
+
+// This test verifies that port mapping with bridge network is
+// exposing the host port to the container port, by sending data
+// to the host port and receiving it in the container by listening
+// to the mapped container port.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_PortMapping)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  flags.resources = "cpus:1;mem:1024;ports:[10000-10000]";
+
+  Docker docker = Docker::create(tests::flags.docker, false).get();
+
+  MockDockerContainerizer dockerContainerizer(flags, docker);
+
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("nc");
+  command.add_arguments("-l");
+  command.add_arguments("-p");
+  command.add_arguments("1000");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
+
+  ContainerInfo::DockerInfo::PortMapping portMapping;
+  portMapping.set_host_port(10000);
+  portMapping.set_container_port(1000);
+
+  dockerInfo.add_port_mappings()->CopyFrom(portMapping);
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<ContainerID> containerId;
+  Future<string> directory;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    FutureArg<3>(&directory),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY(directory);
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  string uuid = UUID::random().toString();
+
+  // Write uuid to docker mapped host port.
+  Try<process::Subprocess> s = process::subprocess(
+      "echo " + uuid + " | nc localhost 10000");
+
+  ASSERT_SOME(s);
+  AWAIT_READY(s.get().status());
+
+  string container = slave::DOCKER_NAME_PREFIX + stringify(containerId.get());
+
+  AWAIT_READY_FOR(docker.kill(container, false), Seconds(30));
+
+  AWAIT_READY_FOR(statusFinished, Seconds(60));
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  // Now check that the proper output is in stdout.
+  Try<string> read = os::read(path::join(directory.get(), "stdout"));
+
+  ASSERT_SOME(read);
+
+  // We expect the uuid that is sent to host port to be written
+  // to stdout by the docker container running nc -l.
+  EXPECT_TRUE(strings::contains(read.get(), uuid));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
 }
