@@ -1731,7 +1731,8 @@ void Slave::registerExecutor(
     const ExecutorID& executorId)
 {
   LOG(INFO) << "Got registration for executor '" << executorId
-            << "' of framework " << frameworkId;
+            << "' of framework " << frameworkId << " from "
+            << stringify(from);
 
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)

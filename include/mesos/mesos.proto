@@ -855,6 +855,23 @@ message ContainerInfo {
   message DockerInfo {
     // The docker image that is going to be passed to the registry.
     required string image = 1;
+
+    // Network options.
+    enum Network {
+      HOST = 1;
+      BRIDGE = 2;
+    }
+
+    optional Network network = 2 [default = HOST];
+
+    message PortMapping {
+      required uint32 host_port = 1;
+      required uint32 container_port = 2;
+      // Protocol to expose as (ie: tcp, udp).
+      optional string protocol = 3;
+    }
+
+    repeated PortMapping port_mappings = 3;
   }
 
   required Type type = 1;
