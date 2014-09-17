@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/option.hpp>
@@ -313,6 +314,13 @@ public:
         "lo_name",
         "The name of the loopback network interface (e.g., lo). If it is\n"
         "not specified, the network isolator will try to guess it.");
+
+    add(&Flags::egress_rate_limit_per_container,
+        "egress_rate_limit_per_container",
+        "The limit of the egress traffic for each container, in Bytes/s.\n"
+        "If not specified or specified as zero, the network isolator will\n"
+        "impose no limits to containers' egress traffic throughput.\n"
+        "This flag uses the Bytes type, defined in stout.");
 #endif // WITH_NETWORK_ISOLATOR
   }
 
@@ -359,6 +367,7 @@ public:
   uint16_t ephemeral_ports_per_container;
   Option<std::string> eth0_name;
   Option<std::string> lo_name;
+  Option<Bytes> egress_rate_limit_per_container;
 #endif
 };
 

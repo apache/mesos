@@ -815,6 +815,49 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   LOG(INFO) << "Using " << lo.get() << " as the loopback interface";
 
+  // If egress rate limit is provided, do a sanity check that it is
+  // not greater than the host physical link speed.
+  Option<Bytes> egressRateLimitPerContainer;
+  if (flags.egress_rate_limit_per_container.isSome()) {
+    // Read host physical link speed from /sys/class/net/eth0/speed.
+    // This value is in MBits/s.
+    Try<string> value =
+      os::read(path::join("/sys/class/net", eth0.get(), "speed"));
+
+    if (value.isError()) {
+      return Error(
+          "Failed to read " +
+          path::join("/sys/class/net", eth0.get(), "speed") +
+          ": " + value.error());
+    }
+
+    Try<uint64_t> hostLinkSpeed = numify<uint64_t>(strings::trim(value.get()));
+    CHECK_SOME(hostLinkSpeed);
+
+    // It could be possible that the nic driver doesn't support
+    // reporting physical link speed. In that case, report error.
+    if (hostLinkSpeed.get() == 0xFFFFFFFF) {
+      return Error(
+          "Network Isolator failed to determine link speed for " + eth0.get());
+    }
+
+    // Convert host link speed to Bytes/s for comparason.
+    if (hostLinkSpeed.get() * 1000000 / 8 <
+        flags.egress_rate_limit_per_container.get().bytes()) {
+      return Error(
+          "The given egress traffic limit for containers " +
+          stringify(flags.egress_rate_limit_per_container.get().bytes()) +
+          " Bytes/s is greater than the host link speed " +
+          stringify(hostLinkSpeed.get() * 1000000 / 8) + " Bytes/s");
+    }
+
+    if (flags.egress_rate_limit_per_container.get() != Bytes(0)) {
+      egressRateLimitPerContainer = flags.egress_rate_limit_per_container.get();
+    } else {
+      LOG(WARNING) << "Ignoring the given zero egress rate limit";
+    }
+  }
+
   // Get the host IP, MAC and default gateway.
   Result<net::IP> hostIP = net::ip(eth0.get());
   if (!hostIP.isSome()) {
@@ -1036,6 +1079,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           hostIP.get(),
           hostEth0MTU.get(),
           hostDefaultGateway.get(),
+          egressRateLimitPerContainer,
           nonEphemeralPorts,
           ephemeralPortsAllocator)));
 }
@@ -2422,6 +2466,24 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   // Display the filters created on eth0 and lo.
   script << "tc filter show dev " << eth0 << " parent ffff:\n";
   script << "tc filter show dev " << lo << " parent ffff:\n";
+
+  // If throughput limit for container egress traffic exists, use HTB
+  // qdisc to achieve traffic shaping.
+  // TBF has some known issues with GSO packets.
+  // https://git.kernel.org/cgit/linux/kernel/git/davem/net.git/:
+  // e43ac79a4bc6ca90de4ba10983b4ca39cd215b4b
+  // Additionally, HTB has a simpler interface for just capping the
+  // throughput. TBF requires other parameters such as 'burst' that
+  // HTB already has default values for.
+  if (egressRateLimitPerContainer.isSome()) {
+    script << "tc qdisc add dev " << eth0 << " root handle 1: htb default 1\n";
+    script << "tc class add dev " << eth0 << " parent 1: classid 1:1 htb rate "
+           << egressRateLimitPerContainer.get().bytes() * 8 << "bit\n";
+
+    // Display the htb qdisc and class created on eth0.
+    script << "tc qdisc show dev " << eth0 << "\n";
+    script << "tc class show dev " << eth0 << "\n";
+  }
 
   return script.str();
 }

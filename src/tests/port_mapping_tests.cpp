@@ -24,7 +24,9 @@
 
 #include <process/future.hpp>
 #include <process/reap.hpp>
+#include <process/subprocess.hpp>
 
+#include <stout/bytes.hpp>
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
 #include <stout/net.hpp>
@@ -1212,6 +1214,125 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainersTest)
 
   // Let the isolator clean up.
   AWAIT_READY(isolator.get()->cleanup(containerId1));
+
+  delete isolator.get();
+  delete launcher.get();
+}
+
+
+// Test the scenario where PortMappingIsolator uses a very small
+// egress rate limit.
+TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
+{
+  // Note that the underlying rate limiting mechanism usually has a
+  // small allowance for burst. Empirically, as least 10x of the rate
+  // limit amount of data is required to make sure the burst is an
+  // insignificant factor of the transmission time.
+
+  // To-be-tested egress rate limit, in Bytes/s.
+  const Bytes rate = 1000;
+  // Size of the data to send, in Bytes.
+  const Bytes size = 20480;
+
+  // Use a very small egress limit.
+  flags.egress_rate_limit_per_container = rate;
+
+  Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
+  CHECK_SOME(isolator);
+
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
+  CHECK_SOME(launcher);
+
+  // Open a nc server on the host side. Note that 'errorPort' is in
+  // neither 'ports' nor 'ephemeral_ports', which makes it a good port
+  // to use on the host.
+  Try<Subprocess> s = subprocess(
+      "nc -l localhost " + stringify(errorPort) + " > /devnull");
+  CHECK_SOME(s);
+
+  // Set the executor's resources.
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(
+      Resources::parse(container1Ports).get());
+
+  ContainerID containerId;
+  containerId.set_value("container1");
+
+  Future<Option<CommandInfo> > preparation1 =
+    isolator.get()->prepare(containerId, executorInfo);
+  AWAIT_READY(preparation1);
+  ASSERT_SOME(preparation1.get());
+
+  // Fill 'size' bytes of data. The actual content does not matter.
+  char data[size.bytes()];
+  memset(data, 97, size.bytes());
+
+  ostringstream command1;
+  const string transmissionTime = path::join(os::getcwd(), "transmission_time");
+
+  command1 << "echo 'Sending " << size.bytes()
+           << " bytes of data under egress rate limit " << rate.bytes()
+           << "Bytes/s...';";
+
+  command1 << "{ time -p echo " << string(data)  << " | nc localhost "
+           << errorPort << " ; } 2> " << transmissionTime << " && ";
+
+  // Touch the guard file.
+  command1 << "touch " << container1Ready;
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  Try<pid_t> pid = launchHelper(
+      launcher.get(),
+      pipes,
+      containerId,
+      command1.str(),
+      preparation1.get());
+  ASSERT_SOME(pid);
+
+  // Reap the forked child.
+  Future<Option<int> > reap = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+
+  // Now signal the child to continue.
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+  ::close(pipes[1]);
+
+  // Wait for the command to finish.
+  while (!os::exists(container1Ready));
+
+  Try<string> read = os::read(transmissionTime);
+  CHECK_SOME(read);
+
+  // Get the real elapsed time from `time` output. Sample output:
+  // real 12.37
+  // user 0.00
+  // sys 0.00
+  vector<string> lines = strings::split(strings::trim(read.get()), "\n");
+  ASSERT_EQ(3u, lines.size());
+  vector<string> split = strings::split(lines[0], " ");
+  ASSERT_EQ(2u, split.size());
+  Try<float> time = numify<float>(split[1]);
+  ASSERT_SOME(time);
+  ASSERT_GT(time.get(), (size.bytes() / rate.bytes()));
+
+  // Make sure the nc server exits normally.
+  Future<Option<int> > status = s.get().status();
+  AWAIT_READY(status);
+  EXPECT_SOME_EQ(0, status.get());
+
+  // Ensure all processes are killed.
+  AWAIT_READY(launcher.get()->destroy(containerId));
+
+  // Let the isolator clean up.
+  AWAIT_READY(isolator.get()->cleanup(containerId));
 
   delete isolator.get();
   delete launcher.get();

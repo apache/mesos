@@ -31,6 +31,7 @@
 #include <process/metrics/metrics.hpp>
 #include <process/metrics/counter.hpp>
 
+#include <stout/bytes.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/interval.hpp>
@@ -224,6 +225,7 @@ private:
       const net::IP& _hostIP,
       const size_t _hostEth0MTU,
       const net::IP& _hostDefaultGateway,
+      const Option<Bytes>& _egressRateLimitPerContainer,
       const IntervalSet<uint16_t>& _managedNonEphemeralPorts,
       const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator)
     : flags(_flags),
@@ -233,6 +235,7 @@ private:
       hostIP(_hostIP),
       hostEth0MTU(_hostEth0MTU),
       hostDefaultGateway(_hostDefaultGateway),
+      egressRateLimitPerContainer(_egressRateLimitPerContainer),
       managedNonEphemeralPorts(_managedNonEphemeralPorts),
       ephemeralPortsAllocator(_ephemeralPortsAllocator) {}
 
@@ -265,6 +268,9 @@ private:
   const net::IP hostIP;
   const size_t hostEth0MTU;
   const net::IP hostDefaultGateway;
+
+  // The optional throughput limit to containers' egress traffic.
+  const Option<Bytes> egressRateLimitPerContainer;
 
   // All the non-ephemeral ports managed by the slave, as passed in
   // via flags.resources.
