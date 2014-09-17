@@ -135,14 +135,9 @@ private:
   process::Future<Nothing> pull(
       const ContainerID& containerId,
       const std::string& directory,
-      const ContainerInfo::DockerInfo& dockerInfo);
+      const std::string& image);
 
-  process::Future<Nothing> _pull(
-      const Subprocess& s);
-
-  process::Future<Nothing> __pull(
-      const Subprocess& s,
-      const string& output);
+  process::Future<Nothing> _pull(const std::string& image);
 
   process::Future<Nothing> _recover(
       const std::list<Docker::Container>& containers);
@@ -273,10 +268,10 @@ private:
     // state anymore, although it doesn't hurt since it gives us
     // better error messages.
     enum State {
-      FETCHING,
-      PULLING,
-      RUNNING,
-      DESTROYING
+      FETCHING = 1,
+      PULLING = 2,
+      RUNNING = 3,
+      DESTROYING = 4
     } state;
 
     ContainerID id;
@@ -302,9 +297,9 @@ private:
     // are fetching.
     Option<Subprocess> fetcher;
 
-    // The docker pull subprocess is stored so we can killtree the
-    // pid when destroy is called while docker is pulling the image.
-    Option<Subprocess> pull;
+    // The docker pull future is stored so we can discard when
+    // destroy is called while docker is pulling the image.
+    Future<Docker::Image> pull;
 
     // Once the container is running, this saves the pid of the
     // running container.
@@ -430,86 +425,21 @@ Future<Nothing> DockerContainerizerProcess::_fetch(
 }
 
 
-// TODO(benh): Move this into Docker::pull after we've correctly made
-// the futures returned from Docker::* functions be discardable.
 Future<Nothing> DockerContainerizerProcess::pull(
     const ContainerID& containerId,
     const string& directory,
-    const ContainerInfo::DockerInfo& dockerInfo)
+    const string& image)
 {
-  vector<string> argv;
-  argv.push_back(flags.docker);
-  argv.push_back("pull");
-
-  // Check if the specified image has a tag. Also split on "/" in case
-  // the user specified a registry server (ie: localhost:5000/image)
-  // to get the actual image name. If no tag was given we add a
-  // 'latest' tag to avoid pulling down the repository.
-  vector<string> parts = strings::split(dockerInfo.image(), "/");
-  if (strings::contains(parts.back(), ":")) {
-    argv.push_back(dockerInfo.image());
-  } else {
-    argv.push_back(dockerInfo.image() + ":latest");
-  }
-
-  VLOG(1) << "Running " << strings::join(" ", argv);
-
-  map<string, string> environment;
-  environment["HOME"] = directory;
-
-  Try<Subprocess> s = subprocess(
-      flags.docker,
-      argv,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PIPE(),
-      None(),
-      environment);
-
-  if (s.isError()) {
-    return Failure("Failed to execute 'docker pull': " + s.error());
-  }
-
-  containers_[containerId]->pull = s.get();
-
-  return s.get().status()
-    .then(defer(self(), &Self::_pull, s.get()));
+  Future<Docker::Image> future = docker.pull(directory, image);
+  containers_[containerId]->pull = future;
+  return future.then(defer(self(), &Self::_pull, image));
 }
 
 
-Future<Nothing> DockerContainerizerProcess::_pull(
-    const Subprocess& s)
+Future<Nothing> DockerContainerizerProcess::_pull(const string& image)
 {
-  CHECK_READY(s.status());
-
-  Option<int> status = s.status().get();
-
-  if (status.isSome() && status.get() == 0) {
-    return Nothing();
-  }
-
-  CHECK_SOME(s.err());
-  return io::read(s.err().get())
-    .then(defer(self(), &Self::__pull, s, lambda::_1));
-}
-
-
-Future<Nothing> DockerContainerizerProcess::__pull(
-    const Subprocess& s,
-    const string& output)
-{
-  CHECK_READY(s.status());
-
-  Option<int> status = s.status().get();
-
-  if (status.isNone()) {
-    return Failure("No exit status available from 'docker pull': \n" + output);
-  }
-
-  CHECK_NE(0, status.get());
-
-  return Failure("Failed to execute 'docker pull', exited with status (" +
-                 WSTRINGIFY(status.get()) + "): \n" + output);
+  VLOG(1) << "Docker pull " << image << " completed";
+  return Nothing();
 }
 
 
@@ -849,7 +779,7 @@ Future<bool> DockerContainerizerProcess::_launch(
 
   containers_[containerId]->state = Container::PULLING;
 
-  return pull(containerId, directory, taskInfo.container().docker())
+  return pull(containerId, directory, taskInfo.container().docker().image())
     .then(defer(self(),
                 &Self::__launch,
                 containerId,
@@ -1087,7 +1017,7 @@ Future<bool> DockerContainerizerProcess::_launch(
 
   containers_[containerId]->state = Container::PULLING;
 
-  return pull(containerId, directory, executorInfo.container().docker())
+  return pull(containerId, directory, executorInfo.container().docker().image())
     .then(defer(self(),
                 &Self::__launch,
                 containerId,
@@ -1587,9 +1517,7 @@ void DockerContainerizerProcess::destroy(
     LOG(INFO) << "Destroying Container '"
               << containerId << "' in PULLING state";
 
-    if (container->pull.isSome()) {
-      os::killtree(container->pull.get().pid(), SIGKILL);
-    }
+    container->pull.discard();
 
     containerizer::Termination termination;
     termination.set_killed(killed);

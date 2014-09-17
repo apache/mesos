@@ -20,6 +20,8 @@
 
 #include <process/future.hpp>
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
+#include <process/subprocess.hpp>
 
 #include <stout/option.hpp>
 #include <stout/gtest.hpp>
@@ -260,7 +262,7 @@ TEST(DockerTest, ROOT_DOCKER_CheckPortResource)
       resources);
 
   // Port should be out side of the provided ranges.
-  AWAIT_EXPECTED_FAILED(run);
+  AWAIT_EXPECT_FAILED(run);
 
   resources = Resources::parse("ports:[9998-9999];ports:[10000-11000]").get();
 
@@ -279,4 +281,36 @@ TEST(DockerTest, ROOT_DOCKER_CheckPortResource)
 
   Future<Nothing> status = docker.rm(containerName, true);
   AWAIT_READY(status);
+}
+
+
+TEST(DockerTest, ROOT_DOCKER_CancelPull)
+{
+  // Delete the test image if it exists.
+
+  Try<Subprocess> s = process::subprocess(
+      tests::flags.docker + " rmi lingmann/1gb",
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"));
+
+  ASSERT_SOME(s);
+
+  AWAIT_READY_FOR(s.get().status(), Seconds(30));
+
+  Docker docker = Docker::create(tests::flags.docker, false).get();
+
+  Try<string> directory = environment->mkdtemp();
+
+  CHECK_SOME(directory) << "Failed to create temporary directory";
+
+  // Assume that pulling the very large image 'lingmann/1gb' will take
+  // sufficiently long that we can start it and discard (i.e., cancel
+  // it) right away and the future will indeed get discarded.
+  Future<Docker::Image> future =
+    docker.pull(directory.get(), "lingmann/1gb");
+
+  future.discard();
+
+  AWAIT_DISCARDED(future);
 }
