@@ -65,6 +65,19 @@ public:
       : id(_id), name(_name), pid(_pid) {}
   };
 
+  class Image
+  {
+  public:
+    static Try<Image> create(const JSON::Object& json);
+
+    Option<std::vector<std::string> > entrypoint;
+
+  private:
+    Image(const Option<std::vector<std::string> >& _entrypoint)
+      : entrypoint(_entrypoint) {}
+  };
+
+
   // Performs 'docker run IMAGE'.
   process::Future<Nothing> run(
       const mesos::ContainerInfo& containerInfo,
@@ -104,6 +117,10 @@ public:
       const std::string& container,
       const std::string& directory);
 
+  process::Future<Image> pull(
+      const std::string& directory,
+      const std::string& image);
+
 private:
   // Uses the specified path to the Docker CLI tool.
   Docker(const std::string& _path) : path(_path) {};
@@ -132,6 +149,23 @@ private:
       const Docker& docker,
       const Option<std::string>& prefix,
       const std::string& output);
+
+  static process::Future<Image> _pull(
+      const process::Subprocess& s,
+      const std::string& directory,
+      const std::string& image,
+      const std::string& path);
+
+  static process::Future<Image> __pull(
+      const process::Subprocess& s,
+      const std::string& cmd);
+
+  static process::Future<Image> ___pull(
+      const std::string& output);
+
+  static void pullDiscarded(
+      const process::Subprocess& s,
+      const std::string& cmd);
 
   const std::string path;
 };
