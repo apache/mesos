@@ -6,6 +6,32 @@
     resources.
 
 
+Release Notes - Mesos - Version 0.20.1
+--------------------------------------
+* This is a bug fix release.
+
+** Bug
+    * [MESOS-1705] - SubprocessTest.Status sometimes flakes out
+    * [MESOS-1724] - Can't include port in DockerInfo's image
+    * [MESOS-1727] - Configure fails with ../configure: line 18439: syntax error near unexpected token `PROTOBUFPREFIX,'
+    * [MESOS-1729] - LogZooKeeperTest.WriteRead fails due to SIGPIPE (escalated to SIGABRT)
+    * [MESOS-1730] - Should be an error if commandinfo shell=true when using docker containerizer
+    * [MESOS-1732] - Mesos containerizer doesn't reject tasks with container info set
+    * [MESOS-1737] - Isolation=external result in core dump on 0.20.0
+    * [MESOS-1740] - Bad error message when docker containerizer isn't enabled
+    * [MESOS-1749] - SlaveRecoveryTest.ShutdownSlave is flaky
+    * [MESOS-1755] - Add docker support to mesos-execute
+    * [MESOS-1758] - Freezer failure leads to lost task during container destruction.
+    * [MESOS-1760] - MasterAuthorizationTest.FrameworkRemovedBeforeReregistration is flaky
+    * [MESOS-1764] - Build Fixes from 0.20 release
+    * [MESOS-1766] - MasterAuthorizationTest.DuplicateRegistration test is flaky
+
+** Improvement
+    * [MESOS-1621] - Docker run networking should be configurable and support bridge network
+    * [MESOS-1762] - Avoid docker pull on each container run
+    * [MESOS-1770] - Docker with command shell=true should override entrypoint
+
+
 Release Notes - Mesos - Version 0.20.0
 --------------------------------------
 
