@@ -1,3 +1,11 @@
+(WIP) Release Notes - Mesos - Version 0.21.0
+--------------------------------------
+
+* Deprecations:
+  * [MESOS-1807] Disallow executors with cpu only or memory only
+    resources.
+
+
 Release Notes - Mesos - Version 0.20.0
 --------------------------------------
 

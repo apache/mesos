@@ -216,7 +216,9 @@ bool Resources::operator <= (const Resources& that) const
   foreach (const Resource& resource, resources) {
     Option<Resource> option = that.get(resource);
     if (option.isNone()) {
-      return false;
+      if (!isZero(resource)) {
+        return false;
+      }
     } else {
       if (!(resource <= option.get())) {
         return false;
@@ -367,7 +369,10 @@ Option<Resources> Resources::find(
     Option<Resources> all = getAll(findResource);
     bool done = false;
 
-    if (all.isSome()) {
+    if (isZero(findResource)) {
+      // Done, as no resources of this type have been requested.
+      done = true;
+    } else if (all.isSome()) {
       for (int i = 0; i < 3 && !done; i++) {
         foreach (const Resource& potential, all.get()) {
           // Ensures that we take resources first from the specified role,

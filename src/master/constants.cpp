@@ -29,7 +29,7 @@ namespace internal {
 namespace master {
 
 const int MAX_OFFERS_PER_FRAMEWORK = 50;
-const double MIN_CPUS = 0.1;
+const double MIN_CPUS = 0.01;
 const Bytes MIN_MEM = Megabytes(32);
 const Duration SLAVE_PING_TIMEOUT = Seconds(15);
 const uint32_t MAX_SLAVE_PING_TIMEOUTS = 5;

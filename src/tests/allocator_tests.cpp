@@ -769,10 +769,9 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
       allocator.real, &HierarchicalDRFAllocatorProcess::slaveAdded);
 
   // This slave's resources will never be offered to anyone,
-  // because there is no framework with role3 and the unreserved
-  // memory can't be offered without a cpu to go with it.
+  // because there is no framework with role3.
   slave::Flags flags2 = CreateSlaveFlags();
-  flags2.resources = Some("cpus(role3):4;mem:1024;disk:0");
+  flags2.resources = Some("cpus(role3):4;mem(role3):1024;disk:0");
   Try<PID<Slave> > slave2 = StartSlave(flags2);
   ASSERT_SOME(slave2);
 
@@ -1792,6 +1791,182 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(this->allocator, frameworkRemoved(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  EXPECT_CALL(this->allocator, slaveRemoved(_))
+    .Times(AtMost(1));
+
+  this->Shutdown();
+}
+
+
+// Checks that cpus only resources are offered
+// and tasks using only cpus are launched.
+TYPED_TEST(AllocatorTest, CpusOnlyOfferedAndTaskLaunched)
+{
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
+
+  master::Flags masterFlags = this->CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  // Start a slave with cpus only resources.
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.resources = Some("cpus:2;mem:0");
+
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+
+  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
+    .WillRepeatedly(DoDefault());
+
+  // Launch a cpus only task.
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 0)))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 0, "*"));
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  ExecutorDriver* execDriver;
+  TaskInfo taskInfo;
+  Future<Nothing> launchTask;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(DoAll(SaveArg<0>(&execDriver),
+                    SaveArg<1>(&taskInfo),
+                    SendStatusUpdateFromTask(TASK_RUNNING),
+                    FutureSatisfy(&launchTask)));
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(DoDefault());
+
+  driver.start();
+
+  AWAIT_READY(launchTask);
+
+  TaskStatus status;
+  status.mutable_task_id()->MergeFrom(taskInfo.task_id());
+  status.set_state(TASK_FINISHED);
+
+  // Check that cpus resources of finished task are offered again.
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 0)))
+    .WillOnce(FutureSatisfy(&resourceOffers));
+
+  execDriver->sendStatusUpdate(status);
+
+  AWAIT_READY(resourceOffers);
+
+  // Shut everything down.
+  EXPECT_CALL(this->allocator, frameworkDeactivated(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(this->allocator, frameworkRemoved(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  EXPECT_CALL(this->allocator, slaveRemoved(_))
+    .Times(AtMost(1));
+
+  this->Shutdown();
+}
+
+
+// Checks that memory only resources are offered
+// and tasks using only memory are launched.
+TYPED_TEST(AllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
+{
+  EXPECT_CALL(this->allocator, initialize(_, _, _));
+
+  master::Flags masterFlags = this->CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+  Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  // Start a slave with memory only resources.
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.resources = Some("cpus:0;mem:200");
+
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+
+  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(this->allocator, frameworkAdded(_, _, _));
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
+    .WillRepeatedly(DoDefault());
+
+  // Launch a memory only task.
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(0, 200)))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 0, 200, "*"));
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  ExecutorDriver* execDriver;
+  TaskInfo taskInfo;
+  Future<Nothing> launchTask;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(DoAll(SaveArg<0>(&execDriver),
+                    SaveArg<1>(&taskInfo),
+                    SendStatusUpdateFromTask(TASK_RUNNING),
+                    FutureSatisfy(&launchTask)));
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(DoDefault());
+
+  driver.start();
+
+  AWAIT_READY(launchTask);
+
+  TaskStatus status;
+  status.mutable_task_id()->MergeFrom(taskInfo.task_id());
+  status.set_state(TASK_FINISHED);
+
+  // Check that mem resources of finished task are offered again.
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(_, OfferEq(0, 200)))
+    .WillOnce(FutureSatisfy(&resourceOffers));
+
+  execDriver->sendStatusUpdate(status);
+
+  AWAIT_READY(resourceOffers);
+
+  // Shut everything down.
   EXPECT_CALL(this->allocator, frameworkDeactivated(_))
     .Times(AtMost(1));
 

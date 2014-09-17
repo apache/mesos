@@ -1870,7 +1870,7 @@ struct ResourceUsageChecker : TaskInfoVisitor
     }
 
     // Check if this task uses more resources than offered.
-    Resources taskResources = task.resources();
+    const Resources& taskResources = task.resources();
 
     if (!(taskResources <= resources)) {
       return "Task " + stringify(task.task_id()) + " attempted to use " +
@@ -1880,13 +1880,41 @@ struct ResourceUsageChecker : TaskInfoVisitor
 
     // Check this task's executor's resources.
     if (task.has_executor()) {
-      // TODO(benh): Check that the executor uses some resources.
-      foreach (const Resource& resource, task.executor().resources()) {
+      const Resources& executorResources = task.executor().resources();
+
+      foreach (const Resource& resource, executorResources) {
         if (!Resources::isAllocatable(resource)) {
           // TODO(benh): Send back the invalid resources?
           return "Executor for task " + stringify(task.task_id()) +
                  " uses invalid resources " + stringify(resource);
         }
+      }
+
+      // Check minimal cpus and memory resources of executor
+      // and log warnings if not set.
+      // TODO(martin): MESOS-1807. Return Error instead of logging a
+      // warning in 0.22.0.
+      Option<double> cpus =  executorResources.cpus();
+      if (cpus.isNone() || cpus.get() < MIN_CPUS) {
+        LOG(WARNING)
+          << "Executor " << stringify(task.executor().executor_id())
+          << " for task " << stringify(task.task_id())
+          << " uses less CPUs ("
+          << (cpus.isSome() ? stringify(cpus.get()) : "None")
+          << ") than the minimum required (" << MIN_CPUS
+          << "). Please update your executor, as this will be mandatory "
+          << "in future releases.";
+      }
+      Option<Bytes> mem = executorResources.mem();
+      if (mem.isNone() || mem.get() < MIN_MEM) {
+        LOG(WARNING)
+          << "Executor " << stringify(task.executor().executor_id())
+          << " for task " << stringify(task.task_id())
+          << " uses less memory ("
+          << (mem.isSome() ? stringify(mem.get().megabytes()) : "None")
+          << ") than the minimum required (" << MIN_MEM
+          << "). Please update your executor, as this will be mandatory "
+          << "in future releases.";
       }
     }
 

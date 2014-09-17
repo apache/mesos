@@ -828,22 +828,11 @@ bool
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
     const Resources& resources)
 {
-  // TODO(benh): For now, only make offers when there is some cpu
-  // and memory left. This is an artifact of the original code that
-  // only offered when there was at least 1 cpu "unit" available,
-  // and without doing this a framework might get offered resources
-  // with only memory available (which it obviously will decline)
-  // and then end up waiting the default Filters::refuse_seconds
-  // (unless the framework set it to something different).
-
   Option<double> cpus = resources.cpus();
   Option<Bytes> mem = resources.mem();
 
-  if (cpus.isSome() && mem.isSome()) {
-    return cpus.get() >= MIN_CPUS && mem.get() > MIN_MEM;
-  }
-
-  return false;
+  return (cpus.isSome() && cpus.get() >= MIN_CPUS) ||
+         (mem.isSome() && mem.get() >= MIN_MEM);
 }
 
 } // namespace allocator {
