@@ -256,9 +256,16 @@ message UnregisterSlaveMessage {
 }
 
 
-message HeartbeatMessage {
-  required SlaveID slave_id = 1;
+// This message is periodically sent by the master to the slave.
+// If the slave is connected to the master, "connected" is true.
+message PingSlaveMessage {
+  required bool connected = 1;
 }
+
+
+// This message is sent by the slave to the master in response to the
+// PingSlaveMessage.
+message PongSlaveMessage {}
 
 
 // Tells a slave to shut down all executors of the given framework.
@@ -317,26 +324,6 @@ message ReregisterExecutorMessage {
   required FrameworkID framework_id = 2;
   repeated TaskInfo tasks = 3;
   repeated StatusUpdate updates = 4;
-}
-
-
-message RegisterProjdMessage {
-  required string project = 1;
-}
-
-
-message ProjdReadyMessage {
-  required string project = 1;
-}
-
-
-message ProjdUpdateResourcesMessage {
-  optional Parameters parameters = 1;
-}
-
-
-message FrameworkExpiredMessage {
-  required FrameworkID framework_id = 1;
 }
 
 

@@ -173,15 +173,42 @@ public:
       slaveId(_slaveId),
       master(_master),
       timeouts(0),
-      pinged(false)
+      pinged(false),
+      connected(true)
   {
+    // TODO(vinod): Deprecate this handler in 0.22.0 in favor of a
+    // new PongSlaveMessage handler.
     install("PONG", &SlaveObserver::pong);
+  }
+
+  void reconnect()
+  {
+    connected = true;
+  }
+
+  void disconnect()
+  {
+    connected = false;
   }
 
 protected:
   virtual void initialize()
   {
-    send(slave, "PING");
+    ping();
+  }
+
+  void ping()
+  {
+    // TODO(vinod): In 0.22.0, master should send the PingSlaveMessage
+    // instead of sending "PING" with the encoded PingSlaveMessage.
+    // Currently we do not do this for backwards compatibility with
+    // slaves on 0.20.0.
+    PingSlaveMessage message;
+    message.set_connected(connected);
+    string data;
+    CHECK(message.SerializeToString(&data));
+    send(slave, "PING", data.data(), data.size());
+
     pinged = true;
     delay(SLAVE_PING_TIMEOUT, self(), &SlaveObserver::timeout);
   }
@@ -201,9 +228,7 @@ protected:
       }
     }
 
-    send(slave, "PING");
-    pinged = true;
-    delay(SLAVE_PING_TIMEOUT, self(), &SlaveObserver::timeout);
+    ping();
   }
 
   void shutdown()
@@ -218,6 +243,7 @@ private:
   const PID<Master> master;
   uint32_t timeouts;
   bool pinged;
+  bool connected;
 };
 
 
@@ -1717,6 +1743,9 @@ void Master::disconnect(Slave* slave)
 
   slave->connected = false;
 
+  // Inform the slave observer.
+  dispatch(slave->observer, &SlaveObserver::disconnect);
+
   // Remove the slave from authenticated. This is safe because
   // a slave will always reauthenticate before (re-)registering.
   authenticated.erase(slave->pid);
@@ -3050,6 +3079,7 @@ void Master::reregisterSlave(
     // slave.
     if (!slave->connected) {
       slave->connected = true;
+      dispatch(slave->observer, &SlaveObserver::reconnect);
       slave->active = true;
       allocator->slaveActivated(slave->id);
     }
@@ -3683,8 +3713,9 @@ void Master::authenticate(const UPID& from, const UPID& pid)
   //       after restart; true for slave but not for framework.
   //       If the PID doesn't change the master might mark the client
   //       disconnected *after* the client re-registers.
-  // TODO(vinod): To ensure safety the client (slave) should be
-  // informed about this discrepancy so that it can re-register.
+  //       This is safe because the client (slave) will be informed
+  //       about this discrepancy via ping messages so that it can
+  //       re-register.
 
   authenticated.erase(pid);
 
