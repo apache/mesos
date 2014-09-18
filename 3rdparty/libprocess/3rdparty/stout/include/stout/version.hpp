@@ -35,7 +35,7 @@ public:
   // Missing components are treated as zero.
   static Try<Version> parse(const std::string& s)
   {
-    const int maxComponents = 3;
+    const size_t maxComponents = 3;
 
     std::vector<std::string> split = strings::split(s, ".");
 
