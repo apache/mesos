@@ -17,6 +17,7 @@ Release Notes - Mesos - Version 0.20.1
     * [MESOS-1760] - MasterAuthorizationTest.FrameworkRemovedBeforeReregistration is flaky
     * [MESOS-1764] - Build Fixes from 0.20 release
     * [MESOS-1766] - MasterAuthorizationTest.DuplicateRegistration test is flaky
+    * [MESOS-1809] - Modify docker pull to use docker inspect after a successful pull
 
 ** Improvement
     * [MESOS-1621] - Docker run networking should be configurable and support bridge network
