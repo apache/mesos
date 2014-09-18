@@ -330,17 +330,12 @@ bool supported()
 {
   // Require Linux kernel version >= 2.6.38 for "-x" and >= 2.6.39 for
   // "--cgroup"
-  Try<os::Release> release = os::release();
+  Try<Version> release = os::release();
 
   // This is not expected to ever be an Error.
   CHECK_SOME(release);
 
-  os::Release required;
-  required.version = 2;
-  required.major = 6;
-  required.minor = 39;
-
-  return required <= release.get();
+  return release.get() >= Version(2, 6, 39);
 }
 
 
