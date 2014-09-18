@@ -1851,7 +1851,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_PortMapping)
       "echo " + uuid + " | nc localhost 10000");
 
   ASSERT_SOME(s);
-  AWAIT_READY(s.get().status());
+  AWAIT_READY_FOR(s.get().status(), Seconds(60));
 
   string container = slave::DOCKER_NAME_PREFIX + stringify(containerId.get());
 
