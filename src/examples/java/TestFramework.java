@@ -56,13 +56,35 @@ public class TestFramework {
     @Override
     public void resourceOffers(SchedulerDriver driver,
                                List<Offer> offers) {
+      double CPUS_PER_TASK = 1;
+      double MEM_PER_TASK = 128;
+
       for (Offer offer : offers) {
         List<TaskInfo> tasks = new ArrayList<TaskInfo>();
-        if (launchedTasks < totalTasks) {
+        double offerCpus = 0;
+        double offerMem = 0;
+        for (Resource resource : offer.getResourcesList()) {
+          if (resource.getName().equals("cpus")) {
+            offerCpus += resource.getScalar().getValue();
+          } else if (resource.getName().equals("mem")) {
+            offerMem += resource.getScalar().getValue();
+          }
+        }
+
+        System.out.println(
+            "Received offer " + offer.getId().getValue() + " with cpus: " + offerCpus +
+            " and mem: " + offerMem);
+
+        double remainingCpus = offerCpus;
+        double remainingMem = offerMem;
+        while (launchedTasks < totalTasks &&
+               remainingCpus >= CPUS_PER_TASK &&
+               remainingMem >= MEM_PER_TASK) {
           TaskID taskId = TaskID.newBuilder()
             .setValue(Integer.toString(launchedTasks++)).build();
 
-          System.out.println("Launching task " + taskId.getValue());
+          System.out.println("Launching task " + taskId.getValue() +
+                             " using offer " + offer.getId().getValue());
 
           TaskInfo task = TaskInfo.newBuilder()
             .setName("task " + taskId.getValue())
@@ -71,14 +93,18 @@ public class TestFramework {
             .addResources(Resource.newBuilder()
                           .setName("cpus")
                           .setType(Value.Type.SCALAR)
-                          .setScalar(Value.Scalar.newBuilder().setValue(1)))
+                          .setScalar(Value.Scalar.newBuilder().setValue(CPUS_PER_TASK)))
             .addResources(Resource.newBuilder()
                           .setName("mem")
                           .setType(Value.Type.SCALAR)
-                          .setScalar(Value.Scalar.newBuilder().setValue(128)))
+                          .setScalar(Value.Scalar.newBuilder().setValue(MEM_PER_TASK)))
             .setExecutor(ExecutorInfo.newBuilder(executor))
             .build();
+
           tasks.add(task);
+
+          remainingCpus -= CPUS_PER_TASK;
+          remainingMem -= MEM_PER_TASK;
         }
         Filters filters = Filters.newBuilder().setRefuseSeconds(1).build();
         driver.launchTasks(offer.getId(), tasks, filters);

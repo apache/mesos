@@ -23,11 +23,16 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <stout/check.hpp>
 #include <stout/exit.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
+#include <stout/stringify.hpp>
+
+#include "common/type_utils.hpp"
 
 using namespace mesos;
 
@@ -40,8 +45,10 @@ using std::flush;
 using std::string;
 using std::vector;
 
+using mesos::Resources;
+
 const int32_t CPUS_PER_TASK = 1;
-const int32_t MEM_PER_TASK = 32;
+const int32_t MEM_PER_TASK = 128;
 
 class NoExecutorScheduler : public Scheduler
 {
@@ -65,36 +72,24 @@ public:
   virtual void resourceOffers(SchedulerDriver* driver,
                               const vector<Offer>& offers)
   {
-    cout << "." << flush;
-    for (size_t i = 0; i < offers.size(); i++) {
-      const Offer& offer = offers[i];
+    foreach (const Offer& offer, offers) {
+      cout << "Received offer " << offer.id() << " with " << offer.resources()
+           << endl;
 
-      // Lookup resources we care about.
-      // TODO(benh): It would be nice to ultimately have some helper
-      // functions for looking up resources.
-      double cpus = 0;
-      double mem = 0;
+      static const Resources TASK_RESOURCES = Resources::parse(
+          "cpus:" + stringify(CPUS_PER_TASK) +
+          ";mem:" + stringify(MEM_PER_TASK)).get();
 
-      for (int i = 0; i < offer.resources_size(); i++) {
-        const Resource& resource = offer.resources(i);
-        if (resource.name() == "cpus" &&
-            resource.type() == Value::SCALAR) {
-          cpus = resource.scalar().value();
-        } else if (resource.name() == "mem" &&
-                   resource.type() == Value::SCALAR) {
-          mem = resource.scalar().value();
-        }
-      }
+      Resources remaining = offer.resources();
 
       // Launch tasks.
       vector<TaskInfo> tasks;
       while (tasksLaunched < totalTasks &&
-             cpus >= CPUS_PER_TASK &&
-             mem >= MEM_PER_TASK) {
+             TASK_RESOURCES <= remaining.flatten()) {
         int taskId = tasksLaunched++;
 
-        cout << "Starting task " << taskId << " on "
-             << offer.hostname() << endl;
+        cout << "Launching task " << taskId << " using offer "
+             << offer.id() << endl;
 
         TaskInfo task;
         task.set_name("Task " + lexical_cast<string>(taskId));
@@ -102,22 +97,12 @@ public:
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
         task.mutable_command()->set_value("echo hello");
 
-        Resource* resource;
-
-        resource = task.add_resources();
-        resource->set_name("cpus");
-        resource->set_type(Value::SCALAR);
-        resource->mutable_scalar()->set_value(CPUS_PER_TASK);
-
-        resource = task.add_resources();
-        resource->set_name("mem");
-        resource->set_type(Value::SCALAR);
-        resource->mutable_scalar()->set_value(MEM_PER_TASK);
+        Option<Resources> resources = remaining.find(TASK_RESOURCES);
+        CHECK_SOME(resources);
+        task.mutable_resources()->MergeFrom(resources.get());
+        remaining -= resources.get();
 
         tasks.push_back(task);
-
-        cpus -= CPUS_PER_TASK;
-        mem -= MEM_PER_TASK;
       }
 
       driver->launchTasks(offer.id(), tasks);

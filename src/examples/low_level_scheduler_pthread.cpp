@@ -42,6 +42,8 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
+#include "common/type_utils.hpp"
+
 #include "logging/flags.hpp"
 
 using namespace mesos;
@@ -60,7 +62,7 @@ using mesos::scheduler::Call;
 using mesos::scheduler::Event;
 
 const int32_t CPUS_PER_TASK = 1;
-const int32_t MEM_PER_TASK = 32;
+const int32_t MEM_PER_TASK = 128;
 
 class LowLevelScheduler
 {
@@ -261,8 +263,8 @@ private:
   void resourceOffers(const vector<Offer>& offers)
   {
     foreach (const Offer& offer, offers) {
-      cout << "Offer '" << offer.id().value() << "' has "
-           << offer.resources() << endl;
+      cout << "Received offer " << offer.id() << " with " << offer.resources()
+           << endl;
 
       static const Resources TASK_RESOURCES = Resources::parse(
           "cpus:" + stringify(CPUS_PER_TASK) +
@@ -276,8 +278,8 @@ private:
              TASK_RESOURCES <= remaining.flatten()) {
         int taskId = tasksLaunched++;
 
-        cout << "Starting task " << taskId << " on "
-             << offer.hostname() << endl;
+        cout << "Launching task " << taskId << " using offer "
+             << offer.id() << endl;
 
         TaskInfo task;
         task.set_name("Task " + lexical_cast<string>(taskId));

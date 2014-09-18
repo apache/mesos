@@ -24,5 +24,8 @@ export MESOS_WORK_DIR=${MESOS_WORK_DIR}
 # Set local Mesos runner to use 3 slaves
 export MESOS_NUM_SLAVES=3
 
+# Set resources for the slave.
+export MESOS_RESOURCES="cpus:2;mem:10240"
+
 # Check that the Python test framework executes without crashing (returns 0).
 exec $MESOS_BUILD_DIR/src/examples/python/test-framework local
