@@ -65,6 +65,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
+#include <stout/version.hpp>
 
 #include <stout/os/exists.hpp>
 #include <stout/os/fork.hpp>
@@ -1180,59 +1181,27 @@ inline Try<std::string> sysname()
 }
 
 
-// The OS release level.
-// TODO(karya): Replace struct Release with Version from version.hpp.
-struct Release
-{
-  bool operator == (const Release& other)
-  {
-    return version == other.version &&
-      major == other.major &&
-      minor == other.minor;
-  }
-
-  bool operator < (const Release& other)
-  {
-    // Lexicographic ordering.
-    if (version != other.version) {
-      return version < other.version;
-    } else if (major != other.major) {
-      return major < other.major;
-    } else {
-      return minor < other.minor;
-    }
-  }
-
-  bool operator <= (const Release& other)
-  {
-    return *this < other || *this == other;
-  }
-
-  int version;
-  int major;
-  int minor;
-};
-
-
 // Return the OS release numbers.
-inline Try<Release> release()
+inline Try<Version> release()
 {
   Try<UTSInfo> info = uname();
   if (info.isError()) {
     return Error(info.error());
   }
 
-  Release r;
+  // TODO(karya): Replace sscanf with Version::parse() once Version
+  // starts supporting labels and build metadata.
+  int major, minor, patch;
   if (::sscanf(
           info.get().release.c_str(),
           "%d.%d.%d",
-          &r.version,
-          &r.major,
-          &r.minor) != 3) {
+          &major,
+          &minor,
+          &patch) != 3) {
     return Error("Failed to parse: " + info.get().release);
   }
 
-  return r;
+  return Version(major, minor, patch);
 }
 
 

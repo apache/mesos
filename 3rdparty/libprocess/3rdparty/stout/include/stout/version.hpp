@@ -25,6 +25,8 @@
 // This class provides convenience routines for version checks.
 // TODO(karya): Consider adding support for more than 3 components,
 // and compatibility operators.
+// TODO(karya): Add support for labels and build metadata. Consider
+// semantic versioning (http://semvar.org/) for specs.
 class Version
 {
 public:

@@ -265,7 +265,7 @@ TEST_F(OsTest, sysname)
 
 TEST_F(OsTest, release)
 {
-  const Try<os::Release>& info = os::release();
+  const Try<Version>& info = os::release();
 
   ASSERT_SOME(info);
 }
