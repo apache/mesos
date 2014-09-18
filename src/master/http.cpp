@@ -366,7 +366,7 @@ Future<Response> Master::Http::stats(const Request& request)
   object.values["uptime"] = (Clock::now() - master->startTime).secs();
   object.values["elected"] = master->elected() ? 1 : 0;
   object.values["total_schedulers"] = master->frameworks.registered.size();
-  object.values["active_schedulers"] = master->getActiveFrameworks().size();
+  object.values["active_schedulers"] = master->_frameworks_active();
   object.values["activated_slaves"] = master->_slaves_active();
   object.values["deactivated_slaves"] = master->_slaves_inactive();
   object.values["outstanding_offers"] = master->offers.size();

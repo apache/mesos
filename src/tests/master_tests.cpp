@@ -1433,9 +1433,13 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
   EXPECT_EQ(1, stats.values["elected"]);
   EXPECT_EQ(1, stats.values["master/elected"]);
 
+  EXPECT_EQ(1u, stats.values.count("master/slaves_connected"));
+  EXPECT_EQ(1u, stats.values.count("master/slaves_disconnected"));
   EXPECT_EQ(1u, stats.values.count("master/slaves_active"));
   EXPECT_EQ(1u, stats.values.count("master/slaves_inactive"));
 
+  EXPECT_EQ(1u, stats.values.count("master/frameworks_connected"));
+  EXPECT_EQ(1u, stats.values.count("master/frameworks_disconnected"));
   EXPECT_EQ(1u, stats.values.count("master/frameworks_active"));
   EXPECT_EQ(1u, stats.values.count("master/frameworks_inactive"));
 

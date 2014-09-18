@@ -2029,20 +2029,12 @@ TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
 
   AWAIT_READY(resourceOffers);
 
-  Future<Nothing> offerRescinded;
-  EXPECT_CALL(sched, offerRescinded(_, _))
-    .WillOnce(FutureSatisfy(&offerRescinded));
-
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Simulate a spurious master change event (e.g., due to ZooKeeper
   // expiration) at the slave.
   detector.appoint(master.get());
-
-  // Since an authenticating slave re-registration results in
-  // disconnecting the slave, its resources should be rescinded.
-  AWAIT_READY(offerRescinded);
 
   AWAIT_READY(slaveReregisteredMessage);
 

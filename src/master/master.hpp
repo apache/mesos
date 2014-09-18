@@ -286,9 +286,6 @@ protected:
   void fileAttached(const process::Future<Nothing>& result,
                     const std::string& path);
 
-  // Return connected frameworks that are not in the process of being removed.
-  std::vector<Framework*> getActiveFrameworks() const;
-
   // Invoked when the contender has entered the contest.
   void contended(const process::Future<process::Future<Nothing> >& candidacy);
 
@@ -328,8 +325,11 @@ protected:
   // executors and recover the resources.
   void removeFramework(Slave* slave, Framework* framework);
 
+  void disconnect(Framework* framework);
   void deactivate(Framework* framework);
+
   void disconnect(Slave* slave);
+  void deactivate(Slave* slave);
 
   // Add a slave.
   void addSlave(Slave* slave, bool reregister = false);
@@ -606,9 +606,13 @@ private:
     process::metrics::Gauge uptime_secs;
     process::metrics::Gauge elected;
 
+    process::metrics::Gauge slaves_connected;
+    process::metrics::Gauge slaves_disconnected;
     process::metrics::Gauge slaves_active;
     process::metrics::Gauge slaves_inactive;
 
+    process::metrics::Gauge frameworks_connected;
+    process::metrics::Gauge frameworks_disconnected;
     process::metrics::Gauge frameworks_active;
     process::metrics::Gauge frameworks_inactive;
 
@@ -730,19 +734,15 @@ private:
     return elected() ? 1 : 0;
   }
 
+  double _slaves_connected();
+  double _slaves_disconnected();
   double _slaves_active();
-
   double _slaves_inactive();
 
-  double _frameworks_active()
-  {
-    return getActiveFrameworks().size();
-  }
-
-  double _frameworks_inactive()
-  {
-    return frameworks.registered.size() - _frameworks_active();
-  }
+  double _frameworks_connected();
+  double _frameworks_disconnected();
+  double _frameworks_active();
+  double _frameworks_inactive();
 
   double _outstanding_offers()
   {
@@ -821,7 +821,8 @@ struct Slave
       info(_info),
       pid(_pid),
       registeredTime(time),
-      disconnected(false),
+      connected(true),
+      active(true),
       observer(NULL) {}
 
   ~Slave() {}
@@ -937,9 +938,13 @@ struct Slave
   process::Time registeredTime;
   Option<process::Time> reregisteredTime;
 
-  // We mark a slave 'disconnected' when it has checkpointing
-  // enabled because we expect it reregister after recovery.
-  bool disconnected;
+  // Slave becomes disconnected when the socket closes.
+  bool connected;
+
+  // Slave becomes deactivated when it gets disconnected. In the
+  // future this might also happen via HTTP endpoint.
+  // No offers will be made for a deactivated slave.
+  bool active;
 
   // Executors running on this slave.
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > executors;
@@ -984,6 +989,7 @@ struct Framework
     : id(_id),
       info(_info),
       pid(_pid),
+      connected(true),
       active(true),
       registeredTime(time),
       reregisteredTime(time),
@@ -1101,7 +1107,14 @@ struct Framework
 
   process::UPID pid;
 
-  bool active; // Turns false when framework is being removed.
+  // Framework becomes disconnected when the socket closes.
+  bool connected;
+
+  // Framework becomes deactivated when it is disconnected or
+  // the master receives a DeactivateFrameworkMessage.
+  // No offers will be made to a deactivated framework.
+  bool active;
+
   process::Time registeredTime;
   process::Time reregisteredTime;
   process::Time unregisteredTime;
