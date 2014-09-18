@@ -741,7 +741,7 @@ Future<list<Docker::Container> > Docker::__ps(
 
 Future<Docker::Image> Docker::pull(
     const string& directory,
-    const string& image)
+    const string& image) const
 {
   vector<string> argv;
 
@@ -783,6 +783,7 @@ Future<Docker::Image> Docker::pull(
   return s.get().status()
     .then(lambda::bind(
         &Docker::_pull,
+        *this,
         s.get(),
         directory,
         dockerImage,
@@ -791,6 +792,7 @@ Future<Docker::Image> Docker::pull(
 
 
 Future<Docker::Image> Docker::_pull(
+    const Docker& docker,
     const Subprocess& s,
     const string& directory,
     const string& image,
@@ -833,7 +835,13 @@ Future<Docker::Image> Docker::_pull(
   // we allow the future to be discarded and it will kill the pull
   // process.
   return s_.get().status()
-    .then(lambda::bind(&Docker::__pull, s_.get(), cmd))
+    .then(lambda::bind(
+        &Docker::__pull,
+        docker,
+        s_.get(),
+        cmd,
+        directory,
+        image))
     .onDiscard(lambda::bind(&Docker::pullDiscarded, s_.get(), cmd));
 }
 
@@ -846,8 +854,11 @@ void Docker::pullDiscarded(const Subprocess& s, const string& cmd)
 
 
 Future<Docker::Image> Docker::__pull(
+    const Docker& docker,
     const Subprocess& s,
-    const string& cmd)
+    const string& cmd,
+    const string& directory,
+    const string& image)
 {
   Option<int> status = s.status().get();
 
@@ -858,8 +869,11 @@ Future<Docker::Image> Docker::__pull(
       .then(lambda::bind(&failure<Image>, cmd, status.get(), lambda::_1));
   }
 
-  return io::read(s.out().get())
-    .then(lambda::bind(&Docker::___pull, lambda::_1));
+  // We re-invoke Docker::pull in order to now do an 'inspect' since
+  // the image should be present (see Docker::pull).
+  // TODO(benh): Factor out inspect code from Docker::pull to be
+  // reused rather than this (potentially infinite) recursive call.
+  return docker.pull(directory, image);
 }
 
 
