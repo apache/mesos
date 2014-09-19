@@ -4029,7 +4029,7 @@ void Master::removeFramework(Framework* framework)
   }
 
   // Remove the framework's executors for correct resource accounting.
-  foreachkey (const SlaveID& slaveId, framework->executors) {
+  foreachkey (const SlaveID& slaveId, utils::copy(framework->executors)) {
     Slave* slave = getSlave(slaveId);
     if (slave != NULL) {
       foreachkey (const ExecutorID& executorId,
