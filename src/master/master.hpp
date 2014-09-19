@@ -973,6 +973,8 @@ inline std::ostream& operator << (std::ostream& stream, const Slave& slave)
 
 
 // Information about a connected or completed framework.
+// TODO(bmahler): Keeping the task and executor information in sync
+// across the Slave and Framework structs is error prone!
 struct Framework
 {
   Framework(const FrameworkInfo& _info,

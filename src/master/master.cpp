@@ -1585,25 +1585,14 @@ void Master::_reregisterFramework(
 
     // TODO(benh): Check for root submissions like above!
 
-    // Add any running tasks reported by slaves for this framework.
+    // Add active tasks and executors to the framework.
     foreachvalue (Slave* slave, slaves.registered) {
-      foreachkey (const FrameworkID& frameworkId, slave->tasks) {
-        foreachvalue (Task* task, slave->tasks[frameworkId]) {
-          if (framework->id == task->framework_id()) {
-            framework->addTask(task);
-
-            // Also add the task's executor for resource accounting
-            // if it's still alive on the slave and we've not yet
-            // added it to the framework.
-            if (task->has_executor_id() &&
-                slave->hasExecutor(framework->id, task->executor_id()) &&
-                !framework->hasExecutor(slave->id, task->executor_id())) {
-              const ExecutorInfo& executorInfo =
-                slave->executors[framework->id][task->executor_id()];
-              framework->addExecutor(slave->id, executorInfo);
-            }
-          }
-        }
+      foreachvalue (Task* task, slave->tasks[framework->id]) {
+        framework->addTask(task);
+      }
+      foreachvalue (const ExecutorInfo& executor,
+                    slave->executors[framework->id]) {
+        framework->addExecutor(slave->id, executor);
       }
     }
 
@@ -2370,9 +2359,8 @@ void Master::launchTask(
     t->mutable_executor_id()->MergeFrom(executorId.get());
   }
 
-  framework->addTask(t);
-
   slave->addTask(t);
+  framework->addTask(t);
 
   // Tell the slave to launch the task!
   LOG(INFO) << "Launching task " << task.task_id()
@@ -4178,16 +4166,11 @@ void Master::readdSlave(
       << "Executor " << executorInfo.executor_id()
       << " doesn't have frameworkId set";
 
-    if (!slave->hasExecutor(executorInfo.framework_id(),
-                            executorInfo.executor_id())) {
-      slave->addExecutor(executorInfo.framework_id(), executorInfo);
-    }
+    slave->addExecutor(executorInfo.framework_id(), executorInfo);
 
     Framework* framework = getFramework(executorInfo.framework_id());
-    if (framework != NULL) {
-      if (!framework->hasExecutor(slave->id, executorInfo.executor_id())) {
-        framework->addExecutor(slave->id, executorInfo);
-      }
+    if (framework != NULL) { // The framework might not be re-registered yet.
+      framework->addExecutor(slave->id, executorInfo);
     }
 
     resources[executorInfo.framework_id()] += executorInfo.resources();
@@ -4199,13 +4182,8 @@ void Master::readdSlave(
     // Add the task to the slave.
     slave->addTask(t);
 
-    // Try and add the task to the framework too, but since the
-    // framework might not yet be connected we won't be able to
-    // add them. However, when the framework connects later we
-    // will add them then. Again, we do the same thing
-    // if a framework currently isn't registered.
     Framework* framework = getFramework(task.framework_id());
-    if (framework != NULL) {
+    if (framework != NULL) { // The framework might not be re-registered yet.
       framework->addTask(t);
     } else {
       // TODO(benh): We should really put a timeout on how long we
