@@ -114,8 +114,9 @@ call(['git',
       merge_base + '..HEAD'])
 
 log = execute(['git',
-	       '--no-pager',
+               '--no-pager',
                'log',
+               '--no-color',
                '--pretty=oneline',
                '--reverse',
                merge_base + '..HEAD']).strip()
@@ -138,7 +139,7 @@ for i in range(len(shas)):
     execute(['git', 'branch', '-D', temporary_branch], True)
 
     message = execute(['git',
-	               '--no-pager',
+                       '--no-pager',
                        'log',
                        '--pretty=format:%s%n%b',
                        previous + '..' + sha])
@@ -154,14 +155,14 @@ for i in range(len(shas)):
     if review_request_id is None:
         print '\nCreating diff of:\n'
         call(['git',
-	      '--no-pager',
+              '--no-pager',
               'log',
               '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s',
               previous + '..' + sha])
     else:
         print '\nUpdating diff of:\n'
         call(['git',
-	      '--no-pager',
+              '--no-pager',
               'log',
               '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
               previous + '..' + sha])
@@ -169,7 +170,7 @@ for i in range(len(shas)):
     # Show the "parent" commit(s).
     print '\n... with parent diff created from:\n'
     call(['git',
-	  '--no-pager',
+          '--no-pager',
           'log',
           '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
           parent_branch + '..' + previous])
