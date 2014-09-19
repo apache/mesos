@@ -516,14 +516,15 @@ if test "x$CLANG" = "xno"; then
     CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedefs"
   fi
 
-  # Check for GCC version == 4.7 and fatal. The C++11 version
-  # of libprocess' Future uses features that 4.7 doesn't support. The
-  # non-C++11 version of libprocess' Future uses std::tr1 code that is
-  # only available in non-C++11 builds.
+  # Check for GCC version == 4.7 and fail. Starting with 4.7 the '#if
+  # __cplusplus >= 201103L' will evaluate to true which means the
+  # C++11 code paths will be compiled but certain C++11 features that
+  # we use are not supported by 4.7. Since we're requiring C++11 going
+  # forward we can't support this compiler.
   AX_COMPARE_VERSION([$GCC_VERSION], [eq2], [4.7],
                      [is_gxx47=yes], [is_gxx47=no])
   if test "x$is_gxx47" = "xyes"; then
-    AC_MSG_ERROR([Unable to build with g++-4.7 due to std::tr1 and C++11 mismatches])
+    AC_MSG_ERROR([Unable to build with g++-4.7 due to missing C++11 features])
   fi
 fi
 
@@ -533,17 +534,17 @@ fi
 AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 
 case "$host_os" in
-darwin* )
-  # If we're using clang, we need to pass -stdlib=libc++ too.
-  if test "x$CLANG" = "xyes"; then
-    CXXFLAGS="$CXXFLAGS -stdlib=libc++"
-  fi
+  darwin* )
+   # If we're using clang, we need to pass -stdlib=libc++ too.
+    if test "x$CLANG" = "xyes"; then
+      CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+    fi
 
-  # GTEST on OSX needs its own tr1 tuple.
-  # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when in
-  # c++11 mode.
-  CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1"
-  ;;
+    # GTEST on OSX needs its own tr1 tuple.
+    # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when
+    # in C++11 mode.
+    CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1"
+    ;;
 esac
 
 # Also pass the flags to 3rdparty libraries.
