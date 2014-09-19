@@ -93,7 +93,8 @@ class TestScheduler(mesos.interface.Scheduler):
             driver.launchTasks(offer.id, tasks)
 
     def statusUpdate(self, driver, update):
-        print "Task %s is in state %d" % (update.task_id.value, update.state)
+        print "Task %s is in state %s" % \
+            (update.task_id.value, mesos_pb2.TaskState.Name(update.state))
 
         # Ensure the binary data came through.
         if update.data != "data with a \0 byte":
@@ -114,6 +115,13 @@ class TestScheduler(mesos.interface.Scheduler):
                 executor_id,
                 slave_id,
                 'data with a \0 byte')
+
+        if update.state == mesos_pb2.TASK_LOST or \
+           update.state == mesos_pb2.TASK_KILLED or \
+           update.state == mesos_pb2.TASK_FAILED:
+            print "Aborting because task %s is in unexpected state %s with message '%s'" \
+                % (update.task_id.value, mesos_pb2.TaskState.Name(update.state), update.message)
+            driver.abort()
 
     def frameworkMessage(self, driver, executorId, slaveId, message):
         self.messagesReceived += 1

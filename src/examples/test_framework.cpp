@@ -128,6 +128,16 @@ public:
     if (status.state() == TASK_FINISHED)
       tasksFinished++;
 
+    if (status.state() == TASK_LOST ||
+        status.state() == TASK_KILLED ||
+        status.state() == TASK_FAILED) {
+      cout << "Aborting because task " << taskId
+           << " is in unexpected state " << status.state()
+           << " with message '" << status.message() << "'"
+           << endl;
+      driver->abort();
+    }
+
     if (tasksFinished == totalTasks)
       driver->stop();
   }

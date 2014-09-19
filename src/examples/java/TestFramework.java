@@ -117,13 +117,23 @@ public class TestFramework {
     @Override
     public void statusUpdate(SchedulerDriver driver, TaskStatus status) {
       System.out.println("Status update: task " + status.getTaskId().getValue() +
-                         " is in state " + status.getState());
+                         " is in state " + status.getState().getValueDescriptor().getName());
       if (status.getState() == TaskState.TASK_FINISHED) {
         finishedTasks++;
         System.out.println("Finished tasks: " + finishedTasks);
         if (finishedTasks == totalTasks) {
           driver.stop();
         }
+      }
+
+      if (status.getState() == TaskState.TASK_LOST ||
+          status.getState() == TaskState.TASK_KILLED ||
+          status.getState() == TaskState.TASK_FAILED) {
+        System.err.println("Aborting because task " + status.getTaskId().getValue() +
+                           " is in unexpected state " +
+                           status.getState().getValueDescriptor().getName() +
+                           " with message '" + status.getMessage() + "'");
+        driver.abort();
       }
     }
 

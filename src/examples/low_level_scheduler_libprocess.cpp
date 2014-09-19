@@ -263,8 +263,7 @@ private:
 
   void statusUpdate(const string& uuid, const TaskStatus& status)
   {
-    cout << "Task " << status.task_id().value() << " is in state "
-         << TaskState_Name(status.state());
+    cout << "Task " << status.task_id() << " is in state " << status.state();
 
     if (status.has_message()) {
       cout << " with message '" << status.message() << "'";
@@ -284,6 +283,14 @@ private:
 
     if (status.state() == TASK_FINISHED) {
       ++tasksFinished;
+    }
+
+    if (status.state() == TASK_LOST ||
+        status.state() == TASK_KILLED ||
+        status.state() == TASK_FAILED) {
+      EXIT(1) << "Exiting because task " << status.task_id()
+              << " is in unexpected state " << status.state()
+              << " with message '" << status.message() << "'";
     }
 
     if (tasksFinished == totalTasks) {

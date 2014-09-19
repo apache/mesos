@@ -47,7 +47,7 @@ public class TestExecutor implements Executor {
 
         driver.sendStatusUpdate(status);
 
-        System.out.println("Running task " + task.getTaskId());
+        System.out.println("Running task " + task.getTaskId().getValue());
 
         // This is where one would perform the requested task.
 
