@@ -56,6 +56,7 @@
 #include <process/io.hpp>
 #include <process/logging.hpp>
 #include <process/mime.hpp>
+#include <process/node.hpp>
 #include <process/process.hpp>
 #include <process/profiler.hpp>
 #include <process/socket.hpp>
@@ -108,33 +109,6 @@ using std::stack;
 using std::string;
 using std::stringstream;
 using std::vector;
-
-// Represents a remote "node" (encapsulates IP address and port).
-class Node
-{
-public:
-  Node(uint32_t _ip = 0, uint16_t _port = 0)
-    : ip(_ip), port(_port) {}
-
-  bool operator < (const Node& that) const
-  {
-    if (ip == that.ip) {
-      return port < that.port;
-    } else {
-      return ip < that.ip;
-    }
-  }
-
-  ostream& operator << (ostream& stream) const
-  {
-    stream << ip << ":" << port;
-    return stream;
-  }
-
-  uint32_t ip;
-  uint16_t port;
-};
-
 
 namespace process {
 
