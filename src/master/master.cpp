@@ -3892,8 +3892,7 @@ void Master::addFramework(Framework* framework)
   message.mutable_master_info()->MergeFrom(info_);
   send(framework->pid, message);
 
-  allocator->frameworkAdded(
-      framework->id, framework->info, framework->resources);
+  allocator->frameworkAdded(framework->id, framework->info, framework->used());
 
   // Export framework metrics.
 

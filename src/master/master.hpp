@@ -1005,7 +1005,6 @@ struct Framework
       << " of framework " << task->framework_id();
 
     tasks[task->task_id()] = task;
-    resources += task->resources();
   }
 
   void addCompletedTask(const Task& task)
@@ -1023,14 +1022,12 @@ struct Framework
     addCompletedTask(*task);
 
     tasks.erase(task->task_id());
-    resources -= task->resources();
   }
 
   void addOffer(Offer* offer)
   {
     CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
     offers.insert(offer);
-    resources += offer->resources();
   }
 
   void removeOffer(Offer* offer)
@@ -1039,7 +1036,6 @@ struct Framework
       << "Unknown offer " << offer->id();
 
     offers.erase(offer);
-    resources -= offer->resources();
   }
 
   bool hasExecutor(const SlaveID& slaveId,
@@ -1057,9 +1053,6 @@ struct Framework
       << " on slave " << slaveId;
 
     executors[slaveId][executorInfo.executor_id()] = executorInfo;
-
-    // Update our resources to reflect running this executor.
-    resources += executorInfo.resources();
   }
 
   void removeExecutor(const SlaveID& slaveId,
@@ -1070,13 +1063,34 @@ struct Framework
       << " of framework " << id
       << " of slave " << slaveId;
 
-    // Update our resources to reflect removing this executor.
-    resources -= executors[slaveId][executorId].resources();
-
     executors[slaveId].erase(executorId);
     if (executors[slaveId].empty()) {
       executors.erase(slaveId);
     }
+  }
+
+  Resources used() const
+  {
+    Resources used;
+
+    foreach (Offer* offer, offers) {
+      used += offer->resources();
+    }
+
+    foreachvalue (const Task* task, tasks) {
+      if (!protobuf::isTerminalState(task->state())) {
+        used += task->resources();
+      }
+    }
+
+    foreachkey (const SlaveID& slaveId, executors) {
+      foreachvalue (const ExecutorInfo& executorInfo,
+                    executors.find(slaveId)->second) {
+        used += executorInfo.resources();
+      }
+    }
+
+    return used;
   }
 
   const FrameworkID id; // TODO(benh): Store this in 'info'.
@@ -1102,8 +1116,6 @@ struct Framework
   boost::circular_buffer<memory::shared_ptr<Task> > completedTasks;
 
   hashset<Offer*> offers; // Active offers for framework.
-
-  Resources resources; // Total resources (tasks + offers + executors).
 
   hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo> > executors;
 
@@ -1133,7 +1145,7 @@ struct Role
   {
     Resources resources;
     foreachvalue (Framework* framework, frameworks) {
-      resources += framework->resources;
+      resources += framework->used();
     }
 
     return resources;
