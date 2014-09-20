@@ -40,6 +40,7 @@ using namespace process;
 
 using std::list;
 using std::map;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -73,6 +74,18 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
 
   if (hierarchy.isError()) {
     return Error("Failed to create Linux launcher: " + hierarchy.error());
+  }
+
+  // Ensure that no other subsystem is attached to the hierarchy.
+  Try<set<string> > subsystems = cgroups::subsystems(hierarchy.get());
+  if (subsystems.isError()) {
+    return Error(
+        "Failed to get the list of attached subsystems for hierarchy " +
+        hierarchy.get());
+  } else if (subsystems.get().size() != 1) {
+    return Error(
+        "Unexpected subsystems found attached to the hierarchy " +
+        hierarchy.get());
   }
 
   LOG(INFO) << "Using " << hierarchy.get()

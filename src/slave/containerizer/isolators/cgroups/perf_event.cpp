@@ -93,7 +93,9 @@ Try<Isolator*> CgroupsPerfEventIsolatorProcess::create(const Flags& flags)
   }
 
   Try<string> hierarchy = cgroups::prepare(
-      flags.cgroups_hierarchy, "perf_event", flags.cgroups_root);
+      flags.cgroups_hierarchy,
+      "perf_event",
+      flags.cgroups_root);
 
   if (hierarchy.isError()) {
     return Error("Failed to create perf_event cgroup: " + hierarchy.error());

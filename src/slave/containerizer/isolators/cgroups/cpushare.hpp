@@ -69,7 +69,8 @@ public:
 private:
   CgroupsCpushareIsolatorProcess(
       const Flags& flags,
-      const hashmap<std::string, std::string>& hierarchies);
+      const hashmap<std::string, std::string>& hierarchies,
+      const std::vector<std::string>& subsystems);
 
   virtual process::Future<std::list<Nothing> > _cleanup(
       const ContainerID& containerId,
@@ -91,6 +92,12 @@ private:
 
   // Map from subsystem to hierarchy.
   hashmap<std::string, std::string> hierarchies;
+
+  // Subsystems used for this isolator. Typically, there are two
+  // elements in the vector: 'cpu' and 'cpuacct'. If cpu and cpuacct
+  // systems are co-mounted (e.g., systems using systemd), then there
+  // will be only one element in the vector which is 'cpu,cpuacct'.
+  std::vector<std::string> subsystems;
 
   // TODO(bmahler): Use Owned<Info>.
   hashmap<ContainerID, Info*> infos;

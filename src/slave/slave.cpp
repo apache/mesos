@@ -178,16 +178,19 @@ void Slave::initialize()
   }
 
 #ifdef __linux__
-  // Move the slave into its own cgroup for each of the specified subsystems.
-  // NOTE: Any subsystem configuration is inherited from the mesos root cgroup
-  // for that subsystem, e.g., by default the memory cgroup will be unlimited.
+  // Move the slave into its own cgroup for each of the specified
+  // subsystems.
+  // NOTE: Any subsystem configuration is inherited from the mesos
+  // root cgroup for that subsystem, e.g., by default the memory
+  // cgroup will be unlimited.
   if (flags.slave_subsystems.isSome()) {
     foreach (const string& subsystem,
             strings::tokenize(flags.slave_subsystems.get(), ",")) {
       LOG(INFO) << "Moving slave process into its own cgroup for"
                 << " subsystem: " << subsystem;
 
-      // Ensure the subsystem is mounted and the Mesos root cgroup is present.
+      // Ensure the subsystem is mounted and the Mesos root cgroup is
+      // present.
       Try<string> hierarchy = cgroups::prepare(
           flags.cgroups_hierarchy,
           subsystem,
@@ -196,20 +199,18 @@ void Slave::initialize()
       if (hierarchy.isError()) {
         EXIT(1) << "Failed to prepare cgroup " << flags.cgroups_root
                 << " for subsystem " << subsystem
-                << " under hierarchy " << hierarchy.get()
-                << " for slave: " + hierarchy.error();
+                << ": " << hierarchy.error();
       }
 
       // Create a cgroup for the slave.
       string cgroup = path::join(flags.cgroups_root, "slave");
 
       Try<bool> exists = cgroups::exists(hierarchy.get(), cgroup);
-
       if (exists.isError()) {
         EXIT(1) << "Failed to find cgroup " << cgroup
                 << " for subsystem " << subsystem
                 << " under hierarchy " << hierarchy.get()
-                << " for slave: " + exists.error();
+                << " for slave: " << exists.error();
       }
 
       if (!exists.get()) {
@@ -218,7 +219,7 @@ void Slave::initialize()
           EXIT(1) << "Failed to create cgroup " << cgroup
                   << " for subsystem " << subsystem
                   << " under hierarchy " << hierarchy.get()
-                  << " for slave: " + create.error();
+                  << " for slave: " << create.error();
         }
       }
 
@@ -229,17 +230,16 @@ void Slave::initialize()
         EXIT(1) << "Failed to check for existing threads in cgroup " << cgroup
                 << " for subsystem " << subsystem
                 << " under hierarchy " << hierarchy.get()
-                << " for slave: " + processes.error();
+                << " for slave: " << processes.error();
       }
 
-      // TODO(idownes): Re-evaluate this behavior if it's observed, possibly
-      // automatically killing any running processes and moving this code to
-      // during recovery.
+      // TODO(idownes): Re-evaluate this behavior if it's observed,
+      // possibly automatically killing any running processes and
+      // moving this code to during recovery.
       if (!processes.get().empty()) {
         EXIT(1) << "A slave (or child process) is still running, "
                 << "please check the process(es) '"
-                << stringify(processes.get())
-                << "' listed in "
+                << stringify(processes.get()) << "' listed in "
                 << path::join(hierarchy.get(), cgroup, "cgroups.proc");
       }
 
@@ -249,7 +249,7 @@ void Slave::initialize()
         EXIT(1) << "Failed to move slave into cgroup " << cgroup
                 << " for subsystem " << subsystem
                 << " under hierarchy " << hierarchy.get()
-                << " for slave: " + assign.error();
+                << " for slave: " << assign.error();
       }
     }
   }

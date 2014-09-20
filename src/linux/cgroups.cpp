@@ -64,8 +64,14 @@ using namespace process;
 // TODO(benh): Move linux/fs.hpp out of 'mesos- namespace.
 using namespace mesos::internal;
 
+using std::dec;
+using std::getline;
+using std::ifstream;
+using std::istringstream;
 using std::list;
 using std::map;
+using std::ofstream;
+using std::ostringstream;
 using std::set;
 using std::string;
 using std::vector;
@@ -105,7 +111,7 @@ struct SubsystemInfo
 static Try<map<string, SubsystemInfo> > subsystems()
 {
   // TODO(benh): Use os::read to get better error information.
-  std::ifstream file("/proc/cgroups");
+  ifstream file("/proc/cgroups");
 
   if (!file.is_open()) {
     return Error("Failed to open /proc/cgroups");
@@ -115,7 +121,7 @@ static Try<map<string, SubsystemInfo> > subsystems()
 
   while (!file.eof()) {
     string line;
-    std::getline(file, line);
+    getline(file, line);
 
     if (file.fail()) {
       if (!file.eof()) {
@@ -136,8 +142,8 @@ static Try<map<string, SubsystemInfo> > subsystems()
         int cgroups;
         bool enabled;
 
-        std::istringstream ss(line);
-        ss >> std::dec >> name >> hierarchy >> cgroups >> enabled;
+        istringstream ss(line);
+        ss >> dec >> name >> hierarchy >> cgroups >> enabled;
 
         // Check for any read/parse errors.
         if (ss.fail() && !ss.eof()) {
@@ -355,17 +361,17 @@ static Try<string> read(
   // TODO(benh): Use os::read. Note that we do not use os::read
   // currently because it cannot correctly read /proc or cgroups
   // control files since lseek (in os::read) will return error.
-  std::ifstream file(path.c_str());
+  ifstream file(path.c_str());
 
   if (!file.is_open()) {
     return Error("Failed to open file " + path);
   }
 
-  std::ostringstream ss;
+  ostringstream ss;
   ss << file.rdbuf();
 
   if (file.fail()) {
-    ErrnoError error; // TODO(jieyu): Does std::ifstream actually set errno?
+    ErrnoError error; // TODO(jieyu): Does ifstream actually set errno?
     file.close();
     return error;
   }
@@ -389,7 +395,7 @@ static Try<Nothing> write(
     const string& value)
 {
   string path = path::join(hierarchy, cgroup, control);
-  std::ofstream file(path.c_str());
+  ofstream file(path.c_str());
 
   if (!file.is_open()) {
     return Error("Failed to open file " + path);
@@ -401,7 +407,7 @@ static Try<Nothing> write(
   file << value;
 
   if (file.fail()) {
-    ErrnoError error; // TODO(jieyu): Does std::ifstream actually set errno?
+    ErrnoError error; // TODO(jieyu): Does ifstream actually set errno?
     file.close();
     return error;
   }
@@ -414,13 +420,10 @@ static Try<Nothing> write(
 
 
 Try<string> prepare(
-    const std::string& baseHierarchy,
-    const std::string& subsystem,
-    const std::string& cgroup)
+    const string& baseHierarchy,
+    const string& subsystem,
+    const string& cgroup)
 {
-  // Construct the hierarchy for this subsystem.
-  std::string hierarchy = path::join(baseHierarchy, subsystem);
-
   // Ensure cgroups are enabled in the kernel.
   if (!cgroups::enabled()) {
     return Error("No cgroups support detected in this kernel");
@@ -431,102 +434,97 @@ Try<string> prepare(
     return Error("Using cgroups requires root permissions");
   }
 
-  // Check if the hierarchy is already mounted, and if not, mount it.
-  Try<bool> mounted = cgroups::mounted(hierarchy);
-
-  if (mounted.isError()) {
-    return Error("Failed to determine if " + hierarchy +
-                 " is already mounted: " + mounted.error());
+  // Check if the specified subsystem has already been attached to
+  // some hierarchy. If not, create and mount the hierarchy according
+  // to the given baseHierarchy and subsystem.
+  Result<string> hierarchy = cgroups::hierarchy(subsystem);
+  if (hierarchy.isError()) {
+    return Error(
+        "Failed to determine the hierarchy where the subsystem " +
+        subsystem + " is attached");
   }
 
-  if (mounted.get()) {
-    // Make sure that desired subsystem is attached to the already
-    // mounted hierarchy.
-    Try<std::set<std::string> > attached = cgroups::subsystems(hierarchy);
-    if (attached.isError()) {
-      return Error(string("Failed to determine the attached subsystems") +
-                   "for the cgroup hierarchy at " + hierarchy + ": " +
-                   attached.error());
-    }
-
-    if (attached.get().count(subsystem) == 0) {
-      return Error("The cgroups hierarchy at " + hierarchy +
-                   " can not be used because it does not have the '" +
-                   subsystem + "' subsystem attached");
-    }
-
-    if (attached.get().size() > 1) {
-      return Error("The " + subsystem + " subsystem is co-mounted at " +
-                   hierarchy + " with other subsytems");
-    }
-  } else {
+  if (hierarchy.isNone()) {
     // Attempt to mount the hierarchy ourselves.
-    if (os::exists(hierarchy)) {
+    hierarchy = path::join(baseHierarchy, subsystem);
+
+    if (os::exists(hierarchy.get())) {
       // The path specified by the given hierarchy already exists in
       // the file system. We try to remove it if it is an empty
       // directory. This will helps us better deal with slave restarts
       // since we won't need to manually remove the directory.
-      Try<Nothing> rmdir = os::rmdir(hierarchy, false);
+      Try<Nothing> rmdir = os::rmdir(hierarchy.get(), false);
       if (rmdir.isError()) {
-        return Error("Failed to mount cgroups hierarchy at '" + hierarchy +
-                     "' because we could not remove the existing directory: " +
-                     rmdir.error());
+        return Error(
+            "Failed to mount cgroups hierarchy at '" + hierarchy.get() +
+            "' because we could not remove the existing directory: " +
+            rmdir.error());
       }
     }
 
     // Mount the subsystem.
-    Try<Nothing> mount = cgroups::mount(hierarchy, subsystem);
+    Try<Nothing> mount = cgroups::mount(hierarchy.get(), subsystem);
     if (mount.isError()) {
-      return Error("Failed to mount cgroups hierarchy at '" + hierarchy +
-                   "': " + mount.error());
+      return Error(
+          "Failed to mount cgroups hierarchy at '" + hierarchy.get() +
+          "': " + mount.error());
     }
   }
 
+  CHECK_SOME(hierarchy);
+
   // Create the cgroup if it doesn't exist.
-  Try<bool> exists = cgroups::exists(hierarchy, cgroup);
+  Try<bool> exists = cgroups::exists(hierarchy.get(), cgroup);
   if (exists.isError()) {
-    return Error("Failed to check existence of root cgroup " +
-                 path::join(hierarchy, cgroup) +
-                 ": " + exists.error());
+    return Error(
+        "Failed to check existence of root cgroup " +
+        path::join(hierarchy.get(), cgroup) +
+        ": " + exists.error());
   }
 
   if (!exists.get()) {
     // No cgroup exists, create it.
-    Try<Nothing> create = cgroups::create(hierarchy, cgroup, true);
+    Try<Nothing> create = cgroups::create(hierarchy.get(), cgroup, true);
     if (create.isError()) {
-      return Error("Failed to create root cgroup " +
-                   path::join(hierarchy, cgroup) +
-                   ": " + create.error());
+      return Error(
+          "Failed to create root cgroup " +
+          path::join(hierarchy.get(), cgroup) +
+          ": " + create.error());
     }
   }
 
+  // Test for nested cgroup support.
+  // TODO(jieyu): Consider doing this test only once.
   const string& testCgroup = path::join(cgroup, "test");
+
   // Create a nested test cgroup if it doesn't exist.
-  exists = cgroups::exists(hierarchy, testCgroup);
+  exists = cgroups::exists(hierarchy.get(), testCgroup);
   if (exists.isError()) {
-    return Error("Failed to check existence nested of test cgroup " +
-                 path::join(hierarchy, testCgroup) +
-                 ": " + exists.error());
+    return Error(
+        "Failed to check existence of the nested test cgroup " +
+        path::join(hierarchy.get(), testCgroup) +
+        ": " + exists.error());
   }
 
   if (!exists.get()) {
     // Make sure this kernel supports creating nested cgroups.
-    Try<Nothing> create = cgroups::create(hierarchy, testCgroup);
+    Try<Nothing> create = cgroups::create(hierarchy.get(), testCgroup);
     if (create.isError()) {
-      return Error(string("Failed to create a nested 'test' cgroup.") +
-                   " Your kernel might be too old to use the" +
-                   " cgroups isolator: " + create.error());
+      return Error(
+          "Your kernel might be too old to support nested cgroup: " +
+          create.error());
     }
   }
 
   // Remove the nested 'test' cgroup.
-  Try<Nothing> remove = cgroups::remove(hierarchy, testCgroup);
+  Try<Nothing> remove = cgroups::remove(hierarchy.get(), testCgroup);
   if (remove.isError()) {
     return Error("Failed to remove the nested test cgroup: " + remove.error());
   }
 
-  return hierarchy;
+  return hierarchy.get();
 }
+
 
 // Returns some error string if either (a) hierarchy is not mounted,
 // (b) cgroup does not exist, or (c) control file does not exist.
@@ -594,15 +592,15 @@ Try<set<string> > hierarchies()
 }
 
 
-Result<std::string> hierarchy(const std::string& subsystems)
+Result<string> hierarchy(const string& subsystems)
 {
-  Result<std::string> hierarchy = None();
-  Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
+  Result<string> hierarchy = None();
+  Try<set<string> > hierarchies = cgroups::hierarchies();
   if (hierarchies.isError()) {
     return Error(hierarchies.error());
   }
 
-  foreach (const std::string& candidate, hierarchies.get()) {
+  foreach (const string& candidate, hierarchies.get()) {
     if (subsystems.empty()) {
       hierarchy = candidate;
       break;
@@ -723,9 +721,10 @@ Try<set<string> > subsystems(const string& hierarchy)
              : "No such file or directory"));
       }
 
-      // Seems that a directory can be mounted more than once. Previous mounts
-      // are obscured by the later mounts. Therefore, we must see all entries to
-      // make sure we find the last one that matches.
+      // Seems that a directory can be mounted more than once.
+      // Previous mounts are obscured by the later mounts. Therefore,
+      // we must see all entries to make sure we find the last one
+      // that matches.
       if (dirAbsPath.get() == hierarchyAbsPath.get()) {
         hierarchyEntry = entry;
       }
@@ -736,9 +735,9 @@ Try<set<string> > subsystems(const string& hierarchy)
     return Error("'" + hierarchy + "' is not a valid hierarchy");
   }
 
-  // Get the intersection of the currently enabled subsystems and mount
-  // options. Notice that mount options may contain somethings (e.g. rw) that
-  // are not in the set of enabled subsystems.
+  // Get the intersection of the currently enabled subsystems and
+  // mount options. Notice that mount options may contain somethings
+  // (e.g. rw) that are not in the set of enabled subsystems.
   Try<set<string> > names = subsystems();
   if (names.isError()) {
     return Error(names.error());
@@ -1042,8 +1041,8 @@ Try<set<pid_t> > tasks(
   // Parse the values read from the control file and insert into a set. This
   // ensures they are unique (and also sorted).
   set<pid_t> pids;
-  std::istringstream ss(value.get());
-  ss >> std::dec;
+  istringstream ss(value.get());
+  ss >> dec;
   while (!ss.eof()) {
     pid_t pid;
     ss >> pid;
@@ -1162,8 +1161,8 @@ static Try<int> registerNotifier(
   }
 
   // Write the event control file (cgroup.event_control).
-  std::ostringstream out;
-  out << std::dec << efd << " " << cfd.get();
+  ostringstream out;
+  out << dec << efd << " " << cfd.get();
   if (args.isSome()) {
     out << " " << args.get();
   }
@@ -1691,7 +1690,7 @@ Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
     return future;
   } else {
     // Otherwise, attempt to remove the cgroups in bottom-up fashion.
-    foreach (const std::string& cgroup, candidates) {
+    foreach (const string& cgroup, candidates) {
       Try<Nothing> remove = cgroups::remove(hierarchy, cgroup);
       if (remove.isError()) {
         return Failure(remove.error());
@@ -1796,7 +1795,7 @@ Try<hashmap<string, uint64_t> > stat(
     const string& cgroup,
     const string& file)
 {
-  Try<std::string> contents = cgroups::read(hierarchy, cgroup, file);
+  Try<string> contents = cgroups::read(hierarchy, cgroup, file);
 
   if (contents.isError()) {
     return Error(contents.error());
@@ -1814,7 +1813,7 @@ Try<hashmap<string, uint64_t> > stat(
     uint64_t value;
 
     // Expected line format: "%s %llu".
-    std::istringstream stream(line);
+    istringstream stream(line);
     stream >> name >> value;
 
     if (stream.fail()) {
@@ -1902,7 +1901,7 @@ Try<uint64_t> shares(
   }
 
   uint64_t shares;
-  std::istringstream ss(read.get());
+  istringstream ss(read.get());
 
   ss >> shares;
 

@@ -48,6 +48,7 @@ using namespace process;
 
 using std::list;
 using std::ostringstream;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -74,10 +75,24 @@ CgroupsMemIsolatorProcess::~CgroupsMemIsolatorProcess() {}
 Try<Isolator*> CgroupsMemIsolatorProcess::create(const Flags& flags)
 {
   Try<string> hierarchy = cgroups::prepare(
-      flags.cgroups_hierarchy, "memory", flags.cgroups_root);
+      flags.cgroups_hierarchy,
+      "memory",
+      flags.cgroups_root);
 
   if (hierarchy.isError()) {
     return Error("Failed to create memory cgroup: " + hierarchy.error());
+  }
+
+  // Ensure that no other subsystem is attached to the hierarchy.
+  Try<set<string> > subsystems = cgroups::subsystems(hierarchy.get());
+  if (subsystems.isError()) {
+    return Error(
+        "Failed to get the list of attached subsystems for hierarchy " +
+        hierarchy.get());
+  } else if (subsystems.get().size() != 1) {
+    return Error(
+        "Unexpected subsystems found attached to the hierarchy " +
+        hierarchy.get());
   }
 
   // Make sure the kernel OOM-killer is enabled.
