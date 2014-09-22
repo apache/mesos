@@ -361,11 +361,16 @@ Future<Nothing> Docker::run(
   switch (dockerInfo.network()) {
     case ContainerInfo::DockerInfo::HOST: network = "host"; break;
     case ContainerInfo::DockerInfo::BRIDGE: network = "bridge"; break;
+    case ContainerInfo::DockerInfo::NONE: network = "none"; break;
     default: return Failure("Unsupported Network mode: " +
                             stringify(dockerInfo.network()));
   }
 
   argv.push_back(network);
+
+  foreach (const Parameter& parameter, dockerInfo.parameters()) {
+    argv.push_back("--" + parameter.key() + "=" + parameter.value());
+  }
 
   if (dockerInfo.port_mappings().size() > 0) {
     if (network != "bridge") {

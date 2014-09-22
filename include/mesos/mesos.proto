@@ -869,6 +869,7 @@ message ContainerInfo {
     enum Network {
       HOST = 1;
       BRIDGE = 2;
+      NONE = 3;
     }
 
     optional Network network = 2 [default = HOST];
@@ -883,6 +884,12 @@ message ContainerInfo {
     repeated PortMapping port_mappings = 3;
 
     optional bool privileged = 4 [default = false];
+
+    // Allowing arbitrary parameters to be passed to docker cli.
+    // Note that anything passed to this field is not guranteed
+    // to be supported moving forward, as we might move away from
+    // the docker cli.
+    repeated Parameter parameters = 5;
   }
 
   required Type type = 1;
