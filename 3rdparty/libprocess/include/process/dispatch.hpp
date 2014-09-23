@@ -71,7 +71,7 @@ void vdispatcher(
 {
   assert(process != NULL);
   T* t = dynamic_cast<T*>(process);
-  assert(t != NULL);
+  CHECK_NOTNULL(t);
   (*thunk)(t);
 }
 
@@ -82,9 +82,9 @@ void pdispatcher(
     memory::shared_ptr<lambda::function<Future<R>(T*)> > thunk,
     memory::shared_ptr<Promise<R> > promise)
 {
-  assert(process != NULL);
+  CHECK_NOTNULL(process);
   T* t = dynamic_cast<T*>(process);
-  assert(t != NULL);
+  CHECK_NOTNULL(t);
   promise->associate((*thunk)(t));
 }
 
@@ -95,9 +95,9 @@ void rdispatcher(
     memory::shared_ptr<lambda::function<R(T*)> > thunk,
     memory::shared_ptr<Promise<R> > promise)
 {
-  assert(process != NULL);
+  CHECK_NOTNULL(process);
   T* t = dynamic_cast<T*>(process);
-  assert(t != NULL);
+  CHECK_NOTNULL(t);
   promise->set((*thunk)(t));
 }
 
