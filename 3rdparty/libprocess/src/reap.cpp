@@ -23,7 +23,29 @@ namespace process {
 
 // TODO(bmahler): This can be optimized to use a thread per pid, where
 // each thread makes a blocking call to waitpid. This eliminates the
-// unfortunate 1 second reap delay.
+// unfortunate poll delay.
+//
+// Simple bounded linear model for computing the poll interval.
+// Values were chosen such that at (50 pids, 100 ms) the CPU usage is
+// less than approx. 0.5% of a single core, and at (500 pids, 1000 ms)
+// less than approx. 1.0% of single core. Tested on Linux 3.10 with
+// Intel Xeon E5620 and OSX 10.9 with Intel i7 4980HQ.
+//
+//              1000ms          _____
+//                             /
+//  (interval)                /
+//                           /
+//               100ms -----/
+//                          50  500
+//
+//                       (# pids)
+//
+const size_t LOW_PID_COUNT = 50;
+const Duration LOW_INTERVAL = Milliseconds(100);
+
+const size_t HIGH_PID_COUNT = 500;
+const Duration HIGH_INTERVAL = Seconds(1);
+
 
 class ReaperProcess : public Process<ReaperProcess>
 {
@@ -68,7 +90,7 @@ protected:
       }
     }
 
-    delay(Seconds(1), self(), &ReaperProcess::wait); // Reap forever!
+    delay(interval(), self(), &ReaperProcess::wait); // Reap forever!
   }
 
   void notify(pid_t pid, Result<int> status)
@@ -86,6 +108,23 @@ protected:
   }
 
 private:
+  const Duration interval()
+  {
+    size_t count = promises.size();
+
+    if (count <= LOW_PID_COUNT) {
+      return LOW_INTERVAL;
+    } else if (count >= HIGH_PID_COUNT) {
+      return HIGH_INTERVAL;
+    }
+
+    // Linear interpolation between LOW_INTERVAL and HIGH_INTERVAL.
+    double fraction =
+      ((double) (count - LOW_PID_COUNT) / (HIGH_PID_COUNT - LOW_PID_COUNT));
+
+    return LOW_INTERVAL + (HIGH_INTERVAL - LOW_INTERVAL) * fraction;
+  }
+
   multihashmap<pid_t, Owned<Promise<Option<int> > > > promises;
 };
 
