@@ -23,12 +23,15 @@
 #include <string.h>
 
 #include <list>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "docker/docker.hpp"
 
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 
 #include <stout/check.hpp>
 #include <stout/error.hpp>
@@ -54,7 +57,11 @@ using namespace routing;
 #endif
 
 using std::list;
+using std::set;
 using std::string;
+using std::vector;
+
+using process::Owned;
 
 namespace mesos {
 namespace internal {
@@ -64,134 +71,195 @@ namespace tests {
 Environment* environment;
 
 
-// Returns true if we should enable the provided test. Similar to how
-// tests can be disabled using the 'DISABLED_' prefix on a test case
-// name or test name, we use:
-//
-//   'ROOT_' : Disable test if current user isn't root.
-//   'CGROUPS_' : Disable test if cgroups support isn't present.
-//   'NOHIERARCHY_' : Disable test if there is already a cgroups
-//       hierarchy mounted.
-//   'DOCKER_': Disable test if Docker is not supported.
-//
-// These flags can be composed in any order, but must come after
-// 'DISABLED_'. In addition, we disable tests that attempt to use the
-// CgroupsIsolator type parameter if the current user is not root or
-// cgroups is not supported.
-// TODO(benh): Provide a generic way to enable/disable tests by
-// registering "filter" functions.
-static bool enable(const ::testing::TestInfo& test)
+class TestFilter
 {
-  // First check the test case name and test name.
-  list<string> names;
-  names.push_back(test.test_case_name());
-  names.push_back(test.name());
+public:
+  TestFilter() {}
+  virtual ~TestFilter() {}
 
-  Result<string> user = os::user();
-  CHECK_SOME(user);
+  // Returns true iff the test should be disabled.
+  virtual bool disable(const ::testing::TestInfo* test) const = 0;
 
-  foreach (const string& name, names) {
-    if (strings::contains(name, "ROOT_") && user.get() != "root") {
-      return false;
+  // Returns whether the test name / parameterization matches the
+  // pattern.
+  static bool matches(const ::testing::TestInfo* test, const string& pattern)
+  {
+    if (strings::contains(test->test_case_name(), pattern) ||
+        strings::contains(test->name(), pattern)) {
+      return true;
+    } else if (test->type_param() != NULL &&
+               strings::contains(test->type_param(), pattern)) {
+      return true;
     }
 
-    if (strings::contains(name, "CGROUPS_")) {
+    return false;
+  }
+};
+
+
+class RootFilter : public TestFilter
+{
+public:
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    Result<string> user = os::user();
+    CHECK_SOME(user);
+
 #ifdef __linux__
-      if (!cgroups::enabled()) {
-        return false;
+    // On Linux non-privileged users are limited to 64k of locked
+    // memory so we cannot run the MemIsolatorTest.Usage.
+    if (matches(test, "MemIsolatorTest")) {
+      return user.get() != "root";
+    }
+#endif // __linux__
+
+    return matches(test, "ROOT_") && user.get() != "root";
+  }
+};
+
+
+class CgroupsFilter : public TestFilter
+{
+public:
+  CgroupsFilter()
+  {
+#ifdef __linux__
+    Try<set<string> > hierarchies_ = cgroups::hierarchies();
+    CHECK_SOME(hierarchies_);
+    if (!hierarchies_.get().empty()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any cgroups tests that require mounting\n"
+        << "hierarchies because you have the following hierarchies mounted:\n"
+        << strings::trim(stringify(hierarchies_.get()), " {},") << "\n"
+        << "We'll disable the CgroupsNoHierarchyTest test fixture for now.\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+
+    hierarchies = hierarchies_.get();
+#endif // __linux__
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    if (matches(test, "CGROUPS_") || matches(test, "Cgroups")) {
+#ifdef __linux__
+      Result<string> user = os::user();
+      CHECK_SOME(user);
+
+      if (matches(test, "NOHIERARCHY_")) {
+        return user.get() != "root" ||
+               !cgroups::enabled() ||
+               !hierarchies.empty();
       }
+
+      return user.get() != "root" || !cgroups::enabled();
 #else
-      return false;
-#endif
-    }
-
-#ifdef __linux__
-    if (strings::contains(name, "NOHIERARCHY_")) {
-      Try<std::set<std::string> > hierarchies = cgroups::hierarchies();
-      CHECK_SOME(hierarchies);
-      if (!hierarchies.get().empty()) {
-        std::cerr
-          << "-------------------------------------------------------------\n"
-          << "We cannot run any cgroups tests that require mounting\n"
-          << "hierarchies because you have the following hierarchies mounted:\n"
-          << strings::trim(stringify(hierarchies.get()), " {},") << "\n"
-          << "We'll disable the CgroupsNoHierarchyTest test fixture for now.\n"
-          << "-------------------------------------------------------------"
-          << std::endl;
-
-        return false;
-      }
-    }
-
-    // On Linux non-privileged users are limited to 64k of locked memory so we
-    // cannot run the MemIsolatorTest.Usage.
-    if (strings::contains(name, "MemIsolatorTest") && user.get() != "root") {
-      return false;
-    }
-#endif
-
-    // Filter out benchmark tests when we run 'make check'.
-    if (strings::contains(name, "BENCHMARK_") && !flags.benchmark) {
-      return false;
-    }
-
-    if (strings::contains(name, "DOCKER_")) {
-#ifdef __linux__
-      Try<Docker> docker = Docker::create(flags.docker);
-      if (docker.isError()) {
-        std::cerr
-          << "-------------------------------------------------------------\n"
-          << "Skipping Docker tests because validation failed\n"
-          << "[Error] " + docker.error() + "\n"
-          << "-------------------------------------------------------------"
-          << std::endl;
-
-        return false;
-      }
-#else
-      return false;
+      return true;
 #endif // __linux__
     }
-  }
 
-  // Filter out regular tests when we run 'make bench', which
-  // requires us to check both the test case name and the test name
-  // at the same time.
-  if (flags.benchmark &&
-      !strings::contains(test.test_case_name(), "BENCHMARK_") &&
-      !strings::contains(test.name(), "BENCHMARK_")) {
     return false;
   }
 
-  // Now check the type parameter.
-  if (test.type_param() != NULL) {
-    const string& type = test.type_param();
-    if (strings::contains(type, "Cgroups")) {
+private:
+  set<string> hierarchies;
+};
+
+
+class DockerFilter : public TestFilter
+{
+public:
+  DockerFilter()
+  {
 #ifdef __linux__
-      if (user.get() != "root" || !cgroups::enabled()) {
-        return false;
-      }
+    Try<Docker> docker = Docker::create(flags.docker);
+    if (docker.isError()) {
+      dockerError = docker.error();
+    }
 #else
-      return false;
-#endif
+    dockerError = Error("Docker tests not supported on non-Linux systems");
+#endif // __linux__
+
+    if (dockerError.isSome()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any Docker tests because:\n"
+        << dockerError.get().message << "\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
     }
   }
 
-#ifdef WITH_NETWORK_ISOLATOR
-  // We can not run network isolator.
-  if (routing::check().isError() &&
-      (strings::contains(test.name(), "PortMappingIsolatorTest") ||
-       strings::contains(test.name(), "PortMappingMesosTest"))) {
-      return false;
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "DOCKER_") && dockerError.isSome();
   }
 
-  // Currently, the network isolator does not support multiple slaves.
-  if (strings::contains(test.name(), "MultipleSlaves")) {
-    return false;
+private:
+  Option<Error> dockerError;
+};
+
+
+class BenchmarkFilter : public TestFilter
+{
+public:
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "BENCHMARK_") && !flags.benchmark;
   }
+};
+
+
+class NetworkIsolatorTestFilter : public TestFilter
+{
+public:
+  bool disable(const ::testing::TestInfo* test) const
+  {
+#ifdef WITH_NETWORK_ISOLATOR
+    if (matches(test, "MultipleSlaves")) {
+      return !routing::check().isError();
+    }
 #endif
 
-  return true;
+    if (matches(test, "PortMappingIsolatorTest") ||
+        matches(test, "PortMappingMesosTest")) {
+#ifdef WITH_NETWORK_ISOLATOR
+      return routing::check().isError();
+#else
+      return true;
+#endif
+    }
+
+    return false;
+  }
+};
+
+
+// Return list of disabled tests based on test name based filters.
+static vector<string> disabled(
+    const ::testing::UnitTest* unitTest,
+    const vector<Owned<TestFilter> >& filters)
+{
+  vector<string> disabled;
+
+  for (int i = 0; i < unitTest->total_test_case_count(); i++) {
+    const ::testing::TestCase* testCase = unitTest->GetTestCase(i);
+    for (int j = 0; j < testCase->total_test_count(); j++) {
+      const ::testing::TestInfo* test = testCase->GetTestInfo(j);
+
+      foreach (const Owned<TestFilter>& filter, filters) {
+        if (filter->disable(test)) {
+          disabled.push_back(
+              test->test_case_name() + string(".") + test->name());
+          break;
+        }
+      }
+    }
+  }
+
+  return disabled;
 }
 
 
@@ -233,22 +301,18 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
     disabled += ":";
   }
 
+  vector<Owned<TestFilter> > filters;
+
+  filters.push_back(Owned<TestFilter>(new RootFilter()));
+  filters.push_back(Owned<TestFilter>(new CgroupsFilter()));
+  filters.push_back(Owned<TestFilter>(new DockerFilter()));
+  filters.push_back(Owned<TestFilter>(new BenchmarkFilter()));
+  filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
+
   // Construct the filter string to handle system or platform specific tests.
   ::testing::UnitTest* unitTest = ::testing::UnitTest::GetInstance();
-  for (int i = 0; i < unitTest->total_test_case_count(); i++) {
-    const ::testing::TestCase* testCase = unitTest->GetTestCase(i);
-    for (int j = 0; j < testCase->total_test_count(); j++) {
-      const ::testing::TestInfo* testInfo = testCase->GetTestInfo(j);
 
-      if (!enable(*testCase->GetTestInfo(j))) {
-        // Append 'TestCase.TestName:'.
-        disabled.append(testInfo->test_case_name());
-        disabled.append(".");
-        disabled.append(testInfo->name());
-        disabled.append(":");
-      }
-    }
-  }
+  disabled += strings::join(":", tests::disabled(unitTest, filters));
 
   // Now update the gtest flag.
   ::testing::GTEST_FLAG(filter) = enabled + "-" + disabled;
@@ -267,7 +331,7 @@ void Environment::SetUp()
   // Clear any MESOS_ environment variables so they don't affect our tests.
   char** environ = os::environ();
   for (int i = 0; environ[i] != NULL; i++) {
-    std::string variable = environ[i];
+    string variable = environ[i];
     if (variable.find("MESOS_") == 0) {
       string key;
       size_t eq = variable.find_first_of("=");
