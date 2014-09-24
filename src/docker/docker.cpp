@@ -132,7 +132,7 @@ Try<Docker> Docker::create(const string& path, bool validate)
   } else if (!status.get().isSome() || status.get().get() != 0) {
     string msg = "Failed to execute '" + cmd + "': ";
     if (status.get().isSome()) {
-      msg += "exited with status " + WSTRINGIFY(status.get().get());
+      msg += WSTRINGIFY(status.get().get());
     } else {
       msg += "unknown exit status";
     }
