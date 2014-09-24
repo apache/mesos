@@ -24,6 +24,8 @@
 #include <netlink/netlink.h>
 #include <netlink/socket.h>
 
+#include <netlink/idiag/msg.h>
+
 #include <netlink/route/classifier.h>
 #include <netlink/route/link.h>
 #include <netlink/route/qdisc.h>
@@ -44,6 +46,7 @@ inline void cleanup(struct nl_sock* sock) { nl_socket_free(sock); }
 inline void cleanup(struct rtnl_cls* cls) { rtnl_cls_put(cls); }
 inline void cleanup(struct rtnl_link* link) { rtnl_link_put(link); }
 inline void cleanup(struct rtnl_qdisc* qdisc) { rtnl_qdisc_put(qdisc); }
+inline void cleanup(struct idiagnl_msg* msg) { idiagnl_msg_put(msg); }
 
 
 // A helper class for managing netlink objects (e.g., rtnl_link,
@@ -81,8 +84,11 @@ private:
 
 
 // Returns a netlink socket for communicating with the kernel. This
-// socket is needed for most of the operations.
-inline Try<Netlink<struct nl_sock> > socket()
+// socket is needed for most of the operations. The default protocol
+// of the netlink socket is NETLINK_ROUTE, but you can optionally
+// provide a different one.
+// TODO(chzhcn): Consider renaming 'routing' to 'netlink'.
+inline Try<Netlink<struct nl_sock> > socket(int protocol = NETLINK_ROUTE)
 {
   Try<Nothing> checking = check();
   if (checking.isError()) {
@@ -96,10 +102,10 @@ inline Try<Netlink<struct nl_sock> > socket()
 
   Netlink<struct nl_sock> sock(s);
 
-  int err = nl_connect(sock.get(), NETLINK_ROUTE);
+  int err = nl_connect(sock.get(), protocol);
   if (err != 0) {
     return Error(
-        "Failed to connect to routing netlink protocol: " +
+        "Failed to connect to netlink protocol: " +
         std::string(nl_geterror(err)));
   }
 

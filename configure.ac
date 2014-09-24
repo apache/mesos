@@ -665,6 +665,17 @@ http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
 
+  # Check for libnl-idiag-3 (both headers and libraries).
+  AC_CHECK_LIB([nl-idiag-3], [idiagnl_msg_alloc_cache], [],
+               [AC_MSG_ERROR([cannot find libnl-idiag-3
+-------------------------------------------------------------------
+We need libnl-idiag-3 for building network isolator!
+
+Please install libnl3 (version 3.2.24 or higher):
+http://www.infradead.org/~tgr/libnl/
+-------------------------------------------------------------------
+  ])])
+
   # TODO(jieyu): Automatically detect the location where the libnl
   # headers are installed.
   LIBNL_CFLAGS=-I/usr/include/libnl3

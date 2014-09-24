@@ -38,6 +38,8 @@
 #include "linux/routing/route.hpp"
 #include "linux/routing/utils.hpp"
 
+#include "linux/routing/diagnosis/diagnosis.hpp"
+
 #include "linux/routing/filter/arp.hpp"
 #include "linux/routing/filter/icmp.hpp"
 #include "linux/routing/filter/ip.hpp"
@@ -224,6 +226,22 @@ TEST_F(RoutingTest, Lo)
 
   if (lo.isSome()) {
     ASSERT_SOME_TRUE(link::exists(lo.get()));
+  }
+}
+
+
+TEST_F(RoutingTest, INETSockets)
+{
+  Try<vector<diagnosis::socket::Info> > infos =
+    diagnosis::socket::infos(AF_INET, diagnosis::socket::State::ALL);
+
+  EXPECT_SOME(infos);
+
+  foreach (const diagnosis::socket::Info& info, infos.get()) {
+    // Both source and destination IPs should be present since
+    // 'AF_INET' is asked for.
+    EXPECT_SOME(info.sourceIP());
+    EXPECT_SOME(info.destinationIP());
   }
 }
 

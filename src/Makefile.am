@@ -348,6 +348,7 @@ if WITH_NETWORK_ISOLATOR
   libmesos_no_3rdparty_la_SOURCES +=					\
 	linux/routing/route.cpp						\
 	linux/routing/utils.cpp						\
+	linux/routing/diagnosis/diagnosis.cpp				\
 	linux/routing/filter/arp.cpp					\
 	linux/routing/filter/icmp.cpp					\
 	linux/routing/filter/ip.cpp					\
@@ -359,6 +360,7 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/internal.hpp					\
 	linux/routing/route.hpp						\
 	linux/routing/utils.hpp						\
+	linux/routing/diagnosis/diagnosis.hpp				\
 	linux/routing/filter/action.hpp					\
 	linux/routing/filter/arp.hpp					\
 	linux/routing/filter/filter.hpp					\
