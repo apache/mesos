@@ -4,8 +4,8 @@
  * Contributed by Benjamin Hindman <benh@berkeley.edu>, 2008.
  */
 
-#ifndef FATAL_HPP
-#define FATAL_HPP
+#ifndef __FATAL_HPP__
+#define __FATAL_HPP__
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -25,4 +25,4 @@ void __fatal(const char *file, int line, const char *fmt, ...);
 #define fatalerror(fmt...) __fatalerror(__FILE__, __LINE__, fmt)
 void __fatalerror(const char *file, int line, const char *fmt, ...);
 
-#endif /* FATAL_HPP */
+#endif // __FATAL_HPP__

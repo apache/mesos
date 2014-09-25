@@ -1,5 +1,5 @@
-#ifndef CONFIG_HPP
-#define CONFIG_HPP
+#ifndef __CONFIG_HPP__
+#define __CONFIG_HPP__
 
 #ifdef __sun__
 #define gethostbyname2(name, _) gethostbyname(name)
@@ -35,4 +35,4 @@
 #endif
 #endif /* __linux__ */
 
-#endif /* CONFIG_HPP */
+#endif // __CONFIG_HPP__

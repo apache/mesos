@@ -1,7 +1,7 @@
 /* TODO(benh): Write a form of 'Client' process. */
 
-#ifndef NET_HPP
-#define NET_HPP
+#ifndef __NET_HPP__
+#define __NET_HPP__
 
 #include <assert.h>
 #include <errno.h>
@@ -229,4 +229,4 @@ public:
 };
 
 
-#endif /* NET_HH */
+#endif // __NET_HPP__

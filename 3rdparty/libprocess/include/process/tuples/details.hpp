@@ -1,3 +1,6 @@
+#ifndef __PROCESS_DETAILS_HPP__
+#define __PROCESS_DETAILS_HPP__
+
 template <MSGID ID> class tuple;
 
 #undef IDENTITY
@@ -168,3 +171,5 @@ typename boost::tuples::element<N, tuple<ID> >::type unpack(
 {
   return boost::tuples::get<N>(unpack<ID>(data));
 }
+
+#endif // __PROCESS_DETAILS_HPP__

@@ -1,3 +1,6 @@
+#ifndef __SYNCHRONIZABLE_HPP__
+#define __SYNCHRONIZABLE_HPP__
+
 #include <pthread.h>
 
 #include <iostream>
@@ -107,3 +110,5 @@ private:
 
 #define SYNCHRONIZED_INITIALIZER_RECURSIVE      \
   Synchronizable(PTHREAD_MUTEX_RECURSIVE)
+
+#endif // __SYNCHRONIZABLE_HPP__

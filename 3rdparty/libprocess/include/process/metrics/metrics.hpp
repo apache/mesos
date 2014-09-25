@@ -87,4 +87,4 @@ inline Future<Nothing> remove(const Metric& metric)
 }  // namespace metrics {
 }  // namespace process {
 
-#endif  // __PROCESS_METRICS_METRICS_HPP__
+#endif // __PROCESS_METRICS_METRICS_HPP__
