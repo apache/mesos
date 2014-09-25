@@ -15,6 +15,7 @@
 #define __STOUT_STRINGS_HPP__
 
 #include <algorithm>
+#include <sstream>
 #include <string>
 #include <map>
 #include <vector>
@@ -188,54 +189,100 @@ inline std::map<std::string, std::vector<std::string> > pairs(
 }
 
 
-inline std::string join(const std::string& separator,
-                        const std::string& s1,
-                        const std::string& s2)
+namespace internal {
+
+inline std::stringstream& append(
+    std::stringstream& stream,
+    const std::string& value)
 {
-  return s1 + separator + s2;
+  stream << value;
+  return stream;
 }
 
 
-inline std::string join(const std::string& separator,
-                        const std::string& s1,
-                        const std::string& s2,
-                        const std::string& s3)
+inline std::stringstream& append(
+    std::stringstream& stream,
+    std::string&& value)
 {
-  return s1 + separator + s2 + separator + s3;
+  stream << value;
+  return stream;
 }
 
 
-inline std::string join(const std::string& separator,
-                        const std::string& s1,
-                        const std::string& s2,
-                        const std::string& s3,
-                        const std::string& s4)
+inline std::stringstream& append(
+    std::stringstream& stream,
+    const char*&& value)
 {
-  return s1 + separator + s2 + separator + s3 + separator + s4;
+  stream << value;
+  return stream;
 }
 
 
-inline std::string join(const std::string& separator,
-                        const std::string& s1,
-                        const std::string& s2,
-                        const std::string& s3,
-                        const std::string& s4,
-                        const std::string& s5)
+template <typename T>
+std::stringstream& append(
+    std::stringstream& stream,
+    T&& value)
 {
-  return s1 + separator + s2 + separator + s3 + separator + s4 + separator + s5;
+  stream << ::stringify(std::forward<T>(value));
+  return stream;
 }
 
 
-inline std::string join(const std::string& separator,
-                        const std::string& s1,
-                        const std::string& s2,
-                        const std::string& s3,
-                        const std::string& s4,
-                        const std::string& s5,
-                        const std::string& s6)
+template <typename T>
+std::stringstream& join(
+    std::stringstream& stream,
+    const std::string& separator,
+    T&& tail)
 {
-  return s1 + separator + s2 + separator + s3 + separator + s4 + separator +
-         s5 + separator + s6;
+  return append(stream, std::forward<T>(tail));
+}
+
+
+template <typename THead, typename ...TTail>
+std::stringstream& join(
+    std::stringstream& stream,
+    const std::string& separator,
+    THead&& head,
+    TTail&&... tail)
+{
+  append(stream, std::forward<THead>(head)) << separator;
+  internal::join(stream, separator, std::forward<TTail>(tail)...);
+  return stream;
+}
+
+} // namespace internal {
+
+
+template <typename ...T>
+std::stringstream& join(
+    std::stringstream& stream,
+    const std::string& separator,
+    T&&... args)
+{
+  internal::join(stream, separator, std::forward<T>(args)...);
+  return stream;
+}
+
+
+// Use 2 heads here to disambiguate variadic argument join from the
+// templatized Iterable join below. This means this implementation of
+// strings::join() is only activated if there are 2 or more things to
+// join.
+template <typename THead1, typename THead2, typename ...TTail>
+std::string join(
+    const std::string& separator,
+    THead1&& head1,
+    THead2&& head2,
+    TTail&&... tail)
+{
+  std::stringstream stream;
+  internal::join(
+      stream,
+      separator,
+      std::forward<THead1>(head1),
+      std::forward<THead2>(head2),
+      std::forward<TTail>(tail)...);
+  return stream.str();
 }
 
 
