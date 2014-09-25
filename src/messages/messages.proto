@@ -231,9 +231,10 @@ message RegisterSlaveMessage {
 
 
 message ReregisterSlaveMessage {
-  // TODO(bmahler): Deprecate and remove the explicit slave_id as
-  // SlaveInfo already includes this information.
-  required SlaveID slave_id = 1;
+  // TODO(bmahler): slave_id is deprecated.
+  // 0.21.0: Now an optional field. Always written, never read.
+  // 0.22.0: Remove this field.
+  optional SlaveID slave_id = 1;
   required SlaveInfo slave = 2;
   repeated ExecutorInfo executor_infos = 4;
   repeated Task tasks = 3;

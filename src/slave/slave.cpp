@@ -879,7 +879,7 @@ void Slave::doReliableRegistration(const Duration& duration)
 
   CHECK(state == DISCONNECTED) << state;
 
-  if (info.id() == "") {
+  if (!info.has_id()) {
     // Registering for the first time.
     RegisterSlaveMessage message;
     message.mutable_slave()->CopyFrom(info);
@@ -887,7 +887,7 @@ void Slave::doReliableRegistration(const Duration& duration)
   } else {
     // Re-registering, so send tasks running.
     ReregisterSlaveMessage message;
-    // TODO(bmahler): deprecate this.
+    // TODO(bmahler): Remove in 0.22.0.
     message.mutable_slave_id()->CopyFrom(info.id());
     message.mutable_slave()->CopyFrom(info);
 

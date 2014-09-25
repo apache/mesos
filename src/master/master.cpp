@@ -583,7 +583,6 @@ void Master::initialize()
 
   install<ReregisterSlaveMessage>(
       &Master::reregisterSlave,
-      &ReregisterSlaveMessage::slave_id,
       &ReregisterSlaveMessage::slave,
       &ReregisterSlaveMessage::executor_infos,
       &ReregisterSlaveMessage::tasks,
@@ -2981,7 +2980,7 @@ void Master::_registerSlave(
         stringify(slaveInfo.id()));
     send(pid, message);
   } else {
-    Slave* slave = new Slave(slaveInfo, slaveInfo.id(), pid, Clock::now());
+    Slave* slave = new Slave(slaveInfo, pid, Clock::now());
 
     LOG(INFO) << "Registered slave " << *slave;
     ++metrics.slave_registrations;
@@ -2993,7 +2992,6 @@ void Master::_registerSlave(
 
 void Master::reregisterSlave(
     const UPID& from,
-    const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
@@ -3009,7 +3007,6 @@ void Master::reregisterSlave(
       .onReady(defer(self(),
                      &Self::reregisterSlave,
                      from,
-                     slaveId,
                      slaveInfo,
                      executorInfos,
                      tasks,
@@ -3036,7 +3033,7 @@ void Master::reregisterSlave(
     // re-registering. This is because a non-strict registrar cannot
     // enforce this. We've already told frameworks the tasks were
     // lost so it's important to deny the slave from re-registering.
-    LOG(WARNING) << "Slave " << slaveId << " at " << from
+    LOG(WARNING) << "Slave " << slaveInfo.id() << " at " << from
                  << " (" << slaveInfo.hostname() << ") attempted to "
                  << "re-register after removal; shutting it down";
 
@@ -3171,7 +3168,7 @@ void Master::_reregisterSlave(
     send(pid, message);
   } else {
     // Re-admission succeeded.
-    Slave* slave = new Slave(slaveInfo, slaveInfo.id(), pid, Clock::now());
+    Slave* slave = new Slave(slaveInfo, pid, Clock::now());
     slave->reregisteredTime = Clock::now();
 
     LOG(INFO) << "Re-registered slave " << *slave;

@@ -160,7 +160,6 @@ public:
       const SlaveInfo& slaveInfo);
   void reregisterSlave(
       const process::UPID& from,
-      const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
       const std::vector<ExecutorInfo>& executorInfos,
       const std::vector<Task>& tasks,
@@ -815,16 +814,18 @@ private:
 struct Slave
 {
   Slave(const SlaveInfo& _info,
-        const SlaveID& _id,
         const process::UPID& _pid,
         const process::Time& time)
-    : id(_id),
+    : id(_info.id()),
       info(_info),
       pid(_pid),
       registeredTime(time),
       connected(true),
       active(true),
-      observer(NULL) {}
+      observer(NULL)
+  {
+    CHECK(_info.has_id());
+  }
 
   ~Slave() {}
 
