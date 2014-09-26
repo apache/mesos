@@ -882,11 +882,15 @@ void Slave::doReliableRegistration(const Duration& duration)
   if (!info.has_id()) {
     // Registering for the first time.
     RegisterSlaveMessage message;
+    message.set_version(MESOS_VERSION);
     message.mutable_slave()->CopyFrom(info);
+
     send(master.get(), message);
   } else {
     // Re-registering, so send tasks running.
     ReregisterSlaveMessage message;
+    message.set_version(MESOS_VERSION);
+
     // TODO(bmahler): Remove in 0.22.0.
     message.mutable_slave_id()->CopyFrom(info.id());
     message.mutable_slave()->CopyFrom(info);

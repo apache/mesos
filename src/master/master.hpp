@@ -157,13 +157,15 @@ public:
       const std::string& data);
   void registerSlave(
       const process::UPID& from,
-      const SlaveInfo& slaveInfo);
+      const SlaveInfo& slaveInfo,
+      const std::string& version);
   void reregisterSlave(
       const process::UPID& from,
       const SlaveInfo& slaveInfo,
       const std::vector<ExecutorInfo>& executorInfos,
       const std::vector<Task>& tasks,
-      const std::vector<Archive::Framework>& completedFrameworks);
+      const std::vector<Archive::Framework>& completedFrameworks,
+      const std::string& version);
 
   void unregisterSlave(
       const process::UPID& from,
@@ -227,6 +229,7 @@ public:
       const std::vector<ExecutorInfo>& executorInfos,
       const std::vector<Task>& tasks,
       const std::vector<Archive::Framework>& completedFrameworks,
+      const std::string& version,
       const process::Future<bool>& readmit);
 
   MasterInfo info() const
@@ -267,6 +270,7 @@ protected:
   void _registerSlave(
       const SlaveInfo& slaveInfo,
       const process::UPID& pid,
+      const std::string& version,
       const process::Future<bool>& admit);
 
   void __reregisterSlave(
@@ -815,11 +819,13 @@ struct Slave
 {
   Slave(const SlaveInfo& _info,
         const process::UPID& _pid,
-        const process::Time& time)
+        const Option<std::string> _version,
+        const process::Time& _registeredTime)
     : id(_info.id()),
       info(_info),
       pid(_pid),
-      registeredTime(time),
+      version(_version),
+      registeredTime(_registeredTime),
       connected(true),
       active(true),
       observer(NULL)
@@ -953,6 +959,11 @@ struct Slave
   const SlaveInfo info;
 
   process::UPID pid;
+
+  // The Mesos version of the slave. If set, the slave is >= 0.21.0.
+  // TODO(bmahler): Use stout's Version when it can parse labels, etc.
+  // TODO(bmahler): Make this required once it is always set.
+  const Option<std::string> version;
 
   process::Time registeredTime;
   Option<process::Time> reregisteredTime;

@@ -579,14 +579,16 @@ void Master::initialize()
 
   install<RegisterSlaveMessage>(
       &Master::registerSlave,
-      &RegisterSlaveMessage::slave);
+      &RegisterSlaveMessage::slave,
+      &RegisterSlaveMessage::version);
 
   install<ReregisterSlaveMessage>(
       &Master::reregisterSlave,
       &ReregisterSlaveMessage::slave,
       &ReregisterSlaveMessage::executor_infos,
       &ReregisterSlaveMessage::tasks,
-      &ReregisterSlaveMessage::completed_frameworks);
+      &ReregisterSlaveMessage::completed_frameworks,
+      &ReregisterSlaveMessage::version);
 
   install<UnregisterSlaveMessage>(
       &Master::unregisterSlave,
@@ -2876,7 +2878,10 @@ void Master::schedulerMessage(
 }
 
 
-void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
+void Master::registerSlave(
+    const UPID& from,
+    const SlaveInfo& slaveInfo,
+    const string& version)
 {
   ++metrics.messages_register_slave;
 
@@ -2885,7 +2890,7 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
               << " because authentication is still in progress";
 
     authenticating[from]
-      .onReady(defer(self(), &Self::registerSlave, from, slaveInfo));
+      .onReady(defer(self(), &Self::registerSlave, from, slaveInfo, version));
     return;
   }
 
@@ -2950,6 +2955,7 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
                  &Self::_registerSlave,
                  slaveInfo_,
                  from,
+                 version,
                  lambda::_1));
 }
 
@@ -2957,6 +2963,7 @@ void Master::registerSlave(const UPID& from, const SlaveInfo& slaveInfo)
 void Master::_registerSlave(
     const SlaveInfo& slaveInfo,
     const UPID& pid,
+    const string& version,
     const Future<bool>& admit)
 {
   slaves.registering.erase(pid);
@@ -2980,7 +2987,11 @@ void Master::_registerSlave(
         stringify(slaveInfo.id()));
     send(pid, message);
   } else {
-    Slave* slave = new Slave(slaveInfo, pid, Clock::now());
+    Slave* slave = new Slave(
+        slaveInfo,
+        pid,
+        version.empty() ? Option<string>::none() : version,
+        Clock::now());
 
     LOG(INFO) << "Registered slave " << *slave;
     ++metrics.slave_registrations;
@@ -2995,7 +3006,8 @@ void Master::reregisterSlave(
     const SlaveInfo& slaveInfo,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
-    const vector<Archive::Framework>& completedFrameworks)
+    const vector<Archive::Framework>& completedFrameworks,
+    const string& version)
 {
   ++metrics.messages_reregister_slave;
 
@@ -3010,7 +3022,8 @@ void Master::reregisterSlave(
                      slaveInfo,
                      executorInfos,
                      tasks,
-                     completedFrameworks));
+                     completedFrameworks,
+                     version));
     return;
   }
 
@@ -3130,13 +3143,14 @@ void Master::reregisterSlave(
   // registrar.
   registrar->apply(Owned<Operation>(new ReadmitSlave(slaveInfo)))
     .onAny(defer(self(),
-           &Self::_reregisterSlave,
-           slaveInfo,
-           from,
-           executorInfos,
-           tasks,
-           completedFrameworks,
-           lambda::_1));
+                 &Self::_reregisterSlave,
+                 slaveInfo,
+                 from,
+                 executorInfos,
+                 tasks,
+                 completedFrameworks,
+                 version,
+                 lambda::_1));
 }
 
 
@@ -3146,6 +3160,7 @@ void Master::_reregisterSlave(
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks,
+    const string& version,
     const Future<bool>& readmit)
 {
   slaves.reregistering.erase(slaveInfo.id());
@@ -3168,7 +3183,12 @@ void Master::_reregisterSlave(
     send(pid, message);
   } else {
     // Re-admission succeeded.
-    Slave* slave = new Slave(slaveInfo, pid, Clock::now());
+    Slave* slave = new Slave(
+        slaveInfo,
+        pid,
+        version.empty() ? Option<string>::none() : version,
+        Clock::now());
+
     slave->reregisteredTime = Clock::now();
 
     LOG(INFO) << "Re-registered slave " << *slave;

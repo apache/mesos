@@ -227,6 +227,11 @@ message FrameworkErrorMessage {
 
 message RegisterSlaveMessage {
   required SlaveInfo slave = 1;
+
+  // NOTE: This is a hack for the master to detect the slave's
+  // version. If unset the slave is < 0.21.0.
+  // TODO(bmahler): Do proper versioning: MESOS-986.
+  optional string version = 2;
 }
 
 
@@ -239,6 +244,11 @@ message ReregisterSlaveMessage {
   repeated ExecutorInfo executor_infos = 4;
   repeated Task tasks = 3;
   repeated Archive.Framework completed_frameworks = 5;
+
+  // NOTE: This is a hack for the master to detect the slave's
+  // version. If unset the slave is < 0.21.0.
+  // TODO(bmahler): Do proper versioning: MESOS-986.
+  optional string version = 6;
 }
 
 
