@@ -44,6 +44,8 @@ Currently the Docker Containerizer when launching as task will do the following:
 5. Launch the Command Executor to perform a docker wait on the container.
 6. On container exit or containerizer destroy, stop and remove the docker container.
 
+The Docker Containerizer launches all containers with the "mesos-" prefix (ie: mesos-abcdefghji), and also assumes all containers with the "mesos-" prefix is managed by the slave and is free to stop or kill the containers.
+
 When launching the docker image as an Executor, the only difference is that it skips launching a command executor but just reaps on the docker container executor pid.
 
 Note that we currently default to host networking when running a docker image, to easier support running a docker image asn an Executor.
