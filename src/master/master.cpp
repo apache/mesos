@@ -4212,8 +4212,7 @@ void Master::addSlave(Slave* slave, bool reregister)
   spawn(slave->observer);
 
   if (!reregister) {
-    allocator->slaveAdded(
-        slave->id, slave->info, hashmap<FrameworkID, Resources>());
+    allocator->slaveAdded(slave->id, slave->info, slave->usedResources);
   }
 }
 
@@ -4227,10 +4226,6 @@ void Master::readdSlave(
   CHECK_NOTNULL(slave);
 
   addSlave(slave, true);
-
-  // Add the executors and tasks to the slave and framework state and
-  // determine the resources that have been allocated to frameworks.
-  hashmap<FrameworkID, Resources> resources;
 
   foreach (const ExecutorInfo& executorInfo, executorInfos) {
     // TODO(bmahler): ExecutorInfo.framework_id is set by the Scheduler
@@ -4246,8 +4241,6 @@ void Master::readdSlave(
     if (framework != NULL) { // The framework might not be re-registered yet.
       framework->addExecutor(slave->id, executorInfo);
     }
-
-    resources[executorInfo.framework_id()] += executorInfo.resources();
   }
 
   foreach (const Task& task, tasks) {
@@ -4266,11 +4259,6 @@ void Master::readdSlave(
       LOG(WARNING) << "Possibly orphaned task " << task.task_id()
                    << " of framework " << task.framework_id()
                    << " running on slave " << *slave;
-    }
-
-    // Terminal tasks do not consume resoures.
-    if (!protobuf::isTerminalState(task.state())) {
-      resources[task.framework_id()] += task.resources();
     }
   }
 
@@ -4300,7 +4288,7 @@ void Master::readdSlave(
     }
   }
 
-  allocator->slaveAdded(slave->id, slave->info, resources);
+  allocator->slaveAdded(slave->id, slave->info, slave->usedResources);
 }
 
 
@@ -5146,9 +5134,11 @@ double Master::_resources_used(const std::string& name)
   double used = 0.0;
 
   foreachvalue (Slave* slave, slaves.registered) {
-    foreach (const Resource& resource, slave->usedResources) {
-      if (resource.name() == name && resource.type() == Value::SCALAR) {
-        used += resource.scalar().value();
+    foreachvalue (const Resources& resources, slave->usedResources) {
+      foreach (const Resource& resource, resources) {
+        if (resource.name() == name && resource.type() == Value::SCALAR) {
+          used += resource.scalar().value();
+        }
       }
     }
   }

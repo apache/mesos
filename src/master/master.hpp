@@ -838,17 +838,19 @@ struct Slave
 
   void addTask(Task* task)
   {
-    CHECK(!tasks[task->framework_id()].contains(task->task_id()))
-      << "Duplicate task " << task->task_id()
-      << " of framework " << task->framework_id();
+    const TaskID& taskId = task->task_id();
+    const FrameworkID& frameworkId = task->framework_id();
 
-    tasks[task->framework_id()][task->task_id()] = task;
+    CHECK(!tasks[frameworkId].contains(taskId))
+      << "Duplicate task " << taskId << " of framework " << frameworkId;
+
+    tasks[frameworkId][taskId] = task;
 
     if (!protobuf::isTerminalState(task->state())) {
-      usedResources += task->resources();
+      usedResources[frameworkId] += task->resources();
     }
 
-    LOG(INFO) << "Adding task " << task->task_id()
+    LOG(INFO) << "Adding task " << taskId
               << " with resources " << task->resources()
               << " on slave " << id << " (" << info.hostname() << ")";
   }
@@ -859,30 +861,40 @@ struct Slave
   // functionally for all tasks is expensive, for now.
   void taskTerminated(Task* task)
   {
-    CHECK(protobuf::isTerminalState(task->state()));
-    CHECK(tasks[task->framework_id()].contains(task->task_id()))
-      << "Unknown task " << task->task_id()
-      << " of framework " << task->framework_id();
+    const TaskID& taskId = task->task_id();
+    const FrameworkID& frameworkId = task->framework_id();
 
-    usedResources -= task->resources();
+    CHECK(protobuf::isTerminalState(task->state()));
+    CHECK(tasks[frameworkId].contains(taskId))
+      << "Unknown task " << taskId << " of framework " << frameworkId;
+
+    usedResources[frameworkId] -= task->resources();
+    if (!tasks.contains(frameworkId) && !executors.contains(frameworkId)) {
+      usedResources.erase(frameworkId);
+    }
   }
 
   void removeTask(Task* task)
   {
-    CHECK(tasks[task->framework_id()].contains(task->task_id()))
-      << "Unknown task " << task->task_id()
-      << " of framework " << task->framework_id();
+    const TaskID& taskId = task->task_id();
+    const FrameworkID& frameworkId = task->framework_id();
+
+    CHECK(tasks[frameworkId].contains(taskId))
+      << "Unknown task " << taskId << " of framework " << frameworkId;
 
     if (!protobuf::isTerminalState(task->state())) {
-      usedResources -= task->resources();
+      usedResources[frameworkId] -= task->resources();
+      if (!tasks.contains(frameworkId) && !executors.contains(frameworkId)) {
+        usedResources.erase(frameworkId);
+      }
     }
 
-    tasks[task->framework_id()].erase(task->task_id());
-    if (tasks[task->framework_id()].empty()) {
-      tasks.erase(task->framework_id());
+    tasks[frameworkId].erase(taskId);
+    if (tasks[frameworkId].empty()) {
+      tasks.erase(frameworkId);
     }
 
-    killedTasks.remove(task->framework_id(), task->task_id());
+    killedTasks.remove(frameworkId, taskId);
   }
 
   void addOffer(Offer* offer)
@@ -916,7 +928,7 @@ struct Slave
       << " of framework " << frameworkId;
 
     executors[frameworkId][executorInfo.executor_id()] = executorInfo;
-    usedResources += executorInfo.resources();
+    usedResources[frameworkId] += executorInfo.resources();
   }
 
   void removeExecutor(const FrameworkID& frameworkId,
@@ -925,7 +937,11 @@ struct Slave
     CHECK(hasExecutor(frameworkId, executorId))
       << "Unknown executor " << executorId << " of framework " << frameworkId;
 
-    usedResources -= executors[frameworkId][executorId].resources();
+    usedResources[frameworkId] -=
+      executors[frameworkId][executorId].resources();
+
+    // XXX Remove.
+
     executors[frameworkId].erase(executorId);
     if (executors[frameworkId].empty()) {
       executors.erase(frameworkId);
@@ -964,8 +980,8 @@ struct Slave
   // Active offers on this slave.
   hashset<Offer*> offers;
 
-  Resources usedResources;    // Active task / executor resources.
-  Resources offeredResources; // Offered resources.
+  hashmap<FrameworkID, Resources> usedResources;  // Active task / executors.
+  Resources offeredResources; // Offers.
 
   SlaveObserver* observer;
 

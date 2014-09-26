@@ -415,9 +415,11 @@ Future<Response> Master::Http::stats(const Request& request)
         totalResources += resource;
       }
     }
-    foreach (const Resource& resource, slave->usedResources) {
-      if (resource.type() == Value::SCALAR) {
-        usedResources += resource;
+    foreachvalue (const Resources& resources, slave->usedResources) {
+      foreach (const Resource& resource, resources) {
+        if (resource.type() == Value::SCALAR) {
+          usedResources += resource;
+        }
       }
     }
   }
