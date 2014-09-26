@@ -2993,7 +2993,8 @@ void Master::_registerSlave(
         version.empty() ? Option<string>::none() : version,
         Clock::now());
 
-    LOG(INFO) << "Registered slave " << *slave;
+    LOG(INFO) << "Registered slave " << *slave
+              << " with " << slave->info.resources();
     ++metrics.slave_registrations;
 
     addSlave(slave);
@@ -3191,7 +3192,8 @@ void Master::_reregisterSlave(
 
     slave->reregisteredTime = Clock::now();
 
-    LOG(INFO) << "Re-registered slave " << *slave;
+    LOG(INFO) << "Re-registered slave " << *slave
+              << " with " << slave->info.resources();
     ++metrics.slave_reregistrations;
 
     readdSlave(slave, executorInfos, tasks, completedFrameworks);
@@ -4215,9 +4217,6 @@ void Master::removeFramework(Slave* slave, Framework* framework)
 void Master::addSlave(Slave* slave, bool reregister)
 {
   CHECK_NOTNULL(slave);
-
-  LOG(INFO) << "Adding slave " << *slave
-            << " with " << slave->info.resources();
 
   slaves.removed.erase(slave->id);
   slaves.registered[slave->id] = slave;
