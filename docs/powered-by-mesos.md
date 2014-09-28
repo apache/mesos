@@ -34,6 +34,7 @@ layout: documentation
 * [Sigmoid Analytics](http://www.sigmoidanalytics.com/)
 * [SiQueries](https://siqueries.com)
 * [Squarespace](http://squarespace.com)
+* [The Factory](http://www.thefactory.com)
 * [Twitter](http://www.twitter.com)
 * [UCSF](http://www.ucsf.edu)
 * [UC Berkeley](http://www.berkeley.edu)
