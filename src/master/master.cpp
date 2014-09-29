@@ -1433,6 +1433,11 @@ void Master::_registerFramework(
   }
 
   addFramework(framework);
+
+  FrameworkRegisteredMessage message;
+  message.mutable_framework_id()->MergeFrom(framework->id);
+  message.mutable_master_info()->MergeFrom(info_);
+  send(framework->pid, message);
 }
 
 
@@ -1630,6 +1635,15 @@ void Master::_reregisterFramework(
     // (above) so that we can properly determine the resources it's
     // currently using!
     addFramework(framework);
+
+    // TODO(bmahler): We have to send a registered message here for
+    // the re-registering framework, per the API contract. Send
+    // re-register here per MESOS-786; requires deprecation or it
+    // will break frameworks.
+    FrameworkRegisteredMessage message;
+    message.mutable_framework_id()->MergeFrom(framework->id);
+    message.mutable_master_info()->MergeFrom(info_);
+    send(framework->pid, message);
   }
 
   CHECK(frameworks.registered.contains(frameworkInfo.id()))
@@ -3984,11 +3998,6 @@ void Master::addFramework(Framework* framework)
     << " of framework " << framework->id;
 
   roles[framework->info.role()]->addFramework(framework);
-
-  FrameworkRegisteredMessage message;
-  message.mutable_framework_id()->MergeFrom(framework->id);
-  message.mutable_master_info()->MergeFrom(info_);
-  send(framework->pid, message);
 
   // There should be no offered resources yet!
   CHECK_EQ(Resources(), framework->offeredResources);
