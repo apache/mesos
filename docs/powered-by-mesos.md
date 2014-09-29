@@ -24,6 +24,7 @@ layout: documentation
 * [MediaCrossing](http://www.mediacrossing.com)
 * [Mesosphere](http://www.mesosphere.io)
 * [Netflix](http://www.netflix.com)
+* [OpenCredo](http://www.opencredo.com/)
 * [OpenTable](http://www.opentable.com)
 * [Oscar Insurance](https://www.hioscar.com/)
 * [PayPal](https://www.paypal.com)
@@ -42,8 +43,9 @@ layout: documentation
 * [Viadeo](http://www.viadeo.com)
 * [Vimeo](http://www.vimeo.com)
 * [Virdata](http://www.virdata.com)
-* [Yieldbot](http://www.yieldbot.com)
+* [WooRank](http://www.woorank.com)
 * [Xogito](http://www.xogito.com)
+* [Yieldbot](http://www.yieldbot.com)
 
 ## Software projects built on Mesos
 
