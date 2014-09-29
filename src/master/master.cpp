@@ -3929,7 +3929,7 @@ void Master::reconcile(
 void Master::addFramework(Framework* framework)
 {
   CHECK(!frameworks.registered.contains(framework->id))
-    << "Framework " << framework->id << "already exists!";
+    << "Framework " << framework->id << " already exists!";
 
   frameworks.registered[framework->id] = framework;
 
