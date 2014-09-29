@@ -26,6 +26,7 @@ layout: documentation
 * [Netflix](http://www.netflix.com)
 * [OpenTable](http://www.opentable.com)
 * [Oscar Insurance](https://www.hioscar.com/)
+* [OpenCredo](http://www.opencredo.com/)
 * [PayPal](https://www.paypal.com)
 * [Pinkbike](http://www.pinkbike.com)
 * [Qubit](http://www.qubitproducts.com)
@@ -42,6 +43,7 @@ layout: documentation
 * [Viadeo](http://www.viadeo.com)
 * [Vimeo](http://www.vimeo.com)
 * [Virdata](http://www.virdata.com)
+* [WooRank](http://www.woorank.com)
 * [Yieldbot](http://www.yieldbot.com)
 * [Xogito](http://www.xogito.com)
 
