@@ -123,6 +123,9 @@ protected:
     storage = new LogStorage(log);
     state = new State(storage);
 
+    // Compensate for slow CI machines / VMs.
+    flags.registry_store_timeout = Seconds(10);
+
     master.CopyFrom(protobuf::createMasterInfo(UPID("master@127.0.0.1:5050")));
 
     SlaveID id;
