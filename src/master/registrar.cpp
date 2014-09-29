@@ -297,7 +297,6 @@ string RegistrarProcess::registryHelp()
           "              \"type\": \"SCALAR\"",
           "            }",
           "          ],",
-          "          \"webui_hostname\": \"localhost\"",
           "        }",
           "      }",
           "    ]",

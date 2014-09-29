@@ -317,12 +317,6 @@ void Slave::initialize()
   LOG(INFO) << "Slave hostname: " << info.hostname();
   LOG(INFO) << "Slave checkpoint: " << stringify(flags.checkpoint);
 
-  // The required 'webui_hostname' field has been deprecated and
-  // changed to optional for now, but we still need to set it for
-  // interoperating with code that expects it to be required (e.g., an
-  // executor on an older release).
-  // TODO(benh): Remove this after the deprecation cycle.
-  info.set_webui_hostname(hostname);
   statusUpdateManager->initialize(flags, self());
 
   // Start disk monitoring.
