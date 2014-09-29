@@ -335,13 +335,10 @@ protected:
   void deactivate(Slave* slave);
 
   // Add a slave.
-  void addSlave(Slave* slave, bool reregister = false);
-
-  void readdSlave(
+  void addSlave(
       Slave* slave,
-      const std::vector<ExecutorInfo>& executorInfos,
-      const std::vector<Task>& tasks,
-      const std::vector<Archive::Framework>& completedFrameworks);
+      const std::vector<Archive::Framework>& completedFrameworks =
+        std::vector<Archive::Framework>());
 
   // Remove the slave from the registrar and from the master's state.
   void removeSlave(Slave* slave);
@@ -820,7 +817,11 @@ struct Slave
   Slave(const SlaveInfo& _info,
         const process::UPID& _pid,
         const Option<std::string> _version,
-        const process::Time& _registeredTime)
+        const process::Time& _registeredTime,
+        const std::vector<ExecutorInfo> executorInfos =
+          std::vector<ExecutorInfo>(),
+        const std::vector<Task> tasks =
+          std::vector<Task>())
     : id(_info.id()),
       info(_info),
       pid(_pid),
@@ -831,6 +832,15 @@ struct Slave
       observer(NULL)
   {
     CHECK(_info.has_id());
+
+    foreach (const ExecutorInfo& executorInfo, executorInfos) {
+      CHECK(executorInfo.has_framework_id());
+      addExecutor(executorInfo.framework_id(), executorInfo);
+    }
+
+    foreach (const Task& task, tasks) {
+      addTask(new Task(task));
+    }
   }
 
   ~Slave() {}
