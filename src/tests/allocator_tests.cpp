@@ -1440,7 +1440,11 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   EXPECT_CALL(sched2, resourceOffers(_, OfferEq(1, 512)))
     .WillOnce(LaunchTasks(executor2, 1, 1, 256, "*"));
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _));
+  // The framework 2 does not use all the resources.
+  Future<Nothing> resourcesRecovered2;
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
+    .WillOnce(DoAll(InvokeResourcesRecovered(&this->allocator),
+                    FutureSatisfy(&resourcesRecovered2)));
 
   EXPECT_CALL(exec2, registered(_, _, _, _));
 
@@ -1450,6 +1454,8 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
   driver2.start();
 
   AWAIT_READY(launchTask);
+
+  AWAIT_READY(resourcesRecovered2);
 
   // Shut everything down but check that framework 2 gets the
   // resources from framework 1 after it is shutdown.
