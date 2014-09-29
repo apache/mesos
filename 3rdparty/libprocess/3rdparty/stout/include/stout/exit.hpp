@@ -32,7 +32,7 @@ struct __Exit
 {
   __Exit(int _status) : status(_status) {}
 
-  ~__Exit()
+  __attribute__((noreturn)) ~__Exit()
   {
     std::cerr << out.str() << std::endl;
     exit(status);

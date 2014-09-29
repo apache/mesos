@@ -721,7 +721,7 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
     }
   }
 
-  return Result<uid_t>(UNREACHABLE());
+  UNREACHABLE();
 }
 
 
@@ -776,7 +776,7 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
     }
   }
 
-  return Result<gid_t>(UNREACHABLE());
+  UNREACHABLE();
 }
 
 

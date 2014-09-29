@@ -18,27 +18,10 @@
 
 #define UNREACHABLE() Unreachable(__FILE__, __LINE__)
 
-struct Unreachable
-{
-  Unreachable(const std::string& _file, int _line)
-    : file(_file), line(_line) {}
-
-  template <typename T>
-  operator T () const
-  {
-    // TODO(benh): Print stack trace too.
-    std::cerr << "Reached unreachable statement at "
-              << file << ":" << line << std::endl;
-    abort();
-
-    // Note that dereference a T* since T might not be default
-    // constructable and can't just 'return T()'.
-    return *((T*) NULL);
-  }
-
-private:
-  const std::string file;
-  const int line;
-};
+inline __attribute__((noreturn)) void Unreachable(const char *file, int line) {
+  std::cerr << "Reached unreachable statement at " << file << ':'
+            << line << std::endl;
+  abort();
+}
 
 #endif // __STOUT_UNREACHABLE_HPP__
