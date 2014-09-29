@@ -287,8 +287,6 @@ static int child(void*)
 
   // Should not reach here.
   ABORT("Child process should not reach here");
-
-  return -1;
 }
 
 

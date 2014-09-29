@@ -686,6 +686,6 @@ bool ZooKeeper::retryable(int code)
 
     default:
       LOG(FATAL) << "Unknown ZooKeeper code: " << code;
-      return UNREACHABLE(); // Make compiler happy.
+      UNREACHABLE(); // Make compiler happy.
   }
 }

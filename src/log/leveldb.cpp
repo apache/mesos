@@ -54,7 +54,7 @@ public:
     // if (left < right) return -1;
     // if (left == right) return 0;
     // if (left > right) return 1;
-    return UNREACHABLE();
+    UNREACHABLE();
   }
 
   virtual const char* Name() const

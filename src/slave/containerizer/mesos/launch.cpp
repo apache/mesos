@@ -244,8 +244,7 @@ int MesosContainerizerLaunch::execute()
 
   // If we get here, the execle call failed.
   cerr << "Failed to execute command" << endl;
-
-  return UNREACHABLE();
+  UNREACHABLE();
 }
 
 } // namespace slave {

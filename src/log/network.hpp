@@ -303,7 +303,7 @@ private:
         return pids.size() >= size;
       default:
         LOG(FATAL) << "Invalid watch mode";
-        return UNREACHABLE();
+        UNREACHABLE();
     }
   }
 
