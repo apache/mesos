@@ -1946,7 +1946,7 @@ Socket SocketManager::accepted(int s)
     return sockets[s] = Socket(s);
   }
 
-  return UNREACHABLE(); // Quiet the compiler.
+  UNREACHABLE();
 }
 
 

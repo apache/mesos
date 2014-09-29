@@ -94,7 +94,7 @@ static pid_t defaultClone(const lambda::function<int()>& func)
   } else if (pid == 0) {
     // Child.
     ::exit(func());
-    return UNREACHABLE();
+    UNREACHABLE();
   } else {
     // Parent.
     return pid;
@@ -163,8 +163,6 @@ static int childMain(
   os::execvpe(path.c_str(), argv, (*envp)());
 
   ABORT("Failed to os::execvpe in childMain\n");
-
-  return UNREACHABLE();
 }
 
 
@@ -216,7 +214,7 @@ Try<Subprocess> subprocess(
       break;
     }
     default:
-      return Try<Subprocess>(UNREACHABLE());
+      UNREACHABLE();
   }
 
   // Prepare the file descriptor(s) for stdout.
@@ -255,7 +253,7 @@ Try<Subprocess> subprocess(
       break;
     }
     default:
-      return Try<Subprocess>(UNREACHABLE());
+      UNREACHABLE();
   }
 
   // Prepare the file descriptor(s) for stderr.
@@ -294,7 +292,7 @@ Try<Subprocess> subprocess(
       break;
     }
     default:
-      return Try<Subprocess>(UNREACHABLE());
+      UNREACHABLE();
   }
 
   // TODO(jieyu): Consider using O_CLOEXEC for atomic close-on-exec.
