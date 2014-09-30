@@ -1529,7 +1529,10 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 1024)))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 512, "*"));
 
-  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _));
+  Future<Nothing> resourcesRecovered;
+  EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
+    .WillOnce(DoAll(InvokeResourcesRecovered(&this->allocator),
+                    FutureSatisfy(&resourcesRecovered)));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1549,6 +1552,11 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   // is killed).
   AWAIT_READY(launchTask);
 
+  // Framework does not use all the resources.
+  AWAIT_READY(resourcesRecovered);
+
+  // 'resourcesRecovered' should be called twice, once for the task
+  // and once for the executor.
   EXPECT_CALL(this->allocator, resourcesRecovered(_, _, _, _))
     .Times(2);
 
