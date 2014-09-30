@@ -1190,6 +1190,17 @@ private:
 };
 
 
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const Framework& framework)
+{
+  // TODO(vinod): Also log the hostname once FrameworkInfo is properly
+  // updated on framework failover (MESOS-1784).
+  return stream << framework.id << " (" << framework.info.name()
+                << ") at " << framework.pid;
+}
+
+
 // Information about an active role.
 struct Role
 {
