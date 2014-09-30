@@ -124,6 +124,7 @@ static net::IP LOOPBACK_IP = net::IP::fromDotDecimal("127.0.0.1/8").get();
 static const Interval<uint16_t> WELL_KNOWN_PORTS =
   (Bound<uint16_t>::closed(0), Bound<uint16_t>::open(1024));
 
+
 /////////////////////////////////////////////////
 // Helper functions for the isolator.
 /////////////////////////////////////////////////
@@ -998,6 +999,47 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
         ": " + write.error());
   }
 
+  // Reading host network configurations. Each container will match
+  // these configurations.
+  hashset<string> procs;
+
+  // TODO(jieyu): The following is a partial list of all the
+  // configurations. In the future, we may want to expose these
+  // configurations using ContainerInfo.
+
+  // The kernel will use a default value for the following
+  // configurations inside a container. Therefore, we need to set them
+  // in the container to match that on the host.
+  procs.insert("/proc/sys/net/core/somaxconn");
+
+  // As of kernel 3.10, the following configurations are shared
+  // between host and containers, and therefore are not required to be
+  // set in containers. We keep them here just in case the kernel
+  // changes in the future.
+  procs.insert("/proc/sys/net/core/netdev_max_backlog");
+  procs.insert("/proc/sys/net/core/rmem_max");
+  procs.insert("/proc/sys/net/core/wmem_max");
+  procs.insert("/proc/sys/net/ipv4/tcp_keepalive_time");
+  procs.insert("/proc/sys/net/ipv4/tcp_keepalive_intvl");
+  procs.insert("/proc/sys/net/ipv4/tcp_keepalive_probes");
+  procs.insert("/proc/sys/net/ipv4/tcp_max_syn_backlog");
+  procs.insert("/proc/sys/net/ipv4/tcp_rmem");
+  procs.insert("/proc/sys/net/ipv4/tcp_retries2");
+  procs.insert("/proc/sys/net/ipv4/tcp_synack_retries");
+  procs.insert("/proc/sys/net/ipv4/tcp_wmem");
+  procs.insert("/proc/sys/net/ipv4/neigh/default/gc_thresh1");
+  procs.insert("/proc/sys/net/ipv4/neigh/default/gc_thresh2");
+  procs.insert("/proc/sys/net/ipv4/neigh/default/gc_thresh3");
+
+  hashmap<string, string> hostNetworkConfigurations;
+  foreach (const string& proc, procs) {
+    Try<string> value = os::read(proc);
+    if (value.isSome()) {
+      LOG(INFO) << proc << " = '" << strings::trim(value.get()) << "'";
+      hostNetworkConfigurations[proc] = strings::trim(value.get());
+    }
+  }
+
   // Self bind mount BIND_MOUNT_ROOT. Since we use a new mount
   // namespace for each container, for this mount point, we set
   // '--make-rshared' on the host and set '--make-rslave' inside each
@@ -1079,6 +1121,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           hostIP.get(),
           hostEth0MTU.get(),
           hostDefaultGateway.get(),
+          hostNetworkConfigurations,
           egressRateLimitPerContainer,
           nonEphemeralPorts,
           ephemeralPortsAllocator)));
@@ -2410,6 +2453,15 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   // is dropped. This feature exists on 3.6 kernel or newer.
   if (os::exists(path::join("/proc/sys/net/ipv4/conf", lo, "route_localnet"))) {
     script << "echo 1 > /proc/sys/net/ipv4/conf/" << lo << "/route_localnet\n";
+  }
+
+  // Configure container network to match host network configurations.
+  foreachpair (const string& proc,
+               const string& value,
+               hostNetworkConfigurations) {
+    script << "if [ -f \"" << proc << "\" ]; then\n";
+    script << " echo '" << value << "' > " << proc << "\n";
+    script << "fi\n";
   }
 
   // Set up filters on lo and eth0.

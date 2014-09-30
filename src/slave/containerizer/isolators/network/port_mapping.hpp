@@ -225,6 +225,7 @@ private:
       const net::IP& _hostIP,
       const size_t _hostEth0MTU,
       const net::IP& _hostDefaultGateway,
+      const hashmap<std::string, std::string>& _hostNetworkConfigurations,
       const Option<Bytes>& _egressRateLimitPerContainer,
       const IntervalSet<uint16_t>& _managedNonEphemeralPorts,
       const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator)
@@ -235,6 +236,7 @@ private:
       hostIP(_hostIP),
       hostEth0MTU(_hostEth0MTU),
       hostDefaultGateway(_hostDefaultGateway),
+      hostNetworkConfigurations(_hostNetworkConfigurations),
       egressRateLimitPerContainer(_egressRateLimitPerContainer),
       managedNonEphemeralPorts(_managedNonEphemeralPorts),
       ephemeralPortsAllocator(_ephemeralPortsAllocator) {}
@@ -268,6 +270,11 @@ private:
   const net::IP hostIP;
   const size_t hostEth0MTU;
   const net::IP hostDefaultGateway;
+
+  // Describe the host network configurations. It is a map between
+  // configure proc files (e.g., /proc/sys/net/core/somaxconn) and
+  // values of the configure proc files.
+  const hashmap<std::string, std::string> hostNetworkConfigurations;
 
   // The optional throughput limit to containers' egress traffic.
   const Option<Bytes> egressRateLimitPerContainer;
