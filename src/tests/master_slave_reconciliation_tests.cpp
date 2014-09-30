@@ -237,6 +237,125 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 }
 
 
+// This test verifies that the master reconciles tasks that are
+// missing from a re-registering slave. In this case, we trigger
+// a race between the slave re-registration message and the launch
+// message. There should be no TASK_LOST.
+// This was motivated by MESOS-1696.
+TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  StandaloneMasterDetector detector(master.get());
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  Try<PID<Slave> > slave = StartSlave(&exec, &detector);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Trigger a re-registration of the slave and capture the message
+  // so that we can spoof a race with a launch task message.
+  DROP_PROTOBUFS(ReregisterSlaveMessage(), slave.get(), master.get());
+
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    DROP_PROTOBUF(ReregisterSlaveMessage(), slave.get(), master.get());
+
+  detector.appoint(master.get());
+
+  AWAIT_READY(reregisterSlaveMessage);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task;
+  task.set_name("test task");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  ExecutorDriver* executorDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&executorDriver));
+
+  // Leave the task in TASK_STAGING.
+  Future<Nothing> launchTask;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(FutureSatisfy(&launchTask));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(launchTask);
+
+  // Send the stale re-registration message, which does not contain
+  // the task we just launched. This will trigger a reconciliation
+  // by the master.
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Prevent this from being dropped per the DROP_PROTOBUFS above.
+  FUTURE_PROTOBUF(ReregisterSlaveMessage(), slave.get(), master.get());
+
+  process::post(slave.get(), master.get(), reregisterSlaveMessage.get());
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Neither the master nor the slave should not send a TASK_LOST
+  // as part of the reconciliation. We check this by calling
+  // Clock::settle() to flush all pending events.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  // Now send TASK_FINISHED and make sure it's the only message
+  // received by the scheduler.
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  TaskStatus taskStatus;
+  taskStatus.mutable_task_id()->CopyFrom(task.task_id());
+  taskStatus.set_state(TASK_FINISHED);
+  executorDriver->sendStatusUpdate(taskStatus);
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_FINISHED, status.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 // This test verifies that the slave reports pending tasks when
 // re-registering, otherwise the master will report them as being
 // lost.
