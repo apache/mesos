@@ -97,7 +97,12 @@ public:
   void shutdown(const process::UPID& from, const std::string& message);
 
   void registered(const process::UPID& from, const SlaveID& slaveId);
-  void reregistered(const process::UPID& from, const SlaveID& slaveId);
+
+  void reregistered(
+      const process::UPID& from,
+      const SlaveID& slaveId,
+      const std::vector<ReconcileTasksMessage>& reconciliations);
+
   void doReliableRegistration(const Duration& duration);
 
   void runTask(

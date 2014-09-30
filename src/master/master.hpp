@@ -292,9 +292,8 @@ protected:
   // Invoked when the contender has entered the contest.
   void contended(const process::Future<process::Future<Nothing> >& candidacy);
 
-  // Reconciles a re-registering slave's tasks / executors and sends
-  // TASK_LOST updates for tasks known to the master but unknown to
-  // the slave.
+  // Handles a known re-registering slave by reconciling the master's
+  // view of the slave's tasks and executors.
   void reconcile(
       Slave* slave,
       const std::vector<ExecutorInfo>& executors,

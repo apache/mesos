@@ -2233,9 +2233,9 @@ TEST_F(FaultToleranceTest, FrameworkReregisterEmptyExecutor)
 }
 
 
-// This test verifies that the master sends TASK_LOST updates
-// for tasks in the master absent from the re-registered slave.
-// We do this by dropping RunTaskMessage from master to the slave.
+// This test verifies that the master reconciles tasks that are
+// missing from a re-registering slave. In this case, we drop the
+// RunTaskMessage so the slave should send TASK_LOST.
 TEST_F(FaultToleranceTest, ReconcileLostTasks)
 {
   Try<PID<Master> > master = StartMaster();
@@ -2285,6 +2285,9 @@ TEST_F(FaultToleranceTest, ReconcileLostTasks)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
+  Future<StatusUpdateMessage> statusUpdateMessage =
+    FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get());
+
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
@@ -2294,6 +2297,9 @@ TEST_F(FaultToleranceTest, ReconcileLostTasks)
   detector.appoint(master.get());
 
   AWAIT_READY(slaveReregisteredMessage);
+
+  // Make sure the slave generated the TASK_LOST.
+  AWAIT_READY(statusUpdateMessage);
 
   AWAIT_READY(status);
 

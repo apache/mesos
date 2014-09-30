@@ -3092,21 +3092,7 @@ void Master::reregisterSlave(
     // For now, we assume this slave is not nefarious (eventually
     // this will be handled by orthogonal security measures like key
     // based authentication).
-    LOG(WARNING) << "Slave at " << from << " (" << slave->info.hostname()
-                 << ") is being allowed to re-register with an already"
-                 << " in use id (" << slave->id << ")";
-
-    // TODO(bmahler): There's an implicit assumption here that when
-    // the master already knows about this slave, the slave cannot
-    // have tasks unknown to the master. This _should_ be the case
-    // since the causal relationship is:
-    //   slave removes task -> master removes task
-    // We should enforce this via a CHECK (dangerous), or by shutting
-    // down slaves that are found to violate this assumption.
-
-    SlaveReregisteredMessage message;
-    message.mutable_slave_id()->MergeFrom(slave->id);
-    send(from, message);
+    LOG(INFO) << "Re-registering slave " << *slave;
 
     // Update the slave pid and relink to it.
     // NOTE: Re-linking the slave here always rather than only when
@@ -3119,8 +3105,8 @@ void Master::reregisterSlave(
     link(slave->pid);
 
     // Reconcile tasks between master and the slave.
-    // NOTE: This needs to be done after the registration message is
-    // sent to the slave and the new pid is linked.
+    // NOTE: This sends the re-registered message, including tasks
+    // that need to be reconciled by the slave.
     reconcile(slave, executorInfos, tasks);
 
     // If this is a disconnected slave, add it back to the allocator.
@@ -3871,43 +3857,78 @@ void Master::reconcile(
 {
   CHECK_NOTNULL(slave);
 
+  // TODO(bmahler): There's an implicit assumption here the slave
+  // cannot have tasks unknown to the master. This _should_ be the
+  // case since the causal relationship is:
+  //   slave removes task -> master removes task
+  // Add error logging for any violations of this assumption!
+
   // We convert the 'tasks' into a map for easier lookup below.
-  // TODO(vinod): Check if the tasks are known to the master.
   multihashmap<FrameworkID, TaskID> slaveTasks;
   foreach (const Task& task, tasks) {
     slaveTasks.put(task.framework_id(), task.task_id());
   }
 
-  // Send TASK_LOST updates for tasks present in the master but
-  // missing from the slave. This could happen if the task was
-  // dropped by the slave (e.g., slave exited before getting the
-  // task or the task was launched while slave was in recovery).
-  // NOTE: copies are needed because removeTask modifies slave->tasks.
+  // Look for tasks missing in the slave's re-registration message.
+  // This can occur when:
+  //   (1) a launch message was dropped (e.g. slave failed over), or
+  //   (2) the slave re-registration raced with a launch message, in
+  //       which case the slave actually received the task.
+  // To resolve both cases correctly, we must reconcile through the
+  // slave. For slaves that do not support reconciliation, we keep
+  // the old semantics and cover only case (1) via TASK_LOST.
+  SlaveReregisteredMessage reregistered;
+  reregistered.mutable_slave_id()->MergeFrom(slave->id);
+
+  // NOTE: copies are needed because removeTask modified slave->tasks.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
+    ReconcileTasksMessage reconcile;
+    reconcile.mutable_framework_id()->CopyFrom(frameworkId);
+
     foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
       if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
         LOG(WARNING) << "Task " << task->task_id()
                      << " of framework " << task->framework_id()
                      << " unknown to the slave " << *slave
-                     << " during re-registration";
+                     << " during re-registration"
+                     << (slave->version.isSome()
+                         ? ": reconciling with the slave"
+                         : ": sending TASK_LOST");
 
-        const StatusUpdate& update = protobuf::createStatusUpdate(
-            task->framework_id(),
-            slave->id,
-            task->task_id(),
-            TASK_LOST,
-            "Task is unknown to the slave");
+        if (slave->version.isSome()) {
+          TaskStatus* status = reconcile.add_statuses();
+          status->mutable_task_id()->CopyFrom(task->task_id());
+          status->mutable_slave_id()->CopyFrom(slave->id);
+          status->set_state(task->state());
+          status->set_message("Reconciliation request");
+          status->set_timestamp(Clock::now().secs());
+        } else {
+          // TODO(bmahler): Remove this case in 0.22.0.
+          const StatusUpdate& update = protobuf::createStatusUpdate(
+              task->framework_id(),
+              slave->id,
+              task->task_id(),
+              TASK_LOST,
+              "Task is unknown to the slave");
 
-        updateTask(task, update.status());
-        removeTask(task);
+          updateTask(task, update.status());
+          removeTask(task);
 
-        Framework* framework = getFramework(frameworkId);
-        if (framework != NULL) {
-          forward(update, UPID(), framework);
+          Framework* framework = getFramework(frameworkId);
+          if (framework != NULL) {
+            forward(update, UPID(), framework);
+          }
         }
       }
     }
+
+    if (slave->version.isSome() && reconcile.statuses_size() > 0) {
+      reregistered.add_reconciliations()->CopyFrom(reconcile);
+    }
   }
+
+  // Re-register the slave.
+  send(slave->pid, reregistered);
 
   // Likewise, any executors that are present in the master but
   // not present in the slave must be removed to correctly account

@@ -259,6 +259,8 @@ message SlaveRegisteredMessage {
 
 message SlaveReregisteredMessage {
   required SlaveID slave_id = 1;
+
+  repeated ReconcileTasksMessage reconciliations = 2;
 }
 
 

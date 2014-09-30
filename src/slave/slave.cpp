@@ -347,7 +347,8 @@ void Slave::initialize()
 
   install<SlaveReregisteredMessage>(
       &Slave::reregistered,
-      &SlaveReregisteredMessage::slave_id);
+      &SlaveReregisteredMessage::slave_id,
+      &SlaveReregisteredMessage::reconciliations);
 
   install<RunTaskMessage>(
       &Slave::runTask,
@@ -810,7 +811,10 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
 }
 
 
-void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
+void Slave::reregistered(
+    const UPID& from,
+    const SlaveID& slaveId,
+    const vector<ReconcileTasksMessage>& reconciliations)
 {
   if (master != from) {
     LOG(WARNING) << "Ignoring re-registration message from " << from
@@ -823,25 +827,15 @@ void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
     case DISCONNECTED:
       CHECK_SOME(master);
       LOG(INFO) << "Re-registered with master " << master.get();
-
       state = RUNNING;
-      if (!(info.id() == slaveId)) {
-        EXIT(1) << "Re-registered but got wrong id: " << slaveId
-                << "(expected: " << info.id() << "). Committing suicide";
-      }
       break;
     case RUNNING:
-      // Already re-registered!
-      if (!(info.id() == slaveId)) {
-        EXIT(1) << "Re-registered but got wrong id: " << slaveId
-                << "(expected: " << info.id() << "). Committing suicide";
-      }
       CHECK_SOME(master);
       LOG(WARNING) << "Already re-registered with master " << master.get();
       break;
     case TERMINATING:
       LOG(WARNING) << "Ignoring re-registration because slave is terminating";
-      break;
+      return;
     case RECOVERING:
       // It's possible to receive a message intended for the previous
       // run of the slave here. Short term we can leave this as is and
@@ -851,7 +845,64 @@ void Slave::reregistered(const UPID& from, const SlaveID& slaveId)
       // https://issues.apache.org/jira/browse/MESOS-677
     default:
       LOG(FATAL) << "Unexpected slave state " << state;
-      break;
+      return;;
+  }
+
+  if (!(info.id() == slaveId)) {
+    EXIT(1) << "Re-registered but got wrong id: " << slaveId
+            << "(expected: " << info.id() << "). Committing suicide";
+  }
+
+  // Reconcile any tasks per the master's request.
+  foreach (const ReconcileTasksMessage& reconcile, reconciliations) {
+    Framework* framework = getFramework(reconcile.framework_id());
+
+    foreach (const TaskStatus& status, reconcile.statuses()) {
+      const TaskID& taskId = status.task_id();
+
+      bool known = false;
+
+      // Try to locate the task.
+      if (framework != NULL) {
+        foreachkey (const ExecutorID& executorId, framework->pending) {
+          if (framework->pending[executorId].contains(taskId)) {
+            known = true;
+          }
+        }
+        foreachvalue (Executor* executor, framework->executors) {
+          if (executor->queuedTasks.contains(taskId) ||
+              executor->launchedTasks.contains(taskId) ||
+              executor->terminatedTasks.contains(taskId)) {
+            known = true;
+          }
+        }
+      }
+
+      // We only need to send a TASK_LOST update when the task is
+      // unknown (so that the master removes it). Otherwise, the
+      // master correctly holds the task and will receive updates.
+      if (!known) {
+        LOG(WARNING) << "Slave reconciling task " << taskId
+                     << " of framework " << reconcile.framework_id()
+                     << " in state TASK_LOST: task unknown to the slave";
+
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+            reconcile.framework_id(),
+            info.id(),
+            taskId,
+            TASK_LOST,
+            "Reconciliation: task unknown to the slave");
+
+        // NOTE: We can't use statusUpdate() here because it drops
+        // updates for unknown frameworks.
+        statusUpdateManager->update(update, info.id())
+          .onAny(defer(self(),
+                       &Slave::__statusUpdate,
+                       lambda::_1,
+                       update,
+                       UPID()));
+      }
+    }
   }
 }
 
