@@ -1985,6 +1985,18 @@ struct ExecutorInfoChecker : TaskInfoVisitor
     }
 
     if (task.has_executor()) {
+      // The master currently expects ExecutorInfo.framework_id
+      // to be set even though it is an optional field.
+      // Currently, the scheduler driver ensures that the field
+      // is set. For schedulers not using the driver, we need to
+      // do the validation here.
+      // TODO(bmahler): Set this field in the master instead of
+      // depending on the scheduler driver do it.
+      if (!task.executor().has_framework_id()) {
+        return stringify(
+            "Task has invalid ExecutorInfo: missing field 'framework_id'");
+      }
+
       const ExecutorID& executorId = task.executor().executor_id();
       Option<ExecutorInfo> executorInfo = None();
 
@@ -2008,15 +2020,15 @@ struct ExecutorInfoChecker : TaskInfoVisitor
       }
 
       if (executorInfo.isSome() && !(task.executor() == executorInfo.get())) {
-          return "Task has invalid ExecutorInfo (existing ExecutorInfo"
-              " with same ExecutorID is not compatible).\n"
-              "------------------------------------------------------------\n"
-              "Existing ExecutorInfo:\n" +
-              stringify(executorInfo.get()) + "\n"
-              "------------------------------------------------------------\n"
-              "Task's ExecutorInfo:\n" +
-              stringify(task.executor()) + "\n"
-              "------------------------------------------------------------\n";
+        return "Task has invalid ExecutorInfo (existing ExecutorInfo"
+               " with same ExecutorID is not compatible).\n"
+               "------------------------------------------------------------\n"
+               "Existing ExecutorInfo:\n" +
+               stringify(executorInfo.get()) + "\n"
+               "------------------------------------------------------------\n"
+               "Task's ExecutorInfo:\n" +
+               stringify(task.executor()) + "\n"
+               "------------------------------------------------------------\n";
       }
     }
 
