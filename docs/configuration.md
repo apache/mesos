@@ -78,7 +78,7 @@ If you have special compilation requirements, please refer to `./configure --hel
                                            between a given user's frameworks. Options
                                            are the same as for user_allocator. (default: drf)
   --hostname=VALUE                         The hostname the master should advertise in ZooKeeper.
-                                           If left unset, system hostname will be used (recommended).
+                                           If left unset, the hostname is resolved from the IP address that the master binds to.
   --[no-]log_auto_initialize               Whether to automatically initialize the replicated log used for the
                                            registry. If this is set to false, the log has to be manually
                                            initialized when used for the very first time. (default: true)
@@ -215,7 +215,7 @@ If you have special compilation requirements, please refer to `./configure --hel
                                              environment or find hadoop on PATH) (default: )
 
   --hostname=VALUE                           The hostname the slave should report.
-                                             If left unset, system hostname will be used (recommended).
+                                             If left unset, the hostname is resolved from the IP address that the slave binds to.
 
   --isolation=VALUE                          Isolation mechanisms to use, e.g., 'posix/cpu,posix/mem'
                                              or 'cgroups/cpu,cgroups/mem' or 'external'. (default: posix/cpu,posix/mem)

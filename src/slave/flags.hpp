@@ -42,7 +42,8 @@ public:
     add(&Flags::hostname,
         "hostname",
         "The hostname the slave should report.\n"
-        "If left unset, system hostname will be used (recommended).");
+        "If left unset, the hostname is resolved from the IP address\n"
+        "that the slave binds to.");
 
     add(&Flags::version,
         "version",

@@ -52,7 +52,8 @@ public:
     add(&Flags::hostname,
         "hostname",
         "The hostname the master should advertise in ZooKeeper.\n"
-        "If left unset, system hostname will be used (recommended).");
+        "If left unset, the hostname is resolved from the IP address\n"
+        "that the master binds to.");
 
     add(&Flags::root_submissions,
         "root_submissions",
