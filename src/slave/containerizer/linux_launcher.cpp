@@ -105,6 +105,13 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
     namespaces |= CLONE_NEWNS;
   }
 
+  // The pid namespace isolator requires pid and mount namespaces (CLONE_NEWPID
+  // and CLONE_NEWNS).
+  if (strings::contains(flags.isolation, "namespaces/pid")) {
+    namespaces |= CLONE_NEWPID;
+    namespaces |= CLONE_NEWNS;
+  }
+
   return new LinuxLauncher(flags, namespaces, hierarchy.get());
 }
 

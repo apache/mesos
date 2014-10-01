@@ -43,6 +43,7 @@
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
 #include "slave/containerizer/isolators/cgroups/perf_event.hpp"
 #include "slave/containerizer/isolators/filesystem/shared.hpp"
+#include "slave/containerizer/isolators/namespaces/pid.hpp"
 #endif // __linux__
 #ifdef WITH_NETWORK_ISOLATOR
 #include "slave/containerizer/isolators/network/port_mapping.hpp"
@@ -108,6 +109,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   creators["cgroups/mem"] = &CgroupsMemIsolatorProcess::create;
   creators["cgroups/perf_event"] = &CgroupsPerfEventIsolatorProcess::create;
   creators["filesystem/shared"] = &SharedFilesystemIsolatorProcess::create;
+  creators["namespaces/pid"] = &NamespacesPidIsolatorProcess::create;
 #endif // __linux__
 #ifdef WITH_NETWORK_ISOLATOR
   creators["network/port_mapping"] = &PortMappingIsolatorProcess::create;
@@ -148,7 +150,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   Try<Launcher*> launcher =
     (strings::contains(isolation, "cgroups") ||
      strings::contains(isolation, "network/port_mapping") ||
-     strings::contains(isolation, "filesystem/shared"))
+     strings::contains(isolation, "filesystem/shared") ||
+     strings::contains(isolation, "namespaces"))
     ? LinuxLauncher::create(flags_)
     : PosixLauncher::create(flags_);
 #else

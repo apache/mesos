@@ -35,6 +35,8 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/namespaces.hpp>
+
 #include "master/master.hpp"
 #include "master/detector.hpp"
 
@@ -60,6 +62,7 @@
 #include "slave/containerizer/mesos/launch.hpp"
 #endif // __linux__
 
+#include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"
 #include "tests/utils.hpp"
@@ -81,6 +84,8 @@ using mesos::internal::slave::SharedFilesystemIsolatorProcess;
 using mesos::internal::slave::Isolator;
 using mesos::internal::slave::IsolatorProcess;
 using mesos::internal::slave::Launcher;
+using mesos::internal::slave::MesosContainerizer;
+using mesos::internal::slave::Slave;
 #ifdef __linux__
 using mesos::internal::slave::LinuxLauncher;
 #endif // __linux__
@@ -926,6 +931,68 @@ TEST_F(SharedFilesystemIsolatorTest, ROOT_AbsoluteVolume)
 
   delete launcher.get();
   delete isolator.get();
+}
+
+
+class NamespacesPidIsolatorTest : public MesosTest {};
+
+
+TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "namespaces/pid";
+
+  string directory = os::getcwd(); // We're inside a temporary sandbox.
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false);
+  ASSERT_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  // Write the command's pid namespace inode and init name to files.
+  const string command =
+    "stat -c %i /proc/self/ns/pid > ns && (cat /proc/1/comm > init)";
+
+  process::Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      CREATE_EXECUTOR_INFO("executor", command),
+      directory,
+      None(),
+      SlaveID(),
+      process::PID<Slave>(),
+      false);
+  AWAIT_READY(launch);
+  ASSERT_TRUE(launch.get());
+
+  // Wait on the container.
+  process::Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+
+  // Check that the command was run in a different pid namespace.
+  Try<ino_t> testPidNamespace = os::getns(::getpid(), "pid");
+  ASSERT_SOME(testPidNamespace);
+
+  Try<string> containerPidNamespace = os::read(path::join(directory, "ns"));
+  ASSERT_SOME(containerPidNamespace);
+
+  EXPECT_NE(stringify(testPidNamespace.get()),
+            strings::trim(containerPidNamespace.get()));
+
+  // Check that 'sh' is the container's 'init' process.
+  // This verifies that /proc has been correctly mounted for the container.
+  Try<string> init = os::read(path::join(directory, "init"));
+  ASSERT_SOME(init);
+
+  EXPECT_EQ("sh", strings::trim(init.get()));
+
+  delete containerizer.get();
 }
 
 #endif // __linux__
