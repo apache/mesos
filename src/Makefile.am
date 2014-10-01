@@ -364,6 +364,7 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/filter/action.hpp					\
 	linux/routing/filter/arp.hpp					\
 	linux/routing/filter/filter.hpp					\
+	linux/routing/filter/handle.hpp					\
 	linux/routing/filter/icmp.hpp					\
 	linux/routing/filter/internal.hpp				\
 	linux/routing/filter/ip.hpp					\
