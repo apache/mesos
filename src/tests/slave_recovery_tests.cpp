@@ -569,6 +569,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
+  // Ensure the slave considers itself recovered.
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
 
   // Now advance time until the reaper reaps the executor.
@@ -688,6 +689,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
+  // Ensure the slave considers itself recovered.
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
 
   // Now advance time until the reaper reaps the executor.
@@ -801,6 +803,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
 
   AWAIT_READY(_recover);
 
+  // Ensure the slave considers itself recovered.
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
   Clock::resume();
 
@@ -1307,10 +1310,8 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   this->Stop(slave.get());
   delete containerizer1.get();
 
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-
   Future<ReregisterExecutorMessage> reregisterExecutorMessage =
-      FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
@@ -1324,13 +1325,10 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   Clock::pause();
 
-  AWAIT_READY(_recover);
-
   // Wait for the executor to re-register.
   AWAIT_READY(reregisterExecutorMessage);
 
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-
+  // Ensure the slave considers itself recovered.
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
   Clock::resume();
 
@@ -1620,15 +1618,14 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(_recover);
-
   Clock::pause();
+
+  AWAIT_READY(_recover);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
+  // Ensure the slave considers itself recovered.
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-
-  Clock::settle();
 
   AWAIT_READY(slaveReregisteredMessage);
 
@@ -2448,8 +2445,6 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   AWAIT_READY(sched2Registered);
   AWAIT_READY(sched1Error);
 
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-
   Future<ReregisterExecutorMessage> reregisterExecutorMessage =
     FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
 
@@ -2465,13 +2460,10 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 
   Clock::pause();
 
-  AWAIT_READY(_recover);
-
   // Wait for the executor to re-register.
   AWAIT_READY(reregisterExecutorMessage);
 
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-
+  // Ensure the slave considers itself recovered.
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
   Clock::resume();
 
@@ -2740,8 +2732,6 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   AWAIT_READY(registered);
 
   // Step 3. Restart the slave and kill the task.
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-
   Future<ReregisterExecutorMessage> reregisterExecutorMessage =
     FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
 
@@ -2757,15 +2747,11 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 
   Clock::pause();
 
-  AWAIT_READY(_recover);
-
   // Wait for the executor to re-register.
   AWAIT_READY(reregisterExecutorMessage);
 
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-
+  // Ensure the slave considers itself recovered.
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-
   Clock::resume();
 
   // Wait for the slave to re-register.
@@ -2910,11 +2896,8 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   this->Stop(slave.get());
   delete containerizer1.get();
 
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-
   Future<ReregisterExecutorMessage> reregisterExecutorMessage2 =
     FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
-
   Future<ReregisterExecutorMessage> reregisterExecutorMessage1 =
     FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
 
@@ -2930,16 +2913,12 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 
   Clock::pause();
 
-  AWAIT_READY(_recover);
-
   // Wait for the executors to re-register.
   AWAIT_READY(reregisterExecutorMessage1);
   AWAIT_READY(reregisterExecutorMessage2);
 
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-
+  // Ensure the slave considers itself recovered.
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-
   Clock::resume();
 
   // Wait for the slave to re-register.
@@ -3090,8 +3069,10 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   this->Stop(slave2.get());
   delete containerizer2.get();
 
-  Future<Nothing> _recover2 = FUTURE_DISPATCH(_, &Slave::_recover);
-  Future<Nothing> _recover1 = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage2 =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage1 =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage2 =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
@@ -3113,17 +3094,11 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   slave2 = this->StartSlave(containerizer4.get(), flags2);
   ASSERT_SOME(slave2);
 
-  AWAIT_READY(_recover1);
-  AWAIT_READY(_recover2);
+  AWAIT_READY(reregisterExecutorMessage1);
+  AWAIT_READY(reregisterExecutorMessage2);
 
-  // Wait for slaves to schedule reregister timeout.
-  Clock::settle();
-
+  // Ensure the slave considers itself recovered.
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-
-  // Make sure all pending timeouts are fired.
-  Clock::settle();
-
   Clock::resume();
 
   // Wait for the slaves to re-register.
@@ -3250,6 +3225,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
 
+  // Ensure the slave considers itself recovered.
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
   Clock::resume();
 
