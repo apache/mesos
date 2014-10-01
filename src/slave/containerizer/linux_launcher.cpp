@@ -96,11 +96,10 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   int namespaces = 0;
 
 #ifdef WITH_NETWORK_ISOLATOR
-  // The network port mapping isolator requires network (CLONE_NEWNET)
-  // and mount (CLONE_NEWNS) namespaces.
+  // The network port mapping isolator requires network namespaces
+  // (CLONE_NEWNET).
   if (strings::contains(flags.isolation, "network/port_mapping")) {
     namespaces |= CLONE_NEWNET;
-    namespaces |= CLONE_NEWNS;
   }
 #endif
 

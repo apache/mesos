@@ -2622,11 +2622,6 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   script << "#!/bin/sh\n";
   script << "set -x\n";
 
-  // Remount /proc and /sys to show a separate networking stack.
-  // These should be done by a FilesystemIsolator in the future.
-  script << "mount -n -o remount -t sysfs none /sys\n";
-  script << "mount -n -o remount -t proc none /proc\n";
-
   // Mark the mount point BIND_MOUNT_ROOT as slave mount so that
   // changes in the container will not be propagated to the host.
   script << "mount --make-rslave " << BIND_MOUNT_ROOT << "\n";
