@@ -303,6 +303,27 @@ public:
         "sandbox is mapped to.\n",
         "/mnt/mesos/sandbox");
 
+    add(&Flags::default_container_info,
+        "default_container_info",
+        "JSON formatted ContainerInfo that will be included into\n"
+        "any ExecutorInfo that does not specify a ContainerInfo.\n"
+        "\n"
+        "See the ContainerInfo protobuf in mesos.proto for\n"
+        "the expected format.\n"
+        "\n"
+        "Example:\n"
+        "{\n"
+        "\"type\": \"MESOS\",\n"
+        "\"volumes\": [\n"
+        "  {\n"
+        "    \"host_path\": \"./.private/tmp\",\n"
+        "    \"container_path\": \"/tmp\",\n"
+        "    \"mode\": \"RW\"\n"
+        "  }\n"
+        " ]\n"
+        "}"
+        );
+
 #ifdef WITH_NETWORK_ISOLATOR
     add(&Flags::ephemeral_ports_per_container,
         "ephemeral_ports_per_container",
@@ -399,6 +420,7 @@ public:
   Option<std::string> default_container_image;
   std::string docker;
   std::string docker_sandbox_directory;
+  Option<ContainerInfo> default_container_info;
 #ifdef WITH_NETWORK_ISOLATOR
   uint16_t ephemeral_ports_per_container;
   Option<std::string> eth0_name;

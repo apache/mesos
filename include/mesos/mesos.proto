@@ -837,7 +837,8 @@ message Volume {
   // Absolute path pointing to a directory or file in the container.
   required string container_path = 1;
 
-  // Absolute path pointing to a directory or file on the host.
+  // Absolute path pointing to a directory or file on the host or a path
+  // relative to the container work directory.
   optional string host_path = 2;
 
   enum Mode {
@@ -851,12 +852,13 @@ message Volume {
 
 /**
  * Describes a container configuration and allows extensible
- * configurations for different container implementation.
+ * configurations for different container implementations.
  */
 message ContainerInfo {
   // All container implementation types.
   enum Type {
     DOCKER = 1;
+    MESOS = 2;
   }
 
   message DockerInfo {

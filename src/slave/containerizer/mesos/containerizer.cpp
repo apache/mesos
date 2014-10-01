@@ -42,6 +42,7 @@
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
 #include "slave/containerizer/isolators/cgroups/perf_event.hpp"
+#include "slave/containerizer/isolators/filesystem/shared.hpp"
 #endif // __linux__
 #ifdef WITH_NETWORK_ISOLATOR
 #include "slave/containerizer/isolators/network/port_mapping.hpp"
@@ -102,6 +103,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   creators["cgroups/cpu"] = &CgroupsCpushareIsolatorProcess::create;
   creators["cgroups/mem"] = &CgroupsMemIsolatorProcess::create;
   creators["cgroups/perf_event"] = &CgroupsPerfEventIsolatorProcess::create;
+  creators["filesystem/shared"] = &SharedFilesystemIsolatorProcess::create;
 #endif // __linux__
 #ifdef WITH_NETWORK_ISOLATOR
   creators["network/port_mapping"] = &PortMappingIsolatorProcess::create;
@@ -124,7 +126,13 @@ Try<MesosContainerizer*> MesosContainerizer::create(
         return Error(
             "Could not create isolator " + type + ": " + isolator.error());
       } else {
-        isolators.push_back(Owned<Isolator>(isolator.get()));
+        if (type == "filesystem/shared") {
+          // Filesystem isolator must be the first isolator used for prepare()
+          // so any volume mounts are performed before anything else runs.
+          isolators.insert(isolators.begin(), Owned<Isolator>(isolator.get()));
+        } else {
+          isolators.push_back(Owned<Isolator>(isolator.get()));
+        }
       }
     } else {
       return Error("Unknown or unsupported isolator: " + type);
@@ -135,7 +143,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // Determine which launcher to use based on the isolation flag.
   Try<Launcher*> launcher =
     (strings::contains(isolation, "cgroups") ||
-     strings::contains(isolation, "network/port_mapping"))
+     strings::contains(isolation, "network/port_mapping") ||
+     strings::contains(isolation, "filesystem/shared"))
     ? LinuxLauncher::create(flags)
     : PosixLauncher::create(flags);
 #else
@@ -384,9 +393,10 @@ Future<bool> MesosContainerizerProcess::launch(
     return Failure("Container already started");
   }
 
-  if (executorInfo.has_container()) {
-    // We return false as this containerizer does not support
-    // handling ContainerInfo.
+  // We support MESOS containers or ExecutorInfos with no
+  // ContainerInfo given.
+  if (executorInfo.has_container() &&
+      executorInfo.container().type() != ContainerInfo::MESOS) {
     return false;
   }
 
@@ -437,7 +447,7 @@ Future<bool> MesosContainerizerProcess::launch(
 {
   if (taskInfo.has_container()) {
     // We return false as this containerizer does not support
-    // handling ContainerInfo.
+    // handling TaskInfo::ContainerInfo.
     return false;
   }
 
@@ -950,7 +960,7 @@ void MesosContainerizerProcess::_destroy(
   // consider cleaning up here.
   if (!future.isReady()) {
     promises[containerId]->fail(
-        "Failed to destroy container: " +
+        "Failed to destroy container " + stringify(containerId) + ": " +
         (future.isFailed() ? future.failure() : "discarded future"));
 
     destroying.erase(containerId);

@@ -48,6 +48,7 @@
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
 #include "slave/containerizer/isolators/cgroups/perf_event.hpp"
+#include "slave/containerizer/isolators/filesystem/shared.hpp"
 #endif // __linux__
 #include "slave/containerizer/isolators/posix.hpp"
 
@@ -75,6 +76,7 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::CgroupsCpushareIsolatorProcess;
 using mesos::internal::slave::CgroupsMemIsolatorProcess;
 using mesos::internal::slave::CgroupsPerfEventIsolatorProcess;
+using mesos::internal::slave::SharedFilesystemIsolatorProcess;
 #endif // __linux__
 using mesos::internal::slave::Isolator;
 using mesos::internal::slave::IsolatorProcess;
@@ -749,6 +751,180 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
 
   AWAIT_READY(isolator.get()->cleanup(containerId));
 
+  delete isolator.get();
+}
+
+class SharedFilesystemIsolatorTest : public MesosTest {};
+
+
+// Test that a container can create a private view of a system
+// directory (/var/tmp). Check that a file written by a process inside
+// the container doesn't appear on the host filesystem but does appear
+// under the container's work directory.
+TEST_F(SharedFilesystemIsolatorTest, ROOT_RelativeVolume)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/shared";
+
+  Try<Isolator*> isolator = SharedFilesystemIsolatorProcess::create(flags);
+  CHECK_SOME(isolator);
+
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
+  CHECK_SOME(launcher);
+
+  // Use /var/tmp so we don't mask the work directory (under /tmp).
+  const string containerPath = "/var/tmp";
+  ASSERT_TRUE(os::isdir(containerPath));
+
+  // Use a host path relative to the container work directory.
+  const string hostPath = strings::remove(containerPath, "/", strings::PREFIX);
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.add_volumes()->CopyFrom(
+      CREATE_VOLUME(containerPath, hostPath, Volume::RW));
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_container()->CopyFrom(containerInfo);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Future<Option<CommandInfo> > prepare =
+    isolator.get()->prepare(containerId, executorInfo, flags.work_dir);
+  AWAIT_READY(prepare);
+  ASSERT_SOME(prepare.get());
+
+  // The test will touch a file in container path.
+  const string file = path::join(containerPath, UUID::random().toString());
+  ASSERT_FALSE(os::exists(file));
+
+  // Manually run the isolator's preparation command first, then touch
+  // the file.
+  vector<string> args;
+  args.push_back("/bin/sh");
+  args.push_back("-x");
+  args.push_back("-c");
+  args.push_back(prepare.get().get().value() + " && touch " + file);
+
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      args,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      None());
+  ASSERT_SOME(pid);
+
+  // Set up the reaper to wait on the forked child.
+  Future<Option<int> > status = process::reap(pid.get());
+
+  AWAIT_READY(status);
+  EXPECT_SOME_EQ(0, status.get());
+
+  // Check the correct hierarchy was created under the container work
+  // directory.
+  string dir = "/";
+  foreach (const string& subdir, strings::tokenize(containerPath, "/")) {
+    dir = path::join(dir, subdir);
+
+    struct stat hostStat;
+    EXPECT_EQ(0, ::stat(dir.c_str(), &hostStat));
+
+    struct stat containerStat;
+    EXPECT_EQ(0,
+              ::stat(path::join(flags.work_dir, dir).c_str(), &containerStat));
+
+    EXPECT_EQ(hostStat.st_mode, containerStat.st_mode);
+    EXPECT_EQ(hostStat.st_uid, containerStat.st_uid);
+    EXPECT_EQ(hostStat.st_gid, containerStat.st_gid);
+  }
+
+  // Check it did *not* create a file in the host namespace.
+  EXPECT_FALSE(os::exists(file));
+
+  // Check it did create the file under the container's work directory
+  // on the host.
+  EXPECT_TRUE(os::exists(path::join(flags.work_dir, file)));
+
+  delete launcher.get();
+  delete isolator.get();
+}
+
+
+TEST_F(SharedFilesystemIsolatorTest, ROOT_AbsoluteVolume)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/shared";
+
+  Try<Isolator*> isolator = SharedFilesystemIsolatorProcess::create(flags);
+  CHECK_SOME(isolator);
+
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
+  CHECK_SOME(launcher);
+
+  // We'll mount the absolute test work directory as /var/tmp in the
+  // container.
+  const string hostPath = flags.work_dir;
+  const string containerPath = "/var/tmp";
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.add_volumes()->CopyFrom(
+      CREATE_VOLUME(containerPath, hostPath, Volume::RW));
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_container()->CopyFrom(containerInfo);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Future<Option<CommandInfo> > prepare =
+    isolator.get()->prepare(containerId, executorInfo, flags.work_dir);
+  AWAIT_READY(prepare);
+  ASSERT_SOME(prepare.get());
+
+  // Test the volume mounting by touching a file in the container's
+  // /tmp, which should then be in flags.work_dir.
+  const string filename = UUID::random().toString();
+  ASSERT_FALSE(os::exists(path::join(containerPath, filename)));
+
+  vector<string> args;
+  args.push_back("/bin/sh");
+  args.push_back("-x");
+  args.push_back("-c");
+  args.push_back(prepare.get().get().value() +
+                 " && touch " +
+                 path::join(containerPath, filename));
+
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sh",
+      args,
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      None());
+  ASSERT_SOME(pid);
+
+  // Set up the reaper to wait on the forked child.
+  Future<Option<int> > status = process::reap(pid.get());
+
+  AWAIT_READY(status);
+  EXPECT_SOME_EQ(0, status.get());
+
+  // Check the file was created in flags.work_dir.
+  EXPECT_TRUE(os::exists(path::join(hostPath, filename)));
+
+  // Check it didn't get created in the host's view of containerPath.
+  EXPECT_FALSE(os::exists(path::join(containerPath, filename)));
+
+  delete launcher.get();
   delete isolator.get();
 }
 

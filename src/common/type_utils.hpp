@@ -55,6 +55,14 @@ inline bool operator == (const ExecutorID& left, const ExecutorID& right)
 }
 
 
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const ContainerInfo& containerInfo)
+{
+  return stream << containerInfo.DebugString();
+}
+
+
 inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() == right.value();

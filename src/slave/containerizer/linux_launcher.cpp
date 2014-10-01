@@ -91,8 +91,6 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   LOG(INFO) << "Using " << hierarchy.get()
             << " as the freezer hierarchy for the Linux launcher";
 
-  // TODO(idownes): Inspect the isolation flag to determine namespaces
-  // to use.
   int namespaces = 0;
 
 #ifdef WITH_NETWORK_ISOLATOR
@@ -102,6 +100,10 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
     namespaces |= CLONE_NEWNET;
   }
 #endif
+
+  if (strings::contains(flags.isolation, "filesystem/shared")) {
+    namespaces |= CLONE_NEWNS;
+  }
 
   return new LinuxLauncher(flags, namespaces, hierarchy.get());
 }
@@ -347,6 +349,10 @@ Try<pid_t> LinuxLauncher::fork(
 
 Future<Nothing> LinuxLauncher::destroy(const ContainerID& containerId)
 {
+  if (!pids.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
   pids.erase(containerId);
 
   return cgroups::destroy(

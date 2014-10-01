@@ -311,6 +311,14 @@ protected:
      commandInfo; })
 
 
+#define CREATE_VOLUME(containerPath, hostPath, mode)                  \
+      ({ Volume volume;                                               \
+         volume.set_container_path(containerPath);                    \
+         volume.set_host_path(hostPath);                              \
+         volume.set_mode(mode);                                       \
+         volume; })
+
+
 // TODO(bmahler): Refactor this to make the distinction between
 // command tasks and executor tasks clearer.
 inline TaskInfo createTask(
