@@ -233,7 +233,7 @@ TEST_F(RoutingTest, Lo)
 TEST_F(RoutingTest, INETSockets)
 {
   Try<vector<diagnosis::socket::Info> > infos =
-    diagnosis::socket::infos(AF_INET, diagnosis::socket::State::ALL);
+    diagnosis::socket::infos(AF_INET, diagnosis::socket::state::ALL);
 
   EXPECT_SOME(infos);
 

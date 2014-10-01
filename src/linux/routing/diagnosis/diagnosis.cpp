@@ -48,7 +48,7 @@ static Option<net::IP> IP(nl_addr* _ip)
 }
 
 
-Try<vector<Info> > infos(int family, State states)
+Try<vector<Info> > infos(int family, int states)
 {
   Try<Netlink<struct nl_sock> > sock = routing::socket(NETLINK_INET_DIAG);
   if (sock.isError()) {
@@ -68,9 +68,11 @@ Try<vector<Info> > infos(int family, State states)
        o != NULL; o = nl_cache_get_next(o)) {
     struct idiagnl_msg* msg = (struct idiagnl_msg*)o;
 
+    // For 'state', libnl-idiag only returns the number of left
+    // shifts. Convert it back to power-of-2 number.
     results.push_back(Info(
         idiagnl_msg_get_family(msg),
-        (State) idiagnl_msg_get_state(msg),
+        1 << idiagnl_msg_get_state(msg),
         idiagnl_msg_get_sport(msg),
         idiagnl_msg_get_dport(msg),
         IP(idiagnl_msg_get_src(msg)),
