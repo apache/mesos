@@ -555,27 +555,25 @@ int PortMappingStatistics::execute()
 
   foreach (const diagnosis::socket::Info& info, infos.get()) {
     // We double check on family regardless.
-    if (info.family() != AF_INET) {
+    if (info.family != AF_INET) {
       continue;
     }
 
     // These connections have already been established, so they should
     // have a valid destination IP.
-    CHECK_SOME(info.destinationIP());
+    CHECK_SOME(info.destinationIP);
 
     // We don't care about the RTT value of a local connection.
     // TODO(chzhcn): Technically, we should check if the destination
     // IP is any of the 127.0.0.1/8 IP addresses.
-    if (info.destinationIP().get().address() == LOOPBACK_IP.address()) {
+    if (info.destinationIP.get().address() == LOOPBACK_IP.address()) {
       continue;
     }
 
-    Option<struct tcp_info> tcpInfo = info.tcpInfo();
-
     // The connection was already established. It should definitely
     // have a tcp_info available.
-    CHECK_SOME(tcpInfo);
-    RTTs.push_back(tcpInfo.get().tcpi_rtt);
+    CHECK_SOME(info.tcpInfo);
+    RTTs.push_back(info.tcpInfo.get().tcpi_rtt);
   }
 
   // Only print to stdout when we have results.

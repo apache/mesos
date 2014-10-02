@@ -240,8 +240,8 @@ TEST_F(RoutingTest, INETSockets)
   foreach (const diagnosis::socket::Info& info, infos.get()) {
     // Both source and destination IPs should be present since
     // 'AF_INET' is asked for.
-    EXPECT_SOME(info.sourceIP());
-    EXPECT_SOME(info.destinationIP());
+    EXPECT_SOME(info.sourceIP);
+    EXPECT_SOME(info.destinationIP);
   }
 }
 

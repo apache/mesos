@@ -60,9 +60,8 @@ const int ALL = MAX - 1;
 // The diagnosis information of a socket. We only included a few
 // members of 'struct idiagnl_msg' from libnl3-idiag, but more could
 // be added later on.
-class Info
+struct Info
 {
-public:
   Info(int _family,
        int _state,
        const Option<uint16_t>& _sourcePort,
@@ -70,39 +69,30 @@ public:
        const Option<net::IP>& _sourceIP,
        const Option<net::IP>& _destinationIP,
        const Option<struct tcp_info>& _tcpInfo)
-    : family_(_family),
-      state_(_state),
-      sourcePort_(_sourcePort),
-      destinationPort_(_destinationPort),
-      sourceIP_(_sourceIP),
-      destinationIP_(_destinationIP),
-      tcpInfo_(_tcpInfo) {}
+    : family(_family),
+      state(_state),
+      sourcePort(_sourcePort),
+      destinationPort(_destinationPort),
+      sourceIP(_sourceIP),
+      destinationIP(_destinationIP),
+      tcpInfo(_tcpInfo) {}
 
-  int family() const { return family_; }
-  int state() const { return state_; }
-  const Option<uint16_t>& sourcePort() const { return sourcePort_; }
-  const Option<uint16_t>& destinationPort() const { return destinationPort_; }
-  const Option<net::IP>& sourceIP() const { return sourceIP_; }
-  const Option<net::IP>& destinationIP() const { return destinationIP_; }
-  const Option<struct tcp_info>& tcpInfo() const { return tcpInfo_; }
-
-private:
-  int family_;
-  int state_;
+  int family;
+  int state;
 
   // sourcePort, destinationPort, sourceIP and destinationIP should
   // all be present because this version of kernel API that libnl3
   // uses can only return TCP sockets. We leave them as optional here
   // because future support of other families could leave them as
   // empty values.
-  Option<uint16_t> sourcePort_;
-  Option<uint16_t> destinationPort_;
-  Option<net::IP> sourceIP_;
-  Option<net::IP> destinationIP_;
+  Option<uint16_t> sourcePort;
+  Option<uint16_t> destinationPort;
+  Option<net::IP> sourceIP;
+  Option<net::IP> destinationIP;
 
   // tcp_info is included in the kernel header files so we expose it
   // directly.
-  Option<struct tcp_info> tcpInfo_;
+  Option<struct tcp_info> tcpInfo;
 };
 
 
