@@ -162,6 +162,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/none_tests.cpp			\
   $(STOUT)/tests/option_tests.cpp		\
   $(STOUT)/tests/os_tests.cpp			\
+  $(STOUT)/tests/path_tests.cpp			\
   $(STOUT)/tests/protobuf_tests.cpp		\
   $(STOUT)/tests/protobuf_tests.pb.cc		\
   $(STOUT)/tests/protobuf_tests.pb.h		\

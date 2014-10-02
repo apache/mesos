@@ -15,59 +15,34 @@
 #define __STOUT_PATH_HPP__
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "strings.hpp"
 
 namespace path {
 
-inline std::string join(const std::string& path1, const std::string& path2)
+
+template<typename ...T>
+std::string join(const std::string& path, T&&... tail)
 {
-  return
-    strings::remove(path1, "/", strings::SUFFIX) + "/" +
-    strings::remove(path2, "/", strings::PREFIX);
-}
+  std::string tailJoined = strings::join(
+      "/",
+      strings::trim(std::forward<T>(tail), "/")...);
 
+  // The first path chunk is special in that if it starts with a '/',
+  // we want to keep that.
+  if (path.empty()) {
+    return tailJoined;
+  }
 
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    const std::string& path3)
-{
-  return join(path1, join(path2, path3));
-}
-
-
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    const std::string& path3,
-    const std::string& path4)
-{
-  return join(path1, join(path2, path3, path4));
-}
-
-
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    const std::string& path3,
-    const std::string& path4,
-    const std::string& path5)
-{
-  return join(path1, join(path2, join(path3, join(path4, path5))));
-}
-
-
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    const std::string& path3,
-    const std::string& path4,
-    const std::string& path5,
-    const std::string& path6)
-{
-  return join(path1, join(path2, path3, path4, path5, path6));
+  // If the first chunk ends with a '/', don't append another using
+  // join. This also handles the case with the first path part is just
+  // '/'.
+  if (path.back() == '/') {
+    return path + tailJoined;
+  }
+  return strings::join("/", path, tailJoined);
 }
 
 
@@ -79,7 +54,19 @@ inline std::string join(const std::vector<std::string>& paths)
 
   std::string result = paths[0];
   for (size_t i = 1; i < paths.size(); ++i) {
-    result = join(result, paths[i]);
+    const std::string &path = paths[i];
+
+    // Don't insert extra '/' for empty paths.
+    if (path.empty()) {
+      continue;
+    }
+
+    // If result is empty, fill it.
+    if (result.empty()) {
+      result = path;
+      continue;
+    }
+    result = join(result, path);
   }
   return result;
 }
