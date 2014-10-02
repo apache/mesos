@@ -27,6 +27,7 @@
 #include <vector>
 
 #include <process/owned.hpp>
+#include <process/subprocess.hpp>
 
 #include <process/metrics/metrics.hpp>
 #include <process/metrics/counter.hpp>
@@ -246,8 +247,19 @@ private:
   Try<Info*> _recover(pid_t pid);
 
   void _update(
-      const process::Future<Option<int> >& status,
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const process::Future<Option<int> >& status);
+
+  process::Future<ResourceStatistics> _usage(
+      const ContainerID& containerId,
+      const ResourceStatistics& result,
+      const process::Subprocess& s,
+      const process::Future<Option<int> >& status);
+
+  process::Future<ResourceStatistics> __usage(
+      const ContainerID& containerId,
+      const ResourceStatistics& result,
+      const process::Future<std::string>& out);
 
   // Helper functions.
   Try<Nothing> addHostIPFilters(
@@ -313,6 +325,32 @@ public:
   };
 
   PortMappingUpdate() : Subcommand(NAME) {}
+
+  Flags flags;
+
+protected:
+  virtual int execute();
+  virtual flags::FlagsBase* getFlags() { return &flags; }
+};
+
+
+// Defines the subcommand for 'statistics' that needs to be executed
+// by a subprocess to retrieve newtork statistics from inside a
+// container.
+class PortMappingStatistics : public Subcommand
+{
+public:
+  static const std::string NAME;
+
+  struct Flags : public flags::FlagsBase
+  {
+    Flags();
+
+    bool help;
+    Option<pid_t> pid;
+  };
+
+  PortMappingStatistics() : Subcommand(NAME) {}
 
   Flags flags;
 

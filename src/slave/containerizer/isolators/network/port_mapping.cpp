@@ -29,6 +29,7 @@
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
+#include <process/io.hpp>
 #include <process/pid.hpp>
 #include <process/subprocess.hpp>
 
@@ -46,10 +47,14 @@
 #include <stout/os/exists.hpp>
 #include <stout/os/setns.hpp>
 
+#include "common/status_utils.hpp"
+
 #include "linux/fs.hpp"
 
 #include "linux/routing/route.hpp"
 #include "linux/routing/utils.hpp"
+
+#include "linux/routing/diagnosis/diagnosis.hpp"
 
 #include "linux/routing/filter/arp.hpp"
 #include "linux/routing/filter/icmp.hpp"
@@ -74,12 +79,14 @@ using namespace routing::filter;
 using namespace routing::queueing;
 
 using std::cerr;
+using std::cout;
 using std::dec;
 using std::endl;
 using std::hex;
 using std::list;
 using std::ostringstream;
 using std::set;
+using std::sort;
 using std::string;
 using std::vector;
 
@@ -461,6 +468,126 @@ int PortMappingUpdate::execute()
 
   return 0;
 }
+
+/////////////////////////////////////////////////
+// Implementation for PortMappingStatistics.
+/////////////////////////////////////////////////
+
+const std::string PortMappingStatistics::NAME = "statistics";
+
+
+PortMappingStatistics::Flags::Flags()
+{
+  add(&help,
+      "help",
+      "Prints this help message",
+      false);
+
+  add(&pid,
+      "pid",
+      "The pid of the process whose namespaces we will enter");
+}
+
+
+template <typename T>
+static double median(vector<T>& data)
+{
+  double median;
+  size_t size = data.size();
+  CHECK_GT(size, 0u);
+
+  std::sort(data.begin(), data.end());
+
+  if (size % 2 == 0) {
+    median = (data[size / 2 - 1] + data[size / 2]) / 2;
+  } else {
+    median = data[size / 2];
+  }
+
+  return median;
+}
+
+
+int PortMappingStatistics::execute()
+{
+  if (flags.help) {
+    cerr << "Usage: " << name() << " [OPTIONS]" << endl << endl
+         << "Supported options:" << endl
+         << flags.usage();
+    return 0;
+  }
+
+  if (flags.pid.isNone()) {
+    cerr << "The pid is not specified" << endl;
+    return 1;
+  }
+
+  // Enter the network namespace.
+  Try<Nothing> setns = os::setns(flags.pid.get(), "net");
+  if (setns.isError()) {
+    cerr << "Failed to enter the network namespace of pid " << flags.pid.get()
+         << ": " << setns.error() << endl;
+    return 1;
+  }
+
+  JSON::Object results;
+  vector<uint32_t> RTTs;
+
+  // NOTE: If the underlying library uses the older version of kernel
+  // API, the family argument passed in may not be honored.
+
+  // We have observed that the socket could appear to send data in
+  // FIN_WAIT1 state only when the amount of data to send is small,
+  // and the egress rate limit is small, too. Same could be true for
+  // CLOSE_WAIT and LAST_ACK.
+  Try<vector<diagnosis::socket::Info> > infos =
+    diagnosis::socket::infos(
+        AF_INET,
+        diagnosis::socket::state::ESTABLISHED |
+        diagnosis::socket::state::FIN_WAIT1 |
+        diagnosis::socket::state::CLOSE_WAIT |
+        diagnosis::socket::state::LAST_ACK);
+
+  if (!infos.isSome()) {
+    cerr << "Failed to retrieve socket information in network namespace of pid "
+         << flags.pid.get();
+  }
+
+  foreach (const diagnosis::socket::Info& info, infos.get()) {
+    // We double check on family regardless.
+    if (info.family() != AF_INET) {
+      continue;
+    }
+
+    // These connections have already been established, so they should
+    // have a valid destination IP.
+    CHECK_SOME(info.destinationIP());
+
+    // We don't care about the RTT value of a local connection.
+    // TODO(chzhcn): Technically, we should check if the destination
+    // IP is any of the 127.0.0.1/8 IP addresses.
+    if (info.destinationIP().get().address() == LOOPBACK_IP.address()) {
+      continue;
+    }
+
+    Option<struct tcp_info> tcpInfo = info.tcpInfo();
+
+    // The connection was already established. It should definitely
+    // have a tcp_info available.
+    CHECK_SOME(tcpInfo);
+    RTTs.push_back(tcpInfo.get().tcpi_rtt);
+  }
+
+  // Only print to stdout when we have results.
+  if (RTTs.size() > 0) {
+    results.values["net_tcp_rtt_median_usecs"] = median(RTTs);
+
+    cout << stringify(results);
+  }
+
+  return 0;
+}
+
 
 /////////////////////////////////////////////////
 // Implementation for the isolator.
@@ -1662,28 +1789,27 @@ Future<Limitation> PortMappingIsolatorProcess::watch(
 
 
 void PortMappingIsolatorProcess::_update(
-    const Future<Option<int> >& status,
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const Future<Option<int> >& status)
 {
   if (!status.isReady()) {
     ++metrics.updating_container_ip_filters_errors;
 
-    LOG(ERROR) << "Failed to launch the launcher for updating container "
+    LOG(ERROR) << "Failed to start a process for updating container "
                << containerId << ": "
                << (status.isFailed() ? status.failure() : "discarded");
   } else if (status.get().isNone()) {
     ++metrics.updating_container_ip_filters_errors;
 
-    LOG(ERROR) << "The launcher for updating container " << containerId
+    LOG(ERROR) << "The process for updating container " << containerId
                << " is not expected to be reaped elsewhere";
-
   } else if (status.get().get() != 0) {
     ++metrics.updating_container_ip_filters_errors;
 
-    LOG(ERROR) << "Received non-zero exit status " << status.get().get()
-               << " from the launcher for updating container " << containerId;
+    LOG(ERROR) << "The process for updating container " << containerId << " "
+               << WSTRINGIFY(status.get().get());
   } else {
-    LOG(INFO) << "The launcher for updating container " << containerId
+    LOG(INFO) << "The process for updating container " << containerId
               << " finished successfully";
   }
 }
@@ -1845,8 +1971,8 @@ Future<Nothing> PortMappingIsolatorProcess::update(
     .onAny(defer(
         PID<PortMappingIsolatorProcess>(this),
         &PortMappingIsolatorProcess::_update,
-        lambda::_1,
-        containerId))
+        containerId,
+        lambda::_1))
     .then(lambda::bind(&_nothing));
 }
 
@@ -1880,8 +2006,7 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
         "Failed to retrieve statistics on link " +
         veth(info->pid.get()) + ": " + stat.error());
   } else if (stat.isNone()) {
-     return Failure(
-         "Failed to find link: " + veth(info->pid.get()));
+    return Failure("Failed to find link: " + veth(info->pid.get()));
   }
 
   Option<uint64_t> rx_packets = stat.get().get("rx_packets");
@@ -1924,7 +2049,112 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
     result.set_net_tx_dropped(tx_dropped.get());
   }
 
-  return result;
+  // Retrieve the socket information from inside the container.
+  PortMappingStatistics statistics;
+  statistics.flags.pid = info->pid.get();
+
+  vector<string> argv(2);
+  argv[0] = "mesos-network-helper";
+  argv[1] = PortMappingStatistics::NAME;
+
+  // We don't need STDIN; we need STDOUT for the result; we leave
+  // STDERR as is to log to slave process.
+  Try<Subprocess> s = subprocess(
+      path::join(flags.launcher_dir, "mesos-network-helper"),
+      argv,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE(),
+      Subprocess::FD(STDERR_FILENO),
+      statistics.flags);
+
+  if (s.isError()) {
+    return Failure("Failed to launch Statistics subcommand: " + s.error());
+  }
+
+  // TODO(chzhcn): it is possible for the subprocess to block on
+  // writing to its end of the pipe and never exit because the pipe
+  // has limited buffer size, but we have been careful to send very
+  // few bytes so this shouldn't be a problem.
+  return s.get().status()
+    .then(defer(
+        PID<PortMappingIsolatorProcess>(this),
+        &PortMappingIsolatorProcess::_usage,
+        containerId,
+        result,
+        s.get(),
+        lambda::_1));
+}
+
+
+Future<ResourceStatistics> PortMappingIsolatorProcess::_usage(
+    const ContainerID& containerId,
+    const ResourceStatistics& result,
+    const Subprocess& s,
+    const Future<Option<int> >& status)
+{
+  if (!status.isReady()) {
+    return Failure(
+        "Failed to use another process to obtain socket information from "
+        "container " + stringify(containerId) + ": " +
+        (status.isFailed() ? status.failure() : "discarded"));
+  } else if (status.get().isNone()) {
+    return Failure(
+        "The process for getting socket information from container " +
+        stringify(containerId) + " is not expected to be reaped elsewhere");
+  } else if (status.get().get() != 0) {
+    return Failure(
+        "The process for getting socket information from container " +
+        stringify(containerId) + " " + WSTRINGIFY(status.get().get()));
+  } else {
+    return io::read(s.out().get())
+      .then(defer(
+          PID<PortMappingIsolatorProcess>(this),
+          &PortMappingIsolatorProcess::__usage,
+          containerId,
+          result,
+          lambda::_1));
+  }
+}
+
+
+Future<ResourceStatistics> PortMappingIsolatorProcess::__usage(
+    const ContainerID& containerId,
+    const ResourceStatistics& result,
+    const Future<string>& out)
+{
+  ResourceStatistics stats = result;
+  if (!out.isReady()) {
+    return Failure(
+        "Failed to read the statistics for container " +
+        stringify(containerId) + ": " +
+        (out.isFailed() ? out.failure() : "discarded"));
+  } else if (out.get().size() > 0) {
+    // It's possible to have no stdout from the subprocess.
+    Try<JSON::Object> results = JSON::parse<JSON::Object>(out.get());
+
+    // We pack and uppack the results to and from JSON ourselves, so
+    // this shouldn't go wrong.
+    if (results.isError()) {
+      return Failure(
+          "Failed to parse the stdout of the process obtaining socket "
+          "information from container " + stringify(containerId) + " into " +
+          "JSON objects: " + results.error());
+    }
+
+    Result<JSON::Number> rttMedian =
+      results.get().find<JSON::Number>("net_tcp_rtt_median_usecs");
+
+    if (rttMedian.isError()) {
+      return Failure(
+          "Failed to parse the stdout of the process obtaining socket "
+          "information from container " + stringify(containerId) + ": " +
+          rttMedian.error());
+    } else if (rttMedian.isSome()) {
+      stats.set_net_tcp_rtt_median_usecs(rttMedian.get().value);
+    }
+  }
+
+  return stats;
 }
 
 
@@ -2405,7 +2635,7 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
 
 // This function returns the scripts that need to be run in child
 // context before child execs to complete network isolation.
-// TODO(jieyu): Use the launcher abstraction to remove most of the
+// TODO(jieyu): Use the Subcommand abstraction to remove most of the
 // logic here. Completely remove this function once we can assume a
 // newer kernel where 'setns' works for mount namespaces.
 string PortMappingIsolatorProcess::scripts(Info* info)

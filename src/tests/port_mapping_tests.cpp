@@ -1230,7 +1230,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
   // insignificant factor of the transmission time.
 
   // To-be-tested egress rate limit, in Bytes/s.
-  const Bytes rate = 1000;
+  const Bytes rate = 2000;
   // Size of the data to send, in Bytes.
   const Bytes size = 20480;
 
@@ -1264,8 +1264,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
   ASSERT_SOME(preparation1.get());
 
   // Fill 'size' bytes of data. The actual content does not matter.
-  char data[size.bytes()];
-  memset(data, 97, size.bytes());
+  string data(size.bytes(), 'a');
 
   ostringstream command1;
   const string transmissionTime = path::join(os::getcwd(), "transmission_time");
@@ -1274,7 +1273,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
            << " bytes of data under egress rate limit " << rate.bytes()
            << "Bytes/s...';";
 
-  command1 << "{ time -p echo " << string(data)  << " | nc localhost "
+  command1 << "{ time -p echo " << data  << " | nc localhost "
            << errorPort << " ; } 2> " << transmissionTime << " && ";
 
   // Touch the guard file.
@@ -1322,6 +1321,126 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
   Try<float> time = numify<float>(split[1]);
   ASSERT_SOME(time);
   ASSERT_GT(time.get(), (size.bytes() / rate.bytes()));
+
+  // Make sure the nc server exits normally.
+  Future<Option<int> > status = s.get().status();
+  AWAIT_READY(status);
+  EXPECT_SOME_EQ(0, status.get());
+
+  // Ensure all processes are killed.
+  AWAIT_READY(launcher.get()->destroy(containerId));
+
+  // Let the isolator clean up.
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete isolator.get();
+  delete launcher.get();
+}
+
+
+// Test that RTT can be returned properly from usage(). This test is
+// very similar to SmallEgressLimitTest in its set up.
+TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
+{
+  // To-be-tested egress rate limit, in Bytes/s.
+  const Bytes rate = 2000;
+  // Size of the data to send, in Bytes.
+  const Bytes size = 20480;
+
+  // Use a very small egress limit.
+  flags.egress_rate_limit_per_container = rate;
+
+  Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
+  CHECK_SOME(isolator);
+
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
+  CHECK_SOME(launcher);
+
+  // Open a nc server on the host side. Note that 'errorPort' is in
+  // neither 'ports' nor 'ephemeral_ports', which makes it a good port
+  // to use on the host. We use this host's public IP because
+  // connections to the localhost IP are filtered out when retrieving
+  // the RTT information inside containers.
+  Try<Subprocess> s = subprocess(
+      "nc -l " + stringify(net::IP(hostIP.get().address())) + " " +
+      stringify(errorPort) + " > /devnull");
+  CHECK_SOME(s);
+
+  // Set the executor's resources.
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(
+      Resources::parse(container1Ports).get());
+
+  ContainerID containerId;
+  containerId.set_value("container1");
+
+  Future<Option<CommandInfo> > preparation1 =
+    isolator.get()->prepare(containerId, executorInfo);
+  AWAIT_READY(preparation1);
+  ASSERT_SOME(preparation1.get());
+
+  // Fill 'size' bytes of data. The actual content does not matter.
+  string data(size.bytes(), 'a');
+
+  ostringstream command1;
+  const string transmissionTime = path::join(os::getcwd(), "transmission_time");
+
+  command1 << "echo 'Sending " << size.bytes()
+           << " bytes of data under egress rate limit " << rate.bytes()
+           << "Bytes/s...';";
+
+  command1 << "{ time -p echo " << data  << " | nc "
+           << stringify(net::IP(hostIP.get().address())) << " "
+           << errorPort << " ; } 2> " << transmissionTime << " && ";
+
+  // Touch the guard file.
+  command1 << "touch " << container1Ready;
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  Try<pid_t> pid = launchHelper(
+      launcher.get(),
+      pipes,
+      containerId,
+      command1.str(),
+      preparation1.get());
+  ASSERT_SOME(pid);
+
+  // Reap the forked child.
+  Future<Option<int> > reap = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+
+  // Now signal the child to continue.
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+  ::close(pipes[1]);
+
+  // Test that RTT can be returned while transmission is going. It is
+  // possible that the first few statistics returned don't have a RTT
+  // value because it takes a few round-trips to actually establish a
+  // tcp connection and start sending data. Nevertheless, we should
+  // see a meaningful result well within seconds.
+  Duration waited = Duration::zero();
+  do {
+    os::sleep(Milliseconds(200));
+    waited += Milliseconds(200);
+
+    Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+    AWAIT_READY(usage);
+    if (usage.get().net_tcp_rtt_median_usecs() > 0u) {
+      break;
+    }
+  } while (waited < Seconds(5));
+  ASSERT_LT(waited, Seconds(5));
+
+  // Wait for the command to finish.
+  while (!os::exists(container1Ready));
 
   // Make sure the nc server exits normally.
   Future<Option<int> > status = s.get().status();

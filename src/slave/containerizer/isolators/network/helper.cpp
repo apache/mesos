@@ -30,5 +30,6 @@ int main(int argc, char** argv)
       None(),
       argc,
       argv,
-      new PortMappingUpdate());
+      new PortMappingUpdate(),
+      new PortMappingStatistics());
 }
