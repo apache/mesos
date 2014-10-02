@@ -118,6 +118,7 @@ JSON::Object model(const Framework& framework)
   object.values["active"] = framework.active;
   object.values["resources"] = model(framework.used());
   object.values["hostname"] = framework.info.hostname();
+  object.values["webui_url"] = framework.info.webui_url();
 
   // TODO(benh): Consider making reregisteredTime an Option.
   if (framework.registeredTime != framework.reregisteredTime) {

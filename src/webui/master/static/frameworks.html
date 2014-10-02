@@ -34,7 +34,10 @@
           tooltip-trigger="clipboardhover">
         </button>
       </td>
-      <td>{{framework.hostname}}</td>
+      <td ng-switch="!!framework.webui_url">
+        <a ng-href="{{framework.webui_url}}" ng-switch-when="true">{{framework.hostname}}</a>
+        <span ng-switch-when="false">{{framework.hostname}}</span>
+      </td>
       <td>{{framework.user}}</td>
       <td>{{framework.name}}</td>
       <td>{{framework.tasks.length}}</td>

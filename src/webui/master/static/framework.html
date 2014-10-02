@@ -19,6 +19,8 @@
       <dl class="inline clearfix">
         <dt>Name:</dt>
         <dd>{{framework.name}}</dd>
+        <dt ng-show="framework.webui_url">Web UI:</dt>
+        <dd ng-show="framework.webui_url"><a href="{{framework.webui_url}}">{{framework.webui_url}}</a></dd>
         <dt>User:</dt>
         <dd>{{framework.user}}</dd>
         <dt>Registered:</dt>

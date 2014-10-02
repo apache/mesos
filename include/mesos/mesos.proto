@@ -115,6 +115,9 @@ message ContainerID {
  * in authentication. This field is used for framework API rate
  * exporting and limiting and should be set even if authentication is
  * not enabled if these features are desired.
+ * The webui_url field allows a framework to advertise its web UI, so
+ * that the Mesos web UI can link to it. It is expected to be a full
+ * URL, for example http://my-scheduler.example.com:8080/.
  */
 message FrameworkInfo {
   required string user = 1;
@@ -125,6 +128,7 @@ message FrameworkInfo {
   optional string role = 6 [default = "*"];
   optional string hostname = 7;
   optional string principal = 8;
+  optional string webui_url = 9;
 }
 
 

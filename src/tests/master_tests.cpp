@@ -2356,3 +2356,56 @@ TEST_F(MasterTest, UnacknowledgedTerminalTask)
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
+
+
+// This test ensures that the web UI of a framework is included in the
+// state.json endpoint, if provided by the framework.
+TEST_F(MasterTest, FrameworkWebUIUrl)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.set_webui_url("http://localhost:8080/");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  Future<process::http::Response> masterState =
+    process::http::get(master.get(), "state.json");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, masterState);
+
+  Try<JSON::Object> masterStateObject =
+    JSON::parse<JSON::Object>(masterState.get().body);
+  ASSERT_SOME(masterStateObject);
+
+  // We need a mutable copy of masterStateObject to use [].
+  JSON::Object masterStateObject_ = masterStateObject.get();
+
+  EXPECT_EQ(1u, masterStateObject_.values.count("frameworks"));
+  JSON::Array frameworks =
+    masterStateObject_.values["frameworks"].as<JSON::Array>();
+
+  EXPECT_EQ(1u, frameworks.values.size());
+  JSON::Object framework_ = frameworks.values.front().as<JSON::Object>();
+
+  EXPECT_EQ(1u, framework_.values.count("webui_url"));
+  JSON::String webui_url =
+    framework_.values["webui_url"].as<JSON::String>();
+
+  EXPECT_EQ("http://localhost:8080/", webui_url.value);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
