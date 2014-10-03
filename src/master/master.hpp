@@ -681,6 +681,7 @@ private:
     process::metrics::Counter messages_status_update_acknowledgement;
     process::metrics::Counter messages_resource_request;
     process::metrics::Counter messages_launch_tasks;
+    process::metrics::Counter messages_decline_offers;
     process::metrics::Counter messages_revive_offers;
     process::metrics::Counter messages_reconcile_tasks;
     process::metrics::Counter messages_framework_to_executor;

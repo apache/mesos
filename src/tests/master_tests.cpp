@@ -1465,6 +1465,7 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
       "master/messages_status_update_acknowledgement"));
   EXPECT_EQ(1u, stats.values.count("master/messages_resource_request"));
   EXPECT_EQ(1u, stats.values.count("master/messages_launch_tasks"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_decline_offers"));
   EXPECT_EQ(1u, stats.values.count("master/messages_revive_offers"));
   EXPECT_EQ(1u, stats.values.count("master/messages_reconcile_tasks"));
   EXPECT_EQ(1u, stats.values.count("master/messages_framework_to_executor"));

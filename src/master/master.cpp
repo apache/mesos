@@ -2182,7 +2182,11 @@ void Master::launchTasks(
     const Filters& filters,
     const vector<OfferID>& offerIds)
 {
-  ++metrics.messages_launch_tasks;
+  if (!tasks.empty()) {
+    ++metrics.messages_launch_tasks;
+  } else {
+    ++metrics.messages_decline_offers;
+  }
 
   Framework* framework = getFramework(frameworkId);
 
@@ -4866,6 +4870,8 @@ Master::Metrics::Metrics(const Master& master)
         "master/messages_resource_request"),
     messages_launch_tasks(
         "master/messages_launch_tasks"),
+    messages_decline_offers(
+        "master/messages_decline_offers"),
     messages_revive_offers(
         "master/messages_revive_offers"),
     messages_reconcile_tasks(
@@ -4949,6 +4955,7 @@ Master::Metrics::Metrics(const Master& master)
   process::metrics::add(messages_status_update_acknowledgement);
   process::metrics::add(messages_resource_request);
   process::metrics::add(messages_launch_tasks);
+  process::metrics::add(messages_decline_offers);
   process::metrics::add(messages_revive_offers);
   process::metrics::add(messages_reconcile_tasks);
   process::metrics::add(messages_framework_to_executor);
@@ -5046,6 +5053,7 @@ Master::Metrics::~Metrics()
   process::metrics::remove(messages_status_update_acknowledgement);
   process::metrics::remove(messages_resource_request);
   process::metrics::remove(messages_launch_tasks);
+  process::metrics::remove(messages_decline_offers);
   process::metrics::remove(messages_revive_offers);
   process::metrics::remove(messages_reconcile_tasks);
   process::metrics::remove(messages_framework_to_executor);
