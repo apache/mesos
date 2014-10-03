@@ -21,8 +21,6 @@
 
 #include <mesos/mesos.pb.h> // ONLY USEFUL AFTER RUNNING PROTOC.
 
-#define MESOS_VERSION "@PACKAGE_VERSION@"
-
-// TODO(benh): MESOS_MAJOR_VERSION, MESOS_MINOR_VERSION, MESOS_PATCH_VERSION.
+#include <mesos/version.hpp>
 
 #endif // __MESOS_HPP__

@@ -306,13 +306,14 @@ libmesos_no_3rdparty_la_SOURCES =					\
 
 pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/executor.hpp				\
-  $(top_srcdir)/include/mesos/scheduler.hpp				\
+  $(top_srcdir)/include/mesos/mesos.hpp					\
   $(top_srcdir)/include/mesos/resources.hpp				\
+  $(top_srcdir)/include/mesos/scheduler.hpp				\
   $(top_srcdir)/include/mesos/values.hpp				\
   $(top_srcdir)/include/mesos/mesos.proto
 
 nodist_pkginclude_HEADERS =						\
-  ../include/mesos/mesos.hpp						\
+  ../include/mesos/version.hpp						\
   ../include/mesos/mesos.pb.h
 
 containerizerdir = $(pkgincludedir)/containerizer

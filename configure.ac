@@ -116,7 +116,7 @@ AC_CONFIG_FILES([src/deploy/mesos-stop-cluster.sh])
 AC_CONFIG_FILES([src/deploy/mesos-stop-masters.sh])
 AC_CONFIG_FILES([src/deploy/mesos-stop-slaves.sh])
 
-AC_CONFIG_FILES([include/mesos/mesos.hpp])
+AC_CONFIG_FILES([include/mesos/version.hpp])
 
 AC_CONFIG_FILES([src/java/generated/org/apache/mesos/MesosNativeLibrary.java])
 
