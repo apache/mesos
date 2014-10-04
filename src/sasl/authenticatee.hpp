@@ -95,6 +95,11 @@ public:
     free(secret);
   }
 
+  virtual void finalize()
+  {
+    discarded(); // Fail the promise.
+  }
+
   process::Future<bool> authenticate(const process::UPID& pid)
   {
     static process::Once* initialize = new process::Once();

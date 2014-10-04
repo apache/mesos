@@ -29,6 +29,10 @@
 #include "sasl/authenticatee.hpp"
 #include "sasl/authenticator.hpp"
 
+#include "tests/mesos.hpp"
+
+using namespace mesos::internal::tests;
+
 using namespace process;
 
 using std::map;
@@ -143,6 +147,59 @@ TEST(SASL, failed2)
   AWAIT_EQ(false, client);
   AWAIT_READY(server);
   EXPECT_NONE(server.get());
+
+  terminate(pid);
+}
+
+
+// This test verifies that the pending future returned by
+// 'Authenticator::authenticate()' is properly failed when the Authenticator is
+// destructed in the middle of authentication.
+TEST(SASL, AuthenticatorDestructionRace)
+{
+  // Set up secrets.
+  map<string, string> secrets;
+  secrets["benh"] = "secret";
+  sasl::secrets::load(secrets);
+
+  // Launch a dummy process (somebody to send the AuthenticateMessage).
+  UPID pid = spawn(new ProcessBase(), true);
+
+  Credential credential;
+  credential.set_principal("benh");
+  credential.set_secret("secret");
+
+  Authenticatee authenticatee(credential, UPID());
+
+  Future<Message> message =
+    FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
+
+  Future<bool> client = authenticatee.authenticate(pid);
+
+  AWAIT_READY(message);
+
+  Authenticator* authenticator = new Authenticator(message.get().from);
+
+  // Drop the AuthenticationStepMessage from authenticator to keep
+  // the authentication from getting completed.
+  Future<AuthenticationStepMessage> authenticationStepMessage =
+    DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
+
+  Future<Option<string> > principal = authenticator->authenticate();
+
+  AWAIT_READY(authenticationStepMessage);
+
+  // At this point 'AuthenticatorProcess::authenticate()' has been
+  // executed and its promise associated with the promise returned
+  // by 'Authenticator::authenticate()'.
+  // Authentication should be pending.
+  ASSERT_TRUE(principal.isPending());
+
+  // Now delete the authenticator.
+  delete authenticator;
+
+  // The future should be failed at this point.
+  AWAIT_FAILED(principal);
 
   terminate(pid);
 }

@@ -85,6 +85,11 @@ public:
     }
   }
 
+  virtual void finalize()
+  {
+    discarded(); // Fail the promise.
+  }
+
   process::Future<Option<std::string> > authenticate()
   {
     static process::Once* initialize = new process::Once();
