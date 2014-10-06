@@ -116,7 +116,16 @@ JSON::Object model(const Framework& framework)
   object.values["registered_time"] = framework.registeredTime.secs();
   object.values["unregistered_time"] = framework.unregisteredTime.secs();
   object.values["active"] = framework.active;
-  object.values["resources"] = model(framework.used());
+
+  // TODO(bmahler): Consider deprecating this in favor of the split
+  // used and offered resources below.
+  object.values["resources"] =
+    model(framework.usedResources + framework.offeredResources);
+
+  // TODO(bmahler): Use these in the webui.
+  object.values["used_resources"] = model(framework.usedResources);
+  object.values["offered_resources"] = model(framework.offeredResources);
+
   object.values["hostname"] = framework.info.hostname();
   object.values["webui_url"] = framework.info.webui_url();
 
@@ -406,7 +415,7 @@ Future<Response> Master::Http::stats(const Request& request)
         totalResources += resource;
       }
     }
-    foreach (const Resource& resource, slave->used()) {
+    foreach (const Resource& resource, slave->usedResources) {
       if (resource.type() == Value::SCALAR) {
         usedResources += resource;
       }

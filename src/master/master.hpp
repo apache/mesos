@@ -843,9 +843,28 @@ struct Slave
       << " of framework " << task->framework_id();
 
     tasks[task->framework_id()][task->task_id()] = task;
+
+    if (!protobuf::isTerminalState(task->state())) {
+      usedResources += task->resources();
+    }
+
     LOG(INFO) << "Adding task " << task->task_id()
               << " with resources " << task->resources()
               << " on slave " << id << " (" << info.hostname() << ")";
+  }
+
+  // Notification of task termination, for resource accounting.
+  // TODO(bmahler): This is a hack for performance. We need to
+  // maintain resource counters because computing task resources
+  // functionally for all tasks is expensive, for now.
+  void taskTerminated(Task* task)
+  {
+    CHECK(protobuf::isTerminalState(task->state()));
+    CHECK(tasks[task->framework_id()].contains(task->task_id()))
+      << "Unknown task " << task->task_id()
+      << " of framework " << task->framework_id();
+
+    usedResources -= task->resources();
   }
 
   void removeTask(Task* task)
@@ -853,6 +872,10 @@ struct Slave
     CHECK(tasks[task->framework_id()].contains(task->task_id()))
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
+
+    if (!protobuf::isTerminalState(task->state())) {
+      usedResources -= task->resources();
+    }
 
     tasks[task->framework_id()].erase(task->task_id());
     if (tasks[task->framework_id()].empty()) {
@@ -865,19 +888,17 @@ struct Slave
   void addOffer(Offer* offer)
   {
     CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
+
     offers.insert(offer);
-    VLOG(1) << "Adding offer " << offer->id()
-            << " with resources " << offer->resources()
-            << " on slave " << id << " (" << info.hostname() << ")";
+    offeredResources += offer->resources();
   }
 
   void removeOffer(Offer* offer)
   {
     CHECK(offers.contains(offer)) << "Unknown offer " << offer->id();
+
+    offeredResources -= offer->resources();
     offers.erase(offer);
-    VLOG(1) << "Removing offer " << offer->id()
-            << " with resources " << offer->resources()
-            << " on slave " << id << " (" << info.hostname() << ")";
   }
 
   bool hasExecutor(const FrameworkID& frameworkId,
@@ -895,6 +916,7 @@ struct Slave
       << " of framework " << frameworkId;
 
     executors[frameworkId][executorInfo.executor_id()] = executorInfo;
+    usedResources += executorInfo.resources();
   }
 
   void removeExecutor(const FrameworkID& frameworkId,
@@ -903,32 +925,11 @@ struct Slave
     CHECK(hasExecutor(frameworkId, executorId))
       << "Unknown executor " << executorId << " of framework " << frameworkId;
 
+    usedResources -= executors[frameworkId][executorId].resources();
     executors[frameworkId].erase(executorId);
     if (executors[frameworkId].empty()) {
       executors.erase(frameworkId);
     }
-  }
-
-  Resources used() const
-  {
-    Resources used;
-
-    foreachkey (const FrameworkID& frameworkId, tasks) {
-      foreachvalue (const Task* task, tasks.find(frameworkId)->second) {
-        if (!protobuf::isTerminalState(task->state())) {
-          used += task->resources();
-        }
-      }
-    }
-
-    foreachkey (const FrameworkID& frameworkId, executors) {
-      foreachvalue (const ExecutorInfo& executorInfo,
-                    executors.find(frameworkId)->second) {
-        used += executorInfo.resources();
-      }
-    }
-
-    return used;
   }
 
   const SlaveID id;
@@ -962,6 +963,9 @@ struct Slave
 
   // Active offers on this slave.
   hashset<Offer*> offers;
+
+  Resources usedResources;    // Active task / executor resources.
+  Resources offeredResources; // Offered resources.
 
   SlaveObserver* observer;
 
@@ -1014,6 +1018,24 @@ struct Framework
       << " of framework " << task->framework_id();
 
     tasks[task->task_id()] = task;
+
+    if (!protobuf::isTerminalState(task->state())) {
+      usedResources += task->resources();
+    }
+  }
+
+  // Notification of task termination, for resource accounting.
+  // TODO(bmahler): This is a hack for performance. We need to
+  // maintain resource counters because computing task resources
+  // functionally for all tasks is expensive, for now.
+  void taskTerminated(Task* task)
+  {
+    CHECK(protobuf::isTerminalState(task->state()));
+    CHECK(tasks.contains(task->task_id()))
+      << "Unknown task " << task->task_id()
+      << " of framework " << task->framework_id();
+
+    usedResources -= task->resources();
   }
 
   void addCompletedTask(const Task& task)
@@ -1028,6 +1050,10 @@ struct Framework
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
 
+    if (!protobuf::isTerminalState(task->state())) {
+      usedResources -= task->resources();
+    }
+
     addCompletedTask(*task);
 
     tasks.erase(task->task_id());
@@ -1037,6 +1063,7 @@ struct Framework
   {
     CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
     offers.insert(offer);
+    offeredResources += offer->resources();
   }
 
   void removeOffer(Offer* offer)
@@ -1044,6 +1071,7 @@ struct Framework
     CHECK(offers.find(offer) != offers.end())
       << "Unknown offer " << offer->id();
 
+    offeredResources -= offer->resources();
     offers.erase(offer);
   }
 
@@ -1062,6 +1090,7 @@ struct Framework
       << " on slave " << slaveId;
 
     executors[slaveId][executorInfo.executor_id()] = executorInfo;
+    usedResources += executorInfo.resources();
   }
 
   void removeExecutor(const SlaveID& slaveId,
@@ -1072,34 +1101,11 @@ struct Framework
       << " of framework " << id
       << " of slave " << slaveId;
 
+    usedResources -= executors[slaveId][executorId].resources();
     executors[slaveId].erase(executorId);
     if (executors[slaveId].empty()) {
       executors.erase(slaveId);
     }
-  }
-
-  Resources used() const
-  {
-    Resources used;
-
-    foreach (Offer* offer, offers) {
-      used += offer->resources();
-    }
-
-    foreachvalue (const Task* task, tasks) {
-      if (!protobuf::isTerminalState(task->state())) {
-        used += task->resources();
-      }
-    }
-
-    foreachkey (const SlaveID& slaveId, executors) {
-      foreachvalue (const ExecutorInfo& executorInfo,
-                    executors.find(slaveId)->second) {
-        used += executorInfo.resources();
-      }
-    }
-
-    return used;
   }
 
   const FrameworkID id; // TODO(benh): Store this in 'info'.
@@ -1135,6 +1141,11 @@ struct Framework
 
   hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo> > executors;
 
+  // TODO(bmahler): Summing set and ranges resources across slaves
+  // does not yield meaningful totals.
+  Resources usedResources;    // Active task / executor resources.
+  Resources offeredResources; // Offered resources.
+
 private:
   Framework(const Framework&);              // No copying.
   Framework& operator = (const Framework&); // No assigning.
@@ -1161,7 +1172,8 @@ struct Role
   {
     Resources resources;
     foreachvalue (Framework* framework, frameworks) {
-      resources += framework->used();
+      resources += framework->usedResources;
+      resources += framework->offeredResources;
     }
 
     return resources;

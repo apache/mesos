@@ -3947,7 +3947,13 @@ void Master::addFramework(Framework* framework)
   message.mutable_master_info()->MergeFrom(info_);
   send(framework->pid, message);
 
-  allocator->frameworkAdded(framework->id, framework->info, framework->used());
+  // There should be no offered resources yet!
+  CHECK_EQ(Resources(), framework->offeredResources);
+
+  allocator->frameworkAdded(
+      framework->id,
+      framework->info,
+      framework->usedResources);
 
   // Export framework metrics.
 
@@ -4424,6 +4430,8 @@ void Master::_removeSlave(
 
 void Master::updateTask(Task* task, const TaskStatus& status)
 {
+  CHECK_NOTNULL(task);
+
   // Out-of-order updates should not occur, however in case they
   // do (e.g. MESOS-1799), prevent them here to ensure that the
   // resource accounting is not affected.
@@ -4435,23 +4443,9 @@ void Master::updateTask(Task* task, const TaskStatus& status)
     return;
   }
 
-  // Once the task becomes terminal, we recover the resources.
-  if (!protobuf::isTerminalState(task->state()) &&
-      protobuf::isTerminalState(status.state())) {
-    allocator->resourcesRecovered(
-        task->framework_id(),
-        task->slave_id(),
-        task->resources(),
-        None());
-
-    switch (status.state()) {
-      case TASK_FINISHED: ++metrics.tasks_finished; break;
-      case TASK_FAILED:   ++metrics.tasks_failed;   break;
-      case TASK_KILLED:   ++metrics.tasks_killed;   break;
-      case TASK_LOST:     ++metrics.tasks_lost;     break;
-      default: break;
-    }
-  }
+  bool terminated =
+    !protobuf::isTerminalState(task->state()) &&
+    protobuf::isTerminalState(status.state());
 
   // TODO(brenden) Consider wiping the `data` and `message` fields?
   if (task->statuses_size() > 0 &&
@@ -4462,6 +4456,32 @@ void Master::updateTask(Task* task, const TaskStatus& status)
   task->set_state(status.state());
 
   stats.tasks[status.state()]++;
+
+  // Once the task becomes terminal, we recover the resources.
+  if (terminated) {
+    allocator->resourcesRecovered(
+        task->framework_id(),
+        task->slave_id(),
+        task->resources(),
+        None());
+
+    // The slave owns the Task object and cannot be NULL.
+    Slave* slave = CHECK_NOTNULL(getSlave(task->slave_id()));
+    slave->taskTerminated(task);
+
+    Framework* framework = getFramework(task->framework_id());
+    if (framework != NULL) {
+      framework->taskTerminated(task);
+    }
+
+    switch (task->state()) {
+      case TASK_FINISHED: ++metrics.tasks_finished; break;
+      case TASK_FAILED:   ++metrics.tasks_failed;   break;
+      case TASK_KILLED:   ++metrics.tasks_killed;   break;
+      case TASK_LOST:     ++metrics.tasks_lost;     break;
+      default: break;
+    }
+  }
 }
 
 
@@ -4469,6 +4489,7 @@ void Master::removeTask(Task* task)
 {
   CHECK_NOTNULL(task);
 
+  // The slave owns the Task object and cannot be NULL.
   Slave* slave = CHECK_NOTNULL(getSlave(task->slave_id()));
 
   if (!protobuf::isTerminalState(task->state())) {
@@ -4479,7 +4500,7 @@ void Master::removeTask(Task* task)
                  << " in non-terminal state " << task->state();
 
     // If the task is not terminal, then the resources have
-    // not yet been released.
+    // not yet been recovered.
     allocator->resourcesRecovered(
         task->framework_id(),
         task->slave_id(),
@@ -5125,7 +5146,7 @@ double Master::_resources_used(const std::string& name)
   double used = 0.0;
 
   foreachvalue (Slave* slave, slaves.registered) {
-    foreach (const Resource& resource, slave->used()) {
+    foreach (const Resource& resource, slave->usedResources) {
       if (resource.name() == name && resource.type() == Value::SCALAR) {
         used += resource.scalar().value();
       }
