@@ -38,6 +38,13 @@ all-recursive: src/python/setup.py			\
 EXTRA_DIST += bootstrap LICENSE NOTICE README.md	\
 	support/atexit.sh support/colors.sh
 
+# On install, pip fetches and installs all missing dependencies. When running
+# distcheck, this behavior ends up installing files that we are not able to
+# uninstall (protobuf for example). Using this flag during the distcheck run
+# forces us to verify that we can install/uninstall the mesos specific
+# libraries and only those libraries.
+AM_DISTCHECK_CONFIGURE_FLAGS = --disable-python-dependency-install
+
 
 # MPI framework.
 EXTRA_DIST += mpi/README mpi/mpiexec-mesos.in mpi/mpiexec-mesos.py

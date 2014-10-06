@@ -201,6 +201,35 @@ AC_ARG_ENABLE([bundled-distribute],
                               in PYTHONPATH]),
               [without_bundled_distribute=yes], [])
 
+AC_ARG_ENABLE([bundled-pip],
+              AS_HELP_STRING([--disable-bundled-pip],
+                             [excludes building and using the bundled pip
+                              package in lieu of an installed version in
+                              in PYTHONPATH]),
+              [without_bundled_pip=yes], [])
+
+AC_ARG_ENABLE([bundled-wheel],
+              AS_HELP_STRING([--disable-bundled-wheel],
+                             [excludes building and using the bundled wheel
+                              package in lieu of an installed version in
+                              in PYTHONPATH]),
+              [without_bundled_wheel=yes], [])
+
+# This is used to make distcheck and python install work together. For more
+# information, see the comment above AM_DISTCHECK_CONFIGURE_FLAGS in
+# Makefile.am.
+AC_ARG_ENABLE([python-dependency-install],
+              AS_HELP_STRING([--disable-python-dependency-install],
+                             [when the python packages are installed during
+                              make install, no external dependencies are
+                              downloaded or installed]),
+              [without_python_deps=yes], [])
+
+AC_ARG_WITH([cxx11],
+            AS_HELP_STRING([--without-cxx11],
+                           [builds Mesos without C++11 support (deprecated)]),
+            [], [with_cxx11=yes])
+
 AC_ARG_WITH([network-isolator],
             AS_HELP_STRING([--with-network-isolator],
                            [builds the network isolator]),
@@ -1054,6 +1083,16 @@ There are two possible workarounds for this issue:
      from distutils.util import get_platform; \
      print "-py" + sys.version[[0:3]]'`
 
+  PYTHON_WHL_POSTFIX=`$PYTHON -c \
+    'import sys; \
+     from distutils.util import get_platform; \
+     print "-cp" + sys.version[[0:3]].replace(".", "") + "-none-" \
+       + get_platform().replace(".", "_").replace("-", "_")'`
+
+  PYTHON_WHL_PUREPY_POSTFIX=`$PYTHON -c \
+    'import sys; \
+     print "-py" + sys.version[[0]] + "-none-any"'`
+
   AC_CONFIG_FILES([src/examples/python/test-executor],
                   [chmod +x src/examples/python/test-executor])
   AC_CONFIG_FILES([src/examples/python/test-framework],
@@ -1080,6 +1119,8 @@ There are two possible workarounds for this issue:
   AC_SUBST([PYTHON_CFLAGS])
   AC_SUBST([PYTHON_EGG_POSTFIX])
   AC_SUBST([PYTHON_EGG_PUREPY_POSTFIX])
+  AC_SUBST([PYTHON_WHL_POSTFIX])
+  AC_SUBST([PYTHON_WHL_PUREPY_POSTFIX])
   AC_SUBST([PYTHON]) # Used by the example shell scripts and src/Makefile.am.
 
   AC_DEFINE([MESOS_HAS_PYTHON])
@@ -1125,6 +1166,54 @@ correct if you're already doing this.
     with_bundled_distribute=yes
   fi
 
+  # Check if user has asked us to use a preinstalled pip, or if
+  # they asked us to ignore all bundled libraries while compiling and linking.
+  if test "x$without_bundled_pip" = "xyes" || \
+     test "x$enable_bundled" != "xyes"; then
+
+    AC_PYTHON_MODULE([pip], [no])
+    if test "x$HAVE_PYMOD_pip" = "xno"; then
+      AC_MSG_ERROR([cannot find pip
+-------------------------------------------------------------------
+You have requested the use of a non-bundled pip but no suitable
+pip could be found.
+
+You may want specify the location of pip by providing a prefix
+path via --with-pip=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+    else
+      with_bundled_pip=no
+    fi
+  else
+    with_bundled_pip=yes
+  fi
+
+  # Check if user has asked us to use a preinstalled wheel, or if
+  # they asked us to ignore all bundled libraries while compiling and linking.
+  if test "x$without_bundled_wheel" = "xyes" || \
+     test "x$enable_bundled" != "xyes"; then
+
+    AC_PYTHON_MODULE([wheel], [no])
+    if test "x$HAVE_PYMOD_wheel" = "xno"; then
+      AC_MSG_ERROR([cannot find wheel
+-------------------------------------------------------------------
+You have requested the use of a non-bundled wheel but no suitable
+wheel could be found.
+
+You may want specify the location of wheel by providing a prefix
+path via --with-wheel=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+    else
+      with_bundled_wheel=no
+    fi
+  else
+    with_bundled_wheel=yes
+  fi
+
   has_python=yes
 fi
 
@@ -1132,6 +1221,13 @@ AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
 
 AM_CONDITIONAL([WITH_BUNDLED_DISTRIBUTE],
     [test "x$with_bundled_distribute" = "xyes"])
+AM_CONDITIONAL([WITH_BUNDLED_PIP],
+    [test "x$with_bundled_pip" = "xyes"])
+AM_CONDITIONAL([WITH_BUNDLED_WHEEL],
+    [test "x$with_bundled_wheel" = "xyes"])
+
+AM_CONDITIONAL([WITHOUT_PYTHON_DEPS],
+    [test "x$without_python_deps" = "xyes"])
 
 AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
 

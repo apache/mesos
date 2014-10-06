@@ -26,6 +26,8 @@ include ../3rdparty/libprocess/3rdparty/versions.am
 # TODO(charles): Move these into an included automakefile and have
 # them include $(top_builddir) as appropriate.
 DISTRIBUTE = 3rdparty/distribute-$(DISTRIBUTE_VERSION)
+PIP = 3rdparty/pip-$(PIP_VERSION)
+WHEEL = 3rdparty/wheel-$(WHEEL_VERSION)
 LEVELDB = 3rdparty/leveldb
 ZOOKEEPER = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 ZOOKEEPER_JAR = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/zookeeper-$(ZOOKEEPER_VERSION).jar
@@ -954,10 +956,6 @@ PYTHON_SOURCE =									\
 EXTRA_DIST += $(PYTHON_SOURCE)
 
 if HAS_PYTHON
-# Used for building Python eggs.
-DISTRIBUTE_EGG_SUFFIX = $(DISTRIBUTE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg
-DISTRIBUTE_EGG = \
-  $(abs_top_builddir)/$(DISTRIBUTE)/dist/distribute-$(DISTRIBUTE_EGG_SUFFIX)
 
 if WITH_BUNDLED_PROTOBUF
   # Build a protobuf Python egg.
@@ -994,23 +992,75 @@ $(PYTHON_SOURCE):
 	test "$(top_srcdir)" = "$(top_builddir)" ||				\
 		($(MKDIR_P) $(@D) && cp -pf $(srcdir)/$@ $@)
 
+# We currently require both eggs and wheels to be built. Eggs can be added to
+# the PYTHONPATH and imported. These end up being used for the tests. Wheels
+# can be easily uninstalled. They end up being what gets installed/uninstalled.
 MESOS_EGGS =										\
-	python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg		\
-	python/interface/dist/mesos.interface-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg	\
-	python/native/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
+	python/dist/mesos.interface-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg	\
+	python/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
 
-$(MESOS_EGGS):									\
-		$(PYTHON_PROTOS)						\
-		$(PYTHON_SOURCE)						\
-		libmesos_no_3rdparty.la						\
+MESOS_WHLS =										\
+	python/dist/mesos.interface-$(PACKAGE_VERSION)$(PYTHON_WHL_PUREPY_POSTFIX).whl	\
+	python/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_WHL_POSTFIX).whl
+
+# The python source is in directories of the form: python/interface. The make
+# target is of the form: python/dist/mesos.interface-0.20.0-py2.7.egg. To build
+# this, we must first cd into it. The first line of this takes the make target
+# and converts it into the correct directory path.
+$(MESOS_EGGS) $(MESOS_WHLS):								\
+		$(PYTHON_PROTOS)							\
+		$(PYTHON_SOURCE)							\
+		libmesos_no_3rdparty.la							\
 		$(PROTOBUF_EGG)
-	@cd `echo $@ | awk -F"dist" '{print $$1}'` &&				\
-	LIBS="$(LIBS)" CC="$(CC)" CXX="$(CXX)"					\
-	CFLAGS="$(PYTHON_CFLAGS)" CPPFLAGS="$(PYTHON_CPPFLAGS)"			\
-	LDFLAGS="$(PYTHON_LDFLAGS)"						\
-	PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) setup.py bdist_egg
+	@cd python/`echo $@ | awk -F"mesos[.]?" '{print $$2}' | cut -d- -f1` &&		\
+	LIBS="$(LIBS)" CC="$(CC)" CXX="$(CXX)"						\
+	CFLAGS="$(PYTHON_CFLAGS)" CPPFLAGS="$(PYTHON_CPPFLAGS)"				\
+	LDFLAGS="$(PYTHON_LDFLAGS)"							\
+	PYTHONPATH=$(abs_top_builddir)/$(DISTRIBUTE):$(abs_top_builddir)/$(WHEEL)	\
+	$(PYTHON) setup.py bdist_egg --dist-dir=../dist					\
+	bdist_wheel --dist-dir=../dist
 
-CLEANFILES += $(MESOS_EGGS) python/*/build python/*/dist $(PYTHON_SOURCE)
+CLEANFILES += $(MESOS_EGGS) $(MESOS_WHLS) python/*/build python/*/dist $(PYTHON_SOURCE)
+
+pippythonpath=$(DESTDIR)$(pythondir):$(abs_top_builddir)/$(DISTRIBUTE):$(abs_top_builddir)/$(PIP):$(abs_top_builddir)/$(WHEEL)
+
+# Some python installations create their own distutils.cfg (homebrew, redhat).
+# This includes `prefix=` which overrides anything set via. pip during install.
+# The file is required to ensure the python packages get installed to the right
+# location. It only affects files installed from the python/dist directory.
+python/dist/setup.cfg:
+	printf "[install]\nprefix=\n" > $@
+
+# See the comment next to AM_DISTCHECK_CONFIGURE_FLAGS in the top level
+# Makefile.am for an explanation of this variable.
+pipinstallargs=
+
+if WITHOUT_PYTHON_DEPS
+
+  pipinstallargs += --no-deps
+
+endif
+
+# We are using the 3rdparty bundled pip instead of relying on what might exist
+# on the system. Because the actual pip scripts have not been created, we just
+# use the standard entry point.
+install-exec-local:
+	cd python/dist &&							\
+	for whl in $(MESOS_WHLS); do						\
+		PYTHONPATH=$(pippythonpath)					\
+		PYTHONUSERBASE=$(DESTDIR)$(prefix)				\
+		$(PYTHON) -c "import pip; pip.main()" install			\
+		--user $(pipinstallargs)					\
+		--find-links=file://$(abs_top_builddir)/src/python/dist		\
+		$(abs_top_builddir)/src/$$whl;					\
+	done
+
+uninstall-local:
+	for whl in $(MESOS_WHLS); do						\
+		PYTHONPATH=$(DESTDIR)$(pythondir):$(pippythonpath)		\
+		$(PYTHON) -c "import pip; pip.main()" uninstall			\
+		--yes $$(echo $$whl | cut -d/ -f3 | cut -d- -f1);		\
+	done
 
 # Make sure the egg gets built via 'make all'.
 all-local: $(MESOS_EGGS)

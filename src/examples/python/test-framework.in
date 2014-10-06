@@ -14,39 +14,18 @@ test ! -z "${PYTHON}" && \
 
 PYTHON=@PYTHON@
 
-DISTRIBUTE_EGG=${MESOS_BUILD_DIR}/3rdparty/distribute-0.6.26/dist/
-DISTRIBUTE_EGG+=distribute-0.6.26@PYTHON_EGG_PUREPY_POSTFIX@.egg
+DISTRIBUTE=`echo ${MESOS_BUILD_DIR}/3rdparty/distribute-*/`
 
-test ! -e ${DISTRIBUTE_EGG} && \
-  echo "${RED}Failed to find ${DISTRIBUTE_EGG} verify PYTHONPATH${NORMAL}"
+# Just warn in the case when build with --disable-bundled.
+test ! -e ${DISTRIBUTE} && \
+  echo "${RED}Failed to find ${DISTRIBUTE}${NORMAL}"
 
-PROTOBUF=${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-2.5.0
+PROTOBUF=`echo ${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-*/python/`
 
-PROTOBUF_EGG=${PROTOBUF}/python/dist/
-PROTOBUF_EGG+=protobuf-2.5.0@PYTHON_EGG_PUREPY_POSTFIX@.egg
+test ! -e ${PROTOBUF} && \
+  echo "${RED}Failed to find ${PROTOBUF}${NORMAL}"
 
-test ! -e ${PROTOBUF_EGG} && \
-  echo "${RED}Failed to find ${PROTOBUF_EGG} check your PYTHONPATH ${NORMAL}"
-
-MESOS_EGGS=""
-for egg in interface native; do
-  base_dir="${MESOS_BUILD_DIR}/src/python/${egg}/dist/"
-  egg_path="${base_dir}mesos.${egg}-@PACKAGE_VERSION@"
-
-  if [[ ${egg} == "native" ]]; then
-    egg_path+="@PYTHON_EGG_POSTFIX@"
-  else
-    egg_path+="@PYTHON_EGG_PUREPY_POSTFIX@"
-  fi
-
-  egg_path+=".egg"
-
-  test ! -e ${egg_path} && \
-    echo "${RED}Failed to find ${egg_path}${NORMAL}" && \
-    exit 1
-
-  MESOS_EGGS+="${egg_path}:"
-done
+MESOS_EGGS=$(find ${MESOS_BUILD_DIR}/src/python/dist -name "*.egg" | tr "\\n" ":")
 
 SCRIPT=${MESOS_SOURCE_DIR}/src/examples/python/test_framework.py
 
@@ -58,5 +37,5 @@ test ! -e ${SCRIPT} && \
 # framework is able to find the executor.
 cd `dirname ${0}`
 
-PYTHONPATH="${DISTRIBUTE_EGG}:${PROTOBUF_EGG}:${MESOS_EGGS}" \
+PYTHONPATH="${DISTRIBUTE}:${PROTOBUF}:${MESOS_EGGS}" \
   exec ${PYTHON} ${SCRIPT} "${@}"
