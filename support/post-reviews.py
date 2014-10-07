@@ -65,10 +65,11 @@ def execute(command, ignore_errors=False):
 
 # Choose 'post-review' if available, otherwise choose 'rbt'.
 post_review = None
-if execute(['post-review', '--version'], ignore_errors=True):
-  post_review = ['post-review']
-elif execute(['rbt', '--version'], ignore_errors=True):
+rbt_version = execute(['rbt', '--version'], ignore_errors=True)
+if rbt_version:
   post_review = ['rbt', 'post']
+elif execute(['post-review', '--version'], ignore_errors=True):
+  post_review = ['post-review']
 else:
   print 'Please install RBTools before proceeding'
   sys.exit(1)
@@ -191,11 +192,12 @@ for i in range(len(shas)):
         command = command + ['--review-request-id=' + review_request_id]
 
     # Determine how to specify the revision range.
-    if 'rbt' in post_review:
-        # rbt revisions are passed in as args.
+    if 'rbt' in post_review and rbt_version.startswith('RBTools 0.6'):
+        # rbt >= 0.6 revisions are passed in as args.
         command = command + sys.argv[1:] + [previous, sha]
     else:
-        # post-review revisions are passed in using the revision range option.
+        # post-review and rbt < 0.6 revisions are passed in using the revision
+        # range option.
         command = command + \
             ['--revision-range=' + revision_range] + \
             sys.argv[1:]
