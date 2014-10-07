@@ -440,7 +440,12 @@ Authenticator::Authenticator(const process::UPID& pid)
 
 Authenticator::~Authenticator()
 {
-  process::terminate(process);
+  // TODO(vinod): As a short term fix for the race condition #1 in
+  // MESOS-1866, we inject the 'terminate' event at the end of the
+  // AuthenticatorProcess queue instead of at the front.
+  // The long term fix for this https://reviews.apache.org/r/25945/.
+  process::terminate(process, false);
+
   process::wait(process);
   delete process;
 }
