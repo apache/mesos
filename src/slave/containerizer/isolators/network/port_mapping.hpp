@@ -251,14 +251,11 @@ private:
       const process::Future<Option<int> >& status);
 
   process::Future<ResourceStatistics> _usage(
-      const ContainerID& containerId,
       const ResourceStatistics& result,
-      const process::Subprocess& s,
-      const process::Future<Option<int> >& status);
+      const process::Subprocess& s);
 
   process::Future<ResourceStatistics> __usage(
-      const ContainerID& containerId,
-      const ResourceStatistics& result,
+      ResourceStatistics result,
       const process::Future<std::string>& out);
 
   // Helper functions.

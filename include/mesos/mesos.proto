@@ -437,10 +437,11 @@ message ResourceStatistics {
   optional uint64 net_tx_dropped = 21;
 
   // The kernel keeps track of RTT (round-trip time) for its TCP
-  // sockets. We gather all the RTTs (except for local connections) of
-  // a container and use its median as a way to correlate back to the
-  // latency of a container.
-  optional double net_tcp_rtt_median_usecs = 22;
+  // sockets. RTT is a way to tell the latency of a container.
+  optional double net_tcp_rtt_microsecs_p50 = 22;
+  optional double net_tcp_rtt_microsecs_p90 = 23;
+  optional double net_tcp_rtt_microsecs_p95 = 24;
+  optional double net_tcp_rtt_microsecs_p99 = 25;
 }
 
 

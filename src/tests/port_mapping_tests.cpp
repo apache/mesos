@@ -1433,7 +1433,8 @@ TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
 
     Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
     AWAIT_READY(usage);
-    if (usage.get().net_tcp_rtt_median_usecs() > 0u) {
+
+    if (usage.get().has_net_tcp_rtt_microsecs_p50()) {
       break;
     }
   } while (waited < Seconds(5));
