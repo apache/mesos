@@ -93,6 +93,11 @@ AC_ARG_WITH([libev],
                            location prefixed by the given path]),
             [without_bundled_libev=yes], [])
 
+AC_ARG_WITH([curl],
+            AS_HELP_STRING([--with-curl=@<:@=DIR@:>@],
+                           [specify where to locate the curl library]),
+            [], [])
+
 AC_ARG_WITH([glog],
             AS_HELP_STRING([--with-glog@<:@=DIR@:>@],
                            [excludes building and using the bundled glog
@@ -164,6 +169,11 @@ fi
 if test -n "`echo $with_libev`"; then
   CPPFLAGS="$CPPFLAGS -I${with_libev}/include"
   LDFLAGS="$LDFLAGS -L${with_libev}/lib"
+fi
+
+if test -n "`echo $with_curl`" ; then
+    CPPFLAGS="$CPPFLAGS -I${with_curl}/include"
+    LDFLAGS="$LDFLAGS -L${with_curl}/lib"
 fi
 
 if test -n "`echo $with_glog`"; then
@@ -321,6 +331,14 @@ else
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_PICOJSON], [test "x$with_bundled_picojson" = "xyes"])
+
+
+AC_CHECK_LIB([curl], [curl_global_init], [],
+             [AC_MSG_ERROR([cannot find libcurl
+-------------------------------------------------------------------
+libcurl is required for libprocess to build.
+-------------------------------------------------------------------
+])])
 
 
 # Check if user has asked us to use a preinstalled glog, or if they
