@@ -191,13 +191,13 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
       Try<void*> symbol =  dynamicLibrary->loadSymbol(moduleName);
       if (symbol.isError()) {
         return Error(
-	    "Error loading module '" + moduleName + "': " + symbol.error());
+            "Error loading module '" + moduleName + "': " + symbol.error());
       }
       ModuleBase* moduleBase = (ModuleBase*) symbol.get();
       Try<Nothing> result = verifyModule(moduleName, moduleBase);
       if (result.isError()) {
-	return Error(
-	    "Error verifying module '" + moduleName + "': " + result.error());
+        return Error(
+            "Error verifying module '" + moduleName + "': " + result.error());
       }
       moduleBases[moduleName] = (ModuleBase*) symbol.get();
     }
