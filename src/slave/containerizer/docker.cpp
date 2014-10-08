@@ -28,6 +28,7 @@
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/fs.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/os.hpp>
@@ -71,7 +72,10 @@ using state::RunState;
 // Declared in header, see explanation there.
 // TODO(benh): At some point to run multiple slaves we'll need to make
 // the Docker container name creation include the slave ID.
-string DOCKER_NAME_PREFIX = "mesos-";
+const string DOCKER_NAME_PREFIX = "mesos-";
+
+// Declared in header, see explanation there.
+const string DOCKER_SYMLINK_DIRECTORY = "docker/links";
 
 
 class DockerContainerizerProcess
@@ -124,10 +128,7 @@ public:
 
 private:
   // Continuations and helpers.
-  process::Future<Nothing> fetch(
-      const ContainerID& containerId,
-      const CommandInfo& commandInfo,
-      const std::string& directory);
+  process::Future<Nothing> fetch(const ContainerID& containerId);
 
   process::Future<Nothing> _fetch(
       const ContainerID& containerId,
@@ -236,6 +237,7 @@ private:
               const SlaveID& slaveId,
               const PID<Slave>& slavePid,
               bool checkpoint,
+              bool symlinked,
               const Flags& flags)
       : state(FETCHING),
         id(id),
@@ -246,12 +248,22 @@ private:
         slaveId(slaveId),
         slavePid(slavePid),
         checkpoint(checkpoint),
+        symlinked(symlinked),
         flags(flags)
     {
       if (task.isSome()) {
         resources = task.get().resources();
       } else {
         resources = executor.resources();
+      }
+    }
+
+    ~Container()
+    {
+      if (symlinked) {
+        // The sandbox directory is a symlink, remove it at container
+        // destroy.
+        os::rm(directory);
       }
     }
 
@@ -336,11 +348,16 @@ private:
     ContainerID id;
     Option<TaskInfo> task;
     ExecutorInfo executor;
+
+    // The sandbox directory for the container. This holds the
+    // symlinked path if symlinked boolean is true.
     std::string directory;
+
     Option<std::string> user;
     SlaveID slaveId;
     PID<Slave> slavePid;
     bool checkpoint;
+    bool symlinked;
     Flags flags;
 
     // Promise for future returned from wait().
@@ -465,24 +482,57 @@ DockerContainerizerProcess::Container::create(
     }
   }
 
+  string dockerSymlinkPath = path::join(
+      paths::getSlavePath(flags.work_dir, slaveId),
+      DOCKER_SYMLINK_DIRECTORY);
+
+  if (!os::exists(dockerSymlinkPath)) {
+    Try<Nothing> mkdir = os::mkdir(dockerSymlinkPath);
+    if (mkdir.isError()) {
+      return Error("Unable to create symlink folder for docker " +
+                   dockerSymlinkPath + ": " + mkdir.error());
+    }
+  }
+
+  bool symlinked = false;
+  string containerWorkdir = directory;
+  // We need to symlink the sandbox directory if the directory
+  // path has a colon, as Docker CLI uses the colon as a seperator.
+  if (strings::contains(directory, ":")) {
+    containerWorkdir = path::join(dockerSymlinkPath, id.value());
+
+    Try<Nothing> symlink = ::fs::symlink(directory, containerWorkdir);
+
+    if (symlink.isError()) {
+      return Error("Failed to symlink directory '" + directory +
+                   "' to '" + containerWorkdir + "': " + symlink.error());
+    }
+
+    symlinked = true;
+  }
+
   return new Container(
       id,
       taskInfo,
       executorInfo,
-      directory,
+      containerWorkdir,
       user,
       slaveId,
       slavePid,
       checkpoint,
+      symlinked,
       flags);
 }
 
 
 Future<Nothing> DockerContainerizerProcess::fetch(
-    const ContainerID& containerId,
-    const CommandInfo& commandInfo,
-    const string& directory)
+    const ContainerID& containerId)
 {
+  CHECK(containers_.contains(containerId));
+  Container* container = containers_[containerId];
+
+  CommandInfo commandInfo = container->command();
+
   if (commandInfo.uris().size() == 0) {
     return Nothing();
   }
@@ -502,25 +552,25 @@ Future<Nothing> DockerContainerizerProcess::fetch(
 
   map<string, string> fetcherEnv = fetcherEnvironment(
       commandInfo,
-      directory,
+      container->directory,
       None(),
       flags);
 
   VLOG(1) << "Starting to fetch URIs for container: " << containerId
-          << ", directory: " << directory;
+          << ", directory: " << container->directory;
 
   Try<Subprocess> fetcher = subprocess(
       realpath.get(),
       Subprocess::PIPE(),
-      Subprocess::PATH(path::join(directory, "stdout")),
-      Subprocess::PATH(path::join(directory, "stderr")),
+      Subprocess::PATH(path::join(container->directory, "stdout")),
+      Subprocess::PATH(path::join(container->directory, "stderr")),
       fetcherEnv);
 
   if (fetcher.isError()) {
     return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
   }
 
-  containers_[containerId]->fetcher = fetcher.get();
+  container->fetcher = fetcher.get();
 
   return fetcher.get().status()
     .then(defer(self(), &Self::_fetch, containerId, lambda::_1));
@@ -876,7 +926,7 @@ Future<bool> DockerContainerizerProcess::launch(
             << "' (and executor '" << executorInfo.executor_id()
             << "') of framework '" << executorInfo.framework_id() << "'";
 
-  return fetch(containerId, taskInfo.command(), directory)
+  return fetch(containerId)
     .then(defer(self(), &Self::_launch, containerId))
     .then(defer(self(), &Self::__launch, containerId))
     .then(defer(self(), &Self::___launch, containerId))
@@ -1045,7 +1095,7 @@ Future<bool> DockerContainerizerProcess::launch(
             << "' for executor '" << executorInfo.executor_id()
             << "' and framework '" << executorInfo.framework_id() << "'";
 
-  return fetch(containerId, executorInfo.command(), directory)
+  return fetch(containerId)
     .then(defer(self(), &Self::_launch, containerId))
     .then(defer(self(), &Self::__launch, containerId))
     .then(defer(self(), &Self::____launch, containerId))

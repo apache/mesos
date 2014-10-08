@@ -33,7 +33,13 @@ namespace slave {
 
 // Prefix used to name Docker containers in order to distinguish those
 // created by Mesos from those created manually.
-extern std::string DOCKER_NAME_PREFIX;
+extern const std::string DOCKER_NAME_PREFIX;
+
+// Directory that stores all the symlinked sandboxes that is mapped
+// into Docker containers. This is a relative directory that will
+// joined with the slave path. Only sandbox paths that contains a
+// colon will be symlinked due to the limiitation of the Docker CLI.
+extern const std::string DOCKER_SYMLINK_DIRECTORY;
 
 
 // Forward declaration.

@@ -38,6 +38,7 @@
 
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::slave::paths;
 using namespace mesos::internal::slave::state;
 using namespace mesos::internal::tests;
 
@@ -2160,6 +2161,118 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_PortMapping)
 
   driver.stop();
   driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that sandbox with ':' in the path can still
+// run successfully. This a limitation of the Docker CLI where
+// the volume map parameter treats colons (:) as seperators,
+// and incorrectly seperates the sandbox directory.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillRepeatedly(FutureResult(
+        &logs, Invoke((MockDocker*)docker.get(), &MockDocker::_logs)));
+
+  MockDockerContainerizer dockerContainerizer(flags, docker);
+
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("test:colon");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  Future<list<Docker::Container> > containers =
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
+
+  AWAIT_READY(containers);
+
+  ASSERT_TRUE(containers.get().size() > 0);
+
+  ASSERT_TRUE(exists(containers.get(), containerId.get()));
+
+  Future<containerizer::Termination> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
 
   Shutdown();
 }
