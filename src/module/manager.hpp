@@ -45,29 +45,34 @@ namespace internal {
 // Mesos module loading.
 //
 // Phases:
-// 1. Load dynamic libraries that contain modules. The command-line
-//    flag "--modules" is used to declare all available library-module
-//    tuples.
+
+// 1. Load dynamic libraries that contain modules from the Modules
+//    instance which may have come from a commandline flag.
 // 2. Verify versions and compatibilities.
 //   a) Library compatibility. (Module API version check)
 //   b) Module compatibility. (Module Kind version check)
 // 3. Instantiate singleton per module. (happens in the library)
 // 4. Bind reference to use case. (happens in Mesos)
+
+
 class ModuleManager
 {
 public:
   // Loads dynamic libraries, and verifies the compatibility of the
   // modules in them.
-  static void load(const Modules& modules);
+  //
+  // NOTE: If loading fails at a particular library we don't unload
+  // all of the already loaded libraries.
+  static Try<Nothing> load(const Modules& modules);
 
   // create() should be called only after load().
-  template<typename Kind>
+  template <typename Kind>
   static Try<Kind*> create(const std::string& moduleName)
   {
     Lock lock(&mutex);
     if (!moduleBases.contains(moduleName)) {
       return Error(
-          "Module '" + moduleName + "' not specified with --module flag");
+          "Module '" + moduleName + "' unknown");
     }
 
     Module<Kind>* module = (Module<Kind>*) moduleBases[moduleName];
@@ -76,34 +81,35 @@ public:
           "Error creating Module instance for '" + moduleName + "': "
           "create() method not found");
     }
-    Kind* singleton = module->create();
-    if (singleton == NULL) {
+    Kind* kind = module->create();
+    if (kind == NULL) {
       return Error("Error creating Module instance for '" + moduleName + "'");
     }
-    return singleton;
+    return kind;
   }
 
+  // Exposed just for testing so that we can close all open dynamic
+  // libraries.
   static void unloadAll();
 
 private:
-  typedef hashmap<const std::string, std::vector<std::string> >
-    LibraryModuleMap;
-
   static void initialize();
 
-  static Try<LibraryModuleMap> parseFlag(const std::string& flag);
-
   static Try<Nothing> verifyModule(
-      const std::string& moduleName, const ModuleBase* moduleBase);
+      const std::string& moduleName,
+      const ModuleBase* moduleBase);
 
   // TODO(karya): Replace pthread_mutex_t with std::mutex in
   // common/lock.hpp and other places that refer to it.
   static pthread_mutex_t mutex;
+
   static hashmap<const std::string, std::string> kindToVersion;
+
   // Mapping from "module name" to the actual ModuleBase. If two
   // modules from different libraries have the same name then the last
   // one specified in the protobuf Modules will be picked.
   static hashmap<const std::string, ModuleBase*> moduleBases;
+
   // A list of dynamic libraries to keep the object from getting
   // destructed.
   // TODO(karya): Make it addressable only when we decide to implement

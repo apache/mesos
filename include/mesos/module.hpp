@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MODULE_HPP__
-#define __MODULE_HPP__
+#ifndef __MESOS_MODULE_HPP__
+#define __MESOS_MODULE_HPP__
 
 // Mesos Module API (MESOS-1384).
 //
@@ -28,7 +28,7 @@
 // argument (in JSON format or a path to a JSON file).
 //
 // JSON := [library, ...]
-// library := {"path": <library path>, "modules" : [<module name>, ...]}
+// library := {"path": <library path>, "modules": [<module name>, ...]}
 //
 // How to write a module library:
 // 1. Define a create() function that returns a pointer to an object
@@ -46,6 +46,8 @@
 #include <mesos/version.hpp>
 
 #define MESOS_MODULE_API_VERSION "1"
+
+namespace mesos {
 
 // Internal utilities, not part of the module API:
 
@@ -72,6 +74,7 @@ struct ModuleBase
 
   const char* moduleApiVersion;
   const char* mesosVersion;
+
   // String representation of module 'kind' returned from 'create'.
   const char* kind;
   const char* authorName;
@@ -90,7 +93,9 @@ struct ModuleBase
 
 
 // This declaration is neeed only for later specializations.
-template<class T>
+template <typename T>
 struct Module;
 
-#endif // __MODULE_HPP__
+} // namespace mesos {
+
+#endif // __MESOS_MODULE_HPP__

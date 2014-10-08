@@ -33,12 +33,16 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
+
 class ModuleTest : public MesosTest {};
 
-static const string getLibraryPath(string libraryName)
+static const string getLibraryPath(const string& libraryName)
 {
   return path::join(
-      tests::flags.build_dir, "src", ".libs", "lib" + libraryName +
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      "lib" + libraryName +
 #ifdef __linux__
       ".so"
 #else
@@ -65,9 +69,10 @@ static Modules getModules(const string& libraryName, const string& moduleName)
 TEST_F(ModuleTest, ExampleModuleParseStringTest)
 {
   const string libraryName = "examplemodule";
-  const string moduleName = "exampleModule";
+  const string moduleName = "org_apache_mesos_TestModule";
+
   Modules modules = getModules(libraryName, moduleName);
-  ModuleManager::load(modules);
+  EXPECT_SOME(ModuleManager::load(modules));
 
   Try<TestModule*> module = ModuleManager::create<TestModule>(moduleName);
   EXPECT_SOME(module);
@@ -77,6 +82,7 @@ TEST_F(ModuleTest, ExampleModuleParseStringTest)
   // product.
   EXPECT_EQ(module.get()->foo('A', 1024), 1089);
   EXPECT_EQ(module.get()->bar(0.5, 10.8), 5);
+
   ModuleManager::unloadAll();
 }
 
@@ -85,18 +91,21 @@ TEST_F(ModuleTest, ExampleModuleParseStringTest)
 TEST_F(ModuleTest, AuthorInfoTest)
 {
   const string libraryName = "examplemodule";
-  const string moduleName = "exampleModule";
+  const string moduleName = "org_apache_mesos_TestModule";
+
   DynamicLibrary library;
-  Try<Nothing> result = library.open(getLibraryPath(libraryName));
-  EXPECT_SOME(result);
+  EXPECT_SOME(library.open(getLibraryPath(libraryName)));
+
   // Check the return values against the values defined in
   // test_module_impl.cpp.
   Try<void*> symbol = library.loadSymbol(moduleName);
   EXPECT_SOME(symbol);
+
   ModuleBase* moduleBase = (ModuleBase*) symbol.get();
   EXPECT_EQ(stringify(moduleBase->authorName), "author");
   EXPECT_EQ(stringify(moduleBase->authorEmail), "author@email.com");
   EXPECT_EQ(stringify(moduleBase->description), "This is a test module.");
+
   ModuleManager::unloadAll();
 }
 
@@ -105,12 +114,12 @@ TEST_F(ModuleTest, AuthorInfoTest)
 TEST_F(ModuleTest, UnknownLibraryTest)
 {
   const string libraryName = "unknown";
-  const string moduleName = "exampleModule";
-  Modules modules = getModules(libraryName, moduleName);
-  ModuleManager::load(modules);
+  const string moduleName = "org_apache_mesos_TestModule";
 
-  Try<TestModule*> module = ModuleManager::create<TestModule>(moduleName);
-  EXPECT_ERROR(module);
+  Modules modules = getModules(libraryName, moduleName);
+
+  EXPECT_ERROR(ModuleManager::load(modules));
+
   ModuleManager::unloadAll();
 }
 
@@ -121,11 +130,10 @@ TEST_F(ModuleTest, UnknownModuleTest)
 {
   const string libraryName = "examplemodule";
   const string moduleName = "unknown";
-  Modules modules = getModules(libraryName, moduleName);
-  ModuleManager::load(modules);
 
-  Try<TestModule*> module = ModuleManager::create<TestModule>(moduleName);
-  EXPECT_ERROR(module);
+  Modules modules = getModules(libraryName, moduleName);
+  EXPECT_ERROR(ModuleManager::load(modules));
+
   ModuleManager::unloadAll();
 }
 
@@ -135,12 +143,13 @@ TEST_F(ModuleTest, UnknownModuleTest)
 TEST_F(ModuleTest, UnknownModuleInstantiationTest)
 {
   const string libraryName = "examplemodule";
-  const string moduleName = "exampleModule";
-  Modules modules = getModules(libraryName, moduleName);
-  ModuleManager::load(modules);
+  const string moduleName = "org_apache_mesos_TestModule";
 
-  Try<TestModule*> module = ModuleManager::create<TestModule>("unknown");
-  EXPECT_ERROR(module);
+  Modules modules = getModules(libraryName, moduleName);
+  EXPECT_SOME(ModuleManager::load(modules));
+
+  EXPECT_ERROR(ModuleManager::create<TestModule>("unknown"));
+
   ModuleManager::unloadAll();
 }
 
@@ -149,36 +158,43 @@ TEST_F(ModuleTest, UnknownModuleInstantiationTest)
 TEST_F(ModuleTest, NonModuleLibrary)
 {
   const string libraryName = "mesos";
-  const string moduleName = "exampleModule";
-  Modules modules = getModules(libraryName, moduleName);
-  ModuleManager::load(modules);
+  const string moduleName = "org_apache_mesos_TestModule";
 
-  Try<TestModule*> module = ModuleManager::create<TestModule>(moduleName);
-  EXPECT_ERROR(module);
+  Modules modules = getModules(libraryName, moduleName);
+  EXPECT_ERROR(ModuleManager::load(modules));
+
   ModuleManager::unloadAll();
 }
 
 
+// NOTE: We expect to pass 'version' which will outlive this function
+// since we set it to the external module's 'mesosVersion'.
 static void updateModuleLibraryVersion(
-    DynamicLibrary* library, const string& moduleName, Try<const char*> version)
+    DynamicLibrary* library,
+    const string& moduleName,
+    const char* version)
 {
-  EXPECT_SOME(version);
   Try<void*> symbol = library->loadSymbol(moduleName);
   EXPECT_SOME(symbol);
-  ModuleBase* moduleBase = (ModuleBase*) symbol.get();
 
-  moduleBase->mesosVersion = version.get();
+  ModuleBase* moduleBase = (ModuleBase*) symbol.get();
+  moduleBase->mesosVersion = version;
 }
 
 
+// NOTE: Like above, we expect to pass 'version' which will outlive
+// this function since we set it to the external module's
+// 'mesosApiVersion'.
 static void updateModuleApiVersion(
-    DynamicLibrary* library, const string& moduleName, Try<const char*> version)
+    DynamicLibrary* library,
+    const string& moduleName,
+    const char* version)
 {
-  EXPECT_SOME(version);
   Try<void*> symbol = library->loadSymbol(moduleName);
   EXPECT_SOME(symbol);
+
   ModuleBase* moduleBase = (ModuleBase*) symbol.get();
-  moduleBase->moduleApiVersion = version.get();
+  moduleBase->moduleApiVersion = version;
 }
 
 
@@ -187,32 +203,29 @@ static void updateModuleApiVersion(
 TEST_F(ModuleTest, DifferentApiVersion)
 {
   const string libraryName = "examplemodule";
-  const string moduleName = "exampleModule";
+  const string moduleName = "org_apache_mesos_TestModule";
+
   DynamicLibrary library;
-  Try<Nothing> result = library.open(getLibraryPath(libraryName));
-  EXPECT_SOME(result);
+  EXPECT_SOME(library.open(getLibraryPath(libraryName)));
 
   Modules modules = getModules(libraryName, moduleName);
 
   // Make the API version '0'.
   updateModuleApiVersion(&library, moduleName, "0");
-  ModuleManager::load(modules);
-  Try<TestModule*> module = ModuleManager::create<TestModule>(moduleName);
-  EXPECT_ERROR(module);
+  EXPECT_ERROR(ModuleManager::load(modules));
+
   ModuleManager::unloadAll();
 
   // Make the API version arbitrarily high.
   updateModuleApiVersion(&library, moduleName, "1000");
-  ModuleManager::load(modules);
-  module = ModuleManager::create<TestModule>(moduleName);
-  EXPECT_ERROR(module);
+  EXPECT_ERROR(ModuleManager::load(modules));
+
   ModuleManager::unloadAll();
 
   // Make the API version some random string.
   updateModuleApiVersion(&library, moduleName, "ThisIsNotAnAPIVersion!");
-  ModuleManager::load(modules);
-  module = ModuleManager::create<TestModule>(moduleName);
-  EXPECT_ERROR(module);
+  EXPECT_ERROR(ModuleManager::load(modules));
+
   ModuleManager::unloadAll();
 }
 
@@ -222,18 +235,17 @@ TEST_F(ModuleTest, DifferentApiVersion)
 TEST_F(ModuleTest, NewerModuleLibrary)
 {
   const string libraryName = "examplemodule";
-  const string moduleName = "exampleModule";
+  const string moduleName = "org_apache_mesos_TestModule";
+
   DynamicLibrary library;
-  Try<Nothing> result = library.open(getLibraryPath(libraryName));
-  EXPECT_SOME(result);
+  EXPECT_SOME(library.open(getLibraryPath(libraryName)));
 
   Modules modules = getModules(libraryName, moduleName);
 
   // Make the library version arbitrarily high.
   updateModuleLibraryVersion(&library, moduleName, "100.1.0");
-  ModuleManager::load(modules);
-  Try<TestModule*> module = ModuleManager::create<TestModule>(moduleName);
-  EXPECT_ERROR(module);
+  EXPECT_ERROR(ModuleManager::load(modules));
+
   ModuleManager::unloadAll();
 }
 
@@ -243,20 +255,16 @@ TEST_F(ModuleTest, NewerModuleLibrary)
 TEST_F(ModuleTest, OlderModuleLibrary)
 {
   const string libraryName = "examplemodule";
-  const string moduleName = "exampleModule";
+  const string moduleName = "org_apache_mesos_TestModule";
+
   DynamicLibrary library;
-  Try<Nothing> result = library.open(getLibraryPath(libraryName));
-  EXPECT_SOME(result);
+  EXPECT_SOME(library.open(getLibraryPath(libraryName)));
 
   Modules modules = getModules(libraryName, moduleName);
 
   // Make the library version arbitrarily low.
   updateModuleLibraryVersion(&library, moduleName, "0.1.0");
-  ModuleManager::load(modules);
-  Try<TestModule*> module = ModuleManager::create<TestModule>(moduleName);
-  EXPECT_ERROR(module);
+  EXPECT_ERROR(ModuleManager::load(modules));
+
   ModuleManager::unloadAll();
 }
-
-
-// TODO(bernd): Add MESOS_MODULE_IS_COMPATIBILE() tests.

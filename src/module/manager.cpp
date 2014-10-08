@@ -19,14 +19,14 @@
 #include <string>
 #include <vector>
 
+#include <mesos/module.hpp>
+
 #include <stout/json.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 #include <stout/stringify.hpp>
 #include <stout/version.hpp>
-
-#include "mesos/module.hpp"
 
 #include "manager.hpp"
 
@@ -46,38 +46,40 @@ list<Owned<DynamicLibrary> > ModuleManager::dynamicLibraries;
 
 void ModuleManager::initialize()
 {
-// ATTENTION: Every time a Mesos developer breaks compatibility with a
-// module kind type, this table needs to be updated.  Specifically,
-// the version value in the entry corresponding to the kind needs to
-// be set to the Mesos version that affects the current change.
-// Typically that should be the version currently under development.
+  // ATTENTION: Every time a Mesos developer breaks compatibility with
+  // a module kind type, this table needs to be updated.
+  // Specifically, the version value in the entry corresponding to the
+  // kind needs to be set to the Mesos version that affects the
+  // current change.  Typically that should be the version currently
+  // under development.
 
   kindToVersion["TestModule"] = MESOS_VERSION;
 
-// What happens then when Mesos is built with a certain version,
-// 'kindToVersion' states a certain other minimum version, and a
-// module library is built against "module.hpp" belonging to yet
-// another Mesos version?
-//
-// Mesos can admit modules built against earlier versions of itself
-// by stating so explicitly in 'kindToVersion'.  If a modules is built
-// with a Mesos version greater than or equal to the one stated in
-// 'kindToVersion', it passes this verification step.  Otherwise it is
-// rejected when attempting to load it.
-//
-// Here are some examples:
-//
-// Mesos   kindToVersion    library    modules loadable?
-// 0.18.0      0.18.0       0.18.0          YES
-// 0.29.0      0.18.0       0.18.0          YES
-// 0.29.0      0.18.0       0.21.0          YES
-// 0.18.0      0.18.0       0.29.0          NO
-// 0.29.0      0.21.0       0.18.0          NO
-// 0.29.0      0.29.0       0.18.0          NO
+  // What happens then when Mesos is built with a certain version,
+  // 'kindToVersion' states a certain other minimum version, and a
+  // module library is built against "module.hpp" belonging to yet
+  // another Mesos version?
+  //
+  // Mesos can admit modules built against earlier versions of itself
+  // by stating so explicitly in 'kindToVersion'.  If a modules is
+  // built with a Mesos version greater than or equal to the one
+  // stated in 'kindToVersion', it passes this verification step.
+  // Otherwise it is rejected when attempting to load it.
+  //
+  // Here are some examples:
+  //
+  // Mesos   kindToVersion    library    modules loadable?
+  // 0.18.0      0.18.0       0.18.0          YES
+  // 0.29.0      0.18.0       0.18.0          YES
+  // 0.29.0      0.18.0       0.21.0          YES
+  // 0.18.0      0.18.0       0.29.0          NO
+  // 0.29.0      0.21.0       0.18.0          NO
+  // 0.29.0      0.29.0       0.18.0          NO
 
-// ATTENTION: This mechanism only protects the interfaces of modules,
-// not how they maintain functional compatibility with Mesos and among
-// each other.  This is covered by their own "isCompatible" call.
+  // ATTENTION: This mechanism only protects the interfaces of
+  // modules, not how they maintain functional compatibility with
+  // Mesos and among each other.  This is covered by their own
+  // "isCompatible" call.
 }
 
 
@@ -93,7 +95,8 @@ void ModuleManager::unloadAll()
 
 // TODO(karya): Show library author info for failed library/module.
 Try<Nothing> ModuleManager::verifyModule(
-    const string& moduleName, const ModuleBase* moduleBase)
+    const string& moduleName,
+    const ModuleBase* moduleBase)
 {
   CHECK_NOTNULL(moduleBase);
   if (moduleBase->mesosVersion == NULL ||
@@ -105,7 +108,7 @@ Try<Nothing> ModuleManager::verifyModule(
     return Error("Error loading module '" + moduleName + "'; missing fields");
   }
 
-  // Verify module api version.
+  // Verify module API version.
   if (stringify(moduleBase->moduleApiVersion) != MESOS_MODULE_API_VERSION) {
     return Error(
         "Module API version mismatch. Mesos has: " MESOS_MODULE_API_VERSION ", "
@@ -160,48 +163,47 @@ Try<Nothing> ModuleManager::verifyModule(
 }
 
 
-void ModuleManager::load(const Modules& modules)
+Try<Nothing> ModuleManager::load(const Modules& modules)
 {
   Lock lock(&mutex);
   initialize();
 
   foreach (const Modules::Library& library, modules.libraries()) {
-    const string& path = library.path();
-    if (path.empty()) {
-      LOG(WARNING) << "Library path not provided";
-      continue;
+    if (!library.has_path()) {
+      return Error("Library path not provided");
     }
-    Owned<DynamicLibrary> lib = Owned<DynamicLibrary>(new DynamicLibrary());
-    Try<Nothing> result = lib.get()->open(path);
+
+    Owned<DynamicLibrary> dynamicLibrary(new DynamicLibrary());
+    Try<Nothing> result = dynamicLibrary->open(library.path());
     if (!result.isSome()) {
-      LOG(WARNING) << "Error opening library: " << path;
-      continue;
+      return Error("Error opening library: '" + library.path() + "'");
     }
+
     // Currently we never delete the DynamicLibrary instance nor do we
     // expose a way to delete it so for now we just put it in a list.
     // TODO(karya): If we add the functionality to "unload" a module
     // library, we should make this pointer addressable by something
     // like the module name.
-    dynamicLibraries.push_back(lib);
+    dynamicLibraries.push_back(dynamicLibrary);
 
     // Load module manifests.
     foreach (const string& moduleName, library.modules()) {
-      Try<void*> symbol =  lib->loadSymbol(moduleName);
+      Try<void*> symbol =  dynamicLibrary->loadSymbol(moduleName);
       if (symbol.isError()) {
-        LOG(WARNING) << "Error loading module '" << moduleName << "': "
-                     << symbol.error();
-        continue;
+        return Error(
+	    "Error loading module '" + moduleName + "': " + symbol.error());
       }
-      ModuleBase* moduleBase =  (ModuleBase*) symbol.get();
+      ModuleBase* moduleBase = (ModuleBase*) symbol.get();
       Try<Nothing> result = verifyModule(moduleName, moduleBase);
       if (result.isError()) {
-        LOG(WARNING) << "Error verifying module '" << moduleName << "': "
-                     << result.error();
-        continue;
+	return Error(
+	    "Error verifying module '" + moduleName + "': " + result.error());
       }
       moduleBases[moduleName] = (ModuleBase*) symbol.get();
     }
   }
+
+  return Nothing();
 }
 
 } // namespace internal {
