@@ -1,0 +1,208 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <string>
+#include <vector>
+
+#include <stout/json.hpp>
+#include <stout/numify.hpp>
+#include <stout/os.hpp>
+#include <stout/strings.hpp>
+#include <stout/stringify.hpp>
+#include <stout/version.hpp>
+
+#include "mesos/module.hpp"
+
+#include "manager.hpp"
+
+using std::list;
+using std::string;
+using std::vector;
+using process::Owned;
+
+namespace mesos {
+namespace internal {
+
+pthread_mutex_t ModuleManager::mutex = PTHREAD_MUTEX_INITIALIZER;
+hashmap<const string, string> ModuleManager::kindToVersion;
+hashmap<const string, ModuleBase*> ModuleManager::moduleBases;
+list<Owned<DynamicLibrary> > ModuleManager::dynamicLibraries;
+
+
+void ModuleManager::initialize()
+{
+// ATTENTION: Every time a Mesos developer breaks compatibility with a
+// module kind type, this table needs to be updated.  Specifically,
+// the version value in the entry corresponding to the kind needs to
+// be set to the Mesos version that affects the current change.
+// Typically that should be the version currently under development.
+
+  kindToVersion["TestModule"] = MESOS_VERSION;
+
+// What happens then when Mesos is built with a certain version,
+// 'kindToVersion' states a certain other minimum version, and a
+// module library is built against "module.hpp" belonging to yet
+// another Mesos version?
+//
+// Mesos can admit modules built against earlier versions of itself
+// by stating so explicitly in 'kindToVersion'.  If a modules is built
+// with a Mesos version greater than or equal to the one stated in
+// 'kindToVersion', it passes this verification step.  Otherwise it is
+// rejected when attempting to load it.
+//
+// Here are some examples:
+//
+// Mesos   kindToVersion    library    modules loadable?
+// 0.18.0      0.18.0       0.18.0          YES
+// 0.29.0      0.18.0       0.18.0          YES
+// 0.29.0      0.18.0       0.21.0          YES
+// 0.18.0      0.18.0       0.29.0          NO
+// 0.29.0      0.21.0       0.18.0          NO
+// 0.29.0      0.29.0       0.18.0          NO
+
+// ATTENTION: This mechanism only protects the interfaces of modules,
+// not how they maintain functional compatibility with Mesos and among
+// each other.  This is covered by their own "isCompatible" call.
+}
+
+
+// For testing only.  Unload all dlopen()'d module libraries and
+// clear the list of module manifests.
+void ModuleManager::unloadAll()
+{
+  kindToVersion.clear();
+  moduleBases.clear();
+  dynamicLibraries.clear();
+}
+
+
+// TODO(karya): Show library author info for failed library/module.
+Try<Nothing> ModuleManager::verifyModule(
+    const string& moduleName, const ModuleBase* moduleBase)
+{
+  CHECK_NOTNULL(moduleBase);
+  if (moduleBase->mesosVersion == NULL ||
+      moduleBase->moduleApiVersion == NULL ||
+      moduleBase->authorName == NULL ||
+      moduleBase->authorEmail == NULL ||
+      moduleBase->description == NULL ||
+      moduleBase->kind == NULL) {
+    return Error("Error loading module '" + moduleName + "'; missing fields");
+  }
+
+  // Verify module api version.
+  if (stringify(moduleBase->moduleApiVersion) != MESOS_MODULE_API_VERSION) {
+    return Error(
+        "Module API version mismatch. Mesos has: " MESOS_MODULE_API_VERSION ", "
+        "library requires: " + stringify(moduleBase->moduleApiVersion));
+  }
+
+  if (!kindToVersion.contains(moduleBase->kind)) {
+    return Error("Unknown module kind: " + stringify(moduleBase->kind));
+  }
+
+  Try<Version> mesosVersion = Version::parse(MESOS_VERSION);
+  CHECK(!mesosVersion.isError());
+
+  Try<Version> minimumVersion = Version::parse(kindToVersion[moduleBase->kind]);
+  CHECK(!minimumVersion.isError());
+
+  Try<Version> moduleMesosVersion = Version::parse(moduleBase->mesosVersion);
+  if (moduleMesosVersion.isError()) {
+    return Error(moduleMesosVersion.error());
+  }
+
+  if (moduleMesosVersion.get() < minimumVersion.get()) {
+    return Error(
+        "Minimum supported mesos version for '" + stringify(moduleBase->kind) +
+        "' is " + stringify(minimumVersion.get()) + ", but module is compiled "
+        "with version " + stringify(moduleMesosVersion.get()));
+  }
+
+  if (moduleBase->compatible == NULL) {
+    if (moduleMesosVersion.get() != mesosVersion.get()) {
+      return Error(
+          "Mesos has version " + stringify(mesosVersion.get()) +
+          ", but module is compiled with version " +
+          stringify(moduleMesosVersion.get()));
+    }
+    return Nothing();
+  }
+
+  if (moduleMesosVersion.get() > mesosVersion.get()) {
+    return Error(
+        "Mesos has version " + stringify(mesosVersion.get()) +
+        ", but module is compiled with version " +
+        stringify(moduleMesosVersion.get()));
+  }
+
+  bool result = moduleBase->compatible();
+  if (!result) {
+    return Error("Module " + moduleName + "has determined to be incompatible");
+  }
+
+  return Nothing();
+}
+
+
+void ModuleManager::load(const Modules& modules)
+{
+  Lock lock(&mutex);
+  initialize();
+
+  foreach (const Modules::Library& library, modules.libraries()) {
+    const string& path = library.path();
+    if (path.empty()) {
+      LOG(WARNING) << "Library path not provided";
+      continue;
+    }
+    Owned<DynamicLibrary> lib = Owned<DynamicLibrary>(new DynamicLibrary());
+    Try<Nothing> result = lib.get()->open(path);
+    if (!result.isSome()) {
+      LOG(WARNING) << "Error opening library: " << path;
+      continue;
+    }
+    // Currently we never delete the DynamicLibrary instance nor do we
+    // expose a way to delete it so for now we just put it in a list.
+    // TODO(karya): If we add the functionality to "unload" a module
+    // library, we should make this pointer addressable by something
+    // like the module name.
+    dynamicLibraries.push_back(lib);
+
+    // Load module manifests.
+    foreach (const string& moduleName, library.modules()) {
+      Try<void*> symbol =  lib->loadSymbol(moduleName);
+      if (symbol.isError()) {
+        LOG(WARNING) << "Error loading module '" << moduleName << "': "
+                     << symbol.error();
+        continue;
+      }
+      ModuleBase* moduleBase =  (ModuleBase*) symbol.get();
+      Try<Nothing> result = verifyModule(moduleName, moduleBase);
+      if (result.isError()) {
+        LOG(WARNING) << "Error verifying module '" << moduleName << "': "
+                     << result.error();
+        continue;
+      }
+      moduleBases[moduleName] = (ModuleBase*) symbol.get();
+    }
+  }
+}
+
+} // namespace internal {
+} // namespace mesos {

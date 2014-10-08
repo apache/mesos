@@ -406,3 +406,19 @@ message TaskHealthStatus {
   // This will not be populated if task is healthy.
   optional int32 consecutive_failures = 4;
 }
+
+
+// Collection of Modules.
+message Modules {
+  message Library {
+    // TODO(karya): Add a "name" field that allows specifying library
+    // name instead of an absolute path.
+    //optional string name = 1;
+
+    optional string path = 1;
+
+    repeated string modules = 2;
+  }
+
+  repeated Library libraries = 1;
+}
