@@ -392,9 +392,6 @@ private:
 
   Option<process::UPID> master;
 
-  Resources resources;
-  Attributes attributes;
-
   hashmap<FrameworkID, Framework*> frameworks;
 
   boost::circular_buffer<process::Owned<Framework> > completedFrameworks;

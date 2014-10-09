@@ -39,6 +39,8 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include "common/http.hpp"
+
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
@@ -707,6 +709,53 @@ TEST_F(SlaveTest, MetricsInStatsEndpoint)
 
   EXPECT_EQ(1u, stats.values.count("slave/valid_framework_messages"));
   EXPECT_EQ(1u, stats.values.count("slave/invalid_framework_messages"));
+
+  Shutdown();
+}
+
+
+TEST_F(SlaveTest, StateEndpoint)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  flags.resources = "cpus:4;mem:2048;disk:512;ports:[33000-34000]";
+  flags.attributes = "rack:abc;host:myhost";
+
+  Try<PID<Slave> > slave = StartSlave(flags);
+  ASSERT_SOME(slave);
+
+  Future<process::http::Response> response =
+    process::http::get(slave.get(), "state.json");
+
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(parse);
+
+  JSON::Object state = parse.get();
+
+  // Check if 'resources' matches.
+  Try<Resources> resources = Resources::parse(
+      flags.resources.get(), flags.default_role);
+
+  ASSERT_SOME(resources);
+
+  ASSERT_EQ(1u, state.values.count("resources"));
+  EXPECT_EQ(state.values["resources"], JSON::Value(model(resources.get())));
+
+  // Check if 'attributes' matches.
+  Attributes attributes = Attributes::parse(flags.attributes.get());
+
+  ASSERT_EQ(1u, state.values.count("attributes"));
+  EXPECT_EQ(state.values["attributes"], JSON::Value(model(attributes)));
 
   Shutdown();
 }

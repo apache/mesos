@@ -351,8 +351,8 @@ Future<Response> Slave::Http::state(const Request& request)
   object.values["id"] = slave->info.id().value();
   object.values["pid"] = string(slave->self());
   object.values["hostname"] = slave->info.hostname();
-  object.values["resources"] = model(slave->resources);
-  object.values["attributes"] = model(slave->attributes);
+  object.values["resources"] = model(slave->info.resources());
+  object.values["attributes"] = model(slave->info.attributes());
   object.values["staged_tasks"] = slave->stats.tasks[TASK_STAGING];
   object.values["started_tasks"] = slave->stats.tasks[TASK_STARTING];
   object.values["finished_tasks"] = slave->stats.tasks[TASK_FINISHED];

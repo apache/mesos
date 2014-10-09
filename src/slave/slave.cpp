@@ -288,6 +288,7 @@ void Slave::initialize()
   }
   LOG(INFO) << "Slave resources: " << resources.get();
 
+  Attributes attributes;
   if (flags.attributes.isSome()) {
     attributes = Attributes::parse(flags.attributes.get());
   }
