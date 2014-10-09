@@ -167,6 +167,25 @@ TEST_F(ModuleTest, NonModuleLibrary)
 }
 
 
+// Test that loading a duplicate module fails.
+TEST_F(ModuleTest, DuplicateModule)
+{
+  const string libraryName = "examplemodule";
+  const string moduleName = "org_apache_mesos_TestModule";
+
+  Modules modules = getModules(libraryName, moduleName);
+
+  // Add duplicate module.
+  Modules::Library* library = modules.add_libraries();
+  library->set_path(getLibraryPath(libraryName));
+  library->add_modules(moduleName);
+
+  EXPECT_ERROR(ModuleManager::load(modules));
+
+  ModuleManager::unloadAll();
+}
+
+
 // NOTE: We expect to pass 'version' which will outlive this function
 // since we set it to the external module's 'mesosVersion'.
 static void updateModuleLibraryVersion(

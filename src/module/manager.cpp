@@ -188,6 +188,10 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
 
     // Load module manifests.
     foreach (const string& moduleName, library.modules()) {
+      // Check for possible duplicate module names.
+      if (moduleBases.contains(moduleName)) {
+        return Error("Error loading duplicate module '" + moduleName + "'");
+      }
       Try<void*> symbol =  dynamicLibrary->loadSymbol(moduleName);
       if (symbol.isError()) {
         return Error(
