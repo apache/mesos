@@ -500,6 +500,7 @@ struct Executor
   Task* addTask(const TaskInfo& task);
   void terminateTask(const TaskID& taskId, const mesos::TaskState& state);
   void completeTask(const TaskID& taskId);
+  void checkpointExecutor();
   void checkpointTask(const TaskInfo& task);
   void recoverTask(const state::TaskState& state);
   void updateTaskState(const TaskStatus& status);

@@ -1292,9 +1292,10 @@ void Slave::_runTask(
       break;
     }
     case Executor::REGISTERING:
-      // Checkpoint the task before we do anything else (this is a no-op
-      // if the framework doesn't have checkpointing enabled).
-      executor->checkpointTask(task);
+      // Checkpoint the task before we do anything else.
+      if (executor->checkpoint) {
+        executor->checkpointTask(task);
+      }
 
       stats.tasks[TASK_STAGING]++;
 
@@ -1306,9 +1307,10 @@ void Slave::_runTask(
       executor->queuedTasks[task.task_id()] = task;
       break;
     case Executor::RUNNING: {
-      // Checkpoint the task before we do anything else (this is a no-op
-      // if the framework doesn't have checkpointing enabled).
-      executor->checkpointTask(task);
+      // Checkpoint the task before we do anything else.
+      if (executor->checkpoint) {
+        executor->checkpointTask(task);
+      }
 
       stats.tasks[TASK_STAGING]++;
 
@@ -3719,6 +3721,10 @@ Executor* Framework::launchExecutor(
   Executor* executor = new Executor(
       slave, id, executorInfo, containerId, directory, info.checkpoint());
 
+  if (executor->checkpoint) {
+    executor->checkpointExecutor();
+  }
+
   CHECK(!executors.contains(executorInfo.executor_id()))
     << "Unknown executor " << executorInfo.executor_id();
 
@@ -3994,20 +4000,6 @@ Executor::Executor(
     commandExecutor =
       strings::contains(info.command().value(), executorPath.get());
   }
-
-  if (checkpoint && slave->state != slave->RECOVERING) {
-    // Checkpoint the executor info.
-    const string& path = paths::getExecutorInfoPath(
-        slave->metaDir, slave->info.id(), frameworkId, id);
-
-    VLOG(1) << "Checkpointing ExecutorInfo to '" << path << "'";
-    CHECK_SOME(state::checkpoint(path, info));
-
-    // Create the meta executor directory.
-    // NOTE: This creates the 'latest' symlink in the meta directory.
-    paths::createExecutorDirectory(
-        slave->metaDir, slave->info.id(), frameworkId, id, containerId);
-  }
 }
 
 
@@ -4096,23 +4088,41 @@ void Executor::completeTask(const TaskID& taskId)
 }
 
 
+void Executor::checkpointExecutor()
+{
+  CHECK(checkpoint);
+
+  CHECK_NE(slave->state, slave->RECOVERING);
+
+  // Checkpoint the executor info.
+  const string& path = paths::getExecutorInfoPath(
+      slave->metaDir, slave->info.id(), frameworkId, id);
+
+  VLOG(1) << "Checkpointing ExecutorInfo to '" << path << "'";
+  CHECK_SOME(state::checkpoint(path, info));
+
+  // Create the meta executor directory.
+  // NOTE: This creates the 'latest' symlink in the meta directory.
+  paths::createExecutorDirectory(
+      slave->metaDir, slave->info.id(), frameworkId, id, containerId);
+}
+
+
 void Executor::checkpointTask(const TaskInfo& task)
 {
-  if (checkpoint) {
-    CHECK_NOTNULL(slave);
+  CHECK(checkpoint);
 
-    const Task& t = protobuf::createTask(task, TASK_STAGING, frameworkId);
-    const string& path = paths::getTaskInfoPath(
-        slave->metaDir,
-        slave->info.id(),
-        frameworkId,
-        id,
-        containerId,
-        t.task_id());
+  const Task& t = protobuf::createTask(task, TASK_STAGING, frameworkId);
+  const string& path = paths::getTaskInfoPath(
+      slave->metaDir,
+      slave->info.id(),
+      frameworkId,
+      id,
+      containerId,
+      t.task_id());
 
-    VLOG(1) << "Checkpointing TaskInfo to '" << path << "'";
-    CHECK_SOME(state::checkpoint(path, t));
-  }
+  VLOG(1) << "Checkpointing TaskInfo to '" << path << "'";
+  CHECK_SOME(state::checkpoint(path, t));
 }
 
 
