@@ -29,6 +29,7 @@ layout: documentation
 
 ## Contributing to Mesos
 
+* [Committer's Guide](/documentation/latest/committers-guide/): A guiding document for etiquette in reviews and commits.
 * [Code Internals](/documentation/latest/mesos-code-internals/) overview of the codebase and internal organization.
 * [C++ Style Guide](/documentation/latest/mesos-c++-style-guide/)
 * [Developers Guide](/documentation/latest/mesos-developers-guide/) includes resources for developers contributing to Mesos and the process of submitting patches for review.
