@@ -52,6 +52,7 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
+#include "slave/status_update_manager.hpp"
 
 #include "state/in_memory.hpp"
 #include "state/log.hpp"
@@ -73,6 +74,7 @@ using mesos::internal::master::Repairer;
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::GarbageCollector;
 using mesos::internal::slave::Slave;
+using mesos::internal::slave::StatusUpdateManager;
 
 using process::Owned;
 using process::PID;
@@ -103,6 +105,7 @@ static MasterContender* contender = NULL;
 static Option<Authorizer*> authorizer = None();
 static Files* files = NULL;
 static vector<GarbageCollector*>* garbageCollectors = NULL;
+static vector<StatusUpdateManager*>* statusUpdateManagers = NULL;
 
 
 PID<Master> launch(const Flags& flags, Allocator* _allocator)
@@ -197,6 +200,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   PID<Master> pid = process::spawn(master);
 
   garbageCollectors = new vector<GarbageCollector*>();
+  statusUpdateManagers = new vector<StatusUpdateManager*>();
 
   vector<UPID> pids;
 
@@ -210,6 +214,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     }
 
     garbageCollectors->push_back(new GarbageCollector());
+    statusUpdateManagers->push_back(new StatusUpdateManager());
 
     Try<Containerizer*> containerizer = Containerizer::create(flags, true);
     if (containerizer.isError()) {
@@ -226,8 +231,11 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         detector,
         containerizer.get(),
         files,
-        garbageCollectors->back());
+        garbageCollectors->back(),
+        statusUpdateManagers->back());
+
     slaves[containerizer.get()] = slave;
+
     pids.push_back(process::spawn(slave));
   }
 
@@ -280,6 +288,13 @@ void shutdown()
 
     delete garbageCollectors;
     garbageCollectors = NULL;
+
+    foreach (StatusUpdateManager* statusUpdateManager, *statusUpdateManagers) {
+      delete statusUpdateManager;
+    }
+
+    delete statusUpdateManagers;
+    statusUpdateManagers = NULL;
 
     delete registrar;
     registrar = NULL;

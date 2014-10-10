@@ -65,6 +65,7 @@
 #include "slave/gc.hpp"
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/slave.hpp"
+#include "slave/status_update_manager.hpp"
 
 #include "state/in_memory.hpp"
 #include "state/log.hpp"
@@ -154,7 +155,9 @@ public:
         const slave::Flags& flags = slave::Flags(),
         const Option<slave::Containerizer*>& containerizer = None(),
         const Option<MasterDetector*>& detector = None(),
-        const Option<slave::GarbageCollector*>& gc = None());
+        const Option<slave::GarbageCollector*>& gc = None(),
+        const Option<slave::StatusUpdateManager*>& statusUpdateManager =
+          None());
 
     // Stops and cleans up a slave at the specified PID. If 'shutdown'
     // is true than the slave is sent a shutdown message instead of
@@ -182,6 +185,7 @@ public:
       slave::Containerizer* containerizer;
       bool createdContainerizer; // Whether we own the containerizer.
 
+      process::Owned<slave::StatusUpdateManager> statusUpdateManager;
       process::Owned<slave::GarbageCollector> gc;
       process::Owned<MasterDetector> detector;
       slave::Flags flags;
@@ -454,7 +458,8 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
     const slave::Flags& flags,
     const Option<slave::Containerizer*>& containerizer,
     const Option<MasterDetector*>& detector,
-    const Option<slave::GarbageCollector*>& gc)
+    const Option<slave::GarbageCollector*>& gc,
+    const Option<slave::StatusUpdateManager*>& statusUpdateManager)
 {
   // TODO(benh): Create a work directory if using the default.
 
@@ -481,6 +486,11 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
     slave.gc.reset(new slave::GarbageCollector());
   }
 
+  // Create a status update manager if one wasn't provided.
+  if (statusUpdateManager.isNone()) {
+    slave.statusUpdateManager.reset(new slave::StatusUpdateManager());
+  }
+
   slave.flags = flags;
 
   slave.slave = new slave::Slave(
@@ -488,7 +498,8 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
       detector.get(slave.detector.get()),
       slave.containerizer,
       &cluster->files,
-      gc.get(slave.gc.get()));
+      gc.get(slave.gc.get()),
+      statusUpdateManager.get(slave.statusUpdateManager.get()));
 
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 

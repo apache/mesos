@@ -104,7 +104,8 @@ Slave::Slave(const slave::Flags& _flags,
              MasterDetector* _detector,
              Containerizer* _containerizer,
              Files* _files,
-             GarbageCollector* _gc)
+             GarbageCollector* _gc,
+             StatusUpdateManager* _statusUpdateManager)
   : ProcessBase(process::ID::generate("slave")),
     state(RECOVERING),
     http(this),
@@ -116,7 +117,7 @@ Slave::Slave(const slave::Flags& _flags,
     metrics(*this),
     gc(_gc),
     monitor(containerizer),
-    statusUpdateManager(new StatusUpdateManager()),
+    statusUpdateManager(_statusUpdateManager),
     metaDir(paths::getMetaRootDir(flags.work_dir)),
     recoveryErrors(0),
     credential(None()),
@@ -138,7 +139,6 @@ Slave::~Slave()
   }
 
   delete authenticatee;
-  delete statusUpdateManager;
 }
 
 

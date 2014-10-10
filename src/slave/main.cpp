@@ -35,6 +35,7 @@
 
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
+#include "slave/status_update_manager.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
@@ -151,9 +152,16 @@ int main(int argc, char** argv)
 
   Files files;
   GarbageCollector gc;
+  StatusUpdateManager statusUpdateManager;
 
-  Slave* slave =
-    new Slave(flags, detector.get(), containerizer.get(), &files, &gc);
+  Slave* slave = new Slave(
+      flags,
+      detector.get(),
+      containerizer.get(),
+      &files,
+      &gc,
+      &statusUpdateManager);
+
   process::spawn(slave);
 
   process::wait(slave->self());

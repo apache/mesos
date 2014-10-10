@@ -90,7 +90,8 @@ public:
         MasterDetector* detector,
         Containerizer* containerizer,
         Files* files,
-        GarbageCollector* gc);
+        GarbageCollector* gc,
+        StatusUpdateManager* statusUpdateManager);
 
   virtual ~Slave();
 
