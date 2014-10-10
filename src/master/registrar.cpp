@@ -37,6 +37,7 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/stopwatch.hpp>
 
 #include "common/type_utils.hpp"
 
@@ -311,7 +312,8 @@ Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
   if (recovered.isNone()) {
     LOG(INFO) << "Recovering registrar";
 
-    metrics.state_fetch.time(state->fetch<Registry>("registry"))
+    metrics.state_fetch.start();
+    state->fetch<Registry>("registry")
       .after(flags.registry_fetch_timeout,
              lambda::bind(
                  &timeout<Variable<Registry> >,
@@ -339,11 +341,14 @@ void RegistrarProcess::_recover(
     recovered.get()->fail("Failed to recover registrar: " +
         (recovery.isFailed() ? recovery.failure() : "discarded"));
   } else {
+    Duration elapsed = metrics.state_fetch.stop();
+
+    LOG(INFO) << "Successfully fetched the registry"
+              << " (" << Bytes(recovery.get().get().ByteSize()) << ")"
+              << " in " << elapsed;
+
     // Save the registry.
     variable = recovery.get();
-
-    LOG(INFO) << "Successfully fetched the registry "
-              << "(" << Bytes(variable.get().get().ByteSize()) << ")";
 
     // Perform the Recover operation to add the new MasterInfo.
     Owned<Operation> operation(new Recover(info));
@@ -415,12 +420,13 @@ void RegistrarProcess::update()
 
   CHECK(!updating);
   CHECK(error.isNone());
+  CHECK_SOME(variable);
+
+  // Time how long it takes to apply the operations.
+  Stopwatch stopwatch;
+  stopwatch.start();
 
   updating = true;
-
-  LOG(INFO) << "Attempting to update the 'registry'";
-
-  CHECK_SOME(variable);
 
   // Create a snapshot of the current registry.
   Registry registry = variable.get().get();
@@ -436,8 +442,12 @@ void RegistrarProcess::update()
     (*operation)(&registry, &slaveIDs, flags.registry_strict);
   }
 
+  LOG(INFO) << "Applied " << operations.size() << " operations in "
+            << stopwatch.elapsed() << "; attempting to update the 'registry'";
+
   // Perform the store, and time the operation.
-  metrics.state_store.time(state->store(variable.get().mutate(registry)))
+  metrics.state_store.start();
+  state->store(variable.get().mutate(registry))
     .after(flags.registry_store_timeout,
            lambda::bind(
                &timeout<Option<Variable<Registry> > >,
@@ -475,7 +485,10 @@ void RegistrarProcess::_update(
     return;
   }
 
-  LOG(INFO) << "Successfully updated 'registry'";
+  Duration elapsed = metrics.state_store.stop();
+
+  LOG(INFO) << "Successfully updated the 'registry' in " << elapsed;
+
   variable = store.get().get();
 
   // Remove the operations.
