@@ -35,6 +35,8 @@
 
 #include "mesos/mesos.hpp"
 
+#include "messages/messages.hpp"
+
 namespace mesos {
 namespace internal {
 namespace master {
@@ -298,6 +300,30 @@ public:
         "Duration of time before an offer is rescinded from a framework.\n"
         "This helps fairness when running frameworks that hold on to offers,\n"
         "or frameworks that accidentally drop offers.\n");
+
+    add(&Flags::modules,
+        "modules",
+        "List of modules to be loaded and be available to the internal\n"
+        "subsystems.\n"
+        "\n"
+        "Use --module=filepath to specify the list of modules via a\n"
+        "file containing a JSON formatted string. 'filepath' can be\n"
+        "of the form 'file:///path/to/file' or '/path/to/file'.\n"
+        "\n"
+        "Use --module=\"{...}\" to specify the list of modules inline.\n"
+        "\n"
+        "Example:\n"
+        "{\n"
+        "  \"libraries\": [\n"
+        "    {\n"
+        "      \"file\": \"/path/to/libfoo.so\",\n"
+        "      \"modules\": [\n"
+        "        \"org_apache_mesos_bar\",\n"
+        "        \"org_apache_mesos_baz\"\n"
+        "      ]\n"
+        "    }\n"
+        "  ]\n"
+        "}");
   }
 
   bool version;
@@ -327,6 +353,7 @@ public:
   Option<ACLs> acls;
   Option<RateLimits> rate_limits;
   Option<Duration> offer_timeout;
+  Option<Modules> modules;
 
 #ifdef WITH_NETWORK_ISOLATOR
   Option<size_t> max_executors_per_slave;

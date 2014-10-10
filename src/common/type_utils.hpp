@@ -340,6 +340,14 @@ inline std::ostream& operator << (
     << StatusUpdateRecord::Type_descriptor()->FindValueByNumber(type)->name();
 }
 
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const Modules& modules)
+{
+  return stream << modules.DebugString();
+}
+
 } // namespace internal {
 } // namespace mesos {
 

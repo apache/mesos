@@ -27,6 +27,9 @@
 
 #include <glog/logging.h>
 
+#include <mesos/mesos.hpp>
+#include <mesos/module.hpp>
+
 #include <messages/messages.hpp>
 
 #include <process/owned.hpp>
@@ -36,8 +39,6 @@
 #include <stout/hashmap.hpp>
 
 #include "common/lock.hpp"
-
-#include "mesos/mesos.hpp"
 
 namespace mesos {
 namespace internal {

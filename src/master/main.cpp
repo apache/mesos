@@ -53,6 +53,8 @@
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
 
+#include "module/manager.hpp"
+
 #include "state/in_memory.hpp"
 #include "state/log.hpp"
 #include "state/protobuf.hpp"
@@ -139,6 +141,16 @@ int main(int argc, char** argv)
   if (help) {
     usage(argv[0], flags);
     exit(1);
+  }
+
+  // Initialize modules. Note that since other subsystems may depend
+  // upon modules, we should initialize modules before anything else.
+  if (flags.modules.isSome()) {
+    Try<Nothing> result = ModuleManager::load(flags.modules.get());
+    if (result.isError()) {
+      cerr << "Error loading modules: " << result.error() << endl;
+      exit(1);
+    }
   }
 
   // Initialize libprocess.
