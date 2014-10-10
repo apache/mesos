@@ -35,5 +35,8 @@ int main(int argc, char** argv)
   listeners.Append(process::ClockTestEventListener::instance());
   listeners.Append(process::FilterTestEventListener::instance());
 
-  return RUN_ALL_TESTS();
+  int result = RUN_ALL_TESTS();
+
+  process::finalize();
+  return result;
 }

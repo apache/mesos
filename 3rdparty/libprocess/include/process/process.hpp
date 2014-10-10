@@ -270,6 +270,12 @@ void initialize(const std::string& delegate = "");
 
 
 /**
+ * Clean up the library.
+ */
+void finalize();
+
+
+/**
  * Returns the IP address associated with this instance of the
  * library.
  */

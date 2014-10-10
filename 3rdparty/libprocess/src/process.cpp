@@ -1673,6 +1673,12 @@ void initialize(const string& delegate)
 }
 
 
+void finalize()
+{
+  delete process_manager;
+}
+
+
 uint32_t ip()
 {
   process::initialize();
@@ -2435,7 +2441,22 @@ ProcessManager::ProcessManager(const string& _delegate)
 }
 
 
-ProcessManager::~ProcessManager() {}
+ProcessManager::~ProcessManager()
+{
+  ProcessBase* process = NULL;
+  // Pop a process off the top and terminate it. Don't hold the lock
+  // or process the whole map as terminating one process might
+  // trigger other terminations. Deal with them one at a time.
+  do {
+    synchronized (processes) {
+      process = !processes.empty() ? processes.begin()->second : NULL;
+    }
+    if (process != NULL) {
+      process::terminate(process);
+      process::wait(process);
+    }
+  } while (process != NULL);
+}
 
 
 ProcessReference ProcessManager::use(const UPID& pid)
