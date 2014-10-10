@@ -881,6 +881,8 @@ message ContainerInfo {
     }
 
     repeated PortMapping port_mappings = 3;
+
+    optional bool privileged = 4 [default = false];
   }
 
   required Type type = 1;

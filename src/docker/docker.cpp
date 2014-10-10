@@ -293,6 +293,10 @@ Future<Nothing> Docker::run(
   argv.push_back("run");
   argv.push_back("-d");
 
+  if (dockerInfo.privileged()) {
+    argv.push_back("--privileged");
+  }
+
   if (resources.isSome()) {
     // TODO(yifan): Support other resources (e.g. disk).
     Option<double> cpus = resources.get().cpus();
