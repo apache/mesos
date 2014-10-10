@@ -413,11 +413,10 @@ message TaskHealthStatus {
 // Collection of Modules.
 message Modules {
   message Library {
-    // TODO(karya): Add a "name" field that allows specifying library
-    // name instead of an absolute path.
-    //optional string name = 1;
-
-    optional string path = 1;
+    // If "file" contains a slash ("/"), then it is interpreted as a
+    // (relative or absolute) pathname.  Otherwise a standard library
+    // search is performed.
+    optional string file = 1;
 
     repeated string modules = 2;
   }

@@ -27,8 +27,9 @@
 // takes a list of libraries with contained modules as command line
 // argument (in JSON format or a path to a JSON file).
 //
-// JSON := [library, ...]
-// library := {"path": <library path>, "modules": [<module name>, ...]}
+// JSON := {"libraries": [library, ...]}
+// library := {"file": <library path>,
+//             "modules": [<module name>, ...]}
 //
 // How to write a module library:
 // 1. Define a create() function that returns a pointer to an object

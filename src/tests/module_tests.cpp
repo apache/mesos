@@ -17,6 +17,7 @@
  */
 
 #include <stout/dynamiclibrary.hpp>
+#include <stout/os.hpp>
 
 #include <examples/test_module.hpp>
 
@@ -27,6 +28,12 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
+#ifdef __linux__
+const char* libraryExtension = ".so";
+#else
+const char* libraryExtension = ".dylib";
+#endif
+
 using std::string;
 
 using namespace mesos;
@@ -36,19 +43,17 @@ using namespace mesos::internal::tests;
 
 class ModuleTest : public MesosTest {};
 
+static const string getLibraryDirectory()
+{
+  return path::join(tests::flags.build_dir, "src", ".libs");
+}
+
+
 static const string getLibraryPath(const string& libraryName)
 {
   return path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      "lib" + libraryName +
-#ifdef __linux__
-      ".so"
-#else
-      ".dylib"
-#endif
-      );
+     getLibraryDirectory(),
+     "lib" + libraryName + libraryExtension);
 }
 
 
@@ -56,7 +61,7 @@ static Modules getModules(const string& libraryName, const string& moduleName)
 {
   Modules modules;
   Modules::Library* library = modules.add_libraries();
-  library->set_path(getLibraryPath(libraryName));
+  library->set_file(getLibraryPath(libraryName));
   library->add_modules(moduleName);
   return modules;
 }
@@ -105,6 +110,69 @@ TEST_F(ModuleTest, AuthorInfoTest)
   EXPECT_EQ(stringify(moduleBase->authorName), "author");
   EXPECT_EQ(stringify(moduleBase->authorEmail), "author@email.com");
   EXPECT_EQ(stringify(moduleBase->description), "This is a test module.");
+
+  ModuleManager::unloadAll();
+}
+
+
+// Test that a module library gets loaded with just library name if
+// found in LD_LIBRARY_PATH.
+TEST_F(ModuleTest, NoAbsoluteLibraryPath)
+{
+  const string libraryName = stringify("libexamplemodule") + libraryExtension;
+  const string moduleName = "org_apache_mesos_TestModule";
+  const string ldLibraryPath = "LD_LIBRARY_PATH";
+
+  // Append our library path to LD_LIBRARY_PATH.
+  const string oldLdLibraryPath = os::getenv(ldLibraryPath, false);
+  const string newLdLibraryPath =
+    getLibraryDirectory() + ":" + oldLdLibraryPath;
+  os::setenv(ldLibraryPath, newLdLibraryPath);
+
+  Modules modules;
+  Modules::Library* library = modules.add_libraries();
+  library->set_file(libraryName);
+  library->add_modules(moduleName);
+
+  EXPECT_SOME(ModuleManager::load(modules));
+
+  Try<TestModule*> module = ModuleManager::create<TestModule>(moduleName);
+  EXPECT_SOME(module);
+
+  // The TestModuleImpl module's implementation of foo() returns
+  // the sum of the passed arguments, whereas bar() returns the
+  // product.
+  EXPECT_EQ(module.get()->foo('A', 1024), 1089);
+  EXPECT_EQ(module.get()->bar(0.5, 10.8), 5);
+
+  // reset LD_LIBRARY_PATH environment variable.
+  os::setenv(ldLibraryPath, oldLdLibraryPath);
+  ModuleManager::unloadAll();
+}
+
+
+// Test that module library loading fails when filename is empty.
+TEST_F(ModuleTest, EmptyLibraryFilename)
+{
+  const string libraryName = "";
+  const string moduleName = "org_apache_mesos_TestModule";
+
+  Modules modules = getModules(libraryName, moduleName);
+
+  EXPECT_ERROR(ModuleManager::load(modules));
+
+  ModuleManager::unloadAll();
+}
+
+
+// Test that module library loading fails when module name is empty.
+TEST_F(ModuleTest, EmptyModuleName)
+{
+  const string libraryName = "examplemodule";
+  const string moduleName = "";
+
+  Modules modules = getModules(libraryName, moduleName);
+  EXPECT_ERROR(ModuleManager::load(modules));
 
   ModuleManager::unloadAll();
 }
@@ -177,7 +245,7 @@ TEST_F(ModuleTest, DuplicateModule)
 
   // Add duplicate module.
   Modules::Library* library = modules.add_libraries();
-  library->set_path(getLibraryPath(libraryName));
+  library->set_file(getLibraryPath(libraryName));
   library->add_modules(moduleName);
 
   EXPECT_ERROR(ModuleManager::load(modules));

@@ -169,14 +169,13 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
   initialize();
 
   foreach (const Modules::Library& library, modules.libraries()) {
-    if (!library.has_path()) {
+    if (!library.has_file()) {
       return Error("Library path not provided");
     }
-
     Owned<DynamicLibrary> dynamicLibrary(new DynamicLibrary());
-    Try<Nothing> result = dynamicLibrary->open(library.path());
+    Try<Nothing> result = dynamicLibrary->open(library.file());
     if (!result.isSome()) {
-      return Error("Error opening library: '" + library.path() + "'");
+      return Error("Error opening library: '" + library.file() + "'");
     }
 
     // Currently we never delete the DynamicLibrary instance nor do we
@@ -188,6 +187,11 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
 
     // Load module manifests.
     foreach (const string& moduleName, library.modules()) {
+      if (moduleName.empty()) {
+        return Error(
+            "Error: module name not provided with library '" +
+            library.file() + "'");
+      }
       // Check for possible duplicate module names.
       if (moduleBases.contains(moduleName)) {
         return Error("Error loading duplicate module '" + moduleName + "'");
