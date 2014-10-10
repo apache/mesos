@@ -197,9 +197,10 @@ public:
       const StatusUpdate& update,
       const process::UPID& pid);
 
-  // This is called by status update manager to forward a
-  // status update to the master.
-  void forward(const StatusUpdate& update);
+  // This is called by status update manager to forward a status
+  // update to the master. Note that the latest state of the task is
+  // added to the update before forwarding.
+  void forward(StatusUpdate update);
 
   void statusUpdateAcknowledgement(
       const process::UPID& from,

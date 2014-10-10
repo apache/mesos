@@ -71,7 +71,7 @@ public:
   using process::ProcessBase::initialize;
 
   // StatusUpdateManager implementation.
-  void initialize(const function<void(const StatusUpdate&)>& forward);
+  void initialize(const function<void(StatusUpdate)>& forward);
 
   Future<Nothing> update(
       const StatusUpdate& update,
@@ -138,7 +138,7 @@ private:
   const Flags flags;
   bool paused;
 
-  function<void(const StatusUpdate&)> forward_;
+  function<void(StatusUpdate)> forward_;
 
   hashmap<FrameworkID, hashmap<TaskID, StatusUpdateStream*> > streams;
 };
@@ -160,7 +160,7 @@ StatusUpdateManagerProcess::~StatusUpdateManagerProcess()
 
 
 void StatusUpdateManagerProcess::initialize(
-    const function<void(const StatusUpdate&)>& forward)
+    const function<void(StatusUpdate)>& forward)
 {
   forward_ = forward;
 }
@@ -559,7 +559,7 @@ StatusUpdateManager::~StatusUpdateManager()
 
 
 void StatusUpdateManager::initialize(
-    const function<void(const StatusUpdate&)>& forward)
+    const function<void(StatusUpdate)>& forward)
 {
   dispatch(process, &StatusUpdateManagerProcess::initialize, forward);
 }

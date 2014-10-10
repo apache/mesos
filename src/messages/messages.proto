@@ -73,6 +73,13 @@ message StatusUpdate {
   required TaskStatus status = 4;
   required double timestamp = 5;
   required bytes uuid = 6;
+
+  // This corresponds to the latest state of the task according to the
+  // slave. Note that this state might be different than the state in
+  // 'status' because status update manager queues updates. In other
+  // words, 'status' corresponds to the update at top of the queue and
+  // 'latest_state' corresponds to the update at bottom of the queue.
+  optional TaskState latest_state = 7;
 }
 
 

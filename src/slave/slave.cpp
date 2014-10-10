@@ -2268,6 +2268,16 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
   stats.validStatusUpdates++;
   metrics.valid_status_updates++;
 
+  // We set the latest state of the task here so that the slave can
+  // inform the master about the latest state (via status update or
+  // ReregisterSlaveMessage message) as soon as possible. Master can
+  // use this information, for example, to release resources as soon
+  // as the latest state of the task reaches a terminal state. This
+  // is important because status update manager queues updates and
+  // only sends one update per task at a time; the next update for a
+  // task is sent only after the acknowledgement for the previous one
+  // is received, which could take a long time if the framework is
+  // backed up or is down.
   executor->updateTaskState(status);
 
   // Handle the task appropriately if it is terminated.
@@ -2372,7 +2382,7 @@ void Slave::__statusUpdate(
 
 // NOTE: An acknowledgement for this update might have already been
 // processed by the slave but not the status update manager.
-void Slave::forward(const StatusUpdate& update)
+void Slave::forward(StatusUpdate update)
 {
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)
@@ -2385,7 +2395,8 @@ void Slave::forward(const StatusUpdate& update)
     return;
   }
 
-  // Update the status update state of the task.
+  // Update the status update state of the task and include the latest
+  // state of the task in the status update.
   Framework* framework = getFramework(update.framework_id());
   if (framework != NULL) {
     const TaskID& taskId = update.status().task_id();
@@ -2402,17 +2413,22 @@ void Slave::forward(const StatusUpdate& update)
         task = executor->terminatedTasks[taskId];
       }
 
-      // We set the status update state of the task here because in
-      // steady state master updates the status update state of the
-      // task when it receives this update. If the master fails over,
-      // slave re-registers with this task with this status update
-      // state. Note that an acknowledgement for this update might be
-      // enqueued on status update manager when we are here. But that
-      // is ok because the status update state will be updated when
-      // the next update is forwarded to the slave.
       if (task != NULL) {
+        // We set the status update state of the task here because in
+        // steady state master updates the status update state of the
+        // task when it receives this update. If the master fails over,
+        // slave re-registers with this task in this status update
+        // state. Note that an acknowledgement for this update might
+        // be enqueued on status update manager when we are here. But
+        // that is ok because the status update state will be updated
+        // when the next update is forwarded to the slave.
         task->set_status_update_state(update.status().state());
         task->set_status_update_uuid(update.uuid());
+
+        // Include the latest state of task in the update. See the
+        // comments in 'statusUpdate()' on why informing the master
+        // about the latest state of the task is important.
+        update.set_latest_state(task->state());
       }
     }
   }

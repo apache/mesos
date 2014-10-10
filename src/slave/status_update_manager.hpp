@@ -78,7 +78,7 @@ public:
 
   // Expects a callback 'forward' which gets called whenever there is
   // a new status update that needs to be forwarded to the master.
-  void initialize(const lambda::function<void(const StatusUpdate&)>& forward);
+  void initialize(const lambda::function<void(StatusUpdate)>& forward);
 
   // TODO(vinod): Come up with better names/signatures for the
   // checkpointing and non-checkpointing 'update()' functions.

@@ -782,3 +782,83 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
 
   Shutdown();
 }
+
+
+// This test verifies that the status update manager correctly includes
+// the latest state of the task in status update.
+TEST_F(StatusUpdateManagerTest, LatestTaskState)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave> > slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // Signal when the first update is dropped.
+  Future<StatusUpdateMessage> statusUpdateMessage =
+    DROP_PROTOBUF(StatusUpdateMessage(), _, master.get());
+
+  Future<Nothing> __statusUpdate = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+
+  driver.start();
+
+  // Wait until TASK_RUNNING is sent to the master.
+  AWAIT_READY(statusUpdateMessage);
+
+  // Ensure the status update manager handles the TASK_RUNNING update.
+  AWAIT_READY(__statusUpdate);
+
+  // Pause the clock to avoid status update manager from retrying.
+  Clock::pause();
+
+  Future<Nothing> __statusUpdate2 = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+
+  // Now send TASK_FINISHED update.
+  TaskStatus finishedStatus;
+  finishedStatus = statusUpdateMessage.get().update().status();
+  finishedStatus.set_state(TASK_FINISHED);
+  execDriver->sendStatusUpdate(finishedStatus);
+
+  // Ensure the status update manager handles the TASK_FINISHED update.
+  AWAIT_READY(__statusUpdate2);
+
+  // Signal when the second update is dropped.
+  Future<StatusUpdateMessage> statusUpdateMessage2 =
+    DROP_PROTOBUF(StatusUpdateMessage(), _, master.get());
+
+  // Advance the clock for the status update manager to send a retry.
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+
+  AWAIT_READY(statusUpdateMessage2);
+
+  // The update should correspond to TASK_RUNNING.
+  ASSERT_EQ(TASK_RUNNING, statusUpdateMessage2.get().update().status().state());
+
+  // The update should include TASK_FINISHED as the latest state.
+  ASSERT_EQ(TASK_FINISHED,
+            statusUpdateMessage2.get().update().latest_state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
