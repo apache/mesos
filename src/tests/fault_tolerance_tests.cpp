@@ -126,9 +126,6 @@ TEST_F(FaultToleranceTest, SlaveLost)
 }
 
 
-
-
-
 // The purpose of this test is to ensure that when slaves are removed
 // from the master, and then attempt to send status updates, we send
 // a ShutdownMessage to the slave. Why? Because during a network

@@ -44,10 +44,17 @@ message Task {
   required FrameworkID framework_id = 3;
   optional ExecutorID executor_id = 4;
   required SlaveID slave_id = 5;
-  required TaskState state = 6;
+  required TaskState state = 6; // Latest state of the task.
   repeated Resource resources = 7;
   repeated TaskStatus statuses = 8;
+
+  // These fields correspond to the state and uuid of the latest
+  // status update forwarded to the master.
+  // NOTE: Either both the fields must be set or both must be unset.
+  optional TaskState status_update_state = 9;
+  optional bytes status_update_uuid = 10;
 }
+
 
 // Describes a role, which are used to group frameworks for allocation
 // decisions, depending on the allocation policy being used.
@@ -58,6 +65,7 @@ message RoleInfo {
 }
 
 
+// TODO(vinod): Create a new UUID message type.
 message StatusUpdate {
   required FrameworkID framework_id = 1;
   optional ExecutorID executor_id = 2;

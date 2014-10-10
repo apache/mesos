@@ -957,12 +957,16 @@ void Slave::doReliableRegistration(const Duration& duration)
         // Add launched, terminated, and queued tasks.
         // Note that terminated executors will only have terminated
         // unacknowledged tasks.
+        // Note that for each task the latest state and status update
+        // state (if any) is also included.
         foreach (Task* task, executor->launchedTasks.values()) {
           message.add_tasks()->CopyFrom(*task);
         }
+
         foreach (Task* task, executor->terminatedTasks.values()) {
           message.add_tasks()->CopyFrom(*task);
         }
+
         foreach (const TaskInfo& task, executor->queuedTasks.values()) {
           message.add_tasks()->CopyFrom(protobuf::createTask(
               task, TASK_STAGING, framework->id));
@@ -2381,8 +2385,49 @@ void Slave::forward(const StatusUpdate& update)
     return;
   }
 
+  // Update the status update state of the task.
+  Framework* framework = getFramework(update.framework_id());
+  if (framework != NULL) {
+    const TaskID& taskId = update.status().task_id();
+    Executor* executor = framework->getExecutor(taskId);
+    if (executor != NULL) {
+      // NOTE: We do not look for the task in queued tasks because
+      // no update is expected for it until it's launched. Similarly,
+      // we do not look for completed tasks because the state for a
+      // completed task shouldn't be changed.
+      Task* task = NULL;
+      if (executor->launchedTasks.contains(taskId)) {
+        task = executor->launchedTasks[taskId];
+      } else if (executor->terminatedTasks.contains(taskId)) {
+        task = executor->terminatedTasks[taskId];
+      }
+
+      // We set the status update state of the task here because in
+      // steady state master updates the status update state of the
+      // task when it receives this update. If the master fails over,
+      // slave re-registers with this task with this status update
+      // state. Note that an acknowledgement for this update might be
+      // enqueued on status update manager when we are here. But that
+      // is ok because the status update state will be updated when
+      // the next update is forwarded to the slave.
+      if (task != NULL) {
+        task->set_status_update_state(update.status().state());
+        task->set_status_update_uuid(update.uuid());
+      }
+    }
+  }
+
   CHECK_SOME(master);
   LOG(INFO) << "Forwarding the update " << update << " to " << master.get();
+
+  // NOTE: We forward the update even if framework/executor/task
+  // doesn't exist because the status update manager will be expecting
+  // an acknowledgement for the update. This could happen for example
+  // if this is a retried terminal update and before we are here the
+  // slave has already processed the acknowledgement of the original
+  // update and removed the framework/executor/task. Also, slave
+  // re-registration can generate updates when framework/executor/task
+  // are unknown.
 
   // Forward the update to master.
   StatusUpdateMessage message;

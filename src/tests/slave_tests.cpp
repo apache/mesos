@@ -1155,3 +1155,102 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
+
+
+// This test verifies that when a slave re-registers with the master
+// it correctly includes the latest and status update task states.
+TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  // Create a StandaloneMasterDetector to enable the slave to trigger
+  // re-registration later.
+  StandaloneMasterDetector detector(master.get());
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave(&exec, &detector);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 1024, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // Signal when the first update is dropped.
+  Future<StatusUpdateMessage> statusUpdateMessage =
+    DROP_PROTOBUF(StatusUpdateMessage(), _, master.get());
+
+  Future<Nothing> __statusUpdate = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+
+  driver.start();
+
+  // Pause the clock to avoid status update retries.
+  Clock::pause();
+
+  // Wait until TASK_RUNNING is sent to the master.
+  AWAIT_READY(statusUpdateMessage);
+
+  // Ensure status update manager handles TASK_RUNNING update.
+  AWAIT_READY(__statusUpdate);
+
+  Future<Nothing> __statusUpdate2 = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+
+  // Now send TASK_FINISHED update.
+  TaskStatus finishedStatus;
+  finishedStatus = statusUpdateMessage.get().update().status();
+  finishedStatus.set_state(TASK_FINISHED);
+  execDriver->sendStatusUpdate(finishedStatus);
+
+  // Ensure status update manager handles TASK_FINISHED update.
+  AWAIT_READY(__statusUpdate2);
+
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  // Drop any updates to the failed over master.
+  DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get());
+
+  // Simulate a new master detected event on the slave,
+  // so that the slave will do a re-registration.
+  detector.appoint(master.get());
+
+  // Capture and inspect the slave reregistration message.
+  AWAIT_READY(reregisterSlaveMessage);
+
+  ASSERT_EQ(1, reregisterSlaveMessage.get().tasks_size());
+
+  // The latest state of the task should be TASK_FINISHED.
+  ASSERT_EQ(TASK_FINISHED, reregisterSlaveMessage.get().tasks(0).state());
+
+  // The status update state of the task should be TASK_RUNNING.
+  ASSERT_EQ(TASK_RUNNING,
+            reregisterSlaveMessage.get().tasks(0).status_update_state());
+
+  // The status update uuid should match the TASK_RUNNING's uuid.
+  ASSERT_EQ(statusUpdateMessage.get().update().uuid(),
+            reregisterSlaveMessage.get().tasks(0).status_update_uuid());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
