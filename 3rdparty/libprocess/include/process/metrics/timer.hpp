@@ -56,21 +56,27 @@ public:
   }
 
   // Stop the Timer.
-  void stop()
+  T stop()
   {
     const Time stop = Clock::now();
+
+    T t(0);
 
     double value;
 
     process::internal::acquire(&data->lock);
     {
-      data->lastValue = T(stop - data->start).value();
+      t = T(stop - data->start);
+
+      data->lastValue = t.value();
 
       value = data->lastValue.get();
     }
     process::internal::release(&data->lock);
 
     push(value);
+
+    return t;
   }
 
   // Time an asynchronous event.
