@@ -240,6 +240,11 @@ private:
 
   struct Container
   {
+    static Try<Container*> create(
+	const ContainerID& id,
+	const std::string& directory,
+	const Option<std::string>& user);
+
     Container(const ContainerID& id)
       : state(FETCHING), id(id) {}
 
@@ -362,6 +367,37 @@ DockerContainerizer::~DockerContainerizer()
   terminate(process);
   process::wait(process);
   delete process;
+}
+
+
+Future<Nothing> DockerContainerizerProcess::Container::create(
+    const ContainerID& containerId,
+    const string& directory,
+    const Option<string>& user)
+{
+  // Before we do anything else we first make sure the stdout/stderr
+  // files exist and have the right file ownership.
+  Try<Nothing> touch = os::touch(path::join(directory, "stdout"));
+
+  if (touch.isError()) {
+    return Failure("Failed to touch 'stdout': " + touch.error());
+  }
+
+  touch = os::touch(path::join(directory, "stderr"));
+
+  if (touch.isError()) {
+    return Failure("Failed to touch 'stderr': " + touch.error());
+  }
+
+  if (user.isSome()) {
+    Try<Nothing> chown = os::chown(user.get(), directory);
+
+    if (chown.isError()) {
+      return Failure("Failed to chown: " + chown.error());
+    }
+  }
+
+  return new Container(containerId);
 }
 
 
@@ -715,35 +751,18 @@ Future<bool> DockerContainerizerProcess::launch(
     return false;
   }
 
-  // Before we do anything else we first make sure the stdout/stderr
-  // files exist and have the right file ownership.
-  Try<Nothing> touch = os::touch(path::join(directory, "stdout"));
+  Try<Container*> container = Container::create(containerId, directory, user);
 
-  if (touch.isError()) {
-    return Failure("Failed to touch 'stdout': " + touch.error());
+  if (container.isError()) {
+    return Failure("Failed to create container: " + container.error());
   }
 
-  touch = os::touch(path::join(directory, "stderr"));
-
-  if (touch.isError()) {
-    return Failure("Failed to touch 'stderr': " + touch.error());
-  }
-
-  if (user.isSome()) {
-    Try<Nothing> chown = os::chown(user.get(), directory);
-
-    if (chown.isError()) {
-      return Failure("Failed to chown: " + chown.error());
-    }
-  }
+  containers_[containerId] = container.get();
 
   LOG(INFO) << "Starting container '" << containerId
             << "' for task '" << taskInfo.task_id()
             << "' (and executor '" << executorInfo.executor_id()
             << "') of framework '" << executorInfo.framework_id() << "'";
-
-  Container* container = new Container(containerId);
-  containers_[containerId] = container;
 
   return fetch(containerId, taskInfo.command(), directory)
     .then(defer(self(),
@@ -956,34 +975,17 @@ Future<bool> DockerContainerizerProcess::launch(
     return false;
   }
 
-  // Before we do anything else we first make sure the stdout/stderr
-  // files exist and have the right file ownership.
-  Try<Nothing> touch = os::touch(path::join(directory, "stdout"));
+  Try<Container*> container = Container::create(containerId, directory, user);
 
-  if (touch.isError()) {
-    return Failure("Failed to touch 'stdout': " + touch.error());
+  if (container.isError()) {
+    return Failure("Failed to create container: " + container.error());
   }
 
-  touch = os::touch(path::join(directory, "stderr"));
-
-  if (touch.isError()) {
-    return Failure("Failed to touch 'stderr': " + touch.error());
-  }
-
-  if (user.isSome()) {
-    Try<Nothing> chown = os::chown(user.get(), directory);
-
-    if (chown.isError()) {
-      return Failure("Failed to chown: " + chown.error());
-    }
-  }
+  containers_[containerId] = container.get();
 
   LOG(INFO) << "Starting container '" << containerId
             << "' for executor '" << executorInfo.executor_id()
             << "' and framework '" << executorInfo.framework_id() << "'";
-
-  Container* container = new Container(containerId);
-  containers_[containerId] = container;
 
   return fetch(containerId, executorInfo.command(), directory)
     .then(defer(self(),
