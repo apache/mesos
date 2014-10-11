@@ -154,15 +154,25 @@ private:
       const ContainerID& containerId,
       const std::string& directory);
 
-  process::Future<bool> ___launch(
+  // NOTE: This continuation is only applicable when launching a
+  // container for a task.
+  process::Future<pid_t> ___launch(
       const ContainerID& containerId);
 
-  process::Future<bool> ____launch(
+  // NOTE: This continuation is only applicable when launching a
+  // container for an executor.
+  process::Future<Docker::Container> ____launch(
       const ContainerID& containerId);
 
-  process::Future<bool> _____launch(
+  // NOTE: This continuation is only applicable when launching a
+  // container for an executor.
+  process::Future<pid_t> _____launch(
       const ContainerID& containerId,
       const Docker::Container& container);
+
+  process::Future<bool> ______launch(
+    const ContainerID& containerId,
+    pid_t pid);
 
   void _destroy(
       const ContainerID& containerId,
@@ -876,6 +886,7 @@ Future<bool> DockerContainerizerProcess::launch(
     .then(defer(self(), &Self::_launch, containerId, directory))
     .then(defer(self(), &Self::__launch, containerId, directory))
     .then(defer(self(), &Self::___launch, containerId))
+    .then(defer(self(), &Self::______launch, containerId, lambda::_1))
     .onFailed(defer(self(), &Self::destroy, containerId, true));
 }
 
@@ -930,11 +941,11 @@ Future<Nothing> DockerContainerizerProcess::__launch(
 }
 
 
-Future<bool> DockerContainerizerProcess::___launch(
+Future<pid_t> DockerContainerizerProcess::___launch(
     const ContainerID& containerId)
 {
   // After we do Docker::run we shouldn't remove a container until
-  // after we set 'status', which we do in this function.
+  // after we set Container::status.
   CHECK(containers_.contains(containerId));
 
   Container* container = containers_[containerId];
@@ -1000,16 +1011,7 @@ Future<bool> DockerContainerizerProcess::___launch(
     return Failure("Failed to synchronize with child process: " + error);
   }
 
-  // And finally watch for when the executor gets reaped.
-  container->status.set(process::reap(s.get().pid()));
-
-  container->status.future().get()
-    .onAny(defer(self(), &Self::reaped, containerId));
-
-  // TODO(benh): Check failure of Docker::logs.
-  docker.logs(container->name(), container->directory);
-
-  return true;
+  return s.get().pid();
 }
 
 
@@ -1063,27 +1065,31 @@ Future<bool> DockerContainerizerProcess::launch(
     .then(defer(self(), &Self::_launch, containerId, directory))
     .then(defer(self(), &Self::__launch, containerId, directory))
     .then(defer(self(), &Self::____launch, containerId))
+    .then(defer(self(), &Self::_____launch, containerId, lambda::_1))
+    .then(defer(self(), &Self::______launch, containerId, lambda::_1))
     .onFailed(defer(self(), &Self::destroy, containerId, true));
 }
 
 
-Future<bool> DockerContainerizerProcess::____launch(
+Future<Docker::Container> DockerContainerizerProcess::____launch(
     const ContainerID& containerId)
 {
-  // We shouldn't remove container until we set 'status'.
+  // After we do Docker::run we shouldn't remove a container until
+  // after we set Container::status.
   CHECK(containers_.contains(containerId));
 
-  return docker.inspect(containers_[containerId]->name())
-     .then(defer(self(), &Self::_____launch, containerId, lambda::_1));
+  Container* container = containers_[containerId];
+
+  return docker.inspect(container->name());
 }
 
 
-Future<bool> DockerContainerizerProcess::_____launch(
+Future<pid_t> DockerContainerizerProcess::_____launch(
     const ContainerID& containerId,
     const Docker::Container& container)
 {
   // After we do Docker::run we shouldn't remove a container until
-  // after we set 'status', which we do in this function.
+  // after we set Container::status.
   CHECK(containers_.contains(containerId));
 
   Option<int> pid = container.pid;
@@ -1105,14 +1111,28 @@ Future<bool> DockerContainerizerProcess::_____launch(
 	"Failed to checkpoint executor's pid: " + checkpointed.error());
   }
 
-  // And finally watch for when the container gets reaped.
-  containers_[containerId]->status.set(process::reap(pid.get()));
+  return pid.get();
+}
 
-  containers_[containerId]->status.future().get()
+
+Future<bool> DockerContainerizerProcess::______launch(
+    const ContainerID& containerId,
+    pid_t pid)
+{
+  // After we do Docker::run we shouldn't remove a container until
+  // after we set 'status', which we do in this function.
+  CHECK(containers_.contains(containerId));
+
+  Container* container = containers_[containerId];
+
+  // And finally watch for when the container gets reaped.
+  container->status.set(process::reap(pid));
+
+  container->status.future().get()
     .onAny(defer(self(), &Self::reaped, containerId));
 
   // TODO(benh): Check failure of Docker::logs.
-  docker.logs(containers_[containerId]->name(), containers_[containerId]->directory);
+  docker.logs(container->name(), container->directory);
 
   return true;
 }
