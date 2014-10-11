@@ -63,7 +63,7 @@ using testing::An;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Return;
-
+using testing::SaveArg;
 
 class ReconciliationTest : public MesosTest {};
 
@@ -741,4 +741,117 @@ TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
   driver.join();
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// This test verifies that when the task's latest and status update
+// states differ, master responds to reconciliation request with the
+// status update state.
+TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a slave.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  StandaloneMasterDetector slaveDetector(master.get());
+  Try<PID<Slave> > slave = StartSlave(&exec, &slaveDetector);
+  ASSERT_SOME(slave);
+
+  // Start a scheduler.
+  MockScheduler sched;
+  StandaloneMasterDetector schedulerDetector(master.get());
+  TestingMesosSchedulerDriver driver(&sched, &schedulerDetector);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 1024, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // Signal when the first update is dropped.
+  Future<StatusUpdateMessage> statusUpdateMessage =
+    DROP_PROTOBUF(StatusUpdateMessage(), _, master.get());
+
+  Future<Nothing> __statusUpdate = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+
+  driver.start();
+
+  // Pause the clock to avoid status update retries.
+  Clock::pause();
+
+  // Wait until TASK_RUNNING is sent to the master.
+  AWAIT_READY(statusUpdateMessage);
+
+  // Ensure status update manager handles TASK_RUNNING update.
+  AWAIT_READY(__statusUpdate);
+
+  Future<Nothing> __statusUpdate2 = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+
+  // Now send TASK_FINISHED update.
+  TaskStatus finishedStatus;
+  finishedStatus = statusUpdateMessage.get().update().status();
+  finishedStatus.set_state(TASK_FINISHED);
+  execDriver->sendStatusUpdate(finishedStatus);
+
+  // Ensure status update manager handles TASK_FINISHED update.
+  AWAIT_READY(__statusUpdate2);
+
+  EXPECT_CALL(sched, disconnected(&driver))
+    .WillOnce(Return());
+
+  // Simulate master failover by restarting the master.
+  this->Stop(master.get());
+  master = StartMaster();
+
+  Clock::resume();
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Re-register the framework.
+  schedulerDetector.appoint(master.get());
+
+  AWAIT_READY(registered);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), slave.get());
+
+  // Drop all updates to the second master.
+  DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get());
+
+  // Re-register the slave.
+  slaveDetector.appoint(master.get());
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Framework should receive a TASK_RUNNING update, since that is the
+  // latest status update state of the task.
+  Future<TaskStatus> update;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  // Reconcile the state of the task.
+  vector<TaskStatus> statuses;
+  driver.reconcileTasks(statuses);
+
+  AWAIT_READY(update);
+  EXPECT_EQ(TASK_RUNNING, update.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
 }

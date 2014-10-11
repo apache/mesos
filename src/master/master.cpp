@@ -3535,11 +3535,15 @@ void Master::reconcileTasks(
     }
 
     foreachvalue (Task* task, framework->tasks) {
+      const TaskState& state = task->has_status_update_state()
+          ? task->status_update_state()
+          : task->state();
+
       const StatusUpdate& update = protobuf::createStatusUpdate(
           frameworkId,
           task->slave_id(),
           task->task_id(),
-          task->state(),
+          state,
           "Reconciliation: Latest task state");
 
       VLOG(1) << "Sending implicit reconciliation state "
@@ -3593,12 +3597,16 @@ void Master::reconcileTasks(
           TASK_STAGING,
           "Reconciliation: Latest task state");
     } else if (task != NULL) {
-      // (2) Task is known: send the latest state.
+      // (2) Task is known: send the latest status update state.
+      const TaskState& state = task->has_status_update_state()
+          ? task->status_update_state()
+          : task->state();
+
       update = protobuf::createStatusUpdate(
           frameworkId,
           task->slave_id(),
           task->task_id(),
-          task->state(),
+          state,
           "Reconciliation: Latest task state");
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
       // (3) Task is unknown, slave is registered: TASK_LOST.
@@ -3948,10 +3956,17 @@ void Master::reconcile(
                          : ": sending TASK_LOST");
 
         if (slave->version.isSome()) {
+          // NOTE: Currently the slave doesn't look at the task state
+          // when it reconciles the task state; we include the correct
+          // state for correctness and consistency.
+          const TaskState& state = task->has_status_update_state()
+              ? task->status_update_state()
+              : task->state();
+
           TaskStatus* status = reconcile.add_statuses();
           status->mutable_task_id()->CopyFrom(task->task_id());
           status->mutable_slave_id()->CopyFrom(slave->id);
-          status->set_state(task->state());
+          status->set_state(state);
           status->set_message("Reconciliation request");
           status->set_timestamp(Clock::now().secs());
         } else {
