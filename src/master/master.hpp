@@ -378,7 +378,7 @@ protected:
 
   // Transitions the task, and recovers resources if the task becomes
   // terminal.
-  void updateTask(Task* task, const TaskStatus& status);
+  void updateTask(Task* task, const StatusUpdate& update);
 
   // Removes the task.
   void removeTask(Task* task);

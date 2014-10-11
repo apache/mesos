@@ -62,6 +62,7 @@ using namespace mesos::internal::tests;
 using mesos::internal::master::Master;
 
 using mesos::internal::master::allocator::AllocatorProcess;
+using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
 
 using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::Slave;
@@ -2348,6 +2349,89 @@ TEST_F(MasterTest, UnacknowledgedTerminalTask)
 
   // Ensure we get all of the resources back.
   EXPECT_EQ(offers1.get()[0].resources(), offers2.get()[0].resources());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// This test ensures that the master releases resources for a
+// terminated task even when it receives a non-terminal update (with
+// latest state set).
+TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:64";
+  Try<PID<Slave> > slave = StartSlave(&containerizer, slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // Drop all the updates from master to scheduler.
+  DROP_PROTOBUFS(StatusUpdateMessage(), master.get(), _);
+
+  Future<StatusUpdateMessage> statusUpdateMessage =
+    FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get());
+
+  Future<Nothing> __statusUpdate = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+
+  driver.start();
+
+  // Wait until TASK_RUNNING is sent to the master.
+  AWAIT_READY(statusUpdateMessage);
+
+  // Ensure status update manager handles TASK_RUNNING update.
+  AWAIT_READY(__statusUpdate);
+
+  Future<Nothing> __statusUpdate2 = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+
+  // Now send TASK_FINISHED update.
+  TaskStatus finishedStatus;
+  finishedStatus = statusUpdateMessage.get().update().status();
+  finishedStatus.set_state(TASK_FINISHED);
+  execDriver->sendStatusUpdate(finishedStatus);
+
+  // Ensure status update manager handles TASK_FINISHED update.
+  AWAIT_READY(__statusUpdate2);
+
+  Future<Nothing> resourcesRecovered = FUTURE_DISPATCH(
+      _, &HierarchicalDRFAllocatorProcess::resourcesRecovered);
+
+  // Advance the clock so that the status update manager resends
+  // TASK_RUNNING update with 'latest_state' as TASK_FINISHED.
+  Clock::pause();
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+  Clock::resume();
+
+  // Ensure the resources are recovered.
+  AWAIT_READY(resourcesRecovered);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

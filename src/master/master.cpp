@@ -2844,18 +2844,38 @@ void Master::statusUpdateAcknowledgement(
 
   Task* task = slave->getTask(frameworkId, taskId);
 
-  if (task != NULL && protobuf::isTerminalState(task->state())) {
-    removeTask(task);
+  if (task != NULL) {
+    // Status update state and uuid should be either set or unset
+    // together.
+    CHECK_EQ(task->has_status_update_uuid(), task->has_status_update_state());
+
+    if (!task->has_status_update_state()) {
+      // Task should have status update state set because it must have
+      // been set when the update corresponding to this
+      // acknowledgement was processed by the master. But in case this
+      // acknowledgement was intended for the old run of the master
+      // and the task belongs to a 0.20.0 slave, we could be here.
+      // Dropping the acknowledgement is safe because the slave will
+      // retry the update, at which point the master will set the
+      // status update state.
+      LOG(ERROR)
+        << "Ignoring status update acknowledgement message for task " << taskId
+        << " of framework " << *framework << " to slave " << *slave
+        << " because it no update was sent by this master";
+      metrics.invalid_status_update_acknowledgements++;
+      return;
+    }
+
+    // Remove the task once the terminal update is acknowledged.
+    if (protobuf::isTerminalState(task->status_update_state()) &&
+        task->status_update_uuid() == uuid) {
+      removeTask(task);
+     }
   }
 
   LOG(INFO) << "Forwarding status update acknowledgement "
             << UUID::fromBytes(uuid) << " for task " << taskId
             << " of framework " << *framework << " to slave " << *slave;
-
-  // TODO(bmahler): Once we store terminal unacknowledged updates in
-  // the master per MESOS-1410, this is where we'll find the
-  // unacknowledged task and remove it if present.
-  // Also, be sure to confirm Master::reconcile is still correct!
 
   StatusUpdateAcknowledgementMessage message;
   message.mutable_slave_id()->CopyFrom(slaveId);
@@ -3294,12 +3314,8 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 }
 
 
-// TODO(bmahler): The master will not release resources until the
-// slave receives acknowlegements for all non-terminal updates. This
-// means if a framework is down, the resources will remain allocated
-// even though the tasks are terminal on the slaves!
-// TODO(vinod): Since 0.22.0, we can use 'from' instead of 'pid' because
-// the status updates will be sent by the slave.
+// TODO(vinod): Since 0.22.0, we can use 'from' instead of 'pid'
+// because the status updates will be sent by the slave.
 void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 {
   ++metrics.messages_status_update;
@@ -3359,7 +3375,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
   LOG(INFO) << "Status update " << update << " from slave " << *slave;
 
-  updateTask(task, update.status());
+  updateTask(task, update);
 
   // If the task is terminal and no acknowledgement is needed,
   // then remove the task now.
@@ -3947,7 +3963,7 @@ void Master::reconcile(
               TASK_LOST,
               "Task is unknown to the slave");
 
-          updateTask(task, update.status());
+          updateTask(task, update);
           removeTask(task);
 
           Framework* framework = getFramework(frameworkId);
@@ -4279,7 +4295,7 @@ void Master::removeFramework(Slave* slave, Framework* framework)
         (task->has_executor_id()
             ? Option<ExecutorID>(task->executor_id()) : None()));
 
-      updateTask(task, update.status());
+      updateTask(task, update);
       removeTask(task);
       forward(update, UPID(), framework);
     }
@@ -4396,7 +4412,7 @@ void Master::removeSlave(Slave* slave)
           (task->has_executor_id() ?
               Option<ExecutorID>(task->executor_id()) : None()));
 
-      updateTask(task, update.status());
+      updateTask(task, update);
       removeTask(task);
 
       updates.push_back(update);
@@ -4495,12 +4511,15 @@ void Master::_removeSlave(
 }
 
 
-void Master::updateTask(Task* task, const TaskStatus& status)
+void Master::updateTask(Task* task, const StatusUpdate& update)
 {
   CHECK_NOTNULL(task);
 
+  // Get the unacknowledged status.
+  const TaskStatus& status  = update.status();
+
   // Out-of-order updates should not occur, however in case they
-  // do (e.g. MESOS-1799), prevent them here to ensure that the
+  // do (e.g., due to bugs), prevent them here to ensure that the
   // resource accounting is not affected.
   if (protobuf::isTerminalState(task->state()) &&
       !protobuf::isTerminalState(status.state())) {
@@ -4511,9 +4530,33 @@ void Master::updateTask(Task* task, const TaskStatus& status)
     return;
   }
 
-  bool terminated =
-    !protobuf::isTerminalState(task->state()) &&
-    protobuf::isTerminalState(status.state());
+  // Get the latest state.
+  Option<TaskState> latestState;
+  if (update.has_latest_state()) {
+    latestState = update.latest_state();
+  }
+
+  // Set 'terminated' to true if this is the first time the task
+  // transitioned to terminal state. Also set the latest state.
+  bool terminated;
+  if (latestState.isSome()) {
+    // This update must be from >= 0.21.0 slave.
+    terminated = !protobuf::isTerminalState(task->state()) &&
+                 protobuf::isTerminalState(latestState.get());
+
+    task->set_state(latestState.get());
+  } else {
+    // This update must be from a pre 0.21.0 slave or generated by the
+    // master.
+    terminated = !protobuf::isTerminalState(task->state()) &&
+                 protobuf::isTerminalState(status.state());
+
+    task->set_state(status.state());
+  }
+
+  // Set the status update state and uuid for the task.
+  task->set_status_update_state(status.state());
+  task->set_status_update_uuid(update.uuid());
 
   // TODO(brenden) Consider wiping the `message` field?
   if (task->statuses_size() > 0 &&
@@ -4530,7 +4573,12 @@ void Master::updateTask(Task* task, const TaskStatus& status)
   // MESOS-1746.
   task->mutable_statuses(task->statuses_size() - 1)->clear_data();
 
-  task->set_state(status.state());
+  LOG(INFO) << "Updating the latest state of task " << task->task_id()
+            << " of framework " << task->framework_id()
+            << " to " << task->state()
+            << (task->state() != status.state()
+                ? " (status update state: " + stringify(status.state()) + ")"
+                : "");
 
   stats.tasks[status.state()]++;
 
