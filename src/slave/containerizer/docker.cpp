@@ -146,22 +146,9 @@ private:
       const ContainerID& containerId,
       const std::string& directory);
 
-  process::Future<bool> __launch(
+  process::Future<Nothing> __launch(
       const ContainerID& containerId,
-      const TaskInfo& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const SlaveID& slaveId,
-      const PID<Slave>& slavePid,
-      bool checkpoint);
-
-  process::Future<bool> __launch(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const string& directory,
-      const SlaveID& slaveId,
-      const PID<Slave>& slavePid,
-      bool checkpoint);
+      const std::string& directory);
 
   process::Future<bool> ___launch(
       const ContainerID& containerId,
@@ -232,18 +219,34 @@ private:
 	const Option<TaskInfo>& taskInfo,
 	const ExecutorInfo& executorInfo,
 	const std::string& directory,
-	const Option<std::string>& user);
+	const Option<std::string>& user,
+	const SlaveID& slaveId,
+	const PID<Slave>& slavePid,
+	bool checkpoint,
+	const Flags& flags);
 
     Container(const ContainerID& id)
       : state(FETCHING), id(id) {}
 
     Container(const ContainerID& id,
 	      const Option<TaskInfo>& taskInfo,
-	      const ExecutorInfo& executorInfo)
+	      const ExecutorInfo& executorInfo,
+	      const std::string& directory,
+	      const Option<std::string>& user,
+	      const SlaveID& slaveId,
+	      const PID<Slave>& slavePid,
+	      bool checkpoint,
+	      const Flags& flags)
       : state(FETCHING),
 	id(id),
 	task(taskInfo),
-	executor(executorInfo) {}
+	executor(executorInfo),
+	directory(directory),
+	user(user),
+	slaveId(slaveId),
+	slavePid(slavePid),
+	checkpoint(checkpoint),
+	flags(flags) {}
 
     std::string name()
     {
@@ -257,6 +260,49 @@ private:
       }
 
       return executor.container().docker().image();
+    }
+
+    ContainerInfo container() const
+    {
+      if (task.isSome()) {
+	return task.get().container();
+      }
+
+      return executor.container();
+    }
+
+    CommandInfo command() const
+    {
+      if (task.isSome()) {
+	return task.get().command();
+      }
+
+      return executor.command();
+    }
+
+    // Returns the environment to use when launching the Docker container.
+    std::map<std::string, std::string> environment() const
+    {
+      if (task.isSome()) {
+	// TODO(benh): Is this really correct!?
+	return std::map<std::string, std::string>();
+      }
+
+      std::map<std::string, std::string> environment = executorEnvironment(
+	  executor,
+	  directory,
+	  slaveId,
+	  slavePid,
+	  checkpoint,
+	  flags.recovery_timeout);
+
+      // Include any environment variables from CommandInfo.
+      foreach (const Environment::Variable& variable,
+	       executor.command().environment().variables()) {
+	environment[variable.name()] = variable.value();
+      }
+
+      return environment;
     }
 
     // The DockerContainerier needs to be able to properly clean up
@@ -291,6 +337,12 @@ private:
     ContainerID id;
     Option<TaskInfo> task;
     ExecutorInfo executor;
+    std::string directory;
+    Option<std::string> user;
+    SlaveID slaveId;
+    PID<Slave> slavePid;
+    bool checkpoint;
+    Flags flags;
 
     // Promise for future returned from wait().
     Promise<containerizer::Termination> termination;
@@ -384,7 +436,11 @@ DockerContainerizerProcess::Container::create(
     const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
-    const Option<string>& user)
+    const Option<string>& user,
+    const SlaveID& slaveId,
+    const PID<Slave>& slavePid,
+    bool checkpoint,
+    const Flags& flags)
 {
   // Before we do anything else we first make sure the stdout/stderr
   // files exist and have the right file ownership.
@@ -408,7 +464,16 @@ DockerContainerizerProcess::Container::create(
     }
   }
 
-  return new Container(id, taskInfo, executorInfo);
+  return new Container(
+      id,
+      taskInfo,
+      executorInfo,
+      directory,
+      user,
+      slaveId,
+      slavePid,
+      checkpoint,
+      flags);
 }
 
 
@@ -763,7 +828,15 @@ Future<bool> DockerContainerizerProcess::launch(
   }
 
   Try<Container*> container = Container::create(
-      containerId, taskInfo, executorInfo, directory, user);
+      containerId,
+      taskInfo,
+      executorInfo,
+      directory,
+      user,
+      slaveId,
+      slavePid,
+      checkpoint,
+      flags);
 
   if (container.isError()) {
     return Failure("Failed to create container: " + container.error());
@@ -778,8 +851,9 @@ Future<bool> DockerContainerizerProcess::launch(
 
   return fetch(containerId, taskInfo.command(), directory)
     .then(defer(self(), &Self::_launch, containerId, directory))
+    .then(defer(self(), &Self::__launch, containerId, directory))
     .then(defer(self(),
-                &Self::__launch,
+                &Self::___launch,
                 containerId,
                 taskInfo,
                 executorInfo,
@@ -809,40 +883,35 @@ Future<Nothing> DockerContainerizerProcess::_launch(
 }
 
 
-Future<bool> DockerContainerizerProcess::__launch(
+Future<Nothing> DockerContainerizerProcess::__launch(
     const ContainerID& containerId,
-    const TaskInfo& taskInfo,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
-    bool checkpoint)
+    const string& directory)
 {
   if (!containers_.contains(containerId)) {
     return Failure("Container was destroyed while pulling image");
   }
 
-  containers_[containerId]->state = Container::RUNNING;
+  Container* container = containers_[containerId];
+
+  container->state = Container::RUNNING;
 
   // Try and start the Docker container.
-  containers_[containerId]->run = docker.run(
-      taskInfo.container(),
-      taskInfo.command(),
-      containers_[containerId]->name(),
+  return container->run = docker.run(
+      container->container(),
+      container->command(),
+      container->name(),
       directory,
       flags.docker_sandbox_directory,
-      taskInfo.resources());
-
-  return containers_[containerId]->run
-    .then(defer(self(),
-                &Self::___launch,
-                containerId,
-                taskInfo,
-                executorInfo,
-                directory,
-                slaveId,
-                slavePid,
-                checkpoint));
+      // TODO(benh): Figure out the right resources to pass here.
+      // Apparently when running a container for a task we pass the
+      // resources (taskInfo.resources()) but not when running a
+      // container for an executor!?  Either way when we do an
+      // 'update' later we should properly set the resources but I
+      // don't know why in the past we were sometimes not passing
+      // resources (and I can't seem to find any documentation that
+      // addresses this issue).
+      None(),
+      container->environment());
 }
 
 
@@ -978,7 +1047,15 @@ Future<bool> DockerContainerizerProcess::launch(
   }
 
   Try<Container*> container = Container::create(
-      containerId, None(), executorInfo, directory, user);
+      containerId,
+      None(),
+      executorInfo,
+      directory,
+      user,
+      slaveId,
+      slavePid,
+      checkpoint,
+      flags);
 
   if (container.isError()) {
     return Failure("Failed to create container: " + container.error());
@@ -992,57 +1069,7 @@ Future<bool> DockerContainerizerProcess::launch(
 
   return fetch(containerId, executorInfo.command(), directory)
     .then(defer(self(), &Self::_launch, containerId, directory))
-    .then(defer(self(),
-                &Self::__launch,
-                containerId,
-                executorInfo,
-                directory,
-                slaveId,
-                slavePid,
-                checkpoint))
-    .onFailed(defer(self(), &Self::destroy, containerId, true));
-}
-
-
-Future<bool> DockerContainerizerProcess::__launch(
-    const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
-    bool checkpoint)
-{
-  if (!containers_.contains(containerId)) {
-    return Failure("Container was destroyed while pulling image");
-  }
-
-  containers_[containerId]->state = Container::RUNNING;
-
-  map<string, string> env = executorEnvironment(
-      executorInfo,
-      directory,
-      slaveId,
-      slavePid,
-      checkpoint,
-      flags.recovery_timeout);
-
-  // Include any environment variables from CommandInfo.
-  foreach (const Environment::Variable& variable,
-           executorInfo.command().environment().variables()) {
-    env[variable.name()] = variable.value();
-  }
-
-  // Try and start the Docker container.
-  containers_[containerId]->run = docker.run(
-      executorInfo.container(),
-      executorInfo.command(),
-      containers_[containerId]->name(),
-      directory,
-      flags.docker_sandbox_directory,
-      None(),
-      env);
-
-  return containers_[containerId]->run
+    .then(defer(self(), &Self::__launch, containerId, directory))
     .then(defer(self(),
                 &Self::___launch,
                 containerId,
@@ -1050,7 +1077,8 @@ Future<bool> DockerContainerizerProcess::__launch(
                 directory,
                 slaveId,
                 slavePid,
-                checkpoint));
+                checkpoint))
+    .onFailed(defer(self(), &Self::destroy, containerId, true));
 }
 
 
