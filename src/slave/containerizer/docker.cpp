@@ -234,7 +234,14 @@ private:
 	slaveId(slaveId),
 	slavePid(slavePid),
 	checkpoint(checkpoint),
-	flags(flags) {}
+	flags(flags)
+    {
+      if (task.isSome()) {
+	resources = task.get().resources();
+      } else {
+	resources = executor.resources();
+      }
+    }
 
     std::string name()
     {
@@ -993,10 +1000,6 @@ Future<bool> DockerContainerizerProcess::___launch(
     return Failure("Failed to synchronize with child process: " + error);
   }
 
-  // Store the resources for usage().
-  CHECK_SOME(container->task);
-  container->resources = container->task.get().resources();
-
   // And finally watch for when the executor gets reaped.
   container->status.set(process::reap(s.get().pid()));
 
@@ -1101,9 +1104,6 @@ Future<bool> DockerContainerizerProcess::_____launch(
     return Failure(
 	"Failed to checkpoint executor's pid: " + checkpointed.error());
   }
-
-  // Store the resources for usage().
-  containers_[containerId]->resources = containers_[containerId]->executor.resources();
 
   // And finally watch for when the container gets reaped.
   containers_[containerId]->status.set(process::reap(pid.get()));
