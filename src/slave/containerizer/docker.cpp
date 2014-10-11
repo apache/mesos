@@ -142,22 +142,9 @@ private:
   process::Future<Nothing> _recover(
       const std::list<Docker::Container>& containers);
 
-  process::Future<bool> _launch(
+  process::Future<Nothing> _launch(
       const ContainerID& containerId,
-      const TaskInfo& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const SlaveID& slaveId,
-      const PID<Slave>& slavePid,
-      bool checkpoint);
-
-  process::Future<bool> _launch(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const string& directory,
-      const SlaveID& slaveId,
-      const PID<Slave>& slavePid,
-      bool checkpoint);
+      const std::string& directory);
 
   process::Future<bool> __launch(
       const ContainerID& containerId,
@@ -242,15 +229,34 @@ private:
   {
     static Try<Container*> create(
 	const ContainerID& id,
+	const Option<TaskInfo>& taskInfo,
+	const ExecutorInfo& executorInfo,
 	const std::string& directory,
 	const Option<std::string>& user);
 
     Container(const ContainerID& id)
       : state(FETCHING), id(id) {}
 
+    Container(const ContainerID& id,
+	      const Option<TaskInfo>& taskInfo,
+	      const ExecutorInfo& executorInfo)
+      : state(FETCHING),
+	id(id),
+	task(taskInfo),
+	executor(executorInfo) {}
+
     std::string name()
     {
       return DOCKER_NAME_PREFIX + stringify(id);
+    }
+
+    std::string image() const
+    {
+      if (task.isSome()) {
+	return task.get().container().docker().image();
+      }
+
+      return executor.container().docker().image();
     }
 
     // The DockerContainerier needs to be able to properly clean up
@@ -283,6 +289,8 @@ private:
     } state;
 
     ContainerID id;
+    Option<TaskInfo> task;
+    ExecutorInfo executor;
 
     // Promise for future returned from wait().
     Promise<containerizer::Termination> termination;
@@ -370,8 +378,11 @@ DockerContainerizer::~DockerContainerizer()
 }
 
 
-Future<Nothing> DockerContainerizerProcess::Container::create(
-    const ContainerID& containerId,
+Try<DockerContainerizerProcess::Container*>
+DockerContainerizerProcess::Container::create(
+    const ContainerID& id,
+    const Option<TaskInfo>& taskInfo,
+    const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user)
 {
@@ -380,24 +391,24 @@ Future<Nothing> DockerContainerizerProcess::Container::create(
   Try<Nothing> touch = os::touch(path::join(directory, "stdout"));
 
   if (touch.isError()) {
-    return Failure("Failed to touch 'stdout': " + touch.error());
+    return Error("Failed to touch 'stdout': " + touch.error());
   }
 
   touch = os::touch(path::join(directory, "stderr"));
 
   if (touch.isError()) {
-    return Failure("Failed to touch 'stderr': " + touch.error());
+    return Error("Failed to touch 'stderr': " + touch.error());
   }
 
   if (user.isSome()) {
     Try<Nothing> chown = os::chown(user.get(), directory);
 
     if (chown.isError()) {
-      return Failure("Failed to chown: " + chown.error());
+      return Error("Failed to chown: " + chown.error());
     }
   }
 
-  return new Container(containerId);
+  return new Container(id, taskInfo, executorInfo);
 }
 
 
@@ -751,7 +762,8 @@ Future<bool> DockerContainerizerProcess::launch(
     return false;
   }
 
-  Try<Container*> container = Container::create(containerId, directory, user);
+  Try<Container*> container = Container::create(
+      containerId, taskInfo, executorInfo, directory, user);
 
   if (container.isError()) {
     return Failure("Failed to create container: " + container.error());
@@ -765,8 +777,9 @@ Future<bool> DockerContainerizerProcess::launch(
             << "') of framework '" << executorInfo.framework_id() << "'";
 
   return fetch(containerId, taskInfo.command(), directory)
+    .then(defer(self(), &Self::_launch, containerId, directory))
     .then(defer(self(),
-                &Self::_launch,
+                &Self::__launch,
                 containerId,
                 taskInfo,
                 executorInfo,
@@ -778,14 +791,9 @@ Future<bool> DockerContainerizerProcess::launch(
 }
 
 
-Future<bool> DockerContainerizerProcess::_launch(
+Future<Nothing> DockerContainerizerProcess::_launch(
     const ContainerID& containerId,
-    const TaskInfo& taskInfo,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
-    bool checkpoint)
+    const string& directory)
 {
   // Doing the fetch might have succeded but we were actually asked to
   // destroy the container, which we did, so don't continue.
@@ -793,19 +801,13 @@ Future<bool> DockerContainerizerProcess::_launch(
     return Failure("Container was destroyed while launching");
   }
 
-  containers_[containerId]->state = Container::PULLING;
+  Container* container = containers_[containerId];
 
-  return pull(containerId, directory, taskInfo.container().docker().image())
-    .then(defer(self(),
-                &Self::__launch,
-                containerId,
-                taskInfo,
-                executorInfo,
-                directory,
-                slaveId,
-                slavePid,
-                checkpoint));
+  container->state = Container::PULLING;
+
+  return pull(containerId, directory, container->image());
 }
+
 
 Future<bool> DockerContainerizerProcess::__launch(
     const ContainerID& containerId,
@@ -975,7 +977,8 @@ Future<bool> DockerContainerizerProcess::launch(
     return false;
   }
 
-  Try<Container*> container = Container::create(containerId, directory, user);
+  Try<Container*> container = Container::create(
+      containerId, None(), executorInfo, directory, user);
 
   if (container.isError()) {
     return Failure("Failed to create container: " + container.error());
@@ -988,35 +991,7 @@ Future<bool> DockerContainerizerProcess::launch(
             << "' and framework '" << executorInfo.framework_id() << "'";
 
   return fetch(containerId, executorInfo.command(), directory)
-    .then(defer(self(),
-                &Self::_launch,
-                containerId,
-                executorInfo,
-                directory,
-                slaveId,
-                slavePid,
-                checkpoint))
-    .onFailed(defer(self(), &Self::destroy, containerId, true));
-}
-
-
-Future<bool> DockerContainerizerProcess::_launch(
-    const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
-    bool checkpoint)
-{
-  // Doing the fetch might have succeded but we were actually asked to
-  // destroy the container, which we did, so don't continue.
-  if (!containers_.contains(containerId)) {
-    return Failure("Container was destroyed while launching");
-  }
-
-  containers_[containerId]->state = Container::PULLING;
-
-  return pull(containerId, directory, executorInfo.container().docker().image())
+    .then(defer(self(), &Self::_launch, containerId, directory))
     .then(defer(self(),
                 &Self::__launch,
                 containerId,
@@ -1024,7 +999,8 @@ Future<bool> DockerContainerizerProcess::_launch(
                 directory,
                 slaveId,
                 slavePid,
-                checkpoint));
+                checkpoint))
+    .onFailed(defer(self(), &Self::destroy, containerId, true));
 }
 
 
