@@ -677,8 +677,13 @@ Future<list<Docker::Container> > Docker::ps(
     return Failure(s.error());
   }
 
+  // Start reading from stdout so writing to the pipe won't block
+  // to handle cases where the output is larger than the pipe
+  // capacity.
+  const Future<string>& output = io::read(s.get().out().get());
+
   return s.get().status()
-    .then(lambda::bind(&Docker::_ps, *this, cmd, s.get(), prefix));
+    .then(lambda::bind(&Docker::_ps, *this, cmd, s.get(), prefix, output));
 }
 
 
@@ -686,13 +691,16 @@ Future<list<Docker::Container> > Docker::_ps(
     const Docker& docker,
     const string& cmd,
     const Subprocess& s,
-    const Option<string>& prefix)
+    const Option<string>& prefix,
+    Future<string>& output)
 {
   Option<int> status = s.status().get();
 
   if (!status.isSome()) {
+    output.discard();
     return Failure("No status found from '" + cmd + "'");
   } else if (status.get() != 0) {
+    output.discard();
     CHECK_SOME(s.err());
     return io::read(s.err().get())
       .then(lambda::bind(
@@ -703,9 +711,7 @@ Future<list<Docker::Container> > Docker::_ps(
   }
 
   // Read to EOF.
-  CHECK_SOME(s.out());
-  return io::read(s.out().get())
-    .then(lambda::bind(&Docker::__ps, docker, prefix, lambda::_1));
+  return output.then(lambda::bind(&Docker::__ps, docker, prefix, lambda::_1));
 }
 
 
