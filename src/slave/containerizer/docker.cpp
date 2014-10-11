@@ -234,8 +234,6 @@ private:
   // container destroy.
   void reaped(const ContainerID& containerId);
 
-  static std::string containerName(const ContainerID& containerId);
-
   const Flags flags;
 
   Docker docker;
@@ -244,6 +242,11 @@ private:
   {
     Container(const ContainerID& id)
       : state(FETCHING), id(id) {}
+
+    std::string name()
+    {
+      return DOCKER_NAME_PREFIX + stringify(id);
+    }
 
     // The DockerContainerier needs to be able to properly clean up
     // Docker containers, regardless of when they are destroyed. For
@@ -565,12 +568,6 @@ static int setup(const string& directory)
 }
 
 
-string DockerContainerizerProcess::containerName(const ContainerID& containerId)
-{
-  return DOCKER_NAME_PREFIX + stringify(containerId);
-}
-
-
 Future<Nothing> DockerContainerizerProcess::recover(
     const Option<SlaveState>& state)
 {
@@ -810,7 +807,7 @@ Future<bool> DockerContainerizerProcess::__launch(
   containers_[containerId]->run = docker.run(
       taskInfo.container(),
       taskInfo.command(),
-      containerName(containerId),
+      containers_[containerId]->name(),
       directory,
       flags.docker_sandbox_directory,
       taskInfo.resources());
@@ -863,7 +860,7 @@ Future<bool> DockerContainerizerProcess::___launch(
   // status from the container, hence the use of /bin/bash.
   string override =
     "/bin/sh -c 'exit `" +
-    flags.docker + " wait " + containerName(containerId) + "`'";
+    flags.docker + " wait " + containers_[containerId]->name() + "`'";
 
   Try<Subprocess> s = subprocess(
       executorInfo.command().value() + " --override " + override,
@@ -928,7 +925,7 @@ Future<bool> DockerContainerizerProcess::___launch(
     .onAny(defer(self(), &Self::reaped, containerId));
 
   // TODO(benh): Check failure of Docker::logs.
-  docker.logs(containerName(containerId), directory);
+  docker.logs(containers_[containerId]->name(), directory);
 
   return true;
 }
@@ -1061,7 +1058,7 @@ Future<bool> DockerContainerizerProcess::__launch(
   containers_[containerId]->run = docker.run(
       executorInfo.container(),
       executorInfo.command(),
-      containerName(containerId),
+      containers_[containerId]->name(),
       directory,
       flags.docker_sandbox_directory,
       None(),
@@ -1089,7 +1086,7 @@ Future<bool> DockerContainerizerProcess::___launch(
 {
   // We shouldn't remove container until we set 'status'.
   CHECK(containers_.contains(containerId));
-  return docker.inspect(containerName(containerId))
+  return docker.inspect(containers_[containerId]->name())
      .then(defer(self(),
                 &Self::____launch,
                 containerId,
@@ -1157,7 +1154,7 @@ Future<bool> DockerContainerizerProcess::____launch(
     .onAny(defer(self(), &Self::reaped, containerId));
 
   // TODO(benh): Check failure of Docker::logs.
-  docker.logs(containerName(containerId), directory);
+  docker.logs(containers_[containerId]->name(), directory);
 
   return true;
 }
@@ -1195,7 +1192,7 @@ Future<Nothing> DockerContainerizerProcess::update(
     return __update(containerId, _resources, container->pid.get());
   }
 
-  return docker.inspect(containerName(containerId))
+  return docker.inspect(container->name())
     .then(defer(self(), &Self::_update, containerId, _resources, lambda::_1));
 #else
   return Nothing();
@@ -1371,7 +1368,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
     return Failure("Container is being removed: " + stringify(containerId));
   }
 
-  return docker.inspect(containerName(containerId))
+  return docker.inspect(container->name())
     .then(defer(self(), &Self::_usage, containerId, lambda::_1));
 #endif // __linux__
 }
@@ -1567,7 +1564,7 @@ void DockerContainerizerProcess::_destroy(
 
   LOG(INFO) << "Running docker kill on container '" << containerId << "'";
 
-  docker.kill(containerName(containerId), true)
+  docker.kill(container->name(), true)
     .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
 }
 
