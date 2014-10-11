@@ -147,12 +147,10 @@ private:
       const std::list<Docker::Container>& containers);
 
   process::Future<Nothing> _launch(
-      const ContainerID& containerId,
-      const std::string& directory);
+      const ContainerID& containerId);
 
   process::Future<Nothing> __launch(
-      const ContainerID& containerId,
-      const std::string& directory);
+      const ContainerID& containerId);
 
   // NOTE: This continuation is only applicable when launching a
   // container for a task.
@@ -883,8 +881,8 @@ Future<bool> DockerContainerizerProcess::launch(
             << "') of framework '" << executorInfo.framework_id() << "'";
 
   return fetch(containerId, taskInfo.command(), directory)
-    .then(defer(self(), &Self::_launch, containerId, directory))
-    .then(defer(self(), &Self::__launch, containerId, directory))
+    .then(defer(self(), &Self::_launch, containerId))
+    .then(defer(self(), &Self::__launch, containerId))
     .then(defer(self(), &Self::___launch, containerId))
     .then(defer(self(), &Self::______launch, containerId, lambda::_1))
     .onFailed(defer(self(), &Self::destroy, containerId, true));
@@ -892,8 +890,7 @@ Future<bool> DockerContainerizerProcess::launch(
 
 
 Future<Nothing> DockerContainerizerProcess::_launch(
-    const ContainerID& containerId,
-    const string& directory)
+    const ContainerID& containerId)
 {
   // Doing the fetch might have succeded but we were actually asked to
   // destroy the container, which we did, so don't continue.
@@ -905,13 +902,12 @@ Future<Nothing> DockerContainerizerProcess::_launch(
 
   container->state = Container::PULLING;
 
-  return pull(containerId, directory, container->image());
+  return pull(containerId, container->directory, container->image());
 }
 
 
 Future<Nothing> DockerContainerizerProcess::__launch(
-    const ContainerID& containerId,
-    const string& directory)
+    const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {
     return Failure("Container was destroyed while pulling image");
@@ -926,7 +922,7 @@ Future<Nothing> DockerContainerizerProcess::__launch(
       container->container(),
       container->command(),
       container->name(),
-      directory,
+      container->directory,
       flags.docker_sandbox_directory,
       // TODO(benh): Figure out the right resources to pass here.
       // Apparently when running a container for a task we pass the
@@ -1062,8 +1058,8 @@ Future<bool> DockerContainerizerProcess::launch(
             << "' and framework '" << executorInfo.framework_id() << "'";
 
   return fetch(containerId, executorInfo.command(), directory)
-    .then(defer(self(), &Self::_launch, containerId, directory))
-    .then(defer(self(), &Self::__launch, containerId, directory))
+    .then(defer(self(), &Self::_launch, containerId))
+    .then(defer(self(), &Self::__launch, containerId))
     .then(defer(self(), &Self::____launch, containerId))
     .then(defer(self(), &Self::_____launch, containerId, lambda::_1))
     .then(defer(self(), &Self::______launch, containerId, lambda::_1))
