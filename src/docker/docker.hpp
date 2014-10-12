@@ -144,7 +144,7 @@ private:
       const std::string& cmd,
       const process::Subprocess& s,
       const Option<std::string>& prefix,
-      process::Future<std::string>& output);
+      process::Future<std::string> output);
 
   static process::Future<std::list<Container> > __ps(
       const Docker& docker,

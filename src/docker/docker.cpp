@@ -692,7 +692,7 @@ Future<list<Docker::Container> > Docker::_ps(
     const string& cmd,
     const Subprocess& s,
     const Option<string>& prefix,
-    Future<string>& output)
+    Future<string> output)
 {
   Option<int> status = s.status().get();
 
