@@ -211,43 +211,43 @@ private:
   struct Container
   {
     static Try<Container*> create(
-	const ContainerID& id,
-	const Option<TaskInfo>& taskInfo,
-	const ExecutorInfo& executorInfo,
-	const std::string& directory,
-	const Option<std::string>& user,
-	const SlaveID& slaveId,
-	const PID<Slave>& slavePid,
-	bool checkpoint,
-	const Flags& flags);
+        const ContainerID& id,
+        const Option<TaskInfo>& taskInfo,
+        const ExecutorInfo& executorInfo,
+        const std::string& directory,
+        const Option<std::string>& user,
+        const SlaveID& slaveId,
+        const PID<Slave>& slavePid,
+        bool checkpoint,
+        const Flags& flags);
 
     Container(const ContainerID& id)
       : state(FETCHING), id(id) {}
 
     Container(const ContainerID& id,
-	      const Option<TaskInfo>& taskInfo,
-	      const ExecutorInfo& executorInfo,
-	      const std::string& directory,
-	      const Option<std::string>& user,
-	      const SlaveID& slaveId,
-	      const PID<Slave>& slavePid,
-	      bool checkpoint,
-	      const Flags& flags)
+              const Option<TaskInfo>& taskInfo,
+              const ExecutorInfo& executorInfo,
+              const std::string& directory,
+              const Option<std::string>& user,
+              const SlaveID& slaveId,
+              const PID<Slave>& slavePid,
+              bool checkpoint,
+              const Flags& flags)
       : state(FETCHING),
-	id(id),
-	task(taskInfo),
-	executor(executorInfo),
-	directory(directory),
-	user(user),
-	slaveId(slaveId),
-	slavePid(slavePid),
-	checkpoint(checkpoint),
-	flags(flags)
+        id(id),
+        task(taskInfo),
+        executor(executorInfo),
+        directory(directory),
+        user(user),
+        slaveId(slaveId),
+        slavePid(slavePid),
+        checkpoint(checkpoint),
+        flags(flags)
     {
       if (task.isSome()) {
-	resources = task.get().resources();
+        resources = task.get().resources();
       } else {
-	resources = executor.resources();
+        resources = executor.resources();
       }
     }
 
@@ -259,7 +259,7 @@ private:
     std::string image() const
     {
       if (task.isSome()) {
-	return task.get().container().docker().image();
+        return task.get().container().docker().image();
       }
 
       return executor.container().docker().image();
@@ -268,7 +268,7 @@ private:
     ContainerInfo container() const
     {
       if (task.isSome()) {
-	return task.get().container();
+        return task.get().container();
       }
 
       return executor.container();
@@ -277,7 +277,7 @@ private:
     CommandInfo command() const
     {
       if (task.isSome()) {
-	return task.get().command();
+        return task.get().command();
       }
 
       return executor.command();
@@ -288,13 +288,13 @@ private:
     std::map<std::string, std::string> environment() const
     {
       if (task.isNone()) {
-	return executorEnvironment(
-	    executor,
-	    directory,
-	    slaveId,
-	    slavePid,
-	    checkpoint,
-	    flags.recovery_timeout);
+        return executorEnvironment(
+            executor,
+            directory,
+            slaveId,
+            slavePid,
+            checkpoint,
+            flags.recovery_timeout);
       }
 
       return std::map<std::string, std::string>();
@@ -566,11 +566,11 @@ Try<Nothing> DockerContainerizerProcess::checkpoint(
   if (container->checkpoint) {
     const string& path =
       slave::paths::getForkedPidPath(
-	  slave::paths::getMetaRootDir(flags.work_dir),
-	  container->slaveId,
-	  container->executor.framework_id(),
-	  container->executor.executor_id(),
-	  containerId);
+          slave::paths::getMetaRootDir(flags.work_dir),
+          container->slaveId,
+          container->executor.framework_id(),
+          container->executor.executor_id(),
+          containerId);
 
     LOG(INFO) << "Checkpointing pid " << pid << " to '" << path <<  "'";
 
@@ -974,7 +974,7 @@ Future<pid_t> DockerContainerizerProcess::___launch(
     os::close(s.get().in().get());
 
     return Failure(
-	"Failed to checkpoint executor's pid: " + checkpointed.error());
+        "Failed to checkpoint executor's pid: " + checkpointed.error());
   }
 
   // Checkpoing complete, now synchronize with the process so that it
@@ -1088,7 +1088,7 @@ Future<pid_t> DockerContainerizerProcess::_____launch(
 
   if (checkpointed.isError()) {
     return Failure(
-	"Failed to checkpoint executor's pid: " + checkpointed.error());
+        "Failed to checkpoint executor's pid: " + checkpointed.error());
   }
 
   return pid.get();
