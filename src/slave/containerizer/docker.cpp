@@ -924,15 +924,7 @@ Future<Nothing> DockerContainerizerProcess::__launch(
       container->name(),
       container->directory,
       flags.docker_sandbox_directory,
-      // TODO(benh): Figure out the right resources to pass here.
-      // Apparently when running a container for a task we pass the
-      // resources (taskInfo.resources()) but not when running a
-      // container for an executor!?  Either way when we do an
-      // 'update' later we should properly set the resources but I
-      // don't know why in the past we were sometimes not passing
-      // resources (and I can't seem to find any documentation that
-      // addresses this issue).
-      None(),
+      container->resources,
       container->environment());
 }
 
