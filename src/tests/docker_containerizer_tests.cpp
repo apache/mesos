@@ -1853,10 +1853,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_PortMapping)
   ASSERT_SOME(s);
   AWAIT_READY_FOR(s.get().status(), Seconds(60));
 
-  string container = slave::DOCKER_NAME_PREFIX + stringify(containerId.get());
-
-  AWAIT_READY_FOR(docker.kill(container, false), Seconds(30));
-
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
