@@ -283,29 +283,21 @@ private:
       return executor.command();
     }
 
-    // Returns the environment to use when launching the Docker container.
+    // Returns any extra environment varaibles to set when launching
+    // the Docker container (beyond the those found in CommandInfo).
     std::map<std::string, std::string> environment() const
     {
-      if (task.isSome()) {
-	// TODO(benh): Is this really correct!?
-	return std::map<std::string, std::string>();
+      if (task.isNone()) {
+	return executorEnvironment(
+	    executor,
+	    directory,
+	    slaveId,
+	    slavePid,
+	    checkpoint,
+	    flags.recovery_timeout);
       }
 
-      std::map<std::string, std::string> environment = executorEnvironment(
-	  executor,
-	  directory,
-	  slaveId,
-	  slavePid,
-	  checkpoint,
-	  flags.recovery_timeout);
-
-      // Include any environment variables from CommandInfo.
-      foreach (const Environment::Variable& variable,
-	       executor.command().environment().variables()) {
-	environment[variable.name()] = variable.value();
-      }
-
-      return environment;
+      return std::map<std::string, std::string>();
     }
 
     // The DockerContainerier needs to be able to properly clean up
