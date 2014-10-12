@@ -164,9 +164,12 @@ TEST_F(MasterTest, TaskRunning)
 }
 
 
+// This test ensures that stopping a scheduler driver triggers
+// executor's shutdown callback and all still running tasks are
+// marked as killed.
 TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -176,7 +179,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   slave::Flags flags = CreateSlaveFlags();
   flags.executor_shutdown_grace_period = Seconds(0);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -186,7 +189,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -195,12 +198,13 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
+  Offer offer = offers.get()[0];
 
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(offer.resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
@@ -214,7 +218,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
-              update(_, Resources(offers.get()[0].resources())))
+              update(_, Resources(offer.resources())))
     .WillOnce(DoAll(FutureSatisfy(&update),
                     Return(Future<Nothing>())));
 
@@ -222,20 +226,59 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offer.id(), tasks);
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   AWAIT_READY(update);
 
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
+  // Set expectation that Master receives UnregisterFrameworkMessage,
+  // which triggers marking running tasks as killed.
+  UnregisterFrameworkMessage message;
+  message.mutable_framework_id()->MergeFrom(offer.framework_id());
 
+  Future<UnregisterFrameworkMessage> unregisterFrameworkMessage =
+    FUTURE_PROTOBUF(message, _, master.get());
+
+  // Set expectation that Executor's shutdown callback is invoked.
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
+
+  // Stop the driver while the task is running.
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+  // Wait for UnregisterFrameworkMessage message to be dispatched and
+  // executor's shutdown callback to be called.
+  AWAIT_READY(unregisterFrameworkMessage);
+  AWAIT_READY(shutdown);
+
+  // We have to be sure the UnregisterFrameworkMessage is processed
+  // completely and running tasks enter a terminal state before we
+  // request the master state.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  // Request master state.
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  // These checks are not essential for the test, but may help
+  // understand what went wrong.
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  // Make sure the task landed in completed and marked as killed.
+  Result<JSON::String> state = parse.get().find<JSON::String>(
+      "completed_frameworks[0].completed_tasks[0].state");
+
+  ASSERT_SOME_EQ(JSON::String("TASK_KILLED"), state);
+
+  Shutdown();  // Must shutdown before 'containerizer' gets deallocated.
 }
 
 

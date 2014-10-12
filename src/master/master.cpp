@@ -4226,6 +4226,26 @@ void Master::removeFramework(Framework* framework)
       << "Unknown slave " << task->slave_id()
       << " for task " << task->task_id();
 
+    // The task is implicitly killed, and TASK_KILLED is the closest
+    // state we have by now. We mark the task and remove it, without
+    // sending the update. However, a task may finish during the
+    // executor graceful shutdown period. By marking such task as
+    // killed and moving it to completed, we lose the opportunity to
+    // collect the possible finished status. We tolerate this,
+    // because we expect that if the framework has been asked to shut
+    // down, its user is not interested in results anymore.
+    // TODO(alex): consider a more descrptive state, e.g. TASK_ABANDONED.
+    const StatusUpdate& update = protobuf::createStatusUpdate(
+        task->framework_id(),
+        task->slave_id(),
+        task->task_id(),
+        TASK_KILLED,
+        "Framework " + framework->id.value() + " removed",
+        (task->has_executor_id()
+         ? Option<ExecutorID>(task->executor_id())
+         : None()));
+
+    updateTask(task, update);
     removeTask(task);
   }
 
