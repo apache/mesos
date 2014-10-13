@@ -19,7 +19,6 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
-#include <list>
 #include <map>
 #include <string>
 #include <vector>
@@ -30,6 +29,7 @@
 
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
+#include <stout/numify.hpp>
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -85,7 +85,7 @@ struct Object
   // Returns the JSON value (specified by the type) given a "path"
   // into the structure, for example:
   //
-  //   Result<JSON::Array> array = object.find<JSON::Array>("nested.array");
+  //   Result<JSON::Array> array = object.find<JSON::Array>("nested.array[0]");
   //
   // Will return 'None' if no field could be found called 'array'
   // within a field called 'nested' of 'object' (where 'nested' must
@@ -94,8 +94,6 @@ struct Object
   // Returns an error if a JSON value of the wrong type is found, or
   // an intermediate JSON value is not an object that we can do a
   // recursive find on.
-  //
-  // TODO(benh): Support paths that index, e.g., 'nested.array[4].field'.
   template <typename T>
   Result<T> find(const std::string& path) const;
 
@@ -105,7 +103,7 @@ struct Object
 
 struct Array
 {
-  std::list<Value> values;
+  std::vector<Value> values;
 };
 
 
@@ -225,13 +223,53 @@ Result<T> Object::find(const std::string& path) const
     return None();
   }
 
-  std::map<std::string, Value>::const_iterator entry = values.find(names[0]);
+  std::string name = names[0];
+
+  // Determine if we have an array subscript. If so, save it but
+  // remove it from the name for doing the lookup.
+  Option<size_t> subscript = None();
+  size_t index = name.find('[');
+  if (index != std::string::npos) {
+    // Check for the closing bracket.
+    if (name.at(name.length() - 1) != ']') {
+      return Error("Malformed array subscript, expecting ']'");
+    }
+
+    // Now remove the closing bracket (last character) and everything
+    // before and including the opening bracket.
+    std::string s = name.substr(0, name.length() - 1);
+    s = s.substr(index + 1);
+
+    // Now numify the subscript.
+    Try<int> i = numify<int>(s);
+
+    if (i.isError()) {
+      return Error("Failed to numify array subscript '" + s + "'");
+    } else if (i.get() < 0) {
+      return Error("Array subscript '" + s + "' must be >= 0");
+    }
+
+    subscript = i.get();
+
+    // And finally remove the array subscript from the name.
+    name = name.substr(0, index);
+  }
+
+  std::map<std::string, Value>::const_iterator entry = values.find(name);
 
   if (entry == values.end()) {
     return None();
   }
 
-  const Value& value = entry->second;
+  Value value = entry->second;
+
+  if (value.is<Array>() && subscript.isSome()) {
+    Array array = value.as<Array>();
+    if (subscript.get() >= array.values.size()) {
+      return None();
+    }
+    value = array.values[subscript.get()];
+  }
 
   if (names.size() == 1) {
     if (!value.is<T>()) {
@@ -375,7 +413,7 @@ inline std::ostream& operator << (std::ostream& out, const Object& object)
 inline std::ostream& operator << (std::ostream& out, const Array& array)
 {
   out << "[";
-  std::list<Value>::const_iterator iterator;
+  std::vector<Value>::const_iterator iterator;
   iterator = array.values.begin();
   while (iterator != array.values.end()) {
     out << *iterator;

@@ -220,13 +220,19 @@ TEST(JsonTest, Find)
       JSON::Null(),
       object.find<JSON::Null>("nested1.nested2.null"));
 
-  Result<JSON::Array> result =
-    object.find<JSON::Array>("nested1.nested2.array");
+  ASSERT_SOME_EQ(
+      JSON::String("hello"),
+      object.find<JSON::String>("nested1.nested2.array[0]"));
 
-  ASSERT_SOME(result);
-  ASSERT_FALSE(result.get().values.empty());
-  ASSERT_TRUE(result.get().values.front().is<JSON::String>());
-  ASSERT_EQ("hello", result.get().values.front().as<JSON::String>());
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[1"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[[1]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[1]]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array.[1]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[.1]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[1.]"));
+
+  // Out of bounds is none.
+  ASSERT_NONE(object.find<JSON::String>("nested1.nested2.array[1]"));
 
   // Also test getting JSON::Value when you don't know the type.
   ASSERT_SOME(object.find<JSON::Value>("nested1.nested2.null"));
