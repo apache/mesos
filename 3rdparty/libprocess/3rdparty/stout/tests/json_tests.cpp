@@ -230,6 +230,13 @@ TEST(JsonTest, Find)
   ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array.[1]"));
   ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[.1]"));
   ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[1.]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[[]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[]]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[[]]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[[1]]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[[1]"));
+  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[1]]"));
 
   // Out of bounds is none.
   ASSERT_NONE(object.find<JSON::String>("nested1.nested2.array[1]"));

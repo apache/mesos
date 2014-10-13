@@ -253,7 +253,7 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
     return Error("Unexpected type found for 'ContainerConfig.Entrypoint'");
   }
 
-  const list<JSON::Value>& values = entrypoint.get().as<JSON::Array>().values;
+  const vector<JSON::Value>& values = entrypoint.get().as<JSON::Array>().values;
   if (values.size() == 0) {
     return Docker::Image(None());
   }

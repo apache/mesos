@@ -237,8 +237,7 @@ Result<T> Object::find(const std::string& path) const
 
     // Now remove the closing bracket (last character) and everything
     // before and including the opening bracket.
-    std::string s = name.substr(0, name.length() - 1);
-    s = s.substr(index + 1);
+    std::string s = name.substr(index + 1, name.length() - index - 2);
 
     // Now numify the subscript.
     Try<int> i = numify<int>(s);
