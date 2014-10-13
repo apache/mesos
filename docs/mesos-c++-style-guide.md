@@ -16,7 +16,10 @@ The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide
 
 ### Function Names
 * We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for function names (Google uses mixed case for regular functions; and their accessors and mutators match the name of the variable).
-* Leave spaces around overloaded operators.  e.g. `operator + (...);` rather than `operator+(...);`
+* Leave spaces around overloaded operators, e.g. `operator + (...);` rather than `operator+(...);`
+
+### Namespace Names
+* We do not use namespace aliases.
 
 ## Strings
 * Strings used in log and error messages should end without a period.
@@ -84,9 +87,24 @@ Try&lt;Duration&gt; failoverTimeout =
 * Elements inside classes (member variables and functions) should not be spaced apart by more than 1 blank line.
 
 ## C++11
+
 We still support older compilers. The whitelist of supported C++11 features is:
+
 * Static assertions.
 * Multiple right angle brackets.
-* Type inference (`auto` and `decltype`).
+* Type inference (`auto` and `decltype`). The main goal is to increase code readability. Here are several examples:
+
+<pre>
+// 1: OK.
+const auto& i = values.find(keys.front());
+// Compare with
+const typename map::iterator& i = values.find(keys.front());
+
+// 2: Don't use.
+auto authorizer = LocalAuthorizer::create(acls);
+// Compare with
+Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
+</pre>
+
 * Rvalue references.
 * Variadic templates.
