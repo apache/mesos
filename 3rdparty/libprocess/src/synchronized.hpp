@@ -34,8 +34,7 @@ public:
   void acquire()
   {
     if (!initialized) {
-      std::cerr << "synchronizable not initialized" << std::endl;
-      abort();
+      ABORT("synchronizable not initialized");
     }
     pthread_mutex_lock(&mutex);
   }
@@ -43,8 +42,7 @@ public:
   void release()
   {
     if (!initialized) {
-      std::cerr << "synchronizable not initialized" << std::endl;
-      abort();
+      ABORT("synchronizable not initialized");
     }
     pthread_mutex_unlock(&mutex);
   }
@@ -60,8 +58,7 @@ private:
       pthread_mutexattr_destroy(&attr);
       initialized = true;
     } else {
-      std::cerr << "synchronizable already initialized" << std::endl;
-      abort();
+      ABORT("synchronizable already initialized");
     }
   }
 

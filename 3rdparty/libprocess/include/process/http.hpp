@@ -494,10 +494,8 @@ inline Try<std::string> decode(const std::string& s)
     unsigned long l;
     in >> std::hex >> l;
     if (l > UCHAR_MAX) {
-      std::cerr << "Unexpected conversion from hex string: "
-                << s.substr(i + 1, 2) << " to unsigned long: "
-                << l << std::endl;
-      abort();
+      ABORT("Unexpected conversion from hex string: " + s.substr(i + 1, 2) +
+            " to unsigned long: " + stringify(l));
     }
     out << static_cast<unsigned char>(l);
 

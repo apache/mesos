@@ -29,12 +29,6 @@ using std::map;
 
 using process::tuple::Tuple;
 
-#define malloc(bytes)                                               \
-  ({ void *tmp; if ((tmp = malloc(bytes)) == NULL) abort(); tmp; })
-
-#define realloc(address, bytes)                                     \
-  ({ void *tmp; if ((tmp = realloc(address, bytes)) == NULL) abort(); tmp; })
-
 #define HTTP_500                                                    \
   "HTTP/1.1 500 Internal Server Error\r\n\r\n"
 
@@ -94,8 +88,7 @@ public:
     http_parser_execute(&parser, raw.c_str(), raw.length());
 
     if (http_parser_has_error(&parser)) {
-      //cerr << "parser error" << endl;
-      abort();
+      ABORT("parser error");
     }
 
     return message;

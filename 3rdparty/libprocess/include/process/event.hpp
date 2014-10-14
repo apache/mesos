@@ -6,6 +6,7 @@
 #include <process/message.hpp>
 #include <process/socket.hpp>
 
+#include <stout/abort.hpp>
 #include <stout/lambda.hpp>
 #include <stout/memory.hpp> // TODO(benh): Replace shared_ptr with unique_ptr.
 
@@ -63,8 +64,7 @@ struct Event
     } visitor(&result);
     visit(&visitor);
     if (result == NULL) {
-      std::cerr << "Attempting to \"cast\" event incorrectly!" << std::endl;
-      abort();
+      ABORT("Attempting to \"cast\" event incorrectly!");
     }
     return *result;
   }

@@ -2,10 +2,8 @@
 #define __PROCESS_SOCKET_HPP__
 
 #include <assert.h>
-#include <unistd.h> // For close.
 
-#include <iostream>
-
+#include <stout/abort.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -94,8 +92,7 @@ private:
       if (s >= 0) {
         Try<Nothing> close = os::close(s);
         if (close.isError()) {
-          std::cerr << "Failed to close socket: " << close.error() << std::endl;
-          abort();
+          ABORT("Failed to close socket: " + close.error());
         }
       }
     }
