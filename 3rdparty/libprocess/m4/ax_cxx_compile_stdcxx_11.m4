@@ -36,22 +36,32 @@
 #serial 3
 
 m4_define([_AX_CXX_COMPILE_STDCXX_11_testbody], [
+  #include <memory>
+
   template <typename T>
     struct check
     {
       static_assert(sizeof(int) <= sizeof(T), "not big enough");
     };
 
-    typedef check<check<bool>> right_angle_brackets;
+  typedef check<check<bool>> right_angle_brackets;
 
-    int a;
-    decltype(a) b;
+  int a;
+  decltype(a) b;
 
-    typedef check<int> check_type;
-    check_type c;
-    check_type&& cr = static_cast<check_type&&>(c);
+  typedef check<int> check_type;
+  check_type c;
+  check_type&& cr = static_cast<check_type&&>(c);
 
-    auto d = a;
+  auto d = a;
+
+  int foo(std::unique_ptr<int> i)
+  {
+    return *i + 42;
+  }
+
+  std::unique_ptr<int> i(new int());
+  int j = foo(std::move(i));
 ])
 
 AC_DEFUN([AX_CXX_COMPILE_STDCXX_11], [
