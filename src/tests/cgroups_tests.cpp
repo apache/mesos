@@ -799,7 +799,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Destroy)
     ::close(pipes[1]);
 
     // Wait kill signal from parent.
-    while (true) ;
+    while (true) {}
 
     // Should not reach here.
     std::cerr << "Reach an unreachable statement!" << std::endl;

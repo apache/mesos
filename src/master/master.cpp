@@ -1716,7 +1716,7 @@ void Master::deactivateFramework(
   if (from != framework->pid) {
     LOG(WARNING)
       << "Ignoring deactivate framework message for framework " << *framework
-      << " because it is not expected from " << from ;
+      << " because it is not expected from " << from;
     return;
   }
 
