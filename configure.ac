@@ -184,7 +184,7 @@ AC_ARG_WITH([curl],
                            [specify where to locate the curl library]),
             [], [])
 
-AC_ARG_WITH([sasl2],
+AC_ARG_WITH([sasl],
             AS_HELP_STRING([--with-sasl=@<:@=DIR@:>@],
                            [specify where to locate the sasl2 library]),
             [], [])
@@ -621,6 +621,14 @@ libcurl is required for mesos to build.
 ])])
 
 
+# Check if Sasl2  prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes.
+if test -n "`echo $with_sasl`" ; then
+    CPPFLAGS="-I${with_sasl}/include $CPPFLAGS"
+    LDFLAGS="-L${with_sasl}/lib $LDFLAGS"
+fi
+
 # TODO(benh): Also check for md5 support so we can use the CRAM-MD5
 # mechanism. We can likely do a AC_CHECK_LIB looking for a particular
 # function only provided if md5 support is present.
@@ -630,14 +638,6 @@ AC_CHECK_LIB([sasl2], [sasl_done], [],
 We need libsasl2 for authentication!
 -------------------------------------------------------------------
 ])])
-
-# Check if Sasl2  prefix path was provided, and if so, add it to
-# the CPPFLAGS and LDFLAGS with respective /include and /lib path
-# suffixes.
-if test -n "`echo $with_sasl2`" ; then
-    CPPFLAGS="-I${with_sasl2}/include $CPPFLAGS"
-    LDFLAGS="-L${with_sasl2}/lib $LDFLAGS"
-fi
 
 # Perform necessary configuration for network isolator.
 if test "x$with_network_isolator" = "xyes"; then
