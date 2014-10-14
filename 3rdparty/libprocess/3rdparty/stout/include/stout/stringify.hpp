@@ -14,8 +14,6 @@
 #ifndef __STOUT_STRINGIFY_HPP__
 #define __STOUT_STRINGIFY_HPP__
 
-#include <stdlib.h> // For 'abort'.
-
 #include <iostream> // For 'std::cerr' and 'std::endl'.
 #include <list>
 #include <map>
@@ -24,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "abort.hpp"
 #include "hashmap.hpp"
 
 template <typename T>
@@ -32,8 +31,7 @@ std::string stringify(T t)
   std::ostringstream out;
   out << t;
   if (!out.good()) {
-    std::cerr << "Failed to stringify!" << t << std::endl;
-    abort();
+    ABORT("Failed to stringify!");
   }
   return out.str();
 }

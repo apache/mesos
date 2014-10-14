@@ -14,8 +14,6 @@
 #ifndef __STOUT_FLAGS_FLAGS_HPP__
 #define __STOUT_FLAGS_FLAGS_HPP__
 
-#include <stdlib.h> // For abort.
-
 #include <map>
 #include <string>
 #include <typeinfo> // For typeid.
@@ -221,9 +219,7 @@ void FlagsBase::add(
 {
   Flags* flags = dynamic_cast<Flags*>(this);
   if (flags == NULL) {
-    std::cerr << "Attempted to add flag '" << name
-              << "' with incompatible type" << std::endl;
-    abort();
+    ABORT("Attempted to add flag '" + name + "' with incompatible type");
   } else {
     flags->*t1 = t2; // Set the default.
   }
@@ -264,9 +260,7 @@ void FlagsBase::add(
 {
   Flags* flags = dynamic_cast<Flags*>(this);
   if (flags == NULL) {
-    std::cerr << "Attempted to add flag '" << name
-              << "' with incompatible type" << std::endl;
-    abort();
+    ABORT("Attempted to add flag '" + name + "' with incompatible type");
   }
 
   Flag flag;

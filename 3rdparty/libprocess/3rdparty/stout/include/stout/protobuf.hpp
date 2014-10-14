@@ -32,11 +32,13 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include "abort.hpp"
 #include "error.hpp"
 #include "json.hpp"
 #include "none.hpp"
 #include "os.hpp"
 #include "result.hpp"
+#include "stringify.hpp"
 #include "try.hpp"
 
 namespace protobuf {
@@ -553,9 +555,8 @@ struct Protobuf
             case google::protobuf::FieldDescriptor::TYPE_GROUP:
               // Deprecated!
             default:
-              std::cerr << "Unhandled protobuf field type: " << field->type()
-                        << std::endl;
-              abort();
+              ABORT("Unhandled protobuf field type: " +
+                    stringify(field->type()));
           }
         }
         object.values[field->name()] = array;
@@ -614,9 +615,8 @@ struct Protobuf
           case google::protobuf::FieldDescriptor::TYPE_GROUP:
             // Deprecated!
           default:
-            std::cerr << "Unhandled protobuf field type: " << field->type()
-                      << std::endl;
-            abort();
+            ABORT("Unhandled protobuf field type: " +
+                  stringify(field->type()));
         }
       }
     }

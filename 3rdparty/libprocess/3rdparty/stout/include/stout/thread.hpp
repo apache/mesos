@@ -17,7 +17,8 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h> // For perror.
-#include <stdlib.h> // For abort.
+
+#include <stout/abort.hpp>
 
 template <typename T>
 struct ThreadLocal
@@ -27,8 +28,8 @@ struct ThreadLocal
     errno = pthread_key_create(&key, NULL);
 
     if (errno != 0) {
-      perror("Failed to create thread local, pthread_key_create");
-      abort();
+      ABORT(std::string("Failed to create thread local, pthread_key_create: ") +
+            strerror(errno));
     }
   }
 
@@ -37,8 +38,8 @@ struct ThreadLocal
     errno = pthread_key_delete(key);
 
     if (errno != 0) {
-      perror("Failed to destruct thread local, pthread_key_delete");
-      abort();
+      ABORT("Failed to destruct thread local, pthread_key_delete: " +
+            std::string(strerror(errno)));
     }
   }
 
@@ -47,8 +48,8 @@ struct ThreadLocal
     errno = pthread_setspecific(key, t);
 
     if (errno != 0) {
-      perror("Failed to set thread local, pthread_setspecific");
-      abort();
+      ABORT(std::string("Failed to set thread local, pthread_setspecific: ") +
+            strerror(errno));
     }
     return *this;
   }

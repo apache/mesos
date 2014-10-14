@@ -60,7 +60,7 @@ else
   DIFF_URL="${REVIEWBOARD_URL}/${REVIEW}/diff/raw/"
 fi
 
-atexit "rm -f ${REVIEW}.patch"
+#atexit "rm -f ${REVIEW}.patch"
 
 wget --no-check-certificate -O ${REVIEW}.patch ${DIFF_URL} || \
   { echo "${RED}Failed to download patch${NORMAL}"; exit 1; }
@@ -106,6 +106,7 @@ ${REVIEW_DETAILS}
 Review: ${REVIEW_URL}
 __EOF__
 )
+echo "Successfully applied: ${MESSAGE}"
 
 git commit --author="${AUTHOR}" -am "${MESSAGE}" || \
   { echo "${RED}Failed to commit patch${NORMAL}"; exit 1; }

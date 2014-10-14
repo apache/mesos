@@ -15,11 +15,11 @@
 #define __STOUT_TRY_HPP__
 
 #include <assert.h>
-#include <stdlib.h> // For abort.
 
 #include <iostream>
 #include <string>
 
+#include <stout/abort.hpp>
 #include <stout/error.hpp>
 
 template <typename T>
@@ -89,8 +89,7 @@ public:
   const T& get() const
   {
     if (state != SOME) {
-      std::cerr << "Try::get() but state == ERROR: " << error() << std::endl;
-      abort();
+      ABORT("Try::get() but state == ERROR: " + message);
     }
     return *t;
   }

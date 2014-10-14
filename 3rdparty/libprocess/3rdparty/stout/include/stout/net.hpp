@@ -439,11 +439,9 @@ inline std::ostream& operator << (std::ostream& stream, const IP& ip)
   if (str == NULL) {
     // We do not expect inet_ntop to fail because all parameters
     // passed in are valid.
-    std::string message =
-      "inet_ntop returns error for address " + stringify(ip.address());
-
-    perror(message.c_str());
-    abort();
+    const char *error_msg = strerror(errno);
+    ABORT("inet_ntop returns error for address " + stringify(ip.address()) +
+          ": " + error_msg);
   }
 
   stream << str;

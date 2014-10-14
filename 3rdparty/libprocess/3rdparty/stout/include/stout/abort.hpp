@@ -44,4 +44,10 @@ inline __attribute__((noreturn)) void _Abort(
   abort();
 }
 
+inline __attribute__((noreturn)) void _Abort(
+  const char *prefix,
+  const std::string &msg) {
+  _Abort(prefix, msg.c_str());
+}
+
 #endif // __STOUT_ABORT_HPP__

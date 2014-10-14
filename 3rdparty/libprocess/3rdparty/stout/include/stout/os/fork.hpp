@@ -25,6 +25,7 @@
 #include <set>
 #include <string>
 
+#include <stout/abort.hpp>
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
@@ -259,12 +260,11 @@ private:
     void operator () (Tree::Memory* process) const
     {
       if (munmap(process, sizeof(Tree::Memory)) == -1) {
-        perror("Failed to unmap memory");
-        abort();
+        ABORT(std::string("Failed to unmap memory: ") + strerror(errno));
       }
       if (::close(fd) == -1) {
-        perror("Failed to close shared memory file descriptor");
-        abort();
+        ABORT(std::string("Failed to close shared memory file descriptor: ") +
+              strerror(errno));
       }
     }
 
