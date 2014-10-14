@@ -37,12 +37,12 @@ public:
     push(__sync_and_and_fetch(&data->v, 0));
   }
 
-  Counter& operator ++ ()
+  Counter& operator ++ () // NOLINT(whitespace/operators)
   {
     return *this += 1;
   }
 
-  Counter operator ++ (int)
+  Counter operator ++ (int) // NOLINT(whitespace/operators)
   {
     Counter c(*this);
     ++(*this);

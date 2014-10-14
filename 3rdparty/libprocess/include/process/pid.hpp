@@ -41,7 +41,7 @@ struct UPID
     return id != "" && ip != 0 && port != 0;
   }
 
-  bool operator ! () const
+  bool operator ! () const // NOLINT(whitespace/operators)
   {
     return id == "" && ip == 0 && port == 0;
   }
