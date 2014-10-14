@@ -4,6 +4,11 @@ layout: documentation
 
 # Documentation
 
+## Mesos Fundamentals
+
+* [Mesos Architecture](/documentation/latest/mesos-architecture/) providing an overview of Mesos concepts.
+* [Video and Slides of Mesos Presentations](/documentation/latest/mesos-presentations/)
+
 ## Running Mesos
 
 * [Configuration](/documentation/latest/configuration/) for command-line arguments.
@@ -20,17 +25,17 @@ layout: documentation
 
  * [Mesos frameworks](/documentation/latest/mesos-frameworks/) for a list of apps built on top of Mesos, and instructions on how to run them.
 
-## Developing Mesos Frameworks and Applications
+## Developing Mesos Frameworks
 
 * [Framework Development Guide](/documentation/latest/app-framework-development-guide/) describes how to build applications on top of Mesos.
-* [Mesos Architecture](/documentation/latest/mesos-architecture/) providing an overview of Mesos concepts.
+* [Reconciliation](/documentation/latest/reconciliation/) for ensuring a framework's state remains eventually consistent in the face of failures.
 * [Javadoc](/api/latest/java/) documents the Mesos Java API.
 * [Developer Tools](/documentation/latest/tools/) for hacking on Mesos or writing frameworks.
 
 ## Contributing to Mesos
 
-* [Committer's Guide](/documentation/latest/committers-guide/): A guiding document for etiquette in reviews and commits.
-* [Code Internals](/documentation/latest/mesos-code-internals/) overview of the codebase and internal organization.
+* [Committer's Guide](/documentation/latest/committers-guide/) a guiding document for etiquette in reviews and commits.
+* [Code Internals](/documentation/latest/mesos-code-internals/) an overview of the codebase and internal organization.
 * [C++ Style Guide](/documentation/latest/mesos-c++-style-guide/)
 * [Developers Guide](/documentation/latest/mesos-developers-guide/) includes resources for developers contributing to Mesos and the process of submitting patches for review.
 * [Development Road Map](/documentation/latest/mesos-roadmap/)
@@ -39,5 +44,4 @@ layout: documentation
 ## More Info about Mesos
 
 * [Powered by Mesos](/documentation/latest/powered-by-mesos/) lists organizations and software that are powered by Apache Mesos.
-* [Video and Slides of Mesos Presentations](/documentation/latest/mesos-presentations/)
 * Academic Papers and Project History
