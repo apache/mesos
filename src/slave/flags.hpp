@@ -26,7 +26,11 @@
 #include <stout/flags.hpp>
 #include <stout/option.hpp>
 
+#include "common/parse.hpp"
+
 #include "logging/flags.hpp"
+
+#include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
 
@@ -323,6 +327,30 @@ public:
         "impose no limits to containers' egress traffic throughput.\n"
         "This flag uses the Bytes type, defined in stout.");
 #endif // WITH_NETWORK_ISOLATOR
+
+    add(&Flags::modules,
+        "modules",
+        "List of modules to be loaded and be available to the internal\n"
+        "subsystems.\n"
+        "\n"
+        "Use --modules=filepath to specify the list of modules via a\n"
+        "file containing a JSON formatted string. 'filepath' can be\n"
+        "of the form 'file:///path/to/file' or '/path/to/file'.\n"
+        "\n"
+        "Use --modules=\"{...}\" to specify the list of modules inline.\n"
+        "\n"
+        "Example:\n"
+        "{\n"
+        "  \"libraries\": [\n"
+        "    {\n"
+        "      \"file\": \"/path/to/libfoo.so\",\n"
+        "      \"modules\": [\n"
+        "        \"org_apache_mesos_bar\",\n"
+        "        \"org_apache_mesos_baz\"\n"
+        "      ]\n"
+        "    }\n"
+        "  ]\n"
+        "}");
   }
 
   bool version;
@@ -370,6 +398,7 @@ public:
   Option<std::string> lo_name;
   Option<Bytes> egress_rate_limit_per_container;
 #endif
+  Option<Modules> modules;
 };
 
 } // namespace slave {

@@ -33,6 +33,10 @@
 
 #include "logging/logging.hpp"
 
+#include "messages/messages.hpp"
+
+#include "module/manager.hpp"
+
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
@@ -112,6 +116,15 @@ int main(int argc, char** argv)
 
   if (master.isNone()) {
     EXIT(1) << "Missing required option --master";
+  }
+
+  // Initialize modules. Note that since other subsystems may depend
+  // upon modules, we should initialize modules before anything else.
+  if (flags.modules.isSome()) {
+    Try<Nothing> result = ModuleManager::load(flags.modules.get());
+    if (result.isError()) {
+      EXIT(1) << "Error loading modules: " << result.error();
+    }
   }
 
   // Initialize libprocess.
