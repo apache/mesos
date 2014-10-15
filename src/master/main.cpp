@@ -148,8 +148,7 @@ int main(int argc, char** argv)
   if (flags.modules.isSome()) {
     Try<Nothing> result = ModuleManager::load(flags.modules.get());
     if (result.isError()) {
-      cerr << "Error loading modules: " << result.error() << endl;
-      exit(1);
+      EXIT(1) << "Error loading modules: " << result.error();
     }
   }
 
