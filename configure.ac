@@ -225,11 +225,6 @@ AC_ARG_ENABLE([python-dependency-install],
                               downloaded or installed]),
               [without_python_deps=yes], [])
 
-AC_ARG_WITH([cxx11],
-            AS_HELP_STRING([--without-cxx11],
-                           [builds Mesos without C++11 support (deprecated)]),
-            [], [with_cxx11=yes])
-
 AC_ARG_WITH([network-isolator],
             AS_HELP_STRING([--with-network-isolator],
                            [builds the network isolator]),
