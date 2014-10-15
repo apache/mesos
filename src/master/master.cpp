@@ -4479,12 +4479,21 @@ void Master::updateTask(Task* task, const TaskStatus& status)
     !protobuf::isTerminalState(task->state()) &&
     protobuf::isTerminalState(status.state());
 
-  // TODO(brenden) Consider wiping the `data` and `message` fields?
+  // TODO(brenden) Consider wiping the `message` field?
   if (task->statuses_size() > 0 &&
       task->statuses(task->statuses_size() - 1).state() == status.state()) {
     task->mutable_statuses()->RemoveLast();
   }
   task->add_statuses()->CopyFrom(status);
+
+  // Delete data (maybe very large since it's stored by on-top framework) we
+  // are not interested in to avoid OOM.
+  // For example: mesos-master is running on a machine with 4GB free memory,
+  // if every task stores 10MB data into TaskStatus, then mesos-master will be
+  // killed by OOM killer after have 400 tasks finished.
+  // MESOS-1746
+  task->mutable_statuses(task->statuses_size() - 1)->clear_data();
+
   task->set_state(status.state());
 
   stats.tasks[status.state()]++;
