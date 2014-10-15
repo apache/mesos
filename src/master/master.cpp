@@ -4491,7 +4491,7 @@ void Master::updateTask(Task* task, const TaskStatus& status)
   // For example: mesos-master is running on a machine with 4GB free memory,
   // if every task stores 10MB data into TaskStatus, then mesos-master will be
   // killed by OOM killer after have 400 tasks finished.
-  // MESOS-1746
+  // MESOS-1746.
   task->mutable_statuses(task->statuses_size() - 1)->clear_data();
 
   task->set_state(status.state());
