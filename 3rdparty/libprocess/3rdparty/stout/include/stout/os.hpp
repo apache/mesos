@@ -209,28 +209,6 @@ inline Try<bool> access(const std::string& path, int how)
 }
 
 
-inline Try<int> open(const std::string& path, int oflag, mode_t mode = 0)
-{
-  int fd = ::open(path.c_str(), oflag, mode);
-
-  if (fd < 0) {
-    return ErrnoError();
-  }
-
-  return fd;
-}
-
-
-inline Try<Nothing> close(int fd)
-{
-  if (::close(fd) != 0) {
-    return ErrnoError();
-  }
-
-  return Nothing();
-}
-
-
 inline Try<Nothing> cloexec(int fd)
 {
   int flags = ::fcntl(fd, F_GETFD);
@@ -244,6 +222,18 @@ inline Try<Nothing> cloexec(int fd)
   }
 
   return Nothing();
+}
+
+
+inline Try<bool> isCloexec(int fd)
+{
+  int flags = ::fcntl(fd, F_GETFD);
+
+  if (flags == -1) {
+    return ErrnoError();
+  }
+
+  return (flags & FD_CLOEXEC) != 0;
 }
 
 
@@ -272,6 +262,69 @@ inline Try<bool> isNonblock(int fd)
   }
 
   return (flags & O_NONBLOCK) != 0;
+}
+
+
+// For old systems that do not support O_CLOEXEC, we still want
+// os::open to accept that flag so that we can simplify the code.
+// TODO(jieyu): Move this along with nonblock/cloexec to a separate
+// header 'stout/fcntl.hpp'.
+#ifndef O_CLOEXEC
+// Since we will define O_CLOEXEC if it is not yet defined, we use a
+// special symbol to tell if the flag is truly unavailable or not.
+#define O_CLOEXEC_UNDEFINED
+
+// NOTE: For backward compatibility concern, kernel usually does not
+// change the constant values for symbols like O_CLOEXEC.
+#if defined(__APPLE__)
+// Copied from '/usr/include/sys/fcntl.h'
+#define O_CLOEXEC 0x1000000
+#elif defined(__linux__)
+// Copied from '/usr/include/asm-generic/fcntl.h'.
+#define O_CLOEXEC 02000000
+#endif
+#endif
+
+
+inline Try<int> open(const std::string& path, int oflag, mode_t mode = 0)
+{
+#ifdef O_CLOEXEC_UNDEFINED
+  // Before we passing oflag to ::open, we need to strip the O_CLOEXEC
+  // flag since it's not supported.
+  bool cloexec = false;
+  if ((oflag & O_CLOEXEC) != 0) {
+    oflag &= ~O_CLOEXEC;
+    cloexec = true;
+  }
+#endif
+
+  int fd = ::open(path.c_str(), oflag, mode);
+
+  if (fd < 0) {
+    return ErrnoError();
+  }
+
+#ifdef O_CLOEXEC_UNDEFINED
+  if (cloexec) {
+    Try<Nothing> result = os::cloexec(fd);
+    if (result.isError()) {
+      os::close(fd);
+      return Error("Failed to set cloexec: " + result.error());
+    }
+  }
+#endif
+
+  return fd;
+}
+
+
+inline Try<Nothing> close(int fd)
+{
+  if (::close(fd) != 0) {
+    return ErrnoError();
+  }
+
+  return Nothing();
 }
 
 
