@@ -198,21 +198,21 @@ AC_ARG_ENABLE([bundled-distribute],
               AS_HELP_STRING([--disable-bundled-distribute],
                              [excludes building and using the bundled distribute
                               package in lieu of an installed version in
-                              in PYTHONPATH]),
+                              PYTHONPATH]),
               [without_bundled_distribute=yes], [])
 
 AC_ARG_ENABLE([bundled-pip],
               AS_HELP_STRING([--disable-bundled-pip],
                              [excludes building and using the bundled pip
                               package in lieu of an installed version in
-                              in PYTHONPATH]),
+                              PYTHONPATH]),
               [without_bundled_pip=yes], [])
 
 AC_ARG_ENABLE([bundled-wheel],
               AS_HELP_STRING([--disable-bundled-wheel],
                              [excludes building and using the bundled wheel
                               package in lieu of an installed version in
-                              in PYTHONPATH]),
+                              PYTHONPATH]),
               [without_bundled_wheel=yes], [])
 
 # This is used to make distcheck and python install work together. For more
