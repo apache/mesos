@@ -970,7 +970,7 @@ if WITH_BUNDLED_PROTOBUF
 	@echo "Building protobuf Python egg ..."
 	cd ../$(PROTOBUF)/python && \
           CC="$(CC)" CXX="$(CXX)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" \
-	  PYTHONPATH=$(DISTRIBUTE_EGG) $(PYTHON) setup.py build bdist_egg
+          PYTHONPATH=$(abs_top_builddir)/$(DISTRIBUTE) $(PYTHON) setup.py build bdist_egg
 
   CLEANFILES += $(PROTOBUF_EGG)
 endif
