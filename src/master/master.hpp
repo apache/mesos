@@ -35,10 +35,6 @@
 #include <process/protobuf.hpp>
 #include <process/timer.hpp>
 
-#include <process/metrics/counter.hpp>
-#include <process/metrics/gauge.hpp>
-#include <process/metrics/metrics.hpp>
-
 #include <stout/cache.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
@@ -56,6 +52,7 @@
 #include "master/contender.hpp"
 #include "master/detector.hpp"
 #include "master/flags.hpp"
+#include "master/metrics.hpp"
 #include "master/registrar.hpp"
 
 #include "messages/messages.hpp"
@@ -475,6 +472,7 @@ private:
   Master& operator = (const Master&); // No assigning.
 
   friend struct OfferVisitor;
+  friend struct Metrics;
 
   const Flags flags;
 
@@ -607,133 +605,7 @@ private:
     uint64_t invalidFrameworkMessages;
   } stats;
 
-  struct Metrics
-  {
-    Metrics(const Master& master);
-
-    ~Metrics();
-
-    process::metrics::Gauge uptime_secs;
-    process::metrics::Gauge elected;
-
-    process::metrics::Gauge slaves_connected;
-    process::metrics::Gauge slaves_disconnected;
-    process::metrics::Gauge slaves_active;
-    process::metrics::Gauge slaves_inactive;
-
-    process::metrics::Gauge frameworks_connected;
-    process::metrics::Gauge frameworks_disconnected;
-    process::metrics::Gauge frameworks_active;
-    process::metrics::Gauge frameworks_inactive;
-
-    process::metrics::Gauge outstanding_offers;
-
-    // Task state metrics.
-    process::metrics::Gauge tasks_staging;
-    process::metrics::Gauge tasks_starting;
-    process::metrics::Gauge tasks_running;
-    process::metrics::Counter tasks_finished;
-    process::metrics::Counter tasks_failed;
-    process::metrics::Counter tasks_killed;
-    process::metrics::Counter tasks_lost;
-    process::metrics::Counter tasks_error;
-
-    // Message counters.
-    process::metrics::Counter dropped_messages;
-
-    // Metrics specific to frameworks of a common principal.
-    // These metrics have names prefixed by "frameworks/<principal>/".
-    struct Frameworks
-    {
-      // Counters for messages from all frameworks of this principal.
-      // Note: We only count messages from active scheduler
-      // *instances* while they are *registered*. i.e., messages
-      // prior to the completion of (re)registration
-      // (AuthenticateMessage and (Re)RegisterFrameworkMessage) and
-      // messages from an inactive scheduler instance (after the
-      // framework has failed over) are not counted.
-
-      // Framework messages received (before processing).
-      process::metrics::Counter messages_received;
-
-      // Framework messages processed.
-      // NOTE: This doesn't include dropped messages. Processing of
-      // a message may be throttled by a RateLimiter if one is
-      // configured for this principal. Also due to Master's
-      // asynchronous nature, this doesn't necessarily mean the work
-      // requested by this message has finished.
-      process::metrics::Counter messages_processed;
-
-      explicit Frameworks(const std::string& principal)
-        : messages_received("frameworks/" + principal + "/messages_received"),
-          messages_processed("frameworks/" + principal + "/messages_processed")
-      {
-        process::metrics::add(messages_received);
-        process::metrics::add(messages_processed);
-      }
-
-      ~Frameworks()
-      {
-        process::metrics::remove(messages_received);
-        process::metrics::remove(messages_processed);
-      }
-    };
-
-    // Per-framework-principal metrics keyed by the framework
-    // principal.
-    hashmap<std::string, process::Owned<Frameworks>> frameworks;
-
-    // Messages from schedulers.
-    process::metrics::Counter messages_register_framework;
-    process::metrics::Counter messages_reregister_framework;
-    process::metrics::Counter messages_unregister_framework;
-    process::metrics::Counter messages_deactivate_framework;
-    process::metrics::Counter messages_kill_task;
-    process::metrics::Counter messages_status_update_acknowledgement;
-    process::metrics::Counter messages_resource_request;
-    process::metrics::Counter messages_launch_tasks;
-    process::metrics::Counter messages_decline_offers;
-    process::metrics::Counter messages_revive_offers;
-    process::metrics::Counter messages_reconcile_tasks;
-    process::metrics::Counter messages_framework_to_executor;
-
-    // Messages from slaves.
-    process::metrics::Counter messages_register_slave;
-    process::metrics::Counter messages_reregister_slave;
-    process::metrics::Counter messages_unregister_slave;
-    process::metrics::Counter messages_status_update;
-    process::metrics::Counter messages_exited_executor;
-
-    // Messages from both schedulers and slaves.
-    process::metrics::Counter messages_authenticate;
-
-    process::metrics::Counter valid_framework_to_executor_messages;
-    process::metrics::Counter invalid_framework_to_executor_messages;
-
-    process::metrics::Counter valid_status_updates;
-    process::metrics::Counter invalid_status_updates;
-
-    process::metrics::Counter valid_status_update_acknowledgements;
-    process::metrics::Counter invalid_status_update_acknowledgements;
-
-    // Recovery counters.
-    process::metrics::Counter recovery_slave_removals;
-
-    // Process metrics.
-    process::metrics::Gauge event_queue_messages;
-    process::metrics::Gauge event_queue_dispatches;
-    process::metrics::Gauge event_queue_http_requests;
-
-    // Successful registry operations.
-    process::metrics::Counter slave_registrations;
-    process::metrics::Counter slave_reregistrations;
-    process::metrics::Counter slave_removals;
-
-    // Resource metrics.
-    std::vector<process::metrics::Gauge> resources_total;
-    std::vector<process::metrics::Gauge> resources_used;
-    std::vector<process::metrics::Gauge> resources_percent;
-  } metrics;
+  Metrics metrics;
 
   // Gauge handlers.
   double _uptime_secs()

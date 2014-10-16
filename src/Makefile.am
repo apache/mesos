@@ -274,6 +274,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/drf_sorter.cpp						\
 	master/http.cpp							\
 	master/master.cpp						\
+	master/metrics.cpp					\
 	master/registry.hpp						\
 	master/registry.proto                                           \
 	master/registrar.cpp						\
@@ -427,6 +428,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/flags.hpp						\
 	master/hierarchical_allocator_process.hpp			\
 	master/master.hpp						\
+	master/metrics.hpp					\
 	master/repairer.hpp						\
 	master/registrar.hpp						\
 	master/sorter.hpp						\
@@ -1200,6 +1202,7 @@ mesos_tests_SOURCES =				\
   tests/attributes_tests.cpp			\
   tests/authentication_tests.cpp		\
   tests/authorization_tests.cpp		        \
+  tests/common/http_tests.cpp							\
   tests/composing_containerizer_tests.cpp       \
   tests/containerizer.cpp			\
   tests/containerizer_tests.cpp			\
@@ -1226,6 +1229,7 @@ mesos_tests_SOURCES =				\
   tests/master_slave_reconciliation_tests.cpp	\
   tests/master_tests.cpp			\
   tests/mesos.cpp				\
+  tests/metrics_tests.cpp				\
   tests/module.cpp				\
   tests/module_tests.cpp			\
   tests/monitor_tests.cpp			\
@@ -1248,8 +1252,7 @@ mesos_tests_SOURCES =				\
   tests/status_update_manager_tests.cpp		\
   tests/utils.cpp				\
   tests/values_tests.cpp			\
-  tests/zookeeper_url_tests.cpp			\
-  tests/common/http_tests.cpp
+  tests/zookeeper_url_tests.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"
