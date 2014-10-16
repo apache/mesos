@@ -197,6 +197,10 @@ public:
       const StatusUpdate& update,
       const process::UPID& pid);
 
+  // This is called by status update manager to forward a
+  // status update to the master.
+  void forward(const StatusUpdate& update);
+
   void statusUpdateAcknowledgement(
       const process::UPID& from,
       const SlaveID& slaveId,

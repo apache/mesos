@@ -117,8 +117,6 @@ public:
       const std::string& rootDir,
       const Option<state::SlaveState>& state);
 
-  // TODO(vinod): Remove this hack once the new leader detector code is merged.
-  void newMasterDetected(const process::UPID& pid);
 
   // Resend all the pending updates right away.
   // This is useful when the updates were pending because there was

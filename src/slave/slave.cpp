@@ -497,7 +497,7 @@ void Slave::finalize()
     }
   }
 
-  if (state == TERMINATING || flags.recover == "cleanup") {
+  if (state == TERMINATING) {
     // We remove the "latest" symlink in meta directory, so that the
     // slave doesn't recover the state when it restarts and registers
     // as a new slave with the master.
@@ -533,14 +533,8 @@ void Slave::shutdown(const UPID& from, const string& message)
   if (frameworks.empty()) { // Terminate slave if there are no frameworks.
     terminate(self());
   } else {
-    // NOTE: The slave will terminate after all
-    // executors have terminated.
-    // TODO(vinod): Wait until all updates have been acknowledged.
-    // This is tricky without persistent state at master because the
-    // slave might wait forever for status update acknowledgements,
-    // since it cannot reliably know when a framework has shut down.
-    // A short-term fix could be to wait for a certain time for ACKs
-    // and then shutdown.
+    // NOTE: The slave will terminate after all the executors have
+    // terminated.
     // NOTE: We use 'frameworks.keys()' here because 'shutdownFramework'
     // can potentially remove a framework from 'frameworks'.
     foreach (const FrameworkID& frameworkId, frameworks.keys()) {
@@ -600,19 +594,8 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
     LOG(INFO) << "New master detected at " << master.get();
     link(master.get());
 
-    // Inform the status updates manager about the new master.
-    statusUpdateManager->newMasterDetected(master.get());
-
     if (state == TERMINATING) {
       LOG(INFO) << "Skipping registration because slave is terminating";
-      return;
-    }
-
-    // The slave does not (re-)register if it is in the cleanup mode
-    // because we do not want to accept new tasks.
-    if (flags.recover == "cleanup") {
-      LOG(INFO)
-        << "Skipping registration because slave was started in cleanup mode";
       return;
     }
 
@@ -829,6 +812,11 @@ void Slave::reregistered(
       CHECK_SOME(master);
       LOG(INFO) << "Re-registered with master " << master.get();
       state = RUNNING;
+
+      // Inform status update manager to immediately resend any
+      // pending updates.
+      statusUpdateManager->flush();
+
       break;
     case RUNNING:
       CHECK_SOME(master);
@@ -930,6 +918,8 @@ void Slave::doReliableRegistration(const Duration& duration)
   }
 
   CHECK(state == DISCONNECTED) << state;
+
+  CHECK_NE("cleanup", flags.recover);
 
   if (!info.has_id()) {
     // Registering for the first time.
@@ -2373,6 +2363,33 @@ void Slave::__statusUpdate(
 }
 
 
+// NOTE: An acknowledgement for this update might have already been
+// processed by the slave but not the status update manager.
+void Slave::forward(const StatusUpdate& update)
+{
+  CHECK(state == RECOVERING || state == DISCONNECTED ||
+        state == RUNNING || state == TERMINATING)
+    << state;
+
+  if (state != RUNNING) {
+    LOG(WARNING) << "Dropping status update " << update
+                 << " sent by status update manager because the slave"
+                 << " is in " << state << " state";
+    return;
+  }
+
+  CHECK_SOME(master);
+  LOG(INFO) << "Forwarding the update " << update << " to " << master.get();
+
+  // Forward the update to master.
+  StatusUpdateMessage message;
+  message.mutable_update()->MergeFrom(update);
+  message.set_pid(self()); // The ACK will be first received by the slave.
+
+  send(master.get(), message);
+}
+
+
 void Slave::executorMessage(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
@@ -2866,9 +2883,10 @@ void Slave::executorTerminated(
         if (master.isSome()) { send(master.get(), message); }
       }
 
-      // Remove the executor if either the framework is terminating or
-      // there are no incomplete tasks.
-      if (framework->state == Framework::TERMINATING ||
+      // Remove the executor if either the slave or framework is
+      // terminating or there are no incomplete tasks.
+      if (state == TERMINATING ||
+          framework->state == Framework::TERMINATING ||
           !executor->incompleteTasks()) {
         removeExecutor(framework, executor);
       }
@@ -2900,13 +2918,15 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
         framework->state == Framework::TERMINATING)
     << framework->state;
 
-  // Check that this executor has terminated and either has no
-  // pending updates or the framework is terminating. We don't
-  // care for pending updates when a framework is terminating
-  // because the framework cannot ACK them.
+  // Check that this executor has terminated.
   CHECK(executor->state == Executor::TERMINATED) << executor->state;
-  CHECK(framework->state == Framework::TERMINATING ||
-        !executor->incompleteTasks());
+
+  // Check that either 1) the executor has no tasks with pending
+  // updates or 2) the slave/framework is terminating, because no
+  // acknowledgements might be received.
+  CHECK(!executor->incompleteTasks() ||
+        state == TERMINATING ||
+        framework->state == Framework::TERMINATING);
 
   // Write a sentinel file to indicate that this executor
   // is completed.
@@ -3006,17 +3026,8 @@ void Slave::removeFramework(Framework* framework)
   // Pass ownership of the framework pointer.
   completedFrameworks.push_back(Owned<Framework>(framework));
 
-  if (frameworks.empty()) {
-    // Terminate the slave if
-    // 1) it's being shut down or
-    // 2) it's started in cleanup mode and recovery finished.
-    // TODO(vinod): Instead of doing it this way, shutdownFramework()
-    // and shutdownExecutor() could return Futures and a slave could
-    // shutdown when all the Futures are satisfied (e.g., collect()).
-    if (state == TERMINATING ||
-        (flags.recover == "cleanup" && !recovered.future().isPending())) {
-      terminate(self());
-    }
+  if (state == TERMINATING && frameworks.empty()) {
+    terminate(self());
   }
 }
 
@@ -3362,7 +3373,6 @@ void Slave::__recover(const Future<Nothing>& future)
   LOG(INFO) << "Finished recovery";
 
   CHECK_EQ(RECOVERING, state);
-  state = DISCONNECTED;
 
   // Checkpoint boot ID.
   Try<string> bootId = os::bootId();
@@ -3413,18 +3423,30 @@ void Slave::__recover(const Future<Nothing>& future)
     }
   }
 
-  recovered.set(Nothing()); // Signal recovery.
+  if (flags.recover == "reconnect") {
+    state = DISCONNECTED;
 
-  // Terminate slave, if it has no active frameworks and is started
-  // in 'cleanup' mode.
-  if (frameworks.empty() && flags.recover == "cleanup") {
-    terminate(self());
-    return;
+    // Start detecting masters.
+    detection = detector->detect()
+      .onAny(defer(self(), &Slave::detected, lambda::_1));
+  } else {
+    // Slave started in cleanup mode.
+    CHECK_EQ("cleanup", flags.recover);
+    state = TERMINATING;
+
+    if (frameworks.empty()) {
+      terminate(self());
+    }
+
+    // If there are active executors/frameworks, the slave will
+    // shutdown when all the executors are terminated. Note that
+    // the executors are guaranteed to terminate because they
+    // are sent shutdown signal in '_recover()' which results in
+    // 'Containerizer::destroy()' being called if the termination
+    // doesn't happen within a timeout.
   }
 
-  // Start detecting masters.
-  detection = detector->detect()
-    .onAny(defer(self(), &Slave::detected, lambda::_1));
+  recovered.set(Nothing()); // Signal recovery.
 }
 
 

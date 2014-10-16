@@ -91,8 +91,6 @@ public:
       const string& rootDir,
       const Option<SlaveState>& state);
 
-  void newMasterDetected(const UPID& pid);
-
   void flush();
 
   void cleanup(const FrameworkID& frameworkId);
@@ -135,7 +133,6 @@ private:
       const TaskID& taskId,
       const FrameworkID& frameworkId);
 
-  UPID master;
   Flags flags;
   PID<Slave> slave;
   hashmap<FrameworkID, hashmap<TaskID, StatusUpdateStream*> > streams;
@@ -162,23 +159,13 @@ void StatusUpdateManagerProcess::initialize(
 }
 
 
-void StatusUpdateManagerProcess::newMasterDetected(const UPID& pid)
-{
-  LOG(INFO) << "New master detected at " << pid;
-  master = pid;
-
-  // Retry any pending status updates.
-  flush();
-}
-
-
 void StatusUpdateManagerProcess::flush()
 {
   foreachkey (const FrameworkID& frameworkId, streams) {
     foreachvalue (StatusUpdateStream* stream, streams[frameworkId]) {
       if (!stream->pending.empty()) {
         const StatusUpdate& update = stream->pending.front();
-        LOG(WARNING) << "Resending status update " << update;
+        LOG(WARNING) << "Flushing status update " << update;
         stream->timeout = forward(update, STATUS_UPDATE_RETRY_INTERVAL_MIN);
       }
     }
@@ -256,18 +243,11 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
         }
 
         // At the end of the replay, the stream is either terminated or
-        // contains only unacknowledged, if any, pending updates.
+        // contains only unacknowledged, if any, pending updates. The
+        // pending updates will be flushed after the slave
+        // re-registers with the master.
         if (stream->terminated) {
           cleanupStatusUpdateStream(task.id, framework.id);
-        } else {
-          // If a stream has pending updates after the replay,
-          // send the first pending update.
-          const Result<StatusUpdate>& next = stream->next();
-          CHECK(!next.isError());
-          if (next.isSome()) {
-            stream->timeout =
-              forward(next.get(), STATUS_UPDATE_RETRY_INTERVAL_MIN);
-          }
         }
       }
     }
@@ -369,18 +349,10 @@ Timeout StatusUpdateManagerProcess::forward(
     const StatusUpdate& update,
     const Duration& duration)
 {
-  if (master) {
-    LOG(INFO) << "Forwarding status update " << update << " to " << master;
+  VLOG(1) << "Forwarding update " << update << " to the slave";
 
-    StatusUpdateMessage message;
-    message.mutable_update()->MergeFrom(update);
-    message.set_pid(slave); // The ACK will be first received by the slave.
-
-    send(master, message);
-  } else {
-    LOG(WARNING) << "Not forwarding status update " << update
-                 << " because no master is elected yet";
-  }
+  // Forward the update to the slave.
+  dispatch(slave, &Slave::forward, update);
 
   // Send a message to self to resend after some delay if no ACK is received.
   return delay(duration,
@@ -621,11 +593,6 @@ Future<Nothing> StatusUpdateManager::recover(
       process, &StatusUpdateManagerProcess::recover, rootDir, state);
 }
 
-
-void StatusUpdateManager::newMasterDetected(const UPID& pid)
-{
-  dispatch(process, &StatusUpdateManagerProcess::newMasterDetected, pid);
-}
 
 
 void StatusUpdateManager::flush()

@@ -912,7 +912,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 
 // The slave is stopped after a non-terminal update is received.
 // Slave is restarted in recovery=cleanup mode. It kills the command
-// executor, and transitions the task to FAILED.
+// executor, and terminates. Master should then send TASK_LOST.
 TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 {
   Try<PID<Master> > master = this->StartMaster();
@@ -965,8 +965,8 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   this->Stop(slave.get());
   delete containerizer1.get();
 
-  // Slave in cleanup mode shouldn't reregister with slave and hence
-  // no offers should be made by the master.
+  // Slave in cleanup mode shouldn't re-register with the master and
+  // hence no offers should be made by the master.
   EXPECT_CALL(sched, resourceOffers(_, _))
     .Times(0);
 
@@ -976,12 +976,14 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
+  EXPECT_CALL(sched, slaveLost(_, _))
+    .Times(AtMost(1));
+
   // Restart the slave in 'cleanup' recovery mode with a new isolator.
   Try<TypeParam*> containerizer2 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer2);
 
   flags.recover = "cleanup";
-
   slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
@@ -993,15 +995,12 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
     Clock::settle();
   }
 
-  // Scheduler should receive the TASK_FAILED update.
-  AWAIT_READY(status);
-  ASSERT_EQ(TASK_FAILED, status.get().state());
-
   // Wait for recovery to complete.
   AWAIT_READY(__recover);
-  Clock::settle();
 
-  Clock::resume();
+  // Scheduler should receive the TASK_LOST update.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_LOST, status.get().state());
 
   driver.stop();
   driver.join();
