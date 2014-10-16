@@ -30,29 +30,40 @@
 
 #include "messages/messages.hpp"
 
+#include "tests/utils.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::tests;
+
+
+class ProtobufIOTest : public TemporaryDirectoryTest {};
 
 
 // TODO(bmahler): Move this file into stout.
-TEST(ProtobufIOTest, Basic)
+TEST_F(ProtobufIOTest, Basic)
 {
   const std::string file = ".protobuf_io_test_basic";
 
-  Try<int> result = os::open(file, O_CREAT | O_WRONLY | O_SYNC,
-                             S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  Try<int> result = os::open(
+      file,
+      O_CREAT | O_WRONLY | O_SYNC | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   ASSERT_SOME(result);
+
   int fdw = result.get();
 
-  result = os::open(file, O_CREAT | O_RDONLY,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  result = os::open(
+      file,
+      O_CREAT | O_RDONLY | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   ASSERT_SOME(result);
+
   int fdr = result.get();
 
   const size_t writes = 10;
-
   for (size_t i = 0; i < writes; i++) {
     FrameworkID frameworkId;
     frameworkId.set_value(stringify(i));
@@ -71,12 +82,51 @@ TEST(ProtobufIOTest, Basic)
     EXPECT_EQ(read.get().value(), stringify(reads++));
   }
 
-  // Ensure we've hit the end of the file without reading a partial protobuf.
+  // Ensure we've hit the end of the file without reading a partial
+  // protobuf.
   ASSERT_TRUE(read.isNone());
   ASSERT_EQ(writes, reads);
 
   os::close(fdw);
   os::close(fdr);
+}
 
-  os::rm(file);
+
+TEST_F(ProtobufIOTest, Append)
+{
+  const std::string file = ".protobuf_io_test_append";
+
+  const size_t writes = 10;
+  for (size_t i = 0; i < writes; i++) {
+    FrameworkID frameworkId;
+    frameworkId.set_value(stringify(i));
+
+    Try<Nothing> result = ::protobuf::append(file, frameworkId);
+    ASSERT_SOME(result);
+  }
+
+  Try<int> fd = os::open(
+      file,
+      O_CREAT | O_RDONLY | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
+  ASSERT_SOME(fd);
+
+  Result<FrameworkID> read = None();
+  size_t reads = 0;
+  while (true) {
+    read = ::protobuf::read<FrameworkID>(fd.get());
+    if (!read.isSome()) {
+      break;
+    }
+
+    EXPECT_EQ(read.get().value(), stringify(reads++));
+  }
+
+  // Ensure we've hit the end of the file without reading a partial
+  // protobuf.
+  ASSERT_TRUE(read.isNone());
+  ASSERT_EQ(writes, reads);
+
+  os::close(fd.get());
 }
