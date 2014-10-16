@@ -41,7 +41,7 @@ namespace internal {
 pthread_mutex_t ModuleManager::mutex = PTHREAD_MUTEX_INITIALIZER;
 hashmap<const string, string> ModuleManager::kindToVersion;
 hashmap<const string, ModuleBase*> ModuleManager::moduleBases;
-list<Owned<DynamicLibrary> > ModuleManager::dynamicLibraries;
+hashmap<const string, Owned<DynamicLibrary>> ModuleManager::dynamicLibraries;
 
 
 void ModuleManager::initialize()
@@ -83,13 +83,20 @@ void ModuleManager::initialize()
 }
 
 
-// For testing only.  Unload all dlopen()'d module libraries and
-// clear the list of module manifests.
-void ModuleManager::unloadAll()
+// For testing only. Unload a given module and remove it from the list
+// of ModuleBases.
+Try<Nothing> ModuleManager::unload(const string& moduleName)
 {
-  kindToVersion.clear();
-  moduleBases.clear();
-  dynamicLibraries.clear();
+  Lock lock(&mutex);
+  if (!moduleBases.contains(moduleName)) {
+    return Error(
+        "Error unloading module '" + moduleName + "': module not loaded");
+  }
+
+  // Do not remove the dynamiclibrary as it could result in unloading
+  // the library from the process memory.
+  moduleBases.erase(moduleName);
+  return Nothing();
 }
 
 
@@ -178,18 +185,15 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
       return Error("Library name or path not provided");
     }
 
-    Owned<DynamicLibrary> dynamicLibrary(new DynamicLibrary());
-    Try<Nothing> result = dynamicLibrary->open(libraryName);
-    if (!result.isSome()) {
-      return Error("Error opening library: '" + libraryName + "'");
-    }
+    if (!dynamicLibraries.contains(libraryName)) {
+      Owned<DynamicLibrary> dynamicLibrary(new DynamicLibrary());
+      Try<Nothing> result = dynamicLibrary->open(libraryName);
+      if (!result.isSome()) {
+        return Error("Error opening library: '" + libraryName + "'");
+      }
 
-    // Currently we never delete the DynamicLibrary instance nor do we
-    // expose a way to delete it so for now we just put it in a list.
-    // TODO(karya): If we add the functionality to "unload" a module
-    // library, we should make this pointer addressable by something
-    // like the module name.
-    dynamicLibraries.push_back(dynamicLibrary);
+      dynamicLibraries[libraryName] = dynamicLibrary;
+    }
 
     // Load module manifests.
     foreach (const string& moduleName, library.modules()) {
@@ -202,7 +206,7 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
       if (moduleBases.contains(moduleName)) {
         return Error("Error loading duplicate module '" + moduleName + "'");
       }
-      Try<void*> symbol =  dynamicLibrary->loadSymbol(moduleName);
+      Try<void*> symbol = dynamicLibraries[libraryName]->loadSymbol(moduleName);
       if (symbol.isError()) {
         return Error(
             "Error loading module '" + moduleName + "': " + symbol.error());

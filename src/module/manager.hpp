@@ -99,9 +99,9 @@ public:
     return "lib" + libraryName + libraryExtension;
   }
 
-  // Exposed just for testing so that we can close all open dynamic
-  // libraries.
-  static void unloadAll();
+  // Exposed just for testing so that we can unload a given
+  // module  and remove it from the list of ModuleBases.
+  static Try<Nothing> unload(const std::string& moduleName);
 
 private:
   static void initialize();
@@ -122,10 +122,10 @@ private:
   static hashmap<const std::string, ModuleBase*> moduleBases;
 
   // A list of dynamic libraries to keep the object from getting
-  // destructed.
-  // TODO(karya): Make it addressable only when we decide to implement
-  // something that lets remove the module library.
-  static std::list<process::Owned<DynamicLibrary> > dynamicLibraries;
+  // destructed. Destroying the DynamicLibrary object could result in
+  // unloading the library from the process memory.
+  static hashmap<const std::string, process::Owned<DynamicLibrary>>
+    dynamicLibraries;
 };
 
 } // namespace internal {

@@ -83,7 +83,7 @@ TEST_F(ModuleTest, ExampleModuleParseStringTest)
   EXPECT_EQ(module.get()->foo('A', 1024), 1089);
   EXPECT_EQ(module.get()->bar(0.5, 10.8), 5);
 
-  ModuleManager::unloadAll();
+  EXPECT_SOME(ModuleManager::unload(moduleName));
 }
 
 
@@ -105,8 +105,6 @@ TEST_F(ModuleTest, AuthorInfoTest)
   EXPECT_EQ(stringify(moduleBase->authorName), "author");
   EXPECT_EQ(stringify(moduleBase->authorEmail), "author@email.com");
   EXPECT_EQ(stringify(moduleBase->description), "This is a test module.");
-
-  ModuleManager::unloadAll();
 }
 
 
@@ -134,7 +132,7 @@ TEST_F(ModuleTest, LibraryNameWithoutExtension)
   // Reset LD_LIBRARY_PATH environment variable.
   os::setenv(ldLibraryPath, oldLdLibraryPath);
 
-  ModuleManager::unloadAll();
+  EXPECT_SOME(ModuleManager::unload(moduleName));
 }
 
 
@@ -162,7 +160,7 @@ TEST_F(ModuleTest, LibraryNameWithExtension)
   // Reset LD_LIBRARY_PATH environment variable.
   os::setenv(ldLibraryPath, oldLdLibraryPath);
 
-  ModuleManager::unloadAll();
+  EXPECT_SOME(ModuleManager::unload(moduleName));
 }
 
 
@@ -176,7 +174,7 @@ TEST_F(ModuleTest, EmptyLibraryFilename)
 
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_ERROR(ModuleManager::unload(moduleName));
 }
 
 
@@ -189,7 +187,7 @@ TEST_F(ModuleTest, EmptyModuleName)
   Modules modules = getModules(libraryName, moduleName);
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_ERROR(ModuleManager::unload(moduleName));
 }
 
 
@@ -203,7 +201,7 @@ TEST_F(ModuleTest, UnknownLibraryTest)
 
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_ERROR(ModuleManager::unload(moduleName));
 }
 
 
@@ -217,7 +215,7 @@ TEST_F(ModuleTest, UnknownModuleTest)
   Modules modules = getModules(libraryName, moduleName);
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_ERROR(ModuleManager::unload(moduleName));
 }
 
 
@@ -233,7 +231,7 @@ TEST_F(ModuleTest, UnknownModuleInstantiationTest)
 
   EXPECT_ERROR(ModuleManager::create<TestModule>("unknown"));
 
-  ModuleManager::unloadAll();
+  EXPECT_SOME(ModuleManager::unload(moduleName));
 }
 
 
@@ -246,7 +244,7 @@ TEST_F(ModuleTest, NonModuleLibrary)
   Modules modules = getModules(libraryName, moduleName);
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_ERROR(ModuleManager::unload(moduleName));
 }
 
 
@@ -265,7 +263,7 @@ TEST_F(ModuleTest, DuplicateModule)
 
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_SOME(ModuleManager::unload(moduleName));
 }
 
 
@@ -316,19 +314,19 @@ TEST_F(ModuleTest, DifferentApiVersion)
   updateModuleApiVersion(&library, moduleName, "0");
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_ERROR(ModuleManager::unload(moduleName));
 
   // Make the API version arbitrarily high.
   updateModuleApiVersion(&library, moduleName, "1000");
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_ERROR(ModuleManager::unload(moduleName));
 
   // Make the API version some random string.
   updateModuleApiVersion(&library, moduleName, "ThisIsNotAnAPIVersion!");
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_ERROR(ModuleManager::unload(moduleName));
 }
 
 
@@ -348,7 +346,7 @@ TEST_F(ModuleTest, NewerModuleLibrary)
   updateModuleLibraryVersion(&library, moduleName, "100.1.0");
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_ERROR(ModuleManager::unload(moduleName));
 }
 
 
@@ -368,5 +366,5 @@ TEST_F(ModuleTest, OlderModuleLibrary)
   updateModuleLibraryVersion(&library, moduleName, "0.1.0");
   EXPECT_ERROR(ModuleManager::load(modules));
 
-  ModuleManager::unloadAll();
+  EXPECT_ERROR(ModuleManager::unload(moduleName));
 }
