@@ -163,7 +163,7 @@ public:
     Try<ResourceStatistics> usage =
       mesos::internal::usage(pids.get(containerId).get(), false, true);
     if (usage.isError()) {
-      return Failure(usage.error());
+      return process::Failure(usage.error());
     }
     return usage.get();
   }
@@ -196,7 +196,7 @@ public:
     Try<ResourceStatistics> usage =
       mesos::internal::usage(pids.get(containerId).get(), true, false);
     if (usage.isError()) {
-      return Failure(usage.error());
+      return process::Failure(usage.error());
     }
     return usage.get();
   }
