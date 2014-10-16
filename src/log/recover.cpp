@@ -221,6 +221,13 @@ private:
       return result;
     }
 
+    // TODO(jieyu): Currently, we simply calculate the size of the
+    // cluster from the quorum size. In the future, we may want to
+    // allow users to specify the cluster size in case they want to
+    // use a non-standard quorum size (e.g., cluster size = 5, quorum
+    // size = 4).
+    size_t clusterSize = (2 * quorum) - 1;
+
     if (autoInitialize) {
       // The following code handles the auto-initialization. Our idea
       // is: we allow a replica in EMPTY status to become VOTING
@@ -249,14 +256,6 @@ private:
       // way, in our previous example, all replicas will be in
       // STARTING status before any of them can transit to VOTING
       // status.
-
-      // TODO(jieyu): Currently, we simply calculate the size of the
-      // cluster from the quorum size. In the future, we may wanna
-      // allow users to specify the cluster size in case they want to
-      // use a non-standard quorum size (e.g., cluster size = 5,
-      // quorum size = 4).
-      size_t clusterSize = (2 * quorum) - 1;
-
       switch (status) {
         case Metadata::EMPTY:
           if ((responsesReceived[Metadata::EMPTY] +
@@ -283,6 +282,19 @@ private:
         default:
           // Ignore all other cases.
           break;
+      }
+    } else {
+      // Since auto initialization is disabled, we print an advisory
+      // message to remind the user to initialize the log manually.
+      if (responsesReceived[Metadata::EMPTY] >= clusterSize) {
+        LOG(WARNING) << "\n"
+                     << "----------------------------------------------------\n"
+                     << "Replicated log has not been initialized. Did you\n"
+                     << "forget to manually initialize the log (i.e.,\n"
+                     << "mesos-log initialize <PATH>)? Note that all replicas\n"
+                     << "are not initialized and the above command needs to\n"
+                     << "be run on each host!\n";
+                     << "----------------------------------------------------";
       }
     }
 
