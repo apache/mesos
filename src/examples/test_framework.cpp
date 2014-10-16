@@ -133,6 +133,8 @@ public:
         status.state() == TASK_FAILED) {
       cout << "Aborting because task " << taskId
            << " is in unexpected state " << status.state()
+           << " with reason " << status.reason()
+           << " from source " << status.source()
            << " with message '" << status.message() << "'"
            << endl;
       driver->abort();

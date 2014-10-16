@@ -132,6 +132,10 @@ public class TestFramework {
         System.err.println("Aborting because task " + status.getTaskId().getValue() +
                            " is in unexpected state " +
                            status.getState().getValueDescriptor().getName() +
+                           " with reason '" +
+                           status.getReason().getValueDescriptor().getName() + "'" +
+                           " from source '" +
+                           status.getSource().getValueDescriptor().getName() + "'" +
                            " with message '" + status.getMessage() + "'");
         driver.abort();
       }

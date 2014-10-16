@@ -607,15 +607,16 @@ message TaskInfo {
  * another task).
  */
 enum TaskState {
-  TASK_STAGING = 6;  // Initial state. Framework status updates should not use.
+  TASK_STAGING = 6; // Initial state. Framework status updates should not use.
   TASK_STARTING = 0;
   TASK_RUNNING = 1;
-  TASK_FINISHED = 2; // TERMINAL.
-  TASK_FAILED = 3;   // TERMINAL.
-  TASK_KILLED = 4;   // TERMINAL.
-  TASK_LOST = 5;     // TERMINAL.
-
-  // TODO(benh): TASK_ERROR = 7; // TERMINAL.
+  TASK_FINISHED = 2; // TERMINAL. The task finished successfully.
+  TASK_FAILED = 3; // TERMINAL. The task failed to finish successfully.
+  TASK_KILLED = 4; // TERMINAL. The task was killed by the executor.
+  TASK_LOST = 5; // TERMINAL. The task failed but can be rescheduled.
+  // TASK_ERROR is currently unused but will be introduced in 0.22.0.
+  // TODO(dhamon): Start using TASK_ERROR.
+  TASK_ERROR = 7; // TERMINAL. The task description contains an error.
 }
 
 
@@ -623,9 +624,39 @@ enum TaskState {
  * Describes the current status of a task.
  */
 message TaskStatus {
+  /** Describes the source of the task status update. */
+  enum Source {
+    SOURCE_MASTER = 0;
+    SOURCE_SLAVE = 1;
+    SOURCE_EXECUTOR = 2;
+  }
+
+  /** Detailed reason for the task status update. */
+  enum Reason {
+    REASON_COMMAND_EXECUTOR_FAILED = 0;
+    REASON_EXECUTOR_TERMINATED = 1;
+    REASON_EXECUTOR_UNREGISTERED = 2;
+    REASON_FRAMEWORK_REMOVED = 3;
+    REASON_GC_ERROR = 4;
+    REASON_INVALID_FRAMEWORKID = 5;
+    REASON_INVALID_OFFERS = 6;
+    REASON_MASTER_DISCONNECTED = 7;
+    REASON_MEMORY_LIMIT = 8;
+    REASON_RECONCILIATION = 9;
+    REASON_SLAVE_DISCONNECTED = 10;
+    REASON_SLAVE_REMOVED = 11;
+    REASON_SLAVE_RESTARTED = 12;
+    REASON_SLAVE_UNKNOWN = 13;
+    REASON_TASK_INVALID = 14;
+    REASON_TASK_UNAUTHORIZED = 15;
+    REASON_TASK_UNKNOWN = 16;
+  }
+
   required TaskID task_id = 1;
   required TaskState state = 2;
   optional string message = 4; // Possible message explaining state.
+  optional Source source = 9;
+  optional Reason reason = 10;
   optional bytes data = 3;
   optional SlaveID slave_id = 5;
   optional ExecutorID executor_id = 7; // TODO(benh): Use in master/slave.

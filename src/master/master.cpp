@@ -2321,7 +2321,9 @@ void Master::launchTasks(
           task.slave_id(),
           task.task_id(),
           TASK_LOST,
-          "Task launched with invalid offers: " + error.get().message);
+          TaskStatus::SOURCE_MASTER,
+          "Task launched with invalid offers: " + error.get().message,
+          TaskStatus::REASON_INVALID_OFFERS);
 
       metrics.tasks_lost++;
       stats.tasks[TASK_LOST]++;
@@ -2542,7 +2544,11 @@ void Master::_launchTasks(
           task.slave_id(),
           task.task_id(),
           TASK_LOST,
-          (slave == NULL ? "Slave removed" : "Slave disconnected"));
+          TaskStatus::SOURCE_MASTER,
+          slave == NULL ? "Slave removed" : "Slave disconnected",
+          slave == NULL ?
+              TaskStatus::REASON_SLAVE_REMOVED :
+              TaskStatus::REASON_SLAVE_DISCONNECTED);
 
       metrics.tasks_lost++;
       stats.tasks[TASK_LOST]++;
@@ -2578,8 +2584,10 @@ void Master::_launchTasks(
           framework->id,
           task.slave_id(),
           task.task_id(),
-          TASK_LOST,
-          validation.get().message);
+          TASK_LOST,  // TODO(dhamon): TASK_ERROR in 0.22
+          TaskStatus::SOURCE_MASTER,
+          validation.get().message,
+          TaskStatus::REASON_TASK_INVALID);
 
       metrics.tasks_lost++;
       stats.tasks[TASK_LOST]++;
@@ -2603,10 +2611,12 @@ void Master::_launchTasks(
           framework->id,
           task.slave_id(),
           task.task_id(),
-          TASK_LOST,
+          TASK_LOST,  // TODO(dhamon): TASK_ERROR in 0.22
+          TaskStatus::SOURCE_MASTER,
           authorization.isFailed() ?
               "Authorization failure: " + authorization.failure() :
-              "Not authorized to launch as user '" + user + "'");
+              "Not authorized to launch as user '" + user + "'",
+          TaskStatus::REASON_TASK_UNAUTHORIZED);
 
       metrics.tasks_lost++;
       stats.tasks[TASK_LOST]++;
@@ -2635,7 +2645,9 @@ void Master::_launchTasks(
           task.slave_id(),
           task.task_id(),
           TASK_LOST,
-          error);
+          TaskStatus::SOURCE_MASTER,
+          error,
+          TaskStatus::REASON_TASK_INVALID);
 
       metrics.tasks_lost++;
       stats.tasks[TASK_LOST]++;
@@ -2724,6 +2736,7 @@ void Master::killTask(
         None(),
         taskId,
         TASK_KILLED,
+        TaskStatus::SOURCE_MASTER,
         "Killed pending task");
 
     forward(update, UPID(), framework);
@@ -2765,7 +2778,9 @@ void Master::killTask(
           None(),
           taskId,
           TASK_LOST,
-          "Attempted to kill an unknown task");
+          TaskStatus::SOURCE_MASTER,
+          "Attempted to kill an unknown task",
+          TaskStatus::REASON_TASK_UNKNOWN);
 
       forward(update, UPID(), framework);
     } else {
@@ -3542,7 +3557,9 @@ void Master::reconcileTasks(
           task.slave_id(),
           task.task_id(),
           TASK_STAGING,
-          "Reconciliation: Latest task state");
+          TaskStatus::SOURCE_MASTER,
+          "Reconciliation: Latest task state",
+          TaskStatus::REASON_RECONCILIATION);
 
       VLOG(1) << "Sending implicit reconciliation state "
               << update.status().state()
@@ -3566,7 +3583,9 @@ void Master::reconcileTasks(
           task->slave_id(),
           task->task_id(),
           state,
-          "Reconciliation: Latest task state");
+          TaskStatus::SOURCE_MASTER,
+          "Reconciliation: Latest task state",
+          TaskStatus::REASON_RECONCILIATION);
 
       VLOG(1) << "Sending implicit reconciliation state "
               << update.status().state()
@@ -3617,7 +3636,9 @@ void Master::reconcileTasks(
           task_.slave_id(),
           task_.task_id(),
           TASK_STAGING,
-          "Reconciliation: Latest task state");
+          TaskStatus::SOURCE_MASTER,
+          "Reconciliation: Latest task state",
+          TaskStatus::REASON_RECONCILIATION);
     } else if (task != NULL) {
       // (2) Task is known: send the latest status update state.
       const TaskState& state = task->has_status_update_state()
@@ -3629,7 +3650,9 @@ void Master::reconcileTasks(
           task->slave_id(),
           task->task_id(),
           state,
-          "Reconciliation: Latest task state");
+          TaskStatus::SOURCE_MASTER,
+          "Reconciliation: Latest task state",
+          TaskStatus::REASON_RECONCILIATION);
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
       // (3) Task is unknown, slave is registered: TASK_LOST.
       update = protobuf::createStatusUpdate(
@@ -3637,7 +3660,9 @@ void Master::reconcileTasks(
           slaveId.get(),
           status.task_id(),
           TASK_LOST,
-          "Reconciliation: Task is unknown to the slave");
+          TaskStatus::SOURCE_MASTER,
+          "Reconciliation: Task is unknown to the slave",
+          TaskStatus::REASON_RECONCILIATION);
     } else if (slaves.transitioning(slaveId)) {
       // (4) Task is unknown, slave is transitionary: no-op.
       LOG(INFO) << "Ignoring reconciliation request of task "
@@ -3650,7 +3675,9 @@ void Master::reconcileTasks(
           slaveId,
           status.task_id(),
           TASK_LOST,
-          "Reconciliation: Task is unknown");
+          TaskStatus::SOURCE_MASTER,
+          "Reconciliation: Task is unknown",
+          TaskStatus::REASON_RECONCILIATION);
     }
 
     if (update.isSome()) {
@@ -4010,7 +4037,9 @@ void Master::reconcile(
           status->mutable_task_id()->CopyFrom(task->task_id());
           status->mutable_slave_id()->CopyFrom(slave->id);
           status->set_state(state);
+          status->set_source(TaskStatus::SOURCE_MASTER);
           status->set_message("Reconciliation request");
+          status->set_reason(TaskStatus::REASON_RECONCILIATION);
           status->set_timestamp(Clock::now().secs());
         } else {
           // TODO(bmahler): Remove this case in 0.22.0.
@@ -4019,7 +4048,9 @@ void Master::reconcile(
               slave->id,
               task->task_id(),
               TASK_LOST,
-              "Task is unknown to the slave");
+              TaskStatus::SOURCE_MASTER,
+              "Task is unknown to the slave",
+              TaskStatus::REASON_TASK_UNKNOWN);
 
           updateTask(task, update);
           removeTask(task);
@@ -4277,7 +4308,9 @@ void Master::removeFramework(Framework* framework)
         task->slave_id(),
         task->task_id(),
         TASK_KILLED,
+        TaskStatus::SOURCE_MASTER,
         "Framework " + framework->id.value() + " removed",
+        TaskStatus::REASON_FRAMEWORK_REMOVED,
         (task->has_executor_id()
          ? Option<ExecutorID>(task->executor_id())
          : None()));
@@ -4369,7 +4402,9 @@ void Master::removeFramework(Slave* slave, Framework* framework)
         task->slave_id(),
         task->task_id(),
         TASK_LOST,
+        TaskStatus::SOURCE_MASTER,
         "Slave " + slave->info.hostname() + " disconnected",
+        TaskStatus::REASON_SLAVE_DISCONNECTED,
         (task->has_executor_id()
             ? Option<ExecutorID>(task->executor_id()) : None()));
 
@@ -4486,7 +4521,9 @@ void Master::removeSlave(Slave* slave)
           task->slave_id(),
           task->task_id(),
           TASK_LOST,
+          TaskStatus::SOURCE_MASTER,
           "Slave " + slave->info.hostname() + " removed",
+          TaskStatus::REASON_SLAVE_REMOVED,
           (task->has_executor_id() ?
               Option<ExecutorID>(task->executor_id()) : None()));
 

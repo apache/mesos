@@ -129,8 +129,10 @@ public:
   virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
   {
     std::cout << "Task in state " << status.state() << std::endl;
+    std::cout << "Source: " << status.source() << std::endl;
+    std::cout << "Reason: " << status.reason() << std::endl;
     if (status.has_message()) {
-      std::cout << "Reason: " << status.message() << std::endl;
+      std::cout << "Message: " << status.message() << std::endl;
     }
 
     if (protobuf::isTerminalState(status.state())) {

@@ -290,6 +290,8 @@ private:
         status.state() == TASK_FAILED) {
       EXIT(1) << "Exiting because task " << status.task_id()
               << " is in unexpected state " << status.state()
+              << " with reason " << status.reason()
+              << " from source " << status.source()
               << " with message '" << status.message() << "'";
     }
 

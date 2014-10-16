@@ -206,6 +206,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_UNAUTHORIZED, status.get().reason());
 
   driver.stop();
   driver.join();

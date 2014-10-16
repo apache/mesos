@@ -41,7 +41,9 @@ StatusUpdate createStatusUpdate(
     const Option<SlaveID>& slaveId,
     const TaskID& taskId,
     const TaskState& state,
+    const TaskStatus::Source& source,
     const std::string& message = "",
+    const Option<TaskStatus::Reason>& reason = None(),
     const Option<ExecutorID>& executorId = None());
 
 Task createTask(

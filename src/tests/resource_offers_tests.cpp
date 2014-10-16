@@ -233,6 +233,7 @@ TEST_F(ResourceOffersTest, TaskUsesNoResources)
   AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_EQ("Task uses no resources", status.get().message());
 
@@ -291,6 +292,7 @@ TEST_F(ResourceOffersTest, TaskUsesInvalidResources)
   AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_EQ("Task uses invalid resources: cpus(*):0", status.get().message());
 
@@ -350,6 +352,7 @@ TEST_F(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
 
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_TRUE(strings::contains(
       status.get().message(), "greater than offered"));
@@ -514,6 +517,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_EQ("Task uses invalid resources: cpus(*):0", status.get().message());
 
@@ -680,6 +684,7 @@ TEST_F(MultipleExecutorsTest, ExecutorInfoDiffersOnSameSlave)
   AWAIT_READY(status);
   EXPECT_EQ(task2.task_id(), status.get().task_id());
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_TRUE(strings::contains(
       status.get().message(), "Task has invalid ExecutorInfo"));

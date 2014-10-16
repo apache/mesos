@@ -47,7 +47,9 @@ StatusUpdate createStatusUpdate(
     const Option<SlaveID>& slaveId,
     const TaskID& taskId,
     const TaskState& state,
+    const TaskStatus::Source& source,
     const std::string& message = "",
+    const Option<TaskStatus::Reason>& reason = None(),
     const Option<ExecutorID>& executorId = None())
 {
   StatusUpdate update;
@@ -72,8 +74,13 @@ StatusUpdate createStatusUpdate(
   }
 
   status->set_state(state);
+  status->set_source(source);
   status->set_message(message);
   status->set_timestamp(update.timestamp());
+
+  if (reason.isSome()) {
+    status->set_reason(reason.get());
+  }
 
   return update;
 }

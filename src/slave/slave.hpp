@@ -396,6 +396,12 @@ private:
   double _executors_running();
   double _executors_terminating();
 
+  void sendExecutorTerminatedStatusUpdate(
+      const TaskID& taskId,
+      const Future<containerizer::Termination>& termination,
+      const FrameworkID& frameworkId,
+      const Executor* executor);
+
   const Flags flags;
 
   SlaveInfo info;
@@ -519,7 +525,7 @@ struct Executor
   bool incompleteTasks();
 
   // Returns true if this is a command executor.
-  bool isCommandExecutor();
+  bool isCommandExecutor() const;
 
   enum State {
     REGISTERING,  // Executor is launched but not (re-)registered yet.

@@ -217,7 +217,11 @@ TEST_F(FaultToleranceTest, PartitionedSlaveStatusUpdates)
   TaskID taskId;
   taskId.set_value("task_id");
   const StatusUpdate& update = createStatusUpdate(
-      frameworkId.get(), slaveId, taskId, TASK_RUNNING);
+      frameworkId.get(),
+      slaveId,
+      taskId,
+      TASK_RUNNING,
+      TaskStatus::SOURCE_SLAVE);
 
   StatusUpdateMessage message;
   message.mutable_update()->CopyFrom(update);
@@ -1279,7 +1283,12 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   taskId.set_value("task2");
 
   StatusUpdate statusUpdate2 = createStatusUpdate(
-      frameworkId, offer.slave_id(), taskId, TASK_RUNNING, "Dummy update");
+      frameworkId,
+      offer.slave_id(),
+      taskId,
+      TASK_RUNNING,
+      TaskStatus::SOURCE_SLAVE,
+      "Dummy update");
 
   process::dispatch(slave.get(), &Slave::statusUpdate, statusUpdate2, UPID());
 
@@ -1835,7 +1844,8 @@ TEST_F(FaultToleranceTest, SplitBrainMasters)
       frameworkId.get(),
       runningStatus.get().slave_id(),
       runningStatus.get().task_id(),
-      TASK_LOST));
+      TASK_LOST,
+      TaskStatus::SOURCE_SLAVE));
 
   // Spoof a message from a random master; this should be dropped by
   // the scheduler driver. Since this is delivered locally, it is

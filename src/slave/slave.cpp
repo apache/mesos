@@ -888,7 +888,9 @@ void Slave::reregistered(
             info.id(),
             taskId,
             TASK_LOST,
-            "Reconciliation: task unknown to the slave");
+            TaskStatus::SOURCE_SLAVE,
+            "Reconciliation: task unknown to the slave",
+            TaskStatus::REASON_RECONCILIATION);
 
         // NOTE: We can't use statusUpdate() here because it drops
         // updates for unknown frameworks.
@@ -1237,8 +1239,10 @@ void Slave::_runTask(
         info.id(),
         task.task_id(),
         TASK_LOST,
+        TaskStatus::SOURCE_SLAVE,
         "Could not launch the task because we failed to unschedule directories"
-        " scheduled for gc");
+        " scheduled for gc",
+        TaskStatus::REASON_GC_ERROR);
 
     // TODO(vinod): Ensure that the status update manager reliably
     // delivers this update. Currently, we don't guarantee this
@@ -1300,7 +1304,9 @@ void Slave::_runTask(
           info.id(),
           task.task_id(),
           TASK_LOST,
-          "Executor terminating/terminated");
+          TaskStatus::SOURCE_SLAVE,
+          "Executor terminating/terminated",
+          TaskStatus::REASON_EXECUTOR_TERMINATED);
 
       statusUpdate(update, UPID());
       break;
@@ -1416,7 +1422,11 @@ void Slave::killTask(
                    << " before it was launched";
 
       const StatusUpdate& update = protobuf::createStatusUpdate(
-          frameworkId, info.id(), taskId, TASK_KILLED,
+          frameworkId,
+          info.id(),
+          taskId,
+          TASK_KILLED,
+          TaskStatus::SOURCE_SLAVE,
           "Task killed before it was launched");
       statusUpdate(update, UPID());
 
@@ -1439,7 +1449,13 @@ void Slave::killTask(
     // We send a TASK_LOST update because this task has never
     // been launched on this slave.
     const StatusUpdate& update = protobuf::createStatusUpdate(
-        frameworkId, info.id(), taskId, TASK_LOST, "Cannot find executor");
+        frameworkId,
+        info.id(),
+        taskId,
+        TASK_LOST,
+        TaskStatus::SOURCE_SLAVE,
+        "Cannot find executor",
+        TaskStatus::REASON_EXECUTOR_TERMINATED);
 
     statusUpdate(update, UPID());
     return;
@@ -1456,7 +1472,9 @@ void Slave::killTask(
           info.id(),
           taskId,
           TASK_KILLED,
+          TaskStatus::SOURCE_SLAVE,
           "Unregistered executor",
+          TaskStatus::REASON_EXECUTOR_UNREGISTERED,
           executor->id);
 
       statusUpdate(update, UPID());
@@ -2126,7 +2144,9 @@ void Slave::reregisterExecutor(
               info.id(),
               task->task_id(),
               TASK_LOST,
+              TaskStatus::SOURCE_SLAVE,
               "Task launched during slave restart",
+              TaskStatus::REASON_SLAVE_RESTARTED,
               executorId);
 
           statusUpdate(update, UPID());
@@ -2205,7 +2225,9 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
         state == RUNNING || state == TERMINATING)
     << state;
 
-  const TaskStatus& status = update.status();
+  TaskStatus status = update.status();
+  status.set_source(pid == UPID() ? TaskStatus::SOURCE_SLAVE
+                                  : TaskStatus::SOURCE_EXECUTOR);
 
   Framework* framework = getFramework(update.framework_id());
   if (framework == NULL) {
@@ -2269,8 +2291,9 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
                  << " (" << executor->pid << ")";
   }
 
-  stats.tasks[update.status().state()]++;
+  stats.tasks[status.state()]++;
   stats.validStatusUpdates++;
+
   metrics.valid_status_updates++;
 
   // We set the latest state of the task here so that the slave can
@@ -2933,22 +2956,8 @@ void Slave::executorTerminated(
         // supports it.
         foreach (Task* task, executor->launchedTasks.values()) {
           if (!protobuf::isTerminalState(task->state())) {
-            mesos::TaskState taskState;
-            if ((termination.isReady() && termination.get().killed()) ||
-                executor->isCommandExecutor()) {
-              taskState = TASK_FAILED;
-            } else {
-              taskState = TASK_LOST;
-            }
-            statusUpdate(protobuf::createStatusUpdate(
-                frameworkId,
-                info.id(),
-                task->task_id(),
-                taskState,
-                termination.isReady() ? termination.get().message() :
-                                        "Abnormal executor termination",
-                executorId),
-                UPID());
+            sendExecutorTerminatedStatusUpdate(
+                task->task_id(), termination, frameworkId, executor);
           }
         }
 
@@ -2956,22 +2965,8 @@ void Slave::executorTerminated(
         // TODO(vinod): Use foreachvalue instead once LinkedHashmap
         // supports it.
         foreach (const TaskInfo& task, executor->queuedTasks.values()) {
-          mesos::TaskState taskState;
-          if ((termination.isReady() && termination.get().killed()) ||
-              executor->isCommandExecutor()) {
-            taskState = TASK_FAILED;
-          } else {
-            taskState = TASK_LOST;
-          }
-          statusUpdate(protobuf::createStatusUpdate(
-              frameworkId,
-              info.id(),
-              task.task_id(),
-              taskState,
-              termination.isReady() ? termination.get().message() :
-                                      "Abnormal executor termination",
-              executorId),
-              UPID());
+          sendExecutorTerminatedStatusUpdate(
+              task.task_id(), termination, frameworkId, executor);
         }
       }
 
@@ -3709,6 +3704,38 @@ double Slave::_executors_terminating()
 }
 
 
+void Slave::sendExecutorTerminatedStatusUpdate(
+    const TaskID& taskId,
+    const Future<containerizer::Termination>& termination,
+    const FrameworkID& frameworkId,
+    const Executor* executor)
+{
+  mesos::TaskState taskState = TASK_LOST;
+  TaskStatus::Reason reason = TaskStatus::REASON_EXECUTOR_TERMINATED;
+
+  if (termination.isReady() && termination.get().killed()) {
+    taskState = TASK_FAILED;
+    // TODO(dhamon): MESOS-2035: Add 'reason' to containerizer::Termination.
+    reason = TaskStatus::REASON_MEMORY_LIMIT;
+  } else if (executor->isCommandExecutor()) {
+    taskState = TASK_FAILED;
+    reason = TaskStatus::REASON_COMMAND_EXECUTOR_FAILED;
+  }
+
+  statusUpdate(protobuf::createStatusUpdate(
+      frameworkId,
+      info.id(),
+      taskId,
+      taskState,
+      TaskStatus::SOURCE_SLAVE,
+      termination.isReady() ? termination.get().message() :
+                              "Abnormal executor termination",
+      reason,
+      executor->id),
+      UPID());
+}
+
+
 Slave::Metrics::Metrics(const Slave& slave)
   : uptime_secs(
         "slave/uptime_secs",
@@ -4348,7 +4375,7 @@ bool Executor::incompleteTasks()
 }
 
 
-bool Executor::isCommandExecutor()
+bool Executor::isCommandExecutor() const
 {
   return commandExecutor;
 }
