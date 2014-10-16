@@ -346,15 +346,22 @@ protected:
       const std::vector<StatusUpdate>& updates,
       const process::Future<bool>& removed);
 
-  // Validates the task including authorization.
+  // Validates the task.
   // Returns None if the task is valid.
   // Returns Error if the task is invalid.
-  // Returns Failure if authorization returns 'Failure'.
-  process::Future<Option<Error> > validateTask(
+  Option<Error> validateTask(
       const TaskInfo& task,
       Framework* framework,
       Slave* slave,
       const Resources& totalResources);
+
+  // Authorizes the task.
+  // Returns true if task is authorized.
+  // Returns false if task is not authorized.
+  // Returns failure for transient authorization failures.
+  process::Future<bool> authorizeTask(
+      const TaskInfo& task,
+      Framework* framework);
 
   // Launch a task from a task description.
   void launchTask(const TaskInfo& task, Framework* framework, Slave* slave);
@@ -366,7 +373,8 @@ protected:
       const std::vector<TaskInfo>& tasks,
       const Resources& totalResources,
       const Filters& filters,
-      const process::Future<std::list<process::Future<Option<Error> > > >& f);
+      const std::vector<Option<Error>>& validations,
+      const process::Future<std::list<process::Future<bool>>>& authorizations);
 
   // Transitions the task, and recovers resources if the task becomes
   // terminal.
