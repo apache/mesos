@@ -300,7 +300,7 @@ static void updateModuleApiVersion(
 
 // Test that loading a module library with a different API version
 // fails
-TEST_F(ModuleTest, DifferentApiVersion)
+TEST_F(ModuleTest, DISABLED_DifferentApiVersion)
 {
   const string libraryName = "examplemodule";
   const string moduleName = "org_apache_mesos_TestModule";
@@ -332,7 +332,7 @@ TEST_F(ModuleTest, DifferentApiVersion)
 
 // Test that loading a module library compiled with a newer Mesos
 // fails.
-TEST_F(ModuleTest, NewerModuleLibrary)
+TEST_F(ModuleTest, DISABLED_NewerModuleLibrary)
 {
   const string libraryName = "examplemodule";
   const string moduleName = "org_apache_mesos_TestModule";
@@ -352,7 +352,7 @@ TEST_F(ModuleTest, NewerModuleLibrary)
 
 // Test that loading a module library compiled with a really old
 // Mesos fails.
-TEST_F(ModuleTest, OlderModuleLibrary)
+TEST_F(ModuleTest, DISABLED_OlderModuleLibrary)
 {
   const string libraryName = "examplemodule";
   const string moduleName = "org_apache_mesos_TestModule";
