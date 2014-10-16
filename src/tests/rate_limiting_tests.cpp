@@ -55,6 +55,7 @@ namespace master {
 
 // Query Mesos metrics snapshot endpoint and return a JSON::Object
 // result.
+// TODO(dhamon): Kill this in favour of Metrics() in mesos.hpp
 #define METRICS_SNAPSHOT                                                       \
   ({ Future<process::http::Response> response =                                \
        process::http::get(MetricsProcess::instance()->self(), "snapshot");     \

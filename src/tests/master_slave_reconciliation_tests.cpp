@@ -229,6 +229,18 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
   ASSERT_EQ(task.task_id(), status.get().task_id());
   ASSERT_EQ(TASK_LOST, status.get().state());
 
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+  EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(
+      1u,
+      stats.values.count(
+          "master/task_lost/source_slave/reason_reconciliation"));
+  EXPECT_EQ(
+      1u,
+      stats.values["master/task_lost/source_slave/reason_reconciliation"]);
+
   driver.stop();
   driver.join();
 

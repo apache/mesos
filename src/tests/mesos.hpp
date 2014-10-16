@@ -178,6 +178,9 @@ protected:
   // Stop all slaves.
   virtual void ShutdownSlaves();
 
+  // Get the metrics snapshot.
+  JSON::Object Metrics() const;
+
   Cluster cluster;
 
   // Containerizer(s) created during test that we need to cleanup.

@@ -361,6 +361,15 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
   // returned to the allocator.
   AWAIT_READY(recoverResources);
 
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+  EXPECT_EQ(1u, stats.values.count(
+                    "master/task_lost/source_master/reason_slave_removed"));
+  EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(
+      1u, stats.values["master/task_lost/source_master/reason_slave_removed"]);
+
   driver.stop();
   driver.join();
 
@@ -446,6 +455,17 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
   // No task launch should happen resulting in all resources being
   // returned to the allocator.
   AWAIT_READY(recoverResources);
+
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+  EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(1u,
+            stats.values.count(
+                "master/task_lost/source_master/reason_slave_disconnected"));
+  EXPECT_EQ(
+      1u,
+      stats.values["master/task_lost/source_master/reason_slave_disconnected"]);
 
   driver.stop();
   driver.join();

@@ -2443,7 +2443,7 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
   if (protobuf::isTerminalState(status.state()) &&
       (executor->queuedTasks.contains(status.task_id()) ||
        executor->launchedTasks.contains(status.task_id()))) {
-    executor->terminateTask(status.task_id(), status.state());
+    executor->terminateTask(status.task_id(), status);
 
     // Wait until the container's resources have been updated before
     // sending the status update.
@@ -4324,7 +4324,7 @@ Task* Executor::addTask(const TaskInfo& task)
 
 void Executor::terminateTask(
     const TaskID& taskId,
-    const mesos::TaskState& state)
+    const mesos::TaskStatus& status)
 {
   VLOG(1) << "Terminating task " << taskId;
 
@@ -4332,7 +4332,7 @@ void Executor::terminateTask(
   // Remove the task if it's queued.
   if (queuedTasks.contains(taskId)) {
     task = new Task(
-        protobuf::createTask(queuedTasks[taskId], state, frameworkId));
+        protobuf::createTask(queuedTasks[taskId], status.state(), frameworkId));
     queuedTasks.erase(taskId);
   } else if (launchedTasks.contains(taskId)) {
     // Update the resources if it's been launched.
@@ -4341,7 +4341,7 @@ void Executor::terminateTask(
     launchedTasks.erase(taskId);
   }
 
-  switch (state) {
+  switch (status.state()) {
     case TASK_FINISHED:
       ++slave->metrics.tasks_finished;
       break;
@@ -4355,10 +4355,12 @@ void Executor::terminateTask(
       ++slave->metrics.tasks_lost;
       break;
     default:
-      LOG(WARNING) << "Unhandled task state " << state << " on completion.";
+      LOG(WARNING) << "Unhandled task state " << status.state()
+                   << " on completion.";
       break;
   }
 
+  // TODO(dhamon): Update source/reason metrics.
   terminatedTasks[taskId] = CHECK_NOTNULL(task);
 }
 
@@ -4441,7 +4443,7 @@ void Executor::recoverTask(const TaskState& state)
     // terminal updates (e.g., when slave recovery is always enabled).
     if (protobuf::isTerminalState(update.status().state()) &&
         launchedTasks.contains(state.id)) {
-      terminateTask(state.id, update.status().state());
+      terminateTask(state.id, update.status());
 
       // If the terminal update has been acknowledged, remove it.
       if (state.acks.contains(UUID::fromBytes(update.uuid()))) {

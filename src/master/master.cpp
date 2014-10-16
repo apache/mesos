@@ -2249,6 +2249,11 @@ void Master::accept(
         metrics->tasks_lost++;
         stats.tasks[TASK_LOST]++;
 
+        metrics->incrementTasksStates(
+            TASK_LOST,
+            TaskStatus::SOURCE_MASTER,
+            TaskStatus::REASON_INVALID_OFFERS);
+
         forward(update, UPID(), framework);
       }
     }
@@ -2339,6 +2344,9 @@ void Master::_accept(
       }
 
       foreach (const TaskInfo& task, operation.launch().task_infos()) {
+        const TaskStatus::Reason reason =
+            slave == NULL ? TaskStatus::REASON_SLAVE_REMOVED
+                          : TaskStatus::REASON_SLAVE_DISCONNECTED;
         const StatusUpdate& update = protobuf::createStatusUpdate(
             framework->id,
             task.slave_id(),
@@ -2346,12 +2354,15 @@ void Master::_accept(
             TASK_LOST,
             TaskStatus::SOURCE_MASTER,
             slave == NULL ? "Slave removed" : "Slave disconnected",
-            slave == NULL ?
-                TaskStatus::REASON_SLAVE_REMOVED :
-                TaskStatus::REASON_SLAVE_DISCONNECTED);
+            reason);
 
         metrics->tasks_lost++;
         stats.tasks[TASK_LOST]++;
+
+        metrics->incrementTasksStates(
+            TASK_LOST,
+            TaskStatus::SOURCE_MASTER,
+            reason);
 
         forward(update, UPID(), framework);
       }
@@ -2484,6 +2495,11 @@ void Master::_accept(
             metrics->tasks_error++;
             stats.tasks[TASK_ERROR]++;
 
+            metrics->incrementTasksStates(
+                TASK_ERROR,
+                TaskStatus::SOURCE_MASTER,
+                TaskStatus::REASON_TASK_UNAUTHORIZED);
+
             forward(update, UPID(), framework);
 
             continue;
@@ -2508,6 +2524,11 @@ void Master::_accept(
 
             metrics->tasks_error++;
             stats.tasks[TASK_ERROR]++;
+
+            metrics->incrementTasksStates(
+                TASK_ERROR,
+                TaskStatus::SOURCE_MASTER,
+                TaskStatus::REASON_TASK_INVALID);
 
             forward(update, UPID(), framework);
 
@@ -4619,12 +4640,20 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
       framework->taskTerminated(task);
     }
 
-    switch (task->state()) {
+    switch (status.state()) {
       case TASK_FINISHED: ++metrics->tasks_finished; break;
       case TASK_FAILED:   ++metrics->tasks_failed;   break;
       case TASK_KILLED:   ++metrics->tasks_killed;   break;
       case TASK_LOST:     ++metrics->tasks_lost;     break;
-      default: break;
+      case TASK_ERROR:    ++metrics->tasks_error;    break;
+      default:                                       break;
+    }
+
+    if (status.has_reason()) {
+      metrics->incrementTasksStates(
+          status.state(),
+          status.source(),
+          status.reason());
     }
   }
 }

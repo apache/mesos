@@ -673,6 +673,8 @@ private:
 
   // NOTE: It is safe to use a 'shared_ptr' because 'Metrics' is
   // thread safe.
+  // TODO(dhamon): Does this need to be a shared_ptr? Metrics contains copyable
+  // metric types only.
   memory::shared_ptr<Metrics> metrics;
 
   // Gauge handlers.

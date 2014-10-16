@@ -40,6 +40,7 @@
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include "master/allocator.hpp"
@@ -1364,6 +1365,19 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  std::cout << stats << '\n';
+  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+  EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(
+      1u,
+      stats.values.count(
+          "master/task_lost/source_master/reason_invalid_offers"));
+  EXPECT_EQ(
+      1u,
+      stats.values["master/task_lost/source_master/reason_invalid_offers"]);
+
   driver.stop();
   driver.join();
 
@@ -1444,6 +1458,18 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+  EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(
+      1u,
+      stats.values.count(
+          "master/task_lost/source_master/reason_invalid_offers"));
+  EXPECT_EQ(
+      1u,
+      stats.values["master/task_lost/source_master/reason_invalid_offers"]);
+
   driver.stop();
   driver.join();
 
@@ -1498,6 +1524,8 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
   EXPECT_EQ(1u, stats.values.count("master/tasks_failed"));
   EXPECT_EQ(1u, stats.values.count("master/tasks_killed"));
   EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+
+  // TODO(dhamon): Add expectations for task source reason metrics.
 
   EXPECT_EQ(1u, stats.values.count("master/dropped_messages"));
 

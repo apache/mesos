@@ -28,6 +28,8 @@
 
 #include <stout/hashmap.hpp>
 
+#include "mesos/mesos.hpp"
+
 namespace mesos {
 namespace master {
 
@@ -63,6 +65,12 @@ struct Metrics
   process::metrics::Counter tasks_killed;
   process::metrics::Counter tasks_lost;
   process::metrics::Counter tasks_error;
+
+  typedef hashmap<TaskStatus::Reason, process::metrics::Counter> Reasons;
+  typedef hashmap<TaskStatus::Source, Reasons> SourcesReasons;
+
+  // NOTE: We only track metrics sources and reasons for terminal states.
+  hashmap<TaskState, SourcesReasons> tasks_states;
 
   // Message counters.
   process::metrics::Counter dropped_messages;
@@ -163,6 +171,9 @@ struct Metrics
   std::vector<process::metrics::Gauge> resources_total;
   std::vector<process::metrics::Gauge> resources_used;
   std::vector<process::metrics::Gauge> resources_percent;
+
+  void incrementTasksStates(
+      TaskState state, TaskStatus::Source source, TaskStatus::Reason reason);
 };
 
 } // namespace master {

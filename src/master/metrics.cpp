@@ -21,7 +21,6 @@
 #include "master/master.hpp"
 #include "master/metrics.hpp"
 
-
 namespace mesos {
 namespace master {
 
@@ -342,6 +341,41 @@ Metrics::~Metrics()
     process::metrics::remove(gauge);
   }
   resources_percent.clear();
+
+  foreachvalue (const auto& source_reason, tasks_states) {
+    foreachvalue (const auto& reason_counter, source_reason) {
+      foreachvalue (const process::metrics::Counter& counter, reason_counter) {
+        process::metrics::remove(counter);
+      }
+    }
+  }
+  tasks_states.clear();
+}
+
+
+void Metrics::incrementTasksStates(
+    TaskState state, TaskStatus::Source source, TaskStatus::Reason reason)
+{
+  if (!tasks_states.contains(state)) {
+    tasks_states[state] = SourcesReasons();
+  }
+  if (!tasks_states[state].contains(source)) {
+    tasks_states[state][source] = Reasons();
+  }
+  if (!tasks_states[state][source].contains(reason)) {
+    process::metrics::Counter counter =
+        process::metrics::Counter(
+            "master/" +
+            strings::lower(TaskState_Name(state)) + "/" +
+            strings::lower(TaskStatus::Source_Name(source)) + "/" +
+            strings::lower(TaskStatus::Reason_Name(reason)));
+    tasks_states[state][source].put(reason, counter);
+    process::metrics::add(counter);
+  }
+
+  process::metrics::Counter counter =
+    tasks_states[state][source].get(reason).get();
+  counter++;
 }
 
 
