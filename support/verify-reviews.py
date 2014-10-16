@@ -79,9 +79,10 @@ def apply_reviews(review_request, applied):
         print "Dependent review: %s " % review_url
         apply_reviews(api(review_url)["review_request"], applied)
 
-    # Now apply this review.
+    # Now apply this review if not yet submitted.
     applied.append(review_request["id"])
-    apply_review(review_request["id"])
+    if review_request["status"] != "submitted":
+      apply_review(review_request["id"])
 
 
 def post_review(review_request, message):
