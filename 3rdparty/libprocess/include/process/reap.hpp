@@ -9,6 +9,9 @@
 
 namespace process {
 
+// The upper bound for the poll interval in the reaper.
+Duration MAX_REAP_INTERVAL();
+
 // Returns the exit status of the specified process if and only if
 // the process is a direct child and it has not already been reaped.
 // Otherwise, returns None once the process has been reaped elsewhere
