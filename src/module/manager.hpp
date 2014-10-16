@@ -89,6 +89,16 @@ public:
     return kind;
   }
 
+  static std::string expandLibraryName(const std::string& libraryName)
+  {
+#ifdef __linux__
+    const char* libraryExtension = ".so";
+#else
+    const char* libraryExtension = ".dylib";
+#endif
+    return "lib" + libraryName + libraryExtension;
+  }
+
   // Exposed just for testing so that we can close all open dynamic
   // libraries.
   static void unloadAll();

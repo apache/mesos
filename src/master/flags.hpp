@@ -321,6 +321,12 @@ public:
         "        \"org_apache_mesos_bar\",\n"
         "        \"org_apache_mesos_baz\"\n"
         "      ]\n"
+        "    },\n"
+        "    {\n"
+        "      \"name\": \"qux\",\n"
+        "      \"modules\": [\n"
+        "        \"org_apache_mesos_norf\",\n"
+        "      ]\n"
         "    }\n"
         "  ]\n"
         "}");

@@ -169,13 +169,19 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
   initialize();
 
   foreach (const Modules::Library& library, modules.libraries()) {
-    if (!library.has_file()) {
-      return Error("Library path not provided");
+    string libraryName;
+    if (library.has_file()) {
+      libraryName = library.file();
+    } else if (library.has_name()) {
+      libraryName = expandLibraryName(library.name());
+    } else {
+      return Error("Library name or path not provided");
     }
+
     Owned<DynamicLibrary> dynamicLibrary(new DynamicLibrary());
-    Try<Nothing> result = dynamicLibrary->open(library.file());
+    Try<Nothing> result = dynamicLibrary->open(libraryName);
     if (!result.isSome()) {
-      return Error("Error opening library: '" + library.file() + "'");
+      return Error("Error opening library: '" + libraryName + "'");
     }
 
     // Currently we never delete the DynamicLibrary instance nor do we

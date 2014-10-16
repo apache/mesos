@@ -418,7 +418,11 @@ message Modules {
     // search is performed.
     optional string file = 1;
 
-    repeated string modules = 2;
+    // We will add the proper prefix ("lib") and suffix (".so" for
+    // Linux and ".dylib" for OS X) to the "name".
+    optional string name = 2;
+
+    repeated string modules = 3;
   }
 
   repeated Library libraries = 1;
