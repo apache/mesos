@@ -293,7 +293,7 @@ private:
                      << "forget to manually initialize the log (i.e.,\n"
                      << "mesos-log initialize <PATH>)? Note that all replicas\n"
                      << "are not initialized and the above command needs to\n"
-                     << "be run on each host!\n";
+                     << "be run on each host!\n"
                      << "----------------------------------------------------";
       }
     }
