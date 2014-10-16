@@ -362,7 +362,7 @@ inline std::ostream& operator << (std::ostream& out, const Object& object)
   std::map<std::string, Value>::const_iterator iterator;
   iterator = object.values.begin();
   while (iterator != object.values.end()) {
-    out << "\"" << (*iterator).first << "\":" << (*iterator).second;
+    out << String((*iterator).first) << ":" << (*iterator).second;
     if (++iterator != object.values.end()) {
       out << ",";
     }
