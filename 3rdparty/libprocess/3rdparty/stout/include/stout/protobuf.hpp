@@ -44,7 +44,8 @@
 namespace protobuf {
 
 // Write out the given protobuf to the specified file descriptor by
-// first writing out the length of the protobuf followed by the contents.
+// first writing out the length of the protobuf followed by the
+// contents.
 // NOTE: On error, this may have written partial data to the file.
 inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
 {
@@ -70,14 +71,15 @@ inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
 }
 
 
-// A wrapper function that wraps the above write with open and closing the file.
+// A wrapper function that wraps the above write with open and closing
+// the file.
 inline Try<Nothing> write(
     const std::string& path,
     const google::protobuf::Message& message)
 {
   Try<int> fd = os::open(
       path,
-      O_WRONLY | O_CREAT | O_TRUNC,
+      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
@@ -86,17 +88,41 @@ inline Try<Nothing> write(
 
   Try<Nothing> result = write(fd.get(), message);
 
-  // NOTE: We ignore the return value of close(). This is because users calling
-  // this function are interested in the return value of write(). Also an
-  // unsuccessful close() doesn't affect the write.
+  // NOTE: We ignore the return value of close(). This is because
+  // users calling this function are interested in the return value of
+  // write(). Also an unsuccessful close() doesn't affect the write.
   os::close(fd.get());
 
   return result;
 }
 
 
-// Read the next protobuf of type T from the file by first reading
-// the "size" followed by the contents (as written by 'write' above).
+inline Try<Nothing> append(
+    const std::string& path,
+    const google::protobuf::Message& message)
+{
+  Try<int> fd = os::open(
+      path,
+      O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
+  if (fd.isError()) {
+    return Error("Failed to open file '" + path + "': " + fd.error());
+  }
+
+  Try<Nothing> result = write(fd.get(), message);
+
+  // NOTE: We ignore the return value of close(). This is because
+  // users calling this function are interested in the return value of
+  // write(). Also an unsuccessful close() doesn't affect the write.
+  os::close(fd.get());
+
+  return result;
+}
+
+
+// Read the next protobuf of type T from the file by first reading the
+// "size" followed by the contents (as written by 'write' above).
 // If 'ignorePartial' is true, None() is returned when we unexpectedly
 // hit EOF while reading the protobuf (e.g., partial write).
 // If 'undoFailed' is true, failed read attempts will restore the file
@@ -143,9 +169,9 @@ inline Result<T> read(
   // Parse the size from the bytes.
   memcpy((void*) &size, (void*) result.get().data(), sizeof(size));
 
-  // NOTE: Instead of specifically checking for corruption in 'size', we simply
-  // try to read 'size' bytes. If we hit EOF early, it is an indication of
-  // corruption.
+  // NOTE: Instead of specifically checking for corruption in 'size',
+  // we simply try to read 'size' bytes. If we hit EOF early, it is an
+  // indication of corruption.
   result = os::read(fd, size);
 
   if (result.isError()) {
@@ -187,13 +213,15 @@ inline Result<T> read(
 }
 
 
-// A wrapper function that wraps the above read() with
-// open and closing the file.
+// A wrapper function that wraps the above read() with open and
+// closing the file.
 template <typename T>
 inline Result<T> read(const std::string& path)
 {
   Try<int> fd = os::open(
-      path, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      path,
+      O_RDONLY | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (fd.isError()) {
     return Error("Failed to open file '" + path + "': " + fd.error());
@@ -201,9 +229,9 @@ inline Result<T> read(const std::string& path)
 
   Result<T> result = read<T>(fd.get());
 
-  // NOTE: We ignore the return value of close(). This is because users calling
-  // this function are interested in the return value of read(). Also an
-  // unsuccessful close() doesn't affect the read.
+  // NOTE: We ignore the return value of close(). This is because
+  // users calling this function are interested in the return value of
+  // read(). Also an unsuccessful close() doesn't affect the read.
   os::close(fd.get());
 
   return result;
