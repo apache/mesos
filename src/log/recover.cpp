@@ -291,9 +291,9 @@ private:
                      << "----------------------------------------------------\n"
                      << "Replicated log has not been initialized. Did you\n"
                      << "forget to manually initialize the log (i.e.,\n"
-                     << "mesos-log initialize <PATH>)? Note that all replicas\n"
-                     << "are not initialized and the above command needs to\n"
-                     << "be run on each host!\n"
+                     << "mesos-log initialize --path=<PATH>)? Note that all\n"
+                     << "replicas are not initialized and the above command\n"
+                     << "needs to be run on each host!\n"
                      << "----------------------------------------------------";
       }
     }
