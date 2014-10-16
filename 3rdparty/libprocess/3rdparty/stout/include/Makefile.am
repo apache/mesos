@@ -37,12 +37,15 @@ nobase_include_HEADERS =		\
   stout/numify.hpp			\
   stout/option.hpp			\
   stout/os.hpp				\
+  stout/os/close.hpp			\
   stout/os/execenv.hpp			\
   stout/os/exists.hpp			\
+  stout/os/fcntl.hpp			\
   stout/os/fork.hpp			\
   stout/os/killtree.hpp			\
   stout/os/linux.hpp			\
   stout/os/ls.hpp			\
+  stout/os/open.hpp			\
   stout/os/osx.hpp			\
   stout/os/process.hpp			\
   stout/os/read.hpp			\

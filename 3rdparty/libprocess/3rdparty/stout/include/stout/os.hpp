@@ -19,7 +19,6 @@
 #endif
 #include <dirent.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <fts.h>
 #include <glob.h>
 #include <libgen.h>
@@ -67,13 +66,16 @@
 #include <stout/unreachable.hpp>
 #include <stout/version.hpp>
 
+#include <stout/os/close.hpp>
 #include <stout/os/exists.hpp>
+#include <stout/os/fcntl.hpp>
 #include <stout/os/fork.hpp>
 #include <stout/os/killtree.hpp>
 #ifdef __linux__
 #include <stout/os/linux.hpp>
 #endif // __linux__
 #include <stout/os/ls.hpp>
+#include <stout/os/open.hpp>
 #ifdef __APPLE__
 #include <stout/os/osx.hpp>
 #endif // __APPLE__
@@ -206,125 +208,6 @@ inline Try<bool> access(const std::string& path, int how)
     }
   }
   return true;
-}
-
-
-inline Try<Nothing> cloexec(int fd)
-{
-  int flags = ::fcntl(fd, F_GETFD);
-
-  if (flags == -1) {
-    return ErrnoError();
-  }
-
-  if (::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
-    return ErrnoError();
-  }
-
-  return Nothing();
-}
-
-
-inline Try<bool> isCloexec(int fd)
-{
-  int flags = ::fcntl(fd, F_GETFD);
-
-  if (flags == -1) {
-    return ErrnoError();
-  }
-
-  return (flags & FD_CLOEXEC) != 0;
-}
-
-
-inline Try<Nothing> nonblock(int fd)
-{
-  int flags = ::fcntl(fd, F_GETFL);
-
-  if (flags == -1) {
-    return ErrnoError();
-  }
-
-  if (::fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-    return ErrnoError();
-  }
-
-  return Nothing();
-}
-
-
-inline Try<bool> isNonblock(int fd)
-{
-  int flags = ::fcntl(fd, F_GETFL);
-
-  if (flags == -1) {
-    return ErrnoError();
-  }
-
-  return (flags & O_NONBLOCK) != 0;
-}
-
-
-// For old systems that do not support O_CLOEXEC, we still want
-// os::open to accept that flag so that we can simplify the code.
-// TODO(jieyu): Move this along with nonblock/cloexec to a separate
-// header 'stout/fcntl.hpp'.
-#ifndef O_CLOEXEC
-// Since we will define O_CLOEXEC if it is not yet defined, we use a
-// special symbol to tell if the flag is truly unavailable or not.
-#define O_CLOEXEC_UNDEFINED
-
-// NOTE: For backward compatibility concern, kernel usually does not
-// change the constant values for symbols like O_CLOEXEC.
-#if defined(__APPLE__)
-// Copied from '/usr/include/sys/fcntl.h'
-#define O_CLOEXEC 0x1000000
-#elif defined(__linux__)
-// Copied from '/usr/include/asm-generic/fcntl.h'.
-#define O_CLOEXEC 02000000
-#endif
-#endif
-
-
-inline Try<int> open(const std::string& path, int oflag, mode_t mode = 0)
-{
-#ifdef O_CLOEXEC_UNDEFINED
-  // Before we passing oflag to ::open, we need to strip the O_CLOEXEC
-  // flag since it's not supported.
-  bool cloexec = false;
-  if ((oflag & O_CLOEXEC) != 0) {
-    oflag &= ~O_CLOEXEC;
-    cloexec = true;
-  }
-#endif
-
-  int fd = ::open(path.c_str(), oflag, mode);
-
-  if (fd < 0) {
-    return ErrnoError();
-  }
-
-#ifdef O_CLOEXEC_UNDEFINED
-  if (cloexec) {
-    Try<Nothing> result = os::cloexec(fd);
-    if (result.isError()) {
-      os::close(fd);
-      return Error("Failed to set cloexec: " + result.error());
-    }
-  }
-#endif
-
-  return fd;
-}
-
-
-inline Try<Nothing> close(int fd)
-{
-  if (::close(fd) != 0) {
-    return ErrnoError();
-  }
-
-  return Nothing();
 }
 
 
