@@ -34,7 +34,7 @@ If you have special compilation requirements, please refer to `./configure --hel
                                              'INFO', 'WARNING', 'ERROR'; if quiet flag is used, this
                                              will affect just the logs from log_dir (if specified) (default: INFO)
 
-  --port=VALUE                               Port to listen on (default: 5051)
+  --port=VALUE                               Port to listen on (master default: 5050 and slave default: 5051)
 
   --[no-]quiet                               Disable logging to stderr (default: false)
 
