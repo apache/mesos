@@ -44,6 +44,9 @@ def shell(command):
         command, stderr=subprocess.STDOUT, shell=True)
 
 
+HEAD = shell("git rev-parse HEAD")
+
+
 def api(url, data=None):
     auth_handler = urllib2.HTTPBasicAuthHandler()
     auth_handler.add_password(
@@ -59,13 +62,8 @@ def api(url, data=None):
 
 
 def apply_review(review_id):
-    review_id = str(review_id)
-    patch = review_id + ".patch"
-    diff_url = REVIEWBOARD_URL + "/r/" + review_id + "/diff/raw/"
-
     print "Applying review %s" % review_id
-    shell("wget --no-check-certificate -O %s %s" % (patch, diff_url))
-    shell("git apply --index %s" % patch)
+    shell("./support/apply-review.sh -n -r %s" % review_id)
 
 
 def apply_reviews(review_request, applied):
@@ -97,7 +95,7 @@ def post_review(review_request, message):
 def cleanup():
     try:
         shell("git clean -fd")
-        shell("git reset --hard HEAD")
+        shell("git reset --hard %s" % HEAD)
     except subprocess.CalledProcessError as e:
         print "Failed command: %s\n\nError: %s" % (e.cmd, e.output)
 
@@ -108,10 +106,6 @@ def verify_review(review_request):
         # Recursively apply the review and its dependents.
         applied = []
         apply_reviews(review_request, applied)
-
-        # Make sure the patch is style conformant.
-        # TODO(vinod): Only check files/lines changed by the review.
-        shell("./support/mesos-style.py")
 
         # Make sure build succeeds.
         shell("./bootstrap")
