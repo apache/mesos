@@ -50,7 +50,6 @@ nobase_include_HEADERS =		\
   stout/os/process.hpp			\
   stout/os/read.hpp			\
   stout/os/sendfile.hpp			\
-  stout/os/setns.hpp			\
   stout/os/shell.hpp			\
   stout/os/signals.hpp			\
   stout/os/permissions.hpp		\

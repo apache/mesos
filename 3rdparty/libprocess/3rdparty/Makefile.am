@@ -180,7 +180,6 @@ stout_tests_SOURCES =				\
 
 if OS_LINUX
   stout_tests_SOURCES += $(STOUT)/tests/proc_tests.cpp
-  stout_tests_SOURCES += $(STOUT)/tests/os/setns_tests.cpp
 endif
 
 stout_tests_CPPFLAGS =				\
