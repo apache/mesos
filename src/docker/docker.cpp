@@ -368,6 +368,15 @@ Future<Nothing> Docker::run(
 
   argv.push_back(network);
 
+  if (containerInfo.has_hostname()) {
+    if (network == "host") {
+      return Failure("Unable to set hostname with host network mode");
+    }
+
+    argv.push_back("--hostname");
+    argv.push_back(containerInfo.hostname());
+  }
+
   foreach (const Parameter& parameter, dockerInfo.parameters()) {
     argv.push_back("--" + parameter.key() + "=" + parameter.value());
   }

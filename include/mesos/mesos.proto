@@ -894,6 +894,7 @@ message ContainerInfo {
 
   required Type type = 1;
   repeated Volume volumes = 2;
+  optional string hostname = 4;
 
   optional DockerInfo docker = 3;
 }
