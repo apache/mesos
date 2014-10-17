@@ -199,8 +199,12 @@ private:
       pid_t pid);
 
   Future<ResourceStatistics> _usage(
-    const ContainerID& containerId,
-    const Docker::Container& container);
+      const ContainerID& containerId,
+      const Docker::Container& container);
+
+  Future<ResourceStatistics> __usage(
+      const ContainerID& containerId,
+      pid_t pid);
 
   // Call back for when the executor exits. This will trigger
   // container destroy.
@@ -1380,6 +1384,11 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
     return Failure("Container is being removed: " + stringify(containerId));
   }
 
+  // Skip inspecting the docker container if we already have the pid.
+  if (container->pid.isSome()) {
+    return __usage(containerId, container->pid.get());
+  }
+
   return docker->inspect(container->name())
     .then(defer(self(), &Self::_usage, containerId, lambda::_1));
 #endif // __linux__
@@ -1405,11 +1414,22 @@ Future<ResourceStatistics> DockerContainerizerProcess::_usage(
     return Failure("Container is not running");
   }
 
+  container->pid = pid;
+
+  return __usage(containerId, pid.get());
+}
+
+
+Future<ResourceStatistics> DockerContainerizerProcess::__usage(
+    const ContainerID& containerId,
+    pid_t pid)
+{
+  Container* container = containers_[containerId];
+
   // Note that here getting the root pid is enough because
   // the root process acts as an 'init' process in the docker
   // container, so no other child processes will escape it.
-  Try<ResourceStatistics> statistics =
-    mesos::internal::usage(pid.get(), true, true);
+  Try<ResourceStatistics> statistics = mesos::internal::usage(pid, true, true);
   if (statistics.isError()) {
     return Failure(statistics.error());
   }
