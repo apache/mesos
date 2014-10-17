@@ -81,7 +81,10 @@ using testing::_;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
+using testing::Invoke;
+using testing::InvokeWithoutArgs;
 using testing::Return;
+using testing::SaveArg;
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more slave than master-related are in this file.
@@ -1034,4 +1037,117 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
 
   AWAIT_READY(detected);
   AWAIT_READY(slaveReregisteredMessage);
+}
+
+// This test ensures that a killTask() can happen between runTask()
+// and _runTask() and then gets "handled properly". This means that
+// the task never gets started, but also does not get lost. The end
+// result is status TASK_KILLED. Essentially, killing the task is
+// realized while preparing to start it. See MESOS-947.
+TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  StandaloneMasterDetector detector(master.get());
+
+  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
+  process::spawn(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(0);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .Times(0);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(0);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillRepeatedly(FutureArg<1>(&status));
+
+  EXPECT_CALL(slave, runTask(_, _, _, _, _))
+    .WillOnce(Invoke(&slave, &MockSlave::unmocked_runTask));
+
+  // Saved arguments from Slave::_runTask().
+  Future<bool> future;
+  FrameworkInfo frameworkInfo;
+  FrameworkID frameworkId;
+
+  // Skip what Slave::_runTask() normally does, save its arguments for
+  // later, tie reaching the critical moment when to kill the task to
+  // a future.
+  Future<Nothing> _runTask;
+  EXPECT_CALL(slave, _runTask(_, _, _, _, _))
+    .WillOnce(DoAll(FutureSatisfy(&_runTask),
+                    SaveArg<0>(&future),
+                    SaveArg<1>(&frameworkInfo),
+                    SaveArg<2>(&frameworkId)));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(_runTask);
+
+  Future<Nothing> killTask;
+  EXPECT_CALL(slave, killTask(_, _, _))
+    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_killTask),
+                    FutureSatisfy(&killTask)));
+  driver.killTask(task.task_id());
+
+  // Since this is the only task ever for this framework, the
+  // framework should get removed in Slave::_runTask().
+  // Thus we can observe that this happens before Shutdown().
+  Future<Nothing> removeFramework;
+  EXPECT_CALL(slave, removeFramework(_))
+    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+                    FutureSatisfy(&removeFramework)));
+
+  AWAIT_READY(killTask);
+  slave.unmocked__runTask(
+      future, frameworkInfo, frameworkId, master.get(), task);
+
+  AWAIT_READY(removeFramework);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_KILLED, status.get().state());
+
+  driver.stop();
+  driver.join();
+
+  process::terminate(slave);
+  process::wait(slave);
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }

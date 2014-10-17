@@ -106,14 +106,16 @@ public:
 
   void doReliableRegistration(const Duration& duration);
 
-  void runTask(
+  // Made 'virtual' for Slave mocking.
+  virtual void runTask(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const std::string& pid,
       const TaskInfo& task);
 
-  void _runTask(
+  // Made 'virtual' for Slave mocking.
+  virtual void _runTask(
       const process::Future<bool>& future,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
@@ -122,7 +124,8 @@ public:
 
   process::Future<bool> unschedule(const std::string& path);
 
-  void killTask(
+  // Made 'virtual' for Slave mocking.
+  virtual void killTask(
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const TaskID& taskId);
@@ -320,7 +323,8 @@ public:
   void removeExecutor(Framework* framework, Executor* executor);
 
   // Removes and garbage collects the framework.
-  void removeFramework(Framework* framework);
+  // Made 'virtual' for Slave mocking.
+  virtual void removeFramework(Framework* framework);
 
   // Schedules a 'path' for gc based on its modification time.
   Future<Nothing> garbageCollect(const std::string& path);

@@ -538,6 +538,69 @@ public:
 };
 
 
+// Definition of a mock Slave to be used in tests with gmock, covering
+// potential races between runTask and killTask.
+class MockSlave : public slave::Slave
+{
+public:
+  MockSlave(
+      const slave::Flags& flags,
+      MasterDetector* detector,
+      slave::Containerizer* containerizer);
+
+  virtual ~MockSlave() {}
+
+  MOCK_METHOD5(runTask, void(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      const FrameworkID& frameworkId,
+      const std::string& pid,
+      const TaskInfo& task));
+
+  void unmocked_runTask(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      const FrameworkID& frameworkId,
+      const std::string& pid,
+      const TaskInfo& task);
+
+  MOCK_METHOD5(_runTask, void(
+      const process::Future<bool>& future,
+      const FrameworkInfo& frameworkInfo,
+      const FrameworkID& frameworkId,
+      const std::string& pid,
+      const TaskInfo& task));
+
+  void unmocked__runTask(
+      const process::Future<bool>& future,
+      const FrameworkInfo& frameworkInfo,
+      const FrameworkID& frameworkId,
+      const std::string& pid,
+      const TaskInfo& task);
+
+  MOCK_METHOD3(killTask, void(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const TaskID& taskId));
+
+  void unmocked_killTask(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const TaskID& taskId);
+
+  MOCK_METHOD1(removeFramework, void(
+      slave::Framework* framework));
+
+  void unmocked_removeFramework(
+      slave::Framework* framework);
+
+private:
+  Files files;
+  MockGarbageCollector gc;
+  slave::StatusUpdateManager statusUpdateManager;
+};
+
+
 // Definition of a MockAuthozier that can be used in tests with gmock.
 class MockAuthorizer : public Authorizer
 {

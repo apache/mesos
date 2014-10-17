@@ -1095,7 +1095,7 @@ void Slave::runTask(
     LOG(WARNING) << "Ignoring task " << task.task_id()
                  << " because the slave is " << state;
     // TODO(vinod): Consider sending a TASK_LOST here.
-    // Currently it is tricky because 'statsuUpdate()'
+    // Currently it is tricky because 'statusUpdate()'
     // ignores updates for unknown frameworks.
     return;
   }
@@ -1189,16 +1189,28 @@ void Slave::_runTask(
   LOG(INFO) << "Launching task " << task.task_id()
             << " for framework " << frameworkId;
 
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+     LOG(WARNING) << "Ignoring run task " << task.task_id()
+                  << " because the framework " << frameworkId
+                  << " does not exist";
+     return;
+  }
+
   const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
   const ExecutorID& executorId = executorInfo.executor_id();
 
-  // Remove the pending task from framework.
-  Framework* framework = getFramework(frameworkId);
-  CHECK_NOTNULL(framework);
-
-  framework->pending[executorId].erase(task.task_id());
-  if (framework->pending[executorId].empty()) {
-    framework->pending.erase(executorId);
+  if (framework->pending.contains(executorId) &&
+      framework->pending[executorId].contains(task.task_id())) {
+    framework->pending[executorId].erase(task.task_id());
+    if (framework->pending[executorId].empty()) {
+        framework->pending.erase(executorId);
+    }
+  } else {
+    LOG(WARNING) << "Ignoring run task " << task.task_id()
+                 << " of framework " << frameworkId
+                 << " because the task has been killed in the meantime";
+    return;
   }
 
   // We don't send a status update here because a terminating
@@ -1395,14 +1407,35 @@ void Slave::killTask(
     return;
   }
 
+  foreachkey (const ExecutorID& executorId, framework->pending) {
+    if (framework->pending[executorId].contains(taskId)) {
+      LOG(WARNING) << "Killing task " << taskId
+                   << " of framework " << frameworkId
+                   << " before it was launched";
+
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          frameworkId, info.id(), taskId, TASK_KILLED,
+          "Task killed before it was launched");
+      statusUpdate(update, UPID());
+
+      framework->pending[executorId].erase(taskId);
+      if (framework->pending[executorId].empty()) {
+          framework->pending.erase(executorId);
+          if (framework->pending.empty() && framework->executors.empty()) {
+            removeFramework(framework);
+          }
+      }
+      return;
+    }
+  }
+
   Executor* executor = framework->getExecutor(taskId);
   if (executor == NULL) {
-    LOG(WARNING) << "Cannot kill task " << taskId
+      LOG(WARNING) << "Cannot kill task " << taskId
                  << " of framework " << frameworkId
                  << " because no corresponding executor is running";
-
-    // We send a TASK_LOST update because this task might have never
-    // been launched on this slave!
+    // We send a TASK_LOST update because this task has never
+    // been launched on this slave.
     const StatusUpdate& update = protobuf::createStatusUpdate(
         frameworkId, info.id(), taskId, TASK_LOST, "Cannot find executor");
 
