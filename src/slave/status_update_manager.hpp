@@ -179,7 +179,7 @@ struct StatusUpdateStream
       // Open the updates file.
       Try<int> result = os::open(
           path.get(),
-          O_CREAT | O_WRONLY | O_APPEND | O_SYNC,
+          O_CREAT | O_WRONLY | O_APPEND | O_SYNC | O_CLOEXEC,
           S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
       if (result.isError()) {
