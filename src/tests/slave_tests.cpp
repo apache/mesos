@@ -1044,7 +1044,8 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
 // the task never gets started, but also does not get lost. The end
 // result is status TASK_KILLED. Essentially, killing the task is
 // realized while preparing to start it. See MESOS-947.
-TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
+// Temporarily disabled due to MESOS-1945.
+TEST_F(SlaveTest, DISABLED_KillTaskBetweenRunTaskParts)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
