@@ -548,7 +548,7 @@ public:
       MasterDetector* detector,
       slave::Containerizer* containerizer);
 
-  virtual ~MockSlave() {}
+  virtual ~MockSlave();
 
   MOCK_METHOD5(runTask, void(
       const process::UPID& from,
@@ -597,7 +597,7 @@ public:
 private:
   Files files;
   MockGarbageCollector gc;
-  slave::StatusUpdateManager statusUpdateManager;
+  slave::StatusUpdateManager* statusUpdateManager;
 };
 
 

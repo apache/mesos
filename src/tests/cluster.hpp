@@ -488,7 +488,7 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
   // Create a status update manager if one wasn't provided.
   if (statusUpdateManager.isNone()) {
-    slave.statusUpdateManager.reset(new slave::StatusUpdateManager());
+    slave.statusUpdateManager.reset(new slave::StatusUpdateManager(flags));
   }
 
   slave.flags = flags;

@@ -214,7 +214,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     }
 
     garbageCollectors->push_back(new GarbageCollector());
-    statusUpdateManagers->push_back(new StatusUpdateManager());
+    statusUpdateManagers->push_back(new StatusUpdateManager(flags));
 
     Try<Containerizer*> containerizer = Containerizer::create(flags, true);
     if (containerizer.isError()) {

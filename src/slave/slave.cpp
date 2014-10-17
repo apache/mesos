@@ -318,7 +318,7 @@ void Slave::initialize()
   LOG(INFO) << "Slave hostname: " << info.hostname();
   LOG(INFO) << "Slave checkpoint: " << stringify(flags.checkpoint);
 
-  statusUpdateManager->initialize(flags, self());
+  statusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1));
 
   // Start disk monitoring.
   // NOTE: We send a delayed message here instead of directly calling
@@ -573,6 +573,9 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
     state = DISCONNECTED;
   }
 
+  // Pause the status updates.
+  statusUpdateManager->pause();
+
   if (_master.isFailed()) {
     EXIT(1) << "Failed to detect a master: " << _master.failure();
   }
@@ -749,6 +752,9 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
                 << "; given slave ID " << slaveId;
 
       state = RUNNING;
+
+      statusUpdateManager->resume(); // Resume status updates.
+
       info.mutable_id()->CopyFrom(slaveId); // Store the slave id.
 
       if (flags.checkpoint) {
@@ -813,10 +819,7 @@ void Slave::reregistered(
       LOG(INFO) << "Re-registered with master " << master.get();
       state = RUNNING;
 
-      // Inform status update manager to immediately resend any
-      // pending updates.
-      statusUpdateManager->flush();
-
+      statusUpdateManager->resume(); // Resume status updates.
       break;
     case RUNNING:
       CHECK_SOME(master);
@@ -1699,7 +1702,7 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
 
       // Inform status update manager to immediately resend any pending
       // updates.
-      statusUpdateManager->flush();
+      statusUpdateManager->resume();
 
       break;
     }

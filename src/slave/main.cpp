@@ -165,7 +165,7 @@ int main(int argc, char** argv)
 
   Files files;
   GarbageCollector gc;
-  StatusUpdateManager statusUpdateManager;
+  StatusUpdateManager statusUpdateManager(flags);
 
   Slave* slave = new Slave(
       flags,
