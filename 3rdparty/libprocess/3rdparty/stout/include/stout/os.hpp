@@ -1263,6 +1263,63 @@ inline Try<std::set<pid_t> > pids(Option<pid_t> group, Option<pid_t> session)
   return result;
 }
 
+
+namespace libraries {
+
+// Returns the full library name by adding prefix and extension to
+// library name.
+inline std::string expandName(const std::string& libraryName)
+{
+  const char* prefix = "lib";
+  const char* extension =
+#ifdef __linux__
+    ".so";
+#else
+    ".dylib";
+#endif
+
+  return prefix + libraryName + extension;
+}
+
+
+// Returns the current value of LD_LIBRARY_PATH environment variable.
+inline std::string paths()
+{
+  const char* environmentVariable =
+#ifdef __linux__
+    "LD_LIBRARY_PATH";
+#else
+    "DYLD_LIBRARY_PATH";
+#endif
+  return getenv(environmentVariable, false);
+}
+
+
+// Updates the value of LD_LIBRARY_PATH environment variable.
+inline void setPaths(const std::string& newPaths)
+{
+  const char* environmentVariable =
+#ifdef __linux__
+    "LD_LIBRARY_PATH";
+#else
+    "DYLD_LIBRARY_PATH";
+#endif
+  setenv(environmentVariable, newPaths);
+}
+
+
+// Append newPath to the current value of LD_LIBRARY_PATH environment
+// variable.
+inline void appendPaths(const std::string& newPaths)
+{
+  if (paths().empty()) {
+    setPaths(newPaths);
+  } else {
+    setPaths(paths() + ":" + newPaths);
+  }
+}
+
+} // namespace libraries {
 } // namespace os {
 
 #endif // __STOUT_OS_HPP__

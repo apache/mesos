@@ -749,3 +749,43 @@ TEST_F(OsTest, user)
   EXPECT_SOME(os::su(user.get()));
   EXPECT_ERROR(os::su(UUID::random().toString()));
 }
+
+
+// Test setting/resetting/appending to LD_LIBRARY_PATH environment
+// variable (DYLD_LIBRARY_PATH on OS X).
+TEST_F(OsTest, Libraries)
+{
+  const std::string path1 = "/tmp/path1";
+  const std::string path2 = "/tmp/path1";
+  std::string ldLibraryPath;
+  const std::string originalLibraryPath = os::libraries::paths();
+
+  // Test setPaths.
+  os::libraries::setPaths(path1);
+  EXPECT_EQ(os::libraries::paths(), path1);
+
+  // Test appendPaths.
+  // 1. With empty LD_LIBRARY_PATH.
+  // 1a. Set LD_LIBRARY_PATH to an empty string.
+  os::libraries::setPaths("");
+  ldLibraryPath = os::libraries::paths();
+  EXPECT_EQ(ldLibraryPath, "");
+
+  // 1b. Now test appendPaths.
+  os::libraries::appendPaths(path1);
+  EXPECT_EQ(os::libraries::paths(), path1);
+
+  // 2. With non-empty LD_LIBRARY_PATH.
+  // 2a. Set LD_LIBRARY_PATH to some non-empty value.
+  os::libraries::setPaths(path2);
+  ldLibraryPath = os::libraries::paths();
+  EXPECT_EQ(ldLibraryPath, path2);
+
+  // 2b. Now test appendPaths.
+  os::libraries::appendPaths(path1);
+  EXPECT_EQ(os::libraries::paths(), path2 + ":" + path1);
+
+  // Reset LD_LIBRARY_PATH.
+  os::libraries::setPaths(originalLibraryPath);
+  EXPECT_EQ(os::libraries::paths(), originalLibraryPath);
+}
