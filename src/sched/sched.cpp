@@ -1010,27 +1010,39 @@ private:
     Metrics(const SchedulerProcess& schedulerProcess)
       : event_queue_messages(
           "scheduler/event_queue_messages",
-          defer(schedulerProcess, &SchedulerProcess::_event_queue_messages))
+          defer(schedulerProcess, &SchedulerProcess::_event_queue_messages)),
+        event_queue_dispatches(
+          "scheduler/event_queue_dispatches",
+          defer(schedulerProcess,
+                &SchedulerProcess::_event_queue_dispatches))
     {
       // TODO(dhamon): When we start checking the return value of 'add' we may
       // get failures in situations where multiple SchedulerProcesses are active
       // (ie, the fault tolerance tests). At that point we'll need MESOS-1285 to
       // be fixed and to use self().id in the metric name.
       process::metrics::add(event_queue_messages);
+      process::metrics::add(event_queue_dispatches);
     }
 
     ~Metrics()
     {
       process::metrics::remove(event_queue_messages);
+      process::metrics::remove(event_queue_dispatches);
     }
 
     // Process metrics.
     process::metrics::Gauge event_queue_messages;
+    process::metrics::Gauge event_queue_dispatches;
   } metrics;
 
   double _event_queue_messages()
   {
     return static_cast<double>(eventCount<MessageEvent>());
+  }
+
+  double _event_queue_dispatches()
+  {
+    return static_cast<double>(eventCount<DispatchEvent>());
   }
 
   MesosSchedulerDriver* driver;
