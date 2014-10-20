@@ -24,6 +24,7 @@
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/some.hpp>
+#include <stout/try.hpp>
 
 template <typename T>
 class Result
@@ -69,11 +70,14 @@ public:
     : state(ERROR), t(NULL), message(error.message) {}
 
   Result(const Result<T>& that)
-  {
-    state = that.state;
-    t = (that.t == NULL ? NULL : new T(*that.t));
-    message = that.message;
-  }
+    : state(that.state),
+      t(that.t == NULL ? NULL : new T(*that.t)),
+      message(that.message) {}
+
+  Result(const Try<T>& _try)
+    : state(_try.isSome() ? SOME : ERROR),
+      t(_try.isSome() ? new T(_try.get()) : NULL),
+      message(_try.isSome() ? "" : _try.error()) {}
 
   ~Result()
   {
