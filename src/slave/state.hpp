@@ -23,6 +23,8 @@
 
 #include <vector>
 
+#include <mesos/resources.hpp>
+
 #include <process/pid.hpp>
 
 #include <stout/foreach.hpp>
@@ -45,11 +47,13 @@ namespace slave {
 namespace state {
 
 // Forward declarations.
+struct State;
 struct SlaveState;
 struct FrameworkState;
 struct ExecutorState;
 struct RunState;
 struct TaskState;
+struct ResourcesState;
 
 // This function performs recovery from the state stored at 'rootDir'.
 // If the 'strict' flag is set, any errors encountered while
@@ -60,10 +64,10 @@ struct TaskState;
 // recovery continues by recovering as much of the state as possible,
 // while increasing the 'errors' count. Note that 'errors' on a struct
 // includes the 'errors' encountered recursively. In other words,
-// 'SlaveState.errors' is the sum total of all recovery errors.
-// If the machine has rebooted since the last slave run,
-// None is returned.
-Result<SlaveState> recover(const std::string& rootDir, bool strict);
+// 'State.errors' is the sum total of all recovery errors. If the
+// machine has rebooted since the last slave run, None is returned.
+Result<State> recover(const std::string& rootDir, bool strict);
+
 
 // Thin wrappers to checkpoint data to disk and perform the
 // necessary error checking.
@@ -77,8 +81,32 @@ Try<Nothing> checkpoint(
 // Checkpoints a string at the given path.
 Try<Nothing> checkpoint(const std::string& path, const std::string& message);
 
-// Each of the structs below (recursively) recover the checkpointed
-// state.
+
+// The top level state. Each of the structs below (recursively)
+// recover the checkpointed state.
+struct State
+{
+  State() : errors(0) {}
+
+  Option<ResourcesState> resources;
+  Option<SlaveState> slave;
+  unsigned int errors;
+};
+
+
+struct ResourcesState
+{
+  ResourcesState() : errors(0) {}
+
+  static Try<ResourcesState> recover(
+      const std::string& rootDir,
+      bool strict);
+
+  Resources resources;
+  unsigned int errors;
+};
+
+
 struct SlaveState
 {
   SlaveState () : errors(0) {}

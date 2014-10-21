@@ -54,6 +54,7 @@ const std::string EXECUTOR_SENTINEL_FILE = "executor.sentinel";
 const std::string FORKED_PID_FILE = "forked.pid";
 const std::string TASK_INFO_FILE = "task.info";
 const std::string TASK_UPDATES_FILE = "task.updates";
+const std::string RESOURCES_INFO_FILE = "resources.info";
 
 // Path layout templates.
 const std::string ROOT_PATH = "%s";
@@ -93,6 +94,8 @@ const std::string TASK_INFO_PATH =
   path::join(TASK_PATH, TASK_INFO_FILE);
 const std::string TASK_UPDATES_PATH =
   path::join(TASK_PATH, TASK_UPDATES_FILE);
+const std::string RESOURCES_INFO_PATH =
+  path::join(ROOT_PATH, "resources", RESOURCES_INFO_FILE);
 
 
 inline std::string getMetaRootDir(const std::string rootDir)
@@ -324,6 +327,15 @@ inline std::string getTaskUpdatesPath(
       executorId,
       containerId,
       taskId).get();
+}
+
+
+inline std::string getResourcesInfoPath(
+    const std::string& rootDir)
+{
+  return strings::format(
+      RESOURCES_INFO_PATH,
+      rootDir).get();
 }
 
 

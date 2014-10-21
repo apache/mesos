@@ -219,12 +219,13 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   AWAIT_READY(_ack);
 
   // Recover the state.
-  Result<slave::state::SlaveState> recover = slave::state::recover(
+  Result<slave::state::State> recover = slave::state::recover(
       paths::getMetaRootDir(flags.work_dir), true);
 
   ASSERT_SOME(recover);
+  ASSERT_SOME(recover.get().slave);
 
-  slave::state::SlaveState state = recover.get();
+  slave::state::SlaveState state = recover.get().slave.get();
 
   // Check slave id.
   ASSERT_EQ(slaveId, state.id);

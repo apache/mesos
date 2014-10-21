@@ -3348,53 +3348,54 @@ void Slave::_checkDiskUsage(const Future<double>& usage)
 
 
 
-Future<Nothing> Slave::recover(const Result<SlaveState>& _state)
+Future<Nothing> Slave::recover(const Result<state::State>& state)
 {
-  if (_state.isError()) {
-    return Failure(_state.error());
+  if (state.isError()) {
+    return Failure(state.error());
   }
 
-  // Convert Result<SlaveState> to Option<SlaveState> for convenience.
-  Option<SlaveState> state;
-  if (_state.isSome()) {
-    state = _state.get();
+  Option<SlaveState> slaveState;
+  if (state.isSome()) {
+    slaveState = state.get().slave;
   }
 
-  if (state.isSome() && state.get().info.isSome()) {
+  if (slaveState.isSome() && slaveState.get().info.isSome()) {
     // Check for SlaveInfo compatibility.
     // TODO(vinod): Also check for version compatibility.
-    // NOTE: We set the 'id' field in 'info' from the recovered state,
+    // NOTE: We set the 'id' field in 'info' from the recovered slave,
     // as a hack to compare the info created from options/flags with
     // the recovered info.
-    info.mutable_id()->CopyFrom(state.get().id);
-    if (flags.recover == "reconnect" && !(info == state.get().info.get())) {
+    info.mutable_id()->CopyFrom(slaveState.get().id);
+    if (flags.recover == "reconnect" &&
+        !(info == slaveState.get().info.get())) {
       return Failure(strings::join(
           "\n",
           "Incompatible slave info detected.",
           "------------------------------------------------------------",
-          "Old slave info:\n" + stringify(state.get().info.get()),
+          "Old slave info:\n" + stringify(slaveState.get().info.get()),
           "------------------------------------------------------------",
           "New slave info:\n" + stringify(info),
           "------------------------------------------------------------"));
     }
 
-    info = state.get().info.get(); // Recover the slave info.
+    info = slaveState.get().info.get(); // Recover the slave info.
 
-    recoveryErrors = state.get().errors;
-    metrics.recovery_errors += state.get().errors;
-    if (recoveryErrors > 0) {
-      LOG(WARNING) << "Errors encountered during recovery: " << recoveryErrors;
+    if (slaveState.get().errors > 0) {
+      LOG(WARNING) << "Errors encountered during slave recovery: "
+                   << slaveState.get().errors;
+
+      metrics.recovery_errors += slaveState.get().errors;
     }
 
     // Recover the frameworks.
     foreachvalue (const FrameworkState& frameworkState,
-                  state.get().frameworks) {
+                  slaveState.get().frameworks) {
       recoverFramework(frameworkState);
     }
   }
 
-  return statusUpdateManager->recover(metaDir, state)
-    .then(defer(self(), &Slave::_recoverContainerizer, state));
+  return statusUpdateManager->recover(metaDir, slaveState)
+    .then(defer(self(), &Slave::_recoverContainerizer, slaveState));
 }
 
 
