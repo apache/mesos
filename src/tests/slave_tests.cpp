@@ -1039,13 +1039,15 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
   AWAIT_READY(slaveReregisteredMessage);
 }
 
+
 // This test ensures that a killTask() can happen between runTask()
 // and _runTask() and then gets "handled properly". This means that
 // the task never gets started, but also does not get lost. The end
 // result is status TASK_KILLED. Essentially, killing the task is
-// realized while preparing to start it. See MESOS-947.
-// Temporarily disabled due to MESOS-1945.
-TEST_F(SlaveTest, DISABLED_KillTaskBetweenRunTaskParts)
+// realized while preparing to start it. See MESOS-947. This test
+// removes the framework and proves that removeFramework() is
+// called. See MESOS-1945.
+TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -1121,19 +1123,20 @@ TEST_F(SlaveTest, DISABLED_KillTaskBetweenRunTaskParts)
 
   AWAIT_READY(_runTask);
 
-  Future<Nothing> killTask;
-  EXPECT_CALL(slave, killTask(_, _, _))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_killTask),
-                    FutureSatisfy(&killTask)));
-  driver.killTask(task.task_id());
-
   // Since this is the only task ever for this framework, the
-  // framework should get removed in Slave::_runTask().
+  // framework should get removed in Slave::killTask().
   // Thus we can observe that this happens before Shutdown().
   Future<Nothing> removeFramework;
   EXPECT_CALL(slave, removeFramework(_))
     .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
                     FutureSatisfy(&removeFramework)));
+
+  Future<Nothing> killTask;
+  EXPECT_CALL(slave, killTask(_, _, _))
+    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_killTask),
+                    FutureSatisfy(&killTask)));
+
+  driver.killTask(task.task_id());
 
   AWAIT_READY(killTask);
   slave.unmocked__runTask(
