@@ -89,16 +89,6 @@ public:
     return kind;
   }
 
-  static std::string expandLibraryName(const std::string& libraryName)
-  {
-#ifdef __linux__
-    const char* libraryExtension = ".so";
-#else
-    const char* libraryExtension = ".dylib";
-#endif
-    return "lib" + libraryName + libraryExtension;
-  }
-
   // Exposed just for testing so that we can unload a given
   // module  and remove it from the list of ModuleBases.
   static Try<Nothing> unload(const std::string& moduleName);

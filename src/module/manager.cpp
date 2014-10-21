@@ -180,7 +180,7 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
     if (library.has_file()) {
       libraryName = library.file();
     } else if (library.has_name()) {
-      libraryName = expandLibraryName(library.name());
+      libraryName = os::libraries::expandName(library.name());
     } else {
       return Error("Library name or path not provided");
     }

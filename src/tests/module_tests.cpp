@@ -48,7 +48,7 @@ static const string getLibraryPath(const string& libraryName)
 {
   return path::join(
      getLibraryDirectory(),
-     ModuleManager::expandLibraryName(libraryName));
+     os::libraries::expandName(libraryName));
 }
 
 
@@ -140,7 +140,7 @@ TEST_F(ModuleTest, LibraryNameWithoutExtension)
 // found in LD_LIBRARY_PATH.
 TEST_F(ModuleTest, LibraryNameWithExtension)
 {
-  const string libraryName = ModuleManager::expandLibraryName("examplemodule");
+  const string libraryName = os::libraries::expandName("examplemodule");
   const string moduleName = "org_apache_mesos_TestModule";
   const string ldLibraryPath = "LD_LIBRARY_PATH";
 
