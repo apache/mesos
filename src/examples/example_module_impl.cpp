@@ -59,8 +59,8 @@ static TestModule* create()
 mesos::Module<TestModule> org_apache_mesos_TestModule(
     MESOS_MODULE_API_VERSION,
     MESOS_VERSION,
-    "author",
-    "author@email.com",
+    "Apache Mesos",
+    "modules@mesos.apache.org",
     "This is a test module.",
     compatible,
     create);
