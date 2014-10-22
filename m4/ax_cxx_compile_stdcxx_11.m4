@@ -36,6 +36,8 @@
 #serial 3
 
 m4_define([_AX_CXX_COMPILE_STDCXX_11_testbody], [
+  #include <memory>
+
   template <typename T, typename ...Args>
     struct check
     {
@@ -52,6 +54,27 @@ m4_define([_AX_CXX_COMPILE_STDCXX_11_testbody], [
   check_type&& cr = static_cast<check_type&&>(c);
 
   auto d = a;
+
+  struct Foo
+  {
+    void bar() const {}
+  };
+
+  void f(const Foo& foo) { foo.bar(); }
+
+  void baz() {
+    std::unique_ptr<Foo> p1(new Foo);  // p1 owns Foo.
+    p1->bar();
+
+    {
+      std::unique_ptr<Foo> p2(std::move(p1));  // Now p2 owns Foo.
+      f(*p2);
+
+      p1 = std::move(p2);  // Ownership returns to p1.
+    }
+
+    p1->bar();
+  }
 ])
 
 AC_DEFUN([AX_CXX_COMPILE_STDCXX_11], [
