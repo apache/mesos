@@ -37,6 +37,7 @@
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
+#include "tests/module.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
@@ -82,6 +83,14 @@ int main(int argc, char** argv)
     cerr << endl;
     testing::InitGoogleTest(&argc, argv); // Get usage from gtest too.
     exit(1);
+  }
+
+  // Initialize Modules.
+  // TODO(karya): Add --modules flag to populate "modules".
+  Option<Modules> modules;
+  Try<Nothing> result = tests::initModules(modules);
+  if (result.isError()) {
+    EXIT(1) << "Error initializing modules: " << result.error();
   }
 
   // Initialize libprocess.

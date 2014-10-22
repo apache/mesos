@@ -38,6 +38,8 @@
 #include "master/master.hpp"
 #include "master/detector.hpp"
 
+#include "module/isolator.hpp"
+
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
@@ -58,6 +60,7 @@
 #endif // __linux__
 
 #include "tests/mesos.hpp"
+#include "tests/module.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -119,12 +122,12 @@ static int childSetup(int pipes[2])
 template <typename T>
 class CpuIsolatorTest : public MesosTest {};
 
+typedef ::testing::Types<
+    PosixCpuIsolatorProcess,
 #ifdef __linux__
-typedef ::testing::Types<PosixCpuIsolatorProcess,
-                         CgroupsCpushareIsolatorProcess> CpuIsolatorTypes;
-#else
-typedef ::testing::Types<PosixCpuIsolatorProcess> CpuIsolatorTypes;
+    CgroupsCpushareIsolatorProcess,
 #endif // __linux__
+    tests::Module<Isolator, TestCpuIsolator>> CpuIsolatorTypes;
 
 TYPED_TEST_CASE(CpuIsolatorTest, CpuIsolatorTypes);
 
@@ -516,16 +519,15 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
 
 #endif // __linux__
 
-
 template <typename T>
 class MemIsolatorTest : public MesosTest {};
 
+typedef ::testing::Types<
+    PosixMemIsolatorProcess,
 #ifdef __linux__
-typedef ::testing::Types<PosixMemIsolatorProcess,
-                         CgroupsMemIsolatorProcess> MemIsolatorTypes;
-#else
-typedef ::testing::Types<PosixMemIsolatorProcess> MemIsolatorTypes;
+    CgroupsMemIsolatorProcess,
 #endif // __linux__
+    tests::Module<Isolator, TestMemIsolator>> MemIsolatorTypes;
 
 TYPED_TEST_CASE(MemIsolatorTest, MemIsolatorTypes);
 

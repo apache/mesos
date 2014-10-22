@@ -57,6 +57,7 @@ void ModuleManager::initialize()
   // under development.
 
   kindToVersion["TestModule"] = MESOS_VERSION;
+  kindToVersion["Isolator"] = MESOS_VERSION;
 
   // What happens then when Mesos is built with a certain version,
   // 'kindToVersion' states a certain other minimum version, and a

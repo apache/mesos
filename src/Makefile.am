@@ -422,6 +422,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/registrar.hpp						\
 	master/sorter.hpp						\
 	messages/messages.hpp						\
+	module/isolator.hpp						\
 	module/manager.hpp						\
 	slave/constants.hpp						\
 	slave/flags.hpp							\
@@ -449,6 +450,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	tests/flags.hpp							\
 	tests/isolator.hpp						\
 	tests/mesos.hpp							\
+	tests/module.hpp							\
 	tests/script.hpp						\
 	tests/utils.hpp							\
 	tests/zookeeper.hpp						\
@@ -1140,6 +1142,12 @@ libexamplemodule_la_SOURCES = examples/example_module_impl.cpp
 libexamplemodule_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libexamplemodule_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
+# Library containing test CPU and memory isolator modules.
+lib_LTLIBRARIES += libtestisolator.la
+libtestisolator_la_SOURCES = examples/test_isolator_module.cpp
+libtestisolator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestisolator_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+
 mesos_tests_SOURCES =				\
   tests/allocator_tests.cpp			\
   tests/attributes_tests.cpp			\
@@ -1169,6 +1177,7 @@ mesos_tests_SOURCES =				\
   tests/master_slave_reconciliation_tests.cpp	\
   tests/master_tests.cpp			\
   tests/mesos.cpp				\
+  tests/module.cpp				\
   tests/module_tests.cpp			\
   tests/monitor_tests.cpp			\
   tests/partition_tests.cpp			\

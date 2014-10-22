@@ -22,8 +22,9 @@
 #include <stout/os.hpp>
 
 #include "examples/test_module.hpp"
-
+#include "module/isolator.hpp"
 #include "module/manager.hpp"
+#include "slave/containerizer/isolator.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
@@ -32,6 +33,7 @@ using std::string;
 
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::slave;
 using namespace mesos::internal::tests;
 using namespace mesos::modules;
 
@@ -180,6 +182,20 @@ TEST_F(ModuleTest, InvalidModuleKind)
 {
   moduleBase->kind = "NotTestModule";
   EXPECT_ERROR(ModuleManager::load(defaultModules));
+}
+
+
+// Verify that loading a module of different kind fails.
+TEST_F(ModuleTest, ModuleKindMismatch)
+{
+  EXPECT_SOME(ModuleManager::load(defaultModules));
+
+  EXPECT_TRUE(ModuleManager::contains<TestModule>(DEFAULT_MODULE_NAME));
+  EXPECT_FALSE(ModuleManager::contains<Isolator>(DEFAULT_MODULE_NAME));
+
+  module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
+  EXPECT_SOME(module);
+  EXPECT_ERROR(ModuleManager::create<Isolator>(DEFAULT_MODULE_NAME));
 }
 
 
