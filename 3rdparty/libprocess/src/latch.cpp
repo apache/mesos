@@ -26,7 +26,9 @@ Latch::Latch()
 
 Latch::~Latch()
 {
-  terminate(pid);
+  if (__sync_bool_compare_and_swap(&triggered, false, true)) {
+    terminate(pid);
+  }
 }
 
 
