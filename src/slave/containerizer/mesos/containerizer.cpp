@@ -92,6 +92,10 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     isolation = flags.isolation;
   }
 
+  // Modify the flags to include any changes to isolation.
+  Flags flags_ = flags;
+  flags_.isolation = isolation;
+
   LOG(INFO) << "Using isolation: " << isolation;
 
   // Create a MesosContainerizerProcess using isolators and a launcher.
@@ -113,7 +117,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   foreach (const string& type, strings::split(isolation, ",")) {
     if (creators.contains(type)) {
-      Try<Isolator*> isolator = creators[type](flags);
+      Try<Isolator*> isolator = creators[type](flags_);
       if (isolator.isError()) {
         return Error(
             "Could not create isolator " + type + ": " + isolator.error());
@@ -145,10 +149,10 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     (strings::contains(isolation, "cgroups") ||
      strings::contains(isolation, "network/port_mapping") ||
      strings::contains(isolation, "filesystem/shared"))
-    ? LinuxLauncher::create(flags)
-    : PosixLauncher::create(flags);
+    ? LinuxLauncher::create(flags_)
+    : PosixLauncher::create(flags_);
 #else
-  Try<Launcher*> launcher = PosixLauncher::create(flags);
+  Try<Launcher*> launcher = PosixLauncher::create(flags_);
 #endif // __linux__
 
   if (launcher.isError()) {
@@ -156,7 +160,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   }
 
   return new MesosContainerizer(
-      flags, local, Owned<Launcher>(launcher.get()), isolators);
+      flags_, local, Owned<Launcher>(launcher.get()), isolators);
 }
 
 
