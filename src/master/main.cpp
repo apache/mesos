@@ -69,6 +69,7 @@ using namespace mesos::internal::master;
 using namespace zookeeper;
 
 using mesos::MasterInfo;
+using mesos::modules::ModuleManager;
 
 using process::Owned;
 using process::UPID;

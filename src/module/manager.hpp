@@ -30,8 +30,6 @@
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
-#include <messages/messages.hpp>
-
 #include <process/owned.hpp>
 
 #include <stout/check.hpp>
@@ -39,9 +37,10 @@
 #include <stout/hashmap.hpp>
 
 #include "common/lock.hpp"
+#include "messages/messages.hpp"
 
 namespace mesos {
-namespace internal {
+namespace modules {
 
 // Mesos module loading.
 //
@@ -64,13 +63,13 @@ public:
   //
   // NOTE: If loading fails at a particular library we don't unload
   // all of the already loaded libraries.
-  static Try<Nothing> load(const Modules& modules);
+  static Try<Nothing> load(const mesos::internal::Modules& modules);
 
   // create() should be called only after load().
   template <typename Kind>
   static Try<Kind*> create(const std::string& moduleName)
   {
-    Lock lock(&mutex);
+    mesos::internal::Lock lock(&mutex);
     if (!moduleBases.contains(moduleName)) {
       return Error(
           "Module '" + moduleName + "' unknown");
@@ -118,7 +117,7 @@ private:
     dynamicLibraries;
 };
 
-} // namespace internal {
+} // namespace modules {
 } // namespace mesos {
 
 #endif // __MODULE_MANAGER_HPP__

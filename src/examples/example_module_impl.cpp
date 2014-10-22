@@ -56,7 +56,7 @@ static TestModule* create()
 // checks.
 // create() hook returns an object of type 'TestModule'.
 // Mesos core binds the module instance pointer as needed.
-mesos::Module<TestModule> org_apache_mesos_TestModule(
+mesos::modules::Module<TestModule> org_apache_mesos_TestModule(
     MESOS_MODULE_API_VERSION,
     MESOS_VERSION,
     "Apache Mesos",

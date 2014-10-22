@@ -44,6 +44,7 @@
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
 
+using mesos::modules::ModuleManager;
 using mesos::SlaveInfo;
 
 using std::cerr;

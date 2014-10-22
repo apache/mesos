@@ -33,6 +33,7 @@ using std::string;
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
+using namespace mesos::modules;
 
 const char* DEFAULT_MODULE_LIBRARY_NAME = "examplemodule";
 const char* DEFAULT_MODULE_NAME = "org_apache_mesos_TestModule";
@@ -112,7 +113,7 @@ protected:
   Result<TestModule*> module;
 
   static DynamicLibrary dynamicLibrary;
-  static mesos::ModuleBase* moduleBase;
+  static ModuleBase* moduleBase;
   static string originalLdLibraryPath;
   static string libraryDirectory;
 };

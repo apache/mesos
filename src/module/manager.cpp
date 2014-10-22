@@ -28,15 +28,18 @@
 #include <stout/stringify.hpp>
 #include <stout/version.hpp>
 
-#include "manager.hpp"
+#include "common/lock.hpp"
+#include "messages/messages.hpp"
+#include "module/manager.hpp"
 
 using std::list;
 using std::string;
 using std::vector;
 using process::Owned;
 
-namespace mesos {
-namespace internal {
+using namespace mesos;
+using namespace mesos::internal;
+using namespace mesos::modules;
 
 pthread_mutex_t ModuleManager::mutex = PTHREAD_MUTEX_INITIALIZER;
 hashmap<const string, string> ModuleManager::kindToVersion;
@@ -223,6 +226,3 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
 
   return Nothing();
 }
-
-} // namespace internal {
-} // namespace mesos {

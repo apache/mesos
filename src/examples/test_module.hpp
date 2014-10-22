@@ -43,6 +43,7 @@ public:
 
 
 namespace mesos {
+namespace modules {
 
 template <>
 struct Module<TestModule> : ModuleBase
@@ -69,6 +70,7 @@ struct Module<TestModule> : ModuleBase
   TestModule* (*create)();
 };
 
+} // namespace modules {
 } // namespace mesos {
 
 #endif // __TEST_MODULE_HPP__

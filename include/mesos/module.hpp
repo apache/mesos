@@ -49,6 +49,7 @@
 #define MESOS_MODULE_API_VERSION "1"
 
 namespace mesos {
+namespace modules {
 
 // Internal utilities, not part of the module API:
 
@@ -97,6 +98,7 @@ struct ModuleBase
 template <typename T>
 struct Module;
 
+} // namespace modules {
 } // namespace mesos {
 
 #endif // __MESOS_MODULE_HPP__
