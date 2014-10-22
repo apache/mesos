@@ -24,6 +24,9 @@
 
 #include <stout/os.hpp>
 
+#include "module/isolator.hpp"
+#include "module/manager.hpp"
+
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
@@ -57,6 +60,8 @@ using namespace process;
 namespace mesos {
 namespace internal {
 namespace slave {
+
+using mesos::modules::ModuleManager;
 
 using state::SlaveState;
 using state::FrameworkState;
@@ -107,6 +112,14 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   foreach (const string& type, strings::split(isolation, ",")) {
     if (creators.contains(type)) {
       Try<Isolator*> isolator = creators[type](flags);
+      if (isolator.isError()) {
+        return Error(
+            "Could not create isolator " + type + ": " + isolator.error());
+      } else {
+        isolators.push_back(Owned<Isolator>(isolator.get()));
+      }
+    } else if (ModuleManager::contains<Isolator>(type)) {
+      Try<Isolator*> isolator = ModuleManager::create<Isolator>(type);
       if (isolator.isError()) {
         return Error(
             "Could not create isolator " + type + ": " + isolator.error());
