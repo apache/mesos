@@ -102,6 +102,7 @@ protected:
 
     // Reset module API version and Mesos version in case the test
     // changed them.
+    moduleBase->kind = "TestModule";
     moduleBase->moduleApiVersion = MESOS_MODULE_API_VERSION;
     moduleBase->mesosVersion = MESOS_VERSION;
 
@@ -142,6 +143,7 @@ TEST_F(ModuleTest, ExampleModuleLoadTest)
 {
   EXPECT_SOME(ModuleManager::load(defaultModules));
 
+  EXPECT_TRUE(ModuleManager::contains<TestModule>(DEFAULT_MODULE_NAME));
   module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
   EXPECT_SOME(module);
 
@@ -170,6 +172,14 @@ TEST_F(ModuleTest, ExampleModuleUnloadTest)
 
   // Unloading an unknown module should fail.
   EXPECT_ERROR(ModuleManager::unload("unknown"));
+}
+
+
+// Verify that loading a module of an invalid kind fails.
+TEST_F(ModuleTest, InvalidModuleKind)
+{
+  moduleBase->kind = "NotTestModule";
+  EXPECT_ERROR(ModuleManager::load(defaultModules));
 }
 
 

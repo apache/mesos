@@ -94,9 +94,13 @@ struct ModuleBase
 };
 
 
-// This declaration is neeed only for later specializations.
+// These declarations are neeed only for later specializations.
+
 template <typename T>
 struct Module;
+
+template <typename T>
+const char* kind();
 
 } // namespace modules {
 } // namespace mesos {

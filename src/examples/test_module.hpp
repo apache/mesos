@@ -45,6 +45,13 @@ public:
 namespace mesos {
 namespace modules {
 
+template<>
+inline const char* kind<TestModule>()
+{
+  return "TestModule";
+}
+
+
 template <>
 struct Module<TestModule> : ModuleBase
 {
@@ -59,7 +66,7 @@ struct Module<TestModule> : ModuleBase
     : ModuleBase(
         _moduleApiVersion,
         _mesosVersion,
-        "TestModule",
+        mesos::modules::kind<TestModule>(),
         _authorName,
         _authorEmail,
         _description,

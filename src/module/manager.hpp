@@ -66,8 +66,8 @@ public:
   static Try<Nothing> load(const mesos::internal::Modules& modules);
 
   // create() should be called only after load().
-  template <typename Kind>
-  static Try<Kind*> create(const std::string& moduleName)
+  template <typename T>
+  static Try<T*> create(const std::string& moduleName)
   {
     mesos::internal::Lock lock(&mutex);
     if (!moduleBases.contains(moduleName)) {
@@ -75,17 +75,34 @@ public:
           "Module '" + moduleName + "' unknown");
     }
 
-    Module<Kind>* module = (Module<Kind>*) moduleBases[moduleName];
+    Module<T>* module = (Module<T>*) moduleBases[moduleName];
     if (module->create == NULL) {
       return Error(
-          "Error creating Module instance for '" + moduleName + "': "
+          "Error creating module instance for '" + moduleName + "': "
           "create() method not found");
     }
-    Kind* kind = module->create();
-    if (kind == NULL) {
+
+    std::string expectedKind = kind<T>();
+    if (expectedKind != module->kind) {
+      return Error(
+          "Error creating module instance for '" + moduleName + "': "
+          "module is of kind '" + module->kind + "', but the requested "
+          "kind is '" + expectedKind + "'");
+    }
+
+    T* instance = module->create();
+    if (instance == NULL) {
       return Error("Error creating Module instance for '" + moduleName + "'");
     }
-    return kind;
+    return instance;
+  }
+
+  template <typename T>
+  static bool contains(const std::string& moduleName)
+  {
+    mesos::internal::Lock lock(&mutex);
+    return (moduleBases.contains(moduleName) &&
+            moduleBases[moduleName]->kind == stringify(kind<T>()));
   }
 
   // Exposed just for testing so that we can unload a given
