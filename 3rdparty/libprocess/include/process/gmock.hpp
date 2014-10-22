@@ -131,6 +131,69 @@ FutureSatisfy(process::Future<Nothing>* future)
 }
 
 
+// This action invokes an "inner" action but captures the result and
+// stores a copy of it in a future. Note that this is implemented
+// similarly to the IgnoreResult action, which relies on the cast
+// operator to Action<F> which must occur (implicitly) before the
+// expression has completed, hence we can pass the Future<R>* all the
+// way through to our action "implementation".
+template <typename R, typename A>
+class FutureResultAction
+{
+public:
+  explicit FutureResultAction(process::Future<R>* future, const A& action)
+    : future(future),
+      action(action) {}
+
+  template <typename F>
+  operator ::testing::Action<F>() const
+  {
+    return ::testing::Action<F>(new Implementation<F>(future, action));
+  }
+
+private:
+  template <typename F>
+  class Implementation : public ::testing::ActionInterface<F>
+  {
+  public:
+    explicit Implementation(process::Future<R>* future, const A& action)
+      : action(action)
+    {
+      *future = promise.future();
+    }
+
+    virtual typename ::testing::ActionInterface<F>::Result Perform(
+        const typename ::testing::ActionInterface<F>::ArgumentTuple& args)
+    {
+      const typename ::testing::ActionInterface<F>::Result& result =
+        action.Perform(args);
+      promise.set(result);
+      return result;
+    }
+
+  private:
+    // Not copyable, not assignable.
+    Implementation(const Implementation&);
+    Implementation& operator = (const Implementation&);
+
+    process::Promise<R> promise;
+    const ::testing::Action<F> action;
+  };
+
+  process::Future<R>* future;
+  const A action;
+};
+
+
+template <typename R, typename A>
+FutureResultAction<R, A> FutureResult(
+    process::Future<R>* future,
+    const A& action)
+{
+  return FutureResultAction<R, A>(future, action);
+}
+
+
 namespace process {
 
 class MockFilter : public Filter
