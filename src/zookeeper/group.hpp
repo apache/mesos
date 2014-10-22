@@ -7,6 +7,7 @@
 
 #include "process/future.hpp"
 #include "process/timer.hpp"
+#include "process/process.hpp"
 
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
