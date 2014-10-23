@@ -87,7 +87,7 @@ libprocess_la_LIBADD += $(GPERFTOOLS)/libprofiler.la
 endif
 
 # Tests.
-check_PROGRAMS = tests
+check_PROGRAMS = tests benchmarks
 
 tests_SOURCES =							\
   src/tests/decoder_tests.cpp					\
@@ -122,12 +122,29 @@ tests_LDADD =				\
   $(HTTP_PARSER_LIB)			\
   $(LIBEV_LIB)
 
+benchmarks_SOURCES =			\
+  src/tests/benchmarks.cpp
+
+benchmarks_CPPFLAGS =			\
+  -I$(top_srcdir)/src			\
+  -I$(GTEST)/include			\
+  -I$(GMOCK)/include			\
+  $(libprocess_la_CPPFLAGS)
+
+benchmarks_LDADD =			\
+  3rdparty/libgmock.la			\
+  libprocess.la				\
+  $(LIBGLOG)				\
+  $(HTTP_PARSER_LIB)			\
+  $(LIBEV_LIB)
+
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
 # See the following discussion for the workaround:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
-check-local: tests
+check-local: tests benchmarks
 	./tests
+	./benchmarks
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
 
