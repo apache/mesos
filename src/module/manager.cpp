@@ -131,10 +131,10 @@ Try<Nothing> ModuleManager::verifyModule(
   }
 
   Try<Version> mesosVersion = Version::parse(MESOS_VERSION);
-  CHECK(!mesosVersion.isError());
+  CHECK_SOME(mesosVersion);
 
   Try<Version> minimumVersion = Version::parse(kindToVersion[moduleBase->kind]);
-  CHECK(!minimumVersion.isError());
+  CHECK_SOME(minimumVersion);
 
   Try<Version> moduleMesosVersion = Version::parse(moduleBase->mesosVersion);
   if (moduleMesosVersion.isError()) {
