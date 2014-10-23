@@ -39,7 +39,7 @@ std::string join(const std::string& path, T&&... tail)
   // If the first chunk ends with a '/', don't append another using
   // join. This also handles the case with the first path part is just
   // '/'.
-  if (path[path.size()-1] == '/') {
+  if (path.back() == '/') {
     return path + tailJoined;
   }
   return strings::join("/", path, tailJoined);
