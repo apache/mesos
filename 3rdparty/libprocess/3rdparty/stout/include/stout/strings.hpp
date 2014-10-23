@@ -287,8 +287,8 @@ std::string join(
 
 
 // Ensure std::string doesn't fall into the iterable case
-inline std::string join(const std::string &seperator, const std::string &str) {
-  return str;
+inline std::string join(const std::string &seperator, const std::string &s) {
+  return s;
 }
 
 
