@@ -25,7 +25,10 @@
 #include <stout/flags.hpp>
 #include <stout/os.hpp>
 
+#include "common/parse.hpp"
+#include "common/type_utils.hpp"
 #include "logging/logging.hpp"
+#include "messages/messages.hpp"
 
 namespace mesos {
 namespace internal {
@@ -71,6 +74,36 @@ public:
         "docker",
         "Where to find docker executable",
         "docker");
+
+    add(&modules,
+        "modules",
+        "List of modules to be loaded and be available to the internal\n"
+        "subsystems.\n"
+        "\n"
+        "Use --modules=filepath to specify the list of modules via a\n"
+        "file containing a JSON formatted string. 'filepath' can be\n"
+        "of the form 'file:///path/to/file' or '/path/to/file'.\n"
+        "\n"
+        "Use --modules=\"{...}\" to specify the list of modules inline.\n"
+        "\n"
+        "Example:\n"
+        "{\n"
+        "  \"libraries\": [\n"
+        "    {\n"
+        "      \"file\": \"/path/to/libfoo.so\",\n"
+        "      \"modules\": [\n"
+        "        \"org_apache_mesos_bar\",\n"
+        "        \"org_apache_mesos_baz\"\n"
+        "      ]\n"
+        "    },\n"
+        "    {\n"
+        "      \"name\": \"qux\",\n"
+        "      \"modules\": [\n"
+        "        \"org_apache_mesos_norf\",\n"
+        "      ]\n"
+        "    }\n"
+        "  ]\n"
+        "}");
   }
 
   bool verbose;
@@ -78,6 +111,7 @@ public:
   std::string source_dir;
   std::string build_dir;
   std::string docker;
+  Option<Modules> modules;
 };
 
 // Global flags for running the tests.

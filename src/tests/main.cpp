@@ -86,9 +86,7 @@ int main(int argc, char** argv)
   }
 
   // Initialize Modules.
-  // TODO(karya): Add --modules flag to populate "modules".
-  Option<Modules> modules;
-  Try<Nothing> result = tests::initModules(modules);
+  Try<Nothing> result = tests::initModules(flags.modules);
   if (result.isError()) {
     EXIT(1) << "Error initializing modules: " << result.error();
   }
