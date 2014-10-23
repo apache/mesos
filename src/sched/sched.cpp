@@ -822,12 +822,14 @@ protected:
       VLOG(1) << "Ignoring launch tasks message as master is disconnected";
       // NOTE: Reply to the framework with TASK_LOST messages for each
       // task. This is a hack for now, to not let the scheduler
-      // believe the tasks are forever in PENDING state, when actually
-      // the master never received the launchTask message. Also,
-      // realize that this hack doesn't capture the case when the
-      // scheduler process sends it but the master never receives it
-      // (message lost, master failover etc).  In the future, this
-      // should be solved by the replicated log and timeouts.
+      // believe the tasks are launched, when actually the master
+      // never received the launchTasks message. Also, realize that
+      // this hack doesn't capture the case when the scheduler process
+      // sends it but the master never receives it (message lost,
+      // master failover etc). The correct way for schedulers to deal
+      // with this situation is to use 'reconcileTasks()'.
+      // TODO(vinod): Kill this optimization in 0.22.0, to give
+      // frameworks time to implement reconciliation.
       foreach (const TaskInfo& task, tasks) {
         StatusUpdate update;
         update.mutable_framework_id()->MergeFrom(framework.id());
@@ -843,55 +845,14 @@ protected:
       return;
     }
 
+    // Set TaskInfo.executor.framework_id, if it's missing.
     vector<TaskInfo> result;
-
-    foreach (const TaskInfo& task, tasks) {
-      // Check that each TaskInfo has either an ExecutorInfo or a
-      // CommandInfo but not both.
-      if (task.has_executor() == task.has_command()) {
-        StatusUpdate update;
-        update.mutable_framework_id()->MergeFrom(framework.id());
-        TaskStatus* status = update.mutable_status();
-        status->mutable_task_id()->MergeFrom(task.task_id());
-        status->set_state(TASK_LOST);
-        status->set_message(
-            "TaskInfo must have either an 'executor' or a 'command'");
-        update.set_timestamp(Clock::now().secs());
-        update.set_uuid(UUID::random().toBytes());
-
-        statusUpdate(UPID(), update, UPID());
-        continue;
-      }
-
-      // Ensure the ExecutorInfo.framework_id is valid, if present.
-      if (task.has_executor() &&
-          task.executor().has_framework_id() &&
-          !(task.executor().framework_id() == framework.id())) {
-        StatusUpdate update;
-        update.mutable_framework_id()->MergeFrom(framework.id());
-        TaskStatus* status = update.mutable_status();
-        status->mutable_task_id()->MergeFrom(task.task_id());
-        status->set_state(TASK_LOST);
-        status->set_message(
-            "ExecutorInfo has an invalid FrameworkID (Actual: " +
-            stringify(task.executor().framework_id()) + " vs Expected: " +
-            stringify(framework.id()) + ")");
-        update.set_timestamp(Clock::now().secs());
-        update.set_uuid(UUID::random().toBytes());
-
-        statusUpdate(UPID(), update, UPID());
-        continue;
-      }
-
-      TaskInfo copy = task;
-
-      // Set the ExecutorInfo.framework_id if missing.
+    foreach (TaskInfo task, tasks) {
       if (task.has_executor() && !task.executor().has_framework_id()) {
-        copy.mutable_executor()->mutable_framework_id()->CopyFrom(
+        task.mutable_executor()->mutable_framework_id()->CopyFrom(
             framework.id());
       }
-
-      result.push_back(copy);
+      result.push_back(task);
     }
 
     LaunchTasksMessage message;

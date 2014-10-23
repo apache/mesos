@@ -24,6 +24,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <stout/strings.hpp>
+#include <stout/uuid.hpp>
 
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
@@ -91,6 +92,96 @@ TEST_F(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
   Resources resources(offers.get()[0].resources());
   EXPECT_EQ(2, resources.get("cpus", Value::Scalar()).value());
   EXPECT_EQ(1024, resources.get("mem", Value::Scalar()).value());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(ResourceOffersTest, TaskUsesInvalidFrameworkID)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Create an executor with a random framework id.
+  ExecutorInfo executor;
+  executor = DEFAULT_EXECUTOR_INFO;
+  executor.mutable_framework_id()->set_value(UUID::random().toString());
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(executor, 1, 1, 16, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_TRUE(strings::startsWith(
+      status.get().message(), "ExecutorInfo has an invalid FrameworkID"));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(ResourceOffersTest, TaskUsesCommandInfoAndExecutorInfo)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  // Create a task that uses both command info and task info.
+  TaskInfo task = createTask(offers.get()[0], ""); // Command task.
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO); // Executor task.
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(), "CommandInfo or ExecutorInfo present"));
 
   driver.stop();
   driver.join();

@@ -1884,7 +1884,7 @@ struct SlaveIDChecker : TaskInfoVisitor
   {
     if (!(task.slave_id() == slave.id)) {
       return "Task uses invalid slave " + task.slave_id().value() +
-          " while slave " + slave.id.value() + " is expected";
+             " while slave " + slave.id.value() + " is expected";
     }
 
     return None();
@@ -2020,6 +2020,12 @@ struct ExecutorInfoChecker : TaskInfoVisitor
       if (!task.executor().has_framework_id()) {
         return stringify(
             "Task has invalid ExecutorInfo: missing field 'framework_id'");
+      }
+
+      if (!(task.executor().framework_id() == framework.id)) {
+        return string("ExecutorInfo has an invalid FrameworkID") +
+               " (Actual: " + stringify(task.executor().framework_id()) +
+               " vs Expected: " + stringify(framework.id) + ")";
       }
 
       const ExecutorID& executorId = task.executor().executor_id();
