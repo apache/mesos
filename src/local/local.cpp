@@ -49,6 +49,8 @@
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
 
+#include "module/manager.hpp"
+
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
@@ -133,6 +135,15 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     if (load.isError()) {
       EXIT(1) << "Failed to start a local cluster while loading "
               << "master flags from the environment: " << load.error();
+    }
+
+    // Load modules. Note that this covers both, master and slave
+    // specific modules as both use the same flag (--modules).
+    if (flags.modules.isSome()) {
+      Try<Nothing> result = modules::ModuleManager::load(flags.modules.get());
+      if (result.isError()) {
+        EXIT(1) << "Error loading modules: " << result.error();
+      }
     }
 
     if (flags.registry == "in_memory") {
