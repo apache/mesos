@@ -145,6 +145,28 @@ private:
 };
 
 
+typedef int pipes[2];
+
+
+void createPipes(pipes& _pipes)
+{
+  if (pipe(_pipes) < 0) {
+    perror("Pipe failed");
+    abort();
+  }
+  Try<Nothing> cloexec = os::cloexec(_pipes[0]);
+  if (cloexec.isError()) {
+    perror("Cloexec failed on pipe");
+    abort();
+  }
+  cloexec = os::cloexec(_pipes[1]);
+  if (cloexec.isError()) {
+    perror("Cloexec failed on pipe");
+    abort();
+  }
+}
+
+
 // Launch numberOfProcesses processes, each with clients 'client'
 // Actors. Play ping pong back and forth between these actors and the
 // main 'server' actor. Each 'client' can have queueDepth ping
@@ -164,17 +186,11 @@ TEST(Process, Process_BENCHMARK_Test)
     // fork in order to get numberOfProcesses seperate
     // ProcessManagers. This avoids the short-circuit built into
     // ProcessManager for processes communicating in the same manager.
-    int pipes[2];
+    int requestPipes[2];
     int resultPipes[2];
     pid_t pid = -1;
-    if(pipe2(pipes, O_CLOEXEC) < 0) {
-      perror("pipe failed");
-      abort();
-    }
-    if(pipe2(resultPipes, O_CLOEXEC) < 0) {
-      perror("pipe failed");
-      abort();
-    }
+    createPipes(requestPipes);
+    createPipes(resultPipes);
     pid = fork();
 
     if (pid < 0) {
@@ -185,13 +201,13 @@ TEST(Process, Process_BENCHMARK_Test)
 
       // Read the number of bytes about to be parsed.
       int stringSize = 0;
-      ssize_t result = read(pipes[0], &stringSize, sizeof(stringSize));
+      ssize_t result = read(requestPipes[0], &stringSize, sizeof(stringSize));
       EXPECT_EQ(result, sizeof(stringSize));
       char buffer[stringSize + 1];
       memset(&buffer, 0, stringSize + 1);
 
       // Read in the upid of the 'server' actor.
-      result = read(pipes[0], &buffer, stringSize);
+      result = read(requestPipes[0], &buffer, stringSize);
       EXPECT_EQ(result, stringSize);
       istringstream inStream(buffer);
       UPID other;
@@ -224,7 +240,7 @@ TEST(Process, Process_BENCHMARK_Test)
           &totalRpcPerSecond,
           sizeof(totalRpcPerSecond));
       EXPECT_EQ(result, sizeof(totalRpcPerSecond));
-      close(pipes[0]);
+      close(requestPipes[0]);
       exit(0);
     } else {
       // Parent.
@@ -232,7 +248,7 @@ TEST(Process, Process_BENCHMARK_Test)
       // Keep track of the pipes to the child forks. This way the
       // results of their rpc / sec computations can be read back and
       // aggregated.
-      outPipes.push_back(pipes[1]);
+      outPipes.push_back(requestPipes[1]);
       inPipes.push_back(resultPipes[0]);
       pids.push_back(pid);
 
