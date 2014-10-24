@@ -3490,3 +3490,218 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
   delete containerizer2.get();
 }
 #endif // __linux__
+
+
+#ifdef __linux__
+// Test that a container started without namespace/pid isolation can
+// be destroyed correctly with namespace/pid isolation enabled.
+TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a slave using a containerizer without pid namespace
+  // isolation.
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.isolation = "cgroups/cpu,cgroups/mem";
+  flags.slave_subsystems = "";
+
+  Try<MesosContainerizer*> containerizer1 =
+    MesosContainerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Scheduler expectations.
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  SlaveID slaveId = offers1.get()[0].slave_id();
+
+  TaskInfo task1 = createTask(
+      slaveId, Resources::parse("cpus:0.5;mem:128").get(), "sleep 1000");
+  vector<TaskInfo> tasks1;
+  tasks1.push_back(task1);
+
+  // Message expectations.
+  Future<Message> registerExecutorMessage =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers1.get()[0].id(), tasks1);
+
+  AWAIT_READY(registerExecutorMessage);
+
+  Future<hashset<ContainerID> > containers = containerizer1.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *(containers.get().begin());
+
+  // Stop the slave.
+  this->Stop(slave.get());
+  delete containerizer1.get();
+
+  // Start a slave using a containerizer with pid namespace isolation.
+  flags.isolation = "cgroups/cpu,cgroups/mem,namespaces/pid";
+
+  Try<MesosContainerizer*> containerizer2 =
+    MesosContainerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  slave = this->StartSlave(containerizer2.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+
+  // Set up to wait on the container's termination.
+  Future<containerizer::Termination> termination =
+    containerizer2.get()->wait(containerId);
+
+  // Destroy the container.
+  containerizer2.get()->destroy(containerId);
+
+  AWAIT_READY(termination);
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+  delete containerizer2.get();
+}
+
+
+// Test that a container started with namespace/pid isolation can
+// be destroyed correctly without namespace/pid isolation enabled.
+TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
+{
+  Try<PID<Master> > master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a slave using a containerizer with pid namespace isolation.
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.isolation = "cgroups/cpu,cgroups/mem,namespaces/pid";
+  flags.slave_subsystems = "";
+
+  Try<MesosContainerizer*> containerizer1 =
+    MesosContainerizer::create(flags, true);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Scheduler expectations.
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  SlaveID slaveId = offers1.get()[0].slave_id();
+
+  TaskInfo task1 = createTask(
+      slaveId, Resources::parse("cpus:0.5;mem:128").get(), "sleep 1000");
+  vector<TaskInfo> tasks1;
+  tasks1.push_back(task1);
+
+  // Message expectations.
+  Future<Message> registerExecutorMessage =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers1.get()[0].id(), tasks1);
+
+  AWAIT_READY(registerExecutorMessage);
+
+  Future<hashset<ContainerID> > containers = containerizer1.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *(containers.get().begin());
+
+  // Stop the slave.
+  this->Stop(slave.get());
+  delete containerizer1.get();
+
+  // Start a slave using a containerizer without pid namespace
+  // isolation.
+  flags.isolation = "cgroups/cpu,cgroups/mem";
+
+  Try<MesosContainerizer*> containerizer2 =
+    MesosContainerizer::create(flags, true);
+  ASSERT_SOME(containerizer2);
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  slave = this->StartSlave(containerizer2.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+
+  // Set up to wait on the container's termination.
+  Future<containerizer::Termination> termination =
+    containerizer2.get()->wait(containerId);
+
+  // Destroy the container.
+  containerizer2.get()->destroy(containerId);
+
+  AWAIT_READY(termination);
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+  delete containerizer2.get();
+}
+
+#endif // __linux__

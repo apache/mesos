@@ -31,10 +31,13 @@
 #include <stout/strings.hpp>
 
 #include "linux/cgroups.hpp"
+#include "linux/ns.hpp"
 
 #include "mesos/resources.hpp"
 
 #include "slave/containerizer/linux_launcher.hpp"
+
+#include "slave/containerizer/isolators/namespaces/pid.hpp"
 
 using namespace process;
 
@@ -365,6 +368,35 @@ Future<Nothing> LinuxLauncher::destroy(const ContainerID& containerId)
 
   pids.erase(containerId);
 
+  // Just return if the cgroup was destroyed and the slave didn't receive the
+  // notification. See comment in recover().
+  Try<bool> exists = cgroups::exists(hierarchy, cgroup(containerId));
+  if (exists.isError()) {
+    return Failure("Failed to check existence of freezer cgroup: " +
+                   exists.error());
+  }
+
+  if (!exists.get()) {
+    return Nothing();
+  }
+
+  Result<ino_t> containerPidNs =
+    NamespacesPidIsolatorProcess::getNamespace(containerId);
+
+  if (containerPidNs.isSome()) {
+    LOG(INFO) << "Using pid namespace to destroy container " << containerId;
+
+    return ns::pid::destroy(containerPidNs.get())
+      .then(lambda::bind(
+            (Future<Nothing>(*)(const string&,
+                                const string&,
+                                const Duration&))(&cgroups::destroy),
+            hierarchy,
+            cgroup(containerId),
+            cgroups::DESTROY_TIMEOUT));
+  }
+
+  // Try to clean up using just the freezer cgroup.
   return cgroups::destroy(
       hierarchy,
       cgroup(containerId),
