@@ -406,6 +406,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	hdfs/hdfs.hpp							\
 	linux/cgroups.hpp						\
 	linux/fs.hpp							\
+	linux/ns.hpp						\
 	linux/perf.hpp							\
 	local/flags.hpp							\
 	local/local.hpp							\
@@ -1150,6 +1151,11 @@ load_generator_framework_SOURCES = examples/load_generator_framework.cpp
 load_generator_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 load_generator_framework_LDADD = libmesos.la
 
+check_PROGRAMS += setns-test-helper
+setns_test_helper_SOURCES = tests/setns_test_helper.cpp
+setns_test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
+setns_test_helper_LDADD = libmesos.la
+
 check_PROGRAMS += mesos-tests
 
 # Library containing an example module.
@@ -1233,6 +1239,7 @@ if OS_LINUX
   mesos_tests_SOURCES += tests/cgroups_isolator_tests.cpp
   mesos_tests_SOURCES += tests/cgroups_tests.cpp
   mesos_tests_SOURCES += tests/fs_tests.cpp
+  mesos_tests_SOURCES += tests/ns_tests.cpp
   mesos_tests_SOURCES += tests/perf_tests.cpp
 endif
 

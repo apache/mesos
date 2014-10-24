@@ -45,11 +45,11 @@
 #include <stout/stringify.hpp>
 
 #include <stout/os/exists.hpp>
-#include <stout/os/setns.hpp>
 
 #include "common/status_utils.hpp"
 
 #include "linux/fs.hpp"
+#include "linux/ns.hpp"
 
 #include "linux/routing/route.hpp"
 #include "linux/routing/utils.hpp"
@@ -435,7 +435,7 @@ int PortMappingUpdate::execute()
   }
 
   // Enter the network namespace.
-  Try<Nothing> setns = os::setns(flags.pid.get(), "net");
+  Try<Nothing> setns = ns::setns(flags.pid.get(), "net");
   if (setns.isError()) {
     cerr << "Failed to enter the network namespace of pid " << flags.pid.get()
          << ": " << setns.error() << endl;
@@ -504,7 +504,7 @@ int PortMappingStatistics::execute()
   }
 
   // Enter the network namespace.
-  Try<Nothing> setns = os::setns(flags.pid.get(), "net");
+  Try<Nothing> setns = ns::setns(flags.pid.get(), "net");
   if (setns.isError()) {
     // This could happen if the executor exits before this function is
     // invoked. We do not log here to avoid spurious logging.
@@ -707,7 +707,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   // Verify that the network namespace is available by checking the
   // existence of the network namespace handle of the current process.
-  if (os::namespaces().count("net") == 0) {
+  if (ns::namespaces().count("net") == 0) {
     return Error(
         "Using network isolator requires network namespace. "
         "Make sure your kernel is newer than 3.4");
