@@ -37,7 +37,12 @@ public:
   {
     const size_t maxComponents = 3;
 
-    std::vector<std::string> split = strings::split(s, ".");
+    // Use only the part before '-', i.e. strip and discard the tags
+    // and labels.
+    // TODO(karya): Once we have support for labels and tags, we
+    // should not discard the remaining string.
+    std::vector<std::string> split =
+      strings::split(strings::split(s, "-")[0], ".");
 
     if (split.size() > maxComponents) {
       return Error("Version string has " + stringify(split.size()) +

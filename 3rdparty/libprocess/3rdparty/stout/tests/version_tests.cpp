@@ -51,6 +51,12 @@ TEST(VersionTest, Parse)
   EXPECT_EQ(stringify(version2.get()), "1.20.0");
   EXPECT_EQ(stringify(version3.get()), "1.0.0");
 
+  // Verify that tagged/labeled versions work.
+  Try<Version> version4 = Version::parse("1.20.3-rc1");
+  EXPECT_SOME(version4);
+  EXPECT_EQ(version4.get(), version1.get());
+  EXPECT_EQ(stringify(version4.get()), "1.20.3");
+
   EXPECT_ERROR(Version::parse("0.a.b"));
   EXPECT_ERROR(Version::parse(""));
   EXPECT_ERROR(Version::parse("a"));
