@@ -67,7 +67,7 @@ fi
 
 #atexit "rm -f ${REVIEW}.patch"
 
-wget --no-check-certificate -O ${REVIEW}.patch ${DIFF_URL} || \
+wget --no-check-certificate --no-verbose -O ${REVIEW}.patch ${DIFF_URL} || \
   { echo "${RED}Failed to download patch${NORMAL}"; exit 1; }
 
 git apply --index ${REVIEW}.patch || \
