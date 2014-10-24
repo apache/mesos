@@ -132,17 +132,6 @@ Future<Nothing> LinuxLauncher::recover(const std::list<state::RunState>& states)
     }
     const ContainerID& containerId = state.id.get();
 
-    Try<bool> exists = cgroups::exists(hierarchy, cgroup(containerId));
-
-    if (!exists.get()) {
-      // This may occur if the freezer cgroup was destroyed but the
-      // slave dies before noticing this. The containerizer will
-      // monitor the container's pid and notice that it has exited,
-      // triggering destruction of the container.
-      LOG(INFO) << "Couldn't find freezer cgroup for container " << containerId;
-      continue;
-    }
-
     if (state.forkedPid.isNone()) {
       return Failure("Executor pid is required to recover container " +
                      stringify(containerId));
@@ -161,7 +150,23 @@ Future<Nothing> LinuxLauncher::recover(const std::list<state::RunState>& states)
                      " for container " + stringify(containerId));
     }
 
+    // Store the pid now because if the freezer cgroup is absent
+    // (slave terminated after the cgroup is destroyed but before it
+    // was notified) then we'll still need it for the check in
+    // destroy() when we clean up.
     pids.put(containerId, pid);
+
+    Try<bool> exists = cgroups::exists(hierarchy, cgroup(containerId));
+
+    if (!exists.get()) {
+      // This may occur if the freezer cgroup was destroyed but the
+      // slave dies before noticing this. The containerizer will
+      // monitor the container's pid and notice that it has exited,
+      // triggering destruction of the container.
+      LOG(INFO) << "Couldn't find freezer cgroup for container "
+                << containerId << ", assuming already destroyed";
+      continue;
+    }
 
     cgroups.insert(cgroup(containerId));
   }
@@ -344,8 +349,6 @@ Try<pid_t> LinuxLauncher::fork(
     return Error("Failed to synchronize child process");
   }
 
-  // Store the pid (session id and process group id) if this is the
-  // first process forked for this container.
   if (!pids.contains(containerId)) {
     pids.put(containerId, child.get().pid());
   }
