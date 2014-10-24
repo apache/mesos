@@ -158,6 +158,7 @@ public:
     // TODO(vinod): Consider killing this flag and always checkpoint.
     add(&Flags::checkpoint,
         "checkpoint",
+        "This flag is deprecated and will be removed in a future release.\n"
         "Whether to checkpoint slave and frameworks information\n"
         "to disk. This enables a restarted slave to recover\n"
         "status updates and reconnect with (--recover=reconnect) or\n"

@@ -2,8 +2,10 @@
 --------------------------------------
 
 * Deprecations:
-  * [MESOS-1807] Disallow executors with cpu only or memory only
+  * [MESOS-1807] - Disallow executors with cpu only or memory only
     resources.
+  * [MESOS-1986] - Disabling checkpointing is deprecated and the --checkpoint
+    flag will be removed in a future release.
 
 
 Release Notes - Mesos - Version 0.20.1

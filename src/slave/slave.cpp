@@ -317,6 +317,11 @@ void Slave::initialize()
 
   LOG(INFO) << "Slave hostname: " << info.hostname();
   LOG(INFO) << "Slave checkpoint: " << stringify(flags.checkpoint);
+  if (!flags.checkpoint) {
+    LOG(WARNING) << "Disabling checkpointing is deprecated and the --checkpoint"
+                    " flag will be removed in a future release. Please avoid"
+                    " using this flag";
+  }
 
   statusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1));
 
