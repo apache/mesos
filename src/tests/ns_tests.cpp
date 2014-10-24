@@ -214,3 +214,76 @@ TEST(NsTest, ROOT_getns)
   ASSERT_TRUE(WIFSIGNALED(status));
   EXPECT_EQ(SIGKILL, WTERMSIG(status));
 }
+
+
+static int childDestroy(void* arg)
+{
+  // Fork a bunch of children.
+  ::fork();
+  ::fork();
+  ::fork();
+
+  // Parent and all children sleep.
+  while (true) { sleep(1); }
+
+  ABORT("Error, child should be killed before reaching here");
+}
+
+
+// Test we can destroy a pid namespace, i.e., kill all processes.
+TEST(NsTest, ROOT_destroy)
+{
+  set<string> namespaces = ns::namespaces();
+
+  if (namespaces.count("pid") == 0) {
+    // Pid namespace is not available.
+    return;
+  }
+
+  Try<int> nstype = ns::nstype("pid");
+  ASSERT_SOME(nstype);
+
+  // 8 MiB stack for child.
+  static unsigned long long stack[(8*1024*1024)/sizeof(unsigned long long)];
+
+  pid_t pid = clone(
+      childDestroy,
+      &stack[sizeof(stack)/sizeof(stack[0]) - 1], // Stack grows down.
+      SIGCHLD | nstype.get(),
+      NULL);
+
+  ASSERT_NE(-1, pid);
+
+  Future<Option<int>> status = process::reap(pid);
+
+  // Ensure the child is in a different pid namespace.
+  Try<ino_t> childNs = ns::getns(pid, "pid");
+  ASSERT_SOME(childNs);
+
+  Try<ino_t> ourNs = ns::getns(::getpid(), "pid");
+  ASSERT_SOME(ourNs);
+
+  ASSERT_NE(ourNs.get(), childNs.get());
+
+  // Kill the child.
+  AWAIT_READY(ns::pid::destroy(childNs.get()));
+
+  AWAIT_READY(status);
+  ASSERT_SOME(status.get());
+  ASSERT_TRUE(WIFSIGNALED(status.get().get()));
+  EXPECT_EQ(SIGKILL, WTERMSIG(status.get().get()));
+
+  // Finally, verify that no processes are in the child's pid
+  // namespace, i.e., destroy() also killed all descendants.
+  Try<set<pid_t>> pids = os::pids();
+  ASSERT_SOME(pids);
+
+  foreach (pid_t pid, pids.get()) {
+    Try<ino_t> otherNs = ns::getns(pid, "pid");
+    // pid may have exited since getting the snapshot of pids so
+    // ignore any error.
+    if (otherNs.isSome()) {
+      ASSERT_SOME_NE(childNs.get(), otherNs);
+    }
+  }
+}

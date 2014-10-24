@@ -40,6 +40,10 @@
 #include <stout/os/exists.hpp>
 #include <stout/os/ls.hpp>
 
+#include <process/collect.hpp>
+#include <process/future.hpp>
+#include <process/reap.hpp>
+
 namespace ns {
 
 // Returns all the supported namespaces by the kernel.
@@ -223,6 +227,82 @@ inline Try<ino_t> getns(pid_t pid, const std::string& ns)
   return s.st_ino;
 }
 
+
+namespace pid {
+
+namespace internal {
+
+inline Nothing _nothing() { return Nothing(); }
+
+} // namespace internal {
+
+inline process::Future<Nothing> destroy(ino_t inode)
+{
+  // Check we're not trying to kill the root namespace.
+  Try<ino_t> ns = ns::getns(1, "pid");
+  if (ns.isError()) {
+    return process::Failure(ns.error());
+  }
+
+  if (ns.get() == inode) {
+    return process::Failure("Cannot destroy root pid namespace");
+  }
+
+  // Or ourselves.
+  ns = ns::getns(::getpid(), "pid");
+  if (ns.isError()) {
+    return process::Failure(ns.error());
+  }
+
+  if (ns.get() == inode) {
+    return process::Failure("Cannot destroy own pid namespace");
+  }
+
+  // Signal all pids in the namespace, including the init pid if it's
+  // still running. Once the init pid has been signalled the kernel
+  // will prevent any new children forking in the namespace and will
+  // also signal all other pids in the namespace.
+  Try<std::set<pid_t>> pids = os::pids();
+  if (pids.isError()) {
+    return process::Failure("Failed to list of processes");
+  }
+
+  foreach (pid_t pid, pids.get()) {
+    // Ignore any errors, probably because the process no longer
+    // exists, and ignorable otherwise.
+    Try<ino_t> ns = ns::getns(pid, "pid");
+    if (ns.isSome() && ns.get() == inode) {
+      kill(pid, SIGKILL);
+    }
+  }
+
+  // Get a new snapshot and do a second pass of the pids to capture
+  // any pids that are dying so we can reap them.
+  pids = os::pids();
+  if (pids.isError()) {
+    return process::Failure("Failed to list of processes");
+  }
+
+  std::list<process::Future<Option<int>>> futures;
+
+  foreach (pid_t pid, pids.get()) {
+    Try<ino_t> ns = ns::getns(pid, "pid");
+    if (ns.isSome() && ns.get() == inode) {
+      futures.push_back(process::reap(pid));
+    }
+
+    // Ignore any errors, probably because the process no longer
+    // exists, and ignorable otherwise.
+  }
+
+  // Wait for all the signalled processes to terminate. The pid
+  // namespace wil then be empty and will be released by the kernel
+  // (unless there are additional references).
+  return process::collect(futures)
+    .then(lambda::bind(&internal::_nothing));
+}
+
+} // namespace pid {
 } // namespace ns {
 
 #endif // __LINUX_NS_HPP__
