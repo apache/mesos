@@ -144,7 +144,6 @@ benchmarks_LDADD =			\
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
 check-local: tests benchmarks
 	./tests
-	./benchmarks
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
 
