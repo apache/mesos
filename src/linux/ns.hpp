@@ -198,6 +198,31 @@ inline Try<Nothing> setns(pid_t pid, const std::string& ns)
   return ns::setns(path, ns);
 }
 
+
+// Get the inode number of the specified namespace for the specified
+// pid. The inode number identifies the namespace and can be used for
+// comparisons, i.e., two processes with the same inode for a given
+// namespace type are in the same namespace.
+inline Try<ino_t> getns(pid_t pid, const std::string& ns)
+{
+  if (!os::exists(pid)) {
+    return Error("Pid " + stringify(pid) + " does not exist");
+  }
+
+  if (ns::namespaces().count(ns) < 1) {
+    return Error("Namespace '" + ns + "' is not supported");
+  }
+
+  std::string path = path::join("/proc", stringify(pid), "ns", ns);
+  struct stat s;
+  if (::stat(path.c_str(), &s) < 0) {
+    return ErrnoError("Failed to stat " + ns + " namespace handle"
+                      " for pid " + stringify(pid));
+  }
+
+  return s.st_ino;
+}
+
 } // namespace ns {
 
 #endif // __LINUX_NS_HPP__

@@ -154,3 +154,63 @@ TEST(NsTest, ROOT_setnsMultipleThreads)
   EXPECT_EQ(0, pthread_cancel(pthread));
   EXPECT_EQ(0, pthread_join(pthread, NULL));
 }
+
+
+// Use a different child function for clone because it requires
+// int(*)(void*).
+static int childGetns(void* arg)
+{
+  // Sleep until killed.
+  while (true) { sleep(1); }
+
+  ABORT("Error, child should be killed before reaching here");
+}
+
+
+// Test that we can get the namespace inodes for a forked child.
+TEST(NsTest, ROOT_getns)
+{
+  set<string> namespaces = ns::namespaces();
+
+  // ns::setns() does not support "pid".
+  namespaces.erase("pid");
+
+  // Use the first other namespace available.
+  ASSERT_FALSE(namespaces.empty());
+  string ns = *(namespaces.begin());
+
+  ASSERT_SOME(ns::getns(::getpid(), ns));
+
+  Try<int> nstype = ns::nstype(ns);
+  ASSERT_SOME(nstype);
+
+  // 8 MiB stack for child.
+  static unsigned long long stack[(8*1024*1024)/sizeof(unsigned long long)];
+
+  pid_t pid = clone(
+      childGetns,
+      &stack[sizeof(stack)/sizeof(stack[0]) - 1], // Stack grows down.
+      SIGCHLD | nstype.get(),
+      NULL);
+
+  ASSERT_NE(-1, pid);
+
+  // Continue in parent.
+  Try<ino_t> nsParent = ns::getns(::getpid(), ns);
+  ASSERT_SOME(nsParent);
+
+  Try<ino_t> nsChild = ns::getns(pid, ns);
+  ASSERT_SOME(nsChild);
+
+  // Child should be in a different namespace.
+  EXPECT_NE(nsParent.get(), nsChild.get());
+
+  // Kill the child process.
+  ASSERT_NE(-1, ::kill(pid, SIGKILL));
+
+  // Wait for the child process.
+  int status;
+  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
+  ASSERT_TRUE(WIFSIGNALED(status));
+  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+}
