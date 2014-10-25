@@ -90,10 +90,11 @@ inline Try<Diff> diff(const std::string& from, const std::string& to)
   target.len = to.length();
 
   svn_txdelta_stream_t* delta;
-  svn_txdelta(
+  svn_txdelta2(
       &delta,
       svn_stream_from_string(&source, pool),
       svn_stream_from_string(&target, pool),
+      false,
       pool);
 
   // Now we want to convert this text delta stream into an svndiff
@@ -103,11 +104,12 @@ inline Try<Diff> diff(const std::string& from, const std::string& to)
   void* baton = NULL;
   svn_stringbuf_t* diff = svn_stringbuf_create_ensure(1024, pool);
 
-  svn_txdelta_to_svndiff2(
+  svn_txdelta_to_svndiff3(
       &handler,
       &baton,
       svn_stream_from_stringbuf(diff, pool),
       0,
+      SVN_DELTA_COMPRESSION_LEVEL_DEFAULT,
       pool);
 
   // Now feed the text delta to the handler.
