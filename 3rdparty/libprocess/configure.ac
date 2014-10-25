@@ -132,6 +132,17 @@ AC_ARG_WITH([zlib],
                            will be far less responsive; not recommended]),
             [], [with_zlib=yes])
 
+AC_ARG_WITH([apr],
+            AS_HELP_STRING([--with-apr=@<:@=DIR@:>@],
+                           [specify where to locate the apr-1 library]),
+            [], [])
+
+AC_ARG_WITH([svn],
+            AS_HELP_STRING([--with-svn=@<:@=DIR@:>@],
+                           [specify where to locate the svn-1 library]),
+            [], [])
+
+
 # There is no prefix installation of the JAR.
 AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
 
@@ -180,6 +191,52 @@ if test -n "`echo $with_glog`"; then
   CPPFLAGS="$CPPFLAGS -I${with_glog}/include"
   LDFLAGS="$LDFLAGS -L${with_glog}/lib"
 fi
+
+
+# Check if libapr-1 prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include/apr-1 and /lib path
+# suffixes. We include /include/apr-1 because we include <apr*>
+# headers directly.
+if test -n "`echo $with_apr`" ; then
+    CPPFLAGS="-I${with_apr}/include/apr-1 -I${with_apr}/include/apr-1.0 $CPPFLAGS"
+    LDFLAGS="-L${with_apr}/lib $LDFLAGS"
+else
+    CPPFLAGS="-I/usr/include/apr-1 -I/usr/include/apr-1.0 $CPPFLAGS"
+fi
+
+AC_CHECK_LIB([apr-1], [apr_initialize], [],
+             [AC_MSG_ERROR([cannot find libapr-1
+-------------------------------------------------------------------
+libapr-1 is required for mesos to build.
+-------------------------------------------------------------------
+])])
+
+
+# Check if libsvn-1 prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes. We include /include/subversion-1 because we include
+# <svn_*> directly.
+if test -n "`echo $with_svn`" ; then
+    CPPFLAGS="-I${with_svn}/include/subversion-1 $CPPFLAGS"
+    LDFLAGS="-L${with_svn}/lib $LDFLAGS"
+else
+    CPPFLAGS="-I/usr/include/subversion-1 $CPPFLAGS"
+fi
+
+AC_CHECK_LIB([svn_subr-1], [svn_stringbuf_create_ensure], [],
+             [AC_MSG_ERROR([cannot find libsvn_subr-1
+-------------------------------------------------------------------
+libsubversion-1 is required for mesos to build.
+-------------------------------------------------------------------
+])])
+
+AC_CHECK_LIB([svn_delta-1], [svn_txdelta], [],
+             [AC_MSG_ERROR([cannot find libsvn_delta-1
+-------------------------------------------------------------------
+libsubversion-1 is required for mesos to build.
+-------------------------------------------------------------------
+])])
+
 
 GMOCKSRC="gmock-all.cc"
 GTESTSRC="gtest-all.cc"

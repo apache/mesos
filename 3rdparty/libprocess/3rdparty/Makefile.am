@@ -186,8 +186,6 @@ endif
 stout_tests_CPPFLAGS =				\
   -I$(srcdir)/$(STOUT)/include			\
   -I$(PROTOBUF)/src				\
-  -I/usr/include/subversion-1			\
-  -I/usr/include/apr-1				\
   $(AM_CPPFLAGS)
 
 if WITH_BUNDLED_GMOCK
