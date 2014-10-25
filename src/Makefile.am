@@ -89,8 +89,6 @@ MESOS_CPPFLAGS += -I$(top_srcdir)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(STOUT)/include
 MESOS_CPPFLAGS += -I../include
-MESOS_CPPFLAGS += -I/usr/include/subversion-1
-MESOS_CPPFLAGS += -I/usr/include/apr-1
 
 # Protobuf headers that depend on mesos.pb.h need this.
 MESOS_CPPFLAGS += -I../include/mesos

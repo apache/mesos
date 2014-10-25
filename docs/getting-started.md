@@ -46,6 +46,12 @@ There are different ways you can get Mesos:
         # Install Maven (***Only required for Mesos 0.18.1 or newer***).
         $ sudo apt-get install maven
 
+        # Install devel libapr1 (***Only required for Mesos 0.21.0 or newer***)
+        $ sudo apt-get install libapr1-dev
+
+        # Install devel libsvn (***Only required for Mesos 0.21.0 or newer***)
+        $ sudo apt-get install libsvn-dev
+
 -  If you are building from git repository, you will need to additionally install the following packages.
 
         # Install autotoconf and automake.
@@ -58,9 +64,20 @@ There are different ways you can get Mesos:
 
 - Following are the instructions for stock CentOS 6.5. If you are using a different OS, please install the packages accordingly.
 
+        Mesos 0.21.0+ requires subversion 1.8+ devel package which is not available by default by yum.
+        Add one of the repo that has subversion-devel 1.8 available, i.e:
+
+        Add new repo /etc/yum.repos.d/wandisco-svn.repo, with:
+
+        [WandiscoSVN]
+        name=Wandisco SVN Repo
+        baseurl=http://opensource.wandisco.com/centos/6/svn-1.8/RPMS/$basearch/
+        enabled=1
+        gpgcheck=0
+
         $ sudo yum groupinstall -y "Development Tools"
 
-        $ sudo yum install -y python-devel java-1.7.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5
+        $ sudo yum install -y python-devel java-1.7.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel
 
         # Install maven.
         $ wget http://mirror.nexcess.net/apache/maven/maven-3/3.0.5/binaries/apache-maven-3.0.5-bin.tar.gz
