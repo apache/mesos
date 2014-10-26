@@ -49,6 +49,11 @@ using std::map;
 using std::string;
 using std::vector;
 
+using testing::_;
+using testing::DoAll;
+using testing::Invoke;
+using testing::Return;
+
 class MesosContainerizerIsolatorPreparationTest :
   public tests::TemporaryDirectoryTest
 {
@@ -290,4 +295,92 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   EXPECT_SOME_EQ(outMsg + "\n", os::read(path::join(directory, "stdout")));
 
   delete containerizer.get();
+}
+
+
+class MesosContainerizerDestroyTest : public tests::TemporaryDirectoryTest {};
+
+class MockMesosContainerizerProcess : public MesosContainerizerProcess
+{
+public:
+  MockMesosContainerizerProcess(
+      const Flags& flags,
+      bool local,
+      const process::Owned<Launcher>& launcher,
+      const std::vector<process::Owned<Isolator>>& isolators)
+    : MesosContainerizerProcess(flags, local, launcher, isolators)
+  {
+    // NOTE: See TestContainerizer::setup for why we use
+    // 'EXPECT_CALL' and 'WillRepeatedly' here instead of
+    // 'ON_CALL' and 'WillByDefault'.
+    EXPECT_CALL(*this, exec(_, _))
+      .WillRepeatedly(Invoke(this, &MockMesosContainerizerProcess::_exec));
+  }
+
+  MOCK_METHOD2(
+      exec,
+      process::Future<bool>(
+          const ContainerID& containerId,
+          int pipeWrite));
+
+  process::Future<bool> _exec(
+      const ContainerID& containerId,
+      int pipeWrite)
+  {
+    return MesosContainerizerProcess::exec(
+        containerId,
+        pipeWrite);
+  }
+};
+
+
+// Destroying a mesos containerizer while it is fetching should
+// complete without waiting for the fetching to finish.
+TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
+{
+  slave::Flags flags;
+  Try<Launcher*> launcher = PosixLauncher::create(flags);
+  ASSERT_SOME(launcher);
+  std::vector<process::Owned<Isolator>> isolators;
+
+  MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
+      flags,
+      true,
+      Owned<Launcher>(launcher.get()),
+      isolators);
+
+  Future<Nothing> exec;
+  Promise<bool> promise;
+  // Letting exec hang to simulate a long fetch.
+  EXPECT_CALL(*process, exec(_, _))
+    .WillOnce(DoAll(FutureSatisfy(&exec),
+                    Return(promise.future())));
+
+  MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  TaskInfo taskInfo;
+  CommandInfo commandInfo;
+  taskInfo.mutable_command()->MergeFrom(commandInfo);
+
+  containerizer.launch(
+      containerId,
+      taskInfo,
+      CREATE_EXECUTOR_INFO("executor", "exit 0"),
+      os::getcwd(),
+      None(),
+      SlaveID(),
+      process::PID<Slave>(),
+      false);
+
+  Future<containerizer::Termination> wait = containerizer.wait(containerId);
+
+  AWAIT_READY(exec);
+
+  containerizer.destroy(containerId);
+
+  // The container should still exit even if fetch didn't complete.
+  AWAIT_READY(wait);
 }
