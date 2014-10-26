@@ -72,9 +72,9 @@ protected:
   {
     ASSERT_SOME(routing::check())
       << "-------------------------------------------------------------\n"
-      << "We cannot run any routing tests because your libnl\n"
-      << "library is not new enough. You can either install a\n"
-      << "new libnl library, or disable this test case\n"
+      << "We cannot run any routing tests because either your libnl\n"
+      << "library or kernel is not new enough. You can either upgrade,\n"
+      << "or disable this test case\n"
       << "-------------------------------------------------------------";
   }
 };

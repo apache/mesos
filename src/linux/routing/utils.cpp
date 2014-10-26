@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <linux/sock_diag.h>
+
 #include <netlink/utils.h>
 
 #include "linux/routing/utils.hpp"
@@ -38,6 +40,16 @@ Try<Nothing> check()
   if (nl_has_capability(3) == 0) {
     return Error(
         "Capability ROUTE_LINK_CLS_ADD_ACT_OWN_REFERENCE is not available");
+  }
+
+  // There is a bug in libnl3-idiag from duplicating a kernel header
+  // definition and running certain check logic based on it. The
+  // kernel header it copies is from 3.6. Older kernels have a
+  // different definition and therefore return error on certain calls.
+  // TODO(chzhcn): remove this once the bug in libnl3-idiag is fixed.
+  if (SK_MEMINFO_VARS == 7) {
+    return Error(
+        "libnl3-idiag module has a known bug on kernels older than 3.6");
   }
 
   return Nothing();
