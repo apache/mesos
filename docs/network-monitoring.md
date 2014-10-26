@@ -115,3 +115,22 @@ $ curl -s http://localhost:5051/monitor/statistics.json | python2.6
     }
 ]
 ```
+
+# Network Egress Rate Limit
+
+Mesos 0.21.0 adds an optional feature to limit the egress network bandwidth for each container. With this feature enabled, each container's egress traffic is limited to the specified rate. This can prevent a single container from dominating the entire network.
+
+## How to enable it?
+
+Egress Rate Limit requires Network Monitoring. To enable it, please follow all the steps in the [previous section](#Network_Monitoring) to enable the Network Monitoring first, and then use the newly introduced `egress_rate_limit_per_container` flag to specify the rate limit for each container. Note that this flag expects a `Bytes` type like the following:
+
+```
+mesos-slave \
+	--checkpoint \
+	--log_dir=/var/log/mesos \
+	--work_dir=/var/lib/mesos \
+	--isolation=cgroups/cpu,cgroups/mem,network/port_mapping \
+	--resources=cpus:22;mem:62189;ports:[31000-32000];disk:400000;ephemeral_ports:[32768-57344] \
+	--ephemeral_ports_per_container=1024 \
+	--egress_rate_limit_per_container=37500KB # Convert to ~300Mbits/s.
+```
