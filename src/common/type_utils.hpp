@@ -33,95 +33,25 @@
 
 namespace mesos {
 
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const FrameworkID& frameworkId)
+bool operator == (const CommandInfo& left, const CommandInfo& right);
+bool operator == (const CommandInfo::URI& left, const CommandInfo::URI& right);
+bool operator == (const Credential& left, const Credential& right);
+bool operator == (const Environment& left, const Environment& right);
+bool operator == (const ExecutorInfo& left, const ExecutorInfo& right);
+bool operator == (const MasterInfo& left, const MasterInfo& right);
+bool operator == (const SlaveInfo& left, const SlaveInfo& right);
+bool operator == (const Volume& left, const Volume& right);
+
+
+inline bool operator == (const ContainerID& left, const ContainerID& right)
 {
-  return stream << frameworkId.value();
+  return left.value() == right.value();
 }
 
 
-inline std::ostream& operator << (std::ostream& stream, const OfferID& offerId)
+inline bool operator == (const ExecutorID& left, const ExecutorID& right)
 {
-  return stream << offerId.value();
-}
-
-
-inline std::ostream& operator << (std::ostream& stream, const SlaveID& slaveId)
-{
-  return stream << slaveId.value();
-}
-
-
-inline std::ostream& operator << (std::ostream& stream, const TaskID& taskId)
-{
-  return stream << taskId.value();
-}
-
-
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const ExecutorID& executorId)
-{
-  return stream << executorId.value();
-}
-
-
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const ContainerID& containerId)
-{
-  return stream << containerId.value();
-}
-
-
-inline std::ostream& operator << (std::ostream& stream, const TaskState& state)
-{
-  return stream << TaskState_descriptor()->FindValueByNumber(state)->name();
-}
-
-
-inline std::ostream& operator << (std::ostream& stream, const TaskInfo& task)
-{
-  return stream << task.DebugString();
-}
-
-
-inline std::ostream& operator << (std::ostream& stream, const SlaveInfo& slave)
-{
-  return stream << slave.DebugString();
-}
-
-
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const ExecutorInfo& executor)
-{
-  return stream << executor.DebugString();
-}
-
-
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const MasterInfo& master)
-{
-  return stream << master.DebugString();
-}
-
-
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const ACLs& acls)
-{
-  return stream << acls.DebugString();
-}
-
-
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const RateLimits& limits)
-{
-  return stream << limits.DebugString();
+  return left.value() == right.value();
 }
 
 
@@ -134,14 +64,6 @@ inline bool operator == (const FrameworkID& left, const FrameworkID& right)
 inline bool operator == (const FrameworkInfo& left, const FrameworkInfo& right)
 {
   return (left.name() == right.name()) && (left.user() == right.user());
-}
-
-
-inline bool operator == (const Credential& left, const Credential& right)
-{
-  return left.principal() == right.principal() &&
-         left.has_secret() == right.has_secret() &&
-         (!left.has_secret() || (left.secret() == right.secret()));
 }
 
 
@@ -163,21 +85,15 @@ inline bool operator == (const TaskID& left, const TaskID& right)
 }
 
 
-inline bool operator == (const ExecutorID& left, const ExecutorID& right)
+inline bool operator == (const ContainerID& left, const std::string& right)
 {
-  return left.value() == right.value();
+  return left.value() == right;
 }
 
 
-inline bool operator == (const ContainerID& left, const ContainerID& right)
+inline bool operator == (const ExecutorID& left, const std::string& right)
 {
-  return left.value() == right.value();
-}
-
-
-inline bool operator != (const ContainerID& left, const ContainerID& right)
-{
-  return left.value() != right.value();
+  return left.value() == right;
 }
 
 
@@ -205,15 +121,21 @@ inline bool operator == (const TaskID& left, const std::string& right)
 }
 
 
-inline bool operator == (const ExecutorID& left, const std::string& right)
+inline bool operator != (const ContainerID& left, const ContainerID& right)
 {
-  return left.value() == right;
+  return left.value() != right.value();
 }
 
 
-inline bool operator == (const ContainerID& left, const std::string& right)
+inline bool operator < (const ContainerID& left, const ContainerID& right)
 {
-  return left.value() == right;
+  return left.value() < right.value();
+}
+
+
+inline bool operator < (const ExecutorID& left, const ExecutorID& right)
+{
+  return left.value() < right.value();
 }
 
 
@@ -241,38 +163,20 @@ inline bool operator < (const TaskID& left, const TaskID& right)
 }
 
 
-inline bool operator < (const ExecutorID& left, const ExecutorID& right)
+inline std::size_t hash_value(const ContainerID& containerId)
 {
-  return left.value() < right.value();
+  size_t seed = 0;
+  boost::hash_combine(seed, containerId.value());
+  return seed;
 }
 
 
-inline bool operator < (const ContainerID& left, const ContainerID& right)
+inline std::size_t hash_value(const ExecutorID& executorId)
 {
-  return left.value() < right.value();
+  size_t seed = 0;
+  boost::hash_combine(seed, executorId.value());
+  return seed;
 }
-
-
-bool operator == (const Environment& left, const Environment& right);
-
-
-inline bool operator == (
-    const CommandInfo::URI& left,
-    const CommandInfo::URI& right)
-{
-  return left.has_executable() == right.has_executable() &&
-    (!left.has_executable() || (left.executable() == right.executable())) &&
-    left.value() == right.value();
-}
-
-
-bool operator == (const CommandInfo& left, const CommandInfo& right);
-
-bool operator == (const ExecutorInfo& left, const ExecutorInfo& right);
-
-bool operator == (const SlaveInfo& left, const SlaveInfo& right);
-
-bool operator == (const MasterInfo& left, const MasterInfo& right);
 
 
 inline std::size_t hash_value(const FrameworkID& frameworkId)
@@ -307,25 +211,122 @@ inline std::size_t hash_value(const TaskID& taskId)
 }
 
 
-inline std::size_t hash_value(const ExecutorID& executorId)
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const ACLs& acls)
 {
-  size_t seed = 0;
-  boost::hash_combine(seed, executorId.value());
-  return seed;
+  return stream << acls.DebugString();
 }
 
 
-inline std::size_t hash_value(const ContainerID& containerId)
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const ContainerID& containerId)
 {
-  size_t seed = 0;
-  boost::hash_combine(seed, containerId.value());
-  return seed;
+  return stream << containerId.value();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const ExecutorID& executorId)
+{
+  return stream << executorId.value();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const ExecutorInfo& executor)
+{
+  return stream << executor.DebugString();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const FrameworkID& frameworkId)
+{
+  return stream << frameworkId.value();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const MasterInfo& master)
+{
+  return stream << master.DebugString();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const OfferID& offerId)
+{
+  return stream << offerId.value();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const RateLimits& limits)
+{
+  return stream << limits.DebugString();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const SlaveID& slaveId)
+{
+  return stream << slaveId.value();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const SlaveInfo& slave)
+{
+  return stream << slave.DebugString();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const TaskID& taskId)
+{
+  return stream << taskId.value();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const TaskInfo& task)
+{
+  return stream << task.DebugString();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const TaskState& state)
+{
+  return stream << TaskState_descriptor()->FindValueByNumber(state)->name();
 }
 
 
 namespace internal {
 
 bool operator == (const Task& left, const Task& right);
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const Modules& modules)
+{
+  return stream << modules.DebugString();
+}
+
 
 std::ostream& operator << (
     std::ostream& stream,
@@ -341,19 +342,6 @@ inline std::ostream& operator << (
 }
 
 
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const Modules& modules)
-{
-  return stream << modules.DebugString();
-}
-
-} // namespace internal {
-} // namespace mesos {
-
-
-namespace mesos {
-namespace internal {
 namespace log {
 
 inline std::ostream& operator << (

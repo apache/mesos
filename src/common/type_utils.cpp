@@ -24,32 +24,6 @@
 
 namespace mesos {
 
-bool operator == (const Environment& left, const Environment& right)
-{
-  if (left.variables().size() != right.variables().size()) {
-    return false;
-  }
-
-  for (int i = 0; i < left.variables().size(); i++) {
-    const std::string& name = left.variables().Get(i).name();
-    const std::string& value = left.variables().Get(i).value();
-    bool found = false;
-    for (int j = 0; j < right.variables().size(); j++) {
-      if (name == right.variables().Get(j).name() &&
-          value == right.variables().Get(j).value()) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-
 bool operator == (const CommandInfo& left, const CommandInfo& right)
 {
   if (left.uris().size() != right.uris().size()) {
@@ -89,6 +63,48 @@ bool operator == (const CommandInfo& left, const CommandInfo& right)
 }
 
 
+bool operator == (const CommandInfo::URI& left, const CommandInfo::URI& right)
+{
+  return left.has_executable() == right.has_executable() &&
+    (!left.has_executable() || (left.executable() == right.executable())) &&
+    left.value() == right.value();
+}
+
+
+bool operator == (const Credential& left, const Credential& right)
+{
+  return left.principal() == right.principal() &&
+         left.has_secret() == right.has_secret() &&
+         (!left.has_secret() || (left.secret() == right.secret()));
+}
+
+
+bool operator == (const Environment& left, const Environment& right)
+{
+  if (left.variables().size() != right.variables().size()) {
+    return false;
+  }
+
+  for (int i = 0; i < left.variables().size(); i++) {
+    const std::string& name = left.variables().Get(i).name();
+    const std::string& value = left.variables().Get(i).value();
+    bool found = false;
+    for (int j = 0; j < right.variables().size(); j++) {
+      if (name == right.variables().Get(j).name() &&
+          value == right.variables().Get(j).value()) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
 {
   return left.executor_id() == right.executor_id() &&
@@ -106,6 +122,18 @@ bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
 }
 
 
+bool operator == (const MasterInfo& left, const MasterInfo& right)
+{
+  return left.id() == right.id() &&
+    left.ip() == right.ip() &&
+    left.port() == right.port() &&
+    left.has_pid() == right.has_pid() &&
+    (!left.has_pid() || (left.pid() == right.pid())) &&
+    left.has_hostname() == right.has_hostname() &&
+    (!left.has_hostname() || (left.hostname() == right.hostname()));
+}
+
+
 bool operator == (const SlaveInfo& left, const SlaveInfo& right)
 {
   return left.hostname() == right.hostname() &&
@@ -119,15 +147,12 @@ bool operator == (const SlaveInfo& left, const SlaveInfo& right)
 }
 
 
-bool operator == (const MasterInfo& left, const MasterInfo& right)
+bool operator == (const Volume& left, const Volume& right)
 {
-  return left.id() == right.id() &&
-    left.ip() == right.ip() &&
-    left.port() == right.port() &&
-    left.has_pid() == right.has_pid() &&
-    (!left.has_pid() || (left.pid() == right.pid())) &&
-    left.has_hostname() == right.has_hostname() &&
-    (!left.has_hostname() || (left.hostname() == right.hostname()));
+  return left.container_path() == right.container_path() &&
+    left.mode() == right.mode() &&
+    left.has_host_path() == right.has_host_path() &&
+    (!left.has_host_path() || (left.host_path() == right.host_path()));
 }
 
 
@@ -166,5 +191,4 @@ std::ostream& operator << (
 }
 
 } // namespace internal {
-
 } // namespace mesos {
