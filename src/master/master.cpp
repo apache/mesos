@@ -4234,7 +4234,7 @@ void Master::removeFramework(Framework* framework)
     // collect the possible finished status. We tolerate this,
     // because we expect that if the framework has been asked to shut
     // down, its user is not interested in results anymore.
-    // TODO(alex): consider a more descrptive state, e.g. TASK_ABANDONED.
+    // TODO(alex): Consider a more descriptive state, e.g. TASK_ABANDONED.
     const StatusUpdate& update = protobuf::createStatusUpdate(
         task->framework_id(),
         task->slave_id(),
