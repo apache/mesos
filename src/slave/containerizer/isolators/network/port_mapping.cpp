@@ -1980,42 +1980,57 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
     return Failure("Failed to find link: " + veth(info->pid.get()));
   }
 
-  Option<uint64_t> rx_packets = stat.get().get("rx_packets");
+  // Note: The RX/TX statistics on the two ends of the veth are the
+  // exact opposite, because of its 'tunnel' nature. We sample on the
+  // host end of the veth pair, which means we have to reverse RX and
+  // TX to reflect statistics inside the container.
+
+  // +----------+                    +----------+
+  // |          |                    |          |
+  // |          |RX<--------------+TX|          |
+  // |          |                    |          |
+  // |   veth   |                    |   eth0   |
+  // |          |                    |          |
+  // |          |TX+-------------->RX|          |
+  // |          |                    |          |
+  // +----------+                    +----------+
+
+  Option<uint64_t> rx_packets = stat.get().get("tx_packets");
   if (rx_packets.isSome()) {
     result.set_net_rx_packets(rx_packets.get());
   }
 
-  Option<uint64_t> rx_bytes = stat.get().get("rx_bytes");
+  Option<uint64_t> rx_bytes = stat.get().get("tx_bytes");
   if (rx_bytes.isSome()) {
     result.set_net_rx_bytes(rx_bytes.get());
   }
 
-  Option<uint64_t> rx_errors = stat.get().get("rx_errors");
+  Option<uint64_t> rx_errors = stat.get().get("tx_errors");
   if (rx_errors.isSome()) {
     result.set_net_rx_errors(rx_errors.get());
   }
 
-  Option<uint64_t> rx_dropped = stat.get().get("rx_dropped");
+  Option<uint64_t> rx_dropped = stat.get().get("tx_dropped");
   if (rx_dropped.isSome()) {
     result.set_net_rx_dropped(rx_dropped.get());
   }
 
-  Option<uint64_t> tx_packets = stat.get().get("tx_packets");
+  Option<uint64_t> tx_packets = stat.get().get("rx_packets");
   if (tx_packets.isSome()) {
     result.set_net_tx_packets(tx_packets.get());
   }
 
-  Option<uint64_t> tx_bytes = stat.get().get("tx_bytes");
+  Option<uint64_t> tx_bytes = stat.get().get("rx_bytes");
   if (tx_bytes.isSome()) {
     result.set_net_tx_bytes(tx_bytes.get());
   }
 
-  Option<uint64_t> tx_errors = stat.get().get("tx_errors");
+  Option<uint64_t> tx_errors = stat.get().get("rx_errors");
   if (tx_errors.isSome()) {
     result.set_net_tx_errors(tx_errors.get());
   }
 
-  Option<uint64_t> tx_dropped = stat.get().get("tx_dropped");
+  Option<uint64_t> tx_dropped = stat.get().get("rx_dropped");
   if (tx_dropped.isSome()) {
     result.set_net_tx_dropped(tx_dropped.get());
   }
