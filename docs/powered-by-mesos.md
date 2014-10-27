@@ -44,9 +44,10 @@ layout: documentation
 * [Viadeo](http://www.viadeo.com)
 * [Vimeo](http://www.vimeo.com)
 * [Virdata](http://www.virdata.com)
+* [Wizcorp](http://www.wizcorp.jp)
 * [WooRank](http://www.woorank.com)
-* [Xogito](http://www.xogito.com)
 * [Yieldbot](http://www.yieldbot.com)
+* [Xogito](http://www.xogito.com)
 
 ## Software projects built on Mesos
 
