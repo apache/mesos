@@ -301,6 +301,11 @@ public:
         "This helps fairness when running frameworks that hold on to offers,\n"
         "or frameworks that accidentally drop offers.\n");
 
+    // This help message for --modules flag is the same for
+    // {master,slave,tests}/flags.hpp and should always be kept in
+    // sync.
+    // TODO(karya): Remove the JSON example and add reference to the
+    // doc file explaining the --modules flag.
     add(&Flags::modules,
         "modules",
         "List of modules to be loaded and be available to the internal\n"
@@ -318,14 +323,26 @@ public:
         "    {\n"
         "      \"file\": \"/path/to/libfoo.so\",\n"
         "      \"modules\": [\n"
-        "        \"org_apache_mesos_bar\",\n"
-        "        \"org_apache_mesos_baz\"\n"
+        "        {\n"
+        "          \"name\": \"org_apache_mesos_bar\",\n"
+        "          \"flags\": [\n"
+        "            {\n"
+        "              \"key\": \"X\",\n"
+        "              \"value\": \"Y\",\n"
+        "            }\n"
+        "          ]\n"
+        "        },\n"
+        "        {\n"
+        "          \"name\": \"org_apache_mesos_baz\"\n"
+        "        }\n"
         "      ]\n"
         "    },\n"
         "    {\n"
         "      \"name\": \"qux\",\n"
         "      \"modules\": [\n"
-        "        \"org_apache_mesos_norf\",\n"
+        "        {\n"
+        "          \"name\": \"org_apache_mesos_norf\"\n"
+        "        }\n"
         "      ]\n"
         "    }\n"
         "  ]\n"

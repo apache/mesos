@@ -44,7 +44,8 @@ static void addModule(
     string moduleName)
 {
   moduleNames[moduleId] = moduleName;
-  library->add_modules(moduleNames[moduleId]);
+  Modules::Library::Module* module = library->add_modules();
+  module->set_name(moduleNames[moduleId]);
 }
 
 

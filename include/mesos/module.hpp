@@ -46,7 +46,7 @@
 
 #include <mesos/version.hpp>
 
-#define MESOS_MODULE_API_VERSION "1"
+#define MESOS_MODULE_API_VERSION "2"
 
 namespace mesos {
 namespace modules {

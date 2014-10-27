@@ -437,7 +437,15 @@ message Modules {
     // Linux and ".dylib" for OS X) to the "name".
     optional string name = 2;
 
-    repeated string modules = 3;
+    message Module {
+      // Module name.
+      optional string name = 1;
+
+      // Module specific flags.
+      optional Parameters parameters = 2;
+    }
+
+    repeated Module modules = 3;
   }
 
   repeated Library libraries = 1;

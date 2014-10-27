@@ -45,6 +45,7 @@ pthread_mutex_t ModuleManager::mutex = PTHREAD_MUTEX_INITIALIZER;
 hashmap<const string, string> ModuleManager::kindToVersion;
 hashmap<const string, ModuleBase*> ModuleManager::moduleBases;
 hashmap<const string, Owned<DynamicLibrary>> ModuleManager::dynamicLibraries;
+hashmap<const std::string, Parameters> ModuleManager::moduleParameters;
 
 
 void ModuleManager::initialize()
@@ -200,28 +201,36 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
     }
 
     // Load module manifests.
-    foreach (const string& moduleName, library.modules()) {
-      if (moduleName.empty()) {
+    foreach (const Modules::Library::Module& module, library.modules()) {
+      if (!module.has_name()) {
         return Error(
-            "Error: module name not provided with library '" +
-            library.file() + "'");
+            "Error: module name not provided with library '" + libraryName +
+            "'");
       }
+
       // Check for possible duplicate module names.
+      const std::string moduleName = module.name();
       if (moduleBases.contains(moduleName)) {
         return Error("Error loading duplicate module '" + moduleName + "'");
       }
+
+      // Load ModuleBase.
       Try<void*> symbol = dynamicLibraries[libraryName]->loadSymbol(moduleName);
       if (symbol.isError()) {
         return Error(
             "Error loading module '" + moduleName + "': " + symbol.error());
       }
       ModuleBase* moduleBase = (ModuleBase*) symbol.get();
+
+      // Verify module compatibility including version, etc.
       Try<Nothing> result = verifyModule(moduleName, moduleBase);
       if (result.isError()) {
         return Error(
             "Error verifying module '" + moduleName + "': " + result.error());
       }
+
       moduleBases[moduleName] = (ModuleBase*) symbol.get();
+      moduleParameters[moduleName] = module.parameters();
     }
   }
 

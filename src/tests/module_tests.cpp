@@ -89,7 +89,8 @@ protected:
     library->set_file(path::join(
         libraryDirectory,
         os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME)));
-    library->add_modules(DEFAULT_MODULE_NAME);
+    Modules::Library::Module* module = library->add_modules();
+    module->set_name(DEFAULT_MODULE_NAME);
   }
 
   // During the per-test tear-down, we unload the module to allow
@@ -128,12 +129,26 @@ string ModuleTest::originalLdLibraryPath;
 string ModuleTest::libraryDirectory;
 
 
-static Modules getModules(const string& libraryName, const string& moduleName)
+static Modules getModules(
+    const string& libraryName,
+    const string& moduleName,
+    const string& parameterKey = "",
+    const string& parameterValue = "")
 {
   Modules modules;
   Modules::Library* library = modules.add_libraries();
   library->set_file(os::libraries::expandName(libraryName));
-  library->add_modules(moduleName);
+  Modules::Library::Module* module = library->add_modules();
+  module->set_name(moduleName);
+  if (!parameterKey.empty() || !parameterValue.empty()) {
+    Parameter* parameter = module->mutable_parameters()->add_parameter();
+    if (!parameterKey.empty()) {
+      parameter->set_key(parameterKey);
+    }
+    if (!parameterValue.empty()) {
+      parameter->set_value(parameterValue);
+    }
+  }
   return modules;
 }
 
@@ -151,9 +166,82 @@ TEST_F(ModuleTest, ExampleModuleLoadTest)
 
   // The TestModuleImpl module's implementation of foo() returns
   // the sum of the passed arguments, whereas bar() returns the
-  // product.
+  // product. baz() returns '-1' if "sum" is not specified as the
+  // "operation" in the command line parameters.
   EXPECT_EQ(module.get()->foo('A', 1024), 1089);
   EXPECT_EQ(module.get()->bar(0.5, 10.8), 5);
+  EXPECT_EQ(module.get()->baz(5, 10), -1);
+}
+
+
+// Test passing parameter without value.
+TEST_F(ModuleTest, ParameterWithoutValue)
+{
+  Modules modules =
+    getModules(DEFAULT_MODULE_LIBRARY_NAME, DEFAULT_MODULE_NAME, "operation");
+
+  EXPECT_SOME(ModuleManager::load(modules));
+  module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
+  EXPECT_ERROR(module);
+}
+
+
+// Test passing parameter with invalid value.
+TEST_F(ModuleTest, ParameterWithInvalidValue)
+{
+  Modules modules = getModules(
+      DEFAULT_MODULE_LIBRARY_NAME,
+      DEFAULT_MODULE_NAME,
+      "operation",
+      "X");
+
+  EXPECT_SOME(ModuleManager::load(modules));
+  module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
+  EXPECT_ERROR(module);
+}
+
+
+// Test passing parameter without key.
+TEST_F(ModuleTest, ParameterWithoutKey)
+{
+  Modules modules =
+    getModules(DEFAULT_MODULE_LIBRARY_NAME, DEFAULT_MODULE_NAME, "", "sum");
+
+  EXPECT_SOME(ModuleManager::load(modules));
+  module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
+  EXPECT_ERROR(module);
+}
+
+
+// Test passing parameter with invalid key.
+TEST_F(ModuleTest, ParameterWithInvalidKey)
+{
+  Modules modules =
+    getModules(DEFAULT_MODULE_LIBRARY_NAME, DEFAULT_MODULE_NAME, "X", "sum");
+
+  EXPECT_SOME(ModuleManager::load(modules));
+  module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
+  EXPECT_SOME(module);
+
+  // Since there was no valid key, baz() should return -1.
+  EXPECT_EQ(module.get()->baz(5, 10), -1);
+}
+
+
+// Test passing parameter with valid key and value.
+TEST_F(ModuleTest, ValidParameters)
+{
+  Modules modules = getModules(
+      DEFAULT_MODULE_LIBRARY_NAME,
+      DEFAULT_MODULE_NAME,
+      "operation",
+      "sum");
+
+  EXPECT_SOME(ModuleManager::load(modules));
+  module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
+  EXPECT_SOME(module);
+
+  EXPECT_EQ(module.get()->baz(5, 10), 15);
 }
 
 
@@ -215,7 +303,8 @@ TEST_F(ModuleTest, LibraryNameWithoutExtension)
   Modules modules;
   Modules::Library* library = modules.add_libraries();
   library->set_name(DEFAULT_MODULE_LIBRARY_NAME);
-  library->add_modules(DEFAULT_MODULE_NAME);
+  Modules::Library::Module* module = library->add_modules();
+  module->set_name(DEFAULT_MODULE_NAME);
 
   EXPECT_SOME(ModuleManager::load(modules));
 }
@@ -228,7 +317,8 @@ TEST_F(ModuleTest, LibraryNameWithExtension)
   Modules modules;
   Modules::Library* library = modules.add_libraries();
   library->set_file(os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME));
-  library->add_modules(DEFAULT_MODULE_NAME);
+  Modules::Library::Module* module = library->add_modules();
+  module->set_name(DEFAULT_MODULE_NAME);
 
   EXPECT_SOME(ModuleManager::load(modules));
 }
@@ -292,7 +382,8 @@ TEST_F(ModuleTest, DuplicateModule)
   // Add duplicate module.
   Modules::Library* library = defaultModules.add_libraries();
   library->set_name(DEFAULT_MODULE_LIBRARY_NAME);
-  library->add_modules(DEFAULT_MODULE_NAME);
+  Modules::Library::Module* module = library->add_modules();
+  module->set_name(DEFAULT_MODULE_NAME);
 
   EXPECT_ERROR(ModuleManager::load(defaultModules));
 }

@@ -19,7 +19,11 @@
 #ifndef __TEST_MODULE_HPP__
 #define __TEST_MODULE_HPP__
 
+#include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
+
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
 
 // Each module "kind" has a base class associated with it that is
 // inherited by the module instances.  Mesos core uses the base
@@ -36,9 +40,13 @@ public:
   // cleanup that may be required for the derived object.
   virtual ~TestModule() {}
 
+  virtual Try<Nothing> initialize(const mesos::Parameters& parameters) = 0;
+
   virtual int foo(char a, long b) = 0;
 
   virtual int bar(float a, double b) = 0;
+
+  virtual int baz(int a, int b) = 0;
 };
 
 
@@ -62,7 +70,7 @@ struct Module<TestModule> : ModuleBase
       const char* _authorEmail,
       const char* _description,
       bool (*_compatible)(),
-      TestModule* (*_create)())
+      TestModule* (*_create)(const Parameters& parameters))
     : ModuleBase(
         _moduleApiVersion,
         _mesosVersion,
@@ -74,7 +82,7 @@ struct Module<TestModule> : ModuleBase
       create(_create)
   { }
 
-  TestModule* (*create)();
+  TestModule* (*create)(const Parameters& parameters);
 };
 
 } // namespace modules {

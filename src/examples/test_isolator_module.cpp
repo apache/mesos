@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
 #include <stout/try.hpp>
@@ -25,6 +26,8 @@
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/isolators/posix.hpp"
 #include "slave/flags.hpp"
+
+using namespace mesos;
 
 using mesos::internal::slave::Flags;
 using mesos::internal::slave::Isolator;
@@ -40,7 +43,7 @@ static bool compatible()
 }
 
 
-static Isolator* createCpuIsolator()
+static Isolator* createCpuIsolator(const Parameters& parameters)
 {
   Flags flags;
   Try<Isolator*> result = PosixCpuIsolatorProcess::create(flags);
@@ -51,7 +54,7 @@ static Isolator* createCpuIsolator()
 }
 
 
-static Isolator* createMemIsolator()
+static Isolator* createMemIsolator(const Parameters& parameters)
 {
   Flags flags;
   Try<Isolator*> result = PosixMemIsolatorProcess::create(flags);

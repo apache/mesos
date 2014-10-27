@@ -16,7 +16,13 @@
  * limitations under the License.
  */
 
+#include <string>
+
 #include <mesos/module.hpp>
+
+#include <stout/hashmap.hpp>
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
 
 #include "test_module.hpp"
 
@@ -27,6 +33,28 @@
 class TestModuleImpl : public TestModule
 {
 public:
+  Try<Nothing> initialize(const mesos::Parameters& parameters)
+  {
+    foreach (const mesos::Parameter& parameter, parameters.parameter()) {
+      if (parameter.has_key() && parameter.has_value()) {
+        flags[parameter.key()] = parameter.value();
+      } else {
+        return Error("Invalid key-value parameters");
+      }
+    }
+
+    // We expect that when specifying the module, a module parameter
+    // was also specified, i.e.:
+    // "modules": [{"name": "org_apache_mesos_TestModule",
+    //              "flags": [{"key": "operation", "value": "sum"}]}]
+    // The expected value for the key "operation" is "sum".
+    if (flags.contains("operation") && flags["operation"] != "sum") {
+      return Error("Invalid 'operation'");
+    }
+
+    return Nothing();
+  }
+
   virtual int foo(char a, long b)
   {
     return a + b;
@@ -36,6 +64,17 @@ public:
   {
     return a * b;
   }
+
+  virtual int baz(int a, int b)
+  {
+    if (flags["operation"] == "sum") {
+      return a + b;
+    }
+    return -1;
+  }
+
+private:
+  hashmap<std::string, std::string> flags;
 };
 
 
@@ -45,9 +84,17 @@ static bool compatible()
 }
 
 
-static TestModule* create()
+static TestModule* create(const mesos::Parameters& parameters)
 {
-  return new TestModuleImpl();
+  TestModule *testModule = new TestModuleImpl();
+  Try<Nothing> result = testModule->initialize(parameters);
+  if (result.isError()) {
+    delete testModule;
+    // TODO(karya): make the return type Try<TestModule*> to pass the
+    // error message as well.
+    return NULL;
+  }
+  return testModule;
 }
 
 

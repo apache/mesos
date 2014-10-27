@@ -90,7 +90,7 @@ public:
           "kind is '" + expectedKind + "'");
     }
 
-    T* instance = module->create();
+    T* instance = module->create(moduleParameters[moduleName]);
     if (instance == NULL) {
       return Error("Error creating Module instance for '" + moduleName + "'");
     }
@@ -126,6 +126,9 @@ private:
   // modules from different libraries have the same name then the last
   // one specified in the protobuf Modules will be picked.
   static hashmap<const std::string, ModuleBase*> moduleBases;
+
+  // Module-specific command-line parameters.
+  static hashmap<const std::string, Parameters> moduleParameters;
 
   // A list of dynamic libraries to keep the object from getting
   // destructed. Destroying the DynamicLibrary object could result in

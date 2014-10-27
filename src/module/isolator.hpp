@@ -19,6 +19,7 @@
 #ifndef __MODULE_ISOLATOR_HPP__
 #define __MODULE_ISOLATOR_HPP__
 
+#include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
 #include "slave/containerizer/isolator.hpp"
@@ -43,7 +44,8 @@ struct Module<mesos::internal::slave::Isolator> : ModuleBase
       const char* _authorEmail,
       const char* _description,
       bool (*_compatible)(),
-      mesos::internal::slave::Isolator* (*_create)())
+      mesos::internal::slave::Isolator*
+        (*_create)(const Parameters& parameters))
     : ModuleBase(
         _moduleApiVersion,
         _mesosVersion,
@@ -55,7 +57,7 @@ struct Module<mesos::internal::slave::Isolator> : ModuleBase
       create(_create)
   { }
 
-  mesos::internal::slave::Isolator* (*create)();
+  mesos::internal::slave::Isolator* (*create)(const Parameters& parameters);
 };
 
 } // namespace modules {
