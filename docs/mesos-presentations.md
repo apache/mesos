@@ -5,6 +5,9 @@ layout: documentation
 # Video and Slides of Mesos Presentations
 _(Listed in date descending order)_
 
+## MesosCon 2014
+ [Video playlist](https://www.youtube.com/playlist?list=PLDVc2EaAVPg9kp8cFzjR1Yxj96I4U5EGN)
+
 ## Datacenter Computing with Apache Mesos
 ([Slides](http://www.slideshare.net/pacoid/datacenter-computing-with-apache-mesos))
 Paco Nathan
