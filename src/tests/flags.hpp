@@ -75,7 +75,7 @@ public:
         "Where to find docker executable",
         "docker");
 
-    add(&modules,
+    add(&Flags::modules,
         "modules",
         "List of modules to be loaded and be available to the internal\n"
         "subsystems.\n"
@@ -104,6 +104,15 @@ public:
         "    }\n"
         "  ]\n"
         "}");
+
+    // This help message is duplicated from slave/flags.hpp and
+    // should always be kept in sync with that.
+    add(&Flags::isolation,
+        "isolation",
+        "Isolation mechanisms to use, e.g., 'posix/cpu,posix/mem', or\n"
+        "'cgroups/cpu,cgroups/mem', or network/port_mapping\n"
+        "(configure with flag: --with-network-isolator to enable),\n"
+        "or 'external'.");
   }
 
   bool verbose;
@@ -112,6 +121,7 @@ public:
   std::string build_dir;
   std::string docker;
   Option<Modules> modules;
+  Option<std::string> isolation;
 };
 
 // Global flags for running the tests.

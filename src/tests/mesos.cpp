@@ -170,6 +170,10 @@ slave::Flags MesosTest::CreateSlaveFlags()
   // Make sure that the slave uses the same 'docker' as the tests.
   flags.docker = tests::flags.docker;
 
+  if (tests::flags.isolation.isSome()) {
+    flags.isolation = tests::flags.isolation.get();
+  }
+
   return flags;
 }
 
@@ -409,6 +413,13 @@ void MockSlave::unmocked_removeFramework(slave::Framework* framework)
 slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 {
   slave::Flags flags = MesosTest::CreateSlaveFlags();
+
+  // If the user has specified isolation on command-line, we better
+  // use it.
+  if (tests::flags.isolation.isSome()) {
+    flags.isolation = tests::flags.isolation.get();
+    return flags;
+  }
 
 #ifdef __linux__
   Result<string> user = os::user();
