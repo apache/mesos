@@ -305,7 +305,8 @@ Future<Nothing> LogStorageProcess::apply(const list<Log::Entry>& entries)
         case Operation::DIFF: {
           CHECK(operation.has_diff());
 
-          Option<Snapshot> snapshot = snapshots.get(operation.diff().entry().name());
+          Option<Snapshot> snapshot =
+            snapshots.get(operation.diff().entry().name());
 
           CHECK_SOME(snapshot);
 
