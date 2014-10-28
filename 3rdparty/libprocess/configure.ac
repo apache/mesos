@@ -28,14 +28,6 @@ LT_INIT
 LT_LANG([C++])
 LT_OUTPUT
 
-# The default CFLAGS/CXXFLAGS from autoconf when using gcc usually
-# includes "-O2". These really slow down compiling our tests, so we
-# turn them off and enable them (where desired) directly in the
-# Makefile. Note that this should not have an impact on users setting
-# CFLAGS/CXXFLAGS directly at configure time, or when running make.
-AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"], [CFLAGS="-g"])
-AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"], [CXXFLAGS="-g"])
-
 # Save the configure arguments so we can pass them to any third-party
 # libraries that we might run configure on (see
 # 3rdparty/Makefile.am). One downside of our strategy for shipping
@@ -56,10 +48,17 @@ AC_ARG_ENABLE([install],
                              [install libprocess]),
               [AC_MSG_ERROR([libprocess can not currently be installed])])
 
+AC_ARG_ENABLE([debug],
+              AS_HELP_STRING([--enable-debug],
+                             [enable debugging. If CFLAGS/CXXFLAGS are set, this
+                              option won't change them default: no]),
+              [enable_debug=yes], [])
+
 AC_ARG_ENABLE([optimize],
-              AS_HELP_STRING([--disable-optimize],
-                             [don't try to compile with optimizations]),
-              [], [enable_optimize=yes])
+              AS_HELP_STRING([--enable-optimize],
+                             [enable optimizations. If CFLAGS/CXXFLAGS are set,
+                              this option won't change them default: no]),
+              [enable_optimize=yes], [])
 
 AC_ARG_ENABLE([perftools],
               AS_HELP_STRING([--enable-perftools],
@@ -525,13 +524,29 @@ AC_SUBST([PROTOBUF_JAR])
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
 
-# Check if we should try and enable optimizations.
-if test "x$enable_optimize" = "xyes"; then
-  # For now, we only turn on optimizations for gcc.
-  if test "x$GCC" = "xyes"; then
-    CXXFLAGS="$CXXFLAGS -g2 -O2"
-  fi
+# Check if we should enable debugging, optimization. Note we only
+# update CFLAGS and CXXFLAGS if none are provided.
+AM_CONDITIONAL([DEBUG], [test x"$enable_debug" = "xyes"])
+AM_CONDITIONAL([OPTIMIZE], [test x"$enable_optimize" = "xyes"])
+
+
+debug_flags="-g1"
+if test "x$enable_debug" = "xyes"; then
+  debug_flags="-g"
+elif test "x$enable_optimize" = "xyes"; then
+  debug_flags=""
 fi
+
+if test "x$enable_optimize" = "xyes"; then
+  optimize_flags="-O2"
+else
+  optimize_flags="-O0"
+fi
+
+AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"],
+      [CFLAGS="$debug_flags $optimize_flags"])
+AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"],
+      [CXXFLAGS="$debug_flags $optimize_flags"])
 
 
 # Check if clang was provided instead.
