@@ -35,7 +35,9 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
-#include <stout/os/namespaces.hpp>
+#ifdef __linux__
+#include "linux/ns.hpp"
+#endif // __linux__
 
 #include "master/master.hpp"
 #include "master/detector.hpp"
@@ -976,7 +978,7 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
   EXPECT_EQ(0, wait.get().status());
 
   // Check that the command was run in a different pid namespace.
-  Try<ino_t> testPidNamespace = os::getns(::getpid(), "pid");
+  Try<ino_t> testPidNamespace = ns::getns(::getpid(), "pid");
   ASSERT_SOME(testPidNamespace);
 
   Try<string> containerPidNamespace = os::read(path::join(directory, "ns"));

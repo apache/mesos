@@ -39,7 +39,6 @@
 #include "linux/ns.hpp"
 
 #include "tests/flags.hpp"
-#include "tests/ns_tests.hpp"
 
 
 using namespace mesos::internal;
