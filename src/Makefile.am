@@ -407,7 +407,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	hdfs/hdfs.hpp							\
 	linux/cgroups.hpp						\
 	linux/fs.hpp							\
-	linux/ns.hpp						\
+	linux/ns.hpp							\
 	linux/perf.hpp							\
 	local/flags.hpp							\
 	local/local.hpp							\
@@ -457,8 +457,9 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	tests/flags.hpp							\
 	tests/isolator.hpp						\
 	tests/mesos.hpp							\
-	tests/module.hpp							\
+	tests/module.hpp						\
 	tests/script.hpp						\
+	tests/setns_test_helper.hpp					\
 	tests/utils.hpp							\
 	tests/zookeeper.hpp						\
 	tests/zookeeper_test_server.hpp					\
