@@ -21,6 +21,7 @@
 #include <svn_delta.h>
 #include <svn_error.h>
 #include <svn_pools.h>
+#include <svn_version.h>
 
 #include <string>
 
@@ -90,12 +91,21 @@ inline Try<Diff> diff(const std::string& from, const std::string& to)
   target.len = to.length();
 
   svn_txdelta_stream_t* delta;
+
+#if SVN_VER_MAJOR >= 1 && SVN_VER_MINOR >= 8
   svn_txdelta2(
       &delta,
       svn_stream_from_string(&source, pool),
       svn_stream_from_string(&target, pool),
       false,
       pool);
+#else
+  svn_txdelta(
+      &delta,
+      svn_stream_from_string(&source, pool),
+      svn_stream_from_string(&target, pool),
+      pool);
+#endif
 
   // Now we want to convert this text delta stream into an svndiff
   // format based diff. Setup the handler that will consume the text
@@ -104,6 +114,7 @@ inline Try<Diff> diff(const std::string& from, const std::string& to)
   void* baton = NULL;
   svn_stringbuf_t* diff = svn_stringbuf_create_ensure(1024, pool);
 
+#if SVN_VER_MAJOR >= 1 && SVN_VER_MINOR >= 7
   svn_txdelta_to_svndiff3(
       &handler,
       &baton,
@@ -111,6 +122,20 @@ inline Try<Diff> diff(const std::string& from, const std::string& to)
       0,
       SVN_DELTA_COMPRESSION_LEVEL_DEFAULT,
       pool);
+#elif SVN_VER_MAJOR >= 1 && SVN_VER_MINOR >= 4
+  svn_txdelta_to_svndiff2(
+      &handler,
+      &baton,
+      svn_stream_from_stringbuf(diff, pool),
+      0,
+      pool);
+#else
+  svn_txdelta_to_svndiff(
+      svn_stream_from_stringbuf(diff, pool),
+      pool,
+      &handler,
+      &baton);
+#endif
 
   // Now feed the text delta to the handler.
   svn_error_t* error = svn_txdelta_send_txstream(delta, handler, baton, pool);
