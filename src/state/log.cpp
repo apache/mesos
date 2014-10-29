@@ -98,7 +98,7 @@ private:
   Future<bool> ___set(
       const state::Entry& entry,
       size_t diff,
-      const Option<Log::Position>& position);
+      Option<Log::Position> position);
 
   Future<bool> _expunge(const state::Entry& entry);
   Future<bool> __expunge(const state::Entry& entry);
@@ -138,9 +138,8 @@ private:
         entry(entry),
         diffs(diffs) {}
 
-    Try<Snapshot> patch(
-        const Log::Position& position,
-        const Operation::Diff& diff) const
+    // Returns a snapshot after having applied the specified diff.
+    Try<Snapshot> patch(const Operation::Diff& diff) const
     {
       if (diff.entry().name() != entry.name()) {
         return Error("Attempted to patch the wrong snapshot");
@@ -310,8 +309,7 @@ Future<Nothing> LogStorageProcess::apply(const list<Log::Entry>& entries)
 
           CHECK_SOME(snapshot);
 
-          Try<Snapshot> patched =
-            snapshot.get().patch(entry.position, operation.diff());
+          Try<Snapshot> patched = snapshot.get().patch(operation.diff());
 
           if (patched.isError()) {
             return Failure("Failed to apply the diff: " + patched.error());
@@ -520,24 +518,31 @@ Future<bool> LogStorageProcess::__set(
 Future<bool> LogStorageProcess::___set(
     const state::Entry& entry,
     size_t diffs,
-    const Option<Log::Position>& position)
+    Option<Log::Position> position)
 {
   if (position.isNone()) {
     starting = None(); // Reset 'starting' so we try again.
     return false;
   }
 
-  // Add (or update) the snapshot for this entry and truncate
-  // the log if possible.
-  CHECK(!snapshots.contains(entry.name()) ||
-        snapshots.get(entry.name()).get().position < position.get());
+  // Update index so we don't bother reading anything before this
+  // position again (if we don't have to).
+  index = max(index, position);
+
+  // Determine the position that represents the snapshot: if we just
+  // wrote a diff then we want to use the existing position of the
+  // snapshot, otherwise we just overwrote the snapshot so we should
+  // use the returned position (i.e., do nothing).
+  if (diffs > 0) {
+    CHECK(snapshots.contains(entry.name()));
+    position = snapshots.get(entry.name()).get().position;
+  }
 
   Snapshot snapshot(position.get(), entry, diffs);
   snapshots.put(snapshot.entry.name(), snapshot);
-  truncate();
 
-  // Update index so we don't bother with this position again.
-  index = max(index, position);
+  // And truncate the log if necessary.
+  truncate();
 
   return true;
 }

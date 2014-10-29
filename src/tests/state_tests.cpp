@@ -643,6 +643,15 @@ TEST_F(LogStateTest, Diff)
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
+  // It's possible that we're doing truncation asynchronously which
+  // will cause the test to fail because we'll end up getting a
+  // pending position from Log::Reader::ending which will cause
+  // Log::Reader::read to fail. To remedy this, we pause the clock and
+  // wait for all executing processe to settle.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
   Log::Reader reader(log);
 
   Future<Log::Position> beginning = reader.beginning();
