@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <sys/mount.h>
+
 #include <list>
 #include <set>
 #include <string>
@@ -228,6 +230,12 @@ Future<ResourceStatistics> NamespacesPidIsolatorProcess::usage(
 {
   return ResourceStatistics();
 }
+
+
+// An old glibc might not have this symbol.
+#ifndef MNT_DETACH
+#define MNT_DETACH 2
+#endif
 
 
 Future<Nothing> NamespacesPidIsolatorProcess::cleanup(
