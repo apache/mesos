@@ -13,6 +13,7 @@ layout: documentation
 * [Categorize](http://categorize.co)
 * [CloudPhysics](http://cloudphysics.com)
 * [Conviva](http://www.conviva.com)
+* [CorvisaCloud](http://www.corvisacloud.com/)
 * [Devicescape](http://www.devicescape.com)
 * [DueDil](http://www.duedil.com)
 * [eBay](http://www.ebay.com)
