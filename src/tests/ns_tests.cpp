@@ -139,7 +139,7 @@ static void* childThread(void* arg)
 TEST(NsTest, ROOT_setnsMultipleThreads)
 {
   set<string> namespaces = ns::namespaces();
-  EXPECT_LT(0, namespaces.size());
+  EXPECT_LT(0u, namespaces.size());
 
   // Do not allow multi-threaded environment.
   pthread_t pthread;
