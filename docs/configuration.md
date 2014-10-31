@@ -113,7 +113,7 @@ If you have special compilation requirements, please refer to `./configure --hel
                                            NOTE: This flag is *experimental* and should not be used in
                                            production yet. (default: false)
 
-  --roles=VALUE                            A comma seperated list of the allocation
+  --roles=VALUE                            A comma separated list of the allocation
                                            roles that frameworks in this cluster may
                                            belong to.
 
@@ -131,7 +131,7 @@ If you have special compilation requirements, please refer to `./configure --hel
 
   --webui_dir=VALUE                        Location of the webui files/assets (default: /usr/local/share/mesos/webui)
 
-  --weights=VALUE                          A comma seperated list of role/weight pairs
+  --weights=VALUE                          A comma separated list of role/weight pairs
                                            of the form 'role=weight,role=weight'. Weights
                                            are used to indicate forms of priority.
 

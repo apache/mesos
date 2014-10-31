@@ -193,7 +193,7 @@ public:
 
     add(&Flags::weights,
         "weights",
-        "A comma seperated list of role/weight pairs\n"
+        "A comma separated list of role/weight pairs\n"
         "of the form 'role=weight,role=weight'. Weights\n"
         "are used to indicate forms of priority.");
 

@@ -527,7 +527,7 @@ Release Notes - Mesos - Version 0.17.0
     * [MESOS-902] - add post to libprocess
 
 ** Bug
-    * [MESOS-280] - ExecutorDriver methods' javadocs should not be refering to SchedulerDriver methods
+    * [MESOS-280] - ExecutorDriver methods' javadocs should not be referring to SchedulerDriver methods
     * [MESOS-533] - SlaveRecoveryTest/0.CleanupExecutor is flaky on Jenkins.
     * [MESOS-789] - Make link to times in the webui clickable
     * [MESOS-799] - Mesos python egg is faulty on OS X Mavericks
@@ -553,7 +553,7 @@ Release Notes - Mesos - Version 0.17.0
     * [MESOS-827] - Create LOOP_FOR(duration) macro to guard testing loop from running indefinitely
     * [MESOS-860] - Get mesos' libprocess dependency glog to compile with clang and libc++
     * [MESOS-863] - Get mesos' libprocess dependency protobuf to compile with clang and libc++
-    * [MESOS-864] - Eliminate the use of internal stdlibc++ templates for achieving libc++ compatiblity
+    * [MESOS-864] - Eliminate the use of internal stdlibc++ templates for achieving libc++ compatibility
     * [MESOS-896] - Enable newer versions of http_parser.
 
 ** New Feature
@@ -1053,7 +1053,7 @@ Release Notes - Mesos - Version 0.10.0
 ** Improvement
     * [MESOS-8] - Maintain a history of executed frameworks/tasks and show it on the web UI
     * [MESOS-57] - Submit mesos.jar to Maven Central
-    * [MESOS-142] - Explictly set and clean test work directories
+    * [MESOS-142] - Explicitly set and clean test work directories
     * [MESOS-149] - Garbage collection on slaves
     * [MESOS-171] - Make CommandInfo 'uri' field be repeated, possibly making a URI embedded message to describe whether or not we should 'chmod +x' the resulting resource.
     * [MESOS-180] - Update the Hadoop patch to list protobuf-2.4.1 as a dependency so Maven pulls it down.

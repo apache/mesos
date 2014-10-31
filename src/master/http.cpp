@@ -245,7 +245,7 @@ const string Master::Http::OBSERVE_HELP = HELP(
         "",
         "The following fields should be supplied in a POST:",
         "1. " + MONITOR_KEY + " - name of the monitor that is being reported",
-        "2. " + HOSTS_KEY + " - comma seperated list of hosts",
+        "2. " + HOSTS_KEY + " - comma separated list of hosts",
         "3. " + LEVEL_KEY + " - OK for healthy, anything else for unhealthy"));
 
 
