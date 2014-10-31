@@ -1154,10 +1154,12 @@ load_generator_framework_SOURCES = examples/load_generator_framework.cpp
 load_generator_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 load_generator_framework_LDADD = libmesos.la
 
-check_PROGRAMS += setns-test-helper
-setns_test_helper_SOURCES = tests/setns_test_helper.cpp
-setns_test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
-setns_test_helper_LDADD = libmesos.la
+if OS_LINUX
+  check_PROGRAMS += setns-test-helper
+  setns_test_helper_SOURCES = tests/setns_test_helper.cpp
+  setns_test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
+  setns_test_helper_LDADD = libmesos.la
+endif
 
 check_PROGRAMS += mesos-tests
 
