@@ -41,6 +41,8 @@ using namespace mesos::internal;
 using namespace mesos::internal::slave::state;
 using namespace mesos::internal::tests;
 
+using namespace process;
+
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -61,6 +63,43 @@ using testing::Eq;
 using testing::Invoke;
 using testing::Return;
 
+
+class MockDocker : public Docker
+{
+public:
+  MockDocker(const string& path) : Docker(path)
+  {
+    EXPECT_CALL(*this, logs(_, _))
+      .WillRepeatedly(Invoke(this, &MockDocker::_logs));
+
+    EXPECT_CALL(*this, kill(_, _))
+      .WillRepeatedly(Invoke(this, &MockDocker::_kill));
+  }
+
+  MOCK_CONST_METHOD2(
+      logs,
+      process::Future<Nothing>(
+          const string&,
+          const string&));
+
+  MOCK_CONST_METHOD2(kill, process::Future<Nothing>(const string&, bool));
+
+  process::Future<Nothing> _logs(
+      const string& container,
+      const string& directory) const
+  {
+    return Docker::logs(container, directory);
+  }
+
+  process::Future<Nothing> _kill(
+      const string& container,
+      bool remove) const
+  {
+    return Docker::kill(container, remove);
+  }
+};
+
+
 class DockerContainerizerTest : public MesosTest
 {
 public:
@@ -79,6 +118,41 @@ public:
 
     return false;
   }
+
+
+  static bool running(
+      const list<Docker::Container>& containers,
+      const ContainerID& containerId)
+  {
+    string expectedName = slave::DOCKER_NAME_PREFIX + stringify(containerId);
+
+    foreach (const Docker::Container& container, containers) {
+      // Docker inspect name contains an extra slash in the beginning.
+      if (strings::contains(container.name, expectedName)) {
+        return container.pid.isSome();
+      }
+    }
+
+    return false;
+  }
+
+
+  virtual void TearDown()
+  {
+    Try<Docker*> docker = Docker::create(tests::flags.docker, false);
+    ASSERT_SOME(docker);
+    Future<list<Docker::Container>> containers =
+      docker.get()->ps(true, slave::DOCKER_NAME_PREFIX);
+
+    AWAIT_READY(containers);
+
+    // Cleanup all mesos launched containers.
+    foreach (const Docker::Container& container, containers.get()) {
+      AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
+    }
+
+    delete docker.get();
+  }
 };
 
 
@@ -86,9 +160,12 @@ class MockDockerContainerizer : public DockerContainerizer {
 public:
   MockDockerContainerizer(
       const slave::Flags& flags,
-      const Docker& docker)
+      Shared<Docker> docker)
     : DockerContainerizer(flags, docker)
   {
+    // NOTE: See TestContainerizer::setup for why we use
+    // 'EXPECT_CALL' and 'WillRepeatedly' here instead of
+    // 'ON_CALL' and 'WillByDefault'.
     EXPECT_CALL(*this, launch(_, _, _, _, _, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launchExecutor));
 
@@ -190,9 +267,19 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
+
+  slave::Flags flags = CreateSlaveFlags();
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -270,8 +357,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
-  Future<list<Docker::Container> > containers =
-    docker.ps(true, slave::DOCKER_NAME_PREFIX);
+  Future<list<Docker::Container>> containers =
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
 
@@ -285,10 +372,14 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 
   AWAIT_READY(termination);
 
-  containers = docker.ps(true, slave::DOCKER_NAME_PREFIX);
+  containers = docker->ps(true, slave::DOCKER_NAME_PREFIX);
+
   AWAIT_READY(containers);
 
-  ASSERT_FALSE(exists(containers.get(), containerId.get()));
+  ASSERT_FALSE(running(containers.get(), containerId.get()));
+
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
 
   Shutdown();
 }
@@ -304,9 +395,19 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
+
+  slave::Flags flags = CreateSlaveFlags();
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -385,8 +486,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
-  Future<list<Docker::Container> > containers =
-    docker.ps(true, slave::DOCKER_NAME_PREFIX);
+  Future<list<Docker::Container>> containers =
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
 
@@ -400,10 +501,13 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
 
   AWAIT_READY(termination);
 
-  containers = docker.ps(true, slave::DOCKER_NAME_PREFIX);
+  containers = docker->ps(true, slave::DOCKER_NAME_PREFIX);
   AWAIT_READY(containers);
 
-  ASSERT_FALSE(exists(containers.get(), containerId.get()));
+  ASSERT_FALSE(running(containers.get(), containerId.get()));
+
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
 
   Shutdown();
 }
@@ -415,9 +519,19 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
+
+  slave::Flags flags = CreateSlaveFlags();
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -485,8 +599,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
-  Future<list<Docker::Container> > containers =
-    docker.ps(true, slave::DOCKER_NAME_PREFIX);
+  Future<list<Docker::Container>> containers =
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
 
@@ -494,8 +608,20 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   ASSERT_TRUE(exists(containers.get(), containerId.get()));
 
+  Future<containerizer::Termination> termination =
+    dockerContainerizer.wait(containerId.get());
+
   driver.stop();
   driver.join();
+
+  AWAIT_READY(termination);
+
+  containers = docker->ps(true, slave::DOCKER_NAME_PREFIX);
+
+  ASSERT_FALSE(running(containers.get(), containerId.get()));
+
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
 
   Shutdown();
 }
@@ -506,9 +632,19 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
+
+  slave::Flags flags = CreateSlaveFlags();
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -589,15 +725,18 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
 
   AWAIT_READY(termination);
 
-  Future<list<Docker::Container> > containers =
-    docker.ps(true, slave::DOCKER_NAME_PREFIX);
+  Future<list<Docker::Container>> containers =
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
 
-  ASSERT_FALSE(exists(containers.get(), containerId.get()));
+  ASSERT_FALSE(running(containers.get(), containerId.get()));
 
   driver.stop();
   driver.join();
+
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
 
   Shutdown();
 }
@@ -612,7 +751,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>("cpus:2;mem:1024");
 
-  Docker docker = Docker::create(tests::flags.docker).get();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -719,10 +868,14 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   // Usage() should fail again since the container is destroyed.
   Future<ResourceStatistics> usage =
     dockerContainerizer.usage(containerId.get());
+
   AWAIT_FAILED(usage);
 
   driver.stop();
   driver.join();
+
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
 
   Shutdown();
 }
@@ -736,7 +889,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker = Docker::create(tests::flags.docker).get();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -806,7 +969,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
   string containerName = slave::DOCKER_NAME_PREFIX + containerId.get().value();
-  Future<Docker::Container> container = docker.inspect(containerName);
+  Future<Docker::Container> container = docker->inspect(containerName);
 
   AWAIT_READY(container);
 
@@ -872,6 +1035,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   driver.stop();
   driver.join();
 
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
+
   Shutdown();
 }
 #endif //__linux__
@@ -888,7 +1054,8 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker = Docker::create(tests::flags.docker).get();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -910,7 +1077,7 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
   commandInfo.set_value("sleep 1000");
 
   Future<Nothing> d1 =
-    docker.run(
+    docker->run(
         containerInfo,
         commandInfo,
         slave::DOCKER_NAME_PREFIX + stringify(containerId),
@@ -919,7 +1086,7 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
         resources);
 
   Future<Nothing> d2 =
-    docker.run(
+    docker->run(
         containerInfo,
         commandInfo,
         slave::DOCKER_NAME_PREFIX + stringify(reapedContainerId),
@@ -983,6 +1150,8 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
   AWAIT_READY(termination);
 
   AWAIT_READY(reaped.get().status());
+
+  Shutdown();
 }
 
 
@@ -993,7 +1162,23 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
+
+  // We skip killing the docker container because killing a container
+  // even when it terminated might not flush the logs and we end up
+  // not getting stdout/stderr in our tests.
+  EXPECT_CALL(*mockDocker, kill(_, _))
+    .WillRepeatedly(Return(Nothing()));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -1070,6 +1255,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
+
   // Now check that the proper output is in stderr and stdout (which
   // might also contain other things, hence the use of a UUID).
   Try<string> read = os::read(path::join(directory.get(), "stderr"));
@@ -1100,7 +1288,23 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
+
+  // We skip killing the docker container because killing a container
+  // even when it terminated might not flush the logs and we end up
+  // not getting stdout/stderr in our tests.
+  EXPECT_CALL(*mockDocker, kill(_, _))
+    .WillRepeatedly(Return(Nothing()));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -1179,6 +1383,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
+
   Try<string> read = os::read(path::join(directory.get(), "stdout"));
 
   ASSERT_SOME(read);
@@ -1208,7 +1415,23 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
+
+  // We skip killing the docker container because killing a container
+  // even when it terminated might not flush the logs and we end up
+  // not getting stdout/stderr in our tests.
+  EXPECT_CALL(*mockDocker, kill(_, _))
+    .WillRepeatedly(Return(Nothing()));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -1289,6 +1512,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
+
   // Now check that the proper output is in stderr and stdout.
   Try<string> read = os::read(path::join(directory.get(), "stdout"));
 
@@ -1321,7 +1547,23 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
+
+  // We skip killing the docker container because killing a container
+  // even when it terminated might not flush the logs and we end up
+  // not getting stdout/stderr in our tests.
+  EXPECT_CALL(*mockDocker, kill(_, _))
+    .WillRepeatedly(Return(Nothing()));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -1403,6 +1645,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
+
   // Now check that the proper output is in stderr and stdout.
   Try<string> read = os::read(path::join(directory.get(), "stdout"));
 
@@ -1441,7 +1686,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   flags.recover = "reconnect";
   flags.strict = true;
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
 
   // We put the containerizer on the heap so we can more easily
   // control it's lifetime, i.e., when we invoke the destructor.
@@ -1553,15 +1808,23 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   ASSERT_EQ(TASK_RUNNING, status.get().state());
 
   // Make sure the container is still running.
-  Future<list<Docker::Container> > containers =
-    docker.ps(true, slave::DOCKER_NAME_PREFIX);
+  Future<list<Docker::Container>> containers =
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
 
   ASSERT_TRUE(exists(containers.get(), containerId.get()));
 
+  Future<containerizer::Termination> termination =
+    dockerContainerizer2->wait(containerId.get());
+
   driver.stop();
   driver.join();
+
+  AWAIT_READY(termination);
+
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
 
   Shutdown();
 
@@ -1594,7 +1857,17 @@ TEST_F(DockerContainerizerTest,
   flags.recover = "reconnect";
   flags.strict = true;
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
 
   MockDockerContainerizer* dockerContainerizer1 =
     new MockDockerContainerizer(flags, docker);
@@ -1731,8 +2004,8 @@ TEST_F(DockerContainerizerTest,
   ASSERT_EQ(TASK_RUNNING, status.get().state());
 
   // Make sure the container is still running.
-  Future<list<Docker::Container> > containers =
-    docker.ps(true, slave::DOCKER_NAME_PREFIX);
+  Future<list<Docker::Container>> containers =
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
 
@@ -1741,7 +2014,8 @@ TEST_F(DockerContainerizerTest,
   driver.stop();
   driver.join();
 
-  Shutdown();
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
 
   delete dockerContainerizer2;
 }
@@ -1760,7 +2034,23 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_PortMapping)
 
   flags.resources = "cpus:1;mem:1024;ports:[10000-10000]";
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // We need to capture and await on the logs process's future so that
+  // we can ensure there is no child process at the end of the test.
+  // The logs future is being awaited at teardown.
+  Future<Nothing> logs;
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(FutureResult(&logs,
+                           Invoke((MockDocker*) docker.get(),
+                                  &MockDocker::_logs)));
+
+  // We skip killing the docker container because killing a container
+  // even when it terminated might not flush the logs and we end up
+  // not getting stdout/stderr in our tests.
+  EXPECT_CALL(*mockDocker, kill(_, _))
+    .WillRepeatedly(Return(Nothing()));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
 
@@ -1855,6 +2145,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_PortMapping)
 
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  // See above where we assign logs future for more comments.
+  AWAIT_READY_FOR(logs, Seconds(30));
 
   // Now check that the proper output is in stdout.
   Try<string> read = os::read(path::join(directory.get(), "stdout"));

@@ -174,9 +174,11 @@ public:
   DockerFilter()
   {
 #ifdef __linux__
-    Try<Docker> docker = Docker::create(flags.docker);
+    Try<Docker*> docker = Docker::create(flags.docker);
     if (docker.isError()) {
       dockerError = docker.error();
+    } else {
+      delete docker.get();
     }
 #else
     dockerError = Error("Docker tests not supported on non-Linux systems");

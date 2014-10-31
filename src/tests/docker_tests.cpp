@@ -48,14 +48,15 @@ TEST(DockerTest, ROOT_DOCKER_interface)
 {
   string containerName = "mesos-docker-test";
   Resources resources = Resources::parse("cpus:1;mem:512").get();
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+
+  Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
 
   // Cleaning up the container first if it exists.
-  Future<Nothing> status = docker.rm(containerName, true);
+  Future<Nothing> status = docker->rm(containerName, true);
   ASSERT_TRUE(status.await(Seconds(10)));
 
   // Verify that we do not see the container.
-  Future<list<Docker::Container> > containers = docker.ps(true, containerName);
+  Future<list<Docker::Container> > containers = docker->ps(true, containerName);
   AWAIT_READY(containers);
   foreach (const Docker::Container& container, containers.get()) {
     EXPECT_NE("/" + containerName, container.name);
@@ -75,7 +76,7 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   commandInfo.set_value("sleep 120");
 
   // Start the container.
-  status = docker.run(
+  status = docker->run(
       containerInfo,
       commandInfo,
       containerName,
@@ -86,7 +87,7 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   AWAIT_READY(status);
 
   // Should be able to see the container now.
-  containers = docker.ps();
+  containers = docker->ps();
   AWAIT_READY(containers);
   bool found = false;
   foreach (const Docker::Container& container, containers.get()) {
@@ -97,7 +98,7 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   }
   EXPECT_TRUE(found);
 
-  Future<Docker::Container> container = docker.inspect(containerName);
+  Future<Docker::Container> container = docker->inspect(containerName);
   AWAIT_READY(container);
 
   // Test some fields of the container.
@@ -106,18 +107,18 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   EXPECT_SOME(container.get().pid);
 
   // Kill the container.
-  status = docker.kill(containerName);
+  status = docker->kill(containerName);
   AWAIT_READY(status);
 
   // Now, the container should not appear in the result of ps().
   // But it should appear in the result of ps(true).
-  containers = docker.ps();
+  containers = docker->ps();
   AWAIT_READY(containers);
   foreach (const Docker::Container& container, containers.get()) {
     EXPECT_NE("/" + containerName, container.name);
   }
 
-  containers = docker.ps(true, containerName);
+  containers = docker->ps(true, containerName);
   AWAIT_READY(containers);
   found = false;
   foreach (const Docker::Container& container, containers.get()) {
@@ -131,7 +132,7 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   // Check the container's info, both id and name should remain the
   // same since we haven't removed it, but the pid should be none
   // since it's not running.
-  container = docker.inspect(containerName);
+  container = docker->inspect(containerName);
   AWAIT_READY(container);
 
   EXPECT_NE("", container.get().id);
@@ -139,16 +140,16 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   EXPECT_NONE(container.get().pid);
 
   // Remove the container.
-  status = docker.rm(containerName);
+  status = docker->rm(containerName);
   AWAIT_READY(status);
 
   // Should not be able to inspect the container.
-  container = docker.inspect(containerName);
+  container = docker->inspect(containerName);
   AWAIT_FAILED(container);
 
   // Also, now we should not be able to see the container by invoking
   // ps(true).
-  containers = docker.ps(true, containerName);
+  containers = docker->ps(true, containerName);
   AWAIT_READY(containers);
   foreach (const Docker::Container& container, containers.get()) {
     EXPECT_NE("/" + containerName, container.name);
@@ -156,7 +157,7 @@ TEST(DockerTest, ROOT_DOCKER_interface)
 
   // Start the container again, this time we will do a "rm -f"
   // directly, instead of killing and rm.
-  status = docker.run(
+  status = docker->run(
       containerInfo,
       commandInfo,
       containerName,
@@ -167,7 +168,7 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   AWAIT_READY(status);
 
   // Verify that the container is there.
-  containers = docker.ps();
+  containers = docker->ps();
   AWAIT_READY(containers);
   found = false;
   foreach (const Docker::Container& container, containers.get()) {
@@ -179,17 +180,17 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   EXPECT_TRUE(found);
 
   // Then do a "rm -f".
-  status = docker.rm(containerName, true);
+  status = docker->rm(containerName, true);
   AWAIT_READY(status);
 
   // Verify that the container is totally removed, that is we can't
   // find it by ps() or ps(true).
-  containers = docker.ps();
+  containers = docker->ps();
   AWAIT_READY(containers);
   foreach (const Docker::Container& container, containers.get()) {
     EXPECT_NE("/" + containerName, container.name);
   }
-  containers = docker.ps(true, containerName);
+  containers = docker->ps(true, containerName);
   AWAIT_READY(containers);
   foreach (const Docker::Container& container, containers.get()) {
     EXPECT_NE("/" + containerName, container.name);
@@ -199,7 +200,7 @@ TEST(DockerTest, ROOT_DOCKER_interface)
 
 TEST(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
 {
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -211,7 +212,7 @@ TEST(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
   CommandInfo commandInfo;
   commandInfo.set_shell(true);
 
-  Future<Nothing> run = docker.run(
+  Future<Nothing> run = docker->run(
       containerInfo,
       commandInfo,
       "testContainer",
@@ -225,10 +226,10 @@ TEST(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
 TEST(DockerTest, ROOT_DOCKER_CheckPortResource)
 {
   string containerName = "mesos-docker-port-resource-test";
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
 
   // Make sure the container is removed.
-  Future<Nothing> remove = docker.rm(containerName, true);
+  Future<Nothing> remove = docker->rm(containerName, true);
 
   ASSERT_TRUE(process::internal::await(remove, Seconds(10)));
 
@@ -253,7 +254,7 @@ TEST(DockerTest, ROOT_DOCKER_CheckPortResource)
   Resources resources =
     Resources::parse("ports:[9998-9999];ports:[10001-11000]").get();
 
-  Future<Nothing> run = docker.run(
+  Future<Nothing> run = docker->run(
       containerInfo,
       commandInfo,
       containerName,
@@ -269,7 +270,7 @@ TEST(DockerTest, ROOT_DOCKER_CheckPortResource)
   Try<string> directory = environment->mkdtemp();
   CHECK_SOME(directory) << "Failed to create temporary directory";
 
-  run = docker.run(
+  run = docker->run(
       containerInfo,
       commandInfo,
       containerName,
@@ -279,8 +280,8 @@ TEST(DockerTest, ROOT_DOCKER_CheckPortResource)
 
   AWAIT_READY(run);
 
-  Future<Nothing> status = docker.rm(containerName, true);
-  AWAIT_READY(status);
+  Future<Nothing> status = docker->rm(containerName, true);
+  ASSERT_TRUE(process::internal::await(status, Seconds(10)));
 }
 
 
@@ -298,7 +299,7 @@ TEST(DockerTest, ROOT_DOCKER_CancelPull)
 
   AWAIT_READY_FOR(s.get().status(), Seconds(30));
 
-  Docker docker = Docker::create(tests::flags.docker, false).get();
+  Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
 
   Try<string> directory = environment->mkdtemp();
 
@@ -308,7 +309,7 @@ TEST(DockerTest, ROOT_DOCKER_CancelPull)
   // sufficiently long that we can start it and discard (i.e., cancel
   // it) right away and the future will indeed get discarded.
   Future<Docker::Image> future =
-    docker.pull(directory.get(), "lingmann/1gb");
+    docker->pull(directory.get(), "lingmann/1gb");
 
   future.discard();
 

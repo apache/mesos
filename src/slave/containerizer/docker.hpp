@@ -19,6 +19,8 @@
 #ifndef __DOCKER_CONTAINERIZER_HPP__
 #define __DOCKER_CONTAINERIZER_HPP__
 
+#include <process/shared.hpp>
+
 #include <stout/hashset.hpp>
 
 #include "docker/docker.hpp"
@@ -46,7 +48,7 @@ public:
   // This is only public for tests.
   DockerContainerizer(
       const Flags& flags,
-      const Docker& docker);
+      process::Shared<Docker> docker);
 
   virtual ~DockerContainerizer();
 

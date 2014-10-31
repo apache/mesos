@@ -40,7 +40,9 @@ class Docker
 {
 public:
   // Create Docker abstraction and optionally validate docker.
-  static Try<Docker> create(const std::string& path, bool validate = true);
+  static Try<Docker*> create(const std::string& path, bool validate = true);
+
+  virtual ~Docker() {}
 
   class Container
   {
@@ -79,7 +81,7 @@ public:
 
 
   // Performs 'docker run IMAGE'.
-  process::Future<Nothing> run(
+  virtual process::Future<Nothing> run(
       const mesos::ContainerInfo& containerInfo,
       const mesos::CommandInfo& commandInfo,
       const std::string& name,
@@ -90,21 +92,21 @@ public:
 
   // Performs 'docker kill CONTAINER'. If remove is true then a rm -f
   // will be called when kill failed, otherwise a failure is returned.
-  process::Future<Nothing> kill(
+  virtual process::Future<Nothing> kill(
       const std::string& container,
       bool remove = false) const;
 
   // Performs 'docker rm (-f) CONTAINER'.
-  process::Future<Nothing> rm(
+  virtual process::Future<Nothing> rm(
       const std::string& container,
       bool force = false) const;
 
   // Performs 'docker inspect CONTAINER'.
-  process::Future<Container> inspect(
+  virtual process::Future<Container> inspect(
       const std::string& container) const;
 
   // Performs 'docker ps (-a)'.
-  process::Future<std::list<Container> > ps(
+  virtual process::Future<std::list<Container> > ps(
       bool all = false,
       const Option<std::string>& prefix = None()) const;
 
@@ -113,18 +115,19 @@ public:
   //
   // TODO(benh): Return the file descriptors, or some struct around
   // them so others can do what they want with stdout/stderr.
-  process::Future<Nothing> logs(
+  virtual process::Future<Nothing> logs(
       const std::string& container,
-      const std::string& directory);
+      const std::string& directory) const;
 
-  process::Future<Image> pull(
+  virtual process::Future<Image> pull(
       const std::string& directory,
       const std::string& image) const;
 
-private:
+protected:
   // Uses the specified path to the Docker CLI tool.
   Docker(const std::string& _path) : path(_path) {};
 
+private:
   static process::Future<Nothing> _kill(
       const Docker& docker,
       const std::string& container,

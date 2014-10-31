@@ -53,6 +53,8 @@ using std::string;
 using std::vector;
 
 
+Nothing _nothing() { return Nothing(); }
+
 template <typename T>
 static Future<T> failure(
     const string& cmd,
@@ -92,10 +94,10 @@ static Future<Nothing> checkError(const string& cmd, const Subprocess& s)
 }
 
 
-Try<Docker> Docker::create(const string& path, bool validate)
+Try<Docker*> Docker::create(const string& path, bool validate)
 {
   if (!validate) {
-    return Docker(path);
+    return new Docker(path);
   }
 
 #ifdef __linux__
@@ -165,7 +167,7 @@ Try<Docker> Docker::create(const string& path, bool validate)
       } else if (major.get() < 1) {
         break;
       }
-      return Docker(path);
+      return new Docker(path);
     }
   }
 
@@ -613,7 +615,7 @@ Future<Docker::Container> Docker::__inspect(const string& output)
 
 Future<Nothing> Docker::logs(
     const std::string& container,
-    const std::string& directory)
+    const std::string& directory) const
 {
   // Redirect the logs into stdout/stderr.
   //
@@ -638,7 +640,7 @@ Future<Nothing> Docker::logs(
     "  " + path + " logs --follow $1 &\n"
     "  pid=$!\n"
     "  " + path + " wait $1 >/dev/null 2>&1\n"
-    "  sleep 10" // Sleep 10 seconds to make sure the logs are flushed.
+    "  sleep 10\n" // Sleep 10 seconds to make sure the logs are flushed.
     "  kill -TERM $pid >/dev/null 2>&1 &\n"
     "}\n"
     "logs " + container;
@@ -655,7 +657,8 @@ Future<Nothing> Docker::logs(
     return Failure("Unable to launch docker logs: " + s.error());
   }
 
-  return Nothing();
+  return s.get().status()
+    .then(lambda::bind(&_nothing));
 }
 
 

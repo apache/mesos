@@ -80,7 +80,7 @@ class DockerContainerizerProcess
 public:
   DockerContainerizerProcess(
       const Flags& _flags,
-      const Docker& _docker)
+      Shared<Docker> _docker)
     : flags(_flags),
       docker(_docker) {}
 
@@ -210,7 +210,7 @@ private:
 
   const Flags flags;
 
-  Docker docker;
+  Shared<Docker> docker;
 
   struct Container
   {
@@ -405,18 +405,18 @@ Option<ContainerID> parse(const Docker::Container& container)
 
 Try<DockerContainerizer*> DockerContainerizer::create(const Flags& flags)
 {
-  Try<Docker> docker = Docker::create(flags.docker);
+  Try<Docker*> docker = Docker::create(flags.docker);
   if (docker.isError()) {
     return Error(docker.error());
   }
 
-  return new DockerContainerizer(flags, docker.get());
+  return new DockerContainerizer(flags, Shared<Docker>(docker.get()));
 }
 
 
 DockerContainerizer::DockerContainerizer(
     const Flags& flags,
-    const Docker& docker)
+    Shared<Docker> docker)
 {
   process = new DockerContainerizerProcess(flags, docker);
   spawn(process);
@@ -546,7 +546,7 @@ Future<Nothing> DockerContainerizerProcess::pull(
     const string& directory,
     const string& image)
 {
-  Future<Docker::Image> future = docker.pull(directory, image);
+  Future<Docker::Image> future = docker->pull(directory, image);
   containers_[containerId]->pull = future;
   return future.then(defer(self(), &Self::_pull, image));
 }
@@ -793,7 +793,7 @@ Future<Nothing> DockerContainerizerProcess::recover(
 
   // Get the list of all Docker containers (running and exited) in
   // order to remove any orphans.
-  return docker.ps(true, DOCKER_NAME_PREFIX)
+  return docker->ps(true, DOCKER_NAME_PREFIX)
     .then(defer(self(), &Self::_recover, lambda::_1));
 }
 
@@ -820,7 +820,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
     if (!containers_.contains(id.get())) {
       // TODO(benh): Retry 'docker rm -f' if it failed but the container
       // still exists (asynchronously).
-      docker.kill(container.id, true);
+      docker->kill(container.id, true);
     }
   }
 
@@ -914,7 +914,7 @@ Future<Nothing> DockerContainerizerProcess::__launch(
   container->state = Container::RUNNING;
 
   // Try and start the Docker container.
-  return container->run = docker.run(
+  return container->run = docker->run(
       container->container(),
       container->command(),
       container->name(),
@@ -1064,7 +1064,7 @@ Future<Docker::Container> DockerContainerizerProcess::____launch(
 
   Container* container = containers_[containerId];
 
-  return docker.inspect(container->name());
+  return docker->inspect(container->name());
 }
 
 
@@ -1116,7 +1116,7 @@ Future<bool> DockerContainerizerProcess::______launch(
     .onAny(defer(self(), &Self::reaped, containerId));
 
   // TODO(benh): Check failure of Docker::logs.
-  docker.logs(container->name(), container->directory);
+  docker->logs(container->name(), container->directory);
 
   return true;
 }
@@ -1154,7 +1154,7 @@ Future<Nothing> DockerContainerizerProcess::update(
     return __update(containerId, _resources, container->pid.get());
   }
 
-  return docker.inspect(container->name())
+  return docker->inspect(containers_[containerId]->name())
     .then(defer(self(), &Self::_update, containerId, _resources, lambda::_1));
 #else
   return Nothing();
@@ -1330,7 +1330,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
     return Failure("Container is being removed: " + stringify(containerId));
   }
 
-  return docker.inspect(container->name())
+  return docker->inspect(container->name())
     .then(defer(self(), &Self::_usage, containerId, lambda::_1));
 #endif // __linux__
 }
@@ -1525,17 +1525,8 @@ void DockerContainerizerProcess::_destroy(
   // still exists (asynchronously).
 
   LOG(INFO) << "Running docker kill on container '" << containerId << "'";
-
-  if (killed) {
-    docker.kill(container->name(), false)
-      .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
-  } else {
-    // If the container exited normally, skip docker kill so logs can
-    // still finish forwarding from the container. This is due to
-    // a docker bug that is sometimes not writing out stdout output
-    //if kill/stop is called on an already exited container.
-    __destroy(containerId, killed, Nothing());
-  }
+  docker->kill(container->name(), false)
+    .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
 }
 
 
@@ -1625,7 +1616,7 @@ void DockerContainerizerProcess::reaped(const ContainerID& containerId)
 
 void DockerContainerizerProcess::remove(const string& container)
 {
-  docker.rm(container, true);
+  docker->rm(container, true);
 }
 
 
