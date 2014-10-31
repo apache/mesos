@@ -48,7 +48,8 @@ class ComposingContainerizerProcess
 {
 public:
   ComposingContainerizerProcess(
-      const vector<Containerizer*>& containerizers);
+      const vector<Containerizer*>& containerizers)
+    : containerizers_(containerizers) {}
 
   virtual ~ComposingContainerizerProcess();
 
@@ -98,18 +99,7 @@ private:
 
   Future<bool> _launch(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const string& directory,
-      const Option<string>& user,
-      const SlaveID& slaveId,
-      const PID<Slave>& slavePid,
-      bool checkpoint,
-      vector<Containerizer*>::iterator containerizer,
-      bool launched);
-
-  Future<bool> _launch(
-      const ContainerID& containerId,
-      const TaskInfo& taskInfo,
+      const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
       const string& directory,
       const Option<string>& user,
@@ -120,7 +110,22 @@ private:
       bool launched);
 
   vector<Containerizer*> containerizers_;
-  hashmap<Containerizer*, hashset<ContainerID> > containers_;
+
+  // The states that the composing containerizer cares about for the
+  // container it is asked to launch.
+  enum State {
+    LAUNCHING,
+    LAUNCHED,
+    DESTROYED
+  };
+
+  struct Container
+  {
+    State state;
+    Containerizer* containerizer;
+  };
+
+  hashmap<ContainerID, Container*> containers_;
 };
 
 
@@ -235,21 +240,16 @@ Future<hashset<ContainerID> > ComposingContainerizer::containers()
 }
 
 
-ComposingContainerizerProcess::ComposingContainerizerProcess(
-    const vector<Containerizer*>& containerizers)
-  : containerizers_(containerizers)
-{
-  foreach (Containerizer* containerizer, containerizers_) {
-    containers_[containerizer] = hashset<ContainerID>();
-  }
-}
-
-
 ComposingContainerizerProcess::~ComposingContainerizerProcess()
 {
   foreach (Containerizer* containerizer, containerizers_) {
     delete containerizer;
   }
+
+  foreachvalue (Container* container, containers_) {
+    delete container;
+  }
+
   containerizers_.clear();
   containers_.clear();
 }
@@ -288,7 +288,12 @@ Future<Nothing> ComposingContainerizerProcess::__recover(
     Containerizer* containerizer,
     const hashset<ContainerID>& containers)
 {
-  containers_[containerizer] = containers;
+  foreach (const ContainerID& containerId, containers) {
+    Container* container = new Container();
+    container->state = LAUNCHED;
+    container->containerizer = containerizer;
+    containers_[containerId] = container;
+  }
   return Nothing();
 }
 
@@ -308,9 +313,19 @@ Future<bool> ComposingContainerizerProcess::launch(
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
+  if (containers_.contains(containerId)) {
+    return Failure("Container '" + containerId.value() +
+                   "' is already launching");
+  }
+
   // Try each containerizer. If none of them handle the
   // TaskInfo/ExecutorInfo then return a Failure.
   vector<Containerizer*>::iterator containerizer = containerizers_.begin();
+
+  Container* container = new Container();
+  container->state = LAUNCHING;
+  container->containerizer = *containerizer;
+  containers_[containerId] = container;
 
   return (*containerizer)->launch(
       containerId,
@@ -323,6 +338,7 @@ Future<bool> ComposingContainerizerProcess::launch(
     .then(defer(self(),
                 &Self::_launch,
                 containerId,
+                None(),
                 executorInfo,
                 directory,
                 user,
@@ -336,6 +352,7 @@ Future<bool> ComposingContainerizerProcess::launch(
 
 Future<bool> ComposingContainerizerProcess::_launch(
     const ContainerID& containerId,
+    const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user,
@@ -345,8 +362,19 @@ Future<bool> ComposingContainerizerProcess::_launch(
     vector<Containerizer*>::iterator containerizer,
     bool launched)
 {
+  // The container struct won't be cleaned up by destroy because
+  // in destroy we only forward the destroy, and wait until the
+  // launch returns and clean up here.
+  CHECK(containers_.contains(containerId));
+  Container* container = containers_[containerId];
+  if (container->state == DESTROYED) {
+    containers_.erase(containerId);
+    delete container;
+    return Failure("Container was destroyed while launching");
+  }
+
   if (launched) {
-    containers_[*containerizer].insert(containerId);
+    container->state = LAUNCHED;
     return true;
   }
 
@@ -354,28 +382,45 @@ Future<bool> ComposingContainerizerProcess::_launch(
   ++containerizer;
 
   if (containerizer == containerizers_.end()) {
+    containers_.erase(containerId);
+    delete container;
     return false;
   }
 
-  return (*containerizer)->launch(
-      containerId,
-      executorInfo,
-      directory,
-      user,
-      slaveId,
-      slavePid,
-      checkpoint)
-    .then(defer(self(),
-                &Self::_launch,
-                containerId,
-                executorInfo,
-                directory,
-                user,
-                slaveId,
-                slavePid,
-                checkpoint,
-                containerizer,
-                lambda::_1));
+  container->containerizer = *containerizer;
+
+  Future<bool> f = taskInfo.isSome() ?
+      (*containerizer)->launch(
+          containerId,
+          taskInfo.get(),
+          executorInfo,
+          directory,
+          user,
+          slaveId,
+          slavePid,
+          checkpoint) :
+      (*containerizer)->launch(
+          containerId,
+          executorInfo,
+          directory,
+          user,
+          slaveId,
+          slavePid,
+          checkpoint);
+
+  return f.then(
+      defer(self(),
+            &Self::_launch,
+            containerId,
+            taskInfo,
+            executorInfo,
+            directory,
+            user,
+            slaveId,
+            slavePid,
+            checkpoint,
+            containerizer,
+            lambda::_1));
 }
 
 
@@ -389,56 +434,19 @@ Future<bool> ComposingContainerizerProcess::launch(
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
+  if (containers_.contains(containerId)) {
+    return Failure("Container '" + stringify(containerId) +
+                   "' is already launching");
+  }
+
   // Try each containerizer. If none of them handle the
   // TaskInfo/ExecutorInfo then return a Failure.
   vector<Containerizer*>::iterator containerizer = containerizers_.begin();
 
-  return (*containerizer)->launch(
-      containerId,
-      taskInfo,
-      executorInfo,
-      directory,
-      user,
-      slaveId,
-      slavePid,
-      checkpoint)
-    .then(defer(self(),
-                &Self::_launch,
-                containerId,
-                taskInfo,
-                executorInfo,
-                directory,
-                user,
-                slaveId,
-                slavePid,
-                checkpoint,
-                containerizer,
-                lambda::_1));
-}
-
-Future<bool> ComposingContainerizerProcess::_launch(
-    const ContainerID& containerId,
-    const TaskInfo& taskInfo,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
-    bool checkpoint,
-    vector<Containerizer*>::iterator containerizer,
-    bool launched)
-{
-  if (launched) {
-    containers_[*containerizer].insert(containerId);
-    return true;
-  }
-
-  // Try the next containerizer.
-  ++containerizer;
-
-  if (containerizer == containerizers_.end()) {
-    return false;
-  }
+  Container* container = new Container();
+  container->state = LAUNCHING;
+  container->containerizer = *containerizer;
+  containers_[containerId] = container;
 
   return (*containerizer)->launch(
       containerId,
@@ -468,76 +476,77 @@ Future<Nothing> ComposingContainerizerProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
-  foreachpair (Containerizer* containerizer,
-               const hashset<ContainerID>& containers,
-               containers_) {
-    if (containers.contains(containerId)) {
-      return containerizer->update(containerId, resources);
-    }
+  if (!containers_.contains(containerId)) {
+    return Failure("Container '" + containerId.value() + "' not found");
   }
 
-  return Failure("No container found");
+  return containers_[containerId]->containerizer->update(
+      containerId, resources);
 }
 
 
 Future<ResourceStatistics> ComposingContainerizerProcess::usage(
     const ContainerID& containerId)
 {
-  foreachpair (Containerizer* containerizer,
-               const hashset<ContainerID>& containers,
-               containers_) {
-    if (containers.contains(containerId)) {
-      return containerizer->usage(containerId);
-    }
+  if (!containers_.contains(containerId)) {
+    return Failure("Container '" + containerId.value() + "' not found");
   }
 
-  return Failure("No container found");
+  return containers_[containerId]->containerizer->usage(containerId);
 }
 
 
 Future<containerizer::Termination> ComposingContainerizerProcess::wait(
     const ContainerID& containerId)
 {
-  foreachpair (Containerizer* containerizer,
-               const hashset<ContainerID>& containers,
-               containers_) {
-    if (containers.contains(containerId)) {
-      return containerizer->wait(containerId);
-    }
+  if (!containers_.contains(containerId)) {
+    return Failure("Container '" + containerId.value() + "' not found");
   }
 
-  return Failure("No container found");
+  return containers_[containerId]->containerizer->wait(containerId);
 }
 
 
 void ComposingContainerizerProcess::destroy(const ContainerID& containerId)
 {
-  foreachpair (Containerizer* containerizer,
-               const hashset<ContainerID>& containers,
-               containers_) {
-    if (containers.contains(containerId)) {
-      containerizer->destroy(containerId);
-      break;
-    }
+  if (!containers_.contains(containerId)) {
+    LOG(WARNING) << "Container '" << containerId.value() << "' not found";
+    return;
   }
-}
 
+  Container* container = containers_[containerId];
 
-// TODO(benh): Move into stout/hashset.hpp.
-template <typename Elem>
-hashset<Elem> merge(const std::list<hashset<Elem> >& list)
-{
-  hashset<Elem> result;
-  foreach (const hashset<Elem>& set, list) {
-    result.insert(set.begin(), set.end());
+  if (container->state == DESTROYED) {
+    LOG(WARNING) << "Container '" << containerId.value()
+                 << "' is already destroyed";
+    return;
   }
-  return result;
+
+  // It's ok to forward destroy to any containerizer which is currently
+  // launching the container, because we expect each containerizer to
+  // handle calling destroy on non-existing container.
+  // The composing containerizer will not move to the next
+  // containerizer for a container that is destroyed as well.
+  container->containerizer->destroy(containerId);
+
+  if (container->state == LAUNCHING) {
+    // Record the fact that this container was asked to be destroyed
+    // so that we won't try and launch this container using any other
+    // containerizers in the event the current containerizer has
+    // decided it can't launch the container.
+    container->state = DESTROYED;
+    return;
+  }
+
+  // If the container is launched, then we can simply cleanup.
+  containers_.erase(containerId);
+  delete container;
 }
 
 
 Future<hashset<ContainerID> > ComposingContainerizerProcess::containers()
 {
-  return merge(containers_.values());
+  return containers_.keys();
 }
 
 } // namespace slave {
