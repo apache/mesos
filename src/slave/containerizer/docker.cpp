@@ -23,6 +23,7 @@
 
 #include <process/check.hpp>
 #include <process/defer.hpp>
+#include <process/delay.hpp>
 #include <process/io.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
@@ -203,6 +204,9 @@ private:
   // Call back for when the executor exits. This will trigger
   // container destroy.
   void reaped(const ContainerID& containerId);
+
+  // Removes the docker container.
+  void remove(const std::string& container);
 
   const Flags flags;
 
@@ -1522,8 +1526,16 @@ void DockerContainerizerProcess::_destroy(
 
   LOG(INFO) << "Running docker kill on container '" << containerId << "'";
 
-  docker.kill(container->name(), true)
-    .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
+  if (killed) {
+    docker.kill(container->name(), false)
+      .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
+  } else {
+    // If the container exited normally, skip docker kill so logs can
+    // still finish forwarding from the container. This is due to
+    // a docker bug that is sometimes not writing out stdout output
+    //if kill/stop is called on an already exited container.
+    __destroy(containerId, killed, Nothing());
+  }
 }
 
 
@@ -1547,6 +1559,9 @@ void DockerContainerizerProcess::__destroy(
         (kill.isFailed() ? kill.failure() : "discarded future"));
 
     containers_.erase(containerId);
+
+    delay(flags.docker_remove_delay, self(), &Self::remove, container->name());
+
     delete container;
 
     return;
@@ -1582,6 +1597,9 @@ void DockerContainerizerProcess::___destroy(
   container->termination.set(termination);
 
   containers_.erase(containerId);
+
+  delay(flags.docker_remove_delay, self(), &Self::remove, container->name());
+
   delete container;
 }
 
@@ -1602,6 +1620,12 @@ void DockerContainerizerProcess::reaped(const ContainerID& containerId)
 
   // The executor has exited so destroy the container.
   destroy(containerId, false);
+}
+
+
+void DockerContainerizerProcess::remove(const string& container)
+{
+  docker.rm(container, true);
 }
 
 

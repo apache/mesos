@@ -49,6 +49,7 @@ const std::string DEFAULT_PORTS = "[31000-32000]";
 #ifdef WITH_NETWORK_ISOLATOR
 const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER = 1024;
 #endif
+const Duration DOCKER_REMOVE_DELAY = Hours(6);
 
 Duration MASTER_PING_TIMEOUT()
 {

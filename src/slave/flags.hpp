@@ -291,6 +291,7 @@ public:
         "The default container image to use if not specified by a task,\n"
         "when using external containerizer.\n");
 
+    // Docker containerizer flags.
     add(&Flags::docker,
         "docker",
         "The absolute path to the docker executable for docker\n"
@@ -302,6 +303,12 @@ public:
         "The absolute path for the directory in the container where the\n"
         "sandbox is mapped to.\n",
         "/mnt/mesos/sandbox");
+
+    add(&Flags::docker_remove_delay,
+        "docker_remove_delay",
+        "The amount of time to wait before removing docker containers\n"
+        "(e.g., 3days, 2weeks, etc).\n",
+        DOCKER_REMOVE_DELAY);
 
     add(&Flags::default_container_info,
         "default_container_info",
@@ -437,6 +444,7 @@ public:
   Option<std::string> default_container_image;
   std::string docker;
   std::string docker_sandbox_directory;
+  Duration docker_remove_delay;
   Option<ContainerInfo> default_container_info;
 #ifdef WITH_NETWORK_ISOLATOR
   uint16_t ephemeral_ports_per_container;

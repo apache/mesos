@@ -94,6 +94,9 @@ const Bytes DEFAULT_EXECUTOR_MEM = Megabytes(32);
 extern const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER;
 #endif
 
+// Default duration that docker containers will be removed after exit.
+extern const Duration DOCKER_REMOVE_DELAY;
+
 // If no pings received within this timeout, then the slave will
 // trigger a re-detection of the master to cause a re-registration.
 Duration MASTER_PING_TIMEOUT();
