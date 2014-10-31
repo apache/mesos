@@ -623,6 +623,104 @@ TEST_F(OsTest, killtree)
 }
 
 
+TEST_F(OsTest, killtreeNoRoot)
+{
+  Try<ProcessTree> tree =
+    Fork(dosetsid,        // Child.
+         Fork(None(),     // Grandchild.
+              Fork(None(),
+                   Exec("sleep 100")),
+              Exec("sleep 100")),
+         Exec("exit 0"))();
+  ASSERT_SOME(tree);
+
+  // The process tree we instantiate initially looks like this:
+  //
+  // -+- child exit 0             [new session and process group leader]
+  //  \-+- grandchild sleep 100
+  //   \-+- great grandchild sleep 100
+  //
+  // But becomes the following tree after the child exits:
+  //
+  // -+- child (exited 0)
+  //  \-+- grandchild sleep 100
+  //   \-+- great grandchild sleep 100
+  //
+  // And gets reparented to init when we reap the child:
+  //
+  // -+- init (pid 1)
+  //  \-+- grandchild sleep 100
+  //   \-+- great grandchild sleep 100
+
+  // Grab the pids from the instantiated process tree.
+  ASSERT_EQ(1u, tree.get().children.size());
+  ASSERT_EQ(1u, tree.get().children.front().children.size());
+
+  pid_t child = tree.get();
+  pid_t grandchild = tree.get().children.front();
+  pid_t greatGrandchild = tree.get().children.front().children.front();
+
+  // Wait for the child to exit.
+  Duration elapsed = Duration::zero();
+  while (true) {
+    Result<os::Process> process = os::process(child);
+    ASSERT_FALSE(process.isError());
+
+    if (process.get().zombie) {
+      break;
+    }
+
+    if (elapsed > Seconds(1)) {
+      FAIL() << "Child process " << stringify(child) << " did not terminate";
+    }
+
+    os::sleep(Milliseconds(5));
+    elapsed += Milliseconds(5);
+  }
+
+  // Ensure we reap our child now.
+  EXPECT_SOME(os::process(child));
+  EXPECT_TRUE(os::process(child).get().zombie);
+  ASSERT_EQ(child, waitpid(child, NULL, 0));
+
+  // Check the grandchild and great grandchild are still running.
+  ASSERT_TRUE(os::exists(grandchild));
+  ASSERT_TRUE(os::exists(greatGrandchild));
+
+  // Check the subtree has been reparented by init.
+  Result<os::Process> _grandchild = os::process(grandchild);
+  ASSERT_SOME(_grandchild);
+  ASSERT_EQ(1, _grandchild.get().parent);
+
+  // Kill the process tree. Even though the root process has exited,
+  // we specify to follow sessions and groups which should kill the
+  // grandchild and greatgrandchild.
+  Try<std::list<ProcessTree>> trees = os::killtree(child, SIGKILL, true, true);
+
+  ASSERT_SOME(trees);
+  EXPECT_FALSE(trees.get().empty());
+
+  // All processes should be reparented and reaped by init.
+  elapsed = Duration::zero();
+  while (true) {
+    if (os::process(grandchild).isNone() &&
+        os::process(greatGrandchild).isNone()) {
+      break;
+    }
+
+    if (elapsed > Seconds(10)) {
+      FAIL() << "Processes were not reaped after killtree invocation";
+    }
+
+    os::sleep(Milliseconds(5));
+    elapsed += Milliseconds(5);
+  }
+
+  EXPECT_NONE(os::process(grandchild));
+  EXPECT_NONE(os::process(greatGrandchild));
+}
+
+
 TEST_F(OsTest, pstree)
 {
   Try<ProcessTree> tree = os::pstree(getpid());

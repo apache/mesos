@@ -46,6 +46,9 @@ inline Option<Process> process(pid_t, const std::list<Process>&);
 // Note that processes of the group and session of the parent of the
 // root process is not included unless they are part of the root
 // process tree.
+// Note that if the process 'pid' has exited we'll signal the process
+// tree(s) rooted at pids in the group or session led by the process
+// if groups = true or sessions = true, respectively.
 // Returns the process trees that were succesfully or unsuccessfully
 // signaled. Note that the process trees can be stringified.
 // TODO(benh): Allow excluding the root pid from stopping, killing,
@@ -66,10 +69,30 @@ inline Try<std::list<ProcessTree> > killtree(
 
   Result<Process> process = os::process(pid, processes.get());
 
+  std::queue<pid_t> queue;
+
+  // If the root process has already terminated we'll add in any pids
+  // that are in the process group originally led by pid or in the
+  // session originally led by pid, if instructed.
   if (process.isNone()) {
-    // We do not consider it an error if the process is not present since it
-    // can exit at any time.
-    return std::list<ProcessTree>();
+    foreach (const Process& _process, processes.get()) {
+      if (groups && _process.group == pid) {
+        queue.push(_process.pid);
+      } else if (sessions &&
+                 _process.session.isSome() &&
+                 _process.session.get() == pid) {
+        queue.push(_process.pid);
+      }
+    }
+
+    // Root process is not running and no processes found in the
+    // process group or session so nothing we can do.
+    if (queue.empty()) {
+      return std::list<ProcessTree>();
+    }
+  } else {
+    // Start the traversal from pid as the root.
+    queue.push(pid);
   }
 
   struct {
@@ -81,8 +104,9 @@ inline Try<std::list<ProcessTree> > killtree(
 
   // If we are following groups and/or sessions then we try and make
   // the group and session of the parent process "already visited" so
-  // that we don't kill "up the tree".
-  if (groups || sessions) {
+  // that we don't kill "up the tree". This can only be done if the
+  // process is present.
+  if (process.isSome() && (groups || sessions)) {
     Option<Process> parent =
       os::process(process.get().parent, processes.get());
 
@@ -95,9 +119,6 @@ inline Try<std::list<ProcessTree> > killtree(
       }
     }
   }
-
-  std::queue<pid_t> queue;
-  queue.push(pid);
 
   while (!queue.empty()) {
     pid_t pid = queue.front();
