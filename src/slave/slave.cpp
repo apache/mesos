@@ -2674,9 +2674,12 @@ ExecutorInfo Slave::getExecutorInfo(
     executor.set_name("Command Executor " + name);
     executor.set_source(task.task_id().value());
 
-    // Copy [uris, environment, container, user] fields from the
-    // CommandInfo to get the URIs and environment, and use them
-    // to invoke 'mesos-executor'.
+    // Copy the [uris, environment, container, user] fields from the
+    // CommandInfo to get the URIs we need to download, the
+    // environment variables that should get set, the necessary
+    // container information, and the user to run the executor as but
+    // nothing else because we need to set up the rest of the executor
+    // command ourselves in order to invoke 'mesos-executor'.
     executor.mutable_command()->mutable_uris()->MergeFrom(
         task.command().uris());
 
@@ -2697,8 +2700,9 @@ ExecutorInfo Slave::getExecutorInfo(
     Result<string> path = os::realpath(
         path::join(flags.launcher_dir, "mesos-executor"));
 
-    // Strongly enforce a specific shell setting for launching
-    // command executor.
+    // Explicitly set 'shell' to true since we want to use the shell
+    // for running the mesos-executor (and even though this is the
+    // default we want to be explicit).
     executor.mutable_command()->set_shell(true);
 
     if (path.isSome()) {
