@@ -18,6 +18,7 @@
 #include <boost/type_traits.hpp>
 #endif // __cplusplus < 201103L
 
+#include <process/clock.hpp>
 #include <process/internal.hpp>
 #include <process/latch.hpp>
 #include <process/owned.hpp>
@@ -1491,7 +1492,7 @@ void after(
 {
   CHECK(!future.isPending());
   if (latch->trigger()) {
-    Timer::cancel(timer);
+    Clock::cancel(timer);
     promise->associate(future);
   }
 }
@@ -1554,7 +1555,7 @@ Future<T> Future<T>::after(
   // completed. Note that we do not pass a weak reference for this
   // future as we don't want the future to get cleaned up and then
   // have the timer expire.
-  Timer timer = Timer::create(
+  Timer timer = Clock::timer(
       duration,
       lambda::bind(&internal::expired<T>, f, latch, promise, *this));
 

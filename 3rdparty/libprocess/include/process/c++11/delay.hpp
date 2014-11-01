@@ -1,6 +1,7 @@
 #ifndef __PROCESS_DELAY_HPP__
 #define __PROCESS_DELAY_HPP__
 
+#include <process/clock.hpp>
 #include <process/dispatch.hpp>
 #include <process/timer.hpp>
 
@@ -19,7 +20,7 @@ Timer delay(const Duration& duration,
             const PID<T>& pid,
             void (T::*method)())
 {
-  return Timer::create(duration, [=] () {
+  return Clock::timer(duration, [=] () {
     dispatch(pid, method);
   });
 }
@@ -52,7 +53,7 @@ Timer delay(const Duration& duration,
               void (T::*method)(ENUM_PARAMS(N, P)),                     \
               ENUM_BINARY_PARAMS(N, A, a))                              \
   {                                                                     \
-    return Timer::create(duration, [=] () {                             \
+    return Clock::timer(duration, [=] () {                              \
       dispatch(pid, method, ENUM_PARAMS(N, a));                         \
     });                                                                 \
   }                                                                     \

@@ -11,18 +11,13 @@
 
 namespace process {
 
-// Timer support!
+// Timer represents a delayed thunk, that can get created (scheduled)
+// and canceled using the Clock.
 
 class Timer
 {
 public:
   Timer() : id(0), pid(process::UPID()), thunk(&abort) {}
-
-  static Timer create(
-      const Duration& duration,
-      const lambda::function<void(void)>& thunk);
-
-  static bool cancel(const Timer& timer);
 
   bool operator == (const Timer& that) const
   {
@@ -50,6 +45,8 @@ public:
   }
 
 private:
+  friend class Clock;
+
   Timer(long _id,
         const Timeout& _t,
         const process::UPID& _pid,
