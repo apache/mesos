@@ -393,6 +393,129 @@ TEST_F(SlaveTest, MesosExecutorWithOverride)
 }
 
 
+// Test that we don't let task arguments bleed over as
+// mesos-executor args. For more details of this see MESOS-1873.
+//
+// This assumes the ability to execute '/bin/echo --author'.
+TEST_F(SlaveTest, MesosExecutorCommandTaskWithArgsList)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Need flags for 'executor_registration_timeout'.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "posix/cpu,posix/mem";
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false);
+  CHECK_SOME(containerizer);
+
+  Try<PID<Slave> > slave = StartSlave(containerizer.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Launch a task with the command executor.
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+
+  // Command executor will run as user running test.
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/echo");
+  command.add_arguments("/bin/echo");
+  command.add_arguments("--author");
+
+  task.mutable_command()->MergeFrom(command);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// Don't let args from the CommandInfo struct bleed over into
+// mesos-executor forking. For more details of this see MESOS-1873.
+TEST_F(SlaveTest, GetExecutorInfo)
+{
+  // Create a thin dummy Slave to access underlying getExecutorInfo().
+  // Testing this method should not necessarily require an integration
+  // test as with most other methods here.
+  slave::Flags flags = CreateSlaveFlags();
+  TestContainerizer containerizer;
+  StandaloneMasterDetector detector;
+  Files files;
+  slave::StatusUpdateManager updateManager(flags);
+
+  slave::GarbageCollector gc;
+  Slave slave(flags, &detector, &containerizer, &files, &gc, &updateManager);
+
+  FrameworkID frameworkId;
+  frameworkId.set_value("20141010-221431-251662764-60288-32120-0000");
+
+  // Launch a task with the command executor.
+  TaskInfo task;
+  task.set_name("task");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->set_value(
+      "20141010-221431-251662764-60288-32120-0001");
+  task.mutable_resources()->MergeFrom(
+      Resources::parse("cpus:0.1;mem:32").get());
+
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/echo");
+  command.add_arguments("/bin/echo");
+  command.add_arguments("--author");
+
+  task.mutable_command()->MergeFrom(command);
+
+  const ExecutorInfo& executor = slave.getExecutorInfo(frameworkId, task);
+
+  // Now assert that it actually is running mesos-executor without any
+  // bleedover from the command we intend on running.
+  EXPECT_TRUE(executor.command().shell());
+  EXPECT_FALSE(executor.command().has_container());
+  EXPECT_EQ(0, executor.command().arguments_size());
+  EXPECT_NE(string::npos, executor.command().value().find("mesos-executor"));
+}
+
 // This test runs a command without the command user field set. The
 // command will verify the assumption that the command is run as the
 // slave user (in this case, root).

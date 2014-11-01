@@ -2674,14 +2674,32 @@ ExecutorInfo Slave::getExecutorInfo(
     executor.set_name("Command Executor " + name);
     executor.set_source(task.task_id().value());
 
-    // Copy the CommandInfo to get the URIs and environment, but
-    // update it to invoke 'mesos-executor' (unless we couldn't
-    // resolve 'mesos-executor' via 'realpath', in which case just
-    // echo the error and exit).
-    executor.mutable_command()->MergeFrom(task.command());
+    // Copy [uris, environment, container, user] fields from the
+    // CommandInfo to get the URIs and environment, and use them
+    // to invoke 'mesos-executor'.
+    executor.mutable_command()->mutable_uris()->MergeFrom(
+        task.command().uris());
+
+    if (task.command().has_environment()) {
+        executor.mutable_command()->mutable_environment()->MergeFrom(
+            task.command().environment());
+    }
+
+    if (task.command().has_container()) {
+        executor.mutable_command()->mutable_container()->MergeFrom(
+            task.command().container());
+    }
+
+    if (task.command().has_user()) {
+        executor.mutable_command()->set_user(task.command().user());
+    }
 
     Result<string> path = os::realpath(
         path::join(flags.launcher_dir, "mesos-executor"));
+
+    // Strongly enforce a specific shell setting for launching
+    // command executor.
+    executor.mutable_command()->set_shell(true);
 
     if (path.isSome()) {
       executor.mutable_command()->set_value(path.get());
