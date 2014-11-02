@@ -1121,7 +1121,7 @@ bool Future<T>::hasDiscard() const
 
 namespace internal {
 
-inline void awaited(const Owned<Latch>& latch)
+inline void awaited(Owned<Latch> latch)
 {
   latch->trigger();
 }
@@ -1132,18 +1132,32 @@ inline void awaited(const Owned<Latch>& latch)
 template <typename T>
 bool Future<T>::await(const Duration& duration) const
 {
-  Owned<Latch> latch;
+  // NOTE: We need to preemptively allocate the Latch on the stack
+  // instead of lazily create it in the critical section below because
+  // instantiating a Latch requires creating a new process (at the
+  // time of writing this comment) which might need to do some
+  // synchronization in libprocess which might deadlock if some other
+  // code in libprocess is already holding a lock and then attempts to
+  // do Promise::set (or something similar) that attempts to acquire
+  // the lock that we acquire here. This is an artifact of using
+  // Future/Promise within the implementation of libprocess.
+  //
+  // We mostly only call 'await' in tests so this should not be a
+  // performance concern.
+  Owned<Latch> latch(new Latch());
+
+  bool pending = false;
 
   internal::acquire(&data->lock);
   {
     if (data->state == PENDING) {
-      latch.reset(new Latch());
+      pending = true;
       data->onAnyCallbacks.push(lambda::bind(&internal::awaited, latch));
     }
   }
   internal::release(&data->lock);
 
-  if (latch.get() != NULL) {
+  if (pending) {
     return latch->await(duration);
   }
 
