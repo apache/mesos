@@ -526,7 +526,16 @@ bool paused = false;
 // to settle (and we're paused).
 bool settling = false;
 
+// Lambda function to invoke when timers have expired.
+lambda::function<void(list<Timer>&&)> callback;
+
 } // namespace clock {
+
+
+void Clock::initialize(lambda::function<void(list<Timer>&&)>&& callback)
+{
+  clock::callback = callback;
+}
 
 
 Time Clock::now()
@@ -890,7 +899,7 @@ void handle_async(struct ev_loop* loop, ev_async* _, int revents)
 
 void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
 {
-  list<Timer> timedout;
+  list<Timer> timers;
 
   synchronized (timeouts) {
     Time now = Clock::now();
@@ -912,7 +921,7 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
       }
 
       foreach (const Timer& timer, (*timeouts)[timeout]) {
-        timedout.push_back(timer);
+        timers.push_back(timer);
       }
     }
 
@@ -948,29 +957,7 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
     update_timer = false; // Since we might have a queued update_timer.
   }
 
-  // Update current time of process (if it's present/valid). It might
-  // be necessary to actually add some more synchronization around
-  // this so that, for example, pausing and resuming the clock doesn't
-  // cause some processes to get thier current times updated and
-  // others not. Since ProcessManager::use acquires the 'processes'
-  // lock we had to move this out of the synchronized (timeouts) above
-  // since there was a deadlock with acquring 'processes' then
-  // 'timeouts' (reverse order) in ProcessManager::cleanup. Note that
-  // current time may be greater than the timeout if a local message
-  // was received (and happens-before kicks in).
-  if (Clock::paused()) {
-    foreach (const Timer& timer, timedout) {
-      if (ProcessReference process = process_manager->use(timer.creator())) {
-        Clock::update(process, timer.timeout().time());
-      }
-    }
-  }
-
-  // Invoke the timers that timed out (TODO(benh): Do this
-  // asynchronously so that we don't tie up the event thread!).
-  foreach (const Timer& timer, timedout) {
-    timer();
-  }
+  clock::callback(std::move(timers));
 
   // Mark 'settling' as false since there are not any more timeouts
   // that will expire before the paused time and we've finished
@@ -1412,6 +1399,27 @@ void* schedule(void* arg)
 }
 
 
+void timedout(list<Timer>&& timers)
+{
+  // Update current time of process (if it's present/valid). Note that
+  // current time may be greater than the timeout if a local message
+  // was received (and happens-before kicks in).
+  if (Clock::paused()) {
+    foreach (const Timer& timer, timers) {
+      if (ProcessReference process = process_manager->use(timer.creator())) {
+        Clock::update(process, timer.timeout().time());
+      }
+    }
+  }
+
+  // Invoke the timers that timed out (TODO(benh): Do this
+  // asynchronously so that we don't tie up the event thread!).
+  foreach (const Timer& timer, timers) {
+    timer();
+  }
+}
+
+
 // We might find value in catching terminating signals at some point.
 // However, for now, adding signal handlers freely is not allowed
 // because they will clash with Java and Python virtual machines and
@@ -1483,6 +1491,8 @@ void initialize(const string& delegate)
   // Create a new ProcessManager and SocketManager.
   process_manager = new ProcessManager(delegate);
   socket_manager = new SocketManager();
+
+  Clock::initialize(lambda::bind(&timedout, lambda::_1));
 
   // Setup processing threads.
   // We create no fewer than 8 threads because some tests require
@@ -1701,6 +1711,9 @@ void initialize(const string& delegate)
 void finalize()
 {
   delete process_manager;
+
+  // TODO(benh): Finialize/shutdown Clock so that it doesn't attempt
+  // to dereference 'process_manager' in the 'timedout' callback.
 }
 
 
