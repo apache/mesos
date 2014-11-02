@@ -2444,11 +2444,7 @@ void SocketManager::exited(ProcessBase* process)
       if (linkee == pid) {
         foreach (ProcessBase* linker, processes) {
           CHECK(linker != process) << "Process linked with itself";
-          synchronized (timeouts) {
-            if (Clock::paused()) {
-              Clock::update(linker, time);
-            }
-          }
+          Clock::update(linker, time);
           linker->enqueue(new ExitedEvent(linkee));
         }
       }
