@@ -45,7 +45,21 @@ public:
   static void advance(ProcessBase* process, const Duration& duration);
 
   static void update(const Time& time);
-  static void update(ProcessBase* process, const Time& time);
+
+  // When updating the time of a particular process you can specify
+  // whether or not you want to override the existing value even if
+  // you're going backwards in time! SAFE means don't update the
+  // previous Clock for a process if going backwards in time, where as
+  // FORCE forces this change.
+  enum Update {
+    SAFE,
+    FORCE,
+  };
+
+  static void update(
+      ProcessBase* process,
+      const Time& time,
+      Update update = SAFE);
 
   static void order(ProcessBase* from, ProcessBase* to);
 

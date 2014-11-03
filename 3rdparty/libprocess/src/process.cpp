@@ -663,11 +663,11 @@ void Clock::update(const Time& time)
 }
 
 
-void Clock::update(ProcessBase* process, const Time& time)
+void Clock::update(ProcessBase* process, const Time& time, Update update)
 {
   synchronized (timeouts) {
     if (clock::paused) {
-      if (now(process) < time) {
+      if (now(process) < time || update == Clock::FORCE) {
         VLOG(2) << "Clock of " << process->self() << " updated to " << time;
         (*clock::currents)[process] = Time(time);
       }
@@ -2644,15 +2644,7 @@ bool ProcessManager::deliver(
   // the duration of this routine (so that we can look up it's current
   // time).
   if (Clock::paused()) {
-    synchronized (timeouts) {
-      if (Clock::paused()) {
-        if (sender != NULL) {
-          Clock::order(sender, receiver);
-        } else {
-          Clock::update(receiver, Clock::now());
-        }
-      }
-    }
+    Clock::update(receiver, Clock::now(sender != NULL ? sender : __process__));
   }
 
   receiver->enqueue(event);
@@ -2948,15 +2940,7 @@ void ProcessManager::terminate(
 {
   if (ProcessReference process = use(pid)) {
     if (Clock::paused()) {
-      synchronized (timeouts) {
-        if (Clock::paused()) {
-          if (sender != NULL) {
-            Clock::order(sender, process);
-          } else {
-            Clock::update(process, Clock::now());
-          }
-        }
-      }
+      Clock::update(process, Clock::now(sender != NULL ? sender : __process__));
     }
 
     if (sender != NULL) {
@@ -3293,18 +3277,10 @@ ProcessBase::ProcessBase(const string& id)
   pid.node = __node__;
 
   // If using a manual clock, try and set current time of process
-  // using happens before relationship between creator and createe!
+  // using happens before relationship between creator (__process__)
+  // and createe (this)!
   if (Clock::paused()) {
-    synchronized (timeouts) {
-      if (Clock::paused()) {
-        clock::currents->erase(this); // In case the address is reused!
-        if (__process__ != NULL) {
-          Clock::order(__process__, this);
-        } else {
-          Clock::update(this, Clock::now());
-        }
-      }
-    }
+    Clock::update(this, Clock::now(__process__), Clock::FORCE);
   }
 }
 
@@ -3512,17 +3488,10 @@ UPID spawn(ProcessBase* process, bool manage)
 
   if (process != NULL) {
     // If using a manual clock, try and set current time of process
-    // using happens before relationship between spawner and spawnee!
+    // using happens before relationship between spawner (__process__)
+    // and spawnee (process)!
     if (Clock::paused()) {
-      synchronized (timeouts) {
-        if (Clock::paused()) {
-          if (__process__ != NULL) {
-            Clock::order(__process__, process);
-          } else {
-            Clock::update(process, Clock::now());
-          }
-        }
-      }
+      Clock::update(process, Clock::now(__process__));
     }
 
     return process_manager->spawn(process, manage);
