@@ -441,8 +441,8 @@ message Modules {
       // Module name.
       optional string name = 1;
 
-      // Module specific flags.
-      optional Parameters parameters = 2;
+      // Module-specific parameters.
+      repeated Parameter parameters = 2;
     }
 
     repeated Module modules = 3;

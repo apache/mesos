@@ -21,6 +21,7 @@
 #include <stout/dynamiclibrary.hpp>
 #include <stout/os.hpp>
 
+#include "common/parse.hpp"
 #include "examples/test_module.hpp"
 #include "module/isolator.hpp"
 #include "module/manager.hpp"
@@ -129,27 +130,60 @@ string ModuleTest::originalLdLibraryPath;
 string ModuleTest::libraryDirectory;
 
 
-static Modules getModules(
-    const string& libraryName,
-    const string& moduleName,
-    const string& parameterKey = "",
-    const string& parameterValue = "")
+static Modules getModules(const string& libraryName, const string& moduleName)
 {
   Modules modules;
   Modules::Library* library = modules.add_libraries();
   library->set_file(os::libraries::expandName(libraryName));
   Modules::Library::Module* module = library->add_modules();
   module->set_name(moduleName);
-  if (!parameterKey.empty() || !parameterValue.empty()) {
-    Parameter* parameter = module->mutable_parameters()->add_parameter();
-    if (!parameterKey.empty()) {
-      parameter->set_key(parameterKey);
-    }
-    if (!parameterValue.empty()) {
-      parameter->set_value(parameterValue);
-    }
-  }
   return modules;
+}
+
+
+static Modules getModules(
+    const string& libraryName,
+    const string& moduleName,
+    const string& parameterKey,
+    const string& parameterValue)
+{
+  Modules modules = getModules(libraryName, moduleName);
+  Modules::Library* library = modules.mutable_libraries(0);
+  Modules::Library::Module* module = library->mutable_modules(0);
+  Parameter* parameter = module->add_parameters();
+  parameter->set_key(parameterKey);
+  parameter->set_value(parameterValue);
+  return modules;
+}
+
+
+static Try<Modules> getModulesFromJson(
+    const string& libraryName,
+    const string& moduleName,
+    const string& parameterKey,
+    const string& parameterValue)
+{
+  string jsonString =
+    "{\n"
+    "  \"libraries\": [\n"
+    "    {\n"
+    "      \"file\": \"" + os::libraries::expandName(libraryName) + "\",\n"
+    "      \"modules\": [\n"
+    "        {\n"
+    "          \"name\": \"" + moduleName + "\",\n"
+    "          \"parameters\": [\n"
+    "            {\n"
+    "              \"key\": \"" + parameterKey + "\",\n"
+    "              \"value\": \"" + parameterValue + "\"\n"
+    "            }\n"
+    "          ]\n"
+    "        }\n"
+    "      ]\n"
+    "    }\n"
+    "  ]\n"
+    "}";
+
+  return flags::parse<Modules>(jsonString);
 }
 
 
@@ -177,8 +211,11 @@ TEST_F(ModuleTest, ExampleModuleLoadTest)
 // Test passing parameter without value.
 TEST_F(ModuleTest, ParameterWithoutValue)
 {
-  Modules modules =
-    getModules(DEFAULT_MODULE_LIBRARY_NAME, DEFAULT_MODULE_NAME, "operation");
+  Modules modules = getModules(
+      DEFAULT_MODULE_LIBRARY_NAME,
+      DEFAULT_MODULE_NAME,
+      "operation",
+      "");
 
   EXPECT_SOME(ModuleManager::load(modules));
   module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
@@ -209,7 +246,10 @@ TEST_F(ModuleTest, ParameterWithoutKey)
 
   EXPECT_SOME(ModuleManager::load(modules));
   module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
-  EXPECT_ERROR(module);
+  EXPECT_SOME(module);
+
+  // Since there was no valid key, baz() should return -1.
+  EXPECT_EQ(module.get()->baz(5, 10), -1);
 }
 
 
@@ -238,6 +278,24 @@ TEST_F(ModuleTest, ValidParameters)
       "sum");
 
   EXPECT_SOME(ModuleManager::load(modules));
+  module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
+  EXPECT_SOME(module);
+
+  EXPECT_EQ(module.get()->baz(5, 10), 15);
+}
+
+
+// Test Json parsing to generate Modules protobuf.
+TEST_F(ModuleTest, JsonParseTest)
+{
+  Try<Modules> modules = getModulesFromJson(
+      DEFAULT_MODULE_LIBRARY_NAME,
+      DEFAULT_MODULE_NAME,
+      "operation",
+      "sum");
+  EXPECT_SOME(modules);
+
+  EXPECT_SOME(ModuleManager::load(modules.get()));
   module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
   EXPECT_SOME(module);
 

@@ -231,7 +231,10 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
       }
 
       moduleBases[moduleName] = (ModuleBase*) symbol.get();
-      moduleParameters[moduleName] = module.parameters();
+
+      // Now copy the supplied module-specific parameters.
+      moduleParameters[moduleName].mutable_parameter()->CopyFrom(
+          module.parameters());
     }
   }
 
