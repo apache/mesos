@@ -29,6 +29,7 @@ layout: documentation
 * [MediaCrossing](http://www.mediacrossing.com)
 * [Mesosphere](http://www.mesosphere.io)
 * [Netflix](http://www.netflix.com)
+* [Oakmore Labs](http://www.oakmorelabs.com)
 * [OpenCredo](http://www.opencredo.com/)
 * [OpenTable](http://www.opentable.com)
 * [Oscar Insurance](https://www.hioscar.com/)
