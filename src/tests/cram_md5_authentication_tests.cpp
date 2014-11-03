@@ -47,19 +47,14 @@ namespace cram_md5 {
 
 TEST(CRAMMD5Authentication, success)
 {
-  // Set up secrets.
-  map<string, string> secrets;
-  secrets["benh"] = "secret";
-  cram_md5::secrets::load(secrets);
-
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
 
-  Credential credential;
-  credential.set_principal("benh");
-  credential.set_secret("secret");
+  Credential credential1;
+  credential1.set_principal("benh");
+  credential1.set_secret("secret");
 
-  Authenticatee authenticatee(credential, UPID());
+  Authenticatee authenticatee(credential1, UPID());
 
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
@@ -68,9 +63,15 @@ TEST(CRAMMD5Authentication, success)
 
   AWAIT_READY(message);
 
-  Authenticator authenticator(message.get().from);
+  Credentials credentials;
+  Credential* credential2 = credentials.add_credentials();
+  credential2->set_principal(credential1.principal());
+  credential2->set_secret(credential1.secret());
 
-  Future<Option<string> > principal = authenticator.authenticate();
+  CRAMMD5Authenticator authenticator;
+  EXPECT_SOME(authenticator.initialize(message.get().from, credentials));
+
+  Future<Option<string>> principal = authenticator.authenticate();
 
   AWAIT_EQ(true, client);
   AWAIT_READY(principal);
@@ -83,19 +84,14 @@ TEST(CRAMMD5Authentication, success)
 // Bad password should return an authentication failure.
 TEST(CRAMMD5Authentication, failed1)
 {
-  // Set up secrets.
-  map<string, string> secrets;
-  secrets["benh"] = "secret1";
-  cram_md5::secrets::load(secrets);
-
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
 
-  Credential credential;
-  credential.set_principal("benh");
-  credential.set_secret("secret");
+  Credential credential1;
+  credential1.set_principal("benh");
+  credential1.set_secret("secret");
 
-  Authenticatee authenticatee(credential, UPID());
+  Authenticatee authenticatee(credential1, UPID());
 
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
@@ -104,9 +100,15 @@ TEST(CRAMMD5Authentication, failed1)
 
   AWAIT_READY(message);
 
-  Authenticator authenticator(message.get().from);
+  Credentials credentials;
+  Credential* credential2 = credentials.add_credentials();
+  credential2->set_principal(credential1.principal());
+  credential2->set_secret("secret2");
 
-  Future<Option<string> > server = authenticator.authenticate();
+  CRAMMD5Authenticator authenticator;
+  EXPECT_SOME(authenticator.initialize(message.get().from, credentials));
+
+  Future<Option<string>> server = authenticator.authenticate();
 
   AWAIT_EQ(false, client);
   AWAIT_READY(server);
@@ -119,19 +121,14 @@ TEST(CRAMMD5Authentication, failed1)
 // No user should return an authentication failure.
 TEST(CRAMMD5Authentication, failed2)
 {
-  // Set up secrets.
-  map<string, string> secrets;
-  secrets["vinod"] = "secret";
-  cram_md5::secrets::load(secrets);
-
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
 
-  Credential credential;
-  credential.set_principal("benh");
-  credential.set_secret("secret");
+  Credential credential1;
+  credential1.set_principal("benh");
+  credential1.set_secret("secret");
 
-  Authenticatee authenticatee(credential, UPID());
+  Authenticatee authenticatee(credential1, UPID());
 
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
@@ -140,9 +137,15 @@ TEST(CRAMMD5Authentication, failed2)
 
   AWAIT_READY(message);
 
-  Authenticator authenticator(message.get().from);
+  Credentials credentials;
+  Credential* credential2 = credentials.add_credentials();
+  credential2->set_principal("vinod");
+  credential2->set_secret(credential1.secret());
 
-  Future<Option<string> > server = authenticator.authenticate();
+  CRAMMD5Authenticator authenticator;
+  EXPECT_SOME(authenticator.initialize(message.get().from, credentials));
+
+  Future<Option<string>> server = authenticator.authenticate();
 
   AWAIT_EQ(false, client);
   AWAIT_READY(server);
@@ -157,19 +160,14 @@ TEST(CRAMMD5Authentication, failed2)
 // destructed in the middle of authentication.
 TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
 {
-  // Set up secrets.
-  map<string, string> secrets;
-  secrets["benh"] = "secret";
-  cram_md5::secrets::load(secrets);
-
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
 
-  Credential credential;
-  credential.set_principal("benh");
-  credential.set_secret("secret");
+  Credential credential1;
+  credential1.set_principal("benh");
+  credential1.set_secret("secret");
 
-  Authenticatee authenticatee(credential, UPID());
+  Authenticatee authenticatee(credential1, UPID());
 
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
@@ -178,14 +176,20 @@ TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
 
   AWAIT_READY(message);
 
-  Authenticator* authenticator = new Authenticator(message.get().from);
+  Credentials credentials;
+  Credential* credential2 = credentials.add_credentials();
+  credential2->set_principal(credential1.principal());
+  credential2->set_secret(credential1.secret());
+
+  CRAMMD5Authenticator* authenticator = new CRAMMD5Authenticator();
+  EXPECT_SOME(authenticator->initialize(message.get().from, credentials));
 
   // Drop the AuthenticationStepMessage from authenticator to keep
   // the authentication from getting completed.
   Future<AuthenticationStepMessage> authenticationStepMessage =
     DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
 
-  Future<Option<string> > principal = authenticator->authenticate();
+  Future<Option<string>> principal = authenticator->authenticate();
 
   AWAIT_READY(authenticationStepMessage);
 
@@ -202,6 +206,14 @@ TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
   AWAIT_FAILED(principal);
 
   terminate(pid);
+}
+
+
+// Missing credentials should fail the initializing.
+TEST(CRAMMD5Authentication, AuthenticatorCredentialsMissing)
+{
+  CRAMMD5Authenticator authenticator;
+  EXPECT_ERROR(authenticator.initialize(UPID(), None()));
 }
 
 } // namespace cram_md5 {

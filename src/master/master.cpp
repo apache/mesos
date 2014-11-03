@@ -25,6 +25,8 @@
 #include <list>
 #include <sstream>
 
+#include <mesos/module.hpp>
+
 #include <process/check.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -51,6 +53,7 @@
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
+#include "authentication/authenticator.hpp"
 #include "authentication/cram_md5/authenticator.hpp"
 
 #include "authorizer/authorizer.hpp"
@@ -68,6 +71,9 @@
 #include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
+
+#include "module/authenticator.hpp"
+#include "module/manager.hpp"
 
 using std::list;
 using std::string;
@@ -115,7 +121,7 @@ protected:
   void watch()
   {
     // Get the list of white listed slaves.
-    Option<hashset<string> > whitelist;
+    Option<hashset<string>> whitelist;
     if (path == "*") { // Accept all slaves.
       VLOG(1) << "No whitelist given. Advertising offers for all slaves";
     } else {
@@ -156,7 +162,7 @@ protected:
 private:
   const string path;
   Allocator* allocator;
-  Option<hashset<string> > lastWhitelist;
+  Option<hashset<string>> lastWhitelist;
 };
 
 
@@ -365,6 +371,23 @@ void Master::initialize()
     LOG(INFO) << "Master allowing unauthenticated slaves to register";
   }
 
+  // Extract authenticator names and validate them.
+  authenticatorNames = strings::split(flags.authenticators, ",");
+  if (authenticatorNames.empty()) {
+    EXIT(1) << "No authenticator specified";
+  }
+  if (authenticatorNames.size() > 1) {
+    EXIT(1) << "Multiple authenticators not supported";
+  }
+  if (authenticatorNames[0] != DEFAULT_AUTHENTICATOR &&
+      !modules::ModuleManager::contains<Authenticator>(
+          authenticatorNames[0])) {
+    EXIT(1) << "Authenticator '" << authenticatorNames[0] << "' not found. "
+            << "Check the spelling (compare to '" << DEFAULT_AUTHENTICATOR
+            << "'') or verify that the authenticator was loaded successfully "
+            << "(see --modules)";
+  }
+
   // Load credentials.
   if (flags.credentials.isSome()) {
     const string& path =
@@ -379,13 +402,6 @@ void Master::initialize()
     }
     // Store credentials in master to use them in routes.
     credentials = _credentials.get();
-
-    // Load "registration" credentials into CRAM-MD5 Authenticator.
-    cram_md5::secrets::load(_credentials.get());
-
-  } else if (flags.authenticate_frameworks || flags.authenticate_slaves) {
-    EXIT(1) << "Authentication requires a credentials file"
-            << " (see --credentials flag)";
   }
 
   if (authorizer.isSome()) {
@@ -1195,7 +1211,7 @@ void Master::submitScheduler(const string& name)
 }
 
 
-void Master::contended(const Future<Future<Nothing> >& candidacy)
+void Master::contended(const Future<Future<Nothing>>& candidacy)
 {
   CHECK(!candidacy.isDiscarded());
 
@@ -1227,7 +1243,7 @@ void Master::lostCandidacy(const Future<Nothing>& lost)
 }
 
 
-void Master::detected(const Future<Option<MasterInfo> >& _leader)
+void Master::detected(const Future<Option<MasterInfo>>& _leader)
 {
   CHECK(!_leader.isDiscarded());
 
@@ -1272,7 +1288,7 @@ void Master::detected(const Future<Option<MasterInfo> >& _leader)
 
 
 // Helper to convert authorization result to Future<Option<Error> >.
-static Future<Option<Error> > _authorize(const string& message, bool authorized)
+static Future<Option<Error>> _authorize(const string& message, bool authorized)
 {
   if (authorized) {
     return None();
@@ -1282,7 +1298,7 @@ static Future<Option<Error> > _authorize(const string& message, bool authorized)
 }
 
 
-Future<Option<Error> > Master::validate(
+Future<Option<Error>> Master::validate(
     const FrameworkInfo& frameworkInfo,
     const UPID& from)
 {
@@ -1374,7 +1390,7 @@ void Master::registerFramework(
 void Master::_registerFramework(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
-    const Future<Option<Error> >& validationError)
+    const Future<Option<Error>>& validationError)
 {
   CHECK_READY(validationError);
   if (validationError.get().isSome()) {
@@ -1514,7 +1530,7 @@ void Master::_reregisterFramework(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
     bool failover,
-    const Future<Option<Error> >& validationError)
+    const Future<Option<Error>>& validationError)
 {
   CHECK_READY(validationError);
   if (validationError.get().isSome()) {
@@ -2259,7 +2275,7 @@ void Master::launchTasks(
   if (offerIds.empty()) {
     error = Error("No offers specified");
   } else {
-    list<Owned<OfferVisitor> > offerVisitors;
+    list<Owned<OfferVisitor>> offerVisitors;
     offerVisitors.push_back(Owned<OfferVisitor>(new ValidOfferChecker()));
     offerVisitors.push_back(Owned<OfferVisitor>(new FrameworkChecker()));
     offerVisitors.push_back(Owned<OfferVisitor>(new SlaveChecker()));
@@ -2368,7 +2384,7 @@ Option<Error> Master::validateTask(
   // Create task visitors.
   // TODO(vinod): Create the visitors on the stack and make the visit
   // operation const.
-  list<Owned<TaskInfoVisitor> > taskVisitors;
+  list<Owned<TaskInfoVisitor>> taskVisitors;
   taskVisitors.push_back(Owned<TaskInfoVisitor>(new TaskIDChecker()));
   taskVisitors.push_back(Owned<TaskInfoVisitor>(new SlaveIDChecker()));
   taskVisitors.push_back(Owned<TaskInfoVisitor>(new UniqueTaskIDChecker()));
@@ -3854,15 +3870,35 @@ void Master::authenticate(const UPID& from, const UPID& pid)
 
   // Create a promise to capture the entire "authenticating"
   // procedure. We'll set this _after_ we finish _authenticate.
-  Owned<Promise<Nothing> > promise(new Promise<Nothing>());
+  Owned<Promise<Nothing>> promise(new Promise<Nothing>());
 
-  // Create the authenticator.
-  Owned<cram_md5::Authenticator> authenticator(
-    new cram_md5::Authenticator(from));
+  // Create and initialize the authenticator.
+  Authenticator* authenticator;
+  // TODO(tillt): Allow multiple authenticators to be loaded and enable
+  // the authenticatee to select the appropriate one. See MESOS-1939.
+  if (authenticatorNames[0] == DEFAULT_AUTHENTICATOR) {
+    LOG(INFO) << "Using default CRAM-MD5 authenticator";
+    authenticator = new cram_md5::CRAMMD5Authenticator();
+  } else {
+    Try<Authenticator*> module =
+      modules::ModuleManager::create<Authenticator>(authenticatorNames[0]);
+    if (module.isError()) {
+      EXIT(1) << "Could not create authenticator module '"
+              << authenticatorNames[0] << "': " << module.error();
+    }
+    LOG(INFO) << "Using '" << authenticatorNames[0] << "' authenticator";
+    authenticator = module.get();
+  }
+  Owned<Authenticator> authenticator_ = Owned<Authenticator>(authenticator);
+
+  Try<Nothing> initialize = authenticator_->initialize(from, credentials);
+  if (initialize.isError()) {
+    EXIT(1) << "Failed to initialize authenticator: " << initialize.error();
+  }
 
   // Start authentication.
-  const Future<Option<string> >& future = authenticator->authenticate()
-    .onAny(defer(self(), &Self::_authenticate, pid, promise, lambda::_1));
+  const Future<Option<string>>& future = authenticator_->authenticate()
+     .onAny(defer(self(), &Self::_authenticate, pid, promise, lambda::_1));
 
   // Don't wait for authentication to happen for ever.
   delay(Seconds(5),
@@ -3872,14 +3908,14 @@ void Master::authenticate(const UPID& from, const UPID& pid)
 
   // Save our state.
   authenticating[pid] = promise->future();
-  authenticators.put(pid, authenticator);
+  authenticators.put(pid, authenticator_);
 }
 
 
 void Master::_authenticate(
     const UPID& pid,
-    const Owned<Promise<Nothing> >& promise,
-    const Future<Option<string> >& future)
+    const Owned<Promise<Nothing>>& promise,
+    const Future<Option<string>>& future)
 {
   if (!future.isReady() || future.get().isNone()) {
     const string& error = future.isReady()
@@ -3903,7 +3939,7 @@ void Master::_authenticate(
 }
 
 
-void Master::authenticationTimeout(Future<Option<string> > future)
+void Master::authenticationTimeout(Future<Option<string>> future)
 {
   // Note that a 'discard' here is safe even if another
   // authenticator is in progress because this copy of the future

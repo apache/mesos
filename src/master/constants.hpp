@@ -105,6 +105,9 @@ extern const std::string MASTER_INFO_LABEL;
 // TODO(vinod): Master detector/contender should use this timeout.
 extern const Duration ZOOKEEPER_SESSION_TIMEOUT;
 
+// Name of the default, CRAM-MD5 authenticator.
+extern const std::string DEFAULT_AUTHENTICATOR;
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

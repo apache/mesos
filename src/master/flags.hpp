@@ -347,6 +347,13 @@ public:
         "    }\n"
         "  ]\n"
         "}");
+
+    add(&Flags::authenticators,
+        "authenticators",
+        "Authenticator implementation to use when authenticating frameworks\n"
+        "and/or slaves. Use the default '" + DEFAULT_AUTHENTICATOR + "', or\n"
+        "load an alternate authenticator module using --modules.",
+        DEFAULT_AUTHENTICATOR);
   }
 
   bool version;
@@ -377,6 +384,7 @@ public:
   Option<RateLimits> rate_limits;
   Option<Duration> offer_timeout;
   Option<Modules> modules;
+  std::string authenticators;
 
 #ifdef WITH_NETWORK_ISOLATOR
   Option<size_t> max_executors_per_slave;

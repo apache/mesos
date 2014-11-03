@@ -72,10 +72,7 @@ namespace registry {
 class Slaves;
 }
 
-namespace cram_md5 {
 class Authenticator;
-}
-
 class Authorizer;
 
 namespace master {
@@ -208,7 +205,7 @@ public:
 
   // Invoked when there is a newly elected leading master.
   // Made public for testing purposes.
-  void detected(const process::Future<Option<MasterInfo> >& pid);
+  void detected(const process::Future<Option<MasterInfo>>& pid);
 
   // Invoked when the contender has lost the candidacy.
   // Made public for testing purposes.
@@ -281,16 +278,16 @@ protected:
   // 'future' is the future returned by the authenticator.
   void _authenticate(
       const process::UPID& pid,
-      const process::Owned<process::Promise<Nothing> >& promise,
-      const process::Future<Option<std::string> >& future);
+      const process::Owned<process::Promise<Nothing>>& promise,
+      const process::Future<Option<std::string>>& future);
 
-  void authenticationTimeout(process::Future<Option<std::string> > future);
+  void authenticationTimeout(process::Future<Option<std::string>> future);
 
   void fileAttached(const process::Future<Nothing>& result,
                     const std::string& path);
 
   // Invoked when the contender has entered the contest.
-  void contended(const process::Future<process::Future<Nothing> >& candidacy);
+  void contended(const process::Future<process::Future<Nothing>>& candidacy);
 
   // Handles a known re-registering slave by reconciling the master's
   // view of the slave's tasks and executors.
@@ -303,14 +300,14 @@ protected:
   void _registerFramework(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
-      const process::Future<Option<Error> >& validationError);
+      const process::Future<Option<Error>>& validationError);
 
   // 'reregisterFramework()' continuation.
   void _reregisterFramework(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       bool failover,
-      const process::Future<Option<Error> >& validationError);
+      const process::Future<Option<Error>>& validationError);
 
   // Add a framework.
   void addFramework(Framework* framework);
@@ -501,7 +498,7 @@ private:
 
   // Indicates when recovery is complete. Recovery begins once the
   // master is elected as a leader.
-  Option<process::Future<Nothing> > recovered;
+  Option<process::Future<Nothing>> recovered;
 
   struct Slaves
   {
@@ -560,7 +557,7 @@ private:
     Frameworks() : completed(MAX_COMPLETED_FRAMEWORKS) {}
 
     hashmap<FrameworkID, Framework*> registered;
-    boost::circular_buffer<memory::shared_ptr<Framework> > completed;
+    boost::circular_buffer<memory::shared_ptr<Framework>> completed;
 
     // Principals of frameworks keyed by PID.
     // NOTE: Multiple PIDs can map to the same principal. The
@@ -571,7 +568,7 @@ private:
     // 2) This map includes unauthenticated frameworks (when Master
     //    allows them) if they have principals specified in
     //    FrameworkInfo.
-    hashmap<process::UPID, Option<std::string> > principals;
+    hashmap<process::UPID, Option<std::string>> principals;
   } frameworks;
 
   hashmap<OfferID, Offer*> offers;
@@ -579,13 +576,15 @@ private:
 
   hashmap<std::string, Role*> roles;
 
+  // Authenticator names as supplied via flags.
+  std::vector<std::string> authenticatorNames;
+
   // Frameworks/slaves that are currently in the process of authentication.
   // 'authenticating' future for an authenticatee is ready when it is
   // authenticated.
-  hashmap<process::UPID, process::Future<Nothing> > authenticating;
+  hashmap<process::UPID, process::Future<Nothing>> authenticating;
 
-  hashmap<process::UPID, process::Owned<cram_md5::Authenticator> >
-    authenticators;
+  hashmap<process::UPID, process::Owned<Authenticator>> authenticators;
 
   // Principals of authenticated frameworks/slaves keyed by PID.
   hashmap<process::UPID, std::string> authenticated;
@@ -678,7 +677,7 @@ private:
 
     // Per-framework-principal metrics keyed by the framework
     // principal.
-    hashmap<std::string, process::Owned<Frameworks> > frameworks;
+    hashmap<std::string, process::Owned<Frameworks>> frameworks;
 
     // Messages from schedulers.
     process::metrics::Counter messages_register_framework;
@@ -789,7 +788,7 @@ private:
   // Returns None if the framework is valid.
   // Returns Error if the framework is invalid.
   // Returns Failure if authorization returns 'Failure'.
-  process::Future<Option<Error> > validate(
+  process::Future<Option<Error>> validate(
       const FrameworkInfo& frameworkInfo,
       const process::UPID& from);
 
@@ -812,11 +811,11 @@ private:
   // BoundedRateLimiters keyed by the framework principal.
   // Like Metrics::Frameworks, all frameworks of the same principal
   // are throttled together at a common rate limit.
-  hashmap<std::string, Option<process::Owned<BoundedRateLimiter> > > limiters;
+  hashmap<std::string, Option<process::Owned<BoundedRateLimiter>>> limiters;
 
   // The default limiter is for frameworks not specified in
   // 'flags.rate_limits'.
-  Option<process::Owned<BoundedRateLimiter> > defaultLimiter;
+  Option<process::Owned<BoundedRateLimiter>> defaultLimiter;
 };
 
 
@@ -995,13 +994,13 @@ struct Slave
   bool active;
 
   // Executors running on this slave.
-  hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo> > executors;
+  hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo>> executors;
 
   // Tasks present on this slave.
   // TODO(bmahler): The task pointer ownership complexity arises from the fact
   // that we own the pointer here, but it's shared with the Framework struct.
   // We should find a way to eliminate this.
-  hashmap<FrameworkID, hashmap<TaskID, Task*> > tasks;
+  hashmap<FrameworkID, hashmap<TaskID, Task*>> tasks;
 
   // Tasks that were asked to kill by frameworks.
   // This is used for reconciliation when the slave re-registers.
@@ -1181,11 +1180,11 @@ struct Framework
   // NOTE: We use a shared pointer for Task because clang doesn't like
   // Boost's implementation of circular_buffer with Task (Boost
   // attempts to do some memset's which are unsafe).
-  boost::circular_buffer<memory::shared_ptr<Task> > completedTasks;
+  boost::circular_buffer<memory::shared_ptr<Task>> completedTasks;
 
   hashset<Offer*> offers; // Active offers for framework.
 
-  hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo> > executors;
+  hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo>> executors;
 
   // TODO(bmahler): Summing set and ranges resources across slaves
   // does not yield meaningful totals.
