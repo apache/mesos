@@ -644,12 +644,8 @@ void recv_data(DataDecoder* decoder, int s)
 // SocketManager::send(Message) where we don't care about the data
 // received we mostly just want to know when the socket has been
 // closed.
-void ignore_data(struct ev_loop* loop, ev_io* watcher, int revents)
+void ignore_data(Socket* socket, int s)
 {
-  Socket* socket = (Socket*) watcher->data;
-
-  int s = watcher->fd;
-
   while (true) {
     const ssize_t size = 80 * 1024;
     ssize_t length = 0;
@@ -663,6 +659,8 @@ void ignore_data(struct ev_loop* loop, ev_io* watcher, int revents)
       continue;
     } else if (length < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
       // Might block, try again later.
+      io::poll(s, io::READ)
+        .onAny(lambda::bind(&ignore_data, socket, s));
       break;
     } else if (length <= 0) {
       // Socket error or closed.
@@ -673,9 +671,7 @@ void ignore_data(struct ev_loop* loop, ev_io* watcher, int revents)
         VLOG(2) << "Socket closed while receiving";
       }
       socket_manager->close(s);
-      ev_io_stop(loop, watcher);
       delete socket;
-      delete watcher;
       break;
     } else {
       VLOG(2) << "Ignoring " << length << " bytes of data received "
@@ -861,9 +857,11 @@ void receiving_connect(struct ev_loop* loop, ev_io* watcher, int revents)
     delete watcher;
   } else {
     // We're connected! Now let's do some receiving.
+    Socket* socket = (Socket*) watcher->data;
     ev_io_stop(loop, watcher);
-    ev_io_init(watcher, ignore_data, s, EV_READ);
-    ev_io_start(loop, watcher);
+    delete watcher;
+    io::poll(s, io::READ)
+      .onAny(lambda::bind(&ignore_data, socket, s));
   }
 }
 
@@ -1591,17 +1589,18 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
 
         // Wait for socket to be connected.
         ev_io_init(watcher, receiving_connect, s, EV_WRITE);
+
+        // Enqueue the watcher.
+        synchronized (watchers) {
+          watchers->push(watcher);
+        }
+
+        // Interrupt the loop.
+        ev_async_send(loop, &async_watcher);
       } else {
-        ev_io_init(watcher, ignore_data, s, EV_READ);
+        io::poll(s, io::READ)
+          .onAny(lambda::bind(&ignore_data, new Socket(sockets[s]), s));
       }
-
-      // Enqueue the watcher.
-      synchronized (watchers) {
-        watchers->push(watcher);
-      }
-
-      // Interrupt the loop.
-      ev_async_send(loop, &async_watcher);
     }
 
     links[to].insert(process);
@@ -1741,21 +1740,14 @@ void SocketManager::send(Message* message)
       // Initialize the outgoing queue.
       outgoing[s];
 
-      // Allocate and initialize a watcher for reading data from this
-      // socket. Note that we don't expect to receive anything other
-      // than HTTP '202 Accepted' responses which we anyway ignore.
-      ev_io* watcher = new ev_io();
-      watcher->data = new Socket(sockets[s]);
-
-      ev_io_init(watcher, ignore_data, s, EV_READ);
-
-      // Enqueue the watcher.
-      synchronized (watchers) {
-        watchers->push(watcher);
-      }
+      // Read and ignore data from this socket. Note that we don't
+      // expect to receive anything other than HTTP '202 Accepted'
+      // responses which we just ignore.
+      io::poll(s, io::READ)
+        .onAny(lambda::bind(&ignore_data, new Socket(sockets[s]), s));
 
       // Allocate and initialize a watcher for sending the message.
-      watcher = new ev_io();
+      ev_io* watcher = new ev_io();
       watcher->data = new MessageEncoder(sockets[s], message);
 
       // Try and connect to the node using this socket.
