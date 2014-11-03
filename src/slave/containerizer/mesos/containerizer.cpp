@@ -483,10 +483,11 @@ static Future<list<Option<CommandInfo>>> _prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
+    const Option<string>& user,
     const list<Option<CommandInfo>> commands)
 {
   // Propagate any failure.
-  return isolator->prepare(containerId, executorInfo, directory)
+  return isolator->prepare(containerId, executorInfo, directory, user)
     .then(lambda::bind(&accumulate, commands, lambda::_1));
 }
 
@@ -509,6 +510,7 @@ Future<list<Option<CommandInfo>>> MesosContainerizerProcess::prepare(
                             containerId,
                             executorInfo,
                             directory,
+                            user,
                             lambda::_1));
   }
 

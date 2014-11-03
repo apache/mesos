@@ -205,7 +205,8 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
 Future<Option<CommandInfo> > CgroupsMemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
-    const string& directory)
+    const string& directory,
+    const Option<string>& user)
 {
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");

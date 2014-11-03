@@ -363,7 +363,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   ASSERT_SOME(dir1);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId1, executorInfo, dir1.get());
+    isolator.get()->prepare(containerId1, executorInfo, dir1.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -422,7 +422,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   ASSERT_SOME(dir2);
 
   Future<Option<CommandInfo> > preparation2 =
-    isolator.get()->prepare(containerId2, executorInfo, dir2.get());
+    isolator.get()->prepare(containerId2, executorInfo, dir2.get(), None());
 
   AWAIT_READY(preparation2);
   ASSERT_SOME(preparation2.get());
@@ -510,7 +510,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   ASSERT_SOME(dir1);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId1, executorInfo, dir1.get());
+    isolator.get()->prepare(containerId1, executorInfo, dir1.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -570,7 +570,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   ASSERT_SOME(dir2);
 
   Future<Option<CommandInfo> > preparation2 =
-    isolator.get()->prepare(containerId2, executorInfo, dir2.get());
+    isolator.get()->prepare(containerId2, executorInfo, dir2.get(), None());
   AWAIT_READY(preparation2);
   ASSERT_SOME(preparation2.get());
 
@@ -658,7 +658,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
   ASSERT_SOME(dir);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo, dir.get());
+    isolator.get()->prepare(containerId, executorInfo, dir.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -772,7 +772,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   ASSERT_SOME(dir);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo, dir.get());
+    isolator.get()->prepare(containerId, executorInfo, dir.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -893,7 +893,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternalTest)
   ASSERT_SOME(dir);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo, dir.get());
+    isolator.get()->prepare(containerId, executorInfo, dir.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -971,7 +971,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternalTest)
   ASSERT_SOME(dir);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo, dir.get());
+    isolator.get()->prepare(containerId, executorInfo, dir.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -1053,7 +1053,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternalTest)
   ASSERT_SOME(dir);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo, dir.get());
+    isolator.get()->prepare(containerId, executorInfo, dir.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -1140,7 +1140,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNSTest)
   ASSERT_SOME(dir);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo, dir.get());
+    isolator.get()->prepare(containerId, executorInfo, dir.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -1223,7 +1223,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainersTest)
   ASSERT_SOME(dir1);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId1, executorInfo, dir1.get());
+    isolator.get()->prepare(containerId1, executorInfo, dir1.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -1267,7 +1267,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainersTest)
   ASSERT_SOME(dir2);
 
   Future<Option<CommandInfo> > preparation2 =
-    isolator.get()->prepare(containerId2, executorInfo, dir2.get());
+    isolator.get()->prepare(containerId2, executorInfo, dir2.get(), None());
   AWAIT_FAILED(preparation2);
 
   // Ensure all processes are killed.
@@ -1325,7 +1325,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
   ASSERT_SOME(dir);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo, dir.get());
+    isolator.get()->prepare(containerId, executorInfo, dir.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 
@@ -1446,7 +1446,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
   ASSERT_SOME(dir1);
 
   Future<Option<CommandInfo> > preparation1 =
-    isolator.get()->prepare(containerId, executorInfo, dir1.get());
+    isolator.get()->prepare(containerId, executorInfo, dir1.get(), None());
   AWAIT_READY(preparation1);
   ASSERT_SOME(preparation1.get());
 

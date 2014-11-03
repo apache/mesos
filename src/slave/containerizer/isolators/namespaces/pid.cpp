@@ -155,7 +155,8 @@ Future<Nothing> NamespacesPidIsolatorProcess::recover(
 Future<Option<CommandInfo> > NamespacesPidIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
-    const string& directory)
+    const string& directory,
+    const Option<string>& user)
 {
   list<string> commands;
 

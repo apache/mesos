@@ -162,7 +162,8 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
+  AWAIT_READY(
+      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
 
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
 
@@ -267,7 +268,8 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
+  AWAIT_READY(
+      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
 
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
 
@@ -380,7 +382,8 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
+  AWAIT_READY(
+      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
 
   // Generate random numbers to max out a single core. We'll run this for 0.5
   // seconds of wall time so it should consume approximately 250 ms of total
@@ -486,7 +489,8 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
+  AWAIT_READY(
+      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -620,7 +624,8 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
+  AWAIT_READY(
+      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -712,7 +717,8 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(isolator.get()->prepare(containerId, executorInfo, dir.get()));
+  AWAIT_READY(
+      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
 
   // This first sample is likely to be empty because perf hasn't
   // completed yet but we should still have the required fields.
@@ -798,7 +804,7 @@ TEST_F(SharedFilesystemIsolatorTest, ROOT_RelativeVolume)
   containerId.set_value(UUID::random().toString());
 
   Future<Option<CommandInfo> > prepare =
-    isolator.get()->prepare(containerId, executorInfo, flags.work_dir);
+    isolator.get()->prepare(containerId, executorInfo, flags.work_dir, None());
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
 
@@ -890,7 +896,7 @@ TEST_F(SharedFilesystemIsolatorTest, ROOT_AbsoluteVolume)
   containerId.set_value(UUID::random().toString());
 
   Future<Option<CommandInfo> > prepare =
-    isolator.get()->prepare(containerId, executorInfo, flags.work_dir);
+    isolator.get()->prepare(containerId, executorInfo, flags.work_dir, None());
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
 
