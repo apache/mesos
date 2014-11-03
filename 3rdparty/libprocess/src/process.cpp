@@ -83,6 +83,7 @@
 #include "decoder.hpp"
 #include "encoder.hpp"
 #include "gate.hpp"
+#include "libev.hpp"
 #include "process_reference.hpp"
 #include "synchronized.hpp"
 
@@ -446,28 +447,6 @@ static SocketManager* socket_manager = NULL;
 // Active ProcessManager (eventually will probably be thread-local).
 static ProcessManager* process_manager = NULL;
 
-// Event loop.
-struct ev_loop* loop = NULL;
-
-// Asynchronous watcher for interrupting loop to specifically deal
-// with IO watchers and functions (via run_in_event_loop).
-static ev_async async_watcher;
-
-// Server watcher for accepting connections.
-static ev_io server_watcher;
-
-// Queue of I/O watchers to be asynchronously added to the event loop
-// (protected by 'watchers' below).
-// TODO(benh): Replace this queue with functions that we put in
-// 'functions' below that perform the ev_io_start themselves.
-static queue<ev_io*>* watchers = new queue<ev_io*>();
-static synchronizable(watchers) = SYNCHRONIZED_INITIALIZER;
-
-// Queue of functions to be invoked asynchronously within the vent
-// loop (protected by 'watchers' below).
-static queue<lambda::function<void(void)> >* functions =
-  new queue<lambda::function<void(void)> >();
-
 // Scheduling gate that threads wait at when there is nothing to run.
 static Gate* gate = new Gate();
 
@@ -591,40 +570,6 @@ static Message* parse(Request* request)
   message->body = request->body;
 
   return message;
-}
-
-// Wrapper around function we want to run in the event loop.
-template <typename T>
-void _run_in_event_loop(
-    const lambda::function<Future<T>(void)>& f,
-    const Owned<Promise<T> >& promise)
-{
-  // Don't bother running the function if the future has been discarded.
-  if (promise->future().hasDiscard()) {
-    promise->discard();
-  } else {
-    promise->set(f());
-  }
-}
-
-
-// Helper for running a function in the event loop.
-template <typename T>
-Future<T> run_in_event_loop(const lambda::function<Future<T>(void)>& f)
-{
-  Owned<Promise<T> > promise(new Promise<T>());
-
-  Future<T> future = promise->future();
-
-  // Enqueue the function.
-  synchronized (watchers) {
-    functions->push(lambda::bind(&_run_in_event_loop<T>, f, promise));
-  }
-
-  // Interrupt the loop.
-  ev_async_send(loop, &async_watcher);
-
-  return future;
 }
 
 
@@ -1280,7 +1225,12 @@ void initialize(const string& delegate)
     PLOG(FATAL) << "Failed to initialize, listen";
   }
 
-  // Setup event loop.
+  // Initialize libev.
+  //
+  // TODO(benh): Eventually move this all out of process.cpp after
+  // more is disentangled.
+  synchronizer(watchers) = SYNCHRONIZED_INITIALIZER;
+
 #ifdef __sun__
   loop = ev_default_loop(EVBACKEND_POLL | EVBACKEND_SELECT);
 #else

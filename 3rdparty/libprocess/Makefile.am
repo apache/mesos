@@ -38,6 +38,8 @@ libprocess_la_SOURCES =		\
   src/help.cpp			\
   src/http.cpp			\
   src/latch.cpp			\
+  src/libev.hpp			\
+  src/libev.cpp			\
   src/metrics/metrics.cpp	\
   src/pid.cpp			\
   src/process.cpp		\
