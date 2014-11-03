@@ -25,10 +25,13 @@ namespace process {
 
 const uint32_t GZIP_MINIMUM_BODY_LENGTH = 1024;
 
-typedef void (*Sender)(struct ev_loop*, ev_io*, int);
+// Forward declarations.
+class Encoder;
 
-extern void send_data(struct ev_loop*, ev_io*, int);
-extern void send_file(struct ev_loop*, ev_io*, int);
+extern void send_data(Encoder*);
+extern void send_file(Encoder*);
+
+typedef void (*Sender)(Encoder*);
 
 
 class Encoder
