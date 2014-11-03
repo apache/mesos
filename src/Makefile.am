@@ -248,10 +248,9 @@ nodist_libmesos_no_3rdparty_la_SOURCES =				\
   $(MESSAGES_PROTOS)							\
   $(REGISTRY_PROTOS)
 
+# TODO(tillt): Remove authentication/cram_md5/* which will enable us to
+# lose the immediate cyrus-sasl2 dependency.
 libmesos_no_3rdparty_la_SOURCES =					\
-	authentication/cram_md5/authenticatee.hpp			\
-	authentication/cram_md5/authenticator.hpp			\
-	authentication/cram_md5/auxprop.hpp				\
 	authentication/cram_md5/auxprop.cpp				\
 	authorizer/authorizer.cpp					\
 	common/attributes.cpp						\
@@ -388,6 +387,10 @@ if WITH_NETWORK_ISOLATOR
 endif
 
 libmesos_no_3rdparty_la_SOURCES +=					\
+	authentication/authenticator.hpp				\
+	authentication/cram_md5/authenticatee.hpp			\
+	authentication/cram_md5/authenticator.hpp			\
+	authentication/cram_md5/auxprop.hpp				\
 	authorizer/authorizer.hpp					\
 	common/attributes.hpp						\
 	common/build.hpp						\
@@ -425,6 +428,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/registrar.hpp						\
 	master/sorter.hpp						\
 	messages/messages.hpp						\
+	module/authenticator.hpp					\
 	module/isolator.hpp						\
 	module/manager.hpp						\
 	slave/constants.hpp						\
@@ -1174,6 +1178,16 @@ lib_LTLIBRARIES += libtestisolator.la
 libtestisolator_la_SOURCES = examples/test_isolator_module.cpp
 libtestisolator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestisolator_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+
+# Library containing the test CRAM-MD5 authenticator module.
+# TODO(tillt): Add authenticatee module and rename to libauthentication.
+# TODO(tillt): Add cyrus-sasl2 dependency while removing it from libmesos.
+# TODO(tillt): Enable optional building of this module library.
+# TODO(tillt): Make this module library installable. See MESOS-1940.
+lib_LTLIBRARIES += libtestauthenticator.la
+libtestauthenticator_la_SOURCES = examples/test_authenticator_module.cpp
+libtestauthenticator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestauthenticator_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
 mesos_tests_SOURCES =				\
   tests/allocator_tests.cpp			\

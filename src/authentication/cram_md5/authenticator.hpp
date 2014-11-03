@@ -36,6 +36,8 @@
 
 #include <stout/check.hpp>
 
+#include "authentication/authenticator.hpp"
+
 #include "authentication/cram_md5/auxprop.hpp"
 
 #include "messages/messages.hpp"
@@ -45,14 +47,19 @@ namespace internal {
 namespace cram_md5 {
 
 // Forward declaration.
-class AuthenticatorProcess;
+class CRAMMD5AuthenticatorProcess;
 
 
-class Authenticator
+class CRAMMD5Authenticator : public Authenticator
 {
 public:
-  explicit Authenticator(const process::UPID& pid);
-  ~Authenticator();
+  CRAMMD5Authenticator();
+  virtual ~CRAMMD5Authenticator();
+
+  virtual Try<Nothing> initialize(
+      const process::UPID& clientPid,
+      const Option<Credentials>& credentials);
+
 
   // Returns the principal of the Authenticatee if successfully
   // authenticated otherwise None or an error. Note that we
@@ -62,23 +69,24 @@ public:
   // will cause the future to fail if it hasn't already completed
   // since we have already started the authentication procedure and
   // can't reliably cancel.
-  process::Future<Option<std::string> > authenticate();
+  virtual process::Future<Option<std::string>> authenticate();
 
 private:
-  AuthenticatorProcess* process;
+  CRAMMD5AuthenticatorProcess* process;
 };
 
 
-class AuthenticatorProcess : public ProtobufProcess<AuthenticatorProcess>
+class CRAMMD5AuthenticatorProcess
+  : public ProtobufProcess<CRAMMD5AuthenticatorProcess>
 {
 public:
-  explicit AuthenticatorProcess(const process::UPID& _pid)
-    : ProcessBase(process::ID::generate("authenticator")),
+  explicit CRAMMD5AuthenticatorProcess(const process::UPID& _pid)
+    : ProcessBase(process::ID::generate("crammd5_authenticator")),
       status(READY),
       pid(_pid),
       connection(NULL) {}
 
-  virtual ~AuthenticatorProcess()
+  virtual ~CRAMMD5AuthenticatorProcess()
   {
     if (connection != NULL) {
       sasl_dispose(&connection);
@@ -90,7 +98,7 @@ public:
     discarded(); // Fail the promise.
   }
 
-  process::Future<Option<std::string> > authenticate()
+  process::Future<Option<std::string>> authenticate()
   {
     static process::Once* initialize = new process::Once();
     static bool initialized = false;
@@ -236,12 +244,12 @@ protected:
 
     // Anticipate start and steps messages from the client.
     install<AuthenticationStartMessage>(
-        &AuthenticatorProcess::start,
+        &CRAMMD5AuthenticatorProcess::start,
         &AuthenticationStartMessage::mechanism,
         &AuthenticationStartMessage::data);
 
     install<AuthenticationStepMessage>(
-        &AuthenticatorProcess::step,
+        &CRAMMD5AuthenticatorProcess::step,
         &AuthenticationStepMessage::data);
   }
 
@@ -341,7 +349,7 @@ private:
   }
 
   // Callback for canonicalizing the username (principal). We use it
-  // to record the principal in Authenticator.
+  // to record the principal in CRAMMD5Authenticator.
   static int canonicalize(
       sasl_conn_t* connection,
       void* context,
@@ -425,37 +433,10 @@ private:
 
   sasl_conn_t* connection;
 
-  process::Promise<Option<std::string> > promise;
+  process::Promise<Option<std::string>> promise;
 
   Option<std::string> principal;
 };
-
-
-Authenticator::Authenticator(const process::UPID& pid)
-{
-  process = new AuthenticatorProcess(pid);
-  process::spawn(process);
-}
-
-
-Authenticator::~Authenticator()
-{
-  // TODO(vinod): As a short term fix for the race condition #1 in
-  // MESOS-1866, we inject the 'terminate' event at the end of the
-  // AuthenticatorProcess queue instead of at the front.
-  // The long term fix for this https://reviews.apache.org/r/25945/.
-  process::terminate(process, false);
-
-  process::wait(process);
-  delete process;
-}
-
-
-process::Future<Option<std::string> > Authenticator::authenticate()
-{
-  return process::dispatch(process, &AuthenticatorProcess::authenticate);
-}
-
 
 namespace secrets {
 
@@ -486,6 +467,50 @@ void load(const Credentials& credentials)
 }
 
 } // namespace secrets {
+
+CRAMMD5Authenticator::CRAMMD5Authenticator() : process(NULL) {}
+
+
+CRAMMD5Authenticator::~CRAMMD5Authenticator()
+{
+  if (process != NULL) {
+    // TODO(vinod): As a short term fix for the race condition #1 in
+    // MESOS-1866, we inject the 'terminate' event at the end of the
+    // CRAMMD5AuthenticatorProcess queue instead of at the front.
+    // The long term fix for this is https://reviews.apache.org/r/25945/.
+    process::terminate(process, false);
+
+    process::wait(process);
+    delete process;
+  }
+}
+
+
+Try<Nothing> CRAMMD5Authenticator::initialize(
+    const process::UPID& pid,
+    const Option<Credentials>& credentials)
+{
+  if (credentials.isSome()) {
+    // Load "registration" credentials into SASL based Authenticator.
+    secrets::load(credentials.get());
+  } else {
+    return Error("Authentication requires credentials");
+  }
+
+  CHECK(process == NULL) << "Authenticator has already been initialized";
+  process = new CRAMMD5AuthenticatorProcess(pid);
+  process::spawn(process);
+
+  return Nothing();
+}
+
+
+process::Future<Option<std::string>> CRAMMD5Authenticator::authenticate(void)
+{
+  CHECK(process != NULL) << "Authenticator has not been initialized";
+  return process::dispatch(
+      process, &CRAMMD5AuthenticatorProcess::authenticate);
+}
 
 } // namespace cram_md5 {
 } // namespace internal {
