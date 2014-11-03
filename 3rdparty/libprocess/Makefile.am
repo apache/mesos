@@ -37,6 +37,7 @@ libprocess_la_SOURCES =		\
   src/gate.hpp			\
   src/help.cpp			\
   src/http.cpp			\
+  src/io.cpp			\
   src/latch.cpp			\
   src/libev.hpp			\
   src/libev.cpp			\
