@@ -238,7 +238,7 @@ private:
       .onFailed(defer(self(), &Self::failed))
       .onReady(defer(self(), &Self::succeeded));
 
-    Timer::create(timeout, lambda::bind(&Self::timedout, catching));
+    Clock::timer(timeout, lambda::bind(&Self::timedout, catching));
   }
 
 

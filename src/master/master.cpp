@@ -773,7 +773,7 @@ void Master::finalize()
   // TODO(vinod): This seems to be a bug in libprocess or the
   // testing infrastructure.
   if (slaves.recoveredTimer.isSome()) {
-    Timer::cancel(slaves.recoveredTimer.get());
+    Clock::cancel(slaves.recoveredTimer.get());
   }
 
   terminate(whitelistWatcher);
@@ -4829,7 +4829,7 @@ void Master::removeOffer(Offer* offer, bool rescind)
   // Remove and cancel offer removal timers. Canceling the Timers is
   // only done to avoid having too many active Timers in libprocess.
   if (offerTimers.contains(offer->id())) {
-    Timer::cancel(offerTimers[offer->id()]);
+    Clock::cancel(offerTimers[offer->id()]);
     offerTimers.erase(offer->id());
   }
 

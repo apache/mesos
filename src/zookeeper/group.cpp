@@ -332,7 +332,7 @@ void GroupProcess::connected(int64_t sessionId, bool reconnect)
 
   // Cancel and cleanup the reconnect timer (if necessary).
   if (timer.isSome()) {
-    Timer::cancel(timer.get());
+    Clock::cancel(timer.get());
     timer = None();
   }
 
@@ -476,7 +476,7 @@ void GroupProcess::expired(int64_t sessionId)
 
   // Cancel and cleanup the reconnect timer (if necessary).
   if (timer.isSome()) {
-    Timer::cancel(timer.get());
+    Clock::cancel(timer.get());
     timer = None();
   }
 

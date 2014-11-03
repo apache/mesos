@@ -113,7 +113,7 @@ bool GarbageCollectorProcess::unschedule(const string& path)
 // existing timer.
 void GarbageCollectorProcess::reset()
 {
-  Timer::cancel(timer); // Cancel the existing timer, if any.
+  Clock::cancel(timer); // Cancel the existing timer, if any.
   if (!paths.empty()) {
     Timeout removalTime = (*paths.begin()).first; // Get the first entry.
 

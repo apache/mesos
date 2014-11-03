@@ -378,7 +378,7 @@ private:
     TaskState state;
     string message;
 
-    Timer::cancel(escalationTimer);
+    Clock::cancel(escalationTimer);
 
     if (!status_.isReady()) {
       state = TASK_FAILED;
