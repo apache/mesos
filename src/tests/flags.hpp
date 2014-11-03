@@ -28,6 +28,7 @@
 #include "common/parse.hpp"
 #include "common/type_utils.hpp"
 #include "logging/logging.hpp"
+#include "master/constants.hpp"
 #include "messages/messages.hpp"
 
 namespace mesos {
@@ -130,6 +131,16 @@ public:
         "'cgroups/cpu,cgroups/mem', or network/port_mapping\n"
         "(configure with flag: --with-network-isolator to enable),\n"
         "or 'external'.");
+
+    // This help message is duplicated from master/flags.hpp and
+    // should always be kept in sync with that.
+    add(&Flags::authenticators,
+        "authenticators",
+        "Authenticator implementation to use when authenticating frameworks\n"
+        "and/or slaves. "
+        "Use the default '" + master::DEFAULT_AUTHENTICATOR + "', or\n"
+        "load an alternate authenticator module using --modules.",
+        master::DEFAULT_AUTHENTICATOR);
   }
 
   bool verbose;
@@ -139,6 +150,7 @@ public:
   std::string docker;
   Option<Modules> modules;
   Option<std::string> isolation;
+  std::string authenticators;
 };
 
 // Global flags for running the tests.

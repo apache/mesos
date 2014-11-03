@@ -123,6 +123,8 @@ master::Flags MesosTest::CreateMasterFlags()
   // On many test VMs, this default is too small.
   flags.registry_store_timeout = flags.registry_store_timeout * 5;
 
+  flags.authenticators = tests::flags.authenticators;
+
   return flags;
 }
 
