@@ -53,7 +53,7 @@
 #include <stout/os.hpp>
 #include <stout/uuid.hpp>
 
-#include "sasl/authenticatee.hpp"
+#include "authentication/cram_md5/authenticatee.hpp"
 
 #include "common/type_utils.hpp"
 
@@ -465,7 +465,7 @@ protected:
     CHECK_SOME(credential);
 
     CHECK(authenticatee == NULL);
-    authenticatee = new sasl::Authenticatee(credential.get(), self());
+    authenticatee = new cram_md5::Authenticatee(credential.get(), self());
 
     // NOTE: We do not pass 'Owned<Authenticatee>' here because doing
     // so could make 'AuthenticateeProcess' responsible for deleting
@@ -808,7 +808,7 @@ private:
 
   Option<UPID> master;
 
-  sasl::Authenticatee* authenticatee;
+  cram_md5::Authenticatee* authenticatee;
 
   // Indicates if an authentication attempt is in progress.
   Option<Future<bool> > authenticating;

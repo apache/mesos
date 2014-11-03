@@ -70,9 +70,9 @@ namespace internal {
 
 class MasterDetector; // Forward declaration.
 
-namespace sasl {
+namespace cram_md5 {
 class Authenticatee;
-} // namespace sasl {
+} // namespace cram_md5 {
 
 namespace slave {
 
@@ -481,7 +481,7 @@ private:
 
   Option<Credential> credential;
 
-  sasl::Authenticatee* authenticatee;
+  cram_md5::Authenticatee* authenticatee;
 
   // Indicates if an authentication attempt is in progress.
   Option<Future<bool> > authenticating;

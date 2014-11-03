@@ -62,6 +62,8 @@
 #include "linux/cgroups.hpp"
 #endif // __linux__
 
+#include "authentication/cram_md5/authenticatee.hpp"
+
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
@@ -70,8 +72,6 @@
 #include "credentials/credentials.hpp"
 
 #include "logging/logging.hpp"
-
-#include "sasl/authenticatee.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
@@ -667,7 +667,7 @@ void Slave::authenticate()
   CHECK_SOME(credential);
 
   CHECK(authenticatee == NULL);
-  authenticatee = new sasl::Authenticatee(credential.get(), self());
+  authenticatee = new cram_md5::Authenticatee(credential.get(), self());
 
   authenticating = authenticatee->authenticate(master.get())
     .onAny(defer(self(), &Self::_authenticate));

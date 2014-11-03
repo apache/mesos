@@ -26,8 +26,8 @@
 
 #include <stout/gtest.hpp>
 
-#include "sasl/authenticatee.hpp"
-#include "sasl/authenticator.hpp"
+#include "authentication/cram_md5/authenticatee.hpp"
+#include "authentication/cram_md5/authenticator.hpp"
 
 #include "tests/mesos.hpp"
 
@@ -43,14 +43,14 @@ using testing::Eq;
 
 namespace mesos {
 namespace internal {
-namespace sasl {
+namespace cram_md5 {
 
-TEST(SASL, success)
+TEST(CRAMMD5Authentication, success)
 {
   // Set up secrets.
   map<string, string> secrets;
   secrets["benh"] = "secret";
-  sasl::secrets::load(secrets);
+  cram_md5::secrets::load(secrets);
 
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
@@ -81,12 +81,12 @@ TEST(SASL, success)
 
 
 // Bad password should return an authentication failure.
-TEST(SASL, failed1)
+TEST(CRAMMD5Authentication, failed1)
 {
   // Set up secrets.
   map<string, string> secrets;
   secrets["benh"] = "secret1";
-  sasl::secrets::load(secrets);
+  cram_md5::secrets::load(secrets);
 
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
@@ -117,12 +117,12 @@ TEST(SASL, failed1)
 
 
 // No user should return an authentication failure.
-TEST(SASL, failed2)
+TEST(CRAMMD5Authentication, failed2)
 {
   // Set up secrets.
   map<string, string> secrets;
   secrets["vinod"] = "secret";
-  sasl::secrets::load(secrets);
+  cram_md5::secrets::load(secrets);
 
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
@@ -155,12 +155,12 @@ TEST(SASL, failed2)
 // This test verifies that the pending future returned by
 // 'Authenticator::authenticate()' is properly failed when the Authenticator is
 // destructed in the middle of authentication.
-TEST(SASL, AuthenticatorDestructionRace)
+TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
 {
   // Set up secrets.
   map<string, string> secrets;
   secrets["benh"] = "secret";
-  sasl::secrets::load(secrets);
+  cram_md5::secrets::load(secrets);
 
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
@@ -204,6 +204,6 @@ TEST(SASL, AuthenticatorDestructionRace)
   terminate(pid);
 }
 
-} // namespace sasl {
+} // namespace cram_md5 {
 } // namespace internal {
 } // namespace mesos {

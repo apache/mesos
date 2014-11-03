@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __SASL_AUTHENTICATEE_HPP__
-#define __SASL_AUTHENTICATEE_HPP__
+#ifndef __AUTHENTICATION_CRAM_MD5_AUTHENTICATEE_HPP__
+#define __AUTHENTICATION_CRAM_MD5_AUTHENTICATEE_HPP__
 
 #include <sasl/sasl.h>
 
@@ -36,7 +36,7 @@
 
 namespace mesos {
 namespace internal {
-namespace sasl {
+namespace cram_md5 {
 
 // Forward declaration.
 class AuthenticateeProcess;
@@ -138,7 +138,7 @@ public:
 
     callbacks[1].id = SASL_CB_USER;
     callbacks[1].proc = (int(*)()) &user;
-    callbacks[2].context = (void*) credential.principal().c_str();
+    callbacks[1].context = (void*) credential.principal().c_str();
 
     // NOTE: Some SASL mechanisms do not allow/enable "proxying",
     // i.e., authorization. Therefore, some mechanisms send _only_ the
@@ -405,8 +405,8 @@ inline process::Future<bool> Authenticatee::authenticate(
   return process::dispatch(process, &AuthenticateeProcess::authenticate, pid);
 }
 
-} // namespace sasl {
+} // namespace cram_md5 {
 } // namespace internal {
 } // namespace mesos {
 
-#endif //__SASL_AUTHENTICATEE_HPP__
+#endif //__AUTHENTICATION_CRAM_MD5_AUTHENTICATEE_HPP__

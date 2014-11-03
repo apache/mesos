@@ -249,6 +249,10 @@ nodist_libmesos_no_3rdparty_la_SOURCES =				\
   $(REGISTRY_PROTOS)
 
 libmesos_no_3rdparty_la_SOURCES =					\
+	authentication/cram_md5/authenticatee.hpp			\
+	authentication/cram_md5/authenticator.hpp			\
+	authentication/cram_md5/auxprop.hpp				\
+	authentication/cram_md5/auxprop.cpp				\
 	authorizer/authorizer.cpp					\
 	common/attributes.cpp						\
 	common/date_utils.cpp						\
@@ -276,10 +280,6 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/registrar.cpp						\
 	master/repairer.cpp						\
 	module/manager.cpp						\
-	sasl/authenticatee.hpp						\
-	sasl/authenticator.hpp						\
-	sasl/auxprop.hpp						\
-	sasl/auxprop.cpp						\
 	sched/sched.cpp							\
 	scheduler/scheduler.cpp						\
 	slave/constants.cpp						\
@@ -1183,6 +1183,7 @@ mesos_tests_SOURCES =				\
   tests/composing_containerizer_tests.cpp       \
   tests/containerizer.cpp			\
   tests/containerizer_tests.cpp			\
+  tests/cram_md5_authentication_tests.cpp	\
   tests/credentials_tests.cpp			\
   tests/docker_containerizer_tests.cpp          \
   tests/docker_tests.cpp			\
@@ -1217,7 +1218,6 @@ mesos_tests_SOURCES =				\
   tests/repair_tests.cpp			\
   tests/resource_offers_tests.cpp		\
   tests/resources_tests.cpp			\
-  tests/sasl_tests.cpp				\
   tests/scheduler_tests.cpp			\
   tests/script.cpp				\
   tests/shutdown_tests.cpp			\

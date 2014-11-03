@@ -72,7 +72,7 @@ namespace registry {
 class Slaves;
 }
 
-namespace sasl {
+namespace cram_md5 {
 class Authenticator;
 }
 
@@ -584,7 +584,8 @@ private:
   // authenticated.
   hashmap<process::UPID, process::Future<Nothing> > authenticating;
 
-  hashmap<process::UPID, process::Owned<sasl::Authenticator> > authenticators;
+  hashmap<process::UPID, process::Owned<cram_md5::Authenticator> >
+    authenticators;
 
   // Principals of authenticated frameworks/slaves keyed by PID.
   hashmap<process::UPID, std::string> authenticated;

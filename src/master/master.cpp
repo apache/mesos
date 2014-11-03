@@ -51,9 +51,9 @@
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
-#include "authorizer/authorizer.hpp"
+#include "authentication/cram_md5/authenticator.hpp"
 
-#include "sasl/authenticator.hpp"
+#include "authorizer/authorizer.hpp"
 
 #include "common/build.hpp"
 #include "common/date_utils.hpp"
@@ -380,8 +380,8 @@ void Master::initialize()
     // Store credentials in master to use them in routes.
     credentials = _credentials.get();
 
-    // Load "registration" credentials into SASL based Authenticator.
-    sasl::secrets::load(_credentials.get());
+    // Load "registration" credentials into CRAM-MD5 Authenticator.
+    cram_md5::secrets::load(_credentials.get());
 
   } else if (flags.authenticate_frameworks || flags.authenticate_slaves) {
     EXIT(1) << "Authentication requires a credentials file"
@@ -3857,7 +3857,8 @@ void Master::authenticate(const UPID& from, const UPID& pid)
   Owned<Promise<Nothing> > promise(new Promise<Nothing>());
 
   // Create the authenticator.
-  Owned<sasl::Authenticator> authenticator(new sasl::Authenticator(from));
+  Owned<cram_md5::Authenticator> authenticator(
+    new cram_md5::Authenticator(from));
 
   // Start authentication.
   const Future<Option<string> >& future = authenticator->authenticate()

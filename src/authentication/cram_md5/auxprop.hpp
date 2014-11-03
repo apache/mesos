@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-#ifndef __SASL_AUXPROP_HPP__
-#define __SASL_AUXPROP_HPP__
+#ifndef __AUTHENTICATION_CRAM_MD5_AUXPROP_HPP__
+#define __AUTHENTICATION_CRAM_MD5_AUXPROP_HPP__
+
+#include <string>
 
 #include <sasl/sasl.h>
 #include <sasl/saslplug.h>
-
-#include <string>
 
 #include <stout/foreach.hpp>
 #include <stout/multimap.hpp>
@@ -31,7 +31,7 @@
 
 namespace mesos {
 namespace internal {
-namespace sasl {
+namespace cram_md5 {
 
 struct Property
 {
@@ -89,8 +89,8 @@ private:
   static sasl_auxprop_plug_t plugin;
 };
 
-} // namespace sasl {
+} // namespace cram_md5 {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __SASL_AUXPROP_HPP__
+#endif // __AUTHENTICATION_CRAM_MD5_AUXPROP_HPP__

@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __SASL_AUTHENTICATOR_HPP__
-#define __SASL_AUTHENTICATOR_HPP__
+#ifndef __AUTHENTICATION_CRAM_MD5_AUTHENTICATOR_HPP__
+#define __AUTHENTICATION_CRAM_MD5_AUTHENTICATOR_HPP__
 
 #include <sasl/sasl.h>
 #include <sasl/saslplug.h>
@@ -36,13 +36,13 @@
 
 #include <stout/check.hpp>
 
-#include "messages/messages.hpp"
+#include "authentication/cram_md5/auxprop.hpp"
 
-#include "sasl/auxprop.hpp"
+#include "messages/messages.hpp"
 
 namespace mesos {
 namespace internal {
-namespace sasl {
+namespace cram_md5 {
 
 // Forward declaration.
 class AuthenticatorProcess;
@@ -487,8 +487,8 @@ void load(const Credentials& credentials)
 
 } // namespace secrets {
 
-} // namespace sasl {
+} // namespace cram_md5 {
 } // namespace internal {
 } // namespace mesos {
 
-#endif //__SASL_AUTHENTICATOR_HPP__
+#endif //__AUTHENTICATION_CRAM_MD5_AUTHENTICATOR_HPP__
