@@ -21,6 +21,7 @@
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
 #include "linux/cgroups.hpp"
@@ -48,6 +49,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::DockerContainerizer;
+using mesos::internal::slave::DockerContainerizerProcess;
 
 using process::Future;
 using process::Message;
@@ -59,6 +61,7 @@ using std::list;
 using std::string;
 
 using testing::_;
+using testing::DoAll;
 using testing::DoDefault;
 using testing::Eq;
 using testing::Invoke;
@@ -164,6 +167,17 @@ public:
       Shared<Docker> docker)
     : DockerContainerizer(flags, docker)
   {
+    initialize();
+  }
+
+  MockDockerContainerizer(const Owned<DockerContainerizerProcess>& process)
+    : DockerContainerizer(process)
+  {
+    initialize();
+  }
+
+  void initialize()
+  {
     // NOTE: See TestContainerizer::setup for why we use
     // 'EXPECT_CALL' and 'WillRepeatedly' here instead of
     // 'ON_CALL' and 'WillByDefault'.
@@ -255,6 +269,50 @@ public:
     return DockerContainerizer::update(
         containerId,
         resources);
+  }
+};
+
+
+class MockDockerContainerizerProcess : public DockerContainerizerProcess
+{
+public:
+  MockDockerContainerizerProcess(
+      const slave::Flags& flags,
+      const Shared<Docker>& docker)
+    : DockerContainerizerProcess(flags, docker)
+  {
+    EXPECT_CALL(*this, fetch(_))
+      .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));
+
+    EXPECT_CALL(*this, pull(_, _, _))
+      .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_pull));
+  }
+
+  MOCK_METHOD1(
+      fetch,
+      process::Future<Nothing>(const ContainerID& containerId));
+
+  MOCK_METHOD3(
+      pull,
+      process::Future<Nothing>(
+          const ContainerID& containerId,
+          const std::string& directory,
+          const std::string& image));
+
+  process::Future<Nothing> _fetch(const ContainerID& containerId)
+  {
+    return DockerContainerizerProcess::fetch(containerId);
+  }
+
+  process::Future<Nothing> _pull(
+      const ContainerID& containerId,
+      const std::string& directory,
+      const std::string& image)
+  {
+    return DockerContainerizerProcess::pull(
+        containerId,
+        directory,
+        image);
   }
 };
 
@@ -2273,6 +2331,220 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
 
   // See above where we assign logs future for more comments.
   AWAIT_READY_FOR(logs, Seconds(30));
+
+  Shutdown();
+}
+
+
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // The docker containerizer will free the process, so we must
+  // allocate on the heap.
+  MockDockerContainerizerProcess* process =
+    new MockDockerContainerizerProcess(flags, docker);
+
+  MockDockerContainerizer dockerContainerizer(
+      (Owned<DockerContainerizerProcess>(process)));
+
+  Promise<Nothing> promise;
+  Future<Nothing> fetch;
+
+  // We want to pause the fetch call to simulate a long fetch time.
+  EXPECT_CALL(*process, fetch(_))
+    .WillOnce(DoAll(FutureSatisfy(&fetch),
+                    Return(promise.future())));
+
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> statusFailed;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusFailed));
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+
+  AWAIT_READY(fetch);
+
+  dockerContainerizer.destroy(containerId.get());
+
+  // Resume docker launch.
+  promise.set(Nothing());
+
+  AWAIT_READY(statusFailed);
+
+  EXPECT_EQ(TASK_FAILED, statusFailed.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // The docker containerizer will free the process, so we must
+  // allocate on the heap.
+  MockDockerContainerizerProcess* process =
+    new MockDockerContainerizerProcess(flags, docker);
+
+  MockDockerContainerizer dockerContainerizer(
+      (Owned<DockerContainerizerProcess>(process)));
+
+  Future<Nothing> fetch;
+  EXPECT_CALL(*process, fetch(_))
+    .WillOnce(DoAll(FutureSatisfy(&fetch),
+                    Return(Nothing())));
+
+  Promise<Nothing> promise;
+
+  // We want to pause the fetch call to simulate a long fetch time.
+  EXPECT_CALL(*process, pull(_, _, _))
+    .WillOnce(Return(promise.future()));
+
+  Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<TaskStatus> statusFailed;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusFailed));
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+
+  // Wait until fetch is finished.
+  AWAIT_READY(fetch);
+
+  dockerContainerizer.destroy(containerId.get());
+
+  // Resume docker launch.
+  promise.set(Nothing());
+
+  AWAIT_READY(statusFailed);
+
+  EXPECT_EQ(TASK_FAILED, statusFailed.get().state());
+
+  driver.stop();
+  driver.join();
 
   Shutdown();
 }
