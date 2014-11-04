@@ -20,7 +20,7 @@ We don't have to vote on the jars for a release once we have voted on the
 release itself. Use http://www.apache.org/dev/publishing-maven-artifacts.html
 as a guiding document when publishing new jars, though notice that this
 document is targeted at projects that use Maven as their primary build system
-and thus have voting included in their Maven relese flow.
+and thus have voting included in their Maven release flow.
 
 Snapshots can also be published via repository.apache.org, though we haven't
 published any of those yet as of the time this README was written.

@@ -25,10 +25,12 @@ This guide describes the process of doing an official release of Mesos.
      version in [JIRA](https://issues.apache.org/jira/browse/MESOS#selectedTab=com.atlassian.jira.plugin.system.project%3Aversions-panel) and click
      on the `Release Notes`. Make sure to configure the release notes in text format.
 
-3. Update and commit the `docs/upgrades.md` with instructions about how to upgrade
+3. If not already done, update and commit 'configure.ac' for the release.
+
+4. Update and commit the `docs/upgrades.md` with instructions about how to upgrade
    a live cluster from the previous release version to this release version.
 
-4. If this is a major release please write and commit documentation for this feature.
+5. If this is a major release please write and commit documentation for this feature.
 
 
 ## Tagging the release candidate
