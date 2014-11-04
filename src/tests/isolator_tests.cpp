@@ -1003,4 +1003,138 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
   delete containerizer.get();
 }
 
+
+// Username for the unprivileged user that will be created to test
+// unprivileged cgroup creation. It will be removed after the tests.
+// It is presumed this user does not normally exist.
+const string UNPRIVILEGED_USERNAME = "mesos.test.unprivileged.user";
+
+
+template <typename T>
+class UserCgroupIsolatorTest : public MesosTest
+{
+public:
+  static void SetUpTestCase()
+  {
+    // Remove the user in case it wasn't cleaned up from a previous
+    // test.
+    os::system("userdel -r " + UNPRIVILEGED_USERNAME);
+
+    ASSERT_EQ(0, os::system("useradd " + UNPRIVILEGED_USERNAME));
+  }
+
+
+  static void TearDownTestCase()
+  {
+    ASSERT_EQ(0, os::system("userdel -r " + UNPRIVILEGED_USERNAME));
+  }
+};
+
+
+// Test all isolators that use cgroups.
+typedef ::testing::Types<
+  CgroupsMemIsolatorProcess,
+  CgroupsCpushareIsolatorProcess,
+  CgroupsPerfEventIsolatorProcess> CgroupsIsolatorTypes;
+
+
+TYPED_TEST_CASE(UserCgroupIsolatorTest, CgroupsIsolatorTypes);
+
+
+TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
+{
+  slave::Flags flags;
+  flags.perf_events = "cpu-cycles"; // Needed for CgroupsPerfEventIsolator.
+
+  Try<Isolator*> isolator = TypeParam::create(flags);
+  CHECK_SOME(isolator);
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(
+      Resources::parse("mem:1024;cpus:1").get()); // For cpu/mem isolators.
+
+  ContainerID containerId;
+  containerId.set_value("container");
+
+  AWAIT_READY(isolator.get()->prepare(
+        containerId,
+        executorInfo,
+        os::getcwd(),
+        UNPRIVILEGED_USERNAME));
+
+  // Isolators don't provide a way to determine the cgroups they use
+  // so we'll inspect the cgroups for an isolated dummy process.
+  pid_t pid = fork();
+  if (pid == 0) {
+    // Child just sleeps.
+    ::sleep(100);
+
+    ABORT("Child process should not reach here");
+  }
+  ASSERT_GT(pid, 0);
+
+  AWAIT_READY(isolator.get()->isolate(containerId, pid));
+
+  // Get the container's cgroups from /proc/$PID/cgroup. We're only
+  // interested in the non-root cgroups, i.e., we exclude those with
+  // paths "/", e.g., only cpu and cpuacct from this example:
+  // 6:blkio:/
+  // 5:perf_event:/
+  // 4:memory:/
+  // 3:freezer:/
+  // 2:cpuacct:/mesos
+  // 1:cpu:/mesos
+  // awk will then output "cpuacct/mesos\ncpu/mesos" as the cgroup(s).
+  ostringstream output;
+  Try<int> status = os::shell(
+      &output,
+      "grep -v '/$' /proc/" +
+      stringify(pid) +
+      "/cgroup | awk -F ':' '{print $2$3}'");
+
+  ASSERT_SOME(status);
+
+  // Kill the dummy child process.
+  ::kill(pid, SIGKILL);
+  int exitStatus;
+  EXPECT_NE(-1, ::waitpid(pid, &exitStatus, 0));
+
+  vector<string> cgroups = strings::tokenize(output.str(), "\n");
+  ASSERT_FALSE(cgroups.empty());
+
+  foreach (const string& cgroup, cgroups) {
+    // Check the user cannot manipulate the container's cgroup control
+    // files.
+    EXPECT_NE(0, os::system(
+          "su - " + UNPRIVILEGED_USERNAME +
+          " -c 'echo $$ >" +
+          path::join(flags.cgroups_hierarchy, cgroup, "cgroup.procs") +
+          "'"));
+
+    // Check the user can create a cgroup under the container's
+    // cgroup.
+    string userCgroup = path::join(cgroup, "user");
+
+    EXPECT_EQ(0, os::system(
+          "su - " +
+          UNPRIVILEGED_USERNAME +
+          " -c 'mkdir " +
+          path::join(flags.cgroups_hierarchy, userCgroup) +
+          "'"));
+
+    // Check the user can manipulate control files in the created
+    // cgroup.
+    EXPECT_EQ(0, os::system(
+          "su - " +
+          UNPRIVILEGED_USERNAME +
+          " -c 'echo $$ >" +
+          path::join(flags.cgroups_hierarchy, userCgroup, "cgroup.procs") +
+          "'"));
+  }
+
+  // Clean up the container. This will also remove the nested cgroups.
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete isolator.get();
+}
 #endif // __linux__

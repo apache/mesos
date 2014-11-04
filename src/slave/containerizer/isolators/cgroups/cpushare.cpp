@@ -278,6 +278,19 @@ Future<Option<CommandInfo> > CgroupsCpushareIsolatorProcess::prepare(
     if (create.isError()) {
       return Failure("Failed to prepare isolator: " + create.error());
     }
+
+    // Chown the cgroup so the executor can create nested cgroups. Do
+    // not recurse so the control files are still owned by the slave
+    // user and thus cannot be changed by the executor.
+    if (user.isSome()) {
+      Try<Nothing> chown = os::chown(
+          user.get(),
+          path::join(hierarchies[subsystem], info->cgroup),
+          false);
+      if (chown.isError()) {
+        return Failure("Failed to prepare isolator: " + chown.error());
+      }
+    }
   }
 
   return update(containerId, executorInfo.resources())
