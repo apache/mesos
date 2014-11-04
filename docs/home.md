@@ -32,6 +32,10 @@ layout: documentation
 * [Javadoc](/api/latest/java/) documents the Mesos Java API.
 * [Developer Tools](/documentation/latest/tools/) for hacking on Mesos or writing frameworks.
 
+## Mesos Modules
+
+* [Mesos Modules](/documentation/latest/modules/) for specifying mesos modules for master, slave and tests.
+
 ## Contributing to Mesos
 
 * [Committer's Guide](/documentation/latest/committers-guide/) a guiding document for etiquette in reviews and commits.
