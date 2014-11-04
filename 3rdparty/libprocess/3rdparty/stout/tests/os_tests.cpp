@@ -646,9 +646,9 @@ TEST_F(OsTest, killtreeNoRoot)
   //  \-+- grandchild sleep 100
   //   \-+- great grandchild sleep 100
   //
-  // And gets reparented to init when we reap the child:
+  // And gets reparented when we reap the child:
   //
-  // -+- init (pid 1)
+  // -+- new parent
   //  \-+- grandchild sleep 100
   //   \-+- great grandchild sleep 100
 
@@ -687,10 +687,21 @@ TEST_F(OsTest, killtreeNoRoot)
   ASSERT_TRUE(os::exists(grandchild));
   ASSERT_TRUE(os::exists(greatGrandchild));
 
-  // Check the subtree has been reparented by init.
+  // Check the subtree has been reparented: the parent is no longer
+  // child (the root of the tree), and that the process is not a
+  // zombie. This is done because some systems run a secondary init
+  // process for the user (init --user) that does not have pid 1,
+  // meaning we can't just check that the parent pid == 1.
   Result<os::Process> _grandchild = os::process(grandchild);
   ASSERT_SOME(_grandchild);
-  ASSERT_EQ(1, _grandchild.get().parent);
+  ASSERT_NE(child, _grandchild.get().parent);
+  ASSERT_FALSE(_grandchild.get().zombie);
+
+  // Check that grandchild's parent is also not a zombie.
+  Result<os::Process> currentParent = os::process(_grandchild.get().parent);
+  ASSERT_SOME(currentParent);
+  ASSERT_FALSE(currentParent.get().zombie);
+
 
   // Kill the process tree. Even though the root process has exited,
   // we specify to follow sessions and groups which should kill the
