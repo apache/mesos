@@ -17,6 +17,7 @@ layout: documentation
 * [Devicescape](http://www.devicescape.com)
 * [DueDil](http://www.duedil.com)
 * [eBay](http://www.ebay.com)
+* [GoCardless](http://www.gocardless.com)
 * [Groupon](http://www.groupon.com)
 * [HubSpot](http://www.hubspot.com)
 * [Ignidata](http://www.ignidata.com)
