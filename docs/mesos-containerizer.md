@@ -40,3 +40,21 @@ executor's work directory (mode 1777) and simultaneously mount it as
 /tmp inside the container. This is transparent to processes running
 inside the container. Containers will not be able to see the host's
 /tmp or any other container's /tmp.
+
+### Pid Namespace
+
+The Pid Namespace isolator can be used to isolate each container in
+a separate pid namespace with two main benefits:
+1. Visibility: Processes running in the container (executor and
+   descendants) are unable to see or signal processes outside the
+   namespace.
+2. Clean termination: Termination of the leading process in a pid
+   namespace will result in the kernel terminating all other processes
+   in the namespace.
+
+The Launcher will use (2) during destruction of a container in
+preference to the freezer cgroup, avoiding known kernel issues related
+to freezing cgroups under OOM conditions.
+
+/proc will be mounted for containers so tools such as 'ps' will work
+correctly.
