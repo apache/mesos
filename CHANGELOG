@@ -1,6 +1,10 @@
 (WIP) Release Notes - Mesos - Version 0.21.0
 --------------------------------------
 
+* Task status now includes source and reason:
+  * [MESOS-343] - Expose TASK_FAILED reason to Frameworks.
+  * [MESOS-1143] - Add a TASK_ERROR task status.
+
 * Deprecations:
   * [MESOS-1807] - Disallow executors with cpu only or memory only
     resources.
