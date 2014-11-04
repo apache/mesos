@@ -130,7 +130,8 @@ public:
         "Isolation mechanisms to use, e.g., 'posix/cpu,posix/mem', or\n"
         "'cgroups/cpu,cgroups/mem', or network/port_mapping\n"
         "(configure with flag: --with-network-isolator to enable),\n"
-        "or 'external'.");
+        "or 'external', or load an alternate isolator module using\n"
+        "the --modules flag.");
 
     // This help message is duplicated from master/flags.hpp and
     // should always be kept in sync with that.
