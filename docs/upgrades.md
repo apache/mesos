@@ -6,6 +6,19 @@ layout: documentation
 
 This document serves as a guide for users who wish to upgrade an existing mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
+## Upgrading from 0.20.x to 0.21.x
+
+**NOTE** Disabling slave checkpointing has been deprecated; the slave --checkpoint flag has been deprecated and will be removed in a future release.
+
+In order to upgrade a running cluster:
+
+* Install the new master binaries and restart the masters.
+* Install the new slave binaries and restart the slaves.
+* Upgrade the schedulers by linking the latest native library (mesos jar upgrade not necessary).
+* Restart the schedulers.
+* Upgrade the executors by linking the latest native library and mesos jar (if necessary).
+
+
 ## Upgrading from 0.19.x to 0.20.x.
 
 **NOTE**: The Mesos API has been changed slightly in this release. The CommandInfo has been changed (see below), which makes launching a command more flexible. The 'value' field has been changed from _required_ to _optional_. However, it will not cause any issue during the upgrade (since the existing schedulers always set this field).

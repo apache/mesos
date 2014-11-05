@@ -1,15 +1,159 @@
-(WIP) Release Notes - Mesos - Version 0.21.0
+Release Notes - Mesos - Version 0.21.0
 --------------------------------------
+
+This release includes several new features.
+
+* State reconciliation for frameworks:
+  * Allows frameworks to reconcile the states of the tasks.
+
+* Support for Mesos modules
+  * Support for modules in master, slave and tests using the --modules
+    flag.
 
 * Task status now includes source and reason:
   * [MESOS-343] - Expose TASK_FAILED reason to Frameworks.
   * [MESOS-1143] - Add a TASK_ERROR task status.
 
+* A shared filesystem isolator:
+  * Volumes can be mounted from the host into a container's
+    filesystem.
+  * Parts of the shared filesystem can be made private to each
+    container, e.g., a private /tmp for each container.
+
+* A pid namespace isolator:
+  * Processes inside a container will not have visibility to host
+    processes or processes in any other container.
+  * Containers will be destroyed by terminating the 'init' process for
+    the pid namespace rather than using the freezer cgroup, avoiding known
+    kernel bugs.
+
+* API Changes:
+  * [MESOS-1461] - Add task reconciliation to the Python API.
+
 * Deprecations:
-  * [MESOS-1807] - Disallow executors with cpu only or memory only
-    resources.
-  * [MESOS-1986] - Disabling checkpointing is deprecated and the --checkpoint
-    flag will be removed in a future release.
+  * [MESOS-1807] - Disallow executors with cpu only or memory only resources.
+  * [MESOS-1986] - Disabling checkpointing is deprecated and the --checkpoint flag will be removed in a future release.
+
+* Build changes:
+  * [MESOS-1044] - Require C++11 compiler support.
+
+This release also includes several bug fixes and stability
+improvements.
+
+** Bug
+  * [MESOS-487] - Balloon framework fails to run due to bad flags
+  * [MESOS-631] - Slave started in cleanup mode shouldn't accept new tasks
+  * [MESOS-947] - Slave should properly handle a killTask() that arrives between runTask() and _runTask()
+  * [MESOS-1081] - Master should not deactivate authenticated framework/slave on new AuthenticateMessage unless new authentication succeeds.
+  * [MESOS-1195] - systemd.slice + cgroup enablement fails in multiple ways.
+  * [MESOS-1208] - 3rdparty/libprocess/3rdparty/boost-1.53.0/boost/math/special_functions/sign.hpp:113:55: error: typedef 'fp_tag' locally defined but not used [-Werror=unused-local-typedefs]
+  * [MESOS-1219] - Master should disallow frameworks that reconnect after failover timeout.
+  * [MESOS-1389] - Reconciliation can send TASK_LOST before a terminal update reaches the framework.
+  * [MESOS-1392] - Failure when znode is removed before we can read its contents.
+  * [MESOS-1414] - Status updates should not be sent from the slave until it is registered.
+  * [MESOS-1463] - mesos-local.sh dumps core
+  * [MESOS-1668] - Handle a temporary one-way master --> slave socket closure.
+  * [MESOS-1676] - ZooKeeperMasterContenderDetectorTest.MasterDetectorTimedoutSession is flaky
+  * [MESOS-1688] - No offers if no memory is allocatable
+  * [MESOS-1695] - The stats.json endpoint on the slave exposes "registered" as a string.
+  * [MESOS-1696] - Improve reconciliation between master and slave.
+  * [MESOS-1703] - better error message when replicated log hasn't been initialized
+  * [MESOS-1712] - Automate disallowing of commits mixing mesos/libprocess/stout
+  * [MESOS-1715] - The slave does not send pending tasks during re-registration.
+  * [MESOS-1716] - The slave does not add pending tasks as part of the staging tasks metric.
+  * [MESOS-1722] - Wrong attributes separator in slave --help
+  * [MESOS-1741] - mesos-slave shouldn't fail if dockerd is down
+  * [MESOS-1746] - clear TaskStatus data to avoid OOM
+  * [MESOS-1748] - MasterZooKeeperTest.LostZooKeeperCluster is flaky
+  * [MESOS-1769] - Segfault when using external containerizer
+  * [MESOS-1774] - Fix protobuf detection on systems with Python 3 as default
+  * [MESOS-1782] - AllocatorTest/0.FrameworkExited is flaky
+  * [MESOS-1783] - MasterTest.LaunchDuplicateOfferTest is flaky
+  * [MESOS-1786] - FaultToleranceTest.ReconcilePendingTasks is flaky.
+  * [MESOS-1799] - Reconciliation can send out-of-order updates.
+  * [MESOS-1814] - Task attempted to use more offers than requested in example jave and python frameworks
+  * [MESOS-1817] - Completed tasks remains in TASK_RUNNING when framework is disconnected
+  * [MESOS-1821] - CHECK failure in master.
+  * [MESOS-1824] - when "docker ps -a" returns 400+ lines enabling docker containerizer results in all executors dying
+  * [MESOS-1833] - Running docker container with colon in executor id generates error
+  * [MESOS-1834] - Default port for mesos is 5050, but documentation states it as 5051
+  * [MESOS-1843] - Specifying --with-curl doesn't work.
+  * [MESOS-1844] - AllocatorTest/0.SlaveLost is flaky
+  * [MESOS-1849] - Cannot execute container in privileged mode
+  * [MESOS-1853] - Remove /proc and /sys remounts from port_mapping isolator
+  * [MESOS-1854] - SlaveRecoveryTest.MultipleSlaves is flaky.
+  * [MESOS-1855] - Mesos 0.20.1 doesn't compile
+  * [MESOS-1857] - path::join() is broken
+  * [MESOS-1858] - Leaked file descriptors in StatusUpdateStream.
+  * [MESOS-1862] - Performance regression in the Master's http metrics.
+  * [MESOS-1866] - Race between ~Authenticator() and Authenticator::authenticate() can lead to schedulers/slaves to never get authenticated
+  * [MESOS-1869] - UpdateFramework message might reach the slave before Reregistered message and get dropped
+  * [MESOS-1873] - Don't pass task-related arguments to mesos-executor
+  * [MESOS-1875] - os::killtree() incorrectly returns early if pid has terminated
+  * [MESOS-1878] - Access to sandbox on slave from master UI does not show the sandbox contents
+  * [MESOS-1881] - Reviewbot should not apply reviews that are submitted.
+  * [MESOS-1884] - Composing Containerizer is not sending calls to still launching containers
+  * [MESOS-1892] - Using mesos-0.20.1.jar with libmesos-0.21.0 reliably segfaults
+  * [MESOS-1901] - Slave resources obtained from localhost:5051/state.json is not correct.
+  * [MESOS-1915] - Docker containers that fail to launch are not killed
+  * [MESOS-1945] - SlaveTest.KillTaskBetweenRunTaskParts is flaky
+  * [MESOS-1948] - Docker tests are flaky
+  * [MESOS-1967] - Test RoutingTest.INETSockets fails on some machine
+  * [MESOS-1969] - RBT only takes revision ranges as args for versions >= 0.6
+  * [MESOS-1970] - slave and offer ids are indistinguishable in the logs
+  * [MESOS-1975] - Module manager causes make check failure for annotated mesos versions.
+  * [MESOS-1989] - Container network stats reported by the port mapping isolator is the reverse of the actual network stats.
+  * [MESOS-2025] - OsTest.killtreeNoRoot: Process reparent assumes new parent is init pid 1
+  * [MESOS-2036] - Fix the Json format for the --modules and update the help message
+
+** Documentation
+  * [MESOS-1506] - Update documentation/flags regarding new default hostname semantics
+  * [MESOS-1950] - Add module writers guide
+  * [MESOS-1984] - Documentation for Egress Control Limit
+  * [MESOS-2033] - Documentation for isolator filesystem/shared.
+  * [MESOS-2034] - Documentation for isolator namespaces/pid.
+  * [MESOS-2037] - Update docs/configuration.md
+
+* Epic
+  * [MESOS-1407] - Provide state reconciliation for frameworks.
+
+* Improvement
+  * [MESOS-186] - Resource offers should be rescinded after some configurable timeout
+  * [MESOS-750] - Require compilers that support c++11
+  * [MESOS-1181] - Improve cpplint rule coverage
+  * [MESOS-1502] - expose message event queue size from libprocess
+  * [MESOS-1567] - Add logging of the user uid when receiving SIGTERM.
+  * [MESOS-1586] - Isolate system directories, e.g., per-container /tmp
+  * [MESOS-1643] - Provide APIs to return port resource for a given role
+  * [MESOS-1656] - Do not remove docker container until gc process runs
+  * [MESOS-1728] - Libprocess: report bind parameters on failure
+  * [MESOS-1752] - Allow variadic templates
+  * [MESOS-1771] - introduce unique_ptr
+  * [MESOS-1779] - Mesos style checker should catch trailing white space
+  * [MESOS-1811] - Reconcile disconnected/deactivated semantics in the master code
+  * [MESOS-1813] - Fail fast in example frameworks if task goes into unexpected state
+  * [MESOS-1863] - Split launch tasks and decline offers metrics
+  * [MESOS-1896] - Enable module specific command line parameters
+  * [MESOS-1927] - Enable implicit local cluster launch to load modules
+  * [MESOS-1932] - Install git pre commit hook during bootstrap
+  * [MESOS-1951] - Add --isolation flag to mesos-tests
+  * [MESOS-1972] - Move TASK_LOST generations due to invalid tasks from scheduler driver to master
+  * [MESOS-2038] - Remove dead code in Slave::_runTask
+
+* Story
+  * [MESOS-343] - Expose TASK_FAILED reason to Frameworks.
+  * [MESOS-1765] - Use PID namespace to avoid freezing cgroup
+
+* Task
+  * [MESOS-681] - Document the reconciliation API.
+  * [MESOS-1410] - Keep terminal unacknowledged tasks in the master's state.
+  * [MESOS-1808] - Expose RTT in container stats
+  * [MESOS-1864] - Add test integration for module developers
+  * [MESOS-1931] - Add support for isolator modules
+  * [MESOS-1943] - Add event queue size metrics to scheduler driver
+  * [MESOS-1964] - 0.21.0 release
+  * [MESOS-1965] - Create mesos::modules namespace for all module related stuff
+  * [MESOS-1985] - Use more standard debug / release build flags
 
 
 Release Notes - Mesos - Version 0.20.1
