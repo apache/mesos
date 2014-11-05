@@ -1272,13 +1272,6 @@ void Slave::_runTask(
     return;
   }
 
-  if (framework == NULL) {
-    framework = new Framework(this, frameworkId, frameworkInfo, pid);
-    frameworks[frameworkId] = framework;
-  }
-
-  CHECK_NOTNULL(framework);
-
   CHECK(framework->state == Framework::RUNNING) << framework->state;
 
   // Either send the task to an executor or start a new executor
