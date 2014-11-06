@@ -75,7 +75,7 @@ echo "${GREEN}Pushing the git tag to the repository...${NORMAL}"
 
 MESOS_GIT_URL="https://git-wip-us.apache.org/repos/asf/mesos.git"
 
-git push ${MESOS_GIT_URL} ${TAG}
+git push ${MESOS_GIT_URL} refs/tags/${TAG}
 
 popd # mesos
 popd # ${WORK_DIR}
