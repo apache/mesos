@@ -25,11 +25,14 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/http.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include "tests/environment.hpp"
@@ -40,6 +43,7 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
+using namespace process;
 using process::Subprocess;
 using process::Future;
 
@@ -62,6 +66,85 @@ TEST_F(FetcherTest, FileURI)
   map<string, string> env;
 
   env["MESOS_EXECUTOR_URIS"] = "file://" + testFile + "+0N";
+  env["MESOS_WORK_DIRECTORY"] = os::getcwd();
+
+  Try<Subprocess> fetcherProcess =
+    process::subprocess(
+      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
+      env);
+
+  ASSERT_SOME(fetcherProcess);
+  Future<Option<int> > status = fetcherProcess.get().status();
+
+  AWAIT_READY(status);
+  ASSERT_SOME(status.get());
+
+  EXPECT_EQ(0, status.get().get());
+  EXPECT_TRUE(os::exists(localFile));
+}
+
+
+TEST_F(FetcherTest, FilePath)
+{
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+  string testFile = path::join(fromDir, "test");
+  EXPECT_FALSE(os::write(testFile, "data").isError());
+
+  string localFile = path::join(os::getcwd(), "test");
+  EXPECT_FALSE(os::exists(localFile));
+
+  map<string, string> env;
+
+  env["MESOS_EXECUTOR_URIS"] = testFile + "+0N";
+  env["MESOS_WORK_DIRECTORY"] = os::getcwd();
+
+  Try<Subprocess> fetcherProcess =
+    process::subprocess(
+      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
+      env);
+
+  ASSERT_SOME(fetcherProcess);
+  Future<Option<int> > status = fetcherProcess.get().status();
+
+  AWAIT_READY(status);
+  ASSERT_SOME(status.get());
+
+  EXPECT_EQ(0, status.get().get());
+  EXPECT_TRUE(os::exists(localFile));
+}
+
+
+class HttpProcess : public Process<HttpProcess>
+{
+public:
+  HttpProcess()
+  {
+    route("/help", None(), &HttpProcess::index);
+  }
+
+  Future<http::Response> index(const http::Request& request)
+  {
+    return http::OK();
+  }
+};
+
+
+TEST_F(FetcherTest, OSNetUriTest)
+{
+  HttpProcess process;
+
+  spawn(process);
+
+  string url = "http://" + net::getHostname(process.self().ip).get() +
+                ":" + stringify(process.self().port) + "/help";
+
+  string localFile = path::join(os::getcwd(), "help");
+  EXPECT_FALSE(os::exists(localFile));
+
+  map<string, string> env;
+
+  env["MESOS_EXECUTOR_URIS"] = url + "+0N";
   env["MESOS_WORK_DIRECTORY"] = os::getcwd();
 
   Try<Subprocess> fetcherProcess =

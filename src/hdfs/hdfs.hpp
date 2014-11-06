@@ -42,6 +42,23 @@ struct HDFS
              ? path::join(os::getenv("HADOOP_HOME"), "bin/hadoop")
              : "hadoop") {}
 
+  // Check if hadoop client is available at the path that was set.
+  // This can be done by executing `hadoop version` command and
+  // checking for status code == 0.
+  Try<bool> available()
+  {
+    Try<std::string> command = strings::format("%s version", hadoop);
+
+    CHECK_SOME(command);
+
+    Try<int> status = os::shell(NULL, command.get() + " 2>&1");
+
+    if(status.isError()) {
+      return Error(status.error());
+    }
+    return status.get() == 0;
+  }
+
   Try<bool> exists(std::string path)
   {
     // Make sure 'path' starts with a '/'.

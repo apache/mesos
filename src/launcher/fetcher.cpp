@@ -27,9 +27,17 @@
 
 #include "hdfs/hdfs.hpp"
 
-using namespace mesos;
+#include "logging/flags.hpp"
+#include "logging/logging.hpp"
 
+using namespace mesos;
+using namespace mesos::internal;
+
+using std::cerr;
+using std::cout;
+using std::endl;
 using std::string;
+
 
 const char FILE_URI_PREFIX[] = "file://";
 const char FILE_URI_LOCALHOST[] = "file://localhost";
@@ -68,108 +76,107 @@ Try<bool> extract(const string& filename, const string& directory)
 }
 
 
-// Fetch URI into directory.
-Try<string> fetch(
+// Attempt to get the uri using the hadoop client.
+Try<string> fetchWithHadoopClient(
     const string& uri,
     const string& directory)
 {
-  LOG(INFO) << "Fetching URI '" << uri << "'";
-
-  // Some checks to make sure using the URI value in shell commands
-  // is safe. TODO(benh): These should be pushed into the scheduler
-  // driver and reported to the user.
-  if (uri.find_first_of('\\') != string::npos ||
-      uri.find_first_of('\'') != string::npos ||
-      uri.find_first_of('\0') != string::npos) {
-    LOG(ERROR) << "URI contains illegal characters, refusing to fetch";
-    return Error("Illegal characters in URI");
+  HDFS hdfs;
+  if (hdfs.available().isError()) {
+    LOG(INFO) << "Hadoop Client not available, "
+              << "skipping fetch with Hadoop Client";
+    return Error("Hadoop Client unavailable");
   }
 
-  // Grab the resource using the hadoop client if it's one of the known schemes
-  // TODO(tarnfeld): This isn't very scalable with hadoop's pluggable
-  // filesystem implementations.
-  // TODO(matei): Enforce some size limits on files we get from HDFS
-  if (strings::startsWith(uri, "hdfs://") ||
-      strings::startsWith(uri, "hftp://") ||
-      strings::startsWith(uri, "s3://") ||
-      strings::startsWith(uri, "s3n://")) {
-    Try<string> base = os::basename(uri);
-    if (base.isError()) {
-      LOG(ERROR) << "Invalid basename for URI: " << base.error();
-      return Error("Invalid basename for URI");
-    }
-    string path = path::join(directory, base.get());
+  LOG(INFO) << "Fetching URI '" << uri << "' using Hadoop Client";
 
-    HDFS hdfs;
+  Try<string> base = os::basename(uri);
+  if (base.isError()) {
+    LOG(ERROR) << "Invalid basename for URI: " << base.error();
+    return Error("Invalid basename for URI");
+  }
 
-    LOG(INFO) << "Downloading resource from '" << uri
-              << "' to '" << path << "'";
-    Try<Nothing> result = hdfs.copyToLocal(uri, path);
-    if (result.isError()) {
-      LOG(ERROR) << "HDFS copyToLocal failed: " << result.error();
-      return Error(result.error());
-    }
+  string path = path::join(directory, base.get());
 
-    return path;
-  } else if (strings::startsWith(uri, "http://") ||
-             strings::startsWith(uri, "https://") ||
-             strings::startsWith(uri, "ftp://") ||
-             strings::startsWith(uri, "ftps://")) {
-    string path = uri.substr(uri.find("://") + 3);
-    if (path.find("/") == string::npos ||
-        path.size() <= path.find("/") + 1) {
-      LOG(ERROR) << "Malformed URL (missing path)";
-      return Error("Malformed URI");
-    }
+  LOG(INFO) << "Downloading resource from '" << uri  << "' to '" << path << "'";
 
-    path =  path::join(directory, path.substr(path.find_last_of("/") + 1));
-    LOG(INFO) << "Downloading '" << uri << "' to '" << path << "'";
-    Try<int> code = net::download(uri, path);
-    if (code.isError()) {
-      LOG(ERROR) << "Error downloading resource: " << code.error().c_str();
-      return Error("Fetch of URI failed (" + code.error() + ")");
-    } else if (code.get() != 200) {
-      LOG(ERROR) << "Error downloading resource, received HTTP/FTP return code "
-                 << code.get();
-      return Error("HTTP/FTP error (" + stringify(code.get()) + ")");
-    }
+  Try<Nothing> result = hdfs.copyToLocal(uri, path);
+  if (result.isError()) {
+    LOG(ERROR) << "HDFS copyToLocal failed: " << result.error();
+    return Error(result.error());
+  }
 
-    return path;
-  } else { // Copy the local resource.
+  return path;
+}
+
+
+Try<string> fetchWithNet(
+    const string& uri,
+    const string& directory)
+{
+  LOG(INFO) << "Fetching URI '" << uri << "' with os::net";
+
+  string path = uri.substr(uri.find("://") + 3);
+  if (path.find("/") == string::npos ||
+      path.size() <= path.find("/") + 1) {
+    LOG(ERROR) << "Malformed URL (missing path)";
+    return Error("Malformed URI");
+  }
+
+  path =  path::join(directory, path.substr(path.find_last_of("/") + 1));
+  LOG(INFO) << "Downloading '" << uri << "' to '" << path << "'";
+  Try<int> code = net::download(uri, path);
+  if (code.isError()) {
+    LOG(ERROR) << "Error downloading resource: " << code.error().c_str();
+    return Error("Fetch of URI failed (" + code.error() + ")");
+  } else if (code.get() != 200) {
+    LOG(ERROR) << "Error downloading resource, received HTTP/FTP return code "
+    << code.get();
+    return Error("HTTP/FTP error (" + stringify(code.get()) + ")");
+  }
+
+  return path;
+}
+
+
+Try<string> fetchWithLocalCopy(
+    const string& uri,
+    const string& directory)
+{
     string local = uri;
     bool fileUri = false;
     if (strings::startsWith(local, string(FILE_URI_LOCALHOST))) {
-      local = local.substr(sizeof(FILE_URI_LOCALHOST) - 1);
-      fileUri = true;
+        local = local.substr(sizeof(FILE_URI_LOCALHOST) - 1);
+        fileUri = true;
     } else if (strings::startsWith(local, string(FILE_URI_PREFIX))) {
-      local = local.substr(sizeof(FILE_URI_PREFIX) - 1);
-      fileUri = true;
+        local = local.substr(sizeof(FILE_URI_PREFIX) - 1);
+        fileUri = true;
     }
 
-    if(fileUri && !strings::startsWith(local, "/")) {
-      return Error("File URI only supports absolute paths");
+    if (fileUri && !strings::startsWith(local, "/")) {
+        return Error("File URI only supports absolute paths");
     }
 
     if (local.find_first_of("/") != 0) {
-      // We got a non-Hadoop and non-absolute path.
-      if (os::hasenv("MESOS_FRAMEWORKS_HOME")) {
-        local = path::join(os::getenv("MESOS_FRAMEWORKS_HOME"), local);
-        LOG(INFO) << "Prepended environment variable "
-                  << "MESOS_FRAMEWORKS_HOME to relative path, "
-                  << "making it: '" << local << "'";
-      } else {
-        LOG(ERROR) << "A relative path was passed for the resource but the "
-                   << "environment variable MESOS_FRAMEWORKS_HOME is not set. "
-                   << "Please either specify this config option "
-                   << "or avoid using a relative path";
-        return Error("Could not resolve relative URI");
-      }
+        // We got a non-Hadoop and non-absolute path.
+        if (os::hasenv("MESOS_FRAMEWORKS_HOME")) {
+            local = path::join(os::getenv("MESOS_FRAMEWORKS_HOME"), local);
+            LOG(INFO) << "Prepended environment variable "
+            << "MESOS_FRAMEWORKS_HOME to relative path, "
+            << "making it: '" << local << "'";
+        } else {
+            LOG(ERROR) << "A relative path was passed for the resource but the "
+            << "environment variable MESOS_FRAMEWORKS_HOME is not set. "
+            << "Please either specify this config option "
+            << "or avoid using a relative path";
+            return Error("Could not resolve relative URI");
+        }
     }
 
     Try<string> base = os::basename(local);
     if (base.isError()) {
-      LOG(ERROR) << base.error();
-      return Error("Fetch of URI failed");
+        LOG(ERROR) << base.error();
+        return Error("Fetch of URI failed");
     }
 
     // Copy the resource to the directory.
@@ -177,23 +184,81 @@ Try<string> fetch(
     std::ostringstream command;
     command << "cp '" << local << "' '" << path << "'";
     LOG(INFO) << "Copying resource from '" << local
-              << "' to '" << directory << "'";
+    << "' to '" << directory << "'";
 
     int status = os::system(command.str());
     if (status != 0) {
-      LOG(ERROR) << "Failed to copy '" << local
-                 << "' : Exit status " << status;
-      return Error("Local copy failed");
+        LOG(ERROR) << "Failed to copy '" << local
+        << "' : Exit status " << status;
+        return Error("Local copy failed");
     }
 
     return path;
-  }
+}
+
+
+// Fetch URI into directory.
+Try<string> fetch(
+    const string& uri,
+    const string& directory)
+{
+    LOG(INFO) << "Fetching URI '" << uri << "'";
+    // Some checks to make sure using the URI value in shell commands
+    // is safe. TODO(benh): These should be pushed into the scheduler
+    // driver and reported to the user.
+    if (uri.find_first_of('\\') != string::npos ||
+        uri.find_first_of('\'') != string::npos ||
+        uri.find_first_of('\0') != string::npos) {
+        LOG(ERROR) << "URI contains illegal characters, refusing to fetch";
+        return Error("Illegal characters in URI");
+    }
+
+    // 1. Try to fetch using a local copy.
+    // We consider file:// or no scheme uri are considered local uri.
+    if (strings::startsWith(uri, "file://") ||
+        uri.find("://") == string::npos) {
+      return fetchWithLocalCopy(uri, directory);
+    }
+
+    // 2. Try to fetch URI using os::net / libcurl implementation.
+    // We consider http, https, ftp, ftps compatible with libcurl
+    if (strings::startsWith(uri, "http://") ||
+               strings::startsWith(uri, "https://") ||
+               strings::startsWith(uri, "ftp://") ||
+               strings::startsWith(uri, "ftps://")) {
+      return fetchWithNet(uri, directory);
+    }
+
+    // 3. Try to fetch the URI using hadoop client.
+    // We use the hadoop client to fetch any URIs that are not
+    // handled by other fetchers(local / os::net). These URIs may be
+    // `hdfs://` URIs or any other URI that has been configured (and
+    // hence handled) in the hadoop client. This allows mesos to
+    // externalize the handling of previously unknown resource
+    // endpoints without the need to support them natively.
+    // Note: Hadoop Client is not a hard dependency for running mesos.
+    // This allows users to get mesos up and running without a
+    // hadoop_home or the hadoop client setup but in case we reach
+    // this part and don't have one configured, the fetch would fail
+    // and log an appropriate error.
+    return fetchWithHadoopClient(uri, directory);
 }
 
 
 int main(int argc, char* argv[])
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  mesos::internal::logging::Flags flags;
+
+  Try<Nothing> load = flags.load("MESOS_", argc, argv);
+
+  if (load.isError()) {
+    cerr << load.error() << endl;
+    exit(1);
+  }
+
+  logging::initialize(argv[0], flags, true); // Catch signals.
 
   CommandInfo commandInfo;
   // Construct URIs from the encoded environment string.
