@@ -633,6 +633,7 @@ private:
     process::metrics::Counter tasks_failed;
     process::metrics::Counter tasks_killed;
     process::metrics::Counter tasks_lost;
+    process::metrics::Counter tasks_error;
 
     // Message counters.
     process::metrics::Counter dropped_messages;

@@ -130,7 +130,7 @@ TEST_F(ResourceOffersTest, TaskUsesInvalidFrameworkID)
   driver.start();
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_TRUE(strings::startsWith(
       status.get().message(), "ExecutorInfo has an invalid FrameworkID"));
 
@@ -179,7 +179,7 @@ TEST_F(ResourceOffersTest, TaskUsesCommandInfoAndExecutorInfo)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_TRUE(strings::contains(
       status.get().message(), "CommandInfo or ExecutorInfo present"));
 
@@ -232,7 +232,7 @@ TEST_F(ResourceOffersTest, TaskUsesNoResources)
 
   AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_EQ("Task uses no resources", status.get().message());
@@ -291,7 +291,7 @@ TEST_F(ResourceOffersTest, TaskUsesInvalidResources)
 
   AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_EQ("Task uses invalid resources: cpus(*):0", status.get().message());
@@ -351,7 +351,7 @@ TEST_F(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
   AWAIT_READY(status);
 
   EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_TRUE(strings::contains(
@@ -516,7 +516,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
   AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_EQ("Task uses invalid resources: cpus(*):0", status.get().message());
@@ -683,7 +683,7 @@ TEST_F(MultipleExecutorsTest, ExecutorInfoDiffersOnSameSlave)
 
   AWAIT_READY(status);
   EXPECT_EQ(task2.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_TRUE(strings::contains(

@@ -614,8 +614,6 @@ enum TaskState {
   TASK_FAILED = 3; // TERMINAL. The task failed to finish successfully.
   TASK_KILLED = 4; // TERMINAL. The task was killed by the executor.
   TASK_LOST = 5; // TERMINAL. The task failed but can be rescheduled.
-  // TASK_ERROR is currently unused but will be introduced in 0.22.0.
-  // TODO(dhamon): Start using TASK_ERROR.
   TASK_ERROR = 7; // TERMINAL. The task description contains an error.
 }
 

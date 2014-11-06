@@ -205,7 +205,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(TaskStatus::REASON_TASK_UNAUTHORIZED, status.get().reason());
 
   driver.stop();

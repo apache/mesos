@@ -2589,13 +2589,13 @@ void Master::_launchTasks(
           framework->id,
           task.slave_id(),
           task.task_id(),
-          TASK_LOST,  // TODO(dhamon): TASK_ERROR in 0.22
+          TASK_ERROR,
           TaskStatus::SOURCE_MASTER,
           validation.get().message,
           TaskStatus::REASON_TASK_INVALID);
 
-      metrics.tasks_lost++;
-      stats.tasks[TASK_LOST]++;
+      metrics.tasks_error++;
+      stats.tasks[TASK_ERROR]++;
 
       forward(update, UPID(), framework);
 
@@ -2616,15 +2616,15 @@ void Master::_launchTasks(
           framework->id,
           task.slave_id(),
           task.task_id(),
-          TASK_LOST,  // TODO(dhamon): TASK_ERROR in 0.22
+          TASK_ERROR,
           TaskStatus::SOURCE_MASTER,
           authorization.isFailed() ?
               "Authorization failure: " + authorization.failure() :
               "Not authorized to launch as user '" + user + "'",
           TaskStatus::REASON_TASK_UNAUTHORIZED);
 
-      metrics.tasks_lost++;
-      stats.tasks[TASK_LOST]++;
+      metrics.tasks_error++;
+      stats.tasks[TASK_ERROR]++;
 
       forward(update, UPID(), framework);
 
@@ -5115,6 +5115,8 @@ Master::Metrics::Metrics(const Master& master)
         "master/tasks_killed"),
     tasks_lost(
         "master/tasks_lost"),
+    tasks_error(
+        "master/tasks_error"),
     dropped_messages(
         "master/dropped_messages"),
     messages_register_framework(
@@ -5206,6 +5208,7 @@ Master::Metrics::Metrics(const Master& master)
   process::metrics::add(tasks_failed);
   process::metrics::add(tasks_killed);
   process::metrics::add(tasks_lost);
+  process::metrics::add(tasks_error);
 
   process::metrics::add(dropped_messages);
 
@@ -5304,6 +5307,7 @@ Master::Metrics::~Metrics()
   process::metrics::remove(tasks_failed);
   process::metrics::remove(tasks_killed);
   process::metrics::remove(tasks_lost);
+  process::metrics::remove(tasks_error);
 
   process::metrics::remove(dropped_messages);
 
