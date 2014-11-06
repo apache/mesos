@@ -203,8 +203,13 @@ else
     CPPFLAGS="-I/usr/include/apr-1 -I/usr/include/apr-1.0 $CPPFLAGS"
 fi
 
-AC_CHECK_LIB([apr-1], [apr_initialize], [],
-             [AC_MSG_ERROR([cannot find libapr-1
+AC_CHECK_HEADERS([apr_pools.h],
+                 [AC_CHECK_LIB([apr-1], [apr_initialize], [],
+                               [AC_MSG_ERROR([cannot find libapr-1
+-------------------------------------------------------------------
+libapr-1 is required for mesos to build.
+-------------------------------------------------------------------
+                        ])])], [AC_MSG_ERROR([cannot find libapr-1 headers
 -------------------------------------------------------------------
 libapr-1 is required for mesos to build.
 -------------------------------------------------------------------
@@ -222,15 +227,25 @@ else
     CPPFLAGS="-I/usr/include/subversion-1 $CPPFLAGS"
 fi
 
-AC_CHECK_LIB([svn_subr-1], [svn_stringbuf_create_ensure], [],
-             [AC_MSG_ERROR([cannot find libsvn_subr-1
+AC_CHECK_HEADERS([svn_version.h],
+                 [AC_CHECK_LIB([svn_subr-1], [svn_stringbuf_create_ensure], [],
+                               [AC_MSG_ERROR([cannot find libsvn_subr-1
+-------------------------------------------------------------------
+libsubversion-1 is required for mesos to build.
+-------------------------------------------------------------------
+                        ])])], [AC_MSG_ERROR([cannot find libsvn_subr-1 headers
 -------------------------------------------------------------------
 libsubversion-1 is required for mesos to build.
 -------------------------------------------------------------------
 ])])
 
-AC_CHECK_LIB([svn_delta-1], [svn_txdelta], [],
-             [AC_MSG_ERROR([cannot find libsvn_delta-1
+AC_CHECK_HEADERS([svn_delta.h],
+                 [AC_CHECK_LIB([svn_delta-1], [svn_txdelta], [],
+                               [AC_MSG_ERROR([cannot find libsvn_delta-1
+-------------------------------------------------------------------
+libsubversion-1 is required for mesos to build.
+-------------------------------------------------------------------
+                        ])])], [AC_MSG_ERROR([cannot find libsvn_delta-1 headers
 -------------------------------------------------------------------
 libsubversion-1 is required for mesos to build.
 -------------------------------------------------------------------
