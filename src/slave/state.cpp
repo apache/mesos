@@ -384,6 +384,15 @@ Try<RunState> RunState::recover(
   state.id = containerId;
   string message;
 
+  // See if the sentinel file exists. This is done first so it is
+  // known even if partial state is returned, e.g., if the libprocess
+  // pid file is not recovered. It indicates the slave removed the
+  // executor.
+  string path = paths::getExecutorSentinelPath(
+      rootDir, slaveId, frameworkId, executorId, containerId);
+
+  state.completed = os::exists(path);
+
   // Find the tasks.
   Try<list<string> > tasks = os::glob(strings::format(
       paths::TASK_PATH,
@@ -418,7 +427,7 @@ Try<RunState> RunState::recover(
   }
 
   // Read the forked pid.
-  string path = paths::getForkedPidPath(
+  path = paths::getForkedPidPath(
       rootDir, slaveId, frameworkId, executorId, containerId);
   if (!os::exists(path)) {
     // This could happen if the slave died before the isolator
@@ -492,12 +501,6 @@ Try<RunState> RunState::recover(
   }
 
   state.libprocessPid = process::UPID(pid.get());
-
-  // See if the sentinel file exists.
-  path = paths::getExecutorSentinelPath(
-      rootDir, slaveId, frameworkId, executorId, containerId);
-
-  state.completed = os::exists(path);
 
   return state;
 }
