@@ -64,6 +64,7 @@
 #include "common/lock.hpp"
 #include "common/type_utils.hpp"
 
+#include "local/flags.hpp"
 #include "local/local.hpp"
 
 #include "logging/flags.hpp"
@@ -72,6 +73,9 @@
 #include "master/detector.hpp"
 
 #include "messages/messages.hpp"
+
+#include "sched/constants.hpp"
+#include "sched/flags.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -105,6 +109,7 @@ public:
                    const Option<Credential>& _credential,
                    const string& schedulerId,
                    MasterDetector* _detector,
+                   const internal::scheduler::Flags& _flags,
                    pthread_mutex_t* _mutex,
                    pthread_cond_t* _cond)
       // We use a UUID here to ensure that the master can reliably
@@ -128,6 +133,7 @@ public:
       connected(false),
       aborted(false),
       detector(_detector),
+      flags(_flags),
       credential(_credential),
       authenticatee(NULL),
       authenticating(None()),
@@ -235,13 +241,19 @@ protected:
 
       if (credential.isSome()) {
         // Authenticate with the master.
+        // TODO(vinod): Do a backoff for authentication similar to what
+        // we do for registration.
         authenticate();
       } else {
         // Proceed with registration without authentication.
         LOG(INFO) << "No credentials provided."
                   << " Attempting to register without authentication";
 
-        doReliableRegistration();
+        // TODO(vinod): Similar to the slave add a random delay to the
+        // first registration attempt too. This needs fixing tests
+        // that expect scheduler to register even with clock paused
+        // (e.g., rate limiting tests).
+        doReliableRegistration(flags.registration_backoff_factor);
       }
     } else {
       // In this case, we don't actually invoke Scheduler::error
@@ -359,7 +371,7 @@ protected:
     authenticated = true;
     authenticating = None();
 
-    doReliableRegistration(); // Proceed with registration.
+    doReliableRegistration(flags.registration_backoff_factor);
   }
 
   void authenticationTimeout(Future<bool> future)
@@ -463,7 +475,7 @@ protected:
     VLOG(1) << "Scheduler::reregistered took " << stopwatch.elapsed();
   }
 
-  void doReliableRegistration()
+  void doReliableRegistration(Duration maxBackoff)
   {
     if (connected || master.isNone()) {
       return;
@@ -488,7 +500,29 @@ protected:
       send(master.get(), message);
     }
 
-    delay(Seconds(1), self(), &Self::doReliableRegistration);
+    // Bound the maximum backoff by 'REGISTRATION_RETRY_INTERVAL_MAX'.
+    maxBackoff =
+      std::min(maxBackoff, scheduler::REGISTRATION_RETRY_INTERVAL_MAX);
+
+    // If failover timeout is present, bound the maximum backoff
+    // by 1/10th of the failover timeout.
+    if (framework.has_failover_timeout()) {
+      Try<Duration> duration = Duration::create(framework.failover_timeout());
+      if (duration.isSome()) {
+        maxBackoff = std::min(maxBackoff, duration.get() / 10);
+      }
+    }
+
+    // Determine the delay for next attempt by picking a random
+    // duration between 0 and 'maxBackoff'.
+    // TODO(vinod): Use random numbers from <random> header.
+    Duration delay = maxBackoff * ((double) ::random() / RAND_MAX);
+
+    VLOG(1) << "Will retry registration in " << delay << " if necessary";
+
+    // Backoff.
+    process::delay(
+        delay, self(), &Self::doReliableRegistration, maxBackoff * 2);
   }
 
   void resourceOffers(
@@ -1021,6 +1055,8 @@ private:
 
   MasterDetector* detector;
 
+  const internal::scheduler::Flags flags;
+
   hashmap<OfferID, hashmap<SlaveID, UPID> > savedOffers;
   hashmap<SlaveID, UPID> savedSlavePids;
 
@@ -1051,7 +1087,6 @@ void MesosSchedulerDriver::initialize() {
   // we'll probably want a way to load master::Flags and slave::Flags
   // as well.
   local::Flags flags;
-
   Try<Nothing> load = flags.load("MESOS_");
 
   if (load.isError()) {
@@ -1115,6 +1150,7 @@ void MesosSchedulerDriver::initialize() {
 
   url = pid.isSome() ? static_cast<string>(pid.get()) : master;
 }
+
 
 // Implementation of C++ API.
 //
@@ -1230,6 +1266,16 @@ Status MesosSchedulerDriver::start()
     detector = detector_.get();
   }
 
+  // Load scheduler flags.
+  internal::scheduler::Flags flags;
+  Try<Nothing> load = flags.load("MESOS_");
+
+  if (load.isError()) {
+    status = DRIVER_ABORTED;
+    scheduler->error(this, load.error());
+    return status;
+  }
+
   CHECK(process == NULL);
 
   if (credential == NULL) {
@@ -1240,6 +1286,7 @@ Status MesosSchedulerDriver::start()
         None(),
         schedulerId,
         detector,
+        flags,
         &mutex,
         &cond);
   } else {
@@ -1251,6 +1298,7 @@ Status MesosSchedulerDriver::start()
         cred,
         schedulerId,
         detector,
+        flags,
         &mutex,
         &cond);
   }

@@ -40,6 +40,8 @@
 #include "master/allocator.hpp"
 #include "master/master.hpp"
 
+#include "sched/constants.hpp"
+
 #include "slave/constants.hpp"
 #include "slave/slave.hpp"
 
@@ -803,7 +805,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
   AWAIT_READY(reregistrationMessage);
 
   // Trigger the re-registration retry.
-  Clock::advance(Seconds(1));
+  Clock::advance(internal::scheduler::REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(sched2Registered);
 
@@ -856,9 +858,8 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
   AWAIT_READY(frameworkRegisteredMessage);
 
-  // TODO(benh): Pull out constant from SchedulerProcess.
   Clock::pause();
-  Clock::advance(Seconds(1));
+  Clock::advance(internal::scheduler::REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(registered); // Ensures registered message is received.
 

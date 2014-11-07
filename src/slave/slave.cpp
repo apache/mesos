@@ -906,7 +906,7 @@ void Slave::reregistered(
 }
 
 
-void Slave::doReliableRegistration(const Duration& duration)
+void Slave::doReliableRegistration(Duration maxBackoff)
 {
   if (master.isNone()) {
     LOG(INFO) << "Skipping registration because no master present";
@@ -1040,19 +1040,17 @@ void Slave::doReliableRegistration(const Duration& duration)
     send(master.get(), message);
   }
 
-  // Retry registration if necessary.
-  Duration next = std::min(
-      duration * ((double) ::random() / RAND_MAX),
-      REGISTER_RETRY_INTERVAL_MAX);
+  // Bound the maximum backoff by 'REGISTER_RETRY_INTERVAL_MAX'.
+  maxBackoff = std::min(maxBackoff, REGISTER_RETRY_INTERVAL_MAX);
 
-  Duration duration_ = std::min(
-      duration * 2,
-      REGISTER_RETRY_INTERVAL_MAX);
+  // Determine the delay for next attempt by picking a random
+  // duration between 0 and 'maxBackoff'.
+  Duration delay = maxBackoff * ((double) ::random() / RAND_MAX);
 
-  VLOG(1) << "Will retry registration in " << next << " if necessary";
+  VLOG(1) << "Will retry registration in " << delay << " if necessary";
 
   // Backoff.
-  delay(next, self(), &Slave::doReliableRegistration, duration_);
+  process::delay(delay, self(), &Slave::doReliableRegistration, maxBackoff * 2);
 }
 
 

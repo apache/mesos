@@ -104,7 +104,7 @@ public:
       const SlaveID& slaveId,
       const std::vector<ReconcileTasksMessage>& reconciliations);
 
-  void doReliableRegistration(const Duration& duration);
+  void doReliableRegistration(Duration maxBackoff);
 
   // Made 'virtual' for Slave mocking.
   virtual void runTask(

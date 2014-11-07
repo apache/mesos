@@ -279,6 +279,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/registrar.cpp						\
 	master/repairer.cpp						\
 	module/manager.cpp						\
+	sched/constants.cpp						\
 	sched/sched.cpp							\
 	scheduler/scheduler.cpp						\
 	slave/constants.cpp						\
@@ -431,6 +432,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	module/authenticator.hpp					\
 	module/isolator.hpp						\
 	module/manager.hpp						\
+	sched/constants.hpp						\
+	sched/flags.hpp							\
 	slave/constants.hpp						\
 	slave/flags.hpp							\
 	slave/gc.hpp							\
