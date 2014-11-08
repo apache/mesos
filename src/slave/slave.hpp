@@ -459,7 +459,16 @@ private:
 
     process::metrics::Counter valid_framework_messages;
     process::metrics::Counter invalid_framework_messages;
+
+    // Resource metrics.
+    std::vector<process::metrics::Gauge> resources_total;
+    std::vector<process::metrics::Gauge> resources_used;
+    std::vector<process::metrics::Gauge> resources_percent;
   } metrics;
+
+  double _resources_total(const std::string& name);
+  double _resources_used(const std::string& name);
+  double _resources_percent(const std::string& name);
 
   process::Time startTime;
 

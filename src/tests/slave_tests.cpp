@@ -836,6 +836,18 @@ TEST_F(SlaveTest, MetricsInStatsEndpoint)
   EXPECT_EQ(1u, stats.values.count("slave/valid_framework_messages"));
   EXPECT_EQ(1u, stats.values.count("slave/invalid_framework_messages"));
 
+  EXPECT_EQ(1u, stats.values.count("slave/cpus_total"));
+  EXPECT_EQ(1u, stats.values.count("slave/cpus_used"));
+  EXPECT_EQ(1u, stats.values.count("slave/cpus_percent"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/mem_total"));
+  EXPECT_EQ(1u, stats.values.count("slave/mem_used"));
+  EXPECT_EQ(1u, stats.values.count("slave/mem_percent"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/disk_total"));
+  EXPECT_EQ(1u, stats.values.count("slave/disk_used"));
+  EXPECT_EQ(1u, stats.values.count("slave/disk_percent"));
+
   Shutdown();
 }
 

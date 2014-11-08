@@ -3804,6 +3804,31 @@ Slave::Metrics::Metrics(const Slave& slave)
 
   process::metrics::add(valid_framework_messages);
   process::metrics::add(invalid_framework_messages);
+
+  // Create resource gauges.
+  // TODO(dhamon): Set these up dynamically when creating a slave
+  // based on the resources it exposes.
+  const string resources[] = {"cpus", "mem", "disk"};
+
+  foreach (const string& resource, resources) {
+    process::metrics::Gauge totalGauge(
+        "slave/" + resource + "_total",
+        defer(slave, &Slave::_resources_total, resource));
+    resources_total.push_back(totalGauge);
+    process::metrics::add(totalGauge);
+
+    process::metrics::Gauge usedGauge(
+        "slave/" + resource + "_used",
+        defer(slave, &Slave::_resources_used, resource));
+    resources_used.push_back(usedGauge);
+    process::metrics::add(usedGauge);
+
+    process::metrics::Gauge percentGauge(
+        "slave/" + resource + "_percent",
+        defer(slave, &Slave::_resources_percent, resource));
+    resources_percent.push_back(percentGauge);
+    process::metrics::add(percentGauge);
+  }
 }
 
 
@@ -3835,6 +3860,65 @@ Slave::Metrics::~Metrics()
 
   process::metrics::remove(valid_framework_messages);
   process::metrics::remove(invalid_framework_messages);
+
+  foreach (const process::metrics::Gauge& gauge, resources_total) {
+    process::metrics::remove(gauge);
+  }
+  resources_total.clear();
+
+  foreach (const process::metrics::Gauge& gauge, resources_used) {
+    process::metrics::remove(gauge);
+  }
+  resources_used.clear();
+
+  foreach (const process::metrics::Gauge& gauge, resources_percent) {
+    process::metrics::remove(gauge);
+  }
+  resources_percent.clear();
+}
+
+
+double Slave::_resources_total(const std::string& name)
+{
+  double total = 0.0;
+
+  foreach (const Resource& resource, info.resources()) {
+    if (resource.name() == name && resource.type() == Value::SCALAR) {
+      total += resource.scalar().value();
+    }
+  }
+
+  return total;
+}
+
+
+double Slave::_resources_used(const std::string& name)
+{
+  double used = 0.0;
+
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      foreach (const Resource& resource, executor->resources) {
+        if (resource.name() == name && resource.type() == Value::SCALAR) {
+          used += resource.scalar().value();
+        }
+      }
+    }
+  }
+
+  return used;
+}
+
+
+double Slave::_resources_percent(const std::string& name)
+{
+  double total = _resources_total(name);
+
+  if (total == 0.0) {
+    return total;
+  } else {
+    return _resources_used(name) / total;
+  }
 }
 
 

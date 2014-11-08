@@ -5253,8 +5253,8 @@ Master::Metrics::Metrics(const Master& master)
   process::metrics::add(slave_removals);
 
   // Create resource gauges.
-  // TODO(dhamon): Set these up dynamically when adding a slave based on the
-  // resources the slave exposes.
+  // TODO(dhamon): Set these up dynamically when adding a slave based
+  // on the resources the slave exposes.
   const string resources[] = {"cpus", "mem", "disk"};
 
   foreach (const string& resource, resources) {
@@ -5399,6 +5399,7 @@ double Master::_resources_used(const std::string& name)
 
   return used;
 }
+
 
 double Master::_resources_percent(const std::string& name)
 {
