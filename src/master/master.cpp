@@ -402,6 +402,11 @@ void Master::initialize()
     }
     // Store credentials in master to use them in routes.
     credentials = _credentials.get();
+
+    // Give Authenticator access to credentials.
+    // TODO(tillt): Move this into a mechanism (module) specific
+    // Authenticator factory. See MESOS-2050.
+    cram_md5::secrets::load(credentials.get());
   }
 
   if (authorizer.isSome()) {
@@ -3918,10 +3923,7 @@ void Master::authenticate(const UPID& from, const UPID& pid)
   }
   Owned<Authenticator> authenticator_ = Owned<Authenticator>(authenticator);
 
-  Try<Nothing> initialize = authenticator_->initialize(from, credentials);
-  if (initialize.isError()) {
-    EXIT(1) << "Failed to initialize authenticator: " << initialize.error();
-  }
+  authenticator_->initialize(from);
 
   // Start authentication.
   const Future<Option<string>>& future = authenticator_->authenticate()

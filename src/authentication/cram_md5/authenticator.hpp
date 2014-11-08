@@ -56,10 +56,7 @@ public:
   CRAMMD5Authenticator();
   virtual ~CRAMMD5Authenticator();
 
-  virtual Try<Nothing> initialize(
-      const process::UPID& clientPid,
-      const Option<Credentials>& credentials);
-
+  virtual void initialize(const process::UPID& clientPid);
 
   // Returns the principal of the Authenticatee if successfully
   // authenticated otherwise None or an error. Note that we
@@ -486,22 +483,11 @@ CRAMMD5Authenticator::~CRAMMD5Authenticator()
 }
 
 
-Try<Nothing> CRAMMD5Authenticator::initialize(
-    const process::UPID& pid,
-    const Option<Credentials>& credentials)
+void CRAMMD5Authenticator::initialize(const process::UPID& pid)
 {
-  if (credentials.isSome()) {
-    // Load "registration" credentials into SASL based Authenticator.
-    secrets::load(credentials.get());
-  } else {
-    return Error("Authentication requires credentials");
-  }
-
   CHECK(process == NULL) << "Authenticator has already been initialized";
   process = new CRAMMD5AuthenticatorProcess(pid);
   process::spawn(process);
-
-  return Nothing();
 }
 
 
