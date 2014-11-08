@@ -37,7 +37,7 @@ command calls. Many invocations on the ECP will also pass a
 protobuf message along via stdin. Some invocations on the ECP also
 expect to deliver a result protobuf message back via stdout.
 All protobuf messages are prefixed by their original length -
-this is sometimes referred to as “Record-IO”-format. See
+this is sometimes referred to as "Record-IO"-format. See
 [Record-IO De/Serializing Example](#record-io-deserializing-example).
 
 **COMMAND < INPUT-PROTO > RESULT-PROTO**
@@ -126,7 +126,7 @@ listed within `Containers`. For each orphan it identifies, the slave
 will invoke a `wait` followed by a `destroy` on the ECP for those
 containers.
 * Slave will now call `wait` on the ECP (via EC) for all recovered
-containers. This does once again put ‘wait' into the position of the
+containers. This does once again put `wait` into the position of the
 ultimate command reaper.
 
 
