@@ -25,6 +25,8 @@
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
+#include <stout/strings.hpp>
+
 #include <mesos/mesos.hpp>
 
 #include "slave/flags.hpp"
@@ -279,7 +281,12 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   EXPECT_EQ(0, wait.get().status());
 
   // Check that std{err, out} was redirected.
-  EXPECT_SOME_EQ(errMsg + "\n", os::read(path::join(directory, "stderr")));
+  // NOTE: Fetcher uses GLOG, which outputs extra information to
+  // stderr.
+  Try<string> stderr = os::read(path::join(directory, "stderr"));
+  ASSERT_SOME(stderr);
+  EXPECT_TRUE(strings::contains(stderr.get(), errMsg));
+
   EXPECT_SOME_EQ(outMsg + "\n", os::read(path::join(directory, "stdout")));
 
   delete containerizer.get();
