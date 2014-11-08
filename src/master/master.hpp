@@ -370,7 +370,6 @@ protected:
       const std::vector<TaskInfo>& tasks,
       const Resources& totalResources,
       const Filters& filters,
-      const std::vector<Option<Error>>& validations,
       const process::Future<std::list<process::Future<bool>>>& authorizations);
 
   // Transitions the task, and recovers resources if the task becomes
@@ -1172,8 +1171,8 @@ struct Framework
   process::Time reregisteredTime;
   process::Time unregisteredTime;
 
-  // Tasks that have not yet been launched because they are being
-  // validated (e.g., authorized).
+  // Tasks that have not yet been launched because they are currently
+  // being authorized.
   hashmap<TaskID, TaskInfo> pendingTasks;
 
   hashmap<TaskID, Task*> tasks;
