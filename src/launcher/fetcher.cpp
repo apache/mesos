@@ -309,7 +309,7 @@ int main(int argc, char* argv[])
         EXIT(1) << "Failed to chmod " << fetched.get() << ": " << chmod.error();
       }
     } else if (uri.extract()) {
-      //TODO(idownes): Consider removing the archive once extracted.
+      // TODO(idownes): Consider removing the archive once extracted.
       // Try to extract the file if it's recognized as an archive.
       Try<bool> extracted = extract(fetched.get(), directory);
       if (extracted.isError()) {

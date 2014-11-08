@@ -294,6 +294,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/docker.cpp					\
 	slave/containerizer/docker.hpp					\
 	slave/containerizer/external_containerizer.cpp			\
+	slave/containerizer/fetcher.cpp					\
 	slave/containerizer/isolator.cpp				\
 	slave/containerizer/launcher.cpp				\
 	slave/containerizer/mesos/containerizer.cpp			\
@@ -443,6 +444,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/state.hpp							\
 	slave/status_update_manager.hpp					\
 	slave/containerizer/containerizer.hpp				\
+	slave/containerizer/fetcher.hpp					\
 	slave/containerizer/external_containerizer.hpp			\
 	slave/containerizer/isolator.hpp				\
 	slave/containerizer/launcher.hpp				\

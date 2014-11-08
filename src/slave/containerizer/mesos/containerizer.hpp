@@ -45,7 +45,7 @@ public:
       const Flags& flags,
       bool local,
       const process::Owned<Launcher>& launcher,
-      const std::vector<process::Owned<Isolator> >& isolators);
+      const std::vector<process::Owned<Isolator>>& isolators);
 
   virtual ~MesosContainerizer();
 
@@ -83,7 +83,7 @@ public:
 
   virtual void destroy(const ContainerID& containerId);
 
-  virtual process::Future<hashset<ContainerID> > containers();
+  virtual process::Future<hashset<ContainerID>> containers();
 
 private:
   MesosContainerizerProcess* process;
@@ -98,7 +98,7 @@ public:
       const Flags& _flags,
       bool _local,
       const process::Owned<Launcher>& _launcher,
-      const std::vector<process::Owned<Isolator> >& _isolators)
+      const std::vector<process::Owned<Isolator>>& _isolators)
     : flags(_flags),
       local(_local),
       launcher(_launcher),
@@ -140,7 +140,7 @@ public:
 
   void destroy(const ContainerID& containerId);
 
-  process::Future<hashset<ContainerID> > containers();
+  process::Future<hashset<ContainerID>> containers();
 
 private:
   process::Future<Nothing> _recover(
@@ -149,7 +149,7 @@ private:
   process::Future<Nothing> __recover(
       const std::list<state::RunState>& recovered);
 
-  process::Future<std::list<Option<CommandInfo> > > prepare(
+  process::Future<std::list<Option<CommandInfo>>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
@@ -169,7 +169,7 @@ private:
       const SlaveID& slaveId,
       const process::PID<Slave>& slavePid,
       bool checkpoint,
-      const std::list<Option<CommandInfo> >& scripts);
+      const std::list<Option<CommandInfo>>& scripts);
 
   process::Future<bool> isolate(
       const ContainerID& containerId,
@@ -187,13 +187,13 @@ private:
   // Continues '_destroy()' once we get the exit status of the executor.
   void __destroy(
       const ContainerID& containerId,
-      const process::Future<Option<int > >& status);
+      const process::Future<Option<int>>& status);
 
   // Continues (and completes) '__destroy()' once all isolators have completed
   // cleanup.
   void ___destroy(
       const ContainerID& containerId,
-      const process::Future<Option<int> >& status,
+      const process::Future<Option<int>>& status,
       const process::Future<std::list<process::Future<Nothing>>>& cleanups);
 
   // Call back for when an isolator limits a container and impacts the
@@ -209,17 +209,17 @@ private:
   const Flags flags;
   const bool local;
   const process::Owned<Launcher> launcher;
-  const std::vector<process::Owned<Isolator> > isolators;
+  const std::vector<process::Owned<Isolator>> isolators;
 
   // TODO(idownes): Consider putting these per-container variables into a
   // struct.
   // Promises for futures returned from wait().
   hashmap<ContainerID,
-    process::Owned<process::Promise<containerizer::Termination> > > promises;
+    process::Owned<process::Promise<containerizer::Termination>>> promises;
 
   // We need to keep track of the future exit status for each executor because
   // we'll only get a single notification when the executor exits.
-  hashmap<ContainerID, process::Future<Option<int> > > statuses;
+  hashmap<ContainerID, process::Future<Option<int>>> statuses;
 
   // We keep track of any limitations received from each isolator so we can
   // determine the cause of an executor termination.

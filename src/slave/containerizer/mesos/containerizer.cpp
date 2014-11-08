@@ -31,6 +31,7 @@
 #include "slave/slave.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
 #ifdef __linux__
@@ -115,7 +116,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   creators["network/port_mapping"] = &PortMappingIsolatorProcess::create;
 #endif
 
-  vector<Owned<Isolator> > isolators;
+  vector<Owned<Isolator>> isolators;
 
   foreach (const string& type, strings::split(isolation, ",")) {
     if (creators.contains(type)) {
@@ -171,7 +172,7 @@ MesosContainerizer::MesosContainerizer(
     const Flags& flags,
     bool local,
     const Owned<Launcher>& launcher,
-    const vector<Owned<Isolator> >& isolators)
+    const vector<Owned<Isolator>>& isolators)
 {
   process = new MesosContainerizerProcess(
       flags, local, launcher, isolators);
@@ -269,7 +270,7 @@ void MesosContainerizer::destroy(const ContainerID& containerId)
 }
 
 
-Future<hashset<ContainerID> > MesosContainerizer::containers()
+Future<hashset<ContainerID>> MesosContainerizer::containers()
 {
   return dispatch(process, &MesosContainerizerProcess::containers);
 }
@@ -339,7 +340,7 @@ Future<Nothing> MesosContainerizerProcess::_recover(
     const list<RunState>& recoverable)
 {
   // Then recover the isolators.
-  list<Future<Nothing> > futures;
+  list<Future<Nothing>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
     futures.push_back(isolator->recover(recoverable));
   }
@@ -357,12 +358,12 @@ Future<Nothing> MesosContainerizerProcess::__recover(
     CHECK_SOME(run.id);
     const ContainerID& containerId = run.id.get();
 
-    Owned<Promise<containerizer::Termination> > promise(
+    Owned<Promise<containerizer::Termination>> promise(
         new Promise<containerizer::Termination>());
     promises.put(containerId, promise);
 
     CHECK_SOME(run.forkedPid);
-    Future<Option<int > > status = process::reap(run.forkedPid.get());
+    Future<Option<int>> status = process::reap(run.forkedPid.get());
     statuses[containerId] = status;
     status.onAny(defer(self(), &Self::reaped, containerId));
 
@@ -414,7 +415,7 @@ Future<bool> MesosContainerizerProcess::launch(
     return false;
   }
 
-  Owned<Promise<containerizer::Termination> > promise(
+  Owned<Promise<containerizer::Termination>> promise(
       new Promise<containerizer::Termination>());
   promises.put(containerId, promise);
 
@@ -527,7 +528,8 @@ Future<Nothing> _fetch(
   if (status.isNone() || (status.get() != 0)) {
     return Failure("Failed to fetch URIs for container '" +
                    stringify(containerId) + "': exit status " +
-                   (status.isNone() ? "none" : stringify(status.get())));
+                   (status.isNone() ?
+                       "none" : stringify(status.get())));
   }
 
   // Chown the work directory if a user is provided.
@@ -548,55 +550,23 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     const string& directory,
     const Option<string>& user)
 {
-  // Determine path for mesos-fetcher.
-  Result<string> realpath = os::realpath(
-      path::join(flags.launcher_dir, "mesos-fetcher"));
+  // Before we fetch let's make sure we create 'stdout' and 'stderr'
+  // files into which we can redirect the output of the mesos-fetcher
+  // (and later redirect the child's stdout/stderr).
 
-  if (!realpath.isSome()) {
-    LOG(ERROR) << "Failed to determine the canonical path "
-                << "for the mesos-fetcher '"
-                << path::join(flags.launcher_dir, "mesos-fetcher")
-                << "': "
-                << (realpath.isError() ? realpath.error()
-                                       : "No such file or directory");
-    return Failure("Could not fetch URIs: failed to find mesos-fetcher");
-  }
-
-  map<string, string> environment =
-    fetcherEnvironment(commandInfo, directory, user, flags);
-
-  // Now the actual mesos-fetcher command.
-  string command = realpath.get();
-
-  LOG(INFO) << "Fetching URIs for container '" << containerId
-            << "' using command '" << command << "'";
-
-  Try<Subprocess> fetcher = subprocess(
-      command,
-      Subprocess::PIPE(),
-      Subprocess::PIPE(),
-      Subprocess::PIPE(),
-      environment);
-
-  if (fetcher.isError()) {
-    return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
-  }
-
-  // Redirect output (stdout and stderr) from the fetcher to log files
-  // in the executor work directory, chown'ing them if a user is
-  // specified.
   // TODO(tillt): Consider adding O_CLOEXEC for atomic close-on-exec.
-  // TODO(tillt): Consider adding an overload to io::redirect
-  // that accepts a file path as 'to' for further reducing code. We
-  // would however also need an owner user parameter for such overload
-  // to perfectly replace the below.
+  // TODO(tillt): Considering updating fetcher::run to take paths
+  // instead of file descriptors and then use Subprocess::PATH()
+  // instead of Subprocess::FD(). The reason this can't easily be done
+  // today is because we not only need to open the files but also
+  // chown them.
   Try<int> out = os::open(
       path::join(directory, "stdout"),
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (out.isError()) {
-    return Failure("Failed to redirect stdout: " + out.error());
+    return Failure("Failed to create 'stdout' file: " + out.error());
   }
 
   if (user.isSome()) {
@@ -604,19 +574,9 @@ Future<Nothing> MesosContainerizerProcess::fetch(
         user.get(), path::join(directory, "stdout"));
     if (chown.isError()) {
       os::close(out.get());
-      return Failure(
-          "Failed to redirect stdout: Failed to chown: " +
-          chown.error());
+      return Failure("Failed to chown 'stdout' file: " + chown.error());
     }
   }
-
-  // Redirect takes care of nonblocking and close-on-exec for the
-  // supplied file descriptors.
-  io::redirect(fetcher.get().out().get(), out.get());
-
-  // Redirect does 'dup' the file descriptor, hence we can close the
-  // original now.
-  os::close(out.get());
 
   // Repeat for stderr.
   Try<int> err = os::open(
@@ -625,9 +585,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
       S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
 
   if (err.isError()) {
-    return Failure(
-        "Failed to redirect stderr: Failed to open: " +
-        err.error());
+    return Failure("Failed to create 'stderr' file: " + err.error());
   }
 
   if (user.isSome()) {
@@ -635,17 +593,19 @@ Future<Nothing> MesosContainerizerProcess::fetch(
         user.get(), path::join(directory, "stderr"));
     if (chown.isError()) {
       os::close(err.get());
-      return Failure(
-          "Failed to redirect stderr: Failed to chown: " +
-          chown.error());
+      return Failure("Failed to chown 'stderr' file: " + chown.error());
     }
   }
 
-  io::redirect(fetcher.get().err().get(), err.get());
-
-  os::close(err.get());
-
-  return fetcher.get().status()
+  return fetcher::run(
+      commandInfo,
+      directory,
+      user,
+      flags,
+      out.get(),
+      err.get())
+    .onAny(lambda::bind(&os::close, out.get()))
+    .onAny(lambda::bind(&os::close, err.get()))
     .then(lambda::bind(&_fetch, containerId, directory, user, lambda::_1));
 }
 
@@ -658,7 +618,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint,
-    const list<Option<CommandInfo> >& commands)
+    const list<Option<CommandInfo>>& commands)
 {
   // Prepare environment variables for the executor.
   map<string, string> env = executorEnvironment(
@@ -752,7 +712,7 @@ Future<bool> MesosContainerizerProcess::_launch(
 
   // Monitor the executor's pid. We keep the future because we'll
   // refer to it again during container destroy.
-  Future<Option<int> > status = process::reap(pid);
+  Future<Option<int>> status = process::reap(pid);
   statuses.put(containerId, status);
   status.onAny(defer(self(), &Self::reaped, containerId));
 
@@ -789,7 +749,7 @@ Future<bool> MesosContainerizerProcess::isolate(
   // NOTE: This is done is parallel and is not sequenced like prepare
   // or destroy because we assume there are no dependencies in
   // isolation.
-  list<Future<Nothing> > futures;
+  list<Future<Nothing>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
     futures.push_back(isolator->isolate(containerId, _pid));
   }
@@ -857,7 +817,7 @@ Future<Nothing> MesosContainerizerProcess::update(
   resources.put(containerId, _resources);
 
   // Update each isolator.
-  list<Future<Nothing> > futures;
+  list<Future<Nothing>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
     futures.push_back(isolator->update(containerId, _resources));
   }
@@ -874,7 +834,7 @@ Future<Nothing> MesosContainerizerProcess::update(
 Future<ResourceStatistics> _usage(
     const ContainerID& containerId,
     const Option<Resources>& resources,
-    const list<Future<ResourceStatistics> >& statistics)
+    const list<Future<ResourceStatistics>>& statistics)
 {
   ResourceStatistics result;
 
@@ -916,7 +876,7 @@ Future<ResourceStatistics> MesosContainerizerProcess::usage(
     return Failure("Unknown container: " + stringify(containerId));
   }
 
-  list<Future<ResourceStatistics> > futures;
+  list<Future<ResourceStatistics>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
     futures.push_back(isolator->usage(containerId));
   }
@@ -1023,7 +983,7 @@ static T reversed(const T& t)
 
 void MesosContainerizerProcess::__destroy(
     const ContainerID& containerId,
-    const Future<Option<int > >& status)
+    const Future<Option<int>>& status)
 {
   // We clean up each isolator in the reverse order they were
   // prepared (see comment in prepare()).
@@ -1147,7 +1107,7 @@ void MesosContainerizerProcess::limited(
 }
 
 
-Future<hashset<ContainerID> > MesosContainerizerProcess::containers()
+Future<hashset<ContainerID>> MesosContainerizerProcess::containers()
 {
   return promises.keys();
 }

@@ -18,8 +18,7 @@
 
 #include <unistd.h>
 
-#include <gmock/gmock.h>
-
+#include <map>
 #include <string>
 
 #include <process/future.hpp>
@@ -35,12 +34,16 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include "slave/containerizer/fetcher.hpp"
+#include "slave/flags.hpp"
+
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
+using namespace mesos::internal::slave;
 using namespace mesos::internal::tests;
 
 using namespace process;
@@ -49,6 +52,198 @@ using process::Future;
 
 using std::string;
 using std::map;
+
+
+class FetcherEnvironmentTest : public ::testing::Test {};
+
+
+TEST_F(FetcherEnvironmentTest, Simple)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri");
+  uri.set_executable(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+  Option<string> user = "user";
+
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+  flags.hadoop_home = "/tmp/hadoop";
+
+  map<string, string> environment =
+    fetcher::environment(commandInfo, directory, user, flags);
+
+  EXPECT_EQ(5u, environment.size());
+  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
+  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
+  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+}
+
+
+TEST_F(FetcherEnvironmentTest, MultipleURIs)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri1");
+  uri.set_executable(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+  uri.set_value("hdfs:///uri2");
+  uri.set_executable(true);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+  Option<string> user("user");
+
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+  flags.hadoop_home = "/tmp/hadoop";
+
+  map<string, string> environment =
+    fetcher::environment(commandInfo, directory, user, flags);
+
+  EXPECT_EQ(5u, environment.size());
+  EXPECT_EQ(
+      "hdfs:///uri1+0X hdfs:///uri2+1X", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
+  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
+  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+}
+
+
+TEST_F(FetcherEnvironmentTest, NoUser)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri");
+  uri.set_executable(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+  flags.hadoop_home = "/tmp/hadoop";
+
+  map<string, string> environment =
+    fetcher::environment(commandInfo, directory, None(), flags);
+
+  EXPECT_EQ(4u, environment.size());
+  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
+  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+}
+
+
+TEST_F(FetcherEnvironmentTest, EmptyHadoop)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri");
+  uri.set_executable(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+  Option<string> user = "user";
+
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+  flags.hadoop_home = "";
+
+  map<string, string> environment =
+    fetcher::environment(commandInfo, directory, user, flags);
+
+  EXPECT_EQ(4u, environment.size());
+  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
+  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
+  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+}
+
+
+TEST_F(FetcherEnvironmentTest, NoHadoop)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri");
+  uri.set_executable(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+  Option<string> user = "user";
+
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+
+  map<string, string> environment =
+    fetcher::environment(commandInfo, directory, user, flags);
+
+  EXPECT_EQ(4u, environment.size());
+  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
+  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
+  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+}
+
+
+TEST_F(FetcherEnvironmentTest, NoExtractNoExecutable)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri");
+  uri.set_executable(false);
+  uri.set_extract(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+  Option<string> user = "user";
+
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+  flags.hadoop_home = "/tmp/hadoop";
+
+  map<string, string> environment =
+    fetcher::environment(commandInfo, directory, user, flags);
+  EXPECT_EQ(5u, environment.size());
+  EXPECT_EQ("hdfs:///uri+0N", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
+  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
+  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+}
+
+
+TEST_F(FetcherEnvironmentTest, NoExtractExecutable)
+{
+  CommandInfo commandInfo;
+  CommandInfo::URI uri;
+  uri.set_value("hdfs:///uri");
+  uri.set_executable(true);
+  uri.set_extract(false);
+  commandInfo.add_uris()->MergeFrom(uri);
+
+  string directory = "/tmp/directory";
+  Option<string> user = "user";
+
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
+  flags.hadoop_home = "/tmp/hadoop";
+
+  map<string, string> environment =
+    fetcher::environment(commandInfo, directory, user, flags);
+  EXPECT_EQ(5u, environment.size());
+  EXPECT_EQ("hdfs:///uri+1N", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
+  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
+  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+}
+
 
 class FetcherTest : public TemporaryDirectoryTest {};
 
@@ -74,7 +269,7 @@ TEST_F(FetcherTest, FileURI)
       env);
 
   ASSERT_SOME(fetcherProcess);
-  Future<Option<int> > status = fetcherProcess.get().status();
+  Future<Option<int>> status = fetcherProcess.get().status();
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
@@ -105,7 +300,7 @@ TEST_F(FetcherTest, FilePath)
       env);
 
   ASSERT_SOME(fetcherProcess);
-  Future<Option<int> > status = fetcherProcess.get().status();
+  Future<Option<int>> status = fetcherProcess.get().status();
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
@@ -153,7 +348,7 @@ TEST_F(FetcherTest, OSNetUriTest)
       env);
 
   ASSERT_SOME(fetcherProcess);
-  Future<Option<int> > status = fetcherProcess.get().status();
+  Future<Option<int>> status = fetcherProcess.get().status();
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
@@ -184,11 +379,158 @@ TEST_F(FetcherTest, FileLocalhostURI)
       env);
 
   ASSERT_SOME(fetcherProcess);
-  Future<Option<int> > status = fetcherProcess.get().status();
+  Future<Option<int>> status = fetcherProcess.get().status();
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
 
   EXPECT_EQ(0, status.get().get());
   EXPECT_TRUE(os::exists(localFile));
+}
+
+
+TEST_F(FetcherTest, NoExtractNotExecutable)
+{
+  // First construct a temporary file that can be fetched.
+  Try<string> path = os::mktemp();
+
+  ASSERT_SOME(path);
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path.get());
+  uri->set_executable(false);
+  uri->set_extract(false);
+
+  Option<int> stdout = None();
+  Option<int> stderr = None();
+
+  // Redirect mesos-fetcher output if running the tests verbosely.
+  if (tests::flags.verbose) {
+    stdout = STDOUT_FILENO;
+    stderr = STDERR_FILENO;
+  }
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  Future<Option<int>> run =
+    fetcher::run(commandInfo, os::getcwd(), None(), flags, stdout, stderr);
+
+  AWAIT_READY(run);
+  EXPECT_SOME_EQ(0, run.get());
+
+  Try<string> basename = os::basename(path.get());
+
+  ASSERT_SOME(basename);
+
+  Try<os::Permissions> permissions = os::permissions(basename.get());
+
+  ASSERT_SOME(permissions);
+  EXPECT_FALSE(permissions.get().owner.x);
+  EXPECT_FALSE(permissions.get().group.x);
+  EXPECT_FALSE(permissions.get().others.x);
+
+  ASSERT_SOME(os::rm(path.get()));
+}
+
+
+TEST_F(FetcherTest, NoExtractExecutable)
+{
+  // First construct a temporary file that can be fetched.
+  Try<string> path = os::mktemp();
+
+  ASSERT_SOME(path);
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path.get());
+  uri->set_executable(true);
+  uri->set_extract(false);
+
+  Option<int> stdout = None();
+  Option<int> stderr = None();
+
+  // Redirect mesos-fetcher output if running the tests verbosely.
+  if (tests::flags.verbose) {
+    stdout = STDOUT_FILENO;
+    stderr = STDERR_FILENO;
+  }
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  Future<Option<int>> run =
+    fetcher::run(commandInfo, os::getcwd(), None(), flags, stdout, stderr);
+
+  AWAIT_READY(run);
+  EXPECT_SOME_EQ(0, run.get());
+
+  Try<string> basename = os::basename(path.get());
+
+  ASSERT_SOME(basename);
+
+  Try<os::Permissions> permissions = os::permissions(basename.get());
+
+  ASSERT_SOME(permissions);
+  EXPECT_TRUE(permissions.get().owner.x);
+  EXPECT_TRUE(permissions.get().group.x);
+  EXPECT_TRUE(permissions.get().others.x);
+
+  ASSERT_SOME(os::rm(path.get()));
+}
+
+
+TEST_F(FetcherTest, ExtractNotExecutable)
+{
+  // First construct a temporary file that can be fetched and archive
+  // with tar  gzip.
+  Try<string> path = os::mktemp();
+
+  ASSERT_SOME(path);
+
+  ASSERT_SOME(os::write(path.get(), "hello world"));
+
+  // TODO(benh): Update os::tar so that we can capture or ignore
+  // stdout/stderr output.
+
+  ASSERT_SOME(os::tar(path.get(), path.get() + ".tar.gz"));
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path.get() + ".tar.gz");
+  uri->set_executable(false);
+  uri->set_extract(true);
+
+  Option<int> stdout = None();
+  Option<int> stderr = None();
+
+  // Redirect mesos-fetcher output if running the tests verbosely.
+  if (tests::flags.verbose) {
+    stdout = STDOUT_FILENO;
+    stderr = STDERR_FILENO;
+  }
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  Future<Option<int>> run =
+    fetcher::run(commandInfo, os::getcwd(), None(), flags, stdout, stderr);
+
+  AWAIT_READY(run);
+  EXPECT_SOME_EQ(0, run.get());
+
+  ASSERT_TRUE(os::exists(path::join(".", path.get())));
+
+  ASSERT_SOME_EQ("hello world", os::read(path::join(".", path.get())));
+
+  Try<os::Permissions> permissions =
+    os::permissions(path::join(".", path.get()));
+
+  ASSERT_SOME(permissions);
+  EXPECT_FALSE(permissions.get().owner.x);
+  EXPECT_FALSE(permissions.get().group.x);
+  EXPECT_FALSE(permissions.get().others.x);
+
+  ASSERT_SOME(os::rm(path.get()));
 }

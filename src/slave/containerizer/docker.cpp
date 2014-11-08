@@ -46,6 +46,8 @@
 
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/docker.hpp"
+#include "slave/containerizer/fetcher.hpp"
+
 
 #include "slave/containerizer/isolators/cgroups/constants.hpp"
 
@@ -554,7 +556,7 @@ Future<Nothing> DockerContainerizerProcess::fetch(
     return Failure("Could not fetch URIs: failed to find mesos-fetcher");
   }
 
-  map<string, string> fetcherEnv = fetcherEnvironment(
+  map<string, string> environment = fetcher::environment(
       commandInfo,
       container->directory,
       None(),
@@ -568,7 +570,7 @@ Future<Nothing> DockerContainerizerProcess::fetch(
       Subprocess::PIPE(),
       Subprocess::PATH(path::join(container->directory, "stdout")),
       Subprocess::PATH(path::join(container->directory, "stderr")),
-      fetcherEnv);
+      environment);
 
   if (fetcher.isError()) {
     return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
