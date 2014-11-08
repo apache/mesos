@@ -30,15 +30,15 @@
 namespace mesos {
 namespace internal {
 
+// Note that this interface definition is not hardened yet and will
+// slightly change within the next release. See MESOS-2050.
 class Authenticator
 {
 public:
   Authenticator() {}
   virtual ~Authenticator() {}
 
-  virtual Try<Nothing> initialize(
-      const process::UPID& clientPid,
-      const Option<mesos::Credentials>& credentials) = 0;
+  virtual void initialize(const process::UPID& clientPid) = 0;
 
   // Returns the principal of the Authenticatee if successfully
   // authenticated otherwise None or an error. Note that we
