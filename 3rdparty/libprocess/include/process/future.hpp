@@ -24,6 +24,7 @@
 #include <process/pid.hpp>
 #include <process/timer.hpp>
 
+#include <stout/abort.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/lambda.hpp>
@@ -1171,10 +1172,10 @@ const T& Future<T>::get() const
 template <typename T>
 std::string Future<T>::failure() const
 {
-  if (data->message != NULL) {
-    return *data->message;
+  if (data->state != FAILED) {
+    ABORT("Future::failure() but state != FAILED");
   }
-  return "";
+  return *(CHECK_NOTNULL(data->message));
 }
 
 
