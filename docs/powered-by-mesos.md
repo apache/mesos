@@ -14,6 +14,7 @@ layout: documentation
 * [CloudPhysics](http://cloudphysics.com)
 * [Conviva](http://www.conviva.com)
 * [CorvisaCloud](http://www.corvisacloud.com/)
+* [CRP-Gabriel Lippmann](http://www.crpgl.lu)
 * [Devicescape](http://www.devicescape.com)
 * [DueDil](http://www.duedil.com)
 * [eBay](http://www.ebay.com)
