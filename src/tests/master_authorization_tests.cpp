@@ -838,6 +838,9 @@ TEST_F(MasterAuthorizationTest, DuplicateReregistration)
                     Return(promise3.future())))
     .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
 
+  // Pause the clock to avoid re-registration retries.
+  Clock::pause();
+
   driver.start();
 
   // Wait for the framework to be registered.
