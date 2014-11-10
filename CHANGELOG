@@ -105,6 +105,9 @@ improvements.
   * [MESOS-1989] - Container network stats reported by the port mapping isolator is the reverse of the actual network stats.
   * [MESOS-2025] - OsTest.killtreeNoRoot: Process reparent assumes new parent is init pid 1
   * [MESOS-2036] - Fix the Json format for the --modules and update the help message
+  * [MESOS-2046] - Configure should check headers and libraries for svn and apr
+  * [MESOS-2050] - InMemoryAuxProp plugin used by Authenticators results in SEGFAULT
+  * [MESOS-2052] - RunState::recover should always recover 'completed'
 
 ** Documentation
   * [MESOS-1506] - Update documentation/flags regarding new default hostname semantics
@@ -119,6 +122,7 @@ improvements.
 
 * Improvement
   * [MESOS-186] - Resource offers should be rescinded after some configurable timeout
+  * [MESOS-723] - Expose total number of resources allocated to the slave in its endpoint
   * [MESOS-750] - Require compilers that support c++11
   * [MESOS-1181] - Improve cpplint rule coverage
   * [MESOS-1502] - expose message event queue size from libprocess
