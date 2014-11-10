@@ -14,6 +14,7 @@ layout: documentation
 * [CloudPhysics](http://cloudphysics.com)
 * [Conviva](http://www.conviva.com)
 * [CorvisaCloud](http://www.corvisacloud.com/)
+* [Daemon](http://www.daemon.com.au/)
 * [Devicescape](http://www.devicescape.com)
 * [DueDil](http://www.duedil.com)
 * [eBay](http://www.ebay.com)
