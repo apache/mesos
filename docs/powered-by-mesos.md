@@ -39,6 +39,7 @@ layout: documentation
 * [Pinkbike](http://www.pinkbike.com)
 * [ProfitStars](http://www.profitstars.com)
 * [Qubit](http://www.qubitproducts.com)
+* [Revisely](http://revise.ly)
 * [Sailthru](http://www.sailthru.com)
 * [Sharethrough](http://www.sharethrough.com)
 * [Sigmoid Analytics](http://www.sigmoidanalytics.com/)
