@@ -350,7 +350,8 @@ protected:
       const TaskInfo& task,
       Framework* framework,
       Slave* slave,
-      const Resources& totalResources);
+      const Resources& totalResources,
+      const Resources& usedResources);
 
   // Authorizes the task.
   // Returns true if task is authorized.
@@ -361,7 +362,10 @@ protected:
       Framework* framework);
 
   // Launch a task from a task description.
-  void launchTask(const TaskInfo& task, Framework* framework, Slave* slave);
+  Resources launchTask(
+      const TaskInfo& task,
+      Framework* framework,
+      Slave* slave);
 
   // 'launchTasks()' continuation.
   void _launchTasks(

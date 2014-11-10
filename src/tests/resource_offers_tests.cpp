@@ -354,8 +354,9 @@ TEST_F(ResourceOffersTest, TaskUsesMoreResourcesThanOffered)
   EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
+
   EXPECT_TRUE(strings::contains(
-      status.get().message(), "greater than offered"));
+      status.get().message(), "Task uses more resources"));
 
   driver.stop();
   driver.join();
