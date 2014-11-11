@@ -15,6 +15,7 @@ layout: documentation
 * [Conviva](http://www.conviva.com)
 * [CorvisaCloud](http://www.corvisacloud.com/)
 * [CRP-Gabriel Lippmann](http://www.crpgl.lu)
+* [Daemon](http://www.daemon.com.au)
 * [Devicescape](http://www.devicescape.com)
 * [DueDil](http://www.duedil.com)
 * [eBay](http://www.ebay.com)
