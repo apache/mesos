@@ -51,6 +51,11 @@ EXTRA_DIST =		\
 EXTRA_DIST +=		\
   $(LEVELDB).patch
 
+# We need to patch ZooKeeper in order to get 3.4.5 to compile on
+# OS X 10.10. See: MESOS-1797.
+EXTRA_DIST +=		\
+  $(ZOOKEEPER).patch
+
 CLEAN_EXTRACTED =	\
   $(DISTRIBUTE)		\
   $(LEVELDB)		\
