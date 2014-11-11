@@ -1,0 +1,105 @@
+---
+BasedOnStyle: Google
+
+# Good:
+#
+#   class Foo
+#   {
+#   public:
+#
+#     Foo() = default;
+#
+#   };
+#
+# Bad:
+#
+#   class Foo
+#   {
+#    public:
+#
+#     Foo() = default;
+#
+#   };
+#
+AccessModifierOffset: -2
+
+# Good:
+#
+#   clang = Clang(); // Comment 1
+#   format = Format(); // Comment 2
+#
+# Bad:
+#   clang = Clang();   // Comment 1
+#   format = Format(); // Comment 2
+#
+AlignTrailingComments: false
+
+# Good:
+#
+#   void F(int first,
+#          int second,
+#          int third,
+#          int fourth,
+#          int fifth,
+#          int sixth,
+#          int seventh,
+#          int eighth) {}
+#
+# Bad:
+#
+#   void F(int first, int second, int third, int fourth, int fifth, int sixth,
+#          int seventh, int eighth) {}
+#
+BinPackParameters: false
+
+# Like 'Attach', but break before braces on function, namespaces, class, struct
+# and union definitions.
+#
+BreakBeforeBraces: Linux
+
+# Good:
+#
+#   class Foo
+#   {
+#     public:
+#
+#     Foo()
+#       : first(1), second(2) {}
+#
+#   };
+#
+# Bad:
+#
+#   class Foo
+#   {
+#     public:
+#
+#     Foo()
+#         : first(1), second(2) {}
+#
+#   };
+#
+ConstructorInitializerIndentWidth: 2
+
+# Continuation indents such as assignment statements are indented by 2 spaces.
+ContinuationIndentWidth: 2
+
+# Don't try to guess the pointer alignment
+DerivePointerAlignment: false
+
+# List of foreach macros due to lack of range-based for loops.
+ForEachMacros: [ foreach, foreachkey, foreachvalue, foreachpair ]
+
+# Maximum number of empty lines to keep.
+MaxEmptyLinesToKeep: 2
+
+# Good:
+#
+#   x = 42; // Comment
+#
+# Bad:
+#
+#   x = 42;  // Comment
+#
+SpacesBeforeTrailingComments: 1
+...
