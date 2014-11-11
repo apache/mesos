@@ -1,5 +1,5 @@
 ---
-layout: documentaiton
+layout: documentation
 ---
 
 # Mesos Containerizer
