@@ -907,6 +907,9 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
                     Return(promise.future())))
     .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
 
+  // Pause the clock to avoid scheduler registration retries.
+  Clock::pause();
+
   driver.start();
 
   // Wait until authorization is in progress.
@@ -920,7 +923,6 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
 
   // Settle the clock here to ensure master handles the framework
   // 'exited' event.
-  Clock::pause();
   Clock::settle();
   Clock::resume();
 
