@@ -126,7 +126,7 @@ public:
       cond(_cond),
       failover(_framework.has_id() && !framework.id().value().empty()),
       connected(false),
-      aborted(false),
+      running(true),
       detector(_detector),
       credential(_credential),
       authenticatee(NULL),
@@ -193,8 +193,9 @@ protected:
 
   void detected(const Future<Option<MasterInfo> >& _master)
   {
-    if (aborted) {
-      VLOG(1) << "Ignoring the master change because the driver is aborted!";
+    if (!running) {
+      VLOG(1) << "Ignoring the master change because the driver is not"
+              << " running!";
       return;
     }
 
@@ -257,8 +258,8 @@ protected:
 
   void authenticate()
   {
-    if (aborted) {
-      VLOG(1) << "Ignoring authenticate because the driver is aborted!";
+    if (!running) {
+      VLOG(1) << "Ignoring authenticate because the driver is not running!";
       return;
     }
 
@@ -311,8 +312,8 @@ protected:
 
   void _authenticate()
   {
-    if (aborted) {
-      VLOG(1) << "Ignoring _authenticate because the driver is aborted!";
+    if (!running) {
+      VLOG(1) << "Ignoring _authenticate because the driver is not running!";
       return;
     }
 
@@ -364,9 +365,9 @@ protected:
 
   void authenticationTimeout(Future<bool> future)
   {
-    if (aborted) {
+    if (!running) {
       VLOG(1) << "Ignoring authentication timeout because "
-              << "the driver is aborted!";
+              << "the driver is not running!";
       return;
     }
 
@@ -384,9 +385,9 @@ protected:
       const FrameworkID& frameworkId,
       const MasterInfo& masterInfo)
   {
-    if (aborted) {
+    if (!running) {
       VLOG(1) << "Ignoring framework registered message because "
-              << "the driver is aborted!";
+              << "the driver is not running!";
       return;
     }
 
@@ -426,9 +427,9 @@ protected:
       const FrameworkID& frameworkId,
       const MasterInfo& masterInfo)
   {
-    if (aborted) {
+    if (!running) {
       VLOG(1) << "Ignoring framework re-registered message because "
-              << "the driver is aborted!";
+              << "the driver is not running!";
       return;
     }
 
@@ -465,6 +466,10 @@ protected:
 
   void doReliableRegistration()
   {
+    if (!running) {
+      return;
+    }
+
     if (connected || master.isNone()) {
       return;
     }
@@ -496,9 +501,9 @@ protected:
       const vector<Offer>& offers,
       const vector<string>& pids)
   {
-    if (aborted) {
+    if (!running) {
       VLOG(1) << "Ignoring resource offers message because "
-              << "the driver is aborted!";
+              << "the driver is not running!";
       return;
     }
 
@@ -546,9 +551,9 @@ protected:
 
   void rescindOffer(const UPID& from, const OfferID& offerId)
   {
-    if (aborted) {
+    if (!running) {
       VLOG(1) << "Ignoring rescind offer message because "
-              << "the driver is aborted!";
+              << "the driver is not running!";
       return;
     }
 
@@ -588,9 +593,9 @@ protected:
   {
     const TaskStatus& status = update.status();
 
-    if (aborted) {
+    if (!running) {
       VLOG(1) << "Ignoring task status update message because "
-              << "the driver is aborted!";
+              << "the driver is not running!";
       return;
     }
 
@@ -637,9 +642,9 @@ protected:
     // Note that we need to look at the volatile 'aborted' here to
     // so that we don't acknowledge the update if the driver was
     // aborted during the processing of the update.
-    if (aborted) {
+    if (!running) {
       VLOG(1) << "Not sending status update acknowledgment message because "
-              << "the driver is aborted!";
+              << "the driver is not running!";
       return;
     }
 
@@ -663,8 +668,9 @@ protected:
 
   void lostSlave(const UPID& from, const SlaveID& slaveId)
   {
-    if (aborted) {
-      VLOG(1) << "Ignoring lost slave message because the driver is aborted!";
+    if (!running) {
+      VLOG(1) << "Ignoring lost slave message because the driver is not"
+              << " running!";
       return;
     }
 
@@ -702,8 +708,9 @@ protected:
                         const ExecutorID& executorId,
                         const string& data)
   {
-    if (aborted) {
-      VLOG(1) << "Ignoring framework message because the driver is aborted!";
+    if (!running) {
+      VLOG(1)
+        << "Ignoring framework message because the driver is not running!";
       return;
     }
 
@@ -721,8 +728,8 @@ protected:
 
   void error(const string& message)
   {
-    if (aborted) {
-      VLOG(1) << "Ignoring error message because the driver is aborted!";
+    if (!running) {
+      VLOG(1) << "Ignoring error message because the driver is not running!";
       return;
     }
 
@@ -769,7 +776,7 @@ protected:
   {
     LOG(INFO) << "Aborting framework '" << framework.id() << "'";
 
-    CHECK(aborted);
+    CHECK(!running);
 
     if (!connected) {
       VLOG(1) << "Not sending a deactivate message as master is disconnected";
@@ -1017,7 +1024,18 @@ private:
   Option<UPID> master;
 
   bool connected; // Flag to indicate if framework is registered.
-  volatile bool aborted; // Flag to indicate if the driver is aborted.
+
+  // TODO(vinod): Instead of 'bool' use 'Status'.
+  // We set 'running' to false in SchedulerDriver::stop() and
+  // SchedulerDriver::abort() to prevent any further messages from
+  // being processed in the SchedulerProcess. However, if abort()
+  // or stop() is called from a thread other than SchedulerProcess,
+  // there may be one additional callback delivered to the scheduler.
+  // This could happen if the SchedulerProcess is in the middle of
+  // processing an event.
+  // TODO(vinod): Instead of 'volatile' use std::atomic() to guarantee
+  // atomicity.
+  volatile bool running; // Flag to indicate if the driver is running.
 
   MasterDetector* detector;
 
@@ -1265,7 +1283,11 @@ Status MesosSchedulerDriver::stop(bool failover)
 {
   Lock lock(&mutex);
 
+  LOG(INFO) << "Asked to stop the driver";
+
   if (status != DRIVER_RUNNING && status != DRIVER_ABORTED) {
+    VLOG(1) << "Ignoring stop because the status of the driver is "
+            << Status_Name(status);
     return status;
   }
 
@@ -1273,6 +1295,7 @@ Status MesosSchedulerDriver::stop(bool failover)
   // it due to bad parameters (e.g. error in creating the detector
   // or loading flags).
   if (process != NULL) {
+    process->running =  false;
     dispatch(process, &SchedulerProcess::stop, failover);
   }
 
@@ -1294,18 +1317,16 @@ Status MesosSchedulerDriver::abort()
 {
   Lock lock(&mutex);
 
+  LOG(INFO) << "Asked to abort the driver";
+
   if (status != DRIVER_RUNNING) {
+    VLOG(1) << "Ignoring abort because the status of the driver is "
+            << Status_Name(status);
     return status;
   }
 
-  CHECK(process != NULL);
-
-  // We set the volatile aborted to true here to prevent any further
-  // messages from being processed in the SchedulerProcess. However,
-  // if abort() is called from another thread as the SchedulerProcess,
-  // there may be at most one additional message processed.
-  // TODO(bmahler): Use an atomic boolean.
-  process->aborted = true;
+  CHECK_NOTNULL(process);
+  process->running = false;
 
   // Dispatching here ensures that we still process the outstanding
   // requests *from* the scheduler, since those do proceed when
