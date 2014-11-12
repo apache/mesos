@@ -120,8 +120,8 @@ TEST(HTTP, Endpoints)
   sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = PF_INET;
-  addr.sin_port = htons(process.self().port);
-  addr.sin_addr.s_addr = process.self().ip;
+  addr.sin_port = htons(process.self().node.port);
+  addr.sin_addr.s_addr = process.self().node.ip;
 
   ASSERT_EQ(0, connect(s, (sockaddr*) &addr, sizeof(addr)));
 

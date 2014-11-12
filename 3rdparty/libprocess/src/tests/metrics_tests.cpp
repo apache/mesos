@@ -147,7 +147,7 @@ TEST(Metrics, Snapshot)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  UPID upid("metrics", process::ip(), process::port());
+  UPID upid("metrics", process::node());
 
   Clock::pause();
 
@@ -219,7 +219,7 @@ TEST(Metrics, SnapshotTimeout)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
-  UPID upid("metrics", process::ip(), process::port());
+  UPID upid("metrics", process::node());
 
   Clock::pause();
 
@@ -320,7 +320,7 @@ TEST(Metrics, SnapshotTimeout)
 // Ensures that the aggregate statistics are correct in the snapshot.
 TEST(Metrics, SnapshotStatistics)
 {
-  UPID upid("metrics", process::ip(), process::port());
+  UPID upid("metrics", process::node());
 
   Clock::pause();
 

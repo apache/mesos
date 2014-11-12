@@ -276,16 +276,9 @@ void finalize();
 
 
 /**
- * Returns the IP address associated with this instance of the
- * library.
+ * Returns the node associated with this instance of the library.
  */
-uint32_t ip();
-
-
-/**
- * Returns the port associated with this instance of the library.
- */
-uint16_t port();
+Node node();
 
 
 /**

@@ -1425,8 +1425,8 @@ TEST(Process, remote)
   sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = PF_INET;
-  addr.sin_port = htons(process.self().port);
-  addr.sin_addr.s_addr = process.self().ip;
+  addr.sin_port = htons(process.self().node.port);
+  addr.sin_addr.s_addr = process.self().node.ip;
 
   ASSERT_EQ(0, connect(s, (sockaddr*) &addr, sizeof(addr)));
 
@@ -1866,7 +1866,7 @@ TEST(Process, PercentEncodedURLs)
   spawn(process);
 
   // Construct the PID using percent-encoding.
-  UPID pid("id%2842%29", process.self().ip, process.self().port);
+  UPID pid("id%2842%29", process.self().node);
 
   // Mimic a libprocess message sent to an installed handler.
   Future<Nothing> handler1;

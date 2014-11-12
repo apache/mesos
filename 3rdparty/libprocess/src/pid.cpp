@@ -47,8 +47,7 @@ UPID::UPID(const std::string& s)
 UPID::UPID(const ProcessBase& process)
 {
   id = process.self().id;
-  ip = process.self().ip;
-  port = process.self().port;
+  node = process.self().node;
 }
 
 
@@ -62,12 +61,7 @@ UPID::operator std::string() const
 
 ostream& operator << (ostream& stream, const UPID& pid)
 {
-  // Call inet_ntop since inet_ntoa is not thread-safe!
-  char ip[INET_ADDRSTRLEN];
-  if (inet_ntop(AF_INET, (in_addr *) &pid.ip, ip, INET_ADDRSTRLEN) == NULL)
-    memset(ip, 0, INET_ADDRSTRLEN);
-
-  stream << pid.id << "@" << ip << ":" << pid.port;
+  stream << pid.id << "@" << pid.node;
   return stream;
 }
 
@@ -75,8 +69,8 @@ ostream& operator << (ostream& stream, const UPID& pid)
 istream& operator >> (istream& stream, UPID& pid)
 {
   pid.id = "";
-  pid.ip = 0;
-  pid.port = 0;
+  pid.node.ip = 0;
+  pid.node.port = 0;
 
   string str;
   if (!(stream >> str)) {
@@ -93,8 +87,7 @@ istream& operator >> (istream& stream, UPID& pid)
 
   string id;
   string host;
-  uint32_t ip;
-  uint16_t port;
+  Node node;
 
   size_t index = str.find('@');
 
@@ -149,20 +142,19 @@ istream& operator >> (istream& stream, UPID& pid)
     return stream;
   }
 
-  ip = *((uint32_t*) hep->h_addr_list[0]);
+  node.ip = *((uint32_t*) hep->h_addr_list[0]);
 
   delete[] temp;
 
   str = str.substr(index + 1);
 
-  if (sscanf(str.c_str(), "%hu", &port) != 1) {
+  if (sscanf(str.c_str(), "%hu", &node.port) != 1) {
     stream.setstate(std::ios_base::badbit);
     return stream;
   }
 
   pid.id = id;
-  pid.ip = ip;
-  pid.port = port;
+  pid.node = node;
 
   return stream;
 }
@@ -172,8 +164,8 @@ size_t hash_value(const UPID& pid)
 {
   size_t seed = 0;
   boost::hash_combine(seed, pid.id);
-  boost::hash_combine(seed, pid.ip);
-  boost::hash_combine(seed, pid.port);
+  boost::hash_combine(seed, pid.node.ip);
+  boost::hash_combine(seed, pid.node.port);
   return seed;
 }
 

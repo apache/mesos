@@ -436,11 +436,8 @@ static uint32_t __id__ = 0;
 // Local server socket.
 static int __s__ = -1;
 
-// Local IP address.
-static uint32_t __ip__ = 0;
-
-// Local port.
-static uint16_t __port__ = 0;
+// Local node.
+static Node __node__;
 
 // Active SocketManager (eventually will probably be thread-local).
 static SocketManager* socket_manager = NULL;
@@ -709,7 +706,7 @@ static Message* encode(const UPID& from,
 
 static void transport(Message* message, ProcessBase* sender = NULL)
 {
-  if (message->to.ip == __ip__ && message->to.port == __port__) {
+  if (message->to.node == __node__) {
     // Local message.
     process_manager->deliver(message->to, new MessageEvent(message), sender);
   } else {
@@ -766,7 +763,7 @@ static Message* parse(Request* request)
     return NULL;
   }
 
-  const UPID to(decode.get(), __ip__, __port__);
+  const UPID to(decode.get(), __node__);
 
   // And now determine 'name'.
   index = index != string::npos ? index + 2: request->path.size();
@@ -1472,15 +1469,15 @@ void initialize(const string& delegate)
     }
   }
 
-  __ip__ = 0;
-  __port__ = 0;
+  __node__.ip = 0;
+  __node__.port = 0;
 
   char* value;
 
   // Check environment for ip.
   value = getenv("LIBPROCESS_IP");
   if (value != NULL) {
-    int result = inet_pton(AF_INET, value, &__ip__);
+    int result = inet_pton(AF_INET, value, &__node__.ip);
     if (result == 0) {
       LOG(FATAL) << "LIBPROCESS_IP=" << value << " was unparseable";
     } else if (result < 0) {
@@ -1495,7 +1492,7 @@ void initialize(const string& delegate)
     if (result < 0 || result > USHRT_MAX) {
       LOG(FATAL) << "LIBPROCESS_PORT=" << value << " is not a valid port";
     }
-    __port__ = result;
+    __node__.port = result;
   }
 
   // Create a "server" socket for communicating with other nodes.
@@ -1525,12 +1522,11 @@ void initialize(const string& delegate)
   sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = PF_INET;
-  addr.sin_addr.s_addr = __ip__;
-  addr.sin_port = htons(__port__);
+  addr.sin_addr.s_addr = __node__.ip;
+  addr.sin_port = htons(__node__.port);
 
   if (bind(__s__, (sockaddr*) &addr, sizeof(addr)) < 0) {
-    PLOG(FATAL) << "Failed to initialize, bind "
-                << inet_ntoa(addr.sin_addr) << ":" << __port__;
+    PLOG(FATAL) << "Failed to initialize, bind " << __node__;
   }
 
   // Lookup and store assigned ip and assigned port.
@@ -1539,14 +1535,14 @@ void initialize(const string& delegate)
     PLOG(FATAL) << "Failed to initialize, getsockname";
   }
 
-  __ip__ = addr.sin_addr.s_addr;
-  __port__ = ntohs(addr.sin_port);
+  __node__.ip = addr.sin_addr.s_addr;
+  __node__.port = ntohs(addr.sin_port);
 
   // Lookup hostname if missing ip or if ip is 127.0.0.1 in case we
   // actually have a valid external ip address. Note that we need only
   // one ip address, so that other processes can send and receive and
   // don't get confused as to whom they are sending to.
-  if (__ip__ == 0 || __ip__ == 2130706433) {
+  if (__node__.ip == 0 || __node__.ip == 2130706433) {
     char hostname[512];
 
     if (gethostname(hostname, sizeof(hostname)) < 0) {
@@ -1562,7 +1558,7 @@ void initialize(const string& delegate)
                  << hstrerror(h_errno);
     }
 
-    __ip__ = *((uint32_t *) he->h_addr_list[0]);
+    __node__.ip = *((uint32_t *) he->h_addr_list[0]);
   }
 
   if (listen(__s__, 500000) < 0) {
@@ -1663,13 +1659,8 @@ void initialize(const string& delegate)
 
   new Route("/__processes__", None(), __processes__);
 
-  char temp[INET_ADDRSTRLEN];
-  if (inet_ntop(AF_INET, (in_addr*) &__ip__, temp, INET_ADDRSTRLEN) == NULL) {
-    PLOG(FATAL) << "Failed to initialize, inet_ntop";
-  }
-
-  VLOG(1) << "libprocess is initialized on " << temp << ":" << __port__
-          << " for " << cpus << " cpus";
+  VLOG(1) << "libprocess is initialized on " << node << " for " << cpus
+          << " cpus";
 }
 
 
@@ -1679,17 +1670,10 @@ void finalize()
 }
 
 
-uint32_t ip()
+Node node()
 {
   process::initialize();
-  return __ip__;
-}
-
-
-uint16_t port()
-{
-  process::initialize();
-  return __port__;
+  return __node__;
 }
 
 
@@ -1968,12 +1952,9 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
 
   CHECK(process != NULL);
 
-  Node node(to.ip, to.port);
-
   synchronized (this) {
     // Check if node is remote and there isn't a persistant link.
-    if ((node.ip != __ip__ || node.port != __port__)
-        && persists.count(node) == 0) {
+    if (to.node != __node__  && persists.count(to.node) == 0) {
       // Okay, no link, let's create a socket.
       Try<int> socket = process::socket(AF_INET, SOCK_STREAM, 0);
       if (socket.isError()) {
@@ -1993,9 +1974,9 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
       }
 
       sockets[s] = Socket(s);
-      nodes[s] = node;
+      nodes[s] = to.node;
 
-      persists[node] = s;
+      persists[to.node] = s;
 
       // Allocate and initialize a watcher for reading data from this
       // socket. Note that we don't expect to receive anything other
@@ -2009,8 +1990,8 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
       sockaddr_in addr;
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = PF_INET;
-      addr.sin_port = htons(to.port);
-      addr.sin_addr.s_addr = to.ip;
+      addr.sin_port = htons(to.node.port);
+      addr.sin_addr.s_addr = to.node.ip;
 
       if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
         if (errno != EINPROGRESS) {
@@ -2130,7 +2111,7 @@ void SocketManager::send(Message* message)
 {
   CHECK(message != NULL);
 
-  Node node(message->to.ip, message->to.port);
+  Node node(message->to.node);
 
   synchronized (this) {
     // Check if there is already a socket.
@@ -2190,8 +2171,8 @@ void SocketManager::send(Message* message)
       sockaddr_in addr;
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = PF_INET;
-      addr.sin_port = htons(message->to.port);
-      addr.sin_addr.s_addr = message->to.ip;
+      addr.sin_port = htons(node.port);
+      addr.sin_addr.s_addr = node.ip;
 
       if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
         if (errno != EINPROGRESS) {
@@ -2380,7 +2361,7 @@ void SocketManager::exited(const Node& node)
     list<UPID> removed;
     // Look up all linked processes.
     foreachpair (const UPID& linkee, set<ProcessBase*>& processes, links) {
-      if (linkee.ip == node.ip && linkee.port == node.port) {
+      if (linkee.node == node) {
         foreach (ProcessBase* linker, processes) {
           linker->enqueue(new ExitedEvent(linkee));
         }
@@ -2461,7 +2442,7 @@ ProcessManager::~ProcessManager()
 
 ProcessReference ProcessManager::use(const UPID& pid)
 {
-  if (pid.ip == __ip__ && pid.port == __port__) {
+  if (pid.node == __node__) {
     synchronized (processes) {
       if (processes.count(pid.id) > 0) {
         // Note that the ProcessReference constructor _must_ get
@@ -2567,12 +2548,12 @@ bool ProcessManager::handle(
 
   if (tokens.size() == 0 && delegate != "") {
     request->path = "/" + delegate;
-    receiver = use(UPID(delegate, __ip__, __port__));
+    receiver = use(UPID(delegate, __node__));
   } else if (tokens.size() > 0) {
     // Decode possible percent-encoded path.
     Try<string> decode = http::decode(tokens[0]);
     if (!decode.isError()) {
-      receiver = use(UPID(decode.get(), __ip__, __port__));
+      receiver = use(UPID(decode.get(), __node__));
     } else {
       VLOG(1) << "Failed to decode URL path: " << decode.error();
     }
@@ -2581,7 +2562,7 @@ bool ProcessManager::handle(
   if (!receiver && delegate != "") {
     // Try and delegate the request.
     request->path = "/" + delegate + request->path;
-    receiver = use(UPID(delegate, __ip__, __port__));
+    receiver = use(UPID(delegate, __node__));
   }
 
   if (receiver) {
@@ -2900,7 +2881,7 @@ void ProcessManager::cleanup(ProcessBase* process)
 void ProcessManager::link(ProcessBase* process, const UPID& to)
 {
   // Check if the pid is local.
-  if (!(to.ip == __ip__ && to.port == __port__)) {
+  if (to.node != __node__) {
     socket_manager->link(process, to);
   } else {
     // Since the pid is local we want to get a reference to it's
@@ -3249,8 +3230,7 @@ ProcessBase::ProcessBase(const string& id)
   refs = 0;
 
   pid.id = id != "" ? id : ID::generate();
-  pid.ip = __ip__;
-  pid.port = __port__;
+  pid.node = __node__;
 
   // If using a manual clock, try and set current time of process
   // using happens before relationship between creator and createe!

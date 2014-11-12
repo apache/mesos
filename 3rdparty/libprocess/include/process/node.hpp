@@ -1,9 +1,12 @@
 #ifndef __PROCESS_NODE_HPP__
 #define __PROCESS_NODE_HPP__
 
+#include <arpa/inet.h>
 #include <unistd.h>
 
 #include <sstream>
+
+#include <glog/logging.h>
 
 namespace process {
 
@@ -11,7 +14,9 @@ namespace process {
 class Node
 {
 public:
-  Node(uint32_t _ip = 0, uint16_t _port = 0) : ip(_ip), port(_port) {}
+  Node() : ip(0), port(0) {}
+
+  Node(uint32_t _ip, uint16_t _port) : ip(_ip), port(_port) {}
 
   bool operator < (const Node& that) const
   {
@@ -22,15 +27,30 @@ public:
     }
   }
 
-  std::ostream& operator << (std::ostream& stream) const
+  bool operator == (const Node& that) const
   {
-    stream << ip << ":" << port;
-    return stream;
+    return (ip == that.ip && port == that.port);
+  }
+
+  bool operator != (const Node& that) const
+  {
+    return !(*this == that);
   }
 
   uint32_t ip;
   uint16_t port;
 };
+
+inline std::ostream& operator << (std::ostream & stream, const Node & node)
+{
+  char ip[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, (in_addr*) &node.ip, ip, INET_ADDRSTRLEN) == NULL) {
+    PLOG(FATAL) << "Failed to get human-readable IP address for '"
+                << node.ip << "'";
+  }
+  stream << ip << ":" << node.port;
+  return stream;
+}
 
 } // namespace process {
 

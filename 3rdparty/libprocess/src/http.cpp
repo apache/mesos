@@ -79,20 +79,13 @@ Future<Response> request(
     return Failure("Failed to cloexec: " + cloexec.error());
   }
 
-  // We use inet_ntop since inet_ntoa is not thread-safe!
-  char ip[INET_ADDRSTRLEN];
-  if (inet_ntop(AF_INET, (in_addr*) &upid.ip, ip, INET_ADDRSTRLEN) == NULL) {
-    return Failure(ErrnoError("Failed to get human-readable IP address for '" +
-                              stringify(upid.ip) + "'"));
-  }
-
-  const string host = string(ip) + ":" + stringify(upid.port);
+  const string host = stringify(upid.node);
 
   sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
-  addr.sin_port = htons(upid.port);
-  addr.sin_addr.s_addr = upid.ip;
+  addr.sin_port = htons(upid.node.port);
+  addr.sin_addr.s_addr = upid.node.ip;
 
   if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
     os::close(s);
