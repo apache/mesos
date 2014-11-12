@@ -1,3 +1,10 @@
+(WIP) Release Notes - Mesos - Version 0.22.0
+--------------------------------------
+
+** API Changes:
+  * [MESOS-1143] TASK_ERROR is now sent instead of TASK_LOST when rescheduling a task should not be attempted.
+
+
 Release Notes - Mesos - Version 0.21.0
 --------------------------------------
 
