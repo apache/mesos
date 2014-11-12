@@ -82,7 +82,9 @@ Try<string> fetchWithHadoopClient(
     const string& directory)
 {
   HDFS hdfs;
-  if (hdfs.available().isError()) {
+  Try<bool> available = hdfs.available();
+
+  if (available.isError() || !available.get()) {
     LOG(INFO) << "Hadoop Client not available, "
               << "skipping fetch with Hadoop Client";
     return Error("Hadoop Client unavailable");
