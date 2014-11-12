@@ -112,3 +112,6 @@ Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
     * std::mutex.
     * std::lock_guard<std::mutex>.
     * std::unique_lock<std::mutex>.
+* Shared from this.
+    * class T : public std::enable_shared_from_this<T>.
+    * shared_from_this().
