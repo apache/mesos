@@ -1659,7 +1659,7 @@ void initialize(const string& delegate)
 
   new Route("/__processes__", None(), __processes__);
 
-  VLOG(1) << "libprocess is initialized on " << node << " for " << cpus
+  VLOG(1) << "libprocess is initialized on " << node() << " for " << cpus
           << " cpus";
 }
 
