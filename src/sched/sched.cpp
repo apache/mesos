@@ -31,6 +31,7 @@
 #include <sstream>
 
 #include <mesos/mesos.hpp>
+#include <mesos/module.hpp>
 #include <mesos/scheduler.hpp>
 
 #include <process/defer.hpp>
@@ -74,6 +75,8 @@
 #include "master/detector.hpp"
 
 #include "messages/messages.hpp"
+
+#include "module/manager.hpp"
 
 #include "sched/constants.hpp"
 #include "sched/flags.hpp"
@@ -1276,6 +1279,17 @@ Status MesosSchedulerDriver::start()
     status = DRIVER_ABORTED;
     scheduler->error(this, load.error());
     return status;
+  }
+
+  // Initialize modules. Note that since other subsystems may depend
+  // upon modules, we should initialize modules before anything else.
+  if (flags.modules.isSome()) {
+    Try<Nothing> result = modules::ModuleManager::load(flags.modules.get());
+    if (result.isError()) {
+      status = DRIVER_ABORTED;
+      scheduler->error(this, "Error loading modules: " + result.error());
+      return status;
+    }
   }
 
   CHECK(process == NULL);

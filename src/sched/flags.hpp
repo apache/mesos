@@ -21,7 +21,11 @@
 
 #include <stout/flags.hpp>
 
+#include "common/parse.hpp"
+
 #include "logging/flags.hpp"
+
+#include "messages/messages.hpp"
 
 #include "sched/constants.hpp"
 
@@ -43,9 +47,57 @@ public:
         "failover timeout/10, if failover timeout is specified) or " +
         stringify(REGISTRATION_RETRY_INTERVAL_MAX) + ", whichever is smaller",
         REGISTRATION_BACKOFF_FACTOR);
+
+    // This help message for --modules flag is the same for
+    // {master,slave,tests,sched}/flags.hpp and should always be kept
+    // in sync.
+    // TODO(karya): Remove the JSON example and add reference to the
+    // doc file explaining the --modules flag.
+    add(&Flags::modules,
+        "modules",
+        "List of modules to be loaded and be available to the internal\n"
+        "subsystems.\n"
+        "\n"
+        "Use --modules=filepath to specify the list of modules via a\n"
+        "file containing a JSON formatted string. 'filepath' can be\n"
+        "of the form 'file:///path/to/file' or '/path/to/file'.\n"
+        "\n"
+        "Use --modules=\"{...}\" to specify the list of modules inline.\n"
+        "\n"
+        "Example:\n"
+        "{\n"
+        "  \"libraries\": [\n"
+        "    {\n"
+        "      \"file\": \"/path/to/libfoo.so\",\n"
+        "      \"modules\": [\n"
+        "        {\n"
+        "          \"name\": \"org_apache_mesos_bar\",\n"
+        "          \"parameters\": [\n"
+        "            {\n"
+        "              \"key\": \"X\",\n"
+        "              \"value\": \"Y\"\n"
+        "            }\n"
+        "          ]\n"
+        "        },\n"
+        "        {\n"
+        "          \"name\": \"org_apache_mesos_baz\"\n"
+        "        }\n"
+        "      ]\n"
+        "    },\n"
+        "    {\n"
+        "      \"name\": \"qux\",\n"
+        "      \"modules\": [\n"
+        "        {\n"
+        "          \"name\": \"org_apache_mesos_norf\"\n"
+        "        }\n"
+        "      ]\n"
+        "    }\n"
+        "  ]\n"
+        "}");
   }
 
   Duration registration_backoff_factor;
+  Option<Modules> modules;
 };
 
 } // namespace scheduler {
