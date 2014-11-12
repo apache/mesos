@@ -19,20 +19,40 @@
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
+#include "authentication/authenticatee.hpp"
 #include "authentication/authenticator.hpp"
 
+#include "authentication/cram_md5/authenticatee.hpp"
 #include "authentication/cram_md5/authenticator.hpp"
 
+#include "module/authenticatee.hpp"
 #include "module/authenticator.hpp"
 
 using namespace mesos;
 
+using mesos::internal::Authenticatee;
 using mesos::internal::Authenticator;
 
 static bool compatible()
 {
   return true;
 }
+
+
+static Authenticatee* createCRAMMD5Authenticatee(const Parameters& parameters)
+{
+  return new mesos::internal::cram_md5::CRAMMD5Authenticatee();
+}
+
+
+mesos::modules::Module<Authenticatee> org_apache_mesos_TestCRAMMD5Authenticatee(
+    MESOS_MODULE_API_VERSION,
+    MESOS_VERSION,
+    "Apache Mesos",
+    "modules@mesos.apache.org",
+    "Test CRAM-MD5 SASL authenticatee module.",
+    compatible,
+    createCRAMMD5Authenticatee);
 
 
 static Authenticator* createCRAMMD5Authenticator(const Parameters& parameters)

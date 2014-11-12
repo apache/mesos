@@ -19,7 +19,11 @@
 #ifndef __AUTHENTICATION_CRAM_MD5_AUTHENTICATEE_HPP__
 #define __AUTHENTICATION_CRAM_MD5_AUTHENTICATEE_HPP__
 
+#include <stddef.h>   // For size_t needed by sasl.h.
+
 #include <sasl/sasl.h>
+
+#include <string>
 
 #include <mesos/mesos.hpp>
 
@@ -32,6 +36,8 @@
 
 #include <stout/strings.hpp>
 
+#include "authentication/authenticatee.hpp"
+
 #include "messages/messages.hpp"
 
 namespace mesos {
@@ -39,36 +45,35 @@ namespace internal {
 namespace cram_md5 {
 
 // Forward declaration.
-class AuthenticateeProcess;
+class CRAMMD5AuthenticateeProcess;
 
 
-class Authenticatee
+class CRAMMD5Authenticatee : public Authenticatee
 {
 public:
-  // 'credential' is used to authenticate the 'client'.
-  Authenticatee(const Credential& credential, const process::UPID& client);
-  ~Authenticatee();
+  // Factory to allow for typed tests.
+  static Try<Authenticatee*> create();
 
-  // Returns true if successfully authenticated otherwise false or an
-  // error. Note that we distinguish authentication failure (false)
-  // from a failed future in the event the future failed due to a
-  // transient error and authentication can (should) be
-  // retried. Discarding the future will cause the future to fail if
-  // it hasn't already completed since we have already started the
-  // authentication procedure and can't reliably cancel.
-  process::Future<bool> authenticate(const process::UPID& pid);
+  CRAMMD5Authenticatee();
+
+  virtual ~CRAMMD5Authenticatee();
+
+  process::Future<bool> authenticate(const process::UPID& pid,
+                                     const process::UPID& client,
+                                     const Credential& credential);
 
 private:
-  AuthenticateeProcess* process;
+  CRAMMD5AuthenticateeProcess* process;
 };
 
 
-class AuthenticateeProcess : public ProtobufProcess<AuthenticateeProcess>
+class CRAMMD5AuthenticateeProcess
+  : public ProtobufProcess<CRAMMD5AuthenticateeProcess>
 {
 public:
-  AuthenticateeProcess(const Credential& _credential,
-                       const process::UPID& _client)
-    : ProcessBase(process::ID::generate("authenticatee")),
+  CRAMMD5AuthenticateeProcess(const Credential& _credential,
+                              const process::UPID& _client)
+    : ProcessBase(process::ID::generate("crammd5_authenticatee")),
       credential(_credential),
       client(_client),
       status(READY),
@@ -87,7 +92,7 @@ public:
     secret->len = length;
   }
 
-  virtual ~AuthenticateeProcess()
+  virtual ~CRAMMD5AuthenticateeProcess()
   {
     if (connection != NULL) {
       sasl_dispose(&connection);
@@ -192,21 +197,21 @@ protected:
   {
     // Anticipate mechanisms and steps from the server.
     install<AuthenticationMechanismsMessage>(
-        &AuthenticateeProcess::mechanisms,
+        &CRAMMD5AuthenticateeProcess::mechanisms,
         &AuthenticationMechanismsMessage::mechanisms);
 
     install<AuthenticationStepMessage>(
-        &AuthenticateeProcess::step,
+        &CRAMMD5AuthenticateeProcess::step,
         &AuthenticationStepMessage::data);
 
     install<AuthenticationCompletedMessage>(
-        &AuthenticateeProcess::completed);
+        &CRAMMD5AuthenticateeProcess::completed);
 
     install<AuthenticationFailedMessage>(
-        &AuthenticateeProcess::failed);
+        &CRAMMD5AuthenticateeProcess::failed);
 
     install<AuthenticationErrorMessage>(
-        &AuthenticateeProcess::error,
+        &CRAMMD5AuthenticateeProcess::error,
         &AuthenticationErrorMessage::error);
   }
 
@@ -382,27 +387,36 @@ private:
 };
 
 
-inline Authenticatee::Authenticatee(
-    const Credential& credential,
-    const process::UPID& client)
+inline Try<Authenticatee*> CRAMMD5Authenticatee::create()
 {
-  process = new AuthenticateeProcess(credential, client);
+  return new CRAMMD5Authenticatee();
+}
+
+
+inline CRAMMD5Authenticatee::CRAMMD5Authenticatee() : process(NULL) {}
+
+
+inline CRAMMD5Authenticatee::~CRAMMD5Authenticatee()
+{
+  if (process != NULL) {
+    process::terminate(process);
+    process::wait(process);
+    delete process;
+  }
+}
+
+
+inline process::Future<bool> CRAMMD5Authenticatee::authenticate(
+  const process::UPID& pid,
+  const process::UPID& client,
+  const mesos::Credential& credential)
+{
+  CHECK(process == NULL);
+  process = new CRAMMD5AuthenticateeProcess(credential, client);
   process::spawn(process);
-}
 
-
-inline Authenticatee::~Authenticatee()
-{
-  process::terminate(process);
-  process::wait(process);
-  delete process;
-}
-
-
-inline process::Future<bool> Authenticatee::authenticate(
-    const process::UPID& pid)
-{
-  return process::dispatch(process, &AuthenticateeProcess::authenticate, pid);
+  return process::dispatch(
+      process, &CRAMMD5AuthenticateeProcess::authenticate, pid);
 }
 
 } // namespace cram_md5 {
