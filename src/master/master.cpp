@@ -2591,10 +2591,11 @@ void Master::_launchTasks(
     const TaskInfo& task = tasks[index++];
 
     // NOTE: The task will not be in 'pendingTasks' if 'killTask()'
-    // for the task was called before we are here.
-    if (!framework->pendingTasks.contains(task.task_id())) {
-      continue;
-    }
+    // for the task was called before we are here. No need to launch
+    // the task if it's no longer pending. However, we still need to
+    // check the authorization result and do the validation so that we
+    // can send status update in case the task has duplicated ID.
+    bool pending = framework->pendingTasks.contains(task.task_id());
 
     // Remove from pending tasks.
     framework->pendingTasks.erase(task.task_id());
@@ -2656,7 +2657,9 @@ void Master::_launchTasks(
     }
 
     // Launch task.
-    usedResources += launchTask(task, framework, slave);
+    if (pending) {
+      usedResources += launchTask(task, framework, slave);
+    }
   }
 
   // All used resources should be allocatable, enforced by our validators.
