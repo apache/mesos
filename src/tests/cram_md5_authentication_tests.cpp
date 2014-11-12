@@ -61,12 +61,11 @@ TEST(CRAMMD5Authentication, success)
 
   secrets::load(credentials);
 
-  Authenticatee authenticatee(credential1, UPID());
-
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
-  Future<bool> client = authenticatee.authenticate(pid);
+  CRAMMD5Authenticatee authenticatee;
+  Future<bool> client = authenticatee.authenticate(pid, UPID(), credential1);
 
   AWAIT_READY(message);
 
@@ -100,12 +99,11 @@ TEST(CRAMMD5Authentication, failed1)
 
   secrets::load(credentials);
 
-  Authenticatee authenticatee(credential1, UPID());
-
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
-  Future<bool> client = authenticatee.authenticate(pid);
+  CRAMMD5Authenticatee authenticatee;
+  Future<bool> client = authenticatee.authenticate(pid, UPID(), credential1);
 
   AWAIT_READY(message);
 
@@ -139,12 +137,11 @@ TEST(CRAMMD5Authentication, failed2)
 
   secrets::load(credentials);
 
-  Authenticatee authenticatee(credential1, UPID());
-
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
-  Future<bool> client = authenticatee.authenticate(pid);
+  CRAMMD5Authenticatee authenticatee;
+  Future<bool> client = authenticatee.authenticate(pid, UPID(), credential1);
 
   AWAIT_READY(message);
 
@@ -180,12 +177,11 @@ TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
 
   secrets::load(credentials);
 
-  Authenticatee authenticatee(credential1, UPID());
-
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
-  Future<bool> client = authenticatee.authenticate(pid);
+  CRAMMD5Authenticatee authenticatee;
+  Future<bool> client = authenticatee.authenticate(pid, UPID(), credential1);
 
   AWAIT_READY(message);
 
