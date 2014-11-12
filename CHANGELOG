@@ -2,7 +2,8 @@
 --------------------------------------
 
 ** API Changes:
-  * [MESOS-1143] TASK_ERROR is now sent instead of TASK_LOST when rescheduling a task should not be attempted.
+  * [MESOS-1143] - TASK_ERROR is now sent instead of TASK_LOST when rescheduling a task should not be attempted.
+  * [MESOS-2086] - Update messages.proto to use a raw bytestream instead of a string for AuthenticationStartMessage.
 
 
 Release Notes - Mesos - Version 0.21.0

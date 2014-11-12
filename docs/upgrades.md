@@ -6,6 +6,18 @@ layout: documentation
 
 This document serves as a guide for users who wish to upgrade an existing mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
+## (WIP) Upgrading from 0.21.x to 0.22.x
+
+**NOTE**: The Authentication API has changed slightly in this release to support additional authentication mechanisms. The change from 'string' to 'bytes' for AuthenticationStartMessage.data has no impact on C++ or the over-the-wire representation, so it only impacts pure language bindings for languages like Java and Python that use different types for UTF-8 strings vs. byte arrays.
+
+```
+message AuthenticationStartMessage {
+  required string mechanism = 1;
+  optional bytes data = 2;
+}
+```
+
+
 ## Upgrading from 0.20.x to 0.21.x
 
 **NOTE** Disabling slave checkpointing has been deprecated; the slave --checkpoint flag has been deprecated and will be removed in a future release.
