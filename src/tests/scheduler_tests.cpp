@@ -24,6 +24,7 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -38,6 +39,7 @@
 #include <stout/lambda.hpp>
 #include <stout/memory.hpp>
 #include <stout/try.hpp>
+#include <stout/uuid.hpp>
 
 #include "master/master.hpp"
 
@@ -56,6 +58,7 @@ using mesos::internal::slave::Slave;
 using mesos::scheduler::Call;
 using mesos::scheduler::Event;
 
+using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
@@ -243,6 +246,72 @@ TEST_F(MesosSchedulerDriverTest, MetricsEndpoint)
 
   EXPECT_EQ(1u, metrics.values.count("scheduler/event_queue_messages"));
   EXPECT_EQ(1u, metrics.values.count("scheduler/event_queue_dispatches"));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This action calls driver stop() followed by abort().
+ACTION(StopAndAbort)
+{
+  arg0->stop();
+  arg0->abort();
+}
+
+
+// This test verifies that when the scheduler calls stop() before
+// abort(), no pending acknowledgements are sent.
+TEST_F(MesosSchedulerDriverTest, DropAckIfStopCalledBeforeAbort)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 16, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // When an update is received, stop the driver and then abort it.
+  Future<Nothing> statusUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(DoAll(StopAndAbort(),
+                    FutureSatisfy(&statusUpdate)));
+
+  // Ensure no status update acknowledgements are sent from the driver
+  // to the master.
+  EXPECT_NO_FUTURE_PROTOBUFS(
+      StatusUpdateAcknowledgementMessage(), _ , master.get());
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.start();
+
+  AWAIT_READY(statusUpdate);
+
+  // Settle the clock to ensure driver finishes processing the status
+  // update and sends acknowledgement if necessary. In this test it
+  // shouldn't send an acknowledgement.
+  Clock::pause();
+  Clock::settle();
 
   driver.stop();
   driver.join();
