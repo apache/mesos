@@ -171,7 +171,7 @@ void Slave::initialize()
 {
   LOG(INFO) << "Slave started on " << string(self()).substr(6);
 
-  if (stringify(net::IP(ntohl(self().ip))) == "127.0.0.1") {
+  if (stringify(net::IP(ntohl(self().node.ip))) == "127.0.0.1") {
     LOG(WARNING) << "\n**************************************************\n"
                  << "Slave bound to loopback interface!"
                  << " Cannot communicate with remote master(s)."
@@ -302,7 +302,7 @@ void Slave::initialize()
   string hostname;
 
   if (flags.hostname.isNone()) {
-    Try<string> result = net::getHostname(self().ip);
+    Try<string> result = net::getHostname(self().node.ip);
 
     if (result.isError()) {
       LOG(FATAL) << "Failed to get hostname: " << result.error();
@@ -315,7 +315,7 @@ void Slave::initialize()
 
   // Initialize slave info.
   info.set_hostname(hostname);
-  info.set_port(self().port);
+  info.set_port(self().node.port);
   info.mutable_resources()->CopyFrom(resources.get());
   info.mutable_attributes()->CopyFrom(attributes);
   info.set_checkpoint(flags.checkpoint);

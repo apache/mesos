@@ -37,8 +37,7 @@ TEST(LoggingTest, Toggle)
 {
   process::PID<> pid;
   pid.id = "logging";
-  pid.ip = process::ip();
-  pid.port = process::port();
+  pid.node = process::node();
 
   process::Future<Response> response = process::http::get(pid, "toggle");
 
