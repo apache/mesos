@@ -76,6 +76,7 @@
 
 #include "messages/messages.hpp"
 
+#include "module/authenticatee.hpp"
 #include "module/manager.hpp"
 
 #include "sched/constants.hpp"
@@ -301,7 +302,20 @@ protected:
     CHECK_SOME(credential);
 
     CHECK(authenticatee == NULL);
-    authenticatee = new cram_md5::CRAMMD5Authenticatee();
+
+    if (flags.authenticatee == scheduler::DEFAULT_AUTHENTICATEE) {
+      LOG(INFO) << "Using default CRAM-MD5 authenticatee";
+      authenticatee = new cram_md5::CRAMMD5Authenticatee();
+    } else {
+      Try<Authenticatee*> module =
+        modules::ModuleManager::create<Authenticatee>(flags.authenticatee);
+      if (module.isError()) {
+        EXIT(1) << "Could not create authenticatee module '"
+                << flags.authenticatee << "': " << module.error();
+      }
+      LOG(INFO) << "Using '" << flags.authenticatee << "' authenticatee";
+      authenticatee = module.get();
+    }
 
     // NOTE: We do not pass 'Owned<Authenticatee>' here because doing
     // so could make 'AuthenticateeProcess' responsible for deleting

@@ -94,10 +94,18 @@ public:
         "    }\n"
         "  ]\n"
         "}");
+
+    add(&Flags::authenticatee,
+        "authenticatee",
+        "Authenticatee implementation to use when authenticating against the\n"
+        "master. Use the default '" + DEFAULT_AUTHENTICATEE + "', or\n"
+        "load an alternate authenticatee module using MESOS_MODULES.",
+        DEFAULT_AUTHENTICATEE);
   }
 
   Duration registration_backoff_factor;
   Option<Modules> modules;
+  std::string authenticatee;
 };
 
 } // namespace scheduler {

@@ -33,6 +33,9 @@ extern const Duration REGISTRATION_BACKOFF_FACTOR;
 // registration.
 extern const Duration REGISTRATION_RETRY_INTERVAL_MAX;
 
+// Name of the default, CRAM-MD5 authenticatee.
+extern const std::string DEFAULT_AUTHENTICATEE;
+
 } // namespace scheduler {
 } // namespace internal {
 } // namespace mesos {
