@@ -404,6 +404,13 @@ public:
         "    }\n"
         "  ]\n"
         "}");
+
+    add(&Flags::authenticatee,
+        "authenticatee",
+        "Authenticatee implementation to use when authenticating against the\n"
+        "master. Use the default '" + DEFAULT_AUTHENTICATEE + "', or\n"
+        "load an alternate authenticatee module using --modules.",
+        DEFAULT_AUTHENTICATEE);
   }
 
   bool version;
@@ -454,6 +461,7 @@ public:
   Option<Bytes> egress_rate_limit_per_container;
 #endif
   Option<Modules> modules;
+  std::string authenticatee;
 };
 
 } // namespace slave {

@@ -372,7 +372,7 @@ message AuthenticationMechanismsMessage {
 
 message AuthenticationStartMessage {
   required string mechanism = 1;
-  optional string data = 2;
+  optional bytes data = 2;
 }
 
 

@@ -70,9 +70,7 @@ namespace internal {
 
 class MasterDetector; // Forward declaration.
 
-namespace cram_md5 {
 class Authenticatee;
-} // namespace cram_md5 {
 
 namespace slave {
 
@@ -496,7 +494,10 @@ private:
 
   Option<Credential> credential;
 
-  cram_md5::Authenticatee* authenticatee;
+  // Authenticatee name as supplied via flags.
+  std::string authenticateeName;
+
+  Authenticatee* authenticatee;
 
   // Indicates if an authentication attempt is in progress.
   Option<Future<bool> > authenticating;

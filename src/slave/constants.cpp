@@ -50,6 +50,7 @@ const std::string DEFAULT_PORTS = "[31000-32000]";
 const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER = 1024;
 #endif
 const Duration DOCKER_REMOVE_DELAY = Hours(6);
+const std::string DEFAULT_AUTHENTICATEE = "crammd5";
 
 Duration MASTER_PING_TIMEOUT()
 {

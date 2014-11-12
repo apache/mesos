@@ -97,6 +97,9 @@ extern const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER;
 // Default duration that docker containers will be removed after exit.
 extern const Duration DOCKER_REMOVE_DELAY;
 
+// Name of the default, CRAM-MD5 authenticatee.
+extern const std::string DEFAULT_AUTHENTICATEE;
+
 // If no pings received within this timeout, then the slave will
 // trigger a re-detection of the master to cause a re-registration.
 Duration MASTER_PING_TIMEOUT();

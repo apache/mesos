@@ -73,6 +73,9 @@
 
 #include "logging/logging.hpp"
 
+#include "module/authenticatee.hpp"
+#include "module/manager.hpp"
+
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/paths.hpp"
@@ -260,6 +263,8 @@ void Slave::initialize()
             << "for --registration_backoff_factor: "
             << "Must be less than " << REGISTER_RETRY_INTERVAL_MAX;
   }
+
+  authenticateeName = flags.authenticatee;
 
   if (flags.credential.isSome()) {
     const string& path =
@@ -664,13 +669,27 @@ void Slave::authenticate()
 
   LOG(INFO) << "Authenticating with master " << master.get();
 
+  CHECK(authenticatee == NULL);
+
+  if (authenticateeName == DEFAULT_AUTHENTICATEE) {
+    LOG(INFO) << "Using default CRAM-MD5 authenticatee";
+    authenticatee = new cram_md5::CRAMMD5Authenticatee();
+  } else {
+    Try<Authenticatee*> module =
+      modules::ModuleManager::create<Authenticatee>(authenticateeName);
+    if (module.isError()) {
+      EXIT(1) << "Could not create authenticatee module '"
+              << authenticateeName << "': " << module.error();
+    }
+    LOG(INFO) << "Using '" << authenticateeName << "' authenticatee";
+    authenticatee = module.get();
+  }
+
   CHECK_SOME(credential);
 
-  CHECK(authenticatee == NULL);
-  authenticatee = new cram_md5::Authenticatee(credential.get(), self());
-
-  authenticating = authenticatee->authenticate(master.get())
-    .onAny(defer(self(), &Self::_authenticate));
+  authenticating =
+    authenticatee->authenticate(master.get(), self(), credential.get())
+      .onAny(defer(self(), &Self::_authenticate));
 
   delay(Seconds(5),
         self(),

@@ -53,6 +53,7 @@
 #include <stout/os.hpp>
 #include <stout/uuid.hpp>
 
+#include "authentication/authenticatee.hpp"
 #include "authentication/cram_md5/authenticatee.hpp"
 
 #include "common/type_utils.hpp"
@@ -465,7 +466,7 @@ protected:
     CHECK_SOME(credential);
 
     CHECK(authenticatee == NULL);
-    authenticatee = new cram_md5::Authenticatee(credential.get(), self());
+    authenticatee = new cram_md5::CRAMMD5Authenticatee();
 
     // NOTE: We do not pass 'Owned<Authenticatee>' here because doing
     // so could make 'AuthenticateeProcess' responsible for deleting
@@ -480,8 +481,9 @@ protected:
     //     'Authenticatee'.
     // --> '~Authenticatee()' is invoked by 'AuthenticateeProcess'.
     // TODO(vinod): Consider using 'Shared' to 'Owned' upgrade.
-    authenticating = authenticatee->authenticate(master.get())
-      .onAny(defer(self(), &Self::_authenticate));
+    authenticating =
+      authenticatee->authenticate(master.get(), self(), credential.get())
+        .onAny(defer(self(), &Self::_authenticate));
 
     delay(Seconds(5),
           self(),
@@ -808,7 +810,7 @@ private:
 
   Option<UPID> master;
 
-  cram_md5::Authenticatee* authenticatee;
+  Authenticatee* authenticatee;
 
   // Indicates if an authentication attempt is in progress.
   Option<Future<bool> > authenticating;
