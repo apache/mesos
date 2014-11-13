@@ -41,6 +41,7 @@ enum ModuleID
 {
   TestMemIsolator,
   TestCpuIsolator,
+  TestCRAMMD5Authenticatee,
   TestCRAMMD5Authenticator
 };
 

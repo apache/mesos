@@ -69,8 +69,8 @@ static void addIsolatorModules(Modules& modules)
 }
 
 
-// Add available Authenticator modules.
-static void addAuthenticatorModule(Modules& modules)
+// Add available Authentication modules.
+static void addAuthenticationModules(Modules& modules)
 {
   const string libraryPath = path::join(
       tests::flags.build_dir,
@@ -78,12 +78,15 @@ static void addAuthenticatorModule(Modules& modules)
       ".libs",
       os::libraries::expandName("testauthentication"));
 
-  // Now add our test authenticator module.
+  // Now add our test authentication modules.
   Modules::Library* library = modules.add_libraries();
   library->set_file(libraryPath);
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
+  addModule(library,
+            TestCRAMMD5Authenticatee,
+            "org_apache_mesos_TestCRAMMD5Authenticatee");
   addModule(library,
             TestCRAMMD5Authenticator,
             "org_apache_mesos_TestCRAMMD5Authenticator");
@@ -101,8 +104,8 @@ Try<Nothing> tests::initModules(const Option<Modules>& modules)
   // Add isolator modules from testisolator library.
   addIsolatorModules(mergedModules);
 
-  // Add authenticator module from testauthentication library.
-  addAuthenticatorModule(mergedModules);
+  // Add authentication modules from testauthentication library.
+  addAuthenticationModules(mergedModules);
 
   return ModuleManager::load(mergedModules);
 }

@@ -25,11 +25,13 @@
 
 #include <stout/gtest.hpp>
 
+#include "authentication/authenticatee.hpp"
 #include "authentication/authenticator.hpp"
 
 #include "authentication/cram_md5/authenticatee.hpp"
 #include "authentication/cram_md5/authenticator.hpp"
 
+#include "module/authenticatee.hpp"
 #include "module/authenticator.hpp"
 
 #include "tests/mesos.hpp"
@@ -51,11 +53,30 @@ namespace cram_md5 {
 template <typename T>
 class CRAMMD5Authentication : public MesosTest {};
 
-typedef ::testing::Types<CRAMMD5Authenticator,
-                         tests::Module<Authenticator, TestCRAMMD5Authenticator>>
-  AuthenticatorTypes;
+template <typename T, typename U>
+class Authentication
+{
+public:
+  typedef T TypeAuthenticatee;
+  typedef U TypeAuthenticator;
+};
 
-TYPED_TEST_CASE(CRAMMD5Authentication, AuthenticatorTypes);
+// Test all authentication variants against each other.
+// default authenticatee      <> default authenticator
+// modularized authenticatee  <> default authenticator
+// default authenticatee      <> modularized authenticator
+// modularized authenticatee  <> modularized authenticator
+typedef ::testing::Types<
+  Authentication<CRAMMD5Authenticatee, CRAMMD5Authenticator>,
+  Authentication<tests::Module<Authenticatee, TestCRAMMD5Authenticatee>,
+                 CRAMMD5Authenticator>,
+  Authentication<CRAMMD5Authenticatee,
+                 tests::Module<Authenticator, TestCRAMMD5Authenticator>>,
+  Authentication<tests::Module<Authenticatee, TestCRAMMD5Authenticatee>,
+                 tests::Module<Authenticator, TestCRAMMD5Authenticator>>>
+  AuthenticationTypes;
+
+TYPED_TEST_CASE(CRAMMD5Authentication, AuthenticationTypes);
 
 TYPED_TEST(CRAMMD5Authentication, success)
 {
@@ -76,12 +97,15 @@ TYPED_TEST(CRAMMD5Authentication, success)
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
-  CRAMMD5Authenticatee authenticatee;
-  Future<bool> client = authenticatee.authenticate(pid, UPID(), credential1);
+  Try<Authenticatee*> authenticatee = TypeParam::TypeAuthenticatee::create();
+  CHECK_SOME(authenticatee);
+
+  Future<bool> client =
+    authenticatee.get()->authenticate(pid, UPID(), credential1);
 
   AWAIT_READY(message);
 
-  Try<Authenticator*> authenticator = TypeParam::create();
+  Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
   CHECK_SOME(authenticator);
 
   authenticator.get()->initialize(message.get().from);
@@ -94,6 +118,7 @@ TYPED_TEST(CRAMMD5Authentication, success)
 
   terminate(pid);
   delete authenticator.get();
+  delete authenticatee.get();
 }
 
 
@@ -117,12 +142,15 @@ TYPED_TEST(CRAMMD5Authentication, failed1)
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
-  CRAMMD5Authenticatee authenticatee;
-  Future<bool> client = authenticatee.authenticate(pid, UPID(), credential1);
+  Try<Authenticatee*> authenticatee = TypeParam::TypeAuthenticatee::create();
+  CHECK_SOME(authenticatee);
+
+  Future<bool> client =
+    authenticatee.get()->authenticate(pid, UPID(), credential1);
 
   AWAIT_READY(message);
 
-  Try<Authenticator*> authenticator = TypeParam::create();
+  Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
   CHECK_SOME(authenticator);
 
   authenticator.get()->initialize(message.get().from);
@@ -135,6 +163,7 @@ TYPED_TEST(CRAMMD5Authentication, failed1)
 
   terminate(pid);
   delete authenticator.get();
+  delete authenticatee.get();
 }
 
 
@@ -158,12 +187,15 @@ TYPED_TEST(CRAMMD5Authentication, failed2)
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
-  CRAMMD5Authenticatee authenticatee;
-  Future<bool> client = authenticatee.authenticate(pid, UPID(), credential1);
+  Try<Authenticatee*> authenticatee = TypeParam::TypeAuthenticatee::create();
+  CHECK_SOME(authenticatee);
+
+  Future<bool> client =
+    authenticatee.get()->authenticate(pid, UPID(), credential1);
 
   AWAIT_READY(message);
 
-  Try<Authenticator*> authenticator = TypeParam::create();
+  Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
   CHECK_SOME(authenticator);
 
   authenticator.get()->initialize(message.get().from);
@@ -176,6 +208,7 @@ TYPED_TEST(CRAMMD5Authentication, failed2)
 
   terminate(pid);
   delete authenticator.get();
+  delete authenticatee.get();
 }
 
 
@@ -201,12 +234,15 @@ TYPED_TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
-  CRAMMD5Authenticatee authenticatee;
-  Future<bool> client = authenticatee.authenticate(pid, UPID(), credential1);
+  Try<Authenticatee*> authenticatee = TypeParam::TypeAuthenticatee::create();
+  CHECK_SOME(authenticatee);
+
+  Future<bool> client =
+    authenticatee.get()->authenticate(pid, UPID(), credential1);
 
   AWAIT_READY(message);
 
-  Try<Authenticator*> authenticator = TypeParam::create();
+  Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
   CHECK_SOME(authenticator);
 
   authenticator.get()->initialize(message.get().from);
@@ -233,6 +269,7 @@ TYPED_TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
   AWAIT_FAILED(principal);
 
   terminate(pid);
+  delete authenticatee.get();
 }
 
 } // namespace cram_md5 {
