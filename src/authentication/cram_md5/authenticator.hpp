@@ -53,7 +53,11 @@ class CRAMMD5AuthenticatorProcess;
 class CRAMMD5Authenticator : public Authenticator
 {
 public:
+  // Factory to allow for typed tests.
+  static Try<Authenticator*> create();
+
   CRAMMD5Authenticator();
+
   virtual ~CRAMMD5Authenticator();
 
   virtual void initialize(const process::UPID& clientPid);
@@ -435,6 +439,7 @@ private:
   Option<std::string> principal;
 };
 
+
 namespace secrets {
 
 // Loads secrets (principal -> secret) into the in-memory auxiliary
@@ -464,6 +469,13 @@ void load(const Credentials& credentials)
 }
 
 } // namespace secrets {
+
+
+Try<Authenticator*> CRAMMD5Authenticator::create()
+{
+  return new CRAMMD5Authenticator();
+}
+
 
 CRAMMD5Authenticator::CRAMMD5Authenticator() : process(NULL) {}
 
