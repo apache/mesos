@@ -24,14 +24,12 @@ using std::vector;
 
 TEST(PathTest, Join)
 {
-  // Raw strings and std::strings can be mixed.
   EXPECT_EQ("a/b/c", path::join("a", "b", "c"));
-  EXPECT_EQ("a/b/c", path::join(string("a"), string("b"), string("c")));
-  EXPECT_EQ("a/b/c", path::join(string("a"), "b", string("c")));
+  EXPECT_EQ("/a/b/c", path::join("/a", "b", "c"));
 
-  // Joining a vector of strings.
-  EXPECT_EQ("a/b/c", path::join(vector<string>({"a", "b", "c"})));
   EXPECT_EQ("", path::join(vector<string>()));
+  EXPECT_EQ("a/b/c", path::join(vector<string>({"a", "b", "c"})));
+
   //TODO(cmaloney): This should join to ""
   EXPECT_EQ("/", path::join(vector<string>({"", "", ""})));
 
@@ -39,7 +37,7 @@ TEST(PathTest, Join)
   EXPECT_EQ("/asdf", path::join("/", "asdf"));
   EXPECT_EQ("/", path::join("", "/", ""));
 
-  // Check trailing and leading slashes get cleaned up how we expect.
+  // Check trailing and leading slashes get cleaned up.
   EXPECT_EQ("a/b/c/", path::join("a/", "b/", "c/"));
   EXPECT_EQ("/a/b/c", path::join("/a", "/b", "/c"));
   EXPECT_EQ("/a/b/c/", path::join("/a/", "/b/", "/c/"));
