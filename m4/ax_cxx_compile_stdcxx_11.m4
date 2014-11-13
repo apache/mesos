@@ -36,8 +36,11 @@
 #serial 3
 
 m4_define([_AX_CXX_COMPILE_STDCXX_11_testbody], [
+  #include <initializer_list>
   #include <memory>
   #include <mutex>
+  #include <string>
+  #include <vector>
 
   template <typename T, typename ...Args>
     struct check
@@ -105,6 +108,21 @@ m4_define([_AX_CXX_COMPILE_STDCXX_11_testbody], [
   // construct a new shared_ptr using shared_from_this().
   std::shared_ptr<SharedStruct> object =
     std::shared_ptr<SharedStruct>(new SharedStruct())->get();
+
+  // initializer lists.
+  std::vector<std::string> g = {"hello", "world"};
+
+  struct InitializerList
+  {
+    InitializerList(std::initializer_list<int>) {}
+    void doSomething(std::initializer_list<int>) {}
+  };
+
+  void initializerListClassTest()
+  {
+    InitializerList il{1,2,3,4};
+    il.doSomething({5,6,7,8});
+  }
 ])
 
 AC_DEFUN([AX_CXX_COMPILE_STDCXX_11], [
