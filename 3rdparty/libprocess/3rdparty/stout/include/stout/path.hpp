@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "strings.hpp"
+#include <stout/strings.hpp>
 
 namespace path {
 
