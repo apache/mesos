@@ -70,6 +70,7 @@ improvements.
   * [MESOS-1782] - AllocatorTest/0.FrameworkExited is flaky
   * [MESOS-1783] - MasterTest.LaunchDuplicateOfferTest is flaky
   * [MESOS-1786] - FaultToleranceTest.ReconcilePendingTasks is flaky.
+  * [MESOS-1797] - Packaged Zookeeper does not compile on OSX Yosemite
   * [MESOS-1799] - Reconciliation can send out-of-order updates.
   * [MESOS-1814] - Task attempted to use more offers than requested in example jave and python frameworks
   * [MESOS-1817] - Completed tasks remains in TASK_RUNNING when framework is disconnected
@@ -108,6 +109,7 @@ improvements.
   * [MESOS-2046] - Configure should check headers and libraries for svn and apr
   * [MESOS-2050] - InMemoryAuxProp plugin used by Authenticators results in SEGFAULT
   * [MESOS-2052] - RunState::recover should always recover 'completed'
+  * [MESOS-2078] -Scheduler driver may ACK status updates when the scheduler threw an exception
 
 ** Documentation
   * [MESOS-1506] - Update documentation/flags regarding new default hostname semantics
