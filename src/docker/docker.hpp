@@ -25,6 +25,7 @@
 #include <process/future.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/json.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
@@ -90,10 +91,15 @@ public:
       const Option<mesos::Resources>& resources = None(),
       const Option<std::map<std::string, std::string> >& env = None()) const;
 
-  // Performs 'docker kill CONTAINER'. If remove is true then a rm -f
-  // will be called when kill failed, otherwise a failure is returned.
-  virtual process::Future<Nothing> kill(
+  // Performs 'docker stop -t TIMEOUT CONTAINER'. If remove is true then a rm -f
+  // will be called when stop failed, otherwise a failure is returned. The
+  // timeout parameter will be passed through to docker and is the amount of
+  // time for docker to wait after stopping a container before killing it.
+  // A value of zero (the default value) is the same as issuing a
+  // 'docker kill CONTAINER'.
+  process::Future<Nothing> stop(
       const std::string& container,
+      const Duration& timeout = Seconds(0),
       bool remove = false) const;
 
   // Performs 'docker rm (-f) CONTAINER'.
@@ -128,7 +134,7 @@ protected:
   Docker(const std::string& _path) : path(_path) {};
 
 private:
-  static process::Future<Nothing> _kill(
+  static process::Future<Nothing> _stop(
       const Docker& docker,
       const std::string& container,
       const std::string& cmd,

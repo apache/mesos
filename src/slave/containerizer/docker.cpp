@@ -570,9 +570,8 @@ Future<Nothing> DockerContainerizerProcess::_recover(
     // Check if we're watching an executor for this container ID and
     // if not, rm -f the Docker container.
     if (!containers_.contains(id.get())) {
-      // TODO(benh): Retry 'docker rm -f' if it failed but the container
-      // still exists (asynchronously).
-      docker->kill(container.id, true);
+      // TODO(tnachen): Consider using executor_shutdown_grace_period.
+      docker->stop(container.id, flags.docker_stop_timeout, true);
     }
   }
 
@@ -1289,11 +1288,10 @@ void DockerContainerizerProcess::_destroy(
   // a 'docker wait' on the container using the --override flag of
   // mesos-executor.
 
-  // TODO(benh): Retry 'docker rm -f' if it failed but the container
-  // still exists (asynchronously).
+  LOG(INFO) << "Running docker stop on container '" << containerId << "'";
 
-  LOG(INFO) << "Running docker kill on container '" << containerId << "'";
-  docker->kill(container->name(), false)
+  docker->stop(container->name(),
+              flags.docker_stop_timeout)
     .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
 }
 

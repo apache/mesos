@@ -23,6 +23,7 @@
 #include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/gtest.hpp>
 
@@ -106,8 +107,8 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   EXPECT_EQ("/" + containerName, container.get().name);
   EXPECT_SOME(container.get().pid);
 
-  // Kill the container.
-  status = docker->kill(containerName);
+  // Stop the container.
+  status = docker->stop(containerName);
   AWAIT_READY(status);
 
   // Now, the container should not appear in the result of ps().
@@ -156,7 +157,7 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   }
 
   // Start the container again, this time we will do a "rm -f"
-  // directly, instead of killing and rm.
+  // directly, instead of stopping and rm.
   status = docker->run(
       containerInfo,
       commandInfo,
