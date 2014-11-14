@@ -248,8 +248,8 @@ TEST(ResourcesTest, ScalarEquals)
   EXPECT_EQ(2u, r2.size());
   EXPECT_EQ(r1, r2);
 
-  Resource cpus1 = Resources::parse("cpus", "3", "role1").get();
-  Resource cpus2 = Resources::parse("cpus", "3", "role2").get();
+  Resources cpus1 = Resources::parse("cpus", "3", "role1").get();
+  Resources cpus2 = Resources::parse("cpus", "3", "role2").get();
 
   EXPECT_NE(cpus1, cpus2);
 }
@@ -287,8 +287,8 @@ TEST(ResourcesTest, ScalarSubset2)
   Resources r2;
   r2 += cpus2;
 
-  EXPECT_FALSE(cpus1 <= cpus2);
-  EXPECT_FALSE(cpus2 <= cpus1);
+  EXPECT_FALSE(r1 <= r2);
+  EXPECT_FALSE(r2 <= r1);
 
   Resource cpus3 = Resources::parse("cpus", "3", "role1").get();
 

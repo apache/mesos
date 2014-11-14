@@ -43,23 +43,6 @@
 
 namespace mesos {
 
-bool operator == (const Resource& left, const Resource& right);
-bool operator != (const Resource& left, const Resource& right);
-
-
-bool operator <= (const Resource& left, const Resource& right);
-
-
-Resource& operator += (Resource& left, const Resource& right);
-Resource operator + (const Resource& left, const Resource& right);
-Resource& operator -= (Resource& left, const Resource& right);
-Resource operator - (const Resource& left, const Resource& right);
-
-
-// Return true iff both Resources have the same name, type, and role.
-bool matches(const Resource& left, const Resource& right);
-
-
 // TODO(bmahler): Ensure that the underlying resources are kept
 // in a flattened state: MESOS-1714.
 class Resources
@@ -97,6 +80,12 @@ public:
   static bool isZero(const Resource& resource);
 
   Resources() {}
+
+  // TODO(jieyu): Consider using C++11 initializer list.
+  /*implicit*/ Resources(const Resource& resource)
+  {
+    resources.Add()->CopyFrom(resource);
+  }
 
   /*implicit*/
   Resources(const google::protobuf::RepeatedPtrField<Resource>& _resources)

@@ -35,19 +35,75 @@ using std::vector;
 
 namespace mesos {
 
-bool operator == (const Resource& left, const Resource& right)
+/////////////////////////////////////////////////
+// Helper functions.
+/////////////////////////////////////////////////
+
+// Tests if we can add two Resource objects together resulting in one
+// valid Resource object. For example, two Resource objects with
+// different name, type or role are not addable.
+static bool addable(const Resource& left, const Resource& right)
 {
-  if (matches(left, right)) {
-    if (left.type() == Value::SCALAR) {
-      return left.scalar() == right.scalar();
-    } else if (left.type() == Value::RANGES) {
-      return left.ranges() == right.ranges();
-    } else if (left.type() == Value::SET) {
-      return left.set() == right.set();
-    }
+  return left.name() == right.name() &&
+    left.type() == right.type() &&
+    left.role() == right.role();
+}
+
+
+// Tests if we can subtract "right" from "left" resulting in one valid
+// Resource object. For example, two Resource objects with different
+// name, type or role are not subtractable.
+// NOTE: Set substraction is always well defined, it does not require
+// 'right' to be contained within 'left'. For example, assuming that
+// "left = {1, 2}" and "right = {2, 3}", "left" and "right" are
+// subtractable because "left - right = {1}". However, "left" does not
+// contains "right".
+static bool subtractable(const Resource& left, const Resource& right)
+{
+  return left.name() == right.name() &&
+    left.type() == right.type() &&
+    left.role() == right.role();
+}
+
+
+// Tests if "right" is contained in "left".
+static bool contains(const Resource& left, const Resource& right)
+{
+  if (left.name() != right.name() ||
+      left.type() != right.type() ||
+      left.role() != right.role()) {
+    return false;
   }
 
-  return false;
+  if (left.type() == Value::SCALAR) {
+    return right.scalar() <= left.scalar();
+  } else if (left.type() == Value::RANGES) {
+    return right.ranges() <= left.ranges();
+  } else if (left.type() == Value::SET) {
+    return right.set() <= left.set();
+  } else {
+    return false;
+  }
+}
+
+
+bool operator == (const Resource& left, const Resource& right)
+{
+  if (left.name() != right.name() ||
+      left.type() != right.type() ||
+      left.role() != right.role()) {
+    return false;
+  }
+
+  if (left.type() == Value::SCALAR) {
+    return left.scalar() == right.scalar();
+  } else if (left.type() == Value::RANGES) {
+    return left.ranges() == right.ranges();
+  } else if (left.type() == Value::SET) {
+    return left.set() == right.set();
+  } else {
+    return false;
+  }
 }
 
 
@@ -59,32 +115,19 @@ bool operator != (const Resource& left, const Resource& right)
 
 bool operator <= (const Resource& left, const Resource& right)
 {
-  if (matches(left, right)) {
-    if (left.type() == Value::SCALAR) {
-      return left.scalar() <= right.scalar();
-    } else if (left.type() == Value::RANGES) {
-      return left.ranges() <= right.ranges();
-    } else if (left.type() == Value::SET) {
-      return left.set() <= right.set();
-    }
-  }
-
-  return false;
+  return contains(right, left);
 }
 
 
 Resource& operator += (Resource& left, const Resource& right)
 {
-  if (matches(left, right)) {
-    if (left.type() == Value::SCALAR) {
-      left.mutable_scalar()->MergeFrom(left.scalar() + right.scalar());
-    } else if (left.type() == Value::RANGES) {
-      left.mutable_ranges()->Clear();
-      left.mutable_ranges()->MergeFrom(left.ranges() + right.ranges());
-    } else if (left.type() == Value::SET) {
-      left.mutable_set()->Clear();
-      left.mutable_set()->MergeFrom(left.set() + right.set());
-    }
+  // TODO(jieyu): Leverage += for Value to avoid copying.
+  if (left.type() == Value::SCALAR) {
+    left.mutable_scalar()->CopyFrom(left.scalar() + right.scalar());
+  } else if (left.type() == Value::RANGES) {
+    left.mutable_ranges()->CopyFrom(left.ranges() + right.ranges());
+  } else if (left.type() == Value::SET) {
+    left.mutable_set()->CopyFrom(left.set() + right.set());
   }
 
   return left;
@@ -94,35 +137,20 @@ Resource& operator += (Resource& left, const Resource& right)
 Resource operator + (const Resource& left, const Resource& right)
 {
   Resource result = left;
-
-  if (matches(left, right)) {
-    if (left.type() == Value::SCALAR) {
-      result.mutable_scalar()->MergeFrom(left.scalar() + right.scalar());
-    } else if (left.type() == Value::RANGES) {
-      result.mutable_ranges()->Clear();
-      result.mutable_ranges()->MergeFrom(left.ranges() + right.ranges());
-    } else if (left.type() == Value::SET) {
-      result.mutable_set()->Clear();
-      result.mutable_set()->MergeFrom(left.set() + right.set());
-    }
-  }
-
+  result += right;
   return result;
 }
 
 
 Resource& operator -= (Resource& left, const Resource& right)
 {
-  if (matches(left, right)) {
-    if (left.type() == Value::SCALAR) {
-      left.mutable_scalar()->MergeFrom(left.scalar() - right.scalar());
-    } else if (left.type() == Value::RANGES) {
-      left.mutable_ranges()->Clear();
-      left.mutable_ranges()->MergeFrom(left.ranges() - right.ranges());
-    } else if (left.type() == Value::SET) {
-      left.mutable_set()->Clear();
-      left.mutable_set()->MergeFrom(left.set() - right.set());
-    }
+  // TODO(jieyu): Leverage -= for Value to avoid copying.
+  if (left.type() == Value::SCALAR) {
+    left.mutable_scalar()->CopyFrom(left.scalar() - right.scalar());
+  } else if (left.type() == Value::RANGES) {
+    left.mutable_ranges()->CopyFrom(left.ranges() - right.ranges());
+  } else if (left.type() == Value::SET) {
+    left.mutable_set()->CopyFrom(left.set() - right.set());
   }
 
   return left;
@@ -132,28 +160,8 @@ Resource& operator -= (Resource& left, const Resource& right)
 Resource operator - (const Resource& left, const Resource& right)
 {
   Resource result = left;
-
-  if (matches(left, right)) {
-    if (left.type() == Value::SCALAR) {
-      result.mutable_scalar()->MergeFrom(left.scalar() - right.scalar());
-    } else if (left.type() == Value::RANGES) {
-      result.mutable_ranges()->Clear();
-      result.mutable_ranges()->MergeFrom(left.ranges() - right.ranges());
-    } else if (left.type() == Value::SET) {
-      result.mutable_set()->Clear();
-      result.mutable_set()->MergeFrom(left.set() - right.set());
-    }
-  }
-
+  result -= right;
   return result;
-}
-
-
-bool matches(const Resource& left, const Resource& right)
-{
-  return left.name() == right.name() &&
-    left.type() == right.type() &&
-    left.role() == right.role();
 }
 
 
@@ -433,7 +441,7 @@ Option<Resources> Resources::find(
 Option<Resource> Resources::get(const Resource& r) const
 {
   foreach (const Resource& resource, resources) {
-    if (matches(resource, r)) {
+    if (addable(resource, r)) {
       return resource;
     }
   }
@@ -745,7 +753,7 @@ Resources Resources::operator + (const Resource& that) const
   bool added = false;
 
   foreach (const Resource& resource, resources) {
-    if (matches(resource, that)) {
+    if (addable(resource, that)) {
       result.resources.Add()->MergeFrom(resource + that);
       added = true;
     } else {
@@ -795,7 +803,7 @@ Resources Resources::operator - (const Resource& that) const
   Resources result;
 
   foreach (const Resource& resource, resources) {
-    if (matches(resource, that)) {
+    if (subtractable(resource, that)) {
       Resource r = resource - that;
       if (!isZero(r)) {
         result.resources.Add()->MergeFrom(r);
