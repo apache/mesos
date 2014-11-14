@@ -19,6 +19,7 @@
 #ifndef __RESOURCES_HPP__
 #define __RESOURCES_HPP__
 
+#include <iostream>
 #include <string>
 
 #include <mesos/mesos.hpp>
@@ -26,6 +27,7 @@
 
 #include <stout/bytes.hpp>
 #include <stout/option.hpp>
+#include <stout/try.hpp>
 
 
 /**
@@ -50,21 +52,23 @@
  * names is a no-op.
  */
 
-
 namespace mesos {
-
 
 bool operator == (const Resource& left, const Resource& right);
 bool operator != (const Resource& left, const Resource& right);
+
+
 bool operator <= (const Resource& left, const Resource& right);
-Resource operator + (const Resource& left, const Resource& right);
-Resource operator - (const Resource& left, const Resource& right);
+
+
 Resource& operator += (Resource& left, const Resource& right);
+Resource operator + (const Resource& left, const Resource& right);
 Resource& operator -= (Resource& left, const Resource& right);
+Resource operator - (const Resource& left, const Resource& right);
+
+
 // Return true iff both Resources have the same name, type, and role.
 bool matches(const Resource& left, const Resource& right);
-
-std::ostream& operator << (std::ostream& stream, const Resource& resource);
 
 
 // TODO(bmahler): Ensure that the underlying resources are kept
@@ -72,148 +76,6 @@ std::ostream& operator << (std::ostream& stream, const Resource& resource);
 class Resources
 {
 public:
-  Resources() {}
-
-  /*implicit*/
-  Resources(const google::protobuf::RepeatedPtrField<Resource>& _resources)
-  {
-    resources.MergeFrom(_resources);
-  }
-
-  Resources(const Resources& that)
-  {
-    resources.MergeFrom(that.resources);
-  }
-
-  Resources& operator = (const Resources& that)
-  {
-    if (this != &that) {
-      resources.Clear();
-      resources.MergeFrom(that.resources);
-    }
-
-    return *this;
-  }
-
-  /**
-   * Returns a Resources object with only the allocatable resources.
-   */
-  Resources allocatable() const;
-
-  size_t size() const
-  {
-    return resources.size();
-  }
-
-  /**
-   * Using this operator makes it easy to copy a resources object into
-   * a protocol buffer field.
-   */
-  operator const google::protobuf::RepeatedPtrField<Resource>& () const
-  {
-    return resources;
-  }
-
-  bool operator == (const Resources& that) const;
-
-  bool operator != (const Resources& that) const
-  {
-    return !(*this == that);
-  }
-
-  bool operator <= (const Resources& that) const;
-
-  Resources operator + (const Resources& that) const;
-
-  Resources operator - (const Resources& that) const;
-
-  Resources& operator += (const Resources& that);
-
-  Resources& operator -= (const Resources& that);
-
-  Resources operator + (const Resource& that) const;
-
-  Resources operator - (const Resource& that) const;
-
-  Resources& operator += (const Resource& that)
-  {
-    *this = *this + that;
-    return *this;
-  }
-
-  Resources& operator -= (const Resource& that)
-  {
-    *this = *this - that;
-    return *this;
-  }
-
-  /**
-   * Returns a Resources object with the same amount of each resource
-   * type as these Resources, but with only one Resource object per
-   * type and all Resource object marked as the specified role.
-   */
-  Resources flatten(const std::string& role = "*") const;
-
-  /**
-   * Returns all resources in this object that are marked with the
-   * specified role.
-   */
-  Resources extract(const std::string& role) const;
-
-  /**
-   * Finds a number of resources equal to toFind in these Resources
-   * and returns them marked with appropriate roles. For each resource
-   * type, resources are first taken from the specified role, then
-   * from '*', then from any other role.
-   */
-  Option<Resources> find(
-      const Resources& toFind,
-      const std::string& role = "*") const;
-
-  /**
-   * Returns the Resource from these Resources that matches the argument
-   * in name, type, and role, if it exists.
-   */
-  Option<Resource> get(const Resource& r) const;
-
-  /**
-   * Returns all Resources from these Resources that match the argument
-   * in name and type, regardless of role.
-   */
-  Option<Resources> getAll(const Resource& r) const;
-
-  template <typename T>
-  T get(const std::string& name, const T& t) const;
-
-  // Helpers to get known resource types.
-  // TODO(vinod): Fix this when we make these types as first class protobufs.
-  Option<double> cpus() const;
-  Option<Bytes> mem() const;
-  Option<Bytes> disk() const;
-
-  // TODO(vinod): Provide a Ranges abstraction.
-  Option<Value::Ranges> ports() const;
-
-  // Helper function to extract the given number of ports
-  // from the "ports" resource.
-  Option<Value::Ranges> ports(size_t numPorts) const;
-
-  // TODO(jieyu): Consider returning an EphemeralPorts abstraction
-  // which holds the ephemeral ports allocation logic.
-  Option<Value::Ranges> ephemeral_ports() const;
-
-  typedef google::protobuf::RepeatedPtrField<Resource>::iterator
-  iterator;
-
-  typedef google::protobuf::RepeatedPtrField<Resource>::const_iterator
-  const_iterator;
-
-  iterator begin() { return resources.begin(); }
-  iterator end() { return resources.end(); }
-
-  const_iterator begin() const { return resources.begin(); }
-  const_iterator end() const { return resources.end(); }
-
   /**
    * Parses the value and returns a Resource with the given name and role.
    */
@@ -250,11 +112,133 @@ public:
    */
   static bool isZero(const Resource& resource);
 
+  Resources() {}
+
+  /*implicit*/
+  Resources(const google::protobuf::RepeatedPtrField<Resource>& _resources)
+  {
+    resources.MergeFrom(_resources);
+  }
+
+  Resources(const Resources& that)
+  {
+    resources.MergeFrom(that.resources);
+  }
+
+  Resources& operator = (const Resources& that)
+  {
+    if (this != &that) {
+      resources.Clear();
+      resources.MergeFrom(that.resources);
+    }
+
+    return *this;
+  }
+
+  size_t size() const
+  {
+    return resources.size();
+  }
+
+  /**
+   * Returns all resources in this object that are marked with the
+   * specified role.
+   */
+  Resources extract(const std::string& role) const;
+
+  /**
+   * Returns a Resources object with the same amount of each resource
+   * type as these Resources, but with only one Resource object per
+   * type and all Resource object marked as the specified role.
+   */
+  Resources flatten(const std::string& role = "*") const;
+
+  /**
+   * Finds a number of resources equal to toFind in these Resources
+   * and returns them marked with appropriate roles. For each resource
+   * type, resources are first taken from the specified role, then
+   * from '*', then from any other role.
+   */
+  Option<Resources> find(
+      const Resources& toFind,
+      const std::string& role = "*") const;
+
+  /**
+   * Returns the Resource from these Resources that matches the argument
+   * in name, type, and role, if it exists.
+   */
+  Option<Resource> get(const Resource& r) const;
+
+  /**
+   * Returns all Resources from these Resources that match the argument
+   * in name and type, regardless of role.
+   */
+  Option<Resources> getAll(const Resource& r) const;
+
+  template <typename T>
+  T get(const std::string& name, const T& t) const;
+
+  /**
+   * Returns a Resources object with only the allocatable resources.
+   */
+  Resources allocatable() const;
+
+  // Helpers to get known resource types.
+  // TODO(vinod): Fix this when we make these types as first class protobufs.
+  Option<double> cpus() const;
+  Option<Bytes> mem() const;
+  Option<Bytes> disk() const;
+
+  // TODO(vinod): Provide a Ranges abstraction.
+  Option<Value::Ranges> ports() const;
+
+  // Helper function to extract the given number of ports
+  // from the "ports" resource.
+  Option<Value::Ranges> ports(size_t numPorts) const;
+
+  // TODO(jieyu): Consider returning an EphemeralPorts abstraction
+  // which holds the ephemeral ports allocation logic.
+  Option<Value::Ranges> ephemeral_ports() const;
+
+  typedef google::protobuf::RepeatedPtrField<Resource>::iterator
+  iterator;
+
+  typedef google::protobuf::RepeatedPtrField<Resource>::const_iterator
+  const_iterator;
+
+  iterator begin() { return resources.begin(); }
+  iterator end() { return resources.end(); }
+
+  const_iterator begin() const { return resources.begin(); }
+  const_iterator end() const { return resources.end(); }
+
+  /**
+   * Using this operator makes it easy to copy a resources object into
+   * a protocol buffer field.
+   */
+  operator const google::protobuf::RepeatedPtrField<Resource>& () const;
+
+  bool operator == (const Resources& that) const;
+  bool operator != (const Resources& that) const;
+
+  bool operator <= (const Resources& that) const;
+
+  Resources operator + (const Resource& that) const;
+  Resources operator + (const Resources& that) const;
+  Resources& operator += (const Resource& that);
+  Resources& operator += (const Resources& that);
+
+  Resources operator - (const Resource& that) const;
+  Resources operator - (const Resources& that) const;
+  Resources& operator -= (const Resource& that);
+  Resources& operator -= (const Resources& that);
+
 private:
   google::protobuf::RepeatedPtrField<Resource> resources;
 };
 
 
+std::ostream& operator << (std::ostream& stream, const Resource& resource);
 std::ostream& operator << (std::ostream& stream, const Resources& resources);
 
 
