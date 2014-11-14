@@ -426,12 +426,16 @@ Future<Response> Master::Http::stats(const Request& request)
 
   foreach (const Resource& resource, totalResources) {
     CHECK(resource.has_scalar());
+
     double total = resource.scalar().value();
     object.values[resource.name() + "_total"] = total;
-    Option<Resource> option = usedResources.get(resource);
-    CHECK(!option.isSome() || option.get().has_scalar());
-    double used = option.isSome() ? option.get().scalar().value() : 0.0;
+
+    Option<Value::Scalar> _used =
+      usedResources.get<Value::Scalar>(resource.name());
+
+    double used = _used.isSome() ? _used.get().value() : 0.0;
     object.values[resource.name() + "_used"] = used;
+
     double percent = used / total;
     object.values[resource.name() + "_percent"] = percent;
   }

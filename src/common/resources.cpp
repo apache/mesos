@@ -251,83 +251,92 @@ Try<Resources> Resources::parse(
 }
 
 
-bool Resources::isValid(const Resource& resource)
+Option<Error> Resources::validate(const Resource& resource)
 {
-  if (!resource.has_name() ||
-      resource.name() == "" ||
-      !resource.has_type() ||
-      !Value::Type_IsValid(resource.type())) {
-    return false;
+  if (resource.name().empty()) {
+    return Error("Empty resource name");
+  }
+
+  if (!Value::Type_IsValid(resource.type())) {
+    return Error("Invalid resource type");
   }
 
   if (resource.type() == Value::SCALAR) {
-    return resource.has_scalar();
+    if (!resource.has_scalar() ||
+        resource.has_ranges() ||
+        resource.has_set()) {
+      return Error("Invalid scalar resource");
+    }
+
+    if (resource.scalar().value() < 0) {
+      return Error("Invalid scalar resource: value < 0");
+    }
   } else if (resource.type() == Value::RANGES) {
-    return resource.has_ranges();
-  } else if (resource.type() == Value::SET) {
-    return resource.has_set();
-  } else if (resource.type() == Value::TEXT) {
-    // Resources doesn't support text.
-    return false;
-  }
+    if (resource.has_scalar() ||
+        !resource.has_ranges() ||
+        resource.has_set()) {
+      return Error("Invalid ranges resource");
+    }
 
-  return false;
-}
+    for (int i = 0; i < resource.ranges().range_size(); i++) {
+      const Value::Range& range = resource.ranges().range(i);
 
-
-bool Resources::isAllocatable(const Resource& resource)
-{
-  if (isValid(resource)) {
-    if (resource.type() == Value::SCALAR) {
-      if (resource.scalar().value() <= 0) {
-        return false;
+      // Ensure the range make sense (isn't inverted).
+      if (range.begin() > range.end()) {
+        return Error("Invalid ranges resource: begin > end");
       }
-    } else if (resource.type() == Value::RANGES) {
-      if (resource.ranges().range_size() == 0) {
-        return false;
-      } else {
-        for (int i = 0; i < resource.ranges().range_size(); i++) {
-          const Value::Range& range = resource.ranges().range(i);
 
-          // Ensure the range make sense (isn't inverted).
-          if (range.begin() > range.end()) {
-            return false;
-          }
-
-          // Ensure ranges don't overlap (but not necessarily coalesced).
-          for (int j = i + 1; j < resource.ranges().range_size(); j++) {
-            if (range.begin() <= resource.ranges().range(j).begin() &&
-                resource.ranges().range(j).begin() <= range.end()) {
-              return false;
-            }
-          }
-        }
-      }
-    } else if (resource.type() == Value::SET) {
-      if (resource.set().item_size() == 0) {
-        return false;
-      } else {
-        for (int i = 0; i < resource.set().item_size(); i++) {
-          const string& item = resource.set().item(i);
-
-          // Ensure no duplicates.
-          for (int j = i + 1; j < resource.set().item_size(); j++) {
-            if (item == resource.set().item(j)) {
-              return false;
-            }
-          }
+      // Ensure ranges don't overlap (but not necessarily coalesced).
+      for (int j = i + 1; j < resource.ranges().range_size(); j++) {
+        if (range.begin() <= resource.ranges().range(j).begin() &&
+            resource.ranges().range(j).begin() <= range.end()) {
+          return Error("Invalid ranges resource: overlapping ranges");
         }
       }
     }
+  } else if (resource.type() == Value::SET) {
+    if (resource.has_scalar() ||
+        resource.has_ranges() ||
+        !resource.has_set()) {
+      return Error("Invalid set resource");
+    }
 
-    return true;
+    for (int i = 0; i < resource.set().item_size(); i++) {
+      const string& item = resource.set().item(i);
+
+      // Ensure no duplicates.
+      for (int j = i + 1; j < resource.set().item_size(); j++) {
+        if (item == resource.set().item(j)) {
+          return Error("Invalid set resource: duplicated elements");
+        }
+      }
+    }
+  } else {
+    // Resource doesn't support TEXT or other value types.
+    return Error("Unsupported resource type");
   }
 
-  return false;
+  return None();
 }
 
 
-bool Resources::isZero(const Resource& resource)
+Option<Error> Resources::validate(
+    const google::protobuf::RepeatedPtrField<Resource>& resources)
+{
+  foreach (const Resource& resource, resources) {
+    Option<Error> error = validate(resource);
+    if (error.isSome()) {
+      return Error(
+          "Resource '" + stringify(resource) +
+          "' is invalid: " + error.get().message);
+    }
+  }
+
+  return None();
+}
+
+
+bool Resources::empty(const Resource& resource)
 {
   if (resource.type() == Value::SCALAR) {
     return resource.scalar().value() == 0;
@@ -335,15 +344,32 @@ bool Resources::isZero(const Resource& resource)
     return resource.ranges().range_size() == 0;
   } else if (resource.type() == Value::SET) {
     return resource.set().item_size() == 0;
+  } else {
+    return false;
   }
-
-  return false;
 }
 
 
 /////////////////////////////////////////////////
 // Public member functions.
 /////////////////////////////////////////////////
+
+
+Resources::Resources(const Resource& resource)
+{
+  // NOTE: Invalid and zero Resource object will be ignored.
+  *this += resource;
+}
+
+
+Resources::Resources(
+    const google::protobuf::RepeatedPtrField<Resource>& resources)
+{
+  foreach (const Resource& resource, resources) {
+    // NOTE: Invalid and zero Resource objects will be ignored.
+    *this += resource;
+  }
+}
 
 
 Resources Resources::extract(const string& role) const
@@ -364,85 +390,61 @@ Resources Resources::flatten(const string& role) const
 {
   Resources flattened;
 
-  foreach (const Resource& r, resources) {
-    Resource toRemove = r;
-    toRemove.set_role(role);
-
-    bool found = false;
-    for (int i = 0; i < flattened.resources.size(); i++) {
-      Resource removed = flattened.resources.Get(i);
-      if (toRemove.name() == removed.name() &&
-          toRemove.type() == removed.type()) {
-        flattened.resources.Mutable(i)->MergeFrom(toRemove + removed);
-        found = true;
-        break;
-      }
-    }
-
-    if (!found) {
-      flattened.resources.Add()->MergeFrom(toRemove);
-    }
+  foreach (Resource resource, resources) {
+    resource.set_role(role);
+    flattened += resource;
   }
 
   return flattened;
 }
 
 
-Option<Resources> Resources::find(
-    const Resources& toFind,
-    const string& role) const
+class RoleFilter
 {
-  Resources foundResources;
+public:
+  static RoleFilter any() { return RoleFilter(); }
 
-  foreach (const Resource& findResource, toFind) {
-    Resource remaining = findResource;
-    Option<Resources> all = getAll(findResource);
-    bool done = false;
+  RoleFilter() : type(ANY) {}
+  /*implicit*/ RoleFilter(const string& _role) : type(SOME), role(_role) {}
 
-    if (isZero(findResource)) {
-      // Done, as no resources of this type have been requested.
-      done = true;
-    } else if (all.isSome()) {
-      for (int i = 0; i < 3 && !done; i++) {
-        foreach (const Resource& potential, all.get()) {
-          // Ensures that we take resources first from the specified role,
-          // then from the default role, and then from any other role.
-          if ((i == 0 && potential.role() == role) ||
-              (i == 1 && potential.role() == "*" && potential.role() != role) ||
-              (i == 2 && potential.role() != "*" && potential.role() != role)) {
-            // The resources must have the same role for <= to work.
-            Resource potential_ = potential;
-            potential_.set_role(remaining.role());
-            if (remaining <= potential_) {
-              // We can satisfy the remaining requirements for this
-              // resource type.
-              Resource found = remaining;
-              found.set_role(potential.role());
-              foundResources += found;
-              done = true;
-            } else {
-              foundResources += potential;
-              remaining -= potential_;
-            }
-          }
-        }
-      }
-    }
-
-    if (!done) {
-      return None();
-    }
+  Resources apply(const Resources& resources) const
+  {
+    return type == ANY? resources : resources.extract(role);
   }
 
-  return foundResources;
-}
+private:
+  enum { ANY, SOME } type;
+  string role;
+};
 
 
-Option<Resource> Resources::get(const Resource& r) const
+Option<Resources> Resources::find(const Resource& target) const
 {
-  foreach (const Resource& resource, resources) {
-    if (addable(resource, r)) {
-      return resource;
+  Resources found;
+  Resources total = *this;
+  Resources remaining = Resources(target).flatten();
+
+  // First look in the target role, then "*", then any remaining role.
+  vector<RoleFilter> filters = {
+    RoleFilter(target.role()),
+    RoleFilter("*"),
+    RoleFilter::any()
+  };
+
+  foreach (const RoleFilter& filter, filters) {
+    foreach (const Resource& resource, filter.apply(total)) {
+      // Need to flatten to ignore the roles in contains().
+      Resources flattened = Resources(resource).flatten();
+
+      if (remaining <= flattened) {
+        // Done!
+        return found + remaining.flatten(resource.role());
+      } else if (flattened <= remaining) {
+        found += resource;
+        total -= resource;
+        remaining -= flattened;
+        break;
+      }
     }
   }
 
@@ -450,29 +452,27 @@ Option<Resource> Resources::get(const Resource& r) const
 }
 
 
-Option<Resources> Resources::getAll(const Resource& r) const
+Option<Resources> Resources::find(const Resources& targets) const
 {
   Resources total;
 
-  foreach (const Resource& resource, resources) {
-    if (r.name() == resource.name() &&
-        r.type() == resource.type()) {
-      total += resource;
+  foreach (const Resource& target, targets) {
+    Option<Resources> found = find(target);
+
+    // Each target needs to be found!
+    if (found.isNone()) {
+      return None();
     }
+
+    total += found.get();
   }
 
-  if (total.size() > 0) {
-    return total;
-  }
-
-  return None();
+  return total;
 }
 
 
 template <>
-Value::Scalar Resources::get(
-    const string& name,
-    const Value::Scalar& scalar) const
+Option<Value::Scalar> Resources::get(const string& name) const
 {
   Value::Scalar total;
   bool found = false;
@@ -489,38 +489,12 @@ Value::Scalar Resources::get(
     return total;
   }
 
-  return scalar;
+  return None();
 }
 
 
 template <>
-Value::Ranges Resources::get(
-    const string& name,
-    const Value::Ranges& ranges) const
-{
-  Value::Ranges total;
-  bool found = false;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.name() == name &&
-        resource.type() == Value::RANGES) {
-      total += resource.ranges();
-      found = true;
-    }
-  }
-
-  if (found) {
-    return total;
-  }
-
-  return ranges;
-}
-
-
-template <>
-Value::Set Resources::get(
-    const string& name,
-    const Value::Set& set) const
+Option<Value::Set> Resources::get(const string& name) const
 {
   Value::Set total;
   bool found = false;
@@ -537,125 +511,96 @@ Value::Set Resources::get(
     return total;
   }
 
-  return set;
+  return None();
 }
 
 
-Resources Resources::allocatable() const
+template <>
+Option<Value::Ranges> Resources::get(const string& name) const
 {
-  Resources result;
+  Value::Ranges total;
+  bool found = false;
 
   foreach (const Resource& resource, resources) {
-    if (isAllocatable(resource)) {
-      result.resources.Add()->MergeFrom(resource);
+    if (resource.name() == name &&
+        resource.type() == Value::RANGES) {
+      total += resource.ranges();
+      found = true;
     }
   }
 
-  return result;
+  if (found) {
+    return total;
+  }
+
+  return None();
 }
 
 
 Option<double> Resources::cpus() const
 {
-  double total= 0;
-  bool found = false;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.name() == "cpus" && resource.type() == Value::SCALAR) {
-      total += resource.scalar().value();
-      found = true;
-    }
+  Option<Value::Scalar> value = get<Value::Scalar>("cpus");
+  if (value.isSome()) {
+    return value.get().value();
+  } else {
+    return None();
   }
-
-  if (found) {
-    return total;
-  }
-
-  return None();
 }
 
 
 Option<Bytes> Resources::mem() const
 {
-  double total = 0;
-  bool found = false;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.name() == "mem" &&
-        resource.type() == Value::SCALAR) {
-      total += resource.scalar().value();
-      found = true;
-    }
+  Option<Value::Scalar> value = get<Value::Scalar>("mem");
+  if (value.isSome()) {
+    return Megabytes(static_cast<uint64_t>(value.get().value()));
+  } else {
+    return None();
   }
-
-  if (found) {
-    return Megabytes(static_cast<uint64_t>(total));
-  }
-
-  return None();
 }
 
 
 Option<Bytes> Resources::disk() const
 {
-  double total = 0;
-  bool found = false;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.name() == "disk" &&
-        resource.type() == Value::SCALAR) {
-      total += resource.scalar().value();
-      found = true;
-    }
+  Option<Value::Scalar> value = get<Value::Scalar>("disk");
+  if (value.isSome()) {
+    return Megabytes(static_cast<uint64_t>(value.get().value()));
+  } else {
+    return None();
   }
-
-  if (found) {
-    return Megabytes(static_cast<uint64_t>(total));
-  }
-
-  return None();
 }
 
 
 Option<Value::Ranges> Resources::ports() const
 {
-  Value::Ranges total;
-  bool found = false;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.name() == "ports" &&
-        resource.type() == Value::RANGES) {
-      total += resource.ranges();
-      found = true;
-    }
+  Option<Value::Ranges> value = get<Value::Ranges>("ports");
+  if (value.isSome()) {
+    return value.get();
+  } else {
+    return None();
   }
-
-  if (found) {
-    return total;
-  }
-
-  return None();
 }
 
 
 Option<Value::Ranges> Resources::ephemeral_ports() const
 {
-  Value::Ranges total;
-  bool found = false;
+  Option<Value::Ranges> value = get<Value::Ranges>("ephemeral_ports");
+  if (value.isSome()) {
+    return value.get();
+  } else {
+    return None();
+  }
+}
 
+
+bool Resources::contains(const Resource& that) const
+{
   foreach (const Resource& resource, resources) {
-    if (resource.name() == "ephemeral_ports" &&
-        resource.type() == Value::RANGES) {
-      total += resource.ranges();
-      found = true;
+    if (mesos::contains(resource, that)) {
+      return true;
     }
   }
 
-  if (found) {
-    return total;
-  }
-
-  return None();
+  return false;
 }
 
 
@@ -672,22 +617,7 @@ Resources::operator const google::protobuf::RepeatedPtrField<Resource>& () const
 
 bool Resources::operator == (const Resources& that) const
 {
-  if (size() != that.size()) {
-    return false;
-  }
-
-  foreach (const Resource& resource, resources) {
-    Option<Resource> option = that.get(resource);
-    if (option.isNone()) {
-      return false;
-      } else {
-      if (!(resource == option.get())) {
-        return false;
-      }
-    }
-  }
-
-    return true;
+  return *this <= that && that <= *this;
 }
 
 
@@ -700,15 +630,8 @@ bool Resources::operator != (const Resources& that) const
 bool Resources::operator <= (const Resources& that) const
 {
   foreach (const Resource& resource, resources) {
-    Option<Resource> option = that.get(resource);
-    if (option.isNone()) {
-      if (!isZero(resource)) {
-        return false;
-      }
-    } else {
-      if (!(resource <= option.get())) {
-        return false;
-      }
+    if (!that.contains(resource)) {
+      return false;
     }
   }
 
@@ -718,42 +641,38 @@ bool Resources::operator <= (const Resources& that) const
 
 Resources Resources::operator + (const Resource& that) const
 {
-  Resources result;
-
-  bool added = false;
-
-  foreach (const Resource& resource, resources) {
-    if (addable(resource, that)) {
-      result.resources.Add()->MergeFrom(resource + that);
-      added = true;
-    } else {
-      result.resources.Add()->MergeFrom(resource);
-    }
-  }
-
-  if (!added) {
-    result.resources.Add()->MergeFrom(that);
-  }
-
+  Resources result = *this;
+  result += that;
   return result;
 }
 
 
 Resources Resources::operator + (const Resources& that) const
 {
-  Resources result(*this);
-
-  foreach (const Resource& resource, that.resources) {
-    result += resource;
-  }
-
+  Resources result = *this;
+  result += that;
   return result;
 }
 
 
 Resources& Resources::operator += (const Resource& that)
 {
-  *this = *this + that;
+  if (validate(that).isNone() && !empty(that)) {
+    bool found = false;
+    foreach (Resource& resource, resources) {
+      if (addable(resource, that)) {
+        resource += that;
+        found = true;
+        break;
+      }
+    }
+
+    // Cannot be combined with any existing Resource object.
+    if (!found) {
+      resources.Add()->CopyFrom(that);
+    }
+  }
+
   return *this;
 }
 
@@ -770,38 +689,41 @@ Resources& Resources::operator += (const Resources& that)
 
 Resources Resources::operator - (const Resource& that) const
 {
-  Resources result;
-
-  foreach (const Resource& resource, resources) {
-    if (subtractable(resource, that)) {
-      Resource r = resource - that;
-      if (!isZero(r)) {
-        result.resources.Add()->MergeFrom(r);
-      }
-    } else {
-      result.resources.Add()->MergeFrom(resource);
-    }
-  }
-
+  Resources result = *this;
+  result -= that;
   return result;
 }
 
 
 Resources Resources::operator - (const Resources& that) const
 {
-  Resources result(*this);
-
-  foreach (const Resource& resource, that.resources) {
-    result -= resource;
-  }
-
+  Resources result = *this;
+  result -= that;
   return result;
 }
 
 
 Resources& Resources::operator -= (const Resource& that)
 {
-  *this = *this - that;
+  if (validate(that).isNone() && !empty(that)) {
+    for (int i = 0; i < resources.size(); i++) {
+      Resource* resource = resources.Mutable(i);
+
+      if (subtractable(*resource, that)) {
+        *resource -= that;
+
+        // Remove the resource if it becomes invalid or zero. We need
+        // to do the validation because we want to strip negative
+        // scalar Resource object.
+        if (validate(*resource).isSome() || empty(*resource)) {
+          resources.DeleteSubrange(i, 1);
+        }
+
+        break;
+      }
+    }
+  }
+
   return *this;
 }
 

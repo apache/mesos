@@ -276,8 +276,8 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
     .Times(1);
 
   Resources resources = Resources::parse(flags.resources.get()).get();
-  double cpus = resources.get("cpus", Value::Scalar()).value();
-  double mem = resources.get("mem", Value::Scalar()).value();
+  double cpus = resources.get<Value::Scalar>("cpus").get().value();
+  double mem = resources.get<Value::Scalar>("mem").get().value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
@@ -383,8 +383,8 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
     .WillOnce(SaveArg<1>(&frameworkId));
 
   Resources resources = Resources::parse(flags.resources.get()).get();
-  double cpus = resources.get("cpus", Value::Scalar()).value();
-  double mem = resources.get("mem", Value::Scalar()).value();
+  double cpus = resources.get<Value::Scalar>("cpus").get().value();
+  double mem = resources.get<Value::Scalar>("mem").get().value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
@@ -498,8 +498,8 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
     .WillOnce(FutureArg<1>(&frameworkId));
 
   Resources resources = Resources::parse(flags.resources.get()).get();
-  double cpus = resources.get("cpus", Value::Scalar()).value();
-  double mem = resources.get("mem", Value::Scalar()).value();
+  double cpus = resources.get<Value::Scalar>("cpus").get().value();
+  double mem = resources.get<Value::Scalar>("mem").get().value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
@@ -602,8 +602,8 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
     .WillOnce(FutureArg<1>(&frameworkId));
 
   Resources resources = Resources::parse(flags.resources.get()).get();
-  double cpus = resources.get("cpus", Value::Scalar()).value();
-  double mem = resources.get("mem", Value::Scalar()).value();
+  double cpus = resources.get<Value::Scalar>("cpus").get().value();
+  double mem = resources.get<Value::Scalar>("mem").get().value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
@@ -730,8 +730,8 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
     .WillOnce(FutureArg<1>(&frameworkId));
 
   Resources resources = Resources::parse(flags.resources.get()).get();
-  double cpus = resources.get("cpus", Value::Scalar()).value();
-  double mem = resources.get("mem", Value::Scalar()).value();
+  double cpus = resources.get<Value::Scalar>("cpus").get().value();
+  double mem = resources.get<Value::Scalar>("mem").get().value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(executor1, 1, cpus, mem, "*"));

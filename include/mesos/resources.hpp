@@ -43,8 +43,13 @@
 
 namespace mesos {
 
-// TODO(bmahler): Ensure that the underlying resources are kept
-// in a flattened state: MESOS-1714.
+// NOTE: Resource objects stored in the class are always valid and
+// kept combined if possible. It is the caller's responsibility to
+// validate any Resource object or repeated Resource protobufs before
+// constructing a Resources object. Otherwise, invalid Resource
+// objects will be silently stripped. Invalid Resource objects will
+// also be silently ignored when used in arithmetic operations (e.g.,
+// +=, -=, etc.).
 class Resources
 {
 public:
@@ -62,49 +67,38 @@ public:
       const std::string& text,
       const std::string& defaultRole = "*");
 
-  // Returns true iff this resource has a name, a valid type, i.e.
-  // scalar, range, or set, and has the appropriate value set for its
-  // type.
-  static bool isValid(const Resource& resource);
+  // Validates the given Resource object. Returns Error if it is not
+  // valid. A Resource object is valid if it has a name, a valid type,
+  // i.e. scalar, range, or set, and has the appropriate value set.
+  static Option<Error> validate(const Resource& resource);
 
-  // Returns true iff this resource is valid and allocatable. In
-  // particular, a scalar is allocatable if it's value is greater than
-  // zero, a ranges is allocatable if there is at least one valid
-  // range in it, and a set is allocatable if it has at least one
-  // item.
-  static bool isAllocatable(const Resource& resource);
+  // Validates the given protobufs.
+  // TODO(jieyu): Right now, it's the same as checking each individual
+  // Resource object in the protobufs. In the future, we could add
+  // more checks that are not possible if checking each Resource
+  // object individually. For example, we could check multiple usage
+  // of an item in a set or a ranges, etc.
+  static Option<Error> validate(
+      const google::protobuf::RepeatedPtrField<Resource>& resources);
 
-  // Returns true iff this resource is zero valued, i.e. is zero for
-  // scalars, has a range size of zero for ranges, and has no items
-  // for sets.
-  static bool isZero(const Resource& resource);
+  // Tests if the given Resource object is empty.
+  static bool empty(const Resource& resource);
 
   Resources() {}
 
   // TODO(jieyu): Consider using C++11 initializer list.
-  /*implicit*/ Resources(const Resource& resource)
-  {
-    resources.Add()->CopyFrom(resource);
-  }
+  /*implicit*/ Resources(const Resource& resource);
 
   /*implicit*/
-  Resources(const google::protobuf::RepeatedPtrField<Resource>& _resources)
-  {
-    resources.MergeFrom(_resources);
-  }
+  Resources(const google::protobuf::RepeatedPtrField<Resource>& _resources);
 
-  Resources(const Resources& that)
-  {
-    resources.MergeFrom(that.resources);
-  }
+  Resources(const Resources& that) : resources(that.resources) {}
 
   Resources& operator = (const Resources& that)
   {
     if (this != &that) {
-      resources.Clear();
-      resources.MergeFrom(that.resources);
+      resources = that.resources;
     }
-
     return *this;
   }
 
@@ -118,31 +112,25 @@ public:
   Resources extract(const std::string& role) const;
 
   // Returns a Resources object with the same amount of each resource
-  // type as these Resources, but with only one Resource object per
-  // type and all Resource object marked as the specified role.
+  // type as these Resources, but with all Resource objects marked as
+  // the specified role.
   Resources flatten(const std::string& role = "*") const;
 
-  // Finds a number of resources equal to toFind in these Resources
-  // and returns them marked with appropriate roles. For each resource
-  // type, resources are first taken from the specified role, then
-  // from '*', then from any other role.
-  Option<Resources> find(
-      const Resources& toFind,
-      const std::string& role = "*") const;
+  // Finds a Resources object with the same amount of each resource
+  // type as "targets" from these Resources. The roles specified in
+  // "targets" set the preference order. For each resource type,
+  // resources are first taken from the specified role, then from '*',
+  // then from any other role.
+  // TODO(jieyu): 'find' contains some allocation logic for scalars and
+  // fixed set / range elements. However, this is not sufficient for
+  // schedulers that want, say, any N available ports. We should
+  // consider moving this to an internal "allocation" library for our
+  // example frameworks to leverage.
+  Option<Resources> find(const Resources& targets) const;
 
-  // Returns the Resource from these Resources that matches the
-  // argument in name, type, and role, if it exists.
-  Option<Resource> get(const Resource& r) const;
-
-  // Returns all Resources from these Resources that match the
-  // argument in name and type, regardless of role.
-  Option<Resources> getAll(const Resource& r) const;
-
+  // Helpers to get resource values. We consider all roles here.
   template <typename T>
-  T get(const std::string& name, const T& t) const;
-
-  // Returns a Resources object with only the allocatable resources.
-  Resources allocatable() const;
+  Option<T> get(const std::string& name) const;
 
   // Helpers to get known resource types.
   // TODO(vinod): Fix this when we make these types as first class
@@ -195,6 +183,13 @@ public:
   Resources& operator -= (const Resources& that);
 
 private:
+  bool contains(const Resource& that) const;
+
+  // Similar to the public 'find', but only for a single Resource
+  // object. The target resource may span multiple roles, so this
+  // returns Resources.
+  Option<Resources> find(const Resource& target) const;
+
   google::protobuf::RepeatedPtrField<Resource> resources;
 };
 

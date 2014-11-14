@@ -1961,9 +1961,15 @@ struct ResourceUsageChecker : TaskInfoVisitor
       return Error("Task uses no resources");
     }
 
+    Option<Error> error = Resources::validate(task.resources());
+    if (error.isSome()) {
+      return Error("Task uses invalid resources: " + error.get().message);
+    }
+
+    // Ensure no empty resource is used.
     foreach (const Resource& resource, task.resources()) {
-      if (!Resources::isAllocatable(resource)) {
-        return Error("Task uses invalid resources: " + stringify(resource));
+      if (Resources::empty(resource)) {
+        return Error("Task uses empty resources: " + stringify(resource));
       }
     }
 
@@ -1972,7 +1978,8 @@ struct ResourceUsageChecker : TaskInfoVisitor
 
     if (task.has_executor()) {
       foreach (const Resource& resource, task.executor().resources()) {
-        if (!Resources::isAllocatable(resource)) {
+        Option<Error> error = Resources::validate(resource);
+        if (error.isSome() || Resources::empty(resource)) {
           // TODO(benh): Send back the invalid resources?
           return Error(
               "Executor for task " + stringify(task.task_id()) +
@@ -2664,13 +2671,10 @@ void Master::_launchTasks(
     }
   }
 
-  // All used resources should be allocatable, enforced by our validators.
-  CHECK_EQ(usedResources, usedResources.allocatable());
-
   // Calculate unused resources.
   Resources unusedResources = totalResources - usedResources;
 
-  if (unusedResources.allocatable().size() > 0) {
+  if (unusedResources.size() > 0) {
     // Tell the allocator about the unused (e.g., refused) resources.
     allocator->resourcesRecovered(
         frameworkId, slaveId, unusedResources, filters);

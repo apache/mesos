@@ -26,6 +26,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
 #include "slave/flags.hpp"
@@ -67,8 +68,13 @@ Try<Resources> Containerizer::resources(const Flags& flags)
 
   Resources resources = parsed.get();
 
-  // CPU resource.
-  if (!resources.cpus().isSome()) {
+  // NOTE: We need to check for the "cpus" string within the flag
+  // because once Resources are parsed, we cannot distinguish between
+  //  (1) "cpus:0", and
+  //  (2) no cpus specified.
+  // We only auto-detect cpus in case (2).
+  // The same logic applies for the other resources!
+  if (!strings::contains(flags.resources.get(""), "cpus")) {
     // No CPU specified so probe OS or resort to DEFAULT_CPUS.
     double cpus;
     Try<long> cpus_ = os::cpus();
@@ -88,7 +94,7 @@ Try<Resources> Containerizer::resources(const Flags& flags)
   }
 
   // Memory resource.
-  if (!resources.mem().isSome()) {
+  if (!strings::contains(flags.resources.get(""), "mem")) {
     // No memory specified so probe OS or resort to DEFAULT_MEM.
     Bytes mem;
     Try<os::Memory> mem_ = os::memory();
@@ -113,7 +119,7 @@ Try<Resources> Containerizer::resources(const Flags& flags)
   }
 
   // Disk resource.
-  if (!resources.disk().isSome()) {
+  if (!strings::contains(flags.resources.get(""), "disk")) {
     // No disk specified so probe OS or resort to DEFAULT_DISK.
     Bytes disk;
 
@@ -141,7 +147,7 @@ Try<Resources> Containerizer::resources(const Flags& flags)
   }
 
   // Network resource.
-  if (!resources.ports().isSome()) {
+  if (!strings::contains(flags.resources.get(""), "ports")) {
     // No ports specified so resort to DEFAULT_PORTS.
     resources += Resources::parse(
         "ports",

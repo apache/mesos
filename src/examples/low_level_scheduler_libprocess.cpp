@@ -238,7 +238,7 @@ private:
         task.mutable_executor()->MergeFrom(executor);
 
         Option<Resources> resources =
-          remaining.find(TASK_RESOURCES, framework.role());
+          remaining.find(TASK_RESOURCES.flatten(framework.role()));
 
         CHECK_SOME(resources);
         task.mutable_resources()->MergeFrom(resources.get());

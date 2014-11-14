@@ -537,7 +537,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
 {
   CHECK(initialized);
 
-  if (resources.allocatable().size() == 0) {
+  if (resources.size() == 0) {
     return;
   }
 
@@ -560,7 +560,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
   if (slaves.contains(slaveId)) {
     slaves[slaveId].available += resources;
 
-    LOG(INFO) << "Recovered " << resources.allocatable()
+    LOG(INFO) << "Recovered " << resources
               << " (total allocatable: " << slaves[slaveId].available
               << ") on slave " << slaveId
               << " from framework " << frameworkId;
