@@ -486,10 +486,18 @@ Future<Nothing> Docker::run(
   return checkError(cmd, s.get());
 }
 
-
-Future<Nothing> Docker::kill(const string& container, bool remove) const
+Future<Nothing> Docker::stop(
+    const string& container,
+    const Duration& timeout,
+    bool remove) const
 {
-  const string cmd = path + " kill " + container;
+  int timeoutSecs = (int) timeout.secs();
+  if (timeoutSecs < 0) {
+    return Failure("A negative timeout can not be applied to docker stop: " +
+                   stringify(timeoutSecs));
+  }
+
+  string cmd = path + " stop -t " + stringify(timeoutSecs) + " " + container;
 
   VLOG(1) << "Running " << cmd;
 
@@ -505,7 +513,7 @@ Future<Nothing> Docker::kill(const string& container, bool remove) const
 
   return s.get().status()
     .then(lambda::bind(
-        &Docker::_kill,
+        &Docker::_stop,
         *this,
         container,
         cmd,
@@ -513,7 +521,7 @@ Future<Nothing> Docker::kill(const string& container, bool remove) const
         remove));
 }
 
-Future<Nothing> Docker::_kill(
+Future<Nothing> Docker::_stop(
     const Docker& docker,
     const string& container,
     const string& cmd,

@@ -23,6 +23,8 @@
 #include <process/gmock.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/duration.hpp>
+
 #include "linux/cgroups.hpp"
 
 #include "messages/messages.hpp"
@@ -73,8 +75,8 @@ public:
     EXPECT_CALL(*this, logs(_, _))
       .WillRepeatedly(Invoke(this, &MockDocker::_logs));
 
-    EXPECT_CALL(*this, kill(_, _))
-      .WillRepeatedly(Invoke(this, &MockDocker::_kill));
+    EXPECT_CALL(*this, stop(_, _, _))
+      .WillRepeatedly(Invoke(this, &MockDocker::_stop));
   }
 
   MOCK_CONST_METHOD2(
@@ -83,7 +85,11 @@ public:
           const string&,
           const string&));
 
-  MOCK_CONST_METHOD2(kill, process::Future<Nothing>(const string&, bool));
+  MOCK_CONST_METHOD3(
+      stop,
+      process::Future<Nothing>(
+          const string&,
+          const Duration&, bool));
 
   process::Future<Nothing> _logs(
       const string& container,
@@ -92,11 +98,12 @@ public:
     return Docker::logs(container, directory);
   }
 
-  process::Future<Nothing> _kill(
+  process::Future<Nothing> _stop(
       const string& container,
+      const Duration& timeout,
       bool remove) const
   {
-    return Docker::kill(container, remove);
+    return Docker::stop(container, timeout, remove);
   }
 };
 
@@ -1175,10 +1182,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_logs)));
 
-  // We skip killing the docker container because killing a container
+  // We skip stopping the docker container because stopping a container
   // even when it terminated might not flush the logs and we end up
   // not getting stdout/stderr in our tests.
-  EXPECT_CALL(*mockDocker, kill(_, _))
+  EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
@@ -1301,10 +1308,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_logs)));
 
-  // We skip killing the docker container because killing a container
+  // We skip stopping the docker container because stopping a container
   // even when it terminated might not flush the logs and we end up
   // not getting stdout/stderr in our tests.
-  EXPECT_CALL(*mockDocker, kill(_, _))
+  EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
@@ -1428,10 +1435,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_logs)));
 
-  // We skip killing the docker container because killing a container
+  // We skip stopping the docker container because stopping  a container
   // even when it terminated might not flush the logs and we end up
   // not getting stdout/stderr in our tests.
-  EXPECT_CALL(*mockDocker, kill(_, _))
+  EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
@@ -1560,10 +1567,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_logs)));
 
-  // We skip killing the docker container because killing a container
+  // We skip stopping the docker container because stopping a container
   // even when it terminated might not flush the logs and we end up
   // not getting stdout/stderr in our tests.
-  EXPECT_CALL(*mockDocker, kill(_, _))
+  EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);
@@ -2047,10 +2054,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_PortMapping)
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_logs)));
 
-  // We skip killing the docker container because killing a container
+  // We skip stopping the docker container because stopping a container
   // even when it terminated might not flush the logs and we end up
   // not getting stdout/stderr in our tests.
-  EXPECT_CALL(*mockDocker, kill(_, _))
+  EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
   MockDockerContainerizer dockerContainerizer(flags, docker);

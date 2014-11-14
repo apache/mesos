@@ -332,6 +332,12 @@ public:
         "}"
         );
 
+    add(&Flags::docker_stop_timeout,
+        "docker_stop_timeout",
+        "The time as a duration for docker to wait after stopping an instance\n"
+        "before it kills that instance.",
+        Seconds(0));
+
 #ifdef WITH_NETWORK_ISOLATOR
     add(&Flags::ephemeral_ports_per_container,
         "ephemeral_ports_per_container",
@@ -453,6 +459,7 @@ public:
   std::string docker_sandbox_directory;
   Duration docker_remove_delay;
   Option<ContainerInfo> default_container_info;
+  Duration docker_stop_timeout;
 #ifdef WITH_NETWORK_ISOLATOR
   uint16_t ephemeral_ports_per_container;
   Option<std::string> eth0_name;
