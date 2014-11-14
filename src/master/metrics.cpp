@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-#include "master/metrics.hpp"
+#include <stout/foreach.hpp>
 
 #include "master/master.hpp"
+#include "master/metrics.hpp"
+
 
 namespace mesos {
 namespace internal {

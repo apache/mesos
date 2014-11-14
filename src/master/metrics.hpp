@@ -36,7 +36,7 @@ class Master;
 
 struct Metrics
 {
-  Metrics(const Master& master);
+  explicit Metrics(const Master& master);
 
   ~Metrics();
 

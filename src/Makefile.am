@@ -286,6 +286,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
 	slave/http.cpp							\
+	slave/metrics.cpp							\
 	slave/monitor.cpp						\
 	slave/state.cpp							\
 	slave/slave.cpp							\
@@ -442,6 +443,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/constants.hpp						\
 	slave/flags.hpp							\
 	slave/gc.hpp							\
+	slave/metrics.hpp							\
 	slave/monitor.hpp						\
 	slave/paths.hpp							\
 	slave/slave.hpp							\

@@ -32,6 +32,7 @@ using namespace mesos;
 using namespace mesos::internal;
 
 using mesos::internal::master::Master;
+using mesos::internal::slave::Slave;
 
 class MetricsTest : public mesos::internal::tests::MesosTest {};
 
@@ -144,4 +145,70 @@ TEST_F(MetricsTest, Master)
 
   EXPECT_EQ(1u, stats.values.count("registrar/state_fetch_ms"));
   EXPECT_EQ(1u, stats.values.count("registrar/state_store_ms"));
+}
+
+
+TEST_F(MetricsTest, Slave)
+{
+  // TODO(dhamon): https://issues.apache.org/jira/browse/MESOS-2134 to allow
+  // only a Slave to be started.
+  Try<process::PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<process::PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  // Get the snapshot.
+  process::UPID upid("metrics", process::node());
+
+  process::Future<process::http::Response> response =
+      process::http::get(upid, "snapshot");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  JSON::Object stats = parse.get();
+
+  EXPECT_EQ(1u, stats.values.count("slave/uptime_secs"));
+  EXPECT_EQ(1u, stats.values.count("slave/registered"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/recovery_errors"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/frameworks_active"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/tasks_staging"));
+  EXPECT_EQ(1u, stats.values.count("slave/tasks_starting"));
+  EXPECT_EQ(1u, stats.values.count("slave/tasks_running"));
+  EXPECT_EQ(1u, stats.values.count("slave/tasks_finished"));
+  EXPECT_EQ(1u, stats.values.count("slave/tasks_failed"));
+  EXPECT_EQ(1u, stats.values.count("slave/tasks_killed"));
+  EXPECT_EQ(1u, stats.values.count("slave/tasks_lost"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/executors_registering"));
+  EXPECT_EQ(1u, stats.values.count("slave/executors_running"));
+  EXPECT_EQ(1u, stats.values.count("slave/executors_terminating"));
+  EXPECT_EQ(1u, stats.values.count("slave/executors_terminated"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/valid_status_updates"));
+  EXPECT_EQ(1u, stats.values.count("slave/invalid_status_updates"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/valid_framework_messages"));
+  EXPECT_EQ(1u, stats.values.count("slave/invalid_framework_messages"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/cpus_total"));
+  EXPECT_EQ(1u, stats.values.count("slave/cpus_used"));
+  EXPECT_EQ(1u, stats.values.count("slave/cpus_percent"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/mem_total"));
+  EXPECT_EQ(1u, stats.values.count("slave/mem_used"));
+  EXPECT_EQ(1u, stats.values.count("slave/mem_percent"));
+
+  EXPECT_EQ(1u, stats.values.count("slave/disk_total"));
+  EXPECT_EQ(1u, stats.values.count("slave/disk_used"));
+  EXPECT_EQ(1u, stats.values.count("slave/disk_percent"));
 }

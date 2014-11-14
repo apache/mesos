@@ -35,9 +35,6 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
-#include <process/metrics/counter.hpp>
-#include <process/metrics/gauge.hpp>
-
 #include <stout/bytes.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/hashmap.hpp>
@@ -53,6 +50,7 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
+#include "slave/metrics.hpp"
 #include "slave/monitor.hpp"
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
@@ -366,6 +364,7 @@ private:
 
   friend struct Framework;
   friend struct Executor;
+  friend struct Metrics;
 
   Slave(const Slave&);              // No copying.
   Slave& operator = (const Slave&); // No assigning.
@@ -426,43 +425,7 @@ private:
     uint64_t invalidFrameworkMessages;
   } stats;
 
-  struct Metrics
-  {
-    Metrics(const Slave& slave);
-
-    ~Metrics();
-
-    process::metrics::Gauge uptime_secs;
-    process::metrics::Gauge registered;
-
-    process::metrics::Counter recovery_errors;
-
-    process::metrics::Gauge frameworks_active;
-
-    process::metrics::Gauge tasks_staging;
-    process::metrics::Gauge tasks_starting;
-    process::metrics::Gauge tasks_running;
-    process::metrics::Counter tasks_finished;
-    process::metrics::Counter tasks_failed;
-    process::metrics::Counter tasks_killed;
-    process::metrics::Counter tasks_lost;
-
-    process::metrics::Gauge executors_registering;
-    process::metrics::Gauge executors_running;
-    process::metrics::Gauge executors_terminating;
-    process::metrics::Counter executors_terminated;
-
-    process::metrics::Counter valid_status_updates;
-    process::metrics::Counter invalid_status_updates;
-
-    process::metrics::Counter valid_framework_messages;
-    process::metrics::Counter invalid_framework_messages;
-
-    // Resource metrics.
-    std::vector<process::metrics::Gauge> resources_total;
-    std::vector<process::metrics::Gauge> resources_used;
-    std::vector<process::metrics::Gauge> resources_percent;
-  } metrics;
+  Metrics metrics;
 
   double _resources_total(const std::string& name);
   double _resources_used(const std::string& name);
