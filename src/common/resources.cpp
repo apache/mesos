@@ -157,50 +157,55 @@ bool matches(const Resource& left, const Resource& right)
 }
 
 
+/////////////////////////////////////////////////
+// Public static functions.
+/////////////////////////////////////////////////
+
+
 Try<Resource> Resources::parse(
     const string& name,
-    const string& text,
+    const string& value,
     const string& role)
 {
-  Resource resource;
-  Try<Value> result = internal::values::parse(text);
-
+  Try<Value> result = internal::values::parse(value);
   if (result.isError()) {
-    return Error("Failed to parse resource " + name +
-                 " text " + text +
-                 " error " + result.error());
-  } else{
-    Value value = result.get();
-    resource.set_name(name);
-    resource.set_role(role);
+    return Error(
+        "Failed to parse resource " + name +
+        " value " + value + " error " + result.error());
+  }
 
-    if (value.type() == Value::RANGES) {
-      resource.set_type(Value::RANGES);
-      resource.mutable_ranges()->MergeFrom(value.ranges());
-    } else if (value.type() == Value::SET) {
-      resource.set_type(Value::SET);
-      resource.mutable_set()->MergeFrom(value.set());
-    } else if (value.type() == Value::SCALAR) {
-      resource.set_type(Value::SCALAR);
-      resource.mutable_scalar()->MergeFrom(value.scalar());
-    } else {
-      return Error("Bad type for resource " + name +
-                   " text " + text +
-                   " type " + Value::Type_Name(value.type()));
-    }
+  Resource resource;
+
+  Value _value = result.get();
+  resource.set_name(name);
+  resource.set_role(role);
+
+  if (_value.type() == Value::SCALAR) {
+    resource.set_type(Value::SCALAR);
+    resource.mutable_scalar()->CopyFrom(_value.scalar());
+  } else if (_value.type() == Value::RANGES) {
+    resource.set_type(Value::RANGES);
+    resource.mutable_ranges()->CopyFrom(_value.ranges());
+  } else if (_value.type() == Value::SET) {
+    resource.set_type(Value::SET);
+    resource.mutable_set()->CopyFrom(_value.set());
+  } else {
+    return Error(
+        "Bad type for resource " + name + " value " + value +
+        " type " + Value::Type_Name(_value.type()));
   }
 
   return resource;
 }
 
 
-Try<Resources> Resources::parse(const string& s, const string& defaultRole)
+Try<Resources> Resources::parse(
+    const string& text,
+    const string& defaultRole)
 {
   Resources resources;
 
-  vector<string> tokens = strings::tokenize(s, ";");
-
-  foreach (const string& token, tokens) {
+  foreach (const string& token, strings::tokenize(text, ";")) {
     vector<string> pair = strings::tokenize(token, ":");
     if (pair.size() != 2) {
       return Error("Bad value for resources, missing or extra ':' in " + token);
@@ -215,19 +220,22 @@ Try<Resources> Resources::parse(const string& s, const string& defaultRole)
     } else {
       size_t closeParen = pair[0].find(")");
       if (closeParen == string::npos || closeParen < openParen) {
-        return Error("Bad value for resources, mismatched parentheses in " +
-                     token);
+        return Error(
+            "Bad value for resources, mismatched parentheses in " + token);
       }
 
       name = strings::trim(pair[0].substr(0, openParen));
-      role = strings::trim(pair[0].substr(openParen + 1,
-                                          closeParen - openParen - 1));
+
+      role = strings::trim(pair[0].substr(
+          openParen + 1,
+          closeParen - openParen - 1));
     }
 
     Try<Resource> resource = Resources::parse(name, pair[1], role);
     if (resource.isError()) {
       return Error(resource.error());
     }
+
     resources += resource.get();
   }
 
@@ -323,6 +331,11 @@ bool Resources::isZero(const Resource& resource)
 
   return false;
 }
+
+
+/////////////////////////////////////////////////
+// Public member functions.
+/////////////////////////////////////////////////
 
 
 Resources Resources::extract(const string& role) const
@@ -666,6 +679,11 @@ Option<Value::Ranges> Resources::ephemeral_ports() const
 
   return None();
 }
+
+
+/////////////////////////////////////////////////
+// Overloaded operators.
+/////////////////////////////////////////////////
 
 
 Resources::operator const google::protobuf::RepeatedPtrField<Resource>& () const

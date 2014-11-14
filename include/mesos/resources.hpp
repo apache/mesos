@@ -30,27 +30,16 @@
 #include <stout/try.hpp>
 
 
-/**
- * Resources come in three types: scalar, ranges, and sets. These are
- * represented using protocol buffers. To make manipulation of
- * resources easier within the Mesos core and for scheduler writers,
- * we provide generic overloaded opertors (see below) as well as a
- * general Resources class that encapsulates a collection of protocol
- * buffer Resource objects. The Resources class also provides a few
- * static routines to allow parsing resources (e.g., from the command
- * line), as well as determining whether or not a Resource object is
- * valid or allocatable. Note that many of these operations have not
- * been optimized but instead just written for correct semantics.
- *
- * Note! A resource is described by a tuple (name, type, role). Doing
- * "arithmetic" operations (those defined below) on two resources of
- * the same name but different type, or the same name and type but
- * different roles, doesn't make sense, so it's semantics are as
- * though the second operand was actually just an empty resource
- * (as though you didn't do the operation at all). In addition,
- * doing operations on two resources of the same type but different
- * names is a no-op.
- */
+// Resources come in three types: scalar, ranges, and sets. These are
+// represented using protocol buffers. To make manipulation of
+// resources easier within the Mesos core and for scheduler writers,
+// we provide generic overloaded operators (see below) as well as a
+// general Resources class that encapsulates a collection of protocol
+// buffer Resource objects. The Resources class also provides a few
+// static routines to allow parsing resources (e.g., from the command
+// line), as well as determining whether or not a Resource object is
+// valid. Note that many of these operations have not been optimized
+// but instead just written for correct semantics.
 
 namespace mesos {
 
@@ -76,40 +65,35 @@ bool matches(const Resource& left, const Resource& right);
 class Resources
 {
 public:
-  /**
-   * Parses the value and returns a Resource with the given name and role.
-   */
+  // Parses the text and returns a Resource object with the given name
+  // and role. For example, "Resource r = parse("mem", "1024", "*");".
   static Try<Resource> parse(
       const std::string& name,
       const std::string& value,
       const std::string& role);
 
-  /**
-   * Parses resources in the form "name:value (role);name:value...".
-   * Any name/value pair that doesn't specify a role is assigned to defaultRole.
-   */
+  // Parses Resources from text in the form "name:value(role);
+  // name:value;...". Any name/value pair that doesn't specify a role
+  // is assigned to defaultRole.
   static Try<Resources> parse(
-      const std::string& s,
+      const std::string& text,
       const std::string& defaultRole = "*");
 
-  /**
-   * Returns true iff this resource has a name, a valid type, i.e. scalar,
-   * range, or set, and has the appropriate value set for its type.
-   */
+  // Returns true iff this resource has a name, a valid type, i.e.
+  // scalar, range, or set, and has the appropriate value set for its
+  // type.
   static bool isValid(const Resource& resource);
 
-  /**
-   * Returns true iff this resource is valid and allocatable. In particular,
-   * a scalar is allocatable if it's value is greater than zero, a ranges
-   * is allocatable if there is at least one valid range in it, and a set
-   * is allocatable if it has at least one item.
-   */
+  // Returns true iff this resource is valid and allocatable. In
+  // particular, a scalar is allocatable if it's value is greater than
+  // zero, a ranges is allocatable if there is at least one valid
+  // range in it, and a set is allocatable if it has at least one
+  // item.
   static bool isAllocatable(const Resource& resource);
 
-  /**
-   * Returns true iff this resource is zero valued, i.e. is zero for scalars,
-   * has a range size of zero for ranges, and has no items for sets.
-   */
+  // Returns true iff this resource is zero valued, i.e. is zero for
+  // scalars, has a range size of zero for ranges, and has no items
+  // for sets.
   static bool isZero(const Resource& resource);
 
   Resources() {}
@@ -140,51 +124,40 @@ public:
     return resources.size();
   }
 
-  /**
-   * Returns all resources in this object that are marked with the
-   * specified role.
-   */
+  // Returns all resources in this object that are marked with the
+  // specified role.
   Resources extract(const std::string& role) const;
 
-  /**
-   * Returns a Resources object with the same amount of each resource
-   * type as these Resources, but with only one Resource object per
-   * type and all Resource object marked as the specified role.
-   */
+  // Returns a Resources object with the same amount of each resource
+  // type as these Resources, but with only one Resource object per
+  // type and all Resource object marked as the specified role.
   Resources flatten(const std::string& role = "*") const;
 
-  /**
-   * Finds a number of resources equal to toFind in these Resources
-   * and returns them marked with appropriate roles. For each resource
-   * type, resources are first taken from the specified role, then
-   * from '*', then from any other role.
-   */
+  // Finds a number of resources equal to toFind in these Resources
+  // and returns them marked with appropriate roles. For each resource
+  // type, resources are first taken from the specified role, then
+  // from '*', then from any other role.
   Option<Resources> find(
       const Resources& toFind,
       const std::string& role = "*") const;
 
-  /**
-   * Returns the Resource from these Resources that matches the argument
-   * in name, type, and role, if it exists.
-   */
+  // Returns the Resource from these Resources that matches the
+  // argument in name, type, and role, if it exists.
   Option<Resource> get(const Resource& r) const;
 
-  /**
-   * Returns all Resources from these Resources that match the argument
-   * in name and type, regardless of role.
-   */
+  // Returns all Resources from these Resources that match the
+  // argument in name and type, regardless of role.
   Option<Resources> getAll(const Resource& r) const;
 
   template <typename T>
   T get(const std::string& name, const T& t) const;
 
-  /**
-   * Returns a Resources object with only the allocatable resources.
-   */
+  // Returns a Resources object with only the allocatable resources.
   Resources allocatable() const;
 
   // Helpers to get known resource types.
-  // TODO(vinod): Fix this when we make these types as first class protobufs.
+  // TODO(vinod): Fix this when we make these types as first class
+  // protobufs.
   Option<double> cpus() const;
   Option<Bytes> mem() const;
   Option<Bytes> disk() const;
@@ -192,8 +165,8 @@ public:
   // TODO(vinod): Provide a Ranges abstraction.
   Option<Value::Ranges> ports() const;
 
-  // Helper function to extract the given number of ports
-  // from the "ports" resource.
+  // Helper function to extract the given number of ports from the
+  // "ports" resource.
   Option<Value::Ranges> ports(size_t numPorts) const;
 
   // TODO(jieyu): Consider returning an EphemeralPorts abstraction
@@ -212,10 +185,8 @@ public:
   const_iterator begin() const { return resources.begin(); }
   const_iterator end() const { return resources.end(); }
 
-  /**
-   * Using this operator makes it easy to copy a resources object into
-   * a protocol buffer field.
-   */
+  // Using this operator makes it easy to copy a resources object into
+  // a protocol buffer field.
   operator const google::protobuf::RepeatedPtrField<Resource>& () const;
 
   bool operator == (const Resources& that) const;
@@ -223,6 +194,11 @@ public:
 
   bool operator <= (const Resources& that) const;
 
+  // NOTE: If any error occurs (e.g., input Resource is not valid or
+  // the first operand is not a superset of the second oprand while
+  // doing subtraction), the semantics is as though the second operand
+  // was actually just an empty resource (as though you didn't do the
+  // operation at all).
   Resources operator + (const Resource& that) const;
   Resources operator + (const Resources& that) const;
   Resources& operator += (const Resource& that);
