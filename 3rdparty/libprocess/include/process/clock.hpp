@@ -4,7 +4,10 @@
 #include <list>
 
 #include <process/time.hpp>
-#include <process/timer.hpp>
+
+// TODO(benh): We should really be including <process/timer.hpp> but
+// there are currently too many circular dependencies in header files
+// that would need to get moved to translation units first.
 
 #include <stout/duration.hpp>
 #include <stout/lambda.hpp>

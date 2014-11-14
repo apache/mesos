@@ -2,7 +2,6 @@
 #define __PROCESS_TIMEOUT_HPP__
 
 #include <process/clock.hpp>
-
 #include <process/time.hpp>
 
 #include <stout/duration.hpp>
