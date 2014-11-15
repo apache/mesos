@@ -2467,7 +2467,7 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
   AWAIT_READY(__statusUpdate2);
 
   Future<Nothing> resourcesRecovered = FUTURE_DISPATCH(
-      _, &HierarchicalDRFAllocatorProcess::resourcesRecovered);
+      _, &AllocatorProcess::resourcesRecovered);
 
   // Advance the clock so that the status update manager resends
   // TASK_RUNNING update with 'latest_state' as TASK_FINISHED.

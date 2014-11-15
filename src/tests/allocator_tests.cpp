@@ -45,6 +45,7 @@ using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
 using mesos::internal::master::allocator::Allocator;
+using mesos::internal::master::allocator::AllocatorProcess;
 using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
 
 using mesos::internal::master::Master;
@@ -754,7 +755,7 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
     .Times(2);
 
   Future<Nothing> slaveAdded1 = FUTURE_DISPATCH(
-      allocator.real, &HierarchicalDRFAllocatorProcess::slaveAdded);
+      allocator.real, &AllocatorProcess::slaveAdded);
 
   slave::Flags flags1 = CreateSlaveFlags();
   flags1.resources = Some("cpus(role1):1;mem(role1):200;cpus(role2):2;"
@@ -766,7 +767,7 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
   AWAIT_READY(slaveAdded1);
 
   Future<Nothing> slaveAdded2 = FUTURE_DISPATCH(
-      allocator.real, &HierarchicalDRFAllocatorProcess::slaveAdded);
+      allocator.real, &AllocatorProcess::slaveAdded);
 
   // This slave's resources will never be offered to anyone,
   // because there is no framework with role3.
