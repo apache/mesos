@@ -537,7 +537,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
 {
   CHECK(initialized);
 
-  if (resources.size() == 0) {
+  if (resources.empty()) {
     return;
   }
 

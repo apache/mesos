@@ -2674,7 +2674,7 @@ void Master::_launchTasks(
   // Calculate unused resources.
   Resources unusedResources = totalResources - usedResources;
 
-  if (unusedResources.size() > 0) {
+  if (!unusedResources.empty()) {
     // Tell the allocator about the unused (e.g., refused) resources.
     allocator->resourcesRecovered(
         frameworkId, slaveId, unusedResources, filters);

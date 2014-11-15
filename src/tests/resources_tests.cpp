@@ -179,7 +179,7 @@ TEST(ResourcesTest, Printing)
 TEST(ResourcesTest, InitializedIsEmpty)
 {
   Resources r;
-  EXPECT_EQ(0u, r.size());
+  EXPECT_TRUE(r.empty());
 }
 
 
@@ -192,14 +192,14 @@ TEST(ResourcesTest, BadResourcesNotAllocatable)
   Resources r;
   r += cpus;
 
-  EXPECT_EQ(0u, r.size());
+  EXPECT_TRUE(r.empty());
 
   cpus.set_name("cpus");
   cpus.mutable_scalar()->set_value(0);
 
   r += cpus;
 
-  EXPECT_EQ(0u, r.size());
+  EXPECT_TRUE(r.empty());
 }
 
 
@@ -216,8 +216,8 @@ TEST(ResourcesTest, ScalarEquals)
   r2 += cpus;
   r2 += mem;
 
-  EXPECT_EQ(2u, r1.size());
-  EXPECT_EQ(2u, r2.size());
+  EXPECT_FALSE(r1.empty());
+  EXPECT_FALSE(r2.empty());
   EXPECT_EQ(r1, r2);
 
   Resources cpus1 = Resources::parse("cpus", "3", "role1").get();
@@ -292,14 +292,14 @@ TEST(ResourcesTest, ScalarAddition)
 
   Resources sum = r1 + r2;
 
-  EXPECT_EQ(2u, sum.size());
+  EXPECT_FALSE(sum.empty());
   EXPECT_EQ(3, sum.get<Value::Scalar>("cpus").get().value());
   EXPECT_EQ(15, sum.get<Value::Scalar>("mem").get().value());
 
   Resources r = r1;
   r += r2;
 
-  EXPECT_EQ(2u, r.size());
+  EXPECT_FALSE(r.empty());
   EXPECT_EQ(3, r.get<Value::Scalar>("cpus").get().value());
   EXPECT_EQ(15, r.get<Value::Scalar>("mem").get().value());
 }
@@ -320,7 +320,7 @@ TEST(ResourcesTest, ScalarAddition2)
 
   Resources sum = r1 + r2;
 
-  EXPECT_EQ(2u, sum.size());
+  EXPECT_FALSE(sum.empty());
   EXPECT_EQ(9, sum.cpus().get());
   EXPECT_EQ(sum, Resources::parse("cpus(role1):6;cpus(role2):3").get());
 }
@@ -344,7 +344,7 @@ TEST(ResourcesTest, ScalarSubtraction)
 
   Resources diff = r1 - r2;
 
-  EXPECT_EQ(2u, diff.size());
+  EXPECT_FALSE(diff.empty());
   EXPECT_EQ(49.5, diff.get<Value::Scalar>("cpus").get().value());
   EXPECT_EQ(3072, diff.get<Value::Scalar>("mem").get().value());
 
@@ -357,7 +357,7 @@ TEST(ResourcesTest, ScalarSubtraction)
   r = r1;
   r -= r1;
 
-  EXPECT_EQ(0u, r.size());
+  EXPECT_TRUE(r.empty());
 }
 
 
@@ -376,7 +376,7 @@ TEST(ResourcesTest, ScalarSubtraction2)
 
   Resources diff = r1 - r2;
 
-  EXPECT_EQ(2u, diff.size());
+  EXPECT_FALSE(diff.empty());
   EXPECT_EQ(7, diff.cpus().get());
   EXPECT_EQ(diff, Resources::parse("cpus(role1):4;cpus(role2):3").get());
 }
@@ -454,7 +454,7 @@ TEST(ResourcesTest, RangesAddition)
   r += ports1;
   r += ports2;
 
-  EXPECT_EQ(1u, r.size());
+  EXPECT_FALSE(r.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[10000-50000]").get().ranges(),
@@ -471,7 +471,7 @@ TEST(ResourcesTest, RangesAddition2)
   r += ports1;
   r += ports2;
 
-  EXPECT_EQ(1u, r.size());
+  EXPECT_FALSE(r.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[1-65, 70-80]").get().ranges(),
@@ -490,7 +490,7 @@ TEST(ResourcesTest, RangesAdditon3)
   r1 += ports1;
   r1 += ports2;
 
-  EXPECT_EQ(1u, r1.size());
+  EXPECT_FALSE(r1.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[1-4]").get().ranges(),
@@ -500,7 +500,7 @@ TEST(ResourcesTest, RangesAdditon3)
   r2 += ports3;
   r2 += ports4;
 
-  EXPECT_EQ(1u, r2.size());
+  EXPECT_FALSE(r2.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[5-8]").get().ranges(),
@@ -508,7 +508,7 @@ TEST(ResourcesTest, RangesAdditon3)
 
   r2 += r1;
 
-  EXPECT_EQ(1u, r2.size());
+  EXPECT_FALSE(r2.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[1-8]").get().ranges(),
@@ -528,7 +528,7 @@ TEST(ResourcesTest, RangesAddition4)
   r += ports1;
   r += ports2;
 
-  EXPECT_EQ(1u, r.size());
+  EXPECT_FALSE(r.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[1-10, 20-30]").get().ranges(),
@@ -548,7 +548,7 @@ TEST(ResourcesTest, RangesSubtraction)
   r += ports1;
   r -= ports2;
 
-  EXPECT_EQ(1u, r.size());
+  EXPECT_FALSE(r.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[20001-29999]").get().ranges(),
@@ -565,7 +565,7 @@ TEST(ResourcesTest, RangesSubtraction1)
   r += ports1;
   r -= ports2;
 
-  EXPECT_EQ(1u, r.size());
+  EXPECT_FALSE(r.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[50002-60000]").get().ranges(),
@@ -582,7 +582,7 @@ TEST(ResourcesTest, RangesSubtraction2)
   r += ports1;
   r -= ports2;
 
-  EXPECT_EQ(1u, r.size());
+  EXPECT_FALSE(r.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[50001-60000]").get().ranges(),
@@ -599,7 +599,7 @@ TEST(ResourcesTest, RangesSubtraction3)
 
   Resources resourcesFree = resources - (resourcesOffered + resourcesInUse);
 
-  EXPECT_EQ(1u, resourcesFree.size());
+  EXPECT_FALSE(resourcesFree.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[50002-60000]").get().ranges(),
@@ -615,7 +615,7 @@ TEST(ResourcesTest, RangesSubtraction4)
   resourcesOffered += resources;
   resourcesOffered -= resources;
 
-  EXPECT_EQ(0u, resourcesOffered.size());
+  EXPECT_TRUE(resourcesOffered.empty());
   EXPECT_NONE(resourcesOffered.get<Value::Ranges>("ports"));
 }
 
@@ -632,7 +632,7 @@ TEST(ResourcesTest, RangesSubtraction5)
   r += ports1;
   r -= ports2;
 
-  EXPECT_EQ(1u, r.size());
+  EXPECT_FALSE(r.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[1-1, 10-10, 46-47]").get().ranges(),
@@ -649,7 +649,7 @@ TEST(ResourcesTest, RangesSubtraction6)
   r += ports1;
   r -= ports2;
 
-  EXPECT_EQ(1u, r.size());
+  EXPECT_FALSE(r.empty());
 
   EXPECT_SOME_EQ(
       values::parse("[1-10]").get().ranges(),
@@ -685,8 +685,8 @@ TEST(ResourcesTest, SetSubset)
   Resources r2;
   r2 += disks2;
 
-  EXPECT_EQ(1u, r1.size());
-  EXPECT_EQ(1u, r2.size());
+  EXPECT_FALSE(r1.empty());
+  EXPECT_FALSE(r2.empty());
   EXPECT_TRUE(r1 <= r2);
   EXPECT_FALSE(r2 <= r1);
 }
@@ -704,7 +704,7 @@ TEST(ResourcesTest, SetAddition)
   r += disks1;
   r += disks2;
 
-  EXPECT_EQ(1u, r.size());
+  EXPECT_FALSE(r.empty());
 
   Option<Value::Set> set = r.get<Value::Set>("disks");
 
@@ -725,7 +725,7 @@ TEST(ResourcesTest, SetSubtraction)
   r += disks1;
   r -= disks2;
 
-  EXPECT_EQ(1u, r.size());
+  EXPECT_FALSE(r.empty());
 
   Option<Value::Set> set = r.get<Value::Set>("disks");
 

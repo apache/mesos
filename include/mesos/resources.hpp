@@ -102,10 +102,7 @@ public:
     return *this;
   }
 
-  size_t size() const
-  {
-    return resources.size();
-  }
+  bool empty() const { return resources.size() == 0; }
 
   // Returns all resources in this object that are marked with the
   // specified role.
