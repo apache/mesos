@@ -39,6 +39,17 @@
 #define DROP_MESSAGE(name, from, to)            \
   process::FutureMessage(name, from, to, true)
 
+// The mechanism of how we match method dispatches is done by
+// comparing std::type_info of the member function pointers. Because
+// of this, the method function pointer passed to either
+// FUTURE_DISPATCH or DROP_DISPATCH must match exactly the member
+// function that is passed to the dispatch method.
+// TODO(tnachen): In a situation where a base class has a virtual
+// function and that a derived class overrides, and if in unit tests
+// we want to verify it calls the exact derived member function, we
+// need to change how dispatch matching works. One possible way is to
+// move the dispatch matching logic at event dequeue time, as we then
+// have the actual Process the dispatch event is calling to.
 #define FUTURE_DISPATCH(pid, method)            \
   process::FutureDispatch(pid, method)
 
@@ -331,8 +342,8 @@ MATCHER_P2(DispatchMatcher, pid, method, "")
 {
   const DispatchEvent& event = ::std::tr1::get<0>(arg);
   return (testing::Matcher<UPID>(pid).Matches(event.pid) &&
-          testing::Matcher<std::string>(internal::canonicalize(method))
-          .Matches(event.method));
+          event.functionType.isSome() &&
+          *event.functionType.get() == typeid(method));
 }
 
 

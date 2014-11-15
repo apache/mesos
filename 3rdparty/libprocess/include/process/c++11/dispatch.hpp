@@ -51,16 +51,7 @@ namespace internal {
 void dispatch(
     const UPID& pid,
     const std::shared_ptr<std::function<void(ProcessBase*)>>& f,
-    const std::string& method = std::string());
-
-
-// Canonicalizes a pointer to a member function (i.e., method) into a
-// bytes representation for comparison (e.g., in tests).
-template <typename Method>
-std::string canonicalize(Method method)
-{
-  return std::string(reinterpret_cast<const char*>(&method), sizeof(method));
-}
+    const Option<const std::type_info*>& functionType = None());
 
 } // namespace internal {
 
@@ -87,7 +78,7 @@ void dispatch(
             (t->*method)();
           }));
 
-  internal::dispatch(pid, f, internal::canonicalize(method));
+  internal::dispatch(pid, f, &typeid(method));
 }
 
 template <typename T>
@@ -127,7 +118,7 @@ void dispatch(
               (t->*method)(ENUM_PARAMS(N, a));                          \
             }));                                                        \
                                                                         \
-    internal::dispatch(pid, f, internal::canonicalize(method));         \
+    internal::dispatch(pid, f, &typeid(method));                        \
   }                                                                     \
                                                                         \
   template <typename T,                                                 \
@@ -174,7 +165,7 @@ Future<R> dispatch(
             promise->associate((t->*method)());
           }));
 
-  internal::dispatch(pid, f, internal::canonicalize(method));
+  internal::dispatch(pid, f, &typeid(method));
 
   return promise->future();
 }
@@ -216,7 +207,7 @@ Future<R> dispatch(
               promise->associate((t->*method)(ENUM_PARAMS(N, a)));      \
             }));                                                        \
                                                                         \
-    internal::dispatch(pid, f, internal::canonicalize(method));         \
+    internal::dispatch(pid, f, &typeid(method));                        \
                                                                         \
     return promise->future();                                           \
   }                                                                     \
@@ -267,7 +258,7 @@ Future<R> dispatch(
             promise->set((t->*method)());
           }));
 
-  internal::dispatch(pid, f, internal::canonicalize(method));
+  internal::dispatch(pid, f, &typeid(method));
 
   return promise->future();
 }
@@ -309,7 +300,7 @@ Future<R> dispatch(
               promise->set((t->*method)(ENUM_PARAMS(N, a)));            \
             }));                                                        \
                                                                         \
-    internal::dispatch(pid, f, internal::canonicalize(method));         \
+    internal::dispatch(pid, f, &typeid(method));                        \
                                                                         \
     return promise->future();                                           \
   }                                                                     \

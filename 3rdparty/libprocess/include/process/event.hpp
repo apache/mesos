@@ -130,10 +130,10 @@ struct DispatchEvent : Event
   DispatchEvent(
       const UPID& _pid,
       const memory::shared_ptr<lambda::function<void(ProcessBase*)> >& _f,
-      const std::string& _method)
+      const Option<const std::type_info*>& _functionType)
     : pid(_pid),
       f(_f),
-      method(_method)
+      functionType(_functionType)
   {}
 
   virtual void visit(EventVisitor* visitor) const
@@ -145,15 +145,9 @@ struct DispatchEvent : Event
   const UPID pid;
 
   // Function to get invoked as a result of this dispatch event.
-  const memory::shared_ptr<lambda::function<void(ProcessBase*)> > f;
+  const memory::shared_ptr<lambda::function<void(ProcessBase*)>> f;
 
-  // Canonical "byte" representation of a pointer to a member function
-  // (i.e., method) encapsulated in the above function (or empty if
-  // not applicable). Note that we use a byte representation because a
-  // pointer to a member function is not actually a pointer, but
-  // instead a POD.
-  // TODO(benh): Perform canonicalization lazily.
-  const std::string method;
+  const Option<const std::type_info*> functionType;
 
 private:
   // Not copyable, not assignable.
