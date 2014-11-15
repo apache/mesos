@@ -37,6 +37,7 @@
 
 m4_define([_AX_CXX_COMPILE_STDCXX_11_testbody], [
   #include <memory>
+  #include <mutex>
 
   template <typename T>
     struct check
@@ -62,6 +63,22 @@ m4_define([_AX_CXX_COMPILE_STDCXX_11_testbody], [
 
   std::unique_ptr<int> i(new int());
   int j = foo(std::move(i));
+
+  void mutexTest()
+  {
+    std::mutex mutex;
+    {
+      // Scope of lockGuard.
+      std::lock_guard<std::mutex> lockGuard(mutex);
+      // End scope of lockGuard.
+    }
+
+    {
+      // Scope of uniqueLock.
+      std::unique_lock<std::mutex> uniqueLock(mutex);
+      // End scope of uniqueLock.
+    }
+  }
 ])
 
 AC_DEFUN([AX_CXX_COMPILE_STDCXX_11], [
