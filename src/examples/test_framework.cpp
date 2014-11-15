@@ -92,7 +92,7 @@ public:
       // Launch tasks.
       vector<TaskInfo> tasks;
       while (tasksLaunched < totalTasks &&
-             TASK_RESOURCES <= remaining.flatten()) {
+             remaining.flatten().contains(TASK_RESOURCES)) {
         int taskId = tasksLaunched++;
 
         cout << "Launching task " << taskId << " using offer "

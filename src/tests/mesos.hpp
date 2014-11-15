@@ -406,7 +406,8 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
     std::vector<TaskInfo> tasks;
     Resources remaining = offer.resources();
 
-    while (TASK_RESOURCES <= remaining.flatten() && launched < numTasks) {
+    while (remaining.flatten().contains(TASK_RESOURCES) &&
+           launched < numTasks) {
       TaskInfo task;
       task.set_name("TestTask");
       task.mutable_task_id()->set_value(stringify(nextTaskId++));

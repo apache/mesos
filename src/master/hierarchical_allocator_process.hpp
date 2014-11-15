@@ -246,10 +246,10 @@ public:
       const process::Timeout& _timeout)
     : slaveId(_slaveId), resources(_resources), timeout(_timeout) {}
 
-  virtual bool filter(const SlaveID& slaveId, const Resources& resources)
+  virtual bool filter(const SlaveID& _slaveId, const Resources& _resources)
   {
-    return slaveId == this->slaveId &&
-           resources <= this->resources && // Refused resources are superset.
+    return slaveId == _slaveId &&
+           resources.contains(_resources) && // Refused resources are superset.
            timeout.remaining() > Seconds(0);
   }
 

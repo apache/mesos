@@ -243,8 +243,8 @@ TEST(ResourcesTest, ScalarSubset)
   r2 += cpus2;
   r2 += mem2;
 
-  EXPECT_TRUE(r1 <= r2);
-  EXPECT_FALSE(r2 <= r1);
+  EXPECT_TRUE(r2.contains(r1));
+  EXPECT_FALSE(r1.contains(r2));
 }
 
 
@@ -259,18 +259,18 @@ TEST(ResourcesTest, ScalarSubset2)
   Resources r2;
   r2 += cpus2;
 
-  EXPECT_FALSE(r1 <= r2);
-  EXPECT_FALSE(r2 <= r1);
+  EXPECT_FALSE(r2.contains(r1));
+  EXPECT_FALSE(r1.contains(r2));
 
   Resource cpus3 = Resources::parse("cpus", "3", "role1").get();
 
   Resources r3;
   r3 += cpus3;
 
-  EXPECT_FALSE(r3 <= r1);
-  EXPECT_FALSE(r3 <= r2);
-  EXPECT_FALSE(r2 <= r3);
-  EXPECT_LE(r1, r3);
+  EXPECT_FALSE(r1.contains(r3));
+  EXPECT_FALSE(r2.contains(r3));
+  EXPECT_FALSE(r3.contains(r2));
+  EXPECT_TRUE(r3.contains(r1));
 }
 
 
@@ -429,16 +429,16 @@ TEST(ResourcesTest, RangesSubset)
   Resources r5;
   r5 += ports5;
 
-  EXPECT_TRUE(r1 <= r2);
-  EXPECT_FALSE(r2 <= r1);
-  EXPECT_FALSE(r1 <= r3);
-  EXPECT_FALSE(r3 <= r1);
-  EXPECT_TRUE(r3 <= r2);
-  EXPECT_FALSE(r2 <= r3);
-  EXPECT_TRUE(r1 <= r4);
-  EXPECT_TRUE(r4 <= r2);
-  EXPECT_TRUE(r1 <= r5);
-  EXPECT_FALSE(r5 <= r1);
+  EXPECT_TRUE(r2.contains(r1));
+  EXPECT_FALSE(r1.contains(r2));
+  EXPECT_FALSE(r3.contains(r1));
+  EXPECT_FALSE(r1.contains(r3));
+  EXPECT_TRUE(r2.contains(r3));
+  EXPECT_FALSE(r3.contains(r2));
+  EXPECT_TRUE(r4.contains(r1));
+  EXPECT_TRUE(r2.contains(r4));
+  EXPECT_TRUE(r5.contains(r1));
+  EXPECT_FALSE(r1.contains(r5));
 }
 
 
@@ -687,8 +687,8 @@ TEST(ResourcesTest, SetSubset)
 
   EXPECT_FALSE(r1.empty());
   EXPECT_FALSE(r2.empty());
-  EXPECT_TRUE(r1 <= r2);
-  EXPECT_FALSE(r2 <= r1);
+  EXPECT_TRUE(r2.contains(r1));
+  EXPECT_FALSE(r1.contains(r2));
 }
 
 

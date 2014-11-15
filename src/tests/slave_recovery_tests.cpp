@@ -1061,8 +1061,9 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
       Resources::parse("cpus:1;mem:512").get());
   tasks.push_back(createTask(offer2, "sleep 1000")); // Long-running task,
 
-  ASSERT_LE(Resources(offer1.resources()) + Resources(offer2.resources()),
-            Resources(offer.resources()));
+  ASSERT_TRUE(Resources(offer.resources()).contains(
+        Resources(offer1.resources()) +
+        Resources(offer2.resources())));
 
   Future<Nothing> update1;
   Future<Nothing> update2;

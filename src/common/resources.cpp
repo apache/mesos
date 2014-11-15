@@ -113,12 +113,6 @@ bool operator != (const Resource& left, const Resource& right)
 }
 
 
-bool operator <= (const Resource& left, const Resource& right)
-{
-  return contains(right, left);
-}
-
-
 Resource& operator += (Resource& left, const Resource& right)
 {
   // TODO(jieyu): Leverage += for Value to avoid copying.
@@ -372,6 +366,18 @@ Resources::Resources(
 }
 
 
+bool Resources::contains(const Resources& that) const
+{
+  foreach (const Resource& resource, that.resources) {
+    if (!contains(resource)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 Resources Resources::extract(const string& role) const
 {
   Resources r;
@@ -436,10 +442,10 @@ Option<Resources> Resources::find(const Resource& target) const
       // Need to flatten to ignore the roles in contains().
       Resources flattened = Resources(resource).flatten();
 
-      if (remaining <= flattened) {
+      if (flattened.contains(remaining)) {
         // Done!
         return found + remaining.flatten(resource.role());
-      } else if (flattened <= remaining) {
+      } else if (remaining.contains(flattened)) {
         found += resource;
         total -= resource;
         remaining -= flattened;
@@ -617,25 +623,13 @@ Resources::operator const google::protobuf::RepeatedPtrField<Resource>& () const
 
 bool Resources::operator == (const Resources& that) const
 {
-  return *this <= that && that <= *this;
+  return this->contains(that) && that.contains(*this);
 }
 
 
 bool Resources::operator != (const Resources& that) const
 {
   return !(*this == that);
-}
-
-
-bool Resources::operator <= (const Resources& that) const
-{
-  foreach (const Resource& resource, resources) {
-    if (!that.contains(resource)) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 

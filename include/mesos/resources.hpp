@@ -104,6 +104,9 @@ public:
 
   bool empty() const { return resources.size() == 0; }
 
+  // Checks if this Resources is a superset of the given Resources.
+  bool contains(const Resources& that) const;
+
   // Returns all resources in this object that are marked with the
   // specified role.
   Resources extract(const std::string& role) const;
@@ -161,8 +164,6 @@ public:
 
   bool operator == (const Resources& that) const;
   bool operator != (const Resources& that) const;
-
-  bool operator <= (const Resources& that) const;
 
   // NOTE: If any error occurs (e.g., input Resource is not valid or
   // the first operand is not a superset of the second oprand while

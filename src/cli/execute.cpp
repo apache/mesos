@@ -170,7 +170,8 @@ public:
     }
 
     foreach (const Offer& offer, offers) {
-      if (!launched && TASK_RESOURCES.get() <= offer.resources()) {
+      if (!launched &&
+          Resources(offer.resources()).contains(TASK_RESOURCES.get())) {
         TaskInfo task;
         task.set_name(name);
         task.mutable_task_id()->set_value(name);

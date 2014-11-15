@@ -2026,7 +2026,7 @@ struct ResourceUsageChecker : TaskInfoVisitor
       resources += task.executor().resources();
     }
 
-    if (!(resources + usedResources <= totalResources)) {
+    if (!totalResources.contains(resources + usedResources)) {
       return Error(
           "Task uses more resources " + stringify(resources) +
           " than available " + stringify(totalResources - usedResources));
