@@ -81,6 +81,19 @@ m4_define([_AX_CXX_COMPILE_STDCXX_11_testbody], [
       // End scope of uniqueLock.
     }
   }
+
+  // Check for std::enable_shared_from_this.
+  struct SharedStruct : public std::enable_shared_from_this<SharedStruct>
+  {
+    std::shared_ptr<SharedStruct> get()
+    {
+      return shared_from_this();
+    }
+  };
+
+  // Construct a new shared_ptr using shared_from_this().
+  std::shared_ptr<SharedStruct> object =
+    std::shared_ptr<SharedStruct>(new SharedStruct())->get();
 ])
 
 AC_DEFUN([AX_CXX_COMPILE_STDCXX_11], [
