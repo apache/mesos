@@ -64,6 +64,8 @@ m4_define([_AX_CXX_COMPILE_STDCXX_11_testbody], [
   std::unique_ptr<int> i(new int());
   int j = foo(std::move(i));
 
+  std::shared_ptr<int> k = std::make_shared<int>(2);
+
   void mutexTest()
   {
     std::mutex mutex;
