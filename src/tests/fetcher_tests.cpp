@@ -28,9 +28,11 @@
 #include <process/subprocess.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/json.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
@@ -39,6 +41,7 @@
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
+#include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos;
@@ -60,10 +63,9 @@ class FetcherEnvironmentTest : public ::testing::Test {};
 TEST_F(FetcherEnvironmentTest, Simple)
 {
   CommandInfo commandInfo;
-  CommandInfo::URI uri;
-  uri.set_value("hdfs:///uri");
-  uri.set_executable(false);
-  commandInfo.add_uris()->MergeFrom(uri);
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("hdfs:///uri");
+  uri->set_executable(false);
 
   string directory = "/tmp/directory";
   Option<string> user = "user";
@@ -76,7 +78,8 @@ TEST_F(FetcherEnvironmentTest, Simple)
     fetcher::environment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(5u, environment.size());
-  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
+            environment["MESOS_COMMAND_INFO"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
@@ -106,8 +109,8 @@ TEST_F(FetcherEnvironmentTest, MultipleURIs)
     fetcher::environment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(5u, environment.size());
-  EXPECT_EQ(
-      "hdfs:///uri1+0X hdfs:///uri2+1X", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
+            environment["MESOS_COMMAND_INFO"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
@@ -118,10 +121,9 @@ TEST_F(FetcherEnvironmentTest, MultipleURIs)
 TEST_F(FetcherEnvironmentTest, NoUser)
 {
   CommandInfo commandInfo;
-  CommandInfo::URI uri;
-  uri.set_value("hdfs:///uri");
-  uri.set_executable(false);
-  commandInfo.add_uris()->MergeFrom(uri);
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("hdfs:///uri");
+  uri->set_executable(false);
 
   string directory = "/tmp/directory";
 
@@ -133,7 +135,8 @@ TEST_F(FetcherEnvironmentTest, NoUser)
     fetcher::environment(commandInfo, directory, None(), flags);
 
   EXPECT_EQ(4u, environment.size());
-  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
+            environment["MESOS_COMMAND_INFO"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
   EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
@@ -143,10 +146,9 @@ TEST_F(FetcherEnvironmentTest, NoUser)
 TEST_F(FetcherEnvironmentTest, EmptyHadoop)
 {
   CommandInfo commandInfo;
-  CommandInfo::URI uri;
-  uri.set_value("hdfs:///uri");
-  uri.set_executable(false);
-  commandInfo.add_uris()->MergeFrom(uri);
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("hdfs:///uri");
+  uri->set_executable(false);
 
   string directory = "/tmp/directory";
   Option<string> user = "user";
@@ -159,7 +161,8 @@ TEST_F(FetcherEnvironmentTest, EmptyHadoop)
     fetcher::environment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(4u, environment.size());
-  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
+            environment["MESOS_COMMAND_INFO"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
@@ -169,10 +172,9 @@ TEST_F(FetcherEnvironmentTest, EmptyHadoop)
 TEST_F(FetcherEnvironmentTest, NoHadoop)
 {
   CommandInfo commandInfo;
-  CommandInfo::URI uri;
-  uri.set_value("hdfs:///uri");
-  uri.set_executable(false);
-  commandInfo.add_uris()->MergeFrom(uri);
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("hdfs:///uri");
+  uri->set_executable(false);
 
   string directory = "/tmp/directory";
   Option<string> user = "user";
@@ -184,7 +186,8 @@ TEST_F(FetcherEnvironmentTest, NoHadoop)
     fetcher::environment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(4u, environment.size());
-  EXPECT_EQ("hdfs:///uri+0X", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
+            environment["MESOS_COMMAND_INFO"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
@@ -194,11 +197,10 @@ TEST_F(FetcherEnvironmentTest, NoHadoop)
 TEST_F(FetcherEnvironmentTest, NoExtractNoExecutable)
 {
   CommandInfo commandInfo;
-  CommandInfo::URI uri;
-  uri.set_value("hdfs:///uri");
-  uri.set_executable(false);
-  uri.set_extract(false);
-  commandInfo.add_uris()->MergeFrom(uri);
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("hdfs:///uri");
+  uri->set_executable(false);
+  uri->set_extract(false);
 
   string directory = "/tmp/directory";
   Option<string> user = "user";
@@ -209,8 +211,10 @@ TEST_F(FetcherEnvironmentTest, NoExtractNoExecutable)
 
   map<string, string> environment =
     fetcher::environment(commandInfo, directory, user, flags);
+
   EXPECT_EQ(5u, environment.size());
-  EXPECT_EQ("hdfs:///uri+0N", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
+            environment["MESOS_COMMAND_INFO"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
@@ -221,11 +225,10 @@ TEST_F(FetcherEnvironmentTest, NoExtractNoExecutable)
 TEST_F(FetcherEnvironmentTest, NoExtractExecutable)
 {
   CommandInfo commandInfo;
-  CommandInfo::URI uri;
-  uri.set_value("hdfs:///uri");
-  uri.set_executable(true);
-  uri.set_extract(false);
-  commandInfo.add_uris()->MergeFrom(uri);
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("hdfs:///uri");
+  uri->set_executable(true);
+  uri->set_extract(false);
 
   string directory = "/tmp/directory";
   Option<string> user = "user";
@@ -236,8 +239,10 @@ TEST_F(FetcherEnvironmentTest, NoExtractExecutable)
 
   map<string, string> environment =
     fetcher::environment(commandInfo, directory, user, flags);
+
   EXPECT_EQ(5u, environment.size());
-  EXPECT_EQ("hdfs:///uri+1N", environment["MESOS_EXECUTOR_URIS"]);
+  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
+            environment["MESOS_COMMAND_INFO"]);
   EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
   EXPECT_EQ(user.get(), environment["MESOS_USER"]);
   EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
@@ -258,10 +263,15 @@ TEST_F(FetcherTest, FileURI)
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
 
-  map<string, string> env;
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
 
-  env["MESOS_EXECUTOR_URIS"] = "file://" + testFile + "+0N";
-  env["MESOS_WORK_DIRECTORY"] = os::getcwd();
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("file://" + testFile);
+
+  map<string, string> env =
+    fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
   Try<Subprocess> fetcherProcess =
     process::subprocess(
@@ -289,10 +299,15 @@ TEST_F(FetcherTest, FilePath)
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
 
-  map<string, string> env;
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
 
-  env["MESOS_EXECUTOR_URIS"] = testFile + "+0N";
-  env["MESOS_WORK_DIRECTORY"] = os::getcwd();
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(testFile);
+
+  map<string, string> env =
+    fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
   Try<Subprocess> fetcherProcess =
     process::subprocess(
@@ -337,10 +352,15 @@ TEST_F(FetcherTest, OSNetUriTest)
   string localFile = path::join(os::getcwd(), "help");
   EXPECT_FALSE(os::exists(localFile));
 
-  map<string, string> env;
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
 
-  env["MESOS_EXECUTOR_URIS"] = url + "+0N";
-  env["MESOS_WORK_DIRECTORY"] = os::getcwd();
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(url);
+
+  map<string, string> env =
+    fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
   Try<Subprocess> fetcherProcess =
     process::subprocess(
@@ -368,10 +388,15 @@ TEST_F(FetcherTest, FileLocalhostURI)
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
 
-  map<string, string> env;
+  slave::Flags flags;
+  flags.frameworks_home = "/tmp/frameworks";
 
-  env["MESOS_EXECUTOR_URIS"] = path::join("file://localhost", testFile) + "+0N";
-  env["MESOS_WORK_DIRECTORY"] = os::getcwd();
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path::join("file://localhost", testFile));
+
+  map<string, string> env =
+    fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
   Try<Subprocess> fetcherProcess =
     process::subprocess(

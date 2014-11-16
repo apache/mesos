@@ -34,21 +34,10 @@ map<string, string> environment(
     const Option<string>& user,
     const Flags& flags)
 {
-  // Prepare the environment variables to pass to mesos-fetcher.
-  string uris = "";
-  foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
-    uris += uri.value() + "+" +
-      (uri.has_executable() && uri.executable() ? "1" : "0") +
-      (uri.extract() ? "X" : "N");
-    uris += " ";
-  }
-
-  // Remove extra space at the end.
-  uris = strings::trim(uris);
-
   map<string, string> result;
 
-  result["MESOS_EXECUTOR_URIS"] = uris;
+  result["MESOS_COMMAND_INFO"] = stringify(JSON::Protobuf(commandInfo));
+
   result["MESOS_WORK_DIRECTORY"] = directory;
 
   if (user.isSome()) {

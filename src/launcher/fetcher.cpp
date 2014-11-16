@@ -20,9 +20,11 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/json.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
 #include "hdfs/hdfs.hpp"
@@ -262,25 +264,20 @@ int main(int argc, char* argv[])
 
   logging::initialize(argv[0], flags, true); // Catch signals.
 
-  CommandInfo commandInfo;
-  // Construct URIs from the encoded environment string.
-  const std::string& uris = os::getenv("MESOS_EXECUTOR_URIS");
-  foreach (const std::string& token, strings::tokenize(uris, " ")) {
-    // Delimiter between URI, execute permission and extract options
-    // Expected format: {URI}+[01][XN]
-    //  {URI} - The actual URI for the asset to fetch.
-    //  [01]  - 1 if the execute permission should be set else 0.
-    //  [XN]  - X if we should extract the URI (if it's compressed) else N.
-    size_t pos = token.rfind("+");
-    CHECK(pos != std::string::npos)
-      << "Invalid executor uri token in env " << token;
+  CHECK(os::hasenv("MESOS_COMMAND_INFO"))
+    << "Missing MESOS_COMMAND_INFO environment variable";
 
-    CommandInfo::URI uri;
-    uri.set_value(token.substr(0, pos));
-    uri.set_executable(token.substr(pos + 1, 1) == "1");
-    uri.set_extract(token.substr(pos + 2, 1) == "X");
+  Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(os::getenv("MESOS_COMMAND_INFO"));
 
-    commandInfo.add_uris()->MergeFrom(uri);
+  if (parse.isError()) {
+    EXIT(1) << "Failed to parse MESOS_COMMAND_INFO: " << parse.error();
+  }
+
+  Try<CommandInfo> commandInfo = protobuf::parse<CommandInfo>(parse.get());
+
+  if (commandInfo.isError()) {
+    EXIT(1) << "Failed to parse CommandInfo: " << commandInfo.error();
   }
 
   CHECK(os::hasenv("MESOS_WORK_DIRECTORY"))
@@ -295,7 +292,7 @@ int main(int argc, char* argv[])
     : None();
 
   // Fetch each URI to a local file, chmod, then chown if a user is provided.
-  foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
+  foreach (const CommandInfo::URI& uri, commandInfo.get().uris()) {
     // Fetch the URI to a local file.
     Try<string> fetched = fetch(uri.value(), directory);
     if (fetched.isError()) {
