@@ -80,6 +80,8 @@ m4_define([_AX_CXX_COMPILE_STDCXX_11_testbody], [
     p1->bar();
   }
 
+  std::shared_ptr<int> k = std::make_shared<int>(2);
+
   void mutexTest()
   {
     std::mutex _mutex;
