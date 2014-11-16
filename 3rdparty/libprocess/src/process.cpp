@@ -589,125 +589,6 @@ void handle_async(struct ev_loop* loop, ev_async* _, int revents)
 }
 
 
-void send_data(Encoder* e)
-{
-  DataEncoder* encoder = CHECK_NOTNULL(dynamic_cast<DataEncoder*>(e));
-
-  int s = encoder->socket();
-
-  while (true) {
-    const void* data;
-    size_t size;
-
-    data = encoder->next(&size);
-    CHECK(size > 0);
-
-    ssize_t length = send(s, data, size, MSG_NOSIGNAL);
-
-    if (length < 0 && (errno == EINTR)) {
-      // Interrupted, try again now.
-      encoder->backup(size);
-      continue;
-    } else if (length < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-      // Might block, try again later.
-      encoder->backup(size);
-      io::poll(s, io::WRITE)
-        .onAny(lambda::bind(&send_data, e));
-      break;
-    } else if (length <= 0) {
-      // Socket error or closed.
-      if (length < 0) {
-        const char* error = strerror(errno);
-        VLOG(1) << "Socket error while sending: " << error;
-      } else {
-        VLOG(1) << "Socket closed while sending";
-      }
-      socket_manager->close(s);
-      delete encoder;
-      break;
-    } else {
-      CHECK(length > 0);
-
-      // Update the encoder with the amount sent.
-      encoder->backup(size - length);
-
-      // See if there is any more of the message to send.
-      if (encoder->remaining() == 0) {
-        delete encoder;
-
-        // Check for more stuff to send on socket.
-        Encoder* next = socket_manager->next(s);
-        if (next != NULL) {
-          io::poll(s, io::WRITE)
-            .onAny(lambda::bind(next->sender(), next));
-        }
-        break;
-      }
-    }
-  }
-}
-
-
-void send_file(Encoder* e)
-{
-  FileEncoder* encoder = CHECK_NOTNULL(dynamic_cast<FileEncoder*>(e));
-
-  int s = encoder->socket();
-
-  while (true) {
-    int fd;
-    off_t offset;
-    size_t size;
-
-    fd = encoder->next(&offset, &size);
-    CHECK(size > 0);
-
-    ssize_t length = os::sendfile(s, fd, offset, size);
-
-    if (length < 0 && (errno == EINTR)) {
-      // Interrupted, try again now.
-      encoder->backup(size);
-      continue;
-    } else if (length < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-      // Might block, try again later.
-      encoder->backup(size);
-      io::poll(s, io::WRITE)
-        .onAny(lambda::bind(&send_file, e));
-      break;
-    } else if (length <= 0) {
-      // Socket error or closed.
-      if (length < 0) {
-        const char* error = strerror(errno);
-        VLOG(1) << "Socket error while sending: " << error;
-      } else {
-        VLOG(1) << "Socket closed while sending";
-      }
-      socket_manager->close(s);
-      delete encoder;
-      break;
-    } else {
-      CHECK(length > 0);
-
-      // Update the encoder with the amount sent.
-      encoder->backup(size - length);
-
-      // See if there is any more of the message to send.
-      if (encoder->remaining() == 0) {
-        delete encoder;
-
-        // Check for more stuff to send on socket.
-        Encoder* next = socket_manager->next(s);
-        if (next != NULL) {
-          io::poll(s, io::WRITE)
-            .onAny(lambda::bind(next->sender(), next));
-        }
-        break;
-      }
-    }
-  }
-}
-
-
 namespace internal {
 
 void decode_read(
@@ -1841,9 +1722,7 @@ void send_connect(const Future<Socket>& socket, Message* message)
         data,
         size));
 
-  // Start polling in order to send data.
-  io::poll(socket.get(), io::WRITE)
-    .onAny(lambda::bind(&send_data, encoder));
+  internal::send(encoder, new Socket(socket.get()));
 }
 
 } // namespace internal {

@@ -28,11 +28,6 @@ const uint32_t GZIP_MINIMUM_BODY_LENGTH = 1024;
 // Forward declarations.
 class Encoder;
 
-extern void send_data(Encoder*);
-extern void send_file(Encoder*);
-
-typedef void (*Sender)(Encoder*);
-
 
 class Encoder
 {
@@ -44,8 +39,6 @@ public:
 
   explicit Encoder(const Socket& _s) : s(_s) {}
   virtual ~Encoder() {}
-
-  virtual Sender sender() = 0;
 
   virtual Kind kind() const = 0;
 
@@ -70,11 +63,6 @@ public:
     : Encoder(s), data(_data), index(0) {}
 
   virtual ~DataEncoder() {}
-
-  virtual Sender sender()
-  {
-    return send_data;
-  }
 
   virtual Kind kind() const
   {
@@ -252,11 +240,6 @@ public:
   virtual ~FileEncoder()
   {
     os::close(fd);
-  }
-
-  virtual Sender sender()
-  {
-    return send_file;
   }
 
   virtual Kind kind() const
