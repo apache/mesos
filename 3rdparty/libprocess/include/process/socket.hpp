@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include <stout/abort.hpp>
+#include <stout/memory.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -40,66 +41,62 @@ inline Try<int> socket(int family, int type, int protocol) {
 class Socket
 {
 public:
-  Socket()
-    : refs(new int(1)), s(-1) {}
-
-  explicit Socket(int _s)
-    : refs(new int(1)), s(_s) {}
-
-  ~Socket()
+  class Impl
   {
-    cleanup();
-  }
+  public:
+    Impl() : s(-1) {}
 
-  Socket(const Socket& that)
-  {
-    copy(that);
-  }
+    explicit Impl(int _s) : s(_s) {}
 
-  Socket& operator = (const Socket& that)
-  {
-    if (this != &that) {
-      cleanup();
-      copy(that);
+    ~Impl()
+    {
+      if (s >= 0) {
+        Try<Nothing> close = os::close(s);
+        if (close.isError()) {
+          ABORT(
+            "Failed to close socket " + stringify(s) + ": " + close.error());
+        }
+      }
     }
-    return *this;
-  }
+
+    int get() const
+    {
+      return s >= 0 ? s : create().get();
+    }
+
+  private:
+    const Impl& create() const
+    {
+      CHECK(s < 0);
+      Try<int> fd =
+        process::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+      if (fd.isError()) {
+        ABORT("Failed to create socket: " + fd.error());
+      }
+      s = fd.get();
+      return *this;
+    }
+
+    // Mutable so that the socket can be lazily created.
+    mutable int s;
+  };
+
+  Socket() : impl(std::make_shared<Impl>()) {}
+
+  explicit Socket(int s) : impl(std::make_shared<Impl>(s)) {}
 
   bool operator == (const Socket& that) const
   {
-    return s == that.s && refs == that.refs;
+    return impl == that.impl;
   }
 
   operator int () const
   {
-    return s;
+    return impl->get();
   }
 
 private:
-  void copy(const Socket& that)
-  {
-    assert(that.refs > 0);
-    __sync_fetch_and_add(that.refs, 1);
-    refs = that.refs;
-    s = that.s;
-  }
-
-  void cleanup()
-  {
-    assert(refs != NULL);
-    if (__sync_sub_and_fetch(refs, 1) == 0) {
-      delete refs;
-      if (s >= 0) {
-        Try<Nothing> close = os::close(s);
-        if (close.isError()) {
-          ABORT("Failed to close socket: " + close.error());
-        }
-      }
-    }
-  }
-
-  int* refs;
-  int s;
+  memory::shared_ptr<Impl> impl;
 };
 
 } // namespace process {
