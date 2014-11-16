@@ -74,7 +74,7 @@ public:
       return s >= 0 ? s : create().get();
     }
 
-    Future<Socket> connect(const Node& node);
+    Future<Nothing> connect(const Node& node);
 
     Future<size_t> read(char* data, size_t size);
 
@@ -129,7 +129,7 @@ public:
     return impl->get();
   }
 
-  Future<Socket> connect(const Node& node)
+  Future<Nothing> connect(const Node& node)
   {
     return impl->connect(node);
   }
