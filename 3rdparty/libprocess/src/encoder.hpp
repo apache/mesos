@@ -49,6 +49,10 @@ public:
 
   virtual Kind kind() const = 0;
 
+  virtual void backup(size_t length) = 0;
+
+  virtual size_t remaining() const = 0;
+
   Socket socket() const
   {
     return s;
