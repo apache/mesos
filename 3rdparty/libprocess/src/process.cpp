@@ -1696,14 +1696,14 @@ void SocketManager::send(Message* message)
       // Initialize the outgoing queue.
       outgoing[s];
 
+      // Create a message encoder to handle sending this message.
+      Encoder* encoder = new MessageEncoder(sockets[s], message);
+
       // Read and ignore data from this socket. Note that we don't
       // expect to receive anything other than HTTP '202 Accepted'
       // responses which we just ignore.
       io::poll(s, io::READ)
         .onAny(lambda::bind(&ignore_data, new Socket(sockets[s]), s));
-
-      // Create a message encoder to handle sending this message.
-      Encoder* encoder = new MessageEncoder(sockets[s], message);
 
       // Try and connect to the node using this socket.
       sockaddr_in addr;
