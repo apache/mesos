@@ -800,46 +800,6 @@ void send_file(Encoder* e)
 }
 
 
-void sending_connect(Encoder* encoder)
-{
-  int s = encoder->socket();
-
-  // Now check that a successful connection was made.
-  int opt;
-  socklen_t optlen = sizeof(opt);
-
-  if (getsockopt(s, SOL_SOCKET, SO_ERROR, &opt, &optlen) < 0 || opt != 0) {
-    // Connect failure.
-    VLOG(1) << "Socket error while connecting";
-    socket_manager->close(s);
-    delete encoder;
-  } else {
-    // We're connected! Now let's do some sending.
-    io::poll(s, io::WRITE)
-      .onAny(lambda::bind(&send_data, encoder));
-  }
-}
-
-
-void receiving_connect(Socket* socket, int s)
-{
-  // Now check that a successful connection was made.
-  int opt;
-  socklen_t optlen = sizeof(opt);
-
-  if (getsockopt(s, SOL_SOCKET, SO_ERROR, &opt, &optlen) < 0 || opt != 0) {
-    // Connect failure.
-    VLOG(1) << "Socket error while connecting";
-    socket_manager->close(s);
-    delete socket;
-  } else {
-    // We're connected! Now let's do some receiving.
-    io::poll(s, io::READ)
-      .onAny(lambda::bind(&ignore_data, socket, s));
-  }
-}
-
-
 void accept(struct ev_loop* loop, ev_io* watcher, int revents)
 {
   CHECK_EQ(__s__, watcher->fd);
