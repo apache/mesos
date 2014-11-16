@@ -78,6 +78,10 @@ public:
 
     Future<size_t> read(char* data, size_t size);
 
+    Future<size_t> send(const char* data, size_t size);
+
+    Future<size_t> sendfile(int fd, off_t offset, size_t size);
+
   private:
     const Impl& create() const
     {
@@ -127,6 +131,16 @@ public:
   Future<size_t> read(char* data, size_t size) const
   {
     return impl->read(data, size);
+  }
+
+  Future<size_t> send(const char* data, size_t size) const
+  {
+    return impl->send(data, size);
+  }
+
+  Future<size_t> sendfile(int fd, off_t offset, size_t size) const
+  {
+    return impl->sendfile(fd, offset, size);
   }
 
 private:
