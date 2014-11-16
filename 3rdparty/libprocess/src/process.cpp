@@ -1484,6 +1484,48 @@ void HttpProxy::stream(const Future<short>& poll, const Request& request)
 }
 
 
+namespace internal {
+
+Future<Socket> connect(const Socket& socket)
+{
+  // Now check that a successful connection was made.
+  int opt;
+  socklen_t optlen = sizeof(opt);
+  int s = socket.get();
+
+  if (getsockopt(s, SOL_SOCKET, SO_ERROR, &opt, &optlen) < 0 || opt != 0) {
+    // Connect failure.
+    VLOG(1) << "Socket error while connecting";
+    return Failure("Socket error while connecting");
+  }
+
+  return socket;
+}
+
+} // namespace internal {
+
+
+Future<Socket> Socket::Impl::connect(const Node& node)
+{
+  sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = PF_INET;
+  addr.sin_port = htons(node.port);
+  addr.sin_addr.s_addr = node.ip;
+
+  if (::connect(get(), (sockaddr*) &addr, sizeof(addr)) < 0) {
+    if (errno != EINPROGRESS) {
+      return Failure(ErrnoError("Failed to connect socket"));
+    }
+
+    return io::poll(get(), io::WRITE)
+      .then(lambda::bind(&internal::connect, Socket(shared_from_this())));
+  }
+
+  return Socket(shared_from_this());
+}
+
+
 SocketManager::SocketManager()
 {
   synchronizer(this) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
@@ -1503,6 +1545,25 @@ Socket SocketManager::accepted(int s)
 }
 
 
+namespace internal {
+
+void link_connect(const Future<Socket>& socket)
+{
+  if (socket.isDiscarded() || socket.isFailed()) {
+    if (socket.isFailed()) {
+      VLOG(1) << "Failed to link, connect: " << socket.failure();
+    }
+    socket_manager->close(socket.get());
+    return;
+  }
+
+  io::poll(socket.get(), io::READ)
+    .onAny(lambda::bind(&ignore_data, new Socket(socket.get()), socket.get()));
+}
+
+} // namespace internal {
+
+
 void SocketManager::link(ProcessBase* process, const UPID& to)
 {
   // TODO(benh): The semantics we want to support for link are such
@@ -1516,58 +1577,22 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
   CHECK(process != NULL);
 
   synchronized (this) {
+    links[to].insert(process);
+
     // Check if node is remote and there isn't a persistant link.
     if (to.node != __node__  && persists.count(to.node) == 0) {
       // Okay, no link, let's create a socket.
-      Try<int> socket = process::socket(AF_INET, SOCK_STREAM, 0);
-      if (socket.isError()) {
-        LOG(FATAL) << "Failed to link, socket: " << socket.error();
-      }
+      Socket socket;
+      int s = socket;
 
-      int s = socket.get();
-
-      Try<Nothing> nonblock = os::nonblock(s);
-      if (nonblock.isError()) {
-        LOG(FATAL) << "Failed to link, nonblock: " << nonblock.error();
-      }
-
-      Try<Nothing> cloexec = os::cloexec(s);
-      if (cloexec.isError()) {
-        LOG(FATAL) << "Failed to link, cloexec: " << cloexec.error();
-      }
-
-      sockets[s] = Socket(s);
+      sockets[s] = socket;
       nodes[s] = to.node;
 
       persists[to.node] = s;
 
-      // Try and connect to the node using this socket in order to
-      // start reading data. Note that we don't expect to receive
-      // anything other than HTTP '202 Accepted' responses which we
-      // anyway ignore.  We do, however, want to react when it gets
-      // closed so we can generate appropriate lost events (since this
-      // is a 'link').
-      sockaddr_in addr;
-      memset(&addr, 0, sizeof(addr));
-      addr.sin_family = PF_INET;
-      addr.sin_port = htons(to.node.port);
-      addr.sin_addr.s_addr = to.node.ip;
-
-      if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
-        if (errno != EINPROGRESS) {
-          PLOG(FATAL) << "Failed to link, connect";
-        }
-
-        // Wait for socket to be connected.
-        io::poll(s, io::WRITE)
-          .onAny(lambda::bind(&receiving_connect, new Socket(sockets[s]), s));
-      } else {
-        io::poll(s, io::READ)
-          .onAny(lambda::bind(&ignore_data, new Socket(sockets[s]), s));
-      }
+      socket.connect(to.node)
+        .onAny(lambda::bind(&internal::link_connect, lambda::_1));
     }
-
-    links[to].insert(process);
   }
 }
 
@@ -1653,11 +1678,40 @@ void SocketManager::send(
 }
 
 
+namespace internal {
+
+void send_connect(const Future<Socket>& socket, Message* message)
+{
+  if (socket.isDiscarded() || socket.isFailed()) {
+    if (socket.isFailed()) {
+      VLOG(1) << "Failed to send, connect: " << socket.failure();
+    }
+    socket_manager->close(socket.get());
+    delete message;
+    return;
+  }
+
+  Encoder* encoder = new MessageEncoder(socket.get(), message);
+
+  // Read and ignore data from this socket. Note that we don't
+  // expect to receive anything other than HTTP '202 Accepted'
+  // responses which we just ignore.
+  io::poll(socket.get(), io::READ)
+    .onAny(lambda::bind(&ignore_data, new Socket(socket.get()), socket.get()));
+
+  // Start polling in order to send data.
+  io::poll(socket.get(), io::WRITE)
+    .onAny(lambda::bind(&send_data, encoder));
+}
+
+} // namespace internal {
+
+
 void SocketManager::send(Message* message)
 {
   CHECK(message != NULL);
 
-  Node node(message->to.node);
+  const Node& node = message->to.node;
 
   synchronized (this) {
     // Check if there is already a socket.
@@ -1670,24 +1724,10 @@ void SocketManager::send(Message* message)
     } else {
       // No peristent or temporary socket to the node currently
       // exists, so we create a temporary one.
-      Try<int> socket = process::socket(AF_INET, SOCK_STREAM, 0);
-      if (socket.isError()) {
-        LOG(FATAL) << "Failed to send, socket: " << socket.error();
-      }
+      Socket socket;
+      int s = socket;
 
-      int s = socket.get();
-
-      Try<Nothing> nonblock = os::nonblock(s);
-      if (nonblock.isError()) {
-        LOG(FATAL) << "Failed to send, nonblock: " << nonblock.error();
-      }
-
-      Try<Nothing> cloexec = os::cloexec(s);
-      if (cloexec.isError()) {
-        LOG(FATAL) << "Failed to send, cloexec: " << cloexec.error();
-      }
-
-      sockets[s] = Socket(s);
+      sockets[s] = socket;
       nodes[s] = node;
       temps[node] = s;
 
@@ -1696,35 +1736,8 @@ void SocketManager::send(Message* message)
       // Initialize the outgoing queue.
       outgoing[s];
 
-      // Create a message encoder to handle sending this message.
-      Encoder* encoder = new MessageEncoder(sockets[s], message);
-
-      // Read and ignore data from this socket. Note that we don't
-      // expect to receive anything other than HTTP '202 Accepted'
-      // responses which we just ignore.
-      io::poll(s, io::READ)
-        .onAny(lambda::bind(&ignore_data, new Socket(sockets[s]), s));
-
-      // Try and connect to the node using this socket.
-      sockaddr_in addr;
-      memset(&addr, 0, sizeof(addr));
-      addr.sin_family = PF_INET;
-      addr.sin_port = htons(node.port);
-      addr.sin_addr.s_addr = node.ip;
-
-      if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
-        if (errno != EINPROGRESS) {
-          PLOG(FATAL) << "Failed to send, connect";
-        }
-
-        // Start polling in order to wait for being connected.
-        io::poll(s, io::WRITE)
-          .onAny(lambda::bind(&sending_connect, encoder));
-      } else {
-        // Start polling in order to send data.
-        io::poll(s, io::WRITE)
-          .onAny(lambda::bind(&send_data, encoder));
-      }
+      socket.connect(node)
+        .onAny(lambda::bind(&internal::send_connect, lambda::_1, message));
     }
   }
 }

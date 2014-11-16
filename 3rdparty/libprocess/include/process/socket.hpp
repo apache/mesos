@@ -3,8 +3,12 @@
 
 #include <assert.h>
 
+#include <memory>
+
+#include <process/future.hpp>
+#include <process/node.hpp>
+
 #include <stout/abort.hpp>
-#include <stout/memory.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -14,7 +18,8 @@ namespace process {
 
 // Returns a socket fd for the specified options. Note that on OS X,
 // the returned socket will have the SO_NOSIGPIPE option set.
-inline Try<int> socket(int family, int type, int protocol) {
+inline Try<int> socket(int family, int type, int protocol)
+{
   int s;
   if ((s = ::socket(family, type, protocol)) == -1) {
     return ErrnoError();
@@ -41,7 +46,12 @@ inline Try<int> socket(int family, int type, int protocol) {
 class Socket
 {
 public:
-  class Impl
+  // Each socket is a reference counted, shared by default, concurrent
+  // object. However, since we want to support multiple
+  // implementations we use the Pimpl pattern (often called the
+  // compilation firewall) rather than forcing each Socket
+  // implementation to do this themselves.
+  class Impl : public std::enable_shared_from_this<Impl>
   {
   public:
     Impl() : s(-1) {}
@@ -53,8 +63,8 @@ public:
       if (s >= 0) {
         Try<Nothing> close = os::close(s);
         if (close.isError()) {
-          ABORT(
-            "Failed to close socket " + stringify(s) + ": " + close.error());
+          ABORT("Failed to close socket " +
+                stringify(s) + ": " + close.error());
         }
       }
     }
@@ -63,6 +73,8 @@ public:
     {
       return s >= 0 ? s : create().get();
     }
+
+    Future<Socket> connect(const Node& node);
 
   private:
     const Impl& create() const
@@ -78,6 +90,11 @@ public:
     }
 
     // Mutable so that the socket can be lazily created.
+    //
+    // TODO(benh): Create a factory for sockets and don't lazily
+    // create but instead return a Try<Socket> from the factory in
+    // order to eliminate the need for a mutable member or the call to
+    // ABORT above.
     mutable int s;
   };
 
@@ -95,8 +112,20 @@ public:
     return impl->get();
   }
 
+  int get() const
+  {
+    return impl->get();
+  }
+
+  Future<Socket> connect(const Node& node)
+  {
+    return impl->connect(node);
+  }
+
 private:
-  memory::shared_ptr<Impl> impl;
+  explicit Socket(std::shared_ptr<Impl>&& that) : impl(std::move(that)) {}
+
+  std::shared_ptr<Impl> impl;
 };
 
 } // namespace process {
