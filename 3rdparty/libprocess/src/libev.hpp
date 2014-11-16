@@ -18,9 +18,6 @@ extern struct ev_loop* loop;
 // with IO watchers and functions (via run_in_event_loop).
 extern ev_async async_watcher;
 
-// Server watcher for accepting connections.
-extern ev_io server_watcher;
-
 // Queue of I/O watchers to be asynchronously added to the event loop
 // (protected by 'watchers' below).
 // TODO(benh): Replace this queue with functions that we put in

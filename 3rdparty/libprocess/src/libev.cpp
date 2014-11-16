@@ -12,7 +12,6 @@ namespace process {
 // libev.hpp (since these need to live in the static data space).
 struct ev_loop* loop = NULL;
 ev_async async_watcher;
-ev_io server_watcher;
 std::queue<ev_io*>* watchers = new std::queue<ev_io*>();
 synchronizable(watchers);
 std::queue<lambda::function<void(void)>>* functions =
