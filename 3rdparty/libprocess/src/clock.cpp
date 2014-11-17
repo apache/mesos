@@ -15,6 +15,7 @@
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
 #include "synchronized.hpp"
 
@@ -418,6 +419,8 @@ bool Clock::settled()
     VLOG(3) << "Clock is not settled";
     return false;
   }
+
+  UNREACHABLE();
 }
 
 
