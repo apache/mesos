@@ -83,3 +83,19 @@ TEST(ValuesTest, InvalidInput)
   // Test when giving empty string.
   EXPECT_ERROR(parse("  "));
 }
+
+
+TEST(ValuesTest, SetSubtraction)
+{
+  Value::Set set1 = parse("{sda1, sda2, sda3}").get().set();
+  Value::Set set2 = parse("{sda2, sda3}").get().set();
+  Value::Set set3 = parse("{sda4}").get().set();
+
+  set1 -= set2;
+
+  EXPECT_EQ(set1, parse("{sda1}").get().set());
+
+  set3 -= set1;
+
+  EXPECT_EQ(set3, parse("{sda4}").get().set());
+}

@@ -558,18 +558,13 @@ Value::Set& operator += (Value::Set& left, const Value::Set& right)
 
 Value::Set& operator -= (Value::Set& left, const Value::Set& right)
 {
-  // For each item in right check if it's in left and add it if not.
+  // For each item in right, remove it if it's in left.
   for (int i = 0; i < right.item_size(); i++) {
-    bool found = false;
     for (int j = 0; j < left.item_size(); j++) {
       if (right.item(i) == left.item(j)) {
-        found = true;
+        left.mutable_item()->DeleteSubrange(j, 1);
         break;
       }
-    }
-
-    if (!found) {
-      left.add_item(right.item(i));
     }
   }
 
