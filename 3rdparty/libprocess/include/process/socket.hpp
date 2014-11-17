@@ -92,11 +92,32 @@ public:
     const Impl& create() const
     {
       CHECK(s < 0);
+
+      // Supported in Linux >= 2.6.27.
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
       Try<int> fd =
         process::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+
       if (fd.isError()) {
         ABORT("Failed to create socket: " + fd.error());
       }
+#else
+      Try<int> fd = process::socket(AF_INET, SOCK_STREAM, 0);
+      if (fd.isError()) {
+        ABORT("Failed to create socket: " + fd.error());
+      }
+
+      Try<Nothing> nonblock = os::nonblock(fd.get());
+      if (nonblock.isError()) {
+        ABORT("Failed to create socket, nonblock: " + nonblock.error());
+      }
+
+      Try<Nothing> cloexec = os::cloexec(fd.get());
+      if (cloexec.isError()) {
+        ABORT("Failed to create socket, cloexec: " + cloexec.error());
+      }
+#endif
+
       s = fd.get();
       return *this;
     }
