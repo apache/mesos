@@ -115,13 +115,12 @@ bool operator != (const Resource& left, const Resource& right)
 
 Resource& operator += (Resource& left, const Resource& right)
 {
-  // TODO(jieyu): Leverage += for Value to avoid copying.
   if (left.type() == Value::SCALAR) {
-    left.mutable_scalar()->CopyFrom(left.scalar() + right.scalar());
+    *left.mutable_scalar() += right.scalar();
   } else if (left.type() == Value::RANGES) {
-    left.mutable_ranges()->CopyFrom(left.ranges() + right.ranges());
+    *left.mutable_ranges() += right.ranges();
   } else if (left.type() == Value::SET) {
-    left.mutable_set()->CopyFrom(left.set() + right.set());
+    *left.mutable_set() += right.set();
   }
 
   return left;
@@ -138,13 +137,12 @@ Resource operator + (const Resource& left, const Resource& right)
 
 Resource& operator -= (Resource& left, const Resource& right)
 {
-  // TODO(jieyu): Leverage -= for Value to avoid copying.
   if (left.type() == Value::SCALAR) {
-    left.mutable_scalar()->CopyFrom(left.scalar() - right.scalar());
+    *left.mutable_scalar() -= right.scalar();
   } else if (left.type() == Value::RANGES) {
-    left.mutable_ranges()->CopyFrom(left.ranges() - right.ranges());
+    *left.mutable_ranges() -= right.ranges();
   } else if (left.type() == Value::SET) {
-    left.mutable_set()->CopyFrom(left.set() - right.set());
+    *left.mutable_set() -= right.set();
   }
 
   return left;
