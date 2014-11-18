@@ -56,7 +56,7 @@ map<string, string> environment(
 }
 
 
-process::Future<Option<int>> run(
+Try<Subprocess> run(
     const CommandInfo& commandInfo,
     const string& directory,
     const Option<string>& user,
@@ -75,7 +75,7 @@ process::Future<Option<int>> run(
                 << "': "
                 << (realpath.isError() ? realpath.error()
                                        : "No such file or directory");
-    return Failure("Could not fetch URIs: failed to find mesos-fetcher");
+    return Error("Could not fetch URIs: failed to find mesos-fetcher");
   }
 
   // Now the actual mesos-fetcher command.
@@ -95,11 +95,89 @@ process::Future<Option<int>> run(
     environment(commandInfo, directory, user, flags));
 
   if (fetcher.isError()) {
-    return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
+    return Error("Failed to execute mesos-fetcher: " + fetcher.error());
   }
 
-  return fetcher.get().status();
+  return fetcher;
 }
+
+
+Try<Subprocess> run(
+    const CommandInfo& commandInfo,
+    const string& directory,
+    const Option<string>& user,
+    const Flags& flags)
+{
+  // Before we fetch let's make sure we create 'stdout' and 'stderr'
+  // files into which we can redirect the output of the mesos-fetcher
+  // (and later redirect the child's stdout/stderr).
+
+  // TODO(tillt): Consider adding O_CLOEXEC for atomic close-on-exec.
+  // TODO(tillt): Considering updating fetcher::run to take paths
+  // instead of file descriptors and then use Subprocess::PATH()
+  // instead of Subprocess::FD(). The reason this can't easily be done
+  // today is because we not only need to open the files but also
+  // chown them.
+  Try<int> out = os::open(
+      path::join(directory, "stdout"),
+      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
+  if (out.isError()) {
+    return Error("Failed to create 'stdout' file: " + out.error());
+  }
+
+  // Repeat for stderr.
+  Try<int> err = os::open(
+      path::join(directory, "stderr"),
+      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
+  if (err.isError()) {
+    os::close(out.get());
+    return Error("Failed to create 'stderr' file: " + err.error());
+  }
+
+  if (user.isSome()) {
+    Try<Nothing> chown = os::chown(user.get(), directory);
+    if (chown.isError()) {
+      os::close(out.get());
+      os::close(err.get());
+      return Error("Failed to chown work directory");
+    }
+  }
+
+  Try<Subprocess> fetcher = fetcher::run(
+      commandInfo,
+      directory,
+      user,
+      flags,
+      out.get(),
+      err.get());
+
+  fetcher.get().status()
+    .onAny(lambda::bind(&os::close, out.get()))
+    .onAny(lambda::bind(&os::close, err.get()));
+
+  return fetcher;
+}
+
+
+Future<Nothing> _run(
+    const ContainerID& containerId,
+    const Option<int>& status)
+{
+  if (status.isNone()) {
+    return Failure("No status available from fetcher");
+  } else if (status.get() != 0) {
+    return Failure("Failed to fetch URIs for container '" +
+                   stringify(containerId) + "'with exit status: " +
+                   stringify(status.get()));
+  }
+
+  return Nothing();
+}
+
 
 } // namespace fetcher {
 } // namespace slave {

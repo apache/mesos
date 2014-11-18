@@ -283,8 +283,8 @@ TEST_F(FetcherTest, FileURI)
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
-
   EXPECT_EQ(0, status.get().get());
+
   EXPECT_TRUE(os::exists(localFile));
 }
 
@@ -319,8 +319,8 @@ TEST_F(FetcherTest, FilePath)
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
-
   EXPECT_EQ(0, status.get().get());
+
   EXPECT_TRUE(os::exists(localFile));
 }
 
@@ -372,8 +372,8 @@ TEST_F(FetcherTest, OSNetUriTest)
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
-
   EXPECT_EQ(0, status.get().get());
+
   EXPECT_TRUE(os::exists(localFile));
 }
 
@@ -408,8 +408,8 @@ TEST_F(FetcherTest, FileLocalhostURI)
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
-
   EXPECT_EQ(0, status.get().get());
+
   EXPECT_TRUE(os::exists(localFile));
 }
 
@@ -439,11 +439,15 @@ TEST_F(FetcherTest, NoExtractNotExecutable)
   slave::Flags flags;
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
-  Future<Option<int>> run =
+  Try<Subprocess> fetcherProcess =
     fetcher::run(commandInfo, os::getcwd(), None(), flags, stdout, stderr);
 
-  AWAIT_READY(run);
-  EXPECT_SOME_EQ(0, run.get());
+  ASSERT_SOME(fetcherProcess);
+  Future<Option<int>> status = fetcherProcess.get().status();
+
+  AWAIT_READY(status);
+  ASSERT_SOME(status.get());
+  EXPECT_EQ(0, status.get().get());
 
   Try<string> basename = os::basename(path.get());
 
@@ -485,11 +489,15 @@ TEST_F(FetcherTest, NoExtractExecutable)
   slave::Flags flags;
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
-  Future<Option<int>> run =
+  Try<Subprocess> fetcherProcess =
     fetcher::run(commandInfo, os::getcwd(), None(), flags, stdout, stderr);
 
-  AWAIT_READY(run);
-  EXPECT_SOME_EQ(0, run.get());
+  ASSERT_SOME(fetcherProcess);
+  Future<Option<int>> status = fetcherProcess.get().status();
+
+  AWAIT_READY(status);
+  ASSERT_SOME(status.get());
+  EXPECT_EQ(0, status.get().get());
 
   Try<string> basename = os::basename(path.get());
 
@@ -539,11 +547,15 @@ TEST_F(FetcherTest, ExtractNotExecutable)
   slave::Flags flags;
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
-  Future<Option<int>> run =
+  Try<Subprocess> fetcherProcess =
     fetcher::run(commandInfo, os::getcwd(), None(), flags, stdout, stderr);
 
-  AWAIT_READY(run);
-  EXPECT_SOME_EQ(0, run.get());
+  ASSERT_SOME(fetcherProcess);
+  Future<Option<int>> status = fetcherProcess.get().status();
+
+  AWAIT_READY(status);
+  ASSERT_SOME(status.get());
+  EXPECT_EQ(0, status.get().get());
 
   ASSERT_TRUE(os::exists(path::join(".", path.get())));
 

@@ -61,13 +61,28 @@ std::map<std::string, std::string> environment(
 // descriptors. The file descriptors are duplicated (via dup) because
 // redirecting might still be occuring even after the mesos-fetcher has
 // terminated since there still might be data to be read.
-process::Future<Option<int>> run(
+Try<process::Subprocess> run(
     const CommandInfo& commandInfo,
     const std::string& directory,
     const Option<std::string>& user,
     const Flags& flags,
-    const Option<int>& stdout = None(),
-    const Option<int>& stderr = None());
+    const Option<int>& stdout,
+    const Option<int>& stderr);
+
+// Run the mesos-fetcher for the specified arguments, creating a
+// "stdout" and "stderr" file in the given directory and using
+// these for output.
+Try<process::Subprocess> run(
+    const CommandInfo& commandInfo,
+    const std::string& directory,
+    const Option<std::string>& user,
+    const Flags& flags);
+
+// Check status and return an error if any. Typically used after
+// calling run().
+process::Future<Nothing> _run(
+    const ContainerID& containerId,
+    const Option<int>& status);
 
 } // namespace fetcher {
 } // namespace slave {

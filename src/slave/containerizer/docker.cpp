@@ -227,34 +227,14 @@ Future<Nothing> DockerContainerizerProcess::fetch(
     return Nothing();
   }
 
-  Result<string> realpath = os::realpath(
-      path::join(flags.launcher_dir, "mesos-fetcher"));
+  VLOG(1) << "Starting to fetch URIs for container: " << containerId
+          << ", directory: " << container->directory;
 
-  if (!realpath.isSome()) {
-    LOG(ERROR) << "Failed to determine the canonical path "
-               << "for the mesos-fetcher '"
-               << path::join(flags.launcher_dir, "mesos-fetcher")
-               << "': "
-               << (realpath.isError() ? realpath.error() :
-                   "No such file or directory");
-    return Failure("Could not fetch URIs: failed to find mesos-fetcher");
-  }
-
-  map<string, string> environment = fetcher::environment(
+  Try<Subprocess> fetcher = fetcher::run(
       commandInfo,
       container->directory,
       None(),
       flags);
-
-  VLOG(1) << "Starting to fetch URIs for container: " << containerId
-          << ", directory: " << container->directory;
-
-  Try<Subprocess> fetcher = subprocess(
-      realpath.get(),
-      Subprocess::PIPE(),
-      Subprocess::PATH(path::join(container->directory, "stdout")),
-      Subprocess::PATH(path::join(container->directory, "stderr")),
-      environment);
 
   if (fetcher.isError()) {
     return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
@@ -263,21 +243,7 @@ Future<Nothing> DockerContainerizerProcess::fetch(
   container->fetcher = fetcher.get();
 
   return fetcher.get().status()
-    .then(defer(self(), &Self::_fetch, containerId, lambda::_1));
-}
-
-
-Future<Nothing> DockerContainerizerProcess::_fetch(
-    const ContainerID& containerId,
-    const Option<int>& status)
-{
-  if (!status.isSome()) {
-    return Failure("No status available from fetch");
-  } else if (status.get() != 0) {
-    return Failure("Fetch exited with status " + WSTRINGIFY(status.get()));
-  }
-
-  return Nothing();
+    .then(lambda::bind(&fetcher::_run, containerId, lambda::_1));
 }
 
 

@@ -519,94 +519,24 @@ Future<list<Option<CommandInfo>>> MesosContainerizerProcess::prepare(
 }
 
 
-Future<Nothing> _fetch(
-    const ContainerID& containerId,
-    const string& directory,
-    const Option<string>& user,
-    const Option<int>& status)
-{
-  if (status.isNone() || (status.get() != 0)) {
-    return Failure("Failed to fetch URIs for container '" +
-                   stringify(containerId) + "': exit status " +
-                   (status.isNone() ?
-                       "none" : stringify(status.get())));
-  }
-
-  // Chown the work directory if a user is provided.
-  if (user.isSome()) {
-    Try<Nothing> chown = os::chown(user.get(), directory);
-    if (chown.isError()) {
-      return Failure("Failed to chown work directory");
-    }
-  }
-
-  return Nothing();
-}
-
-
 Future<Nothing> MesosContainerizerProcess::fetch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const string& directory,
     const Option<string>& user)
 {
-  // Before we fetch let's make sure we create 'stdout' and 'stderr'
-  // files into which we can redirect the output of the mesos-fetcher
-  // (and later redirect the child's stdout/stderr).
-
-  // TODO(tillt): Consider adding O_CLOEXEC for atomic close-on-exec.
-  // TODO(tillt): Considering updating fetcher::run to take paths
-  // instead of file descriptors and then use Subprocess::PATH()
-  // instead of Subprocess::FD(). The reason this can't easily be done
-  // today is because we not only need to open the files but also
-  // chown them.
-  Try<int> out = os::open(
-      path::join(directory, "stdout"),
-      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
-
-  if (out.isError()) {
-    return Failure("Failed to create 'stdout' file: " + out.error());
-  }
-
-  if (user.isSome()) {
-    Try<Nothing> chown = os::chown(
-        user.get(), path::join(directory, "stdout"));
-    if (chown.isError()) {
-      os::close(out.get());
-      return Failure("Failed to chown 'stdout' file: " + chown.error());
-    }
-  }
-
-  // Repeat for stderr.
-  Try<int> err = os::open(
-      path::join(directory, "stderr"),
-      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
-
-  if (err.isError()) {
-    return Failure("Failed to create 'stderr' file: " + err.error());
-  }
-
-  if (user.isSome()) {
-    Try<Nothing> chown = os::chown(
-        user.get(), path::join(directory, "stderr"));
-    if (chown.isError()) {
-      os::close(err.get());
-      return Failure("Failed to chown 'stderr' file: " + chown.error());
-    }
-  }
-
-  return fetcher::run(
+  Try<Subprocess> fetcher = fetcher::run(
       commandInfo,
       directory,
       user,
-      flags,
-      out.get(),
-      err.get())
-    .onAny(lambda::bind(&os::close, out.get()))
-    .onAny(lambda::bind(&os::close, err.get()))
-    .then(lambda::bind(&_fetch, containerId, directory, user, lambda::_1));
+      flags);
+
+  if (fetcher.isError()) {
+    return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
+  }
+
+  return fetcher.get().status()
+    .then(lambda::bind(&fetcher::_run, containerId, lambda::_1));
 }
 
 
