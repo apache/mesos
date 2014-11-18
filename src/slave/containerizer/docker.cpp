@@ -72,8 +72,6 @@ using state::RunState;
 
 
 // Declared in header, see explanation there.
-// TODO(benh): At some point to run multiple slaves we'll need to make
-// the Docker container name creation include the slave ID.
 const string DOCKER_NAME_PREFIX = "mesos-";
 
 // Declared in header, see explanation there.
@@ -94,9 +92,25 @@ Option<ContainerID> parse(const Docker::Container& container)
   }
 
   if (name.isSome()) {
-    ContainerID id;
-    id.set_value(name.get());
-    return id;
+    // For Mesos version <= 0.21.0, the docker container name format
+    // was DOCKER_NAME_PREFIX + containerId, and starting with 0.22.0
+    // it is changed to DOCKER_NAME_PREFIX + slaveId + "/" +
+    // containerId.
+    // To still be backward compatible during upgrade, we still need
+    // to load the previous format.
+    // TODO(tnachen): Remove this check after deprecation cycle.
+    if (!strings::contains(name.get(), "/")) {
+      ContainerID id;
+      id.set_value(name.get());
+      return id;
+    }
+
+    vector<string> parts = strings::split(name.get(), "/");
+    if (parts.size() == 2) {
+      ContainerID id;
+      id.set_value(parts[1]);
+      return id;
+    }
   }
 
   return None();
@@ -286,7 +300,10 @@ Try<Nothing> DockerContainerizerProcess::checkpoint(
 Future<Nothing> DockerContainerizer::recover(
     const Option<SlaveState>& state)
 {
-  return dispatch(process.get(), &DockerContainerizerProcess::recover, state);
+  return dispatch(
+      process.get(),
+      &DockerContainerizerProcess::recover,
+      state);
 }
 
 
