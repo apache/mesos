@@ -776,7 +776,8 @@ Future<list<Docker::Container> > Docker::__ps(
 
 Future<Docker::Image> Docker::pull(
     const string& directory,
-    const string& image) const
+    const string& image,
+    bool force) const
 {
   vector<string> argv;
 
@@ -791,6 +792,11 @@ Future<Docker::Image> Docker::pull(
 
   if (!strings::contains(parts.back(), ":")) {
     dockerImage += ":latest";
+  }
+
+  if (force) {
+    // Skip inspect and docker pull the image.
+    return Docker::__pull(*this, directory, image, path);
   }
 
   argv.push_back(path);
@@ -836,9 +842,19 @@ Future<Docker::Image> Docker::_pull(
   Option<int> status = s.status().get();
   if (status.isSome() && status.get() == 0) {
     return io::read(s.out().get())
-      .then(lambda::bind(&Docker::___pull, lambda::_1));
+      .then(lambda::bind(&Docker::____pull, lambda::_1));
   }
 
+  return Docker::__pull(docker, directory, image, path);
+}
+
+
+Future<Docker::Image> Docker::__pull(
+    const Docker& docker,
+    const string& directory,
+    const string& image,
+    const string& path)
+{
   vector<string> argv;
   argv.push_back(path);
   argv.push_back("pull");
@@ -871,7 +887,7 @@ Future<Docker::Image> Docker::_pull(
   // process.
   return s_.get().status()
     .then(lambda::bind(
-        &Docker::__pull,
+        &Docker::___pull,
         docker,
         s_.get(),
         cmd,
@@ -888,7 +904,7 @@ void Docker::pullDiscarded(const Subprocess& s, const string& cmd)
 }
 
 
-Future<Docker::Image> Docker::__pull(
+Future<Docker::Image> Docker::___pull(
     const Docker& docker,
     const Subprocess& s,
     const string& cmd,
@@ -912,7 +928,7 @@ Future<Docker::Image> Docker::__pull(
 }
 
 
-Future<Docker::Image> Docker::___pull(
+Future<Docker::Image> Docker::____pull(
     const string& output)
 {
   Try<JSON::Array> parse = JSON::parse<JSON::Array>(output);

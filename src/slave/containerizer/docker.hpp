@@ -155,7 +155,8 @@ public:
   virtual process::Future<Nothing> pull(
       const ContainerID& containerId,
       const std::string& directory,
-      const std::string& image);
+      const std::string& image,
+      bool forcePullImage);
 
   virtual process::Future<hashset<ContainerID>> containers();
 
@@ -309,6 +310,15 @@ private:
       }
 
       return executor.container().docker().image();
+    }
+
+    bool forcePullImage() const
+    {
+      if (task.isSome()) {
+        return task.get().container().docker().force_pull_image();
+      }
+
+      return executor.container().docker().force_pull_image();
     }
 
     ContainerInfo container() const

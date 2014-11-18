@@ -250,9 +250,10 @@ Future<Nothing> DockerContainerizerProcess::fetch(
 Future<Nothing> DockerContainerizerProcess::pull(
     const ContainerID& containerId,
     const string& directory,
-    const string& image)
+    const string& image,
+    bool forcePullImage)
 {
-  Future<Docker::Image> future = docker->pull(directory, image);
+  Future<Docker::Image> future = docker->pull(directory, image, forcePullImage);
   containers_[containerId]->pull = future;
   return future.then(defer(self(), &Self::_pull, image));
 }
@@ -615,7 +616,11 @@ Future<Nothing> DockerContainerizerProcess::_launch(
 
   container->state = Container::PULLING;
 
-  return pull(containerId, container->directory, container->image());
+  return pull(
+      containerId,
+      container->directory,
+      container->image(),
+      container->forcePullImage());
 }
 
 

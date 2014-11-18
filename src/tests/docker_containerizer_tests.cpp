@@ -291,7 +291,7 @@ public:
     EXPECT_CALL(*this, fetch(_))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));
 
-    EXPECT_CALL(*this, pull(_, _, _))
+    EXPECT_CALL(*this, pull(_, _, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_pull));
   }
 
@@ -299,12 +299,13 @@ public:
       fetch,
       process::Future<Nothing>(const ContainerID& containerId));
 
-  MOCK_METHOD3(
+  MOCK_METHOD4(
       pull,
       process::Future<Nothing>(
           const ContainerID& containerId,
           const std::string& directory,
-          const std::string& image));
+          const std::string& image,
+          bool forcePullImage));
 
   process::Future<Nothing> _fetch(const ContainerID& containerId)
   {
@@ -314,12 +315,14 @@ public:
   process::Future<Nothing> _pull(
       const ContainerID& containerId,
       const std::string& directory,
-      const std::string& image)
+      const std::string& image,
+      bool forcePullImage)
   {
     return DockerContainerizerProcess::pull(
         containerId,
         directory,
-        image);
+        image,
+        forcePullImage);
   }
 };
 
@@ -2474,7 +2477,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
   Promise<Nothing> promise;
 
   // We want to pause the fetch call to simulate a long fetch time.
-  EXPECT_CALL(*process, pull(_, _, _))
+  EXPECT_CALL(*process, pull(_, _, _, _))
     .WillOnce(Return(promise.future()));
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer);

@@ -127,7 +127,8 @@ public:
 
   virtual process::Future<Image> pull(
       const std::string& directory,
-      const std::string& image) const;
+      const std::string& image,
+      bool force = false) const;
 
 protected:
   // Uses the specified path to the Docker CLI tool.
@@ -169,12 +170,18 @@ private:
 
   static process::Future<Image> __pull(
       const Docker& docker,
+      const std::string& directory,
+      const std::string& image,
+      const std::string& path);
+
+  static process::Future<Image> ___pull(
+      const Docker& docker,
       const process::Subprocess& s,
       const std::string& cmd,
       const std::string& directory,
       const std::string& image);
 
-  static process::Future<Image> ___pull(
+  static process::Future<Image> ____pull(
       const std::string& output);
 
   static void pullDiscarded(

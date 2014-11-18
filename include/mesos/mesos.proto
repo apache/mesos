@@ -956,6 +956,11 @@ message ContainerInfo {
     // to be supported moving forward, as we might move away from
     // the docker CLI.
     repeated Parameter parameters = 5;
+
+    // With this flag set to true, the docker containerizer will
+    // pull the docker image from the registry even if the image
+    // is already downloaded on the slave.
+    optional bool force_pull_image = 6;
   }
 
   required Type type = 1;
