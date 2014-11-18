@@ -2974,17 +2974,15 @@ UPID ProcessBase::link(const UPID& to)
 }
 
 
-bool ProcessBase::route(
+void ProcessBase::route(
     const string& name,
     const Option<string>& help_,
     const HttpRequestHandler& handler)
 {
-  if (name.find('/') != 0) {
-    return false;
-  }
+  // Routes must start with '/'.
+  CHECK(name.find('/') == 0);
   handlers.http[name.substr(1)] = handler;
   dispatch(help, &Help::add, pid.id, name, help_);
-  return true;
 }
 
 
