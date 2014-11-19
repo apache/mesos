@@ -1389,3 +1389,137 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
 
   Shutdown();
 }
+
+
+// This test verifies that label values can be set for tasks and that
+// they are exposed over the slave state endpoint.
+TEST_F(SlaveTest, TaskLabels)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  // Add three labels to the task (two of which share the same key).
+  Label* label1 = task.add_labels();
+  label1->set_key("foo");
+  label1->set_value("bar");
+
+  Label* label2 = task.add_labels();
+  label2->set_key("bar");
+  label2->set_value("baz");
+
+  Label* label3 = task.add_labels();
+  label3->set_key("bar");
+  label3->set_value("qux");
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<Nothing> update;
+  EXPECT_CALL(containerizer,
+              update(_, Resources(offers.get()[0].resources())))
+    .WillOnce(DoAll(FutureSatisfy(&update),
+                    Return(Future<Nothing>())));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  AWAIT_READY(update);
+
+  // Verify label key and value in slave state.json.
+  Future<process::http::Response> response =
+    process::http::get(slave.get(), "state.json");
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Array> labelsObject = parse.get().find<JSON::Array>(
+      "frameworks[0].executors[0].tasks[0].labels");
+  EXPECT_SOME(labelsObject);
+
+  JSON::Array labelsObject_ = labelsObject.get();
+
+  // Verify the content of 'foo:bar' pair.
+  JSON::Object labelObject1 = labelsObject_.values[0].as<JSON::Object>();
+
+  const JSON::String key1 = labelObject1.values["key"].as<JSON::String>();
+  const JSON::String value1 = labelObject1.values["value"].as<JSON::String>();
+
+  EXPECT_EQ(key1.value, "foo");
+  EXPECT_EQ(value1.value, "bar");
+
+
+  // Verify the content of 'bar:baz' pair.
+  JSON::Object labelObject2 = labelsObject_.values[1].as<JSON::Object>();
+
+  const JSON::String key2 = labelObject2.values["key"].as<JSON::String>();
+  const JSON::String value2 = labelObject2.values["value"].as<JSON::String>();
+
+  EXPECT_EQ(key2.value, "bar");
+  EXPECT_EQ(value2.value, "baz");
+
+
+  // Verify the content of 'bar:qux' pair.
+  JSON::Object labelObject3 = labelsObject_.values[2].as<JSON::Object>();
+
+  const JSON::String key3 = labelObject3.values["key"].as<JSON::String>();
+  const JSON::String value3 = labelObject3.values["value"].as<JSON::String>();
+
+  EXPECT_EQ(key3.value, "bar");
+  EXPECT_EQ(value3.value, "qux");
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}

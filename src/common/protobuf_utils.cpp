@@ -103,6 +103,8 @@ Task createTask(
     t.mutable_executor_id()->CopyFrom(task.executor().executor_id());
   }
 
+  t.mutable_labels()->MergeFrom(task.labels());
+
   return t;
 }
 
