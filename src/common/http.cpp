@@ -130,6 +130,15 @@ JSON::Object model(const Task& task)
   }
   object.values["statuses"] = array;
 
+  JSON::Array labels;
+  foreach (const Label& label, task.labels()) {
+    JSON::Object labelObject;
+    labelObject.values["key"] = label.key();
+    labelObject.values["value"] = label.has_value() ? label.value() : "";
+    labels.values.push_back(labelObject);
+  }
+  object.values["labels"] = labels;
+
   return object;
 }
 
@@ -161,6 +170,15 @@ JSON::Object model(
     array.values.push_back(model(status));
   }
   object.values["statuses"] = array;
+
+  JSON::Array labels;
+  foreach (const Label& label, task.labels()) {
+    JSON::Object labelObject;
+    labelObject.values["key"] = label.key();
+    labelObject.values["value"] = label.has_value() ? label.value() : "";
+    labels.values.push_back(labelObject);
+  }
+  object.values["labels"] = labels;
 
   return object;
 }
