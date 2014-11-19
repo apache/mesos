@@ -154,10 +154,6 @@ public:
   // TODO(vinod): Provide a Ranges abstraction.
   Option<Value::Ranges> ports() const;
 
-  // Helper function to extract the given number of ports from the
-  // "ports" resource.
-  Option<Value::Ranges> ports(size_t numPorts) const;
-
   // TODO(jieyu): Consider returning an EphemeralPorts abstraction
   // which holds the ephemeral ports allocation logic.
   Option<Value::Ranges> ephemeral_ports() const;

@@ -637,36 +637,6 @@ Option<Value::Ranges> Resources::ports() const
   return None();
 }
 
-Option<Value::Ranges> Resources::ports(size_t numPorts) const
-{
-  Value::Ranges total;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.name() == "ports" &&
-        resource.type() == Value::RANGES &&
-        isAllocatable(resource)) {
-      foreach (const Value::Range& range, resource.ranges().range()) {
-        size_t interval = range.end() - range.begin() + 1;
-        if (numPorts < interval) {
-          Value::Range* lastRange = total.add_range();
-          lastRange->set_begin(range.begin());
-          lastRange->set_end(range.begin() + numPorts - 1);
-
-          return total;
-        } else {
-          total.add_range()->CopyFrom(range);
-          numPorts -= interval;
-
-          if (numPorts == 0) {
-            return total;
-          }
-        }
-      }
-    }
-  }
-
-  return None();
-}
 
 Option<Value::Ranges> Resources::ephemeral_ports() const
 {
