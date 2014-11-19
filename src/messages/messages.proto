@@ -53,6 +53,8 @@ message Task {
   // NOTE: Either both the fields must be set or both must be unset.
   optional TaskState status_update_state = 9;
   optional bytes status_update_uuid = 10;
+
+  repeated Label labels = 11;
 }
 
 
