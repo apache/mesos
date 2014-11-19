@@ -85,6 +85,7 @@ TEST(HTTP, ModelTask)
       "  \"executor_id\":\"\","
       "  \"framework_id\":\"f\","
       "  \"id\":\"t\","
+      "  \"labels\": [],"
       "  \"name\":\"task\","
       "  \"resources\":"
       "  {"
