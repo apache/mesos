@@ -189,6 +189,7 @@ JSON::Object model(const Slave& slave)
 
   object.values["resources"] = model(slave.info.resources());
   object.values["attributes"] = model(slave.info.attributes());
+  object.values["active"] = slave.active;
   return object;
 }
 

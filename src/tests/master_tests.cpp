@@ -2674,3 +2674,61 @@ TEST_F(MasterTest, TaskLabels)
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
+
+
+// This tests the 'active' field in slave entries from state.json. We
+// first verify an active slave, deactivate it and verify that the
+// 'active' field is false.
+TEST_F(MasterTest, SlaveActiveEndpoint)
+{
+  // Start a master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<process::Message> slaveRegisteredMessage =
+    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+
+  // Start a checkpointing slave.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.checkpoint = true;
+  Try<PID<Slave>> slave = StartSlave(flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Verify slave is active.
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Boolean> status = parse.get().find<JSON::Boolean>(
+      "slaves[0].active");
+
+  ASSERT_SOME_EQ(JSON::Boolean(true), status);
+
+  Future<Nothing> slaveDeactivated =
+    FUTURE_DISPATCH(_, &AllocatorProcess::slaveDeactivated);
+
+  // Inject a slave exited event at the master causing the master
+  // to mark the slave as disconnected.
+  process::inject::exited(slaveRegisteredMessage.get().to, master.get());
+
+  // Wait until master deactivates the slave.
+  AWAIT_READY(slaveDeactivated);
+
+  // Verify slave is inactive.
+  response = process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  status = parse.get().find<JSON::Boolean>("slaves[0].active");
+
+  ASSERT_SOME_EQ(JSON::Boolean(false), status);
+
+  Shutdown();
+}
