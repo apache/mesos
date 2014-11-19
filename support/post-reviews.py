@@ -217,6 +217,12 @@ for i in range(len(shas)):
     # The second to the last line of output in rbt is the review url.
     url = lines[len(lines) - 2] if 'rbt' in post_review \
         else lines[len(lines) - 1]
+
+    # Using rbt >= 0.6.3 on Linux prints out two URLs where the second
+    # one has /diff/ at the end. We want to remove this so that a
+    # subsequent call to post-reviews does not fail when looking up
+    # the reviewboard entry to edit.
+    url = url.replace('diff/','')
     url = url.strip('/')
 
     # Construct new commit message.
