@@ -39,51 +39,32 @@ namespace mesos {
 // Helper functions.
 /////////////////////////////////////////////////
 
-// Tests if we can add two Resource objects together resulting in one
-// valid Resource object. For example, two Resource objects with
-// different name, type or role are not addable.
-static bool addable(const Resource& left, const Resource& right)
+bool operator == (
+    const Resource::DiskInfo& left,
+    const Resource::DiskInfo& right)
 {
-  return left.name() == right.name() &&
-    left.type() == right.type() &&
-    left.role() == right.role();
-}
-
-
-// Tests if we can subtract "right" from "left" resulting in one valid
-// Resource object. For example, two Resource objects with different
-// name, type or role are not subtractable.
-// NOTE: Set substraction is always well defined, it does not require
-// 'right' to be contained within 'left'. For example, assuming that
-// "left = {1, 2}" and "right = {2, 3}", "left" and "right" are
-// subtractable because "left - right = {1}". However, "left" does not
-// contains "right".
-static bool subtractable(const Resource& left, const Resource& right)
-{
-  return left.name() == right.name() &&
-    left.type() == right.type() &&
-    left.role() == right.role();
-}
-
-
-// Tests if "right" is contained in "left".
-static bool contains(const Resource& left, const Resource& right)
-{
-  if (left.name() != right.name() ||
-      left.type() != right.type() ||
-      left.role() != right.role()) {
+  // NOTE: We ignore 'volume' inside DiskInfo when doing comparison
+  // because it describes how this resource will be used which has
+  // nothing to do with the Resource object itself. A framework can
+  // use this resource and specify different 'volume' every time it
+  // uses it.
+  if (left.has_persistence() != right.has_persistence()) {
     return false;
   }
 
-  if (left.type() == Value::SCALAR) {
-    return right.scalar() <= left.scalar();
-  } else if (left.type() == Value::RANGES) {
-    return right.ranges() <= left.ranges();
-  } else if (left.type() == Value::SET) {
-    return right.set() <= left.set();
-  } else {
-    return false;
+  if (left.has_persistence()) {
+    return left.persistence().id() == right.persistence().id();
   }
+
+  return true;
+}
+
+
+bool operator != (
+    const Resource::DiskInfo& left,
+    const Resource::DiskInfo& right)
+{
+  return !(left == right);
 }
 
 
@@ -92,6 +73,12 @@ bool operator == (const Resource& left, const Resource& right)
   if (left.name() != right.name() ||
       left.type() != right.type() ||
       left.role() != right.role()) {
+    return false;
+  }
+
+  // NOTE: Not setting the DiskInfo is the same as setting the
+  // DiskInfo with no 'volume' and 'persistence' (default).
+  if (left.disk() != right.disk()) {
     return false;
   }
 
@@ -110,6 +97,68 @@ bool operator == (const Resource& left, const Resource& right)
 bool operator != (const Resource& left, const Resource& right)
 {
   return !(left == right);
+}
+
+
+// Tests if we can add two Resource objects together resulting in one
+// valid Resource object. For example, two Resource objects with
+// different name, type or role are not addable.
+// TODO(jieyu): Even if two Resource objects with DiskInfo have the
+// same persistence ID, they cannot be added together. In fact, this
+// shouldn't happen if we do not add resources from different
+// namespaces (e.g., slave). Consider adding a warning.
+static bool addable(const Resource& left, const Resource& right)
+{
+  return left.name() == right.name() &&
+    left.type() == right.type() &&
+    left.role() == right.role() &&
+    !left.disk().has_persistence() &&
+    !right.disk().has_persistence();
+}
+
+
+// Tests if we can subtract "right" from "left" resulting in one valid
+// Resource object. For example, two Resource objects with different
+// name, type or role are not subtractable.
+// NOTE: Set substraction is always well defined, it does not require
+// 'right' to be contained within 'left'. For example, assuming that
+// "left = {1, 2}" and "right = {2, 3}", "left" and "right" are
+// subtractable because "left - right = {1}". However, "left" does not
+// contains "right".
+// NOTE: For Resource objects that have DiskInfo, we can only do
+// subtraction if they are equal.
+static bool subtractable(const Resource& left, const Resource& right)
+{
+  if (left.name() != right.name() ||
+      left.type() != right.type() ||
+      left.role() != right.role()) {
+    return false;
+  }
+
+  if (left.has_disk() || right.has_disk()) {
+    return left == right;
+  }
+
+  return true;
+}
+
+
+// Tests if "right" is contained in "left".
+static bool contains(const Resource& left, const Resource& right)
+{
+  if (!subtractable(left, right)) {
+    return false;
+  }
+
+  if (left.type() == Value::SCALAR) {
+    return right.scalar() <= left.scalar();
+  } else if (left.type() == Value::RANGES) {
+    return right.ranges() <= left.ranges();
+  } else if (left.type() == Value::SET) {
+    return right.set() <= left.set();
+  } else {
+    return false;
+  }
 }
 
 

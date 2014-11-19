@@ -872,3 +872,60 @@ TEST_F(DiskResourcesTest, Validation)
   EXPECT_NONE(
       Resources::validate(createDiskResource("10", "*", None(), "path")));
 }
+
+
+TEST_F(DiskResourcesTest, Equals)
+{
+  Resources r1 = createDiskResource("10", "*", None(), None());
+  Resources r2 = createDiskResource("10", "*", None(), "path1");
+  Resources r3 = createDiskResource("10", "*", None(), "path2");
+  Resources r4 = createDiskResource("10", "role", None(), "path2");
+  Resources r5 = createDiskResource("10", "role", "1", "path1");
+  Resources r6 = createDiskResource("10", "role", "1", "path2");
+  Resources r7 = createDiskResource("10", "role", "2", "path2");
+
+  EXPECT_EQ(r1, r2);
+  EXPECT_EQ(r2, r3);
+  EXPECT_EQ(r5, r6);
+
+  EXPECT_NE(r6, r7);
+  EXPECT_NE(r4, r7);
+}
+
+
+TEST_F(DiskResourcesTest, Addition)
+{
+  Resources r1 = createDiskResource("10", "role", None(), "path");
+  Resources r2 = createDiskResource("10", "role", None(), None());
+  Resources r3 = createDiskResource("20", "role", None(), "path");
+
+  EXPECT_EQ(r3, r1 + r2);
+
+  Resources r4 = createDiskResource("10", "role", "1", "path");
+  Resources r5 = createDiskResource("10", "role", "2", "path");
+  Resources r6 = createDiskResource("20", "role", "1", "path");
+
+  Resources sum = r4 + r5;
+
+  EXPECT_TRUE(sum.contains(r4));
+  EXPECT_TRUE(sum.contains(r5));
+  EXPECT_FALSE(sum.contains(r3));
+  EXPECT_FALSE(sum.contains(r6));
+}
+
+
+TEST_F(DiskResourcesTest, Subtraction)
+{
+  Resources r1 = createDiskResource("10", "role", None(), "path");
+  Resources r2 = createDiskResource("10", "role", None(), None());
+
+  EXPECT_TRUE((r1 - r2).empty());
+
+  Resources r3 = createDiskResource("10", "role", "1", "path");
+  Resources r4 = createDiskResource("10", "role", "2", "path");
+  Resources r5 = createDiskResource("10", "role", "2", "path2");
+
+  EXPECT_EQ(r3, r3 - r4);
+  EXPECT_TRUE((r3 - r3).empty());
+  EXPECT_TRUE((r4 - r5).empty());
+}
