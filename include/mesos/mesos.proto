@@ -596,6 +596,9 @@ message TaskInfo {
   // A health check for the task (currently in *alpha* and initial
   // support will only be for TaskInfo's that have a CommandInfo).
   optional HealthCheck health_check = 8;
+  // Labels are free-form key value pairs which are exposed
+  // through master and slave endpoints.
+  repeated Label labels = 10;
 }
 
 
@@ -926,4 +929,12 @@ message ContainerInfo {
   optional string hostname = 4;
 
   optional DockerInfo docker = 3;
+}
+
+/**
+ * Key, value pair used to store free form user-data.
+ */
+message Label {
+  required string key = 1;
+  optional string value = 2;
 }
