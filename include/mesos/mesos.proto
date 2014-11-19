@@ -918,7 +918,7 @@ message ContainerInfo {
     optional bool privileged = 4 [default = false];
 
     // Allowing arbitrary parameters to be passed to docker CLI.
-    // Note that anything passed to this field is not guranteed
+    // Note that anything passed to this field is not guaranteed
     // to be supported moving forward, as we might move away from
     // the docker CLI.
     repeated Parameter parameters = 5;
