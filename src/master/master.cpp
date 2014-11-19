@@ -2515,6 +2515,8 @@ Resources Master::launchTask(
     t->mutable_executor_id()->MergeFrom(executorId.get());
   }
 
+  t->mutable_labels()->MergeFrom(task.labels());
+
   slave->addTask(t);
   framework->addTask(t);
 
