@@ -798,3 +798,77 @@ TEST(ResourcesTest, Find)
 
   EXPECT_NONE(resources4.find(targets4));
 }
+
+
+class DiskResourcesTest : public ::testing::Test
+{
+public:
+  Resource::DiskInfo createDiskInfo(
+      const Option<string>& persistenceID,
+      const Option<string>& containerPath)
+  {
+    Resource::DiskInfo info;
+
+    if (persistenceID.isSome()) {
+      Resource::DiskInfo::Persistence persistence;
+      persistence.set_id(persistenceID.get());
+      info.mutable_persistence()->CopyFrom(persistence);
+    }
+
+    if (containerPath.isSome()) {
+      Volume volume;
+      volume.set_container_path(containerPath.get());
+      volume.set_mode(Volume::RW);
+      info.mutable_volume()->CopyFrom(volume);
+    }
+
+    return info;
+  }
+
+  Resource createDiskResource(
+      const string& value,
+      const string& role,
+      const Option<string>& persistenceID,
+      const Option<string>& containerPath)
+  {
+    Resource resource = Resources::parse("disk", value, role).get();
+
+    if (persistenceID.isSome() || containerPath.isSome()) {
+      resource.mutable_disk()->CopyFrom(
+          createDiskInfo(persistenceID, containerPath));
+    }
+
+    return resource;
+  }
+};
+
+
+TEST_F(DiskResourcesTest, Validation)
+{
+  Resource cpus = Resources::parse("cpus", "2", "*").get();
+  cpus.mutable_disk()->CopyFrom(createDiskInfo("1", "path"));
+
+  Option<Error> error = Resources::validate(cpus);
+  ASSERT_SOME(error);
+  EXPECT_EQ(
+      "Resource with DiskInfo does not have the name 'disk'",
+      error.get().message);
+
+  error = Resources::validate(createDiskResource("10", "*", "1", "path"));
+  ASSERT_SOME(error);
+  EXPECT_EQ(
+      "Do not allow a persistent disk volume without reservation",
+      error.get().message);
+
+  error = Resources::validate(createDiskResource("10", "role", "1", None()));
+  ASSERT_SOME(error);
+  EXPECT_EQ(
+      "Persistent disk should specify a volume",
+      error.get().message);
+
+  EXPECT_NONE(
+      Resources::validate(createDiskResource("10", "role", "1", "path")));
+
+  EXPECT_NONE(
+      Resources::validate(createDiskResource("10", "*", None(), "path")));
+}
