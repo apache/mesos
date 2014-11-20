@@ -3552,14 +3552,24 @@ void Master::reconcileTasks(
     return;
   }
 
+  _reconcileTasks(framework, statuses);
+}
+
+
+void Master::_reconcileTasks(
+    Framework* framework,
+    const vector<TaskStatus>& statuses)
+{
+  CHECK_NOTNULL(framework);
+
   if (statuses.empty()) {
     // Implicit reconciliation.
-    LOG(INFO) << "Performing implicit task state reconciliation for framework "
-              << *framework;
+    LOG(INFO) << "Performing implicit task state reconciliation"
+                 " for framework " << *framework;
 
     foreachvalue (const TaskInfo& task, framework->pendingTasks) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
-          frameworkId,
+          framework->id,
           task.slave_id(),
           task.task_id(),
           TASK_STAGING,
@@ -3585,7 +3595,7 @@ void Master::reconcileTasks(
           : task->state();
 
       const StatusUpdate& update = protobuf::createStatusUpdate(
-          frameworkId,
+          framework->id,
           task->slave_id(),
           task->task_id(),
           state,
@@ -3638,7 +3648,7 @@ void Master::reconcileTasks(
       // (1) Task is known, but pending: TASK_STAGING.
       const TaskInfo& task_ = framework->pendingTasks[status.task_id()];
       update = protobuf::createStatusUpdate(
-          frameworkId,
+          framework->id,
           task_.slave_id(),
           task_.task_id(),
           TASK_STAGING,
@@ -3652,7 +3662,7 @@ void Master::reconcileTasks(
           : task->state();
 
       update = protobuf::createStatusUpdate(
-          frameworkId,
+          framework->id,
           task->slave_id(),
           task->task_id(),
           state,
@@ -3662,7 +3672,7 @@ void Master::reconcileTasks(
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
       // (3) Task is unknown, slave is registered: TASK_LOST.
       update = protobuf::createStatusUpdate(
-          frameworkId,
+          framework->id,
           slaveId.get(),
           status.task_id(),
           TASK_LOST,
@@ -3671,13 +3681,13 @@ void Master::reconcileTasks(
           TaskStatus::REASON_RECONCILIATION);
     } else if (slaves.transitioning(slaveId)) {
       // (4) Task is unknown, slave is transitionary: no-op.
-      LOG(INFO) << "Ignoring reconciliation request of task "
-                << status.task_id() << " from framework " << *framework
+      LOG(INFO) << "Dropping reconciliation of task " << status.task_id()
+                << " for framework " << *framework
                 << " because there are transitional slaves";
     } else {
       // (5) Task is unknown, slave is unknown: TASK_LOST.
       update = protobuf::createStatusUpdate(
-          frameworkId,
+          framework->id,
           slaveId,
           status.task_id(),
           TASK_LOST,

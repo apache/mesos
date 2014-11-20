@@ -286,6 +286,12 @@ protected:
   // Invoked when the contender has entered the contest.
   void contended(const process::Future<process::Future<Nothing>>& candidacy);
 
+  // Task reconciliation, split from the message handler
+  // to allow re-use.
+  void _reconcileTasks(
+      Framework* framework,
+      const std::vector<TaskStatus>& statuses);
+
   // Handles a known re-registering slave by reconciling the master's
   // view of the slave's tasks and executors.
   void reconcile(
