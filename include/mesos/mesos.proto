@@ -397,10 +397,10 @@ message Resource {
     // A framework can set the ID (if it is not set yet) to express
     // the intention to create a new persistent disk volume from a
     // regular disk resource. To reuse a previously created volume, a
-    // framework can launch an task/executor when it receives an offer
-    // with persistent volume, i.e., ID is set.
+    // framework can launch a task/executor when it receives an offer
+    // with a persistent volume, i.e., ID is set.
     // NOTE: Currently, we do not allow a persistent disk volume
-    // without reservation (i.e., 'role' should not be '*').
+    // without a reservation (i.e., 'role' should not be '*').
     message Persistence {
       // A unique ID for the persistent disk volume.
       // NOTE: The ID needs to be unique per role on each slave.
