@@ -333,6 +333,48 @@ TEST_F(ReconciliationTest, UnknownTask)
 }
 
 
+// This test verifies that the killTask request of an unknown task
+// results in reconciliation. In this case, the task is unknown
+// and there are no transitional slaves.
+TEST_F(ReconciliationTest, UnknownKillTask)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver.start();
+
+  // Wait until the framework is registered.
+  AWAIT_READY(frameworkId);
+
+  Future<TaskStatus> update;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  vector<TaskStatus> statuses;
+
+  // Create a task status with a random task id.
+  TaskID taskId;
+  taskId.set_value(UUID::random().toString());
+
+  driver.killTask(taskId);
+
+  // Framework should receive TASK_LOST for unknown task.
+  AWAIT_READY(update);
+  EXPECT_EQ(TASK_LOST, update.get().state());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that reconciliation of a task that belongs to a
 // slave that is a transitional state doesn't result in an update.
 TEST_F(ReconciliationTest, SlaveInTransition)

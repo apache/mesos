@@ -2752,52 +2752,14 @@ void Master::killTask(
 
   Task* task = framework->getTask(taskId);
   if (task == NULL) {
-    // TODO(bmahler): Per MESOS-1200, if we knew the SlaveID here we
-    // could reply more frequently in the presence of slaves in a
-    // transitionary state.
-    if (!slaves.recovered.empty()) {
-      LOG(WARNING)
-        << "Cannot kill task " << taskId << " of framework " << *framework
-        << " because the slave containing this task may not have re-registered"
-        << " yet with this master";
-    } else if (!slaves.reregistering.empty()) {
-      LOG(WARNING)
-        << "Cannot kill task " << taskId << " of framework " << *framework
-        << " because the slave may be in the process of being re-admitted by"
-        << " the registrar";
-    } else if (!slaves.removing.empty()) {
-      LOG(WARNING)
-        << "Cannot kill task " << taskId << " of framework " << *framework
-        << " because the slave may be in the process of being removed from the"
-        << " registrar, it is likely TASK_LOST updates will occur when the"
-        << " slave is removed";
-    } else if (flags.registry_strict) {
-      // For a strict registry, if there are no slaves transitioning
-      // between states, then this task is definitely unknown!
-      LOG(WARNING)
-        << "Cannot kill task " << taskId << " of framework " << *framework
-        << " because it cannot be found; sending TASK_LOST since there are"
-        << " no transitionary slaves";
+    LOG(WARNING) << "Cannot kill task " << taskId
+                 << " of framework " << *framework
+                 << " because it is unknown; performing reconciliation";
 
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          frameworkId,
-          None(),
-          taskId,
-          TASK_LOST,
-          TaskStatus::SOURCE_MASTER,
-          "Attempted to kill an unknown task",
-          TaskStatus::REASON_TASK_UNKNOWN);
+    TaskStatus status;
+    status.mutable_task_id()->CopyFrom(taskId);
 
-      forward(update, UPID(), framework);
-    } else {
-      // For a non-strict registry, the slave holding this task could
-      // be readmitted even if we have no knowledge of it.
-      LOG(WARNING)
-        << "Cannot kill task " << taskId << " of framework " << *framework
-        << " because it cannot be found; cannot send TASK_LOST since a"
-        << " non-strict registry is in use";
-    }
-
+    _reconcileTasks(framework, {status});
     return;
   }
 
