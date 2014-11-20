@@ -1415,6 +1415,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
 
   // Use a very small egress limit.
   flags.egress_rate_limit_per_container = rate;
+  flags.network_enable_socket_statistics = true;
 
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
