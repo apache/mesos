@@ -272,8 +272,6 @@ TEST_F(ReconciliationTest, UnknownSlave)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -332,8 +330,6 @@ TEST_F(ReconciliationTest, UnknownTask)
 
   driver.stop();
   driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -426,8 +422,6 @@ TEST_F(ReconciliationTest, SlaveInTransition)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -661,8 +655,6 @@ TEST_F(ReconciliationTest, PendingTask)
 
   driver.stop();
   driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -853,5 +845,5 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
   driver.stop();
   driver.join();
 
-  Shutdown();
+  Shutdown(); // Must shutdown before the detector gets de-allocated.
 }
