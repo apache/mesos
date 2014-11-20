@@ -414,10 +414,10 @@ message Resource {
     // sandbox. Otherwise, it will be mounted according to the
     // 'container_path' inside 'volume'. The 'host_path' inside
     // 'volume' is ignored.
-		// NOTE: If 'volume' is set but 'persistence' is not set, the
-		// volume will be automatically garbage collected after
-		// task/executor terminates. Currently, if 'persistence' is set,
-		// 'volume' must be set.
+    // NOTE: If 'volume' is set but 'persistence' is not set, the
+    // volume will be automatically garbage collected after
+    // task/executor terminates. Currently, if 'persistence' is set,
+    // 'volume' must be set.
     optional Volume volume = 2;
   }
 
