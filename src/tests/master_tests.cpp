@@ -2637,33 +2637,36 @@ TEST_F(MasterTest, TaskLabels)
   JSON::Array labelsObject_ = labelsObject.get();
 
   // Verify the content of 'foo:bar' pair.
-  JSON::Object labelObject1 = labelsObject_.values[0].as<JSON::Object>();
+  Try<JSON::Value> expected = JSON::parse(
+      "{"
+      "  \"key\":\"foo\","
+      "  \"value\":\"bar\""
+      "}");
 
-  const JSON::String key1 = labelObject1.values["key"].as<JSON::String>();
-  const JSON::String value1 = labelObject1.values["value"].as<JSON::String>();
-
-  EXPECT_EQ(key1.value, "foo");
-  EXPECT_EQ(value1.value, "bar");
+  ASSERT_SOME(expected);
+  EXPECT_EQ(labelsObject_.values[0], expected.get());
 
 
   // Verify the content of 'bar:baz' pair.
-  JSON::Object labelObject2 = labelsObject_.values[1].as<JSON::Object>();
+  expected = JSON::parse(
+      "{"
+      "  \"key\":\"bar\","
+      "  \"value\":\"baz\""
+      "}");
 
-  const JSON::String key2 = labelObject2.values["key"].as<JSON::String>();
-  const JSON::String value2 = labelObject2.values["value"].as<JSON::String>();
-
-  EXPECT_EQ(key2.value, "bar");
-  EXPECT_EQ(value2.value, "baz");
+  ASSERT_SOME(expected);
+  EXPECT_EQ(labelsObject_.values[1], expected.get());
 
 
   // Verify the content of 'bar:qux' pair.
-  JSON::Object labelObject3 = labelsObject_.values[2].as<JSON::Object>();
+  expected = JSON::parse(
+      "{"
+      "  \"key\":\"bar\","
+      "  \"value\":\"qux\""
+      "}");
 
-  const JSON::String key3 = labelObject3.values["key"].as<JSON::String>();
-  const JSON::String value3 = labelObject3.values["value"].as<JSON::String>();
-
-  EXPECT_EQ(key3.value, "bar");
-  EXPECT_EQ(value3.value, "qux");
+  ASSERT_SOME(expected);
+  EXPECT_EQ(labelsObject_.values[2], expected.get());
 
 
   EXPECT_CALL(exec, shutdown(_))
