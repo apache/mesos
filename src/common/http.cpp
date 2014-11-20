@@ -21,6 +21,7 @@
 #include <mesos/resources.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 
 #include "common/attributes.hpp"
@@ -132,10 +133,7 @@ JSON::Object model(const Task& task)
 
   JSON::Array labels;
   foreach (const Label& label, task.labels()) {
-    JSON::Object labelObject;
-    labelObject.values["key"] = label.key();
-    labelObject.values["value"] = label.has_value() ? label.value() : "";
-    labels.values.push_back(labelObject);
+    labels.values.push_back(JSON::Protobuf(label));
   }
   object.values["labels"] = labels;
 
@@ -173,10 +171,7 @@ JSON::Object model(
 
   JSON::Array labels;
   foreach (const Label& label, task.labels()) {
-    JSON::Object labelObject;
-    labelObject.values["key"] = label.key();
-    labelObject.values["value"] = label.has_value() ? label.value() : "";
-    labels.values.push_back(labelObject);
+    labels.values.push_back(JSON::Protobuf(label));
   }
   object.values["labels"] = labels;
 
