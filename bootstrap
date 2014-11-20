@@ -11,11 +11,11 @@ __EOF__
 fi
 
 # Install mesos default commit hook and gitignore template.
-if test ! -f .git/hooks/pre-commit; then
+if test ! -e .git/hooks/pre-commit; then
   ln -s ../../support/hooks/pre-commit .git/hooks/pre-commit
 fi
 
-if test ! -f .gitignore; then
+if test ! -e .gitignore; then
   ln -s .gitignore-template .gitignore
 fi
 
