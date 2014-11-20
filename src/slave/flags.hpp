@@ -362,6 +362,12 @@ public:
         "If not specified or specified as zero, the network isolator will\n"
         "impose no limits to containers' egress traffic throughput.\n"
         "This flag uses the Bytes type, defined in stout.");
+
+    add(&Flags::network_enable_socket_statistics,
+        "network_enable_socket_statistics",
+        "Whether to collect socket statistics (e.g., TCP RTT) for\n"
+        "each container.",
+        false);
 #endif // WITH_NETWORK_ISOLATOR
 
     // This help message for --modules flag is the same for
@@ -466,6 +472,7 @@ public:
   Option<std::string> eth0_name;
   Option<std::string> lo_name;
   Option<Bytes> egress_rate_limit_per_container;
+  bool network_enable_socket_statistics;
 #endif
   Option<Modules> modules;
   std::string authenticatee;
