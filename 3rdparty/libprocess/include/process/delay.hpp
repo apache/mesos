@@ -39,7 +39,7 @@ Timer delay(const Duration& duration,
     lambda::bind(internal::dispatch,
                  pid,
                  dispatcher,
-                 internal::canonicalize(method));
+                 &typeid(method));
 
   return Clock::timer(duration, dispatch);
 }
@@ -86,7 +86,7 @@ Timer delay(const Duration& duration,
       lambda::bind(internal::dispatch,                                  \
                    pid,                                                 \
                    dispatcher,                                          \
-                   internal::canonicalize(method));                     \
+                   &typeid(method));                                    \
                                                                         \
     return Clock::timer(duration, dispatch);                            \
   }                                                                     \
