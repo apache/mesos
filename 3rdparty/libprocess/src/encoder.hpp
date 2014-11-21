@@ -122,9 +122,12 @@ public:
       if (message->to.id != "") {
         out << "/" << message->to.id;
       }
-      out << "/" << message->name << " HTTP/1.0\r\n"
+
+      out << "/" << message->name << " HTTP/1.1\r\n"
           << "User-Agent: libprocess/" << message->from << "\r\n"
-          << "Connection: Keep-Alive\r\n";
+          << "Libprocess-From: " << message->from << "\r\n"
+          << "Connection: Keep-Alive\r\n"
+          << "Host: \r\n";
 
       if (message->body.size() > 0) {
         out << "Transfer-Encoding: chunked\r\n\r\n"
