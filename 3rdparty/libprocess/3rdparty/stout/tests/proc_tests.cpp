@@ -73,11 +73,17 @@ TEST(ProcTest, SingleThread)
 }
 
 
-void* threadFunction(void*)
+void* cancelFunction(void*)
 {
   // Newly created threads have PTHREAD_CANCEL_ENABLE and
-  // PTHREAD_CANCEL_DEFERRED so they can be cancelled from the main thread.
-  while (true) { sleep(1); }
+  // PTHREAD_CANCEL_DEFERRED so they can be cancelled from the main
+  // thread.
+  while (true) {
+    // Use pthread_testcancel() as opposed to sleep() because we've
+    // seen sleep() hang on certain linux machines even though sleep
+    // should be a cancellation point.
+    pthread_testcancel();
+  }
 
   return NULL;
 }
@@ -93,7 +99,7 @@ TEST(ProcTest, MultipleThreads)
   // Create additional threads.
   for (size_t i = 0; i < numThreads; i++)
   {
-    EXPECT_EQ(0, pthread_create(&pthreads[i], NULL, threadFunction, NULL));
+    EXPECT_EQ(0, pthread_create(&pthreads[i], NULL, cancelFunction, NULL));
   }
 
   // Check we have the expected number of threads.
