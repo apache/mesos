@@ -1176,6 +1176,11 @@ if OS_LINUX
   setns_test_helper_LDADD = libmesos.la
 endif
 
+check_PROGRAMS += active-user-test-helper
+active_user_test_helper_SOURCES = tests/active_user_test_helper.cpp
+active_user_test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
+active_user_test_helper_LDADD = libmesos.la
+
 check_PROGRAMS += mesos-tests
 
 # Library containing an example module.

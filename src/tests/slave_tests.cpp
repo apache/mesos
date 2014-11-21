@@ -563,9 +563,15 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
   CHECK_SOME(user) << "Failed to get current user name"
                    << (user.isError() ? ": " + user.error() : "");
 
+  const string helper =
+      path::join(tests::flags.build_dir, "src", "active-user-test-helper");
+
   // Command executor will run as user running test.
   CommandInfo command;
-  command.set_value("test `whoami` = " + user.get());
+  command.set_shell(false);
+  command.set_value(helper);
+  command.add_arguments(helper);
+  command.add_arguments(user.get());
 
   task.mutable_command()->MergeFrom(command);
 
@@ -598,7 +604,7 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
 // specified user. We use (and assume the precense) of the
 // unprivileged 'nobody' user which should be available on both Linux
 // and Mac OS X.
-TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
+TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithUser)
 {
   // TODO(nnielsen): Introduce STOUT abstraction for user verification
   // instead of flat getpwnam call.
@@ -647,9 +653,15 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
 
+  const string helper =
+      path::join(tests::flags.build_dir, "src", "active-user-test-helper");
+
   CommandInfo command;
-  command.set_value("test `whoami` = " + testUser);
   command.set_user(testUser);
+  command.set_shell(false);
+  command.set_value(helper);
+  command.add_arguments(helper);
+  command.add_arguments(testUser);
 
   task.mutable_command()->MergeFrom(command);
 
