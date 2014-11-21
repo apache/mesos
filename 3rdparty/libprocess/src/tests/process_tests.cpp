@@ -1541,7 +1541,7 @@ TEST(Process, http2)
   int c = ::accept(s, (sockaddr*) &addr, &addrlen);
   ASSERT_LT(0, c);
 
-  const string data = "POST /" + name + " HTTP/1.0";
+  const string data = "POST /" + name + " HTTP/1.1";
   EXPECT_SOME_EQ(data, os::read(c, data.size()));
 
   close(c);
