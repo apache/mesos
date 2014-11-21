@@ -2328,11 +2328,11 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
   // someone entered into the container for debugging purpose. In that
   // case remove will fail, which is okay, because we only leaked an
   // empty file, which could also be reused later if the pid (the name
-  // of the file) is used again. However, we still return error to
-  // indicate that the cleanup hasn't been successful.
+  // of the file) is used again.
   Try<Nothing> rm = os::rm(target);
   if (rm.isError()) {
-    errors.push_back("Failed to remove " + target + ": " + rm.error());
+    LOG(WARNING) << "Failed to remove bind mount '" << target
+                 << "' during cleanup: " << rm.error();
   }
 
   // We manually remove veth to avoid having to wait for the kernel to
