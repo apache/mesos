@@ -851,13 +851,13 @@ TEST_F(DiskResourcesTest, Validation)
   Option<Error> error = Resources::validate(cpus);
   ASSERT_SOME(error);
   EXPECT_EQ(
-      "Resource with DiskInfo does not have the name 'disk'",
+      "DiskInfo should not be set for cpus resource",
       error.get().message);
 
   error = Resources::validate(createDiskResource("10", "*", "1", "path"));
   ASSERT_SOME(error);
   EXPECT_EQ(
-      "Do not allow a persistent disk volume without reservation",
+      "Persistent disk volume is disallowed for '*' role",
       error.get().message);
 
   error = Resources::validate(createDiskResource("10", "role", "1", None()));

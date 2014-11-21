@@ -76,8 +76,8 @@ bool operator == (const Resource& left, const Resource& right)
     return false;
   }
 
-  // NOTE: Not setting the DiskInfo is the same as setting the
-  // DiskInfo with no 'volume' and 'persistence' (default).
+  // NOTE: Not setting the DiskInfo is the same as setting an empty
+  // DiskInfo, therefore we just call .disk() even if it's not set.
   if (left.disk() != right.disk()) {
     return false;
   }
@@ -106,7 +106,7 @@ bool operator != (const Resource& left, const Resource& right)
 // TODO(jieyu): Even if two Resource objects with DiskInfo have the
 // same persistence ID, they cannot be added together. In fact, this
 // shouldn't happen if we do not add resources from different
-// namespaces (e.g., slave). Consider adding a warning.
+// namespaces (e.g., across slave). Consider adding a warning.
 static bool addable(const Resource& left, const Resource& right)
 {
   return left.name() == right.name() &&
@@ -124,7 +124,7 @@ static bool addable(const Resource& left, const Resource& right)
 // 'right' to be contained within 'left'. For example, assuming that
 // "left = {1, 2}" and "right = {2, 3}", "left" and "right" are
 // subtractable because "left - right = {1}". However, "left" does not
-// contains "right".
+// contain "right".
 // NOTE: For Resource objects that have DiskInfo, we can only do
 // subtraction if they are equal.
 static bool subtractable(const Resource& left, const Resource& right)
@@ -146,6 +146,9 @@ static bool subtractable(const Resource& left, const Resource& right)
 // Tests if "right" is contained in "left".
 static bool contains(const Resource& left, const Resource& right)
 {
+  // NOTE: This is a necessary condition for 'contains'.
+  // 'subtractable' will verify name, role, type and DiskInfo
+  // compatibility.
   if (!subtractable(left, right)) {
     return false;
   }
