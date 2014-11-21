@@ -1511,6 +1511,10 @@ void ignore_read_data(
 }
 
 
+// Forward declaration.
+void send(Encoder* encoder, Socket* socket);
+
+
 void link_connect(const Future<Nothing>& future, Socket* socket)
 {
   if (future.isDiscarded() || future.isFailed()) {
@@ -1532,7 +1536,25 @@ void link_connect(const Future<Nothing>& future, Socket* socket)
         socket,
         data,
         size));
+
+  // In order to avoid a race condition where internal::send() is
+  // called after SocketManager::link() but before the socket is
+  // connected, we initialize the 'outgoing' queue in
+  // SocketManager::link() and then check if the queue has anything in
+  // it to send during this connection completion. When a subsequent
+  // call to SocketManager::send() occurs we'll now just add the
+  // encoder to the 'outgoing' queue, and when we complete the
+  // connection here we'll start sending, otherwise when we call
+  // SocketManager::next() the 'outgoing' queue will get removed and
+  // any subsequent call to SocketManager::send() will take care of
+  // setting it back up and sending.
+  Encoder* encoder = socket_manager->next(*socket);
+
+  if (encoder != NULL) {
+    send(encoder, new Socket(*socket));
+  }
 }
+
 
 } // namespace internal {
 
@@ -1562,6 +1584,13 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
       nodes[s] = to.node;
 
       persists[to.node] = s;
+
+      // Initialize 'outgoing' to prevent a race with
+      // SocketManager::send() while the socket is not yet connected.
+      // Initializing the 'outgoing' queue prevents
+      // SocketManager::send() from trying to write before it's
+      // connected.
+      outgoing[s];
 
       socket.connect(to.node)
         .onAny(lambda::bind(
