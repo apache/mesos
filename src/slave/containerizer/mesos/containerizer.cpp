@@ -259,7 +259,10 @@ Future<Nothing> MesosContainerizer::update(
 Future<ResourceStatistics> MesosContainerizer::usage(
     const ContainerID& containerId)
 {
-  return dispatch(process.get(), &MesosContainerizerProcess::usage, containerId);
+  return dispatch(
+      process.get(),
+      &MesosContainerizerProcess::usage,
+      containerId);
 }
 
 
