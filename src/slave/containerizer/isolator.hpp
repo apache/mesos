@@ -41,10 +41,10 @@ namespace slave {
 // Forward declaration.
 class IsolatorProcess;
 
-// Information when an executor is impacted by a resource limitation and should
-// be terminated. Intended to support resources like memory where the Linux
-// kernel may invoke the OOM killer, killing some/all of a container's
-// processes.
+// Information when an executor is impacted by a resource limitation
+// and should be terminated. Intended to support resources like memory
+// where the Linux kernel may invoke the OOM killer, killing some/all
+// of a container's processes.
 struct Limitation
 {
   Limitation(
@@ -54,9 +54,10 @@ struct Limitation
       message(_message) {}
 
   // Resource (type and value) that triggered the limitation.
-  const Resource resource;
+  Resource resource;
+
   // Description of the limitation.
-  const std::string message;
+  std::string message;
 };
 
 
