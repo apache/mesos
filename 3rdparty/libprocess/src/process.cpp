@@ -645,7 +645,11 @@ void decode_read(
 
 void* serve(void* arg)
 {
+  __in_event_loop__ = true;
+
   ev_loop(((struct ev_loop*) arg), 0);
+
+  __in_event_loop__ = false;
 
   return NULL;
 }

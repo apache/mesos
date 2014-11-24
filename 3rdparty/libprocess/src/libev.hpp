@@ -6,6 +6,7 @@
 #include <process/owned.hpp>
 
 #include <stout/lambda.hpp>
+#include <stout/thread.hpp>
 
 #include "synchronized.hpp"
 
@@ -29,6 +30,15 @@ extern synchronizable(watchers);
 // loop (protected by 'watchers' above).
 extern std::queue<lambda::function<void(void)>>* functions;
 
+// Per thread bool pointer. The extra level of indirection from
+// _in_event_loop_ to __in_event_loop__ is used in order to take
+// advantage of the ThreadLocal operators without needing the extra
+// dereference as well as lazily construct the actual bool.
+extern ThreadLocal<bool>* _in_event_loop_;
+
+#define __in_event_loop__ *(*_in_event_loop_ == NULL ?               \
+  *_in_event_loop_ = new bool(false) : *_in_event_loop_)
+
 
 // Wrapper around function we want to run in the event loop.
 template <typename T>
@@ -49,6 +59,11 @@ void _run_in_event_loop(
 template <typename T>
 Future<T> run_in_event_loop(const lambda::function<Future<T>(void)>& f)
 {
+  // If this is already the event loop then just run the function.
+  if (__in_event_loop__) {
+    return f();
+  }
+
   Owned<Promise<T>> promise(new Promise<T>());
 
   Future<T> future = promise->future();
