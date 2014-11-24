@@ -98,7 +98,8 @@ static TestModule* create(const mesos::Parameters& parameters)
 }
 
 
-// Declares a module named 'example' of 'TestModule' kind.
+// Declares a module named 'org_apache_mesos_TestModule' of
+// 'TestModule' kind.
 // compatible() hook is provided by the module for compatibility
 // checks.
 // create() hook returns an object of type 'TestModule'.

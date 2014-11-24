@@ -162,7 +162,8 @@ The following snippet describes the implementation of a module named
     return true;
   }
 
-  // Declares a module named 'example' of 'TestModule' kind.
+  // Declares a module named 'org_apache_mesos_TestModule' of
+  // 'TestModule' kind.
   // Mesos core binds the module instance pointer as needed.
   // The compatible() hook is provided by the module for compatibility checks.
   // The create() hook returns an object of type 'TestModule'.
