@@ -2,6 +2,7 @@
 .gitignore
 
 # Files created by ./bootstrap.
+.reviewboardrc
 Makefile.in
 aclocal.m4
 ar-lib

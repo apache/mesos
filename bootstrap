@@ -19,6 +19,10 @@ if test ! -e .gitignore; then
   ln -s .gitignore-template .gitignore
 fi
 
+if test ! -e .reviewboardrc; then
+  ln -s support/reviewboardrc .reviewboardrc
+fi
+
 if [ -n "$AUTOMAKE" ] || [ -n "$ACLOCAL" ] ; then
     if [ -z "$ACLOCAL" ] || [ -z "$AUTOMAKE" ] ; then
         _present="AUTOMAKE"
