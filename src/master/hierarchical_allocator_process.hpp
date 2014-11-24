@@ -506,11 +506,17 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateWhitelist(
   whitelist = _whitelist;
 
   if (whitelist.isSome()) {
-    LOG(INFO) << "Updated slave white list: " << stringify(whitelist.get());
+    LOG(INFO) << "Updated slave whitelist: " << stringify(whitelist.get());
+
+    if (whitelist.get().empty()) {
+      LOG(WARNING) << "Whitelist is empty, no offers will be made!";
+    }
 
     foreachkey (const SlaveID& slaveId, slaves) {
       slaves[slaveId].whitelisted = isWhitelisted(slaveId);
     }
+  } else {
+    LOG(INFO) << "Advertising offers for all slaves";
   }
 }
 

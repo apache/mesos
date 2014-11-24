@@ -71,6 +71,7 @@ class Slaves;
 
 class Authenticator;
 class Authorizer;
+class WhitelistWatcher;
 
 namespace master {
 
@@ -81,7 +82,6 @@ class Allocator;
 
 class Repairer;
 class SlaveObserver;
-class WhitelistWatcher;
 
 struct Framework;
 struct OfferVisitor;

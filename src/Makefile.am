@@ -303,6 +303,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/mesos/launch.cpp				\
 	slave/status_update_manager.cpp					\
 	usage/usage.cpp							\
+	watcher/whitelist_watcher.cpp					\
 	zookeeper/contender.cpp						\
 	zookeeper/detector.cpp						\
 	zookeeper/zookeeper.cpp						\
@@ -479,6 +480,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	tests/zookeeper.hpp						\
 	tests/zookeeper_test_server.hpp					\
 	usage/usage.hpp							\
+	watcher/whitelist_watcher.hpp					\
 	zookeeper/authentication.hpp					\
 	zookeeper/contender.hpp						\
 	zookeeper/detector.hpp						\
