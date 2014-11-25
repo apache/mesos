@@ -55,38 +55,40 @@ WhitelistWatcher::WhitelistWatcher(
 
 void WhitelistWatcher::initialize()
 {
-  watch();
+  // If no whitelist file is given, no need to watch. Notify the
+  // subscriber that there is no whitelist.
+  if (path == "*") { // Accept all nodes.
+    VLOG(1) << "No whitelist given";
+    subscriber(Option<hashset<string>>(None()));
+  } else {
+    watch();
+  }
 }
 
 
 void WhitelistWatcher::watch()
 {
-  // Get the list of white listed nodes.
+  // Read the list of white listed nodes from local file.
+  // TODO(vinod): Add support for reading from ZooKeeper.
+  // TODO(vinod): Ensure this read is atomic w.r.t external
+  // writes/updates to this file.
   Option<hashset<string>> whitelist;
-  if (path == "*") { // Accept all nodes.
-    VLOG(1) << "No whitelist given";
+  Try<string> read = os::read(
+      strings::remove(path, "file://", strings::PREFIX));
+  if (read.isError()) {
+    LOG(ERROR) << "Error reading whitelist file: " << read.error() << ". "
+               << "Retrying";
+    whitelist = lastWhitelist;
+  } else if (read.get().empty()) {
+    VLOG(1) << "Empty whitelist file " << path;
+    whitelist = hashset<string>();
   } else {
-    // Read from local file.
-    // TODO(vinod): Add support for reading from ZooKeeper.
-    // TODO(vinod): Ensure this read is atomic w.r.t external
-    // writes/updates to this file.
-    Try<string> read = os::read(
-        strings::remove(path, "file://", strings::PREFIX));
-    if (read.isError()) {
-      LOG(ERROR) << "Error reading whitelist file: " << read.error() << ". "
-                 << "Retrying";
-      whitelist = lastWhitelist;
-    } else if (read.get().empty()) {
-      VLOG(1) << "Empty whitelist file " << path;
-      whitelist = hashset<string>();
-    } else {
-      hashset<string> hostnames;
-      vector<string> lines = strings::tokenize(read.get(), "\n");
-      foreach (const string& hostname, lines) {
-        hostnames.insert(hostname);
-      }
-      whitelist = hostnames;
+    hashset<string> hostnames;
+    vector<string> lines = strings::tokenize(read.get(), "\n");
+    foreach (const string& hostname, lines) {
+      hostnames.insert(hostname);
     }
+    whitelist = hostnames;
   }
 
   // Send the whitelist to subscriber, if necessary.
