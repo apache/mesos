@@ -292,6 +292,11 @@ mesos::internal::slave::Flags::Flags()
       "(e.g., 3days, 2weeks, etc).\n",
       DOCKER_REMOVE_DELAY);
 
+  add(&Flags::docker_kill_orphans,
+      "docker_kill_orphans",
+      "Enable docker containerizer to kill orphaned containers",
+      true);
+
   add(&Flags::default_container_info,
       "default_container_info",
       "JSON formatted ContainerInfo that will be included into\n"

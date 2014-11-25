@@ -84,6 +84,7 @@ public:
   Duration docker_remove_delay;
   Option<ContainerInfo> default_container_info;
   Duration docker_stop_timeout;
+  bool docker_kill_orphans;
 #ifdef WITH_NETWORK_ISOLATOR
   uint16_t ephemeral_ports_per_container;
   Option<std::string> eth0_name;

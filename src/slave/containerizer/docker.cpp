@@ -562,9 +562,13 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         pids.put(containerId, pid);
       }
     }
+
+    if (flags.docker_kill_orphans) {
+      return __recover(_containers);
+    }
   }
 
-  return __recover(_containers);
+  return Nothing();
 }
 
 
