@@ -361,31 +361,9 @@ Option<Error> Resources::validate(const Resource& resource)
   }
 
   // Checks for 'disk' resource.
-  if (resource.has_disk()) {
-    if (resource.name() != "disk") {
-      return Error(
-          "DiskInfo should not be set for " + resource.name() + " resource");
-    }
-
-    if (resource.disk().has_persistence()) {
-      if (resource.role() == "*") {
-        return Error("Persistent disk volume is disallowed for '*' role");
-      }
-
-      if (!resource.disk().has_volume()) {
-        return Error("Persistent disk should specify a volume");
-      }
-    }
-
-    if (resource.disk().has_volume()) {
-      if (resource.disk().volume().mode() == Volume::RO) {
-        return Error("Do not support RO volume in DiskInfo");
-      }
-
-      if (resource.disk().volume().has_host_path()) {
-        return Error("Volume in DiskInfo should not have 'host_path' set");
-      }
-    }
+  if (resource.has_disk() && resource.name() != "disk") {
+    return Error(
+        "DiskInfo should not be set for " + resource.name() + " resource");
   }
 
   return None();

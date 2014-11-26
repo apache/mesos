@@ -854,18 +854,6 @@ TEST_F(DiskResourcesTest, Validation)
       "DiskInfo should not be set for cpus resource",
       error.get().message);
 
-  error = Resources::validate(createDiskResource("10", "*", "1", "path"));
-  ASSERT_SOME(error);
-  EXPECT_EQ(
-      "Persistent disk volume is disallowed for '*' role",
-      error.get().message);
-
-  error = Resources::validate(createDiskResource("10", "role", "1", None()));
-  ASSERT_SOME(error);
-  EXPECT_EQ(
-      "Persistent disk should specify a volume",
-      error.get().message);
-
   EXPECT_NONE(
       Resources::validate(createDiskResource("10", "role", "1", "path")));
 
