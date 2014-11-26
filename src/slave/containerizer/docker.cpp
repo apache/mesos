@@ -401,8 +401,8 @@ Future<hashset<ContainerID>> DockerContainerizer::containers()
 
 
 // A Subprocess async-safe "setup" helper used by
-// DockerContainerizerProcess when launching the mesos-executor that
-// does a 'setsid' and then synchronizes with the parent.
+// DockerContainerizerProcess when launching the mesos-docker-executor
+// that does a 'setsid' and then synchronizes with the parent.
 static int setup(const string& directory)
 {
   // Put child into its own process session to prevent slave suicide
@@ -725,16 +725,18 @@ Future<pid_t> DockerContainerizerProcess::___launch(
     environment[variable.name()] = variable.value();
   }
 
-  // Construct the mesos-executor "override" to do a 'docker wait'
-  // using the "name" we gave the container (to distinguish it from
-  // Docker containers not created by Mesos). Note, however, that we
-  // don't want the exit status from 'docker wait' but rather the exit
-  // status from the container, hence the use of /bin/bash.
-  string override =
-    "/bin/sh -c 'exit `" + flags.docker + " wait " + container->name() + "`'";
+  string command = "mesos-docker-executor --docker=" + flags.docker +
+                   " --container=" + container->name();
 
+  command = path::join(flags.launcher_dir, command);
+
+  VLOG(2) << "Launching docker executor with command: " << command;
+
+  // Construct the mesos-docker-executor using the "name" we gave the
+  // container (to distinguish it from Docker containers not created
+  // by Mesos).
   Try<Subprocess> s = subprocess(
-      container->executor.command().value() + " --override " + override,
+      command,
       Subprocess::PIPE(),
       Subprocess::PATH(path::join(container->directory, "stdout")),
       Subprocess::PATH(path::join(container->directory, "stderr")),
@@ -1328,10 +1330,9 @@ void DockerContainerizerProcess::_destroy(
   // Do a 'docker rm -f' which we'll then find out about in '_destroy'
   // after we've reaped either the container's root process (in the
   // event that we had just launched a container for an executor) or
-  // the mesos-executor (in the case we launched a container for a
-  // task). As a reminder, the mesos-executor exits because it's doing
-  // a 'docker wait' on the container using the --override flag of
-  // mesos-executor.
+  // the mesos-docker-executor (in the case we launched a container
+  // for a task). As a reminder, the mesos-docker-executor exits
+  // because it's doing a 'docker wait' on the container.
 
   LOG(INFO) << "Running docker stop on container '" << containerId << "'";
 
