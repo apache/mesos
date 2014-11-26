@@ -822,6 +822,11 @@ mesos_usage_SOURCES = usage/main.cpp
 mesos_usage_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_usage_LDADD = libmesos.la $(LDADD)
 
+pkglibexec_PROGRAMS += mesos-docker-executor
+mesos_docker_executor_SOURCES = docker/executor.cpp
+mesos_docker_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_docker_executor_LDADD = libmesos.la
+
 bin_PROGRAMS += mesos-log
 mesos_log_SOURCES = log/main.cpp
 mesos_log_CPPFLAGS = $(MESOS_CPPFLAGS)
