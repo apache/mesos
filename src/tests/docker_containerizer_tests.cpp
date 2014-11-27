@@ -1182,14 +1182,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 #endif //__linux__
 
 
-// Disabling recover test as the docker rm in recover is async.
-// Even though we wait for the container to finish, when the wait
-// returns docker rm might still be in progress.
-// TODO(tnachen): Re-enable test when we wait for the async kill
-// to finish. One way to do this is to mock the Docker interface
-// and let the mocked docker collect all the remove futures and
-// at the end of the test wait for all of them before the test exits.
-TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 {
   slave::Flags flags = CreateSlaveFlags();
 
@@ -1275,6 +1268,15 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
 
   slaveState.frameworks.put(frameworkId, frameworkState);
 
+  // We need to capture and await on the stop future so that we can
+  // ensure there is no child process at the end of the test.
+  // The stop future is being awaited at teardown.
+  Future<Nothing> stop;
+  EXPECT_CALL(*mockDocker, stop(_, _, _))
+    .WillOnce(FutureResult(
+        &stop,
+        Invoke((MockDocker*) docker.get(), &MockDocker::_stop)));
+
   Future<Nothing> recover = dockerContainerizer.recover(slaveState);
 
   AWAIT_READY(recover);
@@ -1291,6 +1293,8 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
   AWAIT_READY(termination);
 
   AWAIT_READY(reaped.get().status());
+
+  AWAIT_READY_FOR(stop, Seconds(30));
 
   Shutdown();
 }
