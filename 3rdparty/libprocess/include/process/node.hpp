@@ -41,7 +41,7 @@ public:
   uint16_t port;
 };
 
-inline std::ostream& operator << (std::ostream & stream, const Node & node)
+inline std::ostream& operator << (std::ostream& stream, const Node& node)
 {
   char ip[INET_ADDRSTRLEN];
   if (inet_ntop(AF_INET, (in_addr*) &node.ip, ip, INET_ADDRSTRLEN) == NULL) {
