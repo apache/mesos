@@ -127,7 +127,7 @@ Try<string> fetchWithNet(
     return Error("Malformed URI");
   }
 
-  path =  path::join(directory, path.substr(path.find_last_of("/") + 1));
+  path = path::join(directory, path.substr(path.find_last_of("/") + 1));
   LOG(INFO) << "Downloading '" << uri << "' to '" << path << "'";
   Try<int> code = net::download(uri, path);
   if (code.isError()) {
