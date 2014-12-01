@@ -297,6 +297,14 @@ mesos::internal::slave::Flags::Flags()
       "Enable docker containerizer to kill orphaned containers",
       true);
 
+  add(&Flags::docker_mesos_image,
+      "docker_mesos_image",
+      "The docker image used to launch this mesos slave instance.\n"
+      "If an image is specified, the docker containerizer assumes the slave\n"
+      "is running in a docker container. This enables the docker\n"
+      "containerizer to launch executors in docker containers, so they keep\n"
+      "running when the slave container exits.");
+
   add(&Flags::default_container_info,
       "default_container_info",
       "JSON formatted ContainerInfo that will be included into\n"

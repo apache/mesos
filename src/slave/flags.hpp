@@ -80,6 +80,7 @@ public:
   std::string containerizers;
   Option<std::string> default_container_image;
   std::string docker;
+  Option<std::string> docker_mesos_image;
   std::string docker_sandbox_directory;
   Duration docker_remove_delay;
   Option<ContainerInfo> default_container_info;
