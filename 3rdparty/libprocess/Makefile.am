@@ -41,9 +41,9 @@ libprocess_la_SOURCES =		\
   src/latch.cpp			\
   src/libev.hpp			\
   src/libev.cpp			\
+  src/libev_poll.cpp		\
   src/metrics/metrics.cpp	\
   src/pid.cpp			\
-  src/poll.cpp			\
   src/process.cpp		\
   src/process_reference.hpp	\
   src/reap.cpp			\
