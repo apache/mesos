@@ -594,7 +594,7 @@ void handle_async(struct ev_loop* loop, ev_async* _, int revents)
 
 namespace internal {
 
-void decode_read(
+void decode_recv(
     const Future<size_t>& length,
     char* data,
     size_t size,
@@ -636,8 +636,8 @@ void decode_read(
     return;
   }
 
-  socket->read(data, size)
-    .onAny(lambda::bind(&decode_read, lambda::_1, data, size, socket, decoder));
+  socket->recv(data, size)
+    .onAny(lambda::bind(&decode_recv, lambda::_1, data, size, socket, decoder));
 }
 
 } // namespace internal {
@@ -726,9 +726,9 @@ void on_accept(const Future<Socket>& socket)
 
     DataDecoder* decoder = new DataDecoder(socket.get());
 
-    socket.get().read(data, size)
+    socket.get().recv(data, size)
       .onAny(lambda::bind(
-          &internal::decode_read,
+          &internal::decode_recv,
           lambda::_1,
           data,
           size,
@@ -1291,7 +1291,7 @@ Future<Nothing> Socket::Impl::connect(const Node& node)
 }
 
 
-Future<size_t> Socket::Impl::read(char* data, size_t size)
+Future<size_t> Socket::Impl::recv(char* data, size_t size)
 {
   return io::read(get(), data, size);
 }
@@ -1490,7 +1490,7 @@ void SocketManager::accepted(const Socket& socket)
 
 namespace internal {
 
-void ignore_read_data(
+void ignore_recv_data(
     const Future<size_t>& length,
     Socket* socket,
     char* data,
@@ -1510,8 +1510,8 @@ void ignore_read_data(
     return;
   }
 
-  socket->read(data, size)
-    .onAny(lambda::bind(&ignore_read_data, lambda::_1, socket, data, size));
+  socket->recv(data, size)
+    .onAny(lambda::bind(&ignore_recv_data, lambda::_1, socket, data, size));
 }
 
 
@@ -1533,9 +1533,9 @@ void link_connect(const Future<Nothing>& future, Socket* socket)
   size_t size = 80 * 1024;
   char* data = new char[size];
 
-  socket->read(data, size)
+  socket->recv(data, size)
     .onAny(lambda::bind(
-        &ignore_read_data,
+        &ignore_recv_data,
         lambda::_1,
         socket,
         data,
@@ -1790,15 +1790,15 @@ void send_connect(
 
   Encoder* encoder = new MessageEncoder(*socket, message);
 
-  // Read and ignore data from this socket. Note that we don't
+  // Receive and ignore data from this socket. Note that we don't
   // expect to receive anything other than HTTP '202 Accepted'
   // responses which we just ignore.
   size_t size = 80 * 1024;
   char* data = new char[size];
 
-  socket->read(data, size)
+  socket->recv(data, size)
     .onAny(lambda::bind(
-        &ignore_read_data,
+        &ignore_recv_data,
         lambda::_1,
         new Socket(*socket),
         data,
@@ -1952,7 +1952,7 @@ void SocketManager::close(int s)
   synchronized (this) {
     // This socket might not be active if it was already asked to get
     // closed (e.g., a write on the socket failed so we try and close
-    // it and then later the read side of the socket gets closed so we
+    // it and then later the recv side of the socket gets closed so we
     // try and close it again). Thus, ignore the request if we don't
     // know about the socket.
     if (sockets.count(s) > 0) {
@@ -1988,11 +1988,11 @@ void SocketManager::close(int s)
         proxies.erase(s);
       }
 
-      // We need to stop any 'ignore_data' readers as they may have
-      // the last Socket reference so we shutdown reads but don't do a
+      // We need to stop any 'ignore_data' receivers as they may have
+      // the last Socket reference so we shutdown recvs but don't do a
       // full close (since that will be taken care of by ~Socket, see
       // comment below). Calling 'shutdown' will trigger 'ignore_data'
-      // which will get back a 0 (i.e., EOF) when it tries to read
+      // which will get back a 0 (i.e., EOF) when it tries to 'recv'
       // from the socket. Note we need to do this before we call
       // 'sockets.erase(s)' to avoid the potential race with the last
       // reference being in 'sockets'.
@@ -2152,7 +2152,7 @@ bool ProcessManager::handle(
       // Only send back an HTTP response if this isn't from libprocess
       // (which we determine by looking at the User-Agent). This is
       // necessary because older versions of libprocess would try and
-      // read the data and parse it as an HTTP request which would
+      // recv the data and parse it as an HTTP request which would
       // fail thus causing the socket to get closed (but now
       // libprocess will ignore responses, see ignore_data).
       Option<string> agent = request->headers.get("User-Agent");

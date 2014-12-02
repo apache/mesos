@@ -76,7 +76,7 @@ public:
 
     Future<Nothing> connect(const Node& node);
 
-    Future<size_t> read(char* data, size_t size);
+    Future<size_t> recv(char* data, size_t size);
 
     Future<size_t> send(const char* data, size_t size);
 
@@ -155,9 +155,9 @@ public:
     return impl->connect(node);
   }
 
-  Future<size_t> read(char* data, size_t size) const
+  Future<size_t> recv(char* data, size_t size) const
   {
-    return impl->read(data, size);
+    return impl->recv(data, size);
   }
 
   Future<size_t> send(const char* data, size_t size) const
