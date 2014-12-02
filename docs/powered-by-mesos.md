@@ -14,6 +14,7 @@ layout: documentation
 * [CloudPhysics](http://cloudphysics.com)
 * [Conviva](http://www.conviva.com)
 * [CorvisaCloud](http://www.corvisacloud.com/)
+* [Coursera](https://www.coursera.org)
 * [CRP-Gabriel Lippmann](http://www.crpgl.lu)
 * [Daemon](http://www.daemon.com.au)
 * [Devicescape](http://www.devicescape.com)
