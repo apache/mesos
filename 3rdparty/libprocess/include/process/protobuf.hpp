@@ -114,6 +114,7 @@ protected:
     send(from, message);
   }
 
+  // TODO(vinod): Use ENUM_PARAMS for the overloads.
   // Installs that take the sender as the first argument.
   template <typename M>
   void install(void (T::*method)(const process::UPID&, const M&))
@@ -234,6 +235,32 @@ protected:
     delete m;
   }
 
+  template <typename M,
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C,
+            typename P5, typename P5C,
+            typename P6, typename P6C>
+  void install(
+      void (T::*method)(const process::UPID&, P1C, P2C, P3C, P4C, P5C, P6C),
+      P1 (M::*p1)() const,
+      P2 (M::*p2)() const,
+      P3 (M::*p3)() const,
+      P4 (M::*p4)() const,
+      P5 (M::*p5)() const,
+      P6 (M::*p6)() const)
+  {
+    google::protobuf::Message* m = new M();
+    T* t = static_cast<T*>(this);
+    protobufHandlers[m->GetTypeName()] =
+      lambda::bind(&handler6<M, P1, P1C, P2, P2C, P3, P3C,
+                                P4, P4C, P5, P5C, P6, P6C>,
+                   t, method, p1, p2, p3, p4, p5, p6,
+                   lambda::_1, lambda::_2);
+    delete m;
+  }
+
   // Installs that do not take the sender.
   template <typename M>
   void install(void (T::*method)(const M&))
@@ -350,6 +377,32 @@ protected:
     protobufHandlers[m->GetTypeName()] =
       lambda::bind(&_handler5<M, P1, P1C, P2, P2C, P3, P3C, P4, P4C, P5, P5C>,
                    t, method, p1, p2, p3, p4, p5,
+                   lambda::_1, lambda::_2);
+    delete m;
+  }
+
+  template <typename M,
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C,
+            typename P5, typename P5C,
+            typename P6, typename P6C>
+  void install(
+      void (T::*method)(P1C, P2C, P3C, P4C, P5C, P6C),
+      P1 (M::*p1)() const,
+      P2 (M::*p2)() const,
+      P3 (M::*p3)() const,
+      P4 (M::*p4)() const,
+      P5 (M::*p5)() const,
+      P6 (M::*p6)() const)
+  {
+    google::protobuf::Message* m = new M();
+    T* t = static_cast<T*>(this);
+    protobufHandlers[m->GetTypeName()] =
+      lambda::bind(&_handler6<M, P1, P1C, P2, P2C, P3, P3C,
+                                 P4, P4C, P5, P5C, P6, P6C>,
+                   t, method, p1, p2, p3, p4, p5, p6,
                    lambda::_1, lambda::_2);
     delete m;
   }
@@ -513,6 +566,42 @@ private:
     }
   }
 
+  template <typename M,
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C,
+            typename P5, typename P5C,
+            typename P6, typename P6C>
+  static void handler6(
+      T* t,
+      void (T::*method)(const process::UPID&, P1C, P2C, P3C, P4C, P5C, P6C),
+      P1 (M::*p1)() const,
+      P2 (M::*p2)() const,
+      P3 (M::*p3)() const,
+      P4 (M::*p4)() const,
+      P5 (M::*p5)() const,
+      P6 (M::*p6)() const,
+      const process::UPID& sender,
+      const std::string& data)
+  {
+    M m;
+    m.ParseFromString(data);
+    if (m.IsInitialized()) {
+      (t->*method)(sender,
+                   google::protobuf::convert((&m->*p1)()),
+                   google::protobuf::convert((&m->*p2)()),
+                   google::protobuf::convert((&m->*p3)()),
+                   google::protobuf::convert((&m->*p4)()),
+                   google::protobuf::convert((&m->*p5)()),
+                   google::protobuf::convert((&m->*p6)()));
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << m.InitializationErrorString();
+    }
+  }
+
+
   // Handlers that ignore the sender.
   template <typename M>
   static void _handlerM(
@@ -659,6 +748,40 @@ private:
                    google::protobuf::convert((&m->*p3)()),
                    google::protobuf::convert((&m->*p4)()),
                    google::protobuf::convert((&m->*p5)()));
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << m.InitializationErrorString();
+    }
+  }
+
+  template <typename M,
+            typename P1, typename P1C,
+            typename P2, typename P2C,
+            typename P3, typename P3C,
+            typename P4, typename P4C,
+            typename P5, typename P5C,
+            typename P6, typename P6C>
+  static void _handler6(
+      T* t,
+      void (T::*method)(P1C, P2C, P3C, P4C, P5C, P6C),
+      P1 (M::*p1)() const,
+      P2 (M::*p2)() const,
+      P3 (M::*p3)() const,
+      P4 (M::*p4)() const,
+      P5 (M::*p5)() const,
+      P6 (M::*p6)() const,
+      const process::UPID&,
+      const std::string& data)
+  {
+    M m;
+    m.ParseFromString(data);
+    if (m.IsInitialized()) {
+      (t->*method)(google::protobuf::convert((&m->*p1)()),
+                   google::protobuf::convert((&m->*p2)()),
+                   google::protobuf::convert((&m->*p3)()),
+                   google::protobuf::convert((&m->*p4)()),
+                   google::protobuf::convert((&m->*p5)()),
+                   google::protobuf::convert((&m->*p6)()));
     } else {
       LOG(WARNING) << "Initialization errors: "
                    << m.InitializationErrorString();
