@@ -1995,8 +1995,6 @@ void Slave::registerExecutor(
                   << " for executor '" << executor->id << "'"
                   << " of framework " << framework->id;
 
-        stats.tasks[TASK_STAGING]++;
-
         RunTaskMessage message;
         message.mutable_framework_id()->MergeFrom(framework->id);
         message.mutable_framework()->MergeFrom(framework->info);
