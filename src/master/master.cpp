@@ -2422,15 +2422,15 @@ Future<bool> Master::authorizeTask(
 }
 
 
-Resources Master::launchTask(
+Resources Master::addTask(
     const TaskInfo& task,
     Framework* framework,
     Slave* slave)
 {
   CHECK_NOTNULL(framework);
   CHECK_NOTNULL(slave);
-  CHECK(slave->connected) << "Launching task " << task.task_id()
-                          << " on disconnected slave " << *slave;
+  CHECK(slave->connected) << "Adding task " << task.task_id()
+                          << " to disconnected slave " << *slave;
 
   // The resources consumed.
   Resources resources = task.resources();
@@ -2473,19 +2473,6 @@ Resources Master::launchTask(
 
   slave->addTask(t);
   framework->addTask(t);
-
-  // Tell the slave to launch the task!
-  LOG(INFO) << "Launching task " << task.task_id()
-            << " of framework " << *framework
-            << " with resources " << task.resources()
-            << " on slave " << *slave;
-
-  RunTaskMessage message;
-  message.mutable_framework()->MergeFrom(framework->info);
-  message.mutable_framework_id()->MergeFrom(framework->id);
-  message.set_pid(framework->pid);
-  message.mutable_task()->MergeFrom(task);
-  send(slave->pid, message);
 
   return resources;
 }
@@ -2541,7 +2528,6 @@ void Master::_launchTasks(
   }
 
   Resources usedResources; // Accumulated resources used.
-
   size_t index = 0;
   foreach (const Future<bool>& authorization, authorizations.get()) {
     const TaskInfo& task = tasks[index++];
@@ -2587,21 +2573,21 @@ void Master::_launchTasks(
     }
 
     // Validate the task.
-    const Option<Error>& validation = validateTask(
+    const Option<Error>& validationError = validateTask(
         task,
         framework,
         slave,
         totalResources,
         usedResources);
 
-    if (validation.isSome()) {
+    if (validationError.isSome()) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
           framework->id,
           task.slave_id(),
           task.task_id(),
           TASK_ERROR,
           TaskStatus::SOURCE_MASTER,
-          validation.get().message,
+          validationError.get().message,
           TaskStatus::REASON_TASK_INVALID);
 
       metrics.tasks_error++;
@@ -2612,9 +2598,24 @@ void Master::_launchTasks(
       continue;
     }
 
-    // Launch task.
+    // Add task.
     if (pending) {
-      usedResources += launchTask(task, framework, slave);
+      usedResources += addTask(task, framework, slave);
+
+      // TODO(bmahler): Consider updating this log message to
+      // indicate when the executor is also being launched.
+      LOG(INFO) << "Launching task " << task.task_id()
+                << " of framework " << *framework
+                << " with resources " << task.resources()
+                << " on slave " << *slave;
+
+      RunTaskMessage message;
+      message.mutable_framework()->MergeFrom(framework->info);
+      message.mutable_framework_id()->MergeFrom(framework->id);
+      message.set_pid(framework->pid);
+      message.mutable_task()->MergeFrom(task);
+
+      send(slave->pid, message);
     }
   }
 
@@ -3072,7 +3073,6 @@ void Master::reregisterSlave(
     send(from, message);
     return;
   }
-
 
   if (slaves.removed.get(slaveInfo.id()).isSome()) {
     // To compensate for the case where a non-strict registrar is

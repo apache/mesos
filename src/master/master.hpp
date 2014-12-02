@@ -364,12 +364,6 @@ protected:
       const TaskInfo& task,
       Framework* framework);
 
-  // Launch a task from a task description.
-  Resources launchTask(
-      const TaskInfo& task,
-      Framework* framework,
-      Slave* slave);
-
   // 'launchTasks()' continuation.
   void _launchTasks(
       const FrameworkID& frameworkId,
@@ -378,6 +372,12 @@ protected:
       const Resources& totalResources,
       const Filters& filters,
       const process::Future<std::list<process::Future<bool>>>& authorizations);
+
+  // Add the task and its executor (if not already running) to the
+  // framework and slave. Returns the resources consumed as a result,
+  // which includes resources for the task and its executor
+  // (if not already running).
+  Resources addTask(const TaskInfo& task, Framework* framework, Slave* slave);
 
   // Transitions the task, and recovers resources if the task becomes
   // terminal.
