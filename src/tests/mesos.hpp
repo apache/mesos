@@ -670,7 +670,7 @@ public:
     ON_CALL(*this, frameworkDeactivated(_))
       .WillByDefault(InvokeFrameworkDeactivated(this));
 
-    ON_CALL(*this, slaveAdded(_, _, _))
+    ON_CALL(*this, slaveAdded(_, _, _, _))
       .WillByDefault(InvokeSlaveAdded(this));
 
     ON_CALL(*this, slaveRemoved(_))
@@ -701,29 +701,54 @@ public:
     process::wait(real);
   }
 
-  MOCK_METHOD3(initialize, void(const master::Flags&,
-                                const process::PID<master::Master>&,
-                                const hashmap<std::string, RoleInfo>&));
-  MOCK_METHOD3(frameworkAdded, void(const FrameworkID&,
-                                    const FrameworkInfo&,
-                                    const Resources&));
-  MOCK_METHOD1(frameworkRemoved, void(const FrameworkID&));
-  MOCK_METHOD2(frameworkActivated, void(const FrameworkID&,
-                                        const FrameworkInfo&));
-  MOCK_METHOD1(frameworkDeactivated, void(const FrameworkID&));
-  MOCK_METHOD3(slaveAdded, void(const SlaveID&,
-                                const SlaveInfo&,
-                                const hashmap<FrameworkID, Resources>&));
-  MOCK_METHOD1(slaveRemoved, void(const SlaveID&));
-  MOCK_METHOD1(slaveDeactivated, void(const SlaveID&));
-  MOCK_METHOD1(slaveActivated, void(const SlaveID&));
-  MOCK_METHOD1(updateWhitelist, void(const Option<hashset<std::string> >&));
-  MOCK_METHOD2(resourcesRequested, void(const FrameworkID&,
-                                        const std::vector<Request>&));
-  MOCK_METHOD4(resourcesRecovered, void(const FrameworkID&,
-                                        const SlaveID&,
-                                        const Resources&,
-                                        const Option<Filters>& filters));
+  MOCK_METHOD3(initialize, void(
+      const master::Flags&,
+      const process::PID<master::Master>&,
+      const hashmap<std::string, RoleInfo>&));
+
+  MOCK_METHOD3(frameworkAdded, void(
+      const FrameworkID&,
+      const FrameworkInfo&,
+      const Resources&));
+
+  MOCK_METHOD1(frameworkRemoved, void(
+      const FrameworkID&));
+
+  MOCK_METHOD2(frameworkActivated, void(
+      const FrameworkID&,
+      const FrameworkInfo&));
+
+  MOCK_METHOD1(frameworkDeactivated, void(
+      const FrameworkID&));
+
+  MOCK_METHOD4(slaveAdded, void(
+      const SlaveID&,
+      const SlaveInfo&,
+      const Resources&,
+      const hashmap<FrameworkID, Resources>&));
+
+  MOCK_METHOD1(slaveRemoved, void(
+      const SlaveID&));
+
+  MOCK_METHOD1(slaveDeactivated, void(
+      const SlaveID&));
+
+  MOCK_METHOD1(slaveActivated, void(
+      const SlaveID&));
+
+  MOCK_METHOD1(updateWhitelist, void(
+      const Option<hashset<std::string> >&));
+
+  MOCK_METHOD2(resourcesRequested, void(
+      const FrameworkID&,
+      const std::vector<Request>&));
+
+  MOCK_METHOD4(resourcesRecovered, void(
+      const FrameworkID&,
+      const SlaveID&,
+      const Resources&,
+      const Option<Filters>& filters));
+
   MOCK_METHOD1(offersRevived, void(const FrameworkID&));
 
   T real;
@@ -796,7 +821,8 @@ ACTION_P(InvokeSlaveAdded, allocator)
       &master::allocator::AllocatorProcess::slaveAdded,
       arg0,
       arg1,
-      arg2);
+      arg2,
+      arg3);
 }
 
 

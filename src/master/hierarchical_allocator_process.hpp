@@ -92,6 +92,7 @@ public:
   void slaveAdded(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const Resources& total,
       const hashmap<FrameworkID, Resources>& used);
 
   void slaveRemoved(
@@ -394,12 +395,11 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveAdded(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
+    const Resources& total,
     const hashmap<FrameworkID, Resources>& used)
 {
   CHECK(initialized);
   CHECK(!slaves.contains(slaveId));
-
-  const Resources& total = slaveInfo.resources();
 
   roleSorter->add(total);
 

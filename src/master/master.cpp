@@ -4408,7 +4408,14 @@ void Master::addSlave(
     }
   }
 
-  allocator->slaveAdded(slave->id, slave->info, slave->usedResources);
+  // TODO(bmahler): This will need to include resources that
+  // are "persisted" on the slave (e.g. persistent volumes,
+  // dynamic reservations, etc).
+  allocator->slaveAdded(
+      slave->id,
+      slave->info,
+      slave->info.resources(),
+      slave->usedResources);
 }
 
 

@@ -92,7 +92,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   slave::Flags flags1 = CreateSlaveFlags();
   flags1.resources = Some("cpus:2;mem:1024;disk:0");
 
-  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave1 = StartSlave(flags1);
   ASSERT_SOME(slave1);
@@ -150,7 +150,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   slave::Flags flags2 = CreateSlaveFlags();
   flags2.resources = Some("cpus:1;mem:512;disk:0");
 
-  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _));
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched2, resourceOffers(_, _))
@@ -177,7 +177,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   slave::Flags flags3 = CreateSlaveFlags();
   flags3.resources = Some("cpus:3;mem:2048;disk:0");
 
-  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _));
 
   Future<vector<Offer> > offers3;
   EXPECT_CALL(sched2, resourceOffers(_, _))
@@ -225,7 +225,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   slave::Flags flags4 = CreateSlaveFlags();
   flags4.resources = Some("cpus:4;mem:4096;disk:0");
 
-  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _));
 
   Future<vector<Offer> > offers4;
   EXPECT_CALL(sched3, resourceOffers(_, _))
@@ -275,7 +275,7 @@ TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
   slave::Flags flags5 = CreateSlaveFlags();
   flags5.resources = Some("cpus:1;mem:512;disk:0");
 
-  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _));
 
   Future<vector<Offer> > offers5;
   EXPECT_CALL(sched2, resourceOffers(_, _))
@@ -350,7 +350,7 @@ TEST_F(DRFAllocatorTest, PerSlaveAllocation)
   flags1.resources = Some("cpus:2;mem:1024;disk:0");
 
   Future<Nothing> slaveAdded1;
-  EXPECT_CALL(allocator, slaveAdded(_, _, _))
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _))
     .WillOnce(DoAll(InvokeSlaveAdded(&allocator),
                     FutureSatisfy(&slaveAdded1)));
 
@@ -364,7 +364,7 @@ TEST_F(DRFAllocatorTest, PerSlaveAllocation)
   flags2.resources = Some("cpus:2;mem:1024;disk:0");
 
   Future<Nothing> slaveAdded2;
-  EXPECT_CALL(allocator, slaveAdded(_, _, _))
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _))
     .WillOnce(DoAll(InvokeSlaveAdded(&allocator),
                     FutureSatisfy(&slaveAdded2)));
 
@@ -549,7 +549,7 @@ TEST_F(DRFAllocatorTest, SameShareAllocations)
     .WillRepeatedly(DoDefault());
 
   // Start the slave.
-  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
@@ -594,7 +594,7 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   ASSERT_SOME(master);
 
   Future<Nothing> slaveAdded;
-  EXPECT_CALL(allocator, slaveAdded(_, _, _))
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _))
     .WillOnce(DoDefault())
     .WillOnce(DoDefault())
     .WillOnce(DoDefault())
@@ -700,7 +700,7 @@ TEST_F(ReservationAllocatorTest, ReservedResources)
   flags5.default_role = "role1";
   flags5.resources = Some("cpus:1;mem:512;disk:0");
 
-  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _));
 
   Future<Nothing> resourceOffers4;
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(1, 512)))
@@ -751,7 +751,7 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  EXPECT_CALL(allocator, slaveAdded(_, _, _))
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _))
     .Times(2);
 
   Future<Nothing> slaveAdded1 = FUTURE_DISPATCH(
@@ -926,7 +926,7 @@ TYPED_TEST(AllocatorTest, MockAllocator)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:2;mem:1024;disk:0");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave = this->StartSlave(flags);
   ASSERT_SOME(slave);
@@ -984,7 +984,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:2;mem:1024");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
   ASSERT_SOME(slave1);
@@ -1095,7 +1095,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:2;mem:1024");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave1 = this->StartSlave(flags1);
   ASSERT_SOME(slave1);
@@ -1228,7 +1228,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:3;mem:1024");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
@@ -1372,7 +1372,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 
   flags.resources = Some("cpus:3;mem:1024");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave = this->StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
@@ -1513,7 +1513,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:2;mem:1024");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
   ASSERT_SOME(slave1);
@@ -1578,7 +1578,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
   slave::Flags flags2 = this->CreateSlaveFlags();
   flags2.resources = string("cpus:3;mem:256;disk:1024;ports:[31000-32000]");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   // Eventually after slave2 is launched, we should get
   // an offer that contains all of slave2's resources
@@ -1632,7 +1632,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:3;mem:1024");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
   ASSERT_SOME(slave1);
@@ -1681,7 +1681,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
   slave::Flags flags2 = this->CreateSlaveFlags();
   flags2.resources = Some("cpus:4;mem:2048");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   // After slave2 launches, all of its resources are combined with the
   // resources on slave1 that the task isn't using.
@@ -1733,7 +1733,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:3;mem:1024");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
@@ -1842,7 +1842,7 @@ TYPED_TEST(AllocatorTest, CpusOnlyOfferedAndTaskLaunched)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:2;mem:0");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
@@ -1930,7 +1930,7 @@ TYPED_TEST(AllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:0;mem:200");
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
@@ -2024,7 +2024,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:2;mem:1024");
@@ -2194,7 +2194,7 @@ TYPED_TEST(AllocatorTest, FrameworkReregistersFirst)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   StandaloneMasterDetector slaveDetector(master.get());
 
@@ -2269,7 +2269,7 @@ TYPED_TEST(AllocatorTest, FrameworkReregistersFirst)
 
   AWAIT_READY(frameworkAdded);
 
-  EXPECT_CALL(allocator2, slaveAdded(_, _, _));
+  EXPECT_CALL(allocator2, slaveAdded(_, _, _, _));
 
   Future<vector<Offer> > resourceOffers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -2321,7 +2321,7 @@ TYPED_TEST(AllocatorTest, SlaveReregistersFirst)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   StandaloneMasterDetector slaveDetector(master.get());
 
-  EXPECT_CALL(this->allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(this->allocator, slaveAdded(_, _, _, _));
 
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:2;mem:1024");
@@ -2378,7 +2378,7 @@ TYPED_TEST(AllocatorTest, SlaveReregistersFirst)
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
   Future<Nothing> slaveAdded;
-  EXPECT_CALL(allocator2, slaveAdded(_, _, _))
+  EXPECT_CALL(allocator2, slaveAdded(_, _, _, _))
     .WillOnce(DoAll(InvokeSlaveAdded(&allocator2),
                     FutureSatisfy(&slaveAdded)));
 

@@ -57,9 +57,6 @@ public:
 
   virtual ~AllocatorProcess() {}
 
-  // Explicitely use 'initialize' since we're overloading below.
-  using process::ProcessBase::initialize;
-
   virtual void initialize(
       const Flags& flags,
       const process::PID<Master>& master,
@@ -80,9 +77,15 @@ public:
   virtual void frameworkDeactivated(
       const FrameworkID& frameworkId) = 0;
 
+  // Note that the 'total' resources are passed explicitly because it
+  // includes resources that are dynamically "persisted" on the slave
+  // (e.g. persistent volumes, dynamic reservations, etc).
+  // The slaveInfo resources, on the other hand, correspond directly
+  // to the static --resources flag value on the slave.
   virtual void slaveAdded(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const Resources& total,
       const hashmap<FrameworkID, Resources>& used) = 0;
 
   virtual void slaveRemoved(
@@ -156,6 +159,7 @@ public:
   void slaveAdded(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const Resources& total,
       const hashmap<FrameworkID, Resources>& used);
 
   void slaveRemoved(
@@ -268,6 +272,7 @@ inline void Allocator::frameworkDeactivated(
 inline void Allocator::slaveAdded(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
+    const Resources& total,
     const hashmap<FrameworkID, Resources>& used)
 {
   process::dispatch(
@@ -275,6 +280,7 @@ inline void Allocator::slaveAdded(
       &AllocatorProcess::slaveAdded,
       slaveId,
       slaveInfo,
+      total,
       used);
 }
 

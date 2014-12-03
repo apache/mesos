@@ -2207,7 +2207,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  EXPECT_CALL(allocator, slaveAdded(_, _, _));
+  EXPECT_CALL(allocator, slaveAdded(_, _, _, _));
 
   Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
