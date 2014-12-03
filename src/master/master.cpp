@@ -1889,12 +1889,38 @@ struct UniqueTaskIDChecker : TaskInfoVisitor
 };
 
 
-// Checks that the used resources by a task on each slave does not
-// exceed the total resources offered on that slave.
-// NOTE: We do not account for executor resources here because tasks
-// are launched asynchronously and an executor might exit between
-// validation and actual launch. Therefore executor resources are
-// accounted for in 'Master::_launchTasks()'.
+// Checks that resources specified by the framework are valid.
+struct ResourceChecker : TaskInfoVisitor
+{
+  virtual Option<Error> operator () (
+      const TaskInfo& task,
+      const Framework& framework,
+      const Slave& slave,
+      const Resources& totalResources,
+      const Resources& usedResources)
+  {
+    Option<Error> error = Resources::validate(task.resources());
+    if (error.isSome()) {
+      return Error("Task uses invalid resources: " + error.get().message);
+    }
+
+    if (task.has_executor()) {
+      Option<Error> error = Resources::validate(task.executor().resources());
+      if (error.isSome()) {
+        return Error(
+            "Executor for task " + stringify(task.task_id()) +
+            " uses invalid resources: " + error.get().message);
+      }
+    }
+
+    return None();
+  }
+};
+
+
+// Checks that the task and the executor are using proper amount of
+// resources. For instance, the used resources by a task on each slave
+// should not exceed the total resources offered on that slave.
 struct ResourceUsageChecker : TaskInfoVisitor
 {
   virtual Option<Error> operator () (
@@ -1904,30 +1930,20 @@ struct ResourceUsageChecker : TaskInfoVisitor
       const Resources& totalResources,
       const Resources& usedResources)
   {
-    if (task.resources().size() == 0) {
+    Resources taskResources = task.resources();
+
+    if (taskResources.empty()) {
       return Error("Task uses no resources");
     }
 
-    Option<Error> error = Resources::validate(task.resources());
-    if (error.isSome()) {
-      return Error("Task uses invalid resources: " + error.get().message);
+    Resources executorResources;
+    if (task.has_executor()) {
+      executorResources = task.executor().resources();
     }
 
-    // Check this task's executor's resources.
-    Resources executorResources;
-
+    // Check minimal cpus and memory resources of executor and log
+    // warnings if not set.
     if (task.has_executor()) {
-      Option<Error> error = Resources::validate(task.executor().resources());
-      if (error.isSome()) {
-        return Error(
-            "Executor for task " + stringify(task.task_id()) +
-            " uses invalid resources: " + error.get().message);
-      }
-
-      executorResources = task.executor().resources();
-
-      // Check minimal cpus and memory resources of executor and log
-      // warnings if not set.
       // TODO(martin): MESOS-1807. Return Error instead of logging a
       // warning in 0.22.0.
       Option<double> cpus =  executorResources.cpus();
@@ -1957,10 +1973,9 @@ struct ResourceUsageChecker : TaskInfoVisitor
 
     // Check if resources needed by the task (and its executor in case
     // the executor is new) are available.
-    Resources resources = task.resources();
-
+    Resources resources = taskResources;
     if (!slave.hasExecutor(framework.id, task.executor().executor_id())) {
-      resources += task.executor().resources();
+      resources += executorResources;
     }
 
     if (!totalResources.contains(resources + usedResources)) {
@@ -2343,10 +2358,10 @@ Option<Error> Master::validateTask(
   CHECK_NOTNULL(framework);
   CHECK_NOTNULL(slave);
 
-  // Create task visitors. The order in which the following checkers
-  // are executed does matter! For example, ResourceUsageChecker
-  // assumes that ExecutorInfo is valid which is verified by
-  // ExecutorInfoChecker.
+  // Create task visitors.
+  // NOTE: The order in which the following checkers are executed does
+  // matter! For example, ResourceUsageChecker assumes that
+  // ExecutorInfo is valid which is verified by ExecutorInfoChecker.
   // TODO(vinod): Create the visitors on the stack and make the visit
   // operation const.
   list<Owned<TaskInfoVisitor>> taskVisitors;
@@ -2355,6 +2370,7 @@ Option<Error> Master::validateTask(
   taskVisitors.push_back(Owned<TaskInfoVisitor>(new UniqueTaskIDChecker()));
   taskVisitors.push_back(Owned<TaskInfoVisitor>(new CheckpointChecker()));
   taskVisitors.push_back(Owned<TaskInfoVisitor>(new ExecutorInfoChecker()));
+  taskVisitors.push_back(Owned<TaskInfoVisitor>(new ResourceChecker()));
   taskVisitors.push_back(Owned<TaskInfoVisitor>(new ResourceUsageChecker()));
 
   // TODO(benh): Add a HealthCheckChecker visitor.
