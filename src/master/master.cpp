@@ -1904,16 +1904,75 @@ struct ResourceChecker : TaskInfoVisitor
       return Error("Task uses invalid resources: " + error.get().message);
     }
 
+    // Ensure any DiskInfos in the task are valid according to the
+    // currently supported semantics.
+    foreach (const Resource& resource, task.resources()) {
+      if (resource.has_disk()) {
+        error = validateDiskInfo(resource);
+        if (error.isSome()) {
+          return Error("Task uses invalid DiskInfo: " + error.get().message);
+        }
+      }
+    }
+
     if (task.has_executor()) {
       Option<Error> error = Resources::validate(task.executor().resources());
       if (error.isSome()) {
         return Error(
-            "Executor for task " + stringify(task.task_id()) +
-            " uses invalid resources: " + error.get().message);
+            "Executor uses invalid resources: " + error.get().message);
+      }
+
+      // Ensure any DiskInfos in the executor are valid according to
+      // the currently supported semantics.
+      foreach (const Resource& resource, task.executor().resources()) {
+        if (resource.has_disk()) {
+          error = validateDiskInfo(resource);
+          if (error.isSome()) {
+            return Error(
+                "Executor uses invalid DiskInfo: " + error.get().message);
+          }
+        }
       }
     }
 
     return None();
+  }
+
+  Option<Error> validateDiskInfo(const Resource& resource)
+  {
+    CHECK(resource.has_disk());
+
+    if (resource.disk().has_persistence()) {
+      if (resource.role() == "*") {
+        return Error("Persistent disk volume is disallowed for '*' role");
+      }
+      if (!resource.disk().has_volume()) {
+        return Error("Persistent disk should specify a volume");
+      }
+      if (resource.disk().volume().mode() == Volume::RO) {
+        return Error("Read-only volume is not supported for DiskInfo");
+      }
+      if (resource.disk().volume().has_host_path()) {
+        return Error("Volume in DiskInfo should not have 'host_path' set");
+      }
+
+      // Ensure persistence ID does not have invalid characters.
+      string id = resource.disk().persistence().id();
+      if (std::count_if(id.begin(), id.end(), invalid) > 0) {
+        return Error("Persistence ID '" + id + "' contains invalid characters");
+      }
+    } else {
+      if (resource.disk().has_volume()) {
+        return Error("Non-persistent disk volume is not supported");
+      }
+    }
+
+    return None();
+  }
+
+  static bool invalid(char c)
+  {
+    return iscntrl(c) || c == '/' || c == '\\';
   }
 };
 
