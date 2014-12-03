@@ -27,6 +27,8 @@
 
 #include "messages/messages.hpp"
 
+using std::string;
+
 namespace mesos {
 namespace internal {
 namespace protobuf {
@@ -48,7 +50,7 @@ StatusUpdate createStatusUpdate(
     const TaskID& taskId,
     const TaskState& state,
     const TaskStatus::Source& source,
-    const std::string& message = "",
+    const string& message = "",
     const Option<TaskStatus::Reason>& reason = None(),
     const Option<ExecutorID>& executorId = None())
 {
@@ -117,14 +119,13 @@ MasterInfo createMasterInfo(const process::UPID& pid)
   info.set_port(pid.node.port);
   info.set_pid(pid);
 
-  Try<std::string> hostname = net::getHostname(pid.node.ip);
+  Try<string> hostname = net::getHostname(pid.node.ip);
   if (hostname.isSome()) {
     info.set_hostname(hostname.get());
   }
 
   return info;
 }
-
 
 } // namespace protobuf {
 } // namespace internal {

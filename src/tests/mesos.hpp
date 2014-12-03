@@ -359,6 +359,37 @@ inline TaskInfo createTask(
 }
 
 
+// NOTE: We only set the volume in DiskInfo if 'containerPath' is set.
+// If volume mode is not specified, Volume::RW will be used (assuming
+// 'containerPath' is set).
+inline Resource::DiskInfo createDiskInfo(
+    const Option<std::string>& persistenceId,
+    const Option<std::string>& containerPath,
+    const Option<Volume::Mode>& mode = None(),
+    const Option<std::string>& hostPath = None())
+{
+  Resource::DiskInfo info;
+
+  if (persistenceId.isSome()) {
+    info.mutable_persistence()->set_id(persistenceId.get());
+  }
+
+  if (containerPath.isSome()) {
+    Volume volume;
+    volume.set_container_path(containerPath.get());
+    volume.set_mode(mode.isSome() ? mode.get() : Volume::RW);
+
+    if (hostPath.isSome()) {
+      volume.set_host_path(hostPath.get());
+    }
+
+    info.mutable_volume()->CopyFrom(volume);
+  }
+
+  return info;
+}
+
+
 // Definition of a mock Scheduler to be used in tests with gmock.
 class MockScheduler : public Scheduler
 {

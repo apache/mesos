@@ -53,6 +53,11 @@ using testing::AtMost;
 using testing::Return;
 
 
+// TODO(jieyu): All of the task validation tests have the same flow:
+// launch a task, expect an update of a particular format (invalid w/
+// message). Consider providing common functionalities in the test
+// fixture to avoid code bloat. Ultimately, we should make task or
+// offer validation unit testable.
 class TaskValidationTest : public MesosTest {};
 
 
@@ -548,6 +553,378 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
   Shutdown();
 }
 
+
+TEST_F(TaskValidationTest, UnreservedDiskInfo)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Create a persistent disk resource with "*" role.
+  Resource diskResource = Resources::parse("disk", "128", "*").get();
+  diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", "1"));
+
+  // Include persistent disk resource in task resources.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128").get() + diskResource;
+
+  Offer offer = offers.get()[0];
+  TaskInfo task =
+    createTask(offer.slave_id(), taskResources, "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  EXPECT_TRUE(status.get().has_message());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(),
+      "Persistent disk volume is disallowed for '*' role"));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(TaskValidationTest, InvalidPersistenceID)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Create a persistent disk resource with an invalid persistence id.
+  Resource diskResource = Resources::parse("disk", "128", "role1").get();
+  diskResource.mutable_disk()->CopyFrom(createDiskInfo("1/", "1"));
+
+  // Include persistent disk resource in task resources.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128").get() + diskResource;
+
+  Offer offer = offers.get()[0];
+  TaskInfo task =
+    createTask(offer.slave_id(), taskResources, "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  EXPECT_TRUE(status.get().has_message());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(),
+      "Persistence ID '1/' contains invalid characters"));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(TaskValidationTest, PersistentDiskInfoWithoutVolume)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Create a persistent disk resource without a volume.
+  Resource diskResource = Resources::parse("disk", "128", "role1").get();
+  diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", None()));
+
+  // Include persistent disk resource in task resources.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128").get() + diskResource;
+
+  Offer offer = offers.get()[0];
+  TaskInfo task =
+    createTask(offer.slave_id(), taskResources, "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  EXPECT_TRUE(status.get().has_message());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(),
+      "Persistent disk should specify a volume"));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(TaskValidationTest, PersistentDiskInfoWithReadOnlyVolume)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Create a persistent disk resource with read-only volume.
+  Resource diskResource = Resources::parse("disk", "128", "role1").get();
+  diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", "1", Volume::RO));
+
+  // Include persistent disk resource in task resources.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128").get() + diskResource;
+
+  Offer offer = offers.get()[0];
+  TaskInfo task =
+    createTask(offer.slave_id(), taskResources, "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  EXPECT_TRUE(status.get().has_message());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(),
+      "Read-only volume is not supported for DiskInfo"));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(TaskValidationTest, PersistentDiskInfoWithHostPath)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Create a persistent disk resource with host path in the volume.
+  Resource diskResource = Resources::parse("disk", "128", "role1").get();
+  diskResource.mutable_disk()->CopyFrom(
+      createDiskInfo("1", "1", Volume::RW, "foo"));
+
+  // Include persistent disk resource in task resources.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128").get() + diskResource;
+
+  Offer offer = offers.get()[0];
+  TaskInfo task =
+    createTask(offer.slave_id(), taskResources, "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  EXPECT_TRUE(status.get().has_message());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(),
+      "Volume in DiskInfo should not have 'host_path' set"));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(TaskValidationTest, NonPersistentDiskInfoWithVolume)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Create a non-persistent disk resource with volume.
+  Resource diskResource = Resources::parse("disk", "128", "role1").get();
+  diskResource.mutable_disk()->CopyFrom(createDiskInfo(None(), "1"));
+
+  // Include non-persistent disk resource in task resources.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128").get() + diskResource;
+
+  Offer offer = offers.get()[0];
+  TaskInfo task =
+    createTask(offer.slave_id(), taskResources, "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  EXPECT_TRUE(status.get().has_message());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(),
+      "Non-persistent disk volume is not supported"));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
 
 // TODO(benh): Add tests for checking correct slave IDs.
 
