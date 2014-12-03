@@ -628,7 +628,6 @@ template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::batch()
 {
-  CHECK(initialized);
   allocate();
   delay(flags.allocation_interval, self(), &Self::batch);
 }
@@ -638,8 +637,6 @@ template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate()
 {
-  CHECK(initialized);
-
   Stopwatch stopwatch;
   stopwatch.start();
 
@@ -655,8 +652,6 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     const SlaveID& slaveId)
 {
-  CHECK(initialized);
-
   hashset<SlaveID> slaveIds;
   slaveIds.insert(slaveId);
 
@@ -675,8 +670,6 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     const hashset<SlaveID>& slaveIds_)
 {
-  CHECK(initialized);
-
   if (roleSorter->count() == 0) {
     VLOG(1) << "No roles to allocate resources!";
     return;
@@ -771,7 +764,6 @@ bool
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::isWhitelisted(
     const SlaveID& slaveId)
 {
-  CHECK(initialized);
   CHECK(slaves.contains(slaveId));
 
   return whitelist.isNone() ||
