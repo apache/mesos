@@ -64,7 +64,6 @@ struct Slave
   explicit Slave(const SlaveInfo& _info)
     : available(_info.resources()),
       activated(true),
-      whitelisted(false),
       checkpoint(_info.checkpoint()),
       info(_info) {}
 
@@ -78,10 +77,6 @@ struct Slave
   // Whether the slave is activated. Resources are not offered for
   // deactivated slaves until they are reactivated.
   bool activated;
-
-  // Indicates if the resources on this slave should be offered to
-  // frameworks.
-  bool whitelisted;
 
   bool checkpoint;
 private:
@@ -191,7 +186,7 @@ protected:
   void expire(const FrameworkID& frameworkId, Filter* filter);
 
   // Checks whether the slave is whitelisted.
-  bool isWhitelisted(const SlaveID& slave);
+  bool isWhitelisted(const SlaveID& slaveId);
 
   // Returns true if there is a filter for this framework
   // on this slave.
@@ -418,7 +413,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveAdded(
   CHECK(!slaves.contains(slaveId));
 
   slaves[slaveId] = Slave(slaveInfo);
-  slaves[slaveId].whitelisted = isWhitelisted(slaveId);
 
   roleSorter->add(slaveInfo.resources());
 
@@ -510,10 +504,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateWhitelist(
 
     if (whitelist.get().empty()) {
       LOG(WARNING) << "Whitelist is empty, no offers will be made!";
-    }
-
-    foreachkey (const SlaveID& slaveId, slaves) {
-      slaves[slaveId].whitelisted = isWhitelisted(slaveId);
     }
   } else {
     LOG(INFO) << "Advertising offers for all slaves";
@@ -711,8 +701,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
 
   hashmap<FrameworkID, hashmap<SlaveID, Resources> > offerable;
   foreach (const SlaveID& slaveId, slaveIds) {
-    // If the slave is not activated or whitelisted, ignore it.
-    if (!slaves[slaveId].activated || !slaves[slaveId].whitelisted) {
+    // Don't send offers for non-whitelisted and deactivated slaves.
+    if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
       continue;
     }
 
