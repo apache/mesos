@@ -658,40 +658,40 @@ public:
     ON_CALL(*this, initialize(_, _, _))
       .WillByDefault(InvokeInitialize(this));
 
-    ON_CALL(*this, frameworkAdded(_, _, _))
+    ON_CALL(*this, addFramework(_, _, _))
       .WillByDefault(InvokeFrameworkAdded(this));
 
-    ON_CALL(*this, frameworkRemoved(_))
+    ON_CALL(*this, removeFramework(_))
       .WillByDefault(InvokeFrameworkRemoved(this));
 
-    ON_CALL(*this, frameworkActivated(_, _))
+    ON_CALL(*this, activateFramework(_, _))
       .WillByDefault(InvokeFrameworkActivated(this));
 
-    ON_CALL(*this, frameworkDeactivated(_))
+    ON_CALL(*this, deactivateFramework(_))
       .WillByDefault(InvokeFrameworkDeactivated(this));
 
-    ON_CALL(*this, slaveAdded(_, _, _, _))
+    ON_CALL(*this, addSlave(_, _, _, _))
       .WillByDefault(InvokeSlaveAdded(this));
 
-    ON_CALL(*this, slaveRemoved(_))
+    ON_CALL(*this, removeSlave(_))
       .WillByDefault(InvokeSlaveRemoved(this));
 
-    ON_CALL(*this, slaveDeactivated(_))
-      .WillByDefault(InvokeSlaveDeactivated(this));
-
-    ON_CALL(*this, slaveActivated(_))
+    ON_CALL(*this, activateSlave(_))
       .WillByDefault(InvokeSlaveReactivated(this));
+
+    ON_CALL(*this, deactivateSlave(_))
+      .WillByDefault(InvokeSlaveDeactivated(this));
 
     ON_CALL(*this, updateWhitelist(_))
       .WillByDefault(InvokeUpdateWhitelist(this));
 
-    ON_CALL(*this, resourcesRequested(_, _))
+    ON_CALL(*this, requestResources(_, _))
       .WillByDefault(InvokeResourcesRequested(this));
 
-    ON_CALL(*this, resourcesRecovered(_, _, _, _))
+    ON_CALL(*this, recoverResources(_, _, _, _))
       .WillByDefault(InvokeResourcesRecovered(this));
 
-    ON_CALL(*this, offersRevived(_))
+    ON_CALL(*this, reviveOffers(_))
       .WillByDefault(InvokeOffersRevived(this));
   }
 
@@ -706,50 +706,50 @@ public:
       const process::PID<master::Master>&,
       const hashmap<std::string, RoleInfo>&));
 
-  MOCK_METHOD3(frameworkAdded, void(
+  MOCK_METHOD3(addFramework, void(
       const FrameworkID&,
       const FrameworkInfo&,
       const Resources&));
 
-  MOCK_METHOD1(frameworkRemoved, void(
+  MOCK_METHOD1(removeFramework, void(
       const FrameworkID&));
 
-  MOCK_METHOD2(frameworkActivated, void(
+  MOCK_METHOD2(activateFramework, void(
       const FrameworkID&,
       const FrameworkInfo&));
 
-  MOCK_METHOD1(frameworkDeactivated, void(
+  MOCK_METHOD1(deactivateFramework, void(
       const FrameworkID&));
 
-  MOCK_METHOD4(slaveAdded, void(
+  MOCK_METHOD4(addSlave, void(
       const SlaveID&,
       const SlaveInfo&,
       const Resources&,
       const hashmap<FrameworkID, Resources>&));
 
-  MOCK_METHOD1(slaveRemoved, void(
+  MOCK_METHOD1(removeSlave, void(
       const SlaveID&));
 
-  MOCK_METHOD1(slaveDeactivated, void(
+  MOCK_METHOD1(activateSlave, void(
       const SlaveID&));
 
-  MOCK_METHOD1(slaveActivated, void(
+  MOCK_METHOD1(deactivateSlave, void(
       const SlaveID&));
 
   MOCK_METHOD1(updateWhitelist, void(
       const Option<hashset<std::string> >&));
 
-  MOCK_METHOD2(resourcesRequested, void(
+  MOCK_METHOD2(requestResources, void(
       const FrameworkID&,
       const std::vector<Request>&));
 
-  MOCK_METHOD4(resourcesRecovered, void(
+  MOCK_METHOD4(recoverResources, void(
       const FrameworkID&,
       const SlaveID&,
       const Resources&,
       const Option<Filters>& filters));
 
-  MOCK_METHOD1(offersRevived, void(const FrameworkID&));
+  MOCK_METHOD1(reviveOffers, void(const FrameworkID&));
 
   T real;
 };
@@ -761,9 +761,9 @@ AllocatorTypes;
 
 // The following actions make up for the fact that DoDefault
 // cannot be used inside a DoAll, for example:
-// EXPECT_CALL(allocator, frameworkAdded(_, _, _))
+// EXPECT_CALL(allocator, addFramework(_, _, _))
 //   .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
-//                   FutureSatisfy(&frameworkAdded)));
+//                   FutureSatisfy(&addFramework)));
 
 ACTION_P(InvokeInitialize, allocator)
 {
@@ -780,7 +780,7 @@ ACTION_P(InvokeFrameworkAdded, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::frameworkAdded,
+      &master::allocator::AllocatorProcess::addFramework,
       arg0,
       arg1,
       arg2);
@@ -791,7 +791,7 @@ ACTION_P(InvokeFrameworkRemoved, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::frameworkRemoved, arg0);
+      &master::allocator::AllocatorProcess::removeFramework, arg0);
 }
 
 
@@ -799,7 +799,7 @@ ACTION_P(InvokeFrameworkActivated, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::frameworkActivated,
+      &master::allocator::AllocatorProcess::activateFramework,
       arg0,
       arg1);
 }
@@ -809,7 +809,7 @@ ACTION_P(InvokeFrameworkDeactivated, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::frameworkDeactivated,
+      &master::allocator::AllocatorProcess::deactivateFramework,
       arg0);
 }
 
@@ -818,7 +818,7 @@ ACTION_P(InvokeSlaveAdded, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::slaveAdded,
+      &master::allocator::AllocatorProcess::addSlave,
       arg0,
       arg1,
       arg2,
@@ -830,16 +830,7 @@ ACTION_P(InvokeSlaveRemoved, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::slaveRemoved,
-      arg0);
-}
-
-
-ACTION_P(InvokeSlaveDeactivated, allocator)
-{
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::slaveDeactivated,
+      &master::allocator::AllocatorProcess::removeSlave,
       arg0);
 }
 
@@ -848,7 +839,16 @@ ACTION_P(InvokeSlaveReactivated, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::slaveActivated,
+      &master::allocator::AllocatorProcess::activateSlave,
+      arg0);
+}
+
+
+ACTION_P(InvokeSlaveDeactivated, allocator)
+{
+  process::dispatch(
+      allocator->real,
+      &master::allocator::AllocatorProcess::deactivateSlave,
       arg0);
 }
 
@@ -866,7 +866,7 @@ ACTION_P(InvokeResourcesRequested, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::resourcesRequested,
+      &master::allocator::AllocatorProcess::requestResources,
       arg0,
       arg1);
 }
@@ -876,7 +876,7 @@ ACTION_P(InvokeResourcesRecovered, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::resourcesRecovered,
+      &master::allocator::AllocatorProcess::recoverResources,
       arg0,
       arg1,
       arg2,
@@ -891,7 +891,7 @@ ACTION_P2(InvokeResourcesRecoveredWithFilters, allocator, timeout)
 
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::resourcesRecovered,
+      &master::allocator::AllocatorProcess::recoverResources,
       arg0,
       arg1,
       arg2,
@@ -903,7 +903,7 @@ ACTION_P(InvokeOffersRevived, allocator)
 {
   process::dispatch(
       allocator->real,
-      &master::allocator::AllocatorProcess::offersRevived,
+      &master::allocator::AllocatorProcess::reviveOffers,
       arg0);
 }
 

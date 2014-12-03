@@ -801,7 +801,7 @@ TEST_F(ResourceOffersTest, Request)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, frameworkAdded(_, _, _))
+  EXPECT_CALL(allocator, addFramework(_, _, _))
     .Times(1);
 
   Future<Nothing> registered;
@@ -818,7 +818,7 @@ TEST_F(ResourceOffersTest, Request)
   sent.push_back(request);
 
   Future<vector<Request>> received;
-  EXPECT_CALL(allocator, resourcesRequested(_, _))
+  EXPECT_CALL(allocator, requestResources(_, _))
     .WillOnce(FutureArg<1>(&received));
 
   driver.requestResources(sent);
@@ -828,10 +828,10 @@ TEST_F(ResourceOffersTest, Request)
   EXPECT_NE(0u, received.get().size());
   EXPECT_EQ(request.slave_id(), received.get()[0].slave_id());
 
-  EXPECT_CALL(allocator, frameworkDeactivated(_))
+  EXPECT_CALL(allocator, deactivateFramework(_))
     .Times(AtMost(1)); // Races with shutting down the cluster.
 
-  EXPECT_CALL(allocator, frameworkRemoved(_))
+  EXPECT_CALL(allocator, removeFramework(_))
     .Times(AtMost(1)); // Races with shutting down the cluster.
 
   driver.stop();

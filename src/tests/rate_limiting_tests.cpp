@@ -189,8 +189,8 @@ TEST_F(RateLimitingTest, NoRateLimiting)
     EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
   }
 
-  Future<Nothing> frameworkRemoved =
-    FUTURE_DISPATCH(_, &AllocatorProcess::frameworkRemoved);
+  Future<Nothing> removeFramework =
+    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
 
   driver->stop();
   driver->join();
@@ -200,7 +200,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   // 'sched' that reaches Master after its registration) gets
   // processed without Clock advances proves that the framework is
   // given unlimited rate.
-  AWAIT_READY(frameworkRemoved);
+  AWAIT_READY(removeFramework);
 
   // For metrics endpoint.
   Clock::advance(Milliseconds(501));
@@ -568,8 +568,8 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
 
   // 3. Remove a framework and its message counters are deleted while
   // the other framework's counters stay.
-  Future<Nothing> frameworkRemoved =
-    FUTURE_DISPATCH(_, &AllocatorProcess::frameworkRemoved);
+  Future<Nothing> removeFramework =
+    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
 
   driver1->stop();
   driver1->join();
@@ -578,7 +578,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   // No need to advance again because we already advanced 1sec for
   // sched2 so the RateLimiter for sched1 doesn't impose a delay this
   // time.
-  AWAIT_READY(frameworkRemoved);
+  AWAIT_READY(removeFramework);
 
   // Settle to avoid the race between the removal of the counters and
   // the metrics endpoint query.
@@ -735,8 +735,8 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
 
   AWAIT_READY(duplicateFrameworkRegisteredMessage2);
 
-  Future<Nothing> frameworkRemoved =
-    FUTURE_DISPATCH(_, &AllocatorProcess::frameworkRemoved);
+  Future<Nothing> removeFramework =
+    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
 
   driver1->stop();
   driver1->join();
@@ -746,7 +746,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   Clock::settle();
   Clock::advance(Seconds(1));
 
-  AWAIT_READY(frameworkRemoved);
+  AWAIT_READY(removeFramework);
 
   // Message counters are not removed after the first framework is
   // unregistered.

@@ -69,19 +69,20 @@ public:
       const process::PID<Master>& master,
       const hashmap<std::string, RoleInfo>& roles);
 
-  void frameworkAdded(
+  void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const Resources& used);
 
-  void frameworkRemoved(
+  void removeFramework(
       const FrameworkID& frameworkId);
 
-  void frameworkActivated(
+  // Offers are sent only to activated frameworks.
+  void activateFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo);
 
-  void frameworkDeactivated(
+  void deactivateFramework(
       const FrameworkID& frameworkId);
 
   // Note that the 'total' resources are passed explicitly because it
@@ -89,34 +90,32 @@ public:
   // (e.g. persistent volumes, dynamic reservations, etc).
   // The slaveInfo resources, on the other hand, correspond directly
   // to the static --resources flag value on the slave.
-  void slaveAdded(
+  void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used);
 
-  void slaveRemoved(
+  void removeSlave(
       const SlaveID& slaveId);
 
-  // No longer offers resources for the deactivated slave.
-  void slaveDeactivated(
+  // Offers are sent only for activated slaves.
+  void activateSlave(
       const SlaveID& slaveId);
 
-  // Offers resources for the activated slave.
-  void slaveActivated(
+  void deactivateSlave(
       const SlaveID& slaveId);
 
   void updateWhitelist(
       const Option<hashset<std::string> >& whitelist);
 
-  void resourcesRequested(
+  void requestResources(
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
 
-  // Whenever resources are "recovered" in the cluster (e.g., a task
-  // finishes, an offer is removed because a framework has failed or
-  // is failing over), or a framework refuses them.
-  void resourcesRecovered(
+  // Informs the allocator to recover resources that are considered
+  // used by the framework.
+  void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
@@ -124,7 +123,7 @@ public:
 
   // Whenever a framework that has filtered resources wants to revive
   // offers for those resources the master invokes this callback.
-  void offersRevived(
+  void reviveOffers(
       const FrameworkID& frameworkId);
 
 private:
@@ -147,50 +146,50 @@ public:
       const process::PID<Master>& master,
       const hashmap<std::string, RoleInfo>& roles) = 0;
 
-  virtual void frameworkAdded(
+  virtual void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const Resources& used) = 0;
 
-  virtual void frameworkRemoved(
+  virtual void removeFramework(
       const FrameworkID& frameworkId) = 0;
 
-  virtual void frameworkActivated(
+  virtual void activateFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo) = 0;
 
-  virtual void frameworkDeactivated(
+  virtual void deactivateFramework(
       const FrameworkID& frameworkId) = 0;
 
-  virtual void slaveAdded(
+  virtual void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used) = 0;
 
-  virtual void slaveRemoved(
+  virtual void removeSlave(
       const SlaveID& slaveId) = 0;
 
-  virtual void slaveDeactivated(
+  virtual void activateSlave(
       const SlaveID& slaveId) = 0;
 
-  virtual void slaveActivated(
+  virtual void deactivateSlave(
       const SlaveID& slaveId) = 0;
 
   virtual void updateWhitelist(
       const Option<hashset<std::string> >& whitelist) = 0;
 
-  virtual void resourcesRequested(
+  virtual void requestResources(
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests) = 0;
 
-  virtual void resourcesRecovered(
+  virtual void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
       const Option<Filters>& filters) = 0;
 
-  virtual void offersRevived(
+  virtual void reviveOffers(
       const FrameworkID& frameworkId) = 0;
 };
 
@@ -223,53 +222,53 @@ inline void Allocator::initialize(
 }
 
 
-inline void Allocator::frameworkAdded(
+inline void Allocator::addFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const Resources& used)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::frameworkAdded,
+      &AllocatorProcess::addFramework,
       frameworkId,
       frameworkInfo,
       used);
 }
 
 
-inline void Allocator::frameworkRemoved(
+inline void Allocator::removeFramework(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::frameworkRemoved,
+      &AllocatorProcess::removeFramework,
       frameworkId);
 }
 
 
-inline void Allocator::frameworkActivated(
+inline void Allocator::activateFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::frameworkActivated,
+      &AllocatorProcess::activateFramework,
       frameworkId,
       frameworkInfo);
 }
 
 
-inline void Allocator::frameworkDeactivated(
+inline void Allocator::deactivateFramework(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::frameworkDeactivated,
+      &AllocatorProcess::deactivateFramework,
       frameworkId);
 }
 
 
-inline void Allocator::slaveAdded(
+inline void Allocator::addSlave(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
     const Resources& total,
@@ -277,7 +276,7 @@ inline void Allocator::slaveAdded(
 {
   process::dispatch(
       process,
-      &AllocatorProcess::slaveAdded,
+      &AllocatorProcess::addSlave,
       slaveId,
       slaveInfo,
       total,
@@ -285,29 +284,29 @@ inline void Allocator::slaveAdded(
 }
 
 
-inline void Allocator::slaveRemoved(const SlaveID& slaveId)
+inline void Allocator::removeSlave(const SlaveID& slaveId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::slaveRemoved,
+      &AllocatorProcess::removeSlave,
       slaveId);
 }
 
 
-inline void Allocator::slaveDeactivated(const SlaveID& slaveId)
+inline void Allocator::activateSlave(const SlaveID& slaveId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::slaveDeactivated,
+      &AllocatorProcess::activateSlave,
       slaveId);
 }
 
 
-inline void Allocator::slaveActivated(const SlaveID& slaveId)
+inline void Allocator::deactivateSlave(const SlaveID& slaveId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::slaveActivated,
+      &AllocatorProcess::deactivateSlave,
       slaveId);
 }
 
@@ -322,19 +321,19 @@ inline void Allocator::updateWhitelist(
 }
 
 
-inline void Allocator::resourcesRequested(
+inline void Allocator::requestResources(
     const FrameworkID& frameworkId,
     const std::vector<Request>& requests)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::resourcesRequested,
+      &AllocatorProcess::requestResources,
       frameworkId,
       requests);
 }
 
 
-inline void Allocator::resourcesRecovered(
+inline void Allocator::recoverResources(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources,
@@ -342,7 +341,7 @@ inline void Allocator::resourcesRecovered(
 {
   process::dispatch(
       process,
-      &AllocatorProcess::resourcesRecovered,
+      &AllocatorProcess::recoverResources,
       frameworkId,
       slaveId,
       resources,
@@ -350,12 +349,12 @@ inline void Allocator::resourcesRecovered(
 }
 
 
-inline void Allocator::offersRevived(
+inline void Allocator::reviveOffers(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::offersRevived,
+      &AllocatorProcess::reviveOffers,
       frameworkId);
 }
 

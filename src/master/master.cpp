@@ -1565,7 +1565,7 @@ void Master::_reregisterFramework(
       // replied to the offers but the driver might have dropped
       // those messages since it wasn't connected to the master.
       foreach (Offer* offer, utils::copy(framework->offers)) {
-        allocator->resourcesRecovered(
+        allocator->recoverResources(
             offer->framework_id(),
             offer->slave_id(),
             offer->resources(),
@@ -1580,7 +1580,7 @@ void Master::_reregisterFramework(
       // the allocator has the correct view of the framework's share.
       if (!framework->active) {
         framework->active = true;
-        allocator->frameworkActivated(framework->id, framework->info);
+        allocator->activateFramework(framework->id, framework->info);
       }
 
       FrameworkReregisteredMessage message;
@@ -1718,11 +1718,11 @@ void Master::deactivate(Framework* framework)
   framework->active = false;
 
   // Tell the allocator to stop allocating resources to this framework.
-  allocator->frameworkDeactivated(framework->id);
+  allocator->deactivateFramework(framework->id);
 
   // Remove the framework's offers.
   foreach (Offer* offer, utils::copy(framework->offers)) {
-    allocator->resourcesRecovered(
+    allocator->recoverResources(
         offer->framework_id(), offer->slave_id(), offer->resources(), None());
     removeOffer(offer, true); // Rescind.
   }
@@ -1756,11 +1756,11 @@ void Master::deactivate(Slave* slave)
 
   slave->active = false;
 
-  allocator->slaveDeactivated(slave->id);
+  allocator->deactivateSlave(slave->id);
 
   // Remove and rescind offers.
   foreach (Offer* offer, utils::copy(slave->offers)) {
-    allocator->resourcesRecovered(
+    allocator->recoverResources(
         offer->framework_id(), slave->id, offer->resources(), None());
 
     removeOffer(offer, true); // Rescind!
@@ -1792,7 +1792,7 @@ void Master::resourceRequest(
   }
 
   LOG(INFO) << "Requesting resources for framework " << *framework;
-  allocator->resourcesRequested(frameworkId, requests);
+  allocator->requestResources(frameworkId, requests);
 }
 
 
@@ -2259,7 +2259,7 @@ void Master::launchTasks(
         used += offer->resources();
 
         if (error.isSome()) {
-          allocator->resourcesRecovered(
+          allocator->recoverResources(
               offer->framework_id(),
               offer->slave_id(),
               offer->resources(),
@@ -2486,7 +2486,7 @@ void Master::_launchTasks(
       << " because the framework cannot be found";
 
     // Tell the allocator about the recovered resources.
-    allocator->resourcesRecovered(frameworkId, slaveId, totalResources, None());
+    allocator->recoverResources(frameworkId, slaveId, totalResources, None());
 
     return;
   }
@@ -2512,7 +2512,7 @@ void Master::_launchTasks(
     }
 
     // Tell the allocator about the recovered resources.
-    allocator->resourcesRecovered(frameworkId, slaveId, totalResources, None());
+    allocator->recoverResources(frameworkId, slaveId, totalResources, None());
 
     return;
   }
@@ -2614,7 +2614,7 @@ void Master::_launchTasks(
 
   if (!unusedResources.empty()) {
     // Tell the allocator about the unused (e.g., refused) resources.
-    allocator->resourcesRecovered(
+    allocator->recoverResources(
         frameworkId, slaveId, unusedResources, filters);
   }
 }
@@ -2641,7 +2641,7 @@ void Master::reviveOffers(const UPID& from, const FrameworkID& frameworkId)
   }
 
   LOG(INFO) << "Reviving offers for framework " << *framework;
-  allocator->offersRevived(framework->id);
+  allocator->reviveOffers(framework->id);
 }
 
 
@@ -3117,7 +3117,7 @@ void Master::reregisterSlave(
       slave->connected = true;
       dispatch(slave->observer, &SlaveObserver::reconnect);
       slave->active = true;
-      allocator->slaveActivated(slave->id);
+      allocator->activateSlave(slave->id);
     }
 
     CHECK(slave->active)
@@ -3638,7 +3638,7 @@ void Master::offer(const FrameworkID& frameworkId,
                  << " has terminated or is inactive";
 
     foreachpair (const SlaveID& slaveId, const Resources& offered, resources) {
-      allocator->resourcesRecovered(frameworkId, slaveId, offered, None());
+      allocator->recoverResources(frameworkId, slaveId, offered, None());
     }
     return;
   }
@@ -3653,7 +3653,7 @@ void Master::offer(const FrameworkID& frameworkId,
         << "Master returning resources offered to framework " << *framework
         << " because slave " << slaveId << " is not valid";
 
-      allocator->resourcesRecovered(frameworkId, slaveId, offered, None());
+      allocator->recoverResources(frameworkId, slaveId, offered, None());
       continue;
     }
 
@@ -3670,7 +3670,7 @@ void Master::offer(const FrameworkID& frameworkId,
         << "Master returning resources offered because slave " << *slave
         << " is " << (slave->connected ? "deactivated" : "disconnected");
 
-      allocator->resourcesRecovered(frameworkId, slaveId, offered, None());
+      allocator->recoverResources(frameworkId, slaveId, offered, None());
       continue;
     }
 
@@ -3692,7 +3692,7 @@ void Master::offer(const FrameworkID& frameworkId,
                      << "executors";
         // Pass a default filter to avoid getting this same offer immediately
         // from the allocator.
-        allocator->resourcesRecovered(frameworkId, slaveId, offered, Filters());
+        allocator->recoverResources(frameworkId, slaveId, offered, Filters());
         continue;
       }
     }
@@ -4080,7 +4080,7 @@ void Master::addFramework(Framework* framework)
   // There should be no offered resources yet!
   CHECK_EQ(Resources(), framework->offeredResources);
 
-  allocator->frameworkAdded(
+  allocator->addFramework(
       framework->id,
       framework->info,
       framework->usedResources);
@@ -4150,7 +4150,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   // registered message so that the allocator can immediately re-offer
   // these resources to this framework if it wants.
   foreach (Offer* offer, utils::copy(framework->offers)) {
-    allocator->resourcesRecovered(
+    allocator->recoverResources(
         offer->framework_id(), offer->slave_id(), offer->resources(), None());
     removeOffer(offer);
   }
@@ -4162,7 +4162,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   // the allocator has the correct view of the framework's share.
   if (!framework->active) {
     framework->active = true;
-    allocator->frameworkActivated(framework->id, framework->info);
+    allocator->activateFramework(framework->id, framework->info);
   }
 
   // 'Failover' the framework's metrics. i.e., change the lookup key
@@ -4184,7 +4184,7 @@ void Master::removeFramework(Framework* framework)
     // Tell the allocator to stop allocating resources to this framework.
     // TODO(vinod): Consider setting  framework->active to false here
     // or just calling 'deactivate(Framework*)'.
-    allocator->frameworkDeactivated(framework->id);
+    allocator->deactivateFramework(framework->id);
   }
 
   // Tell slaves to shutdown the framework.
@@ -4233,7 +4233,7 @@ void Master::removeFramework(Framework* framework)
 
   // Remove the framework's offers (if they weren't removed before).
   foreach (Offer* offer, utils::copy(framework->offers)) {
-    allocator->resourcesRecovered(
+    allocator->recoverResources(
         offer->framework_id(),
         offer->slave_id(),
         offer->resources(),
@@ -4288,7 +4288,7 @@ void Master::removeFramework(Framework* framework)
 
   // Remove the framework.
   frameworks.registered.erase(framework->id);
-  allocator->frameworkRemoved(framework->id);
+  allocator->removeFramework(framework->id);
 }
 
 
@@ -4411,7 +4411,7 @@ void Master::addSlave(
   // TODO(bmahler): This will need to include resources that
   // are "persisted" on the slave (e.g. persistent volumes,
   // dynamic reservations, etc).
-  allocator->slaveAdded(
+  allocator->addSlave(
       slave->id,
       slave->info,
       slave->info.resources(),
@@ -4427,7 +4427,7 @@ void Master::removeSlave(Slave* slave)
 
   // We do this first, to make sure any of the resources recovered
   // below (e.g., removeTask()) are ignored by the allocator.
-  allocator->slaveRemoved(slave->id);
+  allocator->removeSlave(slave->id);
 
   // Transition the tasks to lost and remove them, BUT do not send
   // updates. Rather, build up the updates so that we can send them
@@ -4462,9 +4462,9 @@ void Master::removeSlave(Slave* slave)
   }
 
   foreach (Offer* offer, utils::copy(slave->offers)) {
-    // TODO(vinod): We don't need to call 'Allocator::resourcesRecovered'
+    // TODO(vinod): We don't need to call 'Allocator::recoverResources'
     // once MESOS-621 is fixed.
-    allocator->resourcesRecovered(
+    allocator->recoverResources(
         offer->framework_id(), slave->id, offer->resources(), None());
 
     // Remove and rescind offers.
@@ -4618,7 +4618,7 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
 
   // Once the task becomes terminal, we recover the resources.
   if (terminated) {
-    allocator->resourcesRecovered(
+    allocator->recoverResources(
         task->framework_id(),
         task->slave_id(),
         task->resources(),
@@ -4660,7 +4660,7 @@ void Master::removeTask(Task* task)
 
     // If the task is not terminal, then the resources have
     // not yet been recovered.
-    allocator->resourcesRecovered(
+    allocator->recoverResources(
         task->framework_id(),
         task->slave_id(),
         task->resources(),
@@ -4699,7 +4699,7 @@ void Master::removeExecutor(
             << "' with resources " << executor.resources()
             << " of framework " << frameworkId << " on slave " << *slave;
 
-  allocator->resourcesRecovered(
+  allocator->recoverResources(
     frameworkId, slave->id, executor.resources(), None());
 
   Framework* framework = getFramework(frameworkId);
@@ -4715,7 +4715,7 @@ void Master::offerTimeout(const OfferID& offerId)
 {
   Offer* offer = getOffer(offerId);
   if (offer != NULL) {
-    allocator->resourcesRecovered(
+    allocator->recoverResources(
         offer->framework_id(), offer->slave_id(), offer->resources(), None());
     removeOffer(offer, true);
   }

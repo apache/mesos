@@ -444,8 +444,8 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
 
   AWAIT_READY(ping);
 
-  Future<Nothing> slaveDeactivated =
-    FUTURE_DISPATCH(_, &AllocatorProcess::slaveDeactivated);
+  Future<Nothing> deactivateSlave =
+    FUTURE_DISPATCH(_, &AllocatorProcess::deactivateSlave);
 
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected. The slave should not notice
@@ -453,7 +453,7 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   process::inject::exited(slaveRegisteredMessage.get().to, master.get());
 
   // Wait until master deactivates the slave.
-  AWAIT_READY(slaveDeactivated);
+  AWAIT_READY(deactivateSlave);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);

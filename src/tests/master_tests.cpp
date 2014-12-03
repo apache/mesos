@@ -1349,8 +1349,8 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   combinedOffers.push_back(offers1.get()[0].id());
   combinedOffers.push_back(offers2.get()[0].id());
 
-  Future<Nothing> resourcesRecovered =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
 
   driver.launchTasks(combinedOffers, tasks);
 
@@ -1359,7 +1359,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status.get().reason());
 
   // The resources of the invalid offers should be recovered.
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1429,8 +1429,8 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  Future<Nothing> resourcesRecovered =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
 
   driver.launchTasks(combinedOffers, tasks);
 
@@ -1439,7 +1439,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status.get().reason());
 
   // The resources of the invalid offers should be recovered.
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -2180,8 +2180,8 @@ TEST_F(MasterTest, OfferTimeout)
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillOnce(FutureSatisfy(&offerRescinded));
 
-  Future<Nothing> resourcesRecovered =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
 
   driver.start();
 
@@ -2197,7 +2197,7 @@ TEST_F(MasterTest, OfferTimeout)
 
   AWAIT_READY(offerRescinded);
 
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   // Expect that the resources are re-offered to the framework after
   // the rescind.
@@ -2466,8 +2466,8 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
   // Ensure status update manager handles TASK_FINISHED update.
   AWAIT_READY(__statusUpdate2);
 
-  Future<Nothing> resourcesRecovered = FUTURE_DISPATCH(
-      _, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources = FUTURE_DISPATCH(
+      _, &AllocatorProcess::recoverResources);
 
   // Advance the clock so that the status update manager resends
   // TASK_RUNNING update with 'latest_state' as TASK_FINISHED.
@@ -2476,7 +2476,7 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
   Clock::resume();
 
   // Ensure the resources are recovered.
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -2712,15 +2712,15 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
 
   ASSERT_SOME_EQ(JSON::Boolean(true), status);
 
-  Future<Nothing> slaveDeactivated =
-    FUTURE_DISPATCH(_, &AllocatorProcess::slaveDeactivated);
+  Future<Nothing> deactivateSlave =
+    FUTURE_DISPATCH(_, &AllocatorProcess::deactivateSlave);
 
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected.
   process::inject::exited(slaveRegisteredMessage.get().to, master.get());
 
   // Wait until master deactivates the slave.
-  AWAIT_READY(slaveDeactivated);
+  AWAIT_READY(deactivateSlave);
 
   // Verify slave is inactive.
   response = process::http::get(master.get(), "state.json");

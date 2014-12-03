@@ -2207,7 +2207,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  EXPECT_CALL(allocator, slaveAdded(_, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _));
 
   Try<TypeParam*> containerizer1 = TypeParam::create(flags, true);
   ASSERT_SOME(containerizer1);
@@ -2225,7 +2225,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, frameworkAdded(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _));
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -2258,7 +2258,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  EXPECT_CALL(allocator, slaveDeactivated(_));
+  EXPECT_CALL(allocator, deactivateSlave(_));
 
   this->Stop(slave.get());
   delete containerizer1.get();
@@ -2299,8 +2299,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  EXPECT_CALL(allocator, slaveActivated(_));
-  EXPECT_CALL(allocator, resourcesRecovered(_, _, _, _));
+  EXPECT_CALL(allocator, activateSlave(_));
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -2344,14 +2344,14 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   Clock::resume();
 
-  EXPECT_CALL(allocator, frameworkDeactivated(_))
+  EXPECT_CALL(allocator, deactivateFramework(_))
     .WillRepeatedly(Return());
-  EXPECT_CALL(allocator, frameworkRemoved(_))
+  EXPECT_CALL(allocator, removeFramework(_))
     .WillRepeatedly(Return());
 
   // If there was an outstanding offer, we can get a call to
-  // resourcesRecovered when we stop the scheduler.
-  EXPECT_CALL(allocator, resourcesRecovered(_, _, _, _))
+  // recoverResources when we stop the scheduler.
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(Return());
 
   driver.stop();
