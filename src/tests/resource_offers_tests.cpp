@@ -926,6 +926,77 @@ TEST_F(TaskValidationTest, NonPersistentDiskInfoWithVolume)
   Shutdown();
 }
 
+
+TEST_F(TaskValidationTest, DuplicatedPersistenceIDWithinTask)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Create two persistent disk resources with the same id.
+  Resource diskResource1 = Resources::parse("disk", "128", "role1").get();
+  diskResource1.mutable_disk()->CopyFrom(createDiskInfo("1", "1"));
+
+  Resource diskResource2 = Resources::parse("disk", "64", "role1").get();
+  diskResource2.mutable_disk()->CopyFrom(createDiskInfo("1", "1"));
+
+  // Include non-persistent disk resource in task resources.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128").get() + diskResource1 + diskResource2;
+
+  Offer offer = offers.get()[0];
+  TaskInfo task =
+    createTask(offer.slave_id(), taskResources, "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  EXPECT_TRUE(status.get().has_message());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(),
+      "Task uses duplicated persistence ID 1"));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+// TODO(jieyu): Add tests for checking duplicated persistence ID
+// across task and executors.
+
+// TODO(jieyu): Add tests for checking duplicated persistence ID
+// within an executor.
+
 // TODO(benh): Add tests for checking correct slave IDs.
 
 // TODO(benh): Add tests for checking executor resource usage.

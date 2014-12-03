@@ -1899,6 +1899,12 @@ struct ResourceChecker : TaskInfoVisitor
       const Resources& totalResources,
       const Resources& usedResources)
   {
+    // This is used to ensure no duplicated persistence id exists.
+    // TODO(jieyu): The check we have right now is a partial check for
+    // the current task. We need to add checks against slave's
+    // existing tasks and executors as well.
+    hashset<string> persistenceIds;
+
     Option<Error> error = Resources::validate(task.resources());
     if (error.isSome()) {
       return Error("Task uses invalid resources: " + error.get().message);
@@ -1911,6 +1917,14 @@ struct ResourceChecker : TaskInfoVisitor
         error = validateDiskInfo(resource);
         if (error.isSome()) {
           return Error("Task uses invalid DiskInfo: " + error.get().message);
+        }
+
+        if (resource.disk().has_persistence()) {
+          string id = resource.disk().persistence().id();
+          if (persistenceIds.contains(id)) {
+            return Error("Task uses duplicated persistence ID " + id);
+          }
+          persistenceIds.insert(id);
         }
       }
     }
@@ -1930,6 +1944,14 @@ struct ResourceChecker : TaskInfoVisitor
           if (error.isSome()) {
             return Error(
                 "Executor uses invalid DiskInfo: " + error.get().message);
+          }
+
+          if (resource.disk().has_persistence()) {
+            string id = resource.disk().persistence().id();
+            if (persistenceIds.contains(id)) {
+              return Error("Executor uses duplicated persistence ID " + id);
+            }
+            persistenceIds.insert(id);
           }
         }
       }
