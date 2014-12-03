@@ -305,6 +305,13 @@ mesos::internal::slave::Flags::Flags()
       "containerizer to launch executors in docker containers, so they keep\n"
       "running when the slave container exits.");
 
+  add(&Flags::docker_socket,
+      "docker_socket",
+      "The docker UNIX socket path that the docker CLI uses to communicate\n"
+      "to the docker daemon. Mesos needs this to launch docker containers\n"
+      "that can run the docker CLI.\n",
+      "/var/run/docker.sock");
+
   add(&Flags::default_container_info,
       "default_container_info",
       "JSON formatted ContainerInfo that will be included into\n"
