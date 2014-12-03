@@ -1580,7 +1580,7 @@ void Master::_reregisterFramework(
       // the allocator has the correct view of the framework's share.
       if (!framework->active) {
         framework->active = true;
-        allocator->activateFramework(framework->id, framework->info);
+        allocator->activateFramework(framework->id);
       }
 
       FrameworkReregisteredMessage message;
@@ -4162,7 +4162,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   // the allocator has the correct view of the framework's share.
   if (!framework->active) {
     framework->active = true;
-    allocator->activateFramework(framework->id, framework->info);
+    allocator->activateFramework(framework->id);
   }
 
   // 'Failover' the framework's metrics. i.e., change the lookup key

@@ -83,8 +83,7 @@ public:
       const FrameworkID& frameworkId);
 
   void activateFramework(
-      const FrameworkID& frameworkId,
-      const FrameworkInfo& frameworkInfo);
+      const FrameworkID& frameworkId);
 
   void deactivateFramework(
       const FrameworkID& frameworkId);
@@ -333,12 +332,13 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeFramework(
 template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::activateFramework(
-    const FrameworkID& frameworkId,
-    const FrameworkInfo& frameworkInfo)
+    const FrameworkID& frameworkId)
 {
   CHECK(initialized);
 
-  const std::string& role = frameworkInfo.role();
+  CHECK(frameworks.contains(frameworkId));
+  const std::string& role = frameworks[frameworkId].role;
+
   sorters[role]->activate(frameworkId.value());
 
   LOG(INFO) << "Activated framework " << frameworkId;

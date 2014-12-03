@@ -1304,7 +1304,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
   MesosSchedulerDriver driver2(
       &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(this->allocator, activateFramework(_, _));
+  EXPECT_CALL(this->allocator, activateFramework(_));
 
   EXPECT_CALL(sched2, registered(_, frameworkId, _));
 

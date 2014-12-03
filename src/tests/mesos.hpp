@@ -664,7 +664,7 @@ public:
     ON_CALL(*this, removeFramework(_))
       .WillByDefault(InvokeFrameworkRemoved(this));
 
-    ON_CALL(*this, activateFramework(_, _))
+    ON_CALL(*this, activateFramework(_))
       .WillByDefault(InvokeFrameworkActivated(this));
 
     ON_CALL(*this, deactivateFramework(_))
@@ -714,9 +714,8 @@ public:
   MOCK_METHOD1(removeFramework, void(
       const FrameworkID&));
 
-  MOCK_METHOD2(activateFramework, void(
-      const FrameworkID&,
-      const FrameworkInfo&));
+  MOCK_METHOD1(activateFramework, void(
+      const FrameworkID&));
 
   MOCK_METHOD1(deactivateFramework, void(
       const FrameworkID&));
@@ -800,8 +799,7 @@ ACTION_P(InvokeFrameworkActivated, allocator)
   process::dispatch(
       allocator->real,
       &master::allocator::AllocatorProcess::activateFramework,
-      arg0,
-      arg1);
+      arg0);
 }
 
 

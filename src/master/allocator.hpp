@@ -79,8 +79,7 @@ public:
 
   // Offers are sent only to activated frameworks.
   void activateFramework(
-      const FrameworkID& frameworkId,
-      const FrameworkInfo& frameworkInfo);
+      const FrameworkID& frameworkId);
 
   void deactivateFramework(
       const FrameworkID& frameworkId);
@@ -155,8 +154,7 @@ public:
       const FrameworkID& frameworkId) = 0;
 
   virtual void activateFramework(
-      const FrameworkID& frameworkId,
-      const FrameworkInfo& frameworkInfo) = 0;
+      const FrameworkID& frameworkId) = 0;
 
   virtual void deactivateFramework(
       const FrameworkID& frameworkId) = 0;
@@ -247,14 +245,12 @@ inline void Allocator::removeFramework(
 
 
 inline void Allocator::activateFramework(
-    const FrameworkID& frameworkId,
-    const FrameworkInfo& frameworkInfo)
+    const FrameworkID& frameworkId)
 {
   process::dispatch(
       process,
       &AllocatorProcess::activateFramework,
-      frameworkId,
-      frameworkInfo);
+      frameworkId);
 }
 
 
