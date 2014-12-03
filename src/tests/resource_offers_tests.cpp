@@ -200,65 +200,6 @@ TEST_F(TaskValidationTest, TaskUsesNoResources)
 }
 
 
-TEST_F(TaskValidationTest, TaskUsesEmptyResources)
-{
-  Try<PID<Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  Try<PID<Slave>> slave = StartSlave();
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
-
-  Resource* cpus = task.add_resources();
-  cpus->set_name("cpus");
-  cpus->set_type(Value::SCALAR);
-  cpus->mutable_scalar()->set_value(0);
-
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
-
-  driver.launchTasks(offers.get()[0].id(), tasks);
-
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_ERROR, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
-  EXPECT_TRUE(status.get().has_message());
-  EXPECT_EQ("Task uses empty resources: cpus(*):0", status.get().message());
-
-  driver.stop();
-  driver.join();
-
-  Shutdown();
-}
-
-
 TEST_F(TaskValidationTest, TaskUsesMoreResourcesThanOffered)
 {
   Try<PID<Master>> master = StartMaster();
@@ -797,7 +738,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   Resource* cpus = task.add_resources();
   cpus->set_name("cpus");
   cpus->set_type(Value::SCALAR);
-  cpus->mutable_scalar()->set_value(0);
+  cpus->mutable_scalar()->set_value(-1);
 
   Resource* mem = task.add_resources();
   mem->set_name("mem");
@@ -818,7 +759,8 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
-  EXPECT_EQ("Task uses empty resources: cpus(*):0", status.get().message());
+  EXPECT_TRUE(strings::startsWith(
+        status.get().message(), "Task uses invalid resources"));
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(

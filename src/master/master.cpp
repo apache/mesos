@@ -1913,25 +1913,15 @@ struct ResourceUsageChecker : TaskInfoVisitor
       return Error("Task uses invalid resources: " + error.get().message);
     }
 
-    // Ensure no empty resource is used.
-    foreach (const Resource& resource, task.resources()) {
-      if (Resources::empty(resource)) {
-        return Error("Task uses empty resources: " + stringify(resource));
-      }
-    }
-
     // Check this task's executor's resources.
     Resources executorResources;
 
     if (task.has_executor()) {
-      foreach (const Resource& resource, task.executor().resources()) {
-        Option<Error> error = Resources::validate(resource);
-        if (error.isSome() || Resources::empty(resource)) {
-          // TODO(benh): Send back the invalid resources?
-          return Error(
-              "Executor for task " + stringify(task.task_id()) +
-              " uses invalid resources " + stringify(resource));
-        }
+      Option<Error> error = Resources::validate(task.executor().resources());
+      if (error.isSome()) {
+        return Error(
+            "Executor for task " + stringify(task.task_id()) +
+            " uses invalid resources: " + error.get().message);
       }
 
       executorResources = task.executor().resources();
