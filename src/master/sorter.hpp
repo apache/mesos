@@ -20,7 +20,9 @@
 #define __SORTER_HPP__
 
 #include <list>
+#include <string>
 
+#include <mesos/resources.hpp>
 
 namespace mesos {
 namespace internal {
