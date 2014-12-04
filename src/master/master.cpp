@@ -4531,8 +4531,14 @@ void Master::removeSlave(Slave* slave)
 
   LOG(INFO) << "Removing slave " << *slave;
 
-  // We do this first, to make sure any of the resources recovered
-  // below (e.g., removeTask()) are ignored by the allocator.
+  // We want to remove the slave first, to avoid the allocator
+  // re-allocating the recovered resources.
+  //
+  // NOTE: Removing the slave is not sufficient for recovering the
+  // resources in the allocator, because the "Sorters" are updated
+  // only within recoverResources() (see MESOS-621). The calls to
+  // recoverResources() below are therefore required, even though
+  // the slave is already removed.
   allocator->removeSlave(slave->id);
 
   // Transition the tasks to lost and remove them, BUT do not send
