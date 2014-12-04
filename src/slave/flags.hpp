@@ -144,6 +144,15 @@ public:
         "the available disk usage.",
         GC_DELAY);
 
+    add(&Flags::gc_disk_headroom,
+        "gc_disk_headroom",
+        "Adjust disk headroom used to calculate maximum executor\n"
+        "directory age. Age is calculated by:\n"
+        "gc_delay * max(0.0, (1.0 - gc_disk_headroom - disk usage))\n"
+        "every --disk_watch_interval duration. gc_disk_headroom must\n"
+        "be a value between 0.0 and 1.0",
+        GC_DISK_HEADROOM);
+
     add(&Flags::disk_watch_interval,
         "disk_watch_interval",
         "Periodic time interval (e.g., 10secs, 2mins, etc)\n"
@@ -440,6 +449,7 @@ public:
   Duration executor_registration_timeout;
   Duration executor_shutdown_grace_period;
   Duration gc_delay;
+  double gc_disk_headroom;
   Duration disk_watch_interval;
   Duration resource_monitoring_interval;
   bool checkpoint;

@@ -281,6 +281,11 @@ void Slave::initialize()
     }
   }
 
+  if ((flags.gc_disk_headroom < 0) || (flags.gc_disk_headroom > 1)) {
+    EXIT(1) << "Invalid value '" << flags.gc_disk_headroom
+            << "' for --gc_disk_headroom. Must be between 0.0 and 1.0.";
+  }
+
   // Ensure slave work directory exists.
   CHECK_SOME(os::mkdir(flags.work_dir))
     << "Failed to create slave work directory '" << flags.work_dir << "'";
@@ -3310,7 +3315,7 @@ void Slave::registerExecutorTimeout(
 // TODO(vinod): Figure out a way to express this function via cmd line.
 Duration Slave::age(double usage)
 {
-  return flags.gc_delay * std::max(0.0, (1.0 - GC_DISK_HEADROOM - usage));
+  return flags.gc_delay * std::max(0.0, (1.0 - flags.gc_disk_headroom - usage));
 }
 
 
