@@ -132,8 +132,10 @@ JSON::Object model(const Task& task)
   object.values["statuses"] = array;
 
   JSON::Array labels;
-  foreach (const Label& label, task.labels()) {
-    labels.values.push_back(JSON::Protobuf(label));
+  if (task.has_labels()) {
+    foreach (const Label& label, task.labels().labels()) {
+      labels.values.push_back(JSON::Protobuf(label));
+    }
   }
   object.values["labels"] = labels;
 
@@ -170,8 +172,10 @@ JSON::Object model(
   object.values["statuses"] = array;
 
   JSON::Array labels;
-  foreach (const Label& label, task.labels()) {
-    labels.values.push_back(JSON::Protobuf(label));
+  if (task.has_labels()) {
+    foreach (const Label& label, task.labels().labels()) {
+      labels.values.push_back(JSON::Protobuf(label));
+    }
   }
   object.values["labels"] = labels;
 
