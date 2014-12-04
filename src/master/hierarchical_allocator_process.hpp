@@ -171,10 +171,6 @@ protected:
 
   hashmap<FrameworkID, Framework> frameworks;
 
-  // Maps role names to the Sorter object which contains
-  // all of that role's frameworks.
-  hashmap<std::string, FrameworkSorter*> sorters;
-
   struct Slave
   {
     Resources total;
@@ -193,8 +189,18 @@ protected:
   // Slaves to send offers for.
   Option<hashset<std::string> > whitelist;
 
-  // Sorter containing all active roles.
+  // There are two levels of sorting, hence "hierarchical".
+  // Level 1 sorts across roles:
+  //   Reserved resources are excluded from fairness calculation,
+  //   since they are forcibly pinned to a role.
+  // Level 2 sorts across frameworks within a particular role:
+  //   Both reserved resources and unreserved resources are used
+  //   in the fairness calculation. This is because reserved
+  //   resources can be allocated to any framework in the role.
+  // TODO(bmahler): The code is currently inconsistent in following
+  // this specification, see MESOS-2176.
   RoleSorter* roleSorter;
+  hashmap<std::string, FrameworkSorter*> frameworkSorters;
 };
 
 
@@ -266,7 +272,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
   roleSorter = new RoleSorter();
   foreachpair (const std::string& name, const RoleInfo& roleInfo, roles) {
     roleSorter->add(name, roleInfo.weight());
-    sorters[name] = new FrameworkSorter();
+    frameworkSorters[name] = new FrameworkSorter();
   }
 
   VLOG(1) << "Initializing hierarchical allocator process";
@@ -288,13 +294,13 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
 
   CHECK(roles.contains(role));
 
-  CHECK(!sorters[role]->contains(frameworkId.value()));
-  sorters[role]->add(frameworkId.value());
+  CHECK(!frameworkSorters[role]->contains(frameworkId.value()));
+  frameworkSorters[role]->add(frameworkId.value());
 
   // Update the allocation to this framework.
   roleSorter->allocated(role, used);
-  sorters[role]->add(used);
-  sorters[role]->allocated(frameworkId.value(), used);
+  frameworkSorters[role]->add(used);
+  frameworkSorters[role]->allocated(frameworkId.value(), used);
 
   frameworks[frameworkId] = Framework();
   frameworks[frameworkId].role = frameworkInfo.role();
@@ -316,13 +322,14 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeFramework(
   CHECK(frameworks.contains(frameworkId));
   const std::string& role = frameworks[frameworkId].role;
 
-  // Might not be in 'sorters[role]' because it was previously
+  // Might not be in 'frameworkSorters[role]' because it was previously
   // deactivated and never re-added.
-  if (sorters[role]->contains(frameworkId.value())) {
-    Resources allocation = sorters[role]->allocation(frameworkId.value());
+  if (frameworkSorters[role]->contains(frameworkId.value())) {
+    Resources allocation =
+      frameworkSorters[role]->allocation(frameworkId.value());
     roleSorter->unallocated(role, allocation);
-    sorters[role]->remove(allocation);
-    sorters[role]->remove(frameworkId.value());
+    frameworkSorters[role]->remove(allocation);
+    frameworkSorters[role]->remove(frameworkId.value());
   }
 
   // Do not delete the filters contained in this
@@ -345,7 +352,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::activateFramework(
   CHECK(frameworks.contains(frameworkId));
   const std::string& role = frameworks[frameworkId].role;
 
-  sorters[role]->activate(frameworkId.value());
+  frameworkSorters[role]->activate(frameworkId.value());
 
   LOG(INFO) << "Activated framework " << frameworkId;
 
@@ -363,7 +370,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::deactivateFramework(
   CHECK(frameworks.contains(frameworkId));
   const std::string& role = frameworks[frameworkId].role;
 
-  sorters[role]->deactivate(frameworkId.value());
+  frameworkSorters[role]->deactivate(frameworkId.value());
 
   // Note that the Sorter *does not* remove the resources allocated
   // to this framework. For now, this is important because if the
@@ -415,8 +422,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
     if (frameworks.contains(frameworkId)) {
       const std::string& role = frameworks[frameworkId].role;
 
-      sorters[role]->add(resources);
-      sorters[role]->allocated(frameworkId.value(), resources);
+      frameworkSorters[role]->add(resources);
+      frameworkSorters[role]->allocated(frameworkId.value(), resources);
       roleSorter->allocated(role, resources);
     }
   }
@@ -540,11 +547,11 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
   if (frameworks.contains(frameworkId)) {
     const std::string& role = frameworks[frameworkId].role;
 
-    CHECK(sorters.contains(role));
+    CHECK(frameworkSorters.contains(role));
 
-    if (sorters[role]->contains(frameworkId.value())) {
-      sorters[role]->unallocated(frameworkId.value(), resources);
-      sorters[role]->remove(resources);
+    if (frameworkSorters[role]->contains(frameworkId.value())) {
+      frameworkSorters[role]->unallocated(frameworkId.value(), resources);
+      frameworkSorters[role]->remove(resources);
       roleSorter->unallocated(role, resources);
     }
   }
@@ -699,7 +706,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     }
 
     foreach (const std::string& role, roleSorter->sort()) {
-      foreach (const std::string& frameworkIdValue, sorters[role]->sort()) {
+      foreach (const std::string& frameworkIdValue,
+               frameworkSorters[role]->sort()) {
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkIdValue);
 
@@ -731,8 +739,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         // Update the sorters.
         // We only count resources not reserved for this role
         // in the share the sorter considers.
-        sorters[role]->add(unreserved);
-        sorters[role]->allocated(frameworkIdValue, unreserved);
+        frameworkSorters[role]->add(unreserved);
+        frameworkSorters[role]->allocated(frameworkIdValue, unreserved);
         roleSorter->allocated(role, unreserved);
       }
     }
