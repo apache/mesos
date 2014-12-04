@@ -2580,15 +2580,17 @@ TEST_F(MasterTest, TaskLabels)
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   // Add three labels to the task (two of which share the same key).
-  Label* label1 = task.add_labels();
+  Labels* labels = task.mutable_labels();
+
+  Label* label1 = labels->add_labels();
   label1->set_key("foo");
   label1->set_value("bar");
 
-  Label* label2 = task.add_labels();
+  Label* label2 = labels->add_labels();
   label2->set_key("bar");
   label2->set_value("baz");
 
-  Label* label3 = task.add_labels();
+  Label* label3 = labels->add_labels();
   label3->set_key("bar");
   label3->set_value("qux");
 
