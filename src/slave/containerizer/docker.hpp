@@ -35,6 +35,10 @@ namespace slave {
 // created by Mesos from those created manually.
 extern const std::string DOCKER_NAME_PREFIX;
 
+// Seperator used to compose docker container name, which is made up
+// of slave id and container id.
+extern const std::string DOCKER_NAME_SEPERATOR;
+
 // Directory that stores all the symlinked sandboxes that is mapped
 // into Docker containers. This is a relative directory that will
 // joined with the slave path. Only sandbox paths that contains a
@@ -341,17 +345,18 @@ private:
 
     std::string name()
     {
-      return DOCKER_NAME_PREFIX + slaveId.value() + "/" + stringify(id);
+      return DOCKER_NAME_PREFIX + slaveId.value() + DOCKER_NAME_SEPERATOR +
+        stringify(id);
     }
 
     std::string logName()
     {
-      return name() + "/log";
+      return name() + DOCKER_NAME_SEPERATOR + "log";
     }
 
     std::string executorName()
     {
-      return name() + "/executor";
+      return name() + DOCKER_NAME_SEPERATOR + "executor";
     }
 
     std::string image() const

@@ -75,6 +75,9 @@ using state::RunState;
 const string DOCKER_NAME_PREFIX = "mesos-";
 
 // Declared in header, see explanation there.
+const string DOCKER_NAME_SEPERATOR = ".";
+
+// Declared in header, see explanation there.
 const string DOCKER_SYMLINK_DIRECTORY = "docker/links";
 
 // Parse the ContainerID from a Docker container and return None if
@@ -92,20 +95,20 @@ Option<ContainerID> parse(const Docker::Container& container)
   }
 
   if (name.isSome()) {
-    // For Mesos version <= 0.21.0, the docker container name format
-    // was DOCKER_NAME_PREFIX + containerId, and starting with 0.22.0
-    // it is changed to DOCKER_NAME_PREFIX + slaveId + "/" +
-    // containerId.
-    // To still be backward compatible during upgrade, we still need
-    // to load the previous format.
+    // For Mesos version < 0.23.0, the docker container name format
+    // was DOCKER_NAME_PREFIX + containerId, and starting with 0.23.0
+    // it is changed to DOCKER_NAME_PREFIX + slaveId +
+    // DOCKER_NAME_SEPERATOR + containerId.
+    // To be backward compatible during upgrade, we still to support
+    // the previous format.
     // TODO(tnachen): Remove this check after deprecation cycle.
-    if (!strings::contains(name.get(), "/")) {
+    if (!strings::contains(name.get(), DOCKER_NAME_SEPERATOR)) {
       ContainerID id;
       id.set_value(name.get());
       return id;
     }
 
-    vector<string> parts = strings::split(name.get(), "/");
+    vector<string> parts = strings::split(name.get(), DOCKER_NAME_SEPERATOR);
     if (parts.size() == 2) {
       ContainerID id;
       id.set_value(parts[1]);
@@ -537,7 +540,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         // Create and store a container.
         Container* container = new Container(containerId);
         containers_[containerId] = container;
-
+        container->slaveId = state.get().id;
         container->state = Container::RUNNING;
 
         pid_t pid = run.get().forkedPid.get();
@@ -1062,9 +1065,6 @@ Future<bool> DockerContainerizerProcess::_______launch(
 
   container->status.future().get()
     .onAny(defer(self(), &Self::reaped, containerId));
-
-  // TODO(benh): Check failure of Docker::logs.
-  docker->logs(container->name(), container->directory);
 
   return true;
 }
