@@ -140,6 +140,10 @@ public:
 
   virtual ~AllocatorProcess() {}
 
+  // Explicitly unhide 'initialize' to silence a compiler warning
+  // from clang, since we overload below.
+  using process::ProcessBase::initialize;
+
   virtual void initialize(
       const Flags& flags,
       const process::PID<Master>& master,
