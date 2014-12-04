@@ -636,7 +636,7 @@ message TaskInfo {
   // acted upon by Mesos itself. As opposed to the data field, labels
   // will be kept in memory on master and slave processes. Therefore,
   // labels should be used to tag tasks with light-weight meta-data.
-  repeated Label labels = 10;
+  optional Labels labels = 10;
 }
 
 
@@ -973,6 +973,15 @@ message ContainerInfo {
 
   optional DockerInfo docker = 3;
 }
+
+
+/**
+ * Collection of labels.
+ */
+message Labels {
+    repeated Label labels = 1;
+}
+
 
 /**
  * Key, value pair used to store free form user-data.
