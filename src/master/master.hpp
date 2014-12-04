@@ -84,10 +84,9 @@ class Repairer;
 class SlaveObserver;
 
 struct Framework;
-struct OfferVisitor;
+struct OfferValidator;
 struct Role;
 struct Slave;
-struct TaskInfoVisitor;
 
 class Master : public ProtobufProcess<Master>
 {
@@ -477,7 +476,7 @@ private:
   Master(const Master&);              // No copying.
   Master& operator = (const Master&); // No assigning.
 
-  friend struct OfferVisitor;
+  friend struct OfferValidator;
   friend struct Metrics;
 
   const Flags flags;

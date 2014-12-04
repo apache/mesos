@@ -1796,15 +1796,14 @@ void Master::resourceRequest(
 }
 
 
-// We use the visitor pattern to abstract the process of performing
-// any validations, aggregations, etc. of tasks that a framework
-// attempts to run within the resources provided by offers. A visitor
-// can return an optional error (typedef'ed as an option of a string)
-// which will cause the master to send a failed status update back to
-// the framework for only that task description. An instance will be
-// reused for each task description from same 'launchTasks()', but not
-// for task descriptions from different offers.
-struct TaskInfoVisitor
+// Abstraction for performing any validations, aggregations, etc. of
+// tasks that a framework attempts to run within the resources
+// provided by offers. A validator can return an optional error which
+// will cause the master to send a failed status update back to the
+// framework for only that task. An instance will be reused for each
+// task from same 'launchTasks()', but not for task from different
+// offers.
+struct TaskInfoValidator
 {
   virtual Option<Error> operator () (
       const TaskInfo& task,
@@ -1813,13 +1812,13 @@ struct TaskInfoVisitor
       const Resources& totalResources,
       const Resources& usedResources) = 0;
 
-  virtual ~TaskInfoVisitor() {}
+  virtual ~TaskInfoValidator() {}
 };
 
 
-// Checks that a task id is valid, i.e., contains only valid
+// Validates that a task id is valid, i.e., contains only valid
 // characters.
-struct TaskIDChecker : TaskInfoVisitor
+struct TaskIDValidator : TaskInfoValidator
 {
   virtual Option<Error> operator () (
       const TaskInfo& task,
@@ -1844,8 +1843,8 @@ struct TaskIDChecker : TaskInfoVisitor
 };
 
 
-// Checks that the slave ID used by a task is correct.
-struct SlaveIDChecker : TaskInfoVisitor
+// Validates that the slave ID used by a task is correct.
+struct SlaveIDValidator : TaskInfoValidator
 {
   virtual Option<Error> operator () (
       const TaskInfo& task,
@@ -1865,11 +1864,11 @@ struct SlaveIDChecker : TaskInfoVisitor
 };
 
 
-// Checks that each task uses a unique ID. Regardless of whether a
-// task actually gets launched (for example, another checker may
+// Validates that each task uses a unique ID. Regardless of whether a
+// task actually gets launched (for example, another validator may
 // return an error for a task), we always consider it an error when a
 // task tries to re-use an ID.
-struct UniqueTaskIDChecker : TaskInfoVisitor
+struct UniqueTaskIDValidator : TaskInfoValidator
 {
   virtual Option<Error> operator () (
       const TaskInfo& task,
@@ -1889,8 +1888,8 @@ struct UniqueTaskIDChecker : TaskInfoVisitor
 };
 
 
-// Checks that resources specified by the framework are valid.
-struct ResourceChecker : TaskInfoVisitor
+// Validates that resources specified by the framework are valid.
+struct ResourceValidator : TaskInfoValidator
 {
   virtual Option<Error> operator () (
       const TaskInfo& task,
@@ -1999,10 +1998,10 @@ struct ResourceChecker : TaskInfoVisitor
 };
 
 
-// Checks that the task and the executor are using proper amount of
+// Validates that the task and the executor are using proper amount of
 // resources. For instance, the used resources by a task on each slave
 // should not exceed the total resources offered on that slave.
-struct ResourceUsageChecker : TaskInfoVisitor
+struct ResourceUsageValidator : TaskInfoValidator
 {
   virtual Option<Error> operator () (
       const TaskInfo& task,
@@ -2022,7 +2021,7 @@ struct ResourceUsageChecker : TaskInfoVisitor
       executorResources = task.executor().resources();
     }
 
-    // Check minimal cpus and memory resources of executor and log
+    // Validate minimal cpus and memory resources of executor and log
     // warnings if not set.
     if (task.has_executor()) {
       // TODO(martin): MESOS-1807. Return Error instead of logging a
@@ -2052,8 +2051,8 @@ struct ResourceUsageChecker : TaskInfoVisitor
       }
     }
 
-    // Check if resources needed by the task (and its executor in case
-    // the executor is new) are available.
+    // Validate if resources needed by the task (and its executor in
+    // case the executor is new) are available.
     Resources resources = taskResources;
     if (!slave.hasExecutor(framework.id, task.executor().executor_id())) {
       resources += executorResources;
@@ -2070,9 +2069,9 @@ struct ResourceUsageChecker : TaskInfoVisitor
 };
 
 
-// Checks that tasks that use the "same" executor (i.e., same
+// Validates that tasks that use the "same" executor (i.e., same
 // ExecutorID) have an identical ExecutorInfo.
-struct ExecutorInfoChecker : TaskInfoVisitor
+struct ExecutorInfoValidator : TaskInfoValidator
 {
   virtual Option<Error> operator () (
       const TaskInfo& task,
@@ -2133,9 +2132,9 @@ struct ExecutorInfoChecker : TaskInfoVisitor
 };
 
 
-// Checks that a task that asks for checkpointing is not being
+// Validates that a task that asks for checkpointing is not being
 // launched on a slave that has not enabled checkpointing.
-struct CheckpointChecker : TaskInfoVisitor
+struct CheckpointValidator : TaskInfoValidator
 {
   virtual Option<Error> operator () (
       const TaskInfo& task,
@@ -2155,19 +2154,19 @@ struct CheckpointChecker : TaskInfoVisitor
 };
 
 
-// OfferVisitors are similar to the TaskInfoVisitor pattern and are
-// used for validation and aggregation of offers.
-// The error reporting scheme is also similar to TaskInfoVisitor.
-// However, offer processing (and subsequent task processing) is
-// aborted altogether if offer visitor reports an error.
-struct OfferVisitor
+// OfferValidators are similar to the TaskInfoValidator pattern and
+// are used for validation and aggregation of offers. The error
+// reporting scheme is also similar to TaskInfoValidator. However,
+// offer processing (and subsequent task processing) is aborted
+// altogether if offer validator reports an error.
+struct OfferValidator
 {
   virtual Option<Error> operator () (
       const OfferID& offerId,
       const Framework& framework,
       Master* master) = 0;
 
-  virtual ~OfferVisitor() {}
+  virtual ~OfferValidator() {}
 
   Slave* getSlave(Master* master, const SlaveID& slaveId)
   {
@@ -2183,8 +2182,9 @@ struct OfferVisitor
 };
 
 
-// Checks validity/liveness of an offer.
-struct ValidOfferChecker : OfferVisitor {
+// Validates the validity/liveness of an offer.
+struct ValidOfferValidator : OfferValidator
+{
   virtual Option<Error> operator () (
       const OfferID& offerId,
       const Framework& framework,
@@ -2200,8 +2200,9 @@ struct ValidOfferChecker : OfferVisitor {
 };
 
 
-// Checks that an offer belongs to the expected framework.
-struct FrameworkChecker : OfferVisitor {
+// Validates that an offer belongs to the expected framework.
+struct FrameworkValidator : OfferValidator
+{
   virtual Option<Error> operator () (
       const OfferID& offerId,
       const Framework& framework,
@@ -2224,9 +2225,9 @@ struct FrameworkChecker : OfferVisitor {
 };
 
 
-// Checks that the slave is valid and ensures that all offers belong
-// to the same slave.
-struct SlaveChecker : OfferVisitor
+// Validates that the slave is valid and ensures that all offers
+// belong to the same slave.
+struct SlaveValidator : OfferValidator
 {
   virtual Option<Error> operator () (
       const OfferID& offerId,
@@ -2268,8 +2269,8 @@ struct SlaveChecker : OfferVisitor
 };
 
 
-// Checks that an offer only appears once in offer list.
-struct UniqueOfferIDChecker : OfferVisitor
+// Validates that an offer only appears once in offer list.
+struct UniqueOfferIDValidator : OfferValidator
 {
   virtual Option<Error> operator () (
       const OfferID& offerId,
@@ -2331,17 +2332,18 @@ void Master::launchTasks(
   if (offerIds.empty()) {
     error = Error("No offers specified");
   } else {
-    list<Owned<OfferVisitor>> offerVisitors;
-    offerVisitors.push_back(Owned<OfferVisitor>(new ValidOfferChecker()));
-    offerVisitors.push_back(Owned<OfferVisitor>(new FrameworkChecker()));
-    offerVisitors.push_back(Owned<OfferVisitor>(new SlaveChecker()));
-    offerVisitors.push_back(Owned<OfferVisitor>(new UniqueOfferIDChecker()));
+    vector<Owned<OfferValidator>> offerValidators = {
+      Owned<OfferValidator>(new ValidOfferValidator()),
+      Owned<OfferValidator>(new FrameworkValidator()),
+      Owned<OfferValidator>(new SlaveValidator()),
+      Owned<OfferValidator>(new UniqueOfferIDValidator())
+    };
 
     // Validate the offers.
     foreach (const OfferID& offerId, offerIds) {
-      foreach (const Owned<OfferVisitor>& visitor, offerVisitors) {
+      foreach (const Owned<OfferValidator>& validator, offerValidators) {
         if (error.isNone()) {
-          error = (*visitor)(offerId, *framework, this);
+          error = (*validator)(offerId, *framework, this);
         }
       }
     }
@@ -2439,29 +2441,36 @@ Option<Error> Master::validateTask(
   CHECK_NOTNULL(framework);
   CHECK_NOTNULL(slave);
 
-  // Create task visitors.
-  // NOTE: The order in which the following checkers are executed does
-  // matter! For example, ResourceUsageChecker assumes that
-  // ExecutorInfo is valid which is verified by ExecutorInfoChecker.
-  // TODO(vinod): Create the visitors on the stack and make the visit
-  // operation const.
-  list<Owned<TaskInfoVisitor>> taskVisitors;
-  taskVisitors.push_back(Owned<TaskInfoVisitor>(new TaskIDChecker()));
-  taskVisitors.push_back(Owned<TaskInfoVisitor>(new SlaveIDChecker()));
-  taskVisitors.push_back(Owned<TaskInfoVisitor>(new UniqueTaskIDChecker()));
-  taskVisitors.push_back(Owned<TaskInfoVisitor>(new CheckpointChecker()));
-  taskVisitors.push_back(Owned<TaskInfoVisitor>(new ExecutorInfoChecker()));
-  taskVisitors.push_back(Owned<TaskInfoVisitor>(new ResourceChecker()));
-  taskVisitors.push_back(Owned<TaskInfoVisitor>(new ResourceUsageChecker()));
+  // Create task validators.
+  // NOTE: The order in which the following validators are executed
+  // does matter! For example, ResourceUsageValidator assumes that
+  // ExecutorInfo is valid which is verified by ExecutorInfoValidator.
+  // TODO(vinod): Create the validators on the stack and make the
+  // validate operation const.
+  vector<Owned<TaskInfoValidator>> taskValidators = {
+    Owned<TaskInfoValidator>(new TaskIDValidator()),
+    Owned<TaskInfoValidator>(new SlaveIDValidator()),
+    Owned<TaskInfoValidator>(new UniqueTaskIDValidator()),
+    Owned<TaskInfoValidator>(new CheckpointValidator()),
+    Owned<TaskInfoValidator>(new ExecutorInfoValidator()),
+    Owned<TaskInfoValidator>(new ResourceValidator()),
+    Owned<TaskInfoValidator>(new ResourceUsageValidator())
+  };
 
-  // TODO(benh): Add a HealthCheckChecker visitor.
+  // TODO(benh): Add a HealthCheckValidator.
 
-  // TODO(jieyu): Add a CommandInfoCheck visitor.
+  // TODO(jieyu): Add a CommandInfoValidator.
 
-  // Invoke each visitor.
+  // Invoke each validator.
   Option<Error> error = None();
-  foreach (const Owned<TaskInfoVisitor>& visitor, taskVisitors) {
-    error = (*visitor)(task, *framework, *slave, totalResources, usedResources);
+  foreach (const Owned<TaskInfoValidator>& validator, taskValidators) {
+    error = (*validator)(
+        task,
+        *framework,
+        *slave,
+        totalResources,
+        usedResources);
+
     if (error.isSome()) {
       break;
     }
