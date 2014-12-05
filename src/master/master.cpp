@@ -456,7 +456,10 @@ void Master::initialize()
   }
 
   // Initialize the allocator.
-  allocator->initialize(flags, self(), roleInfos);
+  allocator->initialize(
+      flags,
+      defer(self(), &Master::offer, lambda::_1, lambda::_2),
+      roleInfos);
 
   // Parse the whitelist. Passing allocator::updateWhitelist()
   // callback is safe because we shut down the whitelistWatcher in

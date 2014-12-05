@@ -734,7 +734,9 @@ public:
 
   MOCK_METHOD3(initialize, void(
       const master::Flags&,
-      const process::PID<master::Master>&,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, Resources>&)>&,
       const hashmap<std::string, RoleInfo>&));
 
   MOCK_METHOD3(addFramework, void(

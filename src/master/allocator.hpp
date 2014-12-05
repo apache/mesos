@@ -30,6 +30,7 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/lambda.hpp>
 #include <stout/option.hpp>
 
 #include "master/flags.hpp"
@@ -66,7 +67,9 @@ public:
 
   void initialize(
       const Flags& flags,
-      const process::PID<Master>& master,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, Resources>&)>& offerCallback,
       const hashmap<std::string, RoleInfo>& roles);
 
   void addFramework(
@@ -146,7 +149,9 @@ public:
 
   virtual void initialize(
       const Flags& flags,
-      const process::PID<Master>& master,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, Resources>&)>& offerCallback,
       const hashmap<std::string, RoleInfo>& roles) = 0;
 
   virtual void addFramework(
@@ -212,14 +217,16 @@ inline Allocator::~Allocator()
 
 inline void Allocator::initialize(
     const Flags& flags,
-    const process::PID<Master>& master,
+    const lambda::function<
+        void(const FrameworkID&,
+             const hashmap<SlaveID, Resources>&)>& offerCallback,
     const hashmap<std::string, RoleInfo>& roles)
 {
   process::dispatch(
       process,
       &AllocatorProcess::initialize,
       flags,
-      master,
+      offerCallback,
       roles);
 }
 

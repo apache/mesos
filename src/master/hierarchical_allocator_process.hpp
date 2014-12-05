@@ -71,8 +71,10 @@ public:
 
   void initialize(
       const Flags& flags,
-      const process::PID<Master>& _master,
-      const hashmap<std::string, RoleInfo>& _roles);
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, Resources>&)>& offerCallback,
+      const hashmap<std::string, RoleInfo>& roles);
 
   void addFramework(
       const FrameworkID& frameworkId,
@@ -154,7 +156,10 @@ protected:
   bool initialized;
 
   Flags flags;
-  process::PID<Master> master;
+
+  lambda::function<
+      void(const FrameworkID&,
+           const hashmap<SlaveID, Resources>&)> offerCallback;
 
   struct Framework
   {
@@ -248,11 +253,13 @@ template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
     const Flags& _flags,
-    const process::PID<Master>& _master,
+    const lambda::function<
+        void(const FrameworkID&,
+             const hashmap<SlaveID, Resources>&)>& _offerCallback,
     const hashmap<std::string, RoleInfo>& _roles)
 {
   flags = _flags;
-  master = _master;
+  offerCallback = _offerCallback;
   roles = _roles;
   initialized = true;
 
@@ -262,8 +269,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
     sorters[name] = new FrameworkSorter();
   }
 
-  VLOG(1) << "Initializing hierarchical allocator process "
-          << "with master : " << master;
+  VLOG(1) << "Initializing hierarchical allocator process";
 
   delay(flags.allocation_interval, self(), &Self::batch);
 }
@@ -734,7 +740,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
 
   // Now offer the resources to each framework.
   foreachkey (const FrameworkID& frameworkId, offerable) {
-    dispatch(master, &Master::offer, frameworkId, offerable[frameworkId]);
+    offerCallback(frameworkId, offerable[frameworkId]);
   }
 }
 
