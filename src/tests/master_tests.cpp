@@ -37,6 +37,7 @@
 #include <process/metrics/metrics.hpp>
 
 #include <stout/json.hpp>
+#include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -1053,7 +1054,7 @@ protected:
 TEST_F(WhitelistTest, WhitelistSlave)
 {
   // Add some hosts to the white list.
-  Try<string> hostname = os::hostname();
+  Try<string> hostname = net::hostname();
   ASSERT_SOME(hostname);
 
   string hosts = hostname.get() + "\n" + "dummy-slave";

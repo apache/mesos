@@ -1174,7 +1174,7 @@ void MesosSchedulerDriver::initialize() {
     framework.set_user(user.get());
   }
   if (framework.hostname().empty()) {
-    framework.set_hostname(os::hostname().get());
+    framework.set_hostname(net::hostname().get());
   }
 
   // Launch a local cluster if necessary.

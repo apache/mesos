@@ -2029,7 +2029,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:2;mem:1024");
 
-  Try<string> hostname = os::hostname();
+  Try<string> hostname = net::hostname();
   ASSERT_SOME(hostname);
   flags.hostname = hostname.get();
 
