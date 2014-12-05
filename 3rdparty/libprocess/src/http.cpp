@@ -82,10 +82,10 @@ Future<Response> request(
 
   const string host = stringify(upid.node);
 
-  Try<int> tryConnect = process::connect(s, upid.node);
-  if (tryConnect.isError()) {
+  Try<int> connected = process::connect(s, upid.node);
+  if (connected.isError()) {
     os::close(s);
-    return Failure(tryConnect.error());
+    return Failure(connected.error());
   }
 
   std::ostringstream out;

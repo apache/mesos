@@ -46,11 +46,12 @@ inline Try<int> accept(int s, sa_family_t family)
       sockaddr_in addr = net::createSockaddrIn(0, 0);
       socklen_t addrlen = sizeof(addr);
 
-      int rc = ::accept(s, (sockaddr*) &addr, &addrlen);
-      if (rc < 0)
-         return ErrnoError("Failed to accept");
+      int accepted = ::accept(s, (sockaddr*) &addr, &addrlen);
+      if (accepted < 0) {
+        return ErrnoError("Failed to accept");
+      }
 
-      return rc;
+      return accepted;
     }
     default:
       return Error("Unsupported family type: " + stringify(family));
@@ -61,22 +62,24 @@ inline Try<int> bind(int s, const Node& node)
 {
   sockaddr_in addr = net::createSockaddrIn(node.ip, node.port);
 
-  int rc = ::bind(s, (sockaddr*) &addr, sizeof(addr));
-  if (rc < 0)
+  int bound = ::bind(s, (sockaddr*) &addr, sizeof(addr));
+  if (bound < 0) {
     return ErrnoError("Failed to bind on " + stringify(node));
+  }
 
-  return rc;
+  return bound;
 }
 
 inline Try<int> connect(int s, const Node& node)
 {
   sockaddr_in addr = net::createSockaddrIn(node.ip, node.port);
 
-  int rc = ::connect(s, (sockaddr*) &addr, sizeof(addr));
-  if (rc < 0)
+  int connected = ::connect(s, (sockaddr*) &addr, sizeof(addr));
+  if (connected < 0) {
     return ErrnoError("Failed to connect to " + stringify(node));
+  }
 
-  return rc;
+  return connected;
 }
 
 inline Try<Node> getsockname(int s, sa_family_t family)
@@ -86,8 +89,9 @@ inline Try<Node> getsockname(int s, sa_family_t family)
       sockaddr_in addr = net::createSockaddrIn(0, 0);
       socklen_t addrlen = sizeof(addr);
 
-      if(::getsockname(s, (sockaddr*) &addr, &addrlen) < 0)
+      if(::getsockname(s, (sockaddr*) &addr, &addrlen) < 0) {
         return ErrnoError("Failed to getsockname");
+      }
 
       return Node(addr.sin_addr.s_addr, ntohs(addr.sin_port));
     }

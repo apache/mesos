@@ -1271,14 +1271,14 @@ Future<Nothing> connect(const Socket& socket)
 
 Future<Nothing> Socket::Impl::connect(const Node& node)
 {
-  Try<int> tryConnect = process::connect(get(), node);
-  if (tryConnect.isError()) {
+  Try<int> connected = process::connect(get(), node);
+  if (connected.isError()) {
     if (errno == EINPROGRESS) {
       return io::poll(get(), io::WRITE)
         .then(lambda::bind(&internal::connect, Socket(shared_from_this())));
     }
 
-    return Failure(tryConnect.error());
+    return Failure(connected.error());
   }
 
   return Nothing();
@@ -1383,9 +1383,9 @@ Future<size_t> Socket::Impl::sendfile(int fd, off_t offset, size_t size)
 
 Try<Node> Socket::Impl::bind(const Node& node)
 {
-  Try<int> tryBind = process::bind(get(), node);
-  if (tryBind.isError()) {
-    return Error(tryBind.error());
+  Try<int> bound = process::bind(get(), node);
+  if (bound.isError()) {
+    return Error(bound.error());
   }
 
   // Lookup and store assigned ip and assigned port.
@@ -1406,12 +1406,12 @@ namespace internal {
 
 Future<Socket> accept(int fd)
 {
-  Try<int> tryAccept = process::accept(fd, AF_INET);
-  if (tryAccept.isError()) {
-    return Failure(tryAccept.error());
+  Try<int> accepted = process::accept(fd, AF_INET);
+  if (accepted.isError()) {
+    return Failure(accepted.error());
   }
 
-  int s = tryAccept.get();
+  int s = accepted.get();
   Try<Nothing> nonblock = os::nonblock(s);
   if (nonblock.isError()) {
     LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, nonblock: "

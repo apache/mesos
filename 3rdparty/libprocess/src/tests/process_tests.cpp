@@ -1419,11 +1419,11 @@ TEST(Process, remote)
   EXPECT_CALL(process, handler(_, _))
     .WillOnce(FutureSatisfy(&handler));
 
-  Try<int> trySocket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> sock = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
-  ASSERT_TRUE(trySocket.isSome());
+  ASSERT_TRUE(sock.isSome());
 
-  int s = trySocket.get();
+  int s = sock.get();
 
   ASSERT_TRUE(process::connect(s, process.self().node).isSome());
 
@@ -1485,10 +1485,10 @@ TEST(Process, http2)
   spawn(process);
 
   // Create a receiving socket so we can get messages back.
-  Try<int> trySocket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-  ASSERT_TRUE(trySocket.isSome());
+  Try<int> sock = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  ASSERT_TRUE(sock.isSome());
 
-  int s = trySocket.get();
+  int s = sock.get();
 
   ASSERT_TRUE(process::bind(s, Node()).isSome());
 
@@ -1527,10 +1527,10 @@ TEST(Process, http2)
   post(process.self(), from, name);
 
   // Accept the incoming connection.
-  Try<int> tryAccept = process::accept(s, AF_INET);
-  ASSERT_TRUE(tryAccept.isSome());
+  Try<int> accepted = process::accept(s, AF_INET);
+  ASSERT_TRUE(accepted.isSome());
 
-  int c = tryAccept.get();
+  int c = accepted.get();
   ASSERT_LT(0, c);
 
   const string data = "POST /" + name + " HTTP/1.1";

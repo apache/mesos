@@ -114,11 +114,11 @@ TEST(HTTP, Endpoints)
   spawn(process);
 
   // First hit '/body' (using explicit sockets and HTTP/1.0).
-  Try<int> trySocket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> sock = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
-  ASSERT_TRUE(trySocket.isSome());
+  ASSERT_TRUE(sock.isSome());
 
-  int s = trySocket.get();
+  int s = sock.get();
 
   ASSERT_TRUE(process::connect(s, process.self().node).isSome());
 
