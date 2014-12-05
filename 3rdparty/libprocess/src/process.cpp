@@ -1272,19 +1272,14 @@ Future<Nothing> connect(const Socket& socket)
 
 Future<Nothing> Socket::Impl::connect(const Node& node)
 {
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = PF_INET;
-  addr.sin_port = htons(node.port);
-  addr.sin_addr.s_addr = node.ip;
-
-  if (::connect(get(), (sockaddr*) &addr, sizeof(addr)) < 0) {
-    if (errno != EINPROGRESS) {
-      return Failure(ErrnoError("Failed to connect socket"));
+  Try<int> tryConnect = process::connect(get(), node);
+  if (tryConnect.isError()) {
+    if (errno == EINPROGRESS) {
+      return io::poll(get(), io::WRITE)
+        .then(lambda::bind(&internal::connect, Socket(shared_from_this())));
     }
 
-    return io::poll(get(), io::WRITE)
-      .then(lambda::bind(&internal::connect, Socket(shared_from_this())));
+    return Failure(tryConnect.error());
   }
 
   return Nothing();
@@ -1389,24 +1384,13 @@ Future<size_t> Socket::Impl::sendfile(int fd, off_t offset, size_t size)
 
 Try<Node> Socket::Impl::bind(const Node& node)
 {
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = PF_INET;
-  addr.sin_addr.s_addr = node.ip;
-  addr.sin_port = htons(node.port);
-
-  if (::bind(get(), (sockaddr*) &addr, sizeof(addr)) < 0) {
-    return Error("Failed to bind: " + string(inet_ntoa(addr.sin_addr)) +
-                 ":" + stringify(node.port));
+  Try<int> tryBind = process::bind(get(), node);
+  if (tryBind.isError()) {
+    return Error(tryBind.error());
   }
 
   // Lookup and store assigned ip and assigned port.
-  socklen_t addrlen = sizeof(addr);
-  if (getsockname(get(), (sockaddr*) &addr, &addrlen) < 0) {
-    return ErrnoError("Failed to bind, getsockname");
-  }
-
-  return Node(addr.sin_addr.s_addr, ntohs(addr.sin_port));
+  return process::getsockname(get(), AF_INET);
 }
 
 
@@ -1423,15 +1407,12 @@ namespace internal {
 
 Future<Socket> accept(int fd)
 {
-  sockaddr_in addr;
-  socklen_t addrlen = sizeof(addr);
-
-  int s = ::accept(fd, (sockaddr*) &addr, &addrlen);
-
-  if (s < 0) {
-    return Failure(ErrnoError("Failed to accept"));
+  Try<int> tryAccept = process::accept(fd, AF_INET);
+  if (tryAccept.isError()) {
+    return Failure(tryAccept.error());
   }
 
+  int s = tryAccept.get();
   Try<Nothing> nonblock = os::nonblock(s);
   if (nonblock.isError()) {
     LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, nonblock: "

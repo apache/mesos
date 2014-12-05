@@ -10,6 +10,7 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
+#include <process/socket.hpp>
 
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
@@ -81,15 +82,10 @@ Future<Response> request(
 
   const string host = stringify(upid.node);
 
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(upid.node.port);
-  addr.sin_addr.s_addr = upid.node.ip;
-
-  if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
+  Try<int> tryConnect = process::connect(s, upid.node);
+  if (tryConnect.isError()) {
     os::close(s);
-    return Failure(ErrnoError("Failed to connect to '" + host + "'"));
+    return Failure(tryConnect.error());
   }
 
   std::ostringstream out;

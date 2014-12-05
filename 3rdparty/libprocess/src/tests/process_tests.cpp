@@ -23,6 +23,7 @@
 #include <process/limiter.hpp>
 #include <process/process.hpp>
 #include <process/run.hpp>
+#include <process/socket.hpp>
 #include <process/time.hpp>
 
 #include <stout/duration.hpp>
@@ -1418,17 +1419,13 @@ TEST(Process, remote)
   EXPECT_CALL(process, handler(_, _))
     .WillOnce(FutureSatisfy(&handler));
 
-  int s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> trySocket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
-  ASSERT_LE(0, s);
+  ASSERT_TRUE(trySocket.isSome());
 
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = PF_INET;
-  addr.sin_port = htons(process.self().node.port);
-  addr.sin_addr.s_addr = process.self().node.ip;
+  int s = trySocket.get();
 
-  ASSERT_EQ(0, connect(s, (sockaddr*) &addr, sizeof(addr)));
+  ASSERT_TRUE(process::connect(s, process.self().node).isSome());
 
   Message message;
   message.name = "handler";
@@ -1488,24 +1485,19 @@ TEST(Process, http2)
   spawn(process);
 
   // Create a receiving socket so we can get messages back.
-  int s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-  ASSERT_LE(0, s);
+  Try<int> trySocket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  ASSERT_TRUE(trySocket.isSome());
 
-  // Set up socket.
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = PF_INET;
-  addr.sin_addr.s_addr = INADDR_ANY;
-  addr.sin_port = 0;
+  int s = trySocket.get();
 
-  ASSERT_EQ(0, ::bind(s, (sockaddr*) &addr, sizeof(addr)));
+  ASSERT_TRUE(process::bind(s, Node()).isSome());
 
   // Create a UPID for 'Libprocess-From' based on the IP and port we
   // got assigned.
-  socklen_t addrlen = sizeof(addr);
-  ASSERT_EQ(0, getsockname(s, (sockaddr*) &addr, &addrlen));
+  Try<Node> node = process::getsockname(s, AF_INET);
+  ASSERT_TRUE(node.isSome());
 
-  UPID from("", addr.sin_addr.s_addr, ntohs(addr.sin_port));
+  UPID from("", node.get());
 
   ASSERT_EQ(0, listen(s, 1));
 
@@ -1535,10 +1527,10 @@ TEST(Process, http2)
   post(process.self(), from, name);
 
   // Accept the incoming connection.
-  memset(&addr, 0, sizeof(addr));
-  addrlen = sizeof(addr);
+  Try<int> tryAccept = process::accept(s, AF_INET);
+  ASSERT_TRUE(tryAccept.isSome());
 
-  int c = ::accept(s, (sockaddr*) &addr, &addrlen);
+  int c = tryAccept.get();
   ASSERT_LT(0, c);
 
   const string data = "POST /" + name + " HTTP/1.1";
