@@ -16,6 +16,7 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include <stout/net.hpp>
 #include <stout/os.hpp>
 
 #include "config.hpp"
@@ -109,42 +110,16 @@ istream& operator >> (istream& stream, UPID& pid)
     return stream;
   }
 
-  hostent he, *hep;
-  char* temp;
-  size_t length;
-  int result;
-  int herrno;
+  //TODO(evelinad): Extend this to support IPv6
+  Try<uint32_t> ip = net::getIP(host, AF_INET);
 
-  // Allocate temporary buffer for gethostbyname2_r.
-  length = 1024;
-  temp = new char[length];
-
-  while ((result = gethostbyname2_r(
-      host.c_str(), AF_INET, &he, temp, length, &hep, &herrno)) == ERANGE) {
-    // Enlarge the buffer.
-    delete[] temp;
-    length *= 2;
-    temp = new char[length];
-  }
-
-  if (result != 0 || hep == NULL) {
-    VLOG(2) << "Failed to parse host '" << host
-            << "' because " << hstrerror(herrno);
-    delete[] temp;
+  if (ip.isError()) {
+    VLOG(2) << ip.error();
     stream.setstate(std::ios_base::badbit);
     return stream;
   }
 
-  if (hep->h_addr_list[0] == NULL) {
-    VLOG(2) << "Got no addresses for '" << host << "'";
-    delete[] temp;
-    stream.setstate(std::ios_base::badbit);
-    return stream;
-  }
-
-  node.ip = *((uint32_t*) hep->h_addr_list[0]);
-
-  delete[] temp;
+  node.ip = ip.get();
 
   str = str.substr(index + 1);
 

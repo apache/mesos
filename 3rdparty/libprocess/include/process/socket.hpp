@@ -10,6 +10,7 @@
 
 #include <stout/abort.hpp>
 #include <stout/nothing.hpp>
+#include <stout/net.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
@@ -42,9 +43,7 @@ inline Try<int> accept(int s, sa_family_t family)
 {
   switch (family) {
     case AF_INET: {
-      sockaddr_in addr;
-      memset(&addr, 0, sizeof(addr));
-
+      sockaddr_in addr = net::createSockaddrIn(0, 0);
       socklen_t addrlen = sizeof(addr);
 
       int rc = ::accept(s, (sockaddr*) &addr, &addrlen);
@@ -60,11 +59,7 @@ inline Try<int> accept(int s, sa_family_t family)
 
 inline Try<int> bind(int s, const Node& node)
 {
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = node.ip;
-  addr.sin_port = htons(node.port);
+  sockaddr_in addr = net::createSockaddrIn(node.ip, node.port);
 
   int rc = ::bind(s, (sockaddr*) &addr, sizeof(addr));
   if (rc < 0)
@@ -75,11 +70,7 @@ inline Try<int> bind(int s, const Node& node)
 
 inline Try<int> connect(int s, const Node& node)
 {
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(node.port);
-  addr.sin_addr.s_addr = node.ip;
+  sockaddr_in addr = net::createSockaddrIn(node.ip, node.port);
 
   int rc = ::connect(s, (sockaddr*) &addr, sizeof(addr));
   if (rc < 0)
@@ -92,9 +83,7 @@ inline Try<Node> getsockname(int s, sa_family_t family)
 {
   switch (family) {
     case AF_INET: {
-      sockaddr_in addr;
-      memset(&addr, 0, sizeof(addr));
-
+      sockaddr_in addr = net::createSockaddrIn(0, 0);
       socklen_t addrlen = sizeof(addr);
 
       if(::getsockname(s, (sockaddr*) &addr, &addrlen) < 0)

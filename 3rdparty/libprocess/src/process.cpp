@@ -871,14 +871,13 @@ void initialize(const string& delegate)
     }
 
     // Lookup IP address of local hostname.
-    hostent* he;
+    Try<uint32_t> ip = net::getIP(hostname, AF_INET);
 
-    if ((he = gethostbyname2(hostname, AF_INET)) == NULL) {
-      LOG(FATAL) << "Failed to initialize, gethostbyname2: "
-                 << hstrerror(h_errno);
+    if (ip.isError()) {
+      LOG(FATAL) << ip.error();
     }
 
-    __node__.ip = *((uint32_t *) he->h_addr_list[0]);
+    __node__.ip = ip.get();
   }
 
   Try<Nothing> listen = __s__.listen(LISTEN_BACKLOG);
