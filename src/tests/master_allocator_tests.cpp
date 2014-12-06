@@ -67,263 +67,10 @@ using testing::DoDefault;
 using testing::Eq;
 using testing::SaveArg;
 
-
+// TODO(bmahler): Move the remainder of the DRFAllocatorTests to unit
+// tests. This file should only be testing the integration between the
+// master and the allocator.
 class DRFAllocatorTest : public MesosTest {};
-
-
-// Checks that the DRF allocator implements the DRF algorithm
-// correctly. The test accomplishes this by adding frameworks and
-// slaves one at a time to the allocator, making sure that each time
-// a new slave is added all of its resources are offered to whichever
-// framework currently has the smallest share. Checking for proper DRF
-// logic when resources are returned, frameworks exit, etc. is handled
-// by SorterTest.DRFSorter.
-TEST_F(DRFAllocatorTest, DRFAllocatorProcess)
-{
-  MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
-
-  EXPECT_CALL(allocator, initialize(_, _, _));
-
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.roles = Some("role1,role2");
-  Try<PID<Master> > master = StartMaster(&allocator, masterFlags);
-  ASSERT_SOME(master);
-
-  slave::Flags flags1 = CreateSlaveFlags();
-  flags1.resources = Some("cpus:2;mem:1024;disk:0");
-
-  EXPECT_CALL(allocator, addSlave(_, _, _, _));
-
-  Try<PID<Slave> > slave1 = StartSlave(flags1);
-  ASSERT_SOME(slave1);
-  // Total cluster resources now cpus=2, mem=1024.
-
-  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo1.set_name("framework1");
-  frameworkInfo1.set_user("user1");
-  frameworkInfo1.set_role("role1");
-
-  MockScheduler sched1;
-  MesosSchedulerDriver driver1(
-      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(allocator, addFramework(_, _, _));
-
-  EXPECT_CALL(sched1, registered(_, _, _));
-
-  Future<vector<Offer> > offers1;
-  EXPECT_CALL(sched1, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers1));
-
-  driver1.start();
-
-  AWAIT_READY(offers1);
-
-  // framework1 will be offered all of slave1's resources since it is
-  // the only framework running so far.
-  EXPECT_THAT(offers1.get(), OfferEq(2, 1024));
-  // user1 share = 1 (cpus=2, mem=1024)
-  //   framework1 share = 1
-
-  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo2.set_name("framework2");
-  frameworkInfo2.set_user("user2");
-  frameworkInfo2.set_role("role2");
-
-  MockScheduler sched2;
-  MesosSchedulerDriver driver2(
-      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
-
-  Future<Nothing> addFramework2;
-  EXPECT_CALL(allocator, addFramework(_, _, _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
-      FutureSatisfy(&addFramework2)));
-
-  EXPECT_CALL(sched2, registered(_, _, _));
-
-  driver2.start();
-
-  AWAIT_READY(addFramework2);
-
-  slave::Flags flags2 = CreateSlaveFlags();
-  flags2.resources = Some("cpus:1;mem:512;disk:0");
-
-  EXPECT_CALL(allocator, addSlave(_, _, _, _));
-
-  Future<vector<Offer> > offers2;
-  EXPECT_CALL(sched2, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers2));
-
-  Try<PID<Slave> > slave2 = StartSlave(flags2);
-  ASSERT_SOME(slave2);
-  // Total cluster resources now cpus=3, mem=1536.
-  // user1 share = 0.66 (cpus=2, mem=1024)
-  //   framework1 share = 1
-  // user2 share = 0
-  //   framework2 share = 0
-
-  AWAIT_READY(offers2);
-
-  // framework2 will be offered all of slave2's resources since user2
-  // has the lowest user share, and framework2 is its only framework.
-  EXPECT_THAT(offers2.get(), OfferEq(1, 512));
-  // user1 share = 0.67 (cpus=2, mem=1024)
-  //   framework1 share = 1
-  // user2 share = 0.33 (cpus=1, mem=512)
-  //   framework2 share = 1
-
-  slave::Flags flags3 = CreateSlaveFlags();
-  flags3.resources = Some("cpus:3;mem:2048;disk:0");
-
-  EXPECT_CALL(allocator, addSlave(_, _, _, _));
-
-  Future<vector<Offer> > offers3;
-  EXPECT_CALL(sched2, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers3));
-
-  Try<PID<Slave> > slave3 = StartSlave(flags3);
-  ASSERT_SOME(slave3);
-  // Total cluster resources now cpus=6, mem=3584.
-  // user1 share = 0.33 (cpus=2, mem=1024)
-  //   framework1 share = 1
-  // user2 share = 0.16 (cpus=1, mem=512)
-  //   framework2 share = 1
-
-  AWAIT_READY(offers3);
-
-  // framework2 will be offered all of slave3's resources since user2
-  // has the lowest share.
-  EXPECT_THAT(offers3.get(), OfferEq(3, 2048));
-  // user1 share = 0.33 (cpus=2, mem=1024)
-  //   framework1 share = 1
-  // user2 share = 0.71 (cpus=4, mem=2560)
-  //   framework2 share = 1
-
-  FrameworkInfo frameworkInfo3; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo3 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo3.set_name("framework3");
-  frameworkInfo3.set_user("user3");
-  frameworkInfo3.set_role("role1");
-
-  MockScheduler sched3;
-  MesosSchedulerDriver driver3(
-      &sched3, frameworkInfo3, master.get(), DEFAULT_CREDENTIAL);
-
-  Future<Nothing> addFramework3;
-  EXPECT_CALL(allocator, addFramework(_, _, _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
-      FutureSatisfy(&addFramework3)));
-
-  EXPECT_CALL(sched3, registered(_, _, _));
-
-  driver3.start();
-
-  AWAIT_READY(addFramework3);
-
-  slave::Flags flags4 = CreateSlaveFlags();
-  flags4.resources = Some("cpus:4;mem:4096;disk:0");
-
-  EXPECT_CALL(allocator, addSlave(_, _, _, _));
-
-  Future<vector<Offer> > offers4;
-  EXPECT_CALL(sched3, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers4));
-
-  Try<PID<Slave> > slave4 = StartSlave(flags4);
-  ASSERT_SOME(slave4);
-  // Total cluster resources now cpus=10, mem=7680.
-  // user1 share = 0.2 (cpus=2, mem=1024)
-  //   framework1 share = 1
-  //   framework3 share = 0
-  // user2 share = 0.4 (cpus=4, mem=2560)
-  //   framework2 share = 1
-
-  AWAIT_READY(offers4);
-
-  // framework3 will be offered all of slave4's resources since user1
-  // has the lowest user share, and framework3 has the lowest share of
-  // user1's frameworks.
-  EXPECT_THAT(offers4.get(), OfferEq(4, 4096));
-  // user1 share = 0.67 (cpus=6, mem=5120)
-  //   framework1 share = 0.33 (cpus=2, mem=1024)
-  //   framework3 share = 0.8 (cpus=4, mem=4096)
-  // user2 share = 0.4 (cpus=4, mem=2560)
-  //   framework2 share = 1
-
-  FrameworkInfo frameworkInfo4; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo4 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo4.set_name("framework4");
-  frameworkInfo4.set_user("user1");
-  frameworkInfo4.set_role("role1");
-  MockScheduler sched4;
-  MesosSchedulerDriver driver4(
-      &sched4, frameworkInfo4, master.get(), DEFAULT_CREDENTIAL);
-
-  Future<Nothing> addFramework4;
-  EXPECT_CALL(allocator, addFramework(_, _, _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
-                    FutureSatisfy(&addFramework4)));
-
-  EXPECT_CALL(sched4, registered(_, _, _));
-
-  driver4.start();
-
-  AWAIT_READY(addFramework4);
-
-  slave::Flags flags5 = CreateSlaveFlags();
-  flags5.resources = Some("cpus:1;mem:512;disk:0");
-
-  EXPECT_CALL(allocator, addSlave(_, _, _, _));
-
-  Future<vector<Offer> > offers5;
-  EXPECT_CALL(sched2, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers5));
-
-  Try<PID<Slave> > slave5 = StartSlave(flags5);
-  ASSERT_SOME(slave5);
-  // Total cluster resources now cpus=11, mem=8192
-  // user1 share = 0.63 (cpus=6, mem=5120)
-  //   framework1 share = 0.33 (cpus=2, mem=1024)
-  //   framework3 share = 0.8 (cpus=4, mem=4096)
-  //   framework4 share = 0
-  // user2 share = 0.36 (cpus=4, mem=2560)
-  //   framework2 share = 1
-  AWAIT_READY(offers5);
-
-  // Even though framework4 doesn't have any resources, user2 has a
-  // lower share than user1, so framework2 receives slave4's resources.
-  EXPECT_THAT(offers5.get(), OfferEq(1, 512));
-
-  // Shut everything down.
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(allocator, deactivateFramework(_))
-    .Times(AtMost(4));
-
-  EXPECT_CALL(allocator, removeFramework(_))
-    .Times(AtMost(4));
-
-  driver1.stop();
-  driver1.join();
-
-  driver2.stop();
-  driver2.join();
-
-  driver3.stop();
-  driver3.join();
-
-  driver4.stop();
-  driver4.join();
-
-  EXPECT_CALL(allocator, removeSlave(_))
-    .Times(AtMost(5));
-
-  Shutdown();
-}
-
 
 // This test ensures that allocation is done per slave. This is done
 // by having 2 slaves and 2 frameworks and making sure each framework
@@ -896,7 +643,7 @@ TEST_F(ReservationAllocatorTest, ResourcesReturned)
 
 
 template <typename T>
-class AllocatorTest : public MesosTest
+class MasterAllocatorTest : public MesosTest
 {
 protected:
   void StopAllocator()
@@ -909,14 +656,14 @@ protected:
 };
 
 
-// Causes all TYPED_TEST(AllocatorTest, ...) to be run for
+// Causes all TYPED_TEST(MasterAllocatorTest, ...) to be run for
 // each of the specified Allocator classes.
-TYPED_TEST_CASE(AllocatorTest, AllocatorTypes);
+TYPED_TEST_CASE(MasterAllocatorTest, AllocatorTypes);
 
 
 // Checks that in a cluster with one slave and one framework, all of
 // the slave's resources are offered to the framework.
-TYPED_TEST(AllocatorTest, MockAllocator)
+TYPED_TEST(MasterAllocatorTest, MockAllocator)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -972,7 +719,7 @@ TYPED_TEST(AllocatorTest, MockAllocator)
 // Checks that when a task is launched with fewer resources than what
 // the offer was for, the resources that are returned unused are
 // reoffered appropriately.
-TYPED_TEST(AllocatorTest, ResourcesUnused)
+TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -1085,7 +832,7 @@ TYPED_TEST(AllocatorTest, ResourcesUnused)
 // Tests the situation where a removeFramework call is dispatched
 // while we're doing an allocation to that framework, so that
 // recoverResources is called for an already removed framework.
-TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
+TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -1216,7 +963,7 @@ TYPED_TEST(AllocatorTest, OutOfOrderDispatch)
 // Checks that if a framework launches a task and then fails over to a
 // new scheduler, the task's resources are not reoffered as long as it
 // is running.
-TYPED_TEST(AllocatorTest, SchedulerFailover)
+TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -1344,7 +1091,7 @@ TYPED_TEST(AllocatorTest, SchedulerFailover)
 
 // Checks that if a framework launches a task and then the framework
 // is killed, the tasks resources are returned and reoffered correctly.
-TYPED_TEST(AllocatorTest, FrameworkExited)
+TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -1501,7 +1248,7 @@ TYPED_TEST(AllocatorTest, FrameworkExited)
 // task was running on gets killed, the task's resources are properly
 // recovered and, along with the rest of the resources from the killed
 // slave, never offered again.
-TYPED_TEST(AllocatorTest, SlaveLost)
+TYPED_TEST(MasterAllocatorTest, SlaveLost)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -1618,7 +1365,7 @@ TYPED_TEST(AllocatorTest, SlaveLost)
 // Checks that if a slave is added after some allocations have already
 // occurred, its resources are added to the available pool of
 // resources and offered appropriately.
-TYPED_TEST(AllocatorTest, SlaveAdded)
+TYPED_TEST(MasterAllocatorTest, SlaveAdded)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -1719,7 +1466,7 @@ TYPED_TEST(AllocatorTest, SlaveAdded)
 
 // Checks that if a task is launched and then finishes normally, its
 // resources are recovered and reoffered correctly.
-TYPED_TEST(AllocatorTest, TaskFinished)
+TYPED_TEST(MasterAllocatorTest, TaskFinished)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -1827,7 +1574,7 @@ TYPED_TEST(AllocatorTest, TaskFinished)
 
 // Checks that cpus only resources are offered
 // and tasks using only cpus are launched.
-TYPED_TEST(AllocatorTest, CpusOnlyOfferedAndTaskLaunched)
+TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -1915,7 +1662,7 @@ TYPED_TEST(AllocatorTest, CpusOnlyOfferedAndTaskLaunched)
 
 // Checks that memory only resources are offered
 // and tasks using only memory are launched.
-TYPED_TEST(AllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
+TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -2004,7 +1751,7 @@ TYPED_TEST(AllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
 // Checks that a slave that is not whitelisted will not have its
 // resources get offered, and that if the whitelist is updated so
 // that it is whitelisted, its resources will then be offered.
-TYPED_TEST(AllocatorTest, WhitelistSlave)
+TYPED_TEST(MasterAllocatorTest, WhitelistSlave)
 {
   // Create a dummy whitelist, so that no resources will get allocated.
   string hosts = "dummy-slave";
@@ -2105,7 +1852,7 @@ TYPED_TEST(AllocatorTest, WhitelistSlave)
 // Checks that a framework attempting to register with an invalid role
 // will receive an error message and that roles can be added through the
 // master's command line flags.
-TYPED_TEST(AllocatorTest, RoleTest)
+TYPED_TEST(MasterAllocatorTest, RoleTest)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -2185,7 +1932,7 @@ TYPED_TEST(AllocatorTest, RoleTest)
 // new master, if a framework reregisters before a slave that it has
 // resources on reregisters, all used and unused resources are
 // accounted for correctly.
-TYPED_TEST(AllocatorTest, FrameworkReregistersFirst)
+TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -2311,7 +2058,7 @@ TYPED_TEST(AllocatorTest, FrameworkReregistersFirst)
 // new master, if a slave reregisters before a framework that has
 // resources on reregisters, all used and unused resources are
 // accounted for correctly.
-TYPED_TEST(AllocatorTest, SlaveReregistersFirst)
+TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 

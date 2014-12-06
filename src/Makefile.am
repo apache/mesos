@@ -1207,11 +1207,10 @@ libtestauthentication_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestauthentication_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
 mesos_tests_SOURCES =				\
-  tests/allocator_tests.cpp			\
   tests/attributes_tests.cpp			\
   tests/authentication_tests.cpp		\
   tests/authorization_tests.cpp		        \
-  tests/common/http_tests.cpp							\
+  tests/common/http_tests.cpp			\
   tests/composing_containerizer_tests.cpp       \
   tests/containerizer.cpp			\
   tests/containerizer_tests.cpp			\
@@ -1229,16 +1228,18 @@ mesos_tests_SOURCES =				\
   tests/files_tests.cpp				\
   tests/flags.cpp				\
   tests/gc_tests.cpp				\
+  tests/hierarchical_allocator_tests.cpp	\
   tests/isolator_tests.cpp			\
   tests/log_tests.cpp				\
   tests/logging_tests.cpp			\
   tests/main.cpp				\
+  tests/master_allocator_tests.cpp		\
   tests/master_authorization_tests.cpp		\
   tests/master_contender_detector_tests.cpp	\
   tests/master_slave_reconciliation_tests.cpp	\
   tests/master_tests.cpp			\
   tests/mesos.cpp				\
-  tests/metrics_tests.cpp				\
+  tests/metrics_tests.cpp			\
   tests/module.cpp				\
   tests/module_tests.cpp			\
   tests/monitor_tests.cpp			\
