@@ -280,3 +280,75 @@ TEST_F(HierarchicalAllocatorTest, DRF)
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
   EXPECT_EQ(slave5.resources(), sum(allocation.get().resources.values()));
 }
+
+
+// This test ensures that allocation is done per slave. This is done
+// by having 2 slaves and 2 frameworks and making sure each framework
+// gets only one slave's resources during an allocation.
+TEST_F(HierarchicalAllocatorTest, CoarseGrained)
+{
+  // Pausing the clock ensures that the batch allocation does not
+  // influence this test.
+  Clock::pause();
+
+  initialize({"role1", "role2"});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(slave1.id(), slave1, slave1.resources(), EMPTY);
+
+  SlaveInfo slave2 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(slave2.id(), slave2, slave2.resources(), EMPTY);
+
+  // Once framework1 is added, an allocation will occur. Return the
+  // resources so that we can test what happens when there are 2
+  // frameworks and 2 slaves to consider during allocation.
+  FrameworkInfo framework1 = createFrameworkInfo("role1");
+  allocator->addFramework(framework1.id(), framework1, Resources());
+
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(slave1.resources() + slave2.resources(),
+            sum(allocation.get().resources.values()));
+
+  allocator->recoverResources(
+      framework1.id(),
+      slave1.id(),
+      allocation.get().resources.get(slave1.id()).get(),
+      None());
+  allocator->recoverResources(
+      framework1.id(),
+      slave2.id(),
+      allocation.get().resources.get(slave2.id()).get(),
+      None());
+
+  // Now add the second framework, we expect there to be 2 subsequent
+  // allocations, each framework being allocated a full slave.
+  FrameworkInfo framework2 = createFrameworkInfo("role2");
+  allocator->addFramework(framework2.id(), framework2, Resources());
+
+  hashmap<FrameworkID, Allocation> allocations;
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  allocations[allocation.get().frameworkId] = allocation.get();
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  allocations[allocation.get().frameworkId] = allocation.get();
+
+  // Note that slave1 and slave2 have the same resources, we don't
+  // care which framework received which slave.. only that they each
+  // received one.
+  ASSERT_TRUE(allocations.contains(framework1.id()));
+  ASSERT_EQ(1u, allocations[framework1.id()].resources.size());
+  EXPECT_EQ(slave1.resources(),
+            sum(allocations[framework1.id()].resources.values()));
+
+  ASSERT_TRUE(allocations.contains(framework2.id()));
+  ASSERT_EQ(1u, allocations[framework1.id()].resources.size());
+  EXPECT_EQ(slave2.resources(),
+            sum(allocations[framework1.id()].resources.values()));
+}
