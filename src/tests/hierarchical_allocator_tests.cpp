@@ -352,3 +352,50 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
   EXPECT_EQ(slave2.resources(),
             sum(allocations[framework1.id()].resources.values()));
 }
+
+
+// This test ensures that frameworks that have the same share get an
+// equal number of allocations over time (rather than the same
+// framework getting all the allocations because it's name is
+// lexicographically ordered first).
+TEST_F(HierarchicalAllocatorTest, SameShareFairness)
+{
+  Clock::pause();
+
+  initialize({});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  FrameworkInfo framework1 = createFrameworkInfo("*");
+  allocator->addFramework(framework1.id(), framework1, Resources());
+
+  FrameworkInfo framework2 = createFrameworkInfo("*");
+  allocator->addFramework(framework2.id(), framework2, Resources());
+
+  SlaveInfo slave = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
+
+  // Ensure that the slave's resources are alternated between both
+  // frameworks.
+  hashmap<FrameworkID, size_t> counts;
+
+  for (int i = 0; i < 10; i++) {
+    Future<Allocation> allocation = queue.get();
+    AWAIT_READY(allocation);
+    counts[allocation.get().frameworkId]++;
+
+    ASSERT_EQ(1u, allocation.get().resources.size());
+    EXPECT_EQ(slave.resources(), sum(allocation.get().resources.values()));
+
+    allocator->recoverResources(
+        allocation.get().frameworkId,
+        slave.id(),
+        allocation.get().resources.get(slave.id()).get(),
+        None());
+
+    Clock::advance(flags.allocation_interval);
+  }
+
+  EXPECT_EQ(5u, counts[framework1.id()]);
+  EXPECT_EQ(5u, counts[framework2.id()]);
+}
