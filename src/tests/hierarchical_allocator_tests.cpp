@@ -399,3 +399,55 @@ TEST_F(HierarchicalAllocatorTest, SameShareFairness)
   EXPECT_EQ(5u, counts[framework1.id()]);
   EXPECT_EQ(5u, counts[framework2.id()]);
 }
+
+
+// Checks that resources on a slave that are statically reserved to
+// a role are only offered to frameworks in that role.
+TEST_F(HierarchicalAllocatorTest, Reservations)
+{
+  Clock::pause();
+
+  initialize({"role1", "role2", "role3"});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave1 = createSlaveInfo(
+      "cpus(role1):2;mem(role1):1024;disk(role1):0");
+  allocator->addSlave(slave1.id(), slave1, slave1.resources(), EMPTY);
+
+  SlaveInfo slave2 = createSlaveInfo(
+      "cpus(role2):2;mem(role2):1024;cpus:1;mem:1024;disk:0");
+  allocator->addSlave(slave2.id(), slave2, slave2.resources(), EMPTY);
+
+  // This slave's resources should never be allocated, since there
+  // is no framework for role3.
+  SlaveInfo slave3 = createSlaveInfo(
+      "cpus(role3):1;mem(role3):1024;disk(role3):0");
+  allocator->addSlave(slave3.id(), slave3, slave3.resources(), EMPTY);
+
+  // framework1 should get all the resources from slave1, and the
+  // unreserved resources from slave2.
+  FrameworkInfo framework1 = createFrameworkInfo("role1");
+  allocator->addFramework(framework1.id(), framework1, Resources());
+
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(2u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave1.id()));
+  EXPECT_TRUE(allocation.get().resources.contains(slave2.id()));
+  EXPECT_EQ(slave1.resources() + Resources(slave2.resources()).extract("*"),
+            sum(allocation.get().resources.values()));
+
+  // framework2 should get all of its reserved resources on slave2.
+  FrameworkInfo framework2 = createFrameworkInfo("role2");
+  allocator->addFramework(framework2.id(), framework2, Resources());
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave2.id()));
+  EXPECT_EQ(Resources(slave2.resources()).extract("role2"),
+            sum(allocation.get().resources.values()));
+}
