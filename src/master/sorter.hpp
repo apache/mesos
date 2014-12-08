@@ -32,6 +32,9 @@ namespace allocator {
 // Sorters implement the logic for determining the
 // order in which users or frameworks should receive
 // resource allocations.
+// TODO(bmahler): Templatize this on Client, so that callers can
+// don't need to do string conversion, e.g. FrameworkID, string role,
+// etc.
 class Sorter
 {
 public:

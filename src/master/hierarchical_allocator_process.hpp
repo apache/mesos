@@ -197,8 +197,6 @@ protected:
   //   Both reserved resources and unreserved resources are used
   //   in the fairness calculation. This is because reserved
   //   resources can be allocated to any framework in the role.
-  // TODO(bmahler): The code is currently inconsistent in following
-  // this specification, see MESOS-2176.
   RoleSorter* roleSorter;
   hashmap<std::string, FrameworkSorter*> frameworkSorters;
 };
@@ -275,7 +273,11 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
     frameworkSorters[name] = new FrameworkSorter();
   }
 
-  VLOG(1) << "Initializing hierarchical allocator process";
+  if (roleSorter->count() == 0) {
+    LOG(ERROR) << "No roles specified, cannot allocate resources!";
+  }
+
+  VLOG(1) << "Initialized hierarchical allocator process";
 
   delay(flags.allocation_interval, self(), &Self::batch);
 }
@@ -297,8 +299,11 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
   CHECK(!frameworkSorters[role]->contains(frameworkId.value()));
   frameworkSorters[role]->add(frameworkId.value());
 
+  // TODO(bmahler): Validate that the reserved resources have the
+  // framework's role.
+
   // Update the allocation to this framework.
-  roleSorter->allocated(role, used);
+  roleSorter->allocated(role, used.unreserved());
   frameworkSorters[role]->add(used);
   frameworkSorters[role]->allocated(frameworkId.value(), used);
 
@@ -327,7 +332,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeFramework(
   if (frameworkSorters[role]->contains(frameworkId.value())) {
     Resources allocation =
       frameworkSorters[role]->allocation(frameworkId.value());
-    roleSorter->unallocated(role, allocation);
+
+    roleSorter->unallocated(role, allocation.unreserved());
     frameworkSorters[role]->remove(allocation);
     frameworkSorters[role]->remove(frameworkId.value());
   }
@@ -403,6 +409,7 @@ Resources sum(const Iterable& resources)
 
 } // namespace internal {
 
+
 template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
@@ -414,17 +421,20 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
   CHECK(initialized);
   CHECK(!slaves.contains(slaveId));
 
-  roleSorter->add(total);
+  roleSorter->add(total.unreserved());
 
   foreachpair (const FrameworkID& frameworkId,
-               const Resources& resources,
+               const Resources& allocated,
                used) {
     if (frameworks.contains(frameworkId)) {
       const std::string& role = frameworks[frameworkId].role;
 
-      frameworkSorters[role]->add(resources);
-      frameworkSorters[role]->allocated(frameworkId.value(), resources);
-      roleSorter->allocated(role, resources);
+      // TODO(bmahler): Validate that the reserved resources have the
+      // framework's role.
+
+      roleSorter->allocated(role, allocated.unreserved());
+      frameworkSorters[role]->add(allocated);
+      frameworkSorters[role]->allocated(frameworkId.value(), allocated);
     }
   }
 
@@ -451,7 +461,13 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeSlave(
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
 
-  roleSorter->remove(slaves[slaveId].total);
+  // TODO(bmahler): Per MESOS-621, this should remove the allocations
+  // that any frameworks have on this slave. Otherwise the caller may
+  // "leak" allocated resources accidentally if they forget to recover
+  // all the resources. Fixing this would require more information
+  // than what we currently track in the allocator.
+
+  roleSorter->remove(slaves[slaveId].total.unreserved());
 
   slaves.erase(slaveId);
 
@@ -552,7 +568,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
     if (frameworkSorters[role]->contains(frameworkId.value())) {
       frameworkSorters[role]->unallocated(frameworkId.value(), resources);
       frameworkSorters[role]->remove(resources);
-      roleSorter->unallocated(role, resources);
+      roleSorter->unallocated(role, resources.unreserved());
     }
   }
 
@@ -665,13 +681,13 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     const SlaveID& slaveId)
 {
-  hashset<SlaveID> slaveIds;
-  slaveIds.insert(slaveId);
-
   Stopwatch stopwatch;
   stopwatch.start();
 
-  allocate(slaveIds);
+  // TODO(bmahler): Add initializer list constructor for hashset.
+  hashset<SlaveID> slaves;
+  slaves.insert(slaveId);
+  allocate(slaves);
 
   VLOG(1) << "Performed allocation for slave " << slaveId << " in "
           << stopwatch.elapsed();
@@ -684,21 +700,22 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     const hashset<SlaveID>& slaveIds_)
 {
   if (roleSorter->count() == 0) {
-    VLOG(1) << "No roles to allocate resources!";
+    LOG(ERROR) << "No roles specified, cannot allocate resources!";
     return;
   }
 
-  if (slaveIds_.empty()) {
-    VLOG(1) << "No resources available to allocate!";
-    return;
-  }
+  // Compute the offerable resources, per framework:
+  //   (1) For reserved resources on the slave, allocate these to a
+  //       framework having the corresponding role.
+  //   (2) For unreserved resources on the slave, allocate these
+  //       to a framework of any role.
+  hashmap<FrameworkID, hashmap<SlaveID, Resources> > offerable;
 
   // Randomize the order in which slaves' resources are allocated.
   // TODO(vinod): Implement a smarter sorting algorithm.
   std::vector<SlaveID> slaveIds(slaveIds_.begin(), slaveIds_.end());
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
-  hashmap<FrameworkID, hashmap<SlaveID, Resources> > offerable;
   foreach (const SlaveID& slaveId, slaveIds) {
     // Don't send offers for non-whitelisted and deactivated slaves.
     if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
@@ -706,10 +723,10 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     }
 
     foreach (const std::string& role, roleSorter->sort()) {
-      foreach (const std::string& frameworkIdValue,
+      foreach (const std::string& frameworkId_,
                frameworkSorters[role]->sort()) {
         FrameworkID frameworkId;
-        frameworkId.set_value(frameworkIdValue);
+        frameworkId.set_value(frameworkId_);
 
         Resources unreserved = slaves[slaveId].available.unreserved();
         Resources resources = unreserved;
@@ -727,28 +744,32 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
           continue;
         }
 
-        VLOG(1)
-          << "Offering " << resources << " on slave " << slaveId
-          << " to framework " << frameworkId;
+        VLOG(2) << "Allocating " << resources << " on slave " << slaveId
+                << " to framework " << frameworkId;
 
+        // Note that we perform "coarse-grained" allocation,
+        // meaning that we always allocate the entire remaining
+        // slave resources to a single framework.
         offerable[frameworkId][slaveId] = resources;
-
-        // Update slave resources.
         slaves[slaveId].available -= resources;
 
-        // Update the sorters.
-        // We only count resources not reserved for this role
-        // in the share the sorter considers.
-        frameworkSorters[role]->add(unreserved);
-        frameworkSorters[role]->allocated(frameworkIdValue, unreserved);
+        // Reserved resources are only accounted for in the framework
+        // sorter, since the reserved resources are not shared across
+        // roles.
+        frameworkSorters[role]->add(resources);
+        frameworkSorters[role]->allocated(frameworkId_, resources);
         roleSorter->allocated(role, unreserved);
       }
     }
   }
 
-  // Now offer the resources to each framework.
-  foreachkey (const FrameworkID& frameworkId, offerable) {
-    offerCallback(frameworkId, offerable[frameworkId]);
+  if (offerable.empty()) {
+    VLOG(1) << "No resources available to allocate!";
+  } else {
+    // Now offer the resources to each framework.
+    foreachkey (const FrameworkID& frameworkId, offerable) {
+      offerCallback(frameworkId, offerable[frameworkId]);
+    }
   }
 }
 

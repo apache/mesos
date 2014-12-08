@@ -164,7 +164,7 @@ Resources sum(const Iterable& iterable)
 // TODO(bmahler): These tests were transformed directly from
 // integration tests into unit tests. However, these tests
 // should be simplified even further to each test a single
-// expected behavor, at which point we can have more tests
+// expected behavior, at which point we can have more tests
 // that are each very small.
 
 
@@ -175,7 +175,7 @@ Resources sum(const Iterable& iterable)
 // framework currently has the smallest share. Checking for proper DRF
 // logic when resources are returned, frameworks exit, etc. is handled
 // by SorterTest.DRFSorter.
-TEST_F(HierarchicalAllocatorTest, DRF)
+TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the periodic allocation in the allocator, which
@@ -291,6 +291,76 @@ TEST_F(HierarchicalAllocatorTest, DRF)
   AWAIT_READY(allocation);
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
   EXPECT_EQ(slave5.resources(), sum(allocation.get().resources.values()));
+}
+
+
+// This test ensures that reserved resources do not affect the sharing
+// across roles. However, reserved resources should be shared fairly
+// *within* a role.
+TEST_F(HierarchicalAllocatorTest, ReservedDRF)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize({"role1", "role2"});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave1 = createSlaveInfo(
+      "cpus:1;mem:512;disk:0;"
+      "cpus(role1):100;mem(role1):1024;disk(role1):0");
+  allocator->addSlave(slave1.id(), slave1, slave1.resources(), EMPTY);
+
+  // framework1 will be offered all of the resources.
+  FrameworkInfo framework1 = createFrameworkInfo("role1");
+  allocator->addFramework(framework1.id(), framework1, Resources());
+
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(slave1.resources(), sum(allocation.get().resources.values()));
+
+  FrameworkInfo framework2 = createFrameworkInfo("role2");
+  allocator->addFramework(framework2.id(), framework2, Resources());
+
+  // framework2 will be allocated the new resoures.
+  SlaveInfo slave2 = createSlaveInfo("cpus:2;mem:512;disk:0");
+  allocator->addSlave(slave2.id(), slave2, slave2.resources(), EMPTY);
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
+  EXPECT_EQ(slave2.resources(), sum(allocation.get().resources.values()));
+
+  // Now, even though framework1 has more resources allocated to
+  // it than framework2, reserved resources are not considered for
+  // fairness across roles! We expect framework1 to receive this
+  // slave's resources, since it has fewer unreserved resources.
+  SlaveInfo slave3 = createSlaveInfo("cpus:2;mem:512;disk:0");
+  allocator->addSlave(slave3.id(), slave3, slave3.resources(), EMPTY);
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(slave3.resources(), sum(allocation.get().resources.values()));
+
+  // Now add another framework in role1. Since the reserved resources
+  // should be allocated fairly between frameworks within a role, we
+  // expect framework3 to receive the next allocation of role1
+  // resources.
+  FrameworkInfo framework3 = createFrameworkInfo("role1");
+  allocator->addFramework(framework3.id(), framework3, Resources());
+
+  SlaveInfo slave4 = createSlaveInfo(
+      "cpus(role1):2;mem(role1):1024;disk(role1):0");
+  allocator->addSlave(slave4.id(), slave4, slave4.resources(), EMPTY);
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework3.id(), allocation.get().frameworkId);
+  EXPECT_EQ(slave4.resources(), sum(allocation.get().resources.values()));
 }
 
 
