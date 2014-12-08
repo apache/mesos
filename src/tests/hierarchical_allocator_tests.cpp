@@ -155,6 +155,12 @@ Resources sum(const Iterable& iterable)
   return total;
 }
 
+// TODO(bmahler): These tests were transformed directly from
+// integration tests into unit tests. However, these tests
+// should be simplified even further to each test a single
+// expected behavor, at which point we can have more tests
+// that are each very small.
+
 
 // Checks that the DRF allocator implements the DRF algorithm
 // correctly. The test accomplishes this by adding frameworks and
@@ -450,4 +456,67 @@ TEST_F(HierarchicalAllocatorTest, Reservations)
   EXPECT_TRUE(allocation.get().resources.contains(slave2.id()));
   EXPECT_EQ(Resources(slave2.resources()).extract("role2"),
             sum(allocation.get().resources.values()));
+}
+
+
+// Checks that recovered resources are re-allocated correctly.
+TEST_F(HierarchicalAllocatorTest, RecoverResources)
+{
+  Clock::pause();
+
+  initialize({"role1"});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave = createSlaveInfo(
+      "cpus(role1):1;mem(role1):200;"
+      "cpus:1;mem:200;disk:0");
+  allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
+
+  // Initially, all the resources are allocated.
+  FrameworkInfo framework1 = createFrameworkInfo("role1");
+  allocator->addFramework(framework1.id(), framework1, Resources());
+
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+  EXPECT_EQ(slave.resources(), sum(allocation.get().resources.values()));
+
+  // Recover the reserved resources, expect them to be re-offered.
+  Resources reserved = Resources(slave.resources()).extract("role1");
+
+  allocator->recoverResources(
+      allocation.get().frameworkId,
+      slave.id(),
+      reserved,
+      None());
+
+  Clock::advance(flags.allocation_interval);
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+  EXPECT_EQ(reserved, sum(allocation.get().resources.values()));
+
+  // Recover the unreserved resources, expect them to be re-offered.
+  Resources unreserved = Resources(slave.resources()).extract("*");
+
+  allocator->recoverResources(
+      allocation.get().frameworkId,
+      slave.id(),
+      unreserved,
+      None());
+
+  Clock::advance(flags.allocation_interval);
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+  EXPECT_EQ(unreserved, sum(allocation.get().resources.values()));
 }
