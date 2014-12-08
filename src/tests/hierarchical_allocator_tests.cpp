@@ -28,6 +28,8 @@
 #include <process/queue.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
+#include <stout/utils.hpp>
 
 #include "master/allocator.hpp"
 #include "master/flags.hpp"
@@ -519,4 +521,50 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(unreserved, sum(allocation.get().resources.values()));
+}
+
+
+// Checks that a slave that is not whitelisted will not have its
+// resources get offered, and that if the whitelist is updated so
+// that it is whitelisted, its resources will then be offered.
+TEST_F(HierarchicalAllocatorTest, Whitelist)
+{
+  Clock::pause();
+
+  initialize({"role1"});
+
+  hashset<string> whitelist;
+  whitelist.insert("dummy-slave");
+
+  allocator->updateWhitelist(whitelist);
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave = createSlaveInfo("cpus:2;mem:1024");
+  allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
+
+  FrameworkInfo framework = createFrameworkInfo("*");
+  allocator->addFramework(framework.id(), framework, Resources());
+
+  Future<Allocation> allocation = queue.get();
+
+  // Ensure a batch allocation is triggered.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // There should be no allocation!
+  ASSERT_TRUE(allocation.isPending());
+
+  // Updating the whitelist to include the slave should
+  // trigger an allocation in the next batch.
+  whitelist.insert(slave.hostname());
+  allocator->updateWhitelist(whitelist);
+
+  Clock::advance(flags.allocation_interval);
+
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+  EXPECT_EQ(slave.resources(), sum(allocation.get().resources.values()));
 }

@@ -31,8 +31,10 @@
 #include <process/pid.hpp>
 
 #include <stout/some.hpp>
+#include <stout/strings.hpp>
 
 #include "master/allocator.hpp"
+#include "master/constants.hpp"
 #include "master/detector.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
@@ -1174,104 +1176,53 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
 }
 
 
-// Checks that a slave that is not whitelisted will not have its
-// resources get offered, and that if the whitelist is updated so
-// that it is whitelisted, its resources will then be offered.
-TYPED_TEST(MasterAllocatorTest, WhitelistSlave)
+// Checks that changes to the whitelist are sent to the allocator.
+// The allocator whitelisting is tested in the allocator unit tests.
+// TODO(bmahler): Move this to a whitelist unit test.
+TYPED_TEST(MasterAllocatorTest, Whitelist)
 {
+  Clock::pause();
+
   // Create a dummy whitelist, so that no resources will get allocated.
-  string hosts = "dummy-slave";
-  string path = "whitelist.txt";
-  ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
+  hashset<string> hosts;
+  hosts.insert("dummy-slave1");
+
+  const string path = "whitelist.txt";
+  ASSERT_SOME(os::write(path, strings::join("\n", hosts)));
 
   master::Flags masterFlags = this->CreateMasterFlags();
-  masterFlags.whitelist = "file://" + path; // TODO(benh): Put in /tmp.
+  masterFlags.whitelist = "file://" + path;
 
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
   Future<Nothing> updateWhitelist1;
-  EXPECT_CALL(this->allocator, updateWhitelist(_))
+  EXPECT_CALL(this->allocator, updateWhitelist(Option<hashset<string>>(hosts)))
     .WillOnce(DoAll(InvokeUpdateWhitelist(&this->allocator),
                     FutureSatisfy(&updateWhitelist1)));
 
   Try<PID<Master> > master = this->StartMaster(&this->allocator, masterFlags);
   ASSERT_SOME(master);
 
-  EXPECT_CALL(this->allocator, addSlave(_, _, _, _));
-
-  slave::Flags flags = this->CreateSlaveFlags();
-  flags.resources = Some("cpus:2;mem:1024");
-
-  Try<string> hostname = net::hostname();
-  ASSERT_SOME(hostname);
-  flags.hostname = hostname.get();
-
-  Try<PID<Slave> > slave = this->StartSlave(flags);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(this->allocator, addFramework(_, _, _));
-
-  EXPECT_CALL(sched, registered(_, _, _));
-
-  // Once the slave gets whitelisted, all of its resources should be
-  // offered to the one framework running.
-  Future<Nothing> resourceOffers;
-  EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 1024)))
-    .WillOnce(FutureSatisfy(&resourceOffers));
-
-  // Make sure the allocator has been given the original, empty
-  // whitelist.
+  // Make sure the allocator has been given the initial whitelist.
   AWAIT_READY(updateWhitelist1);
 
-  driver.start();
+  // Update the whitelist to ensure that the change is sent
+  // to the allocator.
+  hosts.insert("dummy-slave2");
 
-  // Give the allocator some time to confirm that it doesn't
-  // make an allocation.
-  Clock::pause();
-  Clock::advance(Seconds(1));
-  Clock::settle();
+  Future<Nothing> updateWhitelist2;
+  EXPECT_CALL(this->allocator, updateWhitelist(Option<hashset<string>>(hosts)))
+    .WillOnce(DoAll(InvokeUpdateWhitelist(&this->allocator),
+                    FutureSatisfy(&updateWhitelist2)));
 
-  EXPECT_FALSE(resourceOffers.isReady());
+  ASSERT_SOME(os::write(path, strings::join("\n", hosts)));
 
-  // Update the whitelist to include the slave, so that
-  // the allocator will start making allocations.
-  hosts = hostname.get() + "\n" + "dummy-slave";
+  Clock::advance(mesos::internal::master::WHITELIST_WATCH_INTERVAL);
 
-  EXPECT_CALL(this->allocator, updateWhitelist(_));
-
-  ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
-
-  // Give the WhitelistWatcher some time to notice that
-  // the whitelist has changed.
-  while (resourceOffers.isPending()) {
-    Clock::advance(Seconds(1));
-    Clock::settle();
-  }
-  Clock::resume();
-
-  // Shut everything down.
-  EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(this->allocator, removeFramework(_))
-    .Times(AtMost(1));
-
-  driver.stop();
-  driver.join();
-
-  EXPECT_CALL(this->allocator, removeSlave(_))
-    .Times(AtMost(1));
+  // Make sure the allocator has been given the updated whitelist.
+  AWAIT_READY(updateWhitelist2);
 
   this->Shutdown();
-
-  os::rm(path);
 }
 
 
