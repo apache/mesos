@@ -1,12 +1,16 @@
 #ifndef __PROCESS_NODE_HPP__
 #define __PROCESS_NODE_HPP__
 
-#include <arpa/inet.h>
+#include <stdint.h>
 #include <unistd.h>
+
+#include <arpa/inet.h>
+
+#include <glog/logging.h>
 
 #include <sstream>
 
-#include <glog/logging.h>
+#include <boost/functional/hash.hpp>
 
 namespace process {
 
@@ -41,6 +45,7 @@ public:
   uint16_t port;
 };
 
+
 inline std::ostream& operator << (std::ostream& stream, const Node& node)
 {
   char ip[INET_ADDRSTRLEN];
@@ -50,6 +55,16 @@ inline std::ostream& operator << (std::ostream& stream, const Node& node)
   }
   stream << ip << ":" << node.port;
   return stream;
+}
+
+
+// UPID hash value (for example, to use in Boost's unordered maps).
+inline std::size_t hash_value(const Node& node)
+{
+  size_t seed = 0;
+  boost::hash_combine(seed, node.ip);
+  boost::hash_combine(seed, node.port);
+  return seed;
 }
 
 } // namespace process {
