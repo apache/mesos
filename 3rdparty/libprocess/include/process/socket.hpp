@@ -158,13 +158,13 @@ public:
       // Supported in Linux >= 2.6.27.
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
       Try<int> fd =
-        socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        process::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 
       if (fd.isError()) {
         ABORT("Failed to create socket: " + fd.error());
       }
 #else
-      Try<int> fd = socket(AF_INET, SOCK_STREAM, 0);
+      Try<int> fd = process::socket(AF_INET, SOCK_STREAM, 0);
       if (fd.isError()) {
         ABORT("Failed to create socket: " + fd.error());
       }
