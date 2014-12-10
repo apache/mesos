@@ -179,6 +179,8 @@ inline Try<std::string> getHostname(uint32_t ip)
   return std::string(hostname);
 }
 
+// Returns a Try of the IP for the provided hostname or an error if no IP is
+// obtained.
 inline Try<uint32_t> getIP(const std::string& hostname, sa_family_t family)
 {
   struct addrinfo ai, *aip;
