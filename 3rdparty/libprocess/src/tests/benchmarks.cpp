@@ -20,15 +20,21 @@
 
 #include <gmock/gmock.h>
 
+#include <iostream>
 #include <memory>
 #include <unordered_set>
+#include <vector>
 
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/process.hpp>
 
+#include <stout/stopwatch.hpp>
+
 using namespace process;
 
+using std::cout;
+using std::endl;
 using std::function;
 using std::istringstream;
 using std::ostringstream;
@@ -295,5 +301,88 @@ TEST(Process, Process_BENCHMARK_Test)
         wait(process);
       }
     }
+  }
+}
+
+
+class LinkerProcess : public Process<LinkerProcess>
+{
+public:
+  LinkerProcess(const UPID& _to) : to(_to) {}
+
+  virtual void initialize()
+  {
+    link(to);
+  }
+
+private:
+  UPID to;
+};
+
+
+class EphemeralProcess : public Process<EphemeralProcess>
+{
+public:
+  void terminate()
+  {
+    process::terminate(self());
+  }
+};
+
+
+// Simulate the scenario discussed in MESOS-2182. We first establish a
+// large number of links by creating many linker-linkee pairs. And
+// then, we introduce a large amount of ephemeral process exits as
+// well as event dispatches.
+TEST(Process, Process_BENCHMARK_LargeNumberOfLinks)
+{
+  int links = 5000;
+  int iterations = 10000;
+
+  // Keep track of all the linked processes we created.
+  vector<ProcessBase*> processes;
+
+  // Establish a large number of links.
+  for (int i = 0; i < links; i++) {
+    ProcessBase* linkee = new ProcessBase();
+    LinkerProcess* linker = new LinkerProcess(linkee->self());
+
+    processes.push_back(linkee);
+    processes.push_back(linker);
+
+    spawn(linkee);
+    spawn(linker);
+  }
+
+  // Generate large number of dispatches and process exits by spawning
+  // and then terminating EphemeralProcesses.
+  vector<ProcessBase*> ephemeralProcesses;
+
+  Stopwatch watch;
+  watch.start();
+
+  for (int i = 0; i < iterations ; i++) {
+    EphemeralProcess* process = new EphemeralProcess();
+    ephemeralProcesses.push_back(process);
+
+    spawn(process);
+
+    // NOTE: We let EphemeralProcess terminate itself to make sure all
+    // dispatches are actually executed (otherwise, 'wait' below will
+    // be blocked).
+    dispatch(process->self(), &EphemeralProcess::terminate);
+  }
+
+  foreach (ProcessBase* process, ephemeralProcesses) {
+    wait(process);
+    delete process;
+  }
+
+  cout << "Elapsed: " << watch.elapsed() << endl;
+
+  foreach (ProcessBase* process, processes) {
+    terminate(process);
+    wait(process);
+    delete process;
   }
 }
