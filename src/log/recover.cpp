@@ -108,7 +108,7 @@ private:
       Future<Option<RecoverResponse> > future,
       const Duration& timeout)
   {
-    LOG(INFO) << "Unable to finish the recover protocol in "
+    LOG(INFO) << "Quorum not met before timeout of recover protocol of "
               << timeout << ", retrying";
 
     future.discard();
