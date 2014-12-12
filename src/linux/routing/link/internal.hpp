@@ -49,19 +49,19 @@ namespace internal {
 
 // Returns the netlink link object associated with a given link by its
 // name. Returns None if the link is not found.
-inline Result<Netlink<struct rtnl_link> > get(const std::string& link)
+inline Result<Netlink<struct rtnl_link>> get(const std::string& link)
 {
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
   // Dump all the netlink link objects from kernel. Note that the flag
   // AF_UNSPEC means all available families.
   struct nl_cache* c = NULL;
-  int err = rtnl_link_alloc_cache(sock.get().get(), AF_UNSPEC, &c);
-  if (err != 0) {
-    return Error(nl_geterror(err));
+  int error = rtnl_link_alloc_cache(socket.get().get(), AF_UNSPEC, &c);
+  if (error != 0) {
+    return Error(nl_geterror(error));
   }
 
   Netlink<struct nl_cache> cache(c);
@@ -76,19 +76,19 @@ inline Result<Netlink<struct rtnl_link> > get(const std::string& link)
 
 // Returns the netlink link object associated with a given link by its
 // interface index. Returns None if the link is not found.
-inline Result<Netlink<struct rtnl_link> > get(int index)
+inline Result<Netlink<struct rtnl_link>> get(int index)
 {
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
   // Dump all the netlink link objects from kernel. Note that the flag
   // AF_UNSPEC means all available families.
   struct nl_cache* c = NULL;
-  int err = rtnl_link_alloc_cache(sock.get().get(), AF_UNSPEC, &c);
-  if (err != 0) {
-    return Error(nl_geterror(err));
+  int error = rtnl_link_alloc_cache(socket.get().get(), AF_UNSPEC, &c);
+  if (error != 0) {
+    return Error(nl_geterror(error));
   }
 
   Netlink<struct nl_cache> cache(c);
@@ -105,7 +105,7 @@ inline Result<Netlink<struct rtnl_link> > get(int index)
 // not found.
 inline Result<bool> test(const std::string& _link, unsigned int flags)
 {
-  Result<Netlink<struct rtnl_link> > link = get(_link);
+  Result<Netlink<struct rtnl_link>> link = get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
@@ -119,7 +119,7 @@ inline Result<bool> test(const std::string& _link, unsigned int flags)
 // Sets the flags on the link. Returns false if the link is not found.
 inline Try<bool> set(const std::string& _link, unsigned int flags)
 {
-  Result<Netlink<struct rtnl_link> > link = get(_link);
+  Result<Netlink<struct rtnl_link>> link = get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {

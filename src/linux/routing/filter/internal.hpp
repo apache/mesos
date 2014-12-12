@@ -89,7 +89,7 @@ inline Try<Nothing> attach(
     const Netlink<struct rtnl_cls>& cls,
     const action::Redirect& redirect)
 {
-  Result<Netlink<struct rtnl_link> > link =
+  Result<Netlink<struct rtnl_link>> link =
     link::internal::get(redirect.link());
 
   if (link.isError()) {
@@ -108,12 +108,12 @@ inline Try<Nothing> attach(
 
   // Set the kind of the action to 'mirred'. The kind 'mirred' stands
   // for mirror or redirect actions.
-  int err = rtnl_tc_set_kind(TC_CAST(act), "mirred");
-  if (err != 0) {
+  int error = rtnl_tc_set_kind(TC_CAST(act), "mirred");
+  if (error != 0) {
     rtnl_act_put(act);
     return Error(
         "Failed to set the kind of the action: " +
-        std::string(nl_geterror(err)));
+        std::string(nl_geterror(error)));
   }
 
   rtnl_mirred_set_ifindex(act, rtnl_link_get_ifindex(link.get().get()));
@@ -122,25 +122,25 @@ inline Try<Nothing> attach(
 
   const std::string kind = rtnl_tc_get_kind(TC_CAST(cls.get()));
   if (kind == "basic") {
-    err = rtnl_basic_add_action(cls.get(), act);
-    if (err != 0) {
+    error = rtnl_basic_add_action(cls.get(), act);
+    if (error != 0) {
       rtnl_act_put(act);
-      return Error(std::string(nl_geterror(err)));
+      return Error(std::string(nl_geterror(error)));
     }
   } else if (kind == "u32") {
-    err = rtnl_u32_add_action(cls.get(), act);
-    if (err != 0) {
+    error = rtnl_u32_add_action(cls.get(), act);
+    if (error != 0) {
       rtnl_act_put(act);
-      return Error(std::string(nl_geterror(err)));
+      return Error(std::string(nl_geterror(error)));
     }
 
     // Automatically set the 'terminal' flag for u32 filters if a
     // redirect action is attached.
-    err = rtnl_u32_set_cls_terminal(cls.get());
-    if (err != 0) {
+    error = rtnl_u32_set_cls_terminal(cls.get());
+    if (error != 0) {
       return Error(
           "Failed to set the terminal flag: " +
-          std::string(nl_geterror(err)));
+          std::string(nl_geterror(error)));
     }
   } else {
     rtnl_act_put(act);
@@ -159,7 +159,7 @@ inline Try<Nothing> attach(
   const std::string kind = rtnl_tc_get_kind(TC_CAST(cls.get()));
 
   foreach (const std::string& _link, mirror.links()) {
-    Result<Netlink<struct rtnl_link> > link = link::internal::get(_link);
+    Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
     if (link.isError()) {
       return Error(link.error());
     } else if (link.isNone()) {
@@ -174,12 +174,12 @@ inline Try<Nothing> attach(
       return Error("Failed to allocate a libnl action (rtnl_act)");
     }
 
-    int err = rtnl_tc_set_kind(TC_CAST(act), "mirred");
-    if (err != 0) {
+    int error = rtnl_tc_set_kind(TC_CAST(act), "mirred");
+    if (error != 0) {
       rtnl_act_put(act);
       return Error(
           "Failed to set the kind of the action: " +
-          std::string(nl_geterror(err)));
+          std::string(nl_geterror(error)));
     }
 
     rtnl_mirred_set_ifindex(act, rtnl_link_get_ifindex(link.get().get()));
@@ -187,16 +187,16 @@ inline Try<Nothing> attach(
     rtnl_mirred_set_policy(act, TC_ACT_PIPE);
 
     if (kind == "basic") {
-      err = rtnl_basic_add_action(cls.get(), act);
-      if (err != 0) {
+      error = rtnl_basic_add_action(cls.get(), act);
+      if (error != 0) {
         rtnl_act_put(act);
-        return Error(std::string(nl_geterror(err)));
+        return Error(std::string(nl_geterror(error)));
       }
     } else if (kind == "u32") {
-      err = rtnl_u32_add_action(cls.get(), act);
-      if (err != 0) {
+      error = rtnl_u32_add_action(cls.get(), act);
+      if (error != 0) {
         rtnl_act_put(act);
-        return Error(std::string(nl_geterror(err)));
+        return Error(std::string(nl_geterror(error)));
       }
     } else {
       rtnl_act_put(act);
@@ -207,11 +207,11 @@ inline Try<Nothing> attach(
   // Automatically set the 'terminal' flag for u32 filters if a mirror
   // action is attached.
   if (kind == "u32") {
-    int err = rtnl_u32_set_cls_terminal(cls.get());
-    if (err != 0) {
+    int error = rtnl_u32_set_cls_terminal(cls.get());
+    if (error != 0) {
       return Error(
           "Failed to set the terminal flag: " +
-          std::string(nl_geterror(err)));
+          std::string(nl_geterror(error)));
     }
   }
 
@@ -233,11 +233,11 @@ inline Try<Nothing> attach(
     return Error("Cannot attach terminal action to a non-u32 filter.");
   }
 
-  int err = rtnl_u32_set_cls_terminal(cls.get());
-  if (err != 0) {
+  int error = rtnl_u32_set_cls_terminal(cls.get());
+  if (error != 0) {
     return Error(
         "Failed to set the terminal flag: " +
-        std::string(nl_geterror(err)));
+        std::string(nl_geterror(error)));
   }
 
   return Nothing();
@@ -288,24 +288,24 @@ Result<U32Handle> generateU32Handle(
   }
 
   // Scan all the filters attached to the given parent on the link.
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
   // Dump all the libnl filters (i.e., rtnl_cls) attached to the given
   // parent on the link.
   struct nl_cache* c = NULL;
-  int err = rtnl_cls_alloc_cache(
-      sock.get().get(),
+  int error = rtnl_cls_alloc_cache(
+      socket.get().get(),
       rtnl_link_get_ifindex(link.get()),
       filter.parent().get(),
       &c);
 
-  if (err != 0) {
+  if (error != 0) {
     return Error(
         "Failed to get filter info from kernel: " +
-        std::string(nl_geterror(err)));
+        std::string(nl_geterror(error)));
   }
 
   Netlink<struct nl_cache> cache(c);
@@ -314,7 +314,7 @@ Result<U32Handle> generateU32Handle(
   hashmap<uint16_t, uint32_t> htids;
 
   // A map from 'htid' to a set of already used nodes.
-  hashmap<uint32_t, hashset<uint32_t> > nodes;
+  hashmap<uint32_t, hashset<uint32_t>> nodes;
 
   for (struct nl_object* o = nl_cache_get_first(cache.get());
        o != NULL; o = nl_cache_get_next(o)) {
@@ -356,7 +356,7 @@ Result<U32Handle> generateU32Handle(
 // (rtnl_cls). We use template here so that it works for any type of
 // classifier.
 template <typename Classifier>
-Try<Netlink<struct rtnl_cls> > encodeFilter(
+Try<Netlink<struct rtnl_cls>> encodeFilter(
     const Netlink<struct rtnl_link>& link,
     const Filter<Classifier>& filter)
 {
@@ -423,7 +423,7 @@ Try<Netlink<struct rtnl_cls> > encodeFilter(
 // classifier type. We use template here so that it works for any type
 // of classifier.
 template <typename Classifier>
-Result<Filter<Classifier> > decodeFilter(const Netlink<struct rtnl_cls>& cls)
+Result<Filter<Classifier>> decodeFilter(const Netlink<struct rtnl_cls>& cls)
 {
   // If the handle of the libnl filer is 0, it means that it is an
   // internal filter, therefore is definitly not created by us.
@@ -464,33 +464,33 @@ Result<Filter<Classifier> > decodeFilter(const Netlink<struct rtnl_cls>& cls)
 
 // Returns all the libnl filters (rtnl_cls) attached to the given
 // parent on the link.
-inline Try<std::vector<Netlink<struct rtnl_cls> > > getClses(
+inline Try<std::vector<Netlink<struct rtnl_cls>>> getClses(
     const Netlink<struct rtnl_link>& link,
     const queueing::Handle& parent)
 {
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
   // Dump all the libnl filters (i.e., rtnl_cls) attached to the given
   // parent on the link.
   struct nl_cache* c = NULL;
-  int err = rtnl_cls_alloc_cache(
-      sock.get().get(),
+  int error = rtnl_cls_alloc_cache(
+      socket.get().get(),
       rtnl_link_get_ifindex(link.get()),
       parent.get(),
       &c);
 
-  if (err != 0) {
+  if (error != 0) {
     return Error(
         "Failed to get filter info from kernel: " +
-        std::string(nl_geterror(err)));
+        std::string(nl_geterror(error)));
   }
 
   Netlink<struct nl_cache> cache(c);
 
-  std::vector<Netlink<struct rtnl_cls> > results;
+  std::vector<Netlink<struct rtnl_cls>> results;
 
   for (struct nl_object* o = nl_cache_get_first(cache.get());
        o != NULL; o = nl_cache_get_next(o)) {
@@ -507,12 +507,12 @@ inline Try<std::vector<Netlink<struct rtnl_cls> > > getClses(
 // no match has been found. We use template here so that it works for
 // any type of classifier.
 template <typename Classifier>
-Result<Netlink<struct rtnl_cls> > getCls(
+Result<Netlink<struct rtnl_cls>> getCls(
     const Netlink<struct rtnl_link>& link,
     const queueing::Handle& parent,
     const Classifier& classifier)
 {
-  Try<std::vector<Netlink<struct rtnl_cls> > > clses = getClses(link, parent);
+  Try<std::vector<Netlink<struct rtnl_cls>>> clses = getClses(link, parent);
   if (clses.isError()) {
     return Error(clses.error());
   }
@@ -521,7 +521,7 @@ Result<Netlink<struct rtnl_cls> > getCls(
     // The decode function will return None if 'cls' does not match
     // the classifier type. In that case, we just move on to the next
     // libnl filter.
-    Result<Filter<Classifier> > filter = decodeFilter<Classifier>(cls);
+    Result<Filter<Classifier>> filter = decodeFilter<Classifier>(cls);
     if (filter.isError()) {
       return Error("Failed to decode: " + filter.error());
     } else if (filter.isSome() && filter.get().classifier() == classifier) {
@@ -545,14 +545,14 @@ Try<bool> exists(
     const queueing::Handle& parent,
     const Classifier& classifier)
 {
-  Result<Netlink<struct rtnl_link> > link = link::internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
     return false;
   }
 
-  Result<Netlink<struct rtnl_cls> > cls =
+  Result<Netlink<struct rtnl_cls>> cls =
     getCls(link.get(), parent, classifier);
 
   if (cls.isError()) {
@@ -581,33 +581,33 @@ Try<bool> create(const std::string& _link, const Filter<Classifier>& filter)
     return false;
   }
 
-  Result<Netlink<struct rtnl_link> > link = link::internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
     return Error("Link '" + _link + "' is not found");
   }
 
-  Try<Netlink<struct rtnl_cls> > cls = encodeFilter(link.get(), filter);
+  Try<Netlink<struct rtnl_cls>> cls = encodeFilter(link.get(), filter);
   if (cls.isError()) {
     return Error("Failed to encode the filter: " + cls.error());
   }
 
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
-  int err = rtnl_cls_add(
-      sock.get().get(),
+  int error = rtnl_cls_add(
+      socket.get().get(),
       cls.get().get(),
       NLM_F_CREATE | NLM_F_EXCL);
 
-  if (err != 0) {
-    if (err == -NLE_EXIST) {
+  if (error != 0) {
+    if (error == -NLE_EXIST) {
       return false;
     } else {
-      return Error(std::string(nl_geterror(err)));
+      return Error(std::string(nl_geterror(error)));
     }
   }
 
@@ -625,14 +625,14 @@ Try<bool> remove(
     const queueing::Handle& parent,
     const Classifier& classifier)
 {
-  Result<Netlink<struct rtnl_link> > link = link::internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
     return false;
   }
 
-  Result<Netlink<struct rtnl_cls> > cls =
+  Result<Netlink<struct rtnl_cls>> cls =
     getCls(link.get(), parent, classifier);
 
   if (cls.isError()) {
@@ -641,16 +641,16 @@ Try<bool> remove(
     return false;
   }
 
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
-  int err = rtnl_cls_delete(sock.get().get(), cls.get().get(), 0);
-  if (err != 0) {
+  int error = rtnl_cls_delete(socket.get().get(), cls.get().get(), 0);
+  if (error != 0) {
     // TODO(jieyu): Interpret the error code and return false if it
     // indicates that the filter is not found.
-    return Error(std::string(nl_geterror(err)));
+    return Error(std::string(nl_geterror(error)));
   }
 
   return true;
@@ -664,7 +664,7 @@ Try<bool> remove(
 template <typename Classifier>
 Try<bool> update(const std::string& _link, const Filter<Classifier>& filter)
 {
-  Result<Netlink<struct rtnl_link> > link = link::internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
@@ -672,7 +672,7 @@ Try<bool> update(const std::string& _link, const Filter<Classifier>& filter)
   }
 
   // Get the old libnl classifier (to-be-updated) from kernel.
-  Result<Netlink<struct rtnl_cls> > oldCls =
+  Result<Netlink<struct rtnl_cls>> oldCls =
     getCls(link.get(), filter.parent(), filter.classifier());
 
   if (oldCls.isError()) {
@@ -704,7 +704,7 @@ Try<bool> update(const std::string& _link, const Filter<Classifier>& filter)
         stringify(filter.handle().get().get()));
   }
 
-  Try<Netlink<struct rtnl_cls> > newCls = encodeFilter(link.get(), filter);
+  Try<Netlink<struct rtnl_cls>> newCls = encodeFilter(link.get(), filter);
   if (newCls.isError()) {
     return Error("Failed to encode the new filter: " + newCls.error());
   }
@@ -719,17 +719,17 @@ Try<bool> update(const std::string& _link, const Filter<Classifier>& filter)
       newCls.get().get(),
       rtnl_cls_get_prio(oldCls.get().get()));
 
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
-  int err = rtnl_cls_change(sock.get().get(), newCls.get().get(), 0);
-  if (err != 0) {
-    if (err == -NLE_OBJ_NOTFOUND) {
+  int error = rtnl_cls_change(socket.get().get(), newCls.get().get(), 0);
+  if (error != 0) {
+    if (error == -NLE_OBJ_NOTFOUND) {
       return false;
     } else {
-      return Error(std::string(nl_geterror(err)));
+      return Error(std::string(nl_geterror(error)));
     }
   }
 
@@ -741,31 +741,31 @@ Try<bool> update(const std::string& _link, const Filter<Classifier>& filter)
 // Returns None if the link or the parent is not found. We use
 // template here so that it works for any type of classifier.
 template <typename Classifier>
-Result<std::vector<Filter<Classifier> > > filters(
+Result<std::vector<Filter<Classifier>>> filters(
     const std::string& _link,
     const queueing::Handle& parent)
 {
-  Result<Netlink<struct rtnl_link> > link = link::internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
     return None();
   }
 
-  Try<std::vector<Netlink<struct rtnl_cls> > > clses =
+  Try<std::vector<Netlink<struct rtnl_cls>>> clses =
     getClses(link.get(), parent);
 
   if (clses.isError()) {
     return Error(clses.error());
   }
 
-  std::vector<Filter<Classifier> > results;
+  std::vector<Filter<Classifier>> results;
 
   foreach (const Netlink<struct rtnl_cls>& cls, clses.get()) {
     // The decode function will return None if 'cls' does not match
     // the classifier type. In that case, we just move on to the next
     // libnl filter.
-    Result<Filter<Classifier> > filter = decodeFilter<Classifier>(cls);
+    Result<Filter<Classifier>> filter = decodeFilter<Classifier>(cls);
     if (filter.isError()) {
       return Error(filter.error());
     } else if (filter.isSome()) {
@@ -781,11 +781,11 @@ Result<std::vector<Filter<Classifier> > > filters(
 // link. Returns None if the link or the parent is not found. We use
 // template here so that it works for any type of classifier.
 template <typename Classifier>
-Result<std::vector<Classifier> > classifiers(
+Result<std::vector<Classifier>> classifiers(
     const std::string& link,
     const queueing::Handle& parent)
 {
-  Result<std::vector<Filter<Classifier> > > _filters =
+  Result<std::vector<Filter<Classifier>>> _filters =
     filters<Classifier>(link, parent);
 
   if (_filters.isError()) {

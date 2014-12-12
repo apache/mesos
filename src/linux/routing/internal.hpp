@@ -88,7 +88,7 @@ private:
 // of the netlink socket is NETLINK_ROUTE, but you can optionally
 // provide a different one.
 // TODO(chzhcn): Consider renaming 'routing' to 'netlink'.
-inline Try<Netlink<struct nl_sock> > socket(int protocol = NETLINK_ROUTE)
+inline Try<Netlink<struct nl_sock>> socket(int protocol = NETLINK_ROUTE)
 {
   Try<Nothing> checking = check();
   if (checking.isError()) {
@@ -102,11 +102,11 @@ inline Try<Netlink<struct nl_sock> > socket(int protocol = NETLINK_ROUTE)
 
   Netlink<struct nl_sock> sock(s);
 
-  int err = nl_connect(sock.get(), protocol);
-  if (err != 0) {
+  int error = nl_connect(sock.get(), protocol);
+  if (error != 0) {
     return Error(
         "Failed to connect to netlink protocol: " +
-        std::string(nl_geterror(err)));
+        std::string(nl_geterror(error)));
   }
 
   return sock;

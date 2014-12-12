@@ -63,7 +63,7 @@ namespace link {
 
 Result<string> eth0()
 {
-  Try<vector<route::Rule> > mainRoutingTable = route::table();
+  Try<vector<route::Rule>> mainRoutingTable = route::table();
   if (mainRoutingTable.isError()) {
     return Error(
         "Failed to retrieve the main routing table on the host: " +
@@ -92,7 +92,7 @@ Result<string> eth0()
 
 Result<string> lo()
 {
-  Try<set<string> > links = net::links();
+  Try<set<string>> links = net::links();
   if (links.isError()) {
     return Error("Failed to get all the links: " + links.error());
   }
@@ -112,7 +112,7 @@ Result<string> lo()
 
 Try<bool> exists(const string& _link)
 {
-  Result<Netlink<struct rtnl_link> > link = internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   }
@@ -125,22 +125,22 @@ Try<bool> create(
     const string& peer,
     const Option<pid_t>& pid)
 {
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
-  int err = rtnl_link_veth_add(
+  int error = rtnl_link_veth_add(
       sock.get().get(),
       veth.c_str(),
       peer.c_str(),
       (pid.isNone() ? getpid() : pid.get()));
 
-  if (err != 0) {
-    if (err == -NLE_EXIST) {
+  if (error = 0) {
+    if (error = -NLE_EXIST) {
       return false;
     }
-    return Error(nl_geterror(err));
+    return Error(nl_geterror(error));
   }
 
   return true;
@@ -149,24 +149,24 @@ Try<bool> create(
 
 Try<bool> remove(const string& _link)
 {
-  Result<Netlink<struct rtnl_link> > link = internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
     return false;
   }
 
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
-  int err = rtnl_link_delete(sock.get().get(), link.get().get());
-  if (err != 0) {
-    if (err == -NLE_OBJ_NOTFOUND || err == -NLE_NODEV) {
+  int error = rtnl_link_delete(socket.get().get(), link.get().get());
+  if (error != 0) {
+    if (error == -NLE_OBJ_NOTFOUND || error == -NLE_NODEV) {
       return false;
     }
-    return Error(nl_geterror(err));
+    return Error(nl_geterror(error));
   }
 
   return true;
@@ -237,7 +237,7 @@ Future<Nothing> removed(const string& link)
 
 Result<int> index(const string& _link)
 {
-  Result<Netlink<struct rtnl_link> > link = internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
@@ -250,7 +250,7 @@ Result<int> index(const string& _link)
 
 Result<string> name(int index)
 {
-  Result<Netlink<struct rtnl_link> > link = internal::get(index);
+  Result<Netlink<struct rtnl_link>> link = internal::get(index);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
@@ -328,7 +328,7 @@ Try<bool> setMAC(const string& link, const net::MAC& mac)
 
 Result<unsigned int> mtu(const string& _link)
 {
-  Result<Netlink<struct rtnl_link> > link = internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
@@ -341,7 +341,7 @@ Result<unsigned int> mtu(const string& _link)
 
 Try<bool> setMTU(const string& _link, unsigned int mtu)
 {
-  Result<Netlink<struct rtnl_link> > link = internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
@@ -377,9 +377,9 @@ Try<bool> setMTU(const string& _link, unsigned int mtu)
 }
 
 
-Result<hashmap<string, uint64_t> > statistics(const string& _link)
+Result<hashmap<string, uint64_t>> statistics(const string& _link)
 {
-  Result<Netlink<struct rtnl_link> > link = internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {

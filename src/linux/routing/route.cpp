@@ -47,18 +47,18 @@ using std::vector;
 namespace routing {
 namespace route {
 
-Try<vector<Rule> > table()
+Try<vector<Rule>> table()
 {
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
   // Dump all the routes (for IPv4) from kernel.
   struct nl_cache* c = NULL;
-  int err = rtnl_route_alloc_cache(sock.get().get(), AF_INET, 0, &c);
-  if (err != 0) {
-    return Error(nl_geterror(err));
+  int error = rtnl_route_alloc_cache(socket.get().get(), AF_INET, 0, &c);
+  if (error != 0) {
+    return Error(nl_geterror(error));
   }
 
   Netlink<struct nl_cache> cache(c);
@@ -122,7 +122,7 @@ Try<vector<Rule> > table()
 
 Result<net::IP> defaultGateway()
 {
-  Try<vector<Rule> > rules = table();
+  Try<vector<Rule>> rules = table();
   if (rules.isError()) {
     return Error("Failed to get the routing table: " + rules.error());
   }

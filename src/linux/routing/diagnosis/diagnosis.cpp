@@ -50,15 +50,15 @@ static Option<net::IP> IP(nl_addr* _ip)
 
 Try<vector<Info> > infos(int family, int states)
 {
-  Try<Netlink<struct nl_sock> > sock = routing::socket(NETLINK_INET_DIAG);
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket(NETLINK_INET_DIAG);
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
   struct nl_cache* c = NULL;
-  int err = idiagnl_msg_alloc_cache(sock.get().get(), family, states, &c);
-  if (err != 0) {
-    return Error(nl_geterror(err));
+  int error = idiagnl_msg_alloc_cache(socket.get().get(), family, states, &c);
+  if (error != 0) {
+    return Error(nl_geterror(error));
   }
 
   Netlink<struct nl_cache> cache(c);
