@@ -141,17 +141,20 @@ inline Try<std::string> hostname()
   }
 
   // TODO(evelinad): Add AF_UNSPEC when we will support IPv6
-  struct addrinfo ai = createAddrInfo(SOCK_STREAM, AF_INET, AI_CANONNAME);
-  struct addrinfo *aip;
+  struct addrinfo hints = createAddrInfo(SOCK_STREAM, AF_INET, AI_CANONNAME);
+  struct addrinfo *result;
 
-  int error = getaddrinfo(host, NULL, &ai, &aip);
+  int error = getaddrinfo(host, NULL, &hints, &result);
 
-  if (error != 0 || aip == NULL) {
+  if (error != 0 || result == NULL) {
+    if (result != NULL) {
+      freeaddrinfo(result);
+    }
     return Error(gai_strerror(error));
   }
 
-  std::string hostname = aip->ai_canonname;
-  freeaddrinfo(aip);
+  std::string hostname = result->ai_canonname;
+  freeaddrinfo(result);
 
   return hostname;
 }
@@ -183,19 +186,23 @@ inline Try<std::string> getHostname(uint32_t ip)
 // obtained.
 inline Try<uint32_t> getIP(const std::string& hostname, sa_family_t family)
 {
-  struct addrinfo ai, *aip;
-  ai = createAddrInfo(SOCK_STREAM, family, 0);
+  struct addrinfo hints, *result;
+  hints = createAddrInfo(SOCK_STREAM, family, 0);
 
-  int error = getaddrinfo(hostname.c_str(), NULL, &ai, &aip);
-  if (error != 0 || aip == NULL) {
+  int error = getaddrinfo(hostname.c_str(), NULL, &hints, &result);
+  if (error != 0 || result == NULL) {
+    if (result != NULL ) {
+      freeaddrinfo(result);
+    }
     return Error(gai_strerror(error));
   }
-  if (aip->ai_addr == NULL) {
+  if (result->ai_addr == NULL) {
+    freeaddrinfo(result);
     return Error("Got no addresses for '" + hostname + "'");
   }
 
-  uint32_t ip = ((struct sockaddr_in*)(aip->ai_addr))->sin_addr.s_addr;
-  freeaddrinfo(aip);
+  uint32_t ip = ((struct sockaddr_in*)(result->ai_addr))->sin_addr.s_addr;
+  freeaddrinfo(result);
 
   return ip;
 }
