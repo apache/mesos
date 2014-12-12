@@ -32,11 +32,15 @@
 #include <stout/utils.hpp>
 
 #include "master/allocator.hpp"
+#include "master/constants.hpp"
 #include "master/flags.hpp"
 #include "master/hierarchical_allocator_process.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
+
+using mesos::internal::master::MIN_CPUS;
+using mesos::internal::master::MIN_MEM;
 
 using mesos::internal::master::allocator::Allocator;
 using mesos::internal::master::allocator::AllocatorProcess;
@@ -521,6 +525,74 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(unreserved, sum(allocation.get().resources.values()));
+}
+
+
+TEST_F(HierarchicalAllocatorTest, Allocatable)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize({"role1"});
+
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(framework.id(), framework, Resources());
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  // Not enough memory or cpu to be considered allocatable.
+  SlaveInfo slave1 = createSlaveInfo(
+      "cpus:" + stringify(MIN_CPUS / 2) + ";"
+      "mem:" + stringify((MIN_MEM / 2).megabytes()) + ";"
+      "disk:128");
+  allocator->addSlave(slave1.id(), slave1, slave1.resources(), EMPTY);
+
+  // Enough cpus to be considered allocatable.
+  SlaveInfo slave2 = createSlaveInfo(
+      "cpus:" + stringify(MIN_CPUS) + ";"
+      "mem:" + stringify((MIN_MEM / 2).megabytes()) + ";"
+      "disk:128");
+  allocator->addSlave(slave2.id(), slave2, slave2.resources(), EMPTY);
+
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave2.id()));
+  EXPECT_EQ(slave2.resources(), sum(allocation.get().resources.values()));
+
+  // Enough memory to be considered allocatable.
+  SlaveInfo slave3 = createSlaveInfo(
+      "cpus:" + stringify(MIN_CPUS / 2) + ";"
+      "mem:" + stringify((MIN_MEM).megabytes()) + ";"
+      "disk:128");
+  allocator->addSlave(slave3.id(), slave3, slave3.resources(), EMPTY);
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave3.id()));
+  EXPECT_EQ(slave3.resources(), sum(allocation.get().resources.values()));
+
+  // slave4 has enough cpu and memory to be considered allocatable,
+  // but it lies across unreserved and reserved resources!
+  SlaveInfo slave4 = createSlaveInfo(
+      "cpus:" + stringify(MIN_CPUS / 1.5) + ";"
+      "mem:" + stringify((MIN_MEM / 2).megabytes()) + ";"
+      "cpus(role1):" + stringify(MIN_CPUS / 1.5) + ";"
+      "mem(role1):" + stringify((MIN_MEM / 2).megabytes()) + ";"
+      "disk:128");
+  allocator->addSlave(slave4.id(), slave4, slave4.resources(), EMPTY);
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave4.id()));
+  EXPECT_EQ(slave4.resources(), sum(allocation.get().resources.values()));
 }
 
 
