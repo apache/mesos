@@ -711,10 +711,10 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkIdValue);
 
-        Resources unreserved = slaves[slaveId].available.extract("*");
+        Resources unreserved = slaves[slaveId].available.unreserved();
         Resources resources = unreserved;
         if (role != "*") {
-          resources += slaves[slaveId].available.extract(role);
+          resources += slaves[slaveId].available.reserved(role);
         }
 
         // If the resources are not allocatable, ignore.

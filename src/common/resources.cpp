@@ -477,20 +477,6 @@ Resources Resources::unreserved() const
 }
 
 
-Resources Resources::extract(const string& role) const
-{
-  Resources r;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.role() == role) {
-      r += resource;
-    }
-  }
-
-  return r;
-}
-
-
 Resources Resources::flatten(const string& role) const
 {
   Resources flattened;
@@ -514,7 +500,13 @@ public:
 
   Resources apply(const Resources& resources) const
   {
-    return type == ANY? resources : resources.extract(role);
+    if (type == ANY) {
+      return resources;
+    } else if (role == "*") {
+      return resources.unreserved();
+    } else {
+      return resources.reserved(role);
+    }
   }
 
 private:

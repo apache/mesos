@@ -117,12 +117,6 @@ public:
   // Returns the unreserved resources.
   Resources unreserved() const;
 
-  // Returns all resources in this object that are marked with the
-  // specified role.
-  // TODO(bmahler): Remove this in favor of the more explicit
-  // reservation-based methods above.
-  Resources extract(const std::string& role) const;
-
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
   // the specified role.
