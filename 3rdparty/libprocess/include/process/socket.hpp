@@ -62,24 +62,24 @@ inline Try<int> bind(int s, const Node& node)
 {
   sockaddr_in addr = net::createSockaddrIn(node.ip, node.port);
 
-  int bound = ::bind(s, (sockaddr*) &addr, sizeof(addr));
-  if (bound < 0) {
+  int error  = ::bind(s, (sockaddr*) &addr, sizeof(addr));
+  if (error < 0) {
     return ErrnoError("Failed to bind on " + stringify(node));
   }
 
-  return bound;
+  return error;
 }
 
 inline Try<int> connect(int s, const Node& node)
 {
   sockaddr_in addr = net::createSockaddrIn(node.ip, node.port);
 
-  int connected = ::connect(s, (sockaddr*) &addr, sizeof(addr));
-  if (connected < 0) {
+  int error = ::connect(s, (sockaddr*) &addr, sizeof(addr));
+  if (error < 0) {
     return ErrnoError("Failed to connect to " + stringify(node));
   }
 
-  return connected;
+  return error;
 }
 
 inline Try<Node> getsockname(int s, sa_family_t family)

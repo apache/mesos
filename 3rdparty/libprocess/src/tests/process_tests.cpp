@@ -1419,11 +1419,11 @@ TEST(Process, remote)
   EXPECT_CALL(process, handler(_, _))
     .WillOnce(FutureSatisfy(&handler));
 
-  Try<int> sock = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> socket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
-  ASSERT_TRUE(sock.isSome());
+  ASSERT_TRUE(socket.isSome());
 
-  int s = sock.get();
+  int s = socket.get();
 
   ASSERT_TRUE(process::connect(s, process.self().node).isSome());
 
@@ -1485,10 +1485,10 @@ TEST(Process, http2)
   spawn(process);
 
   // Create a receiving socket so we can get messages back.
-  Try<int> sock = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-  ASSERT_TRUE(sock.isSome());
+  Try<int> socket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  ASSERT_TRUE(socket.isSome());
 
-  int s = sock.get();
+  int s = socket.get();
 
   ASSERT_TRUE(process::bind(s, Node()).isSome());
 

@@ -1281,14 +1281,14 @@ Future<Nothing> connect(const Socket& socket)
 
 Future<Nothing> Socket::Impl::connect(const Node& node)
 {
-  Try<int> connected = process::connect(get(), node);
-  if (connected.isError()) {
+  Try<int> connect = process::connect(get(), node);
+  if (connect.isError()) {
     if (errno == EINPROGRESS) {
       return io::poll(get(), io::WRITE)
         .then(lambda::bind(&internal::connect, Socket(shared_from_this())));
     }
 
-    return Failure(connected.error());
+    return Failure(connect.error());
   }
 
   return Nothing();
@@ -1393,9 +1393,9 @@ Future<size_t> Socket::Impl::sendfile(int fd, off_t offset, size_t size)
 
 Try<Node> Socket::Impl::bind(const Node& node)
 {
-  Try<int> bound = process::bind(get(), node);
-  if (bound.isError()) {
-    return Error(bound.error());
+  Try<int> bind = process::bind(get(), node);
+  if (bind.isError()) {
+    return Error(bind.error());
   }
 
   // Lookup and store assigned ip and assigned port.
