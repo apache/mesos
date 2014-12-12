@@ -2646,7 +2646,7 @@ string PortMappingIsolatorProcess::scripts(Info* info)
          << net::IP(hostDefaultGateway.address()) << "\n";
 
   // Restrict the ephemeral ports that can be used by the container.
-  script << "echo -e " << info->ephemeralPorts.lower() << "\t"
+  script << "echo " << info->ephemeralPorts.lower() << " "
          << (info->ephemeralPorts.upper() - 1)
          << " > /proc/sys/net/ipv4/ip_local_port_range\n";
 
