@@ -1,0 +1,28 @@
+matrix:
+  include:
+    - os: linux
+      env: BUILD_TYPE=Debug
+    - os: linux
+      env: BUILD_TYPE=Release
+    - os: osx
+      env: BUILD_TYPE=Debug
+    - os: osx
+      env: BUILD_TYPE=Release
+language: cpp
+compiler:
+  - clang
+  - gcc
+before_script:
+  - ./bootstrap.sh
+  - mkdir build && cd build
+script:
+  - if [ "$BUILD_TYPE" = "Debug" ]; then ../configure --enable-debug; fi
+  - if [ "$BUILD_TYPE" = "Release" ]; then ../configure; fi
+  - make
+  - make check
+notifications:
+  irc:
+    channels:
+      - "chat.freenode.net#mesos"
+    template:
+      - "%{repository}/%{branch} (%{commit} - %{author}): %{build_url}: %{message}"
