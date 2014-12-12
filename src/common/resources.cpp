@@ -434,6 +434,49 @@ bool Resources::contains(const Resources& that) const
 }
 
 
+hashmap<string, Resources> Resources::reserved() const
+{
+  hashmap<string, Resources> result;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.role() != "*") {
+      result[resource.role()] += resource;
+    }
+  }
+
+  return result;
+}
+
+
+Resources Resources::reserved(const string& role) const
+{
+  Resources result;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.role() != "*" &&
+        resource.role() == role) {
+      result += resource;
+    }
+  }
+
+  return result;
+}
+
+
+Resources Resources::unreserved() const
+{
+  Resources result;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.role() == "*") {
+      result += resource;
+    }
+  }
+
+  return result;
+}
+
+
 Resources Resources::extract(const string& role) const
 {
   Resources r;

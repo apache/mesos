@@ -744,6 +744,33 @@ TEST(ResourcesTest, EmptyUnequal)
 }
 
 
+TEST(ResourcesTest, Reservations)
+{
+  Resources unreserved = Resources::parse(
+      "cpus:1;mem:2;disk:4").get();
+  Resources role1 = Resources::parse(
+      "cpus(role1):2;mem(role1):4;disk(role1):8;").get();
+  Resources role2 = Resources::parse(
+      "cpus(role2):4;mem(role2):8;disk(role2):6;").get();
+
+  Resources resources = unreserved + role1 + role2;
+
+  hashmap<string, Resources> reserved = resources.reserved();
+
+  EXPECT_EQ(2u, reserved.size());
+  EXPECT_EQ(role1, reserved["role1"]);
+  EXPECT_EQ(role2, reserved["role2"]);
+
+  EXPECT_EQ(role1, resources.reserved("role1"));
+  EXPECT_EQ(role2, resources.reserved("role2"));
+
+  // Resources with role "*" are not considered reserved.
+  EXPECT_EQ(Resources(), resources.reserved("*"));
+
+  EXPECT_EQ(unreserved, resources.unreserved());
+}
+
+
 TEST(ResourcesTest, FlattenRoles)
 {
   Resource cpus1 = Resources::parse("cpus", "1", "role1").get();
