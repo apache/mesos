@@ -144,10 +144,10 @@ inline Try<std::string> hostname()
   struct addrinfo ai = createAddrInfo(SOCK_STREAM, AF_INET, AI_CANONNAME);
   struct addrinfo *aip;
 
-  int err = getaddrinfo(host, NULL, &ai, &aip);
+  int error = getaddrinfo(host, NULL, &ai, &aip);
 
-  if (err != 0 || aip == NULL) {
-    return Error(gai_strerror(err));
+  if (error != 0 || aip == NULL) {
+    return Error(gai_strerror(error));
   }
 
   std::string hostname = aip->ai_canonname;
@@ -164,7 +164,7 @@ inline Try<std::string> getHostname(uint32_t ip)
   sockaddr_in addr = createSockaddrIn(ip, 0);
 
   char hostname[MAXHOSTNAMELEN];
-  int err= getnameinfo(
+  int error = getnameinfo(
       (sockaddr*)&addr,
       sizeof(addr),
       hostname,
@@ -172,8 +172,8 @@ inline Try<std::string> getHostname(uint32_t ip)
       NULL,
       0,
       0);
-  if (err != 0) {
-    return Error(std::string(gai_strerror(err)));
+  if (error != 0) {
+    return Error(std::string(gai_strerror(error)));
   }
 
   return std::string(hostname);
@@ -186,9 +186,9 @@ inline Try<uint32_t> getIP(const std::string& hostname, sa_family_t family)
   struct addrinfo ai, *aip;
   ai = createAddrInfo(SOCK_STREAM, family, 0);
 
-  int err = getaddrinfo(hostname.c_str(), NULL, &ai, &aip);
-  if (err != 0 || aip == NULL) {
-    return Error(gai_strerror(err));
+  int error = getaddrinfo(hostname.c_str(), NULL, &ai, &aip);
+  if (error != 0 || aip == NULL) {
+    return Error(gai_strerror(error));
   }
   if (aip->ai_addr == NULL) {
     return Error("Got no addresses for '" + hostname + "'");
