@@ -1419,13 +1419,13 @@ TEST(Process, remote)
   EXPECT_CALL(process, handler(_, _))
     .WillOnce(FutureSatisfy(&handler));
 
-  Try<int> socket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
   ASSERT_TRUE(socket.isSome());
 
   int s = socket.get();
 
-  ASSERT_TRUE(process::connect(s, process.self().node).isSome());
+  ASSERT_TRUE(network::connect(s, process.self().node).isSome());
 
   Message message;
   message.name = "handler";
@@ -1485,16 +1485,16 @@ TEST(Process, http2)
   spawn(process);
 
   // Create a receiving socket so we can get messages back.
-  Try<int> socket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
   ASSERT_TRUE(socket.isSome());
 
   int s = socket.get();
 
-  ASSERT_TRUE(process::bind(s, Node()).isSome());
+  ASSERT_TRUE(network::bind(s, Node()).isSome());
 
   // Create a UPID for 'Libprocess-From' based on the IP and port we
   // got assigned.
-  Try<Node> node = process::getsockname(s, AF_INET);
+  Try<Node> node = network::getsockname(s, AF_INET);
   ASSERT_TRUE(node.isSome());
 
   UPID from("", node.get());
@@ -1527,7 +1527,7 @@ TEST(Process, http2)
   post(process.self(), from, name);
 
   // Accept the incoming connection.
-  Try<int> accepted = process::accept(s, AF_INET);
+  Try<int> accepted = network::accept(s, AF_INET);
   ASSERT_TRUE(accepted.isSome());
 
   int c = accepted.get();

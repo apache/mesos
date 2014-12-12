@@ -66,7 +66,7 @@ Future<Response> request(
     const Option<string>& body,
     const Option<string>& contentType)
 {
-  Try<int> socket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
   if (socket.isError()) {
     return Failure("Failed to create socket: " + socket.error());
@@ -82,7 +82,7 @@ Future<Response> request(
 
   const string host = stringify(upid.node);
 
-  Try<int> connect = process::connect(s, upid.node);
+  Try<int> connect = network::connect(s, upid.node);
   if (connect.isError()) {
     os::close(s);
     return Failure(connect.error());

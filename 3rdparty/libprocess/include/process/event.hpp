@@ -102,7 +102,7 @@ private:
 
 struct HttpEvent : Event
 {
-  HttpEvent(const Socket& _socket, http::Request* _request)
+  HttpEvent(const network::Socket& _socket, http::Request* _request)
     : socket(_socket), request(_request) {}
 
   virtual ~HttpEvent()
@@ -115,7 +115,7 @@ struct HttpEvent : Event
     visitor->visit(*this);
   }
 
-  const Socket socket;
+  const network::Socket socket;
   http::Request* const request;
 
 private:

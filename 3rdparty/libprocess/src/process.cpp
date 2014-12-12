@@ -97,6 +97,7 @@ using process::http::OK;
 using process::http::Request;
 using process::http::Response;
 using process::http::ServiceUnavailable;
+using process::network::Socket;
 
 using std::deque;
 using std::find;
@@ -1281,7 +1282,7 @@ Future<Nothing> connect(const Socket& socket)
 
 Future<Nothing> Socket::Impl::connect(const Node& node)
 {
-  Try<int> connect = process::connect(get(), node);
+  Try<int> connect = network::connect(get(), node);
   if (connect.isError()) {
     if (errno == EINPROGRESS) {
       return io::poll(get(), io::WRITE)
@@ -1393,13 +1394,13 @@ Future<size_t> Socket::Impl::sendfile(int fd, off_t offset, size_t size)
 
 Try<Node> Socket::Impl::bind(const Node& node)
 {
-  Try<int> bind = process::bind(get(), node);
+  Try<int> bind = network::bind(get(), node);
   if (bind.isError()) {
     return Error(bind.error());
   }
 
   // Lookup and store assigned ip and assigned port.
-  return process::getsockname(get(), AF_INET);
+  return network::getsockname(get(), AF_INET);
 }
 
 
@@ -1416,7 +1417,7 @@ namespace internal {
 
 Future<Socket> accept(int fd)
 {
-  Try<int> accepted = process::accept(fd, AF_INET);
+  Try<int> accepted = network::accept(fd, AF_INET);
   if (accepted.isError()) {
     return Failure(accepted.error());
   }

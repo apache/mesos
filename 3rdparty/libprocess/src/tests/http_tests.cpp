@@ -114,13 +114,13 @@ TEST(HTTP, Endpoints)
   spawn(process);
 
   // First hit '/body' (using explicit sockets and HTTP/1.0).
-  Try<int> socket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
   ASSERT_TRUE(socket.isSome());
 
   int s = socket.get();
 
-  ASSERT_TRUE(process::connect(s, process.self().node).isSome());
+  ASSERT_TRUE(network::connect(s, process.self().node).isSome());
 
   std::ostringstream out;
   out << "GET /" << process.self().id << "/body"

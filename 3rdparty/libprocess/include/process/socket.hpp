@@ -16,6 +16,7 @@
 
 
 namespace process {
+namespace network {
 
 // Returns a socket fd for the specified options. Note that on OS X,
 // the returned socket will have the SO_NOSIGPIPE option set.
@@ -158,13 +159,13 @@ public:
       // Supported in Linux >= 2.6.27.
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
       Try<int> fd =
-        process::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        network::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 
       if (fd.isError()) {
         ABORT("Failed to create socket: " + fd.error());
       }
 #else
-      Try<int> fd = process::socket(AF_INET, SOCK_STREAM, 0);
+      Try<int> fd = network::socket(AF_INET, SOCK_STREAM, 0);
       if (fd.isError()) {
         ABORT("Failed to create socket: " + fd.error());
       }
@@ -253,6 +254,7 @@ private:
   std::shared_ptr<Impl> impl;
 };
 
+} // namespace network {
 } // namespace process {
 
 #endif // __PROCESS_SOCKET_HPP__

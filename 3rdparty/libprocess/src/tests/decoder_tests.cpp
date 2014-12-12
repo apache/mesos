@@ -15,6 +15,7 @@ using namespace process::http;
 using std::deque;
 using std::string;
 
+using process::network::Socket;
 
 TEST(Decoder, Request)
 {
