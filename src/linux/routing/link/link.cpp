@@ -131,13 +131,13 @@ Try<bool> create(
   }
 
   int error = rtnl_link_veth_add(
-      sock.get().get(),
+      socket.get().get(),
       veth.c_str(),
       peer.c_str(),
       (pid.isNone() ? getpid() : pid.get()));
 
-  if (error = 0) {
-    if (error = -NLE_EXIST) {
+  if (error != 0) {
+    if (error == -NLE_EXIST) {
       return false;
     }
     return Error(nl_geterror(error));
