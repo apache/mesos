@@ -854,4 +854,53 @@ ostream& operator << (ostream& stream, const Resources& resources)
   return stream;
 }
 
+
+/////////////////////////////////////////////////
+// Resources transformations.
+/////////////////////////////////////////////////
+
+
+Try<Resources> Resources::Transformation::operator () (
+    const Resources& resources) const
+{
+  Try<Resources> applied = apply(resources);
+
+  if (applied.isSome()) {
+    // Additional checks.
+
+    // Ensure the amount of each type of resource does not change.
+    // TODO(jieyu): Currently, we only checks known resource types
+    // like cpus, mem, disk, ports, etc. We should generalize this.
+    if (resources.cpus() != applied.get().cpus() ||
+        resources.mem() != applied.get().mem() ||
+        resources.disk() != applied.get().disk() ||
+        resources.ports() != applied.get().ports()) {
+      return Error("Resource amount does not match");
+    }
+
+    // TODO(jieyu): Ensure that static role does not change.
+  }
+
+  return applied;
+}
+
+
+Try<Resources> Resources::CompositeTransformation::apply(
+    const Resources& resources) const
+{
+  Resources result = resources;
+
+  foreach (Transformation* transformation, transformations) {
+    Try<Resources> transformed = (*transformation)(result);
+
+    if (transformed.isError()) {
+      return Error(transformed.error());
+    }
+
+    result = transformed.get();
+  }
+
+  return result;
+}
+
 } // namespace mesos {

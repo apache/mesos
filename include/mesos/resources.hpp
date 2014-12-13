@@ -21,11 +21,13 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 #include <mesos/values.hpp>
 
 #include <stout/bytes.hpp>
+#include <stout/foreach.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -185,6 +187,53 @@ public:
   Resources operator - (const Resources& that) const;
   Resources& operator -= (const Resource& that);
   Resources& operator -= (const Resources& that);
+
+  // This is an abstraction for describing a transformation that can
+  // be applied to Resources. Transformations cannot not alter the
+  // quantity, or the static role of the resources.
+  class Transformation
+  {
+  public:
+    virtual ~Transformation() {}
+
+    // Returns the result of the transformation, applied to the given
+    // 'resources'. Returns an Error if the transformation cannot be
+    // applied, or the transformation invariants do not hold.
+    Try<Resources> operator () (const Resources& resources) const;
+
+  protected:
+    virtual Try<Resources> apply(const Resources& resources) const = 0;
+  };
+
+  // Represents a sequence of transformations, the transformations are
+  // applied in an all-or-nothing manner. We follow the composite
+  // pattern here.
+  class CompositeTransformation : public Transformation
+  {
+  public:
+    CompositeTransformation() {}
+
+    ~CompositeTransformation()
+    {
+      foreach (Transformation* transformation, transformations) {
+        delete transformation;
+      }
+    }
+
+    // TODO(jieyu): Consider using unique_ptr here once we finialize
+    // our style guide for unique_ptr.
+    template <typename T>
+    void add(const T& t)
+    {
+      transformations.push_back(new T(t));
+    }
+
+  protected:
+    virtual Try<Resources> apply(const Resources& resources) const;
+
+  private:
+    std::vector<Transformation*> transformations;
+  };
 
 private:
   bool contains(const Resource& that) const;
