@@ -1,17 +1,23 @@
 matrix:
+  fast_finish: true
   include:
     - os: linux
       env: BUILD_TYPE=Debug
+      compiler: clang
     - os: linux
       env: BUILD_TYPE=Release
+      compiler: clang
+    - os: linux
+      env: BUILD_TYPE=Debug
+      compiler: gcc
+    - os: linux
+      env: BUILD_TYPE=Release
+      compiler: gcc
     - os: osx
       env: BUILD_TYPE=Debug
     - os: osx
       env: BUILD_TYPE=Release
 language: cpp
-compiler:
-  - clang
-  - gcc
 before_script:
   - ./bootstrap.sh
   - mkdir build && cd build
