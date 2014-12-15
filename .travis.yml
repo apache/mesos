@@ -18,6 +18,9 @@ matrix:
 #    - os: osx
 #      env: BUILD_TYPE=Release
 language: cpp
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y libapr1-dev libsvn-dev libsasl2-dev
 before_script:
   - ./bootstrap
   - mkdir build
