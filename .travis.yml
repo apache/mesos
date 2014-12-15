@@ -13,14 +13,15 @@ matrix:
     - os: linux
       env: BUILD_TYPE=Release
       compiler: gcc
-    - os: osx
-      env: BUILD_TYPE=Debug
-    - os: osx
-      env: BUILD_TYPE=Release
+#    - os: osx
+#      env: BUILD_TYPE=Debug
+#    - os: osx
+#      env: BUILD_TYPE=Release
 language: cpp
 before_script:
-  - ./bootstrap.sh
-  - mkdir build && cd build
+  - ./bootstrap
+  - mkdir build
+  - cd build
 script:
   - if [ "$BUILD_TYPE" = "Debug" ]; then ../configure --enable-debug; fi
   - if [ "$BUILD_TYPE" = "Release" ]; then ../configure; fi
