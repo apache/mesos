@@ -259,7 +259,7 @@ http::Response validateGetWithQuery(const http::Request& request)
   EXPECT_EQ("GET", request.method);
   EXPECT_THAT(request.path, EndsWith("get"));
   EXPECT_EQ("", request.body);
-  EXPECT_EQ("frag", request.fragment);
+  EXPECT_EQ("", request.fragment);
   EXPECT_EQ("bar", request.query.at("foo"));
   EXPECT_EQ(1, request.query.size());
 
@@ -287,7 +287,7 @@ TEST(HTTP, Get)
     .WillOnce(Invoke(validateGetWithQuery));
 
   Future<http::Response> queryFuture =
-    http::get(process.self(), "get", "foo=bar#frag");
+    http::get(process.self(), "get", "foo=bar");
 
   AWAIT_READY(queryFuture);
   ASSERT_EQ(http::statuses[200], queryFuture.get().status);

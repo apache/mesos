@@ -43,11 +43,15 @@ struct Request
   // Tracked by: https://issues.apache.org/jira/browse/MESOS-328.
   hashmap<std::string, std::string> headers;
   std::string method;
+
+  // TODO(benh): Replace 'url', 'path', 'query', and 'fragment' with URL.
   std::string url; // (path?query#fragment)
   std::string path;
-  std::string fragment;
   hashmap<std::string, std::string> query;
+  std::string fragment;
+
   std::string body;
+
   bool keepAlive;
 
   // Returns whether the encoding is considered acceptable in the request.
@@ -566,6 +570,31 @@ inline std::ostream& operator << (
 
   return stream;
 }
+
+
+// Asynchronously sends an HTTP GET request to the specified URL and
+// returns the HTTP response.
+Future<Response> get(
+    const URL& url,
+    const Option<hashmap<std::string, std::string>>& headers = None());
+
+
+// Asynchronously sends an HTTP PUT request to the specified URL and
+// returns the HTTP response.
+Future<Response> put(
+    const URL& url,
+    const Option<hashmap<std::string, std::string>>& headers = None(),
+    const Option<std::string>& body = None(),
+    const Option<std::string>& contentType = None());
+
+
+// Asynchronously sends an HTTP POST request to the specified URL and
+// returns the HTTP response.
+Future<Response> post(
+    const URL& url,
+    const Option<hashmap<std::string, std::string>>& headers = None(),
+    const Option<std::string>& body = None(),
+    const Option<std::string>& contentType = None());
 
 
 // Asynchronously sends an HTTP GET request to the process with the

@@ -6,6 +6,7 @@
 #include <deque>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <process/future.hpp>
 #include <process/http.hpp>
@@ -21,6 +22,7 @@
 
 using std::deque;
 using std::string;
+using std::vector;
 
 using process::http::Request;
 using process::http::Response;
@@ -28,7 +30,6 @@ using process::http::Response;
 using process::network::Socket;
 
 namespace process {
-
 namespace http {
 
 hashmap<uint16_t, string> statuses;
@@ -111,24 +112,25 @@ Future<Response> decode(const string& buffer)
 // Forward declaration.
 Future<Response> _request(
     Socket socket,
-    const UPID& upid,
+    const Node& node,
+    const URL& url,
     const string& method,
-    const Option<string>& path,
-    const Option<string>& query,
-    const Option<hashmap<string, string> >& _headers,
+    const Option<hashmap<string, string>>& _headers,
     const Option<string>& body,
     const Option<string>& contentType);
 
 
 Future<Response> request(
-    const UPID& upid,
+    const URL& url,
     const string& method,
-    const Option<string>& path,
-    const Option<string>& query,
-    const Option<hashmap<string, string> >& headers,
+    const Option<hashmap<string, string>>& headers,
     const Option<string>& body,
     const Option<string>& contentType)
 {
+  if (url.scheme != "http") {
+    return Failure("Unsupported URL scheme");
+  }
+
   Try<Socket> create = Socket::create();
 
   if (create.isError()) {
@@ -137,13 +139,31 @@ Future<Response> request(
 
   Socket socket = create.get();
 
-  return socket.connect(upid.node)
+  Node node;
+
+  if (url.ip.isSome()) {
+    node.ip = url.ip.get().address();
+  } else if (url.domain.isNone()) {
+    return Failure("Missing URL domain or IP");
+  } else {
+    Try<uint32_t> ip = net::getIP(url.domain.get(), AF_INET);
+
+    if (ip.isError()) {
+      return Failure("Failed to determine IP of domain '" +
+                     url.domain.get() + "': " + ip.error());
+    }
+
+    node.ip = ip.get();
+  }
+
+  node.port = url.port;
+
+  return socket.connect(node)
     .then(lambda::bind(&_request,
                        socket,
-                       upid,
+                       node,
+                       url,
                        method,
-                       path,
-                       query,
                        headers,
                        body,
                        contentType));
@@ -152,24 +172,30 @@ Future<Response> request(
 
 Future<Response> _request(
     Socket socket,
-    const UPID& upid,
+    const Node& node,
+    const URL& url,
     const string& method,
-    const Option<string>& path,
-    const Option<string>& query,
-    const Option<hashmap<string, string> >& _headers,
+    const Option<hashmap<string, string>>& _headers,
     const Option<string>& body,
     const Option<string>& contentType)
 {
   std::ostringstream out;
 
-  out << method << " /" << upid.id;
+  out << method << " /" << strings::remove(url.path, "/", strings::PREFIX);
 
-  if (path.isSome()) {
-    out << "/" << path.get();
+  if (!url.query.empty()) {
+    // Convert the query to a string that we join via '=' and '&'.
+    vector<string> query;
+
+    foreachpair (const string& key, const string& value, url.query) {
+      query.push_back(key + "=" + value);
+    }
+
+    out << "?" << strings::join("&", query);
   }
 
-  if (query.isSome()) {
-    out << "?" << query.get();
+  if (url.fragment.isSome()) {
+    out << "#" << url.fragment.get();
   }
 
   out << " HTTP/1.1\r\n";
@@ -182,7 +208,7 @@ Future<Response> _request(
   }
 
   // Need to specify the 'Host' header.
-  headers["Host"] = stringify(upid.node);
+  headers["Host"] = stringify(node);
 
   // Tell the server to close the connection when it's done.
   headers["Connection"] = "close";
@@ -220,17 +246,52 @@ Future<Response> _request(
     .then(lambda::bind(&internal::decode, lambda::_1));
 }
 
-
 } // namespace internal {
+
+
+Future<Response> get(
+    const URL& url,
+    const Option<hashmap<string, string>>& headers)
+{
+  return internal::request(url, "GET", headers, None(), None());
+}
+
+
+Future<Response> put(
+    const URL& url,
+    const Option<hashmap<string, string>>& headers,
+    const Option<string>& body,
+    const Option<string>& contentType)
+{
+  if (body.isNone() && contentType.isSome()) {
+    return Failure("Attempted to do a PUT with a Content-Type but no body");
+  }
+
+  return internal::request(url, "PUT", headers, body, contentType);
+}
+
+
+Future<Response> post(
+    const URL& url,
+    const Option<hashmap<string, string>>& headers,
+    const Option<string>& body,
+    const Option<string>& contentType)
+{
+  if (body.isNone() && contentType.isSome()) {
+    return Failure("Attempted to do a POST with a Content-Type but no body");
+  }
+
+  return internal::request(url, "POST", headers, body, contentType);
+}
 
 
 Future<Response> get(
     const UPID& upid,
     const Option<string>& path,
     const Option<string>& query,
-    const Option<hashmap<string, string> >& headers)
+    const Option<hashmap<string, string>>& headers)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url("http", net::IP(upid.node.ip), upid.node.port, upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
@@ -255,16 +316,18 @@ Future<Response> get(
 Future<Response> post(
     const UPID& upid,
     const Option<string>& path,
-    const Option<hashmap<string, string> >& headers,
+    const Option<hashmap<string, string>>& headers,
     const Option<string>& body,
     const Option<string>& contentType)
 {
-  if (body.isNone() && contentType.isSome()) {
-    return Failure("Attempted to do a POST with a Content-Type but no body");
+  URL url("http", net::IP(upid.node.ip), upid.node.port, upid.id);
+
+  if (path.isSome()) {
+    // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
+    url.path = strings::join("/", url.path, path.get());
   }
 
-  return internal::request(
-      upid, "POST", path, None(), headers, body, contentType);
+  return post(url, headers, body, contentType);
 }
 
 

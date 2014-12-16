@@ -229,7 +229,7 @@ TEST(Metrics, SnapshotTimeout)
   // Ensure the timeout parameter is validated.
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       BadRequest().status,
-      http::get(upid, "snapshot?timeout=foobar"));
+      http::get(upid, "snapshot", "timeout=foobar"));
 
   // Advance the clock to avoid rate limit.
   Clock::advance(Seconds(1));
@@ -253,7 +253,7 @@ TEST(Metrics, SnapshotTimeout)
   Clock::advance(Seconds(1));
 
   // Get the snapshot.
-  Future<Response> response = http::get(upid, "snapshot?timeout=2secs");
+  Future<Response> response = http::get(upid, "snapshot", "timeout=2secs");
 
   // Make sure the request is pending before the timeout is exceeded.
   Clock::settle();
@@ -296,7 +296,7 @@ TEST(Metrics, SnapshotTimeout)
   // Ensure MetricsProcess has removed the metrics.
   Clock::settle();
 
-  response = http::get(upid, "snapshot?timeout=2secs");
+  response = http::get(upid, "snapshot", "timeout=2secs");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
