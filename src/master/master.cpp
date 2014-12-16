@@ -1905,7 +1905,7 @@ struct ResourceValidator : TaskInfoValidator
     // TODO(jieyu): The check we have right now is a partial check for
     // the current task. We need to add checks against slave's
     // existing tasks and executors as well.
-    hashset<string> persistenceIds;
+    hashmap<string, hashset<string>> persistenceIds;
 
     Option<Error> error = Resources::validate(task.resources());
     if (error.isSome()) {
@@ -1922,11 +1922,14 @@ struct ResourceValidator : TaskInfoValidator
         }
 
         if (resource.disk().has_persistence()) {
+          string role = resource.role();
           string id = resource.disk().persistence().id();
-          if (persistenceIds.contains(id)) {
+
+          if (persistenceIds[role].contains(id)) {
             return Error("Task uses duplicated persistence ID " + id);
           }
-          persistenceIds.insert(id);
+
+          persistenceIds[role].insert(id);
         }
       }
     }
@@ -1949,11 +1952,14 @@ struct ResourceValidator : TaskInfoValidator
           }
 
           if (resource.disk().has_persistence()) {
+            string role = resource.role();
             string id = resource.disk().persistence().id();
-            if (persistenceIds.contains(id)) {
+
+            if (persistenceIds[role].contains(id)) {
               return Error("Executor uses duplicated persistence ID " + id);
             }
-            persistenceIds.insert(id);
+
+            persistenceIds[role].insert(id);
           }
         }
       }
@@ -2061,10 +2067,60 @@ struct ResourceUsageValidator : TaskInfoValidator
       resources += executorResources;
     }
 
-    if (!offeredResources.contains(resources + usedResources)) {
+    // We allow frameworks to implicitly acquire persistent disks
+    // through task and executor resources. This means that we need to
+    // infer these implicit disk acquisition transformations on the
+    // offered resources, so that we can validate resource usage.
+    //
+    // NOTE: ResourceValidator ensures that there are no duplicate
+    // persistence IDs per role in 'resources'.
+    //
+    // NOTE: 'offeredResources' will not contain duplicate persistence
+    // IDs per role, given we do not construct such offers.
+    Resources::CompositeTransformation transformation;
+    foreach (const Resource& disk, resources.persistentDisks()) {
+      if (!offeredResources.contains(disk)) {
+        // This is an implicit acquisition. The framework is not
+        // allowed to mutate an offered persistent disk, so we need to
+        // check the offered resources for this persistence ID within
+        // the role.
+        //
+        // TODO(jieyu): We need to ensure this persistence ID within
+        // the role does not clash with any in-use persistent disks on
+        // the slave.
+        string id = disk.disk().persistence().id();
+        foreach (const Resource& offered, offeredResources.persistentDisks()) {
+          if (offered.role() == disk.role() &&
+              offered.disk().persistence().id() == id) {
+            return Error("Duplicated persistence ID '" + id + "'");
+          }
+        }
+
+        transformation.add(Resources::AcquirePersistentDisk(disk));
+      }
+    }
+
+    // Validate that the offered resources are sufficient for
+    // launching this task/executor. To do that, we must first apply
+    // the implicit transformations.
+    Try<Resources> transformedOfferedResources =
+      transformation(offeredResources);
+
+    if (transformedOfferedResources.isError()) {
+      // TODO(jieyu): Revisit this error message once we start to
+      // allow other types of transformations (e.g., dynamic
+      // reservations).
+      return Error(
+          "Failed to acquire persistent disks: " +
+          transformedOfferedResources.error());
+    }
+
+    if (!transformedOfferedResources.get()
+          .contains(resources + usedResources)) {
       return Error(
           "Task uses more resources " + stringify(resources) +
-          " than available " + stringify(offeredResources - usedResources));
+          " than available " +
+          stringify(transformedOfferedResources.get() - usedResources));
     }
 
     return None();
@@ -2634,7 +2690,14 @@ void Master::_launchTasks(
     return;
   }
 
-  Resources usedResources; // Accumulated resources used.
+
+  // We need to transform the offered resources by considering
+  // resources transformations like persistent disk acquisition.
+  Resources transformedOfferedResources = offeredResources;
+
+  // Accumulated resources used by launched tasks.
+  Resources usedResources;
+
   size_t index = 0;
   foreach (const Future<bool>& authorization, authorizations.get()) {
     const TaskInfo& task = tasks[index++];
@@ -2684,7 +2747,7 @@ void Master::_launchTasks(
         task,
         framework,
         slave,
-        offeredResources,
+        transformedOfferedResources,
         usedResources);
 
     if (validationError.isSome()) {
@@ -2709,8 +2772,32 @@ void Master::_launchTasks(
     if (pending) {
       usedResources += addTask(task, framework, slave);
 
-      // TODO(bmahler): Consider updating this log message to
-      // indicate when the executor is also being launched.
+      // We allow frameworks to implicitly acquire persistent disk
+      // through resources, meaning that they can transform the
+      // offered resources. We need to infer those acquisitions.
+      Resources::CompositeTransformation transformation;
+      foreach (const Resource& disk, usedResources.persistentDisks()) {
+        if (!transformedOfferedResources.contains(disk)) {
+          // NOTE: No need to check duplicated persistence ID because
+          // it should have been validated in ResourceUsageValidator.
+          transformation.add(Resources::AcquirePersistentDisk(disk));
+        }
+      }
+
+      // Adjust the total resources by applying the transformation.
+      Try<Resources> _transformedOfferedResources =
+        transformation(transformedOfferedResources);
+
+      // NOTE: The transformation should have also been validated in
+      // ResourceUsageValidator.
+      CHECK_SOME(_transformedOfferedResources);
+      transformedOfferedResources = _transformedOfferedResources.get();
+
+      // TODO(jieyu): Call 'allocator->transformAllocation(...)' here
+      // to update the allocator.
+
+      // TODO(bmahler): Consider updating this log message to indicate
+      // when the executor is also being launched.
       LOG(INFO) << "Launching task " << task.task_id()
                 << " of framework " << *framework
                 << " with resources " << task.resources()
@@ -2727,7 +2814,7 @@ void Master::_launchTasks(
   }
 
   // Calculate unused resources.
-  Resources unusedResources = offeredResources - usedResources;
+  Resources unusedResources = transformedOfferedResources - usedResources;
 
   if (!unusedResources.empty()) {
     // Tell the allocator about the unused (e.g., refused) resources.

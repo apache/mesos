@@ -256,7 +256,6 @@ TEST_F(TaskValidationTest, TaskUsesMoreResourcesThanOffered)
   EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
-
   EXPECT_TRUE(strings::contains(
       status.get().message(), "Task uses more resources"));
 
@@ -583,7 +582,7 @@ TEST_F(TaskValidationTest, UnreservedDiskInfo)
   Resource diskResource = Resources::parse("disk", "128", "*").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", "1"));
 
-  // Include persistent disk resource in task resources.
+  // Include other resources in task resources.
   Resources taskResources =
     Resources::parse("cpus:1;mem:128").get() + diskResource;
 
@@ -645,7 +644,7 @@ TEST_F(TaskValidationTest, InvalidPersistenceID)
   Resource diskResource = Resources::parse("disk", "128", "role1").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo("1/", "1"));
 
-  // Include persistent disk resource in task resources.
+  // Include other resources in task resources.
   Resources taskResources =
     Resources::parse("cpus:1;mem:128").get() + diskResource;
 
@@ -707,7 +706,7 @@ TEST_F(TaskValidationTest, PersistentDiskInfoWithoutVolume)
   Resource diskResource = Resources::parse("disk", "128", "role1").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", None()));
 
-  // Include persistent disk resource in task resources.
+  // Include other resources in task resources.
   Resources taskResources =
     Resources::parse("cpus:1;mem:128").get() + diskResource;
 
@@ -769,7 +768,7 @@ TEST_F(TaskValidationTest, PersistentDiskInfoWithReadOnlyVolume)
   Resource diskResource = Resources::parse("disk", "128", "role1").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", "1", Volume::RO));
 
-  // Include persistent disk resource in task resources.
+  // Include other resources in task resources.
   Resources taskResources =
     Resources::parse("cpus:1;mem:128").get() + diskResource;
 
@@ -832,7 +831,7 @@ TEST_F(TaskValidationTest, PersistentDiskInfoWithHostPath)
   diskResource.mutable_disk()->CopyFrom(
       createDiskInfo("1", "1", Volume::RW, "foo"));
 
-  // Include persistent disk resource in task resources.
+  // Include other resources in task resources.
   Resources taskResources =
     Resources::parse("cpus:1;mem:128").get() + diskResource;
 
@@ -894,7 +893,7 @@ TEST_F(TaskValidationTest, NonPersistentDiskInfoWithVolume)
   Resource diskResource = Resources::parse("disk", "128", "role1").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo(None(), "1"));
 
-  // Include non-persistent disk resource in task resources.
+  // Include other resources in task resources.
   Resources taskResources =
     Resources::parse("cpus:1;mem:128").get() + diskResource;
 
@@ -959,7 +958,7 @@ TEST_F(TaskValidationTest, DuplicatedPersistenceIDWithinTask)
   Resource diskResource2 = Resources::parse("disk", "64", "role1").get();
   diskResource2.mutable_disk()->CopyFrom(createDiskInfo("1", "1"));
 
-  // Include non-persistent disk resource in task resources.
+  // Include other resources in task resources.
   Resources taskResources =
     Resources::parse("cpus:1;mem:128").get() + diskResource1 + diskResource2;
 
@@ -990,6 +989,92 @@ TEST_F(TaskValidationTest, DuplicatedPersistenceIDWithinTask)
 
   Shutdown();
 }
+
+
+// This test ensures that a persistent disk that is larger than the
+// offered disk resources results in a failed task.
+TEST_F(TaskValidationTest, AcquirePersistentDiskTooBig)
+{
+  // Create a framework with role "role1";
+  FrameworkInfo frameworkInfo;
+  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  // Setup ACLs in order to receive offers for "role1".
+  ACLs acls;
+  mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
+  acl->mutable_principals()->add_values(frameworkInfo.principal());
+  acl->mutable_roles()->add_values(frameworkInfo.role());
+
+  // Start master with ACLs.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.roles = frameworkInfo.role();
+  masterFlags.acls = acls;
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus(*):4;mem(*):2048;disk(role1):1024";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Create a persistent disk resource with volume whose size is
+  // larger than the size of the offered disk.
+  Resource diskResource = Resources::parse("disk", "2048", "role1").get();
+  diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", "1"));
+
+  // Include other resources in task resources.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128").get() + diskResource;
+
+  Offer offer = offers.get()[0];
+  TaskInfo task =
+    createTask(offer.slave_id(), taskResources, "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  EXPECT_TRUE(status.get().has_message());
+  EXPECT_TRUE(strings::contains(
+      status.get().message(), "Failed to acquire persistent disks"));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+// TODO(jieyu): Add tests for checking duplicated persistence ID
+// against offered resources.
 
 // TODO(jieyu): Add tests for checking duplicated persistence ID
 // across task and executors.
