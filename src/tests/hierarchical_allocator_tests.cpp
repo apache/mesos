@@ -25,8 +25,10 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
+#include <process/shared.hpp>
 #include <process/queue.hpp>
 
+#include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/utils.hpp>
@@ -48,6 +50,7 @@ using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
 
 using process::Clock;
 using process::Future;
+using process::Shared;
 
 using std::queue;
 using std::string;
@@ -663,6 +666,80 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave4.id()));
   EXPECT_EQ(slave4.resources(), sum(allocation.get().resources.values()));
+}
+
+
+// This test ensures that frameworks can apply resource
+// transformations on their allocations. This allows them
+// to augment the resource metadata (e.g. persistent disk).
+TEST_F(HierarchicalAllocatorTest, TransformAllocation)
+{
+  Clock::pause();
+  initialize(vector<string>{"role1"});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
+  allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
+
+  // Initially, all the resources are allocated.
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(framework.id(), framework, Resources());
+
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+  EXPECT_EQ(slave.resources(), sum(allocation.get().resources.values()));
+
+  // Construct a transformation for the framework's allocation.
+  Resource disk = Resources::parse("disk", "5", "*").get();
+  disk.mutable_disk()->mutable_persistence()->set_id("ID");
+  disk.mutable_disk()->mutable_volume()->set_container_path("data");
+
+  Shared<Resources::Transformation> transformation(
+      new Resources::AcquirePersistentDisk(disk));
+
+  // Ensure the transformation can be applied.
+  Try<Resources> transformed = (*transformation)(
+      sum(allocation.get().resources.values()));
+
+  ASSERT_SOME(transformed);
+
+  // Transform the allocation in the allocator.
+  allocator->transformAllocation(
+      framework.id(),
+      slave.id(),
+      transformation);
+
+  // Now recover the resources, and expect the next allocation
+  // to contain the disk transformation!
+  allocator->recoverResources(
+      framework.id(),
+      slave.id(),
+      transformed.get(),
+      None());
+
+  Clock::advance(flags.allocation_interval);
+
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+
+  // The allocation should be the slave's resources with the
+  // disk transformation applied.
+  transformed = (*transformation)(slave.resources());
+
+  ASSERT_SOME(transformed);
+
+  EXPECT_NE(Resources(slave.resources()),
+            sum(allocation.get().resources.values()));
+
+  EXPECT_EQ(transformed.get(),
+            sum(allocation.get().resources.values()));
 }
 
 

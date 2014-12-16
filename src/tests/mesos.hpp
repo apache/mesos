@@ -719,6 +719,9 @@ public:
     ON_CALL(*this, requestResources(_, _))
       .WillByDefault(InvokeResourcesRequested(this));
 
+    ON_CALL(*this, transformAllocation(_, _, _))
+      .WillByDefault(InvokeTransformAllocation(this));
+
     ON_CALL(*this, recoverResources(_, _, _, _))
       .WillByDefault(InvokeResourcesRecovered(this));
 
@@ -774,6 +777,11 @@ public:
   MOCK_METHOD2(requestResources, void(
       const FrameworkID&,
       const std::vector<Request>&));
+
+  MOCK_METHOD3(transformAllocation, void(
+      const FrameworkID&,
+      const SlaveID&,
+      const process::Shared<Resources::Transformation>&));
 
   MOCK_METHOD4(recoverResources, void(
       const FrameworkID&,
@@ -900,6 +908,17 @@ ACTION_P(InvokeResourcesRequested, allocator)
       &master::allocator::AllocatorProcess::requestResources,
       arg0,
       arg1);
+}
+
+
+ACTION_P(InvokeTransformAllocation, allocator)
+{
+  process::dispatch(
+      allocator->real,
+      &master::allocator::AllocatorProcess::transformAllocation,
+      arg0,
+      arg1,
+      arg2);
 }
 
 

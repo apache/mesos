@@ -112,6 +112,11 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
 
+  void transformAllocation(
+      const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const process::Shared<Resources::Transformation>& transformation);
+
   void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
@@ -538,6 +543,73 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::requestResources(
   CHECK(initialized);
 
   LOG(INFO) << "Received resource request from framework " << frameworkId;
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
+    const FrameworkID& frameworkId,
+    const SlaveID& slaveId,
+    const process::Shared<Resources::Transformation>& transformation)
+{
+  CHECK(initialized);
+  CHECK(slaves.contains(slaveId));
+  CHECK(frameworks.contains(frameworkId));
+
+  // The total resources on the slave are composed of both allocated
+  // and available resources:
+  //
+  //    total = available + allocated
+  //
+  // Here we apply a transformation to the allocated resources,
+  // which in turns leads to a transformation of the total. The
+  // available resources remain unchanged.
+
+  FrameworkSorter* frameworkSorter =
+    frameworkSorters[frameworks[frameworkId].role];
+
+  Resources allocation = frameworkSorter->allocation(frameworkId.value());
+
+  // The role sorter should only contain the unreserved allocation.
+  CHECK_EQ(allocation.unreserved(),
+           roleSorter->allocation(frameworks[frameworkId].role));
+
+  // Update the allocated resources.
+  // TODO(bmahler): Check transformation invariants! Namely,
+  // we don't want the quantity or the static roles of the
+  // allocation to be altered.
+  Try<Resources> transformedAllocation = (*transformation)(allocation);
+
+  CHECK_SOME(transformedAllocation);
+
+  frameworkSorter->transform(
+      frameworkId.value(),
+      allocation,
+      transformedAllocation.get());
+
+  roleSorter->transform(
+      frameworks[frameworkId].role,
+      allocation.unreserved(),
+      transformedAllocation.get().unreserved());
+
+  // Update the total resources.
+  // TODO(bmahler): Check transformation invariants! Namely,
+  // we don't want the quantity or the static roles of the
+  // total to be altered.
+  Try<Resources> transformedTotal = (*transformation)(slaves[slaveId].total);
+
+  CHECK_SOME(transformedTotal);
+
+  slaves[slaveId].total = transformedTotal.get();
+
+  // The available resources should be unaffected.
+  CHECK_EQ(slaves[slaveId].total - transformedAllocation.get(),
+           slaves[slaveId].available);
+
+  LOG(INFO) << "Updated allocation of framework " << frameworkId
+            << " on slave " << slaveId
+            << " from " << allocation << " to " << transformedAllocation.get();
 }
 
 
