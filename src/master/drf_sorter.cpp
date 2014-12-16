@@ -117,6 +117,33 @@ void DRFSorter::allocated(
 }
 
 
+void DRFSorter::transform(
+    const string& name,
+    const Resources& oldAllocation,
+    const Resources& newAllocation)
+{
+  CHECK(contains(name));
+
+  // TODO(bmahler): Check invariants between old and new allocations.
+  // Namely, the roles and quantities of resources should be the same!
+  // Otherwise, we need to ensure we re-calculate the shares, as
+  // is being currently done, for safety.
+
+  CHECK(resources.contains(oldAllocation));
+
+  resources -= oldAllocation;
+  resources += newAllocation;
+
+  CHECK(allocations[name].contains(oldAllocation));
+
+  allocations[name] -= oldAllocation;
+  allocations[name] += newAllocation;
+
+  // Just assume the total has changed, per the TODO above.
+  dirty = true;
+}
+
+
 Resources DRFSorter::allocation(
     const string& name)
 {

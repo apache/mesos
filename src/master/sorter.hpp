@@ -32,6 +32,13 @@ namespace allocator {
 // Sorters implement the logic for determining the
 // order in which users or frameworks should receive
 // resource allocations.
+//
+// TODO(bmahler): The total and allocated resources are currently
+// aggregated across slaves, which only works for scalar resources.
+// Also, persistent disks are a bit tricky because there will be
+// duplicated persistence IDs within the resources. Consider storing
+// maps keyed off of the slave ID to fix these issues.
+//
 // TODO(bmahler): Templatize this on Client, so that callers can
 // don't need to do string conversion, e.g. FrameworkID, string role,
 // etc.
@@ -56,6 +63,14 @@ public:
   // Specify that resources have been allocated to the given client.
   virtual void allocated(const std::string& client,
                          const Resources& resources) = 0;
+
+  // Transforms a portion of the allocation for the client, in
+  // order to augment the resources with additional metadata.
+  // This means that the new allocation must not affect the static
+  // roles, or the overall quantities of resources!
+  virtual void transform(const std::string& client,
+                         const Resources& oldAllocation,
+                         const Resources& newAllocation) = 0;
 
   // Specify that resources have been unallocated from the given client.
   virtual void unallocated(const std::string& client,

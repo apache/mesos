@@ -26,6 +26,8 @@
 
 #include <mesos/resources.hpp>
 
+#include <stout/gtest.hpp>
+
 #include "master/drf_sorter.hpp"
 
 using namespace mesos;
@@ -193,4 +195,35 @@ TEST(SorterTest, SplitResourceShares)
   sorter.allocated("b", Resources::parse("cpus:9;mem:9").get() + disk1 + disk2);
 
   EXPECT_EQ(list<string>({"a", "b"}), sorter.sort());
+}
+
+
+TEST(SorterTest, Transform)
+{
+  DRFSorter sorter;
+
+  sorter.add("a");
+  sorter.add("b");
+
+  sorter.add(Resources::parse("cpus:10;mem:10;disk:10").get());
+
+  sorter.allocated("a", Resources::parse("cpus:10;mem:10;disk:10").get());
+
+  // Construct a transformation.
+  Resource disk = Resources::parse("disk", "5", "*").get();
+  disk.mutable_disk()->mutable_persistence()->set_id("ID");
+  disk.mutable_disk()->mutable_volume()->set_container_path("data");
+
+  Resources::AcquirePersistentDisk transformation(disk);
+
+  // Compute the updated allocation.
+  Resources allocation = sorter.allocation("a");
+  Try<Resources> newAllocation = transformation(allocation);
+
+  ASSERT_SOME(newAllocation);
+
+  // Transform the resources for the client.
+  sorter.transform("a", allocation, newAllocation.get());
+
+  EXPECT_EQ(newAllocation.get(), sorter.allocation("a"));
 }

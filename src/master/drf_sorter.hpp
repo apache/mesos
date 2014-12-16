@@ -76,6 +76,10 @@ public:
   virtual void allocated(const std::string& name,
                          const Resources& resources);
 
+  virtual void transform(const std::string& name,
+                         const Resources& oldAllocation,
+                         const Resources& newAllocation);
+
   virtual void unallocated(const std::string& name,
                            const Resources& resources);
 
