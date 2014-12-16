@@ -27,11 +27,14 @@
 #include <process/protobuf.hpp>
 #include <process/subprocess.hpp>
 #include <process/reap.hpp>
+#include <process/owned.hpp>
 
 #include <stout/flags.hpp>
 #include <stout/os.hpp>
 
 #include "common/status_utils.hpp"
+
+#include "docker/docker.hpp"
 
 #include "logging/logging.hpp"
 
@@ -57,11 +60,17 @@ using namespace process;
 class DockerExecutorProcess : public ProtobufProcess<DockerExecutorProcess>
 {
 public:
-  DockerExecutorProcess(const string& docker, const string& container)
+  DockerExecutorProcess(
+      const Owned<Docker>& docker,
+      const string& container,
+      const string& sandboxDirectory,
+      const string& mappedDirectory)
     : launched(false),
+      killed(false),
       docker(docker),
       container(container),
-      pid(-1) {}
+      sandboxDirectory(sandboxDirectory),
+      mappedDirectory(mappedDirectory) {}
 
   virtual ~DockerExecutorProcess() {}
 
@@ -99,26 +108,35 @@ public:
 
     cout << "Starting task " << task.task_id().value() << endl;
 
-    Try<Subprocess> subprocess = process::subprocess(
-        "exit `" + docker + " wait + " + container + "`",
-        Subprocess::PATH("/dev/null"),
-        Subprocess::FD(STDOUT_FILENO),
-        Subprocess::FD(STDERR_FILENO));
+    // We assume the Docker executor is launched from the
+    // DockerContainerizer, which already calls setsid before
+    // launching the executor.
 
-    if (subprocess.isError()) {
-      cerr << "Couldn't launch docker wait process: " << subprocess.error();
-      abort();
-    }
+    CHECK(task.has_container());
+    CHECK(task.has_command());
 
-    pid = subprocess.get().pid();
+    ContainerInfo containerInfo = task.container();
 
-    process::reap(pid)
-      .onAny(defer(self(),
-                   &Self::reaped,
-                   driver,
-                   task.task_id(),
-                   pid,
-                   lambda::_1));
+    CHECK(containerInfo.type() == ContainerInfo::DOCKER);
+
+    Future<Nothing> run = docker->run(
+        containerInfo,
+        task.command(),
+        container,
+        sandboxDirectory,
+        mappedDirectory,
+        task.resources(),
+        None(),
+        false);
+
+    run.onAny(defer(
+        self(),
+        &Self::reaped,
+        driver,
+        task.task_id(),
+        lambda::_1));
+
+    dockerRun = run;
 
     TaskStatus status;
     status.mutable_task_id()->MergeFrom(task.task_id());
@@ -139,8 +157,9 @@ public:
   {
     cout << "Shutting down" << endl;
 
-    if (pid > 0 && !killed) {
-      ::kill(pid, SIGKILL);
+    if (dockerRun.isSome() && !killed) {
+      Future<Nothing> dockerRun_ = dockerRun.get();
+      dockerRun_.discard();
       killed = true;
     }
   }
@@ -151,40 +170,19 @@ private:
   void reaped(
       ExecutorDriver* driver,
       const TaskID& taskId,
-      pid_t pid,
-      const Future<Option<int>>& status)
+      const Future<Nothing>& run)
   {
     TaskState state;
     string message;
-    if (!status.isReady()) {
+    if (killed) {
+      state = TASK_KILLED;
+    } else if (!run.isReady()) {
       state = TASK_FAILED;
-      message =
-        "Failed to get exit status for Docker executor: " +
-        (status.isFailed() ? status.failure() : "future discarded");
-    } else if (status.get().isNone()) {
-      state = TASK_FAILED;
-      message = "Failed to get exit status for Docker executor";
+      message = "Docker container run error: " +
+                (run.isFailed() ? run.failure() : "future discarded");
     } else {
-      int s = status.get().get();
-
-      // Subprocess status is gathered from waitpid, therefore we can
-      // get the exit status from WIFEXITED.
-      CHECK(WIFEXITED(s) || WIFSIGNALED(s)) << "status code: " << s;
-
-      if (WIFEXITED(s) && WEXITSTATUS(s) == 0) {
-        state = TASK_FINISHED;
-      } else if (killed) {
-        // Send TASK_KILLED if the task was killed as a result of
-        // killTask() or shutdown().
-        state = TASK_KILLED;
-      } else {
-        state = TASK_FAILED;
-      }
-
-      message = "Docker  " + WSTRINGIFY(s);
+      state = TASK_FINISHED;
     }
-
-    cout << message << " (pid: " << pid << ")" << endl;
 
     TaskStatus taskStatus;
     taskStatus.mutable_task_id()->MergeFrom(taskId);
@@ -201,10 +199,12 @@ private:
 
 
   bool launched;
-  string docker;
-  string container;
-  pid_t pid;
   bool killed;
+  Owned<Docker> docker;
+  string container;
+  string sandboxDirectory;
+  string mappedDirectory;
+  Option<Future<Nothing>> dockerRun;
   Option<ExecutorDriver*> driver;
 };
 
@@ -212,9 +212,18 @@ private:
 class DockerExecutor : public Executor
 {
 public:
-  DockerExecutor(const string& docker, const string& container)
+  DockerExecutor(
+      const Owned<Docker>& docker,
+      const string& container,
+      const string& sandboxDirectory,
+      const string& mappedDirectory)
   {
-    process = new DockerExecutorProcess(docker, container);
+    process = new DockerExecutorProcess(
+        docker,
+        container,
+        sandboxDirectory,
+        mappedDirectory);
+
     spawn(process);
   }
 
@@ -303,15 +312,26 @@ public:
   {
     add(&Flags::container,
         "container",
-        "The name of the docker container to wait on.");
+        "The name of the docker container to run.\n");
 
     add(&Flags::docker,
         "docker",
-        "The path to the docker cli executable.");
+        "The path to the docker cli executable.\n");
+
+    add(&Flags::sandbox_directory,
+        "sandbox_directory",
+        "The path to the container sandbox that stores stdout and stderr\n"
+        "files that is being redirected with docker container logs.\n");
+
+    add(&Flags::mapped_directory,
+        "mapped_directory",
+        "The sandbox directory path that is mapped in the docker container.\n");
   }
 
   Option<string> container;
   Option<string> docker;
+  Option<string> sandbox_directory;
+  Option<string> mapped_directory;
 };
 
 
@@ -351,8 +371,30 @@ int main(int argc, char** argv)
     return 0;
   }
 
+  if (flags.sandbox_directory.isNone()) {
+    LOG(WARNING) << "Expected sandbox directory path";
+    usage(argv[0], flags);
+    return 0;
+  }
+
+  if (flags.mapped_directory.isNone()) {
+    LOG(WARNING) << "Expected mapped sandbox directory path";
+    usage(argv[0], flags);
+    return 0;
+  }
+
+  Try<Docker*> docker = Docker::create(flags.docker.get());
+  if (docker.isError()) {
+    LOG(WARNING) << "Unable to create docker abstraction: " << docker.error();
+    return -1;
+  }
+
   mesos::internal::DockerExecutor executor(
-      flags.docker.get(), flags.container.get());
+      process::Owned<Docker>(docker.get()),
+      flags.container.get(),
+      flags.sandbox_directory.get(),
+      flags.mapped_directory.get());
+
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
 }

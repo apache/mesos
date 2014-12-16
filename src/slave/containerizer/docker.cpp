@@ -819,7 +819,10 @@ Future<pid_t> DockerContainerizerProcess::___launch(
   if (length != sizeof(c)) {
     string error = string(strerror(errno));
     os::close(s.get().in().get());
-    return Failure("Failed to synchronize with child process: " + error);
+    Failure failure("Failed to synchronize with child process: " + error);
+
+    container->run = failure;
+    return failure;
   }
 
   return s.get().pid();
@@ -851,14 +854,29 @@ Future<Nothing> DockerContainerizerProcess::___launchInContainer(
     environment[variable.name()] = variable.value();
   }
 
+  // We are launching a mesos-docker-executor in a docker container so
+  // that the containerizer can recover the executor container, as we
+  // are assuming this instance is launched in a docker container and
+  // forked processes are killed on exit.
   ContainerInfo containerInfo;
+
+  // Mounting in the docker socket so the executor can communicate to
+  // the host docker daemon. We are assuming the current instance is
+  // launching docker containers to the host daemon as well.
+  Volume* volume = containerInfo.add_volumes();
+  volume->set_host_path(flags.docker_socket);
+  volume->set_container_path(flags.docker_socket);
+  volume->set_mode(Volume::RO);
+
   ContainerInfo::DockerInfo dockerInfo;
 
   dockerInfo.set_image(flags.docker_mesos_image.get());
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   string command = "mesos-docker-executor --docker=" + flags.docker +
-                   " --container=" + container->name();
+                   " --container=" + container->name() +
+                   " --sandbox_directory=" + container->directory +
+                   " --mapped_directory=" + flags.docker_sandbox_directory;
 
   command = path::join(flags.launcher_dir, command);
 
@@ -1003,58 +1021,6 @@ Future<pid_t> DockerContainerizerProcess::______launch(
 }
 
 
-Future<pid_t> DockerContainerizerProcess::______launchInContainer(
-    const ContainerID& containerId,
-    pid_t pid)
-{
-  CHECK(containers_.contains(containerId));
-  CHECK(flags.docker_mesos_image.isSome());
-
-  Container* container = containers_[containerId];
-
-  // We are launching a docker container to read the logs from
-  // a given launched container into the sandbox stdout and stderr
-  // files. This requires the docker container to run docker logs,
-  // which requires us mounting in the docker socket and docker
-  // CLI binary.
-  ContainerInfo containerInfo;
-  Volume* volume = containerInfo.add_volumes();
-  volume->set_host_path(flags.docker_socket);
-  volume->set_container_path(flags.docker_socket);
-  volume->set_mode(Volume::RO);
-
-  volume = containerInfo.add_volumes();
-  volume->set_host_path(flags.docker);
-  volume->set_container_path(flags.docker);
-  volume->set_mode(Volume::RO);
-
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image(flags.docker_mesos_image.get());
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  string command = flags.docker + " logs --follow " + container->name() +
-                   " 2>> " +
-                   path::join(flags.docker_sandbox_directory, "stderr") +
-                   " 1>> " +
-                   path::join(flags.docker_sandbox_directory, "stdout");
-
-  VLOG(1) << "Running docker logs in container with command: " << command;
-
-  CommandInfo commandInfo;
-  commandInfo.set_value(command);
-  commandInfo.set_shell(true);
-
-  docker->run(
-      containerInfo,
-      commandInfo,
-      container->logName(),
-      container->directory,
-      flags.docker_sandbox_directory);
-
-  return pid;
-}
-
-
 Future<pid_t> DockerContainerizerProcess::____launchInContainer(
     const ContainerID& containerId)
 {
@@ -1126,6 +1092,11 @@ Future<Nothing> DockerContainerizerProcess::update(
 
   // Store the resources for usage().
   container->resources = _resources;
+
+  if (flags.docker_mesos_image.isSome()) {
+    LOG(INFO) << "Ignoring update as slave is running under container.";
+    return Nothing();
+  }
 
 #ifdef __linux__
   if (!_resources.cpus().isSome() && !_resources.mem().isSome()) {
@@ -1486,12 +1457,11 @@ void DockerContainerizerProcess::destroy(
 
   CHECK(container->state == Container::RUNNING);
 
-  // Remove the executor and log docker containers. They might not
+  // Remove the executor docker containers. They might not
   // been configured to launch but we might have recovered containers
   // on previous slave run that has configured to launch executor in
   // docker.
-  docker->rm(container->logName(), true);
-  docker->rm(container->executorName(), true);
+  docker->stop(container->executorName(), Seconds(0), true);
 
   container->state = Container::DESTROYING;
 
@@ -1537,8 +1507,7 @@ void DockerContainerizerProcess::_destroy(
   // after we've reaped either the container's root process (in the
   // event that we had just launched a container for an executor) or
   // the mesos-docker-executor (in the case we launched a container
-  // for a task). As a reminder, the mesos-docker-executor exits
-  // because it's doing a 'docker wait' on the container.
+  // for a task).
 
   LOG(INFO) << "Running docker stop on container '" << containerId << "'";
 

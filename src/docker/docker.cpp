@@ -175,6 +175,13 @@ Try<Docker*> Docker::create(const string& path, bool validate)
 }
 
 
+void commandDiscarded(const Subprocess& s, const string& cmd)
+{
+  VLOG(1) << "'" << cmd << "' is being discarded";
+  os::killtree(s.pid(), SIGKILL);
+}
+
+
 Try<Docker::Container> Docker::Container::create(const JSON::Object& json)
 {
   map<string, JSON::Value>::const_iterator entry =
@@ -280,7 +287,8 @@ Future<Nothing> Docker::run(
     const string& sandboxDirectory,
     const string& mappedDirectory,
     const Option<Resources>& resources,
-    const Option<map<string, string> >& env) const
+    const Option<map<string, string> >& env,
+    bool detached) const
 {
   if (!containerInfo.has_docker()) {
     return Failure("No docker info found in container info");
@@ -291,7 +299,10 @@ Future<Nothing> Docker::run(
   vector<string> argv;
   argv.push_back(path);
   argv.push_back("run");
-  argv.push_back("-d");
+
+  if (detached) {
+    argv.push_back("-d");
+  }
 
   if (dockerInfo.privileged()) {
     argv.push_back("--privileged");
@@ -474,8 +485,12 @@ Future<Nothing> Docker::run(
       path,
       argv,
       Subprocess::PATH("/dev/null"),
-      Subprocess::PIPE(),
-      Subprocess::PIPE(),
+      (detached
+       ? Subprocess::PIPE()
+       : Subprocess::PATH(path::join(sandboxDirectory, "stdout"))),
+      (detached
+       ? Subprocess::PIPE()
+       : Subprocess::PATH(path::join(sandboxDirectory, "stderr"))),
       None(),
       environment);
 
@@ -483,8 +498,29 @@ Future<Nothing> Docker::run(
     return Failure(s.error());
   }
 
-  return checkError(cmd, s.get());
+  if (detached) {
+    return checkError(cmd, s.get());
+  }
+
+  return s.get().status()
+    .then(lambda::bind(
+        &Docker::_run,
+        lambda::_1))
+    .onDiscard(lambda::bind(&commandDiscarded, s.get(), cmd));
 }
+
+
+Future<Nothing> Docker::_run(const Option<int>& status)
+{
+  if (status.isNone()) {
+    return Failure("Failed to get exit status.");
+  } else if (status.get() != 0) {
+    return Failure("Container exited on error: " + WSTRINGIFY(status.get()));
+  }
+
+  return Nothing();
+}
+
 
 Future<Nothing> Docker::stop(
     const string& container,
@@ -893,14 +929,7 @@ Future<Docker::Image> Docker::__pull(
         cmd,
         directory,
         image))
-    .onDiscard(lambda::bind(&Docker::pullDiscarded, s_.get(), cmd));
-}
-
-
-void Docker::pullDiscarded(const Subprocess& s, const string& cmd)
-{
-  VLOG(1) << "'" << cmd << "' is being discarded";
-  os::killtree(s.pid(), SIGKILL);
+    .onDiscard(lambda::bind(&commandDiscarded, s_.get(), cmd));
 }
 
 

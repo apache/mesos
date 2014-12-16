@@ -89,7 +89,8 @@ public:
       const std::string& sandboxDirectory,
       const std::string& mappedDirectory,
       const Option<mesos::Resources>& resources = None(),
-      const Option<std::map<std::string, std::string> >& env = None()) const;
+      const Option<std::map<std::string, std::string> >& env = None(),
+      bool detached = true) const;
 
   // Performs 'docker stop -t TIMEOUT CONTAINER'. If remove is true then a rm -f
   // will be called when stop failed, otherwise a failure is returned. The
@@ -148,6 +149,9 @@ private:
 
   static process::Future<Container> __inspect(
       const std::string& output);
+
+  static process::Future<Nothing> _run(
+      const Option<int>& status);
 
   static process::Future<std::list<Container> > _ps(
       const Docker& docker,
