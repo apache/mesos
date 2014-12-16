@@ -19,10 +19,13 @@
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/stringify.hpp>
 
 #include "encoder.hpp"
 
 using namespace process;
+
+using process::http::URL;
 
 using process::network::Socket;
 
@@ -388,4 +391,39 @@ TEST(HTTP, QueryEncodeDecode)
 
   EXPECT_SOME_EQ(HashmapStringString({{"a&b=c", "d&e=fg"}}),
                  http::query::decode("a%26b%3Dc=d%26e%3Dfg"));
+}
+
+
+TEST(URLTest, stringification)
+{
+  EXPECT_EQ("http://mesos.apache.org:80/",
+            stringify(URL("http", "mesos.apache.org")));
+
+  EXPECT_EQ("https://mesos.apache.org:8080/",
+            stringify(URL("https", "mesos.apache.org", 8080)));
+
+  Try<net::IP> ip = net::IP::fromDotDecimal("172.158.1.23");
+  ASSERT_SOME(ip);
+
+  EXPECT_EQ("http://172.158.1.23:8080/",
+            stringify(URL("http", ip.get(), 8080)));
+
+  EXPECT_EQ("http://172.158.1.23:80/path",
+            stringify(URL("http", ip.get(), 80, "/path")));
+
+  hashmap<string, string> query;
+  query["foo"] = "bar";
+  query["baz"] = "bam";
+
+  EXPECT_EQ("http://172.158.1.23:80/?baz=bam&foo=bar",
+            stringify(URL("http", ip.get(), 80, "/", query)));
+
+  EXPECT_EQ("http://172.158.1.23:80/path?baz=bam&foo=bar",
+            stringify(URL("http", ip.get(), 80, "/path", query)));
+
+  EXPECT_EQ("http://172.158.1.23:80/?baz=bam&foo=bar#fragment",
+            stringify(URL("http", ip.get(), 80, "/", query, "fragment")));
+
+  EXPECT_EQ("http://172.158.1.23:80/path?baz=bam&foo=bar#fragment",
+            stringify(URL("http", ip.get(), 80, "/path", query, "fragment")));
 }

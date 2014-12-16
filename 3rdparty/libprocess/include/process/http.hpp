@@ -3,18 +3,22 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #include <cctype>
 #include <cstdlib>
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include <process/pid.hpp>
 
 #include <stout/error.hpp>
+#include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
+#include <stout/net.hpp>
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
@@ -490,6 +494,77 @@ inline Try<std::string> decode(const std::string& s)
   }
 
   return out.str();
+}
+
+
+// Represents a Uniform Resource Locator:
+//   scheme://domain|ip:port/path?query#fragment
+struct URL
+{
+  URL(const std::string& _scheme,
+      const std::string& _domain,
+      const uint16_t _port = 80,
+      const std::string& _path = "/",
+      const hashmap<std::string, std::string>& _query =
+        hashmap<std::string, std::string>(),
+      const Option<std::string>& _fragment = None())
+    : scheme(_scheme),
+      domain(_domain),
+      port(_port),
+      path(_path),
+      query(_query),
+      fragment(_fragment) {}
+
+  URL(const std::string& _scheme,
+      const net::IP& _ip,
+      const uint16_t _port = 80,
+      const std::string& _path = "/",
+      const hashmap<std::string, std::string>& _query =
+        hashmap<std::string, std::string>(),
+      const Option<std::string>& _fragment = None())
+    : scheme(_scheme),
+      ip(_ip),
+      port(_port),
+      path(_path),
+      query(_query),
+      fragment(_fragment) {}
+
+  std::string scheme;
+  // TODO(benh): Consider using unrestricted union for 'domain' and 'ip'.
+  Option<std::string> domain;
+  Option<net::IP> ip;
+  uint16_t port;
+  std::string path;
+  hashmap<std::string, std::string> query;
+  Option<std::string> fragment;
+};
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const URL& url)
+{
+  stream << url.scheme << "://";
+
+  if (url.domain.isSome()) {
+    stream << url.domain.get();
+  } else if (url.ip.isSome()) {
+    stream << url.ip.get();
+  }
+
+  stream << ":" << url.port;
+
+  stream << "/" << strings::remove(url.path, "/", strings::PREFIX);
+
+  if (!url.query.empty()) {
+    stream << "?" << query::encode(url.query);
+  }
+
+  if (url.fragment.isSome()) {
+    stream << "#" << url.fragment.get();
+  }
+
+  return stream;
 }
 
 
