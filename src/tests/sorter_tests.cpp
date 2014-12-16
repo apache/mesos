@@ -164,3 +164,33 @@ TEST(SorterTest, WDRFSorter)
 
   EXPECT_EQ(list<string>({"c", "d", "e"}), sorter.sort());
 }
+
+
+// Some resources are split across multiple resource objects
+// (e.g. persistent disks). This test ensures that the shares
+// for these are accounted correctly.
+TEST(SorterTest, SplitResourceShares)
+{
+  DRFSorter sorter;
+
+  sorter.add("a");
+  sorter.add("b");
+
+  Resource disk1 = Resources::parse("disk", "5", "*").get();
+  disk1.mutable_disk()->mutable_persistence()->set_id("ID2");
+  disk1.mutable_disk()->mutable_volume()->set_container_path("data");
+
+  Resource disk2 = Resources::parse("disk", "5", "*").get();
+  disk2.mutable_disk()->mutable_persistence()->set_id("ID2");
+  disk2.mutable_disk()->mutable_volume()->set_container_path("data");
+
+  sorter.add(Resources::parse("cpus:100;mem:100;disk:95").get()
+             + disk1 + disk2);
+
+  // Now, allocate resources to "a" and "b". Note that "b" will have
+  // more disk if the shares are accounted correctly!
+  sorter.allocated("a", Resources::parse("cpus:9;mem:9;disk:9").get());
+  sorter.allocated("b", Resources::parse("cpus:9;mem:9").get() + disk1 + disk2);
+
+  EXPECT_EQ(list<string>({"a", "b"}), sorter.sort());
+}
