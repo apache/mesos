@@ -903,4 +903,45 @@ Try<Resources> Resources::CompositeTransformation::apply(
   return result;
 }
 
+
+Resources::AcquirePersistentDisk::AcquirePersistentDisk(const Resource& _disk)
+  : disk(_disk)
+{
+  CHECK(disk.has_disk());
+  CHECK(disk.disk().has_persistence());
+}
+
+
+Try<Resources> Resources::AcquirePersistentDisk::apply(
+    const Resources& resources) const
+{
+  foreach (const Resource& resource, resources) {
+    // TODO(jieyu): Non-persistent volumes are not supported for now.
+    // Persistent disk can only be be acquired from regular disk
+    // resources. Revisit this once we start to support non-persistent
+    // disk volumes.
+    if (resource.name() == "disk" &&
+        !resource.has_disk() &&
+        resource.role() == disk.role()) {
+      CHECK_EQ(resource.type(), Value::SCALAR);
+      CHECK_EQ(disk.type(), Value::SCALAR);
+
+      if (disk.scalar() <= resource.scalar()) {
+        // Strip the disk info so that we can subtract it from the
+        // original resources.
+        Resource stripped = disk;
+        stripped.clear_disk();
+
+        Resources result = resources;
+        result -= stripped;
+        result += disk;
+
+        return result;
+      }
+    }
+  }
+
+  return Error("Insufficient disk resources");
+}
+
 } // namespace mesos {

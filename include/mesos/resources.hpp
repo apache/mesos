@@ -235,6 +235,20 @@ public:
     std::vector<Transformation*> transformations;
   };
 
+  // Acquires a persistent disk from a regular disk resource.
+  class AcquirePersistentDisk : public Transformation
+  {
+  public:
+    AcquirePersistentDisk(const Resource& _disk);
+
+  protected:
+    virtual Try<Resources> apply(const Resources& resources) const;
+
+  private:
+    // The target persistent disk resource to acquire.
+    Resource disk;
+  };
+
 private:
   bool contains(const Resource& that) const;
 
