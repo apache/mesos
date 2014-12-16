@@ -164,6 +164,48 @@ TEST(Process, then)
 }
 
 
+Future<int> repair(const Future<int>& future)
+{
+  EXPECT_TRUE(future.isFailed());
+  EXPECT_EQ("Failure", future.failure());
+  return 43;
+}
+
+
+// Checks that 'repair' callback gets executed if the future failed
+// and not executed if the future is completed successfully.
+TEST(Process, repair)
+{
+  // Check that the 'repair' callback _does not_ get executed by
+  // making sure that when we complete the promise with a value that's
+  // the value that we get back.
+  Promise<int> promise1;
+
+  Future<int> future1 = promise1.future()
+    .repair(lambda::bind(&repair, lambda::_1));
+
+  EXPECT_TRUE(future1.isPending());
+
+  promise1.set(42); // So this means 'repair' should not get executed.
+
+  AWAIT_EXPECT_EQ(42, future1);
+
+  // Check that the 'repair' callback gets executed by failing the
+  // promise which should invoke the 'repair' callback.
+  Promise<int> promise2;
+
+  Future<int> future2 = promise2.future()
+    .repair(lambda::bind(&repair, lambda::_1));
+
+  EXPECT_TRUE(future2.isPending());
+
+  promise2.fail("Failure"); // So 'repair' should get called returning '43'.
+
+  AWAIT_EXPECT_EQ(43, future2);
+}
+
+
+
 Future<Nothing> after(volatile bool* executed, const Future<Nothing>& future)
 {
   EXPECT_TRUE(future.hasDiscard());
