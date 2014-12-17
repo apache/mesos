@@ -924,6 +924,20 @@ TEST(DiskResourcesTest, Subtraction)
 }
 
 
+TEST(DiskResourcesTest, FilterPersistentDisks)
+{
+  Resources resources = Resources::parse("cpus:1;mem:512;disk:1000").get();
+
+  Resources disk1 = createDiskResource("10", "role1", "1", "path");
+  Resources disk2 = createDiskResource("20", "role2", None(), None());
+
+  resources += disk1;
+  resources += disk2;
+
+  EXPECT_EQ(resources.persistentDisks(), disk1);
+}
+
+
 TEST(ResourcesTransformationTest, AcquirePersistentDisk)
 {
   Resources total = Resources::parse("cpus:1;mem:512;disk(role):1000").get();

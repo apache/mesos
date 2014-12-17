@@ -122,6 +122,12 @@ public:
   // Returns the unreserved resources.
   Resources unreserved() const;
 
+  // Returns all the persistent disk resources.
+  // TODO(jieyu): Consider introducing a general filter mechanism for
+  // resources. For example:
+  // Resources persistentDisks = resources.filter(PersistentDiskFilter());
+  Resources persistentDisks() const;
+
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
   // the specified role.

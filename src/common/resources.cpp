@@ -489,6 +489,20 @@ Resources Resources::unreserved() const
 }
 
 
+Resources Resources::persistentDisks() const
+{
+  Resources result;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.has_disk() && resource.disk().has_persistence()) {
+      result += resource;
+    }
+  }
+
+  return result;
+}
+
+
 Resources Resources::flatten(const string& role) const
 {
   Resources flattened;
