@@ -1812,7 +1812,7 @@ struct TaskInfoValidator
       const TaskInfo& task,
       const Framework& framework,
       const Slave& slave,
-      const Resources& totalResources,
+      const Resources& offeredResources,
       const Resources& usedResources) = 0;
 
   virtual ~TaskInfoValidator() {}
@@ -1827,7 +1827,7 @@ struct TaskIDValidator : TaskInfoValidator
       const TaskInfo& task,
       const Framework& framework,
       const Slave& slave,
-      const Resources& totalResources,
+      const Resources& offeredResources,
       const Resources& usedResources)
   {
     const string& id = task.task_id().value();
@@ -1853,7 +1853,7 @@ struct SlaveIDValidator : TaskInfoValidator
       const TaskInfo& task,
       const Framework& framework,
       const Slave& slave,
-      const Resources& totalResources,
+      const Resources& offeredResources,
       const Resources& usedResources)
   {
     if (!(task.slave_id() == slave.id)) {
@@ -1877,7 +1877,7 @@ struct UniqueTaskIDValidator : TaskInfoValidator
       const TaskInfo& task,
       const Framework& framework,
       const Slave& slave,
-      const Resources& totalResources,
+      const Resources& offeredResources,
       const Resources& usedResources)
   {
     const TaskID& taskId = task.task_id();
@@ -1898,7 +1898,7 @@ struct ResourceValidator : TaskInfoValidator
       const TaskInfo& task,
       const Framework& framework,
       const Slave& slave,
-      const Resources& totalResources,
+      const Resources& offeredResources,
       const Resources& usedResources)
   {
     // This is used to ensure no duplicated persistence id exists.
@@ -2010,7 +2010,7 @@ struct ResourceUsageValidator : TaskInfoValidator
       const TaskInfo& task,
       const Framework& framework,
       const Slave& slave,
-      const Resources& totalResources,
+      const Resources& offeredResources,
       const Resources& usedResources)
   {
     Resources taskResources = task.resources();
@@ -2061,10 +2061,10 @@ struct ResourceUsageValidator : TaskInfoValidator
       resources += executorResources;
     }
 
-    if (!totalResources.contains(resources + usedResources)) {
+    if (!offeredResources.contains(resources + usedResources)) {
       return Error(
           "Task uses more resources " + stringify(resources) +
-          " than available " + stringify(totalResources - usedResources));
+          " than available " + stringify(offeredResources - usedResources));
     }
 
     return None();
@@ -2080,7 +2080,7 @@ struct ExecutorInfoValidator : TaskInfoValidator
       const TaskInfo& task,
       const Framework& framework,
       const Slave& slave,
-      const Resources& totalResources,
+      const Resources& offeredResources,
       const Resources& usedResources)
   {
     if (task.has_executor() == task.has_command()) {
@@ -2143,7 +2143,7 @@ struct CheckpointValidator : TaskInfoValidator
       const TaskInfo& task,
       const Framework& framework,
       const Slave& slave,
-      const Resources& totalResources,
+      const Resources& offeredResources,
       const Resources& usedResources)
   {
     if (framework.info.checkpoint() && !slave.info.checkpoint()) {
@@ -2328,7 +2328,7 @@ void Master::launchTasks(
 
   // TODO(bmahler): We currently only support using multiple offers
   // for a single slave.
-  Resources used;
+  Resources offeredResources;
   Option<SlaveID> slaveId = None();
   Option<Error> error = None();
 
@@ -2351,13 +2351,13 @@ void Master::launchTasks(
       }
     }
 
-    // Compute used resources and remove the offers. If the
+    // Compute offered resources and remove the offers. If the
     // validation failed, return resources to the allocator.
     foreach (const OfferID& offerId, offerIds) {
       Offer* offer = getOffer(offerId);
       if (offer != NULL) {
         slaveId = offer->slave_id();
-        used += offer->resources();
+        offeredResources += offer->resources();
 
         if (error.isSome()) {
           allocator->recoverResources(
@@ -2428,7 +2428,7 @@ void Master::launchTasks(
                  frameworkId,
                  slaveId.get(),
                  tasks,
-                 used,
+                 offeredResources,
                  filters,
                  lambda::_1));
 }
@@ -2438,7 +2438,7 @@ Option<Error> Master::validateTask(
     const TaskInfo& task,
     Framework* framework,
     Slave* slave,
-    const Resources& totalResources,
+    const Resources& offeredResources,
     const Resources& usedResources)
 {
   CHECK_NOTNULL(framework);
@@ -2471,7 +2471,7 @@ Option<Error> Master::validateTask(
         task,
         *framework,
         *slave,
-        totalResources,
+        offeredResources,
         usedResources);
 
     if (error.isSome()) {
@@ -2581,7 +2581,7 @@ void Master::_launchTasks(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const vector<TaskInfo>& tasks,
-    const Resources& totalResources,
+    const Resources& offeredResources,
     const Filters& filters,
     const Future<list<Future<bool>>>& authorizations)
 {
@@ -2595,7 +2595,11 @@ void Master::_launchTasks(
       << " because the framework cannot be found";
 
     // Tell the allocator about the recovered resources.
-    allocator->recoverResources(frameworkId, slaveId, totalResources, None());
+    allocator->recoverResources(
+        frameworkId,
+        slaveId,
+        offeredResources,
+        None());
 
     return;
   }
@@ -2621,7 +2625,11 @@ void Master::_launchTasks(
     }
 
     // Tell the allocator about the recovered resources.
-    allocator->recoverResources(frameworkId, slaveId, totalResources, None());
+    allocator->recoverResources(
+        frameworkId,
+        slaveId,
+        offeredResources,
+        None());
 
     return;
   }
@@ -2676,7 +2684,7 @@ void Master::_launchTasks(
         task,
         framework,
         slave,
-        totalResources,
+        offeredResources,
         usedResources);
 
     if (validationError.isSome()) {
@@ -2719,7 +2727,7 @@ void Master::_launchTasks(
   }
 
   // Calculate unused resources.
-  Resources unusedResources = totalResources - usedResources;
+  Resources unusedResources = offeredResources - usedResources;
 
   if (!unusedResources.empty()) {
     // Tell the allocator about the unused (e.g., refused) resources.
