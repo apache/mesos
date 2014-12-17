@@ -109,6 +109,9 @@ public:
   // Checks if this Resources is a superset of the given Resources.
   bool contains(const Resources& that) const;
 
+  // Checks if this Resources contains the given Resource.
+  bool contains(const Resource& that) const;
+
   // Returns the reserved resources, by role.
   hashmap<std::string, Resources> reserved() const;
 
@@ -250,7 +253,14 @@ public:
   };
 
 private:
-  bool contains(const Resource& that) const;
+  // Similar to 'contains(const Resource&)' but skips the validity
+  // check. This can be used to avoid the performance overhead of
+  // calling 'contains(const Resource&)' when the resource can be
+  // assumed valid (e.g. it's inside a Resources).
+  //
+  // TODO(jieyu): Measure performance overhead of validity check to
+  // ensure this is warranted.
+  bool _contains(const Resource& that) const;
 
   // Similar to the public 'find', but only for a single Resource
   // object. The target resource may span multiple roles, so this

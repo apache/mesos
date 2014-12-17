@@ -425,12 +425,24 @@ Resources::Resources(
 bool Resources::contains(const Resources& that) const
 {
   foreach (const Resource& resource, that.resources) {
-    if (!contains(resource)) {
+    // NOTE: We use _contains because Resources only contain valid
+    // Resource objects, and we don't want the performance hit of the
+    // validity check.
+    if (!_contains(resource)) {
       return false;
     }
   }
 
   return true;
+}
+
+
+bool Resources::contains(const Resource& that) const
+{
+  // NOTE: We must validate 'that' because invalid resources can lead
+  // to false positives here (e.g., "cpus:-1" will return true). This
+  // is because mesos::contains assumes resources are valid.
+  return validate(that).isNone() && _contains(that);
 }
 
 
@@ -689,7 +701,7 @@ Option<Value::Ranges> Resources::ephemeral_ports() const
 }
 
 
-bool Resources::contains(const Resource& that) const
+bool Resources::_contains(const Resource& that) const
 {
   foreach (const Resource& resource, resources) {
     if (mesos::contains(resource, that)) {
