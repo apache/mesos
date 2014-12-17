@@ -182,7 +182,7 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   // would slow down the test.
   Clock::pause();
 
-  initialize({"role1", "role2"});
+  initialize(vector<string>{"role1", "role2"});
 
   hashmap<FrameworkID, Resources> EMPTY;
 
@@ -304,7 +304,7 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
   // would slow down the test.
   Clock::pause();
 
-  initialize({"role1", "role2"});
+  initialize(vector<string>{"role1", "role2"});
 
   hashmap<FrameworkID, Resources> EMPTY;
 
@@ -373,7 +373,7 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
   // influence this test.
   Clock::pause();
 
-  initialize({"role1", "role2"});
+  initialize(vector<string>{"role1", "role2"});
 
   hashmap<FrameworkID, Resources> EMPTY;
 
@@ -444,7 +444,7 @@ TEST_F(HierarchicalAllocatorTest, SameShareFairness)
 {
   Clock::pause();
 
-  initialize({});
+  initialize(vector<string>{});
 
   hashmap<FrameworkID, Resources> EMPTY;
 
@@ -489,7 +489,7 @@ TEST_F(HierarchicalAllocatorTest, Reservations)
 {
   Clock::pause();
 
-  initialize({"role1", "role2", "role3"});
+  initialize(vector<string>{"role1", "role2", "role3"});
 
   hashmap<FrameworkID, Resources> EMPTY;
 
@@ -540,7 +540,7 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
 {
   Clock::pause();
 
-  initialize({"role1"});
+  initialize(vector<string>{"role1"});
 
   hashmap<FrameworkID, Resources> EMPTY;
 
@@ -605,7 +605,7 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
   // would slow down the test.
   Clock::pause();
 
-  initialize({"role1"});
+  initialize(vector<string>{"role1"});
 
   FrameworkInfo framework = createFrameworkInfo("role1");
   allocator->addFramework(framework.id(), framework, Resources());
@@ -673,7 +673,7 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 {
   Clock::pause();
 
-  initialize({"role1"});
+  initialize(vector<string>{"role1"});
 
   hashset<string> whitelist;
   whitelist.insert("dummy-slave");
