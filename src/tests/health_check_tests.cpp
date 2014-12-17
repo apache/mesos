@@ -498,7 +498,7 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
 
 
 // Testing grace period that ignores all failed task failures.
-TEST_F(HealthCheckTest, GracePeriod)
+TEST_F(HealthCheckTest, DISABLED_GracePeriod)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
