@@ -1985,10 +1985,10 @@ struct ResourceValidator : TaskInfoValidator
       if (std::count_if(id.begin(), id.end(), invalid) > 0) {
         return Error("Persistence ID '" + id + "' contains invalid characters");
       }
+    } else if (resource.disk().has_volume()) {
+      return Error("Non-persistent disk volume is not supported");
     } else {
-      if (resource.disk().has_volume()) {
-        return Error("Non-persistent disk volume is not supported");
-      }
+      return Error("DiskInfo is set but empty");
     }
 
     return None();
