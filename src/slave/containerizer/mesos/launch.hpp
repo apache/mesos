@@ -38,6 +38,7 @@ public:
 
     Option<JSON::Object> command;
     Option<std::string> directory;
+    Option<std::string> rootfs;
     Option<std::string> user;
     Option<int> pipe_read;
     Option<int> pipe_write;

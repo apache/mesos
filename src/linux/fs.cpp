@@ -83,7 +83,7 @@ Try<MountInfoTable::Entry> MountInfoTable::Entry::parse(const string& s)
 
   // First group of fields (before the separator): 6 required fields
   // then zero or more optional fields
-  std::vector<string> tokens = strings::tokenize(s.substr(0, pos), " ");
+  vector<string> tokens = strings::tokenize(s.substr(0, pos), " ");
   if (tokens.size() < 6) {
     return Error("Failed to parse entry");
   }
@@ -101,7 +101,7 @@ Try<MountInfoTable::Entry> MountInfoTable::Entry::parse(const string& s)
   entry.parent = parent.get();
 
   // Parse out the major:minor device number.
-  std::vector<string> device = strings::split(tokens[2], ":");
+  vector<string> device = strings::split(tokens[2], ":");
   if (device.size() != 2) {
     return Error("Invalid major:minor device number");
   }
@@ -501,6 +501,7 @@ Try<Nothing> createStandardDevices(const string& root)
 }
 
 } // namespace internal {
+
 
 // TODO(idownes): Add unit test.
 Try<Nothing> enter(const string& root)
