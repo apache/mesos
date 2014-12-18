@@ -1,3 +1,16 @@
+Release Notes - Mesos - Version 0.21.1
+--------------------------------------
+* This is a bug fix release.
+
+** Bug
+  * [MESOS-2047] Isolator cleanup failures shouldn't cause TASK_LOST.
+  * [MESOS-2071] Libprocess generates invalid HTTP
+  * [MESOS-2147] Large number of connections slows statistics.json responses.
+
+** Improvement
+  * [MESOS-1925] Docker kill does not allow containers to exit gracefully
+  * [MESOS-2113] Improve configure to find apr and svn libraries/headers in OSX
+
 Release Notes - Mesos - Version 0.21.0
 --------------------------------------
 
@@ -109,7 +122,7 @@ improvements.
   * [MESOS-2046] - Configure should check headers and libraries for svn and apr
   * [MESOS-2050] - InMemoryAuxProp plugin used by Authenticators results in SEGFAULT
   * [MESOS-2052] - RunState::recover should always recover 'completed'
-  * [MESOS-2078] -Scheduler driver may ACK status updates when the scheduler threw an exception
+  * [MESOS-2078] - Scheduler driver may ACK status updates when the scheduler threw an exception
 
 ** Documentation
   * [MESOS-1506] - Update documentation/flags regarding new default hostname semantics
