@@ -2433,7 +2433,9 @@ void SocketManager::exited(ProcessBase* process)
 
   synchronized (this) {
     // If this process had linked to anything, we need to clean
-    // up any pointers to it.
+    // up any pointers to it. Also, if this process was the last
+    // linker to a remote linkee, we must remove linkee from the
+    // remotes!
     if (links.linkees.contains(process)) {
       foreach (const UPID& linkee, links.linkees[process]) {
         CHECK(links.linkers.contains(linkee));
@@ -2441,6 +2443,18 @@ void SocketManager::exited(ProcessBase* process)
         links.linkers[linkee].erase(process);
         if (links.linkers[linkee].empty()) {
           links.linkers.erase(linkee);
+
+          // The exited process was the last linker for this linkee,
+          // so we need to remove the linkee from the remotes.
+          Node node(linkee.ip, linkee.port);
+          if (node.ip != __ip__ || node.port != __port__) {
+            CHECK(links.remotes.contains(node));
+
+            links.remotes[node].erase(linkee);
+            if (links.remotes[node].empty()) {
+              links.remotes.erase(node);
+            }
+          }
         }
       }
       links.linkees.erase(process);
