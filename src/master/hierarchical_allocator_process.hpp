@@ -603,9 +603,12 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
 
   slaves[slaveId].total = transformedTotal.get();
 
-  // The available resources should be unaffected.
-  CHECK_EQ(slaves[slaveId].total - transformedAllocation.get(),
-           slaves[slaveId].available);
+  // TODO(bmahler): Validate that the available resources are
+  // unaffected. This requires augmenting the sorters with
+  // SlaveIDs for allocations, so that we can do:
+  //
+  //   CHECK_EQ(slaves[slaveId].total - transformedSlaveAllocation,
+  //            slaves[slaveId].available);
 
   LOG(INFO) << "Updated allocation of framework " << frameworkId
             << " on slave " << slaveId
