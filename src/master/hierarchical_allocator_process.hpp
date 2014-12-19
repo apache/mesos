@@ -606,6 +606,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
   //   CHECK_EQ(slaves[slaveId].total - transformedSlaveAllocation,
   //            slaves[slaveId].available);
 
+  // TODO(jieyu): Do not log if there is no transformation.
   LOG(INFO) << "Updated allocation of framework " << frameworkId
             << " on slave " << slaveId
             << " from " << allocation << " to " << transformedAllocation.get();

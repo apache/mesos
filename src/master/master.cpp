@@ -35,6 +35,7 @@
 #include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/run.hpp>
+#include <process/shared.hpp>
 
 #include <process/metrics/metrics.hpp>
 
@@ -91,6 +92,7 @@ using process::Owned;
 using process::PID;
 using process::Process;
 using process::Promise;
+using process::Shared;
 using process::Time;
 using process::Timer;
 using process::UPID;
@@ -2775,26 +2777,35 @@ void Master::_launchTasks(
       // We allow frameworks to implicitly acquire persistent disk
       // through resources, meaning that they can transform the
       // offered resources. We need to infer those acquisitions.
-      Resources::CompositeTransformation transformation;
+      Owned<Resources::CompositeTransformation> transformation(
+          new Resources::CompositeTransformation());
+
       foreach (const Resource& disk, usedResources.persistentDisks()) {
         if (!transformedOfferedResources.contains(disk)) {
           // NOTE: No need to check duplicated persistence ID because
           // it should have been validated in ResourceUsageValidator.
-          transformation.add(Resources::AcquirePersistentDisk(disk));
+          transformation->add(Resources::AcquirePersistentDisk(disk));
         }
       }
 
       // Adjust the total resources by applying the transformation.
       Try<Resources> _transformedOfferedResources =
-        transformation(transformedOfferedResources);
+        (*transformation)(transformedOfferedResources);
 
       // NOTE: The transformation should have also been validated in
       // ResourceUsageValidator.
       CHECK_SOME(_transformedOfferedResources);
       transformedOfferedResources = _transformedOfferedResources.get();
 
-      // TODO(jieyu): Call 'allocator->transformAllocation(...)' here
-      // to update the allocator.
+      // TODO(jieyu): Ideally, we should just call 'share()' here.
+      // However, Shared currently does not support implicit upcast
+      // (i.e., we cannot implicitly convert from Shared<Derived> to
+      // Shared<Base>). Revisit this once Shared starts to support
+      // implicit upcast.
+      allocator->transformAllocation(
+          frameworkId,
+          slaveId,
+          Shared<Resources::Transformation>(transformation.release()));
 
       // TODO(bmahler): Consider updating this log message to indicate
       // when the executor is also being launched.
