@@ -571,10 +571,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
 
   Resources allocation = frameworkSorter->allocation(frameworkId.value());
 
-  // The role sorter should only contain the unreserved allocation.
-  CHECK_EQ(allocation.unreserved(),
-           roleSorter->allocation(frameworks[frameworkId].role));
-
   // Update the allocated resources.
   // TODO(bmahler): Check transformation invariants! Namely,
   // we don't want the quantity or the static roles of the
