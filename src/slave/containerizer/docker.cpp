@@ -779,7 +779,7 @@ Future<pid_t> DockerContainerizerProcess::___launch(
 
   command = path::join(flags.launcher_dir, command);
 
-  VLOG(2) << "Launching docker executor with command: " << command;
+  VLOG(1) << "Launching docker executor with command: " << command;
 
   // Construct the mesos-docker-executor using the "name" we gave the
   // container (to distinguish it from Docker containers not created
@@ -884,7 +884,7 @@ Future<Nothing> DockerContainerizerProcess::___launchInContainer(
   commandInfo.set_value(command);
   commandInfo.set_shell(true);
 
-  VLOG(2) << "Launching docker executor in container with command: " << command;
+  VLOG(1) << "Launching docker executor in container with command: " << command;
 
   return docker->run(
       containerInfo,
