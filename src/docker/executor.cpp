@@ -383,7 +383,9 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  Try<Docker*> docker = Docker::create(flags.docker.get());
+  // We skip validation when creating docker abstraction as we
+  // don't want to be checking for cgroups in the executor.
+  Try<Docker*> docker = Docker::create(flags.docker.get(), false);
   if (docker.isError()) {
     LOG(WARNING) << "Unable to create docker abstraction: " << docker.error();
     return -1;
