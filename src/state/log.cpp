@@ -221,6 +221,8 @@ Future<Nothing> LogStorageProcess::start()
     return starting.get();
   }
 
+  VLOG(2) << "Starting the writer";
+
   starting = writer.start()
     .then(defer(self(), &Self::_start, lambda::_1));
 
@@ -234,9 +236,14 @@ Future<Nothing> LogStorageProcess::_start(
   CHECK_SOME(starting);
 
   if (position.isNone()) {
+    VLOG(2) << "Writer failed to get elected, retrying";
+
     starting = None(); // Reset 'starting' so we try again.
     return start(); // TODO(benh): Don't try again forever?
   }
+
+  VLOG(2) << "Writer got elected at position "
+          << position.get().identity();
 
   // Now read and apply log entries. Since 'start' can be called
   // multiple times (i.e., since we reset 'starting' after getting a
@@ -277,6 +284,8 @@ Future<Nothing> LogStorageProcess::__start(
 
 Future<Nothing> LogStorageProcess::apply(const list<Log::Entry>& entries)
 {
+  VLOG(2) << "Applying operations (" << entries.size() << " entries)";
+
   // Only read and apply entries past our index.
   foreach (const Log::Entry& entry, entries) {
     if (index.isNone() || index.get() < entry.position) {

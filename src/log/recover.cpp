@@ -128,6 +128,9 @@ private:
 
   void start()
   {
+    VLOG(2) << "Starting to wait for enough quorum of replicas before running "
+            << "recovery protocol, expected quroum size: " << stringify(quorum);
+
     // Wait until there are enough (i.e., quorum of) replicas in the
     // network to avoid unnecessary retries.
     chain = network->watch(quorum, Network::GREATER_THAN_OR_EQUAL_TO)
@@ -139,6 +142,8 @@ private:
 
   Future<Nothing> broadcast()
   {
+    VLOG(2) << "Broadcasting recover request to all replicas";
+
     // Broadcast recover request to all replicas.
     return network->broadcast(protocol::recover, RecoverRequest())
       .then(defer(self(), &Self::broadcasted, lambda::_1));
@@ -146,6 +151,8 @@ private:
 
   Future<Nothing> broadcasted(const set<Future<RecoverResponse> >& _responses)
   {
+    VLOG(2) << "Broadcast request completed";
+
     responses = _responses;
 
     // Reset the counters.
@@ -313,6 +320,8 @@ private:
         promise.discard();
         terminate(self());
       } else {
+        VLOG(2) << "Log recovery timed out waiting for responses, retrying";
+
         start(); // Re-run the recover protocol after timeout.
       }
     } else if (future.isFailed()) {
@@ -326,6 +335,9 @@ private:
       // request while it is changing its status).
       static const Duration T = Milliseconds(500);
       Duration d = T * (1.0 + (double) ::random() / RAND_MAX);
+      VLOG(2) << "Didn't receive enough responses for recovery, retrying "
+              << "in " << stringify(d);
+
       delay(d, self(), &Self::start);
     } else {
       promise.set(future.get().get());
