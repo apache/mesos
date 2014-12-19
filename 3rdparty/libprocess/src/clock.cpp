@@ -67,7 +67,7 @@ bool paused = false;
 bool settling = false;
 
 // Lambda function to invoke when timers have expired.
-lambda::function<void(list<Timer>&&)> callback;
+lambda::function<void(const list<Timer>&)> callback;
 
 } // namespace clock {
 
@@ -164,7 +164,7 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
     update_timer = false; // Since we might have a queued update_timer.
   }
 
-  clock::callback(std::move(timers));
+  clock::callback(timers);
 
   // Mark 'settling' as false since there are not any more timeouts
   // that will expire before the paused time and we've finished
@@ -180,7 +180,7 @@ void handle_timeouts(struct ev_loop* loop, ev_timer* _, int revents)
 }
 
 
-void Clock::initialize(lambda::function<void(list<Timer>&&)>&& callback)
+void Clock::initialize(lambda::function<void(const list<Timer>&)>&& callback)
 {
   // TODO(benh): Currently this function is expected to get called
   // just after initializing libev in process::initialize. But that is

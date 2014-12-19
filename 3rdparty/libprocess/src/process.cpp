@@ -685,7 +685,7 @@ void* schedule(void* arg)
 }
 
 
-void timedout(list<Timer>&& timers)
+void timedout(const list<Timer>& timers)
 {
   // Update current time of process (if it's present/valid). Note that
   // current time may be greater than the timeout if a local message
