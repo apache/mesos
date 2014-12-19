@@ -1,9 +1,16 @@
 #ifndef __PROCESS_NODE_HPP__
 #define __PROCESS_NODE_HPP__
 
+#include <stdint.h>
 #include <unistd.h>
 
+#include <arpa/inet.h>
+
+#include <glog/logging.h>
+
 #include <sstream>
+
+#include <boost/functional/hash.hpp>
 
 namespace process {
 
@@ -28,9 +35,41 @@ public:
     return stream;
   }
 
+  bool operator == (const Node& that) const
+  {
+    return (ip == that.ip && port == that.port);
+  }
+
+  bool operator != (const Node& that) const
+  {
+    return !(*this == that);
+  }
+
   uint32_t ip;
   uint16_t port;
 };
+
+
+inline std::ostream& operator << (std::ostream& stream, const Node& node)
+{
+  char ip[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, (in_addr*) &node.ip, ip, INET_ADDRSTRLEN) == NULL) {
+    PLOG(FATAL) << "Failed to get human-readable IP address for '"
+                << node.ip << "'";
+  }
+  stream << ip << ":" << node.port;
+  return stream;
+}
+
+
+// UPID hash value (for example, to use in Boost's unordered maps).
+inline std::size_t hash_value(const Node& node)
+{
+  size_t seed = 0;
+  boost::hash_combine(seed, node.ip);
+  boost::hash_combine(seed, node.port);
+  return seed;
+}
 
 } // namespace process {
 
