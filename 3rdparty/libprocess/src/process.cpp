@@ -1,5 +1,4 @@
 #include <errno.h>
-#include <ev.h>
 #include <limits.h>
 #include <libgen.h>
 #include <netdb.h>
@@ -80,6 +79,7 @@
 #include "config.hpp"
 #include "decoder.hpp"
 #include "encoder.hpp"
+#include "event_loop.hpp"
 #include "gate.hpp"
 #include "libev.hpp"
 #include "process_reference.hpp"
@@ -585,24 +585,6 @@ static Message* parse(Request* request)
 }
 
 
-void handle_async(struct ev_loop* loop, ev_async* _, int revents)
-{
-  synchronized (watchers) {
-    // Start all the new I/O watchers.
-    while (!watchers->empty()) {
-      ev_io* watcher = watchers->front();
-      watchers->pop();
-      ev_io_start(loop, watcher);
-    }
-
-    while (!functions->empty()) {
-      (functions->front())();
-      functions->pop();
-    }
-  }
-}
-
-
 namespace internal {
 
 void decode_recv(
@@ -652,18 +634,6 @@ void decode_recv(
 }
 
 } // namespace internal {
-
-
-void* serve(void* arg)
-{
-  __in_event_loop__ = true;
-
-  ev_loop(((struct ev_loop*) arg), 0);
-
-  __in_event_loop__ = false;
-
-  return NULL;
-}
 
 
 void* schedule(void* arg)
@@ -896,21 +866,8 @@ void initialize(const string& delegate)
     PLOG(FATAL) << "Failed to initialize: " << listen.error();
   }
 
-  // Initialize libev.
-  //
-  // TODO(benh): Eventually move this all out of process.cpp after
-  // more is disentangled.
-  synchronizer(watchers) = SYNCHRONIZED_INITIALIZER;
-
-#ifdef __sun__
-  loop = ev_default_loop(EVBACKEND_POLL | EVBACKEND_SELECT);
-#else
-  loop = ev_default_loop(EVFLAG_AUTO);
-#endif // __sun__
-
-  ev_async_init(&async_watcher, handle_async);
-  ev_async_start(loop, &async_watcher);
-
+  // Initialize the event loop.
+  EventLoop::initialize();
   Clock::initialize(lambda::bind(&timedout, lambda::_1));
 
 //   ev_child_init(&child_watcher, child_exited, pid, 0);
@@ -929,7 +886,7 @@ void initialize(const string& delegate)
 //   sigprocmask (SIG_UNBLOCK, &sa.sa_mask, 0);
 
   pthread_t thread; // For now, not saving handles on our threads.
-  if (pthread_create(&thread, NULL, serve, loop) != 0) {
+  if (pthread_create(&thread, NULL, &EventLoop::run, NULL) != 0) {
     LOG(FATAL) << "Failed to initialize, pthread_create";
   }
 
@@ -2020,7 +1977,7 @@ void SocketManager::close(int s)
   // 'sockets' any attempt to send with it will just get ignored.
   // TODO(benh): Always do a 'shutdown(s, SHUT_RDWR)' since that
   // should keep the file descriptor valid until the last Socket
-  // reference does a close but force all libev watchers to stop?
+  // reference does a close but force all event loop watchers to stop?
 }
 
 

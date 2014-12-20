@@ -34,6 +34,7 @@ libprocess_la_SOURCES =		\
   src/config.hpp		\
   src/decoder.hpp		\
   src/encoder.hpp		\
+  src/event_loop.hpp		\
   src/gate.hpp			\
   src/help.cpp			\
   src/http.cpp			\
