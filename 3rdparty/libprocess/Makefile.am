@@ -60,7 +60,8 @@ libprocess_la_CPPFLAGS =		\
 if ENABLE_LIBEVENT
 libprocess_la_SOURCES +=	\
     src/libevent.hpp		\
-    src/libevent.cpp
+    src/libevent.cpp		\
+    src/libevent_poll.cpp
 else
   libprocess_la_SOURCES +=	\
     src/libev.hpp		\
