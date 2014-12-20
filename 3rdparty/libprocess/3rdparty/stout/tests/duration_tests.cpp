@@ -98,3 +98,37 @@ TEST(DurationTest, OutputFormat)
   EXPECT_EQ("15250.2844524715weeks", stringify(Duration::max()));
   EXPECT_EQ("-15250.2844524715weeks", stringify(Duration::min()));
 }
+
+TEST(DurationTest, Timeval)
+{
+  EXPECT_EQ(Duration(timeval{10, 0}), Seconds(10));
+  EXPECT_EQ(Duration(timeval{0, 7}), Microseconds(7));
+  EXPECT_EQ(Duration(timeval{2, 123}), Seconds(2) + Microseconds(123));
+
+  timeval t{2, 123};
+  Duration d(t);
+  EXPECT_EQ(d.timeval().tv_sec, t.tv_sec);
+  EXPECT_EQ(d.timeval().tv_usec, t.tv_usec);
+
+  t.tv_usec = 0;
+  d = Duration(t);
+  EXPECT_EQ(d.timeval().tv_sec, t.tv_sec);
+  EXPECT_EQ(d.timeval().tv_usec, t.tv_usec);
+
+  // Negative times.
+  t.tv_sec = 0;
+  t.tv_usec = -1;
+  d = Duration(t);
+  EXPECT_EQ(d.timeval().tv_sec, t.tv_sec);
+  EXPECT_EQ(d.timeval().tv_usec, t.tv_usec);
+
+  d = Microseconds(-1);
+  EXPECT_EQ(d.timeval().tv_sec, t.tv_sec);
+  EXPECT_EQ(d.timeval().tv_usec, t.tv_usec);
+
+  t.tv_sec = -1;
+  t.tv_usec = -30;
+  d = Duration(t);
+  EXPECT_EQ(d.timeval().tv_sec, t.tv_sec);
+  EXPECT_EQ(d.timeval().tv_usec, t.tv_usec);
+}

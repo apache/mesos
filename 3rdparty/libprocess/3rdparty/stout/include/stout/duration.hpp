@@ -15,7 +15,8 @@
 #define __STOUT_DURATION_HPP__
 
 #include <ctype.h> // For 'isdigit'.
-#include <limits.h> // For 'LLONG_(MAX|MIN)'
+#include <limits.h> // For 'LLONG_(MAX|MIN)'.
+#include <time.h> // For 'timeval'.
 
 #include <iomanip>
 #include <iostream>
@@ -73,6 +74,11 @@ public:
 
   Duration() : nanos(0) {}
 
+  explicit Duration(const timeval& t)
+  {
+    nanos = t.tv_sec * SECONDS + t.tv_usec * MICROSECONDS;
+  }
+
   int64_t ns() const   { return nanos; }
   double us() const    { return static_cast<double>(nanos) / MICROSECONDS; }
   double ms() const    { return static_cast<double>(nanos) / MILLISECONDS; }
@@ -81,6 +87,14 @@ public:
   double hrs() const   { return static_cast<double>(nanos) / HOURS; }
   double days() const  { return static_cast<double>(nanos) / DAYS; }
   double weeks() const { return static_cast<double>(nanos) / WEEKS; }
+
+  struct timeval timeval() const
+  {
+    struct timeval t;
+    t.tv_sec = secs();
+    t.tv_usec = us() - (t.tv_sec * MILLISECONDS);
+    return t;
+  }
 
   bool operator <  (const Duration& d) const { return nanos <  d.nanos; }
   bool operator <= (const Duration& d) const { return nanos <= d.nanos; }
