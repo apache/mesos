@@ -798,6 +798,30 @@ void initialize(const string& delegate)
     }
   }
 
+  // Initialize the event loop.
+  EventLoop::initialize();
+  Clock::initialize(lambda::bind(&timedout, lambda::_1));
+
+//   ev_child_init(&child_watcher, child_exited, pid, 0);
+//   ev_child_start(loop, &cw);
+
+//   /* Install signal handler. */
+//   struct sigaction sa;
+
+//   sa.sa_handler = ev_sighandler;
+//   sigfillset (&sa.sa_mask);
+//   sa.sa_flags = SA_RESTART; /* if restarting works we save one iteration */
+//   sigaction (w->signum, &sa, 0);
+
+//   sigemptyset (&sa.sa_mask);
+//   sigaddset (&sa.sa_mask, w->signum);
+//   sigprocmask (SIG_UNBLOCK, &sa.sa_mask, 0);
+
+  pthread_t thread; // For now, not saving handles on our threads.
+  if (pthread_create(&thread, NULL, &EventLoop::run, NULL) != 0) {
+    LOG(FATAL) << "Failed to initialize, pthread_create";
+  }
+
   __node__.ip = 0;
   __node__.port = 0;
 
@@ -864,30 +888,6 @@ void initialize(const string& delegate)
   Try<Nothing> listen = __s__.listen(LISTEN_BACKLOG);
   if (listen.isError()) {
     PLOG(FATAL) << "Failed to initialize: " << listen.error();
-  }
-
-  // Initialize the event loop.
-  EventLoop::initialize();
-  Clock::initialize(lambda::bind(&timedout, lambda::_1));
-
-//   ev_child_init(&child_watcher, child_exited, pid, 0);
-//   ev_child_start(loop, &cw);
-
-//   /* Install signal handler. */
-//   struct sigaction sa;
-
-//   sa.sa_handler = ev_sighandler;
-//   sigfillset (&sa.sa_mask);
-//   sa.sa_flags = SA_RESTART; /* if restarting works we save one iteration */
-//   sigaction (w->signum, &sa, 0);
-
-//   sigemptyset (&sa.sa_mask);
-//   sigaddset (&sa.sa_mask, w->signum);
-//   sigprocmask (SIG_UNBLOCK, &sa.sa_mask, 0);
-
-  pthread_t thread; // For now, not saving handles on our threads.
-  if (pthread_create(&thread, NULL, &EventLoop::run, NULL) != 0) {
-    LOG(FATAL) << "Failed to initialize, pthread_create";
   }
 
   // Need to set initialzing here so that we can actually invoke
