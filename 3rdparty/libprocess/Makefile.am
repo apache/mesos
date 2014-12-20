@@ -58,7 +58,9 @@ libprocess_la_CPPFLAGS =		\
   $(AM_CPPFLAGS)
 
 if ENABLE_LIBEVENT
-# Place for libevent implementations.
+libprocess_la_SOURCES +=	\
+    src/libevent.hpp		\
+    src/libevent.cpp
 else
   libprocess_la_SOURCES +=	\
     src/libev.hpp		\
@@ -82,16 +84,20 @@ else
   HTTP_PARSER_LIB = -lhttp_parser
 endif
 
-if WITH_BUNDLED_LIBEV
-  LIBEV_LIB = $(LIBEV)/libev.la
+if ENABLE_LIBEVENT
+  EVENT_LIB = -levent -levent_pthreads
 else
-  LIBEV_LIB = -lev
+if WITH_BUNDLED_LIBEV
+  EVENT_LIB = $(LIBEV)/libev.la
+else
+  EVENT_LIB = -lev
+endif
 endif
 
 libprocess_la_LIBADD =			\
   $(LIBGLOG)				\
   $(HTTP_PARSER_LIB)			\
-  $(LIBEV_LIB)
+  $(EVENT_LIB)
 
 if HAS_GPERFTOOLS
 libprocess_la_CPPFLAGS += -I$(GPERFTOOLS)/src
@@ -132,7 +138,7 @@ tests_LDADD =				\
   libprocess.la				\
   $(LIBGLOG)				\
   $(HTTP_PARSER_LIB)			\
-  $(LIBEV_LIB)
+  $(EVENT_LIB)
 
 benchmarks_SOURCES =			\
   src/tests/benchmarks.cpp
@@ -148,7 +154,7 @@ benchmarks_LDADD =			\
   libprocess.la				\
   $(LIBGLOG)				\
   $(HTTP_PARSER_LIB)			\
-  $(LIBEV_LIB)
+  $(EVENT_LIB)
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.

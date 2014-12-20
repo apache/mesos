@@ -84,7 +84,7 @@
 #ifndef USE_LIBEVENT
 #include "libev.hpp"
 #else
-// Place for libevent header.
+#include "libevent.hpp"
 #endif // USE_LIBEVENT
 #include "process_reference.hpp"
 #include "synchronized.hpp"

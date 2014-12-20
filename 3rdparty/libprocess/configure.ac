@@ -589,6 +589,21 @@ libevent is required for mesos to build.
   if test "x$found_libevent" = "xyes"; then
     AC_DEFINE([USE_LIBEVENT], [1])
   fi
+  AC_CHECK_HEADERS([event2/thread.h],
+                   [AC_CHECK_LIB([event_pthreads],
+                                 [evthread_use_pthreads],
+                                 [found_libevent_thread=yes],
+                                 [AC_MSG_ERROR([cannot find libevent_pthreads
+-------------------------------------------------------------------
+libevent_pthreads is required for mesos to build.
+-------------------------------------------------------------------
+                          ])],
+                                 [-levent])],
+                                 [AC_MSG_ERROR([cannot find libevent_pthreads headers
+-------------------------------------------------------------------
+libevent_pthreads is required for mesos to build.
+-------------------------------------------------------------------
+  ])])
 fi
 
 AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"],
