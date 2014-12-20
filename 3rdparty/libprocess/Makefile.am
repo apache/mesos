@@ -40,9 +40,6 @@ libprocess_la_SOURCES =		\
   src/http.cpp			\
   src/io.cpp			\
   src/latch.cpp			\
-  src/libev.hpp			\
-  src/libev.cpp			\
-  src/libev_poll.cpp		\
   src/metrics/metrics.cpp	\
   src/pid.cpp			\
   src/process.cpp		\
@@ -59,6 +56,15 @@ libprocess_la_CPPFLAGS =		\
   -I$(LIBEV)				\
   -I$(PICOJSON)				\
   $(AM_CPPFLAGS)
+
+if ENABLE_LIBEVENT
+# Place for libevent implementations.
+else
+  libprocess_la_SOURCES +=	\
+    src/libev.hpp		\
+    src/libev.cpp		\
+    src/libev_poll.cpp
+endif
 
 if WITH_BUNDLED_GLOG
   libprocess_la_CPPFLAGS += -I$(GLOG)/src

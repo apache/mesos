@@ -81,7 +81,11 @@
 #include "encoder.hpp"
 #include "event_loop.hpp"
 #include "gate.hpp"
+#ifndef USE_LIBEVENT
 #include "libev.hpp"
+#else
+// Place for libevent header.
+#endif // USE_LIBEVENT
 #include "process_reference.hpp"
 #include "synchronized.hpp"
 

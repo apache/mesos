@@ -71,6 +71,11 @@ AC_ARG_ENABLE([bundled],
                              of bundled libraries]),
               [enable_bundled=no], [enable_bundled=yes])
 
+AC_ARG_ENABLE([libevent],
+              AS_HELP_STRING([--enable-libevent],
+                             [use libevent instead of libev default: no]),
+              [enable_libevent=yes], [])
+
 AC_ARG_WITH([boost],
             AS_HELP_STRING([--with-boost@<:@=DIR@:>@],
                            [excludes building and using the bundled Boost
@@ -563,6 +568,27 @@ if test "x$enable_optimize" = "xyes"; then
   optimize_flags="-O2"
 else
   optimize_flags="-O0"
+fi
+
+AM_CONDITIONAL([ENABLE_LIBEVENT], [test x"$enable_libevent" = "xyes"])
+
+if test "x$enable_libevent" = "xyes"; then
+  AC_CHECK_HEADERS([event2/event.h],
+                   [AC_CHECK_LIB([event],
+                                 [event_base_new],
+                                 [found_libevent=yes],
+                                 [AC_MSG_ERROR([cannot find libevent
+-------------------------------------------------------------------
+libevent is required for mesos to build.
+-------------------------------------------------------------------
+                          ])])], [AC_MSG_ERROR([cannot find libevent headers
+-------------------------------------------------------------------
+libevent is required for mesos to build.
+-------------------------------------------------------------------
+  ])])
+  if test "x$found_libevent" = "xyes"; then
+    AC_DEFINE([USE_LIBEVENT], [1])
+  fi
 fi
 
 AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"],
