@@ -1,3 +1,6 @@
+#ifndef __LIBEV_HPP__
+#define __LIBEV_HPP__
+
 #include <ev.h>
 
 #include <queue>
@@ -80,3 +83,5 @@ Future<T> run_in_event_loop(const lambda::function<Future<T>(void)>& f)
 }
 
 } // namespace process {
+
+#endif // __LIBEV_HPP__
