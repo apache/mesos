@@ -46,6 +46,7 @@ libprocess_la_SOURCES =		\
   src/process.cpp		\
   src/process_reference.hpp	\
   src/reap.cpp			\
+  src/socket.cpp		\
   src/subprocess.cpp		\
   src/synchronized.hpp		\
   src/timeseries.cpp

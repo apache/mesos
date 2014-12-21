@@ -19,7 +19,9 @@ using process::network::Socket;
 
 TEST(Decoder, Request)
 {
-  DataDecoder decoder = DataDecoder(Socket());
+  Try<Socket> socket = Socket::create();
+  ASSERT_SOME(socket);
+  DataDecoder decoder = DataDecoder(socket.get());
 
   const string& data =
     "GET /path/file.json?key1=value1&key2=value2#fragment HTTP/1.1\r\n"
@@ -55,7 +57,9 @@ TEST(Decoder, Request)
 
 TEST(Decoder, RequestHeaderContinuation)
 {
-  DataDecoder decoder = DataDecoder(Socket());
+  Try<Socket> socket = Socket::create();
+  ASSERT_SOME(socket);
+  DataDecoder decoder = DataDecoder(socket.get());
 
   const string& data =
     "GET /path/file.json HTTP/1.1\r\n"
@@ -79,7 +83,9 @@ TEST(Decoder, RequestHeaderContinuation)
 // This is expected to fail for now, see my TODO(bmahler) on http::Request.
 TEST(Decoder, DISABLED_RequestHeaderCaseInsensitive)
 {
-  DataDecoder decoder = DataDecoder(Socket());
+  Try<Socket> socket = Socket::create();
+  ASSERT_SOME(socket);
+  DataDecoder decoder = DataDecoder(socket.get());
 
   const string& data =
     "GET /path/file.json HTTP/1.1\r\n"

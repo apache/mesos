@@ -109,6 +109,20 @@ inline Try<Node> getsockname(int s, sa_family_t family)
 class Socket
 {
 public:
+  // Available kinds of implementations.
+  enum Kind {
+    POLL
+    // TODO(jmlvanre): Add libevent socket.
+  };
+
+  // Returns an instance of a Socket using the specified kind of
+  // implementation and potentially wrapping the specified file
+  // descriptor.
+  static Try<Socket> create(Kind kind = DEFAULT_KIND(), int s = -1);
+
+  // Returns the default kind of implementation of Socket.
+  static const Kind& DEFAULT_KIND();
+
   // Each socket is a reference counted, shared by default, concurrent
   // object. However, since we want to support multiple
   // implementations we use the Pimpl pattern (often called the
@@ -117,24 +131,21 @@ public:
   class Impl : public std::enable_shared_from_this<Impl>
   {
   public:
-    Impl() : s(-1) {}
-
-    explicit Impl(int _s) : s(_s) {}
+    explicit Impl(int _s) : s(_s) { CHECK(s >= 0); }
 
     ~Impl()
     {
-      if (s >= 0) {
-        Try<Nothing> close = os::close(s);
-        if (close.isError()) {
-          ABORT("Failed to close socket " +
-                stringify(s) + ": " + close.error());
-        }
+      CHECK(s >= 0);
+      Try<Nothing> close = os::close(s);
+      if (close.isError()) {
+        ABORT("Failed to close socket " +
+              stringify(s) + ": " + close.error());
       }
     }
 
     int get() const
     {
-      return s >= 0 ? s : create().get();
+      return s;
     }
 
     Future<Nothing> connect(const Node& node);
@@ -152,51 +163,8 @@ public:
     Future<Socket> accept();
 
   private:
-    const Impl& create() const
-    {
-      CHECK(s < 0);
-
-      // Supported in Linux >= 2.6.27.
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
-      Try<int> fd =
-        network::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
-
-      if (fd.isError()) {
-        ABORT("Failed to create socket: " + fd.error());
-      }
-#else
-      Try<int> fd = network::socket(AF_INET, SOCK_STREAM, 0);
-      if (fd.isError()) {
-        ABORT("Failed to create socket: " + fd.error());
-      }
-
-      Try<Nothing> nonblock = os::nonblock(fd.get());
-      if (nonblock.isError()) {
-        ABORT("Failed to create socket, nonblock: " + nonblock.error());
-      }
-
-      Try<Nothing> cloexec = os::cloexec(fd.get());
-      if (cloexec.isError()) {
-        ABORT("Failed to create socket, cloexec: " + cloexec.error());
-      }
-#endif
-
-      s = fd.get();
-      return *this;
-    }
-
-    // Mutable so that the socket can be lazily created.
-    //
-    // TODO(benh): Create a factory for sockets and don't lazily
-    // create but instead return a Try<Socket> from the factory in
-    // order to eliminate the need for a mutable member or the call to
-    // ABORT above.
-    mutable int s;
+    int s;
   };
-
-  Socket() : impl(std::make_shared<Impl>()) {}
-
-  explicit Socket(int s) : impl(std::make_shared<Impl>(s)) {}
 
   bool operator == (const Socket& that) const
   {

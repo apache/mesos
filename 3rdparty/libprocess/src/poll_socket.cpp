@@ -200,7 +200,11 @@ Future<Socket> accept(int fd)
       "Failed to turn off the Nagle algorithm: " + stringify(error));
   }
 
-  return Socket(s);
+  Try<Socket> socket = Socket::create(Socket::DEFAULT_KIND(), s);
+  if (socket.isError()) {
+    return Failure("Failed to accept, create socket: " + socket.error());
+  }
+  return socket.get();
 }
 
 } // namespace internal {

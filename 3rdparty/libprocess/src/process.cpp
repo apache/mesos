@@ -306,7 +306,7 @@ private:
   } links;
 
   // Collection of all actice sockets.
-  map<int, Socket> sockets;
+  map<int, Socket*> sockets;
 
   // Collection of sockets that should be disposed when they are
   // finished being used (e.g., when there is no more data to send on
@@ -452,7 +452,7 @@ static uint32_t __id__ = 0;
 static const int LISTEN_BACKLOG = 500000;
 
 // Local server socket.
-static Socket __s__;
+static Socket* __s__ = NULL;
 
 // Local node.
 static Node __node__;
@@ -721,7 +721,7 @@ void on_accept(const Future<Socket>& socket)
           decoder));
   }
 
-  __s__.accept()
+  __s__->accept()
     .onAny(lambda::bind(&on_accept, lambda::_1));
 }
 
@@ -853,14 +853,19 @@ void initialize(const string& delegate)
   }
 
   // Create a "server" socket for communicating with other nodes.
+  Try<Socket> create = Socket::create();
+  if (create.isError()) {
+    PLOG(FATAL) << "Failed to construct server socket:" << create.error();
+  }
+  __s__ = new Socket(create.get());
 
   // Allow address reuse.
   int on = 1;
-  if (setsockopt(__s__, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+  if (setsockopt(__s__->get(), SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
     PLOG(FATAL) << "Failed to initialize, setsockopt(SO_REUSEADDR)";
   }
 
-  Try<Node> bind = __s__.bind(__node__);
+  Try<Node> bind = __s__->bind(__node__);
   if (bind.isError()) {
     PLOG(FATAL) << "Failed to initialize: " << bind.error();
   }
@@ -889,7 +894,7 @@ void initialize(const string& delegate)
     __node__.ip = ip.get();
   }
 
-  Try<Nothing> listen = __s__.listen(LISTEN_BACKLOG);
+  Try<Nothing> listen = __s__->listen(LISTEN_BACKLOG);
   if (listen.isError()) {
     PLOG(FATAL) << "Failed to initialize: " << listen.error();
   }
@@ -898,7 +903,7 @@ void initialize(const string& delegate)
   // 'spawn' below for the garbage collector.
   initializing = false;
 
-  __s__.accept()
+  __s__->accept()
     .onAny(lambda::bind(&internal::on_accept, lambda::_1));
 
   // TODO(benh): Make sure creating the garbage collector, logging
@@ -1232,7 +1237,7 @@ SocketManager::~SocketManager() {}
 void SocketManager::accepted(const Socket& socket)
 {
   synchronized (this) {
-    sockets[socket] = socket;
+    sockets[socket] = new Socket(socket);
   }
 }
 
@@ -1324,22 +1329,22 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
 
   CHECK(process != NULL);
 
-  Socket socket;
+  Option<Socket> socket = None();
   bool connect = false;
 
   synchronized (this) {
-    links.linkers[to].insert(process);
-    links.linkees[process].insert(to);
-    if (to.node != __node__) {
-      links.remotes[to.node].insert(to);
-    }
-
     // Check if node is remote and there isn't a persistant link.
     if (to.node != __node__  && persists.count(to.node) == 0) {
       // Okay, no link, let's create a socket.
-      int s = socket;
+      Try<Socket> create = Socket::create();
+      if (create.isError()) {
+        VLOG(1) << "Failed to link, create socket: " << create.error();
+        return;
+      }
+      socket = create.get();
+      int s = socket.get().get();
 
-      sockets[s] = socket;
+      sockets[s] = new Socket(socket.get());
       nodes[s] = to.node;
 
       persists[to.node] = s;
@@ -1353,14 +1358,21 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
 
       connect = true;
     }
+
+    links.linkers[to].insert(process);
+    links.linkees[process].insert(to);
+    if (to.node != __node__) {
+      links.remotes[to.node].insert(to);
+    }
   }
 
   if (connect) {
-    socket.connect(to.node)
+    CHECK_SOME(socket);
+    Socket(socket.get()).connect(to.node) // Copy to drop const.
       .onAny(lambda::bind(
           &internal::link_connect,
           lambda::_1,
-          new Socket(socket)));
+          new Socket(socket.get())));
   }
 }
 
@@ -1377,7 +1389,7 @@ PID<HttpProxy> SocketManager::proxy(const Socket& socket)
       if (proxies.count(socket) > 0) {
         return proxies[socket]->self();
       } else {
-        proxy = new HttpProxy(sockets[socket]);
+        proxy = new HttpProxy(*sockets[socket]);
         proxies[socket] = proxy;
       }
     }
@@ -1569,7 +1581,7 @@ void SocketManager::send(Message* message)
 
   const Node& node = message->to.node;
 
-  Socket socket;
+  Option<Socket> socket = None();
   bool connect = false;
 
   synchronized (this) {
@@ -1579,28 +1591,35 @@ void SocketManager::send(Message* message)
     if (persist || temp) {
       int s = persist ? persists[node] : temps[node];
       CHECK(sockets.count(s) > 0);
-      socket = sockets[s];
+      socket = *sockets[s];
 
       // Update whether or not this socket should get disposed after
       // there is no more data to send.
       if (!persist) {
-        dispose.insert(socket);
+        dispose.insert(socket.get());
       }
 
-      if (outgoing.count(socket) > 0) {
-        outgoing[socket].push(new MessageEncoder(socket, message));
+      if (outgoing.count(socket.get()) > 0) {
+        outgoing[socket.get()].push(new MessageEncoder(socket.get(), message));
         return;
       } else {
         // Initialize the outgoing queue.
-        outgoing[socket];
+        outgoing[socket.get()];
       }
 
     } else {
       // No peristent or temporary socket to the node currently
       // exists, so we create a temporary one.
-      int s = socket;
+      Try<Socket> create = Socket::create();
+      if (create.isError()) {
+        VLOG(1) << "Failed to send, create socket: " << create.error();
+        delete message;
+        return;
+      }
+      socket = create.get();
+      int s = socket.get();
 
-      sockets[s] = socket;
+      sockets[s] = new Socket(socket.get());
       nodes[s] = node;
       temps[node] = s;
 
@@ -1614,16 +1633,19 @@ void SocketManager::send(Message* message)
   }
 
   if (connect) {
-    socket.connect(node)
+    CHECK_SOME(socket);
+    Socket(socket.get()).connect(node) // Copy to drop const.
       .onAny(lambda::bind(
           &internal::send_connect,
           lambda::_1,
-          new Socket(socket),
+          new Socket(socket.get()),
           message));
   } else {
     // If we're not connecting and we haven't added the encoder to
     // the 'outgoing' queue then schedule it to be sent.
-    internal::send(new MessageEncoder(socket, message), new Socket(socket));
+    internal::send(
+        new MessageEncoder(socket.get(), message),
+        new Socket(socket.get()));
   }
 }
 
@@ -1675,7 +1697,9 @@ Encoder* SocketManager::next(int s)
           }
 
           dispose.erase(s);
-          sockets.erase(s);
+          auto iterator = sockets.find(s);
+          delete iterator->second;
+          sockets.erase(iterator);
 
           // We don't actually close the socket (we wait for the Socket
           // abstraction to close it once there are no more references),
@@ -1752,7 +1776,9 @@ void SocketManager::close(int s)
       shutdown(s, SHUT_RD);
 
       dispose.erase(s);
-      sockets.erase(s);
+      auto iterator = sockets.find(s);
+      delete iterator->second;
+      sockets.erase(iterator);
     }
   }
 
