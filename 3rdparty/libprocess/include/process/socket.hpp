@@ -3,8 +3,8 @@
 
 #include <memory>
 
+#include <process/address.hpp>
 #include <process/future.hpp>
-#include <process/node.hpp>
 
 #include <stout/abort.hpp>
 #include <stout/nothing.hpp>
@@ -60,10 +60,11 @@ public:
     }
 
     // Socket::Impl interface.
-    virtual Try<Node> bind(const Node& node);
+    virtual Try<Address> address() const;
+    virtual Try<Address> bind(const Address& address);
     virtual Try<Nothing> listen(int backlog) = 0;
     virtual Future<Socket> accept() = 0;
-    virtual Future<Nothing> connect(const Node& node) = 0;
+    virtual Future<Nothing> connect(const Address& address) = 0;
     virtual Future<size_t> recv(char* data, size_t size) = 0;
     virtual Future<size_t> send(const char* data, size_t size) = 0;
     virtual Future<size_t> sendfile(int fd, off_t offset, size_t size) = 0;
@@ -112,14 +113,19 @@ public:
     return impl->get();
   }
 
+  Try<Address> address() const
+  {
+    return impl->address();
+  }
+
   int get() const
   {
     return impl->get();
   }
 
-  Try<Node> bind(const Node& node)
+  Try<Address> bind(const Address& address)
   {
-    return impl->bind(node);
+    return impl->bind(address);
   }
 
   Try<Nothing> listen(int backlog)
@@ -132,9 +138,9 @@ public:
     return impl->accept();
   }
 
-  Future<Nothing> connect(const Node& node)
+  Future<Nothing> connect(const Address& address)
   {
-    return impl->connect(node);
+    return impl->connect(address);
   }
 
   Future<size_t> recv(char* data, size_t size) const

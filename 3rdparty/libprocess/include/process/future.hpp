@@ -37,7 +37,7 @@
 
 namespace process {
 
-// Forward declaration (instead of include to break circular dependency).
+// Forward declarations (instead of include to break circular dependency).
 template <typename _F>
 struct _Defer;
 

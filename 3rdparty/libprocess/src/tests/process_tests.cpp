@@ -41,6 +41,7 @@
 
 using namespace process;
 
+using process::network::Address;
 using process::network::Socket;
 
 using std::string;
@@ -1468,7 +1469,7 @@ TEST(Process, remote)
 
   Socket socket = create.get();
 
-  AWAIT_READY(socket.connect(process.self().node));
+  AWAIT_READY(socket.connect(process.self().address));
 
   Message message;
   message.name = "handler";
@@ -1531,14 +1532,14 @@ TEST(Process, http2)
 
   Socket socket = create.get();
 
-  ASSERT_SOME(socket.bind(Node()));
+  ASSERT_SOME(socket.bind(Address()));
 
   // Create a UPID for 'Libprocess-From' based on the IP and port we
   // got assigned.
-  Try<Node> node = network::getsockname(socket.get(), AF_INET);
-  ASSERT_SOME(node);
+  Try<Address> address = socket.address();
+  ASSERT_SOME(address);
 
-  UPID from("", node.get());
+  UPID from("", address.get());
 
   ASSERT_SOME(socket.listen(1));
 
@@ -1869,7 +1870,7 @@ TEST(Process, PercentEncodedURLs)
   spawn(process);
 
   // Construct the PID using percent-encoding.
-  UPID pid("id%2842%29", process.self().node);
+  UPID pid("id%2842%29", process.self().address);
 
   // Mimic a libprocess message sent to an installed handler.
   Future<Nothing> handler1;

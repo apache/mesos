@@ -27,6 +27,7 @@ using std::vector;
 using process::http::Request;
 using process::http::Response;
 
+using process::network::Address;
 using process::network::Socket;
 
 namespace process {
@@ -112,7 +113,7 @@ Future<Response> decode(const string& buffer)
 // Forward declaration.
 Future<Response> _request(
     Socket socket,
-    const Node& node,
+    const Address& address,
     const URL& url,
     const string& method,
     const Option<hashmap<string, string>>& _headers,
@@ -139,10 +140,10 @@ Future<Response> request(
 
   Socket socket = create.get();
 
-  Node node;
+  Address address;
 
   if (url.ip.isSome()) {
-    node.ip = url.ip.get().address();
+    address.ip = url.ip.get().address();
   } else if (url.domain.isNone()) {
     return Failure("Missing URL domain or IP");
   } else {
@@ -153,15 +154,15 @@ Future<Response> request(
                      url.domain.get() + "': " + ip.error());
     }
 
-    node.ip = ip.get();
+    address.ip = ip.get();
   }
 
-  node.port = url.port;
+  address.port = url.port;
 
-  return socket.connect(node)
+  return socket.connect(address)
     .then(lambda::bind(&_request,
                        socket,
-                       node,
+                       address,
                        url,
                        method,
                        headers,
@@ -172,7 +173,7 @@ Future<Response> request(
 
 Future<Response> _request(
     Socket socket,
-    const Node& node,
+    const Address& address,
     const URL& url,
     const string& method,
     const Option<hashmap<string, string>>& _headers,
@@ -208,7 +209,7 @@ Future<Response> _request(
   }
 
   // Need to specify the 'Host' header.
-  headers["Host"] = stringify(node);
+  headers["Host"] = stringify(address);
 
   // Tell the server to close the connection when it's done.
   headers["Connection"] = "close";
@@ -291,7 +292,7 @@ Future<Response> get(
     const Option<string>& query,
     const Option<hashmap<string, string>>& headers)
 {
-  URL url("http", net::IP(upid.node.ip), upid.node.port, upid.id);
+  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
@@ -320,7 +321,7 @@ Future<Response> post(
     const Option<string>& body,
     const Option<string>& contentType)
 {
-  URL url("http", net::IP(upid.node.ip), upid.node.port, upid.id);
+  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.

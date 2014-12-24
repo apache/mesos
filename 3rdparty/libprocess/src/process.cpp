@@ -40,6 +40,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include <process/address.hpp>
 #include <process/check.hpp>
 #include <process/clock.hpp>
 #include <process/defer.hpp>
@@ -54,7 +55,6 @@
 #include <process/io.hpp>
 #include <process/logging.hpp>
 #include <process/mime.hpp>
-#include <process/node.hpp>
 #include <process/process.hpp>
 #include <process/profiler.hpp>
 #include <process/socket.hpp>
@@ -96,6 +96,8 @@ using process::http::OK;
 using process::http::Request;
 using process::http::Response;
 using process::http::ServiceUnavailable;
+
+using process::network::Address;
 using process::network::Socket;
 
 using std::deque;
@@ -283,7 +285,7 @@ public:
 
   void close(int s);
 
-  void exited(const Node& node);
+  void exited(const Address& address);
   void exited(ProcessBase* process);
 
 private:
@@ -293,11 +295,12 @@ private:
   {
     // For links, we maintain a bidirectional mapping between the
     // "linkers" (Processes) and the "linkees" (remote / local UPIDs).
-    // For remote nodes, we also need a mapping to the linkees on the
-    // node, because socket closure only notifies at the node level.
+    // For remote socket addresses, we also need a mapping to the
+    // linkees for that socket address, because socket closure only
+    // notifies at the address level.
     hashmap<UPID, hashset<ProcessBase*>> linkers;
     hashmap<ProcessBase*, hashset<UPID>> linkees;
-    hashmap<Node, hashset<UPID>> remotes;
+    hashmap<Address, hashset<UPID>> remotes;
   } links;
 
   // Collection of all actice sockets.
@@ -308,19 +311,19 @@ private:
   // them).
   set<int> dispose;
 
-  // Map from socket to node (ip, port).
-  map<int, Node> nodes;
+  // Map from socket to socket address (ip, port).
+  map<int, Address> addresses;
 
-  // Maps from node (ip, port) to temporary sockets (i.e., they will
-  // get closed once there is no more data to send on them).
-  map<Node, int> temps;
+  // Maps from socket address (ip, port) to temporary sockets (i.e.,
+  // they will get closed once there is no more data to send on them).
+  map<Address, int> temps;
 
-  // Maps from node (ip, port) to persistent sockets (i.e., they will
+  // Maps from socket address (ip, port) to persistent sockets (i.e., they will
   // remain open even if there is no more data to send on them).  We
   // distinguish these from the 'temps' collection so we can tell when
   // a persistant socket has been lost (and thus generate
   // ExitedEvents).
-  map<Node, int> persists;
+  map<Address, int> persists;
 
   // Map from socket to outgoing queue.
   map<int, queue<Encoder*> > outgoing;
@@ -449,8 +452,8 @@ static const int LISTEN_BACKLOG = 500000;
 // Local server socket.
 static Socket* __s__ = NULL;
 
-// Local node.
-static Node __node__;
+// Local socket address.
+static Address __address__;
 
 // Active SocketManager (eventually will probably be thread-local).
 static SocketManager* socket_manager = NULL;
@@ -508,7 +511,7 @@ static Message* encode(const UPID& from,
 
 static void transport(Message* message, ProcessBase* sender = NULL)
 {
-  if (message->to.node == __node__) {
+  if (message->to.address == __address__) {
     // Local message.
     process_manager->deliver(message->to, new MessageEvent(message), sender);
   } else {
@@ -565,7 +568,7 @@ static Message* parse(Request* request)
     return NULL;
   }
 
-  const UPID to(decode.get(), __node__);
+  const UPID to(decode.get(), __address__);
 
   // And now determine 'name'.
   index = index != string::npos ? index + 2: request->path.size();
@@ -821,15 +824,15 @@ void initialize(const string& delegate)
     LOG(FATAL) << "Failed to initialize, pthread_create";
   }
 
-  __node__.ip = 0;
-  __node__.port = 0;
+  __address__.ip = 0;
+  __address__.port = 0;
 
   char* value;
 
   // Check environment for ip.
   value = getenv("LIBPROCESS_IP");
   if (value != NULL) {
-    int result = inet_pton(AF_INET, value, &__node__.ip);
+    int result = inet_pton(AF_INET, value, &__address__.ip);
     if (result == 0) {
       LOG(FATAL) << "LIBPROCESS_IP=" << value << " was unparseable";
     } else if (result < 0) {
@@ -844,10 +847,10 @@ void initialize(const string& delegate)
     if (result < 0 || result > USHRT_MAX) {
       LOG(FATAL) << "LIBPROCESS_PORT=" << value << " is not a valid port";
     }
-    __node__.port = result;
+    __address__.port = result;
   }
 
-  // Create a "server" socket for communicating with other nodes.
+  // Create a "server" socket for communicating.
   Try<Socket> create = Socket::create();
   if (create.isError()) {
     PLOG(FATAL) << "Failed to construct server socket:" << create.error();
@@ -860,18 +863,18 @@ void initialize(const string& delegate)
     PLOG(FATAL) << "Failed to initialize, setsockopt(SO_REUSEADDR)";
   }
 
-  Try<Node> bind = __s__->bind(__node__);
+  Try<Address> bind = __s__->bind(__address__);
   if (bind.isError()) {
     PLOG(FATAL) << "Failed to initialize: " << bind.error();
   }
 
-  __node__ = bind.get();
+  __address__ = bind.get();
 
   // Lookup hostname if missing ip or if ip is 127.0.0.1 in case we
   // actually have a valid external ip address. Note that we need only
   // one ip address, so that other processes can send and receive and
   // don't get confused as to whom they are sending to.
-  if (__node__.ip == 0 || __node__.ip == 2130706433) {
+  if (__address__.ip == 0 || __address__.ip == 2130706433) {
     char hostname[512];
 
     if (gethostname(hostname, sizeof(hostname)) < 0) {
@@ -886,7 +889,7 @@ void initialize(const string& delegate)
       LOG(FATAL) << ip.error();
     }
 
-    __node__.ip = ip.get();
+    __address__.ip = ip.get();
   }
 
   Try<Nothing> listen = __s__->listen(LISTEN_BACKLOG);
@@ -955,7 +958,7 @@ void initialize(const string& delegate)
 
   new Route("/__processes__", None(), __processes__);
 
-  VLOG(1) << "libprocess is initialized on " << node() << " for " << cpus
+  VLOG(1) << "libprocess is initialized on " << address() << " for " << cpus
           << " cpus";
 }
 
@@ -969,10 +972,10 @@ void finalize()
 }
 
 
-Node node()
+Address address()
 {
   process::initialize();
-  return __node__;
+  return __address__;
 }
 
 
@@ -1328,8 +1331,8 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
   bool connect = false;
 
   synchronized (this) {
-    // Check if node is remote and there isn't a persistant link.
-    if (to.node != __node__  && persists.count(to.node) == 0) {
+    // Check if the socket address is remote and there isn't a persistant link.
+    if (to.address != __address__  && persists.count(to.address) == 0) {
       // Okay, no link, let's create a socket.
       Try<Socket> create = Socket::create();
       if (create.isError()) {
@@ -1340,9 +1343,9 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
       int s = socket.get().get();
 
       sockets[s] = new Socket(socket.get());
-      nodes[s] = to.node;
+      addresses[s] = to.address;
 
-      persists[to.node] = s;
+      persists[to.address] = s;
 
       // Initialize 'outgoing' to prevent a race with
       // SocketManager::send() while the socket is not yet connected.
@@ -1356,14 +1359,14 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
 
     links.linkers[to].insert(process);
     links.linkees[process].insert(to);
-    if (to.node != __node__) {
-      links.remotes[to.node].insert(to);
+    if (to.address != __address__) {
+      links.remotes[to.address].insert(to);
     }
   }
 
   if (connect) {
     CHECK_SOME(socket);
-    Socket(socket.get()).connect(to.node) // Copy to drop const.
+    Socket(socket.get()).connect(to.address) // Copy to drop const.
       .onAny(lambda::bind(
           &internal::link_connect,
           lambda::_1,
@@ -1574,17 +1577,17 @@ void SocketManager::send(Message* message)
 {
   CHECK(message != NULL);
 
-  const Node& node = message->to.node;
+  const Address& address = message->to.address;
 
   Option<Socket> socket = None();
   bool connect = false;
 
   synchronized (this) {
     // Check if there is already a socket.
-    bool persist = persists.count(node) > 0;
-    bool temp = temps.count(node) > 0;
+    bool persist = persists.count(address) > 0;
+    bool temp = temps.count(address) > 0;
     if (persist || temp) {
-      int s = persist ? persists[node] : temps[node];
+      int s = persist ? persists[address] : temps[address];
       CHECK(sockets.count(s) > 0);
       socket = *sockets[s];
 
@@ -1603,8 +1606,8 @@ void SocketManager::send(Message* message)
       }
 
     } else {
-      // No peristent or temporary socket to the node currently
-      // exists, so we create a temporary one.
+      // No peristent or temporary socket to the socket address
+      // currently exists, so we create a temporary one.
       Try<Socket> create = Socket::create();
       if (create.isError()) {
         VLOG(1) << "Failed to send, create socket: " << create.error();
@@ -1615,8 +1618,8 @@ void SocketManager::send(Message* message)
       int s = socket.get();
 
       sockets[s] = new Socket(socket.get());
-      nodes[s] = node;
-      temps[node] = s;
+      addresses[s] = address;
+      temps[address] = s;
 
       dispose.insert(s);
 
@@ -1629,7 +1632,7 @@ void SocketManager::send(Message* message)
 
   if (connect) {
     CHECK_SOME(socket);
-    Socket(socket.get()).connect(node) // Copy to drop const.
+    Socket(socket.get()).connect(address) // Copy to drop const.
       .onAny(lambda::bind(
           &internal::send_connect,
           lambda::_1,
@@ -1679,11 +1682,11 @@ Encoder* SocketManager::next(int s)
           // This is either a temporary socket we created or it's a
           // socket that we were receiving data from and possibly
           // sending HTTP responses back on. Clean up either way.
-          if (nodes.count(s) > 0) {
-            const Node& node = nodes[s];
-            CHECK(temps.count(node) > 0 && temps[node] == s);
-            temps.erase(node);
-            nodes.erase(s);
+          if (addresses.count(s) > 0) {
+            const Address& address = addresses[s];
+            CHECK(temps.count(address) > 0 && temps[address] == s);
+            temps.erase(address);
+            addresses.erase(s);
           }
 
           if (proxies.count(s) > 0) {
@@ -1739,19 +1742,19 @@ void SocketManager::close(int s)
         outgoing.erase(s);
       }
 
-      // Clean up after sockets used for node communication.
-      if (nodes.count(s) > 0) {
-        const Node& node = nodes[s];
+      // Clean up after sockets used for remote communication.
+      if (addresses.count(s) > 0) {
+        const Address& address = addresses[s];
 
         // Don't bother invoking exited unless socket was persistant.
-        if (persists.count(node) > 0 && persists[node] == s) {
-          persists.erase(node);
-          exited(node); // Generate ExitedEvent(s)!
-        } else if (temps.count(node) > 0 && temps[node] == s) {
-          temps.erase(node);
+        if (persists.count(address) > 0 && persists[address] == s) {
+          persists.erase(address);
+          exited(address); // Generate ExitedEvent(s)!
+        } else if (temps.count(address) > 0 && temps[address] == s) {
+          temps.erase(address);
         }
 
-        nodes.erase(s);
+        addresses.erase(s);
       }
 
       // Clean up any proxy associated with this socket.
@@ -1803,18 +1806,18 @@ void SocketManager::close(int s)
 }
 
 
-void SocketManager::exited(const Node& node)
+void SocketManager::exited(const Address& address)
 {
   // TODO(benh): It would be cleaner if this routine could call back
   // into ProcessManager ... then we wouldn't have to convince
   // ourselves that the accesses to each Process object will always be
   // valid.
   synchronized (this) {
-    if (!links.remotes.contains(node)) {
-      return; // No linkees for this node!
+    if (!links.remotes.contains(address)) {
+      return; // No linkees for this socket address!
     }
 
-    foreach (const UPID& linkee, links.remotes[node]) {
+    foreach (const UPID& linkee, links.remotes[address]) {
       // Find and notify the linkers.
       CHECK(links.linkers.contains(linkee));
 
@@ -1833,7 +1836,7 @@ void SocketManager::exited(const Node& node)
       links.linkers.erase(linkee);
     }
 
-    links.remotes.erase(node);
+    links.remotes.erase(address);
   }
 }
 
@@ -1865,12 +1868,12 @@ void SocketManager::exited(ProcessBase* process)
 
           // The exited process was the last linker for this linkee,
           // so we need to remove the linkee from the remotes.
-          if (linkee.node != __node__) {
-            CHECK(links.remotes.contains(linkee.node));
+          if (linkee.address != __address__) {
+            CHECK(links.remotes.contains(linkee.address));
 
-            links.remotes[linkee.node].erase(linkee);
-            if (links.remotes[linkee.node].empty()) {
-              links.remotes.erase(linkee.node);
+            links.remotes[linkee.address].erase(linkee);
+            if (links.remotes[linkee.address].empty()) {
+              links.remotes.erase(linkee.address);
             }
           }
         }
@@ -1932,7 +1935,7 @@ ProcessManager::~ProcessManager()
 
 ProcessReference ProcessManager::use(const UPID& pid)
 {
-  if (pid.node == __node__) {
+  if (pid.address == __address__) {
     synchronized (processes) {
       if (processes.count(pid.id) > 0) {
         // Note that the ProcessReference constructor _must_ get
@@ -2038,12 +2041,12 @@ bool ProcessManager::handle(
 
   if (tokens.size() == 0 && delegate != "") {
     request->path = "/" + delegate;
-    receiver = use(UPID(delegate, __node__));
+    receiver = use(UPID(delegate, __address__));
   } else if (tokens.size() > 0) {
     // Decode possible percent-encoded path.
     Try<string> decode = http::decode(tokens[0]);
     if (!decode.isError()) {
-      receiver = use(UPID(decode.get(), __node__));
+      receiver = use(UPID(decode.get(), __address__));
     } else {
       VLOG(1) << "Failed to decode URL path: " << decode.error();
     }
@@ -2052,7 +2055,7 @@ bool ProcessManager::handle(
   if (!receiver && delegate != "") {
     // Try and delegate the request.
     request->path = "/" + delegate + request->path;
-    receiver = use(UPID(delegate, __node__));
+    receiver = use(UPID(delegate, __address__));
   }
 
   if (receiver) {
@@ -2363,7 +2366,7 @@ void ProcessManager::cleanup(ProcessBase* process)
 void ProcessManager::link(ProcessBase* process, const UPID& to)
 {
   // Check if the pid is local.
-  if (to.node != __node__) {
+  if (to.address != __address__) {
     socket_manager->link(process, to);
   } else {
     // Since the pid is local we want to get a reference to it's
@@ -2665,7 +2668,7 @@ ProcessBase::ProcessBase(const string& id)
   refs = 0;
 
   pid.id = id != "" ? id : ID::generate();
-  pid.node = __node__;
+  pid.address = __address__;
 
   // If using a manual clock, try and set current time of process
   // using happens before relationship between creator (__process__)

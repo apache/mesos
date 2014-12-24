@@ -101,9 +101,9 @@ Future<Nothing> connect(const Socket& socket)
 } // namespace internal {
 
 
-Future<Nothing> PollSocketImpl::connect(const Node& node)
+Future<Nothing> PollSocketImpl::connect(const Address& address)
 {
-  Try<int> connect = network::connect(get(), node);
+  Try<int> connect = network::connect(get(), address);
   if (connect.isError()) {
     if (errno == EINPROGRESS) {
       return io::poll(get(), io::WRITE)

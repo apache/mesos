@@ -1,7 +1,7 @@
 #ifndef __PROCESS_NETWORK_HPP__
 #define __PROCESS_NETWORK_HPP__
 
-#include <process/node.hpp>
+#include <process/address.hpp>
 
 #include <stout/net.hpp>
 #include <stout/try.hpp>
@@ -31,7 +31,8 @@ inline Try<int> socket(int family, int type, int protocol)
   return s;
 }
 
-// accept, bind, connect, getsockname wrappers for different protocol families
+
+// TODO(benh): Remove and defer to Socket::accept.
 inline Try<int> accept(int s, sa_family_t family)
 {
   switch (family) {
@@ -52,48 +53,54 @@ inline Try<int> accept(int s, sa_family_t family)
 }
 
 
-inline Try<int> bind(int s, const Node& node)
+// TODO(benh): Remove and defer to Socket::bind.
+inline Try<int> bind(int s, const Address& address)
 {
-  sockaddr_in addr = net::createSockaddrIn(node.ip, node.port);
+  sockaddr_in addr = net::createSockaddrIn(address.ip, address.port);
 
   int error = ::bind(s, (sockaddr*) &addr, sizeof(addr));
   if (error < 0) {
-    return ErrnoError("Failed to bind on " + stringify(node));
+    return ErrnoError("Failed to bind on " + stringify(address));
   }
 
   return error;
 }
 
 
-inline Try<int> connect(int s, const Node& node)
+// TODO(benh): Remove and defer to Socket::connect.
+inline Try<int> connect(int s, const Address& address)
 {
-  sockaddr_in addr = net::createSockaddrIn(node.ip, node.port);
+  sockaddr_in addr = net::createSockaddrIn(address.ip, address.port);
 
   int error = ::connect(s, (sockaddr*) &addr, sizeof(addr));
   if (error < 0) {
-    return ErrnoError("Failed to connect to " + stringify(node));
+    return ErrnoError("Failed to connect to " + stringify(address));
   }
 
   return error;
 }
 
 
-inline Try<Node> getsockname(int s, sa_family_t family)
+inline Try<Address> address(int s)
 {
-  switch (family) {
-    case AF_INET: {
-      sockaddr_in addr = net::createSockaddrIn(0, 0);
-      socklen_t addrlen = sizeof(addr);
+  union {
+    struct sockaddr s;
+    struct sockaddr_in v4;
+    struct sockaddr_in6 v6;
+  } addr;
 
-      if(::getsockname(s, (sockaddr*) &addr, &addrlen) < 0) {
-        return ErrnoError("Failed to getsockname");
-      }
+  socklen_t addrlen = sizeof(addr);
 
-      return Node(addr.sin_addr.s_addr, ntohs(addr.sin_port));
-    }
-    default:
-      return Error("Unsupported family type: " + stringify(family));
+  if (::getsockname(s, (sockaddr*) &addr, &addrlen) < 0) {
+    return ErrnoError("Failed to getsockname");
   }
+
+  if (addr.s.sa_family == AF_INET) {
+    return Address(addr.v4.sin_addr.s_addr, ntohs(addr.v4.sin_port));
+  }
+
+  return Error("Unsupported IP address family '" +
+               stringify(addr.s.sa_family) + "'");
 }
 
 } // namespace network {

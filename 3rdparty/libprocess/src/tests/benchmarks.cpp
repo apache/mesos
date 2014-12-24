@@ -108,9 +108,9 @@ public:
 private:
   void ping(const UPID& from, const string& body)
   {
-    if (linkedPorts.find(from.node.port) == linkedPorts.end()) {
+    if (linkedPorts.find(from.address.port) == linkedPorts.end()) {
       setLink(from);
-      linkedPorts.insert(from.node.port);
+      linkedPorts.insert(from.address.port);
     }
     static const string message("hi");
     send(from, "pong", message.c_str(), message.size());

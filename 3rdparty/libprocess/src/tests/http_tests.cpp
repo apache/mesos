@@ -123,7 +123,7 @@ TEST(HTTP, Endpoints)
 
   Socket socket = create.get();
 
-  AWAIT_READY(socket.connect(process.self().node));
+  AWAIT_READY(socket.connect(process.self().address));
 
   std::ostringstream out;
   out << "GET /" << process.self().id << "/body"

@@ -71,15 +71,23 @@ const Socket::Kind& Socket::DEFAULT_KIND()
 }
 
 
-Try<Node> Socket::Impl::bind(const Node& node)
+Try<Address> Socket::Impl::address() const
 {
-  Try<int> bind = network::bind(get(), node);
+  // TODO(benh): Cache this result so that we don't have to make
+  // unnecessary system calls each time.
+  return network::address(get());
+}
+
+
+Try<Address> Socket::Impl::bind(const Address& address)
+{
+  Try<int> bind = network::bind(get(), address);
   if (bind.isError()) {
     return Error(bind.error());
   }
 
   // Lookup and store assigned IP and assigned port.
-  return network::getsockname(get(), AF_INET);
+  return network::address(get());
 }
 
 

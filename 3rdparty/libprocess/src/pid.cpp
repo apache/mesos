@@ -48,7 +48,7 @@ UPID::UPID(const std::string& s)
 UPID::UPID(const ProcessBase& process)
 {
   id = process.self().id;
-  node = process.self().node;
+  address = process.self().address;
 }
 
 
@@ -62,7 +62,7 @@ UPID::operator std::string() const
 
 ostream& operator << (ostream& stream, const UPID& pid)
 {
-  stream << pid.id << "@" << pid.node;
+  stream << pid.id << "@" << pid.address;
   return stream;
 }
 
@@ -70,8 +70,8 @@ ostream& operator << (ostream& stream, const UPID& pid)
 istream& operator >> (istream& stream, UPID& pid)
 {
   pid.id = "";
-  pid.node.ip = 0;
-  pid.node.port = 0;
+  pid.address.ip = 0;
+  pid.address.port = 0;
 
   string str;
   if (!(stream >> str)) {
@@ -88,7 +88,7 @@ istream& operator >> (istream& stream, UPID& pid)
 
   string id;
   string host;
-  Node node;
+  network::Address address;
 
   size_t index = str.find('@');
 
@@ -119,17 +119,17 @@ istream& operator >> (istream& stream, UPID& pid)
     return stream;
   }
 
-  node.ip = ip.get();
+  address.ip = ip.get();
 
   str = str.substr(index + 1);
 
-  if (sscanf(str.c_str(), "%hu", &node.port) != 1) {
+  if (sscanf(str.c_str(), "%hu", &address.port) != 1) {
     stream.setstate(std::ios_base::badbit);
     return stream;
   }
 
   pid.id = id;
-  pid.node = node;
+  pid.address = address;
 
   return stream;
 }
@@ -139,8 +139,8 @@ size_t hash_value(const UPID& pid)
 {
   size_t seed = 0;
   boost::hash_combine(seed, pid.id);
-  boost::hash_combine(seed, pid.node.ip);
-  boost::hash_combine(seed, pid.node.port);
+  boost::hash_combine(seed, pid.address.ip);
+  boost::hash_combine(seed, pid.address.port);
   return seed;
 }
 

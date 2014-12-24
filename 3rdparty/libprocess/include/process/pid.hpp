@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-#include <process/node.hpp>
+#include <process/address.hpp>
 
 namespace process {
 
@@ -20,19 +20,19 @@ struct UPID
   UPID() = default;
 
   UPID(const UPID& that)
-    : id(that.id), node(that.node) {}
+    : id(that.id), address(that.address) {}
 
   UPID(const char* id_, uint32_t ip_, uint16_t port_)
-    : id(id_), node(ip_, port_) {}
+    : id(id_), address(ip_, port_) {}
 
-  UPID(const char* id_, const Node& node_)
-    : id(id_), node(node_) {}
+  UPID(const char* id_, const network::Address& address_)
+    : id(id_), address(address_) {}
 
   UPID(const std::string& id_, uint32_t ip_, uint16_t port_)
-    : id(id_), node(ip_, port_) {}
+    : id(id_), address(ip_, port_) {}
 
-  UPID(const std::string& id_, const Node& node_)
-    : id(id_), node(node_) {}
+  UPID(const std::string& id_, const network::Address& address_)
+    : id(id_), address(address_) {}
 
   /*implicit*/ UPID(const char* s);
 
@@ -44,24 +44,26 @@ struct UPID
 
   operator bool () const
   {
-    return id != "" && node.ip != 0 && node.port != 0;
+    return id != "" && address.ip != 0 && address.port != 0;
   }
 
   bool operator ! () const // NOLINT(whitespace/operators)
   {
-    return id == "" && node.ip == 0 && node.port == 0;
+    return id == "" && address.ip == 0 && address.port == 0;
   }
 
   bool operator < (const UPID& that) const
   {
-     if (node == that.node)
-       return id < that.id;
-     else return node < that.node;
+    if (address == that.address) {
+      return id < that.id;
+    } else {
+      return address < that.address;
+    }
   }
 
   bool operator == (const UPID& that) const
   {
-    return (id == that.id && node == that.node);
+    return (id == that.id && address == that.address);
   }
 
   bool operator != (const UPID& that) const
@@ -70,7 +72,7 @@ struct UPID
   }
 
   std::string id;
-  Node node;
+  network::Address address;
 };
 
 
@@ -91,7 +93,7 @@ struct PID : UPID
     (void)base;  // Eliminate unused base warning.
     PID<Base> pid;
     pid.id = id;
-    pid.node = node;
+    pid.address = address;
     return pid;
   }
 };
@@ -106,7 +108,5 @@ std::istream& operator >> (std::istream&, UPID&);
 std::size_t hash_value(const UPID&);
 
 }  // namespace process {
-
-
 
 #endif // __PROCESS_PID_HPP__
