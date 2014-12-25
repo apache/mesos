@@ -111,8 +111,8 @@ class Socket
 public:
   // Available kinds of implementations.
   enum Kind {
-    POLL
-    // TODO(jmlvanre): Add libevent socket.
+    POLL,
+    // TODO(jmlvanre): Add libevent SSL socket.
   };
 
   // Returns an instance of a Socket using the specified kind of
@@ -131,9 +131,7 @@ public:
   class Impl : public std::enable_shared_from_this<Impl>
   {
   public:
-    explicit Impl(int _s) : s(_s) { CHECK(s >= 0); }
-
-    ~Impl()
+    virtual ~Impl()
     {
       CHECK(s >= 0);
       Try<Nothing> close = os::close(s);
@@ -148,21 +146,21 @@ public:
       return s;
     }
 
-    Future<Nothing> connect(const Node& node);
+    // Socket::Impl interface.
+    virtual Try<Node> bind(const Node& node);
+    virtual Try<Nothing> listen(int backlog) = 0;
+    virtual Future<Socket> accept() = 0;
+    virtual Future<Nothing> connect(const Node& node) = 0;
+    virtual Future<size_t> recv(char* data, size_t size) = 0;
+    virtual Future<size_t> send(const char* data, size_t size) = 0;
+    virtual Future<size_t> sendfile(int fd, off_t offset, size_t size) = 0;
 
-    Future<size_t> recv(char* data, size_t size);
+  protected:
+    explicit Impl(int _s) : s(_s) { CHECK(s >= 0); }
 
-    Future<size_t> send(const char* data, size_t size);
+    // Construct a Socket wrapper from this implementation.
+    Socket socket() { return Socket(shared_from_this()); }
 
-    Future<size_t> sendfile(int fd, off_t offset, size_t size);
-
-    Try<Node> bind(const Node& node);
-
-    Try<Nothing> listen(int backlog);
-
-    Future<Socket> accept();
-
-  private:
     int s;
   };
 
@@ -179,6 +177,21 @@ public:
   int get() const
   {
     return impl->get();
+  }
+
+  Try<Node> bind(const Node& node)
+  {
+    return impl->bind(node);
+  }
+
+  Try<Nothing> listen(int backlog)
+  {
+    return impl->listen(backlog);
+  }
+
+  Future<Socket> accept()
+  {
+    return impl->accept();
   }
 
   Future<Nothing> connect(const Node& node)
@@ -201,23 +214,10 @@ public:
     return impl->sendfile(fd, offset, size);
   }
 
-  Try<Node> bind(const Node& node)
-  {
-    return impl->bind(node);
-  }
-
-  Try<Nothing> listen(int backlog)
-  {
-    return impl->listen(backlog);
-  }
-
-  Future<Socket> accept()
-  {
-    return impl->accept();
-  }
-
 private:
   explicit Socket(std::shared_ptr<Impl>&& that) : impl(std::move(that)) {}
+
+  explicit Socket(const std::shared_ptr<Impl>& that) : impl(that) {}
 
   std::shared_ptr<Impl> impl;
 };

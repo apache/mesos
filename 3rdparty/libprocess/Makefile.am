@@ -43,6 +43,7 @@ libprocess_la_SOURCES =		\
   src/metrics/metrics.cpp	\
   src/pid.cpp			\
   src/poll_socket.cpp		\
+  src/poll_socket.hpp		\
   src/process.cpp		\
   src/process_reference.hpp	\
   src/reap.cpp			\

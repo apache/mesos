@@ -4,11 +4,80 @@
 #include <process/socket.hpp>
 
 #include "config.hpp"
+#include "poll_socket.hpp"
 
 using std::string;
 
 namespace process {
 namespace network {
+
+Try<std::shared_ptr<Socket::Impl>> PollSocketImpl::create(int s)
+{
+  return std::make_shared<PollSocketImpl>(s);
+}
+
+
+Try<Nothing> PollSocketImpl::listen(int backlog)
+{
+  if (::listen(get(), backlog) < 0) {
+    return ErrnoError();
+  }
+  return Nothing();
+}
+
+
+namespace internal {
+
+Future<Socket> accept(int fd)
+{
+  Try<int> accepted = network::accept(fd, AF_INET);
+  if (accepted.isError()) {
+    return Failure(accepted.error());
+  }
+
+  int s = accepted.get();
+  Try<Nothing> nonblock = os::nonblock(s);
+  if (nonblock.isError()) {
+    LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, nonblock: "
+                                << nonblock.error();
+    os::close(s);
+    return Failure("Failed to accept, nonblock: " + nonblock.error());
+  }
+
+  Try<Nothing> cloexec = os::cloexec(s);
+  if (cloexec.isError()) {
+    LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, cloexec: "
+                                << cloexec.error();
+    os::close(s);
+    return Failure("Failed to accept, cloexec: " + cloexec.error());
+  }
+
+  // Turn off Nagle (TCP_NODELAY) so pipelined requests don't wait.
+  int on = 1;
+  if (setsockopt(s, SOL_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
+    const char* error = strerror(errno);
+    VLOG(1) << "Failed to turn off the Nagle algorithm: " << error;
+    os::close(s);
+    return Failure(
+      "Failed to turn off the Nagle algorithm: " + stringify(error));
+  }
+
+  Try<Socket> socket = Socket::create(Socket::DEFAULT_KIND(), s);
+  if (socket.isError()) {
+    return Failure("Failed to accept, create socket: " + socket.error());
+  }
+  return socket.get();
+}
+
+} // namespace internal {
+
+
+Future<Socket> PollSocketImpl::accept()
+{
+  return io::poll(get(), io::READ)
+    .then(lambda::bind(&internal::accept, get()));
+}
+
 
 namespace internal {
 
@@ -31,13 +100,13 @@ Future<Nothing> connect(const Socket& socket)
 } // namespace internal {
 
 
-Future<Nothing> Socket::Impl::connect(const Node& node)
+Future<Nothing> PollSocketImpl::connect(const Node& node)
 {
   Try<int> connect = network::connect(get(), node);
   if (connect.isError()) {
     if (errno == EINPROGRESS) {
       return io::poll(get(), io::WRITE)
-        .then(lambda::bind(&internal::connect, Socket(shared_from_this())));
+        .then(lambda::bind(&internal::connect, socket()));
     }
 
     return Failure(connect.error());
@@ -47,7 +116,7 @@ Future<Nothing> Socket::Impl::connect(const Node& node)
 }
 
 
-Future<size_t> Socket::Impl::recv(char* data, size_t size)
+Future<size_t> PollSocketImpl::recv(char* data, size_t size)
 {
   return io::read(get(), data, size);
 }
@@ -129,91 +198,17 @@ Future<size_t> socket_send_file(int s, int fd, off_t offset, size_t size)
 } // namespace internal {
 
 
-Future<size_t> Socket::Impl::send(const char* data, size_t size)
+Future<size_t> PollSocketImpl::send(const char* data, size_t size)
 {
   return io::poll(get(), io::WRITE)
     .then(lambda::bind(&internal::socket_send_data, get(), data, size));
 }
 
 
-Future<size_t> Socket::Impl::sendfile(int fd, off_t offset, size_t size)
+Future<size_t> PollSocketImpl::sendfile(int fd, off_t offset, size_t size)
 {
   return io::poll(get(), io::WRITE)
     .then(lambda::bind(&internal::socket_send_file, get(), fd, offset, size));
-}
-
-
-Try<Node> Socket::Impl::bind(const Node& node)
-{
-  Try<int> bind = network::bind(get(), node);
-  if (bind.isError()) {
-    return Error(bind.error());
-  }
-
-  // Lookup and store assigned ip and assigned port.
-  return network::getsockname(get(), AF_INET);
-}
-
-
-Try<Nothing> Socket::Impl::listen(int backlog)
-{
-  if (::listen(get(), backlog) < 0) {
-    return ErrnoError();
-  }
-  return Nothing();
-}
-
-
-namespace internal {
-
-Future<Socket> accept(int fd)
-{
-  Try<int> accepted = network::accept(fd, AF_INET);
-  if (accepted.isError()) {
-    return Failure(accepted.error());
-  }
-
-  int s = accepted.get();
-  Try<Nothing> nonblock = os::nonblock(s);
-  if (nonblock.isError()) {
-    LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, nonblock: "
-                                << nonblock.error();
-    os::close(s);
-    return Failure("Failed to accept, nonblock: " + nonblock.error());
-  }
-
-  Try<Nothing> cloexec = os::cloexec(s);
-  if (cloexec.isError()) {
-    LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, cloexec: "
-                                << cloexec.error();
-    os::close(s);
-    return Failure("Failed to accept, cloexec: " + cloexec.error());
-  }
-
-  // Turn off Nagle (TCP_NODELAY) so pipelined requests don't wait.
-  int on = 1;
-  if (setsockopt(s, SOL_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
-    const char* error = strerror(errno);
-    VLOG(1) << "Failed to turn off the Nagle algorithm: " << error;
-    os::close(s);
-    return Failure(
-      "Failed to turn off the Nagle algorithm: " + stringify(error));
-  }
-
-  Try<Socket> socket = Socket::create(Socket::DEFAULT_KIND(), s);
-  if (socket.isError()) {
-    return Failure("Failed to accept, create socket: " + socket.error());
-  }
-  return socket.get();
-}
-
-} // namespace internal {
-
-
-Future<Socket> Socket::Impl::accept()
-{
-  return io::poll(get(), io::READ)
-    .then(lambda::bind(&internal::accept, get()));
 }
 
 } // namespace network {
