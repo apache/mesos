@@ -1435,7 +1435,7 @@ TEST(Process, remote)
 
   const string& data = MessageEncoder::encode(&message);
 
-  AWAIT_EXPECT_EQ(data.size(), socket.send(data.data(), data.size()));
+  AWAIT_READY(socket.send(data));
 
   AWAIT_READY(handler);
 
@@ -1533,10 +1533,7 @@ TEST(Process, http2)
 
   const string data = "POST /" + name + " HTTP/1.1";
 
-  char temp[data.size()];
-
-  AWAIT_ASSERT_EQ(data.size(), client.recv(temp, data.size()));
-  ASSERT_EQ(data, string(temp, data.size()));
+  AWAIT_EXPECT_EQ(data, client.recv(data.size()));
 
   terminate(process);
   wait(process);

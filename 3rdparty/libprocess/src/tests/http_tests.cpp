@@ -133,14 +133,11 @@ TEST(HTTP, Endpoints)
   EXPECT_CALL(process, body(_))
     .WillOnce(Return(http::OK()));
 
-  AWAIT_EXPECT_EQ(data.size(), socket.send(data.data(), data.size()));
+  AWAIT_READY(socket.send(data));
 
   string response = "HTTP/1.1 200 OK";
 
-  char temp[response.size()];
-
-  AWAIT_EXPECT_EQ(response.size(), socket.recv(temp, response.size()));
-  ASSERT_EQ(response, string(temp, response.size()));
+  AWAIT_EXPECT_EQ(response, socket.recv(response.size()));
 
   // Now hit '/pipe' (by using http::get).
   int pipes[2];
