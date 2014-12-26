@@ -10,6 +10,7 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
+#include <process/network.hpp>
 #include <process/socket.hpp>
 
 #include <stout/lambda.hpp>

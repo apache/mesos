@@ -1,6 +1,7 @@
 #include <netinet/tcp.h>
 
 #include <process/io.hpp>
+#include <process/network.hpp>
 #include <process/socket.hpp>
 
 #include "config.hpp"

@@ -1,3 +1,4 @@
+#include <process/network.hpp>
 #include <process/socket.hpp>
 
 #include "poll_socket.hpp"
