@@ -493,25 +493,21 @@ inline Try<std::string> decode(const std::string& s)
 }
 
 
-// Sends a blocking HTTP GET request to the process with the given upid.
-// Returns the HTTP response from the process, read asynchronously.
-//
-// TODO(bmahler): Have the request sent asynchronously as well.
-// TODO(bmahler): For efficiency, this should properly use the ResponseDecoder
-// on the read stream, rather than parsing the full string response at the end.
+// Asynchronously sends an HTTP GET request to the process with the
+// given UPID and returns the HTTP response from the process.
 Future<Response> get(
     const UPID& upid,
     const Option<std::string>& path = None(),
     const Option<std::string>& query = None(),
-    const Option<hashmap<std::string, std::string> >& headers = None());
+    const Option<hashmap<std::string, std::string>>& headers = None());
 
 
-// Sends a blocking HTTP POST request to the process with the given upid.
-// Returns the HTTP response from the process, read asyncronously.
+// Asynchronously sends an HTTP POST request to the process with the
+// given UPID and returns the HTTP response from the process.
 Future<Response> post(
     const UPID& upid,
     const Option<std::string>& path = None(),
-    const Option<hashmap<std::string, std::string> >& headers = None(),
+    const Option<hashmap<std::string, std::string>>& headers = None(),
     const Option<std::string>& body = None(),
     const Option<std::string>& contentType = None());
 

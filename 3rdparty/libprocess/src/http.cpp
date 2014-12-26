@@ -9,14 +9,12 @@
 
 #include <process/future.hpp>
 #include <process/http.hpp>
-#include <process/io.hpp>
-#include <process/network.hpp>
+#include <process/owned.hpp>
 #include <process/socket.hpp>
 
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
-#include <stout/os.hpp>
 #include <stout/try.hpp>
 
 #include "decoder.hpp"
@@ -26,6 +24,8 @@ using std::string;
 
 using process::http::Request;
 using process::http::Response;
+
+using process::network::Socket;
 
 namespace process {
 
@@ -108,7 +108,50 @@ Future<Response> decode(const string& buffer)
 }
 
 
+// Forward declaration.
+Future<Response> _request(
+    Socket socket,
+    const UPID& upid,
+    const string& method,
+    const Option<string>& path,
+    const Option<string>& query,
+    const Option<hashmap<string, string> >& _headers,
+    const Option<string>& body,
+    const Option<string>& contentType);
+
+
 Future<Response> request(
+    const UPID& upid,
+    const string& method,
+    const Option<string>& path,
+    const Option<string>& query,
+    const Option<hashmap<string, string> >& headers,
+    const Option<string>& body,
+    const Option<string>& contentType)
+{
+  Try<Socket> create = Socket::create();
+
+  if (create.isError()) {
+    return Failure("Failed to create socket: " + create.error());
+  }
+
+  Socket socket = create.get();
+
+  return socket.connect(upid.node)
+    .then(lambda::bind(&_request,
+                       socket,
+                       upid,
+                       method,
+                       path,
+                       query,
+                       headers,
+                       body,
+                       contentType));
+}
+
+
+Future<Response> _request(
+    Socket socket,
     const UPID& upid,
     const string& method,
     const Option<string>& path,
@@ -117,28 +160,6 @@ Future<Response> request(
     const Option<string>& body,
     const Option<string>& contentType)
 {
-  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-
-  if (socket.isError()) {
-    return Failure("Failed to create socket: " + socket.error());
-  }
-
-  int s = socket.get();
-
-  Try<Nothing> cloexec = os::cloexec(s);
-  if (!cloexec.isSome()) {
-    os::close(s);
-    return Failure("Failed to cloexec: " + cloexec.error());
-  }
-
-  const string host = stringify(upid.node);
-
-  Try<int> connect = network::connect(s, upid.node);
-  if (connect.isError()) {
-    os::close(s);
-    return Failure(connect.error());
-  }
-
   std::ostringstream out;
 
   out << method << " /" << upid.id;
@@ -161,7 +182,7 @@ Future<Response> request(
   }
 
   // Need to specify the 'Host' header.
-  headers["Host"] = host;
+  headers["Host"] = stringify(upid.node);
 
   // Tell the server to close the connection when it's done.
   headers["Connection"] = "close";
@@ -187,19 +208,16 @@ Future<Response> request(
     out << body.get();
   }
 
-  Try<Nothing> nonblock = os::nonblock(s);
-  if (!nonblock.isSome()) {
-    os::close(s);
-    return Failure("Failed to set nonblock: " + nonblock.error());
-  }
+  // Need to disambiguate the Socket::recv for binding below.
+  Future<string> (Socket::*recv)(const Option<ssize_t>&) = &Socket::recv;
 
-  // Need to disambiguate the io::read we want when binding below.
-  Future<string> (*read)(int) = io::read;
-
-  return io::write(s, out.str())
-    .then(lambda::bind(read, s))
-    .then(lambda::bind(&internal::decode, lambda::_1))
-    .onAny(lambda::bind(&os::close, s));
+  // TODO(bmahler): For efficiency, this should properly use the
+  // ResponseDecoder when reading, rather than parsing the full string
+  // response.
+  return socket.send(out.str())
+    .then(lambda::function<Future<string>(void)>(
+              lambda::bind(recv, socket, -1)))
+    .then(lambda::bind(&internal::decode, lambda::_1));
 }
 
 
