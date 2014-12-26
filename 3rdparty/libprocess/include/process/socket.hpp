@@ -68,6 +68,31 @@ public:
     virtual Future<size_t> send(const char* data, size_t size) = 0;
     virtual Future<size_t> sendfile(int fd, off_t offset, size_t size) = 0;
 
+    // An overload of 'recv', receives data based on the specified
+    // 'size' parameter:
+    //
+    //   Value of 'size'   |    Semantics
+    // --------------------|-----------------
+    //          0          |  Returns an empty string.
+    //          -1         |  Receives until EOF.
+    //          N          |  Returns a string of size N.
+    //        'None'       |  Returns a string of the available data.
+    //
+    // That is, if 'None' is specified than whenever data becomes
+    // available on the socket that much data will be returned.
+    //
+    // TODO(benh): Consider returning Owned<std::string> or
+    // Shared<std::string>, the latter enabling reuse of a pool of
+    // preallocated strings/buffers.
+    virtual Future<std::string> recv(const Option<ssize_t>& size = None());
+
+    // An overload of 'send', sends all of the specified data unless
+    // sending fails in which case a failure is returned.
+    //
+    // TODO(benh): Consider taking Shared<std::string>, the latter
+    // enabling reuse of a pool of preallocated strings/buffers.
+    virtual Future<Nothing> send(const std::string& data);
+
   protected:
     explicit Impl(int _s) : s(_s) { CHECK(s >= 0); }
 
@@ -125,6 +150,16 @@ public:
   Future<size_t> sendfile(int fd, off_t offset, size_t size) const
   {
     return impl->sendfile(fd, offset, size);
+  }
+
+  Future<std::string> recv(const Option<ssize_t>& size)
+  {
+    return impl->recv(size);
+  }
+
+  Future<Nothing> send(const std::string& data)
+  {
+    return impl->send(data);
   }
 
 private:
