@@ -40,6 +40,8 @@
 
 using namespace process;
 
+using process::network::Socket;
+
 using std::string;
 
 using testing::_;
@@ -1418,13 +1420,12 @@ TEST(Process, remote)
   EXPECT_CALL(process, handler(_, _))
     .WillOnce(FutureSatisfy(&handler));
 
-  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<Socket> create = Socket::create();
+  ASSERT_SOME(create);
 
-  ASSERT_TRUE(socket.isSome());
+  Socket socket = create.get();
 
-  int s = socket.get();
-
-  ASSERT_TRUE(network::connect(s, process.self().node).isSome());
+  AWAIT_READY(socket.connect(process.self().node));
 
   Message message;
   message.name = "handler";
@@ -1433,9 +1434,7 @@ TEST(Process, remote)
 
   const string& data = MessageEncoder::encode(&message);
 
-  ASSERT_EQ(data.size(), write(s, data.data(), data.size()));
-
-  ASSERT_EQ(0, close(s));
+  AWAIT_EXPECT_EQ(data.size(), socket.send(data.data(), data.size()));
 
   AWAIT_READY(handler);
 
@@ -1484,21 +1483,21 @@ TEST(Process, http2)
   spawn(process);
 
   // Create a receiving socket so we can get messages back.
-  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-  ASSERT_TRUE(socket.isSome());
+  Try<Socket> create = Socket::create();
+  ASSERT_SOME(create);
 
-  int s = socket.get();
+  Socket socket = create.get();
 
-  ASSERT_TRUE(network::bind(s, Node()).isSome());
+  ASSERT_SOME(socket.bind(Node()));
 
   // Create a UPID for 'Libprocess-From' based on the IP and port we
   // got assigned.
-  Try<Node> node = network::getsockname(s, AF_INET);
-  ASSERT_TRUE(node.isSome());
+  Try<Node> node = network::getsockname(socket.get(), AF_INET);
+  ASSERT_SOME(node);
 
   UPID from("", node.get());
 
-  ASSERT_EQ(0, listen(s, 1));
+  ASSERT_SOME(socket.listen(1));
 
   Future<UPID> pid;
   Future<string> body;
@@ -1526,17 +1525,17 @@ TEST(Process, http2)
   post(process.self(), from, name);
 
   // Accept the incoming connection.
-  Try<int> accepted = network::accept(s, AF_INET);
-  ASSERT_TRUE(accepted.isSome());
+  Future<Socket> accept = socket.accept();
+  AWAIT_READY(accept);
 
-  int c = accepted.get();
-  ASSERT_LT(0, c);
+  Socket client = accept.get();
 
   const string data = "POST /" + name + " HTTP/1.1";
-  EXPECT_SOME_EQ(data, os::read(c, data.size()));
 
-  close(c);
-  close(s);
+  char temp[data.size()];
+
+  AWAIT_ASSERT_EQ(data.size(), client.recv(temp, data.size()));
+  ASSERT_EQ(data, string(temp, data.size()));
 
   terminate(process);
   wait(process);

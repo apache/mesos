@@ -24,6 +24,8 @@
 
 using namespace process;
 
+using process::network::Socket;
+
 using std::string;
 
 using testing::_;
@@ -32,7 +34,6 @@ using testing::DoAll;
 using testing::EndsWith;
 using testing::Invoke;
 using testing::Return;
-
 
 class HttpProcess : public Process<HttpProcess>
 {
@@ -114,13 +115,12 @@ TEST(HTTP, Endpoints)
   spawn(process);
 
   // First hit '/body' (using explicit sockets and HTTP/1.0).
-  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<Socket> create = Socket::create();
+  ASSERT_SOME(create);
 
-  ASSERT_TRUE(socket.isSome());
+  Socket socket = create.get();
 
-  int s = socket.get();
-
-  ASSERT_TRUE(network::connect(s, process.self().node).isSome());
+  AWAIT_READY(socket.connect(process.self().node));
 
   std::ostringstream out;
   out << "GET /" << process.self().id << "/body"
@@ -133,15 +133,14 @@ TEST(HTTP, Endpoints)
   EXPECT_CALL(process, body(_))
     .WillOnce(Return(http::OK()));
 
-  ASSERT_SOME(os::write(s, data));
+  AWAIT_EXPECT_EQ(data.size(), socket.send(data.data(), data.size()));
 
   string response = "HTTP/1.1 200 OK";
 
   char temp[response.size()];
-  ASSERT_LT(0, ::read(s, temp, response.size()));
-  ASSERT_EQ(response, string(temp, response.size()));
 
-  ASSERT_EQ(0, close(s));
+  AWAIT_EXPECT_EQ(response.size(), socket.recv(temp, response.size()));
+  ASSERT_EQ(response, string(temp, response.size()));
 
   // Now hit '/pipe' (by using http::get).
   int pipes[2];
