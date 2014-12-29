@@ -36,6 +36,8 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <mesos/fetcher/fetcher.hpp>
+
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/flags.hpp"
 
@@ -58,6 +60,7 @@ using slave::Fetcher;
 using std::string;
 using std::map;
 
+using mesos::fetcher::FetcherInfo;
 
 class FetcherEnvironmentTest : public ::testing::Test {};
 
@@ -79,13 +82,21 @@ TEST_F(FetcherEnvironmentTest, Simple)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(5u, environment.size());
+  EXPECT_EQ(1u, environment.size());
+
+  Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
+  ASSERT_SOME(parse);
+
+  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
+  ASSERT_SOME(fetcherInfo);
+
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            environment["MESOS_COMMAND_INFO"]);
-  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
-  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
-  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
-  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
+  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
+  EXPECT_EQ(user.get(), fetcherInfo.get().user());
+  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
+  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -110,13 +121,21 @@ TEST_F(FetcherEnvironmentTest, MultipleURIs)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(5u, environment.size());
+  EXPECT_EQ(1u, environment.size());
+
+  Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
+  ASSERT_SOME(parse);
+
+  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
+  ASSERT_SOME(fetcherInfo);
+
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            environment["MESOS_COMMAND_INFO"]);
-  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
-  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
-  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
-  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
+  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
+  EXPECT_EQ(user.get(), fetcherInfo.get().user());
+  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
+  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -136,12 +155,21 @@ TEST_F(FetcherEnvironmentTest, NoUser)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, None(), flags);
 
-  EXPECT_EQ(4u, environment.size());
+  EXPECT_EQ(1u, environment.size());
+
+  Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
+  ASSERT_SOME(parse);
+
+  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
+  ASSERT_SOME(fetcherInfo);
+
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            environment["MESOS_COMMAND_INFO"]);
-  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
-  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
-  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
+  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
+  EXPECT_FALSE(fetcherInfo.get().has_user());
+  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
+  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -162,12 +190,21 @@ TEST_F(FetcherEnvironmentTest, EmptyHadoop)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(4u, environment.size());
+  EXPECT_EQ(1u, environment.size());
+
+  Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
+  ASSERT_SOME(parse);
+
+  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
+  ASSERT_SOME(fetcherInfo);
+
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            environment["MESOS_COMMAND_INFO"]);
-  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
-  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
-  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
+  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
+  EXPECT_EQ(user.get(), fetcherInfo.get().user());
+  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
+  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -187,12 +224,21 @@ TEST_F(FetcherEnvironmentTest, NoHadoop)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(4u, environment.size());
+  EXPECT_EQ(1u, environment.size());
+
+  Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
+  ASSERT_SOME(parse);
+
+  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
+  ASSERT_SOME(fetcherInfo);
+
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            environment["MESOS_COMMAND_INFO"]);
-  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
-  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
-  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
+            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
+  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
+  EXPECT_EQ(user.get(), fetcherInfo.get().user());
+  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
+  EXPECT_FALSE(fetcherInfo.get().has_hadoop_home());
 }
 
 
@@ -214,13 +260,21 @@ TEST_F(FetcherEnvironmentTest, NoExtractNoExecutable)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(5u, environment.size());
+  EXPECT_EQ(1u, environment.size());
+
+  Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
+  ASSERT_SOME(parse);
+
+  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
+  ASSERT_SOME(fetcherInfo);
+
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            environment["MESOS_COMMAND_INFO"]);
-  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
-  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
-  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
-  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
+  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
+  EXPECT_EQ(user.get(), fetcherInfo.get().user());
+  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
+  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -242,13 +296,21 @@ TEST_F(FetcherEnvironmentTest, NoExtractExecutable)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(5u, environment.size());
+  EXPECT_EQ(1u, environment.size());
+
+  Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
+  ASSERT_SOME(parse);
+
+  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
+  ASSERT_SOME(fetcherInfo);
+
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            environment["MESOS_COMMAND_INFO"]);
-  EXPECT_EQ(directory, environment["MESOS_WORK_DIRECTORY"]);
-  EXPECT_EQ(user.get(), environment["MESOS_USER"]);
-  EXPECT_EQ(flags.frameworks_home, environment["MESOS_FRAMEWORKS_HOME"]);
-  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
+            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
+  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
+  EXPECT_EQ(user.get(), fetcherInfo.get().user());
+  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
+  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -272,13 +334,13 @@ TEST_F(FetcherTest, FileURI)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value("file://" + testFile);
 
-  map<string, string> env =
+  map<string, string> environment =
     Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
   Try<Subprocess> fetcherSubprocess =
     process::subprocess(
       path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
-      env);
+      environment);
 
   ASSERT_SOME(fetcherSubprocess);
   Future<Option<int>> status = fetcherSubprocess.get().status();
@@ -308,13 +370,13 @@ TEST_F(FetcherTest, FilePath)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(testFile);
 
-  map<string, string> env =
+  map<string, string> environment =
     Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
   Try<Subprocess> fetcherSubprocess =
     process::subprocess(
       path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
-      env);
+      environment);
 
   ASSERT_SOME(fetcherSubprocess);
   Future<Option<int>> status = fetcherSubprocess.get().status();
@@ -361,13 +423,13 @@ TEST_F(FetcherTest, OSNetUriTest)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(url);
 
-  map<string, string> env =
+  map<string, string> environment =
     Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
   Try<Subprocess> fetcherSubprocess =
     process::subprocess(
       path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
-      env);
+      environment);
 
   ASSERT_SOME(fetcherSubprocess);
   Future<Option<int>> status = fetcherSubprocess.get().status();
@@ -397,13 +459,13 @@ TEST_F(FetcherTest, FileLocalhostURI)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(path::join("file://localhost", testFile));
 
-  map<string, string> env =
+  map<string, string> environment =
     Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
   Try<Subprocess> fetcherSubprocess =
     process::subprocess(
       path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
-      env);
+      environment);
 
   ASSERT_SOME(fetcherSubprocess);
   Future<Option<int>> status = fetcherSubprocess.get().status();

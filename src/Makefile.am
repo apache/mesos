@@ -134,6 +134,9 @@ MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 CONTAINERIZER_PROTO =							\
   $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 
+FETCHER_PROTO =								\
+  $(top_srcdir)/include/mesos/fetcher/fetcher.proto
+
 SCHEDULER_PROTO =							\
   $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 
@@ -142,6 +145,8 @@ CXX_PROTOS =								\
   ../include/mesos/mesos.pb.h						\
   containerizer/containerizer.pb.cc					\
   ../include/mesos/containerizer/containerizer.pb.h			\
+  fetcher/fetcher.pb.cc							\
+  ../include/mesos/fetcher/fetcher.pb.h					\
   scheduler/scheduler.pb.cc						\
   ../include/mesos/scheduler/scheduler.pb.h
 
@@ -190,6 +195,12 @@ containerizer/%.pb.cc ../include/mesos/containerizer/%.pb.h: $(CONTAINERIZER_PRO
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/containerizer/*.pb.cc $(@D)
 
+fetcher/%.pb.cc ../include/mesos/fetcher/%.pb.h: $(FETCHER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/fetcher
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/fetcher/*.pb.cc $(@D)
+
 scheduler/%.pb.cc ../include/mesos/scheduler/%.pb.h: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/scheduler
@@ -206,6 +217,10 @@ java/generated/org/apache/mesos/Protos.java: $(MESOS_PROTO)
 
 java/generated/org/apache/mesos/containerizer/Protos.java:		\
 		$(CONTAINERIZER_PROTO)
+	$(MKDIR_P)  $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
+java/generated/org/apache/mesos/fetcher/Protos.java: $(FETCHER_PROTO)
 	$(MKDIR_P)  $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
@@ -331,6 +346,14 @@ containerizer_HEADERS =							\
   $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 
 nodist_containerizer_HEADERS = ../include/mesos/containerizer/containerizer.pb.h
+
+fetcherdir = $(pkgincludedir)/fetcher
+
+fetcher_HEADERS =							\
+  $(top_srcdir)/include/mesos/fetcher/fetcher.hpp			\
+  $(top_srcdir)/include/mesos/fetcher/fetcher.proto
+
+nodist_fetcher_HEADERS = ../include/mesos/fetcher/fetcher.pb.h
 
 schedulerdir = $(pkgincludedir)/scheduler
 
@@ -597,7 +620,8 @@ libmesos_no_3rdparty_la_LIBADD += libstate.la
 lib_LTLIBRARIES += libmesos.la
 
 # Include as part of the distribution.
-libmesos_la_SOURCES = $(MESOS_PROTO) $(CONTAINERIZER_PROTO) $(SCHEDULER_PROTO)
+libmesos_la_SOURCES = 							\
+  $(MESOS_PROTO) $(CONTAINERIZER_PROTO) $(FETCHER_PROTO) $(SCHEDULER_PROTO)
 
 libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION)
 
@@ -606,10 +630,10 @@ libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION)
 libmesos_la_LIBTOOLFLAGS = --tag=CXX
 
 # Add the convenience library.
-libmesos_la_LIBADD = 		\
-  libmesos_no_3rdparty.la	\
-  -lsvn_subr-1			\
-  -lsvn_delta-1			\
+libmesos_la_LIBADD = 							\
+  libmesos_no_3rdparty.la						\
+  -lsvn_subr-1								\
+  -lsvn_delta-1								\
   -lapr-1
 
 libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
@@ -801,8 +825,8 @@ nodist_sbin_SCRIPTS += deploy/mesos-daemon.sh				\
   deploy/mesos-start-slaves.sh deploy/mesos-stop-cluster.sh		\
   deploy/mesos-stop-masters.sh deploy/mesos-stop-slaves.sh
 
-pkgsysconf_DATA += deploy/mesos-deploy-env.sh.template	\
-                   deploy/mesos-master-env.sh.template	\
+pkgsysconf_DATA += deploy/mesos-deploy-env.sh.template			\
+                   deploy/mesos-master-env.sh.template			\
                    deploy/mesos-slave-env.sh.template
 
 # Need to explicitly add this because by default DATA files are not
@@ -979,21 +1003,21 @@ PHONY_TARGETS += clean-java
 
 # Python files listed outside HAS_PYTHON so they are included with the
 # distribution unconditionally.
-PYTHON_SOURCE =									\
-	python/src/mesos/__init__.py						\
-	python/interface/src/mesos/__init__.py					\
-	python/interface/src/mesos/interface/__init__.py			\
-	python/native/src/mesos/__init__.py					\
-	python/native/src/mesos/native/__init__.py				\
-	python/native/src/mesos/native/mesos_executor_driver_impl.cpp		\
-	python/native/src/mesos/native/mesos_executor_driver_impl.hpp		\
-	python/native/src/mesos/native/mesos_scheduler_driver_impl.cpp		\
-	python/native/src/mesos/native/mesos_scheduler_driver_impl.hpp		\
-	python/native/src/mesos/native/module.cpp				\
-	python/native/src/mesos/native/module.hpp				\
-	python/native/src/mesos/native/proxy_executor.cpp			\
-	python/native/src/mesos/native/proxy_executor.hpp			\
-	python/native/src/mesos/native/proxy_scheduler.cpp			\
+PYTHON_SOURCE =								\
+	python/src/mesos/__init__.py					\
+	python/interface/src/mesos/__init__.py				\
+	python/interface/src/mesos/interface/__init__.py		\
+	python/native/src/mesos/__init__.py				\
+	python/native/src/mesos/native/__init__.py			\
+	python/native/src/mesos/native/mesos_executor_driver_impl.cpp	\
+	python/native/src/mesos/native/mesos_executor_driver_impl.hpp	\
+	python/native/src/mesos/native/mesos_scheduler_driver_impl.cpp	\
+	python/native/src/mesos/native/mesos_scheduler_driver_impl.hpp	\
+	python/native/src/mesos/native/module.cpp			\
+	python/native/src/mesos/native/module.hpp			\
+	python/native/src/mesos/native/proxy_executor.cpp		\
+	python/native/src/mesos/native/proxy_executor.hpp		\
+	python/native/src/mesos/native/proxy_scheduler.cpp		\
 	python/native/src/mesos/native/proxy_scheduler.hpp
 
 EXTRA_DIST += $(PYTHON_SOURCE)
@@ -1032,7 +1056,7 @@ endif
 PHONY_TARGETS += $(PYTHON_SOURCE)
 
 $(PYTHON_SOURCE):
-	test "$(top_srcdir)" = "$(top_builddir)" ||				\
+	test "$(top_srcdir)" = "$(top_builddir)" ||			\
 		($(MKDIR_P) $(@D) && cp -pf $(srcdir)/$@ $@)
 
 # We currently require both eggs and wheels to be built. Eggs can be added to

@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <mesos/fetcher/fetcher.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
@@ -28,6 +30,8 @@ using std::string;
 using std::vector;
 
 using process::Future;
+
+using mesos::fetcher::FetcherInfo;
 
 namespace mesos {
 namespace internal {
@@ -53,23 +57,26 @@ map<string, string> Fetcher::environment(
     const Option<string>& user,
     const Flags& flags)
 {
-  map<string, string> result;
+  FetcherInfo fetcherInfo;
 
-  result["MESOS_COMMAND_INFO"] = stringify(JSON::Protobuf(commandInfo));
+  fetcherInfo.mutable_command_info()->CopyFrom(commandInfo);
 
-  result["MESOS_WORK_DIRECTORY"] = directory;
+  fetcherInfo.set_work_directory(directory);
 
   if (user.isSome()) {
-    result["MESOS_USER"] = user.get();
+    fetcherInfo.set_user(user.get());
   }
 
   if (!flags.frameworks_home.empty()) {
-    result["MESOS_FRAMEWORKS_HOME"] = flags.frameworks_home;
+    fetcherInfo.set_frameworks_home(flags.frameworks_home);
   }
 
   if (!flags.hadoop_home.empty()) {
-    result["HADOOP_HOME"] = flags.hadoop_home;
+    fetcherInfo.set_hadoop_home(flags.hadoop_home);
   }
+
+  map<string, string> result;
+  result["MESOS_FETCHER_INFO"] = stringify(JSON::Protobuf(fetcherInfo));
 
   return result;
 }

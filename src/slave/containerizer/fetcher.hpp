@@ -22,14 +22,15 @@
 #include <string>
 #include <vector>
 
-#include <stout/hashmap.hpp>
+#include <mesos/mesos.hpp>
 
 #include <process/future.hpp>
 #include <process/process.hpp>
 #include <process/subprocess.hpp>
 
-#include <mesos/mesos.hpp>
-#include <slave/flags.hpp>
+#include <stout/hashmap.hpp>
+
+#include "slave/flags.hpp"
 
 namespace mesos {
 namespace internal {
@@ -48,6 +49,16 @@ class FetcherProcess;
 class Fetcher
 {
 public:
+  // Builds the environment used to run mesos-fetcher. This
+  // environment contains one variable with the name
+  // "MESOS_FETCHER_INFO", and its value is a protobuf of type
+  // mesos::fetcher::FetcherInfo.
+  static std::map<std::string, std::string> environment(
+      const CommandInfo& commandInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const Flags& flags);
+
   Fetcher();
 
   virtual ~Fetcher();
@@ -76,13 +87,6 @@ public:
   // Best effort to kill the fetcher subprocess associated with the
   // indicated container. Do nothing if no such subprocess exists.
   void kill(const ContainerID& containerId);
-
-  // Build the environment passed to the mesos-fetcher program.
-  static std::map<std::string, std::string> environment(
-      const CommandInfo& commandInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const Flags& flags);
 
 private:
   process::Owned<FetcherProcess> process;
