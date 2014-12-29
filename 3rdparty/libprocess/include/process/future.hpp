@@ -491,48 +491,6 @@ public:
   // in a function that takes the 'const Future<T>&' parameter and use
   // Prefer/LessPrefer to disambiguate.
 
-#if __cplusplus >= 201103L
-  template <typename F>
-  Future<T> after(
-      const Duration& duration,
-      _Deferred<F>&& f,
-      typename std::enable_if<std::is_convertible<_Deferred<F>, std::function<Future<T>(const Future<T>&)>>::value>::type* = NULL) const // NOLINT(whitespace/line_length)
-  {
-    return after(duration, std::function<Future<T>(const Future<T>&)>(f));
-  }
-
-  template <typename F>
-  Future<T> after(
-      const Duration& duration,
-      _Deferred<F>&& f,
-      typename std::enable_if<std::is_convertible<_Deferred<F>, std::function<Future<T>()>>::value>::type* = NULL) const // NOLINT(whitespace/line_length)
-  {
-    return after(
-        duration,
-        std::function<Future<T>(const Future<T>&)>(std::bind(f)));
-  }
-#else
-  template <typename F>
-  Future<T> after(
-      const Duration& duration,
-      const _Defer<F>& f,
-      typename boost::enable_if<boost::is_convertible<_Defer<F>, std::tr1::function<Future<T>(const Future<T>&)> > >::type* = NULL) const // NOLINT(whitespace/line_length)
-  {
-    return after(duration, std::tr1::function<Future<T>(const Future<T>&)>(f));
-  }
-
-  template <typename F>
-  Future<T> after(
-      const Duration& duration,
-      const _Defer<F>& f,
-      typename boost::enable_if<boost::is_convertible<_Defer<F>, std::tr1::function<Future<T>()> > >::type* = NULL) const // NOLINT(whitespace/line_length)
-  {
-    return after(
-        duration,
-        std::tr1::function<Future<T>(const Future<T>&)>(std::tr1::bind(f)));
-  }
-#endif // __cplusplus >= 201103L
-
 private:
   friend class Promise<T>;
   friend class WeakFuture<T>;
