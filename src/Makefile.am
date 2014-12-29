@@ -262,8 +262,8 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	common/thread.cpp						\
 	common/type_utils.cpp						\
 	common/values.cpp						\
-	docker/docker.hpp					        \
-	docker/docker.cpp					        \
+	docker/docker.hpp						\
+	docker/docker.cpp						\
 	exec/exec.cpp							\
 	files/files.cpp							\
 	local/local.cpp							\
@@ -274,9 +274,9 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/drf_sorter.cpp						\
 	master/http.cpp							\
 	master/master.cpp						\
-	master/metrics.cpp					\
+	master/metrics.cpp						\
 	master/registry.hpp						\
-	master/registry.proto                                           \
+	master/registry.proto						\
 	master/registrar.cpp						\
 	master/repairer.cpp						\
 	module/manager.cpp						\
@@ -286,7 +286,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
 	slave/http.cpp							\
-	slave/metrics.cpp							\
+	slave/metrics.cpp						\
 	slave/monitor.cpp						\
 	slave/state.cpp							\
 	slave/slave.cpp							\
@@ -430,7 +430,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/flags.hpp						\
 	master/hierarchical_allocator_process.hpp			\
 	master/master.hpp						\
-	master/metrics.hpp					\
+	master/metrics.hpp						\
 	master/repairer.hpp						\
 	master/registrar.hpp						\
 	master/sorter.hpp						\
@@ -444,7 +444,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/constants.hpp						\
 	slave/flags.hpp							\
 	slave/gc.hpp							\
-	slave/metrics.hpp							\
+	slave/metrics.hpp						\
 	slave/monitor.hpp						\
 	slave/paths.hpp							\
 	slave/slave.hpp							\
