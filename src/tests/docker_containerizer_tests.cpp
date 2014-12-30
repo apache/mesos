@@ -34,6 +34,8 @@
 #include "tests/mesos.hpp"
 
 #include "slave/containerizer/docker.hpp"
+#include "slave/containerizer/fetcher.hpp"
+
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
@@ -49,9 +51,10 @@ using namespace process;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::Slave;
 using mesos::internal::slave::DockerContainerizer;
 using mesos::internal::slave::DockerContainerizerProcess;
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::Slave;
 
 using process::Future;
 using process::Message;
@@ -171,8 +174,9 @@ class MockDockerContainerizer : public DockerContainerizer {
 public:
   MockDockerContainerizer(
       const slave::Flags& flags,
+      Fetcher* fetcher,
       Shared<Docker> docker)
-    : DockerContainerizer(flags, docker)
+    : DockerContainerizer(flags, fetcher, docker)
   {
     initialize();
   }
@@ -285,8 +289,9 @@ class MockDockerContainerizerProcess : public DockerContainerizerProcess
 public:
   MockDockerContainerizerProcess(
       const slave::Flags& flags,
+      Fetcher* fetcher,
       const Shared<Docker>& docker)
-    : DockerContainerizerProcess(flags, docker)
+    : DockerContainerizerProcess(flags, fetcher, docker)
   {
     EXPECT_CALL(*this, fetch(_))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));
@@ -350,7 +355,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -478,7 +485,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -602,7 +611,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -715,7 +726,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -832,7 +845,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_logs)));
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -970,7 +985,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_logs)));
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -1126,7 +1143,9 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
   MockDocker* mockDocker = new MockDocker(tests::flags.docker);
   Shared<Docker> docker(mockDocker);
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   ContainerID containerId;
   containerId.set_value("c1");
@@ -1249,7 +1268,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -1375,7 +1396,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -1502,7 +1525,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -1634,7 +1659,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -1767,10 +1794,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_logs)));
 
+  Fetcher fetcher;
+
   // We put the containerizer on the heap so we can more easily
   // control it's lifetime, i.e., when we invoke the destructor.
   MockDockerContainerizer* dockerContainerizer1 =
-    new MockDockerContainerizer(flags, docker);
+    new MockDockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave1 = StartSlave(dockerContainerizer1, flags);
   ASSERT_SOME(slave1);
@@ -1854,7 +1883,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   MockDockerContainerizer* dockerContainerizer2 =
-    new MockDockerContainerizer(flags, docker);
+    new MockDockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave2 = StartSlave(dockerContainerizer2, flags);
   ASSERT_SOME(slave2);
@@ -1938,8 +1967,10 @@ TEST_F(DockerContainerizerTest,
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_logs)));
 
+  Fetcher fetcher;
+
   MockDockerContainerizer* dockerContainerizer1 =
-    new MockDockerContainerizer(flags, docker);
+    new MockDockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave1 = StartSlave(dockerContainerizer1, flags);
   ASSERT_SOME(slave1);
@@ -2050,7 +2081,7 @@ TEST_F(DockerContainerizerTest,
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   MockDockerContainerizer* dockerContainerizer2 =
-    new MockDockerContainerizer(flags, docker);
+    new MockDockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave2 = StartSlave(dockerContainerizer2, flags);
   ASSERT_SOME(slave2);
@@ -2121,7 +2152,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_PortMapping)
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -2256,7 +2289,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
     .WillRepeatedly(FutureResult(
         &logs, Invoke((MockDocker*)docker.get(), &MockDocker::_logs)));
 
-  MockDockerContainerizer dockerContainerizer(flags, docker);
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -2356,10 +2391,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
   MockDocker* mockDocker = new MockDocker(tests::flags.docker);
   Shared<Docker> docker(mockDocker);
 
+  Fetcher fetcher;
+
   // The docker containerizer will free the process, so we must
   // allocate on the heap.
   MockDockerContainerizerProcess* process =
-    new MockDockerContainerizerProcess(flags, docker);
+    new MockDockerContainerizerProcess(flags, &fetcher, docker);
 
   MockDockerContainerizer dockerContainerizer(
       (Owned<DockerContainerizerProcess>(process)));
@@ -2461,10 +2498,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
   MockDocker* mockDocker = new MockDocker(tests::flags.docker);
   Shared<Docker> docker(mockDocker);
 
+  Fetcher fetcher;
+
   // The docker containerizer will free the process, so we must
   // allocate on the heap.
   MockDockerContainerizerProcess* process =
-    new MockDockerContainerizerProcess(flags, docker);
+    new MockDockerContainerizerProcess(flags, &fetcher, docker);
 
   MockDockerContainerizer dockerContainerizer(
       (Owned<DockerContainerizerProcess>(process)));

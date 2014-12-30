@@ -49,11 +49,14 @@ class DockerContainerizerProcess;
 class DockerContainerizer : public Containerizer
 {
 public:
-  static Try<DockerContainerizer*> create(const Flags& flags);
+  static Try<DockerContainerizer*> create(
+      const Flags& flags,
+      Fetcher* fetcher);
 
   // This is only public for tests.
   DockerContainerizer(
       const Flags& flags,
+      Fetcher* fetcher,
       process::Shared<Docker> docker);
 
   // This is only public for tests.
@@ -110,8 +113,10 @@ class DockerContainerizerProcess
 public:
   DockerContainerizerProcess(
       const Flags& _flags,
+      Fetcher* _fetcher,
       process::Shared<Docker> _docker)
     : flags(_flags),
+      fetcher(_fetcher),
       docker(_docker) {}
 
   virtual process::Future<Nothing> recover(
@@ -241,6 +246,8 @@ private:
   void remove(const std::string& container);
 
   const Flags flags;
+
+  Fetcher* fetcher;
 
   process::Shared<Docker> docker;
 
@@ -417,11 +424,6 @@ private:
     // different than just what we might get from TaskInfo::resources
     // or ExecutorInfo::resources because they can change dynamically.
     Resources resources;
-
-    // The mesos-fetcher subprocess, kept around so that we can do a
-    // killtree on it if we're asked to destroy a container while we
-    // are fetching.
-    Option<Subprocess> fetcher;
 
     // The docker pull future is stored so we can discard when
     // destroy is called while docker is pulling the image.

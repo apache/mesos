@@ -53,6 +53,8 @@ using namespace process;
 using process::Subprocess;
 using process::Future;
 
+using slave::Fetcher;
+
 using std::string;
 using std::map;
 
@@ -75,7 +77,7 @@ TEST_F(FetcherEnvironmentTest, Simple)
   flags.hadoop_home = "/tmp/hadoop";
 
   map<string, string> environment =
-    fetcher::environment(commandInfo, directory, user, flags);
+    Fetcher::environment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(5u, environment.size());
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
@@ -106,7 +108,7 @@ TEST_F(FetcherEnvironmentTest, MultipleURIs)
   flags.hadoop_home = "/tmp/hadoop";
 
   map<string, string> environment =
-    fetcher::environment(commandInfo, directory, user, flags);
+    Fetcher::environment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(5u, environment.size());
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
@@ -132,7 +134,7 @@ TEST_F(FetcherEnvironmentTest, NoUser)
   flags.hadoop_home = "/tmp/hadoop";
 
   map<string, string> environment =
-    fetcher::environment(commandInfo, directory, None(), flags);
+    Fetcher::environment(commandInfo, directory, None(), flags);
 
   EXPECT_EQ(4u, environment.size());
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
@@ -158,7 +160,7 @@ TEST_F(FetcherEnvironmentTest, EmptyHadoop)
   flags.hadoop_home = "";
 
   map<string, string> environment =
-    fetcher::environment(commandInfo, directory, user, flags);
+    Fetcher::environment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(4u, environment.size());
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
@@ -183,7 +185,7 @@ TEST_F(FetcherEnvironmentTest, NoHadoop)
   flags.frameworks_home = "/tmp/frameworks";
 
   map<string, string> environment =
-    fetcher::environment(commandInfo, directory, user, flags);
+    Fetcher::environment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(4u, environment.size());
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
@@ -210,7 +212,7 @@ TEST_F(FetcherEnvironmentTest, NoExtractNoExecutable)
   flags.hadoop_home = "/tmp/hadoop";
 
   map<string, string> environment =
-    fetcher::environment(commandInfo, directory, user, flags);
+    Fetcher::environment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(5u, environment.size());
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
@@ -238,7 +240,7 @@ TEST_F(FetcherEnvironmentTest, NoExtractExecutable)
   flags.hadoop_home = "/tmp/hadoop";
 
   map<string, string> environment =
-    fetcher::environment(commandInfo, directory, user, flags);
+    Fetcher::environment(commandInfo, directory, user, flags);
 
   EXPECT_EQ(5u, environment.size());
   EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
@@ -271,15 +273,15 @@ TEST_F(FetcherTest, FileURI)
   uri->set_value("file://" + testFile);
 
   map<string, string> env =
-    fetcher::environment(commandInfo, os::getcwd(), None(), flags);
+    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
-  Try<Subprocess> fetcherProcess =
+  Try<Subprocess> fetcherSubprocess =
     process::subprocess(
       path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
       env);
 
-  ASSERT_SOME(fetcherProcess);
-  Future<Option<int>> status = fetcherProcess.get().status();
+  ASSERT_SOME(fetcherSubprocess);
+  Future<Option<int>> status = fetcherSubprocess.get().status();
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
@@ -307,15 +309,15 @@ TEST_F(FetcherTest, FilePath)
   uri->set_value(testFile);
 
   map<string, string> env =
-    fetcher::environment(commandInfo, os::getcwd(), None(), flags);
+    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
-  Try<Subprocess> fetcherProcess =
+  Try<Subprocess> fetcherSubprocess =
     process::subprocess(
       path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
       env);
 
-  ASSERT_SOME(fetcherProcess);
-  Future<Option<int>> status = fetcherProcess.get().status();
+  ASSERT_SOME(fetcherSubprocess);
+  Future<Option<int>> status = fetcherSubprocess.get().status();
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
@@ -360,15 +362,15 @@ TEST_F(FetcherTest, OSNetUriTest)
   uri->set_value(url);
 
   map<string, string> env =
-    fetcher::environment(commandInfo, os::getcwd(), None(), flags);
+    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
-  Try<Subprocess> fetcherProcess =
+  Try<Subprocess> fetcherSubprocess =
     process::subprocess(
       path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
       env);
 
-  ASSERT_SOME(fetcherProcess);
-  Future<Option<int>> status = fetcherProcess.get().status();
+  ASSERT_SOME(fetcherSubprocess);
+  Future<Option<int>> status = fetcherSubprocess.get().status();
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
@@ -396,15 +398,15 @@ TEST_F(FetcherTest, FileLocalhostURI)
   uri->set_value(path::join("file://localhost", testFile));
 
   map<string, string> env =
-    fetcher::environment(commandInfo, os::getcwd(), None(), flags);
+    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
 
-  Try<Subprocess> fetcherProcess =
+  Try<Subprocess> fetcherSubprocess =
     process::subprocess(
       path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
       env);
 
-  ASSERT_SOME(fetcherProcess);
-  Future<Option<int>> status = fetcherProcess.get().status();
+  ASSERT_SOME(fetcherSubprocess);
+  Future<Option<int>> status = fetcherSubprocess.get().status();
 
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
@@ -421,11 +423,17 @@ TEST_F(FetcherTest, NoExtractNotExecutable)
 
   ASSERT_SOME(path);
 
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(path.get());
   uri->set_executable(false);
   uri->set_extract(false);
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
   Option<int> stdout = None();
   Option<int> stderr = None();
@@ -436,18 +444,12 @@ TEST_F(FetcherTest, NoExtractNotExecutable)
     stderr = STDERR_FILENO;
   }
 
-  slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  Fetcher fetcher;
 
-  Try<Subprocess> fetcherProcess =
-    fetcher::run(commandInfo, os::getcwd(), None(), flags, stdout, stderr);
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), flags, stdout, stderr);
 
-  ASSERT_SOME(fetcherProcess);
-  Future<Option<int>> status = fetcherProcess.get().status();
-
-  AWAIT_READY(status);
-  ASSERT_SOME(status.get());
-  EXPECT_EQ(0, status.get().get());
+  AWAIT_READY(fetch);
 
   Try<string> basename = os::basename(path.get());
 
@@ -471,11 +473,17 @@ TEST_F(FetcherTest, NoExtractExecutable)
 
   ASSERT_SOME(path);
 
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(path.get());
   uri->set_executable(true);
   uri->set_extract(false);
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
   Option<int> stdout = None();
   Option<int> stderr = None();
@@ -486,18 +494,12 @@ TEST_F(FetcherTest, NoExtractExecutable)
     stderr = STDERR_FILENO;
   }
 
-  slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  Fetcher fetcher;
 
-  Try<Subprocess> fetcherProcess =
-    fetcher::run(commandInfo, os::getcwd(), None(), flags, stdout, stderr);
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), flags, stdout, stderr);
 
-  ASSERT_SOME(fetcherProcess);
-  Future<Option<int>> status = fetcherProcess.get().status();
-
-  AWAIT_READY(status);
-  ASSERT_SOME(status.get());
-  EXPECT_EQ(0, status.get().get());
+  AWAIT_READY(fetch);
 
   Try<string> basename = os::basename(path.get());
 
@@ -529,11 +531,17 @@ TEST_F(FetcherTest, ExtractNotExecutable)
 
   ASSERT_SOME(os::tar(path.get(), path.get() + ".tar.gz"));
 
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(path.get() + ".tar.gz");
   uri->set_executable(false);
   uri->set_extract(true);
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
   Option<int> stdout = None();
   Option<int> stderr = None();
@@ -544,18 +552,12 @@ TEST_F(FetcherTest, ExtractNotExecutable)
     stderr = STDERR_FILENO;
   }
 
-  slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  Fetcher fetcher;
 
-  Try<Subprocess> fetcherProcess =
-    fetcher::run(commandInfo, os::getcwd(), None(), flags, stdout, stderr);
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), flags, stdout, stderr);
 
-  ASSERT_SOME(fetcherProcess);
-  Future<Option<int>> status = fetcherProcess.get().status();
-
-  AWAIT_READY(status);
-  ASSERT_SOME(status.get());
-  EXPECT_EQ(0, status.get().get());
+  AWAIT_READY(fetch);
 
   ASSERT_TRUE(os::exists(path::join(".", path.get())));
 

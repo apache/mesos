@@ -151,13 +151,18 @@ int main(int argc, char** argv)
     LOG(INFO) << "Git SHA: " << build::GIT_SHA.get();
   }
 
-  Try<Containerizer*> containerizer = Containerizer::create(flags, false);
+  Fetcher fetcher;
+
+  Try<Containerizer*> containerizer =
+    Containerizer::create(flags, false, &fetcher);
+
   if (containerizer.isError()) {
     EXIT(1) << "Failed to create a containerizer: "
             << containerizer.error();
   }
 
   Try<MasterDetector*> detector = MasterDetector::create(master.get());
+
   if (detector.isError()) {
     EXIT(1) << "Failed to create a master detector: " << detector.error();
   }

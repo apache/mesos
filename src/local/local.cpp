@@ -51,10 +51,12 @@
 
 #include "module/manager.hpp"
 
-#include "slave/containerizer/containerizer.hpp"
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
+
+#include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/fetcher.hpp"
 
 #include "state/in_memory.hpp"
 #include "state/log.hpp"
@@ -74,6 +76,7 @@ using mesos::internal::master::Registrar;
 using mesos::internal::master::Repairer;
 
 using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::GarbageCollector;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::StatusUpdateManager;
@@ -108,6 +111,7 @@ static Option<Authorizer*> authorizer = None();
 static Files* files = NULL;
 static vector<GarbageCollector*>* garbageCollectors = NULL;
 static vector<StatusUpdateManager*>* statusUpdateManagers = NULL;
+static vector<Fetcher*>* fetchers = NULL;
 
 
 PID<Master> launch(const Flags& flags, Allocator* _allocator)
@@ -212,6 +216,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
   garbageCollectors = new vector<GarbageCollector*>();
   statusUpdateManagers = new vector<StatusUpdateManager*>();
+  fetchers = new vector<Fetcher*>();
 
   vector<UPID> pids;
 
@@ -226,8 +231,11 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     garbageCollectors->push_back(new GarbageCollector());
     statusUpdateManagers->push_back(new StatusUpdateManager(flags));
+    fetchers->push_back(new Fetcher());
 
-    Try<Containerizer*> containerizer = Containerizer::create(flags, true);
+    Try<Containerizer*> containerizer =
+      Containerizer::create(flags, true, fetchers->back());
+
     if (containerizer.isError()) {
       EXIT(1) << "Failed to create a containerizer: " << containerizer.error();
     }
@@ -306,6 +314,13 @@ void shutdown()
 
     delete statusUpdateManagers;
     statusUpdateManagers = NULL;
+
+    foreach (Fetcher* fetcher, *fetchers) {
+      delete fetcher;
+    }
+
+    delete fetchers;
+    fetchers = NULL;
 
     delete registrar;
     registrar = NULL;

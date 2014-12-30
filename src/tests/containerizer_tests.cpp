@@ -31,6 +31,7 @@
 
 #include "slave/flags.hpp"
 
+#include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
 
@@ -61,6 +62,7 @@ public:
   // Construct a MesosContainerizer with TestIsolator(s) which use the provided
   // 'prepare' command(s).
   Try<MesosContainerizer*> CreateContainerizer(
+      Fetcher* fetcher,
       const vector<Option<CommandInfo> >& prepares)
   {
     vector<Owned<Isolator> > isolators;
@@ -85,18 +87,20 @@ public:
     return new MesosContainerizer(
         flags,
         false,
+        fetcher,
         Owned<Launcher>(launcher.get()),
         isolators);
   }
 
 
   Try<MesosContainerizer*> CreateContainerizer(
+      Fetcher* fetcher,
       const Option<CommandInfo>& prepare)
   {
     vector<Option<CommandInfo> > prepares;
     prepares.push_back(prepare);
 
-    return CreateContainerizer(prepares);
+    return CreateContainerizer(fetcher, prepares);
   }
 };
 
@@ -107,7 +111,10 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   string directory = os::getcwd(); // We're inside a temporary sandbox.
   string file = path::join(directory, "child.script.executed");
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer = CreateContainerizer(
+      &fetcher,
       CREATE_COMMAND_INFO("touch " + file));
   CHECK_SOME(containerizer);
 
@@ -151,7 +158,10 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   string directory = os::getcwd(); // We're inside a temporary sandbox.
   string file = path::join(directory, "child.script.executed");
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer = CreateContainerizer(
+      &fetcher,
       CREATE_COMMAND_INFO("touch " + file + " && exit 1"));
   CHECK_SOME(containerizer);
 
@@ -205,7 +215,10 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   // This will fail, either first or after the successful command.
   prepares.push_back(CREATE_COMMAND_INFO("touch " + file2 + " && exit 1"));
 
-  Try<MesosContainerizer*> containerizer = CreateContainerizer(prepares);
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> containerizer =
+    CreateContainerizer(&fetcher, prepares);
   CHECK_SOME(containerizer);
 
   ContainerID containerId;
@@ -251,9 +264,11 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   slave::Flags flags;
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
+  Fetcher fetcher;
+
   // Use local=false so std{err,out} are redirected to files.
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
@@ -306,9 +321,10 @@ public:
   MockMesosContainerizerProcess(
       const Flags& flags,
       bool local,
+      Fetcher* fetcher,
       const process::Owned<Launcher>& launcher,
       const std::vector<process::Owned<Isolator>>& isolators)
-    : MesosContainerizerProcess(flags, local, launcher, isolators)
+    : MesosContainerizerProcess(flags, local, fetcher, launcher, isolators)
   {
     // NOTE: See TestContainerizer::setup for why we use
     // 'EXPECT_CALL' and 'WillRepeatedly' here instead of
@@ -343,9 +359,12 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
   ASSERT_SOME(launcher);
   std::vector<process::Owned<Isolator>> isolators;
 
+  Fetcher fetcher;
+
   MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
       flags,
       true,
+      &fetcher,
       Owned<Launcher>(launcher.get()),
       isolators);
 

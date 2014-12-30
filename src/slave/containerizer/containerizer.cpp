@@ -159,7 +159,10 @@ Try<Resources> Containerizer::resources(const Flags& flags)
 }
 
 
-Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
+Try<Containerizer*> Containerizer::create(
+    const Flags& flags,
+    bool local,
+    Fetcher* fetcher)
 {
   if (flags.isolation == "external") {
     LOG(WARNING) << "The 'external' isolation flag is deprecated, "
@@ -167,7 +170,7 @@ Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
                  << " '--containerizers=external'.";
 
     Try<ExternalContainerizer*> containerizer =
-        ExternalContainerizer::create(flags);
+      ExternalContainerizer::create(flags);
     if (containerizer.isError()) {
       return Error("Could not create ExternalContainerizer: " +
                    containerizer.error());
@@ -185,7 +188,7 @@ Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
   foreach (const string& type, strings::split(flags.containerizers, ",")) {
     if (type == "mesos") {
       Try<MesosContainerizer*> containerizer =
-        MesosContainerizer::create(flags, local);
+        MesosContainerizer::create(flags, local, fetcher);
       if (containerizer.isError()) {
         return Error("Could not create MesosContainerizer: " +
                      containerizer.error());
@@ -194,7 +197,7 @@ Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
       }
     } else if (type == "docker") {
       Try<DockerContainerizer*> containerizer =
-        DockerContainerizer::create(flags);
+        DockerContainerizer::create(flags, fetcher);
       if (containerizer.isError()) {
         return Error("Could not create DockerContainerizer: " +
                      containerizer.error());
