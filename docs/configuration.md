@@ -550,6 +550,35 @@ file://path/to/file (where file contains one of the above)</code></pre>
   </tr>
 </table>
 
+*Flags available when configured with '--with-network-isolator'*
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th width="30%">
+        Flag
+      </th>
+      <th>
+        Explanation
+      </th>
+  </thead>
+  <tr>
+  <tr>
+    <td>
+      --max_executors_per_slave=VALUE
+    </td>
+    <td>
+      Maximum number of executors allowed per slave. The network
+      monitoring/isolation technique imposes an implicit resource
+      acquisition on each executor (# ephemeral ports), as a result
+      one can only run a certain number of executors on each slave.
+      <p/>
+      This flag was added as a hack to avoid frameworks getting offers
+      when we have allocated all of the ephemeral port range on the slave.
+    </td>
+  </tr>
+</table>
+
 ## Slave Options
 
 *Required Flags*
@@ -1079,7 +1108,68 @@ file://path/to/file (where file contains one of the above)</code></pre>
   </tr>
 </table>
 
+*Flags available when configured with '--with-network-isolator'*
 
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th width="30%">
+        Flag
+      </th>
+      <th>
+        Explanation
+      </th>
+  </thead>
+  <tr>
+    <td>
+      --ephemeral_ports_per_container=VALUE
+    </td>
+    <td>
+      Number of ephemeral ports allocated to a container by the network
+      isolator. This number has to be a power of 2.
+      (default: 1024)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --eth0_name=VALUE
+    </td>
+    <td>
+      The name of the public network interface (e.g., eth0). If it is
+      not specified, the network isolator will try to guess it based
+      on the host default gateway.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --lo_name=VALUE
+    </td>
+    <td>
+      The name of the loopback network interface (e.g., lo). If it is
+      not specified, the network isolator will try to guess it.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --egress_rate_limit_per_container=VALUE
+    </td>
+    <td>
+      The limit of the egress traffic for each container, in Bytes/s.
+      If not specified or specified as zero, the network isolator will
+      impose no limits to containers' egress traffic throughput.
+      This flag uses the Bytes type, defined in stout.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --[no-]network_enable_socket_statistics
+    </td>
+    <td>
+      Whether to collect socket statistics (e.g., TCP RTT) for
+      each container. (default: false)
+    </td>
+  </tr>
+</table>
 
 
 ## Mesos Build Configuration Options
@@ -1207,7 +1297,6 @@ file://path/to/file (where file contains one of the above)</code></pre>
       --disable-python-dependency-install
     </td>
     <td>
-
       when the python packages are installed during make
       install, no external dependencies are downloaded or
       installed
