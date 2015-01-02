@@ -289,20 +289,20 @@ Master::Master(
   // address and port from self() and the OS PID.
   Try<string> id =
     strings::format("%s-%u-%u-%d", DateUtils::currentDate(),
-                    self().node.ip, self().node.port, getpid());
+                    self().address.ip, self().address.port, getpid());
 
   CHECK(!id.isError()) << id.error();
 
   info_.set_id(id.get());
-  info_.set_ip(self().node.ip);
-  info_.set_port(self().node.port);
+  info_.set_ip(self().address.ip);
+  info_.set_port(self().address.port);
   info_.set_pid(self());
 
   // Determine our hostname or use the hostname provided.
   string hostname;
 
   if (flags.hostname.isNone()) {
-    Try<string> result = net::getHostname(self().node.ip);
+    Try<string> result = net::getHostname(self().address.ip);
 
     if (result.isError()) {
       LOG(FATAL) << "Failed to get hostname: " << result.error();
@@ -344,7 +344,7 @@ void Master::initialize()
   LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
             << " started on " << string(self()).substr(7);
 
-  if (stringify(net::IP(ntohl(self().node.ip))) == "127.0.0.1") {
+  if (stringify(net::IP(ntohl(self().address.ip))) == "127.0.0.1") {
     LOG(WARNING) << "\n**************************************************\n"
                  << "Master bound to loopback interface!"
                  << " Cannot communicate with remote schedulers or slaves."

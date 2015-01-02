@@ -141,11 +141,11 @@ MasterInfo createMasterInfo(const process::UPID& pid)
 {
   MasterInfo info;
   info.set_id(stringify(pid) + "-" + UUID::random().toString());
-  info.set_ip(pid.node.ip);
-  info.set_port(pid.node.port);
+  info.set_ip(pid.address.ip);
+  info.set_port(pid.address.port);
   info.set_pid(pid);
 
-  Try<string> hostname = net::getHostname(pid.node.ip);
+  Try<string> hostname = net::getHostname(pid.address.ip);
   if (hostname.isSome()) {
     info.set_hostname(hostname.get());
   }

@@ -126,7 +126,7 @@ public:
     // want to use flags to initialize libprocess).
     process::initialize();
 
-    if (stringify(net::IP(ntohl(self().node.ip))) == "127.0.0.1") {
+    if (stringify(net::IP(ntohl(self().address.ip))) == "127.0.0.1") {
       LOG(WARNING) << "\n**************************************************\n"
                    << "Scheduler driver bound to loopback interface!"
                    << " Cannot communicate with remote master(s)."

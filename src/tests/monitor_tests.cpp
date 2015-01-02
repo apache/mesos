@@ -218,7 +218,7 @@ TEST(MonitorTest, Statistics)
   // Now wait for ResouorceMonitorProcess::watch to finish.
   process::Clock::settle();
 
-  process::UPID upid("monitor", process::node());
+  process::UPID upid("monitor", process::address());
 
   // Request the statistics, this will ask the isolator.
   Future<Response> response = process::http::get(upid, "statistics.json");

@@ -84,7 +84,7 @@ TEST_F(FilesTest, DetachTest)
 TEST_F(FilesTest, ReadTest)
 {
   Files files;
-  process::UPID upid("files", process::node());
+  process::UPID upid("files", process::address());
 
   Future<Response> response =
     process::http::get(upid, "read.json");
@@ -138,7 +138,7 @@ TEST_F(FilesTest, ReadTest)
 TEST_F(FilesTest, ResolveTest)
 {
   Files files;
-  process::UPID upid("files", process::node());
+  process::UPID upid("files", process::address());
 
   // Test the directory / file resolution.
   ASSERT_SOME(os::mkdir("1/2"));
@@ -214,7 +214,7 @@ TEST_F(FilesTest, ResolveTest)
 TEST_F(FilesTest, BrowseTest)
 {
   Files files;
-  process::UPID upid("files", process::node());
+  process::UPID upid("files", process::address());
 
   ASSERT_SOME(os::mkdir("1/2"));
   ASSERT_SOME(os::mkdir("1/3"));
@@ -267,7 +267,7 @@ TEST_F(FilesTest, BrowseTest)
 TEST_F(FilesTest, DownloadTest)
 {
   Files files;
-  process::UPID upid("files", process::node());
+  process::UPID upid("files", process::address());
 
   // This is a one-pixel black gif image.
   const unsigned char gifData[] = {

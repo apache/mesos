@@ -41,7 +41,7 @@ TEST_F(MetricsTest, Master)
   ASSERT_SOME(master);
 
   // Get the snapshot.
-  process::UPID upid("metrics", process::node());
+  process::UPID upid("metrics", process::address());
 
   process::Future<process::http::Response> response =
       process::http::get(upid, "snapshot");
@@ -158,7 +158,7 @@ TEST_F(MetricsTest, Slave)
   ASSERT_SOME(slave);
 
   // Get the snapshot.
-  process::UPID upid("metrics", process::node());
+  process::UPID upid("metrics", process::address());
 
   process::Future<process::http::Response> response =
       process::http::get(upid, "snapshot");

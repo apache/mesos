@@ -1239,7 +1239,7 @@ void MesosSchedulerDriver::initialize() {
   // Initialize libprocess.
   process::initialize(schedulerId);
 
-  if (stringify(net::IP(ntohl(process::node().ip))) == "127.0.0.1") {
+  if (stringify(net::IP(ntohl(process::address().ip))) == "127.0.0.1") {
     LOG(WARNING) << "\n**************************************************\n"
                  << "Scheduler driver bound to loopback interface!"
                  << " Cannot communicate with remote master(s)."

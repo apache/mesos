@@ -409,8 +409,8 @@ TEST_F(FetcherTest, OSNetUriTest)
 
   spawn(process);
 
-  string url = "http://" + net::getHostname(process.self().node.ip).get() +
-                ":" + stringify(process.self().node.port) + "/help";
+  string url = "http://" + net::getHostname(process.self().address.ip).get() +
+                ":" + stringify(process.self().address.port) + "/help";
 
   string localFile = path::join(os::getcwd(), "help");
   EXPECT_FALSE(os::exists(localFile));
