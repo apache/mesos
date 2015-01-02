@@ -17,6 +17,8 @@ namespace network {
 
 // Represents a network "address", subsuming the struct addrinfo and
 // struct sockaddr* that typically is used to encapsulate IP and port.
+//
+// TODO(benh): Create a Family enumeration to replace sa_family_t.
 class Address
 {
 public:
@@ -50,6 +52,11 @@ public:
   bool operator != (const Address& that) const
   {
     return !(*this == that);
+  }
+
+  sa_family_t family() const
+  {
+    return AF_INET;
   }
 
   uint32_t ip;
