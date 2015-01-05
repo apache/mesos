@@ -16,6 +16,7 @@ These tools make it easy to set up and run a Mesos cluster.
 * [Puppet Module by Deric](https://github.com/deric/puppet-mesos) This is a Puppet module for managing Mesos nodes in a cluster.
 * [Vagrant setup by Everpeace](https://github.com/everpeace/vagrant-mesos) Spin up your Mesos Cluster with Vagrant!
 * [Vagrant setup by Mesosphere](https://github.com/mesosphere/playa-mesos) Quickly build Mesos sandbox environments using Vagrant.
+* [Vagrant / Puppet setup](https://github.com/tayzlor/vagrant-puppet-mesosphere) Build a Mesos Cluster (With optional addition of Consul.io) with Vagrant and Puppet!
 
 ## Developer Tools
 
