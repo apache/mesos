@@ -81,7 +81,7 @@ There are different ways you can get Mesos:
 
         # Install maven.
         $ wget http://mirror.nexcess.net/apache/maven/maven-3/3.0.5/binaries/apache-maven-3.0.5-bin.tar.gz
-        $ sudo tar -zxcf apache-maven-3.0.5-bin.tar.gz -C /opt/
+        $ sudo tar -zxf apache-maven-3.0.5-bin.tar.gz -C /opt/
         $ sudo ln -s /opt/apache-maven-3.0.5/bin/mvn /usr/bin/mvn
 
 ## Building Mesos
