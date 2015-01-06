@@ -55,6 +55,12 @@ message Task {
   optional bytes status_update_uuid = 10;
 
   optional Labels labels = 11;
+
+  // Service discovery information for the task. It is not interpreted
+  // or acted upon by Mesos. It is up to a service discovery system
+  // to use this information as needed and to handle tasks without
+  // service discovery information.
+  optional DiscoveryInfo discovery = 12;
 }
 
 

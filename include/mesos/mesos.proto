@@ -282,6 +282,12 @@ message ExecutorInfo {
   // usage information into a time series database for monitoring.
   optional string source = 10;
   optional bytes data = 4;
+
+  // Service discovery information for the executor. It is not
+  // interpreted or acted upon by Mesos. It is up to a service
+  // discovery system to use this information as needed and to handle
+  // executors without service discovery information.
+  optional DiscoveryInfo discovery = 12;
 }
 
 
@@ -637,6 +643,12 @@ message TaskInfo {
   // will be kept in memory on master and slave processes. Therefore,
   // labels should be used to tag tasks with light-weight meta-data.
   optional Labels labels = 10;
+
+  // Service discovery information for the task. It is not interpreted
+  // or acted upon by Mesos. It is up to a service discovery system
+  // to use this information as needed and to handle tasks without
+  // service discovery information.
+  optional DiscoveryInfo discovery = 11;
 }
 
 
@@ -989,4 +1001,53 @@ message Labels {
 message Label {
   required string key = 1;
   optional string value = 2;
+}
+
+
+/**
+ * Named port used for service discovery.
+ */
+message Port {
+  required uint32 number = 1;
+  optional string name = 2;
+  optional string protocol = 3;
+}
+
+
+/**
+ * Collection of ports.
+ */
+message Ports {
+    repeated Port ports = 1;
+}
+
+
+/**
+* Service discovery information.
+* The visibility field restricts discovery within a framework
+* (FRAMEWORK), within a Mesos cluster (CLUSTER), or  places no
+* restrictions (EXTERNAL).
+* The environment, location, and version fields provide first class
+* support for common attributes used to differentiate between
+* similar services. The environment may receive values such as
+* PROD/QA/DEV, the location field may receive values like
+* EAST-US/WEST-US/EUROPE/AMEA, and the version field may receive
+* values like v2.0/v0.9. The exact use of these fields is up to each
+* service discovery system.
+*/
+message DiscoveryInfo {
+
+  enum Visibility {
+    FRAMEWORK = 0;
+    CLUSTER = 1;
+    EXTERNAL = 2;
+  }
+
+  required Visibility visibility = 1;
+  optional string name = 2;
+  optional string environment = 3;
+  optional string location = 4;
+  optional string version = 5;
+  optional Ports ports = 6;
+  optional Labels labels = 7;
 }

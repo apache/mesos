@@ -107,6 +107,10 @@ Task createTask(
 
   t.mutable_labels()->MergeFrom(task.labels());
 
+  if (task.has_discovery()) {
+      t.mutable_discovery()->MergeFrom(task.discovery());
+  }
+
   return t;
 }
 
