@@ -20,6 +20,7 @@
 #define __SLAVE_PATHS_HPP__
 
 #include <list>
+#include <string>
 
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
@@ -138,6 +139,22 @@ inline std::string getSlavePath(
 }
 
 
+inline Try<std::list<std::string>> getFrameworkPaths(
+    const std::string& rootDir,
+    const SlaveID& slaveId)
+{
+  Try<std::string> format = strings::format(
+      paths::FRAMEWORK_PATH,
+      rootDir,
+      slaveId,
+      "*");
+
+  CHECK_SOME(format);
+
+  return os::glob(format.get());
+}
+
+
 inline std::string getFrameworkPath(
     const std::string& rootDir,
     const SlaveID& slaveId,
@@ -168,6 +185,24 @@ inline std::string getFrameworkInfoPath(
 }
 
 
+inline Try<std::list<std::string>> getExecutorPaths(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId)
+{
+  Try<std::string> format = strings::format(
+      paths::EXECUTOR_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      "*");
+
+  CHECK_SOME(format);
+
+  return os::glob(format.get());
+}
+
+
 inline std::string getExecutorPath(
     const std::string& rootDir,
     const SlaveID& slaveId,
@@ -187,6 +222,26 @@ inline std::string getExecutorInfoPath(
 {
   return strings::format(
       EXECUTOR_INFO_PATH, rootDir, slaveId, frameworkId, executorId).get();
+}
+
+
+inline Try<std::list<std::string>> getExecutorRunPaths(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  Try<std::string> format = strings::format(
+      paths::EXECUTOR_RUN_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      "*");
+
+  CHECK_SOME(format);
+
+  return os::glob(format.get());
 }
 
 
@@ -270,6 +325,28 @@ inline std::string getForkedPidPath(
       frameworkId,
       executorId,
       containerId).get();
+}
+
+
+inline Try<std::list<std::string>> getTaskPaths(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId)
+{
+  Try<std::string> format = strings::format(
+      paths::TASK_PATH,
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      containerId,
+      "*");
+
+  CHECK_SOME(format);
+
+  return os::glob(format.get());
 }
 
 

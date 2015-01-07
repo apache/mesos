@@ -2314,23 +2314,28 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   // Kill the forked pid, so that we don't leak a child process.
   // Construct the executor id from the task id, since this test
   // uses a command executor.
-  ExecutorID executorId;
-  executorId.set_value(task.task_id().value());
+  Result<slave::state::State> state =
+    slave::state::recover(slave::paths::getMetaRootDir(flags.work_dir), true);
 
-  string executorPath = paths::getExecutorLatestRunPath(
-        paths::getMetaRootDir(flags.work_dir),
-        offers1.get()[0].slave_id(),
-        frameworkId.get(),
-        executorId);
+  ASSERT_SOME(state);
+  ASSERT_SOME(state.get().slave);
+  ASSERT_TRUE(state.get().slave.get().frameworks.contains(frameworkId.get()));
 
-  Try<string> read = os::read(
-      path::join(executorPath, "pids", paths::FORKED_PID_FILE));
-  ASSERT_SOME(read);
+  slave::state::FrameworkState frameworkState =
+    state.get().slave.get().frameworks.get(frameworkId.get()).get();
 
-  Try<pid_t> pid = numify<pid_t>(read.get());
-  ASSERT_SOME(pid);
+  ASSERT_EQ(1u, frameworkState.executors.size());
 
-  ASSERT_SOME(os::killtree(pid.get(), SIGKILL));
+  slave::state::ExecutorState executorState =
+    frameworkState.executors.begin()->second;
+
+  ASSERT_EQ(1u, executorState.runs.size());
+
+  slave::state::RunState runState = executorState.runs.begin()->second;
+
+  ASSERT_SOME(runState.forkedPid);
+
+  ASSERT_SOME(os::killtree(runState.forkedPid.get(), SIGKILL));
 
   // Remove the framework meta directory, so that the slave will not
   // recover the task.

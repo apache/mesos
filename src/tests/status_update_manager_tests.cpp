@@ -41,6 +41,7 @@
 #include "slave/constants.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
+#include "slave/state.hpp"
 
 #include "messages/messages.hpp"
 
@@ -49,7 +50,6 @@
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
-using namespace mesos::internal::slave::paths;
 
 using mesos::internal::master::Master;
 
@@ -110,8 +110,9 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
+  Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
-    .Times(1);
+    .WillOnce(FutureArg<1>(&frameworkId));
 
   Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
@@ -120,6 +121,7 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 
   driver.start();
 
+  AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
@@ -145,38 +147,31 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 
   // Ensure that both the status update and its acknowledgement are
   // correctly checkpointed.
-  Try<list<string> > found = os::find(flags.work_dir, TASK_UPDATES_FILE);
-  ASSERT_SOME(found);
-  ASSERT_EQ(1u, found.get().size());
+  Result<slave::state::State> state =
+    slave::state::recover(slave::paths::getMetaRootDir(flags.work_dir), true);
 
-  Try<int> fd = os::open(found.get().front(), O_RDONLY);
-  ASSERT_SOME(fd);
+  ASSERT_SOME(state);
+  ASSERT_SOME(state.get().slave);
+  ASSERT_TRUE(state.get().slave.get().frameworks.contains(frameworkId.get()));
 
-  int updates = 0;
-  int acks = 0;
-  string uuid;
-  Result<StatusUpdateRecord> record = None();
-  while (true) {
-    record = ::protobuf::read<StatusUpdateRecord>(fd.get());
-    ASSERT_FALSE(record.isError());
-    if (record.isNone()) { // Reached EOF.
-      break;
-    }
+  slave::state::FrameworkState frameworkState =
+    state.get().slave.get().frameworks.get(frameworkId.get()).get();
 
-    if (record.get().type() == StatusUpdateRecord::UPDATE) {
-      EXPECT_EQ(TASK_RUNNING, record.get().update().status().state());
-      uuid = record.get().update().uuid();
-      updates++;
-    } else {
-      EXPECT_EQ(uuid, record.get().uuid());
-      acks++;
-    }
-  }
+  ASSERT_EQ(1u, frameworkState.executors.size());
 
-  ASSERT_EQ(1, updates);
-  ASSERT_EQ(1, acks);
+  slave::state::ExecutorState executorState =
+    frameworkState.executors.begin()->second;
 
-  close(fd.get());
+  ASSERT_EQ(1u, executorState.runs.size());
+
+  slave::state::RunState runState = executorState.runs.begin()->second;
+
+  ASSERT_EQ(1u, runState.tasks.size());
+
+  slave::state::TaskState taskState = runState.tasks.begin()->second;
+
+  EXPECT_EQ(1u, taskState.updates.size());
+  EXPECT_EQ(1u, taskState.acks.size());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
