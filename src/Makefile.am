@@ -304,6 +304,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/http.cpp							\
 	slave/metrics.cpp						\
 	slave/monitor.cpp						\
+	slave/paths.cpp							\
 	slave/state.cpp							\
 	slave/slave.cpp							\
 	slave/containerizer/containerizer.cpp				\
