@@ -29,6 +29,62 @@ namespace internal {
 namespace slave {
 namespace paths {
 
+
+// The slave leverages the file system for a number of purposes:
+//
+//   (1) For executor sandboxes.
+//
+//   (2) For checkpointing metadata in order to support "slave
+//       recovery". That is, allow the slave to restart without
+//       affecting the tasks / executors.
+//
+//   (3) To detect reboots (by checkpointing the boot id), in which
+//       case everything has died so no recovery should be attempted.
+//
+//   (4) For checkpointing resources that persist across slaves.
+//       This includes things like persistent volumes and dynamic
+//       reservations.
+//
+// The file system layout is as follows:
+//
+//   root ('--work_dir' flag)
+//   |-- slaves
+//   |   |-- latest (symlink)
+//   |   |-- <slave_id>
+//   |       |-- frameworks
+//   |           |-- <framework__id>
+//   |               |-- executors
+//   |                   |-- <executor_id>
+//   |                       |-- runs
+//   |                           |-- latest (symlink)
+//   |                           |-- <container_id> (sandbox)
+//   |-- meta
+//   |   |-- slaves
+//   |       |-- latest (symlink)
+//   |       |-- <slave_id>
+//   |           |-- slave.info
+//   |           |-- frameworks
+//   |               |-- <framework__id>
+//   |                   |-- framework.info
+//   |                   |-- framework.pid
+//   |                   |-- executors
+//   |                       |-- <executor_id>
+//   |                           |-- executor.info
+//   |                           |-- runs
+//   |                               |-- latest (symlink)
+//   |                               |-- <container_id> (sandbox)
+//   |                                   |-- executor.sentinel (if completed)
+//   |                                   |-- pids
+//   |                                   |   |-- forked.pid
+//   |                                   |   |-- libprocess.pid
+//   |                                   |-- tasks
+//   |                                       |-- <task_id>
+//   |                                           |-- task.info
+//   |                                           |-- task.updates
+//   |-- boot_id
+//   |-- resources
+//       |-- resources.info
+
 const std::string LATEST_SYMLINK = "latest";
 
 // Helpers for obtaining paths in the layout:
