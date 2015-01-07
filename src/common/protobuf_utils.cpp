@@ -38,7 +38,8 @@ bool isTerminalState(const TaskState& state)
   return (state == TASK_FINISHED ||
           state == TASK_FAILED ||
           state == TASK_KILLED ||
-          state == TASK_LOST);
+          state == TASK_LOST ||
+          state == TASK_ERROR);
 }
 
 
