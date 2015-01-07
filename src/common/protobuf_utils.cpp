@@ -52,7 +52,8 @@ StatusUpdate createStatusUpdate(
     const TaskStatus::Source& source,
     const string& message = "",
     const Option<TaskStatus::Reason>& reason = None(),
-    const Option<ExecutorID>& executorId = None())
+    const Option<ExecutorID>& executorId = None(),
+    const Option<bool>& healthy = None())
 {
   StatusUpdate update;
 
@@ -84,6 +85,10 @@ StatusUpdate createStatusUpdate(
     status->set_reason(reason.get());
   }
 
+  if (healthy.isSome()) {
+    status->set_healthy(healthy.get());
+  }
+
   return update;
 }
 
@@ -112,6 +117,23 @@ Task createTask(
   }
 
   return t;
+}
+
+
+Option<bool> lastTaskHealth(const Task& task) {
+  Option<bool> healthy = None();
+  if (task.statuses_size() > 0) {
+    // The statuses list only keeps the most recent TaskStatus for
+    // each state, and appends later states at the end. Thus the last
+    // status is either a terminal state (where health is
+    // irrelevant), or the latest RUNNING status.
+    int lastIndex = task.statuses_size() - 1;
+    TaskStatus lastStatus = task.statuses(lastIndex);
+    if (lastStatus.has_healthy()) {
+      healthy = lastStatus.healthy();
+    }
+  }
+  return healthy;
 }
 
 

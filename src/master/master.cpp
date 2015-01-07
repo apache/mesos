@@ -3711,6 +3711,10 @@ void Master::_reconcileTasks(
           ? task->status_update_state()
           : task->state();
 
+      const Option<ExecutorID>& executorId = task->has_executor_id()
+          ? Option<ExecutorID>(task->executor_id())
+          : None();
+
       const StatusUpdate& update = protobuf::createStatusUpdate(
           framework->id,
           task->slave_id(),
@@ -3718,7 +3722,9 @@ void Master::_reconcileTasks(
           state,
           TaskStatus::SOURCE_MASTER,
           "Reconciliation: Latest task state",
-          TaskStatus::REASON_RECONCILIATION);
+          TaskStatus::REASON_RECONCILIATION,
+          executorId,
+          protobuf::lastTaskHealth(*task));
 
       VLOG(1) << "Sending implicit reconciliation state "
               << update.status().state()
@@ -3778,6 +3784,10 @@ void Master::_reconcileTasks(
           ? task->status_update_state()
           : task->state();
 
+      const Option<ExecutorID> executorId = task->has_executor_id()
+          ? Option<ExecutorID>(task->executor_id())
+          : None();
+
       update = protobuf::createStatusUpdate(
           framework->id,
           task->slave_id(),
@@ -3785,7 +3795,9 @@ void Master::_reconcileTasks(
           state,
           TaskStatus::SOURCE_MASTER,
           "Reconciliation: Latest task state",
-          TaskStatus::REASON_RECONCILIATION);
+          TaskStatus::REASON_RECONCILIATION,
+          executorId,
+          protobuf::lastTaskHealth(*task));
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
       // (3) Task is unknown, slave is registered: TASK_LOST.
       update = protobuf::createStatusUpdate(

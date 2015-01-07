@@ -45,13 +45,17 @@ StatusUpdate createStatusUpdate(
     const TaskStatus::Source& source,
     const std::string& message = "",
     const Option<TaskStatus::Reason>& reason = None(),
-    const Option<ExecutorID>& executorId = None());
+    const Option<ExecutorID>& executorId = None(),
+    const Option<bool>& healthy = None());
 
 
 Task createTask(
     const TaskInfo& task,
     const TaskState& state,
     const FrameworkID& frameworkId);
+
+
+Option<bool> lastTaskHealth(const Task& task);
 
 
 // Helper function that creates a MasterInfo from UPID.
