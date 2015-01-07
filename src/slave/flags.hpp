@@ -381,6 +381,12 @@ public:
         false);
 #endif // WITH_NETWORK_ISOLATOR
 
+    add(&Flags::disk_quota_check_interval,
+        "disk_quota_check_interval",
+        "The interval between disk quota checks for containers. This flag is\n"
+        "used for the posix/disk' isolator.",
+        Seconds(30));
+
     // This help message for --modules flag is the same for
     // {master,slave,tests}/flags.hpp and should always be kept in
     // sync.
@@ -491,6 +497,7 @@ public:
   Option<Bytes> egress_rate_limit_per_container;
   bool network_enable_socket_statistics;
 #endif
+  Duration disk_quota_check_interval;
   Option<Modules> modules;
   std::string authenticatee;
   Option<std::string> hooks;

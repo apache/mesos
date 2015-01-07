@@ -39,6 +39,7 @@
 #endif // __linux__
 
 #include "slave/containerizer/isolators/posix.hpp"
+#include "slave/containerizer/isolators/posix/disk.hpp"
 #ifdef __linux__
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
@@ -106,6 +107,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   creators["posix/cpu"]   = &PosixCpuIsolatorProcess::create;
   creators["posix/mem"]   = &PosixMemIsolatorProcess::create;
+  creators["posix/disk"]  = &PosixDiskIsolatorProcess::create;
 #ifdef __linux__
   creators["cgroups/cpu"] = &CgroupsCpushareIsolatorProcess::create;
   creators["cgroups/mem"] = &CgroupsMemIsolatorProcess::create;
