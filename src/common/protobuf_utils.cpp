@@ -121,15 +121,15 @@ Task createTask(
 }
 
 
-Option<bool> lastTaskHealth(const Task& task) {
+Option<bool> getTaskHealth(const Task& task)
+{
   Option<bool> healthy = None();
   if (task.statuses_size() > 0) {
     // The statuses list only keeps the most recent TaskStatus for
     // each state, and appends later states at the end. Thus the last
     // status is either a terminal state (where health is
     // irrelevant), or the latest RUNNING status.
-    int lastIndex = task.statuses_size() - 1;
-    TaskStatus lastStatus = task.statuses(lastIndex);
+    TaskStatus lastStatus = task.statuses(task.statuses_size() - 1);
     if (lastStatus.has_healthy()) {
       healthy = lastStatus.healthy();
     }

@@ -205,6 +205,7 @@ TEST_F(HealthCheckTest, HealthyTask)
   const TaskID taskId = statusHealth.get().task_id();
   const SlaveID slaveId = statusHealth.get().slave_id();
   status.mutable_task_id()->CopyFrom(taskId);
+
   // State is not checked by reconciliation, but is required to be
   // a valid task status.
   status.set_state(TASK_RUNNING);

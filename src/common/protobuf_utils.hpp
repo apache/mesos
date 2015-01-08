@@ -55,7 +55,7 @@ Task createTask(
     const FrameworkID& frameworkId);
 
 
-Option<bool> lastTaskHealth(const Task& task);
+Option<bool> getTaskHealth(const Task& task);
 
 
 // Helper function that creates a MasterInfo from UPID.
