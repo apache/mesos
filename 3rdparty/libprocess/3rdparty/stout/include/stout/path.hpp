@@ -55,7 +55,7 @@ inline std::string join(
     const std::string& path4,
     const std::string& path5)
 {
-  return join(path1, join(path2, join(path3, join(path4, path5))));
+  return join(path1, join(path2, path3, path4, path5));
 }
 
 
@@ -68,6 +68,49 @@ inline std::string join(
     const std::string& path6)
 {
   return join(path1, join(path2, path3, path4, path5, path6));
+}
+
+
+inline std::string join(
+    const std::string& path1,
+    const std::string& path2,
+    const std::string& path3,
+    const std::string& path4,
+    const std::string& path5,
+    const std::string& path6,
+    const std::string& path7)
+{
+  return join(path1, join(path2, path3, path4, path5, path6, path7));
+}
+
+
+inline std::string join(
+    const std::string& path1,
+    const std::string& path2,
+    const std::string& path3,
+    const std::string& path4,
+    const std::string& path5,
+    const std::string& path6,
+    const std::string& path7,
+    const std::string& path8)
+{
+  return join(path1, join(path2, path3, path4, path5, path6, path7, path8));
+}
+
+
+inline std::string join(
+    const std::string& path1,
+    const std::string& path2,
+    const std::string& path3,
+    const std::string& path4,
+    const std::string& path5,
+    const std::string& path6,
+    const std::string& path7,
+    const std::string& path8,
+    const std::string& path9)
+{
+  return join(path1, join(
+      path2, path3, path4, path5, path6, path7, path8, path9));
 }
 
 
