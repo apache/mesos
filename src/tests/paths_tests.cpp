@@ -20,6 +20,7 @@
 
 #include <stout/check.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
@@ -48,6 +49,8 @@ public:
     executorId.set_value("executor1");
     taskId.set_value("task1");
     containerId.set_value(UUID::random().toString());
+    role = "role1";
+    persistenceId = "persistenceId1";
 
     Try<string> path = os::mkdtemp();
     CHECK_SOME(path) << "Failed to mkdtemp";
@@ -65,6 +68,8 @@ protected:
   ExecutorID executorId;
   TaskID taskId;
   ContainerID containerId;
+  string role;
+  string persistenceId;
   string rootDir;
 };
 
@@ -75,35 +80,55 @@ TEST_F(PathsTest, CreateExecutorDirectory)
       rootDir, slaveId, frameworkId, executorId, containerId);
 
   // Expected directory layout.
-  string dir = rootDir + "/slaves/" + slaveId.value() + "/frameworks/"
-               + frameworkId.value() + "/executors/" + executorId.value()
-               + "/runs/" + containerId.value();
+  string dir = path::join(
+      rootDir,
+      "slaves",
+      slaveId.value(),
+      "frameworks",
+      frameworkId.value(),
+      "executors",
+      executorId.value(),
+      "runs",
+      containerId.value());
 
   ASSERT_EQ(dir, result);
 }
 
 
-TEST_F(PathsTest, format)
+TEST_F(PathsTest, Format)
 {
   string dir = rootDir;
 
-  dir += "/slaves/" + slaveId.value();
-  ASSERT_EQ(dir, paths::getSlavePath(rootDir, slaveId));
+  dir = path::join(dir, "slaves", slaveId.value());
 
-  dir += "/frameworks/" + frameworkId.value();
-  ASSERT_EQ(dir, paths::getFrameworkPath(rootDir, slaveId, frameworkId));
+  EXPECT_EQ(dir, paths::getSlavePath(rootDir, slaveId));
 
-  dir += "/executors/" + executorId.value();
-  ASSERT_EQ(dir, paths::getExecutorPath(
+  dir = path::join(dir, "frameworks", frameworkId.value());
+
+  EXPECT_EQ(dir, paths::getFrameworkPath(rootDir, slaveId, frameworkId));
+
+  dir = path::join(dir, "executors", executorId.value());
+
+  EXPECT_EQ(dir, paths::getExecutorPath(
       rootDir, slaveId, frameworkId, executorId));
 
-  dir += "/runs/" + containerId.value();
-  ASSERT_EQ(dir, paths::getExecutorRunPath(
+  dir = path::join(dir, "runs", containerId.value());
+
+  EXPECT_EQ(dir, paths::getExecutorRunPath(
       rootDir, slaveId, frameworkId, executorId, containerId));
 
-  dir += "/tasks/" + taskId.value();
-  ASSERT_EQ(dir, paths::getTaskPath(
+  dir = path::join(dir, "tasks", taskId.value());
+
+  EXPECT_EQ(dir, paths::getTaskPath(
       rootDir, slaveId, frameworkId, executorId, containerId, taskId));
+}
+
+
+TEST_F(PathsTest, PersistentVolume)
+{
+  string dir = path::join(rootDir, "volumes", "roles", role, persistenceId);
+
+  EXPECT_EQ(dir, paths::getPersistentVolumePath(rootDir, role, persistenceId));
 }
 
 } // namespace paths {

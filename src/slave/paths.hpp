@@ -32,7 +32,7 @@ namespace paths {
 
 // The slave leverages the file system for a number of purposes:
 //
-//   (1) For executor sandboxes.
+//   (1) For executor sandboxes and disk volumes.
 //
 //   (2) For checkpointing metadata in order to support "slave
 //       recovery". That is, allow the slave to restart without
@@ -83,7 +83,11 @@ namespace paths {
 //   |                                           |-- task.updates
 //   |-- boot_id
 //   |-- resources
-//       |-- resources.info
+//   |   |-- resources.info
+//   |-- volumes
+//       |-- roles
+//           |-- <role>
+//               |-- <persistence_id> (persistent volume)
 
 const std::string LATEST_SYMLINK = "latest";
 
@@ -237,6 +241,12 @@ std::string getTaskUpdatesPath(
 
 std::string getResourcesInfoPath(
     const std::string& rootDir);
+
+
+std::string getPersistentVolumePath(
+    const std::string& rootDir,
+    const std::string& role,
+    const std::string& persistenceId);
 
 
 std::string createExecutorDirectory(

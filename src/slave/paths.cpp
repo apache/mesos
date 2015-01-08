@@ -97,6 +97,8 @@ const string TASK_UPDATES_PATH =
   path::join(TASK_PATH, TASK_UPDATES_FILE);
 const string RESOURCES_INFO_PATH =
   path::join(ROOT_PATH, "resources", RESOURCES_INFO_FILE);
+const string PERSISTENT_VOLUME_PATH =
+  path::join(ROOT_PATH, "volumes", "roles", "%s", "%s");
 
 
 string getMetaRootDir(const string& rootDir)
@@ -413,6 +415,19 @@ string getResourcesInfoPath(
   return strings::format(
       RESOURCES_INFO_PATH,
       rootDir).get();
+}
+
+
+string getPersistentVolumePath(
+    const string& rootDir,
+    const string& role,
+    const string& persistenceId)
+{
+  return strings::format(
+      PERSISTENT_VOLUME_PATH,
+      rootDir,
+      role,
+      persistenceId).get();
 }
 
 
