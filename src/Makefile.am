@@ -1253,6 +1253,7 @@ mesos_tests_SOURCES =				\
   tests/containerizer_tests.cpp			\
   tests/cram_md5_authentication_tests.cpp	\
   tests/credentials_tests.cpp			\
+  tests/disk_quota_tests.cpp			\
   tests/docker_containerizer_tests.cpp          \
   tests/docker_tests.cpp			\
   tests/environment.cpp				\
