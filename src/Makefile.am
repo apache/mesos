@@ -300,6 +300,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	scheduler/scheduler.cpp						\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
+	slave/graceful_shutdown.cpp					\
 	slave/http.cpp							\
 	slave/metrics.cpp						\
 	slave/monitor.cpp						\
@@ -467,6 +468,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/constants.hpp						\
 	slave/flags.hpp							\
 	slave/gc.hpp							\
+	slave/graceful_shutdown.hpp					\
 	slave/metrics.hpp						\
 	slave/monitor.hpp						\
 	slave/paths.hpp							\
