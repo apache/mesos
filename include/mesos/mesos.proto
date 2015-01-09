@@ -616,6 +616,44 @@ message Offer {
   repeated Resource resources = 5;
   repeated Attribute attributes = 7;
   repeated ExecutorID executor_ids = 6;
+
+  // Defines an operation that can be performed against offers.
+  message Operation {
+    enum Type {
+      LAUNCH = 1;
+      RESERVE = 2;
+      UNRESERVE = 3;
+      CREATE = 4;
+      DESTROY = 5;
+    }
+
+    message Launch {
+      repeated TaskInfo task_infos = 1;
+    }
+
+    message Reserve {
+      repeated Resource resources = 1;
+    }
+
+    message Unreserve {
+      repeated Resource resources = 1;
+    }
+
+    message Create {
+      repeated Resource volumes = 1;
+    }
+
+    message Destroy {
+      repeated Resource volumes = 1;
+    }
+
+    required Type type = 1;
+    optional Launch launch = 2;
+    optional Reserve reserve = 3;
+    optional Unreserve unreserve = 4;
+    optional Create create = 5;
+    optional Destroy destroy = 6;
+  }
 }
 
 
