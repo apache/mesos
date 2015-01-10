@@ -16,8 +16,9 @@ layout: documentation
 * [External Containerizer](/documentation/latest/external-containerizer/)
 * [Framework Authorization](/documentation/latest/authorization/)
 * [Framework Rate Limiting](/documentation/latest/framework-rate-limiting/)
-* [High Availability](/documentation/latest/high-availability/) for running multiple masters simultaneously.
 * [Logging and Debugging](/documentation/latest/logging-and-debugging/) for viewing Mesos and framework logs.
+* [High Availability](/documentation/latest/high-availability/) for running multiple masters simultaneously.
+* [Operational Guide](/documentation/latest/operational-guide/)
 * [Network Monitoring](/documentation/latest/network-monitoring/)
 * [Slave Recovery](/documentation/latest/slave-recovery/) for doing seamless upgrades.
 * [Tools](/documentation/latest/tools/) for setting up and running a Mesos cluster.
