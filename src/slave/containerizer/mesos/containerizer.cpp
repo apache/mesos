@@ -1097,8 +1097,9 @@ void MesosContainerizerProcess::limited(
 
   if (future.isReady()) {
     LOG(INFO) << "Container " << containerId << " has reached its limit for"
-              << " resource " << future.get().resource
+              << " resource " << future.get().resources
               << " and will be terminated";
+
     containers_[containerId]->limitations.push_back(future.get());
   } else {
     // TODO(idownes): A discarded future will not be an error when

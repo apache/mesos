@@ -573,7 +573,10 @@ void CgroupsMemIsolatorProcess::oom(const ContainerID& containerId)
 
   LOG(INFO) << strings::trim(message.str()); // Trim the extra '\n' at the end.
 
-  Resource mem = Resources::parse(
+  // TODO(jieyu): This is not accurate if the memory resource is from
+  // a non-star role or spans roles (e.g., "*" and "role"). Ideally,
+  // we should save the resources passed in and report it here.
+  Resources mem = Resources::parse(
       "mem",
       stringify(usage.isSome() ? usage.get().megabytes() : 0),
       "*").get();

@@ -48,13 +48,15 @@ class IsolatorProcess;
 struct Limitation
 {
   Limitation(
-      const Resource& _resource,
+      const Resources& _resources,
       const std::string& _message)
-    : resource(_resource),
+    : resources(_resources),
       message(_message) {}
 
-  // Resource (type and value) that triggered the limitation.
-  Resource resource;
+  // Resources that triggered the limitation.
+  // NOTE: 'Resources' is used here because the resource may span
+  // multiple roles (e.g. `"mem(*):1;mem(role):2"`).
+  Resources resources;
 
   // Description of the limitation.
   std::string message;
