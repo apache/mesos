@@ -246,6 +246,18 @@ public:
   // will be dropped (these semantics may be changed in the future).
   virtual Status killTask(const TaskID& taskId) = 0;
 
+  // Accepts the given offers and performs a sequence of operations on
+  // those accepted offers. See Offer.Operation in mesos.proto for the
+  // set of available operations. Available resources are aggregated
+  // when multiple offers are provided. Note that all offers must
+  // belong to the same slave. Any unused resources will be considered
+  // declined. The specified filters are applied on all unused
+  // resources (see mesos.proto for a description of Filters).
+  virtual Status acceptOffers(
+      const std::vector<OfferID>& offerIds,
+      const std::vector<Offer::Operation>& operations,
+      const Filters& filters = Filters()) = 0;
+
   // Declines an offer in its entirety and applies the specified
   // filters on the resources (see mesos.proto for a description of
   // Filters). Note that this can be done at any time, it is not
@@ -368,6 +380,11 @@ public:
       const Filters& filters = Filters());
 
   virtual Status killTask(const TaskID& taskId);
+
+  virtual Status acceptOffers(
+      const std::vector<OfferID>& offerIds,
+      const std::vector<Offer::Operation>& operations,
+      const Filters& filters = Filters());
 
   virtual Status declineOffer(
       const OfferID& offerId,

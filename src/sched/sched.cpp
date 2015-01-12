@@ -952,6 +952,20 @@ protected:
     send(master.get(), message);
   }
 
+  void acceptOffers(
+      const vector<OfferID>& offerIds,
+      const vector<Offer::Operation>& operations,
+      const Filters& filters)
+  {
+    if (!connected) {
+      VLOG(1) << "Ignoring accept offers message as master is disconnected";
+      return;
+    }
+
+    // TODO(jieyu): Provide implementation for this API.
+    error("acceptOffers is unimplemented");
+  }
+
   void reviveOffers()
   {
     if (!connected) {
@@ -1482,6 +1496,30 @@ Status MesosSchedulerDriver::launchTasks(
   CHECK(process != NULL);
 
   dispatch(process, &SchedulerProcess::launchTasks, offerIds, tasks, filters);
+
+  return status;
+}
+
+
+Status MesosSchedulerDriver::acceptOffers(
+    const vector<OfferID>& offerIds,
+    const vector<Offer::Operation>& operations,
+    const Filters& filters)
+{
+  Lock lock(&mutex);
+
+  if (status != DRIVER_RUNNING) {
+    return status;
+  }
+
+  CHECK(process != NULL);
+
+  dispatch(
+      process,
+      &SchedulerProcess::acceptOffers,
+      offerIds,
+      operations,
+      filters);
 
   return status;
 }
