@@ -215,6 +215,7 @@ message Call {
 
   optional Request request = 3;
   optional Decline decline = 4;
+  optional Accept accept = 10;
   optional Launch launch = 5;
   optional Kill kill = 6;
   optional Acknowledge acknowledge = 7;
