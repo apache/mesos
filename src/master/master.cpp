@@ -529,6 +529,8 @@ void Master::initialize()
 
   startTime = Clock::now();
 
+  install<scheduler::Call>(&Master::receive);
+
   // Install handler functions for certain messages.
   install<SubmitSchedulerRequest>(
       &Master::submitScheduler,
@@ -1346,6 +1348,84 @@ Future<Option<Error>> Master::validate(
       lambda::bind(&_authorize,
                    "Not authorized to use role '" + frameworkInfo.role() + "'",
                    lambda::_1));
+}
+
+
+void Master::drop(
+    const UPID& from,
+    const scheduler::Call& call,
+    const string& message)
+{
+  // TODO(bmahler): Increment a metric.
+
+  LOG(ERROR) << "Dropping " << scheduler::Call::Type_Name(call.type())
+             <<  " call from framework '" << call.framework_info().name() << "'"
+                 " at " << from << ": " << message;
+}
+
+
+void Master::receive(
+    const UPID& from,
+    const scheduler::Call& call)
+{
+  const FrameworkInfo& frameworkInfo = call.framework_info();
+
+  switch (call.type()) {
+    case scheduler::Call::REGISTER:
+    case scheduler::Call::REREGISTER:
+    case scheduler::Call::UNREGISTER:
+    case scheduler::Call::REQUEST:
+    case scheduler::Call::REVIVE:
+    case scheduler::Call::DECLINE:
+      drop(from, call, "Unimplemented");
+      break;
+
+    case scheduler::Call::ACCEPT:
+      if (!call.has_accept()) {
+        drop(from, call, "Expecting 'accept' to be present");
+        return;
+      }
+      receive(from, frameworkInfo, call.accept());
+      break;
+
+    case scheduler::Call::LAUNCH:
+    case scheduler::Call::KILL:
+    case scheduler::Call::ACKNOWLEDGE:
+    case scheduler::Call::RECONCILE:
+    case scheduler::Call::MESSAGE:
+      drop(from, call, "Unimplemented");
+      break;
+
+    default:
+      LOG(ERROR) << "Unknown Call type " << call.type()
+                 << " received from framework " << frameworkInfo.name()
+                 << " at " << from;
+      break;
+  }
+}
+
+
+void Master::receive(
+    const UPID& from,
+    const FrameworkInfo& frameworkInfo,
+    const scheduler::Call::Accept& accept)
+{
+  vector<OfferID> offerIds =
+    google::protobuf::convert(accept.offer_ids());
+
+  vector<TaskInfo> tasks;
+
+  // TODO(bmahler): Update this to apply other operations, which
+  // may need some structural change in the master.
+  foreach (const Offer::Operation& operation, accept.operations()) {
+    if (operation.type() == Offer::Operation::LAUNCH) {
+      foreach (const TaskInfo& task, operation.launch().task_infos()) {
+        tasks.push_back(task);
+      }
+    }
+  }
+
+  launchTasks(from, frameworkInfo.id(), tasks, accept.filters(), offerIds);
 }
 
 

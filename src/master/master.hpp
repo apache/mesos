@@ -27,7 +27,9 @@
 
 #include <boost/circular_buffer.hpp>
 
+#include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/scheduler.hpp>
 
 #include <process/http.hpp>
 #include <process/owned.hpp>
@@ -103,6 +105,7 @@ public:
 
   virtual ~Master();
 
+  // Message handlers.
   void submitScheduler(
       const std::string& name);
   void registerFramework(
@@ -135,14 +138,12 @@ public:
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const TaskID& taskId);
-
   void statusUpdateAcknowledgement(
       const process::UPID& from,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const TaskID& taskId,
       const std::string& uuid);
-
   void schedulerMessage(
       const process::UPID& from,
       const SlaveID& slaveId,
@@ -160,25 +161,28 @@ public:
       const std::vector<Task>& tasks,
       const std::vector<Archive::Framework>& completedFrameworks,
       const std::string& version);
-
   void unregisterSlave(
       const process::UPID& from,
       const SlaveID& slaveId);
-
   void statusUpdate(
       const StatusUpdate& update,
       const process::UPID& pid);
-
+  void reconcileTasks(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const std::vector<TaskStatus>& statuses);
   void exitedExecutor(
       const process::UPID& from,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       int32_t status);
-
   void shutdownSlave(
       const SlaveID& slaveId,
       const std::string& message);
+  void authenticate(
+      const process::UPID& from,
+      const process::UPID& pid);
 
   // TODO(bmahler): It would be preferred to use a unique libprocess
   // Process identifier (PID is not sufficient) for identifying the
@@ -190,15 +194,6 @@ public:
   void offer(
       const FrameworkID& framework,
       const hashmap<SlaveID, Resources>& resources);
-
-  void reconcileTasks(
-      const process::UPID& from,
-      const FrameworkID& frameworkId,
-      const std::vector<TaskStatus>& statuses);
-
-  void authenticate(
-      const process::UPID& from,
-      const process::UPID& pid);
 
   // Invoked when there is a newly elected leading master.
   // Made public for testing purposes.
@@ -415,6 +410,25 @@ protected:
   Option<Credentials> credentials;
 
 private:
+  void drop(
+      const process::UPID& from,
+      const scheduler::Call& call,
+      const std::string& message);
+
+  // Call handlers.
+  void receive(
+      const process::UPID& from,
+      const scheduler::Call& call);
+  void receive(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      const scheduler::Call::Accept& accept);
+
+  bool elected() const
+  {
+    return leader.isSome() && leader.get() == info_;
+  }
+
   // Inner class used to namespace HTTP route handlers (see
   // master/http.cpp for implementations).
   class Http
@@ -483,12 +497,6 @@ private:
   const Flags flags;
 
   Option<MasterInfo> leader; // Current leading master.
-
-  // Whether we are the current leading master.
-  bool elected() const
-  {
-    return leader.isSome() && leader.get() == info_;
-  }
 
   allocator::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;
