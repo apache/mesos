@@ -30,15 +30,37 @@
 namespace mesos {
 namespace internal {
 
-// Note that this interface definition is not hardened yet and will
-// slightly change within the next release. See MESOS-2050.
+// Forward declaration.
+class AuthenticatorSession;
+
+// Authenticator poses as a stateful factory. It expects to be
+// initialized before any sessions are created. It should do
+// heavy lifting tasks like setting up a database connection.
 class Authenticator
 {
 public:
   Authenticator() {}
+
   virtual ~Authenticator() {}
 
-  virtual void initialize(const process::UPID& clientPid) = 0;
+  // Does any heavy lifting that is needed only once for the entire
+  // lifetime of this factory.
+  virtual Try<Nothing> initialize(const Option<Credentials>& credentials) = 0;
+
+  // Creates a new authenticator session for every authentication
+  // request.
+  virtual Try<AuthenticatorSession*> session(const process::UPID& pid) = 0;
+};
+
+
+// AuthenticatorSession is created by the Authenticator for every
+// authentication request received.
+class AuthenticatorSession
+{
+public:
+  explicit AuthenticatorSession(const process::UPID& pid) {}
+
+  virtual ~AuthenticatorSession() {}
 
   // Returns the principal of the Authenticatee if successfully
   // authenticated otherwise None or an error. Note that we
@@ -48,7 +70,7 @@ public:
   // will cause the future to fail if it hasn't already completed
   // since we have already started the authentication procedure and
   // can't reliably cancel.
-  virtual process::Future<Option<std::string>> authenticate(void) = 0;
+  virtual process::Future<Option<std::string>> authenticate() = 0;
 };
 
 } // namespace internal {

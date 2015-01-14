@@ -92,8 +92,6 @@ TYPED_TEST(CRAMMD5Authentication, success)
   credential2->set_principal(credential1.principal());
   credential2->set_secret(credential1.secret());
 
-  secrets::load(credentials);
-
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
@@ -108,15 +106,20 @@ TYPED_TEST(CRAMMD5Authentication, success)
   Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
   CHECK_SOME(authenticator);
 
-  authenticator.get()->initialize(message.get().from);
+  EXPECT_SOME(authenticator.get()->initialize(credentials));
 
-  Future<Option<string>> principal = authenticator.get()->authenticate();
+  Try<AuthenticatorSession*> session =
+    authenticator.get()->session(message.get().from);
+  CHECK_SOME(session);
+
+  Future<Option<string>> principal = session.get()->authenticate();
 
   AWAIT_EQ(true, client);
   AWAIT_READY(principal);
   EXPECT_SOME_EQ("benh", principal.get());
 
   terminate(pid);
+  delete session.get();
   delete authenticator.get();
   delete authenticatee.get();
 }
@@ -137,8 +140,6 @@ TYPED_TEST(CRAMMD5Authentication, failed1)
   credential2->set_principal(credential1.principal());
   credential2->set_secret("secret2");
 
-  secrets::load(credentials);
-
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
@@ -153,15 +154,20 @@ TYPED_TEST(CRAMMD5Authentication, failed1)
   Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
   CHECK_SOME(authenticator);
 
-  authenticator.get()->initialize(message.get().from);
+  EXPECT_SOME(authenticator.get()->initialize(credentials));
 
-  Future<Option<string>> server = authenticator.get()->authenticate();
+  Try<AuthenticatorSession*> session =
+    authenticator.get()->session(message.get().from);
+  CHECK_SOME(session);
+
+  Future<Option<string>> server = session.get()->authenticate();
 
   AWAIT_EQ(false, client);
   AWAIT_READY(server);
   EXPECT_NONE(server.get());
 
   terminate(pid);
+  delete session.get();
   delete authenticator.get();
   delete authenticatee.get();
 }
@@ -182,8 +188,6 @@ TYPED_TEST(CRAMMD5Authentication, failed2)
   credential2->set_principal("vinod");
   credential2->set_secret(credential1.secret());
 
-  secrets::load(credentials);
-
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
@@ -198,23 +202,28 @@ TYPED_TEST(CRAMMD5Authentication, failed2)
   Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
   CHECK_SOME(authenticator);
 
-  authenticator.get()->initialize(message.get().from);
+  EXPECT_SOME(authenticator.get()->initialize(credentials));
 
-  Future<Option<string>> server = authenticator.get()->authenticate();
+  Try<AuthenticatorSession*> session =
+    authenticator.get()->session(message.get().from);
+  CHECK_SOME(session);
+
+  Future<Option<string>> server = session.get()->authenticate();
 
   AWAIT_EQ(false, client);
   AWAIT_READY(server);
   EXPECT_NONE(server.get());
 
   terminate(pid);
+  delete session.get();
   delete authenticator.get();
   delete authenticatee.get();
 }
 
 
 // This test verifies that the pending future returned by
-// 'Authenticator::authenticate()' is properly failed when the Authenticator is
-// destructed in the middle of authentication.
+// 'Authenticator::authenticate()' is properly failed when the
+// Authenticator Session is destroyed in the middle of authentication.
 TYPED_TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
 {
   // Launch a dummy process (somebody to send the AuthenticateMessage).
@@ -229,8 +238,6 @@ TYPED_TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
   credential2->set_principal(credential1.principal());
   credential2->set_secret(credential1.secret());
 
-  secrets::load(credentials);
-
   Future<Message> message =
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
@@ -245,14 +252,18 @@ TYPED_TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
   Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
   CHECK_SOME(authenticator);
 
-  authenticator.get()->initialize(message.get().from);
+  EXPECT_SOME(authenticator.get()->initialize(credentials));
 
-  // Drop the AuthenticationStepMessage from authenticator to keep
-  // the authentication from getting completed.
+  Try<AuthenticatorSession*> session =
+    authenticator.get()->session(message.get().from);
+  CHECK_SOME(session);
+
+  // Drop the AuthenticationStepMessage from authenticator session to
+  // keep the authentication from getting completed.
   Future<AuthenticationStepMessage> authenticationStepMessage =
     DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
 
-  Future<Option<string>> principal = authenticator.get()->authenticate();
+  Future<Option<string>> principal = session.get()->authenticate();
 
   AWAIT_READY(authenticationStepMessage);
 
@@ -262,14 +273,28 @@ TYPED_TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
   // Authentication should be pending.
   ASSERT_TRUE(principal.isPending());
 
-  // Now delete the authenticator.
-  delete authenticator.get();
+  // Now delete the authenticator session.
+  delete session.get();
 
   // The future should be failed at this point.
   AWAIT_FAILED(principal);
 
   terminate(pid);
+  delete authenticator.get();
   delete authenticatee.get();
+}
+
+
+// Missing credentials should fail the default (CRAM-MD5)
+// authenticator initialization.
+TYPED_TEST(CRAMMD5Authentication, AuthenticatorCredentialsMissing)
+{
+  Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
+  CHECK_SOME(authenticator);
+
+  EXPECT_ERROR(authenticator.get()->initialize(None()));
+
+  delete authenticator.get();
 }
 
 } // namespace cram_md5 {
