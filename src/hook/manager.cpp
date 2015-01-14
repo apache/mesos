@@ -132,5 +132,20 @@ Environment HookManager::slaveLaunchExecutorEnvironmentDecorator(
   return environment;
 }
 
+
+void HookManager::slaveRemoveExecutorHook(
+    const FrameworkInfo& frameworkInfo,
+    const ExecutorInfo& executorInfo)
+{
+  foreachpair (const string& name, Hook* hook, availableHooks) {
+    const Try<Nothing>& result =
+      hook->slaveRemoveExecutorHook(frameworkInfo, executorInfo);
+    if (result.isError()) {
+      LOG(WARNING) << "Slave remove executor hook failed for module '"
+                   << name << "': " << result.error();
+    }
+  }
+}
+
 } // namespace internal {
 } // namespace mesos {

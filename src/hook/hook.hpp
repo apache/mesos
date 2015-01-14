@@ -58,6 +58,16 @@ public:
   {
     return None();
   }
+
+  // This hook is called from within slave when an executor is being
+  // removed.  A typical module implementing the hook will perform
+  // some cleanup as required.
+  virtual Try<Nothing> slaveRemoveExecutorHook(
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo)
+  {
+    return Nothing();
+  }
 };
 
 } // namespace internal {

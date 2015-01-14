@@ -48,6 +48,10 @@ public:
   static Environment slaveLaunchExecutorEnvironmentDecorator(
       const ExecutorInfo& executorInfo,
       const TaskInfo& taskInfo);
+
+  static void slaveRemoveExecutorHook(
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo);
 };
 
 } // namespace internal {
