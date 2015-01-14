@@ -72,7 +72,6 @@ class Slaves;
 }
 
 class Authenticator;
-class AuthenticatorSession;
 class Authorizer;
 class WhitelistWatcher;
 
@@ -594,15 +593,12 @@ private:
   // Authenticator names as supplied via flags.
   std::vector<std::string> authenticatorNames;
 
-  Authenticator* authenticator;
-
   // Frameworks/slaves that are currently in the process of authentication.
   // 'authenticating' future for an authenticatee is ready when it is
   // authenticated.
   hashmap<process::UPID, process::Future<Nothing>> authenticating;
 
-  hashmap<process::UPID, process::Owned<AuthenticatorSession>>
-    authenticatorSessions;
+  hashmap<process::UPID, process::Owned<Authenticator>> authenticators;
 
   // Principals of authenticated frameworks/slaves keyed by PID.
   hashmap<process::UPID, std::string> authenticated;
