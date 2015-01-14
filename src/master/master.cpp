@@ -65,6 +65,8 @@
 
 #include "credentials/credentials.hpp"
 
+#include "hook/manager.hpp"
+
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
@@ -2902,6 +2904,13 @@ void Master::_launchTasks(
       message.mutable_framework_id()->MergeFrom(framework->id);
       message.set_pid(framework->pid);
       message.mutable_task()->MergeFrom(task);
+
+      // Merge labels retrieved from label-decorator hooks.
+      message.mutable_task()->mutable_labels()->MergeFrom(
+          HookManager::masterLaunchTaskLabelDecorator(
+              task,
+              framework->info,
+              slave->info));
 
       send(slave->pid, message);
     }

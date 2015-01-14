@@ -357,6 +357,11 @@ public:
         "and/or slaves. Use the default '" + DEFAULT_AUTHENTICATOR + "', or\n"
         "load an alternate authenticator module using --modules.",
         DEFAULT_AUTHENTICATOR);
+
+    add(&Flags::hooks,
+        "hooks",
+        "A comma separated list of hook modules to be\n"
+        "installed inside master.");
   }
 
   bool version;
@@ -388,6 +393,7 @@ public:
   Option<Duration> offer_timeout;
   Option<Modules> modules;
   std::string authenticators;
+  Option<std::string> hooks;
 
 #ifdef WITH_NETWORK_ISOLATOR
   Option<size_t> max_executors_per_slave;

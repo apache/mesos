@@ -41,6 +41,8 @@
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
 
+#include "hook/manager.hpp"
+
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
@@ -150,6 +152,14 @@ int main(int argc, char** argv)
     Try<Nothing> result = ModuleManager::load(flags.modules.get());
     if (result.isError()) {
       EXIT(1) << "Error loading modules: " << result.error();
+    }
+  }
+
+  // Initialize hooks.
+  if (flags.hooks.isSome()) {
+    Try<Nothing> result = HookManager::initialize(flags.hooks.get());
+    if (result.isError()) {
+      EXIT(1) << "Error installing hooks: " << result.error();
     }
   }
 
