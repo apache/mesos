@@ -29,9 +29,11 @@
 
 #include "common/build.hpp"
 
-#include "master/detector.hpp"
+#include "hook/manager.hpp"
 
 #include "logging/logging.hpp"
+
+#include "master/detector.hpp"
 
 #include "messages/messages.hpp"
 
@@ -125,6 +127,14 @@ int main(int argc, char** argv)
     Try<Nothing> result = ModuleManager::load(flags.modules.get());
     if (result.isError()) {
       EXIT(1) << "Error loading modules: " << result.error();
+    }
+  }
+
+  // Initialize hooks.
+  if (flags.hooks.isSome()) {
+    Try<Nothing> result = HookManager::initialize(flags.hooks.get());
+    if (result.isError()) {
+      EXIT(1) << "Error installing hooks: " << result.error();
     }
   }
 

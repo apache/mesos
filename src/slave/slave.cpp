@@ -69,6 +69,8 @@
 
 #include "credentials/credentials.hpp"
 
+#include "hook/manager.hpp"
+
 #include "logging/logging.hpp"
 
 #include "module/authenticatee.hpp"
@@ -3862,11 +3864,31 @@ Framework::~Framework()
 }
 
 
-// Create and launch an executor.
-Executor* Framework::launchExecutor(
-    const ExecutorInfo& executorInfo,
+// Environment decorator for executor.
+static ExecutorInfo decorateExecutorEnvironment(
+    ExecutorInfo executorInfo,
     const TaskInfo& taskInfo)
 {
+  // Merge environment variables retrieved from label-decorator hooks.
+  executorInfo.mutable_command()->mutable_environment()->MergeFrom(
+      HookManager::slaveLaunchExecutorEnvironmentDecorator(
+          executorInfo,
+          taskInfo));
+
+  return executorInfo;
+}
+
+
+// Create and launch an executor.
+Executor* Framework::launchExecutor(
+    const ExecutorInfo& executorInfo__,
+    const TaskInfo& taskInfo)
+{
+  // Merge environment variables retrieved from environment-decorator
+  // hooks.
+  const ExecutorInfo& executorInfo =
+    decorateExecutorEnvironment(executorInfo__, taskInfo);
+
   // Generate an ID for the executor's container.
   // TODO(idownes) This should be done by the containerizer but we need the
   // ContainerID to create the executor's directory and to set up monitoring.

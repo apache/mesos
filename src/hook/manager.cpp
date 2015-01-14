@@ -110,5 +110,27 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
   return labels;
 }
 
+
+Environment HookManager::slaveLaunchExecutorEnvironmentDecorator(
+    const ExecutorInfo& executorInfo,
+    const TaskInfo& taskInfo)
+{
+  Lock lock(&mutex);
+  Environment environment;
+
+  foreachpair (const string& name, Hook* hook, availableHooks) {
+    const Result<Environment>& result =
+      hook->slaveLaunchExecutorEnvironmentDecorator(executorInfo, taskInfo);
+    if (result.isSome()) {
+      environment.MergeFrom(result.get());
+    } else if (result.isError()) {
+      LOG(WARNING) << "Slave environment decorator hook failed for module '"
+                   << name << "': " << result.error();
+    }
+  }
+
+  return environment;
+}
+
 } // namespace internal {
 } // namespace mesos {

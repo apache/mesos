@@ -434,6 +434,11 @@ public:
         "master. Use the default '" + DEFAULT_AUTHENTICATEE + "', or\n"
         "load an alternate authenticatee module using --modules.",
         DEFAULT_AUTHENTICATEE);
+
+    add(&Flags::hooks,
+        "hooks",
+        "A comma separated list of hook modules to be\n"
+        "installed inside the slave.");
   }
 
   bool version;
@@ -488,6 +493,7 @@ public:
 #endif
   Option<Modules> modules;
   std::string authenticatee;
+  Option<std::string> hooks;
 };
 
 } // namespace slave {

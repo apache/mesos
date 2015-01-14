@@ -44,6 +44,10 @@ public:
       const TaskInfo& taskInfo,
       const FrameworkInfo& frameworkInfo,
       const SlaveInfo& slaveInfo);
+
+  static Environment slaveLaunchExecutorEnvironmentDecorator(
+      const ExecutorInfo& executorInfo,
+      const TaskInfo& taskInfo);
 };
 
 } // namespace internal {

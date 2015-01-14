@@ -21,9 +21,11 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/none.hpp>
 #include <stout/result.hpp>
 
 #include "master/master.hpp"
+#include "slave/slave.hpp"
 
 namespace mesos {
 namespace internal {
@@ -41,6 +43,18 @@ public:
       const TaskInfo& taskInfo,
       const FrameworkInfo& frameworkInfo,
       const SlaveInfo& slaveInfo)
+  {
+    return None();
+  }
+
+  // This environment decorator hook is called from within slave
+  // when launching a new executor.  A module implementing the hook
+  // creates and returns a set of environment variables.  These
+  // environment variables are then merged into the executorInfo
+  // and become part of the executor's environment.
+  virtual Result<Environment> slaveLaunchExecutorEnvironmentDecorator(
+      const ExecutorInfo& executorInfo,
+      const TaskInfo& taskInfo)
   {
     return None();
   }
