@@ -84,6 +84,9 @@ protected:
 };
 
 
+typedef ::testing::Types<HierarchicalDRFAllocatorProcess> AllocatorTypes;
+
+
 // Causes all TYPED_TEST(MasterAllocatorTest, ...) to be run for
 // each of the specified Allocator classes.
 TYPED_TEST_CASE(MasterAllocatorTest, AllocatorTypes);

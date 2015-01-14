@@ -47,7 +47,6 @@
 
 #include "master/allocator.hpp"
 #include "master/detector.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "slave/slave.hpp"
@@ -793,10 +792,6 @@ public:
 
   T real;
 };
-
-
-typedef ::testing::Types<master::allocator::HierarchicalDRFAllocatorProcess>
-AllocatorTypes;
 
 
 // The following actions make up for the fact that DoDefault
