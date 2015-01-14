@@ -3366,7 +3366,7 @@ void Slave::_checkDiskUsage(const Future<double>& usage)
     LOG(ERROR) << "Failed to get disk usage: "
                << (usage.isFailed() ? usage.failure() : "future discarded");
   } else {
-    LOG(INFO) << "Current usage " << std::setiosflags(std::ios::fixed)
+    LOG(INFO) << "Current disk usage " << std::setiosflags(std::ios::fixed)
               << std::setprecision(2) << 100 * usage.get() << "%."
               << " Max allowed age: " << age(usage.get());
 
