@@ -1237,6 +1237,12 @@ libtestauthentication_la_SOURCES = examples/test_authentication_modules.cpp
 libtestauthentication_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestauthentication_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
+# Library containing test Hook module.
+lib_LTLIBRARIES += libtesthook.la
+libtesthook_la_SOURCES = examples/test_hook_module.cpp
+libtesthook_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtesthook_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+
 mesos_tests_SOURCES =				\
   tests/attributes_tests.cpp			\
   tests/authentication_tests.cpp		\
@@ -1260,6 +1266,7 @@ mesos_tests_SOURCES =				\
   tests/flags.cpp				\
   tests/gc_tests.cpp				\
   tests/hierarchical_allocator_tests.cpp	\
+  tests/hook_tests.cpp				\
   tests/isolator_tests.cpp			\
   tests/log_tests.cpp				\
   tests/logging_tests.cpp			\
