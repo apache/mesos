@@ -1323,8 +1323,9 @@ void Master::drop(
   // TODO(bmahler): Increment a metric.
 
   LOG(ERROR) << "Dropping " << scheduler::Call::Type_Name(call.type())
-             <<  " call from framework '" << call.framework_info().name() << "'"
-                 " at " << from << ": " << message;
+             << " call from framework " << call.framework_info().id()
+             << " (" << call.framework_info().name() << ") at " << from
+             << ": " << message;
 }
 
 
@@ -1334,9 +1335,37 @@ void Master::receive(
 {
   const FrameworkInfo& frameworkInfo = call.framework_info();
 
+  // For REGISTER and REREGISTER calls, no need to look up the
+  // framework. Therefore, we handle them first and separately from
+  // other types of calls.
   switch (call.type()) {
     case scheduler::Call::REGISTER:
     case scheduler::Call::REREGISTER:
+      drop(from, call, "Unimplemented");
+      return;
+
+    default:
+      break;
+  }
+
+  // We consolidate the framework lookup and pid validation logic here
+  // because they are common for all the call handlers.
+  Framework* framework = getFramework(frameworkInfo.id());
+
+  if (framework == NULL) {
+    drop(from, call, "Framework cannot be found");
+    return;
+  }
+
+  if (from != framework->pid) {
+    drop(from, call, "Call is not from registered framework");
+    return;
+  }
+
+  // TODO(jieyu): Validate frameworkInfo to make sure it's the same as
+  // the one that the framework used during registration.
+
+  switch (call.type()) {
     case scheduler::Call::UNREGISTER:
     case scheduler::Call::REQUEST:
     case scheduler::Call::REVIVE:
@@ -1349,7 +1378,7 @@ void Master::receive(
         drop(from, call, "Expecting 'accept' to be present");
         return;
       }
-      receive(from, frameworkInfo, call.accept());
+      receive(framework, call.accept());
       break;
 
     case scheduler::Call::LAUNCH:
@@ -1361,17 +1390,14 @@ void Master::receive(
       break;
 
     default:
-      LOG(ERROR) << "Unknown Call type " << call.type()
-                 << " received from framework " << frameworkInfo.name()
-                 << " at " << from;
+      drop(from, call, "Unknown call type");
       break;
   }
 }
 
 
 void Master::receive(
-    const UPID& from,
-    const FrameworkInfo& frameworkInfo,
+    Framework* framework,
     const scheduler::Call::Accept& accept)
 {
   vector<OfferID> offerIds =
@@ -1389,7 +1415,7 @@ void Master::receive(
     }
   }
 
-  launchTasks(from, frameworkInfo.id(), tasks, accept.filters(), offerIds);
+  launchTasks(framework->pid, framework->id, tasks, accept.filters(), offerIds);
 }
 
 

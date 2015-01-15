@@ -419,8 +419,7 @@ private:
       const process::UPID& from,
       const scheduler::Call& call);
   void receive(
-      const process::UPID& from,
-      const FrameworkInfo& frameworkInfo,
+      Framework* framework,
       const scheduler::Call::Accept& accept);
 
   bool elected() const
