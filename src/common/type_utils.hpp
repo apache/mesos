@@ -323,6 +323,23 @@ inline std::ostream& operator << (
 }
 
 
+template <typename T>
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const google::protobuf::RepeatedPtrField<T>& messages)
+{
+  stream << "[ ";
+  for (auto it = messages.begin(); it != messages.end(); ++it) {
+    if (it != messages.begin()) {
+      stream << ", ";
+    }
+    stream << *it;
+  }
+  stream << " ]";
+  return stream;
+}
+
+
 namespace internal {
 
 bool operator == (const Task& left, const Task& right);
