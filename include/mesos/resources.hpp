@@ -92,6 +92,9 @@ public:
   /*implicit*/ Resources(const Resource& resource);
 
   /*implicit*/
+  Resources(const std::vector<Resource>& _resources);
+
+  /*implicit*/
   Resources(const google::protobuf::RepeatedPtrField<Resource>& _resources);
 
   Resources(const Resources& that) : resources(that.resources) {}

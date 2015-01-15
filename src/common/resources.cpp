@@ -412,10 +412,19 @@ Resources::Resources(const Resource& resource)
 }
 
 
-Resources::Resources(
-    const google::protobuf::RepeatedPtrField<Resource>& resources)
+Resources::Resources(const vector<Resource>& _resources)
 {
-  foreach (const Resource& resource, resources) {
+  foreach (const Resource& resource, _resources) {
+    // NOTE: Invalid and zero Resource objects will be ignored.
+    *this += resource;
+  }
+}
+
+
+Resources::Resources(
+    const google::protobuf::RepeatedPtrField<Resource>& _resources)
+{
+  foreach (const Resource& resource, _resources) {
     // NOTE: Invalid and zero Resource objects will be ignored.
     *this += resource;
   }
