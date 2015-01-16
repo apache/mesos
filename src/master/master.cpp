@@ -1378,7 +1378,7 @@ void Master::receive(
         drop(from, call, "Expecting 'accept' to be present");
         return;
       }
-      receive(framework, call.accept());
+      accept(framework, call.accept());
       break;
 
     case scheduler::Call::LAUNCH:
@@ -1396,7 +1396,7 @@ void Master::receive(
 }
 
 
-void Master::receive(
+void Master::accept(
     Framework* framework,
     const scheduler::Call::Accept& accept)
 {

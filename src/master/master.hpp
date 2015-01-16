@@ -418,7 +418,8 @@ private:
   void receive(
       const process::UPID& from,
       const scheduler::Call& call);
-  void receive(
+
+  void accept(
       Framework* framework,
       const scheduler::Call::Accept& accept);
 
