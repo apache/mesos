@@ -98,7 +98,7 @@ public:
   // time for docker to wait after stopping a container before killing it.
   // A value of zero (the default value) is the same as issuing a
   // 'docker kill CONTAINER'.
-  process::Future<Nothing> stop(
+  virtual process::Future<Nothing> stop(
       const std::string& container,
       const Duration& timeout = Seconds(0),
       bool remove = false) const;

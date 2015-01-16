@@ -36,6 +36,7 @@
 
 #include "docker/docker.hpp"
 
+#include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
 using std::cerr;
@@ -305,7 +306,7 @@ void usage(const char* argv0, const flags::FlagsBase& flags)
 }
 
 
-class Flags : public flags::FlagsBase
+class Flags : public mesos::internal::logging::Flags
 {
 public:
   Flags()
@@ -337,6 +338,8 @@ public:
 
 int main(int argc, char** argv)
 {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   Flags flags;
 
   bool help;
@@ -353,6 +356,8 @@ int main(int argc, char** argv)
     usage(argv[0], flags);
     return -1;
   }
+
+  mesos::internal::logging::initialize(argv[0], flags, true); // Catch signals.
 
   if (help) {
     usage(argv[0], flags);
