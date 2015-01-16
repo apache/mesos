@@ -70,7 +70,7 @@ PosixDiskIsolatorProcess::Info::PathInfo::~PathInfo()
 
 
 PosixDiskIsolatorProcess::PosixDiskIsolatorProcess(const Flags& _flags)
-  : flags(_flags), collector(flags.disk_quota_check_interval) {}
+  : flags(_flags), collector(flags.container_disk_watch_interval) {}
 
 
 PosixDiskIsolatorProcess::~PosixDiskIsolatorProcess() {}
@@ -241,14 +241,16 @@ void PosixDiskIsolatorProcess::_collect(
     // Save the last disk usage.
     info->paths[path].lastUsage = future.get();
 
-    Option<Bytes> quota = info->paths[path].quota.disk();
-    CHECK_SOME(quota);
+    if (flags.enforce_container_disk_quota) {
+      Option<Bytes> quota = info->paths[path].quota.disk();
+      CHECK_SOME(quota);
 
-    if (future.get() > quota.get()) {
-      info->limitation.set(Limitation(
-          info->paths[path].quota,
-          "Disk usage (" + stringify(future.get()) +
-          ") exceeds quota (" + stringify(quota.get()) + ")"));
+      if (future.get() > quota.get()) {
+        info->limitation.set(Limitation(
+            info->paths[path].quota,
+            "Disk usage (" + stringify(future.get()) +
+            ") exceeds quota (" + stringify(quota.get()) + ")"));
+      }
     }
   }
 

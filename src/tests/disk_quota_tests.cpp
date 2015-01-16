@@ -157,7 +157,8 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
 
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.
-  flags.disk_quota_check_interval = Milliseconds(1);
+  flags.container_disk_watch_interval = Milliseconds(1);
+  flags.enforce_container_disk_quota = true;
 
   Try<PID<Slave>> slave = StartSlave(flags);
   ASSERT_SOME(slave);
@@ -210,6 +211,108 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
 }
 
 
+// This test verifies that the container will not be killed if
+// disk_enforce_quota flag is false (even if the disk usage exceeds
+// its quota).
+TEST_F(DiskQuotaTest, NoQuotaEnforcement)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "posix/cpu,posix/mem,posix/disk";
+
+  // NOTE: We can't pause the clock because we need the reaper to reap
+  // the 'du' subprocess.
+  flags.container_disk_watch_interval = Milliseconds(1);
+  flags.enforce_container_disk_quota = false;
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  // Create a task that uses 2MB disk.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:1").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *(containers.get().begin());
+
+  // Wait until disk usage can be retrieved and the usage actually
+  // exceeds the limit. If the container is killed due to quota
+  // enforcement (which shouldn't happen), the 'usage' call will
+  // return a failed future, leading to a failed test.
+  Duration elapsed = Duration::zero();
+  while (true) {
+    Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
+    AWAIT_READY(usage);
+
+    ASSERT_TRUE(usage.get().has_disk_limit_bytes());
+    EXPECT_EQ(Megabytes(1), Bytes(usage.get().disk_limit_bytes()));
+
+    if (usage.get().has_disk_used_bytes() &&
+        usage.get().disk_used_bytes() > usage.get().disk_limit_bytes()) {
+      break;
+    }
+
+    if (elapsed > Seconds(5)) {
+      FAIL() << "Failed to wait for process to be traced";
+    }
+
+    os::sleep(Milliseconds(1));
+    elapsed += Milliseconds(1);
+  }
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+
+  delete containerizer.get();
+}
+
+
 TEST_F(DiskQuotaTest, ResourceStatistics)
 {
   Try<PID<Master>> master = StartMaster();
@@ -220,7 +323,7 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
 
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.
-  flags.disk_quota_check_interval = Milliseconds(1);
+  flags.container_disk_watch_interval = Milliseconds(1);
 
   Fetcher fetcher;
 

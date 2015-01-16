@@ -158,7 +158,9 @@ public:
     add(&Flags::disk_watch_interval,
         "disk_watch_interval",
         "Periodic time interval (e.g., 10secs, 2mins, etc)\n"
-        "to check the disk usage",
+        "to check the overall disk usage managed by the slave.\n"
+        "This drives the garbage collection of archived\n"
+        "information and sandboxes.",
         DISK_WATCH_INTERVAL);
 
     add(&Flags::resource_monitoring_interval,
@@ -381,11 +383,17 @@ public:
         false);
 #endif // WITH_NETWORK_ISOLATOR
 
-    add(&Flags::disk_quota_check_interval,
-        "disk_quota_check_interval",
+    add(&Flags::container_disk_watch_interval,
+        "container_disk_watch_interval",
         "The interval between disk quota checks for containers. This flag is\n"
-        "used for the posix/disk' isolator.",
+        "used for the 'posix/disk' isolator.",
         Seconds(30));
+
+    add(&Flags::enforce_container_disk_quota,
+        "enforce_container_disk_quota",
+        "Whether to enable disk quota enforcement for containers. This flag\n"
+        "is used for the 'posix/disk' isolator.",
+        false);
 
     // This help message for --modules flag is the same for
     // {master,slave,tests}/flags.hpp and should always be kept in
@@ -497,7 +505,8 @@ public:
   Option<Bytes> egress_rate_limit_per_container;
   bool network_enable_socket_statistics;
 #endif
-  Duration disk_quota_check_interval;
+  Duration container_disk_watch_interval;
+  bool enforce_container_disk_quota;
   Option<Modules> modules;
   std::string authenticatee;
   Option<std::string> hooks;
