@@ -45,6 +45,7 @@
 #include "common/type_utils.hpp"
 
 #include "logging/flags.hpp"
+#include "logging/logging.hpp"
 
 using namespace mesos;
 
@@ -445,6 +446,8 @@ int main(int argc, char** argv)
     usage(argv[0], flags);
     EXIT(1);
   }
+
+  internal::logging::initialize(argv[0], flags, true); // Catch signals.
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
