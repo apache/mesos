@@ -1206,18 +1206,19 @@ TEST_F(FaultToleranceTest, ReregisterFrameworkExitedExecutor)
 
   AWAIT_READY(executorExitedMessage);
 
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
   // Now notify the framework of the new master.
-  Future<FrameworkRegisteredMessage> frameworkRegisteredMessage2 =
-    FUTURE_PROTOBUF(FrameworkRegisteredMessage(), _, _);
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
-
   schedDetector.appoint(master.get());
 
-  AWAIT_READY(frameworkRegisteredMessage2);
+  // Ensure framework successfully registers.
+  AWAIT_READY(registered);
 
   driver.stop();
   driver.join();
+
   Shutdown();
 }
 
