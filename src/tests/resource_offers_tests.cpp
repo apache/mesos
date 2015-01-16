@@ -1363,12 +1363,6 @@ TEST_F(ResourceOffersTest, Request)
   EXPECT_NE(0u, received.get().size());
   EXPECT_EQ(request.slave_id(), received.get()[0].slave_id());
 
-  EXPECT_CALL(allocator, deactivateFramework(_))
-    .Times(AtMost(1)); // Races with shutting down the cluster.
-
-  EXPECT_CALL(allocator, removeFramework(_))
-    .Times(AtMost(1)); // Races with shutting down the cluster.
-
   driver.stop();
   driver.join();
 

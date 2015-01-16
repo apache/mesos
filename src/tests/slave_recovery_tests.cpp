@@ -67,6 +67,10 @@ using namespace process;
 
 using google::protobuf::RepeatedPtrField;
 
+using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
+
+using mesos::internal::master::Master;
+
 using mesos::internal::master::Master;
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
@@ -2255,8 +2259,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 // using an explicit executor.
 TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 {
-  TestAllocatorProcess<master::allocator::HierarchicalDRFAllocatorProcess>
-    allocator;
+  TestAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _));
 
@@ -2408,11 +2411,6 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
             Resources(offers2.get()[0].resources()));
 
   Clock::resume();
-
-  EXPECT_CALL(allocator, deactivateFramework(_))
-    .WillRepeatedly(Return());
-  EXPECT_CALL(allocator, removeFramework(_))
-    .WillRepeatedly(Return());
 
   // If there was an outstanding offer, we can get a call to
   // recoverResources when we stop the scheduler.

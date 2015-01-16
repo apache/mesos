@@ -128,20 +128,8 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
   AWAIT_READY(resourceOffers);
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(this->allocator, removeFramework(_))
-    .Times(AtMost(1));
-
   driver.stop();
   driver.join();
-
-  EXPECT_CALL(this->allocator, removeSlave(_))
-    .Times(AtMost(1));
 
   this->Shutdown();
 }
@@ -235,12 +223,6 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .Times(AtMost(2));
-
-  EXPECT_CALL(this->allocator, removeFramework(_))
-    .Times(AtMost(2));
-
   Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(FutureSatisfy(&shutdown));
@@ -252,9 +234,6 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   driver2.join();
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
-
-  EXPECT_CALL(this->allocator, removeSlave(_))
-    .Times(AtMost(1));
 
   this->Shutdown();
 }
@@ -372,20 +351,8 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   AWAIT_READY(resourceOffers);
 
   // Shut everything down.
-  EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(this->allocator, removeFramework(Eq(frameworkId2)))
-    .Times(AtMost(1));
-
   driver2.stop();
   driver2.join();
-
-  EXPECT_CALL(this->allocator, removeSlave(_))
-    .Times(AtMost(1));
 
   this->Shutdown();
 }
@@ -497,6 +464,9 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
 
   AWAIT_READY(resourceOffers);
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   // Shut everything down.
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
@@ -504,17 +474,8 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   EXPECT_CALL(this->allocator, deactivateFramework(_))
     .Times(AtMost(1));
 
-  EXPECT_CALL(this->allocator, removeFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
-
   driver2.stop();
   driver2.join();
-
-  EXPECT_CALL(this->allocator, removeSlave(_))
-    .Times(AtMost(1));
 
   this->Shutdown();
 }
@@ -641,12 +602,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .Times(AtMost(2)); // Once for each framework.
-
-  EXPECT_CALL(this->allocator, removeFramework(_))
-    .Times(AtMost(2)); // Once for each framework.
-
   // After we stop framework 1, all of it's resources should
   // have been returned, but framework 2 should still have a
   // task with 1 cpu and 256 mem, leaving 2 cpus and 768 mem.
@@ -667,9 +622,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 
   driver2.stop();
   driver2.join();
-
-  EXPECT_CALL(this->allocator, removeSlave(_))
-    .Times(AtMost(1));
 
   this->Shutdown();
 }
@@ -777,12 +729,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(this->allocator, removeFramework(_))
-    .Times(AtMost(1));
-
   driver.stop();
   driver.join();
 
@@ -872,24 +818,15 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
 
   AWAIT_READY(resourceOffers);
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   // Shut everything down.
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(this->allocator, removeFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
-
   driver.stop();
   driver.join();
-
-  EXPECT_CALL(this->allocator, removeSlave(_))
-    .Times(AtMost(2));
 
   this->Shutdown();
 }
@@ -980,24 +917,15 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
 
   AWAIT_READY(resourceOffers);
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   // Shut everything down.
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(this->allocator, removeFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
-
   driver.stop();
   driver.join();
-
-  EXPECT_CALL(this->allocator, removeSlave(_))
-    .Times(AtMost(1));
 
   this->Shutdown();
 }
@@ -1032,9 +960,6 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
   EXPECT_CALL(this->allocator, addFramework(_, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
-
-  EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillRepeatedly(DoDefault());
 
   // Launch a cpus only task.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(2, 0)))
@@ -1071,21 +996,12 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
 
   AWAIT_READY(resourceOffers);
 
-  // Shut everything down.
-  EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(this->allocator, removeFramework(_))
-    .Times(AtMost(1));
-
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
+  // Shut everything down.
   driver.stop();
   driver.join();
-
-  EXPECT_CALL(this->allocator, removeSlave(_))
-    .Times(AtMost(1));
 
   this->Shutdown();
 }
@@ -1120,9 +1036,6 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
   EXPECT_CALL(this->allocator, addFramework(_, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
-
-  EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillRepeatedly(DoDefault());
 
   // Launch a memory only task.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(0, 200)))
@@ -1159,21 +1072,12 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
 
   AWAIT_READY(resourceOffers);
 
-  // Shut everything down.
-  EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(this->allocator, removeFramework(_))
-    .Times(AtMost(1));
-
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
+  // Shut everything down.
   driver.stop();
   driver.join();
-
-  EXPECT_CALL(this->allocator, removeSlave(_))
-    .Times(AtMost(1));
 
   this->Shutdown();
 }
@@ -1411,24 +1315,12 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   // should only be offered the resources not being used by the task.
   EXPECT_THAT(resourceOffers2.get(), OfferEq(1, 524));
 
-  // Shut everything down.
-  EXPECT_CALL(allocator2, recoverResources(_, _, _, _))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(allocator2, deactivateFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(allocator2, removeFramework(_))
-    .Times(AtMost(1));
-
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
+  // Shut everything down.
   driver.stop();
   driver.join();
-
-  EXPECT_CALL(allocator2, removeSlave(_))
-    .Times(AtMost(1));
 
   this->Shutdown();
 }
@@ -1536,24 +1428,12 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   // should only be offered the resources not being used by the task.
   EXPECT_THAT(resourceOffers2.get(), OfferEq(1, 524));
 
-  // Shut everything down.
-  EXPECT_CALL(allocator2, recoverResources(_, _, _, _))
-    .WillRepeatedly(DoDefault());
-
-  EXPECT_CALL(allocator2, deactivateFramework(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(allocator2, removeFramework(_))
-    .Times(AtMost(1));
-
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
+  // Shut everything down.
   driver.stop();
   driver.join();
-
-  EXPECT_CALL(allocator2, removeSlave(_))
-    .Times(AtMost(1));
 
   this->Shutdown();
 }
