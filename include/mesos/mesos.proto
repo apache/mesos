@@ -465,7 +465,9 @@ message ResourceStatistics {
   optional uint64 mem_anon_bytes = 11;
   optional uint64 mem_mapped_file_bytes = 12;
 
-  // TODO(bmahler): Add disk usage.
+  // Disk Usage Information for executor working directory.
+  optional uint64 disk_limit_bytes = 26;
+  optional uint64 disk_used_bytes = 27;
 
   // Perf statistics.
   optional PerfStatistics perf = 13;

@@ -114,7 +114,6 @@ private:
   struct Info
   {
     explicit Info(const std::string& _directory) : directory(_directory) {}
-    ~Info();
 
     // We save executor working directory here so that we know where
     // to collect disk usage for disk resources without DiskInfo.
@@ -124,8 +123,17 @@ private:
 
     // The keys of the hashmaps contain the executor working directory
     // above, and optionally paths of volumes used by the container.
-    hashmap<std::string, Resources> quotas;
-    hashmap<std::string, process::Future<Bytes>> usages;
+    // For each path, we maintain its quota and its last usage.
+    struct PathInfo
+    {
+      ~PathInfo();
+
+      Resources quota;
+      process::Future<Bytes> usage;
+      Option<Bytes> lastUsage;
+    };
+
+    hashmap<std::string, PathInfo> paths;
   };
 
   hashmap<ContainerID, process::Owned<Info>> infos;

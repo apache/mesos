@@ -63,11 +63,9 @@ Try<Isolator*> PosixDiskIsolatorProcess::create(const Flags& flags)
 }
 
 
-PosixDiskIsolatorProcess::Info::~Info()
+PosixDiskIsolatorProcess::Info::PathInfo::~PathInfo()
 {
-  foreachvalue (Future<Bytes> usage, usages) {
-    usage.discard();
-  }
+  usage.discard();
 }
 
 
@@ -182,10 +180,11 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
     quotas[path] += resource;
   }
 
-  // Initiate disk usage collection for new paths.
-  foreachkey (const string& path, quotas) {
-    if (!info->usages.contains(path)) {
-      info->usages[path] = collector.usage(path)
+  // Update the quota for paths. For each new path, we also initiate
+  // the disk usage collection.
+  foreachpair (const string& path, const Resources& quota, quotas) {
+    if (!info->paths.contains(path)) {
+      info->paths[path].usage = collector.usage(path)
         .onAny(defer(
             PID<PosixDiskIsolatorProcess>(this),
             &PosixDiskIsolatorProcess::_collect,
@@ -193,21 +192,16 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
             path,
             lambda::_1));
     }
+
+    info->paths[path].quota = quota;
   }
 
-  // Cancel unneeded disk usage collection.
-  foreachkey (const string& path, info->quotas) {
+  // Remove paths that we no longer interested in.
+  foreach (const string& path, info->paths.keys()) {
     if (!quotas.contains(path)) {
-      CHECK(info->usages.contains(path)) << "Unknown path " << path;
-
-      info->usages[path].discard();
-      info->usages.erase(path);
+      info->paths.erase(path);
     }
   }
-
-  info->quotas = quotas;
-
-  CHECK_EQ(info->quotas.size(), info->usages.size());
 
   return Nothing();
 }
@@ -233,7 +227,7 @@ void PosixDiskIsolatorProcess::_collect(
 
   const Owned<Info>& info = infos[containerId];
 
-  if (!info->quotas.contains(path)) {
+  if (!info->paths.contains(path)) {
     // The path might have just been removed from this container's
     // resources.
     return;
@@ -243,19 +237,22 @@ void PosixDiskIsolatorProcess::_collect(
   // limitation. We keep collecting the disk usage for 'path' by
   // initiating another round of disk usage check. The check will be
   // throttled by DiskUsageCollector.
-  Option<Bytes> quota = info->quotas[path].disk();
-  CHECK_SOME(quota);
+  if (future.isReady()) {
+    // Save the last disk usage.
+    info->paths[path].lastUsage = future.get();
 
-  if (future.isReady() && future.get() > quota.get()) {
-    info->limitation.set(Limitation(
-        info->quotas[path],
-        "Disk usage (" + stringify(future.get()) +
-        ") exceeds quota (" + stringify(quota.get()) + ")"));
+    Option<Bytes> quota = info->paths[path].quota.disk();
+    CHECK_SOME(quota);
+
+    if (future.get() > quota.get()) {
+      info->limitation.set(Limitation(
+          info->paths[path].quota,
+          "Disk usage (" + stringify(future.get()) +
+          ") exceeds quota (" + stringify(quota.get()) + ")"));
+    }
   }
 
-  CHECK(info->usages.contains(path));
-
-  info->usages[path] = collector.usage(path)
+  info->paths[path].usage = collector.usage(path)
     .onAny(defer(
         PID<PosixDiskIsolatorProcess>(this),
         &PosixDiskIsolatorProcess::_collect,
@@ -269,11 +266,28 @@ Future<ResourceStatistics> PosixDiskIsolatorProcess::usage(
     const ContainerID& containerId)
 {
   if (!infos.contains(containerId)) {
-    VLOG(1) << "Unkonwn container " << containerId;
+    return Failure("Unknown container");
   }
 
-  // TODO(jieyu): Collect disk usage statistics.
-  return ResourceStatistics();
+  ResourceStatistics result;
+
+  const Owned<Info>& info = infos[containerId];
+
+  if (info->paths.contains(info->directory)) {
+    Option<Bytes> quota = info->paths[info->directory].quota.disk();
+    CHECK_SOME(quota);
+
+    result.set_disk_limit_bytes(quota.get().bytes());
+
+    // NOTE: There may be a large delay (# of containers * interval)
+    // until an initial cached value is returned here!
+    if (info->paths[info->directory].lastUsage.isSome()) {
+      result.set_disk_used_bytes(
+          info->paths[info->directory].lastUsage.get().bytes());
+    }
+  }
+
+  return result;
 }
 
 
@@ -283,10 +297,6 @@ Future<Nothing> PosixDiskIsolatorProcess::cleanup(
   if (!infos.contains(containerId)) {
     LOG(WARNING) << "Ignoring cleanup for unknown container " << containerId;
     return Nothing();
-  }
-
-  foreachvalue (Future<Bytes> future, infos[containerId]->usages) {
-    future.discard();
   }
 
   infos.erase(containerId);
