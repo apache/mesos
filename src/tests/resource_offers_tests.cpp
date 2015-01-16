@@ -553,7 +553,9 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
 }
 
 
-TEST_F(TaskValidationTest, UnreservedDiskInfo)
+// TODO(jieyu): Disable all persistent volume related tests for now.
+// Those tests should be moved to OfferOperationValidationTest.
+TEST_F(TaskValidationTest, DISABLED_UnreservedDiskInfo)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -615,7 +617,7 @@ TEST_F(TaskValidationTest, UnreservedDiskInfo)
 }
 
 
-TEST_F(TaskValidationTest, InvalidPersistenceID)
+TEST_F(TaskValidationTest, DISABLED_InvalidPersistenceID)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -677,7 +679,7 @@ TEST_F(TaskValidationTest, InvalidPersistenceID)
 }
 
 
-TEST_F(TaskValidationTest, PersistentDiskInfoWithoutVolume)
+TEST_F(TaskValidationTest, DISABLED_PersistentDiskInfoWithoutVolume)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -739,7 +741,7 @@ TEST_F(TaskValidationTest, PersistentDiskInfoWithoutVolume)
 }
 
 
-TEST_F(TaskValidationTest, PersistentDiskInfoWithReadOnlyVolume)
+TEST_F(TaskValidationTest, DISABLED_PersistentDiskInfoWithReadOnlyVolume)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -801,7 +803,7 @@ TEST_F(TaskValidationTest, PersistentDiskInfoWithReadOnlyVolume)
 }
 
 
-TEST_F(TaskValidationTest, PersistentDiskInfoWithHostPath)
+TEST_F(TaskValidationTest, DISABLED_PersistentDiskInfoWithHostPath)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -864,7 +866,7 @@ TEST_F(TaskValidationTest, PersistentDiskInfoWithHostPath)
 }
 
 
-TEST_F(TaskValidationTest, NonPersistentDiskInfoWithVolume)
+TEST_F(TaskValidationTest, DISABLED_NonPersistentDiskInfoWithVolume)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -926,7 +928,7 @@ TEST_F(TaskValidationTest, NonPersistentDiskInfoWithVolume)
 }
 
 
-TEST_F(TaskValidationTest, DuplicatedPersistenceIDWithinTask)
+TEST_F(TaskValidationTest, DISABLED_DuplicatedPersistenceIDWithinTask)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -993,7 +995,7 @@ TEST_F(TaskValidationTest, DuplicatedPersistenceIDWithinTask)
 
 // This test ensures that a persistent disk that is larger than the
 // offered disk resources results in a failed task.
-TEST_F(TaskValidationTest, AcquirePersistentDiskTooBig)
+TEST_F(TaskValidationTest, DISABLED_AcquirePersistentDiskTooBig)
 {
   // Create a framework with role "role1";
   FrameworkInfo frameworkInfo;

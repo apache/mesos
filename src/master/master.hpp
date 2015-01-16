@@ -358,15 +358,6 @@ protected:
       const TaskInfo& task,
       Framework* framework);
 
-  // 'launchTasks()' continuation.
-  void _launchTasks(
-      const FrameworkID& frameworkId,
-      const SlaveID& slaveId,
-      const std::vector<TaskInfo>& tasks,
-      const Resources& totalResources,
-      const Filters& filters,
-      const process::Future<std::list<process::Future<bool>>>& authorizations);
-
   // Add the task and its executor (if not already running) to the
   // framework and slave. Returns the resources consumed as a result,
   // which includes resources for the task and its executor
@@ -422,6 +413,13 @@ private:
   void accept(
       Framework* framework,
       const scheduler::Call::Accept& accept);
+
+  void _accept(
+    const FrameworkID& frameworkId,
+    const SlaveID& slaveId,
+    const Resources& offeredResources,
+    const scheduler::Call::Accept& accept,
+    const process::Future<std::list<process::Future<bool>>>& authorizations);
 
   bool elected() const
   {

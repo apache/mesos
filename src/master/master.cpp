@@ -1396,29 +1396,6 @@ void Master::receive(
 }
 
 
-void Master::accept(
-    Framework* framework,
-    const scheduler::Call::Accept& accept)
-{
-  vector<OfferID> offerIds =
-    google::protobuf::convert(accept.offer_ids());
-
-  vector<TaskInfo> tasks;
-
-  // TODO(bmahler): Update this to apply other operations, which
-  // may need some structural change in the master.
-  foreach (const Offer::Operation& operation, accept.operations()) {
-    if (operation.type() == Offer::Operation::LAUNCH) {
-      foreach (const TaskInfo& task, operation.launch().task_infos()) {
-        tasks.push_back(task);
-      }
-    }
-  }
-
-  launchTasks(framework->pid, framework->id, tasks, accept.filters(), offerIds);
-}
-
-
 void Master::registerFramework(
     const UPID& from,
     const FrameworkInfo& frameworkInfo)
@@ -2011,7 +1988,8 @@ struct ResourceValidator : TaskInfoValidator
       const Resources& offeredResources,
       const Resources& usedResources)
   {
-    // This is used to ensure no duplicated persistence id exists.
+    // TODO(jieyu): Move duplicated persistence ID checks to offer
+    // operation validators for CREATE_VOLUME.
     // TODO(jieyu): The check we have right now is a partial check for
     // the current task. We need to add checks against slave's
     // existing tasks and executors as well.
@@ -2078,6 +2056,8 @@ struct ResourceValidator : TaskInfoValidator
     return None();
   }
 
+  // TODO(jieyu): Factor out into a standalone validator so that we
+  // can use it to validate offer operations as well.
   Option<Error> validateDiskInfo(const Resource& resource)
   {
     CHECK(resource.has_disk());
@@ -2177,60 +2157,10 @@ struct ResourceUsageValidator : TaskInfoValidator
       resources += executorResources;
     }
 
-    // We allow frameworks to implicitly acquire persistent disks
-    // through task and executor resources. This means that we need to
-    // infer these implicit disk acquisition transformations on the
-    // offered resources, so that we can validate resource usage.
-    //
-    // NOTE: ResourceValidator ensures that there are no duplicate
-    // persistence IDs per role in 'resources'.
-    //
-    // NOTE: 'offeredResources' will not contain duplicate persistence
-    // IDs per role, given we do not construct such offers.
-    Resources::CompositeTransformation transformation;
-    foreach (const Resource& disk, resources.persistentDisks()) {
-      if (!offeredResources.contains(disk)) {
-        // This is an implicit acquisition. The framework is not
-        // allowed to mutate an offered persistent disk, so we need to
-        // check the offered resources for this persistence ID within
-        // the role.
-        //
-        // TODO(jieyu): We need to ensure this persistence ID within
-        // the role does not clash with any in-use persistent disks on
-        // the slave.
-        string id = disk.disk().persistence().id();
-        foreach (const Resource& offered, offeredResources.persistentDisks()) {
-          if (offered.role() == disk.role() &&
-              offered.disk().persistence().id() == id) {
-            return Error("Duplicated persistence ID '" + id + "'");
-          }
-        }
-
-        transformation.add(Resources::AcquirePersistentDisk(disk));
-      }
-    }
-
-    // Validate that the offered resources are sufficient for
-    // launching this task/executor. To do that, we must first apply
-    // the implicit transformations.
-    Try<Resources> transformedOfferedResources =
-      transformation(offeredResources);
-
-    if (transformedOfferedResources.isError()) {
-      // TODO(jieyu): Revisit this error message once we start to
-      // allow other types of transformations (e.g., dynamic
-      // reservations).
-      return Error(
-          "Failed to acquire persistent disks: " +
-          transformedOfferedResources.error());
-    }
-
-    if (!transformedOfferedResources.get()
-          .contains(resources + usedResources)) {
+    if (!offeredResources.contains(resources + usedResources)) {
       return Error(
           "Task uses more resources " + stringify(resources) +
-          " than available " +
-          stringify(transformedOfferedResources.get() - usedResources));
+          " than available " + stringify(offeredResources - usedResources));
     }
 
     return None();
@@ -2492,111 +2422,21 @@ void Master::launchTasks(
     return;
   }
 
-  // TODO(bmahler): We currently only support using multiple offers
-  // for a single slave.
-  Resources offeredResources;
-  Option<SlaveID> slaveId = None();
-  Option<Error> error = None();
+  scheduler::Call::Accept message;
+  message.mutable_filters()->CopyFrom(filters);
 
-  if (offerIds.empty()) {
-    error = Error("No offers specified");
-  } else {
-    vector<Owned<OfferValidator>> offerValidators = {
-      Owned<OfferValidator>(new ValidOfferValidator()),
-      Owned<OfferValidator>(new FrameworkValidator()),
-      Owned<OfferValidator>(new SlaveValidator()),
-      Owned<OfferValidator>(new UniqueOfferIDValidator())
-    };
+  Offer::Operation* operation = message.add_operations();
+  operation->set_type(Offer::Operation::LAUNCH);
 
-    // Validate the offers.
-    foreach (const OfferID& offerId, offerIds) {
-      foreach (const Owned<OfferValidator>& validator, offerValidators) {
-        if (error.isNone()) {
-          error = (*validator)(offerId, *framework, this);
-        }
-      }
-    }
-
-    // Compute offered resources and remove the offers. If the
-    // validation failed, return resources to the allocator.
-    foreach (const OfferID& offerId, offerIds) {
-      Offer* offer = getOffer(offerId);
-      if (offer != NULL) {
-        slaveId = offer->slave_id();
-        offeredResources += offer->resources();
-
-        if (error.isSome()) {
-          allocator->recoverResources(
-              offer->framework_id(),
-              offer->slave_id(),
-              offer->resources(),
-              None());
-        }
-        removeOffer(offer);
-      }
-    }
-  }
-
-  // If invalid, send TASK_LOST for the launch attempts.
-  if (error.isSome()) {
-    LOG(WARNING) << "Launch tasks message used invalid offers '"
-                 << stringify(offerIds) << "': " << error.get().message;
-
-    foreach (const TaskInfo& task, tasks) {
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          framework->id,
-          task.slave_id(),
-          task.task_id(),
-          TASK_LOST,
-          TaskStatus::SOURCE_MASTER,
-          "Task launched with invalid offers: " + error.get().message,
-          TaskStatus::REASON_INVALID_OFFERS);
-
-      metrics.tasks_lost++;
-      stats.tasks[TASK_LOST]++;
-
-      forward(update, UPID(), framework);
-    }
-
-    return;
-  }
-
-  CHECK_SOME(slaveId);
-  Slave* slave = CHECK_NOTNULL(getSlave(slaveId.get()));
-
-  LOG(INFO) << "Processing reply for offers: " << stringify(offerIds)
-            << " on slave " << *slave
-            << " for framework " << *framework;
-
-  // Authorize each task. A task is in 'framework->pendingTasks'
-  // before it is authorized.
-  list<Future<bool>> futures;
   foreach (const TaskInfo& task, tasks) {
-    futures.push_back(authorizeTask(task, framework));
-
-    // Add to pending tasks.
-    // NOTE: The task ID here hasn't been validated yet, but it
-    // doesn't matter. If the task ID is not valid, the task won't be
-    // launched anyway. If two tasks have the same ID, the second one
-    // will not be put into 'framework->pendingTasks', therefore will
-    // not be launched.
-    if (!framework->pendingTasks.contains(task.task_id())) {
-      framework->pendingTasks[task.task_id()] = task;
-    }
-
-    stats.tasks[TASK_STAGING]++;
+    operation->mutable_launch()->add_task_infos()->CopyFrom(task);
   }
 
-  // Wait for all the tasks to be authorized.
-  await(futures)
-    .onAny(defer(self(),
-                 &Master::_launchTasks,
-                 frameworkId,
-                 slaveId.get(),
-                 tasks,
-                 offeredResources,
-                 filters,
-                 lambda::_1));
+  foreach (const OfferID& offerId, offerIds) {
+    message.add_offer_ids()->CopyFrom(offerId);
+  }
+
+  accept(framework, message);
 }
 
 
@@ -2746,21 +2586,153 @@ Resources Master::addTask(
 }
 
 
-void Master::_launchTasks(
+void Master::accept(
+    Framework* framework,
+    const scheduler::Call::Accept& accept)
+{
+  // TODO(jieyu): Update metrics for ACCEPT calls.
+
+  // TODO(bmahler): We currently only support using multiple offers
+  // for a single slave.
+  Resources offeredResources;
+  Option<SlaveID> slaveId = None();
+  Option<Error> error = None();
+
+  if (accept.offer_ids().size() == 0) {
+    error = Error("No offers specified");
+  } else {
+    vector<Owned<OfferValidator>> validators = {
+      Owned<OfferValidator>(new ValidOfferValidator()),
+      Owned<OfferValidator>(new FrameworkValidator()),
+      Owned<OfferValidator>(new SlaveValidator()),
+      Owned<OfferValidator>(new UniqueOfferIDValidator())
+    };
+
+    // Validate the offers.
+    foreach (const OfferID& offerId, accept.offer_ids()) {
+      foreach (const Owned<OfferValidator>& validator, validators) {
+        if (error.isNone()) {
+          error = (*validator)(offerId, *framework, this);
+        }
+      }
+    }
+
+    // Compute offered resources and remove the offers. If the
+    // validation failed, return resources to the allocator.
+    foreach (const OfferID& offerId, accept.offer_ids()) {
+      Offer* offer = getOffer(offerId);
+      if (offer != NULL) {
+        slaveId = offer->slave_id();
+        offeredResources += offer->resources();
+
+        if (error.isSome()) {
+          allocator->recoverResources(
+              offer->framework_id(),
+              offer->slave_id(),
+              offer->resources(),
+              None());
+        }
+        removeOffer(offer);
+      }
+    }
+  }
+
+  // If invalid, send TASK_LOST for the launch attempts.
+  // TODO(jieyu): Consider adding a 'drop' overload for ACCEPT call to
+  // consistently handle message dropping. It would be ideal if the
+  // 'drop' overload can handle both resource recovery and lost task
+  // notifications.
+  if (error.isSome()) {
+    LOG(WARNING) << "ACCEPT call used invalid offers '" << accept.offer_ids()
+                 << "': " << error.get().message;
+
+    foreach (const Offer::Operation& operation, accept.operations()) {
+      if (operation.type() != Offer::Operation::LAUNCH) {
+        continue;
+      }
+
+      foreach (const TaskInfo& task, operation.launch().task_infos()) {
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+            framework->id,
+            task.slave_id(),
+            task.task_id(),
+            TASK_LOST,
+            TaskStatus::SOURCE_MASTER,
+            "Task launched with invalid offers: " + error.get().message,
+            TaskStatus::REASON_INVALID_OFFERS);
+
+        metrics.tasks_lost++;
+        stats.tasks[TASK_LOST]++;
+
+        forward(update, UPID(), framework);
+      }
+    }
+
+    return;
+  }
+
+  CHECK_SOME(slaveId);
+  Slave* slave = CHECK_NOTNULL(getSlave(slaveId.get()));
+
+  LOG(INFO) << "Processing ACCEPT call for offers: " << accept.offer_ids()
+            << " on slave " << *slave << " for framework " << *framework;
+
+  // If LAUNCH operation is included, authorize the tasks. A task is
+  // in 'framework->pendingTasks' before it is authorized.
+  //
+  // TODO(jieyu): Currently, we only do authorization for the LAUNCH
+  // operation. In the future, we might want to introduce
+  // authorizations for other offer operations as well.
+  list<Future<bool>> futures;
+  foreach (const Offer::Operation& operation, accept.operations()) {
+    if (operation.type() != Offer::Operation::LAUNCH) {
+      continue;
+    }
+
+    foreach (const TaskInfo& task, operation.launch().task_infos()) {
+      futures.push_back(authorizeTask(task, framework));
+
+      // Add to pending tasks.
+      //
+      // NOTE: The task ID here hasn't been validated yet, but it
+      // doesn't matter. If the task ID is not valid, the task won't
+      // be launched anyway. If two tasks have the same ID, the second
+      // one will not be put into 'framework->pendingTasks', therefore
+      // will not be launched.
+      if (!framework->pendingTasks.contains(task.task_id())) {
+        framework->pendingTasks[task.task_id()] = task;
+      }
+
+      stats.tasks[TASK_STAGING]++;
+    }
+  }
+
+  // Wait for all the tasks to be authorized.
+  await(futures)
+    .onAny(defer(self(),
+                 &Master::_accept,
+                 framework->id,
+                 slaveId.get(),
+                 offeredResources,
+                 accept,
+                 lambda::_1));
+}
+
+
+void Master::_accept(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    const vector<TaskInfo>& tasks,
     const Resources& offeredResources,
-    const Filters& filters,
-    const Future<list<Future<bool>>>& authorizations)
+    const scheduler::Call::Accept& accept,
+    const Future<list<Future<bool>>>& _authorizations)
 {
-  CHECK_READY(authorizations);
-  CHECK_EQ(authorizations.get().size(), tasks.size());
-
   Framework* framework = getFramework(frameworkId);
+
+  // TODO(jieyu): Consider using the 'drop' overload mentioned in
+  // 'accept' to consistently handle dropping ACCEPT calls.
   if (framework == NULL) {
     LOG(WARNING)
-      << "Ignoring launch tasks message for framework " << frameworkId
+      << "Ignoring ACCEPT call for framework " << frameworkId
       << " because the framework cannot be found";
 
     // Tell the allocator about the recovered resources.
@@ -2774,23 +2746,30 @@ void Master::_launchTasks(
   }
 
   Slave* slave = getSlave(slaveId);
+
   if (slave == NULL || !slave->connected) {
-    foreach (const TaskInfo& task, tasks) {
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          framework->id,
-          task.slave_id(),
-          task.task_id(),
-          TASK_LOST,
-          TaskStatus::SOURCE_MASTER,
-          slave == NULL ? "Slave removed" : "Slave disconnected",
-          slave == NULL ?
-              TaskStatus::REASON_SLAVE_REMOVED :
-              TaskStatus::REASON_SLAVE_DISCONNECTED);
+    foreach (const Offer::Operation& operation, accept.operations()) {
+      if (operation.type() != Offer::Operation::LAUNCH) {
+        continue;
+      }
 
-      metrics.tasks_lost++;
-      stats.tasks[TASK_LOST]++;
+      foreach (const TaskInfo& task, operation.launch().task_infos()) {
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+            framework->id,
+            task.slave_id(),
+            task.task_id(),
+            TASK_LOST,
+            TaskStatus::SOURCE_MASTER,
+            slave == NULL ? "Slave removed" : "Slave disconnected",
+            slave == NULL ?
+                TaskStatus::REASON_SLAVE_REMOVED :
+                TaskStatus::REASON_SLAVE_DISCONNECTED);
 
-      forward(update, UPID(), framework);
+        metrics.tasks_lost++;
+        stats.tasks[TASK_LOST]++;
+
+        forward(update, UPID(), framework);
+      }
     }
 
     // Tell the allocator about the recovered resources.
@@ -2803,152 +2782,146 @@ void Master::_launchTasks(
     return;
   }
 
+  // Some offer operations transform the offered resources. We keep
+  // transformed offered resources here.
+  Resources _offeredResources = offeredResources;
 
-  // We need to transform the offered resources by considering
-  // resources transformations like persistent disk acquisition.
-  Resources transformedOfferedResources = offeredResources;
-
-  // Accumulated resources used by launched tasks.
+  // Accumulated resources used.
   Resources usedResources;
 
-  size_t index = 0;
-  foreach (const Future<bool>& authorization, authorizations.get()) {
-    const TaskInfo& task = tasks[index++];
+  CHECK_READY(_authorizations);
+  list<Future<bool>> authorizations = _authorizations.get();
 
-    // NOTE: The task will not be in 'pendingTasks' if 'killTask()'
-    // for the task was called before we are here. No need to launch
-    // the task if it's no longer pending. However, we still need to
-    // check the authorization result and do the validation so that we
-    // can send status update in case the task has duplicated ID.
-    bool pending = framework->pendingTasks.contains(task.task_id());
-
-    // Remove from pending tasks.
-    framework->pendingTasks.erase(task.task_id());
-
-    // Check authorization result.
-    CHECK(!authorization.isDiscarded());
-
-    if (authorization.isFailed() || !authorization.get()) {
-      string user = framework->info.user(); // Default user.
-      if (task.has_command() && task.command().has_user()) {
-        user = task.command().user();
-      } else if (task.has_executor() && task.executor().command().has_user()) {
-        user = task.executor().command().user();
+  foreach (const Offer::Operation& operation, accept.operations()) {
+    // TODO(jieyu): Validate each operation!
+    switch (operation.type()) {
+      case Offer::Operation::RESERVE:
+      case Offer::Operation::UNRESERVE:
+      case Offer::Operation::CREATE:
+      case Offer::Operation::DESTROY: {
+        // TODO(jieyu): Provide implementation for those operations.
+        LOG(ERROR) << "Unsupported offer operation" << operation.type();
+        break;
       }
+      case Offer::Operation::LAUNCH: {
+        foreach (const TaskInfo& task, operation.launch().task_infos()) {
+          Future<bool> authorization = authorizations.front();
+          authorizations.pop_front();
 
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          framework->id,
-          task.slave_id(),
-          task.task_id(),
-          TASK_ERROR,
-          TaskStatus::SOURCE_MASTER,
-          authorization.isFailed() ?
-              "Authorization failure: " + authorization.failure() :
-              "Not authorized to launch as user '" + user + "'",
-          TaskStatus::REASON_TASK_UNAUTHORIZED);
+          // NOTE: The task will not be in 'pendingTasks' if
+          // 'killTask()' for the task was called before we are here.
+          // No need to launch the task if it's no longer pending.
+          // However, we still need to check the authorization result
+          // and do the validation so that we can send status update
+          // in case the task has duplicated ID.
+          bool pending = framework->pendingTasks.contains(task.task_id());
 
-      metrics.tasks_error++;
-      stats.tasks[TASK_ERROR]++;
+          // Remove from pending tasks.
+          framework->pendingTasks.erase(task.task_id());
 
-      forward(update, UPID(), framework);
+          // Check authorization result.
+          CHECK(!authorization.isDiscarded());
 
-      continue;
-    }
+          if (authorization.isFailed() || !authorization.get()) {
+            string user = framework->info.user(); // Default user.
+            if (task.has_command() && task.command().has_user()) {
+              user = task.command().user();
+            } else if (task.has_executor() &&
+                       task.executor().command().has_user()) {
+              user = task.executor().command().user();
+            }
 
-    // Validate the task.
-    const Option<Error>& validationError = validateTask(
-        task,
-        framework,
-        slave,
-        transformedOfferedResources,
-        usedResources);
+            const StatusUpdate& update = protobuf::createStatusUpdate(
+                framework->id,
+                task.slave_id(),
+                task.task_id(),
+                TASK_ERROR,
+                TaskStatus::SOURCE_MASTER,
+                authorization.isFailed() ?
+                    "Authorization failure: " + authorization.failure() :
+                    "Not authorized to launch as user '" + user + "'",
+                TaskStatus::REASON_TASK_UNAUTHORIZED);
 
-    if (validationError.isSome()) {
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          framework->id,
-          task.slave_id(),
-          task.task_id(),
-          TASK_ERROR,
-          TaskStatus::SOURCE_MASTER,
-          validationError.get().message,
-          TaskStatus::REASON_TASK_INVALID);
+            metrics.tasks_error++;
+            stats.tasks[TASK_ERROR]++;
 
-      metrics.tasks_error++;
-      stats.tasks[TASK_ERROR]++;
+            forward(update, UPID(), framework);
 
-      forward(update, UPID(), framework);
+            continue;
+          }
 
-      continue;
-    }
-
-    // Add task.
-    if (pending) {
-      usedResources += addTask(task, framework, slave);
-
-      // We allow frameworks to implicitly acquire persistent disk
-      // through resources, meaning that they can transform the
-      // offered resources. We need to infer those acquisitions.
-      Owned<Resources::CompositeTransformation> transformation(
-          new Resources::CompositeTransformation());
-
-      foreach (const Resource& disk, usedResources.persistentDisks()) {
-        if (!transformedOfferedResources.contains(disk)) {
-          // NOTE: No need to check duplicated persistence ID because
-          // it should have been validated in ResourceUsageValidator.
-          transformation->add(Resources::AcquirePersistentDisk(disk));
-        }
-      }
-
-      // Adjust the total resources by applying the transformation.
-      Try<Resources> _transformedOfferedResources =
-        (*transformation)(transformedOfferedResources);
-
-      // NOTE: The transformation should have also been validated in
-      // ResourceUsageValidator.
-      CHECK_SOME(_transformedOfferedResources);
-      transformedOfferedResources = _transformedOfferedResources.get();
-
-      // TODO(jieyu): Ideally, we should just call 'share()' here.
-      // However, Shared currently does not support implicit upcast
-      // (i.e., we cannot implicitly convert from Shared<Derived> to
-      // Shared<Base>). Revisit this once Shared starts to support
-      // implicit upcast.
-      allocator->transformAllocation(
-          frameworkId,
-          slaveId,
-          Shared<Resources::Transformation>(transformation.release()));
-
-      // TODO(bmahler): Consider updating this log message to indicate
-      // when the executor is also being launched.
-      LOG(INFO) << "Launching task " << task.task_id()
-                << " of framework " << *framework
-                << " with resources " << task.resources()
-                << " on slave " << *slave;
-
-      RunTaskMessage message;
-      message.mutable_framework()->MergeFrom(framework->info);
-      message.mutable_framework_id()->MergeFrom(framework->id);
-      message.set_pid(framework->pid);
-      message.mutable_task()->MergeFrom(task);
-
-      // Merge labels retrieved from label-decorator hooks.
-      message.mutable_task()->mutable_labels()->MergeFrom(
-          HookManager::masterLaunchTaskLabelDecorator(
+          // Validate the task.
+          const Option<Error>& validationError = validateTask(
               task,
-              framework->info,
-              slave->info));
+              framework,
+              slave,
+              _offeredResources,
+              usedResources);
 
-      send(slave->pid, message);
+          if (validationError.isSome()) {
+            const StatusUpdate& update = protobuf::createStatusUpdate(
+                framework->id,
+                task.slave_id(),
+                task.task_id(),
+                TASK_ERROR,
+                TaskStatus::SOURCE_MASTER,
+                validationError.get().message,
+                TaskStatus::REASON_TASK_INVALID);
+
+            metrics.tasks_error++;
+            stats.tasks[TASK_ERROR]++;
+
+            forward(update, UPID(), framework);
+
+            continue;
+          }
+
+          // Add task.
+          if (pending) {
+            usedResources += addTask(task, framework, slave);
+
+            // TODO(bmahler): Consider updating this log message to
+            // indicate when the executor is also being launched.
+            LOG(INFO) << "Launching task " << task.task_id()
+                      << " of framework " << *framework
+                      << " with resources " << task.resources()
+                      << " on slave " << *slave;
+
+            RunTaskMessage message;
+            message.mutable_framework()->MergeFrom(framework->info);
+            message.mutable_framework_id()->MergeFrom(framework->id);
+            message.set_pid(framework->pid);
+            message.mutable_task()->MergeFrom(task);
+
+            // Merge labels retrieved from label-decorator hooks.
+            message.mutable_task()->mutable_labels()->MergeFrom(
+                HookManager::masterLaunchTaskLabelDecorator(
+                    task,
+                    framework->info,
+                    slave->info));
+
+            send(slave->pid, message);
+          }
+        }
+        break;
+      }
+      default: {
+        LOG(ERROR) << "Unsupported offer operation " << operation.type();
+        break;
+      }
     }
   }
 
   // Calculate unused resources.
-  Resources unusedResources = transformedOfferedResources - usedResources;
+  Resources unusedResources = _offeredResources - usedResources;
 
   if (!unusedResources.empty()) {
     // Tell the allocator about the unused (e.g., refused) resources.
     allocator->recoverResources(
-        frameworkId, slaveId, unusedResources, filters);
+        frameworkId,
+        slaveId,
+        unusedResources,
+        accept.filters());
   }
 }
 
