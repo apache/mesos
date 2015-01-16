@@ -1324,7 +1324,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
 TEST_F(ResourceOffersTest, Request)
 {
-  MockAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
+  TestAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _))
     .Times(1);

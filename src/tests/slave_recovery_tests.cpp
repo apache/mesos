@@ -2255,7 +2255,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 // using an explicit executor.
 TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 {
-  MockAllocatorProcess<master::allocator::HierarchicalDRFAllocatorProcess>
+  TestAllocatorProcess<master::allocator::HierarchicalDRFAllocatorProcess>
     allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _));

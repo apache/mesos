@@ -675,10 +675,10 @@ public:
 
 
 template <typename T = master::allocator::AllocatorProcess>
-class MockAllocatorProcess : public master::allocator::AllocatorProcess
+class TestAllocatorProcess : public master::allocator::AllocatorProcess
 {
 public:
-  MockAllocatorProcess()
+  TestAllocatorProcess()
   {
     // Spawn the underlying allocator process.
     process::spawn(real);
@@ -728,7 +728,7 @@ public:
       .WillByDefault(InvokeOffersRevived(this));
   }
 
-  ~MockAllocatorProcess()
+  ~TestAllocatorProcess()
   {
     process::terminate(real);
     process::wait(real);

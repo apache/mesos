@@ -80,7 +80,7 @@ protected:
     process::wait(allocator.real);
   }
 
-  MockAllocatorProcess<T> allocator;
+  TestAllocatorProcess<T> allocator;
 };
 
 
@@ -94,7 +94,7 @@ TYPED_TEST_CASE(MasterAllocatorTest, AllocatorTypes);
 
 // Checks that in a cluster with one slave and one framework, all of
 // the slave's resources are offered to the framework.
-TYPED_TEST(MasterAllocatorTest, MockAllocator)
+TYPED_TEST(MasterAllocatorTest, SingleFramework)
 {
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 
@@ -1375,7 +1375,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   this->ShutdownMasters();
   this->StopAllocator();
 
-  MockAllocatorProcess<TypeParam> allocator2;
+  TestAllocatorProcess<TypeParam> allocator2;
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
@@ -1500,7 +1500,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   this->ShutdownMasters();
   this->StopAllocator();
 
-  MockAllocatorProcess<TypeParam> allocator2;
+  TestAllocatorProcess<TypeParam> allocator2;
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
