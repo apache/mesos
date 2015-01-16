@@ -859,6 +859,37 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --[no-]docker_kill_orphans
+    </td>
+    <td>
+      Enable docker containerizer to kill orphaned containers
+      (default: true)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --docker_sock=VALUE
+    </td>
+    <td>
+      The docker UNIX socket path that the CLI uses to communicate to the
+      daemon. We need this to launch docker containers that can run docker
+      CLI.
+      (default: /var/run/docker.sock)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --docker_mesos_image=VALUE
+    </td>
+    <td>
+      The docker image used to launch this mesos slave instance.
+      If a image is specified, the docker containerizer assumes the slave
+      is running in a docker container, and launches executors with
+      docker containers in order to recover them when the slave recovers.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --docker_sandbox_directory=VALUE
     </td>
     <td>
