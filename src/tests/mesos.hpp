@@ -62,6 +62,11 @@
 #include "tests/zookeeper.hpp"
 #endif // MESOS_HAS_JAVA
 
+using ::testing::_;
+using ::testing::An;
+using ::testing::DoDefault;
+using ::testing::Return;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -552,9 +557,6 @@ class MockGarbageCollector : public slave::GarbageCollector
 public:
   MockGarbageCollector()
   {
-    using ::testing::_;
-    using ::testing::Return;
-
     // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
     // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
     // for more details.
@@ -649,9 +651,6 @@ class MockAuthorizer : public Authorizer
 public:
   MockAuthorizer()
   {
-    using ::testing::An;
-    using ::testing::Return;
-
     // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
     // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
     // for more details.
@@ -683,49 +682,84 @@ public:
     // Spawn the underlying allocator process.
     process::spawn(real);
 
-    using ::testing::_;
+    // We use 'ON_CALL' and 'WillByDefault' here to specify the
+    // default actions (call in to the real allocator). This allows
+    // the tests to leverage the 'DoDefault' action.
+    // However, 'ON_CALL' results in a "Uninteresting mock function
+    // call" warning unless each test puts expectations in place.
+    // As a result, we also use 'EXPECT_CALL' and 'WillRepeatedly'
+    // to get the best of both worlds: the ability to use 'DoDefault'
+    // and no warnings when expectations are not explicit.
 
     ON_CALL(*this, initialize(_, _, _))
       .WillByDefault(InvokeInitialize(this));
+    EXPECT_CALL(*this, initialize(_, _, _))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, addFramework(_, _, _))
       .WillByDefault(InvokeFrameworkAdded(this));
+    EXPECT_CALL(*this, addFramework(_, _, _))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, removeFramework(_))
       .WillByDefault(InvokeFrameworkRemoved(this));
+    EXPECT_CALL(*this, removeFramework(_))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, activateFramework(_))
       .WillByDefault(InvokeFrameworkActivated(this));
+    EXPECT_CALL(*this, activateFramework(_))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, deactivateFramework(_))
       .WillByDefault(InvokeFrameworkDeactivated(this));
+    EXPECT_CALL(*this, deactivateFramework(_))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, addSlave(_, _, _, _))
       .WillByDefault(InvokeSlaveAdded(this));
+    EXPECT_CALL(*this, addSlave(_, _, _, _))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, removeSlave(_))
       .WillByDefault(InvokeSlaveRemoved(this));
+    EXPECT_CALL(*this, removeSlave(_))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, activateSlave(_))
       .WillByDefault(InvokeSlaveReactivated(this));
+    EXPECT_CALL(*this, activateSlave(_))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, deactivateSlave(_))
       .WillByDefault(InvokeSlaveDeactivated(this));
+    EXPECT_CALL(*this, deactivateSlave(_))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, updateWhitelist(_))
       .WillByDefault(InvokeUpdateWhitelist(this));
+    EXPECT_CALL(*this, updateWhitelist(_))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, requestResources(_, _))
       .WillByDefault(InvokeResourcesRequested(this));
+    EXPECT_CALL(*this, requestResources(_, _))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, updateAllocation(_, _, _))
       .WillByDefault(InvokeUpdateAllocation(this));
+    EXPECT_CALL(*this, updateAllocation(_, _, _))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, recoverResources(_, _, _, _))
       .WillByDefault(InvokeResourcesRecovered(this));
+    EXPECT_CALL(*this, recoverResources(_, _, _, _))
+      .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, reviveOffers(_))
       .WillByDefault(InvokeOffersRevived(this));
+    EXPECT_CALL(*this, reviveOffers(_))
+      .WillRepeatedly(DoDefault());
   }
 
   ~TestAllocatorProcess()
