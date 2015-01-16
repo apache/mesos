@@ -89,7 +89,9 @@ Future<Nothing> ResourceMonitorProcess::stop(
   }
 
   // Add the monitoring information to the archive.
-  archive.push_back(monitored[containerId]);
+  archive.push_back(
+      process::Owned<MonitoringInfo>(
+          new MonitoringInfo(monitored[containerId])));
   monitored.erase(containerId);
 
   return Nothing();
