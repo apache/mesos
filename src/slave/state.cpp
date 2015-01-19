@@ -139,8 +139,7 @@ Try<SlaveState> SlaveState::recover(
   state.info = slaveInfo.get();
 
   // Find the frameworks.
-  Try<list<string> > frameworks = os::glob(
-      strings::format(paths::FRAMEWORK_PATH, rootDir, slaveId, "*").get());
+  Try<list<string> > frameworks = paths::getFrameworkPaths(rootDir, slaveId);
 
   if (frameworks.isError()) {
     return Error("Failed to find frameworks for slave " + slaveId.value() +
@@ -247,8 +246,8 @@ Try<FrameworkState> FrameworkState::recover(
   state.pid = process::UPID(pid.get());
 
   // Find the executors.
-  Try<list<string> > executors = os::glob(strings::format(
-      paths::EXECUTOR_PATH, rootDir, slaveId, frameworkId, "*").get());
+  Try<list<string> > executors =
+    paths::getExecutorPaths(rootDir, slaveId, frameworkId);
 
   if (executors.isError()) {
     return Error(
@@ -289,13 +288,11 @@ Try<ExecutorState> ExecutorState::recover(
   string message;
 
   // Find the runs.
-  Try<list<string> > runs = os::glob(strings::format(
-      paths::EXECUTOR_RUN_PATH,
+  Try<list<string> > runs = paths::getExecutorRunPaths(
       rootDir,
       slaveId,
       frameworkId,
-      executorId,
-      "*").get());
+      executorId);
 
   if (runs.isError()) {
     return Error("Failed to find runs for executor '" + executorId.value() +
@@ -398,6 +395,13 @@ Try<RunState> RunState::recover(
   state.id = containerId;
   string message;
 
+  state.directory = paths::getExecutorRunPath(
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      containerId);
+
   // See if the sentinel file exists. This is done first so it is
   // known even if partial state is returned, e.g., if the libprocess
   // pid file is not recovered. It indicates the slave removed the
@@ -408,14 +412,12 @@ Try<RunState> RunState::recover(
   state.completed = os::exists(path);
 
   // Find the tasks.
-  Try<list<string> > tasks = os::glob(strings::format(
-      paths::TASK_PATH,
+  Try<list<string> > tasks = paths::getTaskPaths(
       rootDir,
       slaveId,
       frameworkId,
       executorId,
-      containerId,
-      "*").get());
+      containerId);
 
   if (tasks.isError()) {
     return Error(

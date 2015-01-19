@@ -21,11 +21,13 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 #include <mesos/values.hpp>
 
 #include <stout/bytes.hpp>
+#include <stout/foreach.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -90,6 +92,9 @@ public:
   /*implicit*/ Resources(const Resource& resource);
 
   /*implicit*/
+  Resources(const std::vector<Resource>& _resources);
+
+  /*implicit*/
   Resources(const google::protobuf::RepeatedPtrField<Resource>& _resources);
 
   Resources(const Resources& that) : resources(that.resources) {}
@@ -107,9 +112,24 @@ public:
   // Checks if this Resources is a superset of the given Resources.
   bool contains(const Resources& that) const;
 
-  // Returns all resources in this object that are marked with the
-  // specified role.
-  Resources extract(const std::string& role) const;
+  // Checks if this Resources contains the given Resource.
+  bool contains(const Resource& that) const;
+
+  // Returns the reserved resources, by role.
+  hashmap<std::string, Resources> reserved() const;
+
+  // Returns the reserved resources for the role. Note that the "*"
+  // role represents unreserved resources, and will be ignored.
+  Resources reserved(const std::string& role) const;
+
+  // Returns the unreserved resources.
+  Resources unreserved() const;
+
+  // Returns all the persistent disk resources.
+  // TODO(jieyu): Consider introducing a general filter mechanism for
+  // resources. For example:
+  // Resources persistentDisks = resources.filter(PersistentDiskFilter());
+  Resources persistentDisks() const;
 
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
@@ -180,8 +200,76 @@ public:
   Resources& operator -= (const Resource& that);
   Resources& operator -= (const Resources& that);
 
+  // This is an abstraction for describing a transformation that can
+  // be applied to Resources. Transformations cannot not alter the
+  // quantity, or the static role of the resources.
+  class Transformation
+  {
+  public:
+    virtual ~Transformation() {}
+
+    // Returns the result of the transformation, applied to the given
+    // 'resources'. Returns an Error if the transformation cannot be
+    // applied, or the transformation invariants do not hold.
+    Try<Resources> operator () (const Resources& resources) const;
+
+  protected:
+    virtual Try<Resources> apply(const Resources& resources) const = 0;
+  };
+
+  // Represents a sequence of transformations, the transformations are
+  // applied in an all-or-nothing manner. We follow the composite
+  // pattern here.
+  class CompositeTransformation : public Transformation
+  {
+  public:
+    CompositeTransformation() {}
+
+    ~CompositeTransformation()
+    {
+      foreach (Transformation* transformation, transformations) {
+        delete transformation;
+      }
+    }
+
+    // TODO(jieyu): Consider using unique_ptr here once we finialize
+    // our style guide for unique_ptr.
+    template <typename T>
+    void add(const T& t)
+    {
+      transformations.push_back(new T(t));
+    }
+
+  protected:
+    virtual Try<Resources> apply(const Resources& resources) const;
+
+  private:
+    std::vector<Transformation*> transformations;
+  };
+
+  // Acquires a persistent disk from a regular disk resource.
+  class AcquirePersistentDisk : public Transformation
+  {
+  public:
+    AcquirePersistentDisk(const Resource& _disk);
+
+  protected:
+    virtual Try<Resources> apply(const Resources& resources) const;
+
+  private:
+    // The target persistent disk resource to acquire.
+    Resource disk;
+  };
+
 private:
-  bool contains(const Resource& that) const;
+  // Similar to 'contains(const Resource&)' but skips the validity
+  // check. This can be used to avoid the performance overhead of
+  // calling 'contains(const Resource&)' when the resource can be
+  // assumed valid (e.g. it's inside a Resources).
+  //
+  // TODO(jieyu): Measure performance overhead of validity check to
+  // ensure this is warranted.
+  bool _contains(const Resource& that) const;
 
   // Similar to the public 'find', but only for a single Resource
   // object. The target resource may span multiple roles, so this

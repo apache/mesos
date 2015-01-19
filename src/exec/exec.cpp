@@ -54,6 +54,7 @@
 #include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/graceful_shutdown.hpp"
 #include "slave/state.hpp"
 
 using namespace mesos;
@@ -70,15 +71,24 @@ using process::wait; // Necessary on some OS's to disambiguate.
 namespace mesos {
 namespace internal {
 
+
+// A custom executor can be non-cooperative as it can block the
+// shutdown callback and take over the actor thread. As a result,
+// libprocess process may exit (e.g. a Java executor can be garbage
+// collected) before a delayed shutdown callback is invoked. Therefore
+// we need a separate libprocess process to ensure clean-up. However,
+// if the executor shuts down and calls os::exit() in another
+// libprocess process, the ShutdownProcess::kill() won't be called.
 class ShutdownProcess : public Process<ShutdownProcess>
 {
+public:
+  explicit ShutdownProcess(const Duration& timeout) : timeout(timeout) {}
+
 protected:
   virtual void initialize()
   {
     VLOG(1) << "Scheduling shutdown of the executor";
-    // TODO(benh): Pass the shutdown timeout with ExecutorRegistered
-    // since it might have gotten configured on the command line.
-    delay(slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD, self(), &Self::kill);
+    delay(timeout, self(), &Self::kill);
   }
 
   void kill()
@@ -94,6 +104,9 @@ protected:
     os::sleep(Seconds(5));
     exit(-1);
   }
+
+private:
+  const Duration timeout;
 };
 
 
@@ -109,7 +122,8 @@ public:
                   bool _local,
                   const string& _directory,
                   bool _checkpoint,
-                  Duration _recoveryTimeout,
+                  const Duration& _recoveryTimeout,
+                  const Duration& _shutdownTimeout,
                   pthread_mutex_t* _mutex,
                   pthread_cond_t* _cond)
     : ProcessBase(ID::generate("executor")),
@@ -127,7 +141,8 @@ public:
       cond(_cond),
       directory(_directory),
       checkpoint(_checkpoint),
-      recoveryTimeout(_recoveryTimeout)
+      recoveryTimeout(_recoveryTimeout),
+      shutdownTimeout(_shutdownTimeout)
   {
     LOG(INFO) << "Version: " << MESOS_VERSION;
 
@@ -380,7 +395,7 @@ protected:
 
     if (!local) {
       // Start the Shutdown Process.
-      spawn(new ShutdownProcess(), true);
+      spawn(new ShutdownProcess(shutdownTimeout), true);
     }
 
     Stopwatch stopwatch;
@@ -462,7 +477,7 @@ protected:
 
     if (!local) {
       // Start the Shutdown Process.
-      spawn(new ShutdownProcess(), true);
+      spawn(new ShutdownProcess(shutdownTimeout), true);
     }
 
     Stopwatch stopwatch;
@@ -558,6 +573,7 @@ private:
   const string directory;
   bool checkpoint;
   Duration recoveryTimeout;
+  Duration shutdownTimeout;
 
   LinkedHashMap<UUID, StatusUpdate> updates; // Unacknowledged updates.
 
@@ -708,6 +724,25 @@ Status MesosExecutorDriver::start()
     }
   }
 
+  // Get the appropriate shutdown grace period.
+  Duration shutdownTimeout = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
+  if (!value.empty()) {
+    Try<Duration> parse = Duration::parse(value);
+    if (parse.isSome()) {
+      shutdownTimeout = parse.get();
+    } else {
+      LOG(WARNING) << "Cannot parse MESOS_SHUTDOWN_GRACE_PERIOD '"
+                   << value << "': " << parse.error();
+    }
+  } else {
+    LOG(WARNING) << "Environment variable MESOS_SHUTDOWN_GRACE_PERIOD is not "
+                 << "set, using default value: " << shutdownTimeout;
+  }
+
+  shutdownTimeout = slave::getExecGracePeriod(shutdownTimeout);
+  VLOG(2) << "Shutdown timeout is set to " << shutdownTimeout;
+
   CHECK(process == NULL);
 
   process = new ExecutorProcess(
@@ -721,6 +756,7 @@ Status MesosExecutorDriver::start()
       workDirectory,
       checkpoint,
       recoveryTimeout,
+      shutdownTimeout,
       &mutex,
       &cond);
 

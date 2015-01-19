@@ -10,6 +10,7 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
+#include <process/socket.hpp>
 
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
@@ -65,7 +66,7 @@ Future<Response> request(
     const Option<string>& body,
     const Option<string>& contentType)
 {
-  Try<int> socket = process::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
   if (socket.isError()) {
     return Failure("Failed to create socket: " + socket.error());
@@ -81,15 +82,10 @@ Future<Response> request(
 
   const string host = stringify(upid.node);
 
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(upid.node.port);
-  addr.sin_addr.s_addr = upid.node.ip;
-
-  if (connect(s, (sockaddr*) &addr, sizeof(addr)) < 0) {
+  Try<int> connect = network::connect(s, upid.node);
+  if (connect.isError()) {
     os::close(s);
-    return Failure(ErrnoError("Failed to connect to '" + host + "'"));
+    return Failure(connect.error());
   }
 
   std::ostringstream out;

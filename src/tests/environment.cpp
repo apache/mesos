@@ -217,18 +217,35 @@ public:
 class NetworkIsolatorTestFilter : public TestFilter
 {
 public:
+  NetworkIsolatorTestFilter()
+  {
+#ifdef WITH_NETWORK_ISOLATOR
+    Try<Nothing> check = routing::check();
+    if (check.isError()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any PortMapping tests because:\n"
+        << check.error() << "\n"
+        << "-------------------------------------------------------------\n";
+
+      portMappingError = Error(check.error());
+    }
+#endif
+  }
+
   bool disable(const ::testing::TestInfo* test) const
   {
 #ifdef WITH_NETWORK_ISOLATOR
+    // PortMappingIsolatorProcess doesn't suport multiple slaves.
     if (matches(test, "MultipleSlaves")) {
-      return !routing::check().isError();
+      return true;
     }
 #endif
 
     if (matches(test, "PortMappingIsolatorTest") ||
         matches(test, "PortMappingMesosTest")) {
 #ifdef WITH_NETWORK_ISOLATOR
-      return routing::check().isError();
+      return !portMappingError.isNone();
 #else
       return true;
 #endif
@@ -236,6 +253,9 @@ public:
 
     return false;
   }
+
+private:
+  Option<Error> portMappingError;
 };
 
 

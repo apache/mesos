@@ -272,15 +272,15 @@ TEST_F(MasterAuthorizationTest, KillTask)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status.get().state());
 
-  Future<Nothing> resourcesRecovered =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
 
   // No task launch should happen resulting in all resources being
   // returned to the allocator.
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   driver.stop();
   driver.join();
@@ -348,8 +348,8 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  Future<Nothing> resourcesRecovered =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
@@ -360,7 +360,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
 
   // No task launch should happen resulting in all resources being
   // returned to the allocator.
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   driver.stop();
   driver.join();
@@ -422,20 +422,20 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .Times(AtMost(1));
 
-  Future<Nothing> slaveDeactivated =
-    FUTURE_DISPATCH(_, &AllocatorProcess::slaveDeactivated);
+  Future<Nothing> deactivateSlave =
+    FUTURE_DISPATCH(_, &AllocatorProcess::deactivateSlave);
 
   // Now stop the slave.
   Stop(slave.get());
 
-  AWAIT_READY(slaveDeactivated);
+  AWAIT_READY(deactivateSlave);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  Future<Nothing> resourcesRecovered =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
@@ -446,7 +446,7 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
 
   // No task launch should happen resulting in all resources being
   // returned to the allocator.
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   driver.stop();
   driver.join();
@@ -501,24 +501,24 @@ TEST_F(MasterAuthorizationTest, FrameworkRemoved)
   // Wait until authorization is in progress.
   AWAIT_READY(authorize);
 
-  Future<Nothing> frameworkRemoved =
-    FUTURE_DISPATCH(_, &AllocatorProcess::frameworkRemoved);
+  Future<Nothing> removeFramework =
+    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
 
   // Now stop the framework.
   driver.stop();
   driver.join();
 
-  AWAIT_READY(frameworkRemoved);
+  AWAIT_READY(removeFramework);
 
-  Future<Nothing> resourcesRecovered =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
 
   // No task launch should happen resulting in all resources being
   // returned to the allocator.
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
@@ -926,15 +926,15 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
   Clock::settle();
   Clock::resume();
 
-  Future<Nothing> frameworkRemoved =
-    FUTURE_DISPATCH(_, &AllocatorProcess::frameworkRemoved);
+  Future<Nothing> removeFramework =
+    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
 
   // Now complete authorization.
   promise.set(true);
 
   // When the master tries to link to a non-existent framework PID
   // it should realize the framework is gone and remove it.
-  AWAIT_READY(frameworkRemoved);
+  AWAIT_READY(removeFramework);
 
   Shutdown();
 }
@@ -986,15 +986,15 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
   // Wait until the second authorization attempt is in progress.
   AWAIT_READY(authorize2);
 
-  Future<Nothing> frameworkRemoved =
-    FUTURE_DISPATCH(_, &AllocatorProcess::frameworkRemoved);
+  Future<Nothing> removeFramework =
+    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
 
   // Stop the framework.
   driver.stop();
   driver.join();
 
   // Wait until the framework is removed.
-  AWAIT_READY(frameworkRemoved);
+  AWAIT_READY(removeFramework);
 
   // Now complete the second authorization attempt.
   promise2.set(true);

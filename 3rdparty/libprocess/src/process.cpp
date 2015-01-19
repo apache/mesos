@@ -1,5 +1,4 @@
 #include <errno.h>
-#include <ev.h>
 #include <limits.h>
 #include <libgen.h>
 #include <netdb.h>
@@ -80,8 +79,8 @@
 #include "config.hpp"
 #include "decoder.hpp"
 #include "encoder.hpp"
+#include "event_loop.hpp"
 #include "gate.hpp"
-#include "libev.hpp"
 #include "process_reference.hpp"
 #include "synchronized.hpp"
 
@@ -97,6 +96,7 @@ using process::http::OK;
 using process::http::Request;
 using process::http::Response;
 using process::http::ServiceUnavailable;
+using process::network::Socket;
 
 using std::deque;
 using std::find;
@@ -287,11 +287,21 @@ public:
   void exited(ProcessBase* process);
 
 private:
-  // Map from UPID (local/remote) to process.
-  map<UPID, set<ProcessBase*> > links;
+  // TODO(bmahler): Leverage a bidirectional multimap instead, or
+  // hide the complexity of manipulating 'links' through methods.
+  struct
+  {
+    // For links, we maintain a bidirectional mapping between the
+    // "linkers" (Processes) and the "linkees" (remote / local UPIDs).
+    // For remote nodes, we also need a mapping to the linkees on the
+    // node, because socket closure only notifies at the node level.
+    hashmap<UPID, hashset<ProcessBase*>> linkers;
+    hashmap<ProcessBase*, hashset<UPID>> linkees;
+    hashmap<Node, hashset<UPID>> remotes;
+  } links;
 
   // Collection of all actice sockets.
-  map<int, Socket> sockets;
+  map<int, Socket*> sockets;
 
   // Collection of sockets that should be disposed when they are
   // finished being used (e.g., when there is no more data to send on
@@ -437,7 +447,7 @@ static uint32_t __id__ = 0;
 static const int LISTEN_BACKLOG = 500000;
 
 // Local server socket.
-static Socket __s__;
+static Socket* __s__ = NULL;
 
 // Local node.
 static Node __node__;
@@ -574,27 +584,9 @@ static Message* parse(Request* request)
 }
 
 
-void handle_async(struct ev_loop* loop, ev_async* _, int revents)
-{
-  synchronized (watchers) {
-    // Start all the new I/O watchers.
-    while (!watchers->empty()) {
-      ev_io* watcher = watchers->front();
-      watchers->pop();
-      ev_io_start(loop, watcher);
-    }
-
-    while (!functions->empty()) {
-      (functions->front())();
-      functions->pop();
-    }
-  }
-}
-
-
 namespace internal {
 
-void decode_read(
+void decode_recv(
     const Future<size_t>& length,
     char* data,
     size_t size,
@@ -636,23 +628,11 @@ void decode_read(
     return;
   }
 
-  socket->read(data, size)
-    .onAny(lambda::bind(&decode_read, lambda::_1, data, size, socket, decoder));
+  socket->recv(data, size)
+    .onAny(lambda::bind(&decode_recv, lambda::_1, data, size, socket, decoder));
 }
 
 } // namespace internal {
-
-
-void* serve(void* arg)
-{
-  __in_event_loop__ = true;
-
-  ev_loop(((struct ev_loop*) arg), 0);
-
-  __in_event_loop__ = false;
-
-  return NULL;
-}
 
 
 void* schedule(void* arg)
@@ -674,7 +654,7 @@ void* schedule(void* arg)
 }
 
 
-void timedout(list<Timer>&& timers)
+void timedout(const list<Timer>& timers)
 {
   // Update current time of process (if it's present/valid). Note that
   // current time may be greater than the timeout if a local message
@@ -726,9 +706,9 @@ void on_accept(const Future<Socket>& socket)
 
     DataDecoder* decoder = new DataDecoder(socket.get());
 
-    socket.get().read(data, size)
+    socket.get().recv(data, size)
       .onAny(lambda::bind(
-          &internal::decode_read,
+          &internal::decode_recv,
           lambda::_1,
           data,
           size,
@@ -736,7 +716,7 @@ void on_accept(const Future<Socket>& socket)
           decoder));
   }
 
-  __s__.accept()
+  __s__->accept()
     .onAny(lambda::bind(&on_accept, lambda::_1));
 }
 
@@ -817,6 +797,30 @@ void initialize(const string& delegate)
     }
   }
 
+  // Initialize the event loop.
+  EventLoop::initialize();
+  Clock::initialize(lambda::bind(&timedout, lambda::_1));
+
+//   ev_child_init(&child_watcher, child_exited, pid, 0);
+//   ev_child_start(loop, &cw);
+
+//   /* Install signal handler. */
+//   struct sigaction sa;
+
+//   sa.sa_handler = ev_sighandler;
+//   sigfillset (&sa.sa_mask);
+//   sa.sa_flags = SA_RESTART; /* if restarting works we save one iteration */
+//   sigaction (w->signum, &sa, 0);
+
+//   sigemptyset (&sa.sa_mask);
+//   sigaddset (&sa.sa_mask, w->signum);
+//   sigprocmask (SIG_UNBLOCK, &sa.sa_mask, 0);
+
+  pthread_t thread; // For now, not saving handles on our threads.
+  if (pthread_create(&thread, NULL, &EventLoop::run, NULL) != 0) {
+    LOG(FATAL) << "Failed to initialize, pthread_create";
+  }
+
   __node__.ip = 0;
   __node__.port = 0;
 
@@ -844,14 +848,19 @@ void initialize(const string& delegate)
   }
 
   // Create a "server" socket for communicating with other nodes.
+  Try<Socket> create = Socket::create();
+  if (create.isError()) {
+    PLOG(FATAL) << "Failed to construct server socket:" << create.error();
+  }
+  __s__ = new Socket(create.get());
 
   // Allow address reuse.
   int on = 1;
-  if (setsockopt(__s__, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+  if (setsockopt(__s__->get(), SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
     PLOG(FATAL) << "Failed to initialize, setsockopt(SO_REUSEADDR)";
   }
 
-  Try<Node> bind = __s__.bind(__node__);
+  Try<Node> bind = __s__->bind(__node__);
   if (bind.isError()) {
     PLOG(FATAL) << "Failed to initialize: " << bind.error();
   }
@@ -871,63 +880,25 @@ void initialize(const string& delegate)
     }
 
     // Lookup IP address of local hostname.
-    hostent* he;
+    Try<uint32_t> ip = net::getIP(hostname, AF_INET);
 
-    if ((he = gethostbyname2(hostname, AF_INET)) == NULL) {
-      LOG(FATAL) << "Failed to initialize, gethostbyname2: "
-                 << hstrerror(h_errno);
+    if (ip.isError()) {
+      LOG(FATAL) << ip.error();
     }
 
-    __node__.ip = *((uint32_t *) he->h_addr_list[0]);
+    __node__.ip = ip.get();
   }
 
-  Try<Nothing> listen = __s__.listen(LISTEN_BACKLOG);
+  Try<Nothing> listen = __s__->listen(LISTEN_BACKLOG);
   if (listen.isError()) {
     PLOG(FATAL) << "Failed to initialize: " << listen.error();
-  }
-
-  // Initialize libev.
-  //
-  // TODO(benh): Eventually move this all out of process.cpp after
-  // more is disentangled.
-  synchronizer(watchers) = SYNCHRONIZED_INITIALIZER;
-
-#ifdef __sun__
-  loop = ev_default_loop(EVBACKEND_POLL | EVBACKEND_SELECT);
-#else
-  loop = ev_default_loop(EVFLAG_AUTO);
-#endif // __sun__
-
-  ev_async_init(&async_watcher, handle_async);
-  ev_async_start(loop, &async_watcher);
-
-  Clock::initialize(lambda::bind(&timedout, lambda::_1));
-
-//   ev_child_init(&child_watcher, child_exited, pid, 0);
-//   ev_child_start(loop, &cw);
-
-//   /* Install signal handler. */
-//   struct sigaction sa;
-
-//   sa.sa_handler = ev_sighandler;
-//   sigfillset (&sa.sa_mask);
-//   sa.sa_flags = SA_RESTART; /* if restarting works we save one iteration */
-//   sigaction (w->signum, &sa, 0);
-
-//   sigemptyset (&sa.sa_mask);
-//   sigaddset (&sa.sa_mask, w->signum);
-//   sigprocmask (SIG_UNBLOCK, &sa.sa_mask, 0);
-
-  pthread_t thread; // For now, not saving handles on our threads.
-  if (pthread_create(&thread, NULL, serve, loop) != 0) {
-    LOG(FATAL) << "Failed to initialize, pthread_create";
   }
 
   // Need to set initialzing here so that we can actually invoke
   // 'spawn' below for the garbage collector.
   initializing = false;
 
-  __s__.accept()
+  __s__->accept()
     .onAny(lambda::bind(&internal::on_accept, lambda::_1));
 
   // TODO(benh): Make sure creating the garbage collector, logging
@@ -1249,228 +1220,6 @@ void HttpProxy::stream(const Future<short>& poll, const Request& request)
 }
 
 
-namespace internal {
-
-Future<Nothing> connect(const Socket& socket)
-{
-  // Now check that a successful connection was made.
-  int opt;
-  socklen_t optlen = sizeof(opt);
-  int s = socket.get();
-
-  if (getsockopt(s, SOL_SOCKET, SO_ERROR, &opt, &optlen) < 0 || opt != 0) {
-    // Connect failure.
-    VLOG(1) << "Socket error while connecting";
-    return Failure("Socket error while connecting");
-  }
-
-  return Nothing();
-}
-
-} // namespace internal {
-
-
-Future<Nothing> Socket::Impl::connect(const Node& node)
-{
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = PF_INET;
-  addr.sin_port = htons(node.port);
-  addr.sin_addr.s_addr = node.ip;
-
-  if (::connect(get(), (sockaddr*) &addr, sizeof(addr)) < 0) {
-    if (errno != EINPROGRESS) {
-      return Failure(ErrnoError("Failed to connect socket"));
-    }
-
-    return io::poll(get(), io::WRITE)
-      .then(lambda::bind(&internal::connect, Socket(shared_from_this())));
-  }
-
-  return Nothing();
-}
-
-
-Future<size_t> Socket::Impl::read(char* data, size_t size)
-{
-  return io::read(get(), data, size);
-}
-
-
-namespace internal {
-
-Future<size_t> socket_send_data(int s, const char* data, size_t size)
-{
-  CHECK(size > 0);
-
-  while (true) {
-    ssize_t length = send(s, data, size, MSG_NOSIGNAL);
-
-    if (length < 0 && (errno == EINTR)) {
-      // Interrupted, try again now.
-      continue;
-    } else if (length < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-      // Might block, try again later.
-      return io::poll(s, io::WRITE)
-        .then(lambda::bind(&internal::socket_send_data, s, data, size));
-    } else if (length <= 0) {
-      // Socket error or closed.
-      if (length < 0) {
-        const char* error = strerror(errno);
-        VLOG(1) << "Socket error while sending: " << error;
-      } else {
-        VLOG(1) << "Socket closed while sending";
-      }
-      if (length == 0) {
-        return length;
-      } else {
-        return Failure(ErrnoError("Socket send failed"));
-      }
-    } else {
-      CHECK(length > 0);
-
-      return length;
-    }
-  }
-}
-
-
-Future<size_t> socket_send_file(int s, int fd, off_t offset, size_t size)
-{
-  CHECK(size > 0);
-
-  while (true) {
-    ssize_t length = os::sendfile(s, fd, offset, size);
-
-    if (length < 0 && (errno == EINTR)) {
-      // Interrupted, try again now.
-      continue;
-    } else if (length < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-      // Might block, try again later.
-      return io::poll(s, io::WRITE)
-        .then(lambda::bind(&internal::socket_send_file, s, fd, offset, size));
-    } else if (length <= 0) {
-      // Socket error or closed.
-      if (length < 0) {
-        const char* error = strerror(errno);
-        VLOG(1) << "Socket error while sending: " << error;
-      } else {
-        VLOG(1) << "Socket closed while sending";
-      }
-      if (length == 0) {
-        return length;
-      } else {
-        return Failure(ErrnoError("Socket sendfile failed"));
-      }
-    } else {
-      CHECK(length > 0);
-
-      return length;
-    }
-  }
-}
-
-} // namespace internal {
-
-
-Future<size_t> Socket::Impl::send(const char* data, size_t size)
-{
-  return io::poll(get(), io::WRITE)
-    .then(lambda::bind(&internal::socket_send_data, get(), data, size));
-}
-
-
-Future<size_t> Socket::Impl::sendfile(int fd, off_t offset, size_t size)
-{
-  return io::poll(get(), io::WRITE)
-    .then(lambda::bind(&internal::socket_send_file, get(), fd, offset, size));
-}
-
-
-Try<Node> Socket::Impl::bind(const Node& node)
-{
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = PF_INET;
-  addr.sin_addr.s_addr = node.ip;
-  addr.sin_port = htons(node.port);
-
-  if (::bind(get(), (sockaddr*) &addr, sizeof(addr)) < 0) {
-    return Error("Failed to bind: " + string(inet_ntoa(addr.sin_addr)) +
-                 ":" + stringify(node.port));
-  }
-
-  // Lookup and store assigned ip and assigned port.
-  socklen_t addrlen = sizeof(addr);
-  if (getsockname(get(), (sockaddr*) &addr, &addrlen) < 0) {
-    return ErrnoError("Failed to bind, getsockname");
-  }
-
-  return Node(addr.sin_addr.s_addr, ntohs(addr.sin_port));
-}
-
-
-Try<Nothing> Socket::Impl::listen(int backlog)
-{
-  if (::listen(get(), backlog) < 0) {
-    return ErrnoError();
-  }
-  return Nothing();
-}
-
-
-namespace internal {
-
-Future<Socket> accept(int fd)
-{
-  sockaddr_in addr;
-  socklen_t addrlen = sizeof(addr);
-
-  int s = ::accept(fd, (sockaddr*) &addr, &addrlen);
-
-  if (s < 0) {
-    return Failure(ErrnoError("Failed to accept"));
-  }
-
-  Try<Nothing> nonblock = os::nonblock(s);
-  if (nonblock.isError()) {
-    LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, nonblock: "
-                                << nonblock.error();
-    os::close(s);
-    return Failure("Failed to accept, nonblock: " + nonblock.error());
-  }
-
-  Try<Nothing> cloexec = os::cloexec(s);
-  if (cloexec.isError()) {
-    LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, cloexec: "
-                                << cloexec.error();
-    os::close(s);
-    return Failure("Failed to accept, cloexec: " + cloexec.error());
-  }
-
-  // Turn off Nagle (TCP_NODELAY) so pipelined requests don't wait.
-  int on = 1;
-  if (setsockopt(s, SOL_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
-    const char* error = strerror(errno);
-    VLOG(1) << "Failed to turn off the Nagle algorithm: " << error;
-    os::close(s);
-    return Failure(
-      "Failed to turn off the Nagle algorithm: " + stringify(error));
-  }
-
-  return Socket(s);
-}
-
-} // namespace internal {
-
-
-Future<Socket> Socket::Impl::accept()
-{
-  return io::poll(get(), io::READ)
-    .then(lambda::bind(&internal::accept, get()));
-}
-
-
 SocketManager::SocketManager()
 {
   synchronizer(this) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
@@ -1483,14 +1232,14 @@ SocketManager::~SocketManager() {}
 void SocketManager::accepted(const Socket& socket)
 {
   synchronized (this) {
-    sockets[socket] = socket;
+    sockets[socket] = new Socket(socket);
   }
 }
 
 
 namespace internal {
 
-void ignore_read_data(
+void ignore_recv_data(
     const Future<size_t>& length,
     Socket* socket,
     char* data,
@@ -1510,8 +1259,8 @@ void ignore_read_data(
     return;
   }
 
-  socket->read(data, size)
-    .onAny(lambda::bind(&ignore_read_data, lambda::_1, socket, data, size));
+  socket->recv(data, size)
+    .onAny(lambda::bind(&ignore_recv_data, lambda::_1, socket, data, size));
 }
 
 
@@ -1533,9 +1282,9 @@ void link_connect(const Future<Nothing>& future, Socket* socket)
   size_t size = 80 * 1024;
   char* data = new char[size];
 
-  socket->read(data, size)
+  socket->recv(data, size)
     .onAny(lambda::bind(
-        &ignore_read_data,
+        &ignore_recv_data,
         lambda::_1,
         socket,
         data,
@@ -1575,18 +1324,22 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
 
   CHECK(process != NULL);
 
-  Socket socket;
+  Option<Socket> socket = None();
   bool connect = false;
 
   synchronized (this) {
-    links[to].insert(process);
-
     // Check if node is remote and there isn't a persistant link.
     if (to.node != __node__  && persists.count(to.node) == 0) {
       // Okay, no link, let's create a socket.
-      int s = socket;
+      Try<Socket> create = Socket::create();
+      if (create.isError()) {
+        VLOG(1) << "Failed to link, create socket: " << create.error();
+        return;
+      }
+      socket = create.get();
+      int s = socket.get().get();
 
-      sockets[s] = socket;
+      sockets[s] = new Socket(socket.get());
       nodes[s] = to.node;
 
       persists[to.node] = s;
@@ -1600,14 +1353,21 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
 
       connect = true;
     }
+
+    links.linkers[to].insert(process);
+    links.linkees[process].insert(to);
+    if (to.node != __node__) {
+      links.remotes[to.node].insert(to);
+    }
   }
 
   if (connect) {
-    socket.connect(to.node)
+    CHECK_SOME(socket);
+    Socket(socket.get()).connect(to.node) // Copy to drop const.
       .onAny(lambda::bind(
           &internal::link_connect,
           lambda::_1,
-          new Socket(socket)));
+          new Socket(socket.get())));
   }
 }
 
@@ -1624,7 +1384,7 @@ PID<HttpProxy> SocketManager::proxy(const Socket& socket)
       if (proxies.count(socket) > 0) {
         return proxies[socket]->self();
       } else {
-        proxy = new HttpProxy(sockets[socket]);
+        proxy = new HttpProxy(*sockets[socket]);
         proxies[socket] = proxy;
       }
     }
@@ -1790,15 +1550,15 @@ void send_connect(
 
   Encoder* encoder = new MessageEncoder(*socket, message);
 
-  // Read and ignore data from this socket. Note that we don't
+  // Receive and ignore data from this socket. Note that we don't
   // expect to receive anything other than HTTP '202 Accepted'
   // responses which we just ignore.
   size_t size = 80 * 1024;
   char* data = new char[size];
 
-  socket->read(data, size)
+  socket->recv(data, size)
     .onAny(lambda::bind(
-        &ignore_read_data,
+        &ignore_recv_data,
         lambda::_1,
         new Socket(*socket),
         data,
@@ -1816,7 +1576,7 @@ void SocketManager::send(Message* message)
 
   const Node& node = message->to.node;
 
-  Socket socket;
+  Option<Socket> socket = None();
   bool connect = false;
 
   synchronized (this) {
@@ -1826,28 +1586,35 @@ void SocketManager::send(Message* message)
     if (persist || temp) {
       int s = persist ? persists[node] : temps[node];
       CHECK(sockets.count(s) > 0);
-      socket = sockets[s];
+      socket = *sockets[s];
 
       // Update whether or not this socket should get disposed after
       // there is no more data to send.
       if (!persist) {
-        dispose.insert(socket);
+        dispose.insert(socket.get());
       }
 
-      if (outgoing.count(socket) > 0) {
-        outgoing[socket].push(new MessageEncoder(socket, message));
+      if (outgoing.count(socket.get()) > 0) {
+        outgoing[socket.get()].push(new MessageEncoder(socket.get(), message));
         return;
       } else {
         // Initialize the outgoing queue.
-        outgoing[socket];
+        outgoing[socket.get()];
       }
 
     } else {
       // No peristent or temporary socket to the node currently
       // exists, so we create a temporary one.
-      int s = socket;
+      Try<Socket> create = Socket::create();
+      if (create.isError()) {
+        VLOG(1) << "Failed to send, create socket: " << create.error();
+        delete message;
+        return;
+      }
+      socket = create.get();
+      int s = socket.get();
 
-      sockets[s] = socket;
+      sockets[s] = new Socket(socket.get());
       nodes[s] = node;
       temps[node] = s;
 
@@ -1861,16 +1628,19 @@ void SocketManager::send(Message* message)
   }
 
   if (connect) {
-    socket.connect(node)
+    CHECK_SOME(socket);
+    Socket(socket.get()).connect(node) // Copy to drop const.
       .onAny(lambda::bind(
           &internal::send_connect,
           lambda::_1,
-          new Socket(socket),
+          new Socket(socket.get()),
           message));
   } else {
     // If we're not connecting and we haven't added the encoder to
     // the 'outgoing' queue then schedule it to be sent.
-    internal::send(new MessageEncoder(socket, message), new Socket(socket));
+    internal::send(
+        new MessageEncoder(socket.get(), message),
+        new Socket(socket.get()));
   }
 }
 
@@ -1922,7 +1692,9 @@ Encoder* SocketManager::next(int s)
           }
 
           dispose.erase(s);
-          sockets.erase(s);
+          auto iterator = sockets.find(s);
+          delete iterator->second;
+          sockets.erase(iterator);
 
           // We don't actually close the socket (we wait for the Socket
           // abstraction to close it once there are no more references),
@@ -1952,7 +1724,7 @@ void SocketManager::close(int s)
   synchronized (this) {
     // This socket might not be active if it was already asked to get
     // closed (e.g., a write on the socket failed so we try and close
-    // it and then later the read side of the socket gets closed so we
+    // it and then later the recv side of the socket gets closed so we
     // try and close it again). Thus, ignore the request if we don't
     // know about the socket.
     if (sockets.count(s) > 0) {
@@ -1988,18 +1760,20 @@ void SocketManager::close(int s)
         proxies.erase(s);
       }
 
-      // We need to stop any 'ignore_data' readers as they may have
-      // the last Socket reference so we shutdown reads but don't do a
+      // We need to stop any 'ignore_data' receivers as they may have
+      // the last Socket reference so we shutdown recvs but don't do a
       // full close (since that will be taken care of by ~Socket, see
       // comment below). Calling 'shutdown' will trigger 'ignore_data'
-      // which will get back a 0 (i.e., EOF) when it tries to read
+      // which will get back a 0 (i.e., EOF) when it tries to 'recv'
       // from the socket. Note we need to do this before we call
       // 'sockets.erase(s)' to avoid the potential race with the last
       // reference being in 'sockets'.
       shutdown(s, SHUT_RD);
 
       dispose.erase(s);
-      sockets.erase(s);
+      auto iterator = sockets.find(s);
+      delete iterator->second;
+      sockets.erase(iterator);
     }
   }
 
@@ -2025,7 +1799,7 @@ void SocketManager::close(int s)
   // 'sockets' any attempt to send with it will just get ignored.
   // TODO(benh): Always do a 'shutdown(s, SHUT_RDWR)' since that
   // should keep the file descriptor valid until the last Socket
-  // reference does a close but force all libev watchers to stop?
+  // reference does a close but force all event loop watchers to stop?
 }
 
 
@@ -2036,20 +1810,30 @@ void SocketManager::exited(const Node& node)
   // ourselves that the accesses to each Process object will always be
   // valid.
   synchronized (this) {
-    list<UPID> removed;
-    // Look up all linked processes.
-    foreachpair (const UPID& linkee, set<ProcessBase*>& processes, links) {
-      if (linkee.node == node) {
-        foreach (ProcessBase* linker, processes) {
-          linker->enqueue(new ExitedEvent(linkee));
-        }
-        removed.push_back(linkee);
-      }
+    if (!links.remotes.contains(node)) {
+      return; // No linkees for this node!
     }
 
-    foreach (const UPID& pid, removed) {
-      links.erase(pid);
+    foreach (const UPID& linkee, links.remotes[node]) {
+      // Find and notify the linkers.
+      CHECK(links.linkers.contains(linkee));
+
+      foreach (ProcessBase* linker, links.linkers[linkee]) {
+        linker->enqueue(new ExitedEvent(linkee));
+
+        // Remove the linkee pid from the linker.
+        CHECK(links.linkees.contains(linker));
+
+        links.linkees[linker].erase(linkee);
+        if (links.linkees[linker].empty()) {
+          links.linkees.erase(linker);
+        }
+      }
+
+      links.linkers.erase(linkee);
     }
+
+    links.remotes.erase(node);
   }
 }
 
@@ -2067,21 +1851,53 @@ void SocketManager::exited(ProcessBase* process)
   const Time time = Clock::now(process);
 
   synchronized (this) {
-    // Iterate through the links, removing any links the process might
-    // have had and creating exited events for any linked processes.
-    foreachpair (const UPID& linkee, set<ProcessBase*>& processes, links) {
-      processes.erase(process);
+    // If this process had linked to anything, we need to clean
+    // up any pointers to it. Also, if this process was the last
+    // linker to a remote linkee, we must remove linkee from the
+    // remotes!
+    if (links.linkees.contains(process)) {
+      foreach (const UPID& linkee, links.linkees[process]) {
+        CHECK(links.linkers.contains(linkee));
 
-      if (linkee == pid) {
-        foreach (ProcessBase* linker, processes) {
-          CHECK(linker != process) << "Process linked with itself";
-          Clock::update(linker, time);
-          linker->enqueue(new ExitedEvent(linkee));
+        links.linkers[linkee].erase(process);
+        if (links.linkers[linkee].empty()) {
+          links.linkers.erase(linkee);
+
+          // The exited process was the last linker for this linkee,
+          // so we need to remove the linkee from the remotes.
+          if (linkee.node != __node__) {
+            CHECK(links.remotes.contains(linkee.node));
+
+            links.remotes[linkee.node].erase(linkee);
+            if (links.remotes[linkee.node].empty()) {
+              links.remotes.erase(linkee.node);
+            }
+          }
         }
+      }
+      links.linkees.erase(process);
+    }
+
+    // Find the linkers to notify.
+    if (!links.linkers.contains(pid)) {
+      return; // No linkers for this process!
+    }
+
+    foreach (ProcessBase* linker, links.linkers[pid]) {
+      CHECK(linker != process) << "Process linked with itself";
+      Clock::update(linker, time);
+      linker->enqueue(new ExitedEvent(pid));
+
+      // Remove the linkee pid from the linker.
+      CHECK(links.linkees.contains(linker));
+
+      links.linkees[linker].erase(pid);
+      if (links.linkees[linker].empty()) {
+        links.linkees.erase(linker);
       }
     }
 
-    links.erase(pid);
+    links.linkers.erase(pid);
   }
 }
 
@@ -2152,7 +1968,7 @@ bool ProcessManager::handle(
       // Only send back an HTTP response if this isn't from libprocess
       // (which we determine by looking at the User-Agent). This is
       // necessary because older versions of libprocess would try and
-      // read the data and parse it as an HTTP request which would
+      // recv the data and parse it as an HTTP request which would
       // fail thus causing the socket to get closed (but now
       // libprocess will ignore responses, see ignore_data).
       Option<string> agent = request->headers.get("User-Agent");

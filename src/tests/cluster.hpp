@@ -63,9 +63,11 @@
 
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
-#include "slave/containerizer/containerizer.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
+
+#include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/fetcher.hpp"
 
 #include "state/in_memory.hpp"
 #include "state/log.hpp"
@@ -185,6 +187,7 @@ public:
       slave::Containerizer* containerizer;
       bool createdContainerizer; // Whether we own the containerizer.
 
+      process::Owned<slave::Fetcher> fetcher;
       process::Owned<slave::StatusUpdateManager> statusUpdateManager;
       process::Owned<slave::GarbageCollector> gc;
       process::Owned<MasterDetector> detector;
@@ -468,8 +471,11 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
   if (containerizer.isSome()) {
     slave.containerizer = containerizer.get();
   } else {
+    // Create a new fetcher.
+    slave.fetcher.reset(new slave::Fetcher());
+
     Try<slave::Containerizer*> containerizer =
-      slave::Containerizer::create(flags, true);
+      slave::Containerizer::create(flags, true, slave.fetcher.get());
     CHECK_SOME(containerizer);
 
     slave.containerizer = containerizer.get();

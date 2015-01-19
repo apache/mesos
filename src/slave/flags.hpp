@@ -132,8 +132,10 @@ public:
 
     add(&Flags::executor_shutdown_grace_period,
         "executor_shutdown_grace_period",
-        "Amount of time to wait for an executor\n"
-        "to shut down (e.g., 60secs, 3mins, etc)",
+        "Amount of time to wait for an executor to shut down\n"
+        "(e.g., 60s, 3min, etc). If the flag value is too small\n"
+        "(less than 3s), there may not be enough time for the\n"
+        "executor to react and can result in a hard shutdown.",
         EXECUTOR_SHUTDOWN_GRACE_PERIOD);
 
     add(&Flags::gc_delay,
@@ -144,10 +146,21 @@ public:
         "the available disk usage.",
         GC_DELAY);
 
+    add(&Flags::gc_disk_headroom,
+        "gc_disk_headroom",
+        "Adjust disk headroom used to calculate maximum executor\n"
+        "directory age. Age is calculated by:\n"
+        "gc_delay * max(0.0, (1.0 - gc_disk_headroom - disk usage))\n"
+        "every --disk_watch_interval duration. gc_disk_headroom must\n"
+        "be a value between 0.0 and 1.0",
+        GC_DISK_HEADROOM);
+
     add(&Flags::disk_watch_interval,
         "disk_watch_interval",
         "Periodic time interval (e.g., 10secs, 2mins, etc)\n"
-        "to check the disk usage",
+        "to check the overall disk usage managed by the slave.\n"
+        "This drives the garbage collection of archived\n"
+        "information and sandboxes.",
         DISK_WATCH_INTERVAL);
 
     add(&Flags::resource_monitoring_interval,
@@ -370,6 +383,18 @@ public:
         false);
 #endif // WITH_NETWORK_ISOLATOR
 
+    add(&Flags::container_disk_watch_interval,
+        "container_disk_watch_interval",
+        "The interval between disk quota checks for containers. This flag is\n"
+        "used for the 'posix/disk' isolator.",
+        Seconds(30));
+
+    add(&Flags::enforce_container_disk_quota,
+        "enforce_container_disk_quota",
+        "Whether to enable disk quota enforcement for containers. This flag\n"
+        "is used for the 'posix/disk' isolator.",
+        false);
+
     // This help message for --modules flag is the same for
     // {master,slave,tests}/flags.hpp and should always be kept in
     // sync.
@@ -423,6 +448,11 @@ public:
         "master. Use the default '" + DEFAULT_AUTHENTICATEE + "', or\n"
         "load an alternate authenticatee module using --modules.",
         DEFAULT_AUTHENTICATEE);
+
+    add(&Flags::hooks,
+        "hooks",
+        "A comma separated list of hook modules to be\n"
+        "installed inside the slave.");
   }
 
   bool version;
@@ -440,6 +470,7 @@ public:
   Duration executor_registration_timeout;
   Duration executor_shutdown_grace_period;
   Duration gc_delay;
+  double gc_disk_headroom;
   Duration disk_watch_interval;
   Duration resource_monitoring_interval;
   bool checkpoint;
@@ -474,8 +505,11 @@ public:
   Option<Bytes> egress_rate_limit_per_container;
   bool network_enable_socket_statistics;
 #endif
+  Duration container_disk_watch_interval;
+  bool enforce_container_disk_quota;
   Option<Modules> modules;
   std::string authenticatee;
+  Option<std::string> hooks;
 };
 
 } // namespace slave {

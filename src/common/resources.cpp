@@ -412,10 +412,19 @@ Resources::Resources(const Resource& resource)
 }
 
 
-Resources::Resources(
-    const google::protobuf::RepeatedPtrField<Resource>& resources)
+Resources::Resources(const vector<Resource>& _resources)
 {
-  foreach (const Resource& resource, resources) {
+  foreach (const Resource& resource, _resources) {
+    // NOTE: Invalid and zero Resource objects will be ignored.
+    *this += resource;
+  }
+}
+
+
+Resources::Resources(
+    const google::protobuf::RepeatedPtrField<Resource>& _resources)
+{
+  foreach (const Resource& resource, _resources) {
     // NOTE: Invalid and zero Resource objects will be ignored.
     *this += resource;
   }
@@ -425,7 +434,10 @@ Resources::Resources(
 bool Resources::contains(const Resources& that) const
 {
   foreach (const Resource& resource, that.resources) {
-    if (!contains(resource)) {
+    // NOTE: We use _contains because Resources only contain valid
+    // Resource objects, and we don't want the performance hit of the
+    // validity check.
+    if (!_contains(resource)) {
       return false;
     }
   }
@@ -434,17 +446,69 @@ bool Resources::contains(const Resources& that) const
 }
 
 
-Resources Resources::extract(const string& role) const
+bool Resources::contains(const Resource& that) const
 {
-  Resources r;
+  // NOTE: We must validate 'that' because invalid resources can lead
+  // to false positives here (e.g., "cpus:-1" will return true). This
+  // is because mesos::contains assumes resources are valid.
+  return validate(that).isNone() && _contains(that);
+}
+
+
+hashmap<string, Resources> Resources::reserved() const
+{
+  hashmap<string, Resources> result;
 
   foreach (const Resource& resource, resources) {
-    if (resource.role() == role) {
-      r += resource;
+    if (resource.role() != "*") {
+      result[resource.role()] += resource;
     }
   }
 
-  return r;
+  return result;
+}
+
+
+Resources Resources::reserved(const string& role) const
+{
+  Resources result;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.role() != "*" &&
+        resource.role() == role) {
+      result += resource;
+    }
+  }
+
+  return result;
+}
+
+
+Resources Resources::unreserved() const
+{
+  Resources result;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.role() == "*") {
+      result += resource;
+    }
+  }
+
+  return result;
+}
+
+
+Resources Resources::persistentDisks() const
+{
+  Resources result;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.has_disk() && resource.disk().has_persistence()) {
+      result += resource;
+    }
+  }
+
+  return result;
 }
 
 
@@ -471,7 +535,13 @@ public:
 
   Resources apply(const Resources& resources) const
   {
-    return type == ANY? resources : resources.extract(role);
+    if (type == ANY) {
+      return resources;
+    } else if (role == "*") {
+      return resources.unreserved();
+    } else {
+      return resources.reserved(role);
+    }
   }
 
 private:
@@ -654,7 +724,7 @@ Option<Value::Ranges> Resources::ephemeral_ports() const
 }
 
 
-bool Resources::contains(const Resource& that) const
+bool Resources::_contains(const Resource& that) const
 {
   foreach (const Resource& resource, resources) {
     if (mesos::contains(resource, that)) {
@@ -817,6 +887,96 @@ ostream& operator << (ostream& stream, const Resources& resources)
   }
 
   return stream;
+}
+
+
+/////////////////////////////////////////////////
+// Resources transformations.
+/////////////////////////////////////////////////
+
+
+Try<Resources> Resources::Transformation::operator () (
+    const Resources& resources) const
+{
+  Try<Resources> applied = apply(resources);
+
+  if (applied.isSome()) {
+    // Additional checks.
+
+    // Ensure the amount of each type of resource does not change.
+    // TODO(jieyu): Currently, we only checks known resource types
+    // like cpus, mem, disk, ports, etc. We should generalize this.
+    if (resources.cpus() != applied.get().cpus() ||
+        resources.mem() != applied.get().mem() ||
+        resources.disk() != applied.get().disk() ||
+        resources.ports() != applied.get().ports()) {
+      return Error("Resource amount does not match");
+    }
+
+    // TODO(jieyu): Ensure that static role does not change.
+  }
+
+  return applied;
+}
+
+
+Try<Resources> Resources::CompositeTransformation::apply(
+    const Resources& resources) const
+{
+  Resources result = resources;
+
+  foreach (Transformation* transformation, transformations) {
+    Try<Resources> transformed = (*transformation)(result);
+
+    if (transformed.isError()) {
+      return Error(transformed.error());
+    }
+
+    result = transformed.get();
+  }
+
+  return result;
+}
+
+
+Resources::AcquirePersistentDisk::AcquirePersistentDisk(const Resource& _disk)
+  : disk(_disk)
+{
+  CHECK(disk.has_disk());
+  CHECK(disk.disk().has_persistence());
+}
+
+
+Try<Resources> Resources::AcquirePersistentDisk::apply(
+    const Resources& resources) const
+{
+  foreach (const Resource& resource, resources) {
+    // TODO(jieyu): Non-persistent volumes are not supported for now.
+    // Persistent disk can only be be acquired from regular disk
+    // resources. Revisit this once we start to support non-persistent
+    // disk volumes.
+    if (resource.name() == "disk" &&
+        !resource.has_disk() &&
+        resource.role() == disk.role()) {
+      CHECK_EQ(resource.type(), Value::SCALAR);
+      CHECK_EQ(disk.type(), Value::SCALAR);
+
+      if (disk.scalar() <= resource.scalar()) {
+        // Strip the disk info so that we can subtract it from the
+        // original resources.
+        Resource stripped = disk;
+        stripped.clear_disk();
+
+        Resources result = resources;
+        result -= stripped;
+        result += disk;
+
+        return result;
+      }
+    }
+  }
+
+  return Error("Insufficient disk resources");
 }
 
 } // namespace mesos {

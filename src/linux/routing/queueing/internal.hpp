@@ -73,7 +73,7 @@ Result<Discipline> decode(const Netlink<struct rtnl_qdisc>& qdisc);
 // queueing discipline (rtnl_qdisc). We use template here so that it
 // works for any type of queueing discipline.
 template <typename Discipline>
-Try<Netlink<struct rtnl_qdisc> > encode(
+Try<Netlink<struct rtnl_qdisc>> encode(
     const Netlink<struct rtnl_link>& link,
     const Discipline& discipline)
 {
@@ -102,26 +102,26 @@ Try<Netlink<struct rtnl_qdisc> > encode(
 /////////////////////////////////////////////////
 
 // Returns all the libnl queue discipline (rtnl_qdisc) on the link.
-inline Try<std::vector<Netlink<struct rtnl_qdisc> > > getQdiscs(
+inline Try<std::vector<Netlink<struct rtnl_qdisc>>> getQdiscs(
     const Netlink<struct rtnl_link>& link)
 {
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
   // Dump all the queueing discipline from kernel.
   struct nl_cache* c = NULL;
-  int err = rtnl_qdisc_alloc_cache(sock.get().get(), &c);
-  if (err != 0) {
+  int error = rtnl_qdisc_alloc_cache(socket.get().get(), &c);
+  if (error != 0) {
     return Error(
         "Failed to get queueing discipline info from kernel: " +
-        std::string(nl_geterror(err)));
+        std::string(nl_geterror(error)));
   }
 
   Netlink<struct nl_cache> cache(c);
 
-  std::vector<Netlink<struct rtnl_qdisc> > results;
+  std::vector<Netlink<struct rtnl_qdisc>> results;
 
   for (struct nl_object* o = nl_cache_get_first(cache.get());
        o != NULL; o = nl_cache_get_next(o)) {
@@ -138,11 +138,11 @@ inline Try<std::vector<Netlink<struct rtnl_qdisc> > > getQdiscs(
 // has been found. We use template here so that it works for any type
 // of queueing discipline.
 template <typename Discipline>
-Result<Netlink<struct rtnl_qdisc> > getQdisc(
+Result<Netlink<struct rtnl_qdisc>> getQdisc(
     const Netlink<struct rtnl_link>& link,
     const Discipline& discipline)
 {
-  Try<std::vector<Netlink<struct rtnl_qdisc> > > qdiscs = getQdiscs(link);
+  Try<std::vector<Netlink<struct rtnl_qdisc>>> qdiscs = getQdiscs(link);
   if (qdiscs.isError()) {
     return Error(qdiscs.error());
   }
@@ -172,14 +172,14 @@ Result<Netlink<struct rtnl_qdisc> > getQdisc(
 template <typename Discipline>
 Try<bool> exists(const std::string& _link, const Discipline& discipline)
 {
-  Result<Netlink<struct rtnl_link> > link = link::internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
     return false;
   }
 
-  Result<Netlink<struct rtnl_qdisc> > qdisc = getQdisc(link.get(), discipline);
+  Result<Netlink<struct rtnl_qdisc>> qdisc = getQdisc(link.get(), discipline);
   if (qdisc.isError()) {
     return Error(qdisc.error());
   }
@@ -193,37 +193,37 @@ Try<bool> exists(const std::string& _link, const Discipline& discipline)
 template <typename Discipline>
 Try<bool> create(const std::string& _link, const Discipline& discipline)
 {
-  Result<Netlink<struct rtnl_link> > link = link::internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
     return Error("Link '" + _link + "' is not found");
   }
 
-  Try<Netlink<struct rtnl_qdisc> > qdisc = encode(link.get(), discipline);
+  Try<Netlink<struct rtnl_qdisc>> qdisc = encode(link.get(), discipline);
   if (qdisc.isError()) {
     return Error("Failed to encode the queueing discipline: " + qdisc.error());
   }
 
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
   // The flag NLM_F_EXCL tells libnl that if the qdisc already exists,
   // this function should return error.
-  int err = rtnl_qdisc_add(
-      sock.get().get(),
+  int error = rtnl_qdisc_add(
+      socket.get().get(),
       qdisc.get().get(),
       NLM_F_CREATE | NLM_F_EXCL);
 
-  if (err != 0) {
-    if (err == -NLE_EXIST) {
+  if (error != 0) {
+    if (error == -NLE_EXIST) {
       return false;
     }
     return Error(
         "Failed to add a queueing discipline to the link: " +
-        std::string(nl_geterror(err)));
+        std::string(nl_geterror(error)));
   }
 
   return true;
@@ -236,30 +236,30 @@ Try<bool> create(const std::string& _link, const Discipline& discipline)
 template <typename Discipline>
 Try<bool> remove(const std::string& _link, const Discipline& discipline)
 {
-  Result<Netlink<struct rtnl_link> > link = link::internal::get(_link);
+  Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
     return Error(link.error());
   } else if (link.isNone()) {
     return false;
   }
 
-  Result<Netlink<struct rtnl_qdisc> > qdisc = getQdisc(link.get(), discipline);
+  Result<Netlink<struct rtnl_qdisc>> qdisc = getQdisc(link.get(), discipline);
   if (qdisc.isError()) {
     return Error(qdisc.error());
   } else if (qdisc.isNone()) {
     return false;
   }
 
-  Try<Netlink<struct nl_sock> > sock = routing::socket();
-  if (sock.isError()) {
-    return Error(sock.error());
+  Try<Netlink<struct nl_sock>> socket = routing::socket();
+  if (socket.isError()) {
+    return Error(socket.error());
   }
 
-  int err = rtnl_qdisc_delete(sock.get().get(), qdisc.get().get());
-  if (err != 0) {
+  int error = rtnl_qdisc_delete(socket.get().get(), qdisc.get().get());
+  if (error != 0) {
     // TODO(jieyu): Interpret the error code and return false if it
     // indicates that the queueing discipline is not found.
-    return Error(std::string(nl_geterror(err)));
+    return Error(std::string(nl_geterror(error)));
   }
 
   return true;

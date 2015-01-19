@@ -118,8 +118,9 @@ message Call {
     REREGISTER = 2;
     UNREGISTER = 3;
     REQUEST = 4;
-    DECLINE = 5;
     REVIVE = 6;
+    DECLINE = 5;
+    ACCEPT = 12;
     LAUNCH = 7;
     KILL = 8;
     ACKNOWLEDGE = 9;
@@ -144,6 +145,31 @@ message Call {
     optional Filters filters = 2;
   }
 
+  // Accepts an offer, performing the specified operations
+  // in a sequential manner.
+  //
+  // E.g. Launch a task with a newly reserved persistent volume:
+  //
+  //   Accept {
+  //     offer_ids: [ ... ]
+  //     operations: [
+  //       { type: RESERVE,
+  //         reserve: { resources: [ disk(role):2 ] } }
+  //       { type: CREATE,
+  //         create: { volumes: [ disk(role):1+persistence ] } }
+  //       { type: LAUNCH,
+  //         launch: { task_infos ... disk(role):1;disk(role):1+persistence } }
+  //     ]
+  //   }
+  //
+  // TODO(bmahler): Not implemented.
+  message Accept {
+    repeated OfferID offer_ids = 1;
+    repeated Offer.Operation operations = 2;
+    optional Filters filters = 3;
+  }
+
+  // TODO(bmahler): Deprecate Launch in favor of Accept.
   message Launch {
     repeated TaskInfo task_infos = 1;
     repeated OfferID offer_ids = 2;
@@ -189,6 +215,7 @@ message Call {
 
   optional Request request = 3;
   optional Decline decline = 4;
+  optional Accept accept = 10;
   optional Launch launch = 5;
   optional Kill kill = 6;
   optional Acknowledge acknowledge = 7;

@@ -39,6 +39,7 @@
 #endif // __linux__
 
 #include "slave/containerizer/isolators/posix.hpp"
+#include "slave/containerizer/isolators/posix/disk.hpp"
 #ifdef __linux__
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
@@ -77,7 +78,8 @@ Future<Nothing> _nothing() { return Nothing(); }
 
 Try<MesosContainerizer*> MesosContainerizer::create(
     const Flags& flags,
-    bool local)
+    bool local,
+    Fetcher* fetcher)
 {
   string isolation;
   if (flags.isolation == "process") {
@@ -105,6 +107,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   creators["posix/cpu"]   = &PosixCpuIsolatorProcess::create;
   creators["posix/mem"]   = &PosixMemIsolatorProcess::create;
+  creators["posix/disk"]  = &PosixDiskIsolatorProcess::create;
 #ifdef __linux__
   creators["cgroups/cpu"] = &CgroupsCpushareIsolatorProcess::create;
   creators["cgroups/mem"] = &CgroupsMemIsolatorProcess::create;
@@ -164,16 +167,22 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   }
 
   return new MesosContainerizer(
-      flags_, local, Owned<Launcher>(launcher.get()), isolators);
+      flags_, local, fetcher, Owned<Launcher>(launcher.get()), isolators);
 }
 
 
 MesosContainerizer::MesosContainerizer(
     const Flags& flags,
     bool local,
+    Fetcher* fetcher,
     const Owned<Launcher>& launcher,
     const vector<Owned<Isolator>>& isolators)
-  : process(new MesosContainerizerProcess(flags, local, launcher, isolators))
+  : process(new MesosContainerizerProcess(
+      flags,
+      local,
+      fetcher,
+      launcher,
+      isolators))
 {
   spawn(process.get());
 }
@@ -540,29 +549,12 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     return Failure("Container is already destroyed");
   }
 
-  if (commandInfo.uris().size() == 0) {
-    return Nothing();
-  }
-
-  Try<Subprocess> fetcher = fetcher::run(
+  return fetcher->fetch(
+      containerId,
       commandInfo,
       directory,
       user,
       flags);
-
-  if (fetcher.isError()) {
-    return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
-  }
-
-  // TODO(tnachen): Currently the fetcher won't shutdown when slave
-  // exits. This means the fetcher will still be running when slave
-  // restarts and after recovering. We won't resume the task since
-  // it hasn't checkpointed yet. Once the fetcher supports existing
-  // on slave it will be removed automatically.
-  containers_[containerId]->fetcher = fetcher.get();
-
-  return fetcher.get().status()
-    .then(lambda::bind(&fetcher::_run, containerId, lambda::_1));
 }
 
 
@@ -899,10 +891,8 @@ void MesosContainerizerProcess::destroy(const ContainerID& containerId)
     return;
   }
 
-  if (container->state == FETCHING && container->fetcher.isSome()) {
-    VLOG(1) << "Killing the fetcher for container '" << containerId << "'";
-    // Best effort kill the entire fetcher tree.
-    os::killtree(container->fetcher.get().pid(), SIGKILL);
+  if (container->state == FETCHING) {
+    fetcher->kill(containerId);
   }
 
   if (container->state == ISOLATING) {
@@ -1109,8 +1099,9 @@ void MesosContainerizerProcess::limited(
 
   if (future.isReady()) {
     LOG(INFO) << "Container " << containerId << " has reached its limit for"
-              << " resource " << future.get().resource
+              << " resource " << future.get().resources
               << " and will be terminated";
+
     containers_[containerId]->limitations.push_back(future.get());
   } else {
     // TODO(idownes): A discarded future will not be an error when

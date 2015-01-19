@@ -59,6 +59,7 @@ void ModuleManager::initialize()
 
   kindToVersion["Authenticatee"] = MESOS_VERSION;
   kindToVersion["Authenticator"] = MESOS_VERSION;
+  kindToVersion["Hook"] = MESOS_VERSION;
   kindToVersion["Isolator"] = MESOS_VERSION;
   kindToVersion["TestModule"] = MESOS_VERSION;
 
@@ -196,7 +197,8 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
       Owned<DynamicLibrary> dynamicLibrary(new DynamicLibrary());
       Try<Nothing> result = dynamicLibrary->open(libraryName);
       if (!result.isSome()) {
-        return Error("Error opening library: '" + libraryName + "'");
+        return Error(
+            "Error opening library: '" + libraryName + "': " + result.error());
       }
 
       dynamicLibraries[libraryName] = dynamicLibrary;

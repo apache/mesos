@@ -39,11 +39,15 @@ class MesosContainerizerProcess;
 class MesosContainerizer : public Containerizer
 {
 public:
-  static Try<MesosContainerizer*> create(const Flags& flags, bool local);
+  static Try<MesosContainerizer*> create(
+      const Flags& flags,
+      bool local,
+      Fetcher* fetcher);
 
   MesosContainerizer(
       const Flags& flags,
       bool local,
+      Fetcher* fetcher,
       const process::Owned<Launcher>& launcher,
       const std::vector<process::Owned<Isolator>>& isolators);
 
@@ -100,10 +104,12 @@ public:
   MesosContainerizerProcess(
       const Flags& _flags,
       bool _local,
+      Fetcher* _fetcher,
       const process::Owned<Launcher>& _launcher,
       const std::vector<process::Owned<Isolator>>& _isolators)
     : flags(_flags),
       local(_local),
+      fetcher(_fetcher),
       launcher(_launcher),
       isolators(_isolators) {}
 
@@ -214,6 +220,7 @@ private:
 
   const Flags flags;
   const bool local;
+  Fetcher* fetcher;
   const process::Owned<Launcher> launcher;
   const std::vector<process::Owned<Isolator>> isolators;
 
@@ -244,10 +251,6 @@ private:
     // We keep track of any limitations received from each isolator so we can
     // determine the cause of an executor termination.
     std::vector<Limitation> limitations;
-
-    // The mesos-fetcher subprocess, that we keep around so we can
-    // stop the fetcher when the container is destroyed.
-    Option<process::Subprocess> fetcher;
 
     // We keep track of the resources for each container so we can set the
     // ResourceStatistics limits in usage().

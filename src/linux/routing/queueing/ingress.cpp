@@ -62,11 +62,11 @@ Try<Nothing> encode<ingress::Discipline>(
     const Netlink<struct rtnl_qdisc>& qdisc,
     const ingress::Discipline& discipline)
 {
-  int err = rtnl_tc_set_kind(TC_CAST(qdisc.get()), "ingress");
-  if (err != 0) {
+  int error = rtnl_tc_set_kind(TC_CAST(qdisc.get()), "ingress");
+  if (error != 0) {
     return Error(
         "Failed to set the kind of the queueing discipline: " +
-        string(nl_geterror(err)));
+        string(nl_geterror(error)));
   }
 
   rtnl_tc_set_parent(TC_CAST(qdisc.get()), INGRESS_ROOT.get());

@@ -69,6 +69,8 @@
 
 #include "credentials/credentials.hpp"
 
+#include "hook/manager.hpp"
+
 #include "logging/logging.hpp"
 
 #include "module/authenticatee.hpp"
@@ -76,6 +78,7 @@
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
+#include "slave/graceful_shutdown.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
@@ -279,6 +282,11 @@ void Slave::initialize()
       LOG(INFO) << "Slave using credential for: "
                 << credential.get().principal();
     }
+  }
+
+  if ((flags.gc_disk_headroom < 0) || (flags.gc_disk_headroom > 1)) {
+    EXIT(1) << "Invalid value '" << flags.gc_disk_headroom
+            << "' for --gc_disk_headroom. Must be between 0.0 and 1.0.";
   }
 
   // Ensure slave work directory exists.
@@ -1079,6 +1087,30 @@ Future<bool> Slave::unschedule(const string& path)
 }
 
 
+// Returns a TaskInfo with grace shutdown period field added in
+// task's CommandInfo structures.
+TaskInfo updateGracePeriod(TaskInfo task, double gracePeriod)
+{
+  // TODO(alexr): do not overwrite present value for frameworks that
+  // are authorized to set grace periods for their executors.
+
+  // Update CommandInfo in task.
+  if (task.has_command()) {
+    task.mutable_command()->set_grace_period_seconds(gracePeriod);
+  }
+
+  // Update CommandInfo in task's ExecutorInfo.
+  if (task.has_executor() &&
+      task.executor().has_command()) {
+    task.mutable_executor()->mutable_command()->set_grace_period_seconds(
+        gracePeriod);
+  }
+
+  // Return either updated or unchanged TaskInfo.
+  return task;
+}
+
+
 // TODO(vinod): Instead of crashing the slave on checkpoint errors,
 // send TASK_LOST to the framework.
 void Slave::runTask(
@@ -1156,14 +1188,19 @@ void Slave::runTask(
     }
   }
 
-  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
+  // Ensure the task has grace shutdown period set.
+  const TaskInfo& task_ = updateGracePeriod(
+      task,
+      Seconds(flags.executor_shutdown_grace_period).value());
+
+  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task_);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // We add the task to 'pending' to ensure the framework is not
   // removed and the framework and top level executor directories
   // are not scheduled for deletion before '_runTask()' is called.
   CHECK_NOTNULL(framework);
-  framework->pending[executorId][task.task_id()] = task;
+  framework->pending[executorId][task_.task_id()] = task_;
 
   // If we are about to create a new executor, unschedule the top
   // level work and meta directories from getting gc'ed.
@@ -1194,7 +1231,7 @@ void Slave::runTask(
             frameworkInfo,
             frameworkId,
             pid,
-            task));
+            task_));
 }
 
 
@@ -1994,8 +2031,6 @@ void Slave::registerExecutor(
         LOG(INFO) << "Flushing queued task " << task.task_id()
                   << " for executor '" << executor->id << "'"
                   << " of framework " << framework->id;
-
-        stats.tasks[TASK_STAGING]++;
 
         RunTaskMessage message;
         message.mutable_framework_id()->MergeFrom(framework->id);
@@ -3088,6 +3123,8 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
     }
   }
 
+  HookManager::slaveRemoveExecutorHook(framework->info, executor->info);
+
   framework->destroyExecutor(executor->id);
 }
 
@@ -3177,7 +3214,7 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
   send(executor->pid, ShutdownExecutorMessage());
 
   // Prepare for sending a kill if the executor doesn't comply.
-  delay(flags.executor_shutdown_grace_period,
+  delay(getContainerizerGracePeriod(flags.executor_shutdown_grace_period),
         self(),
         &Slave::shutdownExecutorTimeout,
         framework->id,
@@ -3312,7 +3349,7 @@ void Slave::registerExecutorTimeout(
 // TODO(vinod): Figure out a way to express this function via cmd line.
 Duration Slave::age(double usage)
 {
-  return flags.gc_delay * std::max(0.0, (1.0 - GC_DISK_HEADROOM - usage));
+  return flags.gc_delay * std::max(0.0, (1.0 - flags.gc_disk_headroom - usage));
 }
 
 
@@ -3333,7 +3370,7 @@ void Slave::_checkDiskUsage(const Future<double>& usage)
     LOG(ERROR) << "Failed to get disk usage: "
                << (usage.isFailed() ? usage.failure() : "future discarded");
   } else {
-    LOG(INFO) << "Current usage " << std::setiosflags(std::ios::fixed)
+    LOG(INFO) << "Current disk usage " << std::setiosflags(std::ios::fixed)
               << std::setprecision(2) << 100 * usage.get() << "%."
               << " Max allowed age: " << age(usage.get());
 
@@ -3829,11 +3866,31 @@ Framework::~Framework()
 }
 
 
-// Create and launch an executor.
-Executor* Framework::launchExecutor(
-    const ExecutorInfo& executorInfo,
+// Environment decorator for executor.
+static ExecutorInfo decorateExecutorEnvironment(
+    ExecutorInfo executorInfo,
     const TaskInfo& taskInfo)
 {
+  // Merge environment variables retrieved from label-decorator hooks.
+  executorInfo.mutable_command()->mutable_environment()->MergeFrom(
+      HookManager::slaveLaunchExecutorEnvironmentDecorator(
+          executorInfo,
+          taskInfo));
+
+  return executorInfo;
+}
+
+
+// Create and launch an executor.
+Executor* Framework::launchExecutor(
+    const ExecutorInfo& executorInfo__,
+    const TaskInfo& taskInfo)
+{
+  // Merge environment variables retrieved from environment-decorator
+  // hooks.
+  const ExecutorInfo& executorInfo =
+    decorateExecutorEnvironment(executorInfo__, taskInfo);
+
   // Generate an ID for the executor's container.
   // TODO(idownes) This should be done by the containerizer but we need the
   // ContainerID to create the executor's directory and to set up monitoring.

@@ -612,8 +612,8 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterFailoverTimeout)
   AWAIT_READY(frameworkRegisteredMessage);
   AWAIT_READY(frameworkId);
 
-  Future<Nothing> frameworkDeactivated = FUTURE_DISPATCH(
-      _, &master::allocator::AllocatorProcess::frameworkDeactivated);
+  Future<Nothing> deactivateFramework = FUTURE_DISPATCH(
+      _, &master::allocator::AllocatorProcess::deactivateFramework);
 
   Future<Nothing> frameworkFailoverTimeout =
     FUTURE_DISPATCH(_, &Master::frameworkFailoverTimeout);
@@ -623,7 +623,7 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterFailoverTimeout)
       frameworkRegisteredMessage.get().to, master.get()));
 
   // Wait until master schedules the framework for removal.
-  AWAIT_READY(frameworkDeactivated);
+  AWAIT_READY(deactivateFramework);
 
   // Simulate framework failover timeout.
   Clock::pause();
@@ -698,15 +698,15 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterUnregistration)
   AWAIT_READY(frameworkRegisteredMessage);
   AWAIT_READY(frameworkId);
 
-  Future<Nothing> frameworkRemoved = FUTURE_DISPATCH(
-      _, &master::allocator::AllocatorProcess::frameworkRemoved);
+  Future<Nothing> removeFramework = FUTURE_DISPATCH(
+      _, &master::allocator::AllocatorProcess::removeFramework);
 
   // Unregister the framework.
   driver1.stop();
   driver1.join();
 
   // Wait until master actually marks the framework as completed.
-  AWAIT_READY(frameworkRemoved);
+  AWAIT_READY(removeFramework);
 
   // Now launch the second (i.e., failover) scheduler using the
   // framework id recorded from the first scheduler.

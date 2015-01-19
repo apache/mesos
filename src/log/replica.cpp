@@ -222,6 +222,9 @@ Future<list<Action> > ReplicaProcess::read(uint64_t from, uint64_t to)
     return promise.future();
   }
 
+  VLOG(2) << "Starting read from '" << stringify(from) << "' to '"
+          << stringify(to) << "'";
+
   list<Action> actions;
 
   for (uint64_t position = from; position <= to; position++) {

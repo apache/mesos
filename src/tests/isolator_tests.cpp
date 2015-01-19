@@ -58,6 +58,7 @@
 
 #include "slave/containerizer/launcher.hpp"
 #ifdef __linux__
+#include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/linux_launcher.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
@@ -81,6 +82,7 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::CgroupsCpushareIsolatorProcess;
 using mesos::internal::slave::CgroupsMemIsolatorProcess;
 using mesos::internal::slave::CgroupsPerfEventIsolatorProcess;
+using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::SharedFilesystemIsolatorProcess;
 #endif // __linux__
 using mesos::internal::slave::Isolator;
@@ -952,8 +954,10 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
 
   string directory = os::getcwd(); // We're inside a temporary sandbox.
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;

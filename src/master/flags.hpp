@@ -290,7 +290,10 @@ public:
 #ifdef WITH_NETWORK_ISOLATOR
     add(&Flags::max_executors_per_slave,
         "max_executors_per_slave",
-        "A maximum number of executors to allow per slave.");
+        "Maximum number of executors allowed per slave. The network\n"
+        "monitoring/isolation technique imposes an implicit resource\n"
+        "acquisition on each executor (# ephemeral ports), as a result\n"
+        "one can only run a certain number of executors on each slave.");
 #endif  // WITH_NETWORK_ISOLATOR
 
     // TODO(karya): When we have optimistic offers, this will only
@@ -299,7 +302,7 @@ public:
         "offer_timeout",
         "Duration of time before an offer is rescinded from a framework.\n"
         "This helps fairness when running frameworks that hold on to offers,\n"
-        "or frameworks that accidentally drop offers.\n");
+        "or frameworks that accidentally drop offers.");
 
     // This help message for --modules flag is the same for
     // {master,slave,tests}/flags.hpp and should always be kept in
@@ -354,6 +357,11 @@ public:
         "and/or slaves. Use the default '" + DEFAULT_AUTHENTICATOR + "', or\n"
         "load an alternate authenticator module using --modules.",
         DEFAULT_AUTHENTICATOR);
+
+    add(&Flags::hooks,
+        "hooks",
+        "A comma separated list of hook modules to be\n"
+        "installed inside master.");
   }
 
   bool version;
@@ -385,6 +393,7 @@ public:
   Option<Duration> offer_timeout;
   Option<Modules> modules;
   std::string authenticators;
+  Option<std::string> hooks;
 
 #ifdef WITH_NETWORK_ISOLATOR
   Option<size_t> max_executors_per_slave;

@@ -33,6 +33,7 @@
 #include <process/io.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
+#include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/option.hpp>
@@ -45,9 +46,12 @@
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"
-#include "slave/gc.hpp"
 #include "slave/flags.hpp"
+#include "slave/gc.hpp"
+#include "slave/graceful_shutdown.hpp"
 #include "slave/slave.hpp"
+
+#include "slave/containerizer/fetcher.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
@@ -61,11 +65,12 @@ using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::GarbageCollectorProcess;
-using mesos::internal::slave::Slave;
 using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
+using mesos::internal::slave::Slave;
 
 using process::Clock;
 using process::Future;
@@ -103,8 +108,10 @@ TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
   // Set the isolation flag so we know a MesoContainerizer will be created.
   flags.isolation = "posix/cpu,posix/mem";
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());
@@ -406,8 +413,10 @@ TEST_F(SlaveTest, MesosExecutorCommandTaskWithArgsList)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());
@@ -528,8 +537,10 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());
@@ -622,8 +633,10 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithUser)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());
@@ -1442,15 +1455,17 @@ TEST_F(SlaveTest, TaskLabels)
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   // Add three labels to the task (two of which share the same key).
-  Label* label1 = task.add_labels();
+  Labels* labels = task.mutable_labels();
+
+  Label* label1 = labels->add_labels();
   label1->set_key("foo");
   label1->set_value("bar");
 
-  Label* label2 = task.add_labels();
+  Label* label2 = labels->add_labels();
   label2->set_key("bar");
   label2->set_value("baz");
 
-  Label* label3 = task.add_labels();
+  Label* label3 = labels->add_labels();
   label3->set_key("bar");
   label3->set_value("qux");
 
@@ -1537,4 +1552,193 @@ TEST_F(SlaveTest, TaskLabels)
   driver.join();
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// This test checks that the mechanism of calculating nested graceful
+// shutdown periods does not break the default behaviour and works as
+// expected.
+TEST_F(SlaveTest, ShutdownGracePeriod)
+{
+  Duration defaultTimeout = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  Duration customTimeout = Seconds(10);
+
+  // We used to have a signal escalation timeout constant responsibe
+  // for graceful shutdown period in the CommandExecutor. Make sure
+  // the default behaviour (3s) persists.
+  EXPECT_EQ(Seconds(3), slave::getExecutorGracePeriod(defaultTimeout));
+
+  // The new logic uses a certain delta to calculate nested timeouts.
+  EXPECT_EQ(Duration::zero(), slave::getExecutorGracePeriod(Duration::zero()));
+  EXPECT_EQ(Seconds(2), slave::getContainerizerGracePeriod(Duration::zero()));
+  EXPECT_EQ(customTimeout + Seconds(2),
+            slave::getContainerizerGracePeriod(customTimeout));
+
+  // The grace period in ExecutorProcess should be bigger than the
+  // grace period in an executor.
+  EXPECT_GT(slave::getExecGracePeriod(defaultTimeout),
+            slave::getExecutorGracePeriod(defaultTimeout));
+
+  // Check the graceful shutdown periods that reach the executor in
+  // protobuf messages.
+  // NOTE: We check only the message contents and *not* the value
+  // stored by the executor.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+
+  Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+  Offer offer = offers.get()[0];
+
+  // Create one task with shutdown grace period set and one without.
+  TaskInfo taskCustom;
+  taskCustom.set_name("Task with custom grace shutdown period");
+  taskCustom.mutable_task_id()->set_value("custom");
+  taskCustom.mutable_slave_id()->MergeFrom(offer.slave_id());
+  taskCustom.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  taskCustom.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:0.1;mem:64").get());
+  taskCustom.mutable_executor()->mutable_command()->set_grace_period_seconds(
+      Seconds(customTimeout).value());
+
+  TaskInfo taskDefault;
+  taskDefault.set_name("Task with default grace shutdown period");
+  taskDefault.mutable_task_id()->set_value("default");
+  taskDefault.mutable_slave_id()->MergeFrom(offer.slave_id());
+  taskDefault.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  taskDefault.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:0.1;mem:64").get());
+
+  ASSERT_TRUE(Resources(offer.resources()).contains(
+      taskCustom.resources() + taskDefault.resources()));
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(taskCustom);
+  tasks.push_back(taskDefault);
+
+  Future<TaskInfo> task1, task2;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(FutureArg<1>(&task1))
+    .WillOnce(FutureArg<1>(&task2));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(task1);
+  AWAIT_READY(task2);
+
+  // Currently (14 Nov 2014) grace periods customized by frameworks
+  // are ignored.
+  EXPECT_DOUBLE_EQ(
+      Seconds(defaultTimeout).value(),
+      task1.get().executor().command().grace_period_seconds());
+  EXPECT_DOUBLE_EQ
+      (Seconds(defaultTimeout).value(),
+      task2.get().executor().command().grace_period_seconds());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// This test runs a long-living task responsive to SIGTERM and
+// attempts to kill it gracefully.
+TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Explicitly set the grace period for slave default.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+
+  // Ensure escalation timeout is more than the maximal reap interval.
+  auto timeout = slave::getExecutorGracePeriod(
+      slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
+  EXPECT_LT(process::MAX_REAP_INTERVAL(), timeout);
+
+  Fetcher fetcher;
+  Try<MesosContainerizer*> containerizer = MesosContainerizer::create(
+      flags, true, &fetcher);
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+  Offer offer = offers.get()[0];
+
+  // Launch a long-running task responsive to SIGTERM.
+  TaskInfo taskResponsive = createTask(offer, "sleep 1000");
+  vector<TaskInfo> tasks;
+  tasks.push_back(taskResponsive);
+
+  Future<TaskStatus> statusRunning, statusKilled;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  driver.killTask(taskResponsive.task_id());
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
+
+  // CommandExecutor supports graceful shutdown in sending SIGTERM
+  // first. If the task obeys, it will be reaped and we get
+  // appropriate status message.
+  // NOTE: strsignal() behaves differently on Mac OS and Linux.
+  // TODO(alex): By now we have no better way to extract the kill
+  // reason. Change this once we have level 2 enums for task states.
+  EXPECT_TRUE(statusKilled.get().has_message());
+  EXPECT_NE(std::string::npos, statusKilled.get().message().find("Terminated"));
+
+  // Stop the driver while the task is running.
+  driver.stop();
+  driver.join();
+
+  Shutdown();  // Must shutdown before 'containerizer' gets deallocated.
+  delete containerizer.get();
 }

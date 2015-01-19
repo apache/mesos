@@ -103,14 +103,19 @@ Option<ContainerID> parse(const Docker::Container& container)
 }
 
 
-Try<DockerContainerizer*> DockerContainerizer::create(const Flags& flags)
+Try<DockerContainerizer*> DockerContainerizer::create(
+    const Flags& flags,
+    Fetcher* fetcher)
 {
   Try<Docker*> docker = Docker::create(flags.docker);
   if (docker.isError()) {
     return Error(docker.error());
   }
 
-  return new DockerContainerizer(flags, Shared<Docker>(docker.get()));
+  return new DockerContainerizer(
+      flags,
+      fetcher,
+      Shared<Docker>(docker.get()));
 }
 
 
@@ -124,8 +129,9 @@ DockerContainerizer::DockerContainerizer(
 
 DockerContainerizer::DockerContainerizer(
     const Flags& flags,
+    Fetcher* fetcher,
     Shared<Docker> docker)
-  : process(new DockerContainerizerProcess(flags, docker))
+  : process(new DockerContainerizerProcess(flags, fetcher, docker))
 {
   spawn(process.get());
 }
@@ -221,29 +227,12 @@ Future<Nothing> DockerContainerizerProcess::fetch(
   CHECK(containers_.contains(containerId));
   Container* container = containers_[containerId];
 
-  CommandInfo commandInfo = container->command();
-
-  if (commandInfo.uris().size() == 0) {
-    return Nothing();
-  }
-
-  VLOG(1) << "Starting to fetch URIs for container: " << containerId
-          << ", directory: " << container->directory;
-
-  Try<Subprocess> fetcher = fetcher::run(
-      commandInfo,
+  return fetcher->fetch(
+      containerId,
+      container->command(),
       container->directory,
       None(),
       flags);
-
-  if (fetcher.isError()) {
-    return Failure("Failed to execute mesos-fetcher: " + fetcher.error());
-  }
-
-  container->fetcher = fetcher.get();
-
-  return fetcher.get().status()
-    .then(lambda::bind(&fetcher::_run, containerId, lambda::_1));
 }
 
 
@@ -1191,10 +1180,7 @@ void DockerContainerizerProcess::destroy(
     LOG(INFO) << "Destroying Container '"
               << containerId << "' in FETCHING state";
 
-    if (container->fetcher.isSome()) {
-      // Best effort kill the entire fetcher tree.
-      os::killtree(container->fetcher.get().pid(), SIGKILL);
-    }
+    fetcher->kill(containerId);
 
     containerizer::Termination termination;
     termination.set_killed(killed);

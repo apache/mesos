@@ -1,0 +1,38 @@
+matrix:
+  fast_finish: true
+  include:
+    - os: linux
+      env: BUILD_TYPE=Debug
+      compiler: clang
+    - os: linux
+      env: BUILD_TYPE=Release
+      compiler: clang
+    - os: linux
+      env: BUILD_TYPE=Debug
+      compiler: gcc
+    - os: linux
+      env: BUILD_TYPE=Release
+      compiler: gcc
+#    - os: osx
+#      env: BUILD_TYPE=Debug
+#    - os: osx
+#      env: BUILD_TYPE=Release
+language: cpp
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y libapr1-dev libsvn-dev libsasl2-dev
+before_script:
+  - ./bootstrap
+  - mkdir build
+  - cd build
+script:
+  - if [ "$BUILD_TYPE" = "Debug" ]; then ../configure --enable-debug; fi
+  - if [ "$BUILD_TYPE" = "Release" ]; then ../configure; fi
+  - make
+  - make check
+notifications:
+  irc:
+    channels:
+      - "chat.freenode.net#mesos"
+    template:
+      - "%{repository}/%{branch} (%{commit} - %{author}): %{build_url}: %{message}"

@@ -26,9 +26,12 @@
 
 #include "master/master.hpp"
 
+#include "tests/mesos.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::master;
+using namespace mesos::internal::tests;
 
 using std::ostringstream;
 using std::pair;
@@ -744,6 +747,33 @@ TEST(ResourcesTest, EmptyUnequal)
 }
 
 
+TEST(ResourcesTest, Reservations)
+{
+  Resources unreserved = Resources::parse(
+      "cpus:1;mem:2;disk:4").get();
+  Resources role1 = Resources::parse(
+      "cpus(role1):2;mem(role1):4;disk(role1):8;").get();
+  Resources role2 = Resources::parse(
+      "cpus(role2):4;mem(role2):8;disk(role2):6;").get();
+
+  Resources resources = unreserved + role1 + role2;
+
+  hashmap<string, Resources> reserved = resources.reserved();
+
+  EXPECT_EQ(2u, reserved.size());
+  EXPECT_EQ(role1, reserved["role1"]);
+  EXPECT_EQ(role2, reserved["role2"]);
+
+  EXPECT_EQ(role1, resources.reserved("role1"));
+  EXPECT_EQ(role2, resources.reserved("role2"));
+
+  // Resources with role "*" are not considered reserved.
+  EXPECT_EQ(Resources(), resources.reserved("*"));
+
+  EXPECT_EQ(unreserved, resources.unreserved());
+}
+
+
 TEST(ResourcesTest, FlattenRoles)
 {
   Resource cpus1 = Resources::parse("cpus", "1", "role1").get();
@@ -800,50 +830,25 @@ TEST(ResourcesTest, Find)
 }
 
 
-class DiskResourcesTest : public ::testing::Test
+// Helper for creating a disk resource.
+static Resource createDiskResource(
+    const string& value,
+    const string& role,
+    const Option<string>& persistenceID,
+    const Option<string>& containerPath)
 {
-public:
-  Resource::DiskInfo createDiskInfo(
-      const Option<string>& persistenceID,
-      const Option<string>& containerPath)
-  {
-    Resource::DiskInfo info;
+  Resource resource = Resources::parse("disk", value, role).get();
 
-    if (persistenceID.isSome()) {
-      Resource::DiskInfo::Persistence persistence;
-      persistence.set_id(persistenceID.get());
-      info.mutable_persistence()->CopyFrom(persistence);
-    }
-
-    if (containerPath.isSome()) {
-      Volume volume;
-      volume.set_container_path(containerPath.get());
-      volume.set_mode(Volume::RW);
-      info.mutable_volume()->CopyFrom(volume);
-    }
-
-    return info;
+  if (persistenceID.isSome() || containerPath.isSome()) {
+    resource.mutable_disk()->CopyFrom(
+        createDiskInfo(persistenceID, containerPath));
   }
 
-  Resource createDiskResource(
-      const string& value,
-      const string& role,
-      const Option<string>& persistenceID,
-      const Option<string>& containerPath)
-  {
-    Resource resource = Resources::parse("disk", value, role).get();
-
-    if (persistenceID.isSome() || containerPath.isSome()) {
-      resource.mutable_disk()->CopyFrom(
-          createDiskInfo(persistenceID, containerPath));
-    }
-
-    return resource;
-  }
-};
+  return resource;
+}
 
 
-TEST_F(DiskResourcesTest, Validation)
+TEST(DiskResourcesTest, Validation)
 {
   Resource cpus = Resources::parse("cpus", "2", "*").get();
   cpus.mutable_disk()->CopyFrom(createDiskInfo("1", "path"));
@@ -862,7 +867,7 @@ TEST_F(DiskResourcesTest, Validation)
 }
 
 
-TEST_F(DiskResourcesTest, Equals)
+TEST(DiskResourcesTest, Equals)
 {
   Resources r1 = createDiskResource("10", "*", None(), None());
   Resources r2 = createDiskResource("10", "*", None(), "path1");
@@ -881,7 +886,7 @@ TEST_F(DiskResourcesTest, Equals)
 }
 
 
-TEST_F(DiskResourcesTest, Addition)
+TEST(DiskResourcesTest, Addition)
 {
   Resources r1 = createDiskResource("10", "role", None(), "path");
   Resources r2 = createDiskResource("10", "role", None(), None());
@@ -902,7 +907,7 @@ TEST_F(DiskResourcesTest, Addition)
 }
 
 
-TEST_F(DiskResourcesTest, Subtraction)
+TEST(DiskResourcesTest, Subtraction)
 {
   Resources r1 = createDiskResource("10", "role", None(), "path");
   Resources r2 = createDiskResource("10", "role", None(), None());
@@ -916,4 +921,37 @@ TEST_F(DiskResourcesTest, Subtraction)
   EXPECT_EQ(r3, r3 - r4);
   EXPECT_TRUE((r3 - r3).empty());
   EXPECT_TRUE((r4 - r5).empty());
+}
+
+
+TEST(DiskResourcesTest, FilterPersistentDisks)
+{
+  Resources resources = Resources::parse("cpus:1;mem:512;disk:1000").get();
+
+  Resources disk1 = createDiskResource("10", "role1", "1", "path");
+  Resources disk2 = createDiskResource("20", "role2", None(), None());
+
+  resources += disk1;
+  resources += disk2;
+
+  EXPECT_EQ(resources.persistentDisks(), disk1);
+}
+
+
+TEST(ResourcesTransformationTest, AcquirePersistentDisk)
+{
+  Resources total = Resources::parse("cpus:1;mem:512;disk(role):1000").get();
+
+  Resource disk1 = createDiskResource("200", "role", "1", "path");
+  Resources::AcquirePersistentDisk acquire1(disk1);
+
+  EXPECT_SOME_EQ(
+      Resources::parse("cpus:1;mem:512;disk(role):800").get() + disk1,
+      acquire1(total));
+
+  // Check the case of insufficient disk resources.
+  Resource disk2 = createDiskResource("2000", "role", "1", "path");
+  Resources::AcquirePersistentDisk acquire2(disk2);
+
+  EXPECT_ERROR(acquire2(total));
 }

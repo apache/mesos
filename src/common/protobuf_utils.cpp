@@ -27,6 +27,8 @@
 
 #include "messages/messages.hpp"
 
+using std::string;
+
 namespace mesos {
 namespace internal {
 namespace protobuf {
@@ -36,7 +38,8 @@ bool isTerminalState(const TaskState& state)
   return (state == TASK_FINISHED ||
           state == TASK_FAILED ||
           state == TASK_KILLED ||
-          state == TASK_LOST);
+          state == TASK_LOST ||
+          state == TASK_ERROR);
 }
 
 
@@ -48,9 +51,10 @@ StatusUpdate createStatusUpdate(
     const TaskID& taskId,
     const TaskState& state,
     const TaskStatus::Source& source,
-    const std::string& message = "",
+    const string& message = "",
     const Option<TaskStatus::Reason>& reason = None(),
-    const Option<ExecutorID>& executorId = None())
+    const Option<ExecutorID>& executorId = None(),
+    const Option<bool>& healthy = None())
 {
   StatusUpdate update;
 
@@ -82,6 +86,10 @@ StatusUpdate createStatusUpdate(
     status->set_reason(reason.get());
   }
 
+  if (healthy.isSome()) {
+    status->set_healthy(healthy.get());
+  }
+
   return update;
 }
 
@@ -105,7 +113,28 @@ Task createTask(
 
   t.mutable_labels()->MergeFrom(task.labels());
 
+  if (task.has_discovery()) {
+      t.mutable_discovery()->MergeFrom(task.discovery());
+  }
+
   return t;
+}
+
+
+Option<bool> getTaskHealth(const Task& task)
+{
+  Option<bool> healthy = None();
+  if (task.statuses_size() > 0) {
+    // The statuses list only keeps the most recent TaskStatus for
+    // each state, and appends later states at the end. Thus the last
+    // status is either a terminal state (where health is
+    // irrelevant), or the latest RUNNING status.
+    TaskStatus lastStatus = task.statuses(task.statuses_size() - 1);
+    if (lastStatus.has_healthy()) {
+      healthy = lastStatus.healthy();
+    }
+  }
+  return healthy;
 }
 
 
@@ -117,14 +146,13 @@ MasterInfo createMasterInfo(const process::UPID& pid)
   info.set_port(pid.node.port);
   info.set_pid(pid);
 
-  Try<std::string> hostname = net::getHostname(pid.node.ip);
+  Try<string> hostname = net::getHostname(pid.node.ip);
   if (hostname.isSome()) {
     info.set_hostname(hostname.get());
   }
 
   return info;
 }
-
 
 } // namespace protobuf {
 } // namespace internal {

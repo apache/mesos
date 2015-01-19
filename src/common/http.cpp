@@ -106,6 +106,39 @@ JSON::Object model(const TaskStatus& status)
   return object;
 }
 
+// Returns JSON object modeled on DiscoveryInfo
+JSON::Object model(const DiscoveryInfo& discovery)
+{
+  JSON::Object object;
+  object.values["visibility"] =
+    DiscoveryInfo::Visibility_Name(discovery.visibility());
+  if (discovery.has_name())
+    object.values["name"] = discovery.name();
+  if (discovery.has_environment())
+    object.values["environment"] = discovery.environment();
+  if (discovery.has_location())
+    object.values["location"] = discovery.location();
+  if (discovery.has_version())
+    object.values["version"] = discovery.version();
+
+  JSON::Array ports;
+  if (discovery.has_ports()) {
+    foreach (const Port& port, discovery.ports().ports()) {
+      ports.values.push_back(JSON::Protobuf(port));
+    }
+  }
+  object.values["ports"] = ports;
+
+  JSON::Array labels;
+  if (discovery.has_labels()) {
+    foreach (const Label& label, discovery.labels().labels()) {
+       labels.values.push_back(JSON::Protobuf(label));
+     }
+  }
+  object.values["labels"] = labels;
+
+  return object;
+}
 
 // TODO(bmahler): Expose the executor name / source.
 JSON::Object model(const Task& task)
@@ -132,10 +165,16 @@ JSON::Object model(const Task& task)
   object.values["statuses"] = array;
 
   JSON::Array labels;
-  foreach (const Label& label, task.labels()) {
-    labels.values.push_back(JSON::Protobuf(label));
+  if (task.has_labels()) {
+    foreach (const Label& label, task.labels().labels()) {
+      labels.values.push_back(JSON::Protobuf(label));
+    }
   }
   object.values["labels"] = labels;
+
+  if (task.has_discovery()) {
+    object.values["discovery"] = model(task.discovery());
+  }
 
   return object;
 }
@@ -170,10 +209,16 @@ JSON::Object model(
   object.values["statuses"] = array;
 
   JSON::Array labels;
-  foreach (const Label& label, task.labels()) {
-    labels.values.push_back(JSON::Protobuf(label));
+  if (task.has_labels()) {
+    foreach (const Label& label, task.labels().labels()) {
+      labels.values.push_back(JSON::Protobuf(label));
+    }
   }
   object.values["labels"] = labels;
+
+  if (task.has_discovery()) {
+    object.values["discovery"] = model(task.discovery());
+  }
 
   return object;
 }

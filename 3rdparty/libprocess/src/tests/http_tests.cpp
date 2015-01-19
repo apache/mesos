@@ -12,6 +12,7 @@
 #include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
+#include <process/socket.hpp>
 
 #include <stout/base64.hpp>
 #include <stout/gtest.hpp>
@@ -113,17 +114,13 @@ TEST(HTTP, Endpoints)
   spawn(process);
 
   // First hit '/body' (using explicit sockets and HTTP/1.0).
-  int s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
-  ASSERT_LE(0, s);
+  ASSERT_TRUE(socket.isSome());
 
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = PF_INET;
-  addr.sin_port = htons(process.self().node.port);
-  addr.sin_addr.s_addr = process.self().node.ip;
+  int s = socket.get();
 
-  ASSERT_EQ(0, connect(s, (sockaddr*) &addr, sizeof(addr)));
+  ASSERT_TRUE(network::connect(s, process.self().node).isSome());
 
   std::ostringstream out;
   out << "GET /" << process.self().id << "/body"

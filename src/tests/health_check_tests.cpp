@@ -25,6 +25,8 @@
 
 #include "slave/slave.hpp"
 
+#include "slave/containerizer/fetcher.hpp"
+
 #include "tests/containerizer.hpp"
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
@@ -36,10 +38,11 @@ using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::Slave;
 using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
+using mesos::internal::slave::Slave;
 
 using process::Clock;
 using process::Future;
@@ -145,8 +148,10 @@ TEST_F(HealthCheckTest, HealthyTask)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());
@@ -186,7 +191,45 @@ TEST_F(HealthCheckTest, HealthyTask)
 
   AWAIT_READY(statusHealth);
   EXPECT_EQ(TASK_RUNNING, statusHealth.get().state());
+  EXPECT_TRUE(statusHealth.get().has_healthy());
   EXPECT_TRUE(statusHealth.get().healthy());
+
+  Future<TaskStatus> explicitReconciliation;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&explicitReconciliation));
+
+  vector<TaskStatus> statuses;
+  TaskStatus status;
+
+  // Send a task status to trigger explicit reconciliation.
+  const TaskID taskId = statusHealth.get().task_id();
+  const SlaveID slaveId = statusHealth.get().slave_id();
+  status.mutable_task_id()->CopyFrom(taskId);
+
+  // State is not checked by reconciliation, but is required to be
+  // a valid task status.
+  status.set_state(TASK_RUNNING);
+  statuses.push_back(status);
+  driver.reconcileTasks(statuses);
+
+  AWAIT_READY(explicitReconciliation);
+  EXPECT_EQ(TASK_RUNNING, explicitReconciliation.get().state());
+  EXPECT_TRUE(explicitReconciliation.get().has_healthy());
+  EXPECT_TRUE(explicitReconciliation.get().healthy());
+
+  Future<TaskStatus> implicitReconciliation;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&implicitReconciliation));
+
+  // Send an empty vector of task statuses to trigger implicit
+  // reconciliation.
+  statuses.clear();
+  driver.reconcileTasks(statuses);
+
+  AWAIT_READY(implicitReconciliation);
+  EXPECT_EQ(TASK_RUNNING, implicitReconciliation.get().state());
+  EXPECT_TRUE(implicitReconciliation.get().has_healthy());
+  EXPECT_TRUE(implicitReconciliation.get().healthy());
 
   driver.stop();
   driver.join();
@@ -204,8 +247,10 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());
@@ -268,8 +313,10 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());
@@ -358,8 +405,10 @@ TEST_F(HealthCheckTest, DISABLED_ConsecutiveFailures)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());
@@ -443,9 +492,10 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
-  Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false);
+  Fetcher fetcher;
 
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());
@@ -498,7 +548,7 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
 
 
 // Testing grace period that ignores all failed task failures.
-TEST_F(HealthCheckTest, GracePeriod)
+TEST_F(HealthCheckTest, DISABLED_GracePeriod)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -506,8 +556,10 @@ TEST_F(HealthCheckTest, GracePeriod)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
+  Fetcher fetcher;
+
   Try<MesosContainerizer*> containerizer =
-  MesosContainerizer::create(flags, false);
+    MesosContainerizer::create(flags, false, &fetcher);
   CHECK_SOME(containerizer);
 
   Try<PID<Slave> > slave = StartSlave(containerizer.get());

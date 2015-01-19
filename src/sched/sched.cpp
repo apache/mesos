@@ -34,6 +34,8 @@
 #include <mesos/module.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
@@ -85,6 +87,7 @@
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::master;
+using namespace mesos::scheduler;
 
 using namespace process;
 
@@ -952,6 +955,110 @@ protected:
     send(master.get(), message);
   }
 
+  void acceptOffers(
+      const vector<OfferID>& offerIds,
+      const vector<Offer::Operation>& operations,
+      const Filters& filters)
+  {
+    // TODO(jieyu): Move all driver side verification to master since
+    // we are moving towards supporting pure launguage scheduler.
+
+    if (!connected) {
+      VLOG(1) << "Ignoring accept offers message as master is disconnected";
+
+      // NOTE: Reply to the framework with TASK_LOST messages for each
+      // task launch. See details from notes in launchTasks.
+      // TODO(vinod): Kill this optimization in 0.22.0, to give
+      // frameworks time to implement reconciliation.
+      foreach (const Offer::Operation& operation, operations) {
+        if (operation.type() != Offer::Operation::LAUNCH) {
+          continue;
+        }
+
+        foreach (const TaskInfo& task, operation.launch().task_infos()) {
+          StatusUpdate update;
+          update.mutable_framework_id()->MergeFrom(framework.id());
+          TaskStatus* status = update.mutable_status();
+          status->mutable_task_id()->MergeFrom(task.task_id());
+          status->set_state(TASK_LOST);
+          status->set_source(TaskStatus::SOURCE_MASTER);
+          status->set_reason(TaskStatus::REASON_MASTER_DISCONNECTED);
+          status->set_message("Master Disconnected");
+          update.set_timestamp(Clock::now().secs());
+          update.set_uuid(UUID::random().toBytes());
+
+          statusUpdate(UPID(), update, UPID());
+        }
+      }
+      return;
+    }
+
+    Call message;
+    message.mutable_framework_info()->CopyFrom(framework);
+    message.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = message.mutable_accept();
+
+    // Setting accept.operations.
+    foreach (const Offer::Operation& _operation, operations) {
+      Offer::Operation* operation = accept->add_operations();
+      operation->CopyFrom(_operation);
+
+      if (operation->type() != Offer::Operation::LAUNCH) {
+        continue;
+      }
+
+      // Set TaskInfo.executor.framework_id, if it's missing.
+      foreach (TaskInfo& task,
+               *operation->mutable_launch()->mutable_task_infos()) {
+        if (task.has_executor() && !task.executor().has_framework_id()) {
+          task.mutable_executor()->mutable_framework_id()->CopyFrom(
+              framework.id());
+        }
+      }
+    }
+
+    // Setting accept.offer_ids.
+    foreach (const OfferID& offerId, offerIds) {
+      accept->add_offer_ids()->CopyFrom(offerId);
+
+      if (!savedOffers.contains(offerId)) {
+        // TODO(jieyu): A duplicated offer ID could also cause this
+        // warning being printed. Consider refine this message here
+        // and in launchTasks as well.
+        LOG(WARNING) << "Attempting to accept an unknown offer " << offerId;
+      } else {
+        // Keep only the slave PIDs where we run tasks so we can send
+        // framework messages directly.
+        foreach (const Offer::Operation& operation, operations) {
+          if (operation.type() != Offer::Operation::LAUNCH) {
+            continue;
+          }
+
+          foreach (const TaskInfo& task, operation.launch().task_infos()) {
+            const SlaveID& slaveId = task.slave_id();
+
+            if (savedOffers[offerId].contains(slaveId)) {
+              savedSlavePids[slaveId] = savedOffers[offerId][slaveId];
+            } else {
+              LOG(WARNING) << "Attempting to launch task " << task.task_id()
+                           << " with the wrong slave id " << slaveId;
+            }
+          }
+        }
+      }
+
+      // Remove the offer since we saved all the PIDs we might use.
+      savedOffers.erase(offerId);
+    }
+
+    // Setting accept.filters.
+    accept->mutable_filters()->CopyFrom(filters);
+
+    CHECK_SOME(master);
+    send(master.get(), message);
+  }
+
   void reviveOffers()
   {
     if (!connected) {
@@ -1174,7 +1281,7 @@ void MesosSchedulerDriver::initialize() {
     framework.set_user(user.get());
   }
   if (framework.hostname().empty()) {
-    framework.set_hostname(os::hostname().get());
+    framework.set_hostname(net::hostname().get());
   }
 
   // Launch a local cluster if necessary.
@@ -1482,6 +1589,30 @@ Status MesosSchedulerDriver::launchTasks(
   CHECK(process != NULL);
 
   dispatch(process, &SchedulerProcess::launchTasks, offerIds, tasks, filters);
+
+  return status;
+}
+
+
+Status MesosSchedulerDriver::acceptOffers(
+    const vector<OfferID>& offerIds,
+    const vector<Offer::Operation>& operations,
+    const Filters& filters)
+{
+  Lock lock(&mutex);
+
+  if (status != DRIVER_RUNNING) {
+    return status;
+  }
+
+  CHECK(process != NULL);
+
+  dispatch(
+      process,
+      &SchedulerProcess::acceptOffers,
+      offerIds,
+      operations,
+      filters);
 
   return status;
 }

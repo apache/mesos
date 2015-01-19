@@ -28,6 +28,7 @@
 
 #include <process/future.hpp>
 #include <process/limiter.hpp>
+#include <process/owned.hpp>
 #include <process/statistics.hpp>
 
 #include <stout/cache.hpp>
@@ -177,7 +178,7 @@ private:
   hashmap<ContainerID, MonitoringInfo> monitored;
 
   // Fixed-size history of monitoring information.
-  boost::circular_buffer<MonitoringInfo> archive;
+  boost::circular_buffer<process::Owned<MonitoringInfo>> archive;
 };
 
 } // namespace slave {

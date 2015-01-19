@@ -857,41 +857,6 @@ inline Result<std::string> user(Option<uid_t> uid = None())
 }
 
 
-inline Try<std::string> hostname()
-{
-  char host[512];
-
-  if (gethostname(host, sizeof(host)) < 0) {
-    return ErrnoError();
-  }
-
-  // Allocate temporary buffer for gethostbyname2_r.
-  size_t length = 1024;
-  char* temp = new char[length];
-
-  struct hostent he, *hep = NULL;
-  int result = 0;
-  int herrno = 0;
-
-  while ((result = gethostbyname2_r(host, AF_INET, &he, temp,
-                                    length, &hep, &herrno)) == ERANGE) {
-    // Enlarge the buffer.
-    delete[] temp;
-    length *= 2;
-    temp = new char[length];
-  }
-
-  if (result != 0 || hep == NULL) {
-    delete[] temp;
-    return Error(hstrerror(herrno));
-  }
-
-  std::string hostname = hep->h_name;
-  delete[] temp;
-  return hostname;
-}
-
-
 // Suspends execution for the given duration.
 inline Try<Nothing> sleep(const Duration& duration)
 {

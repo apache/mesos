@@ -37,6 +37,7 @@
 #include <process/metrics/metrics.hpp>
 
 #include <stout/json.hpp>
+#include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -1053,7 +1054,7 @@ protected:
 TEST_F(WhitelistTest, WhitelistSlave)
 {
   // Add some hosts to the white list.
-  Try<string> hostname = os::hostname();
+  Try<string> hostname = net::hostname();
   ASSERT_SOME(hostname);
 
   string hosts = hostname.get() + "\n" + "dummy-slave";
@@ -1349,8 +1350,8 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   combinedOffers.push_back(offers1.get()[0].id());
   combinedOffers.push_back(offers2.get()[0].id());
 
-  Future<Nothing> resourcesRecovered =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
 
   driver.launchTasks(combinedOffers, tasks);
 
@@ -1359,7 +1360,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status.get().reason());
 
   // The resources of the invalid offers should be recovered.
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1429,8 +1430,8 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  Future<Nothing> resourcesRecovered =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
 
   driver.launchTasks(combinedOffers, tasks);
 
@@ -1439,7 +1440,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status.get().reason());
 
   // The resources of the invalid offers should be recovered.
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -2180,8 +2181,8 @@ TEST_F(MasterTest, OfferTimeout)
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillOnce(FutureSatisfy(&offerRescinded));
 
-  Future<Nothing> resourcesRecovered =
-    FUTURE_DISPATCH(_, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
 
   driver.start();
 
@@ -2197,7 +2198,7 @@ TEST_F(MasterTest, OfferTimeout)
 
   AWAIT_READY(offerRescinded);
 
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   // Expect that the resources are re-offered to the framework after
   // the rescind.
@@ -2466,8 +2467,8 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
   // Ensure status update manager handles TASK_FINISHED update.
   AWAIT_READY(__statusUpdate2);
 
-  Future<Nothing> resourcesRecovered = FUTURE_DISPATCH(
-      _, &AllocatorProcess::resourcesRecovered);
+  Future<Nothing> recoverResources = FUTURE_DISPATCH(
+      _, &AllocatorProcess::recoverResources);
 
   // Advance the clock so that the status update manager resends
   // TASK_RUNNING update with 'latest_state' as TASK_FINISHED.
@@ -2476,7 +2477,7 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
   Clock::resume();
 
   // Ensure the resources are recovered.
-  AWAIT_READY(resourcesRecovered);
+  AWAIT_READY(recoverResources);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -2580,15 +2581,17 @@ TEST_F(MasterTest, TaskLabels)
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   // Add three labels to the task (two of which share the same key).
-  Label* label1 = task.add_labels();
+  Labels* labels = task.mutable_labels();
+
+  Label* label1 = labels->add_labels();
   label1->set_key("foo");
   label1->set_value("bar");
 
-  Label* label2 = task.add_labels();
+  Label* label2 = labels->add_labels();
   label2->set_key("bar");
   label2->set_value("baz");
 
-  Label* label3 = task.add_labels();
+  Label* label3 = labels->add_labels();
   label3->set_key("bar");
   label3->set_value("qux");
 
@@ -2712,15 +2715,15 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
 
   ASSERT_SOME_EQ(JSON::Boolean(true), status);
 
-  Future<Nothing> slaveDeactivated =
-    FUTURE_DISPATCH(_, &AllocatorProcess::slaveDeactivated);
+  Future<Nothing> deactivateSlave =
+    FUTURE_DISPATCH(_, &AllocatorProcess::deactivateSlave);
 
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected.
   process::inject::exited(slaveRegisteredMessage.get().to, master.get());
 
   // Wait until master deactivates the slave.
-  AWAIT_READY(slaveDeactivated);
+  AWAIT_READY(deactivateSlave);
 
   // Verify slave is inactive.
   response = process::http::get(master.get(), "state.json");
@@ -2734,4 +2737,199 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   ASSERT_SOME_EQ(JSON::Boolean(false), status);
 
   Shutdown();
+}
+
+
+// This test verifies that service info for tasks is exposed over the
+// master state endpoint.
+TEST_F(MasterTest, TaskDiscoveryInfo)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task;
+  task.set_name("testtask");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  // An expanded service discovery info to the task.
+  DiscoveryInfo* info = task.mutable_discovery();
+  info->set_visibility(DiscoveryInfo::EXTERNAL);
+  info->set_name("mytask");
+  info->set_environment("mytest");
+  info->set_location("mylocation");
+  info->set_version("v0.1.1");
+  // Add two named ports to the discovery info.
+  Ports* ports = info->mutable_ports();
+  Port* port1 = ports->add_ports();
+  port1->set_number(8888);
+  port1->set_name("myport1");
+  port1->set_protocol("tcp");
+  Port* port2 = ports->add_ports();
+  port2->set_number(9999);
+  port2->set_name("myport2");
+  port2->set_protocol("udp");
+  // Add two labels to the discovery info.
+  Labels* labels = info->mutable_labels();
+  Label* label1 = labels->add_labels();
+  label1->set_key("clearance");
+  label1->set_value("high");
+  Label* label2 = labels->add_labels();
+  label2->set_key("RPC");
+  label2->set_value("yes");
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<Nothing> update;
+  EXPECT_CALL(containerizer,
+              update(_, Resources(offers.get()[0].resources())))
+    .WillOnce(DoAll(FutureSatisfy(&update),
+                    Return(Future<Nothing>())));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  AWAIT_READY(update);
+
+  // Verify label key and value in master state.json.
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::String> taskName = parse.get().find<JSON::String>(
+      "frameworks[0].tasks[0].name");
+  EXPECT_SOME(taskName);
+  ASSERT_EQ("testtask", taskName.get());
+
+  // Verify basic content for discovery info.
+  Result<JSON::String> visibility = parse.get().find<JSON::String>(
+      "frameworks[0].tasks[0].discovery.visibility");
+  EXPECT_SOME(visibility);
+  DiscoveryInfo::Visibility visibility_value;
+  DiscoveryInfo::Visibility_Parse(visibility.get().value, &visibility_value);
+  ASSERT_EQ(DiscoveryInfo::EXTERNAL, visibility_value);
+
+  Result<JSON::String> discoveryName = parse.get().find<JSON::String>(
+      "frameworks[0].tasks[0].discovery.name");
+  EXPECT_SOME(discoveryName);
+  ASSERT_EQ("mytask", discoveryName.get());
+
+  Result<JSON::String> environment = parse.get().find<JSON::String>(
+      "frameworks[0].tasks[0].discovery.environment");
+  EXPECT_SOME(environment);
+  ASSERT_EQ("mytest", environment.get());
+
+  Result<JSON::String> location = parse.get().find<JSON::String>(
+      "frameworks[0].tasks[0].discovery.location");
+  EXPECT_SOME(location);
+  ASSERT_EQ("mylocation", location.get());
+
+  Result<JSON::String> version = parse.get().find<JSON::String>(
+      "frameworks[0].tasks[0].discovery.version");
+  EXPECT_SOME(version);
+  ASSERT_EQ("v0.1.1", version.get());
+
+  // Verify content of two named ports.
+  Result<JSON::Array> portsObject = parse.get().find<JSON::Array>(
+      "frameworks[0].tasks[0].discovery.ports");
+  EXPECT_SOME(portsObject);
+
+  JSON::Array portsObject_ = portsObject.get();
+
+  // Verify the content of '8888:myport1:tcp' port.
+  Try<JSON::Value> expected = JSON::parse(
+      "{"
+      "  \"number\":8888,"
+      "  \"name\":\"myport1\","
+      "  \"protocol\":\"tcp\""
+      "}");
+  ASSERT_SOME(expected);
+  EXPECT_EQ(expected.get(), portsObject_.values[0]);
+
+  // Verify the content of '9999:myport2:udp' port.
+  expected = JSON::parse(
+      "{"
+      "  \"number\":9999,"
+      "  \"name\":\"myport2\","
+      "  \"protocol\":\"udp\""
+      "}");
+  ASSERT_SOME(expected);
+  EXPECT_EQ(expected.get(), portsObject_.values[1]);
+
+  // Verify content of two labels.
+  Result<JSON::Array> labelsObject = parse.get().find<JSON::Array>(
+      "frameworks[0].tasks[0].discovery.labels");
+  EXPECT_SOME(labelsObject);
+
+  JSON::Array labelsObject_ = labelsObject.get();
+
+  // Verify the content of 'clearance:high' pair.
+  expected = JSON::parse(
+      "{"
+      "  \"key\":\"clearance\","
+      "  \"value\":\"high\""
+      "}");
+  ASSERT_SOME(expected);
+  EXPECT_EQ(expected.get(), labelsObject_.values[0]);
+
+  // Verify the content of 'RPC:yes' pair.
+  expected = JSON::parse(
+      "{"
+      "  \"key\":\"RPC\","
+      "  \"value\":\"yes\""
+      "}");
+  ASSERT_SOME(expected);
+  EXPECT_EQ(expected.get(), labelsObject_.values[1]);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }

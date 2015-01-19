@@ -159,7 +159,10 @@ Try<Resources> Containerizer::resources(const Flags& flags)
 }
 
 
-Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
+Try<Containerizer*> Containerizer::create(
+    const Flags& flags,
+    bool local,
+    Fetcher* fetcher)
 {
   if (flags.isolation == "external") {
     LOG(WARNING) << "The 'external' isolation flag is deprecated, "
@@ -167,7 +170,7 @@ Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
                  << " '--containerizers=external'.";
 
     Try<ExternalContainerizer*> containerizer =
-        ExternalContainerizer::create(flags);
+      ExternalContainerizer::create(flags);
     if (containerizer.isError()) {
       return Error("Could not create ExternalContainerizer: " +
                    containerizer.error());
@@ -185,7 +188,7 @@ Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
   foreach (const string& type, strings::split(flags.containerizers, ",")) {
     if (type == "mesos") {
       Try<MesosContainerizer*> containerizer =
-        MesosContainerizer::create(flags, local);
+        MesosContainerizer::create(flags, local, fetcher);
       if (containerizer.isError()) {
         return Error("Could not create MesosContainerizer: " +
                      containerizer.error());
@@ -194,7 +197,7 @@ Try<Containerizer*> Containerizer::create(const Flags& flags, bool local)
       }
     } else if (type == "docker") {
       Try<DockerContainerizer*> containerizer =
-        DockerContainerizer::create(flags);
+        DockerContainerizer::create(flags, fetcher);
       if (containerizer.isError()) {
         return Error("Could not create DockerContainerizer: " +
                      containerizer.error());
@@ -282,6 +285,19 @@ map<string, string> executorEnvironment(
   env["MESOS_SLAVE_ID"] = slaveId.value();
   env["MESOS_SLAVE_PID"] = stringify(slavePid);
   env["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
+
+  // We expect the graceful shutdown timeout to be set either by a
+  // framework or to default value from slave's flags. In case it is
+  // absent for some reason, use the hardcoded default.
+  if (executorInfo.command().has_grace_period_seconds()) {
+    env["MESOS_SHUTDOWN_GRACE_PERIOD"] =
+      stringify(Seconds(executorInfo.command().grace_period_seconds()));
+  } else {
+    LOG(WARNING) << "CommandInfo.grace_period flag is not set, "
+                 << "using default value: " << EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+    env["MESOS_SHUTDOWN_GRACE_PERIOD"] =
+      stringify(EXECUTOR_SHUTDOWN_GRACE_PERIOD);
+  }
 
   if (checkpoint) {
     env["MESOS_RECOVERY_TIMEOUT"] = stringify(recoveryTimeout);

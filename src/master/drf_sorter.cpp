@@ -117,6 +117,33 @@ void DRFSorter::allocated(
 }
 
 
+void DRFSorter::transform(
+    const string& name,
+    const Resources& oldAllocation,
+    const Resources& newAllocation)
+{
+  CHECK(contains(name));
+
+  // TODO(bmahler): Check invariants between old and new allocations.
+  // Namely, the roles and quantities of resources should be the same!
+  // Otherwise, we need to ensure we re-calculate the shares, as
+  // is being currently done, for safety.
+
+  CHECK(resources.contains(oldAllocation));
+
+  resources -= oldAllocation;
+  resources += newAllocation;
+
+  CHECK(allocations[name].contains(oldAllocation));
+
+  allocations[name] -= oldAllocation;
+  allocations[name] += newAllocation;
+
+  // Just assume the total has changed, per the TODO above.
+  dirty = true;
+}
+
+
 Resources DRFSorter::allocation(
     const string& name)
 {
@@ -217,24 +244,32 @@ double DRFSorter::calculateShare(const string& name)
 {
   double share = 0;
 
-  // TODO(benh): This implementaion of "dominant resource fairness"
+  // TODO(benh): This implementation of "dominant resource fairness"
   // currently does not take into account resources that are not
   // scalars.
 
+  // Scalar resources may be spread across multiple 'Resource'
+  // objects. E.g. persistent disks. So we first collect the names
+  // of the scalar resources, before computing the totals.
+  hashset<string> scalars;
   foreach (const Resource& resource, resources) {
     if (resource.type() == Value::SCALAR) {
-      double total = resource.scalar().value();
+      scalars.insert(resource.name());
+    }
+  }
 
-      if (total > 0) {
-        Option<Value::Scalar> scalar =
-          allocations[name].get<Value::Scalar>(resource.name());
+  foreach (const string& scalar, scalars) {
+    Option<Value::Scalar> total = resources.get<Value::Scalar>(scalar);
 
-        if (scalar.isNone()) {
-          scalar = Value::Scalar();
-        }
+    if (total.isSome() && total.get().value() > 0) {
+      Option<Value::Scalar> allocation =
+        allocations[name].get<Value::Scalar>(scalar);
 
-        share = std::max(share, scalar.get().value() / total);
+      if (allocation.isNone()) {
+        allocation = Value::Scalar();
       }
+
+      share = std::max(share, allocation.get().value() / total.get().value());
     }
   }
 

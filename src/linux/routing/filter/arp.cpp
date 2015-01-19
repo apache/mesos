@@ -76,11 +76,11 @@ Try<Nothing> encode<arp::Classifier>(
 {
   rtnl_cls_set_protocol(cls.get(), ETH_P_ARP);
 
-  int err = rtnl_tc_set_kind(TC_CAST(cls.get()), "basic");
-  if (err != 0) {
+  int error = rtnl_tc_set_kind(TC_CAST(cls.get()), "basic");
+  if (error != 0) {
     return Error(
         "Failed to set the kind of the classifier: " +
-        string(nl_geterror(err)));
+        string(nl_geterror(error)));
   }
 
   return Nothing();

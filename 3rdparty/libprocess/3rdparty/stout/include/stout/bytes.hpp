@@ -21,9 +21,11 @@
 #include <iostream>
 #include <string>
 
-#include "numify.hpp"
-#include "strings.hpp"
-#include "try.hpp"
+#include <stout/abort.hpp>
+#include <stout/numify.hpp>
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
 
 
 class Bytes
@@ -93,6 +95,28 @@ public:
   Bytes& operator -= (const Bytes& that)
   {
     value -= that.value;
+    return *this;
+  }
+
+  Bytes& operator *= (double multiplier)
+  {
+    if (multiplier < 0) {
+      ABORT("Multiplying Bytes by negative multiplier "
+            "'" + stringify(multiplier) + "'");
+    }
+
+    value *= multiplier;
+    return *this;
+  }
+
+  Bytes& operator /= (double divisor)
+  {
+    if (divisor < 0) {
+      ABORT("Dividing Bytes by negative divisor "
+            "'" + stringify(divisor) + "'");
+    }
+
+    value /= divisor;
     return *this;
   }
 
@@ -168,6 +192,32 @@ inline Bytes operator - (const Bytes& lhs, const Bytes& rhs)
   Bytes diff = lhs;
   diff -= rhs;
   return diff;
+}
+
+
+inline Bytes operator * (const Bytes& lhs, double multiplier)
+{
+  if (multiplier < 0) {
+    ABORT("Multiplying Bytes by negative multiplier "
+          "'" + stringify(multiplier) + "'");
+  }
+
+  Bytes result = lhs;
+  result *= multiplier;
+  return result;
+}
+
+
+inline Bytes operator / (const Bytes& lhs, double divisor)
+{
+  if (divisor < 0) {
+    ABORT("Dividing Bytes by negative divisor "
+          "'" + stringify(divisor) + "'");
+  }
+
+  Bytes result = lhs;
+  result /= divisor;
+  return result;
 }
 
 #endif // __STOUT_BYTES_HPP__

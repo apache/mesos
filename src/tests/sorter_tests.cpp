@@ -21,30 +21,21 @@
 
 #include <gmock/gmock.h>
 
+#include <list>
+#include <string>
+
+#include <mesos/resources.hpp>
+
+#include <stout/gtest.hpp>
+
 #include "master/drf_sorter.hpp"
-#include "master/sorter.hpp"
 
 using namespace mesos;
 
-using mesos::internal::master::allocator::Sorter;
 using mesos::internal::master::allocator::DRFSorter;
 
 using std::list;
 using std::string;
-
-void checkSorter(Sorter& sorter, uint32_t count, ...)
-{
-  va_list args;
-  va_start(args, count);
-  list<string> ordering = sorter.sort();
-  EXPECT_EQ(ordering.size(), count);
-
-  foreach (const string& actual, ordering) {
-    const char* expected = va_arg(args, char*);
-    EXPECT_EQ(actual, expected);
-  }
-  va_end(args);
-}
 
 
 TEST(SorterTest, DRFSorter)
@@ -63,7 +54,7 @@ TEST(SorterTest, DRFSorter)
   sorter.allocated("b", bResources);
 
   // shares: a = .05, b = .06
-  checkSorter(sorter, 2, "a", "b");
+  EXPECT_EQ(list<string>({"a", "b"}), sorter.sort());
 
   Resources cResources = Resources::parse("cpus:1;mem:1").get();
   sorter.add("c");
@@ -74,14 +65,14 @@ TEST(SorterTest, DRFSorter)
   sorter.allocated("d", dResources);
 
   // shares: a = .05, b = .06, c = .01, d = .03
-  checkSorter(sorter, 4, "c", "d", "a", "b");
+  EXPECT_EQ(list<string>({"c", "d", "a", "b"}), sorter.sort());
 
   sorter.remove("a");
   Resources bUnallocated = Resources::parse("cpus:4;mem:4").get();
   sorter.unallocated("b", bUnallocated);
 
   // shares: b = .02, c = .01, d = .03
-  checkSorter(sorter, 3, "c", "b", "d");
+  EXPECT_EQ(list<string>({"c", "b", "d"}), sorter.sort());
 
   Resources eResources = Resources::parse("cpus:1;mem:5").get();
   sorter.add("e");
@@ -92,7 +83,7 @@ TEST(SorterTest, DRFSorter)
   // total resources is now cpus = 50, mem = 100
 
   // shares: b = .04, c = .02, d = .06, e = .05
-  checkSorter(sorter, 4, "c", "b", "e", "d");
+  EXPECT_EQ(list<string>({"c", "b", "e", "d"}), sorter.sort());
 
   Resources addedResources = Resources::parse("cpus:0;mem:100").get();
   sorter.add(addedResources);
@@ -106,7 +97,7 @@ TEST(SorterTest, DRFSorter)
   sorter.allocated("c", cResources2);
 
   // shares: b = .04, c = .08, d = .06, e = .025, f = .1
-  checkSorter(sorter, 5, "e", "b", "d", "c", "f");
+  EXPECT_EQ(list<string>({"e", "b", "d", "c", "f"}), sorter.sort());
 
   EXPECT_TRUE(sorter.contains("b"));
 
@@ -118,13 +109,13 @@ TEST(SorterTest, DRFSorter)
 
   EXPECT_TRUE(sorter.contains("d"));
 
-  checkSorter(sorter, 4, "e", "b", "c", "f");
+  EXPECT_EQ(list<string>({"e", "b", "c", "f"}), sorter.sort());
 
   EXPECT_EQ(sorter.count(), 5);
 
   sorter.activate("d");
 
-  checkSorter(sorter, 5, "e", "b", "d", "c", "f");
+  EXPECT_EQ(list<string>({"e", "b", "d", "c", "f"}), sorter.sort());
 }
 
 
@@ -142,36 +133,97 @@ TEST(SorterTest, WDRFSorter)
   sorter.allocated("b", Resources::parse("cpus:6;mem:6").get());
 
   // shares: a = .05, b = .03
-  checkSorter(sorter, 2, "b", "a");
+  EXPECT_EQ(list<string>({"b", "a"}), sorter.sort());
 
   sorter.add("c");
   sorter.allocated("c", Resources::parse("cpus:4;mem:4").get());
 
   // shares: a = .05, b = .03, c = .04
-  checkSorter(sorter, 3, "b", "c", "a");
+  EXPECT_EQ(list<string>({"b", "c", "a"}), sorter.sort());
 
   sorter.add("d", 10);
   sorter.allocated("d", Resources::parse("cpus:10;mem:20").get());
 
   // shares: a = .05, b = .03, c = .04, d = .02
-  checkSorter(sorter, 4, "d", "b", "c", "a");
+  EXPECT_EQ(list<string>({"d", "b", "c", "a"}), sorter.sort());
 
   sorter.remove("b");
 
-  checkSorter(sorter, 3, "d", "c", "a");
+  EXPECT_EQ(list<string>({"d", "c", "a"}), sorter.sort());
 
   sorter.allocated("d", Resources::parse("cpus:10;mem:25").get());
 
   // shares: a = .05, c = .04, d = .045
-  checkSorter(sorter, 3, "c", "d", "a");
+  EXPECT_EQ(list<string>({"c", "d", "a"}), sorter.sort());
 
   sorter.add("e", .1);
   sorter.allocated("e", Resources::parse("cpus:1;mem:1").get());
 
   // shares: a = .05, c = .04, d = .045, e = .1
-  checkSorter(sorter, 4, "c", "d", "a", "e");
+  EXPECT_EQ(list<string>({"c", "d", "a", "e"}), sorter.sort());
 
   sorter.remove("a");
 
-  checkSorter(sorter, 3, "c", "d", "e");
+  EXPECT_EQ(list<string>({"c", "d", "e"}), sorter.sort());
+}
+
+
+// Some resources are split across multiple resource objects
+// (e.g. persistent disks). This test ensures that the shares
+// for these are accounted correctly.
+TEST(SorterTest, SplitResourceShares)
+{
+  DRFSorter sorter;
+
+  sorter.add("a");
+  sorter.add("b");
+
+  Resource disk1 = Resources::parse("disk", "5", "*").get();
+  disk1.mutable_disk()->mutable_persistence()->set_id("ID2");
+  disk1.mutable_disk()->mutable_volume()->set_container_path("data");
+
+  Resource disk2 = Resources::parse("disk", "5", "*").get();
+  disk2.mutable_disk()->mutable_persistence()->set_id("ID2");
+  disk2.mutable_disk()->mutable_volume()->set_container_path("data");
+
+  sorter.add(Resources::parse("cpus:100;mem:100;disk:95").get()
+             + disk1 + disk2);
+
+  // Now, allocate resources to "a" and "b". Note that "b" will have
+  // more disk if the shares are accounted correctly!
+  sorter.allocated("a", Resources::parse("cpus:9;mem:9;disk:9").get());
+  sorter.allocated("b", Resources::parse("cpus:9;mem:9").get() + disk1 + disk2);
+
+  EXPECT_EQ(list<string>({"a", "b"}), sorter.sort());
+}
+
+
+TEST(SorterTest, Transform)
+{
+  DRFSorter sorter;
+
+  sorter.add("a");
+  sorter.add("b");
+
+  sorter.add(Resources::parse("cpus:10;mem:10;disk:10").get());
+
+  sorter.allocated("a", Resources::parse("cpus:10;mem:10;disk:10").get());
+
+  // Construct a transformation.
+  Resource disk = Resources::parse("disk", "5", "*").get();
+  disk.mutable_disk()->mutable_persistence()->set_id("ID");
+  disk.mutable_disk()->mutable_volume()->set_container_path("data");
+
+  Resources::AcquirePersistentDisk transformation(disk);
+
+  // Compute the updated allocation.
+  Resources allocation = sorter.allocation("a");
+  Try<Resources> newAllocation = transformation(allocation);
+
+  ASSERT_SOME(newAllocation);
+
+  // Transform the resources for the client.
+  sorter.transform("a", allocation, newAllocation.get());
+
+  EXPECT_EQ(newAllocation.get(), sorter.allocation("a"));
 }

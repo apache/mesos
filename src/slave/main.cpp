@@ -29,9 +29,11 @@
 
 #include "common/build.hpp"
 
-#include "master/detector.hpp"
+#include "hook/manager.hpp"
 
 #include "logging/logging.hpp"
+
+#include "master/detector.hpp"
 
 #include "messages/messages.hpp"
 
@@ -128,6 +130,14 @@ int main(int argc, char** argv)
     }
   }
 
+  // Initialize hooks.
+  if (flags.hooks.isSome()) {
+    Try<Nothing> result = HookManager::initialize(flags.hooks.get());
+    if (result.isError()) {
+      EXIT(1) << "Error installing hooks: " << result.error();
+    }
+  }
+
   // Initialize libprocess.
   if (ip.isSome()) {
     os::setenv("LIBPROCESS_IP", ip.get());
@@ -151,13 +161,18 @@ int main(int argc, char** argv)
     LOG(INFO) << "Git SHA: " << build::GIT_SHA.get();
   }
 
-  Try<Containerizer*> containerizer = Containerizer::create(flags, false);
+  Fetcher fetcher;
+
+  Try<Containerizer*> containerizer =
+    Containerizer::create(flags, false, &fetcher);
+
   if (containerizer.isError()) {
     EXIT(1) << "Failed to create a containerizer: "
             << containerizer.error();
   }
 
   Try<MasterDetector*> detector = MasterDetector::create(master.get());
+
   if (detector.isError()) {
     EXIT(1) << "Failed to create a master detector: " << detector.error();
   }

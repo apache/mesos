@@ -16,47 +16,200 @@
  * limitations under the License.
  */
 
+#include <mesos/fetcher/fetcher.hpp>
+
+#include <process/dispatch.hpp>
+#include <process/process.hpp>
+
 #include "slave/slave.hpp"
 
 #include "slave/containerizer/fetcher.hpp"
 
 using std::map;
 using std::string;
+using std::vector;
+
+using process::Future;
+
+using mesos::fetcher::FetcherInfo;
 
 namespace mesos {
 namespace internal {
 namespace slave {
-namespace fetcher {
 
-map<string, string> environment(
+
+Fetcher::Fetcher() : process(new FetcherProcess())
+{
+  spawn(process.get());
+}
+
+
+Fetcher::~Fetcher()
+{
+  terminate(process.get());
+  process::wait(process.get());
+}
+
+
+map<string, string> Fetcher::environment(
     const CommandInfo& commandInfo,
     const string& directory,
     const Option<string>& user,
     const Flags& flags)
 {
-  map<string, string> result;
+  FetcherInfo fetcherInfo;
 
-  result["MESOS_COMMAND_INFO"] = stringify(JSON::Protobuf(commandInfo));
+  fetcherInfo.mutable_command_info()->CopyFrom(commandInfo);
 
-  result["MESOS_WORK_DIRECTORY"] = directory;
+  fetcherInfo.set_work_directory(directory);
 
   if (user.isSome()) {
-    result["MESOS_USER"] = user.get();
+    fetcherInfo.set_user(user.get());
   }
 
   if (!flags.frameworks_home.empty()) {
-    result["MESOS_FRAMEWORKS_HOME"] = flags.frameworks_home;
+    fetcherInfo.set_frameworks_home(flags.frameworks_home);
   }
 
   if (!flags.hadoop_home.empty()) {
-    result["HADOOP_HOME"] = flags.hadoop_home;
+    fetcherInfo.set_hadoop_home(flags.hadoop_home);
   }
+
+  map<string, string> result;
+  result["MESOS_FETCHER_INFO"] = stringify(JSON::Protobuf(fetcherInfo));
 
   return result;
 }
 
 
-Try<Subprocess> run(
+Future<Nothing> Fetcher::fetch(
+    const ContainerID& containerId,
+    const CommandInfo& commandInfo,
+    const string& directory,
+    const Option<string>& user,
+    const Flags& flags,
+    const Option<int>& stdout,
+    const Option<int>& stderr)
+{
+  if (commandInfo.uris().size() == 0) {
+    return Nothing();
+  }
+
+  return dispatch(process.get(),
+                  &FetcherProcess::fetch,
+                  containerId,
+                  commandInfo,
+                  directory,
+                  user,
+                  flags,
+                  stdout,
+                  stderr);
+}
+
+
+Future<Nothing> Fetcher::fetch(
+    const ContainerID& containerId,
+    const CommandInfo& commandInfo,
+    const string& directory,
+    const Option<string>& user,
+    const Flags& flags)
+{
+  if (commandInfo.uris().size() == 0) {
+    return Nothing();
+  }
+
+  return dispatch(process.get(),
+                  &FetcherProcess::fetch,
+                  containerId,
+                  commandInfo,
+                  directory,
+                  user,
+                  flags);
+}
+
+
+void Fetcher::kill(const ContainerID& containerId)
+{
+  dispatch(process.get(), &FetcherProcess::kill, containerId);
+}
+
+
+FetcherProcess::~FetcherProcess()
+{
+  foreach (const ContainerID& containerId, subprocessPids.keys()) {
+    kill(containerId);
+  }
+}
+
+
+Future<Nothing> FetcherProcess::fetch(
+    const ContainerID& containerId,
+    const CommandInfo& commandInfo,
+    const string& directory,
+    const Option<string>& user,
+    const Flags& flags,
+    const Option<int>& stdout,
+    const Option<int>& stderr)
+{
+  VLOG(1) << "Starting to fetch URIs for container: " << containerId
+        << ", directory: " << directory;
+
+  Try<Subprocess> subprocess =
+    run(commandInfo, directory, user, flags, stdout, stderr);
+
+  if (subprocess.isError()) {
+    return Failure("Failed to execute mesos-fetcher: " + subprocess.error());
+  }
+
+  subprocessPids[containerId] = subprocess.get().pid();
+
+  return subprocess.get().status()
+    .then(defer(self(), &Self::_fetch, containerId, lambda::_1));
+}
+
+
+Future<Nothing> FetcherProcess::fetch(
+    const ContainerID& containerId,
+    const CommandInfo& commandInfo,
+    const string& directory,
+    const Option<string>& user,
+    const Flags& flags)
+{
+  VLOG(1) << "Starting to fetch URIs for container: " << containerId
+        << ", directory: " << directory;
+
+  Try<Subprocess> subprocess = run(commandInfo, directory, user, flags);
+
+  if (subprocess.isError()) {
+    return Failure("Failed to execute mesos-fetcher: " + subprocess.error());
+  }
+
+  subprocessPids[containerId] = subprocess.get().pid();
+
+  return subprocess.get().status()
+    .then(defer(self(), &Self::_fetch, containerId, lambda::_1));
+}
+
+
+Future<Nothing> FetcherProcess::_fetch(
+    const ContainerID& containerId,
+    const Option<int>& status)
+{
+  subprocessPids.erase(containerId);
+
+  if (status.isNone()) {
+    return Failure("No status available from fetcher");
+  } else if (status.get() != 0) {
+    return Failure("Failed to fetch URIs for container '" +
+                   stringify(containerId) + "'with exit status: " +
+                   stringify(status.get()));
+  }
+
+  return Nothing();
+}
+
+
+Try<Subprocess> FetcherProcess::run(
     const CommandInfo& commandInfo,
     const string& directory,
     const Option<string>& user,
@@ -83,7 +236,7 @@ Try<Subprocess> run(
 
   LOG(INFO) << "Fetching URIs using command '" << command << "'";
 
-  Try<Subprocess> fetcher = subprocess(
+  Try<Subprocess> fetcherSubprocess = subprocess(
     command,
     Subprocess::PIPE(),
     stdout.isSome()
@@ -92,17 +245,18 @@ Try<Subprocess> run(
     stderr.isSome()
       ? Subprocess::FD(stderr.get())
       : Subprocess::PIPE(),
-    environment(commandInfo, directory, user, flags));
+    Fetcher::environment(commandInfo, directory, user, flags));
 
-  if (fetcher.isError()) {
-    return Error("Failed to execute mesos-fetcher: " + fetcher.error());
+  if (fetcherSubprocess.isError()) {
+    return Error(
+        "Failed to execute mesos-fetcher: " +  fetcherSubprocess.error());
   }
 
-  return fetcher;
+  return fetcherSubprocess;
 }
 
 
-Try<Subprocess> run(
+Try<Subprocess> FetcherProcess::run(
     const CommandInfo& commandInfo,
     const string& directory,
     const Option<string>& user,
@@ -147,7 +301,7 @@ Try<Subprocess> run(
     }
   }
 
-  Try<Subprocess> fetcher = fetcher::run(
+  Try<Subprocess> subprocess = run(
       commandInfo,
       directory,
       user,
@@ -155,31 +309,25 @@ Try<Subprocess> run(
       out.get(),
       err.get());
 
-  fetcher.get().status()
+  subprocess.get().status()
     .onAny(lambda::bind(&os::close, out.get()))
     .onAny(lambda::bind(&os::close, err.get()));
 
-  return fetcher;
+  return subprocess;
 }
 
 
-Future<Nothing> _run(
-    const ContainerID& containerId,
-    const Option<int>& status)
+void FetcherProcess::kill(const ContainerID& containerId)
 {
-  if (status.isNone()) {
-    return Failure("No status available from fetcher");
-  } else if (status.get() != 0) {
-    return Failure("Failed to fetch URIs for container '" +
-                   stringify(containerId) + "'with exit status: " +
-                   stringify(status.get()));
-  }
+  if (subprocessPids.contains(containerId)) {
+    VLOG(1) << "Killing the fetcher for container '" << containerId << "'";
+    // Best effort kill the entire fetcher tree.
+    os::killtree(subprocessPids.get(containerId).get(), SIGKILL);
 
-  return Nothing();
+    subprocessPids.erase(containerId);
+  }
 }
 
-
-} // namespace fetcher {
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

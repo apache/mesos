@@ -54,7 +54,13 @@ message Task {
   optional TaskState status_update_state = 9;
   optional bytes status_update_uuid = 10;
 
-  repeated Label labels = 11;
+  optional Labels labels = 11;
+
+  // Service discovery information for the task. It is not interpreted
+  // or acted upon by Mesos. It is up to a service discovery system
+  // to use this information as needed and to handle tasks without
+  // service discovery information.
+  optional DiscoveryInfo discovery = 12;
 }
 
 
@@ -245,6 +251,12 @@ message FrameworkErrorMessage {
 message RegisterSlaveMessage {
   required SlaveInfo slave = 1;
 
+  // Resources that are persisted by the slave. It includes persistent
+  // disk resources currently, and may include dynamically reserved
+  // resources in the future. Persisted resources need to be
+  // explicitly released by the framework.
+  repeated Resource persisted_resources = 3;
+
   // NOTE: This is a hack for the master to detect the slave's
   // version. If unset the slave is < 0.21.0.
   // TODO(bmahler): Do proper versioning: MESOS-986.
@@ -258,6 +270,13 @@ message ReregisterSlaveMessage {
   // 0.22.0: Remove this field.
   optional SlaveID slave_id = 1;
   required SlaveInfo slave = 2;
+
+  // Resources that are persisted by the slave. It includes persistent
+  // disk resources currently, and may include dynamically reserved
+  // resources in the future. Persisted resources need to be
+  // explicitly released by the framework.
+  repeated Resource persisted_resources = 7;
+
   repeated ExecutorInfo executor_infos = 4;
   repeated Task tasks = 3;
   repeated Archive.Framework completed_frameworks = 5;
@@ -312,6 +331,17 @@ message ShutdownExecutorMessage {}
 message UpdateFrameworkMessage {
   required FrameworkID framework_id = 1;
   required string pid = 2;
+}
+
+
+// This message is sent to the slave whenever there is an acquisition
+// or release of a persistent resource (e.g., persistent disk or
+// dynamic reservation).
+message UpdateResourcesMessage {
+  // Resources that need to be persisted on the slave. It includes
+  // persistent disk resources currently, and may include dynamically
+  // reserved resources in the future.
+  repeated Resource persisted_resources = 1;
 }
 
 

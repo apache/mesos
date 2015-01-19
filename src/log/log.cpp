@@ -339,6 +339,8 @@ void LogProcess::_recover()
   Future<Owned<Replica> > future = recovering.get();
 
   if (!future.isReady()) {
+    VLOG(2) << "Log recovery failed";
+
     // The 'future' here can only be discarded in 'finalize'.
     string failure = future.isFailed() ?
       future.failure() :
@@ -353,6 +355,8 @@ void LogProcess::_recover()
     }
     promises.clear();
   } else {
+    VLOG(2) << "Log recovery completed";
+
     Owned<Replica> replica_ = future.get();
     replica = replica_.share();
 

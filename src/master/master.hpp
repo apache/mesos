@@ -27,7 +27,9 @@
 
 #include <boost/circular_buffer.hpp>
 
+#include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/scheduler.hpp>
 
 #include <process/http.hpp>
 #include <process/owned.hpp>
@@ -84,10 +86,9 @@ class Repairer;
 class SlaveObserver;
 
 struct Framework;
-struct OfferVisitor;
+struct OfferValidator;
 struct Role;
 struct Slave;
-struct TaskInfoVisitor;
 
 class Master : public ProtobufProcess<Master>
 {
@@ -103,6 +104,7 @@ public:
 
   virtual ~Master();
 
+  // Message handlers.
   void submitScheduler(
       const std::string& name);
   void registerFramework(
@@ -135,14 +137,12 @@ public:
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const TaskID& taskId);
-
   void statusUpdateAcknowledgement(
       const process::UPID& from,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const TaskID& taskId,
       const std::string& uuid);
-
   void schedulerMessage(
       const process::UPID& from,
       const SlaveID& slaveId,
@@ -160,25 +160,28 @@ public:
       const std::vector<Task>& tasks,
       const std::vector<Archive::Framework>& completedFrameworks,
       const std::string& version);
-
   void unregisterSlave(
       const process::UPID& from,
       const SlaveID& slaveId);
-
   void statusUpdate(
       const StatusUpdate& update,
       const process::UPID& pid);
-
+  void reconcileTasks(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const std::vector<TaskStatus>& statuses);
   void exitedExecutor(
       const process::UPID& from,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       int32_t status);
-
   void shutdownSlave(
       const SlaveID& slaveId,
       const std::string& message);
+  void authenticate(
+      const process::UPID& from,
+      const process::UPID& pid);
 
   // TODO(bmahler): It would be preferred to use a unique libprocess
   // Process identifier (PID is not sufficient) for identifying the
@@ -190,15 +193,6 @@ public:
   void offer(
       const FrameworkID& framework,
       const hashmap<SlaveID, Resources>& resources);
-
-  void reconcileTasks(
-      const process::UPID& from,
-      const FrameworkID& frameworkId,
-      const std::vector<TaskStatus>& statuses);
-
-  void authenticate(
-      const process::UPID& from,
-      const process::UPID& pid);
 
   // Invoked when there is a newly elected leading master.
   // Made public for testing purposes.
@@ -364,12 +358,6 @@ protected:
       const TaskInfo& task,
       Framework* framework);
 
-  // Launch a task from a task description.
-  Resources launchTask(
-      const TaskInfo& task,
-      Framework* framework,
-      Slave* slave);
-
   // 'launchTasks()' continuation.
   void _launchTasks(
       const FrameworkID& frameworkId,
@@ -378,6 +366,12 @@ protected:
       const Resources& totalResources,
       const Filters& filters,
       const process::Future<std::list<process::Future<bool>>>& authorizations);
+
+  // Add the task and its executor (if not already running) to the
+  // framework and slave. Returns the resources consumed as a result,
+  // which includes resources for the task and its executor
+  // (if not already running).
+  Resources addTask(const TaskInfo& task, Framework* framework, Slave* slave);
 
   // Transitions the task, and recovers resources if the task becomes
   // terminal.
@@ -415,6 +409,25 @@ protected:
   Option<Credentials> credentials;
 
 private:
+  void drop(
+      const process::UPID& from,
+      const scheduler::Call& call,
+      const std::string& message);
+
+  // Call handlers.
+  void receive(
+      const process::UPID& from,
+      const scheduler::Call& call);
+  void receive(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      const scheduler::Call::Accept& accept);
+
+  bool elected() const
+  {
+    return leader.isSome() && leader.get() == info_;
+  }
+
   // Inner class used to namespace HTTP route handlers (see
   // master/http.cpp for implementations).
   class Http
@@ -477,18 +490,12 @@ private:
   Master(const Master&);              // No copying.
   Master& operator = (const Master&); // No assigning.
 
-  friend struct OfferVisitor;
+  friend struct OfferValidator;
   friend struct Metrics;
 
   const Flags flags;
 
   Option<MasterInfo> leader; // Current leading master.
-
-  // Whether we are the current leading master.
-  bool elected() const
-  {
-    return leader.isSome() && leader.get() == info_;
-  }
 
   allocator::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;

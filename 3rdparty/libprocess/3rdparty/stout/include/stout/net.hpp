@@ -61,6 +61,28 @@
 // Network utilities.
 namespace net {
 
+inline struct addrinfo createAddrInfo(int socktype, int family, int flags)
+{
+  struct addrinfo addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.ai_socktype = socktype;
+  addr.ai_family = family;
+  addr.ai_flags |= flags;
+
+  return addr;
+}
+
+// TODO(evelinad): Add createSockaddrIn6 when will support IPv6
+inline struct sockaddr_in createSockaddrIn(uint32_t ip, int port)
+{
+  struct sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = ip;
+  addr.sin_port = htons(port);
+
+  return addr;
+}
 // Returns the HTTP response code resulting from attempting to download the
 // specified HTTP or FTP URL into a file at the specified path.
 inline Try<int> download(const std::string& url, const std::string& path)
@@ -110,17 +132,42 @@ inline Try<int> download(const std::string& url, const std::string& path)
 }
 
 
+inline Try<std::string> hostname()
+{
+  char host[512];
+
+  if (gethostname(host, sizeof(host)) < 0) {
+    return ErrnoError();
+  }
+
+  // TODO(evelinad): Add AF_UNSPEC when we will support IPv6
+  struct addrinfo hints = createAddrInfo(SOCK_STREAM, AF_INET, AI_CANONNAME);
+  struct addrinfo *result;
+
+  int error = getaddrinfo(host, NULL, &hints, &result);
+
+  if (error != 0 || result == NULL) {
+    if (result != NULL) {
+      freeaddrinfo(result);
+    }
+    return Error(gai_strerror(error));
+  }
+
+  std::string hostname = result->ai_canonname;
+  freeaddrinfo(result);
+
+  return hostname;
+}
+
+
 // Returns a Try of the hostname for the provided IP. If the hostname cannot
 // be resolved, then a string version of the IP address is returned.
 inline Try<std::string> getHostname(uint32_t ip)
 {
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = ip;
+  sockaddr_in addr = createSockaddrIn(ip, 0);
 
   char hostname[MAXHOSTNAMELEN];
-  int err= getnameinfo(
+  int error = getnameinfo(
       (sockaddr*)&addr,
       sizeof(addr),
       hostname,
@@ -128,11 +175,36 @@ inline Try<std::string> getHostname(uint32_t ip)
       NULL,
       0,
       0);
-  if (err != 0) {
-    return Error(std::string(gai_strerror(err)));
+  if (error != 0) {
+    return Error(std::string(gai_strerror(error)));
   }
 
   return std::string(hostname);
+}
+
+// Returns a Try of the IP for the provided hostname or an error if no IP is
+// obtained.
+inline Try<uint32_t> getIP(const std::string& hostname, sa_family_t family)
+{
+  struct addrinfo hints, *result;
+  hints = createAddrInfo(SOCK_STREAM, family, 0);
+
+  int error = getaddrinfo(hostname.c_str(), NULL, &hints, &result);
+  if (error != 0 || result == NULL) {
+    if (result != NULL ) {
+      freeaddrinfo(result);
+    }
+    return Error(gai_strerror(error));
+  }
+  if (result->ai_addr == NULL) {
+    freeaddrinfo(result);
+    return Error("Got no addresses for '" + hostname + "'");
+  }
+
+  uint32_t ip = ((struct sockaddr_in*)(result->ai_addr))->sin_addr.s_addr;
+  freeaddrinfo(result);
+
+  return ip;
 }
 
 

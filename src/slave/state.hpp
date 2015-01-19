@@ -176,7 +176,15 @@ struct RunState
   hashmap<TaskID, TaskState> tasks;
   Option<pid_t> forkedPid;
   Option<process::UPID> libprocessPid;
-  bool completed; // Executor terminated and all its updates acknowledged.
+
+  // NOTE: We create the executor directory before checkpointing the
+  // executor. Therefore, it's not possible for this directory to be
+  // non-existent.
+  std::string directory;
+
+  // Executor terminated and all its updates acknowledged.
+  bool completed;
+
   unsigned int errors;
 };
 

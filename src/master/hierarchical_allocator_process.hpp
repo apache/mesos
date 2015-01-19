@@ -57,57 +57,6 @@ typedef HierarchicalAllocatorProcess<DRFSorter, DRFSorter>
 HierarchicalDRFAllocatorProcess;
 
 
-struct Slave
-{
-  Slave() {}
-
-  explicit Slave(const SlaveInfo& _info)
-    : available(_info.resources()),
-      activated(true),
-      whitelisted(false),
-      checkpoint(_info.checkpoint()),
-      info(_info) {}
-
-  Resources resources() const { return info.resources(); }
-
-  std::string hostname() const { return info.hostname(); }
-
-  // Contains all of the resources currently free on this slave.
-  Resources available;
-
-  // Whether the slave is activated. Resources are not offered for
-  // deactivated slaves until they are reactivated.
-  bool activated;
-
-  // Indicates if the resources on this slave should be offered to
-  // frameworks.
-  bool whitelisted;
-
-  bool checkpoint;
-private:
-  SlaveInfo info;
-};
-
-
-struct Framework
-{
-  Framework() {}
-
-  explicit Framework(const FrameworkInfo& _info)
-    : checkpoint(_info.checkpoint()),
-      info(_info) {}
-
-  std::string role() const { return info.role(); }
-
-  // Filters that have been added by this framework.
-  hashset<Filter*> filters;
-
-  bool checkpoint;
-private:
-  FrameworkInfo info;
-};
-
-
 // Implements the basic allocator algorithm - first pick a role by
 // some criteria, then pick one of their frameworks to allocate to.
 template <typename RoleSorter, typename FrameworkSorter>
@@ -122,52 +71,59 @@ public:
 
   void initialize(
       const Flags& flags,
-      const process::PID<Master>& _master,
-      const hashmap<std::string, RoleInfo>& _roles);
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, Resources>&)>& offerCallback,
+      const hashmap<std::string, RoleInfo>& roles);
 
-  void frameworkAdded(
+  void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const Resources& used);
 
-  void frameworkRemoved(
+  void removeFramework(
       const FrameworkID& frameworkId);
 
-  void frameworkActivated(
-      const FrameworkID& frameworkId,
-      const FrameworkInfo& frameworkInfo);
-
-  void frameworkDeactivated(
+  void activateFramework(
       const FrameworkID& frameworkId);
 
-  void slaveAdded(
+  void deactivateFramework(
+      const FrameworkID& frameworkId);
+
+  void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const Resources& total,
       const hashmap<FrameworkID, Resources>& used);
 
-  void slaveRemoved(
+  void removeSlave(
       const SlaveID& slaveId);
 
-  void slaveDeactivated(
+  void deactivateSlave(
       const SlaveID& slaveId);
 
-  void slaveActivated(
+  void activateSlave(
       const SlaveID& slaveId);
 
   void updateWhitelist(
       const Option<hashset<std::string> >& whitelist);
 
-  void resourcesRequested(
+  void requestResources(
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
 
-  void resourcesRecovered(
+  void transformAllocation(
+      const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const process::Shared<Resources::Transformation>& transformation);
+
+  void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
       const Option<Filters>& filters);
 
-  void offersRevived(
+  void reviveOffers(
       const FrameworkID& frameworkId);
 
 protected:
@@ -191,7 +147,7 @@ protected:
   void expire(const FrameworkID& frameworkId, Filter* filter);
 
   // Checks whether the slave is whitelisted.
-  bool isWhitelisted(const SlaveID& slave);
+  bool isWhitelisted(const SlaveID& slaveId);
 
   // Returns true if there is a filter for this framework
   // on this slave.
@@ -205,16 +161,32 @@ protected:
   bool initialized;
 
   Flags flags;
-  process::PID<Master> master;
 
-  // Contains all frameworks.
+  lambda::function<
+      void(const FrameworkID&,
+           const hashmap<SlaveID, Resources>&)> offerCallback;
+
+  struct Framework
+  {
+    std::string role;
+    bool checkpoint;  // Whether the framework desires checkpointing.
+
+    hashset<Filter*> filters; // Active filters for the framework.
+  };
+
   hashmap<FrameworkID, Framework> frameworks;
 
-  // Maps role names to the Sorter object which contains
-  // all of that role's frameworks.
-  hashmap<std::string, FrameworkSorter*> sorters;
+  struct Slave
+  {
+    Resources total;
+    Resources available;
 
-  // Contains all active slaves.
+    bool activated;  // Whether to offer resources.
+    bool checkpoint; // Whether slave supports checkpointing.
+
+    std::string hostname;
+  };
+
   hashmap<SlaveID, Slave> slaves;
 
   hashmap<std::string, RoleInfo> roles;
@@ -222,8 +194,16 @@ protected:
   // Slaves to send offers for.
   Option<hashset<std::string> > whitelist;
 
-  // Sorter containing all active roles.
+  // There are two levels of sorting, hence "hierarchical".
+  // Level 1 sorts across roles:
+  //   Reserved resources are excluded from fairness calculation,
+  //   since they are forcibly pinned to a role.
+  // Level 2 sorts across frameworks within a particular role:
+  //   Both reserved resources and unreserved resources are used
+  //   in the fairness calculation. This is because reserved
+  //   resources can be allocated to any framework in the role.
   RoleSorter* roleSorter;
+  hashmap<std::string, FrameworkSorter*> frameworkSorters;
 };
 
 
@@ -282,22 +262,27 @@ template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
     const Flags& _flags,
-    const process::PID<Master>& _master,
+    const lambda::function<
+        void(const FrameworkID&,
+             const hashmap<SlaveID, Resources>&)>& _offerCallback,
     const hashmap<std::string, RoleInfo>& _roles)
 {
   flags = _flags;
-  master = _master;
+  offerCallback = _offerCallback;
   roles = _roles;
   initialized = true;
 
   roleSorter = new RoleSorter();
   foreachpair (const std::string& name, const RoleInfo& roleInfo, roles) {
     roleSorter->add(name, roleInfo.weight());
-    sorters[name] = new FrameworkSorter();
+    frameworkSorters[name] = new FrameworkSorter();
   }
 
-  VLOG(1) << "Initializing hierarchical allocator process "
-          << "with master : " << master;
+  if (roleSorter->count() == 0) {
+    LOG(ERROR) << "No roles specified, cannot allocate resources!";
+  }
+
+  VLOG(1) << "Initialized hierarchical allocator process";
 
   delay(flags.allocation_interval, self(), &Self::batch);
 }
@@ -305,7 +290,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkAdded(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const Resources& used)
@@ -316,15 +301,20 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkAdded(
 
   CHECK(roles.contains(role));
 
-  CHECK(!sorters[role]->contains(frameworkId.value()));
-  sorters[role]->add(frameworkId.value());
+  CHECK(!frameworkSorters[role]->contains(frameworkId.value()));
+  frameworkSorters[role]->add(frameworkId.value());
+
+  // TODO(bmahler): Validate that the reserved resources have the
+  // framework's role.
 
   // Update the allocation to this framework.
-  roleSorter->allocated(role, used);
-  sorters[role]->add(used);
-  sorters[role]->allocated(frameworkId.value(), used);
+  roleSorter->allocated(role, used.unreserved());
+  frameworkSorters[role]->add(used);
+  frameworkSorters[role]->allocated(frameworkId.value(), used);
 
-  frameworks[frameworkId] = Framework(frameworkInfo);
+  frameworks[frameworkId] = Framework();
+  frameworks[frameworkId].role = frameworkInfo.role();
+  frameworks[frameworkId].checkpoint = frameworkInfo.checkpoint();
 
   LOG(INFO) << "Added framework " << frameworkId;
 
@@ -334,26 +324,28 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkAdded(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkRemoved(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeFramework(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
 
   CHECK(frameworks.contains(frameworkId));
-  const std::string& role = frameworks[frameworkId].role();
+  const std::string& role = frameworks[frameworkId].role;
 
-  // Might not be in 'sorters[role]' because it was previously
+  // Might not be in 'frameworkSorters[role]' because it was previously
   // deactivated and never re-added.
-  if (sorters[role]->contains(frameworkId.value())) {
-    Resources allocation = sorters[role]->allocation(frameworkId.value());
-    roleSorter->unallocated(role, allocation);
-    sorters[role]->remove(allocation);
-    sorters[role]->remove(frameworkId.value());
+  if (frameworkSorters[role]->contains(frameworkId.value())) {
+    Resources allocation =
+      frameworkSorters[role]->allocation(frameworkId.value());
+
+    roleSorter->unallocated(role, allocation.unreserved());
+    frameworkSorters[role]->remove(allocation);
+    frameworkSorters[role]->remove(frameworkId.value());
   }
 
   // Do not delete the filters contained in this
   // framework's 'filters' hashset yet, see comments in
-  // HierarchicalAllocatorProcess::offersRevived and
+  // HierarchicalAllocatorProcess::reviveOffers and
   // HierarchicalAllocatorProcess::expire.
   frameworks.erase(frameworkId);
 
@@ -363,14 +355,15 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkRemoved(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkActivated(
-    const FrameworkID& frameworkId,
-    const FrameworkInfo& frameworkInfo)
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::activateFramework(
+    const FrameworkID& frameworkId)
 {
   CHECK(initialized);
 
-  const std::string& role = frameworkInfo.role();
-  sorters[role]->activate(frameworkId.value());
+  CHECK(frameworks.contains(frameworkId));
+  const std::string& role = frameworks[frameworkId].role;
+
+  frameworkSorters[role]->activate(frameworkId.value());
 
   LOG(INFO) << "Activated framework " << frameworkId;
 
@@ -380,15 +373,15 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkActivated(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkDeactivated(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::deactivateFramework(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
 
   CHECK(frameworks.contains(frameworkId));
-  const std::string& role = frameworks[frameworkId].role();
+  const std::string& role = frameworks[frameworkId].role;
 
-  sorters[role]->deactivate(frameworkId.value());
+  frameworkSorters[role]->deactivate(frameworkId.value());
 
   // Note that the Sorter *does not* remove the resources allocated
   // to this framework. For now, this is important because if the
@@ -398,7 +391,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkDeactivated(
 
   // Do not delete the filters contained in this
   // framework's 'filters' hashset yet, see comments in
-  // HierarchicalAllocatorProcess::offersRevived and
+  // HierarchicalAllocatorProcess::reviveOffers and
   // HierarchicalAllocatorProcess::expire.
   frameworks[frameworkId].filters.clear();
 
@@ -406,42 +399,60 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::frameworkDeactivated(
 }
 
 
+namespace internal {
+
+// TODO(bmahler): Generalize this.
+template <typename Iterable>
+Resources sum(const Iterable& resources)
+{
+  Resources total;
+  foreach (const Resources& r, resources) {
+    total += r;
+  }
+  return total;
+}
+
+} // namespace internal {
+
+
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveAdded(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
+    const Resources& total,
     const hashmap<FrameworkID, Resources>& used)
 {
   CHECK(initialized);
-
   CHECK(!slaves.contains(slaveId));
 
-  slaves[slaveId] = Slave(slaveInfo);
-  slaves[slaveId].whitelisted = isWhitelisted(slaveId);
-
-  roleSorter->add(slaveInfo.resources());
-
-  Resources unused = slaveInfo.resources();
+  roleSorter->add(total.unreserved());
 
   foreachpair (const FrameworkID& frameworkId,
-               const Resources& resources,
+               const Resources& allocated,
                used) {
     if (frameworks.contains(frameworkId)) {
-      const std::string& role = frameworks[frameworkId].role();
-      sorters[role]->add(resources);
-      sorters[role]->allocated(frameworkId.value(), resources);
-      roleSorter->allocated(role, resources);
-    }
+      const std::string& role = frameworks[frameworkId].role;
 
-    unused -= resources; // Only want to allocate resources that are not used!
+      // TODO(bmahler): Validate that the reserved resources have the
+      // framework's role.
+
+      roleSorter->allocated(role, allocated.unreserved());
+      frameworkSorters[role]->add(allocated);
+      frameworkSorters[role]->allocated(frameworkId.value(), allocated);
+    }
   }
 
-  slaves[slaveId].available = unused;
+  slaves[slaveId] = Slave();
+  slaves[slaveId].total = total;
+  slaves[slaveId].available = total - internal::sum(used.values());
+  slaves[slaveId].activated = true;
+  slaves[slaveId].checkpoint = slaveInfo.checkpoint();
+  slaves[slaveId].hostname = slaveInfo.hostname();
 
-  LOG(INFO) << "Added slave " << slaveId << " (" << slaveInfo.hostname()
-            << ") with " << slaveInfo.resources() << " (and " << unused
-            << " available)";
+  LOG(INFO) << "Added slave " << slaveId << " (" << slaves[slaveId].hostname
+            << ") with " << slaves[slaveId].total
+            << " (and " << slaves[slaveId].available << " available)";
 
   allocate(slaveId);
 }
@@ -449,13 +460,19 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveAdded(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveRemoved(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeSlave(
     const SlaveID& slaveId)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
 
-  roleSorter->remove(slaves[slaveId].resources());
+  // TODO(bmahler): Per MESOS-621, this should remove the allocations
+  // that any frameworks have on this slave. Otherwise the caller may
+  // "leak" allocated resources accidentally if they forget to recover
+  // all the resources. Fixing this would require more information
+  // than what we currently track in the allocator.
+
+  roleSorter->remove(slaves[slaveId].total.unreserved());
 
   slaves.erase(slaveId);
 
@@ -470,21 +487,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveRemoved(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveDeactivated(
-    const SlaveID& slaveId)
-{
-  CHECK(initialized);
-  CHECK(slaves.contains(slaveId));
-
-  slaves[slaveId].activated = false;
-
-  LOG(INFO) << "Slave " << slaveId << " deactivated";
-}
-
-
-template <class RoleSorter, class FrameworkSorter>
-void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveActivated(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::activateSlave(
     const SlaveID& slaveId)
 {
   CHECK(initialized);
@@ -493,6 +496,20 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::slaveActivated(
   slaves[slaveId].activated = true;
 
   LOG(INFO)<< "Slave " << slaveId << " reactivated";
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::deactivateSlave(
+    const SlaveID& slaveId)
+{
+  CHECK(initialized);
+  CHECK(slaves.contains(slaveId));
+
+  slaves[slaveId].activated = false;
+
+  LOG(INFO) << "Slave " << slaveId << " deactivated";
 }
 
 
@@ -511,10 +528,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateWhitelist(
     if (whitelist.get().empty()) {
       LOG(WARNING) << "Whitelist is empty, no offers will be made!";
     }
-
-    foreachkey (const SlaveID& slaveId, slaves) {
-      slaves[slaveId].whitelisted = isWhitelisted(slaveId);
-    }
   } else {
     LOG(INFO) << "Advertising offers for all slaves";
   }
@@ -523,7 +536,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateWhitelist(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRequested(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::requestResources(
     const FrameworkID& frameworkId,
     const std::vector<Request>& requests)
 {
@@ -535,7 +548,74 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRequested(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
+    const FrameworkID& frameworkId,
+    const SlaveID& slaveId,
+    const process::Shared<Resources::Transformation>& transformation)
+{
+  CHECK(initialized);
+  CHECK(slaves.contains(slaveId));
+  CHECK(frameworks.contains(frameworkId));
+
+  // The total resources on the slave are composed of both allocated
+  // and available resources:
+  //
+  //    total = available + allocated
+  //
+  // Here we apply a transformation to the allocated resources,
+  // which in turns leads to a transformation of the total. The
+  // available resources remain unchanged.
+
+  FrameworkSorter* frameworkSorter =
+    frameworkSorters[frameworks[frameworkId].role];
+
+  Resources allocation = frameworkSorter->allocation(frameworkId.value());
+
+  // Update the allocated resources.
+  // TODO(bmahler): Check transformation invariants! Namely,
+  // we don't want the quantity or the static roles of the
+  // allocation to be altered.
+  Try<Resources> transformedAllocation = (*transformation)(allocation);
+
+  CHECK_SOME(transformedAllocation);
+
+  frameworkSorter->transform(
+      frameworkId.value(),
+      allocation,
+      transformedAllocation.get());
+
+  roleSorter->transform(
+      frameworks[frameworkId].role,
+      allocation.unreserved(),
+      transformedAllocation.get().unreserved());
+
+  // Update the total resources.
+  // TODO(bmahler): Check transformation invariants! Namely,
+  // we don't want the quantity or the static roles of the
+  // total to be altered.
+  Try<Resources> transformedTotal = (*transformation)(slaves[slaveId].total);
+
+  CHECK_SOME(transformedTotal);
+
+  slaves[slaveId].total = transformedTotal.get();
+
+  // TODO(bmahler): Validate that the available resources are
+  // unaffected. This requires augmenting the sorters with
+  // SlaveIDs for allocations, so that we can do:
+  //
+  //   CHECK_EQ(slaves[slaveId].total - transformedSlaveAllocation,
+  //            slaves[slaveId].available);
+
+  // TODO(jieyu): Do not log if there is no transformation.
+  LOG(INFO) << "Updated allocation of framework " << frameworkId
+            << " on slave " << slaveId
+            << " from " << allocation << " to " << transformedAllocation.get();
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources,
@@ -549,20 +629,24 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
 
   // Updated resources allocated to framework (if framework still
   // exists, which it might not in the event that we dispatched
-  // Master::offer before we received AllocatorProcess::frameworkRemoved
-  // or AllocatorProcess::frameworkDeactivated, in which case we will
+  // Master::offer before we received AllocatorProcess::removeFramework
+  // or AllocatorProcess::deactivateFramework, in which case we will
   // have already recovered all of its resources).
-  if (frameworks.contains(frameworkId) &&
-      sorters[frameworks[frameworkId].role()]->contains(frameworkId.value())) {
-    const std::string& role = frameworks[frameworkId].role();
-    sorters[role]->unallocated(frameworkId.value(), resources);
-    sorters[role]->remove(resources);
-    roleSorter->unallocated(role, resources);
+  if (frameworks.contains(frameworkId)) {
+    const std::string& role = frameworks[frameworkId].role;
+
+    CHECK(frameworkSorters.contains(role));
+
+    if (frameworkSorters[role]->contains(frameworkId.value())) {
+      frameworkSorters[role]->unallocated(frameworkId.value(), resources);
+      frameworkSorters[role]->remove(resources);
+      roleSorter->unallocated(role, resources.unreserved());
+    }
   }
 
   // Update resources allocatable on slave (if slave still exists,
   // which it might not in the event that we dispatched Master::offer
-  // before we received Allocator::slaveRemoved).
+  // before we received Allocator::removeSlave).
   if (slaves.contains(slaveId)) {
     slaves[slaveId].available += resources;
 
@@ -621,7 +705,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::resourcesRecovered(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::offersRevived(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::reviveOffers(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
@@ -645,7 +729,6 @@ template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::batch()
 {
-  CHECK(initialized);
   allocate();
   delay(flags.allocation_interval, self(), &Self::batch);
 }
@@ -655,8 +738,6 @@ template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate()
 {
-  CHECK(initialized);
-
   Stopwatch stopwatch;
   stopwatch.start();
 
@@ -672,15 +753,13 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     const SlaveID& slaveId)
 {
-  CHECK(initialized);
-
-  hashset<SlaveID> slaveIds;
-  slaveIds.insert(slaveId);
-
   Stopwatch stopwatch;
   stopwatch.start();
 
-  allocate(slaveIds);
+  // TODO(bmahler): Add initializer list constructor for hashset.
+  hashset<SlaveID> slaves;
+  slaves.insert(slaveId);
+  allocate(slaves);
 
   VLOG(1) << "Performed allocation for slave " << slaveId << " in "
           << stopwatch.elapsed();
@@ -692,39 +771,39 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
     const hashset<SlaveID>& slaveIds_)
 {
-  CHECK(initialized);
-
   if (roleSorter->count() == 0) {
-    VLOG(1) << "No roles to allocate resources!";
+    LOG(ERROR) << "No roles specified, cannot allocate resources!";
     return;
   }
 
-  if (slaveIds_.empty()) {
-    VLOG(1) << "No resources available to allocate!";
-    return;
-  }
+  // Compute the offerable resources, per framework:
+  //   (1) For reserved resources on the slave, allocate these to a
+  //       framework having the corresponding role.
+  //   (2) For unreserved resources on the slave, allocate these
+  //       to a framework of any role.
+  hashmap<FrameworkID, hashmap<SlaveID, Resources> > offerable;
 
   // Randomize the order in which slaves' resources are allocated.
   // TODO(vinod): Implement a smarter sorting algorithm.
   std::vector<SlaveID> slaveIds(slaveIds_.begin(), slaveIds_.end());
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
-  hashmap<FrameworkID, hashmap<SlaveID, Resources> > offerable;
   foreach (const SlaveID& slaveId, slaveIds) {
-    // If the slave is not activated or whitelisted, ignore it.
-    if (!slaves[slaveId].activated || !slaves[slaveId].whitelisted) {
+    // Don't send offers for non-whitelisted and deactivated slaves.
+    if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
       continue;
     }
 
     foreach (const std::string& role, roleSorter->sort()) {
-      foreach (const std::string& frameworkIdValue, sorters[role]->sort()) {
+      foreach (const std::string& frameworkId_,
+               frameworkSorters[role]->sort()) {
         FrameworkID frameworkId;
-        frameworkId.set_value(frameworkIdValue);
+        frameworkId.set_value(frameworkId_);
 
-        Resources unreserved = slaves[slaveId].available.extract("*");
+        Resources unreserved = slaves[slaveId].available.unreserved();
         Resources resources = unreserved;
         if (role != "*") {
-          resources += slaves[slaveId].available.extract(role);
+          resources += slaves[slaveId].available.reserved(role);
         }
 
         // If the resources are not allocatable, ignore.
@@ -737,28 +816,32 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
           continue;
         }
 
-        VLOG(1)
-          << "Offering " << resources << " on slave " << slaveId
-          << " to framework " << frameworkId;
+        VLOG(2) << "Allocating " << resources << " on slave " << slaveId
+                << " to framework " << frameworkId;
 
+        // Note that we perform "coarse-grained" allocation,
+        // meaning that we always allocate the entire remaining
+        // slave resources to a single framework.
         offerable[frameworkId][slaveId] = resources;
-
-        // Update slave resources.
         slaves[slaveId].available -= resources;
 
-        // Update the sorters.
-        // We only count resources not reserved for this role
-        // in the share the sorter considers.
-        sorters[role]->add(unreserved);
-        sorters[role]->allocated(frameworkIdValue, unreserved);
+        // Reserved resources are only accounted for in the framework
+        // sorter, since the reserved resources are not shared across
+        // roles.
+        frameworkSorters[role]->add(resources);
+        frameworkSorters[role]->allocated(frameworkId_, resources);
         roleSorter->allocated(role, unreserved);
       }
     }
   }
 
-  // Now offer the resources to each framework.
-  foreachkey (const FrameworkID& frameworkId, offerable) {
-    dispatch(master, &Master::offer, frameworkId, offerable[frameworkId]);
+  if (offerable.empty()) {
+    VLOG(1) << "No resources available to allocate!";
+  } else {
+    // Now offer the resources to each framework.
+    foreachkey (const FrameworkID& frameworkId, offerable) {
+      offerCallback(frameworkId, offerable[frameworkId]);
+    }
   }
 }
 
@@ -771,7 +854,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::expire(
 {
   // The filter might have already been removed (e.g., if the
   // framework no longer exists or in
-  // HierarchicalAllocatorProcess::offersRevived) but not yet deleted (to
+  // HierarchicalAllocatorProcess::reviveOffers) but not yet deleted (to
   // keep the address from getting reused possibly causing premature
   // expiration).
   if (frameworks.contains(frameworkId) &&
@@ -788,12 +871,10 @@ bool
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::isWhitelisted(
     const SlaveID& slaveId)
 {
-  CHECK(initialized);
-
   CHECK(slaves.contains(slaveId));
 
   return whitelist.isNone() ||
-         whitelist.get().contains(slaves[slaveId].hostname());
+         whitelist.get().contains(slaves[slaveId].hostname);
 }
 
 

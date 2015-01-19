@@ -252,6 +252,10 @@ message CommandInfo {
   optional string value = 3;
   repeated string arguments = 7;
 
+  // Shutdown grace period for the command (in seconds). Any changes
+  // made by frameworks are currently ignored.
+  optional double grace_period_seconds = 8;
+
   // Enables executor and tasks to run as a specific user. If the user
   // field is present both in FrameworkInfo and here, the CommandInfo
   // user value takes precedence.
@@ -282,6 +286,12 @@ message ExecutorInfo {
   // usage information into a time series database for monitoring.
   optional string source = 10;
   optional bytes data = 4;
+
+  // Service discovery information for the executor. It is not
+  // interpreted or acted upon by Mesos. It is up to a service
+  // discovery system to use this information as needed and to handle
+  // executors without service discovery information.
+  optional DiscoveryInfo discovery = 12;
 }
 
 
@@ -455,7 +465,9 @@ message ResourceStatistics {
   optional uint64 mem_anon_bytes = 11;
   optional uint64 mem_mapped_file_bytes = 12;
 
-  // TODO(bmahler): Add disk usage.
+  // Disk Usage Information for executor working directory.
+  optional uint64 disk_limit_bytes = 26;
+  optional uint64 disk_used_bytes = 27;
 
   // Perf statistics.
   optional PerfStatistics perf = 13;
@@ -606,6 +618,44 @@ message Offer {
   repeated Resource resources = 5;
   repeated Attribute attributes = 7;
   repeated ExecutorID executor_ids = 6;
+
+  // Defines an operation that can be performed against offers.
+  message Operation {
+    enum Type {
+      LAUNCH = 1;
+      RESERVE = 2;
+      UNRESERVE = 3;
+      CREATE = 4;
+      DESTROY = 5;
+    }
+
+    message Launch {
+      repeated TaskInfo task_infos = 1;
+    }
+
+    message Reserve {
+      repeated Resource resources = 1;
+    }
+
+    message Unreserve {
+      repeated Resource resources = 1;
+    }
+
+    message Create {
+      repeated Resource volumes = 1;
+    }
+
+    message Destroy {
+      repeated Resource volumes = 1;
+    }
+
+    required Type type = 1;
+    optional Launch launch = 2;
+    optional Reserve reserve = 3;
+    optional Unreserve unreserve = 4;
+    optional Create create = 5;
+    optional Destroy destroy = 6;
+  }
 }
 
 
@@ -630,9 +680,19 @@ message TaskInfo {
   // A health check for the task (currently in *alpha* and initial
   // support will only be for TaskInfo's that have a CommandInfo).
   optional HealthCheck health_check = 8;
-  // Labels are free-form key value pairs which are exposed
-  // through master and slave endpoints.
-  repeated Label labels = 10;
+
+  // Labels are free-form key value pairs which are exposed through
+  // master and slave endpoints. Labels will not be interpreted or
+  // acted upon by Mesos itself. As opposed to the data field, labels
+  // will be kept in memory on master and slave processes. Therefore,
+  // labels should be used to tag tasks with light-weight meta-data.
+  optional Labels labels = 10;
+
+  // Service discovery information for the task. It is not interpreted
+  // or acted upon by Mesos. It is up to a service discovery system
+  // to use this information as needed and to handle tasks without
+  // service discovery information.
+  optional DiscoveryInfo discovery = 11;
 }
 
 
@@ -970,10 +1030,68 @@ message ContainerInfo {
   optional DockerInfo docker = 3;
 }
 
+
+/**
+ * Collection of labels.
+ */
+message Labels {
+    repeated Label labels = 1;
+}
+
+
 /**
  * Key, value pair used to store free form user-data.
  */
 message Label {
   required string key = 1;
   optional string value = 2;
+}
+
+
+/**
+ * Named port used for service discovery.
+ */
+message Port {
+  required uint32 number = 1;
+  optional string name = 2;
+  optional string protocol = 3;
+}
+
+
+/**
+ * Collection of ports.
+ */
+message Ports {
+    repeated Port ports = 1;
+}
+
+
+/**
+* Service discovery information.
+* The visibility field restricts discovery within a framework
+* (FRAMEWORK), within a Mesos cluster (CLUSTER), or  places no
+* restrictions (EXTERNAL).
+* The environment, location, and version fields provide first class
+* support for common attributes used to differentiate between
+* similar services. The environment may receive values such as
+* PROD/QA/DEV, the location field may receive values like
+* EAST-US/WEST-US/EUROPE/AMEA, and the version field may receive
+* values like v2.0/v0.9. The exact use of these fields is up to each
+* service discovery system.
+*/
+message DiscoveryInfo {
+
+  enum Visibility {
+    FRAMEWORK = 0;
+    CLUSTER = 1;
+    EXTERNAL = 2;
+  }
+
+  required Visibility visibility = 1;
+  optional string name = 2;
+  optional string environment = 3;
+  optional string location = 4;
+  optional string version = 5;
+  optional Ports ports = 6;
+  optional Labels labels = 7;
 }

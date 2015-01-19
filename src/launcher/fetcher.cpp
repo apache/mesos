@@ -20,6 +20,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/fetcher/fetcher.hpp>
+
 #include <stout/json.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
@@ -34,6 +36,8 @@
 
 using namespace mesos;
 using namespace mesos::internal;
+
+using mesos::fetcher::FetcherInfo;
 
 using std::cerr;
 using std::cout;
@@ -127,7 +131,7 @@ Try<string> fetchWithNet(
     return Error("Malformed URI");
   }
 
-  path =  path::join(directory, path.substr(path.find_last_of("/") + 1));
+  path = path::join(directory, path.substr(path.find_last_of("/") + 1));
   LOG(INFO) << "Downloading '" << uri << "' to '" << path << "'";
   Try<int> code = net::download(uri, path);
   if (code.isError()) {
@@ -264,35 +268,35 @@ int main(int argc, char* argv[])
 
   logging::initialize(argv[0], flags, true); // Catch signals.
 
-  CHECK(os::hasenv("MESOS_COMMAND_INFO"))
-    << "Missing MESOS_COMMAND_INFO environment variable";
+  CHECK(os::hasenv("MESOS_FETCHER_INFO"))
+    << "Missing MESOS_FETCHER_INFO environment variable";
 
   Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(os::getenv("MESOS_COMMAND_INFO"));
+    JSON::parse<JSON::Object>(os::getenv("MESOS_FETCHER_INFO"));
 
   if (parse.isError()) {
-    EXIT(1) << "Failed to parse MESOS_COMMAND_INFO: " << parse.error();
+    EXIT(1) << "Failed to parse MESOS_FETCHER_INFO: " << parse.error();
   }
 
-  Try<CommandInfo> commandInfo = protobuf::parse<CommandInfo>(parse.get());
-
-  if (commandInfo.isError()) {
-    EXIT(1) << "Failed to parse CommandInfo: " << commandInfo.error();
+  Try<FetcherInfo> fetcherInfo = protobuf::parse<FetcherInfo>(parse.get());
+  if (fetcherInfo.isError()) {
+    EXIT(1) << "Failed to parse FetcherInfo: " << fetcherInfo.error();
   }
 
-  CHECK(os::hasenv("MESOS_WORK_DIRECTORY"))
-    << "Missing MESOS_WORK_DIRECTORY environment variable";
-  std::string directory = os::getenv("MESOS_WORK_DIRECTORY");
+  const CommandInfo& commandInfo = fetcherInfo.get().command_info();
 
-  // We cannot use Some in the ternary expression because the compiler needs to
-  // be able to infer the type, thus the explicit Option<string>.
-  // TODO(idownes): Add an os::hasenv that returns an Option<string>.
-  Option<std::string> user = os::hasenv("MESOS_USER")
-    ? Option<std::string>(os::getenv("MESOS_USER")) // Explicit so it compiles.
-    : None();
+  const string& directory = fetcherInfo.get().work_directory();
+  if (directory.empty()) {
+    EXIT(1) << "Missing work directory";
+  }
+
+  Option<std::string> user = None();
+  if (fetcherInfo.get().has_user()) {
+    user = fetcherInfo.get().user();
+  }
 
   // Fetch each URI to a local file, chmod, then chown if a user is provided.
-  foreach (const CommandInfo::URI& uri, commandInfo.get().uris()) {
+  foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
     // Fetch the URI to a local file.
     Try<string> fetched = fetch(uri.value(), directory);
     if (fetched.isError()) {
