@@ -5,6 +5,19 @@
   * [MESOS-1143] - TASK_ERROR is now sent instead of TASK_LOST when rescheduling a task should not be attempted.
   * [MESOS-2086] - Update messages.proto to use a raw bytestream instead of a string for AuthenticationStartMessage.
 
+Release Notes - Mesos - Version 0.21.1
+--------------------------------------
+* This is a bug fix release.
+
+** Bug
+  * [MESOS-2047] Isolator cleanup failures shouldn't cause TASK_LOST.
+  * [MESOS-2071] Libprocess generates invalid HTTP
+  * [MESOS-2147] Large number of connections slows statistics.json responses.
+  * [MESOS-2182] Performance issue in libprocess SocketManager.
+
+** Improvement
+  * [MESOS-1925] Docker kill does not allow containers to exit gracefully
+  * [MESOS-2113] Improve configure to find apr and svn libraries/headers in OSX
 
 Release Notes - Mesos - Version 0.21.0
 --------------------------------------
