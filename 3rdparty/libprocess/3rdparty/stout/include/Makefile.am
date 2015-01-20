@@ -49,6 +49,7 @@ nobase_include_HEADERS =		\
   stout/os/osx.hpp			\
   stout/os/process.hpp			\
   stout/os/read.hpp			\
+  stout/os/rename.hpp			\
   stout/os/sendfile.hpp			\
   stout/os/shell.hpp			\
   stout/os/signals.hpp			\
