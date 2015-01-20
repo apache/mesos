@@ -107,52 +107,64 @@ public:
   // Message handlers.
   void submitScheduler(
       const std::string& name);
+
   void registerFramework(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo);
+
   void reregisterFramework(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       bool failover);
+
   void unregisterFramework(
       const process::UPID& from,
       const FrameworkID& frameworkId);
+
   void deactivateFramework(
       const process::UPID& from,
       const FrameworkID& frameworkId);
+
   void resourceRequest(
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
+
   void launchTasks(
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const std::vector<TaskInfo>& tasks,
       const Filters& filters,
       const std::vector<OfferID>& offerIds);
+
   void reviveOffers(
       const process::UPID& from,
       const FrameworkID& frameworkId);
+
   void killTask(
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const TaskID& taskId);
+
   void statusUpdateAcknowledgement(
       const process::UPID& from,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const TaskID& taskId,
       const std::string& uuid);
+
   void schedulerMessage(
       const process::UPID& from,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const std::string& data);
+
   void registerSlave(
       const process::UPID& from,
       const SlaveInfo& slaveInfo,
       const std::string& version);
+
   void reregisterSlave(
       const process::UPID& from,
       const SlaveInfo& slaveInfo,
@@ -160,25 +172,31 @@ public:
       const std::vector<Task>& tasks,
       const std::vector<Archive::Framework>& completedFrameworks,
       const std::string& version);
+
   void unregisterSlave(
       const process::UPID& from,
       const SlaveID& slaveId);
+
   void statusUpdate(
       const StatusUpdate& update,
       const process::UPID& pid);
+
   void reconcileTasks(
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const std::vector<TaskStatus>& statuses);
+
   void exitedExecutor(
       const process::UPID& from,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       int32_t status);
+
   void shutdownSlave(
       const SlaveID& slaveId,
       const std::string& message);
+
   void authenticate(
       const process::UPID& from,
       const process::UPID& pid);
