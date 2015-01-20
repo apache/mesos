@@ -355,32 +355,44 @@ public:
     add(&Flags::ephemeral_ports_per_container,
         "ephemeral_ports_per_container",
         "Number of ephemeral ports allocated to a container by the network\n"
-        "isolator. This number has to be a power of 2.\n",
+        "isolator. This number has to be a power of 2. This flag is used\n"
+        "for the 'network/port_mapping' isolator.",
         DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER);
 
     add(&Flags::eth0_name,
         "eth0_name",
         "The name of the public network interface (e.g., eth0). If it is\n"
         "not specified, the network isolator will try to guess it based\n"
-        "on the host default gateway.");
+        "on the host default gateway. This flag is used for the\n"
+        "'network/port_mapping' isolator.");
 
     add(&Flags::lo_name,
         "lo_name",
         "The name of the loopback network interface (e.g., lo). If it is\n"
-        "not specified, the network isolator will try to guess it.");
+        "not specified, the network isolator will try to guess it. This\n"
+        "flag is used for the 'network/port_mapping' isolator.");
 
     add(&Flags::egress_rate_limit_per_container,
         "egress_rate_limit_per_container",
         "The limit of the egress traffic for each container, in Bytes/s.\n"
         "If not specified or specified as zero, the network isolator will\n"
         "impose no limits to containers' egress traffic throughput.\n"
-        "This flag uses the Bytes type, defined in stout.");
+        "This flag uses the Bytes type (defined in stout) and is used for\n"
+        "the 'network/port_mapping' isolator.");
 
-    add(&Flags::network_enable_socket_statistics,
-        "network_enable_socket_statistics",
-        "Whether to collect socket statistics (e.g., TCP RTT) for\n"
-        "each container.",
+    add(&Flags::network_enable_socket_statistics_summary,
+        "network_enable_socket_statistics_summary",
+        "Whether to collect socket statistics summary for each container.\n"
+        "This flag is used for the 'network/port_mapping' isolator.",
         false);
+
+    add(&Flags::network_enable_socket_statistics_details,
+        "network_enable_socket_statistics_details",
+        "Whether to collect socket statistics details (e.g., TCP RTT) for\n"
+        "each container. This flag is used for the 'network/port_mapping'\n"
+        "isolator.",
+        false);
+
 #endif // WITH_NETWORK_ISOLATOR
 
     add(&Flags::container_disk_watch_interval,
@@ -503,7 +515,8 @@ public:
   Option<std::string> eth0_name;
   Option<std::string> lo_name;
   Option<Bytes> egress_rate_limit_per_container;
-  bool network_enable_socket_statistics;
+  bool network_enable_socket_statistics_summary;
+  bool network_enable_socket_statistics_details;
 #endif
   Duration container_disk_watch_interval;
   bool enforce_container_disk_quota;

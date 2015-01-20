@@ -347,6 +347,8 @@ public:
 
     bool help;
     Option<pid_t> pid;
+    bool enable_socket_statistics_summary;
+    bool enable_socket_statistics_details;
   };
 
   PortMappingStatistics() : Subcommand(NAME) {}

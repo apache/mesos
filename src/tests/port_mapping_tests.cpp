@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <process/future.hpp>
+#include <process/io.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
@@ -306,6 +307,47 @@ protected:
         None());
 
     return pid;
+  }
+
+
+  JSON::Object statisticsHelper(
+      pid_t pid,
+      bool enable_summary,
+      bool enable_details)
+  {
+    // Retrieve the socket information from inside the container.
+    PortMappingStatistics statistics;
+    statistics.flags.pid = pid;
+    statistics.flags.enable_socket_statistics_summary = enable_summary;
+    statistics.flags.enable_socket_statistics_details = enable_details;
+
+    vector<string> argv(2);
+    argv[0] = "mesos-network-helper";
+    argv[1] = PortMappingStatistics::NAME;
+
+    // We don't need STDIN; we need STDOUT for the result; we leave
+    // STDERR as is to log to slave process.
+    Try<Subprocess> s = subprocess(
+        path::join(flags.launcher_dir, "mesos-network-helper"),
+        argv,
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PIPE(),
+        Subprocess::FD(STDERR_FILENO),
+        statistics.flags);
+
+    CHECK_SOME(s);
+
+    Future<Option<int> > status = s.get().status();
+    AWAIT_EXPECT_READY(status);
+    EXPECT_SOME_EQ(0, status.get());
+
+    Future<string> out = io::read(s.get().out().get());
+    AWAIT_EXPECT_READY(out);
+
+    Try<JSON::Object> object = JSON::parse<JSON::Object>(out.get());
+    CHECK_SOME(object);
+
+    return object.get();
   }
 
   slave::Flags flags;
@@ -1442,9 +1484,38 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
 }
 
 
+bool HasTCPSocketsCount(const JSON::Object& object)
+{
+  return object.find<JSON::Number>("net_tcp_active_connections").isSome() &&
+    object.find<JSON::Number>("net_tcp_time_wait_connections").isSome();
+}
+
+
+bool HasTCPSocketsRTT(const JSON::Object& object)
+{
+  Result<JSON::Number> p50 =
+    object.find<JSON::Number>("net_tcp_rtt_microsecs_p50");
+  Result<JSON::Number> p90 =
+    object.find<JSON::Number>("net_tcp_rtt_microsecs_p90");
+  Result<JSON::Number> p95 =
+    object.find<JSON::Number>("net_tcp_rtt_microsecs_p95");
+  Result<JSON::Number> p99 =
+    object.find<JSON::Number>("net_tcp_rtt_microsecs_p99");
+
+  // We either have all of the following metrics or we have nothing.
+  if (!p50.isSome() && !p90.isSome() && !p95.isSome() && !p99.isSome()) {
+    return false;
+  }
+
+  EXPECT_TRUE(p50.isSome() && p90.isSome() && p95.isSome() && p99.isSome());
+
+  return true;
+}
+
+
 // Test that RTT can be returned properly from usage(). This test is
-// very similar to SmallEgressLimitTest in its set up.
-TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
+// very similar to SmallEgressLimitTest in its setup.
+TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
 {
   // To-be-tested egress rate limit, in Bytes/s.
   const Bytes rate = 2000;
@@ -1453,7 +1524,8 @@ TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
 
   // Use a very small egress limit.
   flags.egress_rate_limit_per_container = rate;
-  flags.network_enable_socket_statistics = true;
+  flags.network_enable_socket_statistics_summary = true;
+  flags.network_enable_socket_statistics_details = true;
 
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -1544,14 +1616,31 @@ TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
     os::sleep(Milliseconds(200));
     waited += Milliseconds(200);
 
+    // Do an end-to-end test by calling `usage`.
     Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
     AWAIT_READY(usage);
 
-    if (usage.get().has_net_tcp_rtt_microsecs_p50()) {
+    if (usage.get().has_net_tcp_rtt_microsecs_p50() &&
+        usage.get().has_net_tcp_active_connections()) {
+      EXPECT_GT(usage.get().net_tcp_active_connections(), 0);
       break;
     }
   } while (waited < Seconds(5));
   ASSERT_LT(waited, Seconds(5));
+
+  // While the connection is still active, try out different flag
+  // combinations.
+  JSON::Object object = statisticsHelper(pid.get(), true, true);
+  ASSERT_TRUE(HasTCPSocketsCount(object) && HasTCPSocketsRTT(object));
+
+  object = statisticsHelper(pid.get(), true, false);
+  ASSERT_TRUE(HasTCPSocketsCount(object) && !HasTCPSocketsRTT(object));
+
+  object = statisticsHelper(pid.get(), false, true);
+  ASSERT_TRUE(!HasTCPSocketsCount(object) && HasTCPSocketsRTT(object));
+
+  object = statisticsHelper(pid.get(), false, false);
+  ASSERT_TRUE(!HasTCPSocketsCount(object) && !HasTCPSocketsRTT(object));
 
   // Wait for the command to finish.
   while (!os::exists(container1Ready));

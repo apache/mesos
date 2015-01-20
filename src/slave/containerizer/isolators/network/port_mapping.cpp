@@ -38,11 +38,13 @@
 #include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
+#include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/option.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/result.hpp>
 #include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 
 #include <stout/os/exists.hpp>
 
@@ -486,6 +488,17 @@ PortMappingStatistics::Flags::Flags()
   add(&pid,
       "pid",
       "The pid of the process whose namespaces we will enter");
+
+  add(&enable_socket_statistics_summary,
+      "enable_socket_statistics_summary",
+      "Whether to collect socket statistics summary for this container\n",
+      false);
+
+  add(&enable_socket_statistics_details,
+      "enable_socket_statistics_details",
+      "Whether to collect socket statistics details (e.g., TCP RTT)\n"
+      "for this container.",
+      false);
 }
 
 
@@ -511,54 +524,129 @@ int PortMappingStatistics::execute()
     return 1;
   }
 
-  // NOTE: If the underlying library uses the older version of kernel
-  // API, the family argument passed in may not be honored.
-  Try<vector<diagnosis::socket::Info> > infos =
-    diagnosis::socket::infos(AF_INET, diagnosis::socket::state::ALL);
+  JSON::Object object;
 
-  if (infos.isError()) {
-    cerr << "Failed to retrieve the socket information" << endl;
-  }
+  if (flags.enable_socket_statistics_summary) {
+    // Collections for socket statistics summary are below.
 
-  vector<uint32_t> RTTs;
-  foreach (const diagnosis::socket::Info& info, infos.get()) {
-    // We double check on family regardless.
-    if (info.family != AF_INET) {
-      continue;
+    // For TCP, get the number of ACTIVE and TIME_WAIT connections,
+    // from reading /proc/net/sockstat (/proc/net/sockstat6 for IPV6).
+    // This is not as expensive in the kernel because only counter
+    // values are accessed instead of a dump of all the sockets.
+    // Example output:
+
+    // $ cat /proc/net/sockstat
+    // sockets: used 1391
+    // TCP: inuse 33 orphan 0 tw 0 alloc 37 mem 6
+    // UDP: inuse 15 mem 7
+    // UDPLITE: inuse 0
+    // RAW: inuse 0
+    // FRAG: inuse 0 memory 0
+
+    Try<string> value = os::read("/proc/net/sockstat");
+    if (value.isError()) {
+      cerr << "Failed to read /proc/net/sockstat: " << value.error() << endl;
+      return 1;
     }
 
-    // We consider all sockets that have non-zero rtt value.
-    if (info.tcpInfo.isSome() && info.tcpInfo.get().tcpi_rtt != 0) {
-      RTTs.push_back(info.tcpInfo.get().tcpi_rtt);
+    foreach (const string& line, strings::tokenize(value.get(), "\n")) {
+      if (!strings::startsWith(line, "TCP")) {
+        continue;
+      }
+
+      vector<string> tokens = strings::tokenize(line, " ");
+      for (size_t i = 0; i < tokens.size(); i++) {
+        if (tokens[i] == "inuse") {
+          if (i + 1 >= tokens.size()) {
+            cerr << "Unexpected output from /proc/net/sockstat" << endl;
+            // Be a bit forgiving here here since the /proc file
+            // output format can change, though not very likely.
+            continue;
+          }
+
+          // Set number of active TCP connections.
+          Try<size_t> inuse = numify<size_t>(tokens[i+1]);
+          if (inuse.isError()) {
+            cerr << "Failed to parse the number of tcp connections in use: "
+                 << inuse.error() << endl;
+            continue;
+          }
+
+          object.values["net_tcp_active_connections"] = inuse.get();
+        } else if (tokens[i] == "tw") {
+          if (i + 1 >= tokens.size()) {
+            cerr << "Unexpected output from /proc/net/sockstat" << endl;
+            // Be a bit forgiving here here since the /proc file
+            // output format can change, though not very likely.
+            continue;
+          }
+
+          // Set number of TIME_WAIT TCP connections.
+          Try<size_t> tw = numify<size_t>(tokens[i+1]);
+          if (tw.isError()) {
+            cerr << "Failed to parse the number of tcp connections in"
+                 << " TIME_WAIT: " << tw.error() << endl;
+            continue;
+          }
+
+          object.values["net_tcp_time_wait_connections"] = tw.get();
+        }
+      }
     }
   }
 
-  // Only print to stdout when we have results.
-  if (RTTs.size() > 0) {
-    std::sort(RTTs.begin(), RTTs.end());
+  if (flags.enable_socket_statistics_details) {
+    // Collections for socket statistics details are below.
 
-    // NOTE: The size of RTTs is usually within 1 million so we don't
-    // need to worry about overflow here.
-    // TODO(jieyu): Right now, we choose to use "Nearest rank" for
-    // simplicity. Consider directly using the Statistics abstraction
-    // which computes "Linear interpolation between closest ranks".
-    // http://en.wikipedia.org/wiki/Percentile
-    size_t p50 = RTTs.size() * 50 / 100;
-    size_t p90 = RTTs.size() * 90 / 100;
-    size_t p95 = RTTs.size() * 95 / 100;
-    size_t p99 = RTTs.size() * 99 / 100;
+    // NOTE: If the underlying library uses the older version of
+    // kernel API, the family argument passed in may not be honored.
+    Try<vector<diagnosis::socket::Info> > infos =
+      diagnosis::socket::infos(AF_INET, diagnosis::socket::state::ALL);
 
-    JSON::Object object;
-    object.values["net_tcp_rtt_microsecs_p50"] = RTTs[p50];
-    object.values["net_tcp_rtt_microsecs_p90"] = RTTs[p90];
-    object.values["net_tcp_rtt_microsecs_p95"] = RTTs[p95];
-    object.values["net_tcp_rtt_microsecs_p99"] = RTTs[p99];
+    if (infos.isError()) {
+      cerr << "Failed to retrieve the socket information" << endl;
+      return 1;
+    }
 
-    cout << stringify(object);
+    vector<uint32_t> RTTs;
+    foreach (const diagnosis::socket::Info& info, infos.get()) {
+      // We double check on family regardless.
+      if (info.family != AF_INET) {
+        continue;
+      }
+
+      // We consider all sockets that have non-zero rtt value.
+      if (info.tcpInfo.isSome() && info.tcpInfo.get().tcpi_rtt != 0) {
+        RTTs.push_back(info.tcpInfo.get().tcpi_rtt);
+      }
+    }
+
+    // Only print to stdout when we have results.
+    if (RTTs.size() > 0) {
+      std::sort(RTTs.begin(), RTTs.end());
+
+      // NOTE: The size of RTTs is usually within 1 million so we
+      // don't need to worry about overflow here.
+      // TODO(jieyu): Right now, we choose to use "Nearest rank" for
+      // simplicity. Consider directly using the Statistics abstraction
+      // which computes "Linear interpolation between closest ranks".
+      // http://en.wikipedia.org/wiki/Percentile
+      size_t p50 = RTTs.size() * 50 / 100;
+      size_t p90 = RTTs.size() * 90 / 100;
+      size_t p95 = RTTs.size() * 95 / 100;
+      size_t p99 = RTTs.size() * 99 / 100;
+
+      object.values["net_tcp_rtt_microsecs_p50"] = RTTs[p50];
+      object.values["net_tcp_rtt_microsecs_p90"] = RTTs[p90];
+      object.values["net_tcp_rtt_microsecs_p95"] = RTTs[p95];
+      object.values["net_tcp_rtt_microsecs_p99"] = RTTs[p99];
+    }
   }
 
+  cout << stringify(object);
   return 0;
 }
+
 
 /////////////////////////////////////////////////
 // Implementation for the isolator.
@@ -2037,13 +2125,18 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
     result.set_net_tx_dropped(tx_dropped.get());
   }
 
-  if (!flags.network_enable_socket_statistics) {
+  if (!flags.network_enable_socket_statistics_summary &&
+      !flags.network_enable_socket_statistics_details) {
     return result;
   }
 
   // Retrieve the socket information from inside the container.
   PortMappingStatistics statistics;
   statistics.flags.pid = info->pid.get();
+  statistics.flags.enable_socket_statistics_summary =
+    flags.network_enable_socket_statistics_summary;
+  statistics.flags.enable_socket_statistics_details =
+    flags.network_enable_socket_statistics_details;
 
   vector<string> argv(2);
   argv[0] = "mesos-network-helper";
@@ -2109,30 +2202,49 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::__usage(
   CHECK_READY(out);
 
   // NOTE: It's possible the subprocess has no output.
-  if (out.get().size() > 0) {
-    Try<JSON::Object> object = JSON::parse<JSON::Object>(out.get());
-    if (object.isError()) {
-      return Failure(
-          "Failed to parse the output from the process that gets the "
-          "network statistics: " + object.error());
-    }
+  if (out.get().empty()) {
+    return result;
+  }
 
-    Result<JSON::Number> p50 =
-      object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p50");
-    Result<JSON::Number> p90 =
-      object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p90");
-    Result<JSON::Number> p95 =
-      object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p95");
-    Result<JSON::Number> p99 =
-      object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p99");
+  Try<JSON::Object> object = JSON::parse<JSON::Object>(out.get());
+  if (object.isError()) {
+    return Failure("Failed to parse the output from the process that gets the "
+       "network statistics: " + object.error());
+  }
 
-    if (!p50.isSome() || !p90.isSome() || !p95.isSome() || !p99.isSome()) {
-      return Failure("Failed to get TCP RTT statistics");
-    }
+  Result<JSON::Number> active =
+    object.get().find<JSON::Number>("net_tcp_active_connections");
+  if (active.isSome()) {
+    result.set_net_tcp_active_connections(active.get().value);
+  }
 
+  Result<JSON::Number> tw =
+    object.get().find<JSON::Number>("net_tcp_time_wait_connections");
+  if (tw.isSome()) {
+    result.set_net_tcp_time_wait_connections(tw.get().value);
+  }
+
+  Result<JSON::Number> p50 =
+    object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p50");
+  if (p50.isSome()) {
     result.set_net_tcp_rtt_microsecs_p50(p50.get().value);
+  }
+
+  Result<JSON::Number> p90 =
+    object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p90");
+  if (p90.isSome()) {
     result.set_net_tcp_rtt_microsecs_p90(p90.get().value);
+  }
+
+  Result<JSON::Number> p95 =
+    object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p95");
+  if (p95.isSome()) {
     result.set_net_tcp_rtt_microsecs_p95(p95.get().value);
+  }
+
+  Result<JSON::Number> p99 =
+    object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p99");
+  if (p99.isSome()) {
     result.set_net_tcp_rtt_microsecs_p99(p99.get().value);
   }
 
