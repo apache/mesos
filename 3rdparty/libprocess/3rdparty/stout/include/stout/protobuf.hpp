@@ -80,7 +80,7 @@ inline Try<Nothing> write(
   Try<int> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (fd.isError()) {
     return Error("Failed to open file '" + path + "': " + fd.error());
@@ -104,7 +104,7 @@ inline Try<Nothing> append(
   Try<int> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (fd.isError()) {
     return Error("Failed to open file '" + path + "': " + fd.error());
@@ -221,7 +221,7 @@ inline Result<T> read(const std::string& path)
   Try<int> fd = os::open(
       path,
       O_RDONLY | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (fd.isError()) {
     return Error("Failed to open file '" + path + "': " + fd.error());

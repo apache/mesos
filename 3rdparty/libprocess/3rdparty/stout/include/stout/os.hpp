@@ -225,8 +225,10 @@ inline Try<Nothing> utime(const std::string& path)
 inline Try<Nothing> touch(const std::string& path)
 {
   if (!exists(path)) {
-    Try<int> fd =
-      open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+    Try<int> fd = open(
+        path,
+        O_RDWR | O_CREAT,
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
     if (fd.isError()) {
       return Error("Failed to open file: " + fd.error());
@@ -293,8 +295,11 @@ inline Try<Nothing> write(int fd, const std::string& message)
 // open and closing the file.
 inline Try<Nothing> write(const std::string& path, const std::string& message)
 {
-  Try<int> fd = os::open(path, O_WRONLY | O_CREAT | O_TRUNC,
-                         S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  Try<int> fd = os::open(
+      path,
+      O_WRONLY | O_CREAT | O_TRUNC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
   if (fd.isError()) {
     return ErrnoError("Failed to open file '" + path + "'");
   }

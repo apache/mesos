@@ -88,7 +88,9 @@ inline struct sockaddr_in createSockaddrIn(uint32_t ip, int port)
 inline Try<int> download(const std::string& url, const std::string& path)
 {
   Try<int> fd = os::open(
-      path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      path,
+      O_CREAT | O_WRONLY,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (fd.isError()) {
     return Error(fd.error());

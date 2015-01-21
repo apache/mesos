@@ -138,7 +138,7 @@ TEST_F(OsTest, cloexec)
   Try<int> fd = os::open(
       "cloexec",
       O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(fd);
   EXPECT_SOME_TRUE(os::isCloexec(fd.get()));
@@ -148,7 +148,7 @@ TEST_F(OsTest, cloexec)
   fd = os::open(
       "non-cloexec",
       O_CREAT | O_WRONLY | O_APPEND,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(fd);
   EXPECT_SOME_FALSE(os::isCloexec(fd.get()));
