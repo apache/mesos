@@ -1153,7 +1153,7 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
       sandbox.isSome() ? path::join(sandbox.get().directory, "stderr")
                        : "/dev/null",
       O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (err.isError()) {
     return Error(
         "Failed to redirect stderr: Failed to open: " +

@@ -184,7 +184,7 @@ struct StatusUpdateStream
       Try<int> result = os::open(
           path.get(),
           O_CREAT | O_WRONLY | O_APPEND | O_SYNC | O_CLOEXEC,
-          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       if (result.isError()) {
         error = "Failed to open '" + path.get() + "' for status updates";

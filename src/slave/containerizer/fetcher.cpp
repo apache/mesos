@@ -275,7 +275,7 @@ Try<Subprocess> FetcherProcess::run(
   Try<int> out = os::open(
       path::join(directory, "stdout"),
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (out.isError()) {
     return Error("Failed to create 'stdout' file: " + out.error());
@@ -285,7 +285,7 @@ Try<Subprocess> FetcherProcess::run(
   Try<int> err = os::open(
       path::join(directory, "stderr"),
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (err.isError()) {
     os::close(out.get());

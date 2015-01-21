@@ -48,7 +48,7 @@ TEST_F(ProtobufIOTest, Basic)
   Try<int> result = os::open(
       file,
       O_CREAT | O_WRONLY | O_SYNC | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(result);
 
@@ -57,7 +57,7 @@ TEST_F(ProtobufIOTest, Basic)
   result = os::open(
       file,
       O_CREAT | O_RDONLY | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(result);
 
@@ -108,7 +108,7 @@ TEST_F(ProtobufIOTest, Append)
   Try<int> fd = os::open(
       file,
       O_CREAT | O_RDONLY | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(fd);
 
