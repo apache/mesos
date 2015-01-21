@@ -292,7 +292,7 @@ TEST(IO, redirect)
   Try<int> fd = os::open(
       path.get(),
       O_WRONLY | O_CREAT | O_TRUNC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(fd);
 

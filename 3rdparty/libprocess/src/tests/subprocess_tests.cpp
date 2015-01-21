@@ -224,7 +224,7 @@ TEST_F(SubprocessTest, PipeRedirect)
   Try<int> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_TRUNC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(fd);
   ASSERT_SOME(os::nonblock(fd.get()));
@@ -364,7 +364,7 @@ TEST_F(SubprocessTest, FdOutput)
   Try<int> outFd = os::open(
       out,
       O_WRONLY | O_CREAT | O_APPEND,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(outFd);
 
@@ -398,7 +398,7 @@ TEST_F(SubprocessTest, FdOutput)
   Try<int> errFd = os::open(
       err,
       O_WRONLY | O_CREAT | O_APPEND,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(errFd);
 

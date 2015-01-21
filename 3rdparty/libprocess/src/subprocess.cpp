@@ -242,7 +242,7 @@ Try<Subprocess> subprocess(
       Try<int> open = os::open(
           out.path.get(),
           O_WRONLY | O_CREAT | O_APPEND,
-          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       if (open.isError()) {
         internal::close(stdinFd, stdoutFd, stderrFd);
@@ -281,7 +281,7 @@ Try<Subprocess> subprocess(
       Try<int> open = os::open(
           err.path.get(),
           O_WRONLY | O_CREAT | O_APPEND,
-          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       if (open.isError()) {
         internal::close(stdinFd, stdoutFd, stderrFd);
