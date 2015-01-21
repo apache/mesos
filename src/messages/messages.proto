@@ -252,9 +252,9 @@ message RegisterSlaveMessage {
   required SlaveInfo slave = 1;
 
   // Resources that are persisted by the slave. It includes persistent
-  // disk resources currently, and may include dynamically reserved
-  // resources in the future. Persisted resources need to be
-  // explicitly released by the framework.
+  // volumes currently, and may include dynamically reserved resources
+  // in the future. Persisted resources need to be explicitly released
+  // by the framework.
   repeated Resource persisted_resources = 3;
 
   // NOTE: This is a hack for the master to detect the slave's
@@ -272,9 +272,9 @@ message ReregisterSlaveMessage {
   required SlaveInfo slave = 2;
 
   // Resources that are persisted by the slave. It includes persistent
-  // disk resources currently, and may include dynamically reserved
-  // resources in the future. Persisted resources need to be
-  // explicitly released by the framework.
+  // volumes currently, and may include dynamically reserved resources
+  // in the future. Persisted resources need to be explicitly released
+  // by the framework.
   repeated Resource persisted_resources = 7;
 
   repeated ExecutorInfo executor_infos = 4;
@@ -335,12 +335,12 @@ message UpdateFrameworkMessage {
 
 
 // This message is sent to the slave whenever there is an acquisition
-// or release of a persistent resource (e.g., persistent disk or
+// or release of a persistent resource (e.g., persistent volume or
 // dynamic reservation).
 message UpdateResourcesMessage {
   // Resources that need to be persisted on the slave. It includes
-  // persistent disk resources currently, and may include dynamically
-  // reserved resources in the future.
+  // persistent volumes, and may include dynamically reserved
+  // resources in the future.
   repeated Resource persisted_resources = 1;
 }
 

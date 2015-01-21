@@ -27,6 +27,7 @@
 #include <mesos/values.hpp>
 
 #include <stout/bytes.hpp>
+#include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/option.hpp>
@@ -126,12 +127,6 @@ public:
   // Returns the unreserved resources.
   Resources unreserved() const;
 
-  // Returns all the persistent disk resources.
-  // TODO(jieyu): Consider introducing a general filter mechanism for
-  // resources. For example:
-  // Resources persistentDisks = resources.filter(PersistentDiskFilter());
-  Resources persistentDisks() const;
-
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
   // the specified role.
@@ -224,6 +219,62 @@ public:
   Resources operator - (const Resources& that) const;
   Resources& operator -= (const Resource& that);
   Resources& operator -= (const Resources& that);
+
+  // The base class for all resources filters.
+  // TODO(jieyu): Pull resources filters out of Resources class and
+  // possibly put them inside a resources::filter namespace.
+  class Filter
+  {
+  public:
+    // Apply this filter to the given resources and return the
+    // filtered resources.
+    virtual Resources apply(const Resources& resources) const = 0;
+  };
+
+  class RoleFilter : public Filter
+  {
+  public:
+    static RoleFilter any() { return RoleFilter(); }
+
+    RoleFilter() : type(ANY) {}
+
+    explicit RoleFilter(const std::string& _role)
+      : type(SOME), role(_role) {}
+
+    virtual Resources apply(const Resources& resources) const
+    {
+      if (type == ANY) {
+        return resources;
+      }
+
+      CHECK_SOME(role);
+
+      return role.get() == "*" ?
+        resources.unreserved() :
+        resources.reserved(role.get());
+    }
+
+  private:
+    enum { ANY, SOME } type;
+    Option<std::string> role;
+  };
+
+  class PersistentVolumeFilter : public Filter
+  {
+  public:
+    PersistentVolumeFilter() {}
+
+    virtual Resources apply(const Resources& resources) const
+    {
+      Resources result;
+      foreach (const Resource& resource, resources) {
+        if (resource.has_disk() && resource.disk().has_persistence()) {
+          result += resource;
+        }
+      }
+      return result;
+    }
+  };
 
 private:
   // Similar to 'contains(const Resource&)' but skips the validity

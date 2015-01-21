@@ -2082,7 +2082,7 @@ struct ResourceValidator : TaskInfoValidator
         return Error("Persistence ID '" + id + "' contains invalid characters");
       }
     } else if (resource.disk().has_volume()) {
-      return Error("Non-persistent disk volume is not supported");
+      return Error("Non-persistent volume is not supported");
     } else {
       return Error("DiskInfo is set but empty");
     }

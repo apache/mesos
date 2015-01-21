@@ -580,7 +580,7 @@ TEST_F(TaskValidationTest, DISABLED_UnreservedDiskInfo)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Create a persistent disk resource with "*" role.
+  // Create a persistent volume with "*" role.
   Resource diskResource = Resources::parse("disk", "128", "*").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", "1"));
 
@@ -642,7 +642,7 @@ TEST_F(TaskValidationTest, DISABLED_InvalidPersistenceID)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Create a persistent disk resource with an invalid persistence id.
+  // Create a persistent volume with an invalid persistence id.
   Resource diskResource = Resources::parse("disk", "128", "role1").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo("1/", "1"));
 
@@ -704,7 +704,7 @@ TEST_F(TaskValidationTest, DISABLED_PersistentDiskInfoWithoutVolume)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Create a persistent disk resource without a volume.
+  // Create a persistent volume no volume information.
   Resource diskResource = Resources::parse("disk", "128", "role1").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", None()));
 
@@ -766,7 +766,7 @@ TEST_F(TaskValidationTest, DISABLED_PersistentDiskInfoWithReadOnlyVolume)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Create a persistent disk resource with read-only volume.
+  // Create a read-only persistent volume.
   Resource diskResource = Resources::parse("disk", "128", "role1").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", "1", Volume::RO));
 
@@ -828,7 +828,7 @@ TEST_F(TaskValidationTest, DISABLED_PersistentDiskInfoWithHostPath)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Create a persistent disk resource with host path in the volume.
+  // Create a persistent volume with host path.
   Resource diskResource = Resources::parse("disk", "128", "role1").get();
   diskResource.mutable_disk()->CopyFrom(
       createDiskInfo("1", "1", Volume::RW, "foo"));
@@ -891,7 +891,7 @@ TEST_F(TaskValidationTest, DISABLED_NonPersistentDiskInfoWithVolume)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Create a non-persistent disk resource with volume.
+  // Create a non-persistent volume.
   Resource diskResource = Resources::parse("disk", "128", "role1").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo(None(), "1"));
 
@@ -919,7 +919,7 @@ TEST_F(TaskValidationTest, DISABLED_NonPersistentDiskInfoWithVolume)
   EXPECT_TRUE(status.get().has_message());
   EXPECT_TRUE(strings::contains(
       status.get().message(),
-      "Non-persistent disk volume is not supported"));
+      "Non-persistent volume is not supported"));
 
   driver.stop();
   driver.join();
@@ -953,7 +953,7 @@ TEST_F(TaskValidationTest, DISABLED_DuplicatedPersistenceIDWithinTask)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Create two persistent disk resources with the same id.
+  // Create two persistent volumes with the same id.
   Resource diskResource1 = Resources::parse("disk", "128", "role1").get();
   diskResource1.mutable_disk()->CopyFrom(createDiskInfo("1", "1"));
 
@@ -993,7 +993,7 @@ TEST_F(TaskValidationTest, DISABLED_DuplicatedPersistenceIDWithinTask)
 }
 
 
-// This test ensures that a persistent disk that is larger than the
+// This test ensures that a persistent volume that is larger than the
 // offered disk resources results in a failed task.
 TEST_F(TaskValidationTest, DISABLED_AcquirePersistentDiskTooBig)
 {
@@ -1039,8 +1039,8 @@ TEST_F(TaskValidationTest, DISABLED_AcquirePersistentDiskTooBig)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Create a persistent disk resource with volume whose size is
-  // larger than the size of the offered disk.
+  // Create a persistent volume whose size is larger than the size of
+  // the offered disk.
   Resource diskResource = Resources::parse("disk", "2048", "role1").get();
   diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", "1"));
 
@@ -1067,7 +1067,7 @@ TEST_F(TaskValidationTest, DISABLED_AcquirePersistentDiskTooBig)
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_TRUE(strings::contains(
-      status.get().message(), "Failed to acquire persistent disks"));
+      status.get().message(), "Failed to create persistent volumes"));
 
   driver.stop();
   driver.join();

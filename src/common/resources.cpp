@@ -498,20 +498,6 @@ Resources Resources::unreserved() const
 }
 
 
-Resources Resources::persistentDisks() const
-{
-  Resources result;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.has_disk() && resource.disk().has_persistence()) {
-      result += resource;
-    }
-  }
-
-  return result;
-}
-
-
 Resources Resources::flatten(const string& role) const
 {
   Resources flattened;
@@ -523,31 +509,6 @@ Resources Resources::flatten(const string& role) const
 
   return flattened;
 }
-
-
-class RoleFilter
-{
-public:
-  static RoleFilter any() { return RoleFilter(); }
-
-  RoleFilter() : type(ANY) {}
-  /*implicit*/ RoleFilter(const string& _role) : type(SOME), role(_role) {}
-
-  Resources apply(const Resources& resources) const
-  {
-    if (type == ANY) {
-      return resources;
-    } else if (role == "*") {
-      return resources.unreserved();
-    } else {
-      return resources.reserved(role);
-    }
-  }
-
-private:
-  enum { ANY, SOME } type;
-  string role;
-};
 
 
 Option<Resources> Resources::find(const Resource& target) const

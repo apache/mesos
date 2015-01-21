@@ -168,9 +168,9 @@ TEST(SorterTest, WDRFSorter)
 }
 
 
-// Some resources are split across multiple resource objects
-// (e.g. persistent disks). This test ensures that the shares
-// for these are accounted correctly.
+// Some resources are split across multiple resource objects (e.g.
+// persistent volumes). This test ensures that the shares for these
+// are accounted correctly.
 TEST(SorterTest, SplitResourceShares)
 {
   DRFSorter sorter;

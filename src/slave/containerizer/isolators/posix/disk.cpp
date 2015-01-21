@@ -172,7 +172,7 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
       // Regular disk used for executor working directory.
       path = info->directory;
     } else {
-      // TODO(jieyu): Support persistent disk as well.
+      // TODO(jieyu): Support persistent volmes as well.
       LOG(ERROR) << "Enforcing disk quota unsupported for " << resource;
       continue;
     }
