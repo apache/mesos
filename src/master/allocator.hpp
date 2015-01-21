@@ -20,6 +20,7 @@
 #define __ALLOCATOR_HPP__
 
 #include <string>
+#include <vector>
 
 #include <mesos/resources.hpp>
 
@@ -27,7 +28,6 @@
 #include <process/dispatch.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
-#include <process/shared.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -50,10 +50,10 @@ class AllocatorProcess; // Forward declaration.
 
 // Basic model of an allocator: resources are allocated to a framework
 // in the form of offers. A framework can refuse some resources in
-// offers and run tasks in others. Allocated resources can have
-// transformations applied to them in order for frameworks to alter
-// the resource metadata (e.g. persistent disk). Resources can be
-// recovered from a framework when tasks finish/fail (or are lost
+// offers and run tasks in others. Allocated resources can have offer
+// operations applied to them in order for frameworks to alter the
+// resource metadata (e.g. creating persistent volumes). Resources can
+// be recovered from a framework when tasks finish/fail (or are lost
 // due to a slave failure) or when an offer is rescinded.
 //
 // NOTE: DO NOT subclass this class when implementing a new allocator.
@@ -118,10 +118,10 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
 
-  void transformAllocation(
+  void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      const process::Shared<Resources::Transformation>& transformation);
+      const std::vector<Offer::Operation>& operations);
 
   // Informs the allocator to recover resources that are considered
   // used by the framework.
@@ -198,10 +198,10 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests) = 0;
 
-  virtual void transformAllocation(
+  virtual void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      const process::Shared<Resources::Transformation>& transformation) = 0;
+      const std::vector<Offer::Operation>& operations) = 0;
 
   virtual void recoverResources(
       const FrameworkID& frameworkId,
@@ -353,17 +353,17 @@ inline void Allocator::requestResources(
 }
 
 
-inline void Allocator::transformAllocation(
+inline void Allocator::updateAllocation(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    const process::Shared<Resources::Transformation>& transformation)
+    const std::vector<Offer::Operation>& operations)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::transformAllocation,
+      &AllocatorProcess::updateAllocation,
       frameworkId,
       slaveId,
-      transformation);
+      operations);
 }
 
 

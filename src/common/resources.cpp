@@ -603,6 +603,96 @@ Option<Resources> Resources::find(const Resources& targets) const
 }
 
 
+Try<Resources> Resources::apply(const Offer::Operation& operation) const
+{
+  Resources result = *this;
+
+  switch (operation.type()) {
+    case Offer::Operation::LAUNCH:
+      // Launch operation does not alter the offered resources.
+      break;
+
+    case Offer::Operation::RESERVE:
+    case Offer::Operation::UNRESERVE:
+      // TODO(mpark): Provide implementation.
+      return Error("Unimplemented");
+
+    case Offer::Operation::CREATE: {
+      Option<Error> error = validate(operation.create().volumes());
+      if (error.isSome()) {
+        return Error("Invalid CREATE Operation: " + error.get().message);
+      }
+
+      foreach (const Resource& volume, operation.create().volumes()) {
+        if (!volume.has_disk()) {
+          return Error("Invalid CREATE Operation: Missing 'disk'");
+        } else if (!volume.disk().has_persistence()) {
+          return Error("Invalid CREATE Operation: Missing 'persistence'");
+        }
+
+        // Strip the disk info so that we can subtract it from the
+        // original resources.
+        // TODO(jieyu): Non-persistent volumes are not supported for
+        // now. Persistent volumes can only be be created from regular
+        // disk resources. Revisit this once we start to support
+        // non-persistent volumes.
+        Resource stripped = volume;
+        stripped.clear_disk();
+
+        if (!result.contains(stripped)) {
+          return Error("Invalid CREATE Operation: Insufficient disk resources");
+        }
+
+        result -= stripped;
+        result += volume;
+      }
+      break;
+    }
+
+    case Offer::Operation::DESTROY: {
+      Option<Error> error = validate(operation.destroy().volumes());
+      if (error.isSome()) {
+        return Error("Invalid DESTROY Operation: " + error.get().message);
+      }
+
+      foreach (const Resource& volume, operation.destroy().volumes()) {
+        if (!volume.has_disk()) {
+          return Error("Invalid DESTROY Operation: Missing 'disk'");
+        } else if (!volume.disk().has_persistence()) {
+          return Error("Invalid DESTROY Operation: Missing 'persistence'");
+        }
+
+        if (!result.contains(volume)) {
+          return Error(
+              "Invalid DESTROY Operation: Persistent volume does not exist");
+        }
+
+        Resource stripped = volume;
+        stripped.clear_disk();
+
+        result -= volume;
+        result += stripped;
+      }
+      break;
+    }
+
+    default:
+      return Error("Unknown offer operation " + stringify(operation.type()));
+  }
+
+  // This is a sanity check to ensure the amount of each type of
+  // resource does not change.
+  // TODO(jieyu): Currently, we only check known resource types like
+  // cpus, mem, disk, ports, etc. We should generalize this.
+  CHECK(result.cpus() == cpus() &&
+        result.mem() == mem() &&
+        result.disk() == disk() &&
+        result.ports() == ports());
+
+  return result;
+}
+
+
 template <>
 Option<Value::Scalar> Resources::get(const string& name) const
 {
@@ -887,96 +977,6 @@ ostream& operator << (ostream& stream, const Resources& resources)
   }
 
   return stream;
-}
-
-
-/////////////////////////////////////////////////
-// Resources transformations.
-/////////////////////////////////////////////////
-
-
-Try<Resources> Resources::Transformation::operator () (
-    const Resources& resources) const
-{
-  Try<Resources> applied = apply(resources);
-
-  if (applied.isSome()) {
-    // Additional checks.
-
-    // Ensure the amount of each type of resource does not change.
-    // TODO(jieyu): Currently, we only checks known resource types
-    // like cpus, mem, disk, ports, etc. We should generalize this.
-    if (resources.cpus() != applied.get().cpus() ||
-        resources.mem() != applied.get().mem() ||
-        resources.disk() != applied.get().disk() ||
-        resources.ports() != applied.get().ports()) {
-      return Error("Resource amount does not match");
-    }
-
-    // TODO(jieyu): Ensure that static role does not change.
-  }
-
-  return applied;
-}
-
-
-Try<Resources> Resources::CompositeTransformation::apply(
-    const Resources& resources) const
-{
-  Resources result = resources;
-
-  foreach (Transformation* transformation, transformations) {
-    Try<Resources> transformed = (*transformation)(result);
-
-    if (transformed.isError()) {
-      return Error(transformed.error());
-    }
-
-    result = transformed.get();
-  }
-
-  return result;
-}
-
-
-Resources::AcquirePersistentDisk::AcquirePersistentDisk(const Resource& _disk)
-  : disk(_disk)
-{
-  CHECK(disk.has_disk());
-  CHECK(disk.disk().has_persistence());
-}
-
-
-Try<Resources> Resources::AcquirePersistentDisk::apply(
-    const Resources& resources) const
-{
-  foreach (const Resource& resource, resources) {
-    // TODO(jieyu): Non-persistent volumes are not supported for now.
-    // Persistent disk can only be be acquired from regular disk
-    // resources. Revisit this once we start to support non-persistent
-    // disk volumes.
-    if (resource.name() == "disk" &&
-        !resource.has_disk() &&
-        resource.role() == disk.role()) {
-      CHECK_EQ(resource.type(), Value::SCALAR);
-      CHECK_EQ(disk.type(), Value::SCALAR);
-
-      if (disk.scalar() <= resource.scalar()) {
-        // Strip the disk info so that we can subtract it from the
-        // original resources.
-        Resource stripped = disk;
-        stripped.clear_disk();
-
-        Resources result = resources;
-        result -= stripped;
-        result += disk;
-
-        return result;
-      }
-    }
-  }
-
-  return Error("Insufficient disk resources");
 }
 
 } // namespace mesos {

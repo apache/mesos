@@ -117,7 +117,7 @@ void DRFSorter::allocated(
 }
 
 
-void DRFSorter::transform(
+void DRFSorter::update(
     const string& name,
     const Resources& oldAllocation,
     const Resources& newAllocation)

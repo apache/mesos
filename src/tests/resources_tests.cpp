@@ -938,20 +938,26 @@ TEST(DiskResourcesTest, FilterPersistentDisks)
 }
 
 
-TEST(ResourcesTransformationTest, AcquirePersistentDisk)
+TEST(ResourcesOperationTest, CreatePersistentVolume)
 {
   Resources total = Resources::parse("cpus:1;mem:512;disk(role):1000").get();
 
   Resource disk1 = createDiskResource("200", "role", "1", "path");
-  Resources::AcquirePersistentDisk acquire1(disk1);
+
+  Offer::Operation create1;
+  create1.set_type(Offer::Operation::CREATE);
+  create1.mutable_create()->add_volumes()->CopyFrom(disk1);
 
   EXPECT_SOME_EQ(
       Resources::parse("cpus:1;mem:512;disk(role):800").get() + disk1,
-      acquire1(total));
+      total.apply(create1));
 
   // Check the case of insufficient disk resources.
   Resource disk2 = createDiskResource("2000", "role", "1", "path");
-  Resources::AcquirePersistentDisk acquire2(disk2);
 
-  EXPECT_ERROR(acquire2(total));
+  Offer::Operation create2;
+  create2.set_type(Offer::Operation::CREATE);
+  create2.mutable_create()->add_volumes()->CopyFrom(disk2);
+
+  EXPECT_ERROR(total.apply(create2));
 }

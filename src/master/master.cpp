@@ -2782,8 +2782,8 @@ void Master::_accept(
     return;
   }
 
-  // Some offer operations transform the offered resources. We keep
-  // transformed offered resources here.
+  // Some offer operations update the offered resources. We keep
+  // updated offered resources here.
   Resources _offeredResources = offeredResources;
 
   // Accumulated resources used.

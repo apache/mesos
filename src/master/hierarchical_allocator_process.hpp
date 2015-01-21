@@ -112,10 +112,10 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
 
-  void transformAllocation(
+  void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      const process::Shared<Resources::Transformation>& transformation);
+      const std::vector<Offer::Operation>& operations);
 
   void recoverResources(
       const FrameworkID& frameworkId,
@@ -548,10 +548,10 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::requestResources(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateAllocation(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    const process::Shared<Resources::Transformation>& transformation)
+    const std::vector<Offer::Operation>& operations)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
@@ -562,9 +562,9 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
   //
   //    total = available + allocated
   //
-  // Here we apply a transformation to the allocated resources,
-  // which in turns leads to a transformation of the total. The
-  // available resources remain unchanged.
+  // Here we apply offer operations to the allocated resources, which
+  // in turns leads to an update of the total. The available resources
+  // remain unchanged.
 
   FrameworkSorter* frameworkSorter =
     frameworkSorters[frameworks[frameworkId].role];
@@ -572,44 +572,36 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
   Resources allocation = frameworkSorter->allocation(frameworkId.value());
 
   // Update the allocated resources.
-  // TODO(bmahler): Check transformation invariants! Namely,
-  // we don't want the quantity or the static roles of the
-  // allocation to be altered.
-  Try<Resources> transformedAllocation = (*transformation)(allocation);
+  Try<Resources> updatedAllocation = allocation.apply(operations);
+  CHECK_SOME(updatedAllocation);
 
-  CHECK_SOME(transformedAllocation);
-
-  frameworkSorter->transform(
+  frameworkSorter->update(
       frameworkId.value(),
       allocation,
-      transformedAllocation.get());
+      updatedAllocation.get());
 
-  roleSorter->transform(
+  roleSorter->update(
       frameworks[frameworkId].role,
       allocation.unreserved(),
-      transformedAllocation.get().unreserved());
+      updatedAllocation.get().unreserved());
 
   // Update the total resources.
-  // TODO(bmahler): Check transformation invariants! Namely,
-  // we don't want the quantity or the static roles of the
-  // total to be altered.
-  Try<Resources> transformedTotal = (*transformation)(slaves[slaveId].total);
+  Try<Resources> updatedTotal = slaves[slaveId].total.apply(operations);
+  CHECK_SOME(updatedTotal);
 
-  CHECK_SOME(transformedTotal);
-
-  slaves[slaveId].total = transformedTotal.get();
+  slaves[slaveId].total = updatedTotal.get();
 
   // TODO(bmahler): Validate that the available resources are
   // unaffected. This requires augmenting the sorters with
   // SlaveIDs for allocations, so that we can do:
   //
-  //   CHECK_EQ(slaves[slaveId].total - transformedSlaveAllocation,
+  //   CHECK_EQ(slaves[slaveId].total - updatedAllocation,
   //            slaves[slaveId].available);
 
-  // TODO(jieyu): Do not log if there is no transformation.
+  // TODO(jieyu): Do not log if there is no update.
   LOG(INFO) << "Updated allocation of framework " << frameworkId
             << " on slave " << slaveId
-            << " from " << allocation << " to " << transformedAllocation.get();
+            << " from " << allocation << " to " << updatedAllocation.get();
 }
 
 
