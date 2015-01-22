@@ -40,7 +40,7 @@ protected:
 
 TEST_F(OsSendfileTest, sendfile)
 {
-  Try<int> fd = os::open(filename, O_RDONLY);
+  Try<int> fd = os::open(filename, O_RDONLY | O_CLOEXEC);
   ASSERT_SOME(fd);
 
   // Construct a socket pair and use sendfile to transmit the text.
@@ -57,7 +57,7 @@ TEST_F(OsSendfileTest, sendfile)
   delete buffer;
 
   // Now test with a closed socket, the SIGPIPE should be suppressed!
-  fd = os::open(filename, O_RDONLY);
+  fd = os::open(filename, O_RDONLY | O_CLOEXEC);
   ASSERT_SOME(fd);
   ASSERT_SOME(os::close(s[1]));
 

@@ -89,7 +89,7 @@ inline Try<int> download(const std::string& url, const std::string& path)
 {
   Try<int> fd = os::open(
       path,
-      O_CREAT | O_WRONLY,
+      O_CREAT | O_WRONLY | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (fd.isError()) {
