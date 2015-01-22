@@ -205,7 +205,7 @@ Try<Subprocess> subprocess(
       break;
     }
     case Subprocess::IO::PATH: {
-      Try<int> open = os::open(in.path.get(), O_RDONLY);
+      Try<int> open = os::open(in.path.get(), O_RDONLY | O_CLOEXEC);
       if (open.isError()) {
         return Error(
             "Failed to open '" + in.path.get() + "': " + open.error());
@@ -241,7 +241,7 @@ Try<Subprocess> subprocess(
     case Subprocess::IO::PATH: {
       Try<int> open = os::open(
           out.path.get(),
-          O_WRONLY | O_CREAT | O_APPEND,
+          O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC,
           S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       if (open.isError()) {
@@ -280,7 +280,7 @@ Try<Subprocess> subprocess(
     case Subprocess::IO::PATH: {
       Try<int> open = os::open(
           err.path.get(),
-          O_WRONLY | O_CREAT | O_APPEND,
+          O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC,
           S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       if (open.isError()) {
