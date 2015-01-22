@@ -266,7 +266,6 @@ Try<Subprocess> FetcherProcess::run(
   // files into which we can redirect the output of the mesos-fetcher
   // (and later redirect the child's stdout/stderr).
 
-  // TODO(tillt): Consider adding O_CLOEXEC for atomic close-on-exec.
   // TODO(tillt): Considering updating fetcher::run to take paths
   // instead of file descriptors and then use Subprocess::PATH()
   // instead of Subprocess::FD(). The reason this can't easily be done
@@ -274,7 +273,7 @@ Try<Subprocess> FetcherProcess::run(
   // chown them.
   Try<int> out = os::open(
       path::join(directory, "stdout"),
-      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
+      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (out.isError()) {
@@ -284,7 +283,7 @@ Try<Subprocess> FetcherProcess::run(
   // Repeat for stderr.
   Try<int> err = os::open(
       path::join(directory, "stderr"),
-      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
+      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (err.isError()) {

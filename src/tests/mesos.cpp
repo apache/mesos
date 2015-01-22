@@ -96,7 +96,7 @@ master::Flags MesosTest::CreateMasterFlags()
 
   Try<int> fd = os::open(
       path,
-      O_WRONLY | O_CREAT | O_TRUNC,
+      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
 
   CHECK_SOME(fd);
@@ -146,7 +146,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   Try<int> fd = os::open(
       path,
-      O_WRONLY | O_CREAT | O_TRUNC,
+      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
 
   CHECK_SOME(fd);

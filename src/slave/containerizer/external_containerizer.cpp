@@ -1152,7 +1152,7 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
   Try<int> err = os::open(
       sandbox.isSome() ? path::join(sandbox.get().directory, "stderr")
                        : "/dev/null",
-      O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK,
+      O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (err.isError()) {
     return Error(

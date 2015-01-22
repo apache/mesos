@@ -252,7 +252,7 @@ Future<Response> FilesProcess::read(const Request& request)
 
   // TODO(benh): Cache file descriptors so we aren't constantly
   // opening them and paging the data in from disk.
-  Try<int> fd = os::open(resolvedPath.get(), O_RDONLY);
+  Try<int> fd = os::open(resolvedPath.get(), O_RDONLY | O_CLOEXEC);
 
   if (fd.isError()) {
     string error = strings::format("Failed to open file at '%s': %s",

@@ -1154,7 +1154,7 @@ static Try<int> registerNotifier(
 
   // Open the control file.
   string path = path::join(hierarchy, cgroup, control);
-  Try<int> cfd = os::open(path, O_RDWR);
+  Try<int> cfd = os::open(path, O_RDWR | O_CLOEXEC);
   if (cfd.isError()) {
     os::close(efd);
     return Error("Failed to open '" + path + "': " + cfd.error());
