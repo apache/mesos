@@ -30,6 +30,7 @@
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
+#include <stout/version.hpp>
 
 #include "mesos/resources.hpp"
 
@@ -80,6 +81,8 @@ public:
       : entrypoint(_entrypoint) {}
   };
 
+  // Returns the current docker version.
+  virtual process::Future<Version> version() const;
 
   // Performs 'docker run IMAGE'.
   virtual process::Future<Nothing> run(
@@ -134,6 +137,13 @@ protected:
   Docker(const std::string& _path) : path(_path) {};
 
 private:
+  static process::Future<Version> _version(
+      const std::string& cmd,
+      const process::Subprocess& s);
+
+  static process::Future<Version> __version(
+      const process::Future<std::string>& output);
+
   static process::Future<Nothing> _stop(
       const Docker& docker,
       const std::string& container,
