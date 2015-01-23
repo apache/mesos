@@ -96,8 +96,9 @@ static Future<Nothing> checkError(const string& cmd, const Subprocess& s)
 
 Try<Docker*> Docker::create(const string& path, bool validate)
 {
+  Docker* docker = new Docker(path);
   if (!validate) {
-    return new Docker(path);
+    return docker;
   }
 
 #ifdef __linux__
@@ -106,6 +107,7 @@ Try<Docker*> Docker::create(const string& path, bool validate)
   Result<string> hierarchy = cgroups::hierarchy("cpu");
 
   if (hierarchy.isNone()) {
+    delete docker;
     return Error("Failed to find a mounted cgroups hierarchy "
                  "for the 'cpu' subsystem; you probably need "
                  "to mount cgroups manually!");
@@ -113,6 +115,36 @@ Try<Docker*> Docker::create(const string& path, bool validate)
 #endif // __linux__
 
   // Validate the version (and that we can use Docker at all).
+  Future<Version> version = docker->version();
+
+  if(!version.await(Seconds(5))) {
+    delete docker;
+    return Error("Timed out getting docker version.");
+  }
+
+  if (version.isFailed()) {
+    delete docker;
+    return Error("Failed to get docker version: " + version.failure());
+  }
+
+  if (version.get() < Version(1, 0, 0)) {
+    delete docker;
+    return Error("Insufficient version of Docker! Please upgrade to >= 1.0.0");
+  }
+
+  return docker;
+}
+
+
+void commandDiscarded(const Subprocess& s, const string& cmd)
+{
+  VLOG(1) << "'" << cmd << "' is being discarded";
+  os::killtree(s.pid(), SIGKILL);
+}
+
+
+Future<Version> Docker::version() const
+{
   string cmd = path + " version";
 
   Try<Subprocess> s = subprocess(
@@ -122,56 +154,51 @@ Try<Docker*> Docker::create(const string& path, bool validate)
       Subprocess::PIPE());
 
   if (s.isError()) {
-    return Error(s.error());
+    return Failure(s.error());
   }
 
-  Future<Option<int> > status = s.get().status();
+  return s.get().status()
+    .then(lambda::bind(&Docker::_version, cmd, s.get()));
+}
 
-  if (!status.await(Seconds(5))) {
-    return Error("Timed out waiting for '" + cmd + "'");
-  } else if (status.isFailed()) {
-    return Error("Failed to execute '" + cmd + "': " + status.failure());
-  } else if (!status.get().isSome() || status.get().get() != 0) {
+
+Future<Version> Docker::_version(const string& cmd, const Subprocess& s)
+{
+  const Option<int>& status = s.status().get();
+  if (!status.isSome() || status.get() != 0) {
     string msg = "Failed to execute '" + cmd + "': ";
-    if (status.get().isSome()) {
-      msg += WSTRINGIFY(status.get().get());
+    if (status.isSome()) {
+      msg += WSTRINGIFY(status.get());
     } else {
       msg += "unknown exit status";
     }
-    return Error(msg);
+    return Failure(msg);
   }
 
-  CHECK_SOME(s.get().out());
+  CHECK_SOME(s.out());
 
-  Future<string> output = io::read(s.get().out().get());
+  return io::read(s.out().get())
+    .then(lambda::bind(&Docker::__version, lambda::_1));
+}
 
-  if (!output.await(Seconds(5))) {
-    return Error("Timed out reading output from '" + cmd + "'");
-  } else if (output.isFailed()) {
-    return Error("Failed to read output from '" + cmd + "': " +
-                 output.failure());
-  }
 
+Future<Version> Docker::__version(const Future<string>& output)
+{
   foreach (string line, strings::split(output.get(), "\n")) {
     line = strings::trim(line);
     if (strings::startsWith(line, "Client version: ")) {
       line = line.substr(strlen("Client version: "));
-      vector<string> version = strings::split(line, ".");
-      if (version.size() < 1) {
-        return Error("Failed to parse Docker version '" + line + "'");
+      Try<Version> version = Version::parse(line);
+
+      if (version.isError()) {
+        return Failure("Failed to parse docker version: " + version.error());
       }
-      Try<int> major = numify<int>(version[0]);
-      if (major.isError()) {
-        return Error("Failed to parse Docker major version '" +
-                     version[0] + "'");
-      } else if (major.get() < 1) {
-        break;
-      }
-      return new Docker(path);
+
+      return version;
     }
   }
 
-  return Error("Insufficient version of Docker! Please upgrade to >= 1.0.0");
+  return Failure("Unable to find docker version in output.");
 }
 
 
