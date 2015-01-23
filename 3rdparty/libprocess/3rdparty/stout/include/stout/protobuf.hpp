@@ -25,6 +25,7 @@
 
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/message.h>
+#include <google/protobuf/repeated_field.h>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
@@ -71,11 +72,28 @@ inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
 }
 
 
-// A wrapper function that wraps the above write with open and closing
-// the file.
-inline Try<Nothing> write(
-    const std::string& path,
-    const google::protobuf::Message& message)
+// Write out the given sequence of protobuf messages to the
+// specified file descriptor by repeatedly invoking write
+// on each of the messages.
+// NOTE: On error, this may have written partial data to the file.
+template <typename T>
+Try<Nothing> write(
+    int fd,
+    const google::protobuf::RepeatedPtrField<T>& messages)
+{
+  foreach (const T& message, messages) {
+    Try<Nothing> result = write(fd, message);
+    if (result.isError()) {
+      return Error(result.error());
+    }
+  }
+
+  return Nothing();
+}
+
+
+template <typename T>
+Try<Nothing> write(const std::string& path, const T& t)
 {
   Try<int> fd = os::open(
       path,
@@ -86,7 +104,7 @@ inline Try<Nothing> write(
     return Error("Failed to open file '" + path + "': " + fd.error());
   }
 
-  Try<Nothing> result = write(fd.get(), message);
+  Try<Nothing> result = write(fd.get(), t);
 
   // NOTE: We ignore the return value of close(). This is because
   // users calling this function are interested in the return value of
