@@ -36,6 +36,10 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
+using std::string;
+
+using google::protobuf::RepeatedPtrField;
+
 
 class ProtobufIOTest : public TemporaryDirectoryTest {};
 
@@ -43,7 +47,7 @@ class ProtobufIOTest : public TemporaryDirectoryTest {};
 // TODO(bmahler): Move this file into stout.
 TEST_F(ProtobufIOTest, Basic)
 {
-  const std::string file = ".protobuf_io_test_basic";
+  const string file = ".protobuf_io_test_basic";
 
   Try<int> result = os::open(
       file,
@@ -94,7 +98,7 @@ TEST_F(ProtobufIOTest, Basic)
 
 TEST_F(ProtobufIOTest, Append)
 {
-  const std::string file = ".protobuf_io_test_append";
+  const string file = ".protobuf_io_test_append";
 
   const size_t writes = 10;
   for (size_t i = 0; i < writes; i++) {
@@ -129,4 +133,32 @@ TEST_F(ProtobufIOTest, Append)
   ASSERT_EQ(writes, reads);
 
   os::close(fd.get());
+}
+
+TEST_F(ProtobufIOTest, RepeatedPtrField)
+{
+  const string file = ".protobuf_io_test_repeated_ptr_field";
+
+  RepeatedPtrField<FrameworkID> expected;
+
+  const size_t size = 10;
+  for (size_t i = 0; i < size; i++) {
+    FrameworkID frameworkId;
+    frameworkId.set_value(stringify(i));
+    expected.Add()->CopyFrom(frameworkId);
+  }
+
+  Try<Nothing> write = ::protobuf::write(file, expected);
+  ASSERT_SOME(write);
+
+  Result<RepeatedPtrField<FrameworkID>> read =
+    ::protobuf::read<RepeatedPtrField<FrameworkID>>(file);
+  ASSERT_SOME(read);
+
+  RepeatedPtrField<FrameworkID> actual = read.get();
+
+  ASSERT_EQ(expected.size(), actual.size());
+  for (size_t i = 0; i < size; i++) {
+    EXPECT_EQ(expected.Get(i), actual.Get(i));
+  }
 }
