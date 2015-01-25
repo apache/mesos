@@ -736,49 +736,6 @@ Try<ResourcesState> ResourcesState::recover(
 }
 
 
-// Helpers to checkpoint string/protobuf to disk, with necessary error checking.
-
-Try<Nothing> checkpoint(
-    const string& path,
-    const google::protobuf::Message& message)
-{
-  // Create the base directory.
-  Try<Nothing> result = os::mkdir(os::dirname(path).get());
-  if (result.isError()) {
-    return Error("Failed to create directory '" + os::dirname(path).get() +
-                 "': " + result.error());
-  }
-
-  // Now checkpoint the protobuf to disk.
-  result = ::protobuf::write(path, message);
-  if (result.isError()) {
-    return Error("Failed to checkpoint \n" + message.DebugString() +
-                 "\n to '" + path + "': " + result.error());
-  }
-
-  return Nothing();
-}
-
-
-Try<Nothing> checkpoint(const std::string& path, const std::string& message)
-{
-  // Create the base directory.
-  Try<Nothing> result = os::mkdir(os::dirname(path).get());
-  if (result.isError()) {
-    return Error("Failed to create directory '" + os::dirname(path).get() +
-                 "': " + result.error());
-  }
-
-  // Now checkpoint the message to disk.
-  result = os::write(path, message);
-  if (result.isError()) {
-    return Error("Failed to checkpoint '" + message + "' to '" + path +
-                 "': " + result.error());
-  }
-
-  return Nothing();
-}
-
 } // namespace state {
 } // namespace slave {
 } // namespace internal {

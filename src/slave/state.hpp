@@ -30,6 +30,7 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
@@ -68,18 +69,91 @@ struct ResourcesState;
 // machine has rebooted since the last slave run, None is returned.
 Result<State> recover(const std::string& rootDir, bool strict);
 
+namespace internal {
 
-// Thin wrappers to checkpoint data to disk and perform the
-// necessary error checking.
+inline Try<Nothing> checkpoint(
+    const std::string& path,
+    const std::string& message)
+{
+  return ::os::write(path, message);
+}
 
-// Checkpoints a protobuf at the given path.
+
+inline Try<Nothing> checkpoint(
+    const std::string& path,
+    const google::protobuf::Message& message)
+{
+  return ::protobuf::write(path, message);
+}
+
+
+template <typename T>
 Try<Nothing> checkpoint(
     const std::string& path,
-    const google::protobuf::Message& message);
+    const google::protobuf::RepeatedPtrField<T>& messages)
+{
+  return ::protobuf::write(path, messages);
+}
 
 
-// Checkpoints a string at the given path.
-Try<Nothing> checkpoint(const std::string& path, const std::string& message);
+inline Try<Nothing> checkpoint(
+    const std::string& path,
+    const Resources& resources)
+{
+  const google::protobuf::RepeatedPtrField<Resource>& messages = resources;
+  return checkpoint(path, messages);
+}
+
+}  // namespace internal {
+
+
+// Thin wrapper to checkpoint data to disk and perform the necessary
+// error checking. It checkpoints an instance of T at the given path.
+// We can checkpoint anything as long as T is supported by
+// internal::checkpoint. Currently the list of supported Ts are:
+//   - std::string
+//   - google::protobuf::Message
+//   - google::protobuf::RepeatedPtrField<T>
+//   - mesos::Resources
+//
+// NOTE: We provide atomic (all-or-nothing) semantics here by always
+// writing to a temporary file first then use os::rename to atomically
+// move it to the desired path.
+template <typename T>
+Try<Nothing> checkpoint(const std::string& path, const T& t)
+{
+  // Create the base directory.
+  Try<Nothing> mkdir = os::mkdir(os::dirname(path).get());
+  if (mkdir.isError()) {
+    return Error("Failed to create directory '" + os::dirname(path).get() +
+                 "': " + mkdir.error());
+  }
+
+  Try<std::string> temp = os::mktemp();
+  if (temp.isError()) {
+    return Error("Failed to create temporary file: '" + temp.error());
+  }
+
+  // Now checkpoint the instance of T to the temporary file.
+  Try<Nothing> checkpoint = internal::checkpoint(temp.get(), t);
+  if (checkpoint.isError()) {
+    // Try removing the temporary file on error.
+    os::rm(temp.get());
+    return Error("Failed to checkpoint to " + temp.get() + "': " +
+                 checkpoint.error());
+  }
+
+  // Rename the temporary file to the path.
+  Try<Nothing> rename = os::rename(temp.get(), path);
+  if (rename.isError()) {
+    // Try removing the temporary file on error.
+    os::rm(temp.get());
+    return Error("Failed to rename '" + temp.get() + "' to '" + path + "': " +
+                 rename.error());
+  }
+
+  return Nothing();
+}
 
 
 // The top level state. Each of the structs below (recursively)

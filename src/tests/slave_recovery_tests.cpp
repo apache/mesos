@@ -65,8 +65,9 @@ using namespace mesos::internal::tests;
 
 using namespace process;
 
-using mesos::internal::master::Master;
+using google::protobuf::RepeatedPtrField;
 
+using mesos::internal::master::Master;
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::GarbageCollectorProcess;
@@ -86,7 +87,18 @@ using testing::SaveArg;
 class SlaveStateTest : public TemporaryDirectoryTest {};
 
 
-TEST_F(SlaveStateTest, CheckpointProtobuf)
+TEST_F(SlaveStateTest, CheckpointString)
+{
+  // Checkpoint a test string.
+  const string expected = "test";
+  const string file = "test-file";
+  slave::state::checkpoint(file, expected);
+
+  EXPECT_SOME_EQ(expected, os::read(file));
+}
+
+
+TEST_F(SlaveStateTest, CheckpointProtobufMessage)
 {
   // Checkpoint slave id.
   SlaveID expected;
@@ -98,19 +110,25 @@ TEST_F(SlaveStateTest, CheckpointProtobuf)
   const Result<SlaveID>& actual = ::protobuf::read<SlaveID>(file);
   ASSERT_SOME(actual);
 
-  ASSERT_SOME_EQ(expected, actual);
+  EXPECT_SOME_EQ(expected, actual);
 }
 
 
-TEST_F(SlaveStateTest, CheckpointString)
+TEST_F(SlaveStateTest, CheckpointRepeatedProtobufMessages)
 {
-  // Checkpoint a test string.
-  const string expected = "test";
-  const string file = "test-file";
+  // Checkpoint resources.
+  const Resources expected =
+    Resources::parse("cpus:2;mem:512;cpus(role):4;mem(role):1024").get();
+
+  const string file = "resources-file";
   slave::state::checkpoint(file, expected);
 
-  ASSERT_SOME_EQ(expected, os::read(file));
+  Result<RepeatedPtrField<Resource>> actual =
+    ::protobuf::read<RepeatedPtrField<Resource>>(file);
+
+  EXPECT_SOME_EQ(expected, actual);
 }
+
 
 template <typename T>
 class SlaveRecoveryTest : public ContainerizerTest<T>
