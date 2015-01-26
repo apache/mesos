@@ -219,11 +219,6 @@ public:
         "Name of the root cgroup\n",
         "mesos");
 
-    add(&Flags::cgroups_subsystems,
-        "cgroups_subsystems",
-        "This flag has been deprecated and is no longer used,\n"
-        "please update your flags");
-
     add(&Flags::cgroups_enable_cfs,
         "cgroups_enable_cfs",
         "Cgroups feature flag to enable hard limits on CPU resources\n"
@@ -493,7 +488,6 @@ public:
 #ifdef __linux__
   std::string cgroups_hierarchy;
   std::string cgroups_root;
-  Option<std::string> cgroups_subsystems;
   bool cgroups_enable_cfs;
   bool cgroups_limit_swap;
   Option<std::string> slave_subsystems;

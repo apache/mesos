@@ -684,15 +684,6 @@ file://path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
-      --cgroups_subsystems=VALUE
-    </td>
-    <td>
-      This flag has been deprecated and is no longer used,
-      please update your flags
-    </td>
-  </tr>
-  <tr>
-    <td>
       --[no-]checkpoint
     </td>
     <td>
