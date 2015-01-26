@@ -192,7 +192,7 @@ for i in range(len(shas)):
         command = command + ['--review-request-id=' + review_request_id]
 
     # Determine how to specify the revision range.
-    if 'rbt' in post_review and rbt_version.startswith('RBTools 0.6'):
+    if 'rbt' in post_review and not rbt_version.startswith('RBTools 0.5'):
         # rbt >= 0.6 revisions are passed in as args.
         command = command + sys.argv[1:] + [previous, sha]
     else:
