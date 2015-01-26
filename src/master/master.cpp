@@ -2803,14 +2803,34 @@ void Master::_accept(
   foreach (const Offer::Operation& operation, accept.operations()) {
     // TODO(jieyu): Validate each operation!
     switch (operation.type()) {
-      case Offer::Operation::RESERVE:
-      case Offer::Operation::UNRESERVE:
-      case Offer::Operation::CREATE:
-      case Offer::Operation::DESTROY: {
-        // TODO(jieyu): Provide implementation for those operations.
-        LOG(ERROR) << "Unsupported offer operation" << operation.type();
+      case Offer::Operation::RESERVE: {
+        // TODO(jieyu): Provide implementation for RESERVE.
+        LOG(ERROR) << "Unsupported offer operation: "
+                   << Offer::Operation::Type_Name(operation.type());
         break;
       }
+
+      case Offer::Operation::UNRESERVE: {
+        // TODO(jieyu): Provide implementation for UNRESERVE.
+        LOG(ERROR) << "Unsupported offer operation: "
+                   << Offer::Operation::Type_Name(operation.type());
+        break;
+      }
+
+      case Offer::Operation::CREATE: {
+        // TODO(jieyu): Provide implementation for CREATE.
+        LOG(ERROR) << "Unsupported offer operation: "
+                   << Offer::Operation::Type_Name(operation.type());
+        break;
+      }
+
+      case Offer::Operation::DESTROY: {
+        // TODO(jieyu): Provide implementation for DESTROY.
+        LOG(ERROR) << "Unsupported offer operation: "
+                   << Offer::Operation::Type_Name(operation.type());
+        break;
+      }
+
       case Offer::Operation::LAUNCH: {
         foreach (const TaskInfo& task, operation.launch().task_infos()) {
           Future<bool> authorization = authorizations.front();
@@ -2913,10 +2933,10 @@ void Master::_accept(
         }
         break;
       }
-      default: {
+
+      default:
         LOG(ERROR) << "Unsupported offer operation " << operation.type();
         break;
-      }
     }
   }
 
