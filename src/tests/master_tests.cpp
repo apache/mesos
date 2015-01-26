@@ -1485,119 +1485,101 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
 }
 
 
-TEST_F(MasterTest, MetricsInStatsEndpoint)
+TEST_F(MasterTest, MetricsInMetricsEndpoint)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "stats.json");
+  JSON::Object snapshot = Metrics();
 
-  AWAIT_READY(response);
+  EXPECT_EQ(1u, snapshot.values.count("master/uptime_secs"));
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  EXPECT_EQ(1u, snapshot.values.count("master/elected"));
+  EXPECT_EQ(1, snapshot.values["master/elected"]);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  EXPECT_EQ(1u, snapshot.values.count("master/slaves_connected"));
+  EXPECT_EQ(1u, snapshot.values.count("master/slaves_disconnected"));
+  EXPECT_EQ(1u, snapshot.values.count("master/slaves_active"));
+  EXPECT_EQ(1u, snapshot.values.count("master/slaves_inactive"));
 
-  ASSERT_SOME(parse);
+  EXPECT_EQ(1u, snapshot.values.count("master/frameworks_connected"));
+  EXPECT_EQ(1u, snapshot.values.count("master/frameworks_disconnected"));
+  EXPECT_EQ(1u, snapshot.values.count("master/frameworks_active"));
+  EXPECT_EQ(1u, snapshot.values.count("master/frameworks_inactive"));
 
-  JSON::Object stats = parse.get();
+  EXPECT_EQ(1u, snapshot.values.count("master/outstanding_offers"));
 
-  EXPECT_EQ(1u, stats.values.count("master/uptime_secs"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_staging"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_starting"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_running"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_finished"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_failed"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_killed"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_lost"));
 
-  EXPECT_EQ(1u, stats.values.count("elected"));
-  EXPECT_EQ(1u, stats.values.count("master/elected"));
-
-  EXPECT_EQ(1, stats.values["elected"]);
-  EXPECT_EQ(1, stats.values["master/elected"]);
-
-  EXPECT_EQ(1u, stats.values.count("master/slaves_connected"));
-  EXPECT_EQ(1u, stats.values.count("master/slaves_disconnected"));
-  EXPECT_EQ(1u, stats.values.count("master/slaves_active"));
-  EXPECT_EQ(1u, stats.values.count("master/slaves_inactive"));
-
-  EXPECT_EQ(1u, stats.values.count("master/frameworks_connected"));
-  EXPECT_EQ(1u, stats.values.count("master/frameworks_disconnected"));
-  EXPECT_EQ(1u, stats.values.count("master/frameworks_active"));
-  EXPECT_EQ(1u, stats.values.count("master/frameworks_inactive"));
-
-  EXPECT_EQ(1u, stats.values.count("master/outstanding_offers"));
-
-  EXPECT_EQ(1u, stats.values.count("master/tasks_staging"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_starting"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_running"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_finished"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_failed"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_killed"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
-
-  // TODO(dhamon): Add expectations for task source reason metrics.
-
-  EXPECT_EQ(1u, stats.values.count("master/dropped_messages"));
+  EXPECT_EQ(1u, snapshot.values.count("master/dropped_messages"));
 
   // Messages from schedulers.
-  EXPECT_EQ(1u, stats.values.count("master/messages_register_framework"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_reregister_framework"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_unregister_framework"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_deactivate_framework"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_kill_task"));
-  EXPECT_EQ(1u, stats.values.count(
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_register_framework"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_reregister_framework"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_unregister_framework"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_deactivate_framework"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_kill_task"));
+  EXPECT_EQ(1u, snapshot.values.count(
       "master/messages_status_update_acknowledgement"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_resource_request"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_launch_tasks"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_decline_offers"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_revive_offers"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_reconcile_tasks"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_framework_to_executor"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_resource_request"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_launch_tasks"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_decline_offers"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_revive_offers"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_reconcile_tasks"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_framework_to_executor"));
 
   // Messages from slaves.
-  EXPECT_EQ(1u, stats.values.count("master/messages_register_slave"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_reregister_slave"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_unregister_slave"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_status_update"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_exited_executor"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_register_slave"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_reregister_slave"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_unregister_slave"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_status_update"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_exited_executor"));
 
   // Messages from both schedulers and slaves.
-  EXPECT_EQ(1u, stats.values.count("master/messages_authenticate"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_authenticate"));
 
-  EXPECT_EQ(1u, stats.values.count(
+  EXPECT_EQ(1u, snapshot.values.count(
       "master/valid_framework_to_executor_messages"));
-  EXPECT_EQ(1u, stats.values.count(
+  EXPECT_EQ(1u, snapshot.values.count(
       "master/invalid_framework_to_executor_messages"));
 
-  EXPECT_EQ(1u, stats.values.count("master/valid_status_updates"));
-  EXPECT_EQ(1u, stats.values.count("master/invalid_status_updates"));
+  EXPECT_EQ(1u, snapshot.values.count("master/valid_status_updates"));
+  EXPECT_EQ(1u, snapshot.values.count("master/invalid_status_updates"));
 
-  EXPECT_EQ(1u, stats.values.count(
+  EXPECT_EQ(1u, snapshot.values.count(
       "master/valid_status_update_acknowledgements"));
-  EXPECT_EQ(1u, stats.values.count(
+  EXPECT_EQ(1u, snapshot.values.count(
       "master/invalid_status_update_acknowledgements"));
 
-  EXPECT_EQ(1u, stats.values.count("master/recovery_slave_removals"));
+  EXPECT_EQ(1u, snapshot.values.count("master/recovery_slave_removals"));
 
-  EXPECT_EQ(1u, stats.values.count("master/event_queue_messages"));
-  EXPECT_EQ(1u, stats.values.count("master/event_queue_dispatches"));
-  EXPECT_EQ(1u, stats.values.count("master/event_queue_http_requests"));
+  EXPECT_EQ(1u, snapshot.values.count("master/event_queue_messages"));
+  EXPECT_EQ(1u, snapshot.values.count("master/event_queue_dispatches"));
+  EXPECT_EQ(1u, snapshot.values.count("master/event_queue_http_requests"));
 
-  EXPECT_EQ(1u, stats.values.count("master/cpus_total"));
-  EXPECT_EQ(1u, stats.values.count("master/cpus_used"));
-  EXPECT_EQ(1u, stats.values.count("master/cpus_percent"));
+  EXPECT_EQ(1u, snapshot.values.count("master/cpus_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/cpus_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/cpus_percent"));
 
-  EXPECT_EQ(1u, stats.values.count("master/mem_total"));
-  EXPECT_EQ(1u, stats.values.count("master/mem_used"));
-  EXPECT_EQ(1u, stats.values.count("master/mem_percent"));
+  EXPECT_EQ(1u, snapshot.values.count("master/mem_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/mem_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/mem_percent"));
 
-  EXPECT_EQ(1u, stats.values.count("master/disk_total"));
-  EXPECT_EQ(1u, stats.values.count("master/disk_used"));
-  EXPECT_EQ(1u, stats.values.count("master/disk_percent"));
+  EXPECT_EQ(1u, snapshot.values.count("master/disk_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/disk_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/disk_percent"));
 
-  EXPECT_EQ(1u, stats.values.count("registrar/queued_operations"));
-  EXPECT_EQ(1u, stats.values.count("registrar/registry_size_bytes"));
+  EXPECT_EQ(1u, snapshot.values.count("registrar/queued_operations"));
+  EXPECT_EQ(1u, snapshot.values.count("registrar/registry_size_bytes"));
 
-  EXPECT_EQ(1u, stats.values.count("registrar/state_fetch_ms"));
-  EXPECT_EQ(1u, stats.values.count("registrar/state_store_ms"));
+  EXPECT_EQ(1u, snapshot.values.count("registrar/state_fetch_ms"));
+  EXPECT_EQ(1u, snapshot.values.count("registrar/state_store_ms"));
 
   Shutdown();
 }

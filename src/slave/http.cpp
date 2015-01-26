@@ -244,88 +244,6 @@ Future<Response> Slave::Http::health(const Request& request)
 }
 
 
-// Declaration of 'stats' continuation.
-static Future<Response> _stats(
-    const Request& request,
-    JSON::Object object,
-    const Response& response);
-
-
-Future<Response> Slave::Http::stats(const Request& request)
-{
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
-  JSON::Object object;
-  object.values["uptime"] = (Clock::now() - slave->startTime).secs();
-  object.values["total_frameworks"] = slave->frameworks.size();
-  object.values["registered"] = slave->master.isSome() ? 1 : 0;
-  object.values["recovery_errors"] = slave->recoveryErrors;
-
-  // NOTE: These are monotonically increasing counters.
-  object.values["staged_tasks"] = slave->stats.tasks[TASK_STAGING];
-  object.values["started_tasks"] = slave->stats.tasks[TASK_STARTING];
-  object.values["finished_tasks"] = slave->stats.tasks[TASK_FINISHED];
-  object.values["killed_tasks"] = slave->stats.tasks[TASK_KILLED];
-  object.values["failed_tasks"] = slave->stats.tasks[TASK_FAILED];
-  object.values["lost_tasks"] = slave->stats.tasks[TASK_LOST];
-  object.values["valid_status_updates"] = slave->stats.validStatusUpdates;
-  object.values["invalid_status_updates"] = slave->stats.invalidStatusUpdates;
-
-  // NOTE: These are gauges representing instantaneous values.
-
-  // Queued waiting for executor to register.
-  int queued_tasks = 0;
-
-  // Sent to executor (TASK_STAGING, TASK_STARTING, TASK_RUNNING).
-  int launched_tasks = 0;
-
-  foreachvalue (Framework* framework, slave->frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      queued_tasks += executor->queuedTasks.size();
-      launched_tasks += executor->launchedTasks.size();
-    }
-  }
-
-  object.values["queued_tasks_gauge"] = queued_tasks;
-  object.values["launched_tasks_gauge"] = launched_tasks;
-
-  // Include metrics from libprocess metrics while we sunset this
-  // endpoint in favor of libprocess metrics.
-  // TODO(benh): Remove this after transitioning to libprocess metrics.
-  return process::http::get(MetricsProcess::instance()->self(), "snapshot")
-    .then(lambda::bind(&_stats, request, object, lambda::_1));
-}
-
-
-static Future<Response> _stats(
-    const Request& request,
-    JSON::Object object,
-    const Response& response)
-{
-  if (response.status != process::http::statuses[200]) {
-    return InternalServerError("Failed to get metrics: " + response.status);
-  }
-
-  Option<string> type = response.headers.get("Content-Type");
-
-  if (type.isNone() || type.get() != "application/json") {
-    return InternalServerError("Failed to get metrics: expecting JSON");
-  }
-
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.body);
-
-  if (parse.isError()) {
-    return InternalServerError("Failed to parse metrics: " + parse.error());
-  }
-
-  // Now add all the values from metrics.
-  // TODO(benh): Make sure we're not overwriting any values.
-  object.values.insert(parse.get().values.begin(), parse.get().values.end());
-
-  return OK(object, request.query.get("jsonp"));
-}
-
-
 Future<Response> Slave::Http::state(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
@@ -354,12 +272,6 @@ Future<Response> Slave::Http::state(const Request& request)
   object.values["hostname"] = slave->info.hostname();
   object.values["resources"] = model(slave->info.resources());
   object.values["attributes"] = model(slave->info.attributes());
-  object.values["staged_tasks"] = slave->stats.tasks[TASK_STAGING];
-  object.values["started_tasks"] = slave->stats.tasks[TASK_STARTING];
-  object.values["finished_tasks"] = slave->stats.tasks[TASK_FINISHED];
-  object.values["killed_tasks"] = slave->stats.tasks[TASK_KILLED];
-  object.values["failed_tasks"] = slave->stats.tasks[TASK_FAILED];
-  object.values["lost_tasks"] = slave->stats.tasks[TASK_LOST];
 
   if (slave->master.isSome()) {
     Try<string> hostname = net::getHostname(slave->master.get().address.ip);

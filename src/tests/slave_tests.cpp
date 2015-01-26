@@ -806,68 +806,53 @@ TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
 }
 
 
-TEST_F(SlaveTest, MetricsInStatsEndpoint)
+TEST_F(SlaveTest, MetricsInMetricsEndpoint)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  Future<http::Response> response =
-    http::get(slave.get(), "stats.json");
+  JSON::Object snapshot = Metrics();
 
-  AWAIT_READY(response);
+  EXPECT_EQ(1u, snapshot.values.count("slave/uptime_secs"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/registered"));
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/recovery_errors"));
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  EXPECT_EQ(1u, snapshot.values.count("slave/frameworks_active"));
 
-  ASSERT_SOME(parse);
+  EXPECT_EQ(1u, snapshot.values.count("slave/tasks_staging"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/tasks_starting"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/tasks_running"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/tasks_finished"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/tasks_failed"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/tasks_killed"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/tasks_lost"));
 
-  JSON::Object stats = parse.get();
+  EXPECT_EQ(1u, snapshot.values.count("slave/executors_registering"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/executors_running"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/executors_terminating"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/executors_terminated"));
 
-  EXPECT_EQ(1u, stats.values.count("slave/uptime_secs"));
-  EXPECT_EQ(1u, stats.values.count("slave/registered"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/valid_status_updates"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/invalid_status_updates"));
 
-  EXPECT_EQ(1u, stats.values.count("slave/recovery_errors"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/valid_framework_messages"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/invalid_framework_messages"));
 
-  EXPECT_EQ(1u, stats.values.count("slave/frameworks_active"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/cpus_total"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/cpus_used"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/cpus_percent"));
 
-  EXPECT_EQ(1u, stats.values.count("slave/tasks_staging"));
-  EXPECT_EQ(1u, stats.values.count("slave/tasks_starting"));
-  EXPECT_EQ(1u, stats.values.count("slave/tasks_running"));
-  EXPECT_EQ(1u, stats.values.count("slave/tasks_finished"));
-  EXPECT_EQ(1u, stats.values.count("slave/tasks_failed"));
-  EXPECT_EQ(1u, stats.values.count("slave/tasks_killed"));
-  EXPECT_EQ(1u, stats.values.count("slave/tasks_lost"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/mem_total"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/mem_used"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/mem_percent"));
 
-  // TODO(dhamon): Add expectations for task source reason metrics.
-
-  EXPECT_EQ(1u, stats.values.count("slave/executors_registering"));
-  EXPECT_EQ(1u, stats.values.count("slave/executors_running"));
-  EXPECT_EQ(1u, stats.values.count("slave/executors_terminating"));
-  EXPECT_EQ(1u, stats.values.count("slave/executors_terminated"));
-
-  EXPECT_EQ(1u, stats.values.count("slave/valid_status_updates"));
-  EXPECT_EQ(1u, stats.values.count("slave/invalid_status_updates"));
-
-  EXPECT_EQ(1u, stats.values.count("slave/valid_framework_messages"));
-  EXPECT_EQ(1u, stats.values.count("slave/invalid_framework_messages"));
-
-  EXPECT_EQ(1u, stats.values.count("slave/cpus_total"));
-  EXPECT_EQ(1u, stats.values.count("slave/cpus_used"));
-  EXPECT_EQ(1u, stats.values.count("slave/cpus_percent"));
-
-  EXPECT_EQ(1u, stats.values.count("slave/mem_total"));
-  EXPECT_EQ(1u, stats.values.count("slave/mem_used"));
-  EXPECT_EQ(1u, stats.values.count("slave/mem_percent"));
-
-  EXPECT_EQ(1u, stats.values.count("slave/disk_total"));
-  EXPECT_EQ(1u, stats.values.count("slave/disk_used"));
-  EXPECT_EQ(1u, stats.values.count("slave/disk_percent"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/disk_total"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/disk_used"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/disk_percent"));
 
   Shutdown();
 }

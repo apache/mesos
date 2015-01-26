@@ -394,123 +394,6 @@ Future<Response> Master::Http::slaves(const Request& request) {
 }
 
 
-// Declaration of 'stats' continuation.
-static Future<Response> _stats(
-    const Request& request,
-    JSON::Object object,
-    const Response& response);
-
-
-// TODO(alexandra.sava): Add stats for registered and removed slaves.
-Future<Response> Master::Http::stats(const Request& request)
-{
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
-  JSON::Object object;
-  object.values["uptime"] = (Clock::now() - master->startTime).secs();
-  object.values["elected"] = master->elected() ? 1 : 0;
-  object.values["total_schedulers"] = master->frameworks.registered.size();
-  object.values["active_schedulers"] = master->_frameworks_active();
-  object.values["activated_slaves"] = master->_slaves_active();
-  object.values["deactivated_slaves"] = master->_slaves_inactive();
-  object.values["outstanding_offers"] = master->offers.size();
-
-  // NOTE: These are monotonically increasing counters.
-  object.values["staged_tasks"] = master->stats.tasks[TASK_STAGING];
-  object.values["started_tasks"] = master->stats.tasks[TASK_STARTING];
-  object.values["finished_tasks"] = master->stats.tasks[TASK_FINISHED];
-  object.values["killed_tasks"] = master->stats.tasks[TASK_KILLED];
-  object.values["failed_tasks"] = master->stats.tasks[TASK_FAILED];
-  object.values["lost_tasks"] = master->stats.tasks[TASK_LOST];
-  object.values["valid_status_updates"] = master->stats.validStatusUpdates;
-  object.values["invalid_status_updates"] = master->stats.invalidStatusUpdates;
-
-  // Get a count of all active tasks in the cluster i.e., the tasks
-  // that are launched (TASK_STAGING, TASK_STARTING, TASK_RUNNING) but
-  // haven't reached terminal state yet.
-  // NOTE: This is a gauge representing an instantaneous value.
-  int active_tasks = 0;
-  foreachvalue (Framework* framework, master->frameworks.registered) {
-    active_tasks += framework->tasks.size();
-  }
-  object.values["active_tasks_gauge"] = active_tasks;
-
-  // Get total and used (note, not offered) resources in order to
-  // compute capacity of scalar resources.
-  Resources totalResources;
-  Resources usedResources;
-  foreachvalue (Slave* slave, master->slaves.registered) {
-    // Instead of accumulating all types of resources (which is
-    // not necessary), we only accumulate scalar resources. This
-    // helps us bypass a performance problem caused by range
-    // additions (e.g. ports).
-    foreach (const Resource& resource, slave->info.resources()) {
-      if (resource.type() == Value::SCALAR) {
-        totalResources += resource;
-      }
-    }
-    foreachvalue (const Resources& resources, slave->usedResources) {
-      foreach (const Resource& resource, resources) {
-        if (resource.type() == Value::SCALAR) {
-          usedResources += resource;
-        }
-      }
-    }
-  }
-
-  foreach (const Resource& resource, totalResources) {
-    CHECK(resource.has_scalar());
-
-    double total = resource.scalar().value();
-    object.values[resource.name() + "_total"] = total;
-
-    Option<Value::Scalar> _used =
-      usedResources.get<Value::Scalar>(resource.name());
-
-    double used = _used.isSome() ? _used.get().value() : 0.0;
-    object.values[resource.name() + "_used"] = used;
-
-    double percent = used / total;
-    object.values[resource.name() + "_percent"] = percent;
-  }
-
-  // Include metrics from libprocess metrics while we sunset this
-  // endpoint in favor of libprocess metrics.
-  // TODO(benh): Remove this after transitioning to libprocess metrics.
-  return process::http::get(MetricsProcess::instance()->self(), "snapshot")
-    .then(lambda::bind(&_stats, request, object, lambda::_1));
-}
-
-
-static Future<Response> _stats(
-    const Request& request,
-    JSON::Object object,
-    const Response& response)
-{
-  if (response.status != process::http::statuses[200]) {
-    return InternalServerError("Failed to get metrics: " + response.status);
-  }
-
-  Option<string> type = response.headers.get("Content-Type");
-
-  if (type.isNone() || type.get() != "application/json") {
-    return InternalServerError("Failed to get metrics: expecting JSON");
-  }
-
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.body);
-
-  if (parse.isError()) {
-    return InternalServerError("Failed to parse metrics: " + parse.error());
-  }
-
-  // Now add all the values from metrics.
-  // TODO(benh): Make sure we're not overwriting any values.
-  object.values.insert(parse.get().values.begin(), parse.get().values.end());
-
-  return OK(object, request.query.get("jsonp"));
-}
-
-
 Future<Response> Master::Http::state(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
@@ -544,12 +427,6 @@ Future<Response> Master::Http::state(const Request& request)
   object.values["hostname"] = master->info().hostname();
   object.values["activated_slaves"] = master->_slaves_active();
   object.values["deactivated_slaves"] = master->_slaves_inactive();
-  object.values["staged_tasks"] = master->stats.tasks[TASK_STAGING];
-  object.values["started_tasks"] = master->stats.tasks[TASK_STARTING];
-  object.values["finished_tasks"] = master->stats.tasks[TASK_FINISHED];
-  object.values["killed_tasks"] = master->stats.tasks[TASK_KILLED];
-  object.values["failed_tasks"] = master->stats.tasks[TASK_FAILED];
-  object.values["lost_tasks"] = master->stats.tasks[TASK_LOST];
 
   if (master->flags.cluster.isSome()) {
     object.values["cluster"] = master->flags.cluster.get();

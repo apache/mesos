@@ -342,19 +342,6 @@ void Slave::initialize()
   // a very large disk_watch_interval).
   delay(flags.disk_watch_interval, self(), &Slave::checkDiskUsage);
 
-  // Start all the statistics at 0.
-  stats.tasks[TASK_STAGING] = 0;
-  stats.tasks[TASK_STARTING] = 0;
-  stats.tasks[TASK_RUNNING] = 0;
-  stats.tasks[TASK_FINISHED] = 0;
-  stats.tasks[TASK_FAILED] = 0;
-  stats.tasks[TASK_KILLED] = 0;
-  stats.tasks[TASK_LOST] = 0;
-  stats.validStatusUpdates = 0;
-  stats.invalidStatusUpdates = 0;
-  stats.validFrameworkMessages = 0;
-  stats.invalidFrameworkMessages = 0;
-
   startTime = Clock::now();
 
   // Install protobuf handlers.
@@ -447,7 +434,6 @@ void Slave::initialize()
   route("/health",
         Http::HEALTH_HELP,
         lambda::bind(&Http::health, http, lambda::_1));
-  route("/stats.json", None(), lambda::bind(&Http::stats, http, lambda::_1));
   route("/state.json", None(), lambda::bind(&Http::state, http, lambda::_1));
 
   // Expose the log file for the webui. Fall back to 'log_dir' if
@@ -1374,8 +1360,6 @@ void Slave::_runTask(
         executor->checkpointTask(task);
       }
 
-      stats.tasks[TASK_STAGING]++;
-
       // Queue task if the executor has not yet registered.
       LOG(INFO) << "Queuing task '" << task.task_id()
                   << "' for executor " << executorId
@@ -1388,8 +1372,6 @@ void Slave::_runTask(
       if (executor->checkpoint) {
         executor->checkpointTask(task);
       }
-
-      stats.tasks[TASK_STAGING]++;
 
       // Queue task until the containerizer is updated with new
       // resource limits (MESOS-998).
@@ -1823,7 +1805,6 @@ void Slave::schedulerMessage(
   if (state != RUNNING) {
     LOG(WARNING) << "Dropping message from framework "<< frameworkId
                  << " because the slave is in " << state << " state";
-    stats.invalidFrameworkMessages++;
     metrics.invalid_framework_messages++;
     return;
   }
@@ -1833,7 +1814,6 @@ void Slave::schedulerMessage(
   if (framework == NULL) {
     LOG(WARNING) << "Dropping message from framework "<< frameworkId
                  << " because framework does not exist";
-    stats.invalidFrameworkMessages++;
     metrics.invalid_framework_messages++;
     return;
   }
@@ -1845,7 +1825,6 @@ void Slave::schedulerMessage(
   if (framework->state == Framework::TERMINATING) {
     LOG(WARNING) << "Dropping message from framework "<< frameworkId
                  << " because framework is terminating";
-    stats.invalidFrameworkMessages++;
     metrics.invalid_framework_messages++;
     return;
   }
@@ -1855,7 +1834,6 @@ void Slave::schedulerMessage(
     LOG(WARNING) << "Dropping message for executor '"
                  << executorId << "' of framework " << frameworkId
                  << " because executor does not exist";
-    stats.invalidFrameworkMessages++;
     metrics.invalid_framework_messages++;
     return;
   }
@@ -1871,7 +1849,6 @@ void Slave::schedulerMessage(
       LOG(WARNING) << "Dropping message for executor '"
                    << executorId << "' of framework " << frameworkId
                    << " because executor is not running";
-      stats.invalidFrameworkMessages++;
       metrics.invalid_framework_messages++;
       break;
     case Executor::RUNNING: {
@@ -1881,7 +1858,6 @@ void Slave::schedulerMessage(
       message.mutable_executor_id()->MergeFrom(executorId);
       message.set_data(data);
       send(executor->pid, message);
-      stats.validFrameworkMessages++;
       metrics.valid_framework_messages++;
       break;
     }
@@ -1903,7 +1879,6 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
   if (state != RUNNING) {
     LOG(WARNING) << "Dropping updateFramework message for "<< frameworkId
                  << " because the slave is in " << state << " state";
-    stats.invalidFrameworkMessages++;
     metrics.invalid_framework_messages++;
     return;
   }
@@ -2519,7 +2494,6 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
   if (framework == NULL) {
     LOG(WARNING) << "Ignoring status update " << update
                  << " for unknown framework " << update.framework_id();
-    stats.invalidStatusUpdates++;
     metrics.invalid_status_updates++;
     return;
   }
@@ -2533,7 +2507,6 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
   if (framework->state == Framework::TERMINATING) {
     LOG(WARNING) << "Ignoring status update " << update
                  << " for terminating framework " << framework->id;
-    stats.invalidStatusUpdates++;
     metrics.invalid_status_updates++;
     return;
   }
@@ -2542,7 +2515,6 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
   if (executor == NULL) {
     LOG(WARNING)  << "Could not find the executor for "
                   << "status update " << update;
-    stats.validStatusUpdates++;
     metrics.valid_status_updates++;
 
     // NOTE: We forward the update here because this update could be
@@ -2576,9 +2548,6 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
                  << " on behalf of a different executor " << executor->id
                  << " (" << executor->pid << ")";
   }
-
-  stats.tasks[status.state()]++;
-  stats.validStatusUpdates++;
 
   metrics.valid_status_updates++;
 
@@ -2782,7 +2751,6 @@ void Slave::executorMessage(
     LOG(WARNING) << "Dropping framework message from executor "
                  << executorId << " to framework " << frameworkId
                  << " because the slave is in " << state << " state";
-    stats.invalidFrameworkMessages++;
     metrics.invalid_framework_messages++;
     return;
   }
@@ -2792,7 +2760,6 @@ void Slave::executorMessage(
     LOG(WARNING) << "Cannot send framework message from executor "
                  << executorId << " to framework " << frameworkId
                  << " because framework does not exist";
-    stats.invalidFrameworkMessages++;
     metrics.invalid_framework_messages++;
     return;
   }
@@ -2805,7 +2772,6 @@ void Slave::executorMessage(
     LOG(WARNING) << "Ignoring framework message from executor "
                  << executorId << " to framework " << frameworkId
                  << " because framework is terminating";
-    stats.invalidFrameworkMessages++;
     metrics.invalid_framework_messages++;
     return;
   }
@@ -2821,7 +2787,6 @@ void Slave::executorMessage(
   message.set_data(data);
   send(framework->pid, message);
 
-  stats.validFrameworkMessages++;
   metrics.valid_framework_messages++;
 }
 

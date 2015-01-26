@@ -574,19 +574,6 @@ void Master::initialize()
   nextSlaveId = 0;
   nextOfferId = 0;
 
-  // Start all the statistics at 0.
-  stats.tasks[TASK_STAGING] = 0;
-  stats.tasks[TASK_STARTING] = 0;
-  stats.tasks[TASK_RUNNING] = 0;
-  stats.tasks[TASK_FINISHED] = 0;
-  stats.tasks[TASK_FAILED] = 0;
-  stats.tasks[TASK_KILLED] = 0;
-  stats.tasks[TASK_LOST] = 0;
-  stats.validStatusUpdates = 0;
-  stats.invalidStatusUpdates = 0;
-  stats.validFrameworkMessages = 0;
-  stats.invalidFrameworkMessages = 0;
-
   startTime = Clock::now();
 
   install<scheduler::Call>(&Master::receive);
@@ -710,9 +697,6 @@ void Master::initialize()
   route("/state.json",
         None(),
         lambda::bind(&Http::state, http, lambda::_1));
-  route("/stats.json",
-        None(),
-        lambda::bind(&Http::stats, http, lambda::_1));
   route("/tasks.json",
         Http::TASKS_HELP,
         lambda::bind(&Http::tasks, http, lambda::_1));
@@ -2275,7 +2259,6 @@ void Master::accept(
             TaskStatus::REASON_INVALID_OFFERS);
 
         metrics->tasks_lost++;
-        stats.tasks[TASK_LOST]++;
 
         metrics->incrementTasksStates(
             TASK_LOST,
@@ -2320,8 +2303,6 @@ void Master::accept(
       if (!framework->pendingTasks.contains(task.task_id())) {
         framework->pendingTasks[task.task_id()] = task;
       }
-
-      stats.tasks[TASK_STAGING]++;
     }
   }
 
@@ -2385,7 +2366,6 @@ void Master::_accept(
             reason);
 
         metrics->tasks_lost++;
-        stats.tasks[TASK_LOST]++;
 
         metrics->incrementTasksStates(
             TASK_LOST,
@@ -2521,7 +2501,6 @@ void Master::_accept(
                 TaskStatus::REASON_TASK_UNAUTHORIZED);
 
             metrics->tasks_error++;
-            stats.tasks[TASK_ERROR]++;
 
             metrics->incrementTasksStates(
                 TASK_ERROR,
@@ -2551,7 +2530,6 @@ void Master::_accept(
                 TaskStatus::REASON_TASK_INVALID);
 
             metrics->tasks_error++;
-            stats.tasks[TASK_ERROR]++;
 
             metrics->incrementTasksStates(
                 TASK_ERROR,
@@ -2838,7 +2816,6 @@ void Master::schedulerMessage(
       << "Ignoring framework message for executor " << executorId
       << " of framework " << frameworkId
       << " because the framework cannot be found";
-    stats.invalidFrameworkMessages++;
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
@@ -2848,7 +2825,6 @@ void Master::schedulerMessage(
       << "Ignoring framework message for executor " << executorId
       << " of framework " << *framework
       << " because it is not expected from " << from;
-    stats.invalidFrameworkMessages++;
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
@@ -2858,7 +2834,6 @@ void Master::schedulerMessage(
     LOG(WARNING) << "Cannot send framework message for framework "
                  << *framework << " to slave " << slaveId
                  << " because slave is not registered";
-    stats.invalidFrameworkMessages++;
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
@@ -2867,7 +2842,6 @@ void Master::schedulerMessage(
     LOG(WARNING) << "Cannot send framework message for framework "
                  << *framework << " to slave " << *slave
                  << " because slave is disconnected";
-    stats.invalidFrameworkMessages++;
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
@@ -2882,7 +2856,6 @@ void Master::schedulerMessage(
   message.set_data(data);
   send(slave->pid, message);
 
-  stats.validFrameworkMessages++;
   metrics->valid_framework_to_executor_messages++;
 }
 
@@ -3292,7 +3265,6 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     message.set_message("Status update from unknown slave");
     send(pid, message);
 
-    stats.invalidStatusUpdates++;
     metrics->invalid_status_updates++;
     return;
   }
@@ -3303,7 +3275,6 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     LOG(WARNING) << "Ignoring status update " << update
                  << " from unknown slave " << pid
                  << " with id " << update.slave_id();
-    stats.invalidStatusUpdates++;
     metrics->invalid_status_updates++;
     return;
   }
@@ -3314,7 +3285,6 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     LOG(WARNING) << "Ignoring status update " << update
                  << " from slave " << *slave
                  << " because the framework is unknown";
-    stats.invalidStatusUpdates++;
     metrics->invalid_status_updates++;
     return;
   }
@@ -3329,7 +3299,6 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
   if (task == NULL) {
     LOG(WARNING) << "Could not lookup task for status update " << update
                  << " from slave " << *slave;
-    stats.invalidStatusUpdates++;
     metrics->invalid_status_updates++;
     return;
   }
@@ -3342,7 +3311,6 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     removeTask(task);
   }
 
-  stats.validStatusUpdates++;
   metrics->valid_status_updates++;
 }
 
@@ -4645,8 +4613,6 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
             << (task->state() != status.state()
                 ? " (status update state: " + stringify(status.state()) + ")"
                 : "");
-
-  stats.tasks[status.state()]++;
 
   // Once the task becomes terminal, we recover the resources.
   if (terminated) {

@@ -370,10 +370,6 @@ private:
     process::Future<process::http::Response> health(
         const process::http::Request& request);
 
-    // /slave/stats.json
-    process::Future<process::http::Response> stats(
-        const process::http::Request& request);
-
     // /slave/state.json
     process::Future<process::http::Response> state(
         const process::http::Request& request);
@@ -439,16 +435,6 @@ private:
   Containerizer* containerizer;
 
   Files* files;
-
-  // Statistics (initialized in Slave::initialize).
-  struct
-  {
-    uint64_t tasks[TaskState_ARRAYSIZE];
-    uint64_t validStatusUpdates;
-    uint64_t invalidStatusUpdates;
-    uint64_t validFrameworkMessages;
-    uint64_t invalidFrameworkMessages;
-  } stats;
 
   Metrics metrics;
 

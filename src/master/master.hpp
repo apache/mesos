@@ -497,10 +497,6 @@ private:
     process::Future<process::http::Response> state(
         const process::http::Request& request);
 
-    // /master/stats.json
-    process::Future<process::http::Response> stats(
-        const process::http::Request& request);
-
     // /master/tasks.json
     process::Future<process::http::Response> tasks(
         const process::http::Request& request);
@@ -669,21 +665,10 @@ private:
   int64_t nextOfferId;     // Used to give each slot offer a unique ID.
   int64_t nextSlaveId;     // Used to give each slave a unique ID.
 
-  // TODO(bmahler): These are deprecated! Please use metrics instead.
-  // Statistics (initialized in Master::initialize).
-  struct
-  {
-    uint64_t tasks[TaskState_ARRAYSIZE];
-    uint64_t validStatusUpdates;
-    uint64_t invalidStatusUpdates;
-    uint64_t validFrameworkMessages;
-    uint64_t invalidFrameworkMessages;
-  } stats;
-
   // NOTE: It is safe to use a 'shared_ptr' because 'Metrics' is
   // thread safe.
-  // TODO(dhamon): Does this need to be a shared_ptr? Metrics contains copyable
-  // metric types only.
+  // TODO(dhamon): This does not need to be a shared_ptr. Metrics contains
+  // copyable metric types only.
   memory::shared_ptr<Metrics> metrics;
 
   // Gauge handlers.
