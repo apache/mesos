@@ -1894,6 +1894,103 @@ void Master::resourceRequest(
 }
 
 
+struct ResourcesValidator
+{
+  virtual Option<Error> operator () (
+      const Resources& resources,
+      const Slave& slave) = 0;
+
+  virtual ~ResourcesValidator() {}
+};
+
+
+struct DiskInfoValidator : ResourcesValidator
+{
+  virtual Option<Error> operator () (
+      const Resources& resources,
+      const Slave& slave)
+  {
+    foreach (const Resource& resource, resources) {
+      if (!resource.has_disk()) {
+        continue;
+      }
+
+      if (resource.disk().has_persistence()) {
+        if (resource.role() == "*") {
+          return Error(
+              "Invalid DiskInfo: '*' role not "
+              "supported for persistent volume");
+        }
+        if (!resource.disk().has_volume()) {
+          return Error(
+              "Invalid DiskInfo: expecting 'volume' "
+              "to be set for persistent volume");
+        }
+        if (resource.disk().volume().mode() == Volume::RO) {
+          return Error(
+              "Invalid DiskInfo: read-only persistent "
+              "volume not supported");
+        }
+        if (resource.disk().volume().has_host_path()) {
+          return Error(
+              "Invalid DiskInfo: expecting 'host_path' "
+              "to be unset for persistent volume");
+        }
+
+        // Ensure persistence ID does not have invalid characters.
+        string id = resource.disk().persistence().id();
+        if (std::count_if(id.begin(), id.end(), invalid) > 0) {
+          return Error(
+              "Invalid DiskInfo: persistence ID '" + id +
+              "' contains invalid characters");
+        }
+      } else if (resource.disk().has_volume()) {
+        return Error("Invalid DiskInfo: non-persistent volume not supported");
+      } else {
+        return Error("Invalid DiskInfo: empty");
+      }
+    }
+
+    return None();
+  }
+
+  static bool invalid(char c)
+  {
+    return iscntrl(c) || c == '/' || c == '\\';
+  }
+};
+
+
+struct UniquePersistenceIDValidator : ResourcesValidator
+{
+  virtual Option<Error> operator () (
+      const Resources& resources,
+      const Slave& slave)
+  {
+    hashmap<string, hashset<string>> persistenceIds;
+
+    // Check duplicated persistence ID within the given resources.
+    foreach (const Resource& resource, resources) {
+      if (!resource.has_disk() || !resource.disk().has_persistence()) {
+        continue;
+      }
+
+      const string& role = resource.role();
+      const string& id = resource.disk().persistence().id();
+
+      if (persistenceIds.contains(role) &&
+          persistenceIds[role].contains(id)) {
+        return Error("Persistence ID '" + id + "' is not unique");
+      }
+
+      persistenceIds[role].insert(id);
+    }
+
+    return None();
+  }
+};
+
+
 // Abstraction for performing any validations, aggregations, etc. of
 // tasks that a framework attempts to run within the resources
 // provided by offers. A validator can return an optional error which
@@ -1996,39 +2093,12 @@ struct ResourceValidator : TaskInfoValidator
       const Resources& offeredResources,
       const Resources& usedResources)
   {
-    // TODO(jieyu): Move duplicated persistence ID checks to offer
-    // operation validators for CREATE_VOLUME.
-    // TODO(jieyu): The check we have right now is a partial check for
-    // the current task. We need to add checks against slave's
-    // existing tasks and executors as well.
-    hashmap<string, hashset<string>> persistenceIds;
-
     Option<Error> error = Resources::validate(task.resources());
     if (error.isSome()) {
       return Error("Task uses invalid resources: " + error.get().message);
     }
 
-    // Ensure any DiskInfos in the task are valid according to the
-    // currently supported semantics.
-    foreach (const Resource& resource, task.resources()) {
-      if (resource.has_disk()) {
-        error = validateDiskInfo(resource);
-        if (error.isSome()) {
-          return Error("Task uses invalid DiskInfo: " + error.get().message);
-        }
-
-        if (resource.disk().has_persistence()) {
-          string role = resource.role();
-          string id = resource.disk().persistence().id();
-
-          if (persistenceIds[role].contains(id)) {
-            return Error("Task uses duplicated persistence ID " + id);
-          }
-
-          persistenceIds[role].insert(id);
-        }
-      }
-    }
+    Resources resources = task.resources();
 
     if (task.has_executor()) {
       Option<Error> error = Resources::validate(task.executor().resources());
@@ -2037,70 +2107,22 @@ struct ResourceValidator : TaskInfoValidator
             "Executor uses invalid resources: " + error.get().message);
       }
 
-      // Ensure any DiskInfos in the executor are valid according to
-      // the currently supported semantics.
-      foreach (const Resource& resource, task.executor().resources()) {
-        if (resource.has_disk()) {
-          error = validateDiskInfo(resource);
-          if (error.isSome()) {
-            return Error(
-                "Executor uses invalid DiskInfo: " + error.get().message);
-          }
+      resources += task.executor().resources();
+    }
 
-          if (resource.disk().has_persistence()) {
-            string role = resource.role();
-            string id = resource.disk().persistence().id();
+    vector<Owned<ResourcesValidator>> validators = {
+      Owned<ResourcesValidator>(new DiskInfoValidator()),
+      Owned<ResourcesValidator>(new UniquePersistenceIDValidator())
+    };
 
-            if (persistenceIds[role].contains(id)) {
-              return Error("Executor uses duplicated persistence ID " + id);
-            }
-
-            persistenceIds[role].insert(id);
-          }
-        }
+    foreach (const Owned<ResourcesValidator>& validator, validators) {
+      error = (*validator)(resources, slave);
+      if (error.isSome()) {
+        return Error(error.get().message);
       }
     }
 
     return None();
-  }
-
-  // TODO(jieyu): Factor out into a standalone validator so that we
-  // can use it to validate offer operations as well.
-  Option<Error> validateDiskInfo(const Resource& resource)
-  {
-    CHECK(resource.has_disk());
-
-    if (resource.disk().has_persistence()) {
-      if (resource.role() == "*") {
-        return Error("Persistent disk volume is disallowed for '*' role");
-      }
-      if (!resource.disk().has_volume()) {
-        return Error("Persistent disk should specify a volume");
-      }
-      if (resource.disk().volume().mode() == Volume::RO) {
-        return Error("Read-only volume is not supported for DiskInfo");
-      }
-      if (resource.disk().volume().has_host_path()) {
-        return Error("Volume in DiskInfo should not have 'host_path' set");
-      }
-
-      // Ensure persistence ID does not have invalid characters.
-      string id = resource.disk().persistence().id();
-      if (std::count_if(id.begin(), id.end(), invalid) > 0) {
-        return Error("Persistence ID '" + id + "' contains invalid characters");
-      }
-    } else if (resource.disk().has_volume()) {
-      return Error("Non-persistent volume is not supported");
-    } else {
-      return Error("DiskInfo is set but empty");
-    }
-
-    return None();
-  }
-
-  static bool invalid(char c)
-  {
-    return iscntrl(c) || c == '/' || c == '\\';
   }
 };
 
@@ -2464,7 +2486,7 @@ Option<Error> Master::validateTask(
   // ExecutorInfo is valid which is verified by ExecutorInfoValidator.
   // TODO(vinod): Create the validators on the stack and make the
   // validate operation const.
-  vector<Owned<TaskInfoValidator>> taskValidators = {
+  vector<Owned<TaskInfoValidator>> validators = {
     Owned<TaskInfoValidator>(new TaskIDValidator()),
     Owned<TaskInfoValidator>(new SlaveIDValidator()),
     Owned<TaskInfoValidator>(new UniqueTaskIDValidator()),
@@ -2479,9 +2501,8 @@ Option<Error> Master::validateTask(
   // TODO(jieyu): Add a CommandInfoValidator.
 
   // Invoke each validator.
-  Option<Error> error = None();
-  foreach (const Owned<TaskInfoValidator>& validator, taskValidators) {
-    error = (*validator)(
+  foreach (const Owned<TaskInfoValidator>& validator, validators) {
+    Option<Error> error = (*validator)(
         task,
         *framework,
         *slave,
@@ -2489,12 +2510,8 @@ Option<Error> Master::validateTask(
         usedResources);
 
     if (error.isSome()) {
-      break;
+      return Error(error.get().message);
     }
-  }
-
-  if (error.isSome()) {
-    return Error(error.get().message);
   }
 
   return None();
