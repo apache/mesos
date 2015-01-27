@@ -2,13 +2,13 @@
 
 #include <gmock/gmock.h>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/limiter.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/nothing.hpp>
-#include <stout/stopwatch.hpp>
 
 using namespace process;
 
@@ -22,8 +22,7 @@ TEST(Limiter, Acquire)
   RateLimiter limiter(permits, duration);
   Milliseconds interval = duration / permits;
 
-  Stopwatch stopwatch;
-  stopwatch.start();
+  Clock::pause();
 
   Future<Nothing> acquire1 = limiter.acquire();
   Future<Nothing> acquire2 = limiter.acquire();
@@ -31,11 +30,12 @@ TEST(Limiter, Acquire)
 
   AWAIT_READY(acquire1);
 
+  Clock::advance(interval);
   AWAIT_READY(acquire2);
-  ASSERT_LE(interval, stopwatch.elapsed());
+  EXPECT_TRUE(acquire3.isPending());
 
+  Clock::advance(interval);
   AWAIT_READY(acquire3);
-  ASSERT_LE(interval * 2, stopwatch.elapsed());
 }
 
 
@@ -52,8 +52,7 @@ TEST(Limiter, DiscardMiddle)
   RateLimiter limiter(permits, duration);
   Milliseconds interval = duration / permits;
 
-  Stopwatch stopwatch;
-  stopwatch.start();
+  Clock::pause();
 
   Future<Nothing> acquire1 = limiter.acquire();
   Future<Nothing> acquire2 = limiter.acquire();
@@ -62,23 +61,19 @@ TEST(Limiter, DiscardMiddle)
 
   AWAIT_READY(acquire1);
 
-  // Discard 'acquire2.
+  // Discard 'acquire2'.
   acquire2.discard();
 
-  // Wait until 'acquire3' is ready.
+  // 'acquire3' should be satisfied within one 'interval'.
+  Clock::advance(interval);
   AWAIT_READY(acquire3);
 
   // 'acquire2' should be in 'DISCARDED' state.
   AWAIT_DISCARDED(acquire2);
 
-  // 'acquire3' should be satisfied within one 'interval'.
-  ASSERT_LE(interval, stopwatch.elapsed());
-  ASSERT_GE(interval * 2, stopwatch.elapsed());
-
-  // 'acquire4' should be satisfied one 'interval' after
-  // 'acquire3' is satisfied.
+  // 'acquire4' should be satisfied after another 'interval'.
+  Clock::advance(interval);
   AWAIT_READY(acquire4);
-  ASSERT_LE(interval * 2, stopwatch.elapsed());
 }
 
 
@@ -95,8 +90,7 @@ TEST(Limiter, DiscardLast)
   RateLimiter limiter(permits, duration);
   Milliseconds interval = duration / permits;
 
-  Stopwatch stopwatch;
-  stopwatch.start();
+  Clock::pause();
 
   Future<Nothing> acquire1 = limiter.acquire();
   Future<Nothing> acquire2 = limiter.acquire();
@@ -109,9 +103,7 @@ TEST(Limiter, DiscardLast)
   // Now acquire 'acquire3'.
   Future<Nothing> acquire3 = limiter.acquire();
 
-  // 'acquire3' should be satisfied one 'interval' after
-  // 'acquire1' is satisfied.
+  // 'acquire3' should be satisfied within one 'interval'.
+  Clock::advance(interval);
   AWAIT_READY(acquire3);
-  ASSERT_LE(interval, stopwatch.elapsed());
-  ASSERT_GE(interval * 2, stopwatch.elapsed());
 }
