@@ -82,6 +82,22 @@ bool await(const process::Future<T>& future, const Duration& duration)
 
 
 template <typename T>
+::testing::AssertionResult Await(
+    const char* expr,
+    const char*, // Unused string representation of 'duration'.
+    const process::Future<T>& actual,
+    const Duration& duration)
+{
+  if (!process::internal::await(actual, duration)) {
+    return ::testing::AssertionFailure()
+      << "Failed to wait " << duration << " for " << expr;
+  }
+
+  return ::testing::AssertionSuccess();
+}
+
+
+template <typename T>
 ::testing::AssertionResult AwaitAssertReady(
     const char* expr,
     const char*, // Unused string representation of 'duration'.
@@ -173,6 +189,15 @@ template <typename T1, typename T2>
 
   return result;
 }
+
+
+// TODO(bmahler): Differentiate EXPECT and ASSERT here.
+#define AWAIT_FOR(actual, duration)             \
+  ASSERT_PRED_FORMAT2(Await, actual, duration)
+
+
+#define AWAIT(actual)                           \
+  AWAIT_FOR(actual, Seconds(10))
 
 
 #define AWAIT_ASSERT_READY_FOR(actual, duration)                \
