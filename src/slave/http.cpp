@@ -371,6 +371,10 @@ Future<Response> Slave::Http::state(const Request& request)
     object.values["log_dir"] = slave->flags.log_dir.get();
   }
 
+  if (slave->flags.external_log_file.isSome()) {
+    object.values["external_log_file"] = slave->flags.external_log_file.get();
+  }
+
   JSON::Array frameworks;
   foreachvalue (Framework* framework, slave->frameworks) {
     frameworks.values.push_back(model(*framework));

@@ -446,7 +446,15 @@ void Slave::initialize()
   route("/stats.json", None(), lambda::bind(&Http::stats, http, lambda::_1));
   route("/state.json", None(), lambda::bind(&Http::state, http, lambda::_1));
 
-  if (flags.log_dir.isSome()) {
+  // Expose the log file for the webui. Fall back to 'log_dir' if
+  // an explicit file was not specified.
+  if (flags.external_log_file.isSome()) {
+    files->attach(flags.external_log_file.get(), "/slave/log")
+      .onAny(defer(self(),
+                   &Self::fileAttached,
+                   lambda::_1,
+                   flags.external_log_file.get()));
+  } else if (flags.log_dir.isSome()) {
     Try<string> log = logging::getLogFile(
         logging::getLogSeverity(flags.logging_level));
 

@@ -626,7 +626,15 @@ void Master::initialize()
   provide("", path::join(flags.webui_dir, "master/static/index.html"));
   provide("static", path::join(flags.webui_dir, "master/static"));
 
-  if (flags.log_dir.isSome()) {
+  // Expose the log file for the webui. Fall back to 'log_dir' if
+  // an explicit file was not specified.
+  if (flags.external_log_file.isSome()) {
+    files->attach(flags.external_log_file.get(), "/master/log")
+      .onAny(defer(self(),
+                   &Self::fileAttached,
+                   lambda::_1,
+                   flags.external_log_file.get()));
+  } else if (flags.log_dir.isSome()) {
     Try<string> log = logging::getLogFile(
         logging::getLogSeverity(flags.logging_level));
 

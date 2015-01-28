@@ -530,6 +530,10 @@ Future<Response> Master::Http::state(const Request& request)
     object.values["log_dir"] = master->flags.log_dir.get();
   }
 
+  if (master->flags.external_log_file.isSome()) {
+    object.values["external_log_file"] = master->flags.external_log_file.get();
+  }
+
   JSON::Object flags;
   foreachpair (const string& name, const flags::Flag& flag, master->flags) {
     Option<string> value = flag.stringify(master->flags);
