@@ -54,7 +54,6 @@ layout: documentation
 * [UC Berkeley](http://www.berkeley.edu)
 * [URX](http://www.urx.com)
 * [Viadeo](http://www.viadeo.com)
-* [Vimeo](http://www.vimeo.com)
 * [Virdata](http://www.virdata.com)
 * [Wizcorp](http://www.wizcorp.jp)
 * [WooRank](http://www.woorank.com)
