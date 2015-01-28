@@ -435,21 +435,28 @@ inline void Cluster::Slaves::shutdown()
   foreachpair (const process::PID<slave::Slave>& pid,
                const Slave& slave,
                copy) {
-    process::Future<hashset<ContainerID> > containers =
+    // Destroy the existing containers on the slave. Note that some
+    // containers may terminate while we are doing this, so we ignore
+    // any 'wait' failures and ensure that there are no containers
+    // when we're done destroying.
+    process::Future<hashset<ContainerID>> containers =
       slave.containerizer->containers();
     AWAIT_READY(containers);
 
     foreach (const ContainerID& containerId, containers.get()) {
-      // We need to wait on the container before destroying it in case someone
-      // else has already waited on it (and therefore would be immediately
-      // 'reaped' before we could wait on it).
       process::Future<containerizer::Termination> wait =
         slave.containerizer->wait(containerId);
 
       slave.containerizer->destroy(containerId);
 
-      AWAIT_READY(wait);
+      AWAIT(wait);
     }
+
+    containers = slave.containerizer->containers();
+    AWAIT_READY(containers);
+
+    ASSERT_TRUE(containers.get().empty())
+      << "Failed to destroy containers: " << stringify(containers.get());
 
     stop(pid);
   }
