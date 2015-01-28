@@ -541,6 +541,9 @@ private:
     Data();
     ~Data();
 
+    // Clears all callbacks.
+    void clearAllCallbacks();
+
     int lock;
     State state;
     bool discard;
@@ -943,11 +946,14 @@ bool Promise<T>::discard(Future<T> future)
   // DISCARDED. We don't need a lock because the state is now in
   // DISCARDED so there should not be any concurrent modifications.
   if (result) {
+    // Run onDiscarded callbacks.
     internal::run(future.data->onDiscardedCallbacks);
-    future.data->onDiscardedCallbacks.clear();
 
+    // Run onAny callbacks.
     internal::run(future.data->onAnyCallbacks, future);
-    future.data->onAnyCallbacks.clear();
+
+    // Clear all callbacks since the future is complete.
+    future.data->clearAllCallbacks();
   }
 
   return result;
@@ -978,6 +984,17 @@ Future<T>::Data::~Data()
 {
   delete t;
   delete message;
+}
+
+
+template <typename T>
+void Future<T>::Data::clearAllCallbacks()
+{
+  onAnyCallbacks.clear();
+  onDiscardCallbacks.clear();
+  onDiscardedCallbacks.clear();
+  onFailedCallbacks.clear();
+  onReadyCallbacks.clear();
 }
 
 
@@ -1068,10 +1085,22 @@ bool Future<T>::discard()
 {
   bool result = false;
 
+  std::vector<DiscardCallback> callbacks;
   internal::acquire(&data->lock);
   {
     if (!data->discard && data->state == PENDING) {
       result = data->discard = true;
+
+      // NOTE: We make a copy of the onDiscard callbacks here
+      // because it is possible that another thread completes this
+      // future (ready, failed or discarded) when the current thread
+      // is out of this critical section but *before* it executed the
+      // onDiscard callbacks. If that happens, the other thread might
+      // be clearing the onDiscard callbacks (via clearAllCallbacks())
+      // while the current thread is executing or clearing the
+      // onDiscard callbacks, causing thread safety issue.
+      callbacks = data->onDiscardCallbacks;
+      data->onDiscardCallbacks.clear();
     }
   }
   internal::release(&data->lock);
@@ -1081,8 +1110,7 @@ bool Future<T>::discard()
   // be set so we won't be adding anything else to
   // 'Data::onDiscardCallbacks'.
   if (result) {
-    internal::run(data->onDiscardCallbacks);
-    data->onDiscardCallbacks.clear();
+    internal::run(callbacks);
   }
 
   return result;
@@ -1608,11 +1636,14 @@ bool Future<T>::set(const T& _t)
   // don't need a lock because the state is now in READY so there
   // should not be any concurrent modications.
   if (result) {
+    // Run onReady callbacks.
     internal::run(data->onReadyCallbacks, *data->t);
-    data->onReadyCallbacks.clear();
 
+    // Run onAny callbacks.
     internal::run(data->onAnyCallbacks, *this);
-    data->onAnyCallbacks.clear();
+
+    // Clear all callbacks since the future is complete.
+    data->clearAllCallbacks();
   }
 
   return result;
@@ -1638,11 +1669,14 @@ bool Future<T>::fail(const std::string& _message)
   // don't need a lock because the state is now in FAILED so there
   // should not be any concurrent modications.
   if (result) {
+    // Run onFailed callbacks.
     internal::run(data->onFailedCallbacks, *data->message);
-    data->onFailedCallbacks.clear();
 
+    // Run onAny callbacks.
     internal::run(data->onAnyCallbacks, *this);
-    data->onAnyCallbacks.clear();
+
+    // Clear all callbacks since the future is complete.
+    data->clearAllCallbacks();
   }
 
   return result;
