@@ -36,6 +36,7 @@
 #include "common/type_utils.hpp"
 
 #include "logging/flags.hpp"
+#include "logging/logging.hpp"
 
 using namespace mesos;
 
@@ -214,6 +215,8 @@ int main(int argc, char** argv)
     usage(argv[0], flags);
     exit(1);
   }
+
+  internal::logging::initialize(argv[0], flags, true); // Catch signals.
 
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
