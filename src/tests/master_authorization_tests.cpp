@@ -966,8 +966,10 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
   EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
     .WillOnce(Return(true))
     .WillOnce(DoAll(FutureSatisfy(&authorize2),
-                    Return(promise2.future())))
-    .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
+                    Return(promise2.future())));
+
+  // Pause the clock to avoid scheduler registration retries.
+  Clock::pause();
 
   driver.start();
 
@@ -1003,7 +1005,6 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
   // because the framework PID was removed from 'authenticated' map.
   // Settle the clock here to ensure 'Master::_reregisterFramework()'
   // is executed.
-  Clock::pause();
   Clock::settle();
 
   Shutdown();
