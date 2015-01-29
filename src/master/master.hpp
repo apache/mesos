@@ -390,6 +390,14 @@ protected:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
+  // Certain offer operations (e.g., RESERVE, CREATE) may result in a
+  // change to the checkpointed resources on the slave. This method
+  // updates the checkpointed resources for the slave and sends
+  // CheckpointResourcesMessage to the slave accordingly.
+  void updateCheckpointedResources(
+      Slave* slave,
+      const Offer::Operation& operation);
+
   // Forwards the update to the framework.
   void forward(
       const StatusUpdate& update,
@@ -416,6 +424,11 @@ private:
   void drop(
       const process::UPID& from,
       const scheduler::Call& call,
+      const std::string& message);
+
+  void drop(
+      Framework* framework,
+      const Offer::Operation& operation,
       const std::string& message);
 
   // Call handlers.

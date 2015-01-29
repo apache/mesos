@@ -1339,6 +1339,23 @@ void Master::drop(
 }
 
 
+void Master::drop(
+    Framework* framework,
+    const Offer::Operation& operation,
+    const string& message)
+{
+  // TODO(jieyu): Increment a metric.
+
+  // NOTE: There is no direct feedback to the framework when an
+  // operation is dropped. The framework will find out that the
+  // operation was dropped through subsequent offers.
+
+  LOG(ERROR) << "Dropping " << Offer::Operation::Type_Name(operation.type())
+             << " offer operation from framework " << *framework
+             << ": " << message;
+}
+
+
 void Master::receive(
     const UPID& from,
     const scheduler::Call& call)
@@ -2237,29 +2254,46 @@ void Master::_accept(
     switch (operation.type()) {
       case Offer::Operation::RESERVE: {
         // TODO(jieyu): Provide implementation for RESERVE.
-        LOG(ERROR) << "Unsupported offer operation: "
-                   << Offer::Operation::Type_Name(operation.type());
+        drop(framework, operation, "Unimplemented");
         break;
       }
 
       case Offer::Operation::UNRESERVE: {
         // TODO(jieyu): Provide implementation for UNRESERVE.
-        LOG(ERROR) << "Unsupported offer operation: "
-                   << Offer::Operation::Type_Name(operation.type());
+        drop(framework, operation, "Unimplemented");
         break;
       }
 
       case Offer::Operation::CREATE: {
-        // TODO(jieyu): Provide implementation for CREATE.
-        LOG(ERROR) << "Unsupported offer operation: "
-                   << Offer::Operation::Type_Name(operation.type());
+        Option<Error> error = validation::operation::validate(
+            operation.create(),
+            slave->checkpointedResources);
+
+        if (error.isSome()) {
+          drop(framework, operation, error.get().message);
+          continue;
+        }
+
+        Try<Resources> resources = _offeredResources.apply(operation);
+        if (resources.isError()) {
+          drop(framework, operation, resources.error());
+          continue;
+        }
+
+        _offeredResources = resources.get();
+
+        allocator->updateAllocation(
+            frameworkId,
+            slaveId,
+            {operation});
+
+        updateCheckpointedResources(slave, operation);
         break;
       }
 
       case Offer::Operation::DESTROY: {
         // TODO(jieyu): Provide implementation for DESTROY.
-        LOG(ERROR) << "Unsupported offer operation: "
-                   << Offer::Operation::Type_Name(operation.type());
+        drop(framework, operation, "Unimplemented");
         break;
       }
 
@@ -4565,6 +4599,67 @@ void Master::removeOffer(Offer* offer, bool rescind)
   // Delete it.
   offers.erase(offer->id());
   delete offer;
+}
+
+
+void Master::updateCheckpointedResources(
+    Slave* slave,
+    const Offer::Operation& operation)
+{
+  CHECK_NOTNULL(slave);
+
+  switch (operation.type()) {
+    case Offer::Operation::RESERVE: {
+      // TODO(jieyu): Provide implementation.
+      LOG(ERROR) << "Failed to update checkpointed resources for slave "
+                 << *slave << ": Unimplemented RESERVE operation";
+      break;
+    }
+
+    case Offer::Operation::UNRESERVE: {
+      // TODO(jieyu): Provide implementation.
+      LOG(ERROR) << "Failed to update checkpointed resources for slave "
+                 << *slave << ": Unimplemented UNRESERVE operation";
+      break;
+    }
+
+    case Offer::Operation::CREATE: {
+      // If the CREATE operation applies to resources that have
+      // already been checkpointed on the slave, that means the
+      // volumes are created from dynamically reserved resources and
+      // we need to update the checkpointed resources. Otherwise, the
+      // volumes are created from regular resources and we need to add
+      // them to the checkpointed resources.
+      Try<Resources> resources = slave->checkpointedResources.apply(operation);
+      if (resources.isError()) {
+        slave->checkpointedResources += operation.create().volumes();
+      } else {
+        slave->checkpointedResources = resources.get();
+      }
+      break;
+    }
+
+    case Offer::Operation::DESTROY: {
+      // TODO(jieyu): Provide implementation.
+      LOG(ERROR) << "Failed to update checkpointed resources for slave "
+                 << *slave << ": Unimplemented DESTROY operation";
+      break;
+    }
+
+    default:
+      LOG(FATAL) << "Not expecting operation " << operation.type()
+                 << " when updating slave checkpointed resources";
+      break;
+  }
+
+  LOG(INFO) << "Sending checkpointed resources "
+            << slave->checkpointedResources
+            << " to slave " << *slave;
+
+  CheckpointResourcesMessage message;
+  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
+
+  send(slave->pid, message);
 }
 
 
