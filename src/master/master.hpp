@@ -86,6 +86,7 @@ class Allocator;
 class Repairer;
 class SlaveObserver;
 
+struct BoundedRateLimiter;
 struct Framework;
 struct Role;
 struct Slave;
@@ -615,6 +616,15 @@ private:
     //    allows them) if they have principals specified in
     //    FrameworkInfo.
     hashmap<process::UPID, Option<std::string>> principals;
+
+    // BoundedRateLimiters keyed by the framework principal.
+    // Like Metrics::Frameworks, all frameworks of the same principal
+    // are throttled together at a common rate limit.
+    hashmap<std::string, Option<process::Owned<BoundedRateLimiter>>> limiters;
+
+    // The default limiter is for frameworks not specified in
+    // 'flags.rate_limits'.
+    Option<process::Owned<BoundedRateLimiter>> defaultLimiter;
   } frameworks;
 
   hashmap<OfferID, Offer*> offers;
@@ -712,31 +722,6 @@ private:
   process::Future<Option<Error>> validate(
       const FrameworkInfo& frameworkInfo,
       const process::UPID& from);
-
-  struct BoundedRateLimiter
-  {
-    BoundedRateLimiter(double qps, Option<uint64_t> _capacity)
-      : limiter(new process::RateLimiter(qps)),
-        capacity(_capacity),
-        messages(0) {}
-
-    process::Owned<process::RateLimiter> limiter;
-    const Option<uint64_t> capacity;
-
-    // Number of outstanding messages for this RateLimiter.
-    // NOTE: ExitedEvents are throttled but not counted towards
-    // the capacity here.
-    uint64_t messages;
-  };
-
-  // BoundedRateLimiters keyed by the framework principal.
-  // Like Metrics::Frameworks, all frameworks of the same principal
-  // are throttled together at a common rate limit.
-  hashmap<std::string, Option<process::Owned<BoundedRateLimiter>>> limiters;
-
-  // The default limiter is for frameworks not specified in
-  // 'flags.rate_limits'.
-  Option<process::Owned<BoundedRateLimiter>> defaultLimiter;
 };
 
 
