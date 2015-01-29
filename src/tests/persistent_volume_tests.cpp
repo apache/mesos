@@ -117,7 +117,7 @@ protected:
 // slave when the framework creates/destroys persistent volumes, and
 // the resources in the messages correctly reflect the resources that
 // need to be checkpointed on the slave.
-TEST_F(PersistentVolumeTest, CheckpointResources)
+TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
@@ -186,6 +186,76 @@ TEST_F(PersistentVolumeTest, CheckpointResources)
 
   AWAIT_READY(message3);
   EXPECT_EQ(Resources(message3.get().resources()), volume2);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that the slave checkpoints the resources for
+// persistent volumes to the disk, recovers them upon restart, and
+// sends them to the master during re-registration.
+TEST_F(PersistentVolumeTest, ResourcesCheckpointing)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.checkpoint = true;
+  slaveFlags.resources = "disk(role1):1024";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  Future<CheckpointResourcesMessage> checkpointResources =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
+
+  Resources volume = PersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1");
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CreateOperation(volume)});
+
+  AWAIT_READY(checkpointResources);
+
+  // Restart the slave.
+  Stop(slave.get());
+
+  Future<ReregisterSlaveMessage> reregisterSlave =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(reregisterSlave);
+  EXPECT_EQ(Resources(reregisterSlave.get().checkpointed_resources()), volume);
 
   driver.stop();
   driver.join();

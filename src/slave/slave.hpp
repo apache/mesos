@@ -137,6 +137,8 @@ public:
 
   void updateFramework(const FrameworkID& frameworkId, const std::string& pid);
 
+  void checkpointResources(const std::vector<Resource>& checkpointedResources);
+
   void registerExecutor(
       const process::UPID& from,
       const FrameworkID& frameworkId,
@@ -401,6 +403,9 @@ private:
   const Flags flags;
 
   SlaveInfo info;
+
+  // Resources that are checkpointed by the slave.
+  Resources checkpointedResources;
 
   Option<process::UPID> master;
 

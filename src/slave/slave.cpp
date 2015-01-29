@@ -394,6 +394,10 @@ void Slave::initialize()
       &UpdateFrameworkMessage::framework_id,
       &UpdateFrameworkMessage::pid);
 
+  install<CheckpointResourcesMessage>(
+      &Slave::checkpointResources,
+      &CheckpointResourcesMessage::resources);
+
   install<StatusUpdateAcknowledgementMessage>(
       &Slave::statusUpdateAcknowledgement,
       &StatusUpdateAcknowledgementMessage::slave_id,
@@ -969,11 +973,17 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     message.set_version(MESOS_VERSION);
     message.mutable_slave()->CopyFrom(info);
 
+    // Include checkpointed resources.
+    message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources);
+
     send(master.get(), message);
   } else {
     // Re-registering, so send tasks running.
     ReregisterSlaveMessage message;
     message.set_version(MESOS_VERSION);
+
+    // Include checkpointed resources.
+    message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources);
 
     // TODO(bmahler): Remove in 0.22.0.
     message.mutable_slave_id()->CopyFrom(info.id());
@@ -1314,6 +1324,30 @@ void Slave::_runTask(
     }
 
     return;
+  }
+
+  // NOTE: If the task or executor uses persistent volumes, the slave
+  // should already know about it. In case the slave doesn't know
+  // about them (e.g., CheckpointResourcesMessage was dropped or came
+  // out of order), we simply fail the slave to be safe.
+  foreach (const Resource& resource, task.resources()) {
+    if (resource.has_disk() && resource.disk().has_persistence()) {
+      CHECK(checkpointedResources.contains(resource))
+        << "Unknown persistent volume " << resource
+        << " for task " << task.task_id()
+        << " of framework " << frameworkId;
+    }
+  }
+
+  if (task.has_executor()) {
+    foreach (const Resource& resource, task.executor().resources()) {
+      if (resource.has_disk() && resource.disk().has_persistence()) {
+        CHECK(checkpointedResources.contains(resource))
+          << "Unknown persistent volume " << resource
+          << " for executor " << task.executor().executor_id()
+          << " of framework " << frameworkId;
+      }
+    }
   }
 
   // NOTE: The slave cannot be in 'RECOVERING' because the task would
@@ -1790,6 +1824,49 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
                 << " is in unexpected state " << framework->state;
       break;
   }
+}
+
+
+void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
+{
+  // TODO(jieyu): Here we assume that CheckpointResourcesMessages are
+  // ordered (i.e., slave receives them in the same order master sends
+  // them). This should be true in most of the cases because TCP
+  // enforces in order delivery per connection. However, the ordering
+  // is technically not guaranteed because master creates multiple
+  // connections to the slave in some cases (e.g., persistent socket
+  // to slave breaks and master uses ephemeral socket). This could
+  // potentially be solved by using a version number and rejecting
+  // stale messages according to the version number.
+  //
+  // If CheckpointResourcesMessages are delivered out-of-order, there
+  // are two cases to consider:
+  //  (1) If master does not fail over, it will reconcile the state
+  //      with the slave if the framework later changes the
+  //      checkpointed resources. Since master is the source of truth
+  //      for reservations, the inconsistency is not exposed to
+  //      frameworks.
+  //  (2) If master does fail over, the slave will inform the new
+  //      master about the incorrect checkpointed resources. When that
+  //      happens, we expect framework to reconcile based on the
+  //      offers they get.
+  Resources newCheckpointedResources = _checkpointedResources;
+
+  CHECK_SOME(state::checkpoint(
+      paths::getResourcesInfoPath(metaDir),
+      newCheckpointedResources))
+    << "Failed to checkpoint resources " << newCheckpointedResources;
+
+  // TODO(jieyu): Schedule gc for released persistent volumes. We need
+  // to consider dynamic reservation here because the framework can
+  // release dynamic reservation while still wants to keep the
+  // persistent volume.
+
+  LOG(INFO) << "Updated checkpointed resources from "
+            << checkpointedResources << " to "
+            << newCheckpointedResources;
+
+  checkpointedResources = newCheckpointedResources;
 }
 
 
@@ -3398,9 +3475,23 @@ Future<Nothing> Slave::recover(const Result<state::State>& state)
     return Failure(state.error());
   }
 
+  Option<ResourcesState> resourcesState;
   Option<SlaveState> slaveState;
   if (state.isSome()) {
+    resourcesState = state.get().resources;
     slaveState = state.get().slave;
+  }
+
+  // Recover checkpointed resources.
+  if (resourcesState.isSome()) {
+    if (resourcesState.get().errors > 0) {
+      LOG(WARNING) << "Errors encountered during resources recovery: "
+                   << resourcesState.get().errors;
+
+      metrics.recovery_errors += resourcesState.get().errors;
+    }
+
+    checkpointedResources = resourcesState.get().resources;
   }
 
   if (slaveState.isSome() && slaveState.get().info.isSome()) {
