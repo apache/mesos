@@ -1677,7 +1677,7 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 
   // Ensure escalation timeout is more than the maximal reap interval.
-  auto timeout = slave::getExecutorGracePeriod(
+  Duration timeout = slave::getExecutorGracePeriod(
       slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
   EXPECT_LT(process::MAX_REAP_INTERVAL(), timeout);
 

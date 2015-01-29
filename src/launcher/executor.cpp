@@ -636,7 +636,7 @@ int main(int argc, char** argv)
 
   // Get the appropriate shutdown grace period.
   Duration shutdownTimeout = EXECUTOR_SHUTDOWN_GRACE_PERIOD;
-  auto value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
+  string value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
   if (!value.empty()) {
     Try<Duration> parse = Duration::parse(value);
     if (parse.isSome()) {
