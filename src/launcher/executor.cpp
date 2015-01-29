@@ -610,10 +610,10 @@ public:
   {
     add(&override,
         "override",
-        "Whether or not to override the command the executor should run\n"
-        "when the task is launched. Only this flag is expected to be on\n"
-        "the command line and all arguments after the flag will be used as\n"
-        "the subsequent 'argv' to be used with 'execvp'",
+        "Whether to override the command the executor should run when the\n"
+        "task is launched. Only this flag is expected to be on the command\n"
+        "line and all arguments after the flag will be used as the\n"
+        "subsequent 'argv' to be used with 'execvp'",
         false);
 
     // TODO(nnielsen): Add 'prefix' option to enable replacing

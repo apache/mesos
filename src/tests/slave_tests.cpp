@@ -20,6 +20,7 @@
 
 #include <gmock/gmock.h>
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -267,9 +268,9 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
 }
 
 
-// Test that we can run the mesos-executor and specify an "override"
+// Test that we can run the command executor and specify an "override"
 // command to use via the --override argument.
-TEST_F(SlaveTest, MesosExecutorWithOverride)
+TEST_F(SlaveTest, CommandExecutorWithOverride)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -404,7 +405,7 @@ TEST_F(SlaveTest, MesosExecutorWithOverride)
 // mesos-executor args. For more details of this see MESOS-1873.
 //
 // This assumes the ability to execute '/bin/echo --author'.
-TEST_F(SlaveTest, MesosExecutorCommandTaskWithArgsList)
+TEST_F(SlaveTest, ComamndTaskWithArguments)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -1665,21 +1666,26 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
 }
 
 
-// This test runs a long-living task responsive to SIGTERM and
-// attempts to kill it gracefully.
-TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
+// This test ensures that the graceful shutdown in the command
+// uses SIGTERM to gracefully shutdown a task.
+TEST_F(SlaveTest, CommandExecutorGracefulShutdown)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Explicitly set the grace period for slave default.
+  // Explicitly set the grace period for the executor.
+  // NOTE: We ensure that the graceful shutdown is at least
+  // 10 seconds because we've observed the sleep command to take
+  // several seconds to terminate from SIGTERM on some slow CI VMs.
   slave::Flags flags = CreateSlaveFlags();
-  flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  flags.executor_shutdown_grace_period = std::max(
+      slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD,
+      Duration(Seconds(10)));
 
-  // Ensure escalation timeout is more than the maximal reap interval.
+  // Ensure that a reap will occur within the grace period.
   Duration timeout = slave::getExecutorGracePeriod(
-      slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
-  EXPECT_LT(process::MAX_REAP_INTERVAL(), timeout);
+      flags.executor_shutdown_grace_period);
+  EXPECT_GT(timeout, process::MAX_REAP_INTERVAL());
 
   Fetcher fetcher;
   Try<MesosContainerizer*> containerizer = MesosContainerizer::create(
@@ -1733,7 +1739,8 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   // TODO(alex): By now we have no better way to extract the kill
   // reason. Change this once we have level 2 enums for task states.
   EXPECT_TRUE(statusKilled.get().has_message());
-  EXPECT_NE(std::string::npos, statusKilled.get().message().find("Terminated"));
+  EXPECT_TRUE(strings::contains(statusKilled.get().message(), "Terminated"))
+    << statusKilled.get().message();
 
   // Stop the driver while the task is running.
   driver.stop();
