@@ -433,13 +433,17 @@ Resources::Resources(
 
 bool Resources::contains(const Resources& that) const
 {
+  Resources remaining = *this;
+
   foreach (const Resource& resource, that.resources) {
     // NOTE: We use _contains because Resources only contain valid
     // Resource objects, and we don't want the performance hit of the
     // validity check.
-    if (!_contains(resource)) {
+    if (!remaining._contains(resource)) {
       return false;
     }
+
+    remaining -= resource;
   }
 
   return true;

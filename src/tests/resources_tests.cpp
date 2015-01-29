@@ -924,6 +924,22 @@ TEST(DiskResourcesTest, Subtraction)
 }
 
 
+TEST(DiskResourcesTest, Contains)
+{
+  Resources r1 = createDiskResource("10", "role", "1", "path");
+  Resources r2 = createDiskResource("10", "role", "1", "path");
+
+  EXPECT_FALSE(r1.contains(r1 + r2));
+  EXPECT_FALSE(r2.contains(r1 + r2));
+  EXPECT_TRUE((r1 + r2).contains(r1 + r2));
+
+  Resources r3 = createDiskResource("20", "role", "2", "path");
+
+  EXPECT_TRUE((r1 + r3).contains(r1));
+  EXPECT_TRUE((r1 + r3).contains(r3));
+}
+
+
 TEST(DiskResourcesTest, FilterPersistentVolumes)
 {
   Resources resources = Resources::parse("cpus:1;mem:512;disk:1000").get();
