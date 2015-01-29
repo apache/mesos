@@ -1380,12 +1380,16 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   EXPECT_CALL(sched2, frameworkMessage(&driver2, _, _, _))
     .WillOnce(FutureSatisfy(&frameworkMessage));
 
-  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"));
+  Future<Nothing> error;
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
+    .WillOnce(FutureSatisfy(&error));
 
   Future<UpdateFrameworkMessage> updateFrameworkMessage =
     FUTURE_PROTOBUF(UpdateFrameworkMessage(), _, _);
 
   driver2.start();
+
+  AWAIT_READY(error);
 
   AWAIT_READY(registered);
 
