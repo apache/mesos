@@ -557,11 +557,13 @@ void Master::initialize()
   install<RegisterSlaveMessage>(
       &Master::registerSlave,
       &RegisterSlaveMessage::slave,
+      &RegisterSlaveMessage::persisted_resources,
       &RegisterSlaveMessage::version);
 
   install<ReregisterSlaveMessage>(
       &Master::reregisterSlave,
       &ReregisterSlaveMessage::slave,
+      &ReregisterSlaveMessage::persisted_resources,
       &ReregisterSlaveMessage::executor_infos,
       &ReregisterSlaveMessage::tasks,
       &ReregisterSlaveMessage::completed_frameworks,
@@ -3251,6 +3253,7 @@ void Master::schedulerMessage(
 void Master::registerSlave(
     const UPID& from,
     const SlaveInfo& slaveInfo,
+    const vector<Resource>& persistedResources,
     const string& version)
 {
   ++metrics.messages_register_slave;
@@ -3260,7 +3263,12 @@ void Master::registerSlave(
               << " because authentication is still in progress";
 
     authenticating[from]
-      .onReady(defer(self(), &Self::registerSlave, from, slaveInfo, version));
+      .onReady(defer(self(),
+                     &Self::registerSlave,
+                     from,
+                     slaveInfo,
+                     persistedResources,
+                     version));
     return;
   }
 
@@ -3325,6 +3333,7 @@ void Master::registerSlave(
                  &Self::_registerSlave,
                  slaveInfo_,
                  from,
+                 persistedResources,
                  version,
                  lambda::_1));
 }
@@ -3333,6 +3342,7 @@ void Master::registerSlave(
 void Master::_registerSlave(
     const SlaveInfo& slaveInfo,
     const UPID& pid,
+    const vector<Resource>& persistedResources,
     const string& version,
     const Future<bool>& admit)
 {
@@ -3361,7 +3371,8 @@ void Master::_registerSlave(
         slaveInfo,
         pid,
         version.empty() ? Option<string>::none() : version,
-        Clock::now());
+        Clock::now(),
+        persistedResources);
 
     ++metrics.slave_registrations;
 
@@ -3380,6 +3391,7 @@ void Master::_registerSlave(
 void Master::reregisterSlave(
     const UPID& from,
     const SlaveInfo& slaveInfo,
+    const vector<Resource>& persistedResources,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks,
@@ -3396,6 +3408,7 @@ void Master::reregisterSlave(
                      &Self::reregisterSlave,
                      from,
                      slaveInfo,
+                     persistedResources,
                      executorInfos,
                      tasks,
                      completedFrameworks,
@@ -3507,6 +3520,7 @@ void Master::reregisterSlave(
                  &Self::_reregisterSlave,
                  slaveInfo,
                  from,
+                 persistedResources,
                  executorInfos,
                  tasks,
                  completedFrameworks,
@@ -3518,6 +3532,7 @@ void Master::reregisterSlave(
 void Master::_reregisterSlave(
     const SlaveInfo& slaveInfo,
     const UPID& pid,
+    const vector<Resource>& persistedResources,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks,
@@ -3549,6 +3564,7 @@ void Master::_reregisterSlave(
         pid,
         version.empty() ? Option<string>::none() : version,
         Clock::now(),
+        persistedResources,
         executorInfos,
         tasks);
 
@@ -3572,6 +3588,8 @@ void Master::_reregisterSlave(
 
 void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
 {
+  CHECK_NOTNULL(slave);
+
   // Send the latest framework pids to the slave.
   hashset<UPID> pids;
   foreach (const Task& task, tasks) {
@@ -3585,6 +3603,18 @@ void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
       pids.insert(framework->pid);
     }
   }
+
+  // NOTE: Here we always send the message. Slaves whose version are
+  // less than 0.22.0 will drop it silently which is OK.
+  LOG(INFO) << "Sending updated persisted resources "
+            << slave->persistedResources
+            << " to slave " << *slave;
+
+  UpdateResourcesMessage message;
+  message.mutable_persisted_resources()->CopyFrom(
+      slave->persistedResources);
+
+  send(slave->pid, message);
 }
 
 

@@ -163,11 +163,13 @@ public:
   void registerSlave(
       const process::UPID& from,
       const SlaveInfo& slaveInfo,
+      const std::vector<Resource>& persistedResources,
       const std::string& version);
 
   void reregisterSlave(
       const process::UPID& from,
       const SlaveInfo& slaveInfo,
+      const std::vector<Resource>& persistedResources,
       const std::vector<ExecutorInfo>& executorInfos,
       const std::vector<Task>& tasks,
       const std::vector<Archive::Framework>& completedFrameworks,
@@ -232,6 +234,7 @@ public:
   void _reregisterSlave(
       const SlaveInfo& slaveInfo,
       const process::UPID& pid,
+      const std::vector<Resource>& persistedResources,
       const std::vector<ExecutorInfo>& executorInfos,
       const std::vector<Task>& tasks,
       const std::vector<Archive::Framework>& completedFrameworks,
@@ -276,6 +279,7 @@ protected:
   void _registerSlave(
       const SlaveInfo& slaveInfo,
       const process::UPID& pid,
+      const std::vector<Resource>& persistedResources,
       const std::string& version,
       const process::Future<bool>& admit);
 
@@ -730,6 +734,7 @@ struct Slave
         const process::UPID& _pid,
         const Option<std::string> _version,
         const process::Time& _registeredTime,
+        const Resources& _persistedResources,
         const std::vector<ExecutorInfo> executorInfos =
           std::vector<ExecutorInfo>(),
         const std::vector<Task> tasks =
@@ -741,6 +746,7 @@ struct Slave
       registeredTime(_registeredTime),
       connected(true),
       active(true),
+      persistedResources(_persistedResources),
       observer(NULL)
   {
     CHECK(_info.has_id());
@@ -916,6 +922,12 @@ struct Slave
 
   hashmap<FrameworkID, Resources> usedResources;  // Active task / executors.
   Resources offeredResources; // Offers.
+
+  // Resources that should be persisted by the slave (e.g. persistent
+  // volumes, dynamic reservations, etc). These are either in use by a
+  // task/executor, or are available for use and will be re-offered to
+  // the framework.
+  Resources persistedResources;
 
   SlaveObserver* observer;
 
