@@ -147,6 +147,15 @@ public:
         "Values: [0%-100%]",
         stringify(RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT * 100.0) + "%");
 
+    // TODO(vinod): Add a 'Rate' abstraction in stout and the
+    // corresponding parser for flags.
+    add(&Flags::slave_removal_rate_limit,
+        "slave_removal_rate_limit",
+        "The maximum rate (e.g., 1/10mins, 2/3hrs, etc) at which slaves will\n"
+        "be removed from the master when they fail health checks. By default\n"
+        "slaves will be removed as soon as they fail the health checks.\n"
+        "The value is of the form <Number of slaves>/<Duration>.");
+
     add(&Flags::webui_dir,
         "webui_dir",
         "Directory path of the webui files/assets",
@@ -377,6 +386,7 @@ public:
   bool log_auto_initialize;
   Duration slave_reregister_timeout;
   std::string recovery_slave_removal_limit;
+  Option<std::string> slave_removal_rate_limit;
   std::string webui_dir;
   std::string whitelist;
   std::string user_sorter;

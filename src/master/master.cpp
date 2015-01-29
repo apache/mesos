@@ -94,6 +94,7 @@ using process::Owned;
 using process::PID;
 using process::Process;
 using process::Promise;
+using process::RateLimiter;
 using process::Shared;
 using process::Time;
 using process::Timer;
@@ -116,12 +117,14 @@ public:
   SlaveObserver(const UPID& _slave,
                 const SlaveInfo& _slaveInfo,
                 const SlaveID& _slaveId,
-                const PID<Master>& _master)
+                const PID<Master>& _master,
+                const Option<shared_ptr<RateLimiter>>& _limiter)
     : ProcessBase(process::ID::generate("slave-observer")),
       slave(_slave),
       slaveInfo(_slaveInfo),
       slaveId(_slaveId),
       master(_master),
+      limiter(_limiter),
       timeouts(0),
       pinged(false),
       connected(true)
@@ -167,23 +170,75 @@ protected:
   {
     timeouts = 0;
     pinged = false;
+
+    // Cancel any pending shutdown.
+    if (shuttingDown.isSome()) {
+      // Need a copy for non-const access.
+      Future<Nothing> future = shuttingDown.get();
+      future.discard();
+    }
   }
 
   void timeout()
   {
-    if (pinged) { // So we haven't got back a pong yet ...
-      if (++timeouts >= MAX_SLAVE_PING_TIMEOUTS) {
+    if (pinged) {
+      timeouts++; // No pong has been received before the timeout.
+      if (timeouts >= MAX_SLAVE_PING_TIMEOUTS) {
+        // No pong has been received for the last
+        // 'MAX_SLAVE_PING_TIMEOUTS' pings.
         shutdown();
-        return;
       }
     }
 
+    // NOTE: We keep pinging even if we schedule a shutdown. This is
+    // because if the slave eventually responds to a ping, we can
+    // cancel the shutdown.
     ping();
   }
 
+  // NOTE: The shutdown of the slave is rate limited and can be
+  // canceled if a pong was received before the actual shutdown is
+  // called.
   void shutdown()
   {
-    dispatch(master, &Master::shutdownSlave, slaveId, "health check timed out");
+    if (shuttingDown.isSome()) {
+      return;  // Shutdown is already in progress.
+    }
+
+    Future<Nothing> acquire = Nothing();
+
+    if (limiter.isSome()) {
+      LOG(INFO) << "Scheduling shutdown of slave " << slaveId
+                << " due to health check timeout";
+
+      acquire = limiter.get()->acquire();
+    }
+
+    shuttingDown = acquire.onAny(defer(self(), &Self::_shutdown));
+  }
+
+  void _shutdown()
+  {
+    CHECK_SOME(shuttingDown);
+
+    const Future<Nothing>& future = shuttingDown.get();
+
+    CHECK(!future.isFailed());
+
+    if (future.isReady()) {
+      LOG(INFO) << "Shutting down slave " << slaveId
+                << " due to health check timeout";
+
+      dispatch(master,
+               &Master::shutdownSlave,
+               slaveId,
+               "health check timed out");
+    } else if (future.isDiscarded()) {
+      LOG(INFO) << "Canceling shutdown of slave " << slaveId
+                << " since a pong is received!";
+    }
+
+    shuttingDown = None();
   }
 
 private:
@@ -191,6 +246,8 @@ private:
   const SlaveInfo slaveInfo;
   const SlaveID slaveId;
   const PID<Master> master;
+  const Option<shared_ptr<RateLimiter>> limiter;
+  Option<Future<Nothing>> shuttingDown;
   uint32_t timeouts;
   bool pinged;
   bool connected;
@@ -421,6 +478,41 @@ void Master::initialize()
     }
 
     LOG(INFO) << "Framework rate limiting enabled";
+  }
+
+  if (flags.slave_removal_rate_limit.isSome()) {
+    LOG(INFO) << "Slave removal is rate limited to "
+              << flags.slave_removal_rate_limit.get();
+
+    // Parse the flag value.
+    // TODO(vinod): Move this parsing logic to flags once we have a
+    // 'Rate' abstraction in stout.
+    vector<string> tokens =
+      strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
+
+    if (tokens.size() != 2) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>";
+    }
+
+    Try<int> permits = numify<int>(tokens[0]);
+    if (permits.isError()) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>"
+              << ": " << permits.error();
+    }
+
+    Try<Duration> duration = Duration::parse(tokens[1]);
+    if (duration.isError()) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>"
+              << ": " << duration.error();
+    }
+
+    slaves.limiter = new RateLimiter(permits.get(), duration.get());
   }
 
   hashmap<string, RoleInfo> roleInfos;
@@ -4229,7 +4321,7 @@ void Master::addSlave(
 
   // Set up an observer for the slave.
   slave->observer = new SlaveObserver(
-      slave->pid, slave->info, slave->id, self());
+      slave->pid, slave->info, slave->id, self(), slaves.limiter);
 
   spawn(slave->observer);
 

@@ -64,7 +64,7 @@ class PartitionTest : public MesosTest {};
 
 
 // This test checks that a scheduler gets a slave lost
-// message for a partioned slave.
+// message for a partitioned slave.
 TEST_F(PartitionTest, PartitionedSlave)
 {
   Try<PID<Master> > master = StartMaster();

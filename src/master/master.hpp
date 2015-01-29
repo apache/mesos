@@ -585,6 +585,12 @@ private:
     // TODO(bmahler): Ideally we could use a cache with set semantics.
     Cache<SlaveID, Nothing> removed;
 
+    // This rate limiter is used to limit the removal of slaves failing
+    // health checks.
+    // NOTE: Using a 'shared_ptr' here is OK because 'RateLimiter' is
+    // a wrapper around libprocess process which is thread safe.
+    Option<memory::shared_ptr<process::RateLimiter>> limiter;
+
     bool transitioning(const Option<SlaveID>& slaveId)
     {
       if (slaveId.isSome()) {
