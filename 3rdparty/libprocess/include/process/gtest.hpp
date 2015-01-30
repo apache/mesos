@@ -197,7 +197,7 @@ template <typename T1, typename T2>
 
 
 #define AWAIT(actual)                           \
-  AWAIT_FOR(actual, Seconds(10))
+  AWAIT_FOR(actual, Seconds(15))
 
 
 #define AWAIT_ASSERT_READY_FOR(actual, duration)                \
@@ -205,7 +205,7 @@ template <typename T1, typename T2>
 
 
 #define AWAIT_ASSERT_READY(actual)              \
-  AWAIT_ASSERT_READY_FOR(actual, Seconds(10))
+  AWAIT_ASSERT_READY_FOR(actual, Seconds(15))
 
 
 #define AWAIT_READY_FOR(actual, duration)       \
@@ -221,7 +221,7 @@ template <typename T1, typename T2>
 
 
 #define AWAIT_EXPECT_READY(actual)              \
-  AWAIT_EXPECT_READY_FOR(actual, Seconds(10))
+  AWAIT_EXPECT_READY_FOR(actual, Seconds(15))
 
 
 #define AWAIT_ASSERT_FAILED_FOR(actual, duration)               \
@@ -229,7 +229,7 @@ template <typename T1, typename T2>
 
 
 #define AWAIT_ASSERT_FAILED(actual)             \
-  AWAIT_ASSERT_FAILED_FOR(actual, Seconds(10))
+  AWAIT_ASSERT_FAILED_FOR(actual, Seconds(15))
 
 
 #define AWAIT_FAILED_FOR(actual, duration)       \
@@ -245,7 +245,7 @@ template <typename T1, typename T2>
 
 
 #define AWAIT_EXPECT_FAILED(actual)             \
-  AWAIT_EXPECT_FAILED_FOR(actual, Seconds(10))
+  AWAIT_EXPECT_FAILED_FOR(actual, Seconds(15))
 
 
 #define AWAIT_ASSERT_DISCARDED_FOR(actual, duration)            \
@@ -253,7 +253,7 @@ template <typename T1, typename T2>
 
 
 #define AWAIT_ASSERT_DISCARDED(actual)                  \
-  AWAIT_ASSERT_DISCARDED_FOR(actual, Seconds(10))
+  AWAIT_ASSERT_DISCARDED_FOR(actual, Seconds(15))
 
 
 #define AWAIT_DISCARDED_FOR(actual, duration)       \
@@ -269,7 +269,7 @@ template <typename T1, typename T2>
 
 
 #define AWAIT_EXPECT_DISCARDED(actual)                  \
-  AWAIT_EXPECT_DISCARDED_FOR(actual, Seconds(10))
+  AWAIT_EXPECT_DISCARDED_FOR(actual, Seconds(15))
 
 
 #define AWAIT_ASSERT_EQ_FOR(expected, actual, duration)                 \
@@ -277,7 +277,7 @@ template <typename T1, typename T2>
 
 
 #define AWAIT_ASSERT_EQ(expected, actual)       \
-  AWAIT_ASSERT_EQ_FOR(expected, actual, Seconds(10))
+  AWAIT_ASSERT_EQ_FOR(expected, actual, Seconds(15))
 
 
 #define AWAIT_EQ(expected, actual)              \
@@ -289,7 +289,7 @@ template <typename T1, typename T2>
 
 
 #define AWAIT_EXPECT_EQ(expected, actual)               \
-  AWAIT_EXPECT_EQ_FOR(expected, actual, Seconds(10))
+  AWAIT_EXPECT_EQ_FOR(expected, actual, Seconds(15))
 
 
 inline ::testing::AssertionResult AwaitAssertResponseStatusEq(
@@ -324,7 +324,7 @@ inline ::testing::AssertionResult AwaitAssertResponseStatusEq(
 
 
 #define AWAIT_EXPECT_RESPONSE_STATUS_EQ(expected, actual)               \
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ_FOR(expected, actual, Seconds(10))
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ_FOR(expected, actual, Seconds(15))
 
 
 inline ::testing::AssertionResult AwaitAssertResponseBodyEq(
@@ -359,7 +359,7 @@ inline ::testing::AssertionResult AwaitAssertResponseBodyEq(
 
 
 #define AWAIT_EXPECT_RESPONSE_BODY_EQ(expected, actual)                 \
-  AWAIT_EXPECT_RESPONSE_BODY_EQ_FOR(expected, actual, Seconds(10))
+  AWAIT_EXPECT_RESPONSE_BODY_EQ_FOR(expected, actual, Seconds(15))
 
 
 inline ::testing::AssertionResult AwaitAssertResponseHeaderEq(
@@ -400,6 +400,6 @@ inline ::testing::AssertionResult AwaitAssertResponseHeaderEq(
 
 
 #define AWAIT_EXPECT_RESPONSE_HEADER_EQ(expected, key, actual)          \
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ_FOR(expected, key, actual, Seconds(10))
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ_FOR(expected, key, actual, Seconds(15))
 
 #endif // __PROCESS_GTEST_HPP__
