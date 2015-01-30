@@ -122,7 +122,7 @@ TEST_F(DiskUsageCollectorTest, Directory)
 TEST_F(DiskUsageCollectorTest, SymbolicLink)
 {
   string file = path::join(os::getcwd(), "file");
-  ASSERT_SOME(os::write(file, string(Kilobytes(8).bytes(), 'x')));
+  ASSERT_SOME(os::write(file, string(Kilobytes(64).bytes(), 'x')));
 
   // Create a symbolic link to the current directory.
   string link = path::join(os::getcwd(), "link");
@@ -134,11 +134,11 @@ TEST_F(DiskUsageCollectorTest, SymbolicLink)
   Future<Bytes> usage2 = collector.usage(link);
 
   AWAIT_READY(usage1);
-  EXPECT_GE(usage1.get(), Kilobytes(8));
-  EXPECT_LT(usage1.get(), Kilobytes(16));
+  EXPECT_GE(usage1.get(), Kilobytes(64));
+  EXPECT_LT(usage1.get(), Kilobytes(128));
 
   AWAIT_READY(usage2);
-  EXPECT_LT(usage2.get(), Kilobytes(8));
+  EXPECT_LT(usage2.get(), Kilobytes(64));
 }
 
 
