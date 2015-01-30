@@ -1279,6 +1279,7 @@ mesos_tests_SOURCES =				\
   tests/master_contender_detector_tests.cpp	\
   tests/master_slave_reconciliation_tests.cpp	\
   tests/master_tests.cpp			\
+  tests/master_validation_tests.cpp		\
   tests/mesos.cpp				\
   tests/metrics_tests.cpp			\
   tests/module.cpp				\

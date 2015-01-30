@@ -81,7 +81,11 @@ Option<Error> validate(
 
 namespace operation {
 
-// TODO(jieyu): Added validate functions for Offer operations.
+// Validates the CREATE operation. We need slave's checkpointed
+// resources so that we can validate persistence ID uniqueness.
+Option<Error> validate(
+    const Offer::Operation::Create& create,
+    const Resources& checkpointedResources);
 
 } // namespace operation {
 

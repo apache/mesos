@@ -121,6 +121,22 @@ Option<Error> validateUniquePersistenceID(
 }
 
 
+// Validates that all the given resources are persistent volumes.
+Option<Error> validatePersistentVolume(
+    const RepeatedPtrField<Resource>& volumes)
+{
+  foreach (const Resource& volume, volumes) {
+    if (!volume.has_disk()) {
+      return Error("Resource " + stringify(volume) + " does not have DiskInfo");
+    } else if (!volume.disk().has_persistence()) {
+      return Error("'persistence' is not set in DiskInfo");
+    }
+  }
+
+  return None();
+}
+
+
 Option<Error> validate(const RepeatedPtrField<Resource>& resources)
 {
   Option<Error> error = Resources::validate(resources);
@@ -516,7 +532,29 @@ Option<Error> validate(
 
 namespace operation {
 
-// TODO(jieyu): Added validate functions for Offer operations.
+Option<Error> validate(
+    const Offer::Operation::Create& create,
+    const Resources& checkpointedResources)
+{
+  Option<Error> error = resource::validate(create.volumes());
+  if (error.isSome()) {
+    return Error("Invalid resources: " + error.get().message);
+  }
+
+  error = resource::validatePersistentVolume(create.volumes());
+  if (error.isSome()) {
+    return Error("Not a persistent volume: " + error.get().message);
+  }
+
+  error = resource::validateUniquePersistenceID(
+      checkpointedResources + create.volumes());
+
+  if (error.isSome()) {
+    return error;
+  }
+
+  return None();
+}
 
 } // namespace operation {
 
