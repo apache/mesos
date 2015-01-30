@@ -541,7 +541,6 @@ private:
     Data();
     ~Data();
 
-    // Clears all callbacks.
     void clearAllCallbacks();
 
     int lock;
@@ -946,13 +945,9 @@ bool Promise<T>::discard(Future<T> future)
   // DISCARDED. We don't need a lock because the state is now in
   // DISCARDED so there should not be any concurrent modifications.
   if (result) {
-    // Run onDiscarded callbacks.
     internal::run(future.data->onDiscardedCallbacks);
-
-    // Run onAny callbacks.
     internal::run(future.data->onAnyCallbacks, future);
 
-    // Clear all callbacks since the future is complete.
     future.data->clearAllCallbacks();
   }
 
@@ -1636,13 +1631,9 @@ bool Future<T>::set(const T& _t)
   // don't need a lock because the state is now in READY so there
   // should not be any concurrent modications.
   if (result) {
-    // Run onReady callbacks.
     internal::run(data->onReadyCallbacks, *data->t);
-
-    // Run onAny callbacks.
     internal::run(data->onAnyCallbacks, *this);
 
-    // Clear all callbacks since the future is complete.
     data->clearAllCallbacks();
   }
 
@@ -1669,13 +1660,9 @@ bool Future<T>::fail(const std::string& _message)
   // don't need a lock because the state is now in FAILED so there
   // should not be any concurrent modications.
   if (result) {
-    // Run onFailed callbacks.
     internal::run(data->onFailedCallbacks, *data->message);
-
-    // Run onAny callbacks.
     internal::run(data->onAnyCallbacks, *this);
 
-    // Clear all callbacks since the future is complete.
     data->clearAllCallbacks();
   }
 
