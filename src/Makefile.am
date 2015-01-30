@@ -295,6 +295,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/registry.proto						\
 	master/registrar.cpp						\
 	master/repairer.cpp						\
+	master/validation.cpp						\
 	module/manager.cpp						\
 	sched/constants.cpp						\
 	sched/sched.cpp							\
@@ -463,6 +464,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/repairer.hpp						\
 	master/registrar.hpp						\
 	master/sorter.hpp						\
+	master/validation.hpp						\
 	messages/messages.hpp						\
 	module/authenticatee.hpp					\
 	module/authenticator.hpp					\

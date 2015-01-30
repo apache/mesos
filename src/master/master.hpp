@@ -56,6 +56,7 @@
 #include "master/flags.hpp"
 #include "master/metrics.hpp"
 #include "master/registrar.hpp"
+#include "master/validation.hpp"
 
 #include "messages/messages.hpp"
 
@@ -86,9 +87,9 @@ class Repairer;
 class SlaveObserver;
 
 struct Framework;
-struct OfferValidator;
 struct Role;
 struct Slave;
+
 
 class Master : public ProtobufProcess<Master>
 {
@@ -362,16 +363,6 @@ protected:
       const std::vector<StatusUpdate>& updates,
       const process::Future<bool>& removed);
 
-  // Validates the task.
-  // Returns None if the task is valid.
-  // Returns Error if the task is invalid.
-  Option<Error> validateTask(
-      const TaskInfo& task,
-      Framework* framework,
-      Slave* slave,
-      const Resources& totalResources,
-      const Resources& usedResources);
-
   // Authorizes the task.
   // Returns true if task is authorized.
   // Returns false if task is not authorized.
@@ -510,8 +501,16 @@ private:
   Master(const Master&);              // No copying.
   Master& operator = (const Master&); // No assigning.
 
-  friend struct OfferValidator;
   friend struct Metrics;
+
+  // NOTE: Since 'getOffer' and 'getSlave' are protected, we need to
+  // make the following functions friends so that validation functions
+  // can get Offer* and Slave*.
+  friend Offer* validation::offer::getOffer(
+      Master* master, const OfferID& offerId);
+
+  friend Slave* validation::offer::getSlave(
+      Master* master, const SlaveID& slaveId);
 
   const Flags flags;
 
