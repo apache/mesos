@@ -24,6 +24,7 @@
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
+#include <process/clock.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 
@@ -33,10 +34,13 @@
 #include <stout/hashset.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/exists.hpp>
+
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
 #include "slave/flags.hpp"
+#include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/mesos.hpp"
@@ -256,6 +260,71 @@ TEST_F(PersistentVolumeTest, ResourcesCheckpointing)
 
   AWAIT_READY(reregisterSlave);
   EXPECT_EQ(Resources(reregisterSlave.get().checkpointed_resources()), volume);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(PersistentVolumeTest, PreparePersistentVolume)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "disk(role1):1024";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  Resources volume = PersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1");
+
+  Future<CheckpointResourcesMessage> checkpointResources =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CreateOperation(volume)});
+
+  AWAIT_READY(checkpointResources);
+
+  // This is to make sure CheckpointResourcesMessage is processed.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  EXPECT_TRUE(
+      os::exists(slave::paths::getPersistentVolumePath(
+          slaveFlags.work_dir,
+          "role1",
+          "id1")));
 
   driver.stop();
   driver.join();

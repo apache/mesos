@@ -1859,6 +1859,32 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
       newCheckpointedResources))
     << "Failed to checkpoint resources " << newCheckpointedResources;
 
+  // Creates persistent volumes that do not exist and schedules
+  // releasing those persistent volumes that are no longer needed.
+  //
+  // TODO(jieyu): Consider introducing a volume manager once we start
+  // to support multiple disks, or raw disks. Depending on the
+  // DiskInfo, we may want to create either directories under a root
+  // directory, or LVM volumes from a given device.
+  foreach (const Resource& volume, newCheckpointedResources) {
+    if (!volume.has_disk() || !volume.disk().has_persistence()) {
+      continue;
+    }
+
+    // This is validated in master.
+    CHECK_NE(volume.role(), "*");
+
+    string path = paths::getPersistentVolumePath(
+        flags.work_dir,
+        volume.role(),
+        volume.disk().persistence().id());
+
+    if (!os::exists(path)) {
+      CHECK_SOME(os::mkdir(path, true))
+        << "Failed to create persistent volume at '" << path << "'";
+    }
+  }
+
   // TODO(jieyu): Schedule gc for released persistent volumes. We need
   // to consider dynamic reservation here because the framework can
   // release dynamic reservation while still wants to keep the
