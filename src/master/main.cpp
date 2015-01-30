@@ -235,7 +235,7 @@ int main(int argc, char** argv)
         zk_ = zk.get();
       }
 
-      Try<URL> url = URL::parse(zk_);
+      Try<zookeeper::URL> url = zookeeper::URL::parse(zk_);
       if (url.isError()) {
         EXIT(1) << "Error parsing ZooKeeper URL: " << url.error();
       }

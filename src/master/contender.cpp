@@ -75,7 +75,7 @@ Try<MasterContender*> MasterContender::create(const string& zk)
   if (zk == "") {
     return new StandaloneMasterContender();
   } else if (strings::startsWith(zk, "zk://")) {
-    Try<zookeeper::URL> url = URL::parse(zk);
+    Try<zookeeper::URL> url = zookeeper::URL::parse(zk);
     if (url.isError()) {
       return Error(url.error());
     }
@@ -139,7 +139,7 @@ Future<Future<Nothing> > StandaloneMasterContender::contend()
 }
 
 
-ZooKeeperMasterContender::ZooKeeperMasterContender(const URL& url)
+ZooKeeperMasterContender::ZooKeeperMasterContender(const zookeeper::URL& url)
 {
   process = new ZooKeeperMasterContenderProcess(url);
   spawn(process);
@@ -174,7 +174,7 @@ Future<Future<Nothing> > ZooKeeperMasterContender::contend()
 
 
 ZooKeeperMasterContenderProcess::ZooKeeperMasterContenderProcess(
-    const URL& url)
+    const zookeeper::URL& url)
   : ProcessBase(ID::generate("zookeeper-master-contender")),
     group(new Group(url, MASTER_CONTENDER_ZK_SESSION_TIMEOUT)),
     contender(NULL) {}
