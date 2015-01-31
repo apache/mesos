@@ -278,8 +278,14 @@ Future<Response> Master::Http::observe(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
-  hashmap<string, string> values =
-    process::http::query::parse(request.body);
+  Try<hashmap<string, string>> decode =
+    process::http::query::decode(request.body);
+
+  if (decode.isError()) {
+    return BadRequest("Unable to decode query string: " + decode.error());
+  }
+
+  hashmap<string, string> values = decode.get();
 
   // Build up a JSON object of the values we recieved and send them back
   // down the wire as JSON for validation / confirmation.
@@ -655,8 +661,14 @@ Future<Response> Master::Http::shutdown(const Request& request)
 
   // Parse the query string in the request body (since this is a POST)
   // in order to determine the framework ID to shutdown.
-  hashmap<string, string> values =
-    process::http::query::parse(request.body);
+  Try<hashmap<string, string>> decode =
+    process::http::query::decode(request.body);
+
+  if (decode.isError()) {
+    return BadRequest("Unable to decode query string: " + decode.error());
+  }
+
+  hashmap<string, string> values = decode.get();
 
   if (values.get("frameworkId").isNone()) {
     return BadRequest("Missing 'frameworkId' query parameter");

@@ -114,7 +114,9 @@ TEST_F(HealthTest, ObserveEndpoint)
       "observe",
       None(),
       "monitor=foo%");
-  VALIDATE_BAD_RESPONSE(response, "Malformed % escape in 'foo%': '%'");
+  VALIDATE_BAD_RESPONSE(
+      response,
+      "Unable to decode query string: Malformed % escape in 'foo%': '%'");
 
   // Empty value causes error.
   response = process::http::post(
