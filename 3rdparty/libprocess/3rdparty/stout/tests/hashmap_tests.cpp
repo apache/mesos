@@ -10,6 +10,22 @@
 using std::string;
 
 
+TEST(HashMapTest, InitializerList)
+{
+  hashmap<string, int> map{{"hello", 1}};
+  EXPECT_EQ(1, map.size());
+
+  EXPECT_TRUE((hashmap<int, int>{}.empty()));
+
+  hashmap<int, int> map2{{1, 2}, {2, 3}, {3, 4}};
+  EXPECT_EQ(3, map2.size());
+  EXPECT_SOME_EQ(2, map2.get(1));
+  EXPECT_SOME_EQ(3, map2.get(2));
+  EXPECT_SOME_EQ(4, map2.get(3));
+  EXPECT_NONE(map2.get(4));
+}
+
+
 TEST(HashMapTest, Insert)
 {
   hashmap<string, int> map;

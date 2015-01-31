@@ -39,6 +39,19 @@ public:
   // 'const hashmap<T> map;' is not an error.
   hashmap() {}
 
+  // Allow simple construction via initializer list.
+  hashmap(std::initializer_list<std::pair<Key, Value>> list)
+  {
+    boost::unordered_map<Key, Value>::reserve(list.size());
+
+    // TODO(cmaloney): Use 'foreach*' once supported.
+    auto it = list.begin();
+    while (it != list.end()) {
+      boost::unordered_map<Key, Value>::emplace(it->first, it->second);
+      ++it;
+    }
+  }
+
   // Checks whether this map contains a binding for a key.
   bool contains(const Key& key) const
   {
@@ -67,9 +80,7 @@ public:
   // Returns an Option for the binding to the key.
   Option<Value> get(const Key& key) const
   {
-    typedef typename boost::unordered_map<Key, Value>::const_iterator
-        const_iterator;
-    const_iterator it = boost::unordered_map<Key, Value>::find(key);
+    auto it = boost::unordered_map<Key, Value>::find(key);
     if (it == boost::unordered_map<Key, Value>::end()) {
       return None();
     }
