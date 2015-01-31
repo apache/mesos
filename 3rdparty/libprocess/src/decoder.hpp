@@ -120,12 +120,16 @@ private:
 //     std::cout << "http::Request:" << std::endl;
 //     std::cout << "  method: " << decoder->request->method << std::endl;
 //     std::cout << "  path: " << decoder->request->path << std::endl;
+
     // Parse the query key/values.
-    Try<std::string> decoded = http::decode(decoder->query);
+    Try<hashmap<std::string, std::string>> decoded =
+      http::query::decode(decoder->query);
+
     if (decoded.isError()) {
       return 1;
     }
-    decoder->request->query = http::query::parse(decoded.get());
+
+    decoder->request->query =  decoded.get();
 
     Option<std::string> encoding =
       decoder->request->headers.get("Content-Encoding");

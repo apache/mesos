@@ -32,6 +32,56 @@ namespace http {
 
 hashmap<uint16_t, string> statuses;
 
+namespace query {
+
+Try<hashmap<std::string, std::string>> decode(const std::string& query)
+{
+  hashmap<std::string, std::string> result;
+
+  const std::vector<std::string>& tokens = strings::tokenize(query, ";&");
+  foreach (const std::string& token, tokens) {
+    const std::vector<std::string>& pairs = strings::split(token, "=", 2);
+    if (pairs.size() == 0) {
+      continue;
+    }
+
+    Try<std::string> key = http::decode(pairs[0]);
+    if (key.isError()) {
+      return Error(key.error());
+    }
+
+    if (pairs.size() == 2) {
+      Try<std::string> value = http::decode(pairs[1]);
+      if (value.isError()) {
+        return Error(value.error());
+      }
+      result[key.get()] = value.get();
+
+    } else if (pairs.size() == 1) {
+      result[key.get()] = "";
+    }
+  }
+
+  return result;
+}
+
+
+std::string encode(const hashmap<std::string, std::string>& query)
+{
+  std::string output;
+
+  foreachpair (const std::string& key, const std::string& value, query) {
+    output += http::encode(key);
+    if (!value.empty()) {
+      output += "=" + http::encode(value);
+    }
+    output += '&';
+  }
+  return strings::remove(output, "&", strings::SUFFIX);
+}
+
+} // namespace query {
+
 namespace internal {
 
 Future<Response> decode(const string& buffer)
@@ -161,8 +211,25 @@ Future<Response> get(
     const Option<string>& query,
     const Option<hashmap<string, string> >& headers)
 {
-  return internal::request(
-      upid, "GET", path, query, headers, None(), None());
+  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+
+  if (path.isSome()) {
+    // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
+    url.path = strings::join("/", url.path, path.get());
+  }
+
+  if (query.isSome()) {
+    Try<hashmap<string, string>> decode = http::query::decode(
+        strings::remove(query.get(), "?", strings::PREFIX));
+
+    if (decode.isError()) {
+      return Failure("Failed to decode HTTP query string: " + decode.error());
+    }
+
+    url.query = decode.get();
+  }
+
+  return get(url, headers);
 }
 
 

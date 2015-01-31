@@ -353,3 +353,43 @@ TEST(HTTP, Post)
   terminate(process);
   wait(process);
 }
+
+TEST(HTTP, QueryEncodeDecode)
+{
+  // If we use Type<a, b> directly inside a macro without surrounding
+  // parenthesis the comma will be eaten by the macro rather than the
+  // template. Typedef to avoid the problem.
+  typedef hashmap<string, string> HashmapStringString;
+
+  EXPECT_EQ("",
+            http::query::encode(HashmapStringString({})));
+
+  EXPECT_EQ("foo=bar",
+            http::query::encode(HashmapStringString({{"foo", "bar"}})));
+
+  EXPECT_EQ("c%7E%2Fasdf=%25asdf&a()=b%2520",
+            http::query::encode(
+                HashmapStringString({{"a()", "b%20"}, {"c~/asdf", "%asdf"}})));
+
+  EXPECT_EQ("d",
+            http::query::encode(HashmapStringString({{"d", ""}})));
+
+  EXPECT_EQ("a%26b%3Dc=d%26e%3Dfg",
+            http::query::encode(HashmapStringString({{"a&b=c", "d&e=fg"}})));
+
+  // Explicitly not testing decoding failures.
+  EXPECT_SOME_EQ(HashmapStringString(),
+                 http::query::decode(""));
+
+  EXPECT_SOME_EQ(HashmapStringString({{"foo", "bar"}}),
+                 http::query::decode("foo=bar"));
+
+  EXPECT_SOME_EQ(HashmapStringString({{"a()", "b%20"}, {"c~/asdf", "%asdf"}}),
+                 http::query::decode("c%7E%2Fasdf=%25asdf&a()=b%2520"));
+
+  EXPECT_SOME_EQ(HashmapStringString({{"d", ""}}),
+                 http::query::decode("d"));
+
+  EXPECT_SOME_EQ(HashmapStringString({{"a&b=c", "d&e=fg"}}),
+                 http::query::decode("a%26b%3Dc=d%26e%3Dfg"));
+}

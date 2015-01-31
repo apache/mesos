@@ -380,12 +380,12 @@ inline Try<hashmap<std::string, std::string> > parse(
 
 namespace query {
 
-// Parses an HTTP query string into a map. For example:
+// Decodes an HTTP query string into a map. For example:
 //
-//   parse("foo=1;bar=2;baz;foo=3")
+//   decode("foo=1&bar=%20&baz&foo=3")
 //
 // Would return a map with the following:
-//   bar: "2"
+//   bar: " "
 //   baz: ""
 //   foo: "3"
 //
@@ -394,22 +394,9 @@ namespace query {
 // http://en.wikipedia.org/wiki/Query_string
 // TODO(bmahler): If needed, investigate populating the query map inline
 // for better performance.
-inline hashmap<std::string, std::string> parse(const std::string& query)
-{
-  hashmap<std::string, std::string> result;
+Try<hashmap<std::string, std::string>> decode(const std::string& query);
 
-  const std::vector<std::string>& tokens = strings::tokenize(query, ";&");
-  foreach (const std::string& token, tokens) {
-    const std::vector<std::string>& pairs = strings::split(token, "=");
-    if (pairs.size() == 2) {
-      result[pairs[0]] = pairs[1];
-    } else if (pairs.size() == 1) {
-      result[pairs[0]] = "";
-    }
-  }
-
-  return result;
-}
+std::string encode(const hashmap<std::string, std::string>& query);
 
 } // namespace query {
 
