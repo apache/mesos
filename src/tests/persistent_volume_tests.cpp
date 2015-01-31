@@ -32,6 +32,7 @@
 #include <stout/foreach.hpp>
 #include <stout/format.hpp>
 #include <stout/hashset.hpp>
+#include <stout/path.hpp>
 #include <stout/strings.hpp>
 
 #include <stout/os/exists.hpp>
@@ -117,6 +118,18 @@ protected:
     Offer::Operation operation;
     operation.set_type(Offer::Operation::DESTROY);
     operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
+    return operation;
+  }
+
+  Offer::Operation LaunchOperation(const vector<TaskInfo>& tasks)
+  {
+    Offer::Operation operation;
+    operation.set_type(Offer::Operation::LAUNCH);
+
+    foreach (const TaskInfo& task, tasks) {
+      operation.mutable_launch()->add_task_infos()->CopyFrom(task);
+    }
+
     return operation;
   }
 };
@@ -446,6 +459,7 @@ TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
+
   slaveFlags.checkpoint = true;
   slaveFlags.resources = "disk(role1):1024";
 
@@ -514,6 +528,111 @@ TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
 
   terminate(slave2);
   wait(slave2);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that a persistent volume is correctly linked by
+// the containerizer and the task is able to access it according to
+// the container path it specifies.
+TEST_F(PersistentVolumeTest, AccessPersistentVolume)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):1024";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  Resources volume = PersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1");
+
+  // Create a task which writes a file in the persistent volume.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128;disk(role1):32").get() + volume;
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      taskResources,
+      "echo -n abc > path1/file");
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CreateOperation(volume),
+       LaunchOperation({task})});
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(task.task_id(), status1.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(task.task_id(), status2.get().task_id());
+  EXPECT_EQ(TASK_FINISHED, status2.get().state());
+
+  // This is to verify that the persistent volume is correctly
+  // unlinked from the executor working directory after TASK_FINISHED
+  // is received by the scheduler (at which time the container's
+  // resources should already be updated).
+
+  // NOTE: The command executor's id is the same as the task id.
+  ExecutorID executorId;
+  executorId.set_value(task.task_id().value());
+
+  const string& directory = slave::paths::getExecutorLatestRunPath(
+      slaveFlags.work_dir,
+      offer.slave_id(),
+      frameworkId.get(),
+      executorId);
+
+  EXPECT_FALSE(os::exists(path::join(directory, "path1")));
+
+  const string& volumePath = slave::paths::getPersistentVolumePath(
+      slaveFlags.work_dir,
+      "role1",
+      "id1");
+
+  EXPECT_SOME_EQ("abc", os::read(path::join(volumePath, "file")));
 
   driver.stop();
   driver.join();

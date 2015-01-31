@@ -27,7 +27,9 @@
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/fs.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 
 #include "module/manager.hpp"
 
@@ -452,15 +454,30 @@ Future<bool> MesosContainerizerProcess::launch(
     return false;
   }
 
+  LOG(INFO) << "Starting container '" << containerId
+            << "' for executor '" << executorInfo.executor_id()
+            << "' of framework '" << executorInfo.framework_id() << "'";
+
   Container* container = new Container();
-  container->resources = executorInfo.resources();
   container->directory = directory;
   container->state = PREPARING;
   containers_[containerId] = Owned<Container>(container);
 
-  LOG(INFO) << "Starting container '" << containerId
-            << "' for executor '" << executorInfo.executor_id()
-            << "' of framework '" << executorInfo.framework_id() << "'";
+  // Prepare volumes for the container.
+  // TODO(jieyu): Consider decoupling file system isolation from
+  // runtime isolation. The existing isolators are actually for
+  // runtime isolation. For file system isolation, the interface might
+  // be different and we always need a file system isolator. The
+  // following logic should be moved to the file system isolator.
+  Try<Nothing> update = updateVolumes(containerId, executorInfo.resources());
+  if (update.isError()) {
+    return Failure("Failed to prepare volumes: " + update.error());
+  }
+
+  // NOTE: We do not update 'container->resources' until volumes are
+  // prepared because 'updateVolumes' above depends on the current
+  // container resources.
+  container->resources = executorInfo.resources();
 
   return prepare(containerId, executorInfo, directory, user)
     .then(defer(self(),
@@ -797,7 +814,7 @@ Future<containerizer::Termination> MesosContainerizerProcess::wait(
 
 Future<Nothing> MesosContainerizerProcess::update(
     const ContainerID& containerId,
-    const Resources& _resources)
+    const Resources& resources)
 {
   if (!containers_.contains(containerId)) {
     // It is not considered a failure if the container is not known
@@ -808,19 +825,29 @@ Future<Nothing> MesosContainerizerProcess::update(
     return Nothing();
   }
 
-  if (containers_[containerId]->state == DESTROYING) {
+  const Owned<Container>& container = containers_[containerId];
+
+  if (container->state == DESTROYING) {
     LOG(WARNING) << "Ignoring update for currently being destroyed container: "
                  << containerId;
     return Nothing();
   }
 
-  // Store the resources for usage().
-  containers_[containerId]->resources = _resources;
+  // Update volumes for the container.
+  // TODO(jieyu): See comments above 'updateVolumes' in 'launch'.
+  Try<Nothing> update = updateVolumes(containerId, resources);
+  if (update.isError()) {
+    return Failure("Failed to update volumes: " + update.error());
+  }
+
+  // NOTE: We update container's resources before isolators are updated
+  // so that subsequent containerizer->update can be handled properly.
+  container->resources = resources;
 
   // Update each isolator.
   list<Future<Nothing>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
-    futures.push_back(isolator->update(containerId, _resources));
+    futures.push_back(isolator->update(containerId, resources));
   }
 
   // Wait for all isolators to complete.
@@ -1171,6 +1198,102 @@ MesosContainerizerProcess::Metrics::~Metrics()
   process::metrics::remove(container_destroy_errors);
 }
 
+
+Try<Nothing> MesosContainerizerProcess::updateVolumes(
+    const ContainerID& containerId,
+    const Resources& updated)
+{
+  CHECK(containers_.contains(containerId));
+  const Owned<Container>& container = containers_[containerId];
+
+  // TODO(jieyu): Currently, we only allow non-nested relative
+  // container paths for volumes. This is enforced by the master. For
+  // those volumes, we create symlinks in the executor directory. No
+  // need to proceed if the container change the file system root
+  // because the symlinks will become invalid if the file system root
+  // is changed. Consider moving this logic to the file system
+  // isolator and let the file system isolator decide how to mount
+  // those volumes (by either creating symlinks or doing bind mounts).
+  if (container->rootfs.isSome()) {
+    LOG(WARNING) << "Cannot update volumes for container " << containerId
+                 << " because it changes the file system root";
+    return Nothing();
+  }
+
+  Resources current = container->resources;
+
+  // We first remove unneeded persistent volumes.
+  foreach (const Resource& resource, current.persistentVolumes()) {
+    // This is enforced by the master.
+    CHECK(resource.disk().has_volume());
+
+    // Ignore absolute and nested paths.
+    const string& containerPath = resource.disk().volume().container_path();
+    if (strings::contains(containerPath, "/")) {
+      LOG(WARNING) << "Skipping updating symlink for persistent volume "
+                   << resource << " of container " << containerId
+                   << " because the container path '" << containerPath
+                   << "' contains slash";
+      continue;
+    }
+
+    if (updated.contains(resource)) {
+      continue;
+    }
+
+    string link = path::join(container->directory, containerPath);
+
+    LOG(INFO) << "Removing symlink '" << link << "' for persistent volume "
+              << resource << " of container " << containerId;
+
+    Try<Nothing> rm = os::rm(link);
+    if (rm.isError()) {
+      return Error(
+          "Failed to remove the symlink for the unneeded "
+          "persistent volume at '" + link + "'");
+    }
+  }
+
+  // We then link additional persistent volumes.
+  foreach (const Resource& resource, updated.persistentVolumes()) {
+    // This is enforced by the master.
+    CHECK(resource.disk().has_volume());
+
+    // Ignore absolute and nested paths.
+    const string& containerPath = resource.disk().volume().container_path();
+    if (strings::contains(containerPath, "/")) {
+      LOG(WARNING) << "Skipping updating symlink for persistent volume "
+                   << resource << " of container " << containerId
+                   << " because the container path '" << containerPath
+                   << "' contains slash";
+      continue;
+    }
+
+    if (current.contains(resource)) {
+      continue;
+    }
+
+    string link = path::join(container->directory, containerPath);
+
+    string original = paths::getPersistentVolumePath(
+        flags.work_dir,
+        resource.role(),
+        resource.disk().persistence().id());
+
+    LOG(INFO) << "Adding symlink from '" << original << "' to '"
+              << link << "' for persistent volume " << resource
+              << " of container " << containerId;
+
+    Try<Nothing> symlink = fs::symlink(original, link);
+    if (symlink.isError()) {
+      return Error(
+          "Failed to symlink persistent volume from '" +
+          original + "' to '" + link + "'");
+    }
+  }
+
+  return Nothing();
+}
 
 } // namespace slave {
 } // namespace internal {

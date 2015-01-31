@@ -228,6 +228,12 @@ private:
   // destroy.
   void reaped(const ContainerID& containerId);
 
+  // Updates volumes for the given container according to its current
+  // resources and the given updated resources.
+  Try<Nothing> updateVolumes(
+      const ContainerID& containerId,
+      const Resources& updated);
+
   const Flags flags;
   const bool local;
   Fetcher* fetcher;
