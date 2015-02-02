@@ -10,6 +10,7 @@ layout: documentation
 * [Artirix](http://www.artirix.com)
 * [Atigeo](http://www.atigeo.com)
 * [Atlassian](http://www.atlassian.com)
+* [Bol.com](http://www.bol.com)
 * [Branding Brand](http://www.brandingbrand.com)
 * [Categorize](http://categorize.co)
 * [CloudPhysics](http://cloudphysics.com)
