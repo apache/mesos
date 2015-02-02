@@ -258,6 +258,9 @@ private:
     // ResourceStatistics limits in usage().
     Resources resources;
 
+    // The executor's working directory on the host.
+    std::string directory;
+
     // The path to the container's rootfs, if full filesystem
     // isolation is used.
     Option<std::string> rootfs;
