@@ -148,7 +148,11 @@ Metrics::Metrics(const Master& master)
     slave_reregistrations(
         "master/slave_reregistrations"),
     slave_removals(
-        "master/slave_removals")
+        "master/slave_removals"),
+    slave_shutdowns_scheduled(
+         "master/slave_shutdowns_scheduled"),
+    slave_shutdowns_canceled(
+         "master/slave_shutdowns_canceled")
 {
   // TODO(dhamon): Check return values of 'add'.
   process::metrics::add(uptime_secs);
@@ -219,6 +223,9 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(slave_registrations);
   process::metrics::add(slave_reregistrations);
   process::metrics::add(slave_removals);
+
+  process::metrics::add(slave_shutdowns_scheduled);
+  process::metrics::add(slave_shutdowns_canceled);
 
   // Create resource gauges.
   // TODO(dhamon): Set these up dynamically when adding a slave based on the
@@ -318,6 +325,9 @@ Metrics::~Metrics()
   process::metrics::remove(slave_registrations);
   process::metrics::remove(slave_reregistrations);
   process::metrics::remove(slave_removals);
+
+  process::metrics::remove(slave_shutdowns_scheduled);
+  process::metrics::remove(slave_shutdowns_canceled);
 
   foreach (const process::metrics::Gauge& gauge, resources_total) {
     process::metrics::remove(gauge);

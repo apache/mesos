@@ -666,7 +666,9 @@ private:
     uint64_t invalidFrameworkMessages;
   } stats;
 
-  Metrics metrics;
+  // NOTE: It is safe to use a 'shared_ptr' because 'Metrics' is
+  // thread safe.
+  memory::shared_ptr<Metrics> metrics;
 
   // Gauge handlers.
   double _uptime_secs()

@@ -156,6 +156,10 @@ struct Metrics
   process::metrics::Counter slave_reregistrations;
   process::metrics::Counter slave_removals;
 
+  // Slave observer metrics.
+  process::metrics::Counter slave_shutdowns_scheduled;
+  process::metrics::Counter slave_shutdowns_canceled;
+
   // Resource metrics.
   std::vector<process::metrics::Gauge> resources_total;
   std::vector<process::metrics::Gauge> resources_used;
