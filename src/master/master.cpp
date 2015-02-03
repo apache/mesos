@@ -557,13 +557,13 @@ void Master::initialize()
   install<RegisterSlaveMessage>(
       &Master::registerSlave,
       &RegisterSlaveMessage::slave,
-      &RegisterSlaveMessage::persisted_resources,
+      &RegisterSlaveMessage::checkpointed_resources,
       &RegisterSlaveMessage::version);
 
   install<ReregisterSlaveMessage>(
       &Master::reregisterSlave,
       &ReregisterSlaveMessage::slave,
-      &ReregisterSlaveMessage::persisted_resources,
+      &ReregisterSlaveMessage::checkpointed_resources,
       &ReregisterSlaveMessage::executor_infos,
       &ReregisterSlaveMessage::tasks,
       &ReregisterSlaveMessage::completed_frameworks,
@@ -3253,7 +3253,7 @@ void Master::schedulerMessage(
 void Master::registerSlave(
     const UPID& from,
     const SlaveInfo& slaveInfo,
-    const vector<Resource>& persistedResources,
+    const vector<Resource>& checkpointedResources,
     const string& version)
 {
   ++metrics.messages_register_slave;
@@ -3267,7 +3267,7 @@ void Master::registerSlave(
                      &Self::registerSlave,
                      from,
                      slaveInfo,
-                     persistedResources,
+                     checkpointedResources,
                      version));
     return;
   }
@@ -3333,7 +3333,7 @@ void Master::registerSlave(
                  &Self::_registerSlave,
                  slaveInfo_,
                  from,
-                 persistedResources,
+                 checkpointedResources,
                  version,
                  lambda::_1));
 }
@@ -3342,7 +3342,7 @@ void Master::registerSlave(
 void Master::_registerSlave(
     const SlaveInfo& slaveInfo,
     const UPID& pid,
-    const vector<Resource>& persistedResources,
+    const vector<Resource>& checkpointedResources,
     const string& version,
     const Future<bool>& admit)
 {
@@ -3372,7 +3372,7 @@ void Master::_registerSlave(
         pid,
         version.empty() ? Option<string>::none() : version,
         Clock::now(),
-        persistedResources);
+        checkpointedResources);
 
     ++metrics.slave_registrations;
 
@@ -3391,7 +3391,7 @@ void Master::_registerSlave(
 void Master::reregisterSlave(
     const UPID& from,
     const SlaveInfo& slaveInfo,
-    const vector<Resource>& persistedResources,
+    const vector<Resource>& checkpointedResources,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks,
@@ -3408,7 +3408,7 @@ void Master::reregisterSlave(
                      &Self::reregisterSlave,
                      from,
                      slaveInfo,
-                     persistedResources,
+                     checkpointedResources,
                      executorInfos,
                      tasks,
                      completedFrameworks,
@@ -3520,7 +3520,7 @@ void Master::reregisterSlave(
                  &Self::_reregisterSlave,
                  slaveInfo,
                  from,
-                 persistedResources,
+                 checkpointedResources,
                  executorInfos,
                  tasks,
                  completedFrameworks,
@@ -3532,7 +3532,7 @@ void Master::reregisterSlave(
 void Master::_reregisterSlave(
     const SlaveInfo& slaveInfo,
     const UPID& pid,
-    const vector<Resource>& persistedResources,
+    const vector<Resource>& checkpointedResources,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks,
@@ -3564,7 +3564,7 @@ void Master::_reregisterSlave(
         pid,
         version.empty() ? Option<string>::none() : version,
         Clock::now(),
-        persistedResources,
+        checkpointedResources,
         executorInfos,
         tasks);
 
@@ -3606,13 +3606,12 @@ void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
 
   // NOTE: Here we always send the message. Slaves whose version are
   // less than 0.22.0 will drop it silently which is OK.
-  LOG(INFO) << "Sending updated persisted resources "
-            << slave->persistedResources
+  LOG(INFO) << "Sending updated checkpointed resources "
+            << slave->checkpointedResources
             << " to slave " << *slave;
 
-  UpdateResourcesMessage message;
-  message.mutable_persisted_resources()->CopyFrom(
-      slave->persistedResources);
+  CheckpointResourcesMessage message;
+  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
 
   send(slave->pid, message);
 }
@@ -4801,9 +4800,9 @@ void Master::addSlave(
     }
   }
 
-  // TODO(bmahler): This will need to include resources that
-  // are "persisted" on the slave (e.g. persistent volumes,
-  // dynamic reservations, etc).
+  // TODO(bmahler): This will need to include resources that are
+  // "checkpointed" on the slave (e.g. persistent volumes, dynamic
+  // reservations, etc).
   allocator->addSlave(
       slave->id,
       slave->info,

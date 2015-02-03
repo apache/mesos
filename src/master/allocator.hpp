@@ -91,10 +91,10 @@ public:
       const FrameworkID& frameworkId);
 
   // Note that the 'total' resources are passed explicitly because it
-  // includes resources that are dynamically "persisted" on the slave
-  // (e.g. persistent volumes, dynamic reservations, etc).
-  // The slaveInfo resources, on the other hand, correspond directly
-  // to the static --resources flag value on the slave.
+  // includes resources that are dynamically "checkpointed" on the
+  // slave (e.g. persistent volumes, dynamic reservations, etc). The
+  // slaveInfo resources, on the other hand, correspond directly to
+  // the static --resources flag value on the slave.
   void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
