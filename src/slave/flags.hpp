@@ -42,6 +42,7 @@ class Flags : public logging::Flags
 {
 public:
   Flags()
+    : checkpoint(true)
   {
     add(&Flags::hostname,
         "hostname",
@@ -168,16 +169,6 @@ public:
         "Periodic time interval for monitoring executor\n"
         "resource usage (e.g., 10secs, 1min, etc)",
         RESOURCE_MONITORING_INTERVAL);
-
-    // TODO(vinod): Consider killing this flag and always checkpoint.
-    add(&Flags::checkpoint,
-        "checkpoint",
-        "This flag is deprecated and will be removed in a future release.\n"
-        "Whether to checkpoint slave and frameworks information\n"
-        "to disk. This enables a restarted slave to recover\n"
-        "status updates and reconnect with (--recover=reconnect) or\n"
-        "kill (--recover=cleanup) old executors",
-        true);
 
     add(&Flags::recover,
         "recover",
@@ -480,6 +471,8 @@ public:
   double gc_disk_headroom;
   Duration disk_watch_interval;
   Duration resource_monitoring_interval;
+  // TODO(cmaloney): Remove checkpoint variable entirely, fixing tests
+  // which depend upon it. See MESOS-444 for more details.
   bool checkpoint;
   std::string recover;
   Duration recovery_timeout;
