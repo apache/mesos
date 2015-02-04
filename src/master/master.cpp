@@ -2292,8 +2292,29 @@ void Master::_accept(
       }
 
       case Offer::Operation::DESTROY: {
-        // TODO(jieyu): Provide implementation for DESTROY.
-        drop(framework, operation, "Unimplemented");
+        Option<Error> error = validation::operation::validate(
+            operation.destroy(),
+            slave->checkpointedResources);
+
+        if (error.isSome()) {
+          drop(framework, operation, error.get().message);
+          continue;
+        }
+
+        Try<Resources> resources = _offeredResources.apply(operation);
+        if (resources.isError()) {
+          drop(framework, operation, error.get().message);
+          continue;
+        }
+
+        _offeredResources = resources.get();
+
+        allocator->updateAllocation(
+            frameworkId,
+            slaveId,
+            {operation});
+
+        updateCheckpointedResources(slave, operation);
         break;
       }
 
@@ -4640,9 +4661,12 @@ void Master::updateCheckpointedResources(
     }
 
     case Offer::Operation::DESTROY: {
-      // TODO(jieyu): Provide implementation.
-      LOG(ERROR) << "Failed to update checkpointed resources for slave "
-                 << *slave << ": Unimplemented DESTROY operation";
+      Resources volumes = operation.destroy().volumes();
+
+      CHECK(slave->checkpointedResources.contains(volumes))
+        << "Not expecting unknown persistent volumes";
+
+      slave->checkpointedResources -= volumes;
       break;
     }
 
