@@ -154,3 +154,46 @@ TEST_F(CreateOperationValidationTest, DuplicatedPersistenceID)
 
   EXPECT_SOME(operation::validate(create, Resources()));
 }
+
+
+class DestroyOperationValidationTest : public ::testing::Test {};
+
+
+// This test verifies that all resources specified in the DESTROY
+// operation are persistent volumes.
+TEST_F(DestroyOperationValidationTest, PersistentVolumes)
+{
+  Resource volume1 = Resources::parse("disk", "128", "role1").get();
+  volume1.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+
+  Resource volume2 = Resources::parse("disk", "64", "role1").get();
+  volume2.mutable_disk()->CopyFrom(createDiskInfo("id2", "path2"));
+
+  Resources volumes;
+  volumes += volume1;
+  volumes += volume2;
+
+  Offer::Operation::Destroy destroy;
+  destroy.add_volumes()->CopyFrom(volume1);
+
+  EXPECT_NONE(operation::validate(destroy, volumes));
+
+  Resource cpus = Resources::parse("cpus", "2", "*").get();
+
+  destroy.add_volumes()->CopyFrom(cpus);
+
+  EXPECT_SOME(operation::validate(destroy, volumes));
+}
+
+
+TEST_F(DestroyOperationValidationTest, UnknownPersistentVolume)
+{
+  Resource volume = Resources::parse("disk", "128", "role1").get();
+  volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+
+  Offer::Operation::Destroy destroy;
+  destroy.add_volumes()->CopyFrom(volume);
+
+  EXPECT_NONE(operation::validate(destroy, volume));
+  EXPECT_SOME(operation::validate(destroy, Resources()));
+}

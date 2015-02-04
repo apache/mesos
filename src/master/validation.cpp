@@ -556,6 +556,28 @@ Option<Error> validate(
   return None();
 }
 
+
+Option<Error> validate(
+    const Offer::Operation::Destroy& destroy,
+    const Resources& checkpointedResources)
+{
+  Option<Error> error = resource::validate(destroy.volumes());
+  if (error.isSome()) {
+    return Error("Invalid resources: " + error.get().message);
+  }
+
+  error = resource::validatePersistentVolume(destroy.volumes());
+  if (error.isSome()) {
+    return Error("Not a persistent volume: " + error.get().message);
+  }
+
+  if (!checkpointedResources.contains(destroy.volumes())) {
+    return Error("Persistent volumes not found");
+  }
+
+  return None();
+}
+
 } // namespace operation {
 
 } // namespace validation {

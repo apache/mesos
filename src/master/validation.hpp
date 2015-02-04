@@ -87,6 +87,13 @@ Option<Error> validate(
     const Offer::Operation::Create& create,
     const Resources& checkpointedResources);
 
+
+// Validates the DESTROY operation. We need slave's checkpointed
+// resources to validate that the volumes to destroy actually exist.
+Option<Error> validate(
+    const Offer::Operation::Destroy& destroy,
+    const Resources& checkpointedResources);
+
 } // namespace operation {
 
 } // namespace validation {
