@@ -256,6 +256,10 @@ private:
     // ResourceStatistics limits in usage().
     Resources resources;
 
+    // The path to the container's rootfs, if full filesystem
+    // isolation is used.
+    Option<std::string> rootfs;
+
     State state;
   };
 
