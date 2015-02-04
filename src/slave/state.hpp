@@ -123,15 +123,26 @@ template <typename T>
 Try<Nothing> checkpoint(const std::string& path, const T& t)
 {
   // Create the base directory.
-  Try<Nothing> mkdir = os::mkdir(os::dirname(path).get());
+  Try<std::string> base = os::dirname(path);
+  if (base.isError()) {
+    return Error("Failed to get the base directory path: " + base.error());
+  }
+
+  Try<Nothing> mkdir = os::mkdir(base.get());
   if (mkdir.isError()) {
-    return Error("Failed to create directory '" + os::dirname(path).get() +
+    return Error("Failed to create directory '" + base.get() +
                  "': " + mkdir.error());
   }
 
-  Try<std::string> temp = os::mktemp();
+  // NOTE: We create the temporary file at 'base/XXXXXX' to make sure
+  // rename below does not cross devices (MESOS-2319).
+  //
+  // TODO(jieyu): It's possible that the temporary file becomes
+  // dangling if slave crashes or restarts while checkpointing.
+  // Consider adding a way to garbage collect them.
+  Try<std::string> temp = os::mktemp(path::join(base.get(), "XXXXXX"));
   if (temp.isError()) {
-    return Error("Failed to create temporary file: '" + temp.error());
+    return Error("Failed to create temporary file: " + temp.error());
   }
 
   // Now checkpoint the instance of T to the temporary file.
@@ -139,8 +150,9 @@ Try<Nothing> checkpoint(const std::string& path, const T& t)
   if (checkpoint.isError()) {
     // Try removing the temporary file on error.
     os::rm(temp.get());
-    return Error("Failed to checkpoint to " + temp.get() + "': " +
-                 checkpoint.error());
+
+    return Error("Failed to write temporary file '" + temp.get() +
+                 "': " + checkpoint.error());
   }
 
   // Rename the temporary file to the path.
@@ -148,8 +160,9 @@ Try<Nothing> checkpoint(const std::string& path, const T& t)
   if (rename.isError()) {
     // Try removing the temporary file on error.
     os::rm(temp.get());
-    return Error("Failed to rename '" + temp.get() + "' to '" + path + "': " +
-                 rename.error());
+
+    return Error("Failed to rename '" + temp.get() + "' to '" +
+                 path + "': " + rename.error());
   }
 
   return Nothing();
