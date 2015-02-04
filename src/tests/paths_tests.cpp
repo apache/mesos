@@ -42,7 +42,7 @@ using strings::format;
 class PathsTest : public ::testing::Test
 {
 public:
-  PathsTest()
+  virtual void SetUp()
   {
     slaveId.set_value("slave1");
     frameworkId.set_value("framework1");
@@ -57,7 +57,7 @@ public:
     rootDir = path.get();
   }
 
-  virtual ~PathsTest()
+  virtual void TearDown()
   {
      os::rmdir(rootDir);
   }
@@ -95,32 +95,116 @@ TEST_F(PathsTest, CreateExecutorDirectory)
 }
 
 
-TEST_F(PathsTest, Format)
+TEST_F(PathsTest, Meta)
 {
-  string dir = rootDir;
+  EXPECT_EQ(path::join(rootDir, "meta"), paths::getMetaRootDir(rootDir));
+}
 
-  dir = path::join(dir, "slaves", slaveId.value());
 
-  EXPECT_EQ(dir, paths::getSlavePath(rootDir, slaveId));
+TEST_F(PathsTest, Archive)
+{
+  EXPECT_EQ(path::join(rootDir, "archive"), paths::getArchiveDir(rootDir));
+}
 
-  dir = path::join(dir, "frameworks", frameworkId.value());
 
-  EXPECT_EQ(dir, paths::getFrameworkPath(rootDir, slaveId, frameworkId));
+TEST_F(PathsTest, BootId)
+{
+  EXPECT_EQ(path::join(rootDir, "boot_id"), paths::getBootIdPath(rootDir));
+}
 
-  dir = path::join(dir, "executors", executorId.value());
 
-  EXPECT_EQ(dir, paths::getExecutorPath(
-      rootDir, slaveId, frameworkId, executorId));
+TEST_F(PathsTest, Slave)
+{
+  const string slavesRoot = path::join(rootDir, "slaves");
 
-  dir = path::join(dir, "runs", containerId.value());
+  EXPECT_EQ(path::join(slavesRoot, "latest"),
+            paths::getLatestSlavePath(rootDir));
 
-  EXPECT_EQ(dir, paths::getExecutorRunPath(
-      rootDir, slaveId, frameworkId, executorId, containerId));
+  EXPECT_EQ(path::join(slavesRoot, slaveId.value()),
+            paths::getSlavePath(rootDir, slaveId));
+}
 
-  dir = path::join(dir, "tasks", taskId.value());
 
-  EXPECT_EQ(dir, paths::getTaskPath(
-      rootDir, slaveId, frameworkId, executorId, containerId, taskId));
+TEST_F(PathsTest, Framework)
+{
+  const string frameworksRoot =
+      path::join(paths::getSlavePath(rootDir, slaveId), "frameworks");
+
+  EXPECT_EQ(path::join(frameworksRoot, frameworkId.value()),
+            paths::getFrameworkPath(rootDir, slaveId, frameworkId));
+}
+
+
+TEST_F(PathsTest, Executor)
+{
+  const string executorsRoot =
+      path::join(
+          paths::getFrameworkPath(
+              rootDir,
+              slaveId,
+              frameworkId),
+          "executors");
+
+  EXPECT_EQ(path::join(executorsRoot, executorId.value()),
+            paths::getExecutorPath(rootDir, slaveId, frameworkId, executorId));
+
+  EXPECT_EQ(
+      path::join(
+          executorsRoot,
+          executorId.value(),
+          "runs",
+          containerId.value()),
+      paths::getExecutorRunPath(
+          rootDir,
+          slaveId,
+          frameworkId,
+          executorId,
+          containerId));
+}
+
+
+TEST_F(PathsTest, LibProcessPid)
+{
+  EXPECT_EQ(
+      path::join(
+          getExecutorRunPath(
+              rootDir,
+              slaveId,
+              frameworkId,
+              executorId,
+              containerId),
+          "pids",
+          "libprocess.pid"),
+      paths::getLibprocessPidPath(
+          rootDir,
+          slaveId,
+          frameworkId,
+          executorId,
+          containerId));
+}
+
+
+TEST_F(PathsTest, Task)
+{
+  const string tasksRoot =
+      path::join(
+          paths::getExecutorRunPath(
+              rootDir,
+              slaveId,
+              frameworkId,
+              executorId,
+              containerId),
+          "tasks");
+
+  EXPECT_EQ(
+      path::join(tasksRoot, taskId.value()),
+      paths::getTaskPath(
+          rootDir,
+          slaveId,
+          frameworkId,
+          executorId,
+          containerId,
+          taskId));
 }
 
 
