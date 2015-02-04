@@ -3091,6 +3091,8 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     return;
   }
 
+  LOG(INFO) << "Status update " << update << " from slave " << *slave;
+
   // Forward the update to the framework.
   forward(update, pid, framework);
 
@@ -3103,8 +3105,6 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     metrics.invalid_status_updates++;
     return;
   }
-
-  LOG(INFO) << "Status update " << update << " from slave " << *slave;
 
   updateTask(task, update);
 
