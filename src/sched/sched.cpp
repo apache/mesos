@@ -85,8 +85,7 @@
 #include "sched/flags.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::master;
+using namespace mesos::master;
 using namespace mesos::scheduler;
 
 using namespace process;
@@ -100,7 +99,6 @@ using process::wait; // Necessary on some OS's to disambiguate.
 using utils::copy;
 
 namespace mesos {
-namespace internal {
 
 // The scheduler process (below) is responsible for interacting with
 // the master and responding to Mesos API calls from scheduler
@@ -117,7 +115,7 @@ public:
                    const Option<Credential>& _credential,
                    const string& schedulerId,
                    MasterDetector* _detector,
-                   const internal::scheduler::Flags& _flags,
+                   const scheduler::Flags& _flags,
                    pthread_mutex_t* _mutex,
                    pthread_cond_t* _cond)
       // We use a UUID here to ensure that the master can reliably
@@ -1199,7 +1197,7 @@ private:
 
   MasterDetector* detector;
 
-  const internal::scheduler::Flags flags;
+  const scheduler::Flags flags;
 
   hashmap<OfferID, hashmap<SlaveID, UPID> > savedOffers;
   hashmap<SlaveID, UPID> savedSlavePids;
@@ -1218,7 +1216,6 @@ private:
   bool reauthenticate;
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 
@@ -1411,7 +1408,7 @@ Status MesosSchedulerDriver::start()
   }
 
   // Load scheduler flags.
-  internal::scheduler::Flags flags;
+  scheduler::Flags flags;
   Try<Nothing> load = flags.load("MESOS_");
 
   if (load.isError()) {

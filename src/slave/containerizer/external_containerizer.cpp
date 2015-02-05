@@ -64,7 +64,6 @@ using tuples::tuple;
 using namespace process;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 using state::ExecutorState;
@@ -1209,5 +1208,4 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

@@ -51,7 +51,6 @@ using std::string;
 using std::vector;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 Try<Isolator*> PosixDiskIsolatorProcess::create(const Flags& flags)
@@ -500,5 +499,4 @@ Future<Bytes> DiskUsageCollector::usage(const string& path)
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

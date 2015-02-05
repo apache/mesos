@@ -47,9 +47,8 @@
 #include "tests/utils.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
+using namespace mesos::slave;
+using namespace mesos::tests;
 
 using namespace process;
 using process::Subprocess;
@@ -339,7 +338,7 @@ TEST_F(FetcherTest, FileURI)
 
   Try<Subprocess> fetcherSubprocess =
     process::subprocess(
-      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
+      path::join(mesos::tests::flags.build_dir, "src/mesos-fetcher"),
       environment);
 
   ASSERT_SOME(fetcherSubprocess);
@@ -375,7 +374,7 @@ TEST_F(FetcherTest, FilePath)
 
   Try<Subprocess> fetcherSubprocess =
     process::subprocess(
-      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
+      path::join(mesos::tests::flags.build_dir, "src/mesos-fetcher"),
       environment);
 
   ASSERT_SOME(fetcherSubprocess);
@@ -428,7 +427,7 @@ TEST_F(FetcherTest, OSNetUriTest)
 
   Try<Subprocess> fetcherSubprocess =
     process::subprocess(
-      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
+      path::join(mesos::tests::flags.build_dir, "src/mesos-fetcher"),
       environment);
 
   ASSERT_SOME(fetcherSubprocess);
@@ -464,7 +463,7 @@ TEST_F(FetcherTest, FileLocalhostURI)
 
   Try<Subprocess> fetcherSubprocess =
     process::subprocess(
-      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
+      path::join(mesos::tests::flags.build_dir, "src/mesos-fetcher"),
       environment);
 
   ASSERT_SOME(fetcherSubprocess);

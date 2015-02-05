@@ -19,7 +19,6 @@
 #include "sched/constants.hpp"
 
 namespace mesos {
-namespace internal {
 namespace scheduler {
 
 // NOTE: The default backoff factor for the scheduler (2s) is
@@ -34,5 +33,4 @@ const Duration REGISTRATION_RETRY_INTERVAL_MAX = Minutes(1);
 const std::string DEFAULT_AUTHENTICATEE = "crammd5";
 
 } // namespace scheduler {
-} // namespace internal {
 } // namespace mesos {

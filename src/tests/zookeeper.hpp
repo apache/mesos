@@ -31,7 +31,6 @@
 #include "tests/zookeeper_test_server.hpp"
 
 namespace mesos {
-namespace internal {
 namespace tests {
 
 // Helper for invoking ZooKeeper::get(path, ...) in order to check the
@@ -62,7 +61,7 @@ inline ::testing::AssertionResult AssertZKGet(
 }
 
 #define ASSERT_ZK_GET(expected, zk, path)                               \
-  ASSERT_PRED_FORMAT3(mesos::internal::tests::AssertZKGet, expected, zk, path)
+  ASSERT_PRED_FORMAT3(mesos::tests::AssertZKGet, expected, zk, path)
 
 
 // A fixture for tests that need to interact with a ZooKeeper server
@@ -130,7 +129,6 @@ protected:
 };
 
 } // namespace tests {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __ZOOKEEPER_TEST_HPP__

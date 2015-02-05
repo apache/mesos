@@ -33,7 +33,6 @@
 #include "messages/messages.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
 
 using process::Future;
 

@@ -39,7 +39,6 @@ using std::set;
 using std::string;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // The root directory where we bind mount all the namespace handles.
@@ -260,5 +259,4 @@ Future<Nothing> NamespacesPidIsolatorProcess::cleanup(
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

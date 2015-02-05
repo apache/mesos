@@ -43,14 +43,13 @@
 #include "tests/flags.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos::tests;
 
 using namespace process;
 
-using mesos::internal::master::Master;
-using mesos::internal::slave::Containerizer;
-using mesos::internal::slave::Slave;
+using mesos::master::Master;
+using mesos::slave::Containerizer;
+using mesos::slave::Slave;
 
 using std::string;
 using std::vector;

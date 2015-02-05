@@ -40,7 +40,6 @@ using std::vector;
 using google::protobuf::RepeatedPtrField;
 
 namespace mesos {
-namespace internal {
 namespace master {
 namespace validation {
 
@@ -582,5 +581,4 @@ Option<Error> validate(
 
 } // namespace validation {
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {

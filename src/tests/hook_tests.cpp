@@ -40,12 +40,11 @@
 using std::string;
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos::tests;
 using namespace mesos::modules;
 
-using mesos::internal::master::Master;
-using mesos::internal::slave::Slave;
+using mesos::master::Master;
+using mesos::slave::Slave;
 
 using process::Future;
 using process::PID;

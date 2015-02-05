@@ -65,7 +65,6 @@ class RateLimiter; // Forward declaration.
 }
 
 namespace mesos {
-namespace internal {
 
 // Forward declarations.
 namespace registry {
@@ -1268,7 +1267,6 @@ private:
 };
 
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_HPP__

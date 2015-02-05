@@ -32,12 +32,11 @@
 #include "tests/mesos.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos::tests;
 
-using mesos::internal::master::Master;
+using mesos::master::Master;
 
-using mesos::internal::master::allocator::AllocatorProcess;
+using mesos::master::allocator::AllocatorProcess;
 
 using process::metrics::internal::MetricsProcess;
 
@@ -52,7 +51,6 @@ using testing::Eq;
 using testing::Return;
 
 namespace mesos {
-namespace internal {
 namespace master {
 
 // Query Mesos metrics snapshot endpoint and return a JSON::Object
@@ -1115,5 +1113,4 @@ TEST_F(RateLimitingTest, CapacityReached)
 }
 
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {

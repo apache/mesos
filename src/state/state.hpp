@@ -37,7 +37,6 @@
 #include "state/storage.hpp"
 
 namespace mesos {
-namespace internal {
 namespace state {
 
 // An abstraction of "state" (possibly between multiple distributed
@@ -195,7 +194,6 @@ inline process::Future<std::set<std::string> > State::names()
 }
 
 } // namespace state {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __STATE_STATE_HPP__

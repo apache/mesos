@@ -219,7 +219,7 @@ Try<Resource> Resources::parse(
     const string& value,
     const string& role)
 {
-  Try<Value> result = internal::values::parse(value);
+  Try<Value> result = values::parse(value);
   if (result.isError()) {
     return Error(
         "Failed to parse resource " + name +

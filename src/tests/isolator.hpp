@@ -24,7 +24,6 @@
 #include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
-namespace internal {
 namespace tests {
 
 
@@ -93,7 +92,6 @@ private:
 };
 
 } // namespace tests {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __TEST_ISOLATOR_HPP__

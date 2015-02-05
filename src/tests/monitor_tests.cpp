@@ -39,8 +39,7 @@
 #include "tests/containerizer.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos::tests;
 
 using process::Clock;
 using process::Future;

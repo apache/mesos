@@ -23,7 +23,6 @@
 #include "slave/constants.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 const Duration EXECUTOR_REGISTRATION_TIMEOUT = Minutes(1);
@@ -58,5 +57,4 @@ Duration MASTER_PING_TIMEOUT()
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

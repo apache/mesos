@@ -46,7 +46,6 @@ using std::set;
 using std::string;
 
 namespace mesos {
-namespace internal {
 namespace log {
 
 class LogProcess : public Process<LogProcess>
@@ -867,5 +866,4 @@ Future<Option<Log::Position> > Log::Writer::truncate(const Log::Position& to)
 }
 
 } // namespace log {
-} // namespace internal {
 } // namespace mesos {

@@ -39,8 +39,8 @@
 #include "tests/flags.hpp"
 #include "tests/module.hpp"
 
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos;
+using namespace mesos::tests;
 
 using std::cerr;
 using std::endl;
@@ -60,7 +60,7 @@ int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  using mesos::internal::tests::flags; // Needed to disabmiguate.
+  using mesos::tests::flags; // Needed to disabmiguate.
 
   bool help;
   flags.add(&help,
@@ -119,7 +119,7 @@ int main(int argc, char** argv)
 
   // Instantiate our environment. Note that it will be managed by
   // gtest after we add it via testing::AddGlobalTestEnvironment.
-  environment = new Environment(flags);
+  environment = new tests::Environment(flags);
 
   testing::AddGlobalTestEnvironment(environment);
 

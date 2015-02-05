@@ -40,7 +40,6 @@ using namespace process;
 using std::string;
 
 namespace mesos {
-namespace internal {
 namespace log {
 
 class CoordinatorProcess : public Process<CoordinatorProcess>
@@ -477,5 +476,4 @@ Future<Option<uint64_t> > Coordinator::truncate(uint64_t to)
 }
 
 } // namespace log {
-} // namespace internal {
 } // namespace mesos {

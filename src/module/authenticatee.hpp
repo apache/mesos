@@ -27,14 +27,14 @@ namespace mesos {
 namespace modules {
 
 template<>
-inline const char* kind<mesos::internal::Authenticatee>()
+inline const char* kind<mesos::Authenticatee>()
 {
   return "Authenticatee";
 }
 
 
 template <>
-struct Module<mesos::internal::Authenticatee> : ModuleBase
+struct Module<mesos::Authenticatee> : ModuleBase
 {
   Module(
       const char* _moduleApiVersion,
@@ -43,11 +43,11 @@ struct Module<mesos::internal::Authenticatee> : ModuleBase
       const char* _authorEmail,
       const char* _description,
       bool (*_compatible)(),
-      mesos::internal::Authenticatee* (*_create)(const Parameters& parameters))
+      mesos::Authenticatee* (*_create)(const Parameters& parameters))
     : ModuleBase(
         _moduleApiVersion,
         _mesosVersion,
-        mesos::modules::kind<mesos::internal::Authenticatee>(),
+        mesos::modules::kind<mesos::Authenticatee>(),
         _authorName,
         _authorEmail,
         _description,
@@ -55,7 +55,7 @@ struct Module<mesos::internal::Authenticatee> : ModuleBase
       create(_create)
   { }
 
-  mesos::internal::Authenticatee* (*create)(const Parameters& parameters);
+  mesos::Authenticatee* (*create)(const Parameters& parameters);
 };
 
 } // namespace modules {

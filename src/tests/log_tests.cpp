@@ -60,9 +60,8 @@
 #endif
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::log;
-using namespace mesos::internal::tests;
+using namespace mesos::log;
+using namespace mesos::tests;
 
 using namespace process;
 

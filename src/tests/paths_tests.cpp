@@ -32,7 +32,6 @@
 #include "slave/state.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 namespace paths {
 
@@ -217,5 +216,4 @@ TEST_F(PathsTest, PersistentVolume)
 
 } // namespace paths {
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

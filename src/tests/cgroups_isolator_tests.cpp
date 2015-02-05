@@ -30,8 +30,7 @@
 #include "tests/script.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
+using namespace mesos::slave;
 
 using std::map;
 

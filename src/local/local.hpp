@@ -24,7 +24,6 @@
 #include "local/flags.hpp"
 
 namespace mesos {
-namespace internal {
 
 // Forward declarations.
 namespace master {
@@ -51,7 +50,6 @@ process::PID<master::Master> launch(
 void shutdown();
 
 } // namespace local {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MESOS_LOCAL_HPP__

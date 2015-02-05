@@ -31,7 +31,6 @@
 #include "log/replica.hpp"
 
 namespace mesos {
-namespace internal {
 namespace log {
 
 // Recovers a replica by catching up enough missing positions. A
@@ -58,7 +57,6 @@ extern process::Future<process::Owned<Replica> > recover(
     bool autoInitialize = false);
 
 } // namespace log {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOG_RECOVER_HPP__

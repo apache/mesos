@@ -23,7 +23,6 @@
 
 
 namespace mesos {
-namespace internal {
 namespace master {
 
 // Message counters are named with "messages_" prefix so they can
@@ -347,5 +346,4 @@ Metrics::~Metrics()
 
 
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {

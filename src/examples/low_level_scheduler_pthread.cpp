@@ -422,7 +422,7 @@ int main(int argc, char** argv)
     uri = path::join(os::getenv("MESOS_BUILD_DIR"), "src", "test-executor");
   }
 
-  mesos::internal::logging::Flags flags;
+  mesos::logging::Flags flags;
 
   string role;
   flags.add(&role,
@@ -447,7 +447,7 @@ int main(int argc, char** argv)
     EXIT(1);
   }
 
-  internal::logging::initialize(argv[0], flags, true); // Catch signals.
+  logging::initialize(argv[0], flags, true); // Catch signals.
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.

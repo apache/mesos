@@ -35,7 +35,6 @@
 #include "slave/state.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 class Launcher
@@ -106,7 +105,6 @@ private:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __LAUNCHER_HPP__

@@ -72,30 +72,30 @@
 
 using namespace mesos;
 
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos;
+using namespace mesos::tests;
 
 using namespace process;
 
-using mesos::internal::master::Master;
+using mesos::master::Master;
 #ifdef __linux__
-using mesos::internal::slave::CgroupsCpushareIsolatorProcess;
-using mesos::internal::slave::CgroupsMemIsolatorProcess;
-using mesos::internal::slave::CgroupsPerfEventIsolatorProcess;
-using mesos::internal::slave::Fetcher;
-using mesos::internal::slave::SharedFilesystemIsolatorProcess;
+using mesos::slave::CgroupsCpushareIsolatorProcess;
+using mesos::slave::CgroupsMemIsolatorProcess;
+using mesos::slave::CgroupsPerfEventIsolatorProcess;
+using mesos::slave::Fetcher;
+using mesos::slave::SharedFilesystemIsolatorProcess;
 #endif // __linux__
-using mesos::internal::slave::Isolator;
-using mesos::internal::slave::IsolatorProcess;
-using mesos::internal::slave::Launcher;
-using mesos::internal::slave::MesosContainerizer;
-using mesos::internal::slave::Slave;
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
+using mesos::slave::Launcher;
+using mesos::slave::MesosContainerizer;
+using mesos::slave::Slave;
 #ifdef __linux__
-using mesos::internal::slave::LinuxLauncher;
+using mesos::slave::LinuxLauncher;
 #endif // __linux__
-using mesos::internal::slave::PosixLauncher;
-using mesos::internal::slave::PosixCpuIsolatorProcess;
-using mesos::internal::slave::PosixMemIsolatorProcess;
+using mesos::slave::PosixLauncher;
+using mesos::slave::PosixCpuIsolatorProcess;
+using mesos::slave::PosixMemIsolatorProcess;
 
 
 using std::ostringstream;

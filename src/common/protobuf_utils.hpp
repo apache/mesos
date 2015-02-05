@@ -31,7 +31,6 @@ struct UPID;
 }
 
 namespace mesos {
-namespace internal {
 namespace protobuf {
 
 bool isTerminalState(const TaskState& state);
@@ -62,7 +61,6 @@ Option<bool> getTaskHealth(const Task& task);
 MasterInfo createMasterInfo(const process::UPID& pid);
 
 } // namespace protobuf {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __PROTOBUF_UTILS_HPP__

@@ -25,7 +25,6 @@
 #include <stout/option.hpp>
 
 namespace mesos {
-namespace internal {
 namespace master {
 
 class Master;
@@ -98,5 +97,4 @@ Option<Error> validate(
 
 } // namespace validation {
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {

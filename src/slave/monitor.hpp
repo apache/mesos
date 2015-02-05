@@ -41,7 +41,6 @@
 #include "common/type_utils.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Forward declarations.
@@ -182,7 +181,6 @@ private:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __SLAVE_MONITOR_HPP__

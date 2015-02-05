@@ -39,7 +39,6 @@
 #include "messages/messages.hpp"
 
 namespace mesos {
-namespace internal {
 namespace master {
 
 class Master; // Forward declaration.
@@ -394,7 +393,6 @@ inline void Allocator::reviveOffers(
 
 } // namespace allocator {
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __ALLOCATOR_HPP__

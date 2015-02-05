@@ -45,7 +45,6 @@
 #include "slave/state.hpp"
 
 namespace mesos {
-namespace internal {
 namespace tests {
 
 // Forward declaration.
@@ -134,7 +133,6 @@ private:
 };
 
 } // namespace tests {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __TEST_CONTAINERIZER_HPP__

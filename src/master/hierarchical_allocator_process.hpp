@@ -40,7 +40,6 @@
 #include "master/sorter.hpp"
 
 namespace mesos {
-namespace internal {
 namespace master {
 namespace allocator {
 
@@ -399,7 +398,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::deactivateFramework(
 }
 
 
-namespace internal {
 
 // TODO(bmahler): Generalize this.
 template <typename Iterable>
@@ -412,7 +410,6 @@ Resources sum(const Iterable& resources)
   return total;
 }
 
-} // namespace internal {
 
 
 template <class RoleSorter, class FrameworkSorter>
@@ -445,7 +442,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
 
   slaves[slaveId] = Slave();
   slaves[slaveId].total = total;
-  slaves[slaveId].available = total - internal::sum(used.values());
+  slaves[slaveId].available = total - sum(used.values());
   slaves[slaveId].activated = true;
   slaves[slaveId].checkpoint = slaveInfo.checkpoint();
   slaves[slaveId].hostname = slaveInfo.hostname();
@@ -916,7 +913,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
 
 } // namespace allocator {
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__

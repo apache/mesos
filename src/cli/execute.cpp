@@ -36,7 +36,6 @@
 #include "hdfs/hdfs.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
 
 using process::UPID;
 

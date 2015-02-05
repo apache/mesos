@@ -35,7 +35,6 @@
 #include "slave/state.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Forward declaration.
@@ -147,7 +146,6 @@ public:
 
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __ISOLATOR_HPP__

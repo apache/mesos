@@ -41,7 +41,7 @@
 #include "tests/flags.hpp"
 
 
-using namespace mesos::internal;
+using namespace mesos;
 
 using namespace process;
 

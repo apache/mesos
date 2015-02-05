@@ -28,7 +28,6 @@
 #include "slave/containerizer/isolators/cgroups/constants.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Use the Linux cpu cgroup controller for cpu isolation which uses the
@@ -106,7 +105,6 @@ private:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __CPUSHARE_ISOLATOR_HPP__

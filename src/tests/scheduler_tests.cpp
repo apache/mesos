@@ -47,13 +47,12 @@
 #include "tests/mesos.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos::tests;
 
-using mesos::internal::master::Master;
+using mesos::master::Master;
 
-using mesos::internal::slave::Containerizer;
-using mesos::internal::slave::Slave;
+using mesos::slave::Containerizer;
+using mesos::slave::Slave;
 
 using mesos::scheduler::Call;
 using mesos::scheduler::Event;

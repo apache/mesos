@@ -35,7 +35,6 @@
 #include "zookeeper/url.hpp"
 
 namespace mesos {
-namespace internal {
 
 extern const Duration MASTER_DETECTOR_ZK_SESSION_TIMEOUT;
 
@@ -128,7 +127,6 @@ private:
   ZooKeeperMasterDetectorProcess* process;
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_DETECTOR_HPP__

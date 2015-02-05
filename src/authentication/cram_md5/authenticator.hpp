@@ -43,7 +43,6 @@
 #include "messages/messages.hpp"
 
 namespace mesos {
-namespace internal {
 namespace cram_md5 {
 
 // Forward declaration.
@@ -511,7 +510,6 @@ process::Future<Option<std::string>> CRAMMD5Authenticator::authenticate(void)
 }
 
 } // namespace cram_md5 {
-} // namespace internal {
 } // namespace mesos {
 
 #endif //__AUTHENTICATION_CRAM_MD5_AUTHENTICATOR_HPP__

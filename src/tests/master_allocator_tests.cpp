@@ -43,16 +43,15 @@
 #include "tests/mesos.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos::tests;
 
-using mesos::internal::master::allocator::Allocator;
-using mesos::internal::master::allocator::AllocatorProcess;
-using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
+using mesos::master::allocator::Allocator;
+using mesos::master::allocator::AllocatorProcess;
+using mesos::master::allocator::HierarchicalDRFAllocatorProcess;
 
-using mesos::internal::master::Master;
+using mesos::master::Master;
 
-using mesos::internal::slave::Slave;
+using mesos::slave::Slave;
 
 using process::Clock;
 using process::Future;
@@ -1124,7 +1123,7 @@ TYPED_TEST(MasterAllocatorTest, Whitelist)
 
   ASSERT_SOME(os::write(path, strings::join("\n", hosts)));
 
-  Clock::advance(mesos::internal::master::WHITELIST_WATCH_INTERVAL);
+  Clock::advance(mesos::master::WHITELIST_WATCH_INTERVAL);
 
   // Make sure the allocator has been given the updated whitelist.
   AWAIT_READY(updateWhitelist2);

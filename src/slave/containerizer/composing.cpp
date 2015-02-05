@@ -39,7 +39,6 @@ using std::vector;
 using namespace process;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 
@@ -550,5 +549,4 @@ Future<hashset<ContainerID> > ComposingContainerizerProcess::containers()
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

@@ -35,7 +35,6 @@ using std::string;
 using std::vector;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 using state::RunState;
@@ -181,5 +180,4 @@ Future<Nothing> _destroy(const Future<Option<int> >& future)
 
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

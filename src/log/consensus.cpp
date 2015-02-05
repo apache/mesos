@@ -40,7 +40,6 @@ using namespace process;
 using std::set;
 
 namespace mesos {
-namespace internal {
 namespace log {
 
 class ExplicitPromiseProcess : public Process<ExplicitPromiseProcess>
@@ -782,5 +781,4 @@ Future<Action> fill(
 }
 
 } // namespace log {
-} // namespace internal {
 } // namespace mesos {

@@ -39,7 +39,6 @@ using std::vector;
 using mesos::modules::ModuleManager;
 
 namespace mesos {
-namespace internal {
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static hashmap<string, Hook*> availableHooks;
@@ -147,5 +146,4 @@ void HookManager::slaveRemoveExecutorHook(
   }
 }
 
-} // namespace internal {
 } // namespace mesos {

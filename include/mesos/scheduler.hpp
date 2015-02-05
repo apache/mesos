@@ -47,16 +47,13 @@
 namespace mesos {
 
 // A few forward declarations.
+class MasterDetector;
 class SchedulerDriver;
+class SchedulerProcess;
 
 namespace scheduler {
 class MesosProcess;
 } // namespace scheduler {
-
-namespace internal {
-class MasterDetector;
-class SchedulerProcess;
-} // namespace internal {
 
 
 // Callback interface to be implemented by frameworks' schedulers.
@@ -402,7 +399,7 @@ public:
 
 protected:
   // Used to detect (i.e., choose) the master.
-  internal::MasterDetector* detector;
+  MasterDetector* detector;
 
 private:
   void initialize();
@@ -412,7 +409,7 @@ private:
   std::string master;
 
   // Used for communicating with the master.
-  internal::SchedulerProcess* process;
+  SchedulerProcess* process;
 
   // URL for the master (e.g., zk://, file://, etc).
   std::string url;

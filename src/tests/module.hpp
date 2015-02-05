@@ -30,7 +30,6 @@
 #include "tests/mesos.hpp"
 
 namespace mesos {
-namespace internal {
 namespace tests {
 
 // The ModuleID is used by typed tests to specify the specific module
@@ -74,7 +73,6 @@ public:
 };
 
 } // namespace tests {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __TESTS_MODULE_HPP__

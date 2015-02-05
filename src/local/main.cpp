@@ -33,10 +33,10 @@
 
 #include "logging/logging.hpp"
 
-using namespace mesos::internal;
+using namespace mesos;
 
-using mesos::internal::master::Master;
-using mesos::internal::slave::Slave;
+using mesos::master::Master;
+using mesos::slave::Slave;
 
 using std::cerr;
 using std::endl;

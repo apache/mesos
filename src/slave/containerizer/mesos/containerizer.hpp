@@ -30,7 +30,6 @@
 #include "slave/containerizer/launcher.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Forward declaration.
@@ -267,7 +266,6 @@ private:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MESOS_CONTAINERIZER_HPP__

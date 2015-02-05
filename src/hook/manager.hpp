@@ -28,7 +28,6 @@
 #include "messages/messages.hpp"
 
 namespace mesos {
-namespace internal {
 
 class HookManager
 {
@@ -54,7 +53,6 @@ public:
       const ExecutorInfo& executorInfo);
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __HOOK_MANAGER_HPP__

@@ -51,7 +51,6 @@ using std::set;
 using std::string;
 
 namespace mesos {
-namespace internal {
 
 const Duration MASTER_DETECTOR_ZK_SESSION_TIMEOUT = Seconds(10);
 
@@ -465,5 +464,4 @@ Future<Option<MasterInfo> > ZooKeeperMasterDetector::detect(
   return dispatch(process, &ZooKeeperMasterDetectorProcess::detect, previous);
 }
 
-} // namespace internal {
 } // namespace mesos {

@@ -28,7 +28,6 @@
 #include "usage/usage.hpp"
 
 namespace mesos {
-namespace internal {
 
 Try<ResourceStatistics> usage(pid_t pid, bool mem, bool cpus)
 {
@@ -80,5 +79,4 @@ Try<ResourceStatistics> usage(pid_t pid, bool mem, bool cpus)
   return statistics;
 }
 
-} // namespace internal {
 } // namespace mesos {

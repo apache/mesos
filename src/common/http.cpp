@@ -32,7 +32,6 @@
 using std::vector;
 
 namespace mesos {
-namespace internal {
 
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON
 // Conversion (when it becomes available).
@@ -191,5 +190,4 @@ JSON::Object model(
 }
 
 
-}  // namespace internal {
 }  // namespace mesos {

@@ -33,8 +33,7 @@
 #include "log/tool/replica.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::log;
+using namespace mesos::log;
 
 using namespace process;
 

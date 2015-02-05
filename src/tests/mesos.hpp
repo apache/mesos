@@ -68,7 +68,6 @@ using ::testing::DoDefault;
 using ::testing::Return;
 
 namespace mesos {
-namespace internal {
 namespace tests {
 
 // Forward declarations.
@@ -1122,7 +1121,6 @@ void ExpectNoFutureProtobufs(T t, From from, To to)
 }
 
 } // namespace tests {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __TESTS_MESOS_HPP__

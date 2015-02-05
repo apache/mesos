@@ -32,9 +32,6 @@ namespace mesos {
 std::ostream& operator << (std::ostream& stream, const Attribute& attribute);
 
 
-namespace internal {
-
-
 class Attributes
 {
 public:
@@ -118,7 +115,6 @@ private:
 };
 
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __ATTRIBUTES_HPP__

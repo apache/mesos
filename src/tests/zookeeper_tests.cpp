@@ -36,8 +36,8 @@
 
 #include "tests/zookeeper.hpp"
 
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos;
+using namespace mesos::tests;
 using namespace process;
 using namespace zookeeper;
 

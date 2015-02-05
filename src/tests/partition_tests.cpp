@@ -38,14 +38,13 @@
 #include "tests/mesos.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos::tests;
 
-using mesos::internal::master::Master;
+using mesos::master::Master;
 
-using mesos::internal::master::allocator::AllocatorProcess;
+using mesos::master::allocator::AllocatorProcess;
 
-using mesos::internal::slave::Slave;
+using mesos::slave::Slave;
 
 using process::Clock;
 using process::Future;

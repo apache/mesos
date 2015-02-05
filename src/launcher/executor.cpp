@@ -59,7 +59,7 @@
 #include "slave/graceful_shutdown.hpp"
 
 using process::wait; // Necessary on some OS's to disambiguate.
-using namespace mesos::internal::slave;
+using namespace mesos::slave;
 
 using std::cout;
 using std::cerr;
@@ -68,7 +68,6 @@ using std::string;
 using std::vector;
 
 namespace mesos {
-namespace internal {
 
 using namespace process;
 
@@ -590,7 +589,6 @@ private:
   CommandExecutorProcess* process;
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 
@@ -683,7 +681,7 @@ int main(int argc, char** argv)
   if (path.empty()) {
     path = os::realpath(dirname(argv[0])).get();
   }
-  mesos::internal::CommandExecutor executor(override, path, shutdownTimeout);
+  mesos::CommandExecutor executor(override, path, shutdownTimeout);
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
 }

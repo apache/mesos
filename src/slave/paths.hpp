@@ -25,7 +25,6 @@
 #include <mesos/mesos.hpp>
 
 namespace mesos {
-namespace internal {
 namespace slave {
 namespace paths {
 
@@ -263,7 +262,6 @@ std::string createSlaveDirectory(
 
 } // namespace paths {
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __SLAVE_PATHS_HPP__

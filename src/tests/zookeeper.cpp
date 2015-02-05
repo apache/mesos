@@ -47,7 +47,6 @@ using std::string;
 using std::vector;
 
 namespace mesos {
-namespace internal {
 namespace tests {
 
 const Duration ZooKeeperTest::NO_TIMEOUT = Seconds(10);
@@ -183,5 +182,4 @@ ZooKeeperTest::TestWatcher::awaitEvent(
 }
 
 } // namespace tests {
-} // namespace internal {
 } // namespace mesos {

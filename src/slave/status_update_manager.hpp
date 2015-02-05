@@ -50,7 +50,6 @@
 #include "slave/flags.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Forward declarations.
@@ -409,7 +408,6 @@ private:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 

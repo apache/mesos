@@ -25,14 +25,12 @@
 
 #include <stout/json.hpp>
 
+#include "messages/messages.hpp"
+
 namespace mesos {
 
-class Resources;
-
-namespace internal {
-
 class Attributes;
-class Task;
+class Resources;
 
 
 JSON::Object model(const Resources& resources);
@@ -47,7 +45,6 @@ JSON::Object model(
     const TaskState& state,
     const std::vector<TaskStatus>& statuses);
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __COMMON_HTTP_HPP__

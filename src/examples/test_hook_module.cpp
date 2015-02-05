@@ -33,7 +33,6 @@
 using std::string;
 
 using namespace mesos;
-using namespace mesos::internal;
 
 // Must be kept in sync with variables of the same name in
 // tests/hook_tests.cpp.

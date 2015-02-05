@@ -50,7 +50,6 @@ using process::Timeout;
 using process::UPID;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 using state::SlaveState;
@@ -634,5 +633,4 @@ void StatusUpdateManager::cleanup(const FrameworkID& frameworkId)
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

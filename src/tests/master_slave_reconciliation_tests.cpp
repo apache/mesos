@@ -41,13 +41,12 @@
 #include "tests/mesos.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::protobuf;
-using namespace mesos::internal::tests;
+using namespace mesos::protobuf;
+using namespace mesos::tests;
 
-using mesos::internal::master::Master;
+using mesos::master::Master;
 
-using mesos::internal::slave::Slave;
+using mesos::slave::Slave;
 
 using process::Clock;
 using process::Future;

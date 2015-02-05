@@ -30,7 +30,6 @@
 #include "usage/usage.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // A basic IsolatorProcess that keeps track of the pid but doesn't do any
@@ -163,7 +162,7 @@ public:
 
     // Use 'mesos-usage' but only request 'cpus_' values.
     Try<ResourceStatistics> usage =
-      mesos::internal::usage(pids.get(containerId).get(), false, true);
+      mesos::usage(pids.get(containerId).get(), false, true);
     if (usage.isError()) {
       return process::Failure(usage.error());
     }
@@ -196,7 +195,7 @@ public:
 
     // Use 'mesos-usage' but only request 'mem_' values.
     Try<ResourceStatistics> usage =
-      mesos::internal::usage(pids.get(containerId).get(), true, false);
+      mesos::usage(pids.get(containerId).get(), true, false);
     if (usage.isError()) {
       return process::Failure(usage.error());
     }
@@ -209,7 +208,6 @@ private:
 
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __POSIX_ISOLATOR_HPP__

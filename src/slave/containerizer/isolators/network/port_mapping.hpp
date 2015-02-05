@@ -48,7 +48,6 @@
 #include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // The prefix this isolator uses for the virtual ethernet devices.
@@ -361,7 +360,6 @@ protected:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __PORT_MAPPING_ISOLATOR_HPP__

@@ -35,7 +35,6 @@
 #include "slave/constants.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 class Flags : public logging::Flags
@@ -513,7 +512,6 @@ public:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __SLAVE_FLAGS_HPP__

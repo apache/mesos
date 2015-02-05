@@ -36,7 +36,6 @@ using org::apache::zookeeper::server::NIOServerCnxnFactory;
 using org::apache::zookeeper::server::ZooKeeperServer;
 
 namespace mesos {
-namespace internal {
 namespace tests {
 
 ZooKeeperTestServer::ZooKeeperTestServer()
@@ -163,5 +162,4 @@ int ZooKeeperTestServer::startNetwork()
 }
 
 } // namespace tests {
-} // namespace internal {
 } // namespace mesos {

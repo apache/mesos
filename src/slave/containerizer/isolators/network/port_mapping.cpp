@@ -72,7 +72,7 @@
 
 #include "slave/containerizer/isolators/network/port_mapping.hpp"
 
-using namespace mesos::internal;
+using namespace mesos;
 
 using namespace process;
 
@@ -95,7 +95,6 @@ using std::vector;
 using filter::ip::PortRange;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 const std::string VETH_PREFIX = "mesos";
@@ -2970,5 +2969,4 @@ vector<PortRange> getPortRanges(const IntervalSet<uint16_t>& ports)
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

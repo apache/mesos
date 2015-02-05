@@ -26,7 +26,6 @@ using std::string;
 using std::list;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 
@@ -104,5 +103,4 @@ Future<Nothing> Isolator::cleanup(const ContainerID& containerId)
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

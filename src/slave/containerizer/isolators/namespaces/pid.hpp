@@ -28,7 +28,6 @@
 #include <stout/result.hpp>
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // This isolator itself does not specify the necessary clone() flags
@@ -82,7 +81,6 @@ public:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __NAMESPACES_PID_ISOLATOR_HPP__

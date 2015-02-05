@@ -27,7 +27,6 @@ using std::set;
 using std::string;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 SharedFilesystemIsolatorProcess::SharedFilesystemIsolatorProcess(
@@ -260,5 +259,4 @@ Future<Nothing> SharedFilesystemIsolatorProcess::cleanup(
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

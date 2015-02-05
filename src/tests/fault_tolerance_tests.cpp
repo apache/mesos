@@ -49,13 +49,12 @@
 #include "tests/mesos.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::protobuf;
-using namespace mesos::internal::tests;
+using namespace mesos::protobuf;
+using namespace mesos::tests;
 
-using mesos::internal::master::Master;
+using mesos::master::Master;
 
-using mesos::internal::slave::Slave;
+using mesos::slave::Slave;
 
 using process::Clock;
 using process::Future;
@@ -805,7 +804,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
   AWAIT_READY(reregistrationMessage);
 
   // Trigger the re-registration retry.
-  Clock::advance(internal::scheduler::REGISTRATION_BACKOFF_FACTOR);
+  Clock::advance(scheduler::REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(sched2Registered);
 
@@ -859,7 +858,7 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
   AWAIT_READY(frameworkRegisteredMessage);
 
   Clock::pause();
-  Clock::advance(internal::scheduler::REGISTRATION_BACKOFF_FACTOR);
+  Clock::advance(scheduler::REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(registered); // Ensures registered message is received.
 

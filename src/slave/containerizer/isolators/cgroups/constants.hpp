@@ -23,7 +23,6 @@
 #include <stout/duration.hpp>
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // CPU subsystem constants.
@@ -37,7 +36,6 @@ const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
 const Bytes MIN_MEMORY = Megabytes(32);
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __CGROUPS_ISOLATOR_CONSTANTS_HPP__

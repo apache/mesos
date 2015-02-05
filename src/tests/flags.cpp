@@ -19,12 +19,10 @@
 #include "tests/flags.hpp"
 
 namespace mesos {
-namespace internal {
 namespace tests {
 
 // Storage for the flags.
 Flags flags;
 
 } // namespace tests {
-} // namespace internal {
 } // namespace mesos {

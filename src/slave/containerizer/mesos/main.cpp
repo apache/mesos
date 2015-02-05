@@ -21,7 +21,7 @@
 
 #include "slave/containerizer/mesos/launch.hpp"
 
-using namespace mesos::internal::slave;
+using namespace mesos::slave;
 
 
 int main(int argc, char** argv)

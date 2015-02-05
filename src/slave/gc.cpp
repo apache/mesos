@@ -37,7 +37,6 @@ using std::map;
 using std::string;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 
@@ -207,5 +206,4 @@ void GarbageCollector::prune(const Duration& d)
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

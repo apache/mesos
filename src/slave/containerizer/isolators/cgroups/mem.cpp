@@ -53,7 +53,6 @@ using std::string;
 using std::vector;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 
@@ -585,5 +584,4 @@ void CgroupsMemIsolatorProcess::oom(const ContainerID& containerId)
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

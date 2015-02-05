@@ -30,8 +30,8 @@
 #include "tests/mesos.hpp"
 
 using namespace mesos;
-using namespace mesos::internal::tests;
-using namespace mesos::internal::master::validation;
+using namespace mesos::tests;
+using namespace mesos::master::validation;
 
 using google::protobuf::RepeatedPtrField;
 

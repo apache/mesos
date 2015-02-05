@@ -21,7 +21,6 @@ using namespace process;
 using std::string;
 
 namespace mesos {
-namespace internal {
 namespace state {
 
 
@@ -112,5 +111,4 @@ Future<std::set<string> > InMemoryStorage::names()
 }
 
 } // namespace state {
-} // namespace internal {
 } // namespace mesos {

@@ -52,7 +52,6 @@ using std::string;
 using std::vector;
 
 namespace mesos {
-namespace internal {
 
 class FilesProcess : public Process<FilesProcess>
 {
@@ -472,5 +471,4 @@ void Files::detach(const string& name)
   dispatch(process, &FilesProcess::detach, name);
 }
 
-} // namespace internal {
 } // namespace mesos {

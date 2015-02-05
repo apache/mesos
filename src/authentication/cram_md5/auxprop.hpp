@@ -30,7 +30,6 @@
 #include <stout/option.hpp>
 
 namespace mesos {
-namespace internal {
 namespace cram_md5 {
 
 struct Property
@@ -90,7 +89,6 @@ private:
 };
 
 } // namespace cram_md5 {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __AUTHENTICATION_CRAM_MD5_AUXPROP_HPP__

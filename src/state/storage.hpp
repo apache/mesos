@@ -30,8 +30,9 @@
 #include "messages/state.hpp"
 
 namespace mesos {
-namespace internal {
 namespace state {
+
+using namespace mesos::internal::state;
 
 class Storage
 {
@@ -54,7 +55,6 @@ public:
 };
 
 } // namespace state {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __STATE_STORAGE_HPP__

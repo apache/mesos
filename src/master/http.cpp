@@ -76,11 +76,10 @@ using std::vector;
 
 
 namespace mesos {
-namespace internal {
 namespace master {
 
 // Pull in model overrides from common.
-using mesos::internal::model;
+using mesos::model;
 
 // Pull in definitions from process.
 using process::http::Response;
@@ -887,5 +886,4 @@ Result<Credential> Master::Http::authenticate(const Request& request)
 
 
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {

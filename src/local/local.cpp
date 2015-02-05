@@ -63,23 +63,23 @@
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 
-using namespace mesos::internal;
-using namespace mesos::internal::log;
+using namespace mesos;
+using namespace mesos::log;
 
-using mesos::internal::master::allocator::Allocator;
-using mesos::internal::master::allocator::AllocatorProcess;
-using mesos::internal::master::allocator::DRFSorter;
-using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
+using mesos::master::allocator::Allocator;
+using mesos::master::allocator::AllocatorProcess;
+using mesos::master::allocator::DRFSorter;
+using mesos::master::allocator::HierarchicalDRFAllocatorProcess;
 
-using mesos::internal::master::Master;
-using mesos::internal::master::Registrar;
-using mesos::internal::master::Repairer;
+using mesos::master::Master;
+using mesos::master::Registrar;
+using mesos::master::Repairer;
 
-using mesos::internal::slave::Containerizer;
-using mesos::internal::slave::Fetcher;
-using mesos::internal::slave::GarbageCollector;
-using mesos::internal::slave::Slave;
-using mesos::internal::slave::StatusUpdateManager;
+using mesos::slave::Containerizer;
+using mesos::slave::Fetcher;
+using mesos::slave::GarbageCollector;
+using mesos::slave::Slave;
+using mesos::slave::StatusUpdateManager;
 
 using process::Owned;
 using process::PID;
@@ -93,7 +93,6 @@ using std::vector;
 
 
 namespace mesos {
-namespace internal {
 namespace local {
 
 static Allocator* allocator = NULL;
@@ -340,5 +339,4 @@ void shutdown()
 }
 
 } // namespace local {
-} // namespace internal {
 } // namespace mesos {

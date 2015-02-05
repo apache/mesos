@@ -22,7 +22,6 @@
 #include "slave/containerizer/launcher.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Launcher for Linux systems with cgroups. Uses a freezer cgroup to
@@ -70,7 +69,6 @@ private:
 
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __LINUX_LAUNCHER_HPP__

@@ -22,7 +22,6 @@
 #include <stout/duration.hpp>
 
 namespace mesos {
-namespace internal {
 namespace scheduler {
 
 // Default backoff interval used by the scheduler driver to wait
@@ -37,7 +36,6 @@ extern const Duration REGISTRATION_RETRY_INTERVAL_MAX;
 extern const std::string DEFAULT_AUTHENTICATEE;
 
 } // namespace scheduler {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __SCHED_CONSTANTS_HPP__

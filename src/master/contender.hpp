@@ -34,7 +34,6 @@
 #include "zookeeper/url.hpp"
 
 namespace mesos {
-namespace internal {
 
 extern const Duration MASTER_CONTENDER_ZK_SESSION_TIMEOUT;
 
@@ -127,7 +126,6 @@ private:
   ZooKeeperMasterContenderProcess* process;
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_CONTENDER_HPP__

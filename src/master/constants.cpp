@@ -25,7 +25,6 @@
 #include "master/constants.hpp"
 
 namespace mesos {
-namespace internal {
 namespace master {
 
 const int MAX_OFFERS_PER_FRAMEWORK = 50;
@@ -45,5 +44,4 @@ const Duration ZOOKEEPER_SESSION_TIMEOUT = Seconds(10);
 const std::string DEFAULT_AUTHENTICATOR = "crammd5";
 
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {

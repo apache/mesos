@@ -43,7 +43,6 @@
 using std::string;
 
 namespace mesos {
-namespace internal {
 namespace tests {
 
 void execute(const string& script)
@@ -163,5 +162,4 @@ void execute(const string& script)
 }
 
 } // namespace tests {
-} // namespace internal {
 } // namespace mesos {

@@ -30,8 +30,8 @@
 
 using namespace mesos;
 
-using mesos::internal::Authenticatee;
-using mesos::internal::Authenticator;
+using mesos::Authenticatee;
+using mesos::Authenticator;
 
 static bool compatible()
 {
@@ -41,7 +41,7 @@ static bool compatible()
 
 static Authenticatee* createCRAMMD5Authenticatee(const Parameters& parameters)
 {
-  return new mesos::internal::cram_md5::CRAMMD5Authenticatee();
+  return new mesos::cram_md5::CRAMMD5Authenticatee();
 }
 
 
@@ -57,7 +57,7 @@ mesos::modules::Module<Authenticatee> org_apache_mesos_TestCRAMMD5Authenticatee(
 
 static Authenticator* createCRAMMD5Authenticator(const Parameters& parameters)
 {
-  return new mesos::internal::cram_md5::CRAMMD5Authenticator();
+  return new mesos::cram_md5::CRAMMD5Authenticator();
 }
 
 

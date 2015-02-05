@@ -28,7 +28,6 @@
 #include <stout/try.hpp>
 
 namespace mesos {
-namespace internal {
 namespace credentials {
 
 inline Result<Credentials> read(const std::string& path)
@@ -126,7 +125,6 @@ inline Result<Credential> readCredential(const std::string& path)
 }
 
 } // namespace credentials {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __CREDENTIALS_HPP__

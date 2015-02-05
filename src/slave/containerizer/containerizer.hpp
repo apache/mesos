@@ -38,7 +38,6 @@
 #include "slave/containerizer/fetcher.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Forward declaration.
@@ -139,7 +138,6 @@ std::map<std::string, std::string> executorEnvironment(
     const Duration& recoveryTimeout);
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __CONTAINERIZER_HPP__

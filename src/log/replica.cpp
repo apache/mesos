@@ -44,7 +44,6 @@ using std::list;
 using std::string;
 
 namespace mesos {
-namespace internal {
 namespace log {
 
 namespace protocol {
@@ -822,5 +821,4 @@ PID<ReplicaProcess> Replica::pid() const
 }
 
 } // namespace log {
-} // namespace internal {
 } // namespace mesos {

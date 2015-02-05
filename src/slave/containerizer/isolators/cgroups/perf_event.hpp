@@ -30,7 +30,6 @@
 #include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 class CgroupsPerfEventIsolatorProcess : public IsolatorProcess
@@ -113,7 +112,6 @@ private:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __PERF_EVENT_ISOLATOR_HPP__

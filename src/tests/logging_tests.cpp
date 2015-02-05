@@ -26,7 +26,7 @@
 
 #include "logging/logging.hpp"
 
-using namespace mesos::internal;
+using namespace mesos;
 
 using process::http::BadRequest;
 using process::http::OK;

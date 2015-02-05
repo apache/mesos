@@ -100,7 +100,7 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  Try<ResourceStatistics> statistics = mesos::internal::usage(flags.pid.get());
+  Try<ResourceStatistics> statistics = mesos::usage(flags.pid.get());
 
   if (statistics.isError()) {
     cerr << "Failed to get usage: " << statistics.error() << endl;

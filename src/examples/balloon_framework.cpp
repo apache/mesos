@@ -37,7 +37,6 @@
 #include "examples/utils.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
 
 using std::cout;
 using std::endl;

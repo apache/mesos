@@ -29,12 +29,11 @@
 #include "tests/mesos.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
 
-using mesos::internal::master::Master;
-using mesos::internal::slave::Slave;
+using mesos::master::Master;
+using mesos::slave::Slave;
 
-class MetricsTest : public mesos::internal::tests::MesosTest {};
+class MetricsTest : public mesos::tests::MesosTest {};
 
 TEST_F(MetricsTest, Master)
 {

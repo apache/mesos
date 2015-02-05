@@ -30,7 +30,6 @@
 #include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Forward declarations.
@@ -140,7 +139,6 @@ private:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __POSIX_DISK_ISOLATOR_HPP__

@@ -24,7 +24,6 @@
 #include "logging/flags.hpp"
 
 namespace mesos {
-namespace internal {
 namespace local {
 
 class Flags : public logging::Flags
@@ -42,7 +41,6 @@ public:
 };
 
 } // namespace local {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOCAL_FLAGS_HPP__

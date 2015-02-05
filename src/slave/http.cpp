@@ -64,12 +64,11 @@ using std::vector;
 
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 
 // Pull in defnitions from common.
-using mesos::internal::model;
+using mesos::model;
 
 // Pull in the process definitions.
 using process::http::Response;
@@ -400,5 +399,4 @@ Future<Response> Slave::Http::state(const Request& request)
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

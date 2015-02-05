@@ -20,7 +20,6 @@
 #define __SLAVE_GRACEFUL_SHUTDOWN_HPP__
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Slave           Exec          Executor
@@ -62,7 +61,6 @@ Duration getExecGracePeriod(const Duration& baseShutdownTimeout);
 Duration getExecutorGracePeriod(const Duration& baseShutdownTimeout);
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __SLAVE_GRACEFUL_SHUTDOWN_HPP__

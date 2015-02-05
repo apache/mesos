@@ -31,8 +31,7 @@
 using std::string;
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos::tests;
 using namespace mesos::modules;
 
 static hashmap<ModuleID, string> moduleNames;

@@ -26,7 +26,6 @@
 #include "slave/containerizer/isolators/cgroups/constants.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 class CgroupsMemIsolatorProcess : public IsolatorProcess
@@ -112,7 +111,6 @@ private:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MEM_ISOLATOR_HPP__

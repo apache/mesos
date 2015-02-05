@@ -22,7 +22,6 @@
 #include <string>
 
 namespace mesos {
-namespace internal {
 
 /**
  * Utility functions for dealing with dates.
@@ -35,7 +34,6 @@ std::string currentDate();
 
 
 } // namespace DateUtils {
-} // namespace internal {
 } // namespace mesos {
 
 #endif

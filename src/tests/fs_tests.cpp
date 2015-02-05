@@ -30,7 +30,6 @@
 
 
 using namespace mesos;
-using namespace mesos::internal;
 
 using fs::MountTable;
 using fs::FileSystemTable;

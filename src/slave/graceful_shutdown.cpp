@@ -24,7 +24,6 @@
 #include "slave/graceful_shutdown.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Calculates the shutdown grace period (aka shutdown timeout) so it
@@ -72,5 +71,4 @@ Duration getExecutorGracePeriod(const Duration& baseShutdownTimeout)
 
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

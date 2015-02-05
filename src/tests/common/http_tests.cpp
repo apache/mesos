@@ -34,7 +34,6 @@
 using std::vector;
 
 using namespace mesos;
-using namespace mesos::internal;
 
 // TODO(bmahler): Add tests for other JSON models.
 

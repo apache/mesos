@@ -36,7 +36,6 @@
 #include "slave/containerizer/launcher.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // The scheme an external containerizer programs have to adhere to is;
@@ -294,7 +293,6 @@ private:
 
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __EXTERNAL_CONTAINERIZER_HPP__

@@ -27,7 +27,6 @@
 #include <stout/duration.hpp>
 
 namespace mesos {
-namespace internal {
 namespace master {
 
 // TODO(benh): Add units after constants.
@@ -109,7 +108,6 @@ extern const Duration ZOOKEEPER_SESSION_TIMEOUT;
 extern const std::string DEFAULT_AUTHENTICATOR;
 
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_CONSTANTS_HPP__

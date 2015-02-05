@@ -53,7 +53,6 @@ using std::string;
 using std::vector;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 
@@ -535,5 +534,4 @@ Future<list<Nothing> > CgroupsCpushareIsolatorProcess::_cleanup(
 
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

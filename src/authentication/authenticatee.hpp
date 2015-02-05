@@ -27,7 +27,6 @@
 #include <stout/try.hpp>
 
 namespace mesos {
-namespace internal {
 
 class Authenticatee
 {
@@ -52,7 +51,6 @@ public:
     const mesos::Credential& credential) = 0;
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __AUTHENTICATEE_HPP__

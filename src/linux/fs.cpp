@@ -30,7 +30,6 @@
 
 
 namespace mesos {
-namespace internal {
 namespace fs {
 
 
@@ -179,5 +178,4 @@ Try<Nothing> unmount(const std::string& target, int flags)
 
 
 } // namespace fs {
-} // namespace internal {
 } // namespace mesos {

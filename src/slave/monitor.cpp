@@ -47,7 +47,6 @@ using std::map;
 using std::string;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 using process::wait; // Necessary on some OS's to disambiguate.
@@ -308,5 +307,4 @@ Future<Nothing> ResourceMonitor::stop(
 }
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

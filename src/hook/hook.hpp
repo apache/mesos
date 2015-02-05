@@ -28,7 +28,6 @@
 #include "slave/slave.hpp"
 
 namespace mesos {
-namespace internal {
 
 class Hook
 {
@@ -70,7 +69,6 @@ public:
   }
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __HOOK_HOOK_HPP__

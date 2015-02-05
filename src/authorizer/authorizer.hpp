@@ -31,7 +31,6 @@
 #include "mesos/mesos.hpp"
 
 namespace mesos {
-namespace internal {
 
 // Forward declaration.
 class LocalAuthorizerProcess;
@@ -81,7 +80,6 @@ private:
   LocalAuthorizerProcess* process;
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif //__AUTHORIZER_AUTHORIZER_HPP__

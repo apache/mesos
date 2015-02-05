@@ -25,7 +25,6 @@
 #include <mesos/resources.hpp>
 
 namespace mesos {
-namespace internal {
 namespace master {
 namespace allocator {
 
@@ -101,7 +100,6 @@ public:
 
 } // namespace allocator {
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __SORTER_HPP__

@@ -138,8 +138,7 @@ bool operator == (const SlaveInfo& left, const SlaveInfo& right)
 {
   return left.hostname() == right.hostname() &&
     Resources(left.resources()) == Resources(right.resources()) &&
-    internal::Attributes(left.attributes()) ==
-    internal::Attributes(right.attributes()) &&
+    Attributes(left.attributes()) == Attributes(right.attributes()) &&
     left.has_id() == right.has_id() &&
     (!left.has_id() || (left.id() == right.id())) &&
     left.has_checkpoint() == right.has_checkpoint() &&

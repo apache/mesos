@@ -33,9 +33,8 @@
 using std::string;
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
+using namespace mesos::slave;
+using namespace mesos::tests;
 using namespace mesos::modules;
 
 const char* DEFAULT_MODULE_LIBRARY_NAME = "examplemodule";

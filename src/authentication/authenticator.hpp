@@ -28,7 +28,6 @@
 #include <stout/try.hpp>
 
 namespace mesos {
-namespace internal {
 
 // Note that this interface definition is not hardened yet and will
 // slightly change within the next release. See MESOS-2050.
@@ -51,7 +50,6 @@ public:
   virtual process::Future<Option<std::string>> authenticate(void) = 0;
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __AUTHENTICATOR_HPP__

@@ -22,7 +22,6 @@
 #include <pthread.h>
 
 namespace mesos {
-namespace internal {
 
 // RAII class for locking pthread_mutexes.
 class Lock
@@ -39,7 +38,6 @@ private:
   bool locked;
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOCK_HPP__

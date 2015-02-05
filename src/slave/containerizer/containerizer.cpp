@@ -51,7 +51,6 @@ using std::vector;
 using namespace process;
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // TODO(idownes): Move this to the Containerizer interface to complete
@@ -308,5 +307,4 @@ map<string, string> executorEnvironment(
 
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {

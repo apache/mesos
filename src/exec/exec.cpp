@@ -58,8 +58,7 @@
 #include "slave/state.hpp"
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
+using namespace mesos::slave;
 
 using namespace process;
 
@@ -69,7 +68,6 @@ using process::wait; // Necessary on some OS's to disambiguate.
 
 
 namespace mesos {
-namespace internal {
 
 
 // A custom executor can be non-cooperative as it can block the
@@ -584,7 +582,6 @@ private:
   LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
 };
 
-} // namespace internal {
 } // namespace mesos {
 
 

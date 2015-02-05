@@ -61,27 +61,28 @@
 #endif
 
 using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::log;
+using namespace mesos::log;
 
 using namespace process;
 
-using state::LevelDBStorage;
-using state::Operation;
-using state::Storage;
+using mesos::state::InMemoryStorage;
+using mesos::state::LevelDBStorage;
+using mesos::state::LogStorage;
+using mesos::state::Operation;
+using mesos::state::Storage;
 #ifdef MESOS_HAS_JAVA
-using state::ZooKeeperStorage;
+using mesos::state::ZooKeeperStorage;
 #endif
 
-using state::protobuf::State;
-using state::protobuf::Variable;
+using mesos::state::protobuf::State;
+using mesos::state::protobuf::Variable;
 
 using std::list;
 using std::set;
 using std::string;
 using std::vector;
 
-using mesos::internal::tests::TemporaryDirectoryTest;
+using mesos::tests::TemporaryDirectoryTest;
 
 typedef mesos::internal::Registry::Slaves Slaves;
 typedef mesos::internal::Registry::Slave Slave;
@@ -336,7 +337,7 @@ public:
 protected:
   virtual void SetUp()
   {
-    storage = new state::InMemoryStorage();
+    storage = new InMemoryStorage();
     state = new State(storage);
   }
 
@@ -346,7 +347,7 @@ protected:
     delete storage;
   }
 
-  state::Storage* storage;
+  Storage* storage;
   State* state;
 };
 
@@ -405,7 +406,7 @@ protected:
   virtual void SetUp()
   {
     os::rmdir(path);
-    storage = new state::LevelDBStorage(path);
+    storage = new LevelDBStorage(path);
     state = new State(storage);
   }
 
@@ -416,7 +417,7 @@ protected:
     os::rmdir(path);
   }
 
-  state::Storage* storage;
+  Storage* storage;
   State* state;
 
 private:
@@ -500,7 +501,7 @@ protected:
     pids.insert(replica2->pid());
 
     log = new Log(2, path1, pids);
-    storage = new state::LogStorage(log, 1024);
+    storage = new LogStorage(log, 1024);
     state = new State(storage);
   }
 
@@ -515,7 +516,7 @@ protected:
     TemporaryDirectoryTest::TearDown();
   }
 
-  state::Storage* storage;
+  Storage* storage;
   State* state;
 
   Replica* replica2;
@@ -698,7 +699,7 @@ protected:
   virtual void SetUp()
   {
     ZooKeeperTest::SetUp();
-    storage = new state::ZooKeeperStorage(
+    storage = new ZooKeeperStorage(
         server->connectString(),
         NO_TIMEOUT,
         "/state/");
@@ -712,7 +713,7 @@ protected:
     ZooKeeperTest::TearDown();
   }
 
-  state::Storage* storage;
+  Storage* storage;
   State* state;
 };
 

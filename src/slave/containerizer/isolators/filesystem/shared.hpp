@@ -22,7 +22,6 @@
 #include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // This isolator is to be used when all containers share the host's
@@ -70,7 +69,6 @@ private:
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __SHARED_FILESYSTEM_ISOLATOR_HPP__

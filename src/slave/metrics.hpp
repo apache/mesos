@@ -26,7 +26,6 @@
 
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 class Slave;
@@ -70,7 +69,6 @@ struct Metrics
 };
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __SLAVE_METRICS_HPP__

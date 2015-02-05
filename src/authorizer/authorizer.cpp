@@ -46,7 +46,6 @@ using std::string;
 using std::vector;
 
 namespace mesos {
-namespace internal {
 
 class LocalAuthorizerProcess : public ProtobufProcess<LocalAuthorizerProcess>
 {
@@ -278,5 +277,4 @@ Future<bool> LocalAuthorizer::authorize(const ACL::ShutdownFramework& request)
       process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
 }
 
-} // namespace internal {
 } // namespace mesos {

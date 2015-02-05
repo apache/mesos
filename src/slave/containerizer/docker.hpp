@@ -28,7 +28,6 @@
 #include "slave/containerizer/containerizer.hpp"
 
 namespace mesos {
-namespace internal {
 namespace slave {
 
 // Prefix used to name Docker containers in order to distinguish those
@@ -439,7 +438,6 @@ private:
 
 
 } // namespace slave {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __DOCKER_CONTAINERIZER_HPP__

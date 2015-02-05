@@ -33,8 +33,8 @@
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/group.hpp"
 
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos;
+using namespace mesos::tests;
 
 using zookeeper::Group;
 using zookeeper::GroupProcess;

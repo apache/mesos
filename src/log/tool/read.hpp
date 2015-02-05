@@ -30,7 +30,6 @@
 #include "logging/flags.hpp"
 
 namespace mesos {
-namespace internal {
 namespace log {
 namespace tool {
 
@@ -61,7 +60,6 @@ private:
 
 } // namespace tool {
 } // namespace log {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOG_TOOL_READ_HPP__
