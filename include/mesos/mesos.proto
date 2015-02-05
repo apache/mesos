@@ -1095,7 +1095,7 @@ message Port {
  * Collection of ports.
  */
 message Ports {
-    repeated Port ports = 1;
+  repeated Port ports = 1;
 }
 
 
@@ -1113,7 +1113,6 @@ message Ports {
 * service discovery system.
 */
 message DiscoveryInfo {
-
   enum Visibility {
     FRAMEWORK = 0;
     CLUSTER = 1;

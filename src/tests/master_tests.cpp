@@ -2773,9 +2773,9 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   TaskInfo task;
   task.set_name("testtask");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
-  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  task.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->CopyFrom(offers.get()[0].resources());
+  task.mutable_executor()->CopyFrom(DEFAULT_EXECUTOR_INFO);
 
   // An expanded service discovery info to the task.
   DiscoveryInfo* info = task.mutable_discovery();
@@ -2784,6 +2784,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   info->set_environment("mytest");
   info->set_location("mylocation");
   info->set_version("v0.1.1");
+
   // Add two named ports to the discovery info.
   Ports* ports = info->mutable_ports();
   Port* port1 = ports->add_ports();
@@ -2794,6 +2795,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   port2->set_number(9999);
   port2->set_name("myport2");
   port2->set_protocol("udp");
+
   // Add two labels to the discovery info.
   Labels* labels = info->mutable_labels();
   Label* label1 = labels->add_labels();
@@ -2874,11 +2876,12 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   ASSERT_EQ("v0.1.1", version.get());
 
   // Verify content of two named ports.
-  Result<JSON::Array> portsObject = parse.get().find<JSON::Array>(
-      "frameworks[0].tasks[0].discovery.ports");
-  EXPECT_SOME(portsObject);
+  Result<JSON::Array> portsArray = parse.get().find<JSON::Array>(
+      "frameworks[0].tasks[0].discovery.ports.ports");
+  EXPECT_SOME(portsArray);
 
-  JSON::Array portsObject_ = portsObject.get();
+  JSON::Array portsArray_ = portsArray.get();
+  EXPECT_EQ(2, portsArray_.values.size());
 
   // Verify the content of '8888:myport1:tcp' port.
   Try<JSON::Value> expected = JSON::parse(
@@ -2888,7 +2891,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "  \"protocol\":\"tcp\""
       "}");
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), portsObject_.values[0]);
+  EXPECT_EQ(expected.get(), portsArray_.values[0]);
 
   // Verify the content of '9999:myport2:udp' port.
   expected = JSON::parse(
@@ -2898,14 +2901,15 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "  \"protocol\":\"udp\""
       "}");
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), portsObject_.values[1]);
+  EXPECT_EQ(expected.get(), portsArray_.values[1]);
 
   // Verify content of two labels.
-  Result<JSON::Array> labelsObject = parse.get().find<JSON::Array>(
-      "frameworks[0].tasks[0].discovery.labels");
-  EXPECT_SOME(labelsObject);
+  Result<JSON::Array> labelsArray = parse.get().find<JSON::Array>(
+      "frameworks[0].tasks[0].discovery.labels.labels");
+  EXPECT_SOME(labelsArray);
 
-  JSON::Array labelsObject_ = labelsObject.get();
+  JSON::Array labelsArray_ = labelsArray.get();
+  EXPECT_EQ(2, labelsArray_.values.size());
 
   // Verify the content of 'clearance:high' pair.
   expected = JSON::parse(
@@ -2914,7 +2918,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "  \"value\":\"high\""
       "}");
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), labelsObject_.values[0]);
+  EXPECT_EQ(expected.get(), labelsArray_.values[0]);
 
   // Verify the content of 'RPC:yes' pair.
   expected = JSON::parse(
@@ -2923,7 +2927,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "  \"value\":\"yes\""
       "}");
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), labelsObject_.values[1]);
+  EXPECT_EQ(expected.get(), labelsArray_.values[1]);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
