@@ -56,7 +56,7 @@ inline Try<mesos::RateLimits> parse(const std::string& value)
 
 
 template<>
-inline Try<mesos::internal::Modules> parse(const std::string& value)
+inline Try<mesos::Modules> parse(const std::string& value)
 {
   // Convert from string or file to JSON.
   Try<JSON::Object> json = parse<JSON::Object>(value);
@@ -65,7 +65,7 @@ inline Try<mesos::internal::Modules> parse(const std::string& value)
   }
 
   // Convert from JSON to Protobuf.
-  return protobuf::parse<mesos::internal::Modules>(json.get());
+  return protobuf::parse<mesos::Modules>(json.get());
 }
 
 

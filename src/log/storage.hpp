@@ -32,8 +32,6 @@
 namespace mesos {
 namespace log {
 
-using namespace mesos::internal::log;
-
 // Abstract interface for reading and writing records.
 class Storage
 {

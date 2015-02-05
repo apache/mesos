@@ -30,8 +30,6 @@
 namespace mesos {
 namespace log {
 
-using namespace mesos::internal::log;
-
 // Concrete implementation of the storage interface using leveldb.
 class LevelDBStorage : public Storage
 {

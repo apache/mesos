@@ -39,8 +39,6 @@ using std::string;
 namespace mesos {
 namespace log {
 
-using namespace mesos::internal::log;
-
 class Varint64Comparator : public leveldb::Comparator
 {
 public:

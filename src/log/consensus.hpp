@@ -43,8 +43,6 @@
 namespace mesos {
 namespace log {
 
-using namespace mesos::internal::log;
-
 // Runs the promise phase (a.k.a., the prepare phase) in Paxos. This
 // phase has two purposes. First, the proposer asks promises from a
 // quorum of replicas not to accept writes from proposers with lower

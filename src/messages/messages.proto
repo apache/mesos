@@ -18,12 +18,12 @@
 
 import "mesos/mesos.proto";
 
-package mesos.internal;
+package mesos;
 
 // TODO(benh): Provide comments for each of these messages. Also,
 // consider splitting these messages into different "packages" which
 // represent which messages get handled by which components (e.g., the
-// "mesos.internal.executor" package includes messages that the
+// "mesos.executor" package includes messages that the
 // executor handles).
 
 

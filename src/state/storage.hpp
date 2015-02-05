@@ -32,8 +32,6 @@
 namespace mesos {
 namespace state {
 
-using namespace mesos::internal::state;
-
 class Storage
 {
 public:

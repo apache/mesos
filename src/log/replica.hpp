@@ -35,8 +35,6 @@
 namespace mesos {
 namespace log {
 
-using namespace mesos::internal::log;
-
 namespace protocol {
 
 // Some replica protocol declarations.

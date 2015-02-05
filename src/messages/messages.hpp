@@ -30,10 +30,6 @@
 
 #include "messages/messages.pb.h"
 
-// TODO(karya): We should remove this once the internal protobufs are
-// moved from mesos::internal to mesos namespace.
-using namespace mesos::internal;
-
 namespace messages {
 
 template <typename T>

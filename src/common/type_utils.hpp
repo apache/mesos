@@ -352,8 +352,6 @@ inline std::ostream& operator << (
 }
 
 
-namespace internal {
-
 bool operator == (const Task& left, const Task& right);
 
 
@@ -397,7 +395,6 @@ inline std::ostream& operator << (
 }
 
 } // namespace log {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __TYPE_UTILS_HPP__

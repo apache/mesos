@@ -84,8 +84,8 @@ using std::vector;
 
 using mesos::tests::TemporaryDirectoryTest;
 
-typedef mesos::internal::Registry::Slaves Slaves;
-typedef mesos::internal::Registry::Slave Slave;
+typedef mesos::Registry::Slaves Slaves;
+typedef mesos::Registry::Slave Slave;
 
 void FetchAndStoreAndFetch(State* state)
 {
