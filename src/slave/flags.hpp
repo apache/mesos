@@ -385,7 +385,7 @@ public:
         "container_disk_watch_interval",
         "The interval between disk quota checks for containers. This flag is\n"
         "used for the 'posix/disk' isolator.",
-        Seconds(30));
+        Seconds(15));
 
     add(&Flags::enforce_container_disk_quota,
         "enforce_container_disk_quota",
