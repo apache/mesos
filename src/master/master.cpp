@@ -2403,12 +2403,11 @@ void Master::_accept(
 
         _offeredResources = resources.get();
 
-        allocator->updateAllocation(
-            frameworkId,
-            slaveId,
-            {operation});
+        LOG(INFO) << "Applying CREATE operation for volumes "
+                  << operation.create().volumes() << " from framework "
+                  << *framework << " to slave " << *slave;
 
-        updateCheckpointedResources(slave, operation);
+        applyOfferOperation(framework, slave, operation);
         break;
       }
 
@@ -2430,12 +2429,11 @@ void Master::_accept(
 
         _offeredResources = resources.get();
 
-        allocator->updateAllocation(
-            frameworkId,
-            slaveId,
-            {operation});
+        LOG(INFO) << "Applying DESTROY operation for volumes "
+                  << operation.create().volumes() << " from framework "
+                  << *framework << " to slave " << *slave;
 
-        updateCheckpointedResources(slave, operation);
+        applyOfferOperation(framework, slave, operation);
         break;
       }
 
@@ -4694,6 +4692,32 @@ void Master::removeExecutor(
 }
 
 
+void Master::applyOfferOperation(
+    Framework* framework,
+    Slave* slave,
+    const Offer::Operation& operation)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
+  allocator->updateAllocation(
+      framework->id,
+      slave->id,
+      {operation});
+
+  slave->apply(operation);
+
+  LOG(INFO) << "Sending checkpointed resources "
+            << slave->checkpointedResources
+            << " to slave " << *slave;
+
+  CheckpointResourcesMessage message;
+  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
+
+  send(slave->pid, message);
+}
+
+
 void Master::offerTimeout(const OfferID& offerId)
 {
   Offer* offer = getOffer(offerId);
@@ -4741,70 +4765,6 @@ void Master::removeOffer(Offer* offer, bool rescind)
   // Delete it.
   offers.erase(offer->id());
   delete offer;
-}
-
-
-void Master::updateCheckpointedResources(
-    Slave* slave,
-    const Offer::Operation& operation)
-{
-  CHECK_NOTNULL(slave);
-
-  switch (operation.type()) {
-    case Offer::Operation::RESERVE: {
-      // TODO(jieyu): Provide implementation.
-      LOG(ERROR) << "Failed to update checkpointed resources for slave "
-                 << *slave << ": Unimplemented RESERVE operation";
-      break;
-    }
-
-    case Offer::Operation::UNRESERVE: {
-      // TODO(jieyu): Provide implementation.
-      LOG(ERROR) << "Failed to update checkpointed resources for slave "
-                 << *slave << ": Unimplemented UNRESERVE operation";
-      break;
-    }
-
-    case Offer::Operation::CREATE: {
-      // If the CREATE operation applies to resources that have
-      // already been checkpointed on the slave, that means the
-      // volumes are created from dynamically reserved resources and
-      // we need to update the checkpointed resources. Otherwise, the
-      // volumes are created from regular resources and we need to add
-      // them to the checkpointed resources.
-      Try<Resources> resources = slave->checkpointedResources.apply(operation);
-      if (resources.isError()) {
-        slave->checkpointedResources += operation.create().volumes();
-      } else {
-        slave->checkpointedResources = resources.get();
-      }
-      break;
-    }
-
-    case Offer::Operation::DESTROY: {
-      Resources volumes = operation.destroy().volumes();
-
-      CHECK(slave->checkpointedResources.contains(volumes))
-        << "Not expecting unknown persistent volumes";
-
-      slave->checkpointedResources -= volumes;
-      break;
-    }
-
-    default:
-      LOG(FATAL) << "Not expecting operation " << operation.type()
-                 << " when updating slave checkpointed resources";
-      break;
-  }
-
-  LOG(INFO) << "Sending checkpointed resources "
-            << slave->checkpointedResources
-            << " to slave " << *slave;
-
-  CheckpointResourcesMessage message;
-  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
-
-  send(slave->pid, message);
 }
 
 

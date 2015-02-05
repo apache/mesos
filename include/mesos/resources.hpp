@@ -276,6 +276,27 @@ public:
     }
   };
 
+  // Resources that need checkpointing on the slave.
+  // TODO(jieyu): This filter is only used by master and slave.
+  // Consider pulling this out of this header.
+  class CheckpointFilter : public Filter
+  {
+  public:
+    CheckpointFilter() {}
+
+    virtual Resources apply(const Resources& resources) const
+    {
+      Resources result;
+      foreach (const Resource& resource, resources) {
+        // TODO(jieyu): Consider dynamic reservation as well.
+        if (resource.has_disk() && resource.disk().has_persistence()) {
+          result += resource;
+        }
+      }
+      return result;
+    }
+  };
+
 private:
   // Similar to 'contains(const Resource&)' but skips the validity
   // check. This can be used to avoid the performance overhead of

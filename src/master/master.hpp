@@ -390,11 +390,11 @@ protected:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
-  // Certain offer operations (e.g., RESERVE, CREATE) may result in a
-  // change to the checkpointed resources on the slave. This method
-  // updates the checkpointed resources for the slave and sends
-  // CheckpointResourcesMessage to the slave accordingly.
-  void updateCheckpointedResources(
+  // Updates slave's resources by applying the given operation. It
+  // also updates the allocator and sends a CheckpointResourcesMessage
+  // to the slave with slave's current checkpointed resources.
+  void applyOfferOperation(
+      Framework* framework,
       Slave* slave,
       const Offer::Operation& operation);
 
@@ -750,10 +750,31 @@ struct Slave
       registeredTime(_registeredTime),
       connected(true),
       active(true),
-      checkpointedResources(_checkpointedResources),
+      totalResources(_info.resources()),
       observer(NULL)
   {
     CHECK(_info.has_id());
+
+    // We here infer offer operations from the given checkpointed
+    // resources and update total/checkpointed resources of this slave
+    // by calling 'apply(operation)'.
+    foreach (const Resource& resource, _checkpointedResources) {
+      // TODO(jieyu): Apply RESERVE operation if 'resource' is
+      // dynamically reserved.
+
+      if (resource.has_disk() && resource.disk().has_persistence()) {
+        Offer::Operation create;
+        create.set_type(Offer::Operation::CREATE);
+        create.mutable_create()->add_volumes()->CopyFrom(resource);
+
+        // NOTE: Here, we assume master has already validated slave's
+        // checkpointed resources so that 'apply' will always succeed.
+        apply(create);
+      } else {
+        LOG(FATAL) << "Not expecting checkpointed resource "
+                   << resource << " from slave " << id;
+      }
+    }
 
     foreach (const ExecutorInfo& executorInfo, executorInfos) {
       CHECK(executorInfo.has_framework_id());
@@ -887,6 +908,15 @@ struct Slave
     }
   }
 
+  void apply(const Offer::Operation& operation)
+  {
+    Try<Resources> resources = totalResources.apply(operation);
+    CHECK_SOME(resources);
+
+    totalResources = resources.get();
+    checkpointedResources = Resources::CheckpointFilter().apply(totalResources);
+  }
+
   const SlaveID id;
   const SlaveInfo info;
 
@@ -932,6 +962,11 @@ struct Slave
   // in use by a task/executor, or are available for use and will be
   // re-offered to the framework.
   Resources checkpointedResources;
+
+  // The current total resources of the slave. Note that this is
+  // different from 'info.resources()' because this also consider
+  // operations (e.g., CREATE, RESERVE) that have been applied.
+  Resources totalResources;
 
   SlaveObserver* observer;
 
