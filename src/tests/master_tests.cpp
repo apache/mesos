@@ -2881,7 +2881,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   EXPECT_SOME(portsArray);
 
   JSON::Array portsArray_ = portsArray.get();
-  EXPECT_EQ(2, portsArray_.values.size());
+  EXPECT_EQ(2u, portsArray_.values.size());
 
   // Verify the content of '8888:myport1:tcp' port.
   Try<JSON::Value> expected = JSON::parse(
@@ -2909,7 +2909,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   EXPECT_SOME(labelsArray);
 
   JSON::Array labelsArray_ = labelsArray.get();
-  EXPECT_EQ(2, labelsArray_.values.size());
+  EXPECT_EQ(2u, labelsArray_.values.size());
 
   // Verify the content of 'clearance:high' pair.
   expected = JSON::parse(
