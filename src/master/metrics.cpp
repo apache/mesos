@@ -150,9 +150,9 @@ Metrics::Metrics(const Master& master)
     slave_removals(
         "master/slave_removals"),
     slave_shutdowns_scheduled(
-         "master/slave_shutdowns_scheduled"),
+        "master/slave_shutdowns_scheduled"),
     slave_shutdowns_canceled(
-         "master/slave_shutdowns_canceled")
+        "master/slave_shutdowns_canceled")
 {
   // TODO(dhamon): Check return values of 'add'.
   process::metrics::add(uptime_secs);
