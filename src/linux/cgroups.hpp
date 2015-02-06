@@ -399,11 +399,6 @@ Try<Nothing> shares(
     const std::string& cgroup,
     uint64_t shares);
 
-// Returns the cpu shares from cpu.shares.
-Try<uint64_t> shares(
-    const std::string& hierarchy,
-    const std::string& cgroup);
-
 
 // Returns the cpu shares from cpu.shares.
 Try<uint64_t> shares(
