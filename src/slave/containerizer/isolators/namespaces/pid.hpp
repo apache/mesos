@@ -19,6 +19,8 @@
 #ifndef __NAMESPACES_PID_ISOLATOR_HPP__
 #define __NAMESPACES_PID_ISOLATOR_HPP__
 
+#include "slave/flags.hpp"
+
 #include "slave/containerizer/isolator.hpp"
 
 #include <sys/types.h>

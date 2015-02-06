@@ -27,6 +27,8 @@
 
 #include "linux/perf.hpp"
 
+#include "slave/flags.hpp"
+
 #include "slave/containerizer/isolator.hpp"
 
 namespace mesos {

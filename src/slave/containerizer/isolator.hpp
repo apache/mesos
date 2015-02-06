@@ -31,7 +31,6 @@
 
 #include <stout/try.hpp>
 
-#include "slave/flags.hpp"
 #include "slave/state.hpp"
 
 namespace mesos {

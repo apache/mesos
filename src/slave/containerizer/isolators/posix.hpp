@@ -25,6 +25,8 @@
 
 #include <process/future.hpp>
 
+#include "slave/flags.hpp"
+
 #include "slave/containerizer/isolator.hpp"
 
 #include "usage/usage.hpp"

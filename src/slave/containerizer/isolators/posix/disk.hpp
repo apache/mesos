@@ -27,6 +27,8 @@
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 
+#include "slave/flags.hpp"
+
 #include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
