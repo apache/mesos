@@ -750,6 +750,7 @@ TEST_F(AuthenticationTest, SchedulerFailover)
   driver2.start();
 
   AWAIT_READY(sched2Registered);
+  AWAIT_READY(sched1Error);
 
   driver2.stop();
   driver2.join();
