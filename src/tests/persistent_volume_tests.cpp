@@ -57,9 +57,9 @@ using std::vector;
 class PersistentVolumeTest : public MesosTest
 {
 protected:
-  master::Flags CreateMasterFlags(const vector<FrameworkInfo>& frameworks)
+  master::Flags MasterFlags(const vector<FrameworkInfo>& frameworks)
   {
-    master::Flags flags = MesosTest::CreateMasterFlags();
+    master::Flags flags = CreateMasterFlags();
 
     ACLs acls;
     hashset<string> roles;
@@ -122,7 +122,7 @@ TEST_F(PersistentVolumeTest, CheckpointResources)
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
 
-  Try<PID<Master>> master = StartMaster(CreateMasterFlags({frameworkInfo}));
+  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
