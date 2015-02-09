@@ -510,7 +510,7 @@ struct URL
       const uint16_t _port = 80,
       const std::string& _path = "/",
       const hashmap<std::string, std::string>& _query =
-        hashmap<std::string, std::string>(),
+        (hashmap<std::string, std::string>()),
       const Option<std::string>& _fragment = None())
     : scheme(_scheme),
       domain(_domain),
@@ -524,7 +524,7 @@ struct URL
       const uint16_t _port = 80,
       const std::string& _path = "/",
       const hashmap<std::string, std::string>& _query =
-        hashmap<std::string, std::string>(),
+        (hashmap<std::string, std::string>()),
       const Option<std::string>& _fragment = None())
     : scheme(_scheme),
       ip(_ip),
