@@ -268,9 +268,9 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   EXPECT_CALL(this->allocator, addFramework(_, Eq(frameworkInfo1), _))
     .WillOnce(InvokeFrameworkAdded(&this->allocator));
 
-  FrameworkID frameworkId1;
+  Future<FrameworkID> frameworkId1;
   EXPECT_CALL(sched1, registered(_, _, _))
-    .WillOnce(SaveArg<1>(&frameworkId1));
+    .WillOnce(FutureArg<1>(&frameworkId1));
 
   // All of the slave's resources should be offered to start.
   Future<Nothing> resourceOffers;
@@ -279,6 +279,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
 
   driver1.start();
 
+  AWAIT_READY(frameworkId1);
   AWAIT_READY(resourceOffers);
 
   // TODO(benh): I don't see why we want to "catch" (i.e., block) this
@@ -286,21 +287,19 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   // properly be executed and later we want to _inject_ a
   // recoverResources to simulate the code in Master::offer after a
   // framework has terminated or is inactive.
-  FrameworkID frameworkId;
-  SlaveID slaveId;
-  Resources savedResources;
+  Future<SlaveID> slaveId;
+  Future<Resources> savedResources;
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
     // "Catches" the recoverResources call from the master, so
     // that it doesn't get processed until we redispatch it after
     // the removeFramework trigger.
-    .WillOnce(DoAll(SaveArg<0>(&frameworkId),
-                    SaveArg<1>(&slaveId),
-                    SaveArg<2>(&savedResources)));
+    .WillOnce(DoAll(FutureArg<1>(&slaveId),
+                    FutureArg<2>(&savedResources)));
 
   EXPECT_CALL(this->allocator, deactivateFramework(_));
 
   Future<Nothing> removeFramework;
-  EXPECT_CALL(this->allocator, removeFramework(Eq(frameworkId1)))
+  EXPECT_CALL(this->allocator, removeFramework(Eq(frameworkId1.get())))
     .WillOnce(DoAll(InvokeFrameworkRemoved(&this->allocator),
                     FutureSatisfy(&removeFramework)));
 
@@ -308,17 +307,19 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   driver1.join();
 
   AWAIT_READY(removeFramework);
+  AWAIT_READY(slaveId);
+  AWAIT_READY(savedResources);
 
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillOnce(DoDefault());
+    .WillOnce(DoDefault()); // For the re-dispatch.
 
   // Re-dispatch the recoverResources call which we "caught"
   // earlier now that the framework has been removed, to test
   // that recovering resources from a removed framework works.
   this->allocator.recoverResources(
-      frameworkId,
-      slaveId,
-      savedResources,
+      frameworkId1.get(),
+      slaveId.get(),
+      savedResources.get(),
       None());
 
   // TODO(benh): Seems like we should wait for the above
@@ -348,6 +349,14 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   driver2.start();
 
   AWAIT_READY(resourceOffers);
+
+  // Called when driver2 stops.
+  EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
+    .WillRepeatedly(DoDefault());
+  EXPECT_CALL(this->allocator, deactivateFramework(_))
+    .WillRepeatedly(DoDefault());
+  EXPECT_CALL(this->allocator, removeFramework(_))
+    .WillRepeatedly(DoDefault());
 
   // Shut everything down.
   driver2.stop();
