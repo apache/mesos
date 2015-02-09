@@ -140,7 +140,7 @@ There are couple of important things to note:
 7. Framework `foo` can only register with `analytics` role but no other roles. Also, no other framework can register with any roles.
 
             {
-              "permissive" : "false",
+              "permissive" : false,
 
               "register_frameworks": [
                                        {
@@ -154,7 +154,7 @@ There are couple of important things to note:
 8. Only `ops` principal can shutdown any frameworks through "/shutdown" HTTP endpoint.
 
             {
-              "permissive" : "false",
+              "permissive" : false,
 
               "shutdown_frameworks": [
                                        {
