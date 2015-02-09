@@ -103,7 +103,7 @@ const typename map::iterator& i = values.find(keys.front());
 // 2: Don't use.
 auto authorizer = LocalAuthorizer::create(acls);
 // Compare with
-Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
+Try&lt;Owned&lt;LocalAuthorizer>> authorizer = LocalAuthorizer::create();
 </pre>
 
 * Rvalue references.
