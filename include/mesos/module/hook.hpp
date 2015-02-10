@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-#ifndef __MODULE_HOOK_HPP__
-#define __MODULE_HOOK_HPP__
+#ifndef __MESOS_MODULE_HOOK_HPP__
+#define __MESOS_MODULE_HOOK_HPP__
 
+#include <mesos/hook.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
-
-#include "hook/hook.hpp"
 
 namespace mesos {
 namespace modules {
@@ -62,4 +61,4 @@ struct Module<mesos::Hook> : ModuleBase
 } // namespace modules {
 } // namespace mesos {
 
-#endif // __MODULE_HOOK_HPP__
+#endif // __MESOS_MODULE_HOOK_HPP__

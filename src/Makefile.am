@@ -355,6 +355,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 
 pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/executor.hpp				\
+  $(top_srcdir)/include/mesos/hook.hpp					\
   $(top_srcdir)/include/mesos/mesos.hpp					\
   $(top_srcdir)/include/mesos/module.hpp				\
   $(top_srcdir)/include/mesos/resources.hpp				\
@@ -398,6 +399,7 @@ moduledir = $(pkgincludedir)/module
 module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/authenticatee.hpp			\
   $(top_srcdir)/include/mesos/module/authenticator.hpp			\
+  $(top_srcdir)/include/mesos/module/hook.hpp				\
   $(top_srcdir)/include/mesos/module/isolator.hpp			\
   $(top_srcdir)/include/mesos/module/module.hpp				\
   $(top_srcdir)/include/mesos/module/module.proto
@@ -488,7 +490,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	examples/test_module.hpp					\
 	files/files.hpp							\
 	hdfs/hdfs.hpp							\
-	hook/hook.hpp							\
 	hook/manager.hpp						\
 	linux/cgroups.hpp						\
 	linux/fs.hpp							\
@@ -512,7 +513,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/sorter.hpp						\
 	master/validation.hpp						\
 	messages/messages.hpp						\
-	module/hook.hpp							\
 	module/manager.hpp						\
 	sched/constants.hpp						\
 	sched/flags.hpp							\

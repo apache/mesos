@@ -22,10 +22,9 @@
 #include <string>
 
 #include <mesos/mesos.hpp>
+#include <mesos/hook.hpp>
 
-#include "hook/hook.hpp"
-#include "master/master.hpp"
-#include "messages/messages.hpp"
+#include <stout/try.hpp>
 
 namespace mesos {
 

@@ -18,17 +18,15 @@
 
 #include <string>
 
+#include <mesos/hook.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
+
+#include <mesos/module/hook.hpp>
 
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
-
-#include "hook/hook.hpp"
-#include "master/master.hpp"
-#include "module/hook.hpp"
-#include "slave/slave.hpp"
 
 using std::string;
 
