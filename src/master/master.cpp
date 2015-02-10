@@ -27,6 +27,10 @@
 
 #include <mesos/module.hpp>
 
+#include <mesos/authentication/authenticator.hpp>
+
+#include <mesos/module/authenticator.hpp>
+
 #include <process/check.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -53,7 +57,6 @@
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
-#include "authentication/authenticator.hpp"
 #include "authentication/cram_md5/authenticator.hpp"
 
 #include "authorizer/authorizer.hpp"
@@ -74,7 +77,6 @@
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
-#include "module/authenticator.hpp"
 #include "module/manager.hpp"
 
 #include "watcher/whitelist_watcher.hpp"

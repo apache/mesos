@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-#ifndef __MODULE_AUTHENTICATEE_HPP__
-#define __MODULE_AUTHENTICATEE_HPP__
+#ifndef __MESOS_MODULE_AUTHENTICATEE_HPP__
+#define __MESOS_MODULE_AUTHENTICATEE_HPP__
 
 #include <mesos/module.hpp>
 
-#include "authentication/authenticatee.hpp"
+#include <mesos/authentication/authenticatee.hpp>
 
 namespace mesos {
 namespace modules {
@@ -61,4 +61,4 @@ struct Module<mesos::Authenticatee> : ModuleBase
 } // namespace modules {
 } // namespace mesos {
 
-#endif // __MODULE_AUTHENTICATEE_HPP__
+#endif // __MESOS_MODULE_AUTHENTICATEE_HPP__

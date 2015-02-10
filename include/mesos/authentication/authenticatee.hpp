@@ -16,17 +16,15 @@
  * limitations under the License.
  */
 
-#ifndef __AUTHENTICATEE_HPP__
-#define __AUTHENTICATEE_HPP__
+#ifndef __MESOS_AUTHENTICATION_AUTHENTICATEE_HPP__
+#define __MESOS_AUTHENTICATION_AUTHENTICATEE_HPP__
 
 #include <mesos/mesos.hpp>
 
 #include <mesos/authentication/authentication.hpp>
 
 #include <process/future.hpp>
-
-#include <stout/nothing.hpp>
-#include <stout/try.hpp>
+#include <process/pid.hpp>
 
 namespace mesos {
 
@@ -55,4 +53,4 @@ public:
 
 } // namespace mesos {
 
-#endif // __AUTHENTICATEE_HPP__
+#endif // __MESOS_AUTHENTICATION_AUTHENTICATEE_HPP__

@@ -370,8 +370,10 @@ nodist_pkginclude_HEADERS =						\
 authenticationdir = $(pkgincludedir)/authentication
 
 authentication_HEADERS =						\
+  $(top_srcdir)/include/mesos/authentication/authenticatee.hpp		\
   $(top_srcdir)/include/mesos/authentication/authentication.hpp		\
-  $(top_srcdir)/include/mesos/authentication/authentication.proto
+  $(top_srcdir)/include/mesos/authentication/authentication.proto	\
+  $(top_srcdir)/include/mesos/authentication/authenticator.hpp
 
 nodist_authentication_HEADERS = ../include/mesos/authentication/authentication.pb.h
 
@@ -394,6 +396,8 @@ nodist_fetcher_HEADERS = ../include/mesos/fetcher/fetcher.pb.h
 moduledir = $(pkgincludedir)/module
 
 module_HEADERS =							\
+  $(top_srcdir)/include/mesos/module/authenticatee.hpp			\
+  $(top_srcdir)/include/mesos/module/authenticator.hpp			\
   $(top_srcdir)/include/mesos/module/isolator.hpp			\
   $(top_srcdir)/include/mesos/module/module.hpp				\
   $(top_srcdir)/include/mesos/module/module.proto
@@ -465,8 +469,6 @@ if WITH_NETWORK_ISOLATOR
 endif
 
 libmesos_no_3rdparty_la_SOURCES +=					\
-	authentication/authenticatee.hpp				\
-	authentication/authenticator.hpp				\
 	authentication/cram_md5/authenticatee.hpp			\
 	authentication/cram_md5/authenticator.hpp			\
 	authentication/cram_md5/auxprop.hpp				\
@@ -510,8 +512,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/sorter.hpp						\
 	master/validation.hpp						\
 	messages/messages.hpp						\
-	module/authenticatee.hpp					\
-	module/authenticator.hpp					\
 	module/hook.hpp							\
 	module/manager.hpp						\
 	sched/constants.hpp						\

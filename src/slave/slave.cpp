@@ -31,6 +31,8 @@
 
 #include <mesos/type_utils.hpp>
 
+#include <mesos/module/authenticatee.hpp>
+
 #include <process/async.hpp>
 #include <process/check.hpp>
 #include <process/defer.hpp>
@@ -74,7 +76,6 @@
 
 #include "logging/logging.hpp"
 
-#include "module/authenticatee.hpp"
 #include "module/manager.hpp"
 
 #include "slave/constants.hpp"

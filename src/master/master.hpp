@@ -32,6 +32,8 @@
 #include <mesos/scheduler.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/module/authenticator.hpp>
+
 #include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -71,7 +73,6 @@ namespace registry {
 class Slaves;
 }
 
-class Authenticator;
 class Authorizer;
 class WhitelistWatcher;
 
