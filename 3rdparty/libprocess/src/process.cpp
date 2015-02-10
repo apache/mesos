@@ -393,56 +393,6 @@ private:
 };
 
 
-// Help strings.
-const string Logging::TOGGLE_HELP = HELP(
-    TLDR(
-        "Sets the logging verbosity level for a specified duration."),
-    USAGE(
-        "/logging/toggle?level=VALUE&duration=VALUE"),
-    DESCRIPTION(
-        "The libprocess library uses [glog][glog] for logging. The library",
-        "only uses verbose logging which means nothing will be output unless",
-        "the verbosity level is set (by default it's 0, libprocess uses"
-        "levels 1, 2, and 3).",
-        "",
-        "**NOTE:** If your application uses glog this will also affect",
-        "your verbose logging.",
-        "",
-        "Required query parameters:",
-        "",
-        ">        level=VALUE          Verbosity level (e.g., 1, 2, 3)",
-        ">        duration=VALUE       Duration to keep verbosity level",
-        ">                             toggled (e.g., 10secs, 15mins, etc.)"),
-    REFERENCES(
-        "[glog]: https://code.google.com/p/google-glog"));
-
-
-const string Profiler::START_HELP = HELP(
-    TLDR(
-        "Starts profiling ..."),
-    USAGE(
-        "/profiler/start..."),
-    DESCRIPTION(
-        "...",
-        "",
-        "Query parameters:",
-        "",
-        ">        param=VALUE          Some description here"));
-
-
-const string Profiler::STOP_HELP = HELP(
-    TLDR(
-        "Stops profiling ..."),
-    USAGE(
-        "/profiler/stop..."),
-    DESCRIPTION(
-        "...",
-        "",
-        "Query parameters:",
-        "",
-        ">        param=VALUE          Some description here"));
-
-
 // Unique id that can be assigned to each process.
 static uint32_t __id__ = 0;
 
