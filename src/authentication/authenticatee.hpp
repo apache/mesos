@@ -21,6 +21,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/authentication/authentication.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/nothing.hpp>

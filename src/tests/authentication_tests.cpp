@@ -22,6 +22,8 @@
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/authentication/authentication.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
 #include <process/owned.hpp>

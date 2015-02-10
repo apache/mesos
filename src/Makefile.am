@@ -131,6 +131,9 @@ endif
 
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 
+AUTHENTICATION_PROTO =							\
+  $(top_srcdir)/include/mesos/authentication/authentication.proto
+
 CONTAINERIZER_PROTO =							\
   $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 
@@ -146,6 +149,8 @@ SCHEDULER_PROTO =							\
 CXX_PROTOS =								\
   mesos.pb.cc								\
   ../include/mesos/mesos.pb.h						\
+  authentication/authentication.pb.cc					\
+  ../include/mesos/authentication/authentication.pb.h			\
   containerizer/containerizer.pb.cc					\
   ../include/mesos/containerizer/containerizer.pb.h			\
   fetcher/fetcher.pb.cc							\
@@ -193,6 +198,12 @@ CLEANFILES += $(REGISTRY_PROTOS)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/*.pb.cc .
+
+authentication/%.pb.cc ../include/mesos/authentication/%.pb.h: $(AUTHENTICATION_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/authentication
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/authentication/*.pb.cc $(@D)
 
 containerizer/%.pb.cc ../include/mesos/containerizer/%.pb.h: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
@@ -354,8 +365,15 @@ pkginclude_HEADERS =							\
 
 nodist_pkginclude_HEADERS =						\
   ../include/mesos/version.hpp						\
-  ../include/mesos/mesos.pb.h						\
-  ../include/mesos/module.pb.h
+  ../include/mesos/mesos.pb.h
+
+authenticationdir = $(pkgincludedir)/authentication
+
+authentication_HEADERS =						\
+  $(top_srcdir)/include/mesos/authentication/authentication.hpp		\
+  $(top_srcdir)/include/mesos/authentication/authentication.proto
+
+nodist_authentication_HEADERS = ../include/mesos/authentication/authentication.pb.h
 
 containerizerdir = $(pkgincludedir)/containerizer
 

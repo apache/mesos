@@ -24,6 +24,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/authentication/authentication.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/http.hpp>

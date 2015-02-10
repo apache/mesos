@@ -387,38 +387,6 @@ message ShutdownMessage {
 }
 
 
-message AuthenticateMessage {
-  required string pid = 1; // PID that needs to be authenticated.
-}
-
-
-message AuthenticationMechanismsMessage {
-  repeated string mechanisms = 1; // List of available SASL mechanisms.
-}
-
-
-message AuthenticationStartMessage {
-  required string mechanism = 1;
-  optional bytes data = 2;
-}
-
-
-message AuthenticationStepMessage {
-  required bytes data = 1;
-}
-
-
-message AuthenticationCompletedMessage {}
-
-
-message AuthenticationFailedMessage {}
-
-
-message AuthenticationErrorMessage {
-  optional string error = 1;
-}
-
-
 // TODO(adam-mesos): Move this to an 'archive' package.
 /**
  * Describes Completed Frameworks, etc. for archival.
