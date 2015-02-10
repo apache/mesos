@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <mesos/resources.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/pid.hpp>
 
@@ -36,11 +37,7 @@
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
-#include "common/type_utils.hpp"
-
 #include "messages/messages.hpp"
-
-#include "process/pid.hpp"
 
 namespace mesos {
 namespace slave {

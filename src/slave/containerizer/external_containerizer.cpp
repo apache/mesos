@@ -25,6 +25,8 @@
 #include <signal.h>
 #include <stdio.h>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/async.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -42,7 +44,6 @@
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
-#include "common/type_utils.hpp"
 #include "common/status_utils.hpp"
 
 #include "slave/paths.hpp"

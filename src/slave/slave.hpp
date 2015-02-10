@@ -28,6 +28,7 @@
 #include <boost/circular_buffer.hpp>
 
 #include <mesos/resources.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/http.hpp>
 #include <process/future.hpp>
@@ -57,7 +58,6 @@
 
 #include "common/attributes.hpp"
 #include "common/protobuf_utils.hpp"
-#include "common/type_utils.hpp"
 
 #include "files/files.hpp"
 

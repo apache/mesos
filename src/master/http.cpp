@@ -24,6 +24,8 @@
 
 #include <boost/array.hpp>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/help.hpp>
 
 #include <process/metrics/metrics.hpp>
@@ -45,7 +47,6 @@
 #include "common/build.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
-#include "common/type_utils.hpp"
 
 #include "logging/logging.hpp"
 

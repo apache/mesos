@@ -25,14 +25,13 @@
 
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <stout/check.hpp>
 #include <stout/exit.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
-
-#include "common/type_utils.hpp"
 
 using namespace mesos;
 

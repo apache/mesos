@@ -348,6 +348,7 @@ pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/module.hpp				\
   $(top_srcdir)/include/mesos/resources.hpp				\
   $(top_srcdir)/include/mesos/scheduler.hpp				\
+  $(top_srcdir)/include/mesos/type_utils.hpp				\
   $(top_srcdir)/include/mesos/values.hpp				\
   $(top_srcdir)/include/mesos/mesos.proto
 
@@ -455,7 +456,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	common/parse.hpp						\
 	common/protobuf_utils.hpp					\
 	common/status_utils.hpp						\
-	common/type_utils.hpp						\
 	common/thread.hpp						\
 	credentials/credentials.hpp					\
 	examples/utils.hpp						\

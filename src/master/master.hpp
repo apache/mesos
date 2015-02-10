@@ -30,6 +30,7 @@
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/http.hpp>
 #include <process/owned.hpp>
@@ -46,7 +47,6 @@
 #include <stout/option.hpp>
 
 #include "common/protobuf_utils.hpp"
-#include "common/type_utils.hpp"
 
 #include "files/files.hpp"
 

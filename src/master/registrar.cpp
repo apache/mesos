@@ -19,6 +19,8 @@
 #include <deque>
 #include <string>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -38,8 +40,6 @@
 #include <stout/option.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stopwatch.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "master/registrar.hpp"
 #include "master/registry.hpp"

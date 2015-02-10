@@ -22,14 +22,14 @@
 
 #include <glog/logging.h>
 
+#include <mesos/type_utils.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/stringify.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "master/master.hpp"
 #include "master/validation.hpp"

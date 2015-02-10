@@ -21,12 +21,13 @@
 
 #include <string>
 
+#include <mesos/type_utils.hpp>
+
 #include <stout/check.hpp>
 #include <stout/flags.hpp>
 #include <stout/os.hpp>
 
 #include "common/parse.hpp"
-#include "common/type_utils.hpp"
 #include "logging/logging.hpp"
 #include "master/constants.hpp"
 #include "messages/messages.hpp"

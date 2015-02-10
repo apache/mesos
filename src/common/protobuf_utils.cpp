@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
+#include <mesos/type_utils.hpp>
+
 #include <process/clock.hpp>
 #include <process/pid.hpp>
 
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "messages/messages.hpp"
 

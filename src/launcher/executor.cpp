@@ -27,6 +27,7 @@
 #include <vector>
 
 #include <mesos/executor.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -48,7 +49,6 @@
 #include <stout/strings.hpp>
 
 #include "common/http.hpp"
-#include "common/type_utils.hpp"
 #include "common/status_utils.hpp"
 
 #include "logging/logging.hpp"

@@ -26,6 +26,7 @@
 
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/delay.hpp>
 #include <process/process.hpp>
@@ -42,8 +43,6 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"

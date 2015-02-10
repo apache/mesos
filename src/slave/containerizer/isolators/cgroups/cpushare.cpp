@@ -20,8 +20,9 @@
 
 #include <vector>
 
-#include <mesos/values.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/type_utils.hpp>
+#include <mesos/values.hpp>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -36,8 +37,6 @@
 #include <stout/nothing.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "linux/cgroups.hpp"
 

@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/help.hpp>
 #include <process/owned.hpp>
 
@@ -37,7 +39,6 @@
 #include "common/attributes.hpp"
 #include "common/build.hpp"
 #include "common/http.hpp"
-#include "common/type_utils.hpp"
 
 #include "mesos/mesos.hpp"
 #include "mesos/resources.hpp"

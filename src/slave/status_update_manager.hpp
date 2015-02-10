@@ -24,6 +24,8 @@
 #include <string>
 #include <utility>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -40,8 +42,6 @@
 #include <stout/stringify.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "logging/logging.hpp"
 

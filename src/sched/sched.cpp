@@ -33,6 +33,7 @@
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 #include <mesos/scheduler.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <mesos/scheduler/scheduler.hpp>
 
@@ -66,7 +67,6 @@
 #include "authentication/cram_md5/authenticatee.hpp"
 
 #include "common/lock.hpp"
-#include "common/type_utils.hpp"
 
 #include "local/flags.hpp"
 #include "local/local.hpp"

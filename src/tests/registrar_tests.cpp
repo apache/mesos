@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/pid.hpp>
@@ -33,7 +35,6 @@
 
 #include "common/attributes.hpp"
 #include "common/protobuf_utils.hpp"
-#include "common/type_utils.hpp"
 
 #include "log/log.hpp"
 #include "log/replica.hpp"

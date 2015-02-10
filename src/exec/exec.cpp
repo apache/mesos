@@ -26,6 +26,7 @@
 
 #include <mesos/executor.hpp>
 #include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
@@ -46,7 +47,6 @@
 
 #include "common/lock.hpp"
 #include "common/protobuf_utils.hpp"
-#include "common/type_utils.hpp"
 
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"

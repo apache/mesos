@@ -22,6 +22,7 @@
 #include <string>
 
 #include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <mesos/module/module.hpp>
 

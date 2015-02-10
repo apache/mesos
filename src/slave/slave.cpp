@@ -29,6 +29,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/async.hpp>
 #include <process/check.hpp>
 #include <process/defer.hpp>
@@ -64,7 +66,6 @@
 
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
-#include "common/type_utils.hpp"
 #include "common/status_utils.hpp"
 
 #include "credentials/credentials.hpp"

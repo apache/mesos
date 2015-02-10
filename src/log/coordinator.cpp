@@ -20,14 +20,14 @@
 
 #include <algorithm>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/none.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "log/catchup.hpp"
 #include "log/consensus.hpp"

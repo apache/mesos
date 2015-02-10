@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/future.hpp>
 #include <process/gtest.hpp>
@@ -36,8 +37,6 @@
 #include <stout/try.hpp>
 
 #include <stout/protobuf.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "log/log.hpp"
 #include "log/replica.hpp"

@@ -20,6 +20,8 @@
 #include <string>
 
 #include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
+
 
 #include <stout/check.hpp>
 #include <stout/fs.hpp>
@@ -27,8 +29,6 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/try.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "messages/messages.hpp"
 

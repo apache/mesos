@@ -20,13 +20,13 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/type_utils.hpp>
+
 #include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/result.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "messages/messages.hpp"
 
