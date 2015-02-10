@@ -727,6 +727,9 @@ void Master::initialize()
   route("/shutdown",
         Http::SHUTDOWN_HELP,
         lambda::bind(&Http::shutdown, http, lambda::_1));
+  route("/slaves",
+        Http::SLAVES_HELP,
+        lambda::bind(&Http::slaves, http, lambda::_1));
   route("/state.json",
         None(),
         lambda::bind(&Http::state, http, lambda::_1));

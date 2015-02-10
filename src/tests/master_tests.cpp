@@ -1567,6 +1567,88 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 }
 
 
+// Ensures that an empty response arrives if information about
+// registered slaves is requested from a master where no slaves
+// have been registered.
+TEST_F(MasterTest, SlavesEndpointWithoutSlaves)
+{
+  // Start up.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Query the master.
+  const Future<process::http::Response> response =
+    process::http::get(master.get(), "slaves");
+
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  const Try<JSON::Value> parse =
+    JSON::parse(response.get().body);
+  ASSERT_SOME(parse);
+
+  Try<JSON::Value> expected = JSON::parse(
+      "{"
+      "  \"slaves\" : []"
+      "}");
+
+  ASSERT_SOME(expected);
+  EXPECT_SOME_EQ(expected.get(), parse);
+
+  Shutdown();
+}
+
+
+// Ensures that the number of registered slaves resported by
+// /master/slaves coincides with the actual number of registered
+// slaves.
+TEST_F(MasterTest, SlavesEndpointTwoSlaves)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a couple of slaves. Their only use is for them to register
+  // to the master.
+  Future<SlaveRegisteredMessage> slave1RegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+  Future<SlaveRegisteredMessage> slave2RegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  StartSlave();
+  StartSlave();
+
+  // Wait for the slaves to be registered.
+  AWAIT_READY(slave1RegisteredMessage);
+  AWAIT_READY(slave2RegisteredMessage);
+
+  // Query the master.
+  const Future<process::http::Response> response =
+    process::http::get(master.get(), "slaves");
+
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  const Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(parse);
+
+  // Check that there are at least two elements in the array.
+  Result<JSON::Array> array = parse.get().find<JSON::Array>("slaves");
+  ASSERT_SOME(array);
+  EXPECT_EQ(2u, array.get().values.size());
+
+  Shutdown();
+}
+
+
 // This test ensures that when a slave is recovered from the registry
 // but does not re-register with the master, it is removed from the
 // registry and the framework is informed that the slave is lost, and

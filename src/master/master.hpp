@@ -479,6 +479,10 @@ private:
     process::Future<process::http::Response> shutdown(
         const process::http::Request& request);
 
+    // /master/slaves
+    process::Future<process::http::Response> slaves(
+        const process::http::Request& request);
+
     // /master/state.json
     process::Future<process::http::Response> state(
         const process::http::Request& request);
@@ -495,6 +499,7 @@ private:
     const static std::string OBSERVE_HELP;
     const static std::string REDIRECT_HELP;
     const static std::string SHUTDOWN_HELP;
+    const static std::string SLAVES_HELP;
     const static std::string TASKS_HELP;
 
   private:
