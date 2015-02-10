@@ -4410,13 +4410,10 @@ void Master::addSlave(
     }
   }
 
-  // TODO(bmahler): This will need to include resources that are
-  // "checkpointed" on the slave (e.g. persistent volumes, dynamic
-  // reservations, etc).
   allocator->addSlave(
       slave->id,
       slave->info,
-      slave->info.resources(),
+      slave->totalResources,
       slave->usedResources);
 }
 
