@@ -25,6 +25,8 @@
 #include <stout/hashmap.hpp>
 #include <stout/multihashmap.hpp>
 
+#include "slave/state.hpp"
+
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
@@ -156,10 +158,10 @@ public:
 
 private:
   process::Future<Nothing> _recover(
-      const std::list<state::RunState>& recoverable);
+      const std::list<ExecutorRunState>& recoverable);
 
   process::Future<Nothing> __recover(
-      const std::list<state::RunState>& recovered);
+      const std::list<ExecutorRunState>& recovered);
 
   process::Future<std::list<Option<CommandInfo>>> prepare(
       const ContainerID& containerId,

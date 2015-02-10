@@ -118,17 +118,12 @@ Result<ino_t> NamespacesPidIsolatorProcess::getNamespace(
 
 
 Future<Nothing> NamespacesPidIsolatorProcess::recover(
-    const list<state::RunState>& states)
+    const list<ExecutorRunState>& states)
 {
   hashset<ContainerID> containers;
 
-  foreach (const state::RunState& state, states)
-  {
-    if (!state.id.isSome()) {
-      return Failure("ContainerID required to recover");
-    }
-
-    containers.insert(state.id.get());
+  foreach (const ExecutorRunState& state, states) {
+    containers.insert(state.id);
   }
 
   // Clean up any orphaned bind mounts and empty files.

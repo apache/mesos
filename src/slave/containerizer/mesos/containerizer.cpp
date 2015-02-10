@@ -299,7 +299,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
   LOG(INFO) << "Recovering containerizer";
 
   // Gather the executor run states that we will attempt to recover.
-  list<RunState> recoverable;
+  list<ExecutorRunState> recoverable;
   if (state.isSome()) {
     foreachvalue (const FrameworkState& framework, state.get().frameworks) {
       foreachvalue (const ExecutorState& executor, framework.executors) {
@@ -321,6 +321,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
         const ContainerID& containerId = executor.latest.get();
         Option<RunState> run = executor.runs.get(containerId);
         CHECK_SOME(run);
+        CHECK_SOME(run.get().id);
 
         // We need the pid so the reaper can monitor the executor so skip this
         // executor if it's not present. This is not an error because the slave
@@ -342,7 +343,12 @@ Future<Nothing> MesosContainerizerProcess::recover(
                   << "' for executor '" << executor.id
                   << "' of framework " << framework.id;
 
-        recoverable.push_back(run.get());
+        ExecutorRunState executorRunState(
+            run.get().id.get(),
+            run.get().forkedPid.get(),
+            run.get().directory);
+
+        recoverable.push_back(executorRunState);
       }
     }
   }
@@ -354,7 +360,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
 
 Future<Nothing> MesosContainerizerProcess::_recover(
-    const list<RunState>& recoverable)
+    const list<ExecutorRunState>& recoverable)
 {
   // Then recover the isolators.
   list<Future<Nothing>> futures;
@@ -369,16 +375,13 @@ Future<Nothing> MesosContainerizerProcess::_recover(
 
 
 Future<Nothing> MesosContainerizerProcess::__recover(
-    const list<RunState>& recovered)
+    const list<ExecutorRunState>& recovered)
 {
-  foreach (const RunState& run, recovered) {
-    CHECK_SOME(run.id);
-    CHECK_SOME(run.forkedPid);
-
-    const ContainerID& containerId = run.id.get();
+  foreach (const ExecutorRunState& run, recovered) {
+    const ContainerID& containerId = run.id;
 
     Container* container = new Container();
-    Future<Option<int>> status = process::reap(run.forkedPid.get());
+    Future<Option<int>> status = process::reap(run.pid);
     status.onAny(defer(self(), &Self::reaped, containerId));
     container->status = status;
     // We only checkpoint the containerizer pid after the container

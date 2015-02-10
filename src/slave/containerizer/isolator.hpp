@@ -31,8 +31,6 @@
 
 #include <stout/try.hpp>
 
-#include "slave/state.hpp"
-
 namespace mesos {
 namespace slave {
 
@@ -61,6 +59,21 @@ struct Limitation
 };
 
 
+// This struct is derived from slave::state::RunState. It contains
+// only those fields that are needed by Isolators for recovering the
+// containers. The reason for not using RunState instead is to avoid
+// any dependency on RunState and in turn on internal protobufs.
+struct ExecutorRunState
+{
+  ExecutorRunState(ContainerID id_, pid_t pid_, std::string directory_)
+    : id(id_), pid(pid_), directory(directory_) {}
+
+  ContainerID id;        // Container id of the last executor run.
+  pid_t pid;             // Executor pid.
+  std::string directory; // Executor work directory.
+};
+
+
 class Isolator
 {
 public:
@@ -69,7 +82,7 @@ public:
 
   // Recover containers from the run states.
   process::Future<Nothing> recover(
-      const std::list<state::RunState>& states);
+      const std::list<ExecutorRunState>& states);
 
   // Prepare for isolation of the executor. Any steps that require execution in
   // the containerized context (e.g. inside a network namespace) can be
@@ -118,7 +131,7 @@ public:
   virtual ~IsolatorProcess() {}
 
   virtual process::Future<Nothing> recover(
-      const std::list<state::RunState>& state) = 0;
+      const std::list<ExecutorRunState>& state) = 0;
 
   virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,

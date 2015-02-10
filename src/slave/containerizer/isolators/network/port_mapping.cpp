@@ -1314,7 +1314,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> PortMappingIsolatorProcess::recover(
-    const list<state::RunState>& states)
+    const list<ExecutorRunState>& states)
 {
   // Extract pids from virtual device names.
   Try<set<string> > links = net::links();
@@ -1337,23 +1337,9 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
     pids.insert(pid.get());
   }
 
-  foreach (const state::RunState& state, states) {
-    if (!state.id.isSome()) {
-      foreachvalue (Info* info, infos) {
-        delete info;
-      }
-      infos.clear();
-      unmanaged.clear();
-
-      return Failure("ContainerID and pid are required to recover");
-    }
-
-    // Containerizer is not supposed to let the isolator recover a run
-    // with a forked pid.
-    CHECK_SOME(state.forkedPid);
-
-    const ContainerID& containerId = state.id.get();
-    pid_t pid = state.forkedPid.get();
+  foreach (const ExecutorRunState& state, states) {
+    const ContainerID& containerId = state.id;
+    pid_t pid = state.pid;
 
     VLOG(1) << "Recovering network isolator for container "
             << containerId << " with pid " << pid;

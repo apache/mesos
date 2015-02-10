@@ -50,8 +50,6 @@ using std::vector;
 namespace mesos {
 namespace slave {
 
-using state::RunState;
-
 LinuxLauncher::LinuxLauncher(
     const Flags& _flags,
     int _namespaces,
@@ -124,21 +122,14 @@ Future<Nothing> _recover(const Future<list<Nothing> >& futures)
 }
 
 
-Future<Nothing> LinuxLauncher::recover(const std::list<state::RunState>& states)
+Future<Nothing> LinuxLauncher::recover(
+    const std::list<ExecutorRunState>& states)
 {
   hashset<string> cgroups;
 
-  foreach (const RunState& state, states) {
-    if (state.id.isNone()) {
-      return Failure("ContainerID is required to recover");
-    }
-    const ContainerID& containerId = state.id.get();
-
-    if (state.forkedPid.isNone()) {
-      return Failure("Executor pid is required to recover container " +
-                     stringify(containerId));
-    }
-    pid_t pid = state.forkedPid.get();
+  foreach (const ExecutorRunState& state, states) {
+    const ContainerID& containerId = state.id;
+    pid_t pid = state.pid;
 
     if (pids.containsValue(pid)) {
       // This should (almost) never occur. There is the possibility

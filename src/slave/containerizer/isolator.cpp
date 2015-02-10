@@ -43,7 +43,7 @@ Isolator::~Isolator()
 }
 
 
-Future<Nothing> Isolator::recover(const list<state::RunState>& state)
+Future<Nothing> Isolator::recover(const list<ExecutorRunState>& state)
 {
   return dispatch(process.get(), &IsolatorProcess::recover, state);
 }

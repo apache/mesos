@@ -41,28 +41,20 @@ class PosixIsolatorProcess : public IsolatorProcess
 {
 public:
   virtual process::Future<Nothing> recover(
-      const std::list<state::RunState>& state)
+      const std::list<ExecutorRunState>& state)
   {
-    foreach (const state::RunState& run, state) {
-      if (!run.id.isSome()) {
-        return process::Failure("ContainerID is required to recover");
-      }
-
-      if (!run.forkedPid.isSome()) {
-        return process::Failure("Executor pid is required to recover");
-      }
-
+    foreach (const ExecutorRunState& run, state) {
       // This should (almost) never occur: see comment in
       // PosixLauncher::recover().
-      if (pids.contains(run.id.get())) {
+      if (pids.contains(run.id)) {
         return process::Failure("Container already recovered");
       }
 
-      pids.put(run.id.get(), run.forkedPid.get());
+      pids.put(run.id, run.pid);
 
       process::Owned<process::Promise<Limitation> > promise(
           new process::Promise<Limitation>());
-      promises.put(run.id.get(), promise);
+      promises.put(run.id, promise);
     }
 
     return Nothing();

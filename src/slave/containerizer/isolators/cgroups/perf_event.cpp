@@ -137,20 +137,12 @@ void CgroupsPerfEventIsolatorProcess::initialize()
 
 
 Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
-    const list<state::RunState>& states)
+    const list<ExecutorRunState>& states)
 {
   hashset<string> cgroups;
 
-  foreach (const state::RunState& state, states) {
-    if (state.id.isNone()) {
-      foreachvalue (Info* info, infos) {
-        delete info;
-      }
-      infos.clear();
-      return Failure("ContainerID is required to recover");
-    }
-
-    const ContainerID& containerId = state.id.get();
+  foreach (const ExecutorRunState& state, states) {
+    const ContainerID& containerId = state.id;
     const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
     Try<bool> exists = cgroups::exists(hierarchy, cgroup);

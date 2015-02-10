@@ -76,25 +76,15 @@ PosixDiskIsolatorProcess::~PosixDiskIsolatorProcess() {}
 
 
 Future<Nothing> PosixDiskIsolatorProcess::recover(
-    const list<state::RunState>& states)
+    const list<ExecutorRunState>& states)
 {
-  foreach (const state::RunState& state, states) {
-    if (state.id.isNone()) {
-      infos.clear();
-
-      return Failure("ContainerID is required for recovery");
-    }
-
-    if (state.completed) {
-      continue;
-    }
-
+  foreach (const ExecutorRunState& state, states) {
     // Since we checkpoint the executor after we create its working
     // directory, the working directory should definitely exist.
     CHECK(os::exists(state.directory))
       << "Executor work directory " << state.directory << " doesn't exist";
 
-    infos.put(state.id.get(), Owned<Info>(new Info(state.directory)));
+    infos.put(state.id, Owned<Info>(new Info(state.directory)));
   }
 
   return Nothing();

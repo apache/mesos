@@ -56,7 +56,7 @@ public:
   virtual ~NamespacesPidIsolatorProcess() {}
 
   virtual process::Future<Nothing> recover(
-      const std::list<state::RunState>& states);
+      const std::list<ExecutorRunState>& states);
 
   virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
