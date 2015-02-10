@@ -1264,32 +1264,40 @@ active_user_test_helper_LDADD = libmesos.la
 
 check_PROGRAMS += mesos-tests
 
+# LDFLAGS to be used for the module libraries.
+# We need to build the module libraries for running the test suite but don't
+# need to install them.  The 'noinst_' prefix ensures that these libraries will
+# not be installed.  However, it also skips building the shared libraries. The
+# workaround is to use '-rpath /nowhere' to force libtool to build the shared
+# library.
+MESOS_MODULE_LDFLAGS = -release $(PACKAGE_VERSION) -shared -rpath /nowhere
+
 # Library containing an example module.
-lib_LTLIBRARIES += libexamplemodule.la
+noinst_LTLIBRARIES += libexamplemodule.la
 libexamplemodule_la_SOURCES = examples/example_module_impl.cpp
 libexamplemodule_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-libexamplemodule_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
-
-# Library containing test CPU and memory isolator modules.
-lib_LTLIBRARIES += libtestisolator.la
-libtestisolator_la_SOURCES = examples/test_isolator_module.cpp
-libtestisolator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-libtestisolator_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+libexamplemodule_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 # Library containing the test CRAM-MD5 authentication modules.
 # TODO(tillt): Add cyrus-sasl2 dependency while removing it from libmesos.
 # TODO(tillt): Enable optional building of this module library.
 # TODO(tillt): Make this module library installable. See MESOS-1940.
-lib_LTLIBRARIES += libtestauthentication.la
+noinst_LTLIBRARIES += libtestauthentication.la
 libtestauthentication_la_SOURCES = examples/test_authentication_modules.cpp
 libtestauthentication_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-libtestauthentication_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+libtestauthentication_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 # Library containing test Hook module.
-lib_LTLIBRARIES += libtesthook.la
+noinst_LTLIBRARIES += libtesthook.la
 libtesthook_la_SOURCES = examples/test_hook_module.cpp
 libtesthook_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-libtesthook_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+libtesthook_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+
+# Library containing test CPU and memory isolator modules.
+noinst_LTLIBRARIES += libtestisolator.la
+libtestisolator_la_SOURCES = examples/test_isolator_module.cpp
+libtestisolator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestisolator_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 mesos_tests_SOURCES =				\
   tests/attributes_tests.cpp			\
