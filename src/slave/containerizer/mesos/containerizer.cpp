@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <mesos/module/isolator.hpp>
+
 #include <mesos/slave/isolator.hpp>
 
 #include <process/collect.hpp>
@@ -26,7 +28,6 @@
 
 #include <stout/os.hpp>
 
-#include "module/isolator.hpp"
 #include "module/manager.hpp"
 
 #include "slave/paths.hpp"

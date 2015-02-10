@@ -26,6 +26,8 @@
 
 #include <mesos/resources.hpp>
 
+#include <mesos/module/isolator.hpp>
+
 #include <mesos/slave/isolator.hpp>
 
 #include <process/future.hpp>
@@ -43,8 +45,6 @@
 
 #include "master/master.hpp"
 #include "master/detector.hpp"
-
-#include "module/isolator.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"

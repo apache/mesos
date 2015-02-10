@@ -18,6 +18,7 @@
 
 #include <mesos/module.hpp>
 
+#include <mesos/module/isolator.hpp>
 #include <mesos/module/module.hpp>
 
 #include <mesos/slave/isolator.hpp>
@@ -27,7 +28,6 @@
 
 #include "common/parse.hpp"
 #include "examples/test_module.hpp"
-#include "module/isolator.hpp"
 #include "module/manager.hpp"
 
 #include "tests/flags.hpp"

@@ -376,6 +376,7 @@ nodist_fetcher_HEADERS = ../include/mesos/fetcher/fetcher.pb.h
 moduledir = $(pkgincludedir)/module
 
 module_HEADERS =							\
+  $(top_srcdir)/include/mesos/module/isolator.hpp			\
   $(top_srcdir)/include/mesos/module/module.hpp				\
   $(top_srcdir)/include/mesos/module/module.proto
 
@@ -494,7 +495,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	module/authenticatee.hpp					\
 	module/authenticator.hpp					\
 	module/hook.hpp							\
-	module/isolator.hpp						\
 	module/manager.hpp						\
 	sched/constants.hpp						\
 	sched/flags.hpp							\
