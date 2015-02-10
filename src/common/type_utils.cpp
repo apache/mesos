@@ -22,6 +22,8 @@
 #include "common/attributes.hpp"
 #include "common/type_utils.hpp"
 
+#include "messages/messages.hpp"
+
 namespace mesos {
 
 bool operator == (const CommandInfo& left, const CommandInfo& right)

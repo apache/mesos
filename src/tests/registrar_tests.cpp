@@ -31,6 +31,7 @@
 #include <stout/stopwatch.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/attributes.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/type_utils.hpp"
 

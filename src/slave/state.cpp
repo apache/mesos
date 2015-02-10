@@ -15,6 +15,8 @@
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
+#include "messages/messages.hpp"
+
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
