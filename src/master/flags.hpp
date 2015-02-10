@@ -21,6 +21,10 @@
 
 #include <string>
 
+#include <mesos/mesos.hpp>
+
+#include <mesos/module/module.hpp>
+
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/json.hpp>

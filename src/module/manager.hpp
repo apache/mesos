@@ -30,6 +30,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
+#include <mesos/module/module.hpp>
+
 #include <process/owned.hpp>
 
 #include <stout/check.hpp>

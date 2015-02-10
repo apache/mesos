@@ -21,6 +21,10 @@
 
 #include <boost/functional/hash.hpp>
 
+#include <mesos/mesos.hpp>
+
+#include <mesos/module/module.hpp>
+
 #include <stout/uuid.hpp>
 
 #include "common/attributes.hpp"

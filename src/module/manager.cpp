@@ -21,6 +21,8 @@
 
 #include <mesos/module.hpp>
 
+#include <mesos/module/module.hpp>
+
 #include <stout/json.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>

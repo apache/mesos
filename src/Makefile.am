@@ -137,6 +137,9 @@ CONTAINERIZER_PROTO =							\
 FETCHER_PROTO =								\
   $(top_srcdir)/include/mesos/fetcher/fetcher.proto
 
+MODULE_PROTO =								\
+  $(top_srcdir)/include/mesos/module/module.proto
+
 SCHEDULER_PROTO =							\
   $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 
@@ -147,6 +150,8 @@ CXX_PROTOS =								\
   ../include/mesos/containerizer/containerizer.pb.h			\
   fetcher/fetcher.pb.cc							\
   ../include/mesos/fetcher/fetcher.pb.h					\
+  module/module.pb.cc							\
+  ../include/mesos/module/module.pb.h					\
   scheduler/scheduler.pb.cc						\
   ../include/mesos/scheduler/scheduler.pb.h
 
@@ -200,6 +205,12 @@ fetcher/%.pb.cc ../include/mesos/fetcher/%.pb.h: $(FETCHER_PROTO)
 	$(MKDIR_P) ../include/mesos/fetcher
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/fetcher/*.pb.cc $(@D)
+
+module/%.pb.cc ../include/mesos/module/%.pb.h: $(MODULE_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/module
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/module/*.pb.cc $(@D)
 
 scheduler/%.pb.cc ../include/mesos/scheduler/%.pb.h: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
@@ -342,7 +353,8 @@ pkginclude_HEADERS =							\
 
 nodist_pkginclude_HEADERS =						\
   ../include/mesos/version.hpp						\
-  ../include/mesos/mesos.pb.h
+  ../include/mesos/mesos.pb.h						\
+  ../include/mesos/module.pb.h
 
 containerizerdir = $(pkgincludedir)/containerizer
 
@@ -359,6 +371,14 @@ fetcher_HEADERS =							\
   $(top_srcdir)/include/mesos/fetcher/fetcher.proto
 
 nodist_fetcher_HEADERS = ../include/mesos/fetcher/fetcher.pb.h
+
+moduledir = $(pkgincludedir)/module
+
+module_HEADERS =							\
+  $(top_srcdir)/include/mesos/module/module.hpp				\
+  $(top_srcdir)/include/mesos/module/module.proto
+
+nodist_module_HEADERS = ../include/mesos/module/module.pb.h
 
 schedulerdir = $(pkgincludedir)/scheduler
 
@@ -630,7 +650,11 @@ lib_LTLIBRARIES += libmesos.la
 
 # Include as part of the distribution.
 libmesos_la_SOURCES = 							\
-  $(MESOS_PROTO) $(CONTAINERIZER_PROTO) $(FETCHER_PROTO) $(SCHEDULER_PROTO)
+  $(CONTAINERIZER_PROTO)						\
+  $(FETCHER_PROTO)							\
+  $(MESOS_PROTO)							\
+  $(MODULE_PROTO)							\
+  $(SCHEDULER_PROTO)
 
 libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION)
 

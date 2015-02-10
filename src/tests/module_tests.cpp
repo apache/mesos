@@ -18,6 +18,8 @@
 
 #include <mesos/module.hpp>
 
+#include <mesos/module/module.hpp>
+
 #include <stout/dynamiclibrary.hpp>
 #include <stout/os.hpp>
 

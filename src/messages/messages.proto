@@ -450,30 +450,3 @@ message TaskHealthStatus {
   // This will not be populated if task is healthy.
   optional int32 consecutive_failures = 4;
 }
-
-
-// Collection of Modules.
-message Modules {
-  message Library {
-    // If "file" contains a slash ("/"), then it is interpreted as a
-    // (relative or absolute) pathname.  Otherwise a standard library
-    // search is performed.
-    optional string file = 1;
-
-    // We will add the proper prefix ("lib") and suffix (".so" for
-    // Linux and ".dylib" for OS X) to the "name".
-    optional string name = 2;
-
-    message Module {
-      // Module name.
-      optional string name = 1;
-
-      // Module-specific parameters.
-      repeated Parameter parameters = 2;
-    }
-
-    repeated Module modules = 3;
-  }
-
-  repeated Library libraries = 1;
-}
