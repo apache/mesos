@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <mesos/slave/isolator.hpp>
+
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/io.hpp>
@@ -32,7 +34,6 @@
 
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/fetcher.hpp"
-#include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
 #ifdef __linux__
 #include "slave/containerizer/linux_launcher.hpp"

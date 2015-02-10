@@ -19,11 +19,11 @@
 #ifndef __MEM_ISOLATOR_HPP__
 #define __MEM_ISOLATOR_HPP__
 
+#include <mesos/slave/isolator.hpp>
+
 #include <stout/hashmap.hpp>
 
 #include "slave/flags.hpp"
-
-#include "slave/containerizer/isolator.hpp"
 
 #include "slave/containerizer/isolators/cgroups/constants.hpp"
 

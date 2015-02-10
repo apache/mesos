@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-#include <process/dispatch.hpp>
+#include <mesos/slave/isolator.hpp>
 
-#include "slave/containerizer/isolator.hpp"
+#include <process/dispatch.hpp>
 
 using namespace process;
 

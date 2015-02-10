@@ -19,9 +19,9 @@
 #ifndef __SHARED_FILESYSTEM_ISOLATOR_HPP__
 #define __SHARED_FILESYSTEM_ISOLATOR_HPP__
 
-#include "slave/flags.hpp"
+#include <mesos/slave/isolator.hpp>
 
-#include "slave/containerizer/isolator.hpp"
+#include "slave/flags.hpp"
 
 namespace mesos {
 namespace slave {

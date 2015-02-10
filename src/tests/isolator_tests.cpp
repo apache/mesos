@@ -26,6 +26,8 @@
 
 #include <mesos/resources.hpp>
 
+#include <mesos/slave/isolator.hpp>
+
 #include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/reap.hpp>
@@ -47,7 +49,6 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
-#include "slave/containerizer/isolator.hpp"
 #ifdef __linux__
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"

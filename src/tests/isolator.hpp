@@ -21,7 +21,7 @@
 
 #include <gmock/gmock.h>
 
-#include "slave/containerizer/isolator.hpp"
+#include <mesos/slave/isolator.hpp>
 
 namespace mesos {
 namespace tests {

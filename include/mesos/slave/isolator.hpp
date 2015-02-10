@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __ISOLATOR_HPP__
-#define __ISOLATOR_HPP__
+#ifndef __MESOS_SLAVE_ISOLATOR_HPP__
+#define __MESOS_SLAVE_ISOLATOR_HPP__
 
 #include <list>
 #include <string>
@@ -160,4 +160,4 @@ public:
 } // namespace slave {
 } // namespace mesos {
 
-#endif // __ISOLATOR_HPP__
+#endif // __MESOS_SLAVE_ISOLATOR_HPP__

@@ -38,7 +38,6 @@
 #include "slave/containerizer/composing.hpp"
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/docker.hpp"
-#include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
 #include "slave/containerizer/external_containerizer.hpp"
 

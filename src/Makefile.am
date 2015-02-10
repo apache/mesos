@@ -389,6 +389,11 @@ scheduler_HEADERS =							\
 
 nodist_scheduler_HEADERS = ../include/mesos/scheduler/scheduler.pb.h
 
+slavedir = $(pkgincludedir)/slave
+
+slave_HEADERS =								\
+  $(top_srcdir)/include/mesos/slave/isolator.hpp
+
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/fs.cpp
@@ -506,7 +511,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/containerizer.hpp				\
 	slave/containerizer/fetcher.hpp					\
 	slave/containerizer/external_containerizer.hpp			\
-	slave/containerizer/isolator.hpp				\
 	slave/containerizer/launcher.hpp				\
 	slave/containerizer/linux_launcher.hpp				\
 	slave/containerizer/mesos/containerizer.hpp			\

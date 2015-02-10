@@ -26,6 +26,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/slave/isolator.hpp>
+
 #include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
@@ -44,8 +46,6 @@
 #include "linux/routing/filter/ip.hpp"
 
 #include "slave/flags.hpp"
-
-#include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
 namespace slave {
