@@ -296,6 +296,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	common/lock.cpp							\
 	common/protobuf_utils.cpp					\
 	common/resources.cpp						\
+	common/resources_utils.cpp					\
 	common/thread.cpp						\
 	common/type_utils.cpp						\
 	common/values.cpp						\
@@ -483,6 +484,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	common/lock.hpp							\
 	common/parse.hpp						\
 	common/protobuf_utils.hpp					\
+	common/resources_utils.hpp					\
 	common/status_utils.hpp						\
 	common/thread.hpp						\
 	credentials/credentials.hpp					\

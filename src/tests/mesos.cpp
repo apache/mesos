@@ -358,14 +358,16 @@ MockSlave::MockSlave(const slave::Flags& flags,
       statusUpdateManager = new slave::StatusUpdateManager(flags))
 {
   // Set up default behaviors, calling the original methods.
-  EXPECT_CALL(*this, runTask(_, _, _, _, _)).
-      WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
-  EXPECT_CALL(*this, _runTask(_, _, _, _, _)).
-      WillRepeatedly(Invoke(this, &MockSlave::unmocked__runTask));
-  EXPECT_CALL(*this, killTask(_, _, _)).
-      WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
-  EXPECT_CALL(*this, removeFramework(_)).
-      WillRepeatedly(Invoke(this, &MockSlave::unmocked_removeFramework));
+  EXPECT_CALL(*this, runTask(_, _, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
+  EXPECT_CALL(*this, _runTask(_, _, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked__runTask));
+  EXPECT_CALL(*this, killTask(_, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
+  EXPECT_CALL(*this, removeFramework(_))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_removeFramework));
+  EXPECT_CALL(*this, __recover(_))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked___recover));
 }
 
 
@@ -409,6 +411,12 @@ void MockSlave::unmocked_killTask(
 void MockSlave::unmocked_removeFramework(slave::Framework* framework)
 {
   slave::Slave::removeFramework(framework);
+}
+
+
+void MockSlave::unmocked___recover(const Future<Nothing>& future)
+{
+  slave::Slave::__recover(future);
 }
 
 

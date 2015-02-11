@@ -68,6 +68,7 @@
 
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
+#include "common/resources_utils.hpp"
 #include "common/status_utils.hpp"
 
 #include "credentials/credentials.hpp"
@@ -3641,12 +3642,30 @@ Future<Nothing> Slave::recover(const Result<state::State>& state)
   }
 
   // Recover checkpointed resources.
+  // NOTE: 'resourcesState' is None if the slave rootDir does not
+  // exist or the resources checkpoint file cannot be found.
   if (resourcesState.isSome()) {
     if (resourcesState.get().errors > 0) {
       LOG(WARNING) << "Errors encountered during resources recovery: "
                    << resourcesState.get().errors;
 
       metrics.recovery_errors += resourcesState.get().errors;
+    }
+
+    // This is to verify that the checkpointed resources are
+    // compatible with the slave resources specified through the
+    // '--resources' command line flag.
+    Try<Resources> totalResources = applyCheckpointedResources(
+        info.resources(),
+        resourcesState.get().resources);
+
+    if (totalResources.isError()) {
+      return Failure(
+          "Checkpointed resources " +
+          stringify(resourcesState.get().resources) +
+          " are incompatible with slave resources " +
+          stringify(info.resources()) + ": " +
+          totalResources.error());
     }
 
     checkpointedResources = resourcesState.get().resources;

@@ -50,6 +50,8 @@ Result<State> recover(const string& rootDir, bool strict)
     return Error(resources.error());
   }
 
+  // TODO(jieyu): Do not set 'state.resources' if we cannot find the
+  // resources checkpoint file.
   state.resources = resources.get();
 
   // Did the machine reboot? No need to recover slave state if the

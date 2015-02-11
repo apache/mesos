@@ -336,7 +336,8 @@ public:
       const Option<state::SlaveState>& state);
 
   // This is called when recovery finishes.
-  void __recover(const process::Future<Nothing>& future);
+  // Made 'virtual' for Slave mocking.
+  virtual void __recover(const process::Future<Nothing>& future);
 
   // Helper to recover a framework from the specified state.
   void recoverFramework(const state::FrameworkState& state);

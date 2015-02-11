@@ -43,6 +43,7 @@
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
+#include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
 using namespace process;
@@ -54,10 +55,13 @@ using mesos::internal::slave::Slave;
 using std::string;
 using std::vector;
 
+using testing::_;
+using testing::Return;
+using testing::DoAll;
+
 namespace mesos {
 namespace internal {
 namespace tests {
-
 
 class PersistentVolumeTest : public MesosTest
 {
@@ -422,6 +426,94 @@ TEST_F(PersistentVolumeTest, MasterFailover)
   Offer offer2 = offers2.get()[0];
 
   EXPECT_TRUE(Resources(offer2.resources()).contains(volume));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that a slave will refuse to start if the
+// checkpointed resources it recovers are not compatible with the
+// slave resources specified using the '--resources' flag.
+TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.checkpoint = true;
+  slaveFlags.resources = "disk(role1):1024";
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+  StandaloneMasterDetector detector(master.get());
+
+  MockSlave slave1(slaveFlags, &detector, &containerizer);
+  spawn(slave1);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  Resources volume = PersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1");
+
+  Future<CheckpointResourcesMessage> checkpointResources =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CreateOperation(volume)});
+
+  AWAIT_READY(checkpointResources);
+
+  terminate(slave1);
+  wait(slave1);
+
+  // Simulate a reboot of the slave machine by modify the boot ID.
+  ASSERT_SOME(os::write(slave::paths::getBootIdPath(
+      slave::paths::getMetaRootDir(slaveFlags.work_dir)),
+      "rebooted! ;)"));
+
+  // Change the slave resources so that it's not compatible with the
+  // checkpointed resources.
+  slaveFlags.resources = "disk:1024";
+
+  MockSlave slave2(slaveFlags, &detector, &containerizer);
+
+  Future<Future<Nothing>> recover;
+  EXPECT_CALL(slave2, __recover(_))
+    .WillOnce(DoAll(FutureArg<0>(&recover), Return()));
+
+  spawn(slave2);
+
+  AWAIT_READY(recover);
+  AWAIT_FAILED(recover.get());
+
+  terminate(slave2);
+  wait(slave2);
 
   driver.stop();
   driver.join();

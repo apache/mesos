@@ -49,6 +49,7 @@
 #include <stout/option.hpp>
 
 #include "common/protobuf_utils.hpp"
+#include "common/resources_utils.hpp"
 
 #include "files/files.hpp"
 
@@ -759,31 +760,18 @@ struct Slave
       registeredTime(_registeredTime),
       connected(true),
       active(true),
-      totalResources(_info.resources()),
+      checkpointedResources(_checkpointedResources),
       observer(NULL)
   {
     CHECK(_info.has_id());
 
-    // We here infer offer operations from the given checkpointed
-    // resources and update total/checkpointed resources of this slave
-    // by calling 'apply(operation)'.
-    foreach (const Resource& resource, _checkpointedResources) {
-      // TODO(jieyu): Apply RESERVE operation if 'resource' is
-      // dynamically reserved.
+    Try<Resources> resources = applyCheckpointedResources(
+        info.resources(),
+        _checkpointedResources);
 
-      if (Resources::isPersistentVolume(resource)) {
-        Offer::Operation create;
-        create.set_type(Offer::Operation::CREATE);
-        create.mutable_create()->add_volumes()->CopyFrom(resource);
-
-        // NOTE: Here, we assume master has already validated slave's
-        // checkpointed resources so that 'apply' will always succeed.
-        apply(create);
-      } else {
-        LOG(FATAL) << "Not expecting checkpointed resource "
-                   << resource << " from slave " << id;
-      }
-    }
+    // NOTE: This should be validated during slave recovery.
+    CHECK_SOME(resources);
+    totalResources = resources.get();
 
     foreach (const ExecutorInfo& executorInfo, executorInfos) {
       CHECK(executorInfo.has_framework_id());
@@ -923,7 +911,6 @@ struct Slave
     CHECK_SOME(resources);
 
     totalResources = resources.get();
-
     checkpointedResources = totalResources.filter(needCheckpointing);
   }
 
@@ -983,14 +970,6 @@ struct Slave
 private:
   Slave(const Slave&);              // No copying.
   Slave& operator = (const Slave&); // No assigning.
-
-  // Returns true iff the resource needs to be checkpointed on the slave.
-  // TODO(mpark): Consider framework reservations.
-  // TODO(mpark): Factor this out to somewhere the slave can use it.
-  static bool needCheckpointing(const Resource& resource)
-  {
-    return Resources::isPersistentVolume(resource);
-  }
 };
 
 

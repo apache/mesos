@@ -659,6 +659,12 @@ public:
   void unmocked_removeFramework(
       slave::Framework* framework);
 
+  MOCK_METHOD1(__recover, void(
+      const process::Future<Nothing>& future));
+
+  void unmocked___recover(
+      const process::Future<Nothing>& future);
+
 private:
   Files files;
   MockGarbageCollector gc;
