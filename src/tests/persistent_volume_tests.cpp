@@ -333,6 +333,102 @@ TEST_F(PersistentVolumeTest, PreparePersistentVolume)
   Shutdown();
 }
 
+
+// This test verifies the case where a slave that has checkpointed
+// persistent volumes reregisters with a failed over master, and the
+// persistent volumes are later correctly offered to the framework.
+TEST_F(PersistentVolumeTest, MasterFailover)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  master::Flags masterFlags = MasterFlags({frameworkInfo});
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get());
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "disk(role1):1024";
+
+  Try<PID<Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_FALSE(offers1.get().empty());
+
+  Offer offer1 = offers1.get()[0];
+
+  Resources volume = PersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1");
+
+  Future<CheckpointResourcesMessage> checkpointResources =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
+
+  driver.acceptOffers(
+      {offer1.id()},
+      {CreateOperation(volume)});
+
+  AWAIT_READY(checkpointResources);
+
+  // This is to make sure CheckpointResourcesMessage is processed.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  // Simulate failed over master by restarting the master.
+  Stop(master.get());
+
+  EXPECT_CALL(sched, disconnected(&driver));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<SlaveReregisteredMessage> slaveReregistered =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Simulate a new master detected event on the slave so that the
+  // slave will do a re-registration.
+  detector.appoint(master.get());
+
+  AWAIT_READY(slaveReregistered);
+
+  AWAIT_READY(offers2);
+  EXPECT_FALSE(offers2.get().empty());
+
+  Offer offer2 = offers2.get()[0];
+
+  EXPECT_TRUE(Resources(offer2.resources()).contains(volume));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
