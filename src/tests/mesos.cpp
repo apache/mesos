@@ -179,7 +179,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 }
 
 
-Try<process::PID<master::Master> > MesosTest::StartMaster(
+Try<PID<master::Master> > MesosTest::StartMaster(
     const Option<master::Flags>& flags)
 {
   return cluster.masters.start(
@@ -187,7 +187,7 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
 }
 
 
-Try<process::PID<master::Master> > MesosTest::StartMaster(
+Try<PID<master::Master> > MesosTest::StartMaster(
     master::allocator::AllocatorProcess* allocator,
     const Option<master::Flags>& flags)
 {
@@ -197,7 +197,7 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
 }
 
 
-Try<process::PID<master::Master> > MesosTest::StartMaster(
+Try<PID<master::Master> > MesosTest::StartMaster(
     Authorizer* authorizer,
     const Option<master::Flags>& flags)
 {
@@ -208,7 +208,7 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
 }
 
 
-Try<process::PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave> > MesosTest::StartSlave(
     const Option<slave::Flags>& flags)
 {
   return cluster.slaves.start(
@@ -216,13 +216,13 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<process::PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave> > MesosTest::StartSlave(
     MockExecutor* executor,
     const Option<slave::Flags>& flags)
 {
   slave::Containerizer* containerizer = new TestContainerizer(executor);
 
-  Try<process::PID<slave::Slave> > pid = StartSlave(containerizer, flags);
+  Try<PID<slave::Slave> > pid = StartSlave(containerizer, flags);
 
   if (pid.isError()) {
     delete containerizer;
@@ -235,7 +235,7 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<process::PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave> > MesosTest::StartSlave(
     slave::Containerizer* containerizer,
     const Option<slave::Flags>& flags)
 {
@@ -245,7 +245,7 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<process::PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave> > MesosTest::StartSlave(
     slave::Containerizer* containerizer,
     MasterDetector* detector,
     const Option<slave::Flags>& flags)
@@ -288,7 +288,7 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 {
   slave::Containerizer* containerizer = new TestContainerizer(executor);
 
-  Try<process::PID<slave::Slave> > pid = cluster.slaves.start(
+  Try<PID<slave::Slave> > pid = cluster.slaves.start(
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
           containerizer,
       detector);
@@ -304,13 +304,13 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-void MesosTest::Stop(const process::PID<master::Master>& pid)
+void MesosTest::Stop(const PID<master::Master>& pid)
 {
   cluster.masters.stop(pid);
 }
 
 
-void MesosTest::Stop(const process::PID<slave::Slave>& pid, bool shutdown)
+void MesosTest::Stop(const PID<slave::Slave>& pid, bool shutdown)
 {
   cluster.slaves.stop(pid, shutdown);
   if (containerizers.count(pid) > 0) {
@@ -394,7 +394,7 @@ MockSlave::~MockSlave()
 
 
 void MockSlave::unmocked_runTask(
-    const process::UPID& from,
+    const UPID& from,
     const FrameworkInfo& frameworkInfo,
     const FrameworkID& frameworkId,
     const std::string& pid,
@@ -405,7 +405,7 @@ void MockSlave::unmocked_runTask(
 
 
 void MockSlave::unmocked__runTask(
-      const process::Future<bool>& future,
+      const Future<bool>& future,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const std::string& pid,
@@ -416,7 +416,7 @@ void MockSlave::unmocked__runTask(
 
 
 void MockSlave::unmocked_killTask(
-      const process::UPID& from,
+      const UPID& from,
       const FrameworkID& frameworkId,
       const TaskID& taskId)
 {
