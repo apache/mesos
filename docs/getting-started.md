@@ -13,9 +13,9 @@ There are different ways you can get Mesos:
         $ wget http://www.apache.org/dist/mesos/0.20.1/mesos-0.20.1.tar.gz
         $ tar -zxf mesos-0.20.1.tar.gz
 
-2. Clone the Mesos git [repository](http://git-wip-us.apache.org/repos/asf/mesos.git) (***Advanced Users Only***)
+2. Clone the Mesos git [repository](https://git-wip-us.apache.org/repos/asf/mesos.git) (***Advanced Users Only***)
 
-        $ git clone http://git-wip-us.apache.org/repos/asf/mesos.git
+        $ git clone https://git-wip-us.apache.org/repos/asf/mesos.git
 
 ## System Requirements
 
