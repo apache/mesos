@@ -1543,7 +1543,8 @@ void send_connect(
 {
   if (future.isDiscarded() || future.isFailed()) {
     if (future.isFailed()) {
-      VLOG(1) << "Failed to send, connect: " << future.failure();
+      VLOG(1) << "Failed to send '" << message->name << "' to '"
+              << message->to.address << "', connect: " << future.failure();
     }
     socket_manager->close(*socket);
     delete socket;
@@ -2113,6 +2114,7 @@ bool ProcessManager::deliver(
   if (ProcessReference receiver = use(to)) {
     return deliver(receiver, event, sender);
   }
+  VLOG(1) << "Dropped / Lost event for PID: " << to;
 
   delete event;
   return false;
