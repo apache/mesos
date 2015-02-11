@@ -53,7 +53,8 @@ bool paused = false;
 bool settling = false;
 
 // Lambda function to invoke when timers have expired.
-lambda::function<void(const list<Timer>&)> callback;
+lambda::function<void(const list<Timer>&)>* callback =
+    new lambda::function<void(const list<Timer>&)>();
 
 
 // Helper for determining the duration until the next timer elapses,
@@ -126,7 +127,7 @@ void tick()
     }
   }
 
-  clock::callback(timedout);
+  (*clock::callback)(timedout);
 
   // Mark 'settling' as false since there are not any more timers
   // that will expire before the paused time and we've finished
@@ -144,7 +145,7 @@ void tick()
 
 void Clock::initialize(lambda::function<void(const list<Timer>&)>&& callback)
 {
-  clock::callback = callback;
+  (*clock::callback) = callback;
 }
 
 
