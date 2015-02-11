@@ -24,25 +24,26 @@
 
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
 namespace credentials {
 
-inline Result<Credentials> read(const std::string& path)
+inline Result<Credentials> read(const Path& path)
 {
   LOG(INFO) << "Loading credentials for authentication from '" << path << "'";
 
-  Try<std::string> read = os::read(path);
+  Try<std::string> read = os::read(path.value);
   if (read.isError()) {
-    return Error("Failed to read credentials file '" + path +
+    return Error("Failed to read credentials file '" + path.value +
                  "': " + read.error());
   } else if (read.get().empty()) {
     return None();
   }
 
-  Try<os::Permissions> permissions = os::permissions(path);
+  Try<os::Permissions> permissions = os::permissions(path.value);
   if (permissions.isError()) {
     LOG(WARNING) << "Failed to stat credentials file '" << path
                  << "': " << permissions.error();
@@ -78,19 +79,19 @@ inline Result<Credentials> read(const std::string& path)
 }
 
 
-inline Result<Credential> readCredential(const std::string& path)
+inline Result<Credential> readCredential(const Path& path)
 {
   LOG(INFO) << "Loading credential for authentication from '" << path << "'";
 
-  Try<std::string> read = os::read(path);
+  Try<std::string> read = os::read(path.value);
   if (read.isError()) {
-    return Error("Failed to read credential file '" + path +
+    return Error("Failed to read credential file '" + path.value +
                  "': " + read.error());
   } else if (read.get().empty()) {
     return None();
   }
 
-  Try<os::Permissions> permissions = os::permissions(path);
+  Try<os::Permissions> permissions = os::permissions(path.value);
   if (permissions.isError()) {
     LOG(WARNING) << "Failed to stat credential file '" << path
                  << "': " << permissions.error();

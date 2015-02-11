@@ -7,7 +7,7 @@ layout: documentation
 
 The Mesos master and slave can take a variety of configuration options through command-line arguments, or environment variables. A list of the available options can be seen by running `mesos-master --help` or `mesos-slave --help`. Each option can be set in two ways:
 
-* By passing it to the binary using `--option_name=value`.
+* By passing it to the binary using `--option_name=value`, either specifying the value directly, or specifying a file in which the value resides (`--option_name=file://path/to/file`). The path can be absolute or relative to the current working directory.
 * By setting the environment variable `MESOS_OPTION_NAME` (the option name with a `MESOS_` prefix added to it).
 
 Configuration values are searched for first in the environment, then on the command-line.
@@ -158,8 +158,7 @@ If you have special compilation requirements, please refer to `./configure --hel
       ZooKeeper URL (used for leader election amongst masters)
       May be one of:
 <pre><code>zk://host1:port1,host2:port2,.../path
-zk://username:password@host1:port1,host2:port2,.../path
-file://path/to/file (where file contains one of the above)</code></pre>
+zk://username:password@host1:port1,host2:port2,.../path</code></pre>
     </td>
   </tr>
 </table>
@@ -181,10 +180,9 @@ file://path/to/file (where file contains one of the above)</code></pre>
       --acls=VALUE
     </td>
     <td>
-      The value could be a JSON formatted string of ACLs
-      or a file path containing the JSON formatted ACLs used
-      for authorization. Path could be of the form <code>file:///path/to/file</code>
-      or <code>/path/to/file</code>.
+      The value is a JSON formatted string of ACLs. Remember you can also use
+      the <code>file:///path/to/file</code> argument value format to write the
+      JSON in a file.
       <p/>
       See the ACLs protobuf in mesos.proto for the expected format.
       <p/>
@@ -267,7 +265,7 @@ file://path/to/file (where file contains one of the above)</code></pre>
       Either a path to a text file with a list of credentials,
       each line containing 'principal' and 'secret' separated by whitespace,
       or, a path to a JSON-formatted file containing credentials.
-      Path could be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
+      Path should be of the form <code>file:///path/to/file</code>
       <p/>
       JSON file Example:
 <pre><code>{
@@ -324,8 +322,9 @@ file://path/to/file (where file contains one of the above)</code></pre>
       subsystems.
       <p/>
       Use <code>--modules=filepath</code> to specify the list of modules via a
-      file containing a JSON formatted string. 'filepath' can be
-      of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
+      file containing a JSON formatted string. Remember you can also use
+      the <code>file:///path/to/file</code> argument value format to write the
+      JSON in a file.
       <p/>
       Use <code>--modules="{...}"</code> to specify the list of modules inline.
       <p/>
@@ -382,8 +381,9 @@ file://path/to/file (where file contains one of the above)</code></pre>
       or a file path containing the JSON formatted rate limits used
       for framework rate limiting.
       <p/>
-      Path could be of the form <code>file:///path/to/file</code>
-        or <code>/path/to/file</code>.
+      Remember you can also use
+      the <code>file:///path/to/file</code> argument value format to write the
+      JSON in a file.
       <p/>
 
       See the RateLimits protobuf in mesos.proto for the expected format.
@@ -534,10 +534,15 @@ file://path/to/file (where file contains one of the above)</code></pre>
       --whitelist=VALUE
     </td>
     <td>
-      Path to a file with a list of slaves
-      (one per line) to advertise offers for.
+      A filename which contains a list of slaves (one per line) to advertise
+      offers for. The file is watched, and periodically re-read to refresh
+      the slave whitelist. By default there is no whitelist / all machines are
+      accepted. (default: None)
+     <p/>
+
+      Example:
+      <pre><code>file:///etc/mesos/slave_whitelist</code></pre>
       <p/>
-      Path could be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>. (default: *)
     </td>
   </tr>
   <tr>
@@ -613,7 +618,8 @@ file://path/to/file (where file contains one of the above)</code></pre>
         </li>
 
         <li> a path to a file containing either one of the above options </li>
-<pre><code> --master=file://path/to/file (where file contains one of the above)</code></pre>
+        <pre><code>You can also use the <code>file:///path/to/file</code> syntax
+        to read the argument from a file which contains one of the above</code></pre>
         </li>
       </ol>
       Examples:
@@ -724,13 +730,18 @@ file://path/to/file (where file contains one of the above)</code></pre>
       --credential=VALUE
     </td>
     <td>
-      Either a path to a text with a single line
+      A path to a text file with a single line
       containing 'principal' and 'secret' separated by whitespace.
+
       <p/>
       Or a path containing the JSON formatted information used for one credential.
       <p/>
-      Path could be of the form <code>file:///path/to/file< code> or <code>/path/to/file</code>.
+      Path should be of the form <code>file://path/to/file</code>.
       <p/>
+      Remember you can also use
+      the <code>file:///path/to/file</code> argument value format to read the
+      value from a file.
+      </p>
       JSON file example:
 <pre><code>{
   "principal": "username",
@@ -930,9 +941,8 @@ file://path/to/file (where file contains one of the above)</code></pre>
       List of modules to be loaded and be available to the internal
       subsystems.
       <p/>
-      Use <code>--modules=filepath</code> to specify the list of modules via a
-      file containing a JSON formatted string. 'filepath' can be
-      of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
+      Remember you can also use the <code>file:///path/to/file</code>
+      argument value format to have the value read from a file.
       <p/>
       Use <code>--modules="{...}"</code> to specify the list of modules inline.
       <p/>

@@ -195,12 +195,12 @@ private:
 };
 
 
-Try<MasterDetector*> MasterDetector::create(const string& master)
+Try<MasterDetector*> MasterDetector::create(const string& mechanism)
 {
-  if (master == "") {
+  if (mechanism == "") {
     return new StandaloneMasterDetector();
-  } else if (master.find("zk://") == 0) {
-    Try<zookeeper::URL> url = zookeeper::URL::parse(master);
+  } else if (strings::startsWith(mechanism, "zk://")) {
+    Try<zookeeper::URL> url = zookeeper::URL::parse(mechanism);
     if (url.isError()) {
       return Error(url.error());
     }
@@ -209,8 +209,25 @@ Try<MasterDetector*> MasterDetector::create(const string& master)
           "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
     }
     return new ZooKeeperMasterDetector(url.get());
-  } else if (master.find("file://") == 0) {
-    const string& path = master.substr(7);
+  } else if (strings::startsWith(mechanism, "file://")) {
+    // Load the configuration out of a file. While Mesos and related
+    // programs always use <stout/flags> to process the command line
+    // arguments (and therefore file://) this entrypoint is exposed by
+    // libmesos, with frameworks currently calling it and expecting it
+    // to do the argument parsing for them which roughly matches the
+    // argument parsing Mesos will do.
+    // TODO(cmaloney): Rework the libmesos exposed APIs to expose
+    // A "flags" endpoint where the framework can pass the command
+    // line arguments and they will be parsed by <stout/flags> and the
+    // needed flags extracted, and then change this interface to
+    // require final values from teh flags. This means that a
+    // framework doesn't need to know how the flags are passed to
+    // match mesos' command line arguments if it wants, but if it
+    // needs to inspect/manipulate arguments, it can.
+    LOG(WARNING) << "Specifying master detection mechanism / ZooKeeper URL to "
+                    "be read out of a file via 'file://' is deprecated inside "
+                    "Mesos and will be removed in a future release.";
+    const string& path = mechanism.substr(7);
     const Try<string> read = os::read(path);
     if (read.isError()) {
       return Error("Failed to read from file at '" + path + "'");
@@ -219,13 +236,15 @@ Try<MasterDetector*> MasterDetector::create(const string& master)
     return create(strings::trim(read.get()));
   }
 
+  CHECK(!strings::startsWith(mechanism, "file://"));
+
   // Okay, try and parse what we got as a PID.
-  UPID pid = master.find("master@") == 0
-    ? UPID(master)
-    : UPID("master@" + master);
+  UPID pid = mechanism.find("master@") == 0
+    ? UPID(mechanism)
+    : UPID("master@" + mechanism);
 
   if (!pid) {
-    return Error("Failed to parse '" + master + "'");
+    return Error("Failed to parse '" + mechanism + "'");
   }
 
   return new StandaloneMasterDetector(protobuf::createMasterInfo(pid));

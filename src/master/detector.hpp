@@ -49,13 +49,12 @@ class ZooKeeperMasterDetectorProcess;
 class MasterDetector
 {
 public:
-  // Attempts to create a master detector for the specified master.
-  // The master should be one of:
+  // Attempts to create a master detector for the specified mechanism.
+  // The mechanism should be one of:
   //   - host:port
   //   - zk://host1:port1,host2:port2,.../path
   //   - zk://username:password@host1:port1,host2:port2,.../path
-  //   - file:///path/to/file (where file contains one of the above)
-  static Try<MasterDetector*> create(const std::string& master);
+  static Try<MasterDetector*> create(const std::string& mechanism);
   virtual ~MasterDetector() = 0;
 
   // Returns MasterInfo after an election has occurred and the elected

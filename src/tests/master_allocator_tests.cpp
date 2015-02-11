@@ -1106,7 +1106,7 @@ TYPED_TEST(MasterAllocatorTest, Whitelist)
   ASSERT_SOME(os::write(path, strings::join("\n", hosts)));
 
   master::Flags masterFlags = this->CreateMasterFlags();
-  masterFlags.whitelist = "file://" + path;
+  masterFlags.whitelist = path;
 
   EXPECT_CALL(this->allocator, initialize(_, _, _));
 

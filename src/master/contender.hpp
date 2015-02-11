@@ -52,13 +52,12 @@ class MasterContender
 {
 public:
   // Attempts to create a master contender using the specified
-  // Zookeeper.
-  // The Zookeeper address should be one of:
+  // mechanism.
+  // The mechanism address should be one of:
   //   - zk://host1:port1,host2:port2,.../path
   //   - zk://username:password@host1:port1,host2:port2,.../path
-  //   - file:///path/to/file (where file contains one of the above)
   // Note that the returned contender still needs to be 'initialize()'d.
-  static Try<MasterContender*> create(const std::string& zk);
+  static Try<MasterContender*> create(const std::string& mechanism);
 
   // Note that the contender's membership, if obtained, is scheduled
   // to be cancelled during destruction.

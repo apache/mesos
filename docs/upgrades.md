@@ -17,6 +17,7 @@ message AuthenticationStartMessage {
 }
 ```
 
+All Mesos arguments can now be passed using file:// to read them out of a file (either an absolute or relative path). The --credentials, --whitelist, and any flags that expect JSON backed arguments (such as --modules) behave as before, although support for just passing a absolute path for any JSON flags rather than file:// has been deprecated and will produce a warning (and the absolute path behavior will be removed in a future release).
 
 ## Upgrading from 0.20.x to 0.21.x
 

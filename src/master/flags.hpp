@@ -29,6 +29,7 @@
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 
 #include "common/parse.hpp"
@@ -168,8 +169,7 @@ public:
         "whitelist",
         "Path to a file with a list of slaves\n"
         "(one per line) to advertise offers for.\n"
-        "Path could be of the form 'file:///path/to/file' or '/path/to/file'.",
-        "*");
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'.");
 
     add(&Flags::user_sorter,
         "user_sorter",
@@ -391,7 +391,7 @@ public:
   std::string recovery_slave_removal_limit;
   Option<std::string> slave_removal_rate_limit;
   std::string webui_dir;
-  std::string whitelist;
+  Option<Path> whitelist;
   std::string user_sorter;
   std::string framework_sorter;
   Duration allocation_interval;
@@ -400,7 +400,7 @@ public:
   Option<std::string> weights;
   bool authenticate_frameworks;
   bool authenticate_slaves;
-  Option<std::string> credentials;
+  Option<Path> credentials;
   Option<ACLs> acls;
   Option<RateLimits> rate_limits;
   Option<Duration> offer_timeout;

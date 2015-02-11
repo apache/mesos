@@ -26,6 +26,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
@@ -42,7 +43,7 @@ using lambda::function;
 
 
 WhitelistWatcher::WhitelistWatcher(
-    const string& path,
+    const Option<Path>& path,
     const Duration& watchInterval,
     const function<void(const Option<hashset<string>>& whitelist)>& subscriber,
     const Option<hashset<std::string>>& initialWhitelist)
@@ -60,7 +61,20 @@ void WhitelistWatcher::initialize()
   // subscriber's initial policy was not permissive (initial
   // whitelist is not in (1) absent), notify the subscriber that
   // there is no whitelist any more.
-  if (path == "*") { // Accept all nodes.
+  //
+  // TODO(cmaloney): In older versions of Mesos the default value for
+  // 'whitelist' which represented "accept all nodes" was the string
+  // value '*' rather than 'None'. For backwards compatibility we
+  // still check for '*'. Can be removed after 0.23.
+  if (path.isSome() && path.get().value == "*") {
+    LOG(WARNING)
+      << "Explicitly specifying '*' for the whitelist in order to "
+      << "\"accept all\" is deprecated and will be removed in a future "
+      << "release; simply don't specify the whitelist flag in order to "
+      << "\"accept all\" slaves";
+  }
+
+  if (path.isNone() || path.get().value == "*") { // Accept all nodes.
     VLOG(1) << "No whitelist given";
     if (lastWhitelist.isSome()) {
       subscriber(None());
@@ -78,14 +92,16 @@ void WhitelistWatcher::watch()
   // TODO(vinod): Ensure this read is atomic w.r.t external
   // writes/updates to this file.
   Option<hashset<string>> whitelist;
-  Try<string> read = os::read(
-      strings::remove(path, "file://", strings::PREFIX));
+
+  CHECK_SOME(path);
+  Try<string> read = os::read(path.get().value);
+
   if (read.isError()) {
     LOG(ERROR) << "Error reading whitelist file: " << read.error() << ". "
                << "Retrying";
     whitelist = lastWhitelist;
   } else if (read.get().empty()) {
-    VLOG(1) << "Empty whitelist file " << path;
+    VLOG(1) << "Empty whitelist file " << path.get().value;
     whitelist = hashset<string>();
   } else {
     hashset<string> hostnames;

@@ -88,9 +88,11 @@ TEST_F(CredentialsTest, authenticatedSlaveText)
      << "Failed to write credentials to '" << path << "'";
   CHECK_SOME(os::close(fd.get()));
 
-  flags.credentials = "file://" + path;
+  map<string, Option<string>> values{{"credentials", Some("file://" + path)}};
 
-  Try<PID<Master> > master = StartMaster(flags);
+  flags.load(values, true);
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -98,9 +100,9 @@ TEST_F(CredentialsTest, authenticatedSlaveText)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  slaveFlags.credential = "file://" + path;
+  slaveFlags.load(values, true);
 
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);

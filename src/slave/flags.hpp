@@ -492,7 +492,7 @@ public:
   Duration perf_interval;
   Duration perf_duration;
 #endif
-  Option<std::string> credential;
+  Option<Path> credential;
   Option<std::string> containerizer_path;
   std::string containerizers;
   Option<std::string> default_container_image;

@@ -1061,7 +1061,7 @@ TEST_F(WhitelistTest, WhitelistSlave)
   ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
   master::Flags flags = CreateMasterFlags();
-  flags.whitelist = "file://" + path;
+  flags.whitelist = path;
 
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);

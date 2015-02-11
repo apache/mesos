@@ -110,7 +110,7 @@ master::Flags MesosTest::CreateMasterFlags()
      << "Failed to write credentials to '" << path << "'";
   CHECK_SOME(os::close(fd.get()));
 
-  flags.credentials = "file://" + path;
+  flags.credentials = path;
 
   // Set default ACLs.
   flags.acls = ACLs();
@@ -159,7 +159,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   CHECK_SOME(os::close(fd.get()));
 
-  flags.credential = "file://" + path;
+  flags.credential = path;
 
   // TODO(vinod): Consider making this true and fixing the tests.
   flags.checkpoint = false;

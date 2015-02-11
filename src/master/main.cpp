@@ -222,20 +222,7 @@ int main(int argc, char** argv)
                 << " registry when using ZooKeeper";
       }
 
-      string zk_;
-      if (strings::startsWith(zk.get(), "file://")) {
-        const string& path = zk.get().substr(7);
-        const Try<string> read = os::read(path);
-        if (read.isError()) {
-          EXIT(1) << "Failed to read from file at '" + path + "': "
-                  << read.error();
-        }
-        zk_ = read.get();
-      } else {
-        zk_ = zk.get();
-      }
-
-      Try<zookeeper::URL> url = zookeeper::URL::parse(zk_);
+      Try<zookeeper::URL> url = zookeeper::URL::parse(zk.get());
       if (url.isError()) {
         EXIT(1) << "Error parsing ZooKeeper URL: " << url.error();
       }

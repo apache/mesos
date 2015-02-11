@@ -27,6 +27,7 @@
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
+#include <stout/path.hpp>
 
 namespace mesos {
 
@@ -51,7 +52,7 @@ public:
   // NOTE: The caller should ensure a callback exists throughout
   // WhitelistWatcher's lifetime.
   WhitelistWatcher(
-      const std::string& path,
+      const Option<Path>& path,
       const Duration& watchInterval,
       const lambda::function<
         void(const Option<hashset<std::string>>& whitelist)>& subscriber,
@@ -62,7 +63,7 @@ protected:
   void watch();
 
 private:
-  const std::string path;
+  const Option<Path> path;
   const Duration watchInterval;
   lambda::function<void(const Option<hashset<std::string>>& whitelist)>
     subscriber;

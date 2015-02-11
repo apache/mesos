@@ -4,9 +4,13 @@
 * API Changes:
   * [MESOS-1143] - TASK_ERROR is now sent instead of TASK_LOST when rescheduling a task should not be attempted.
   * [MESOS-2086] - Update messages.proto to use a raw bytestream instead of a string for AuthenticationStartMessage.
+  * [MESOS-2322] - All arguments can now read their values from a file, just specify
+    --name=file://path/to/file.
 
 * Deprecations:
   * [MESOS-2058] - Deprecate stats.json endpoints for Master and Slave.
+  * [MESOS-2322] - Deprecated specifying JSON blobs to parse using an absolute
+    path to point at the filename.
 
 Release Notes - Mesos - Version 0.21.1
 --------------------------------------

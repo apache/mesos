@@ -349,21 +349,6 @@ int main(int argc, char** argv)
 
     string secret = flags.secret.get();
 
-    // If --secret is specified as a file containing the secret,
-    // replace 'secret' with the content.
-    if (strings::startsWith(flags.secret.get(), "/") ||
-        strings::startsWith(flags.secret.get(), "file://")) {
-      const std::string& path =
-        strings::remove(flags.secret.get(), "file://", strings::PREFIX);
-
-      Try<std::string> read = os::read(path);
-      if (read.isError()) {
-        EXIT(1) << "Error reading secret file '" + path + "': " + read.error();
-      }
-
-      secret = read.get();
-    }
-
     Credential credential;
     credential.set_principal(flags.principal);
     credential.set_secret(strings::trim(secret));

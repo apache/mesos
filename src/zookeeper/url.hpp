@@ -48,8 +48,12 @@ namespace zookeeper {
 class URL
 {
 public:
-  // TODO(kensipe): Add support for "file://" based urls.
   static Try<URL> parse(const std::string& url);
+
+  static const char* scheme()
+  {
+    return "zk://";
+  }
 
   const Option<Authentication> authentication;
   const std::string servers;
@@ -74,18 +78,15 @@ inline Try<URL> URL::parse(const std::string& url)
 {
   std::string s = strings::trim(url);
 
-  size_t index = s.find_first_of("zk://");
-
-  if (index != 0) {
+  if (!strings::startsWith(s, URL::scheme())) {
     return Error("Expecting 'zk://' at the beginning of the URL");
   }
-
   s = s.substr(5);
 
   // Look for the trailing '/' (if any), that's where the path starts.
   std::string path;
   do {
-    index = s.find_last_of('/');
+    size_t index = s.find_last_of('/');
 
     if (index == std::string::npos) {
       break;
@@ -100,7 +101,7 @@ inline Try<URL> URL::parse(const std::string& url)
   }
 
   // Look for the trailing '@' (if any), that's where servers starts.
-  index = s.find_last_of('@');
+  size_t index = s.find_last_of('@');
 
   if (index != std::string::npos) {
     return URL(s.substr(0, index), s.substr(index + 1), path);
@@ -111,7 +112,7 @@ inline Try<URL> URL::parse(const std::string& url)
 
 inline std::ostream& operator << (std::ostream& stream, const URL& url)
 {
-  stream << "zk://";
+  stream << URL::scheme();
   if (url.authentication.isSome()) {
     stream << url.authentication.get() << "@";
   }

@@ -418,10 +418,8 @@ void Master::initialize()
 
   // Load credentials.
   if (flags.credentials.isSome()) {
-    const string& path =
-      strings::remove(flags.credentials.get(), "file://", strings::PREFIX);
-
-    Result<Credentials> _credentials = credentials::read(path);
+    Result<Credentials> _credentials =
+      credentials::read(flags.credentials.get());
     if (_credentials.isError()) {
       EXIT(1) << _credentials.error() << " (see --credentials flag)";
     } else if (_credentials.isNone()) {
