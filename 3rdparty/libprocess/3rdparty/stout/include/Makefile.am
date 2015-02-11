@@ -11,6 +11,7 @@ nobase_include_HEADERS =		\
   stout/exit.hpp			\
   stout/fatal.hpp			\
   stout/flags.hpp			\
+  stout/flags/fetch.hpp			\
   stout/flags/flag.hpp			\
   stout/flags/flags.hpp			\
   stout/flags/loader.hpp		\

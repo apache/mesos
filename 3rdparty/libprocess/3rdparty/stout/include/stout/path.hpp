@@ -15,9 +15,30 @@
 #define __STOUT_PATH_HPP__
 
 #include <string>
-#include <vector>
 
 #include <stout/strings.hpp>
+
+// Basic abstraction for representing a path in a filesystem.
+class Path
+{
+public:
+  explicit Path(const std::string& path)
+    : value(strings::remove(path, "file://", strings::PREFIX)) {}
+
+  // TODO(cmaloney): Add more useful operations such as 'absolute()'
+  // and 'basename', and 'dirname', etc.
+
+  const std::string value;
+};
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const Path& path)
+{
+  return stream << path.value;
+}
+
 
 namespace path {
 

@@ -76,26 +76,33 @@ inline Try<Bytes> parse(const std::string& value)
 template <>
 inline Try<JSON::Object> parse(const std::string& value)
 {
-  // If the flag value corresponds to a file parse the contents of the
-  // file as JSON.
-  // TODO(vinod): We do not support relative paths because it is
-  // tricky to figure out if a flag value corresponds to a relative
-  // path or a JSON string. For example, "{", "  {" and "  \n {" are
-  // all valid prefixes of a JSON string.
-  if (strings::startsWith(value, "/") ||
-      strings::startsWith(value, "file://")) {
-    const std::string& path =
-      strings::remove(value, "file://", strings::PREFIX);
+  // A value that already starts with 'file://' will properly be
+  // loaded from the file and put into 'value' but if it starts with
+  // '/' we need to explicitly handle it for backwards compatibility
+  // reasons (because we used to handle it before we introduced the
+  // 'fetch' mechanism for flags that first fetches the data from URIs
+  // such as 'file://').
+  if (strings::startsWith(value, "/")) {
+    LOG(WARNING) << "Specifying a absolute filename to read a command line "
+                    "option out of without using 'file:// is deprecated and "
+                    "will be removed in a future release. Simply adding "
+                    "'file://' to the beginning of the path should eliminate "
+                    "this warning.";
 
-    Try<std::string> read = os::read(path);
+    Try<std::string> read = os::read(value);
     if (read.isError()) {
-      return Error("Error reading file '" + path + "': " + read.error());
+      return Error("Error reading file '" + value + "': " + read.error());
     }
-
     return JSON::parse<JSON::Object>(read.get());
   }
-
   return JSON::parse<JSON::Object>(value);
+}
+
+
+template <>
+inline Try<Path> parse(const std::string& value)
+{
+  return Path(value);
 }
 
 } // namespace flags {
