@@ -73,13 +73,6 @@ template <typename T>
 class MasterAllocatorTest : public MesosTest
 {
 protected:
-  void StopAllocator()
-  {
-    // TODO(alexr): Several tests have been reported flaky if no
-    // explicit stopping of allocation is used. Ensure allocation
-    // is stopped here.
-  }
-
   TestAllocator<T> allocator;
 };
 
@@ -1286,7 +1279,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
     .WillRepeatedly(DoDefault());
 
   this->ShutdownMasters();
-  this->StopAllocator();
 
   TestAllocator<TypeParam> allocator2;
 
@@ -1399,7 +1391,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     .WillRepeatedly(DoDefault());
 
   this->ShutdownMasters();
-  this->StopAllocator();
 
   TestAllocator<TypeParam> allocator2;
 
