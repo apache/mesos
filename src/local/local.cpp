@@ -67,9 +67,8 @@ using namespace mesos;
 using namespace mesos::log;
 
 using mesos::master::allocator::Allocator;
-using mesos::master::allocator::AllocatorProcess;
 using mesos::master::allocator::DRFSorter;
-using mesos::master::allocator::HierarchicalDRFAllocatorProcess;
+using mesos::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::master::Master;
 using mesos::master::Registrar;
@@ -96,7 +95,6 @@ namespace mesos {
 namespace local {
 
 static Allocator* allocator = NULL;
-static AllocatorProcess* allocatorProcess = NULL;
 static Log* log = NULL;
 static state::Storage* storage = NULL;
 static state::protobuf::State* state = NULL;
@@ -121,13 +119,11 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
   if (_allocator == NULL) {
     // Create default allocator, save it for deleting later.
-    allocatorProcess = new HierarchicalDRFAllocatorProcess();
-    _allocator = allocator = new Allocator(allocatorProcess);
+    _allocator = allocator = new HierarchicalDRFAllocator();
   } else {
     // TODO(benh): Figure out the behavior of allocator pointer and remove the
     // else block.
     allocator = NULL;
-    allocatorProcess = NULL;
   }
 
   files = new Files();
@@ -268,7 +264,6 @@ void shutdown()
     process::wait(master->self());
     delete master;
     delete allocator;
-    delete allocatorProcess;
     master = NULL;
 
     // TODO(benh): Ugh! Because the isolator calls back into the slave

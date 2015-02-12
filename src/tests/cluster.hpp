@@ -98,7 +98,7 @@ public:
     // Start a new master with the provided flags and injections.
     Try<process::PID<master::Master> > start(
         const master::Flags& flags = master::Flags(),
-        const Option<master::allocator::AllocatorProcess*>& allocator = None(),
+        const Option<master::allocator::Allocator*>& allocator = None(),
         const Option<Authorizer*>& authorizer = None());
 
     // Stops and cleans up a master at the specified PID.
@@ -118,10 +118,10 @@ public:
     // Encapsulates a single master's dependencies.
     struct Master
     {
-      Master() : master(NULL) {}
+      Master() : allocator(NULL), createdAllocator(false), master(NULL) {}
 
-      process::Owned<master::allocator::AllocatorProcess> allocatorProcess;
-      process::Owned<master::allocator::Allocator> allocator;
+      master::allocator::Allocator* allocator;
+      bool createdAllocator; // Whether we own the allocator.
 
       process::Owned<log::Log> log;
       process::Owned<state::Storage> storage;
@@ -243,7 +243,7 @@ inline void Cluster::Masters::shutdown()
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const master::Flags& flags,
-    const Option<master::allocator::AllocatorProcess*>& allocatorProcess,
+    const Option<master::allocator::Allocator*>& allocator,
     const Option<Authorizer*>& authorizer)
 {
   // Disallow multiple masters when not using ZooKeeper.
@@ -253,14 +253,13 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 
   Master master;
 
-  if (allocatorProcess.isNone()) {
-    master.allocatorProcess.reset(
-        new master::allocator::HierarchicalDRFAllocatorProcess());
-    master.allocator.reset(
-        new master::allocator::Allocator(master.allocatorProcess.get()));
+  if (allocator.isSome()) {
+    master.allocator = allocator.get();
   } else {
-    master.allocator.reset(
-        new master::allocator::Allocator(allocatorProcess.get()));
+    // If allocator is not provided, fall back to the default one,
+    // managed by Cluster::Masters.
+    master.allocator = new master::allocator::HierarchicalDRFAllocator();
+    master.createdAllocator = true;
   }
 
   if (flags.registry == "in_memory") {
@@ -333,7 +332,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   }
 
   master.master = new master::Master(
-      master.allocator.get(),
+      master.allocator,
       master.registrar.get(),
       master.repairer.get(),
       &cluster->files,
@@ -396,6 +395,10 @@ inline Try<Nothing> Cluster::Masters::stop(
   process::terminate(master.master);
   process::wait(master.master);
   delete master.master;
+
+  if (master.createdAllocator) {
+    delete master.allocator;
+  }
 
   masters.erase(pid);
 

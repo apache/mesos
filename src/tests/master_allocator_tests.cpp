@@ -46,8 +46,7 @@ using namespace mesos;
 using namespace mesos::tests;
 
 using mesos::master::allocator::Allocator;
-using mesos::master::allocator::AllocatorProcess;
-using mesos::master::allocator::HierarchicalDRFAllocatorProcess;
+using mesos::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::master::Master;
 
@@ -75,15 +74,16 @@ class MasterAllocatorTest : public MesosTest
 protected:
   void StopAllocator()
   {
-    process::terminate(allocator.real);
-    process::wait(allocator.real);
+    // TODO(alexr): Several tests have been reported flaky if no
+    // explicit stopping of allocation is used. Ensure allocation
+    // is stopped here.
   }
 
-  TestAllocatorProcess<T> allocator;
+  TestAllocator<T> allocator;
 };
 
 
-typedef ::testing::Types<HierarchicalDRFAllocatorProcess> AllocatorTypes;
+typedef ::testing::Types<HierarchicalDRFAllocator> AllocatorTypes;
 
 
 // Causes all TYPED_TEST(MasterAllocatorTest, ...) to be run for
@@ -1287,7 +1287,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   this->ShutdownMasters();
   this->StopAllocator();
 
-  TestAllocatorProcess<TypeParam> allocator2;
+  TestAllocator<TypeParam> allocator2;
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
@@ -1400,7 +1400,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   this->ShutdownMasters();
   this->StopAllocator();
 
-  TestAllocatorProcess<TypeParam> allocator2;
+  TestAllocator<TypeParam> allocator2;
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 

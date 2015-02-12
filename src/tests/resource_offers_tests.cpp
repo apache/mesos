@@ -36,8 +36,6 @@
 using namespace mesos;
 using namespace mesos::tests;
 
-using mesos::master::allocator::HierarchicalDRFAllocatorProcess;
-
 using mesos::master::Master;
 
 using mesos::slave::Slave;
@@ -883,7 +881,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
 TEST_F(ResourceOffersTest, Request)
 {
-  TestAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
+  TestAllocator<master::allocator::HierarchicalDRFAllocator> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _))
     .Times(1);

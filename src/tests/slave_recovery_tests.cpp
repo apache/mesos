@@ -66,10 +66,7 @@ using namespace process;
 
 using google::protobuf::RepeatedPtrField;
 
-using mesos::master::allocator::HierarchicalDRFAllocatorProcess;
-
 using mesos::master::Master;
-
 using mesos::slave::Containerizer;
 using mesos::slave::Fetcher;
 using mesos::slave::GarbageCollectorProcess;
@@ -2257,7 +2254,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 // using an explicit executor.
 TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 {
-  TestAllocatorProcess<HierarchicalDRFAllocatorProcess> allocator;
+  TestAllocator<master::allocator::HierarchicalDRFAllocator> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _));
 

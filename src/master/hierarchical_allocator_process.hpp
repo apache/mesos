@@ -55,11 +55,14 @@ class HierarchicalAllocatorProcess;
 typedef HierarchicalAllocatorProcess<DRFSorter, DRFSorter>
 HierarchicalDRFAllocatorProcess;
 
+typedef MesosAllocator<HierarchicalDRFAllocatorProcess>
+HierarchicalDRFAllocator;
+
 
 // Implements the basic allocator algorithm - first pick a role by
 // some criteria, then pick one of their frameworks to allocate to.
 template <typename RoleSorter, typename FrameworkSorter>
-class HierarchicalAllocatorProcess : public AllocatorProcess
+class HierarchicalAllocatorProcess : public MesosAllocatorProcess
 {
 public:
   HierarchicalAllocatorProcess();
@@ -618,8 +621,9 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
 
   // Updated resources allocated to framework (if framework still
   // exists, which it might not in the event that we dispatched
-  // Master::offer before we received AllocatorProcess::removeFramework
-  // or AllocatorProcess::deactivateFramework, in which case we will
+  // Master::offer before we received
+  // MesosAllocatorProcess::removeFramework or
+  // MesosAllocatorProcess::deactivateFramework, in which case we will
   // have already recovered all of its resources).
   if (frameworks.contains(frameworkId)) {
     const std::string& role = frameworks[frameworkId].role;

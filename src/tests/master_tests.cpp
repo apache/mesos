@@ -62,7 +62,7 @@ using namespace mesos::tests;
 
 using mesos::master::Master;
 
-using mesos::master::allocator::AllocatorProcess;
+using mesos::master::allocator::MesosAllocatorProcess;
 using mesos::master::allocator::HierarchicalDRFAllocatorProcess;
 
 using mesos::slave::GarbageCollectorProcess;
@@ -1351,7 +1351,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   combinedOffers.push_back(offers2.get()[0].id());
 
   Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   driver.launchTasks(combinedOffers, tasks);
 
@@ -1444,7 +1444,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
     .WillOnce(FutureArg<1>(&status));
 
   Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   driver.launchTasks(combinedOffers, tasks);
 
@@ -2291,7 +2291,7 @@ TEST_F(MasterTest, OfferTimeout)
     .WillOnce(FutureSatisfy(&offerRescinded));
 
   Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   driver.start();
 
@@ -2577,7 +2577,7 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
   AWAIT_READY(__statusUpdate2);
 
   Future<Nothing> recoverResources = FUTURE_DISPATCH(
-      _, &AllocatorProcess::recoverResources);
+      _, &MesosAllocatorProcess::recoverResources);
 
   // Advance the clock so that the status update manager resends
   // TASK_RUNNING update with 'latest_state' as TASK_FINISHED.
@@ -2825,7 +2825,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   ASSERT_SOME_EQ(JSON::Boolean(true), status);
 
   Future<Nothing> deactivateSlave =
-    FUTURE_DISPATCH(_, &AllocatorProcess::deactivateSlave);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
 
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected.

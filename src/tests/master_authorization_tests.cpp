@@ -45,7 +45,7 @@ using namespace mesos::tests;
 
 using mesos::master::Master;
 
-using mesos::master::allocator::AllocatorProcess;
+using mesos::master::allocator::MesosAllocatorProcess;
 
 using mesos::slave::Slave;
 
@@ -272,7 +272,7 @@ TEST_F(MasterAuthorizationTest, KillTask)
   EXPECT_EQ(TASK_KILLED, status.get().state());
 
   Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
@@ -348,7 +348,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
     .WillOnce(FutureArg<1>(&status));
 
   Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
@@ -431,7 +431,7 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
     .Times(AtMost(1));
 
   Future<Nothing> deactivateSlave =
-    FUTURE_DISPATCH(_, &AllocatorProcess::deactivateSlave);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
 
   // Now stop the slave.
   Stop(slave.get());
@@ -443,7 +443,7 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
     .WillOnce(FutureArg<1>(&status));
 
   Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
@@ -521,7 +521,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemoved)
   AWAIT_READY(authorize);
 
   Future<Nothing> removeFramework =
-    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
   // Now stop the framework.
   driver.stop();
@@ -530,7 +530,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemoved)
   AWAIT_READY(removeFramework);
 
   Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   // Now complete authorization.
   promise.set(true);
@@ -946,7 +946,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
   Clock::resume();
 
   Future<Nothing> removeFramework =
-    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
   // Now complete authorization.
   promise.set(true);
@@ -1008,7 +1008,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
   AWAIT_READY(authorize2);
 
   Future<Nothing> removeFramework =
-    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
   // Stop the framework.
   driver.stop();
