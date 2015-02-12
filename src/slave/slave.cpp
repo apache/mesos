@@ -985,8 +985,6 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources);
 
-    // TODO(bmahler): Remove in 0.22.0.
-    message.mutable_slave_id()->CopyFrom(info.id());
     message.mutable_slave()->CopyFrom(info);
 
     foreachvalue (Framework* framework, frameworks) {
