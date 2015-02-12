@@ -509,6 +509,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/registrar.hpp						\
 	master/validation.hpp						\
 	master/allocator/allocator.hpp					\
+	master/allocator/mesos/allocator.hpp				\
 	master/allocator/mesos/hierarchical.hpp				\
 	master/allocator/sorter/drf/sorter.hpp				\
 	master/allocator/sorter/sorter.hpp				\

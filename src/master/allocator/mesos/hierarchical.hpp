@@ -35,7 +35,7 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
-#include "master/allocator/allocator.hpp"
+#include "master/allocator/mesos/allocator.hpp"
 #include "master/allocator/sorter/drf/sorter.hpp"
 
 namespace mesos {
