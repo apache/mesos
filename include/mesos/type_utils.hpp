@@ -342,6 +342,22 @@ inline std::ostream& operator << (
 }
 
 
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const std::vector<TaskID>& taskIds)
+{
+  stream << "[ ";
+  for (auto it = taskIds.begin(); it != taskIds.end(); ++it) {
+    if (it != taskIds.begin()) {
+      stream << ", ";
+    }
+    stream << *it;
+  }
+  stream << " ]";
+  return stream;
+}
+
+
 template <typename T>
 inline std::ostream& operator << (
     std::ostream& stream,

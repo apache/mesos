@@ -1388,32 +1388,156 @@ void Slave::_runTask(
 
       stats.tasks[TASK_STAGING]++;
 
-      // Add the task and send it to the executor.
-      executor->addTask(task);
+      // Queue task until the containerizer is updated with new
+      // resource limits (MESOS-998).
+      LOG(INFO) << "Queuing task '" << task.task_id()
+                  << "' for executor " << executorId
+                  << " of framework '" << frameworkId;
 
-      // Update the resources.
-      // TODO(Charles Reiss): The isolator is not guaranteed to update
-      // the resources before the executor acts on its RunTaskMessage.
-      // TODO(idownes): Wait until this completes.
-      containerizer->update(executor->containerId, executor->resources);
+      executor->queuedTasks[task.task_id()] = task;
 
-      LOG(INFO) << "Sending task '" << task.task_id()
-                << "' to executor '" << executorId
-                << "' of framework " << frameworkId;
+      // Update the resource limits for the container. Note that the
+      // resource limits include the currently queued tasks because we
+      // want the container to have enough resources to hold the
+      // upcoming tasks.
+      Resources resources = executor->resources;
 
-      RunTaskMessage message;
-      message.mutable_framework()->MergeFrom(framework->info);
-      message.mutable_framework_id()->MergeFrom(framework->id);
-      message.set_pid(framework->pid);
-      message.mutable_task()->MergeFrom(task);
-      send(executor->pid, message);
+      // TODO(jieyu): Use foreachvalue instead once LinkedHashmap
+      // supports it.
+      foreach (const TaskInfo& task, executor->queuedTasks.values()) {
+        resources += task.resources();
+      }
+
+      containerizer->update(executor->containerId, resources)
+        .onAny(defer(
+            self(),
+            &Self::runTasks,
+            lambda::_1,
+            frameworkId,
+            executorId,
+            executor->containerId,
+            list<TaskInfo>({task})));
       break;
     }
     default:
-      LOG(FATAL) << " Executor '" << executor->id
+      LOG(FATAL) << "Executor '" << executor->id
                  << "' of framework " << framework->id
                  << " is in unexpected state " << executor->state;
       break;
+  }
+}
+
+
+void Slave::runTasks(
+    const Future<Nothing>& future,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId,
+    const list<TaskInfo>& tasks)
+{
+  // Store all task IDs for logging.
+  vector<TaskID> taskIds;
+  foreach (const TaskInfo& task, tasks) {
+    taskIds.push_back(task.task_id());
+  }
+
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to update resources for container " << containerId
+               << " of executor '" << executorId
+               << "' of framework " << frameworkId
+               << ", destroying container: "
+               << (future.isFailed() ? future.failure() : "discarded");
+
+    containerizer->destroy(containerId);
+    return;
+  }
+
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+    LOG(WARNING) << "Ignoring sending queued tasks " << taskIds
+                 << " to executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " because the framework does not exist";
+    return;
+  }
+
+  // No need to send the task to the executor because the framework is
+  // being shutdown. No need to send status update for the task as
+  // well because the framework is terminating!
+  if (framework->state == Framework::TERMINATING) {
+    LOG(WARNING) << "Ignoring sending queued tasks " << taskIds
+                 << " to executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " because the framework is terminating";
+    return;
+  }
+
+  Executor* executor = framework->getExecutor(executorId);
+  if (executor == NULL) {
+    LOG(WARNING) << "Ignoring sending queued tasks " << taskIds
+                 << " to executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " because the executor does not exist";
+    return;
+  }
+
+  // This is the case where the original instance of the executor has
+  // been shutdown and a new instance is brought up. No need to send
+  // status update as well because it should have already been sent
+  // when the original instance of the executor was shutting down.
+  if (executor->containerId != containerId) {
+    LOG(WARNING) << "Ignoring sending queued tasks '" << taskIds
+                 << " to executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " because the target container " << containerId
+                 << " has exited";
+    return;
+  }
+
+  CHECK(executor->state == Executor::RUNNING ||
+        executor->state == Executor::TERMINATING ||
+        executor->state == Executor::TERMINATED)
+    << executor->state;
+
+  // No need to send the task to the executor because the executor is
+  // terminating or has been terminated. No need to send status update
+  // for the task as well because it will be properly handled by
+  // 'executorTerminated'.
+  if (executor->state != Executor::RUNNING) {
+    LOG(WARNING) << "Ignoring sending queued tasks " << taskIds
+                 << " to executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " because the executor is in "
+                 << executor->state << " state";
+    return;
+  }
+
+  foreach (const TaskInfo& task, tasks) {
+    // This is the case where the task is killed. No need to send
+    // status update because it should be handled in 'killTask'.
+    if (!executor->queuedTasks.contains(task.task_id())) {
+      LOG(WARNING) << "Ignoring sending queued task '" << task.task_id()
+                   << "' to executor '" << executorId
+                   << "' of framework " << frameworkId
+                   << " because the task has been killed";
+      continue;
+    }
+
+    executor->queuedTasks.erase(task.task_id());
+
+    // Add the task and send it to the executor.
+    executor->addTask(task);
+
+    LOG(INFO) << "Sending queued task '" << task.task_id()
+              << "' to executor '" << executor->id
+              << "' of framework " << framework->id;
+
+    RunTaskMessage message;
+    message.mutable_framework_id()->MergeFrom(framework->id);
+    message.mutable_framework()->MergeFrom(framework->info);
+    message.set_pid(framework->pid);
+    message.mutable_task()->MergeFrom(task);
+    send(executor->pid, message);
   }
 }
 
@@ -1518,9 +1642,6 @@ void Slave::killTask(
   switch (executor->state) {
     case Executor::REGISTERING: {
       // The executor hasn't registered yet.
-      // NOTE: Sending a TASK_KILLED update removes the task from
-      // Executor::queuedTasks, so that if the executor registers at
-      // a later point in time, it won't get this task.
       const StatusUpdate& update = protobuf::createStatusUpdate(
           frameworkId,
           info.id(),
@@ -1531,9 +1652,16 @@ void Slave::killTask(
           TaskStatus::REASON_EXECUTOR_UNREGISTERED,
           executor->id);
 
+      // NOTE: Sending a terminal update (TASK_KILLED) removes the
+      // task from 'executor->queuedTasks', so that if the executor
+      // registers at a later point in time, it won't get this task.
       statusUpdate(update, UPID());
 
-      // This executor no longer has any running tasks, so kill it.
+      // TODO(jieyu): Here, we kill the executor if it no longer has
+      // any task to run and has not yet registered. This is a
+      // workaround for those single task executors that do not have a
+      // proper self terminating logic when they haven't received the
+      // task within a timeout.
       if (executor->queuedTasks.empty()) {
         CHECK(executor->launchedTasks.empty())
             << " Unregistered executor " << executor->id
@@ -1542,6 +1670,9 @@ void Slave::killTask(
         LOG(WARNING) << "Killing the unregistered executor '" << executor->id
                      << "' of framework " << framework->id
                      << " because it has no tasks";
+
+        executor->state = Executor::TERMINATING;
+
         containerizer->destroy(executor->containerId);
       }
       break;
@@ -1554,12 +1685,31 @@ void Slave::killTask(
                    << "' is terminating/terminated";
       break;
     case Executor::RUNNING: {
-      // Send a message to the executor and wait for
-      // it to send us a status update.
-      KillTaskMessage message;
-      message.mutable_framework_id()->MergeFrom(frameworkId);
-      message.mutable_task_id()->MergeFrom(taskId);
-      send(executor->pid, message);
+      if (executor->queuedTasks.contains(taskId)) {
+        // This is the case where the task has not yet been sent to
+        // the executor (e.g., waiting for containerizer update to
+        // finish).
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+            frameworkId,
+            info.id(),
+            taskId,
+            TASK_KILLED,
+            TaskStatus::SOURCE_SLAVE,
+            "Task killed when it was queued",
+            None(),
+            executor->id);
+
+        // NOTE: Sending a terminal update (TASK_KILLED) removes the
+        // task from 'executor->queuedTasks'.
+        statusUpdate(update, UPID());
+      } else {
+        // Send a message to the executor and wait for
+        // it to send us a status update.
+        KillTaskMessage message;
+        message.mutable_framework_id()->MergeFrom(frameworkId);
+        message.mutable_task_id()->MergeFrom(taskId);
+        send(executor->pid, message);
+      }
       break;
     }
     default:
@@ -2078,22 +2228,6 @@ void Slave::registerExecutor(
         CHECK_SOME(state::checkpoint(path, executor->pid));
       }
 
-      // First account for the tasks we're about to start.
-      // TODO(vinod): Use foreachvalue instead once LinkedHashmap
-      // supports it.
-      foreach (const TaskInfo& task, executor->queuedTasks.values()) {
-        // Add the task to the executor.
-        executor->addTask(task);
-      }
-
-      // Now that the executor is up, set its resource limits
-      // including the currently queued tasks.
-      // TODO(Charles Reiss): We don't actually have a guarantee
-      // that this will be delivered or (where necessary) acted on
-      // before the executor gets its RunTaskMessages.
-      // TODO(idownes): Wait until this completes.
-      containerizer->update(executor->containerId, executor->resources);
-
       // Tell executor it's registered and give it any queued tasks.
       ExecutorRegisteredMessage message;
       message.mutable_executor_info()->MergeFrom(executor->info);
@@ -2103,22 +2237,27 @@ void Slave::registerExecutor(
       message.mutable_slave_info()->MergeFrom(info);
       send(executor->pid, message);
 
-      // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+      // Update the resource limits for the container. Note that the
+      // resource limits include the currently queued tasks because we
+      // want the container to have enough resources to hold the
+      // upcoming tasks.
+      Resources resources = executor->resources;
+
+      // TODO(jieyu): Use foreachvalue instead once LinkedHashmap
       // supports it.
       foreach (const TaskInfo& task, executor->queuedTasks.values()) {
-        LOG(INFO) << "Flushing queued task " << task.task_id()
-                  << " for executor '" << executor->id << "'"
-                  << " of framework " << framework->id;
-
-        RunTaskMessage message;
-        message.mutable_framework_id()->MergeFrom(framework->id);
-        message.mutable_framework()->MergeFrom(framework->info);
-        message.set_pid(framework->pid);
-        message.mutable_task()->MergeFrom(task);
-        send(executor->pid, message);
+        resources += task.resources();
       }
 
-      executor->queuedTasks.clear();
+      containerizer->update(executor->containerId, resources)
+        .onAny(defer(
+            self(),
+            &Self::runTasks,
+            lambda::_1,
+            frameworkId,
+            executorId,
+            executor->containerId,
+            executor->queuedTasks.values()));
       break;
     }
     default:
@@ -2222,10 +2361,18 @@ void Slave::reregisterExecutor(
       }
 
       // Tell the containerizer to update the resources.
-      // TODO(idownes): Wait until this completes.
-      containerizer->update(executor->containerId, executor->resources);
+      containerizer->update(executor->containerId, executor->resources)
+        .onAny(defer(
+            self(),
+            &Self::_reregisterExecutor,
+            lambda::_1,
+            frameworkId,
+            executorId,
+            executor->containerId));
 
       // Monitor the executor.
+      // TODO(jieyu): Do not start the monitor if the containerizer
+      // update fails.
       monitor.start(
           executor->containerId,
           executor->info,
@@ -2283,6 +2430,23 @@ void Slave::reregisterExecutor(
   }
 }
 
+
+void Slave::_reregisterExecutor(
+    const Future<Nothing>& future,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId)
+{
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to update resources for container " << containerId
+               << " of executor '" << executorId
+               << "' of framework " << frameworkId
+               << ", destroying container: "
+               << (future.isFailed() ? future.failure() : "discarded");
+
+    containerizer->destroy(containerId);
+  }
+}
 
 
 void Slave::reregisterExecutorTimeout()

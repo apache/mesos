@@ -155,6 +155,12 @@ public:
       const std::vector<TaskInfo>& tasks,
       const std::vector<StatusUpdate>& updates);
 
+  void _reregisterExecutor(
+      const process::Future<Nothing>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId);
+
   void executorMessage(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
@@ -257,6 +263,19 @@ public:
   virtual void initialize();
   virtual void finalize();
   virtual void exited(const process::UPID& pid);
+
+  // This is called when the resource limits of the container have
+  // been updated for the given tasks. If the update is successful, we
+  // flush the given tasks to the executor by sending RunTaskMessages.
+  // TODO(jieyu): Consider renaming it to '__runTasks' once the slave
+  // starts to support launching multiple tasks in one call (i.e.,
+  // multi-tasks version of 'runTask').
+  void runTasks(
+      const process::Future<Nothing>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      const std::list<TaskInfo>& tasks);
 
   void fileAttached(const process::Future<Nothing>& result,
                     const std::string& path);

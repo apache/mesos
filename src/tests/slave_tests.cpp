@@ -84,6 +84,7 @@ using testing::Invoke;
 using testing::InvokeWithoutArgs;
 using testing::Return;
 using testing::SaveArg;
+using testing::Sequence;
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more slave than master-related are in this file.
@@ -1113,6 +1114,111 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFails)
 }
 
 
+// This test verifies that the resources of a container will be
+// updated before tasks are sent to the executor.
+TEST_F(SlaveTest, ContainerUpdatedBeforeTaskReachesExecutor)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  TestContainerizer containerizer(&exec);
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, "1", "128", "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // This is used to determine which of the following finishes first:
+  // `containerizer->update` or `exec->launchTask`. We want to make
+  // sure that containerizer update always finishes before the task is
+  // sent to the executor.
+  Sequence sequence;
+
+  EXPECT_CALL(containerizer, update(_, _))
+    .InSequence(sequence)
+    .WillOnce(Return(Nothing()));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .InSequence(sequence)
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies the slave will destroy a container if updating
+// the container's resources fails during task launch.
+TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
+{
+  // Start a master.
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  TestContainerizer containerizer(&exec);
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, "1", "128", "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // Set up the containerizer so update() will fail.
+  EXPECT_CALL(containerizer, update(_, _))
+    .WillOnce(Return(Failure("update() failed")))
+    .WillRepeatedly(Return(Nothing()));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_LOST, status.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 // This test ensures that the slave will re-register with the master
 // if it does not receive any pings after registering.
 TEST_F(SlaveTest, PingTimeoutNoPings)
@@ -1622,7 +1728,7 @@ TEST_F(SlaveTest, TaskLabels)
   EXPECT_CALL(containerizer,
               update(_, Resources(offers.get()[0].resources())))
     .WillOnce(DoAll(FutureSatisfy(&update),
-                    Return(Future<Nothing>())));
+                    Return(Nothing())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))

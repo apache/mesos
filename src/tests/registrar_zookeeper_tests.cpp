@@ -98,11 +98,10 @@ TEST_F(RegistrarZooKeeperTest, TaskRunning)
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Future<Nothing> resourcesUpdated;
-  Future<Nothing> update;
   EXPECT_CALL(containerizer,
               update(_, Resources(offers.get()[0].resources())))
     .WillOnce(DoAll(FutureSatisfy(&resourcesUpdated),
-                    Return(update)));
+                    Return(Nothing())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
