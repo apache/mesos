@@ -24,6 +24,8 @@
 
 #include <mesos/slave/isolator.hpp>
 
+#include <process/metrics/counter.hpp>
+
 #include <stout/hashmap.hpp>
 #include <stout/multihashmap.hpp>
 
@@ -187,6 +189,11 @@ private:
       bool checkpoint,
       const std::list<Option<CommandInfo>>& scripts);
 
+  void __launch(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& failure);
+
   process::Future<bool> isolate(
       const ContainerID& containerId,
       pid_t _pid);
@@ -270,6 +277,14 @@ private:
   };
 
   hashmap<ContainerID, process::Owned<Container>> containers_;
+
+  struct Metrics
+  {
+    Metrics();
+    ~Metrics();
+
+    process::metrics::Counter container_destroy_errors;
+  } metrics;
 };
 
 } // namespace slave {

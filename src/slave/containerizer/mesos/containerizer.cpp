@@ -23,6 +23,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/io.hpp>
+#include <process/metrics/metrics.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
@@ -473,8 +474,24 @@ Future<bool> MesosContainerizerProcess::launch(
                 checkpoint,
                 lambda::_1))
     .onFailed(defer(self(),
-                    &Self::destroy,
-                    containerId));
+                    &Self::__launch,
+                    containerId,
+                    executorInfo,
+                    lambda::_1));
+}
+
+
+void MesosContainerizerProcess::__launch(
+    const ContainerID& containerId,
+    const ExecutorInfo& executorInfo,
+    const string& failure)
+{
+  LOG(ERROR) << "Failed to launch container '" << containerId
+             << "' for executor '" << executorInfo.executor_id()
+             << "' of framework '" << executorInfo.framework_id()
+             << "': " << failure;
+
+  destroy(containerId);
 }
 
 
@@ -956,6 +973,8 @@ void MesosContainerizerProcess::__destroy(
 
     containers_.erase(containerId);
 
+    ++metrics.container_destroy_errors;
+
     return;
   }
 
@@ -1056,6 +1075,8 @@ void MesosContainerizerProcess::____destroy(
 
       containers_.erase(containerId);
 
+      ++metrics.container_destroy_errors;
+
       return;
     }
   }
@@ -1134,6 +1155,20 @@ void MesosContainerizerProcess::limited(
 Future<hashset<ContainerID>> MesosContainerizerProcess::containers()
 {
   return containers_.keys();
+}
+
+
+MesosContainerizerProcess::Metrics::Metrics()
+  : container_destroy_errors(
+        "containerizer/mesos/container_destroy_errors")
+{
+  process::metrics::add(container_destroy_errors);
+}
+
+
+MesosContainerizerProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(container_destroy_errors);
 }
 
 
