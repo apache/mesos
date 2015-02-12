@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
-#define __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
+#ifndef __MASTER_ALLOCATOR_MESOS_HIERARCHICAL_HPP__
+#define __MASTER_ALLOCATOR_MESOS_HIERARCHICAL_HPP__
 
 #include <algorithm>
 #include <vector>
@@ -34,10 +34,10 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
-#include "master/allocator.hpp"
-#include "master/drf_sorter.hpp"
 #include "master/master.hpp"
-#include "master/sorter.hpp"
+
+#include "master/allocator/allocator.hpp"
+#include "master/allocator/sorter/drf/sorter.hpp"
 
 namespace mesos {
 namespace master {
@@ -919,4 +919,4 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
 } // namespace master {
 } // namespace mesos {
 
-#endif // __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
+#endif // __MASTER_ALLOCATOR_MESOS_HIERARCHICAL_HPP__

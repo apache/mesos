@@ -309,7 +309,6 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/contender.cpp						\
 	master/constants.cpp						\
 	master/detector.cpp						\
-	master/drf_sorter.cpp						\
 	master/http.cpp							\
 	master/master.cpp						\
 	master/metrics.cpp						\
@@ -318,6 +317,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/registrar.cpp						\
 	master/repairer.cpp						\
 	master/validation.cpp						\
+	master/allocator/sorter/drf/sorter.cpp				\
 	module/manager.cpp						\
 	sched/constants.cpp						\
 	sched/sched.cpp							\
@@ -499,19 +499,19 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	local/local.hpp							\
 	logging/flags.hpp						\
 	logging/logging.hpp						\
-	master/allocator.hpp						\
 	master/contender.hpp						\
 	master/constants.hpp						\
 	master/detector.hpp						\
-	master/drf_sorter.hpp						\
 	master/flags.hpp						\
-	master/hierarchical_allocator_process.hpp			\
 	master/master.hpp						\
 	master/metrics.hpp						\
 	master/repairer.hpp						\
 	master/registrar.hpp						\
-	master/sorter.hpp						\
 	master/validation.hpp						\
+	master/allocator/allocator.hpp					\
+	master/allocator/mesos/hierarchical.hpp				\
+	master/allocator/sorter/drf/sorter.hpp				\
+	master/allocator/sorter/sorter.hpp				\
 	messages/messages.hpp						\
 	module/manager.hpp						\
 	sched/constants.hpp						\

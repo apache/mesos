@@ -28,7 +28,7 @@
 
 #include <stout/gtest.hpp>
 
-#include "master/drf_sorter.hpp"
+#include "master/allocator/sorter/drf/sorter.hpp"
 
 using namespace mesos;
 

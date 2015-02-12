@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __SORTER_HPP__
-#define __SORTER_HPP__
+#ifndef __MASTER_ALLOCATOR_SORTER_SORTER_HPP__
+#define __MASTER_ALLOCATOR_SORTER_SORTER_HPP__
 
 #include <list>
 #include <string>
@@ -102,4 +102,4 @@ public:
 } // namespace master {
 } // namespace mesos {
 
-#endif // __SORTER_HPP__
+#endif // __MASTER_ALLOCATOR_SORTER_SORTER_HPP__

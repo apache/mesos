@@ -45,9 +45,10 @@
 
 #include "messages/messages.hpp" // For google::protobuf::Message.
 
-#include "master/allocator.hpp"
 #include "master/detector.hpp"
 #include "master/master.hpp"
+
+#include "master/allocator/allocator.hpp"
 
 #include "slave/slave.hpp"
 

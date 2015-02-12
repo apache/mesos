@@ -25,9 +25,10 @@
 
 #include <process/metrics/metrics.hpp>
 
-#include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
+
+#include "master/allocator/allocator.hpp"
 
 #include "tests/mesos.hpp"
 

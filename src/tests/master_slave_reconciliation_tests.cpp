@@ -32,8 +32,9 @@
 
 #include "common/protobuf_utils.hpp"
 
-#include "master/allocator.hpp"
 #include "master/master.hpp"
+
+#include "master/allocator/allocator.hpp"
 
 #include "slave/slave.hpp"
 

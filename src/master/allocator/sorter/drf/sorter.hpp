@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __DRF_SORTER_HPP__
-#define __DRF_SORTER_HPP__
+#ifndef __MASTER_ALLOCATOR_SORTER_DRF_SORTER_HPP__
+#define __MASTER_ALLOCATOR_SORTER_DRF_SORTER_HPP__
 
 #include <set>
 #include <string>
@@ -26,7 +26,7 @@
 
 #include <stout/hashmap.hpp>
 
-#include "master/sorter.hpp"
+#include "master/allocator/sorter/sorter.hpp"
 
 
 namespace mesos {
@@ -126,4 +126,4 @@ private:
 } // namespace master {
 } // namespace mesos {
 
-#endif // __DRF_SORTER_HPP__
+#endif // __MASTER_ALLOCATOR_SORTER_DRF_SORTER_HPP__

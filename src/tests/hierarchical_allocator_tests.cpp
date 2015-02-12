@@ -33,10 +33,11 @@
 #include <stout/hashset.hpp>
 #include <stout/utils.hpp>
 
-#include "master/allocator.hpp"
 #include "master/constants.hpp"
 #include "master/flags.hpp"
-#include "master/hierarchical_allocator_process.hpp"
+
+#include "master/allocator/allocator.hpp"
+#include "master/allocator/mesos/hierarchical.hpp"
 
 using namespace mesos;
 

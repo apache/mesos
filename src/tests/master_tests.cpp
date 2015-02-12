@@ -43,9 +43,10 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
-#include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
+
+#include "master/allocator/allocator.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/gc.hpp"
