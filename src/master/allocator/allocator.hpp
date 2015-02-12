@@ -24,9 +24,7 @@
 
 #include <mesos/resources.hpp>
 
-#include <process/future.hpp>
 #include <process/dispatch.hpp>
-#include <process/pid.hpp>
 #include <process/process.hpp>
 
 #include <stout/hashmap.hpp>
@@ -36,12 +34,8 @@
 
 #include "master/flags.hpp"
 
-#include "messages/messages.hpp"
-
 namespace mesos {
 namespace master {
-
-class Master; // Forward declaration.
 
 namespace allocator {
 

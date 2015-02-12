@@ -64,7 +64,6 @@ using namespace mesos::tests;
 using mesos::master::Master;
 
 using mesos::master::allocator::MesosAllocatorProcess;
-using mesos::master::allocator::HierarchicalDRFAllocatorProcess;
 
 using mesos::slave::GarbageCollectorProcess;
 using mesos::slave::Slave;

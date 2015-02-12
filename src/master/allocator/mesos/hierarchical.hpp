@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <mesos/resources.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/delay.hpp>
 #include <process/id.hpp>
@@ -33,8 +34,6 @@
 #include <stout/hashmap.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
-
-#include "master/master.hpp"
 
 #include "master/allocator/allocator.hpp"
 #include "master/allocator/sorter/drf/sorter.hpp"
