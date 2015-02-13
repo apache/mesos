@@ -18,6 +18,7 @@
 
 #include <gmock/gmock.h>
 
+#include <string>
 #include <queue>
 #include <vector>
 
@@ -68,6 +69,7 @@ using process::http::OK;
 
 using process::metrics::internal::MetricsProcess;
 
+using std::string;
 using std::queue;
 using std::vector;
 
@@ -309,6 +311,200 @@ TEST_F(MesosSchedulerDriverTest, DropAckIfStopCalledBeforeAbort)
   // Settle the clock to ensure driver finishes processing the status
   // update and sends acknowledgement if necessary. In this test it
   // shouldn't send an acknowledgement.
+  Clock::pause();
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// Ensures that when a scheduler enables explicit acknowledgements
+// on the driver, there are no implicit acknowledgements sent, and
+// the call to 'acknowledgeStatusUpdate' sends the ack to the master.
+TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgements)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), false, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 16, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  // Ensure no status update acknowledgements are sent from the driver
+  // to the master until the explicit acknowledgement is sent.
+  EXPECT_NO_FUTURE_PROTOBUFS(
+      StatusUpdateAcknowledgementMessage(), _ , master.get());
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.start();
+
+  AWAIT_READY(status);
+
+  // Settle the clock to ensure driver finishes processing the status
+  // update, we want to ensure that no implicit acknowledgement gets
+  // sent.
+  Clock::pause();
+  Clock::settle();
+
+  // Now send the acknowledgement.
+  Future<StatusUpdateAcknowledgementMessage> acknowledgement =
+    FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _ , master.get());
+
+  driver.acknowledgeStatusUpdate(status.get());
+
+  AWAIT_READY(acknowledgement);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test ensures that when explicit acknowledgements are enabled,
+// acknowledgements for master-generated updates are dropped by the
+// driver. We test this by creating an invalid task that uses no
+// resources.
+TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsMasterGeneratedUpdate)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), false, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // Ensure no status update acknowledgements are sent to the master.
+  EXPECT_NO_FUTURE_PROTOBUFS(
+      StatusUpdateAcknowledgementMessage(), _ , master.get());
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Launch a task using no resources.
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_ERROR, status.get().state());
+  ASSERT_EQ(TaskStatus::SOURCE_MASTER, status.get().source());
+  ASSERT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+
+  // Now send the acknowledgement.
+  driver.acknowledgeStatusUpdate(status.get());
+
+  // Settle the clock to ensure driver processes the acknowledgement,
+  // which should get dropped due to having come from the master.
+  Clock::pause();
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test ensures that the driver handles an empty slave id
+// in an acknowledgement message by dropping it. The driver will
+// log an error in this case (but we don't test for that). We
+// generate a status with no slave id by performing reconciliation.
+TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsUnsetSlaveID)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), false, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Ensure no status update acknowledgements are sent to the master.
+  EXPECT_NO_FUTURE_PROTOBUFS(
+      StatusUpdateAcknowledgementMessage(), _ , master.get());
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  Future<TaskStatus> update;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  // Peform reconciliation without using a slave id.
+  vector<TaskStatus> statuses;
+
+  TaskStatus status;
+  status.mutable_task_id()->set_value("foo");
+  status.set_state(TASK_RUNNING);
+
+  statuses.push_back(status);
+
+  driver.reconcileTasks(statuses);
+
+  AWAIT_READY(update);
+  ASSERT_EQ(TASK_LOST, update.get().state());
+  ASSERT_EQ(TaskStatus::SOURCE_MASTER, update.get().source());
+  ASSERT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
+  ASSERT_FALSE(update.get().has_slave_id());
+
+  // Now send the acknowledgement.
+  driver.acknowledgeStatusUpdate(update.get());
+
+  // Settle the clock to ensure driver processes the acknowledgement,
+  // which should get dropped due to the missing slave id.
   Clock::pause();
   Clock::settle();
 
