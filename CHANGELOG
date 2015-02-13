@@ -1,11 +1,21 @@
 (WIP) Release Notes - Mesos - Version 0.22.0
 --------------------------------------
 
+This release contains several new features:
+
+* Support for explicitly sending status updates acknowledgements from
+  schedulers; refer to the upgrades document for upgrading schedulers.
+
 * API Changes:
-  * [MESOS-1143] - TASK_ERROR is now sent instead of TASK_LOST when rescheduling a task should not be attempted.
-  * [MESOS-2086] - Update messages.proto to use a raw bytestream instead of a string for AuthenticationStartMessage.
-  * [MESOS-2322] - All arguments can now read their values from a file, just specify
-    --name=file://path/to/file.
+  * [MESOS-1143] - TASK_ERROR is now sent instead of TASK_LOST when rescheduling
+                   a task should not be attempted.
+  * [MESOS-2086] - Update messages.proto to use a raw bytestream instead of a
+                   string for AuthenticationStartMessage.
+  * [MESOS-2322] - All arguments can now read their values from a file, just
+                   specify --name=file://path/to/file.
+  * [MESOS-2347] - The C++/Java/Python APIs have been updated to provide the
+                   ability for schedulers to explicitly send acknowledgements.
+                   TaskStatus now includes a UUID to enable this.
 
 * Deprecations:
   * [MESOS-2058] - Deprecate stats.json endpoints for Master and Slave.

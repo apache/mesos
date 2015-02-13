@@ -79,12 +79,15 @@ Declared in `MESOS_HOME/include/mesos/scheduler.hpp`
   /**
    * Invoked when the status of a task has changed (e.g., a slave is
    * lost and so the task is lost, a task finishes and an executor
-   * sends a status update saying so, etc). Note that returning from
-   * this callback _acknowledges_ receipt of this status update! If
-   * for whatever reason the scheduler aborts during this callback (or
+   * sends a status update saying so, etc). If implicit
+   * acknowledgements are being used, then returning from this
+   * callback _acknowledges_ receipt of this status update! If for
+   * whatever reason the scheduler aborts during this callback (or
    * the process exits) another status update will be delivered (note,
    * however, that this is currently not true if the slave sending the
-   * status update is lost/fails during that time).
+   * status update is lost/fails during that time). If explicit
+   * acknowledgements are in use, the scheduler must acknowledge this
+   * status on the driver.
    */
   virtual void statusUpdate(SchedulerDriver* driver,
                             const TaskStatus& status) = 0;
