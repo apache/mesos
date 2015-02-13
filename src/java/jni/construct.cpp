@@ -50,6 +50,12 @@ T parse(const void* data, int size)
 }
 
 
+bool construct(JNIEnv* env, jboolean jbool)
+{
+  return jbool == JNI_TRUE;
+}
+
+
 template <>
 string construct(JNIEnv* env, jobject jobj)
 {
