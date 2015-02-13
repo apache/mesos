@@ -2745,7 +2745,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   Owned<StandaloneMasterDetector> detector(
       new StandaloneMasterDetector(master.get()));
   TestingMesosSchedulerDriver driver(
-      &sched, frameworkInfo, DEFAULT_CREDENTIAL, detector.get());
+      &sched, detector.get(), frameworkInfo);
 
   EXPECT_CALL(sched, registered(_, _, _));
 

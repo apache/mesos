@@ -521,24 +521,44 @@ class TestingMesosSchedulerDriver : public MesosSchedulerDriver
 public:
   TestingMesosSchedulerDriver(
       Scheduler* scheduler,
-      const FrameworkInfo& framework,
-      const Credential& credential,
-      MasterDetector* _detector)
-    : MesosSchedulerDriver(scheduler, framework, "", credential)
-  {
-    detector = _detector;
-  }
-
-  // A constructor that uses the DEFAULT_FRAMEWORK_INFO &
-  // DEFAULT_CREDENTIAL.
-  TestingMesosSchedulerDriver(
-      Scheduler* scheduler,
       MasterDetector* _detector)
     : MesosSchedulerDriver(
           scheduler,
           DEFAULT_FRAMEWORK_INFO,
           "",
+          true,
           DEFAULT_CREDENTIAL)
+  {
+    detector = _detector;
+  }
+
+  TestingMesosSchedulerDriver(
+      Scheduler* scheduler,
+      MasterDetector* _detector,
+      const FrameworkInfo& framework,
+      bool implicitAcknowledgements = true)
+    : MesosSchedulerDriver(
+          scheduler,
+          framework,
+          "",
+          implicitAcknowledgements,
+          DEFAULT_CREDENTIAL)
+  {
+    detector = _detector;
+  }
+
+  TestingMesosSchedulerDriver(
+      Scheduler* scheduler,
+      MasterDetector* _detector,
+      const FrameworkInfo& framework,
+      bool implicitAcknowledgements,
+      const Credential& credential)
+    : MesosSchedulerDriver(
+          scheduler,
+          framework,
+          "",
+          implicitAcknowledgements,
+          credential)
   {
     detector = _detector;
   }
