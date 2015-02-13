@@ -123,12 +123,15 @@ public:
 
   // Invoked when the status of a task has changed (e.g., a slave is
   // lost and so the task is lost, a task finishes and an executor
-  // sends a status update saying so, etc). Note that returning from
-  // this callback _acknowledges_ receipt of this status update! If
-  // for whatever reason the scheduler aborts during this callback (or
+  // sends a status update saying so, etc). If implicit
+  // acknowledgements are being used, then returning from this
+  // callback _acknowledges_ receipt of this status update! If for
+  // whatever reason the scheduler aborts during this callback (or
   // the process exits) another status update will be delivered (note,
   // however, that this is currently not true if the slave sending the
-  // status update is lost/fails during that time).
+  // status update is lost/fails during that time). If explicit
+  // acknowledgements are in use, the scheduler must acknowledge this
+  // status on the driver.
   virtual void statusUpdate(
       SchedulerDriver* driver,
       const TaskStatus& status) = 0;
@@ -269,6 +272,14 @@ public:
   // those filtered slaves.
   virtual Status reviveOffers() = 0;
 
+  // Acknowledges the status update. This should only be called
+  // once the status update is processed durably by the scheduler.
+  // Not that explicit acknowledgements must be requested via the
+  // constructor argument, otherwise a call to this method will
+  // cause the driver to crash.
+  virtual Status acknowledgeStatusUpdate(
+      const TaskStatus& status) = 0;
+
   // Sends a message from the framework to one of its executors. These
   // messages are best effort; do not expect a framework message to be
   // retransmitted in any reliable fashion.
@@ -348,6 +359,26 @@ public:
       const std::string& master,
       const Credential& credential);
 
+  // These constructors are the same as the above two, but allow
+  // the framework to specify whether implicit or explicit
+  // acknowledgements are desired. See statusUpdate() for the
+  // details about explicit acknowledgements.
+  //
+  // TODO(bmahler): Deprecate the above two constructors. In 0.22.0
+  // these new constructors are exposed.
+  MesosSchedulerDriver(
+      Scheduler* scheduler,
+      const FrameworkInfo& framework,
+      const std::string& master,
+      bool implicitAcknowledgements);
+
+  MesosSchedulerDriver(
+      Scheduler* scheduler,
+      const FrameworkInfo& framework,
+      const std::string& master,
+      bool implicitAcknowlegements,
+      const Credential& credential);
+
   // This destructor will block indefinitely if
   // MesosSchedulerDriver::start was invoked successfully (possibly
   // via MesosSchedulerDriver::run) and MesosSchedulerDriver::stop has
@@ -389,6 +420,9 @@ public:
 
   virtual Status reviveOffers();
 
+  virtual Status acknowledgeStatusUpdate(
+      const TaskStatus& status);
+
   virtual Status sendFrameworkMessage(
       const ExecutorID& executorId,
       const SlaveID& slaveId,
@@ -422,6 +456,8 @@ private:
 
   // Current status of the driver.
   Status status;
+
+  const bool implicitAcknowlegements;
 
   const Credential* credential;
 

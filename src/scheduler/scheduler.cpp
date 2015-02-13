@@ -689,6 +689,7 @@ protected:
     update->mutable_status()->set_timestamp(message.update().timestamp());
 
     update->set_uuid(message.update().uuid());
+    update->mutable_status()->set_uuid(message.update().uuid());
 
     receive(from, event);
   }
@@ -761,6 +762,7 @@ protected:
     status->set_timestamp(Clock::now().secs());
 
     update->set_uuid(UUID::random().toBytes());
+    status->set_uuid(update->uuid());
 
     receive(None(), event);
   }

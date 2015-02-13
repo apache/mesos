@@ -54,6 +54,7 @@
 #include <process/metrics/gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
+#include <stout/abort.hpp>
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
@@ -115,6 +116,7 @@ public:
                    Scheduler* _scheduler,
                    const FrameworkInfo& _framework,
                    const Option<Credential>& _credential,
+                   bool _implicitAcknowledgements,
                    const string& schedulerId,
                    MasterDetector* _detector,
                    const scheduler::Flags& _flags,
@@ -142,6 +144,7 @@ public:
       running(true),
       detector(_detector),
       flags(_flags),
+      implicitAcknowledgements(_implicitAcknowledgements),
       credential(_credential),
       authenticatee(NULL),
       authenticating(None()),
@@ -647,8 +650,6 @@ protected:
       const StatusUpdate& update,
       const UPID& pid)
   {
-    const TaskStatus& status = update.status();
-
     if (!running) {
       VLOG(1) << "Ignoring task status update message because "
               << "the driver is not running!";
@@ -686,6 +687,23 @@ protected:
     // multiple times (of course, if a scheduler re-uses a TaskID,
     // that could be bad.
 
+    TaskStatus status = update.status();
+
+    // If the update is driver-generated or master-generated, it
+    // does not require acknowledgement and so we unset the 'uuid'
+    // field of TaskStatus. Otherwise, we overwrite the field to
+    // ensure that a 0.22.0 scheduler driver supports explicit
+    // acknowledgements, even if running against a 0.21.0 cluster.
+    //
+    // TODO(bmahler): Update the slave / executor driver to ensure
+    // that 'uuid' is set accurately by the time it reaches the
+    // scheduler driver. This will be required for pure bindings.
+    if (from == UPID() || pid == UPID()) {
+      status.clear_uuid();
+    } else {
+      status.set_uuid(update.uuid());
+    }
+
     Stopwatch stopwatch;
     if (FLAGS_v >= 1) {
       stopwatch.start();
@@ -695,30 +713,32 @@ protected:
 
     VLOG(1) << "Scheduler::statusUpdate took " << stopwatch.elapsed();
 
-    // Note that we need to look at the volatile 'aborted' here to
-    // so that we don't acknowledge the update if the driver was
-    // aborted during the processing of the update.
-    if (!running) {
-      VLOG(1) << "Not sending status update acknowledgment message because "
-              << "the driver is not running!";
-      return;
-    }
+    if (implicitAcknowledgements) {
+      // Note that we need to look at the volatile 'running' here
+      // so that we don't acknowledge the update if the driver was
+      // aborted during the processing of the update.
+      if (!running) {
+        VLOG(1) << "Not sending status update acknowledgment message because "
+                << "the driver is not running!";
+        return;
+      }
 
-    // Don't acknowledge updates created by the driver or master.
-    if (from != UPID() && pid != UPID()) {
-      // We drop updates while we're disconnected.
-      CHECK(connected);
-      CHECK_SOME(master);
+      // Don't acknowledge updates created by the driver or master.
+      if (from != UPID() && pid != UPID()) {
+        // We drop updates while we're disconnected.
+        CHECK(connected);
+        CHECK_SOME(master);
 
-      VLOG(2) << "Sending ACK for status update " << update
-              << " to " << master.get();
+        VLOG(2) << "Sending ACK for status update " << update
+            << " to " << master.get();
 
-      StatusUpdateAcknowledgementMessage message;
-      message.mutable_framework_id()->MergeFrom(framework.id());
-      message.mutable_slave_id()->MergeFrom(update.slave_id());
-      message.mutable_task_id()->MergeFrom(update.status().task_id());
-      message.set_uuid(update.uuid());
-      send(master.get(), message);
+        StatusUpdateAcknowledgementMessage message;
+        message.mutable_framework_id()->MergeFrom(framework.id());
+        message.mutable_slave_id()->MergeFrom(update.slave_id());
+        message.mutable_task_id()->MergeFrom(update.status().task_id());
+        message.set_uuid(update.uuid());
+        send(master.get(), message);
+      }
     }
   }
 
@@ -1072,6 +1092,53 @@ protected:
     send(master.get(), message);
   }
 
+  void acknowledgeStatusUpdate(
+      const TaskStatus& status)
+  {
+    // The driver should abort before allowing an acknowledgement
+    // call when implicit acknowledgements are enabled. We further
+    // enforce that the driver is denying the call through this CHECK.
+    CHECK(!implicitAcknowledgements);
+
+    if (!connected) {
+      VLOG(1) << "Ignoring explicit status update acknowledgement"
+                 " because the driver is disconnected";
+      return;
+    }
+
+    CHECK_SOME(master);
+
+    // NOTE: By ignoring the volatile 'running' here, we ensure that
+    // all acknowledgements requested before the driver was stopped
+    // or aborted are processed. Any acknowledgement that is requested
+    // after the driver stops or aborts (running == false) will be
+    // dropped in the driver before reaching here.
+
+    // Only statuses with a 'uuid' and a 'slave_id' need to have
+    // acknowledgements sent to the master. Note that the driver
+    // ensures that master-generated and driver-generated updates
+    // will not have a 'uuid' set.
+    if (status.has_uuid() && status.has_slave_id()) {
+      VLOG(2) << "Sending ACK for status update " << status.uuid()
+              << " of task " << status.task_id()
+              << " on slave " << status.slave_id()
+              << " to " << master.get();
+
+      StatusUpdateAcknowledgementMessage message;
+      message.mutable_framework_id()->CopyFrom(framework.id());
+      message.mutable_slave_id()->CopyFrom(status.slave_id());
+      message.mutable_task_id()->CopyFrom(status.task_id());
+      message.set_uuid(status.uuid());
+      send(master.get(), message);
+    } else {
+      VLOG(2) << "Received ACK for status update"
+              << (status.has_uuid() ? " " + status.uuid() : "")
+              << " of task " << status.task_id()
+              << (status.has_slave_id()
+                  ? " on slave " + stringify(status.slave_id()) : "");
+    }
+  }
+
   void sendFrameworkMessage(const ExecutorID& executorId,
                             const SlaveID& slaveId,
                             const string& data)
@@ -1204,6 +1271,13 @@ private:
   hashmap<OfferID, hashmap<SlaveID, UPID> > savedOffers;
   hashmap<SlaveID, UPID> savedSlavePids;
 
+  // The driver optionally provides implicit acknowledgements
+  // for frameworks. If disabled, the framework must send its
+  // own acknowledgements through the driver, when the 'uuid'
+  // of the TaskStatus is set (which also implies the 'slave_id'
+  // is set).
+  bool implicitAcknowledgements;
+
   const Option<Credential> credential;
 
   Authenticatee* authenticatee;
@@ -1319,6 +1393,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     master(_master),
     process(NULL),
     status(DRIVER_NOT_STARTED),
+    implicitAcknowlegements(true),
     credential(NULL),
     schedulerId("scheduler-" + UUID::random().toString())
 {
@@ -1326,8 +1401,6 @@ MesosSchedulerDriver::MesosSchedulerDriver(
 }
 
 
-// The implementation of this is same as the above constructor
-// except that the SchedulerProcess is passed the credential.
 MesosSchedulerDriver::MesosSchedulerDriver(
     Scheduler* _scheduler,
     const FrameworkInfo& _framework,
@@ -1339,6 +1412,46 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     master(_master),
     process(NULL),
     status(DRIVER_NOT_STARTED),
+    implicitAcknowlegements(true),
+    credential(new Credential(_credential)),
+    schedulerId("scheduler-" + UUID::random().toString())
+{
+  initialize();
+}
+
+
+MesosSchedulerDriver::MesosSchedulerDriver(
+    Scheduler* _scheduler,
+    const FrameworkInfo& _framework,
+    const string& _master,
+    bool _implicitAcknowlegements)
+  : detector(NULL),
+    scheduler(_scheduler),
+    framework(_framework),
+    master(_master),
+    process(NULL),
+    status(DRIVER_NOT_STARTED),
+    implicitAcknowlegements(_implicitAcknowlegements),
+    credential(NULL),
+    schedulerId("scheduler-" + UUID::random().toString())
+{
+  initialize();
+}
+
+
+MesosSchedulerDriver::MesosSchedulerDriver(
+    Scheduler* _scheduler,
+    const FrameworkInfo& _framework,
+    const string& _master,
+    bool _implicitAcknowlegements,
+    const Credential& _credential)
+  : detector(NULL),
+    scheduler(_scheduler),
+    framework(_framework),
+    master(_master),
+    process(NULL),
+    status(DRIVER_NOT_STARTED),
+    implicitAcknowlegements(_implicitAcknowlegements),
     credential(new Credential(_credential)),
     schedulerId("scheduler-" + UUID::random().toString())
 {
@@ -1438,6 +1551,7 @@ Status MesosSchedulerDriver::start()
         scheduler,
         framework,
         None(),
+        implicitAcknowlegements,
         schedulerId,
         detector,
         flags,
@@ -1450,6 +1564,7 @@ Status MesosSchedulerDriver::start()
         scheduler,
         framework,
         cred,
+        implicitAcknowlegements,
         schedulerId,
         detector,
         flags,
@@ -1639,6 +1754,29 @@ Status MesosSchedulerDriver::reviveOffers()
   CHECK(process != NULL);
 
   dispatch(process, &SchedulerProcess::reviveOffers);
+
+  return status;
+}
+
+
+Status MesosSchedulerDriver::acknowledgeStatusUpdate(
+    const TaskStatus& taskStatus)
+{
+  Lock lock(&mutex);
+
+  if (status != DRIVER_RUNNING) {
+    return status;
+  }
+
+  // TODO(bmahler): Should this use abort() instead?
+  if (implicitAcknowlegements) {
+    ABORT("Cannot call acknowledgeStatusUpdate:"
+          " Implicit acknowledgements are enabled");
+  }
+
+  CHECK(process != NULL);
+
+  dispatch(process, &SchedulerProcess::acknowledgeStatusUpdate, taskStatus);
 
   return status;
 }
