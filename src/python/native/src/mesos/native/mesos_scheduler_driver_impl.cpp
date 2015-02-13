@@ -138,6 +138,11 @@ PyMethodDef MesosSchedulerDriverImpl_methods[] = {
     METH_NOARGS,
     "Remove all filters and ask Mesos for new offers"
   },
+  { "acknowledgeStatusUpdate",
+    (PyCFunction) MesosSchedulerDriverImpl_acknowledgeStatusUpdate,
+    METH_VARARGS,
+    "Acknowledge a status update"
+  },
   { "sendFrameworkMessage",
     (PyCFunction) MesosSchedulerDriverImpl_sendFrameworkMessage,
     METH_VARARGS,
@@ -178,13 +183,22 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
                                   PyObject* args,
                                   PyObject* kwds)
 {
+  // Note: We use an integer for 'implicitAcknoweldgements' because
+  // it is the recommended way to pass booleans through CPython.
   PyObject* schedulerObj = NULL;
   PyObject* frameworkObj = NULL;
   const char* master;
+  int implicitAcknowledgements;
   PyObject* credentialObj = NULL;
 
   if (!PyArg_ParseTuple(
-      args, "OOs|O", &schedulerObj, &frameworkObj, &master, &credentialObj)) {
+      args,
+      "OOs|iO",
+      &schedulerObj,
+      &frameworkObj,
+      &master,
+      &implicitAcknowledgements,
+      &credentialObj)) {
     return -1;
   }
 
@@ -227,10 +241,17 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
 
   if (credentialObj != NULL) {
     self->driver = new MesosSchedulerDriver(
-        self->proxyScheduler, framework, master, credential);
+        self->proxyScheduler,
+        framework,
+        master,
+        implicitAcknowledgements != 0,
+        credential);
   } else {
     self->driver = new MesosSchedulerDriver(
-        self->proxyScheduler, framework, master);
+        self->proxyScheduler,
+        framework,
+        master,
+        implicitAcknowledgements != 0);
   }
 
   return 0;
@@ -545,6 +566,33 @@ PyObject* MesosSchedulerDriverImpl_reviveOffers(MesosSchedulerDriverImpl* self)
   }
 
   Status status = self->driver->reviveOffers();
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
+}
+
+
+PyObject* MesosSchedulerDriverImpl_acknowledgeStatusUpdate(
+    MesosSchedulerDriverImpl* self,
+    PyObject* args)
+{
+  if (self->driver == NULL) {
+    PyErr_Format(PyExc_Exception, "MesosSchedulerDriverImpl.driver is NULL");
+    return NULL;
+  }
+
+  PyObject* taskStatusObj = NULL;
+  TaskStatus taskStatus;
+
+  if (!PyArg_ParseTuple(args, "O", &taskStatusObj)) {
+    return NULL;
+  }
+
+  if (!readPythonProtobuf(taskStatusObj, &taskStatus)) {
+    PyErr_Format(PyExc_Exception, "Could not deserialize Python TaskStatus");
+    return NULL;
+  }
+
+  Status status = self->driver->acknowledgeStatusUpdate(taskStatus);
+
   return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
