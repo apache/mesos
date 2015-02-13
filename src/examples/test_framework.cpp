@@ -56,8 +56,12 @@ const int32_t MEM_PER_TASK = 128;
 class TestScheduler : public Scheduler
 {
 public:
-  TestScheduler(const ExecutorInfo& _executor, const string& _role)
-    : executor(_executor),
+  TestScheduler(
+      bool _implicitAcknowledgements,
+      const ExecutorInfo& _executor,
+      const string& _role)
+    : implicitAcknowledgements(_implicitAcknowledgements),
+      executor(_executor),
       role(_role),
       tasksLaunched(0),
       tasksFinished(0),
@@ -127,8 +131,9 @@ public:
 
     cout << "Task " << taskId << " is in state " << status.state() << endl;
 
-    if (status.state() == TASK_FINISHED)
+    if (status.state() == TASK_FINISHED) {
       tasksFinished++;
+    }
 
     if (status.state() == TASK_LOST ||
         status.state() == TASK_KILLED ||
@@ -142,8 +147,13 @@ public:
       driver->abort();
     }
 
-    if (tasksFinished == totalTasks)
+    if (!implicitAcknowledgements) {
+      driver->acknowledgeStatusUpdate(status);
+    }
+
+    if (tasksFinished == totalTasks) {
       driver->stop();
+    }
   }
 
   virtual void frameworkMessage(SchedulerDriver* driver,
@@ -164,6 +174,7 @@ public:
   }
 
 private:
+  const bool implicitAcknowledgements;
   const ExecutorInfo executor;
   string role;
   int tasksLaunched;
@@ -223,8 +234,6 @@ int main(int argc, char** argv)
   executor.set_name("Test Executor (C++)");
   executor.set_source("cpp_test");
 
-  TestScheduler scheduler(executor, role);
-
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Test Framework (C++)");
@@ -235,7 +244,16 @@ int main(int argc, char** argv)
         numify<bool>(os::getenv("MESOS_CHECKPOINT")).get());
   }
 
+  bool implicitAcknowledgements = true;
+  if (os::hasenv("MESOS_EXPLICIT_ACKNOWLEDGEMENTS")) {
+    cout << "Enabling explicit acknowledgements for status updates" << endl;
+
+    implicitAcknowledgements = false;
+  }
+
   MesosSchedulerDriver* driver;
+  TestScheduler scheduler(implicitAcknowledgements, executor, role);
+
   if (os::hasenv("MESOS_AUTHENTICATE")) {
     cout << "Enabling authentication for the framework" << endl;
 
@@ -254,12 +272,19 @@ int main(int argc, char** argv)
     framework.set_principal(getenv("DEFAULT_PRINCIPAL"));
 
     driver = new MesosSchedulerDriver(
-        &scheduler, framework, master.get(), credential);
+        &scheduler,
+        framework,
+        master.get(),
+        implicitAcknowledgements,
+        credential);
   } else {
     framework.set_principal("test-framework-cpp");
 
     driver = new MesosSchedulerDriver(
-        &scheduler, framework, master.get());
+        &scheduler,
+        framework,
+        master.get(),
+        implicitAcknowledgements);
   }
 
   int status = driver->run() == DRIVER_STOPPED ? 0 : 1;

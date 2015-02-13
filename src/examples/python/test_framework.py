@@ -30,7 +30,8 @@ TASK_CPUS = 1
 TASK_MEM = 128
 
 class TestScheduler(mesos.interface.Scheduler):
-    def __init__(self, executor):
+    def __init__(self, implicitAcknowledgements, executor):
+        self.implicitAcknowledgements = implicitAcknowledgements
         self.executor = executor
         self.taskData = {}
         self.tasksLaunched = 0
@@ -123,6 +124,11 @@ class TestScheduler(mesos.interface.Scheduler):
                 % (update.task_id.value, mesos_pb2.TaskState.Name(update.state), update.message)
             driver.abort()
 
+        # Explicitly acknowledge the update if implicit acknowledgements
+        # are not being used.
+        if not self.implicitAcknowledgements:
+            driver.acknowledgeStatusUpdate(update)
+
     def frameworkMessage(self, driver, executorId, slaveId, message):
         self.messagesReceived += 1
 
@@ -163,6 +169,11 @@ if __name__ == "__main__":
         print "Enabling checkpoint for the framework"
         framework.checkpoint = True
 
+    implicitAcknowledgements = 1
+    if os.getenv("MESOS_EXPLICIT_ACKNOWLEDGEMENTS"):
+        print "Enabling explicit status update acknowledgements"
+        implicitAcknowledgements = 0
+
     if os.getenv("MESOS_AUTHENTICATE"):
         print "Enabling authentication for the framework"
 
@@ -181,17 +192,19 @@ if __name__ == "__main__":
         framework.principal = os.getenv("DEFAULT_PRINCIPAL")
 
         driver = mesos.native.MesosSchedulerDriver(
-            TestScheduler(executor),
+            TestScheduler(implicitAcknowledgements, executor),
             framework,
             sys.argv[1],
+            implicitAcknowledgements,
             credential)
     else:
         framework.principal = "test-framework-python"
 
         driver = mesos.native.MesosSchedulerDriver(
-            TestScheduler(executor),
+            TestScheduler(implicitAcknowledgements, executor),
             framework,
-            sys.argv[1])
+            sys.argv[1],
+            implicitAcknowledgements)
 
     status = 0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1
 
