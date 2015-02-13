@@ -80,7 +80,6 @@
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
-#include "slave/graceful_shutdown.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
@@ -1102,30 +1101,6 @@ Future<bool> Slave::unschedule(const string& path)
 }
 
 
-// Returns a TaskInfo with grace shutdown period field added in
-// task's CommandInfo structures.
-TaskInfo updateGracePeriod(TaskInfo task, double gracePeriod)
-{
-  // TODO(alexr): do not overwrite present value for frameworks that
-  // are authorized to set grace periods for their executors.
-
-  // Update CommandInfo in task.
-  if (task.has_command()) {
-    task.mutable_command()->set_grace_period_seconds(gracePeriod);
-  }
-
-  // Update CommandInfo in task's ExecutorInfo.
-  if (task.has_executor() &&
-      task.executor().has_command()) {
-    task.mutable_executor()->mutable_command()->set_grace_period_seconds(
-        gracePeriod);
-  }
-
-  // Return either updated or unchanged TaskInfo.
-  return task;
-}
-
-
 // TODO(vinod): Instead of crashing the slave on checkpoint errors,
 // send TASK_LOST to the framework.
 void Slave::runTask(
@@ -1203,19 +1178,14 @@ void Slave::runTask(
     }
   }
 
-  // Ensure the task has grace shutdown period set.
-  const TaskInfo& task_ = updateGracePeriod(
-      task,
-      Seconds(flags.executor_shutdown_grace_period).value());
-
-  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task_);
+  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // We add the task to 'pending' to ensure the framework is not
   // removed and the framework and top level executor directories
   // are not scheduled for deletion before '_runTask()' is called.
   CHECK_NOTNULL(framework);
-  framework->pending[executorId][task_.task_id()] = task_;
+  framework->pending[executorId][task.task_id()] = task;
 
   // If we are about to create a new executor, unschedule the top
   // level work and meta directories from getting gc'ed.
@@ -1246,7 +1216,7 @@ void Slave::runTask(
             frameworkInfo,
             frameworkId,
             pid,
-            task_));
+            task));
 }
 
 
@@ -3322,7 +3292,7 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
   send(executor->pid, ShutdownExecutorMessage());
 
   // Prepare for sending a kill if the executor doesn't comply.
-  delay(getContainerizerGracePeriod(flags.executor_shutdown_grace_period),
+  delay(flags.executor_shutdown_grace_period,
         self(),
         &Slave::shutdownExecutorTimeout,
         framework->id,

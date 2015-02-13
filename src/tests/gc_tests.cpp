@@ -49,7 +49,6 @@
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
-#include "slave/graceful_shutdown.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
@@ -440,8 +439,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
   // Advance clock to kill executor via isolator.
-  Clock::advance(slave::getContainerizerGracePeriod(
-      flags.executor_shutdown_grace_period));
+  Clock::advance(flags.executor_shutdown_grace_period);
 
   Clock::settle();
 

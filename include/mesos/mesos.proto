@@ -252,10 +252,6 @@ message CommandInfo {
   optional string value = 3;
   repeated string arguments = 7;
 
-  // Shutdown grace period for the command (in seconds). Any changes
-  // made by frameworks are currently ignored.
-  optional double grace_period_seconds = 8;
-
   // Enables executor and tasks to run as a specific user. If the user
   // field is present both in FrameworkInfo and here, the CommandInfo
   // user value takes precedence.
