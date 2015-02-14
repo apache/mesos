@@ -513,9 +513,7 @@ message ResourceStatistics {
   optional double net_tcp_rtt_microsecs_p95 = 24;
   optional double net_tcp_rtt_microsecs_p99 = 25;
 
-  // Total number of active tcp connections in a container.
   optional double net_tcp_active_connections = 28;
-  // Total number of TIME_WAIT tcp connections in a container.
   optional double net_tcp_time_wait_connections = 29;
 }
 
