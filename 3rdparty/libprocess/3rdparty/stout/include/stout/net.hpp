@@ -72,6 +72,7 @@ inline struct addrinfo createAddrInfo(int socktype, int family, int flags)
   return addr;
 }
 
+
 // TODO(evelinad): Add createSockaddrIn6 when will support IPv6
 inline struct sockaddr_in createSockaddrIn(uint32_t ip, int port)
 {
@@ -83,8 +84,11 @@ inline struct sockaddr_in createSockaddrIn(uint32_t ip, int port)
 
   return addr;
 }
-// Returns the HTTP response code resulting from attempting to download the
-// specified HTTP or FTP URL into a file at the specified path.
+
+
+// Returns the HTTP response code resulting from attempting to
+// download the specified HTTP or FTP URL into a file at the specified
+// path.
 inline Try<int> download(const std::string& url, const std::string& path)
 {
   Try<int> fd = os::open(
@@ -162,8 +166,9 @@ inline Try<std::string> hostname()
 }
 
 
-// Returns a Try of the hostname for the provided IP. If the hostname cannot
-// be resolved, then a string version of the IP address is returned.
+// Returns a Try of the hostname for the provided IP. If the hostname
+// cannot be resolved, then a string version of the IP address is
+// returned.
 inline Try<std::string> getHostname(uint32_t ip)
 {
   sockaddr_in addr = createSockaddrIn(ip, 0);
@@ -184,8 +189,9 @@ inline Try<std::string> getHostname(uint32_t ip)
   return std::string(hostname);
 }
 
-// Returns a Try of the IP for the provided hostname or an error if no IP is
-// obtained.
+
+// Returns a Try of the IP for the provided hostname or an error if no
+// IP is obtained.
 inline Try<uint32_t> getIP(const std::string& hostname, sa_family_t family)
 {
   struct addrinfo hints, *result;
