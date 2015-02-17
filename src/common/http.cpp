@@ -43,24 +43,22 @@ JSON::Object model(const Resources& resources)
   object.values["mem"] = 0;
   object.values["disk"] = 0;
 
-  const Option<double>& cpus = resources.cpus();
-  if (cpus.isSome()) {
-    object.values["cpus"] = cpus.get();
-  }
-
-  const Option<Bytes>& mem = resources.mem();
-  if (mem.isSome()) {
-    object.values["mem"] = mem.get().megabytes();
-  }
-
-  const Option<Bytes>& disk = resources.disk();
-  if (disk.isSome()) {
-    object.values["disk"] = disk.get().megabytes();
-  }
-
-  const Option<Value::Ranges>& ports = resources.ports();
-  if (ports.isSome()) {
-    object.values["ports"] = stringify(ports.get());
+  foreach (const Resource& resource, resources)
+  {
+    switch(resource.type())
+    {
+      case Value::SCALAR:
+        object.values[resource.name()] = resource.scalar().value();
+        break;
+      case Value::RANGES:
+        object.values[resource.name()] = stringify(resource.ranges());
+        break;
+      case Value::SET:
+        object.values[resource.name()] = stringify(resource.set());
+        break;
+      default:
+        LOG(FATAL) << "Unexpected Value type: " << resource.type();
+    }
   }
 
   return object;
