@@ -138,3 +138,7 @@ Per the guidelines [when to archive](http://www.apache.org/dev/release.html#when
 1. Checkout the mesos distribution folder: `svn co https://dist.apache.org/repos/dist/release/mesos`
 
 2. Remove all minor versions that are no longer under development and commit the change.
+
+## Set the release date
+
+1. Find the released Mesos version on https://issues.apache.org/jira/plugins/servlet/project-config/MESOS/versions, and update the release date.
