@@ -56,23 +56,26 @@ lambda::function<void(const list<Timer>&)>* callback =
 
 
 // Helper for determining the duration until the next timer elapses,
-// or None if no timers are pending. Note that we don't manipulate
-// 'timer's directly so that it's clear from the callsite that the use
-// of 'timers' is within a 'synchronized' block.
+// or None if no timers are pending, or the clock is paused and no
+// timers are expired. Note that we don't manipulate 'timers' directly
+// so that it's clear from the callsite that the use of 'timers' is
+// within a 'synchronized' block.
 //
-// TODO(benh): Create a generic 'Timer's abstraction which hides this
+// TODO(benh): Create a generic 'Timers' abstraction which hides this
 // and more away (i.e., all manipulations of 'timers' below).
 Option<Duration> next(const map<Time, list<Timer>>& timers)
 {
   if (!timers.empty()) {
-    // Determine when the next "tick" should occur.
-    Duration duration = (timers.begin()->first - Clock::now());
+    // Determine when the next "tick" should occur. We pass NULL
+    // to ensure that this looks at the global clock, since this
+    // can be called from a Process context through Clock::timer.
+    Duration duration = (timers.begin()->first - Clock::now(NULL));
 
-    // Force a duration of 0 seconds (i.e., fire timers now) if the
-    // clock is paused and the duration is greater than 0 since we
-    // want to handle timers right away.
+    // If the clock is paused and no timers are expired, the
+    // timers cannot fire until the clock is advanced, so we
+    // return None() here.
     if (Clock::paused() && duration > Seconds(0)) {
-      return Seconds(0);
+      return None();
     }
 
     return duration;
@@ -89,7 +92,10 @@ void tick()
   list<Timer> timedout;
 
   synchronized (timers) {
-    Time now = Clock::now();
+    // We pass NULL to be explicit about the fact that we want the
+    // global clock time, even though it's unnecessary ('tick' is
+    // called from the event loop, not a Process context).
+    Time now = Clock::now(NULL);
 
     VLOG(3) << "Handling timers up to " << now;
 
