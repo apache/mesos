@@ -60,17 +60,22 @@ namespace internal {
 
 void handle_delay(struct ev_loop* loop, ev_timer* timer, int revents)
 {
-  void(*function)(void) = reinterpret_cast<void(*)(void)>(timer->data);
-  function();
+  lambda::function<void(void)>* function =
+    reinterpret_cast<lambda::function<void(void)>*>(timer->data);
+  (*function)();
+  delete function;
   ev_timer_stop(loop, timer);
   delete timer;
 }
 
 
-Future<Nothing> delay(const Duration& duration, void(*function)(void))
+Future<Nothing> delay(
+    const Duration& duration,
+    const lambda::function<void(void)>& function)
 {
   ev_timer* timer = new ev_timer();
-  timer->data = reinterpret_cast<void*>(function);
+  timer->data = reinterpret_cast<void*>(
+      new lambda::function<void(void)>(function));
 
   // Determine the 'after' parameter to pass to libev and set it to 0
   // in the event that it's negative so that we always make sure to
@@ -93,7 +98,9 @@ Future<Nothing> delay(const Duration& duration, void(*function)(void))
 } // namespace internal {
 
 
-void EventLoop::delay(const Duration& duration, void(*function)(void))
+void EventLoop::delay(
+    const Duration& duration,
+    const lambda::function<void(void)>& function)
 {
   run_in_event_loop<Nothing>(
       lambda::bind(&internal::delay, duration, function));

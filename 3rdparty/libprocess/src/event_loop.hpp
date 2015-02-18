@@ -2,6 +2,7 @@
 #define __EVENT_LOOP_HPP__
 
 #include <stout/duration.hpp>
+#include <stout/lambda.hpp>
 
 namespace process {
 
@@ -16,7 +17,10 @@ public:
 
   // Invoke the specified function in the event loop after the
   // specified duration.
-  static void delay(const Duration& duration, void(*function)(void));
+  // TODO(bmahler): Update this to use rvalue references.
+  static void delay(
+      const Duration& duration,
+      const lambda::function<void(void)>& function);
 
   // Returns the current time w.r.t. the event loop.
   static double time();
