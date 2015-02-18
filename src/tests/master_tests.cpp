@@ -83,6 +83,7 @@ using testing::_;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
+using testing::Not;
 using testing::Return;
 using testing::SaveArg;
 
@@ -1643,10 +1644,10 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
   // to the master.
   Future<SlaveRegisteredMessage> slave1RegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
-  Future<SlaveRegisteredMessage> slave2RegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+  Try<PID<Slave>> slave1 = StartSlave();
 
-  StartSlave();
+  Future<SlaveRegisteredMessage> slave2RegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), Not(slave1.get()));
   StartSlave();
 
   // Wait for the slaves to be registered.
