@@ -1082,7 +1082,7 @@ Try<Nothing> assign(const string& hierarchy, const string& cgroup, pid_t pid)
 }
 
 
-namespace internal {
+namespace event {
 
 #ifndef EFD_SEMAPHORE
 #define EFD_SEMAPHORE (1 << 0)
@@ -1147,7 +1147,7 @@ static Try<int> registerNotifier(
     const string& control,
     const Option<string>& args = None())
 {
-  int efd = internal::eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+  int efd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
   if (efd < 0) {
     return ErrnoError("Failed to create an eventfd");
   }
@@ -1191,50 +1191,64 @@ static Try<Nothing> unregisterNotifier(int fd)
 }
 
 
-// The process listening on event notifier. This class is invisible to users.
-class EventListener : public Process<EventListener>
+// The process listening on an event notifier. This class is internal
+// to the cgroup code and assumes parameters are valid. See the
+// comments of the public interface 'listen' for its usage.
+class Listener : public Process<Listener>
 {
 public:
-  EventListener(const string& _hierarchy,
-                const string& _cgroup,
-                const string& _control,
-                const Option<string>& _args)
+  Listener(const string& _hierarchy,
+           const string& _cgroup,
+           const string& _control,
+           const Option<string>& _args)
     : hierarchy(_hierarchy),
       cgroup(_cgroup),
       control(_control),
       args(_args),
       data(0) {}
 
-  virtual ~EventListener() {}
+  virtual ~Listener() {}
 
-  Future<uint64_t> future() { return promise.future(); }
+  // Waits for the next event to occur, at which point the future
+  // becomes ready. Returns a failure if error occurs. If any previous
+  // call to 'listen' returns a failure, all subsequent calls to
+  // 'listen' will return failures as well (in that case, the user
+  // should consider terminate this process and create a new one if
+  // he/she still wants to monitor the events).
+  // TODO(chzhcn): If the user discards the returned future, currently
+  // we do not do anything. Consider a better discard semantics here.
+  Future<uint64_t> listen()
+  {
+    if (error.isSome()) {
+      return Failure(error.get());
+    }
+
+    if (promise.isNone()) {
+      promise = Owned<Promise<uint64_t>>(new Promise<uint64_t>());
+
+      // Perform nonblocking read on the event file. The nonblocking
+      // read will start polling on the event file until it becomes
+      // readable. If we can successfully read 8 bytes (sizeof
+      // uint64_t) from the event file, it indicates that an event has
+      // occurred.
+      reading = io::read(eventfd.get(), &data, sizeof(data));
+      reading.onAny(defer(self(), &Listener::_listen));
+    }
+
+    return promise.get()->future();
+  }
 
 protected:
   virtual void initialize()
   {
-    // Stop the listener if no one cares. Note that here we explicitly specify
-    // the type of the terminate function because it is an overloaded function.
-    // The compiler complains if we do not do it.
-    promise.future().onDiscard(lambda::bind(
-        static_cast<void (*)(const UPID&, bool)>(terminate), self(), true));
-
     // Register an eventfd "notifier" for the given control.
-    Try<int> fd = internal::registerNotifier(hierarchy, cgroup, control, args);
+    Try<int> fd = registerNotifier(hierarchy, cgroup, control, args);
     if (fd.isError()) {
-      promise.fail("Failed to register notification eventfd: " + fd.error());
-      terminate(self());
-      return;
+      error = Error("Failed to register notification eventfd: " + fd.error());
+    } else {
+      // Remember the opened event file descriptor.
+      eventfd = fd.get();
     }
-
-    // Remember the opened event file descriptor.
-    eventfd = fd.get();
-
-    // Perform nonblocking read on the event file. The nonblocking read will
-    // start polling on the event file until it becomes readable. If we can
-    // successfully read 8 bytes (sizeof uint64_t) from the event file, it
-    // indicates an event has occurred.
-    reading = io::read(eventfd.get(), &data, sizeof(data));
-    reading.onAny(defer(self(), &EventListener::notified, lambda::_1));
   }
 
   virtual void finalize()
@@ -1244,46 +1258,59 @@ protected:
 
     // Unregister the eventfd if needed.
     if (eventfd.isSome()) {
-      Try<Nothing> unregister = internal::unregisterNotifier(eventfd.get());
+      Try<Nothing> unregister = unregisterNotifier(eventfd.get());
       if (unregister.isError()) {
-        LOG(ERROR) << "Failed to unregistering eventfd: " << unregister.error();
+        LOG(ERROR) << "Failed to unregister eventfd: " << unregister.error();
       }
     }
 
-    // TODO(benh): Discard our promise only after 'reading' has
-    // completed (ready, failed, or discarded).
-    promise.discard();
+    // TODO(chzhcn): Fail our promise only after 'reading' has
+    // completed (ready, failed or discarded).
+    if (promise.isSome()) {
+      promise.get()->fail("Event listener is terminating");
+    }
   }
 
 private:
   // This function is called when the nonblocking read on the eventfd has
   // result, either because the event has happened, or an error has occurred.
-  void notified(const Future<size_t>&)
+  void _listen()
   {
-    if (reading.isDiscarded()) {
-      promise.discard();
-    } else if (reading.isFailed()) {
-      promise.fail("Failed to read eventfd: " + reading.failure());
-    } else if (reading.get() == sizeof(data)) {
-      promise.set(data);
-    } else {
-      promise.fail("Read less than expected");
+    CHECK_SOME(promise);
+
+    if (reading.isReady() && reading.get() == sizeof(data)) {
+      promise.get()->set(data);
+
+      // After fulfilling the promise, reset to get ready for the next one.
+      promise = None();
+      return;
     }
 
-    terminate(self());
+    if (reading.isDiscarded()) {
+      error = Error("Reading eventfd stopped unexpectedly");
+    } else if (reading.isFailed()) {
+      error = Error("Failed to read eventfd: " + reading.failure());
+    } else {
+      error = Error("Read less than expected. Expect " +
+                    stringify(sizeof(data)) + " bytes; actual " +
+                    stringify(reading.get()) + " bytes");
+    }
+
+    // Inform failure and not listen again.
+    promise.get()->fail(error.get().message);
   }
 
   const string hierarchy;
   const string cgroup;
   const string control;
   const Option<string> args;
-  Promise<uint64_t> promise;
-  Future<size_t> reading;
-  Option<int> eventfd;  // The eventfd if opened.
-  uint64_t data; // The data read from the eventfd.
-};
 
-} // namespace internal {
+  Option<Owned<Promise<uint64_t>>> promise;
+  Future<size_t> reading;
+  Option<Error> error;
+  Option<int> eventfd;
+  uint64_t data;                // The data read from the eventfd last time.
+};
 
 
 Future<uint64_t> listen(
@@ -1297,12 +1324,29 @@ Future<uint64_t> listen(
     return Failure(error.get());
   }
 
-  internal::EventListener* listener =
-    new internal::EventListener(hierarchy, cgroup, control, args);
-  Future<uint64_t> future = listener->future();
+  Listener* listener = new Listener(hierarchy, cgroup, control, args);
+
   spawn(listener, true);
+
+  Future<uint64_t> future = dispatch(listener, &Listener::listen);
+
+  // If the user doesn't care any more, or listening has had a result,
+  // terminate the listener.
+  future
+    .onDiscard(lambda::bind(
+        static_cast<void (*)(const UPID&, bool)>(terminate),
+        listener->self(),
+        true))
+    .onAny(lambda::bind(
+        static_cast<void (*)(const UPID&, bool)>(terminate),
+        listener->self(),
+        true));
+
   return future;
 }
+
+} // namespace event {
+
 
 namespace internal {
 
@@ -2113,7 +2157,7 @@ Nothing _nothing() { return Nothing(); }
 
 Future<Nothing> listen(const string& hierarchy, const string& cgroup)
 {
-  return cgroups::listen(hierarchy, cgroup, "memory.oom_control")
+  return cgroups::event::listen(hierarchy, cgroup, "memory.oom_control")
     .then(lambda::bind(&_nothing));
 }
 
