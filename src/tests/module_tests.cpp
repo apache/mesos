@@ -92,8 +92,7 @@ protected:
     library->set_file(path::join(
         libraryDirectory,
         os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME)));
-    Modules::Library::Module* module = library->add_modules();
-    module->set_name(DEFAULT_MODULE_NAME);
+    library->add_modules()->set_name(DEFAULT_MODULE_NAME);
   }
 
   // During the per-test tear-down, we unload the module to allow
