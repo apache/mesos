@@ -157,7 +157,7 @@ def needs_verification(review_request):
 
     # Get the timestamp of the latest review from this script.
     reviews_url = review_request["links"]["reviews"]["href"]
-    reviews = api(reviews_url)
+    reviews = api(reviews_url + "?max-results=200")
     review_time = None
     for review in reversed(reviews["reviews"]):
         if review["links"]["user"]["title"] == USER:
