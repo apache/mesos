@@ -45,6 +45,7 @@ void handle_delay(int, short, void* arg)
 {
   Delay* delay = reinterpret_cast<Delay*>(arg);
   delay->function();
+  event_free(delay->timer);
   delete delay;
 }
 
