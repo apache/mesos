@@ -85,8 +85,23 @@ public:
   static Option<Error> validate(
       const google::protobuf::RepeatedPtrField<Resource>& resources);
 
+  // NOTE: The following predicate functions assume that the given
+  // resource is validated.
+
   // Tests if the given Resource object is empty.
-  static bool empty(const Resource& resource);
+  static bool isEmpty(const Resource& resource);
+
+  // Tests if the given Resource object is a persistent volume.
+  static bool isPersistentVolume(const Resource& resource);
+
+  // Tests if the given Resource object is reserved.
+  static bool isReserved(const Resource& resource);
+
+  // Tests if the given Resource object is reserved for the given role.
+  static bool isReserved(const Resource& resource, const std::string& role);
+
+  // Tests if the given Resource object is unreserved.
+  static bool isUnreserved(const Resource& resource);
 
   Resources() {}
 
@@ -268,7 +283,7 @@ public:
     {
       Resources result;
       foreach (const Resource& resource, resources) {
-        if (resource.has_disk() && resource.disk().has_persistence()) {
+        if (isPersistentVolume(resource)) {
           result += resource;
         }
       }
@@ -289,7 +304,7 @@ public:
       Resources result;
       foreach (const Resource& resource, resources) {
         // TODO(jieyu): Consider dynamic reservation as well.
-        if (resource.has_disk() && resource.disk().has_persistence()) {
+        if (isPersistentVolume(resource)) {
           result += resource;
         }
       }

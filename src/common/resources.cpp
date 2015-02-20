@@ -386,7 +386,7 @@ Option<Error> Resources::validate(
 }
 
 
-bool Resources::empty(const Resource& resource)
+bool Resources::isEmpty(const Resource& resource)
 {
   if (resource.type() == Value::SCALAR) {
     return resource.scalar().value() == 0;
@@ -397,6 +397,30 @@ bool Resources::empty(const Resource& resource)
   } else {
     return false;
   }
+}
+
+
+bool Resources::isPersistentVolume(const Resource& resource)
+{
+  return resource.has_disk() && resource.disk().has_persistence();
+}
+
+
+bool Resources::isReserved(const Resource& resource)
+{
+  return !isUnreserved(resource);
+}
+
+
+bool Resources::isReserved(const Resource& resource, const std::string& role)
+{
+  return isReserved(resource) && resource.role() == role;
+}
+
+
+bool Resources::isUnreserved(const Resource& resource)
+{
+  return resource.role() == "*";
 }
 
 
@@ -464,7 +488,7 @@ hashmap<string, Resources> Resources::reserved() const
   hashmap<string, Resources> result;
 
   foreach (const Resource& resource, resources) {
-    if (resource.role() != "*") {
+    if (isReserved(resource)) {
       result[resource.role()] += resource;
     }
   }
@@ -478,8 +502,7 @@ Resources Resources::reserved(const string& role) const
   Resources result;
 
   foreach (const Resource& resource, resources) {
-    if (resource.role() != "*" &&
-        resource.role() == role) {
+    if (isReserved(resource, role)) {
       result += resource;
     }
   }
@@ -493,7 +516,7 @@ Resources Resources::unreserved() const
   Resources result;
 
   foreach (const Resource& resource, resources) {
-    if (resource.role() == "*") {
+    if (isUnreserved(resource)) {
       result += resource;
     }
   }
@@ -832,7 +855,7 @@ Resources Resources::operator + (const Resources& that) const
 
 Resources& Resources::operator += (const Resource& that)
 {
-  if (validate(that).isNone() && !empty(that)) {
+  if (validate(that).isNone() && !isEmpty(that)) {
     bool found = false;
     foreach (Resource& resource, resources) {
       if (addable(resource, that)) {
@@ -880,7 +903,7 @@ Resources Resources::operator - (const Resources& that) const
 
 Resources& Resources::operator -= (const Resource& that)
 {
-  if (validate(that).isNone() && !empty(that)) {
+  if (validate(that).isNone() && !isEmpty(that)) {
     for (int i = 0; i < resources.size(); i++) {
       Resource* resource = resources.Mutable(i);
 
@@ -890,7 +913,7 @@ Resources& Resources::operator -= (const Resource& that)
         // Remove the resource if it becomes invalid or zero. We need
         // to do the validation because we want to strip negative
         // scalar Resource object.
-        if (validate(*resource).isSome() || empty(*resource)) {
+        if (validate(*resource).isSome() || isEmpty(*resource)) {
           resources.DeleteSubrange(i, 1);
         }
 

@@ -770,7 +770,7 @@ struct Slave
       // TODO(jieyu): Apply RESERVE operation if 'resource' is
       // dynamically reserved.
 
-      if (resource.has_disk() && resource.disk().has_persistence()) {
+      if (Resources::isPersistentVolume(resource)) {
         Offer::Operation create;
         create.set_type(Offer::Operation::CREATE);
         create.mutable_create()->add_volumes()->CopyFrom(resource);

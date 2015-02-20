@@ -63,8 +63,9 @@ Option<Error> validateDiskInfo(const RepeatedPtrField<Resource>& resources)
     }
 
     if (resource.disk().has_persistence()) {
-      if (resource.role() == "*") {
-        return Error("'*' role not supported for persistent volume");
+      if (Resources::isUnreserved(resource)) {
+        return Error(
+            "Persistent volumes cannot be created from unreserved resources.");
       }
       if (!resource.disk().has_volume()) {
         return Error("Expecting 'volume' to be set for persistent volume");
@@ -101,7 +102,7 @@ Option<Error> validateUniquePersistenceID(
 
   // Check duplicated persistence ID within the given resources.
   foreach (const Resource& resource, resources) {
-    if (!resource.has_disk() || !resource.disk().has_persistence()) {
+    if (!Resources::isPersistentVolume(resource)) {
       continue;
     }
 
