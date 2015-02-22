@@ -65,7 +65,7 @@ public:
   //
   // NOTE: If loading fails at a particular library we don't unload
   // all of the already loaded libraries.
-  static Try<Nothing> load(const mesos::Modules& modules);
+  static Try<Nothing> load(const Modules& modules);
 
   // create() should be called only after load().
   template <typename T>
