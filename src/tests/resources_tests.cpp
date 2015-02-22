@@ -28,14 +28,15 @@
 
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
 using namespace mesos::internal::master;
-using namespace mesos::internal::tests;
 
 using std::ostringstream;
 using std::pair;
 using std::string;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 TEST(ResourcesTest, Parsing)
@@ -977,3 +978,7 @@ TEST(ResourcesOperationTest, CreatePersistentVolume)
 
   EXPECT_ERROR(total.apply(create2));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

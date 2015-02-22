@@ -43,9 +43,7 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
+using namespace mesos::internal::tests;
 
 using namespace mesos::slave;
 
@@ -57,6 +55,11 @@ using testing::_;
 using testing::DoAll;
 using testing::Invoke;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace slave {
+
 
 class MesosContainerizerIsolatorPreparationTest :
   public tests::TemporaryDirectoryTest
@@ -322,7 +325,7 @@ class MockMesosContainerizerProcess : public MesosContainerizerProcess
 {
 public:
   MockMesosContainerizerProcess(
-      const Flags& flags,
+      const slave::Flags& flags,
       bool local,
       Fetcher* fetcher,
       const process::Owned<Launcher>& launcher,
@@ -406,3 +409,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
   // The container should still exit even if fetch didn't complete.
   AWAIT_READY(wait);
 }
+
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {

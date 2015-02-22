@@ -60,6 +60,10 @@ using std::set;
 using std::string;
 using std::vector;
 
+namespace mesos {
+namespace internal {
+namespace tests {
+
 
 static const string TEST_VETH_LINK = "veth-test";
 static const string TEST_PEER_LINK = "veth-peer";
@@ -1085,3 +1089,7 @@ TEST_F(RoutingVethTest, ROOT_HandleGeneration)
   // will find the handle matches the first filter.
   EXPECT_SOME_TRUE(ip::remove(TEST_VETH_LINK, ingress::HANDLE, classifier2));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

@@ -40,12 +40,8 @@
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
 
-
-using namespace mesos;
-using namespace mesos::internal;
 using namespace mesos::internal::slave::paths;
 using namespace mesos::internal::slave::state;
-using namespace mesos::internal::tests;
 
 using namespace process;
 
@@ -71,6 +67,10 @@ using testing::DoDefault;
 using testing::Eq;
 using testing::Invoke;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class MockDocker : public Docker
@@ -2597,3 +2597,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
 
   Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

@@ -41,7 +41,7 @@ public:
 
   MOCK_METHOD1(
       recover,
-      process::Future<Nothing>(const std::list<slave::ExecutorRunState>&));
+      process::Future<Nothing>(const std::list<mesos::slave::ExecutorRunState>&));
 
   virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,

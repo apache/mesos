@@ -30,10 +30,11 @@
 
 using std::string;
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
 using namespace mesos::modules;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 static hashmap<ModuleID, string> moduleNames;
 
@@ -130,7 +131,7 @@ static void addAnonymousModules(Modules* modules)
 }
 
 
-Try<Nothing> tests::initModules(const Option<Modules>& modules)
+Try<Nothing> initModules(const Option<Modules>& modules)
 {
   // First get the user provided modules.
   Modules mergedModules;
@@ -155,10 +156,14 @@ Try<Nothing> tests::initModules(const Option<Modules>& modules)
 
 
 // Mapping from module ID to the actual module name.
-Try<string> tests::getModuleName(ModuleID id)
+Try<string> getModuleName(ModuleID id)
 {
   if (!moduleNames.contains(id)) {
     return Error("Module '" + stringify(id) + "' not found");
   }
   return moduleNames[id];
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

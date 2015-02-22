@@ -26,11 +26,13 @@
 
 #include "logging/logging.hpp"
 
-using namespace mesos::internal;
-
 using process::http::BadRequest;
 using process::http::OK;
 using process::http::Response;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 TEST(LoggingTest, Toggle)
@@ -78,3 +80,7 @@ TEST(LoggingTest, Toggle)
       "Invalid level '-1'.\n",
       response);
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

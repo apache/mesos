@@ -60,12 +60,6 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
-
 using namespace process;
 
 using namespace routing;
@@ -91,6 +85,10 @@ using std::vector;
 using testing::_;
 using testing::Eq;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 // An old glibc might not have this symbol.
@@ -2052,3 +2050,7 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   Shutdown();
   delete containerizer2.get();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

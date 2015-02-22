@@ -40,15 +40,16 @@
 
 #include "tests/flags.hpp"
 
-
-using namespace mesos::internal;
-
 using namespace process;
 
 using std::list;
 using std::set;
 using std::string;
 using std::vector;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 // Helper for cloneChild() which expects an int(void*).
@@ -286,3 +287,7 @@ TEST(NsTest, ROOT_destroy)
     }
   }
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

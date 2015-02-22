@@ -53,19 +53,10 @@
 
 #include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-
 using namespace process;
 
-using log::Log;
-using log::Replica;
-
-using state::Entry;
-using state::LogStorage;
-using state::Storage;
-
-using state::protobuf::State;
+using mesos::internal::log::Log;
+using mesos::internal::log::Replica;
 
 using std::map;
 using std::set;
@@ -84,6 +75,12 @@ using ::testing::WithParamInterface;
 namespace mesos {
 namespace internal {
 namespace master {
+
+using state::Entry;
+using state::LogStorage;
+using state::Storage;
+
+using state::protobuf::State;
 
 // TODO(xujyan): This class copies code from LogStateTest. It would
 // be nice to find a common location for log related base tests when

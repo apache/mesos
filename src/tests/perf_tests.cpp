@@ -33,6 +33,10 @@ using std::string;
 
 using namespace process;
 
+namespace mesos {
+namespace internal {
+namespace tests {
+
 class PerfTest : public ::testing::Test {};
 
 
@@ -145,3 +149,7 @@ TEST_F(PerfTest, ROOT_SampleInit)
   ASSERT_TRUE(statistics.get().has_task_clock());
   EXPECT_LT(0.0, statistics.get().task_clock());
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

@@ -29,11 +29,13 @@
 
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal::tests;
 using namespace mesos::internal::master::validation;
 
 using google::protobuf::RepeatedPtrField;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class ResourceValidationTest : public ::testing::Test
@@ -197,3 +199,7 @@ TEST_F(DestroyOperationValidationTest, UnknownPersistentVolume)
   EXPECT_NONE(operation::validate(destroy, volume));
   EXPECT_SOME(operation::validate(destroy, Resources()));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

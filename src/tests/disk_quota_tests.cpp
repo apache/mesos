@@ -48,10 +48,6 @@
 
 using namespace process;
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using std::string;
 using std::vector;
 
@@ -64,6 +60,10 @@ using mesos::internal::slave::DiskUsageCollector;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class DiskUsageCollectorTest : public TemporaryDirectoryTest {};
@@ -394,3 +394,7 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
 
   delete containerizer.get();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

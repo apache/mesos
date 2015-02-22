@@ -59,10 +59,7 @@
 #include "tests/zookeeper.hpp"
 #endif
 
-using namespace mesos;
-using namespace mesos::internal;
 using namespace mesos::internal::log;
-using namespace mesos::internal::tests;
 
 using namespace process;
 
@@ -73,6 +70,10 @@ using std::string;
 using testing::_;
 using testing::Eq;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 TEST(NetworkTest, Watch)
@@ -2057,3 +2058,7 @@ TEST_F(CoordinatorTest, LearnedOnOneReplica_NotLearnedOnAnother) {}
 
 TEST_F(CoordinatorTest,
        LearnedOnOneReplica_NotLearnedOnAnother_AnotherFailsAndRecovers) {}
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

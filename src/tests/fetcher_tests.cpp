@@ -46,21 +46,21 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
-
 using namespace process;
+
 using process::Subprocess;
 using process::Future;
 
-using slave::Fetcher;
+using mesos::internal::slave::Fetcher;
 
 using std::string;
 using std::map;
 
 using mesos::fetcher::FetcherInfo;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 class FetcherEnvironmentTest : public ::testing::Test {};
 
@@ -635,3 +635,7 @@ TEST_F(FetcherTest, ExtractNotExecutable)
 
   ASSERT_SOME(os::rm(path.get()));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

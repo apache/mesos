@@ -58,9 +58,6 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
 using namespace mesos::internal::tests;
 
 using namespace process;
@@ -68,9 +65,6 @@ using namespace process;
 using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
-using mesos::internal::slave::Containerizer;
-using mesos::internal::slave::Fetcher;
-using mesos::internal::slave::GarbageCollectorProcess;
 
 using std::map;
 using std::string;
@@ -82,6 +76,10 @@ using testing::DoAll;
 using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
+
+namespace mesos {
+namespace internal {
+namespace slave {
 
 
 class SlaveStateTest : public TemporaryDirectoryTest {};
@@ -3784,3 +3782,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 }
 
 #endif // __linux__
+
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {

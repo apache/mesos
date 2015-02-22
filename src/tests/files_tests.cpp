@@ -35,9 +35,6 @@
 
 #include "tests/utils.hpp"
 
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using process::Future;
 
 using process::http::BadRequest;
@@ -46,6 +43,10 @@ using process::http::OK;
 using process::http::Response;
 
 using std::string;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class FilesTest : public TemporaryDirectoryTest {};
@@ -297,3 +298,7 @@ TEST_F(FilesTest, DownloadTest)
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("image/gif", "Content-Type", response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ(data, response);
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

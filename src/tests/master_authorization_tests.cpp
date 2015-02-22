@@ -41,10 +41,6 @@
 
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::master::allocator::MesosAllocatorProcess;
@@ -63,6 +59,10 @@ using testing::An;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class MasterAuthorizationTest : public MesosTest {};
@@ -1030,3 +1030,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
 
   Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

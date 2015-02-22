@@ -33,18 +33,18 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
-
 using namespace process;
 
 using mesos::internal::master::Master;
+using mesos::internal::slave::Slave;
 
 using testing::_;
 using testing::Eq;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class AuthenticationTest : public MesosTest {};
@@ -834,3 +834,7 @@ TEST_F(AuthenticationTest, RejectedSchedulerFailover)
 
   Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

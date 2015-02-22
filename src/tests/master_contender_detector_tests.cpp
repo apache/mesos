@@ -54,10 +54,6 @@
 #include "tests/zookeeper.hpp"
 #endif
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using namespace zookeeper;
 
 using mesos::internal::master::Master;
@@ -77,6 +73,10 @@ using std::vector;
 using testing::_;
 using testing::AtMost;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class MasterContenderDetectorTest : public MesosTest {};
@@ -835,3 +835,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 }
 
 #endif // MESOS_HAS_JAVA
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

@@ -58,10 +58,6 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::master::allocator::MesosAllocatorProcess;
@@ -87,6 +83,10 @@ using testing::Eq;
 using testing::Not;
 using testing::Return;
 using testing::SaveArg;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more master than slave-related are in this file.
@@ -3048,3 +3048,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

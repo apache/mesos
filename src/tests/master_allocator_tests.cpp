@@ -43,10 +43,6 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::allocator::Allocator;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
@@ -68,6 +64,10 @@ using testing::DoAll;
 using testing::DoDefault;
 using testing::Eq;
 using testing::SaveArg;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 template <typename T>
@@ -1438,3 +1438,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
   this->Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

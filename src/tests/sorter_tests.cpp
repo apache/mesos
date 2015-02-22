@@ -30,12 +30,14 @@
 
 #include "master/allocator/sorter/drf/sorter.hpp"
 
-using namespace mesos;
-
 using mesos::internal::master::allocator::DRFSorter;
 
 using std::list;
 using std::string;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 TEST(SorterTest, DRFSorter)
@@ -228,3 +230,7 @@ TEST(SorterTest, Update)
 
   EXPECT_EQ(newAllocation.get(), sorter.allocation("a"));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

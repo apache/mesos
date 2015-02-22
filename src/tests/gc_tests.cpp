@@ -56,10 +56,6 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::GarbageCollector;
@@ -79,6 +75,10 @@ using testing::_;
 using testing::AtMost;
 using testing::Return;
 using testing::SaveArg;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 class GarbageCollectorTest : public TemporaryDirectoryTest {};
 
@@ -818,3 +818,7 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 
   Shutdown(); // Must shutdown before 'isolator' gets deallocated.
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

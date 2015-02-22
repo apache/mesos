@@ -28,14 +28,11 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+using namespace process;
+
 using std::map;
 using std::string;
 using std::vector;
-
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
@@ -43,6 +40,10 @@ using mesos::internal::slave::Slave;
 using process::PID;
 
 using testing::_;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 class CredentialsTest : public MesosTest {};
 
@@ -111,3 +112,7 @@ TEST_F(CredentialsTest, authenticatedSlaveText)
 
   Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

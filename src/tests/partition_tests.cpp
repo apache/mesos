@@ -37,10 +37,6 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::master::allocator::MesosAllocatorProcess;
@@ -58,6 +54,10 @@ using testing::_;
 using testing::AtMost;
 using testing::Eq;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class PartitionTest : public MesosTest {};
@@ -468,3 +468,7 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   // Slave should re-register.
   AWAIT_READY(slaveReregisteredMessage);
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

@@ -45,17 +45,18 @@
 
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::tests;
-
 using namespace process;
 
-using mesos::master::Master;
+using mesos::internal::master::Master;
 
-using mesos::slave::Slave;
+using mesos::internal::slave::Slave;
 
 using std::string;
 using std::vector;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class PersistentVolumeTest : public MesosTest
@@ -331,3 +332,7 @@ TEST_F(PersistentVolumeTest, PreparePersistentVolume)
 
   Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

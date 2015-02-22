@@ -71,11 +71,6 @@
 #include "tests/module.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using namespace process;
 
 using mesos::internal::master::Master;
@@ -108,6 +103,10 @@ using testing::_;
 using testing::DoAll;
 using testing::Return;
 using testing::SaveArg;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 static int childSetup(int pipes[2])
@@ -1143,3 +1142,7 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   delete isolator.get();
 }
 #endif // __linux__
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

@@ -32,10 +32,6 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Containerizer;
@@ -57,6 +53,10 @@ using std::vector;
 using std::queue;
 using std::string;
 using std::map;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class HealthCheckTest : public MesosTest
@@ -615,3 +615,7 @@ TEST_F(HealthCheckTest, DISABLED_GracePeriod)
 
   Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

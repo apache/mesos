@@ -35,10 +35,14 @@
 
 using std::string;
 
-using namespace mesos;
-using namespace mesos::internal::modules;
 using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
+using namespace mesos::modules;
+
+using mesos::slave::Isolator;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 const char* DEFAULT_MODULE_LIBRARY_NAME = "examplemodule";
 const char* DEFAULT_MODULE_NAME = "org_apache_mesos_TestModule";
@@ -484,3 +488,7 @@ TEST_F(ModuleTest, OlderModuleLibrary)
   moduleBase->mesosVersion = "0.1.0";
   EXPECT_ERROR(ModuleManager::load(defaultModules));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {
