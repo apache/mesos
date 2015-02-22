@@ -1053,7 +1053,7 @@ TEST_F(RateLimitingTest, CapacityReached)
   Future<Nothing> error;
   EXPECT_CALL(sched, error(
       driver,
-      "Message mesos.RegisterFrameworkMessage dropped: capacity(2) "
+      "Message mesos.internal.RegisterFrameworkMessage dropped: capacity(2) "
       "exceeded"))
     .WillOnce(FutureSatisfy(&error));
 
