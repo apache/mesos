@@ -43,7 +43,7 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos::internal::tests;
+using namespace mesos::internal::slave;
 
 using namespace mesos::slave;
 
@@ -58,7 +58,7 @@ using testing::Return;
 
 namespace mesos {
 namespace internal {
-namespace slave {
+namespace tests {
 
 
 class MesosContainerizerIsolatorPreparationTest :
@@ -410,6 +410,6 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
   AWAIT_READY(wait);
 }
 
-} // namespace slave {
+} // namespace tests {
 } // namespace internal {
 } // namespace mesos {

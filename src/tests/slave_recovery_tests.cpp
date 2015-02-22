@@ -58,7 +58,7 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos::internal::tests;
+using namespace mesos::internal::slave;
 
 using namespace process;
 
@@ -79,7 +79,7 @@ using testing::SaveArg;
 
 namespace mesos {
 namespace internal {
-namespace slave {
+namespace tests {
 
 
 class SlaveStateTest : public TemporaryDirectoryTest {};
@@ -3783,6 +3783,6 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 
 #endif // __linux__
 
-} // namespace slave {
+} // namespace tests {
 } // namespace internal {
 } // namespace mesos {

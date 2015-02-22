@@ -53,6 +53,8 @@
 
 #include "tests/utils.hpp"
 
+using namespace mesos::internal::master;
+
 using namespace process;
 
 using mesos::internal::log::Log;
@@ -74,7 +76,7 @@ using ::testing::WithParamInterface;
 
 namespace mesos {
 namespace internal {
-namespace master {
+namespace tests {
 
 using state::Entry;
 using state::LogStorage;
@@ -526,6 +528,6 @@ TEST_P(Registrar_BENCHMARK_Test, performance)
   LOG(INFO) << "Removed " << slaveCount << " slaves in " << watch.elapsed();
 }
 
-} // namespace master {
+} // namespace tests {
 } // namespace internal {
 } // namespace mesos {
