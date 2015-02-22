@@ -33,6 +33,7 @@
 #include "messages/messages.hpp"
 
 namespace mesos {
+namespace internal {
 namespace tests {
 
 class Flags : public logging::Flags
@@ -158,6 +159,7 @@ public:
 extern Flags flags;
 
 } // namespace tests {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __TESTS_FLAGS_HPP__

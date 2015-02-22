@@ -34,6 +34,7 @@ using process::Future;
 using mesos::fetcher::FetcherInfo;
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 
@@ -327,4 +328,5 @@ void FetcherProcess::kill(const ContainerID& containerId)
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

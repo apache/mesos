@@ -45,8 +45,8 @@
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 
-using namespace mesos;
-using namespace mesos::slave;
+using namespace mesos::internal;
+using namespace mesos::internal::slave;
 
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;

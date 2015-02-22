@@ -54,17 +54,18 @@
 #include "tests/utils.hpp"
 
 using namespace mesos;
+using namespace mesos::internal;
 
 using namespace process;
 
-using mesos::log::Log;
-using mesos::log::Replica;
+using log::Log;
+using log::Replica;
 
-using mesos::state::Entry;
-using mesos::state::LogStorage;
-using mesos::state::Storage;
+using state::Entry;
+using state::LogStorage;
+using state::Storage;
 
-using mesos::state::protobuf::State;
+using state::protobuf::State;
 
 using std::map;
 using std::set;
@@ -76,11 +77,12 @@ using testing::DoAll;
 using testing::Eq;
 using testing::Return;
 
-using mesos::tests::TemporaryDirectoryTest;
+using mesos::internal::tests::TemporaryDirectoryTest;
 
 using ::testing::WithParamInterface;
 
 namespace mesos {
+namespace internal {
 namespace master {
 
 // TODO(xujyan): This class copies code from LogStateTest. It would
@@ -528,4 +530,5 @@ TEST_P(Registrar_BENCHMARK_Test, performance)
 }
 
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {

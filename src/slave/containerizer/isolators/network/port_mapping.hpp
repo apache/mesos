@@ -48,6 +48,7 @@
 #include "slave/flags.hpp"
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 // The prefix this isolator uses for the virtual ethernet devices.
@@ -121,15 +122,15 @@ std::vector<routing::filter::ip::PortRange> getPortRanges(
 // isolator is useful when the operator wants to reuse the host IP for
 // all containers running on the host (e.g., there are insufficient
 // IPs).
-class PortMappingIsolatorProcess : public IsolatorProcess
+class PortMappingIsolatorProcess : public mesos::slave::IsolatorProcess
 {
 public:
-  static Try<Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
   virtual ~PortMappingIsolatorProcess() {}
 
   virtual process::Future<Nothing> recover(
-      const std::list<ExecutorRunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
@@ -141,7 +142,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<Limitation> watch(
+  virtual process::Future<mesos::slave::Limitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
@@ -360,6 +361,7 @@ protected:
 };
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __PORT_MAPPING_ISOLATOR_HPP__

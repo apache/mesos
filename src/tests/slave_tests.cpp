@@ -59,18 +59,19 @@
 #include "tests/mesos.hpp"
 
 using namespace mesos;
-using namespace mesos::tests;
+using namespace mesos::internal;
+using namespace mesos::internal::tests;
 
 using namespace process;
 
-using mesos::master::Master;
+using mesos::internal::master::Master;
 
-using mesos::slave::Containerizer;
-using mesos::slave::Fetcher;
-using mesos::slave::GarbageCollectorProcess;
-using mesos::slave::MesosContainerizer;
-using mesos::slave::MesosContainerizerProcess;
-using mesos::slave::Slave;
+using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::GarbageCollectorProcess;
+using mesos::internal::slave::MesosContainerizer;
+using mesos::internal::slave::MesosContainerizerProcess;
+using mesos::internal::slave::Slave;
 
 using std::map;
 using std::string;

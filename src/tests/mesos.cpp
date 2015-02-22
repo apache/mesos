@@ -58,6 +58,7 @@ using namespace routing;
 #endif
 
 namespace mesos {
+namespace internal {
 namespace tests {
 
 #ifdef MESOS_HAS_JAVA
@@ -603,4 +604,5 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
 #endif // __linux__
 
 } // namespace tests {
+} // namespace internal {
 } // namespace mesos {

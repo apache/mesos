@@ -40,6 +40,7 @@ using std::vector;
 
 namespace mesos {
 
+namespace internal {
 namespace values {
 
 Try<Value> parse(const std::string& text)
@@ -128,6 +129,7 @@ Try<Value> parse(const std::string& text)
 }
 
 } // namespace values {
+} // namespace internal {
 
 
 ostream& operator << (ostream& stream, const Value::Scalar& scalar)

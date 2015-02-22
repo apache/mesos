@@ -40,12 +40,13 @@
 #include "master/allocator/mesos/hierarchical.hpp"
 
 using namespace mesos;
+using namespace mesos::internal;
 
-using mesos::master::MIN_CPUS;
-using mesos::master::MIN_MEM;
+using mesos::internal::master::MIN_CPUS;
+using mesos::internal::master::MIN_MEM;
 
-using mesos::master::allocator::Allocator;
-using mesos::master::allocator::HierarchicalDRFAllocator;
+using mesos::internal::master::allocator::Allocator;
+using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using process::Clock;
 using process::Future;

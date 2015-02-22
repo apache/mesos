@@ -100,6 +100,7 @@ using process::Time;
 using process::UPID;
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 using namespace state;
@@ -4674,4 +4675,5 @@ std::ostream& operator << (std::ostream& stream, Executor::State state)
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

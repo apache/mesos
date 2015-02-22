@@ -53,6 +53,9 @@ std::ostream& operator << (std::ostream& stream, const Attribute& attribute)
 }
 
 
+namespace internal {
+
+
 bool Attributes::operator == (const Attributes& that) const
 {
   if (size() != that.size()) {
@@ -228,4 +231,5 @@ Value::Text Attributes::get(
 }
 
 
+} // namespace internal {
 } // namespace mesos {

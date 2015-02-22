@@ -64,9 +64,15 @@ using std::vector;
 using namespace process;
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 using mesos::modules::ModuleManager;
+
+using mesos::slave::ExecutorRunState;
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
+using mesos::slave::Limitation;
 
 using state::SlaveState;
 using state::FrameworkState;
@@ -1132,4 +1138,5 @@ Future<hashset<ContainerID>> MesosContainerizerProcess::containers()
 
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

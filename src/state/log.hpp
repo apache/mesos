@@ -16,6 +16,7 @@
 #include "state/storage.hpp"
 
 namespace mesos {
+namespace internal {
 namespace state {
 
 // Forward declarations.
@@ -40,6 +41,7 @@ private:
 };
 
 } // namespace state {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __STATE_LOG_HPP__

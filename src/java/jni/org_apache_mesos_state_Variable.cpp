@@ -4,7 +4,7 @@
 
 #include "state/state.hpp"
 
-using namespace mesos::state;
+using namespace mesos::internal::state;
 
 extern "C" {
 

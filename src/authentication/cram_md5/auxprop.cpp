@@ -24,6 +24,7 @@ using std::list;
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace cram_md5 {
 
 // Storage for the static members.
@@ -199,4 +200,5 @@ int InMemoryAuxiliaryPropertyPlugin::initialize(
 }
 
 } // namespace cram_md5 {
+} // namespace internal {
 } // namespace mesos {

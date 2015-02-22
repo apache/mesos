@@ -25,6 +25,7 @@
 #include <stout/option.hpp>
 
 namespace mesos {
+namespace internal {
 namespace logging {
 
 class Flags : public virtual flags::FlagsBase
@@ -79,6 +80,7 @@ public:
 };
 
 } // namespace logging {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOGGING_FLAGS_HPP__

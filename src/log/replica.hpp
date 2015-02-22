@@ -33,6 +33,7 @@
 #include "messages/log.hpp"
 
 namespace mesos {
+namespace internal {
 namespace log {
 
 namespace protocol {
@@ -101,6 +102,7 @@ private:
 };
 
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOG_REPLICA_HPP__

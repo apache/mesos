@@ -36,6 +36,7 @@
 #include "state/storage.hpp"
 
 namespace mesos {
+namespace internal {
 namespace state {
 namespace protobuf {
 
@@ -163,6 +164,7 @@ process::Future<bool> State::expunge(const Variable<T>& variable)
 
 } // namespace protobuf {
 } // namespace state {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __STATE_PROTOBUF_HPP__

@@ -40,6 +40,7 @@ using std::ostringstream;
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace log {
 namespace tool {
 
@@ -185,4 +186,5 @@ Try<Nothing> Read::execute(int argc, char** argv)
 
 } // namespace tool {
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {

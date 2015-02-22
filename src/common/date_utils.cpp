@@ -23,6 +23,7 @@
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace DateUtils {
 
 // Get the current date in the format used for Mesos IDs (YYYYMMDD-hhmmss).
@@ -38,4 +39,5 @@ string currentDate()
 }
 
 } // namespace DateUtils {
+} // namespace internal {
 } // namespace mesos {

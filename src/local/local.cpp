@@ -66,24 +66,18 @@
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 
-using namespace mesos;
-using namespace mesos::log;
+using namespace mesos::internal;
+using namespace mesos::internal::log;
 
-using mesos::master::allocator::Allocator;
-using mesos::master::allocator::HierarchicalDRFAllocator;
+using mesos::internal::master::allocator::Allocator;
+using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
-using mesos::master::Master;
-using mesos::master::Registrar;
-using mesos::master::Repairer;
+using mesos::internal::master::Master;
+using mesos::internal::master::Registrar;
+using mesos::internal::master::Repairer;
 
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
-
-using mesos::slave::Containerizer;
-using mesos::slave::Fetcher;
-using mesos::slave::GarbageCollector;
-using mesos::slave::Slave;
-using mesos::slave::StatusUpdateManager;
 
 using process::Owned;
 using process::PID;
@@ -97,6 +91,7 @@ using std::vector;
 
 
 namespace mesos {
+namespace internal {
 namespace local {
 
 static Allocator* allocator = NULL;
@@ -355,4 +350,5 @@ void shutdown()
 }
 
 } // namespace local {
+} // namespace internal {
 } // namespace mesos {

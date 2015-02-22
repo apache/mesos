@@ -32,6 +32,7 @@
 #include "log/replica.hpp"
 
 namespace mesos {
+namespace internal {
 namespace log {
 
 // Forward declaration.
@@ -75,6 +76,7 @@ private:
 };
 
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOG_COORDINATOR_HPP__

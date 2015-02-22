@@ -38,6 +38,7 @@
 #include "zookeeper/group.hpp"
 
 namespace mesos {
+namespace internal {
 namespace log {
 
 // Forward declarations.
@@ -231,6 +232,7 @@ private:
 };
 
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOG_HPP__

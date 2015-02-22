@@ -65,13 +65,13 @@ public:
   //
   // NOTE: If loading fails at a particular library we don't unload
   // all of the already loaded libraries.
-  static Try<Nothing> load(const Modules& modules);
+  static Try<Nothing> load(const mesos::Modules& modules);
 
   // create() should be called only after load().
   template <typename T>
   static Try<T*> create(const std::string& moduleName)
   {
-    mesos::Lock lock(&mutex);
+    mesos::internal::Lock lock(&mutex);
     if (!moduleBases.contains(moduleName)) {
       return Error(
           "Module '" + moduleName + "' unknown");
@@ -102,7 +102,7 @@ public:
   template <typename T>
   static bool contains(const std::string& moduleName)
   {
-    mesos::Lock lock(&mutex);
+    mesos::internal::Lock lock(&mutex);
     return (moduleBases.contains(moduleName) &&
             moduleBases[moduleName]->kind == stringify(kind<T>()));
   }

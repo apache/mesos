@@ -12,8 +12,8 @@
 #include "construct.hpp"
 #include "convert.hpp"
 
-using namespace mesos::log;
-using namespace mesos::state;
+using namespace mesos::internal::log;
+using namespace mesos::internal::state;
 
 using std::string;
 

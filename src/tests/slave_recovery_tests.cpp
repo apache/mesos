@@ -59,17 +59,18 @@
 #include "tests/utils.hpp"
 
 using namespace mesos;
-using namespace mesos::slave;
-using namespace mesos::tests;
+using namespace mesos::internal;
+using namespace mesos::internal::slave;
+using namespace mesos::internal::tests;
 
 using namespace process;
 
 using google::protobuf::RepeatedPtrField;
 
-using mesos::master::Master;
-using mesos::slave::Containerizer;
-using mesos::slave::Fetcher;
-using mesos::slave::GarbageCollectorProcess;
+using mesos::internal::master::Master;
+using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::GarbageCollectorProcess;
 
 using std::map;
 using std::string;
@@ -283,7 +284,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
                 .runs[containerId.get()]
                 .tasks.contains(task.task_id()));
 
-  const Task& t = mesos::protobuf::createTask(
+  const Task& t = mesos::internal::protobuf::createTask(
       task, TASK_STAGING, frameworkId);
 
   ASSERT_SOME_EQ(

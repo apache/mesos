@@ -53,7 +53,7 @@
 
 #include "tests/mesos.hpp" // For TEST_CGROUPS_(HIERARCHY|ROOT).
 
-using namespace mesos::tests;
+using namespace mesos::internal::tests;
 
 using namespace process;
 

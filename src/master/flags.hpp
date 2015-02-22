@@ -43,6 +43,7 @@
 #include "messages/messages.hpp"
 
 namespace mesos {
+namespace internal {
 namespace master {
 
 class Flags : public logging::Flags
@@ -414,6 +415,7 @@ public:
 };
 
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_FLAGS_HPP__

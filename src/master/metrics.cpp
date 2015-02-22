@@ -22,6 +22,7 @@
 #include "master/metrics.hpp"
 
 namespace mesos {
+namespace internal {
 namespace master {
 
 // Message counters are named with "messages_" prefix so they can
@@ -380,4 +381,5 @@ void Metrics::incrementTasksStates(
 
 
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {

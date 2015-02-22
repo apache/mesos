@@ -10,7 +10,7 @@
 #include "construct.hpp"
 #include "convert.hpp"
 
-using namespace mesos::state;
+using namespace mesos::internal::state;
 
 using std::string;
 

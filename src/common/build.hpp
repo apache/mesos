@@ -21,6 +21,7 @@
 #include <string>
 
 namespace mesos {
+namespace internal {
 namespace build {
 
 extern const std::string DATE;
@@ -33,6 +34,7 @@ extern const Option<std::string> GIT_BRANCH;
 extern const Option<std::string> GIT_TAG;
 
 } // namespace build {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __BUILD_HPP__

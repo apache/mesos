@@ -57,6 +57,8 @@
 
 #include "slave/constants.hpp"
 
+using namespace mesos::internal::slave;
+
 using process::wait; // Necessary on some OS's to disambiguate.
 
 using std::cout;
@@ -66,6 +68,7 @@ using std::string;
 using std::vector;
 
 namespace mesos {
+namespace internal {
 
 using namespace process;
 
@@ -574,6 +577,7 @@ private:
   CommandExecutorProcess* process;
 };
 
+} // namespace internal {
 } // namespace mesos {
 
 
@@ -647,7 +651,7 @@ int main(int argc, char** argv)
   if (path.empty()) {
     path = os::realpath(dirname(argv[0])).get();
   }
-  mesos::CommandExecutor executor(override, path);
+  mesos::internal::CommandExecutor executor(override, path);
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
 }

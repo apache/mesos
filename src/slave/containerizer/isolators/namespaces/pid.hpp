@@ -30,16 +30,17 @@
 #include <stout/result.hpp>
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 // This isolator itself does not specify the necessary clone() flags
 // (see the LinuxLauncher for that) but it is used to keep track of a
 // container's pid namespace through a bind mount and exposed by
 // getNamespace().
-class NamespacesPidIsolatorProcess : public IsolatorProcess
+class NamespacesPidIsolatorProcess : public mesos::slave::IsolatorProcess
 {
 public:
-  static Try<Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
   // Return the pid namespace of the container. Returns None if the
   // container was not created in a separate pid namespace, i.e.,
@@ -56,7 +57,7 @@ public:
   virtual ~NamespacesPidIsolatorProcess() {}
 
   virtual process::Future<Nothing> recover(
-      const std::list<ExecutorRunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
@@ -68,7 +69,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<Limitation> watch(
+  virtual process::Future<mesos::slave::Limitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
@@ -83,6 +84,7 @@ public:
 };
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __NAMESPACES_PID_ISOLATOR_HPP__

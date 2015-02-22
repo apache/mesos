@@ -30,6 +30,7 @@
 
 
 namespace mesos {
+namespace internal {
 namespace master {
 namespace allocator {
 
@@ -124,6 +125,7 @@ private:
 
 } // namespace allocator {
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_ALLOCATOR_SORTER_DRF_SORTER_HPP__

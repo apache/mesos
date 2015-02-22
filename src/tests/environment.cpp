@@ -64,6 +64,7 @@ using std::vector;
 using process::Owned;
 
 namespace mesos {
+namespace internal {
 namespace tests {
 
 // Storage for the global environment instance.
@@ -440,4 +441,5 @@ Try<string> Environment::mkdtemp()
 }
 
 } // namespace tests {
+} // namespace internal {
 } // namespace mesos {

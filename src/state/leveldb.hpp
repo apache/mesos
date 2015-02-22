@@ -15,6 +15,7 @@
 #include "state/storage.hpp"
 
 namespace mesos {
+namespace internal {
 namespace state {
 
 // More forward declarations.
@@ -38,6 +39,7 @@ private:
 };
 
 } // namespace state {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __STATE_LEVELDB_HPP__

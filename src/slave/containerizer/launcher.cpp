@@ -37,7 +37,10 @@ using std::string;
 using std::vector;
 
 namespace mesos {
+namespace internal {
 namespace slave {
+
+using mesos::slave::ExecutorRunState;
 
 
 Try<Launcher*> PosixLauncher::create(const Flags& flags)
@@ -171,4 +174,5 @@ Future<Nothing> _destroy(const Future<Option<int> >& future)
 
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

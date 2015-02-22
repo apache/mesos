@@ -25,6 +25,7 @@
 #include <stout/duration.hpp>
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 // TODO(bmahler): It appears there may be a bug with gcc-4.1.2 in which these
@@ -104,6 +105,7 @@ extern const std::string DEFAULT_AUTHENTICATEE;
 Duration MASTER_PING_TIMEOUT();
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __SLAVE_CONSTANTS_HPP__

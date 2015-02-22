@@ -39,6 +39,7 @@ using std::map;
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 const string MesosContainerizerLaunch::NAME = "launch";
@@ -247,4 +248,5 @@ int MesosContainerizerLaunch::execute()
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

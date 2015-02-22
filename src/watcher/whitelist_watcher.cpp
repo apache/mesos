@@ -33,6 +33,7 @@
 #include "watcher/whitelist_watcher.hpp"
 
 namespace mesos {
+namespace internal {
 
 using std::string;
 using std::vector;
@@ -122,4 +123,5 @@ void WhitelistWatcher::watch()
   delay(watchInterval, self(), &WhitelistWatcher::watch);
 }
 
+} // namespace internal {
 } // namespace mesos {

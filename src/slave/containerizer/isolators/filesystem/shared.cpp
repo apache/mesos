@@ -27,7 +27,13 @@ using std::set;
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace slave {
+
+using mesos::slave::ExecutorRunState;
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
+using mesos::slave::Limitation;
 
 SharedFilesystemIsolatorProcess::SharedFilesystemIsolatorProcess(
     const Flags& _flags)
@@ -259,4 +265,5 @@ Future<Nothing> SharedFilesystemIsolatorProcess::cleanup(
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

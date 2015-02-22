@@ -32,6 +32,7 @@
 #include "master/flags.hpp"
 
 namespace mesos {
+namespace internal {
 namespace master {
 
 namespace allocator {
@@ -124,6 +125,7 @@ public:
 
 } // namespace allocator {
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_ALLOCATOR_ALLOCATOR_HPP__

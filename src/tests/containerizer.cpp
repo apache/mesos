@@ -29,6 +29,7 @@ using testing::Return;
 using namespace process;
 
 namespace mesos {
+namespace internal {
 namespace tests {
 
 
@@ -244,4 +245,5 @@ void TestContainerizer::setup()
 }
 
 } // namespace tests {
+} // namespace internal {
 } // namespace mesos {

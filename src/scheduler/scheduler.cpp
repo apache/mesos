@@ -71,7 +71,8 @@
 #include "messages/messages.hpp"
 
 using namespace mesos;
-using namespace mesos::master;
+using namespace mesos::internal;
+using namespace mesos::internal::master;
 
 using namespace process;
 

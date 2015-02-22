@@ -43,7 +43,7 @@
 
 using namespace mesos;
 
-using namespace mesos::slave;
+using namespace mesos::internal::slave;
 
 using namespace process;
 

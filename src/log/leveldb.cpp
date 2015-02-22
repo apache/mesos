@@ -37,6 +37,7 @@
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace log {
 
 class Varint64Comparator : public leveldb::Comparator
@@ -440,4 +441,5 @@ Try<Action> LevelDBStorage::read(uint64_t position)
 }
 
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {

@@ -201,7 +201,7 @@ int main(int argc, char** argv)
     uri = string(getenv("MESOS_BUILD_DIR")) + "/src/test-executor";
   }
 
-  mesos::logging::Flags flags;
+  mesos::internal::logging::Flags flags;
 
   string role;
   flags.add(&role,
@@ -226,7 +226,7 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  logging::initialize(argv[0], flags, true); // Catch signals.
+  internal::logging::initialize(argv[0], flags, true); // Catch signals.
 
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");

@@ -21,6 +21,7 @@
 #include "master/repairer.hpp"
 
 namespace mesos {
+namespace internal {
 namespace master {
 
 using std::string;
@@ -41,4 +42,5 @@ Repairer::~Repairer()
 
 
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {

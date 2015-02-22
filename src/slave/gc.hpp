@@ -35,6 +35,7 @@
 #include <stout/try.hpp>
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 // Forward declarations.
@@ -130,6 +131,7 @@ private:
 };
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __SLAVE_GC_HPP__

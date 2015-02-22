@@ -34,6 +34,7 @@
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace tests {
 
 void TemporaryDirectoryTest::SetUp()
@@ -70,4 +71,5 @@ void TemporaryDirectoryTest::TearDown()
 }
 
 } // namespace tests {
+} // namespace internal {
 } // namespace mesos {

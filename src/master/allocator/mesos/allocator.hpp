@@ -25,6 +25,7 @@
 #include "master/allocator/allocator.hpp"
 
 namespace mesos {
+namespace internal {
 namespace master {
 namespace allocator {
 
@@ -378,6 +379,7 @@ inline void MesosAllocator<AllocatorProcess>::reviveOffers(
 
 } // namespace allocator {
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_ALLOCATOR_MESOS_ALLOCATOR_HPP__

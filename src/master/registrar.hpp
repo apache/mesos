@@ -32,6 +32,7 @@
 #include "state/protobuf.hpp"
 
 namespace mesos {
+namespace internal {
 namespace master {
 
 // Forward declaration.
@@ -122,6 +123,7 @@ private:
 };
 
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_REGISTRAR_HPP__

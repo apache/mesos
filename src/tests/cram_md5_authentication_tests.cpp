@@ -37,7 +37,7 @@
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"
 
-using namespace mesos::tests;
+using namespace mesos::internal::tests;
 
 using namespace process;
 
@@ -47,6 +47,7 @@ using testing::_;
 using testing::Eq;
 
 namespace mesos {
+namespace internal {
 namespace cram_md5 {
 
 template <typename T>
@@ -272,4 +273,5 @@ TYPED_TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
 }
 
 } // namespace cram_md5 {
+} // namespace internal {
 } // namespace mesos {

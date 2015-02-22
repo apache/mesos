@@ -30,6 +30,7 @@
 #include "sched/constants.hpp"
 
 namespace mesos {
+namespace internal {
 namespace scheduler {
 
 class Flags : public logging::Flags
@@ -108,6 +109,7 @@ public:
 };
 
 } // namespace scheduler {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __SCHED_FLAGS_HPP__

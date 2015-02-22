@@ -25,6 +25,7 @@
 #include <stout/try.hpp>
 
 namespace mesos {
+namespace internal {
 namespace log {
 namespace tool {
 
@@ -44,6 +45,7 @@ public:
 
 } // namespace tool {
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOG_TOOL_HPP__

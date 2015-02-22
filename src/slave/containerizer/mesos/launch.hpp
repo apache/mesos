@@ -24,6 +24,7 @@
 #include <stout/subcommand.hpp>
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 class MesosContainerizerLaunch : public Subcommand
@@ -53,6 +54,7 @@ protected:
 };
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __MESOS_CONTAINERIZER_LAUNCH_HPP__

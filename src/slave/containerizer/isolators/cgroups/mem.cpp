@@ -52,7 +52,13 @@ using std::string;
 using std::vector;
 
 namespace mesos {
+namespace internal {
 namespace slave {
+
+using mesos::slave::ExecutorRunState;
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
+using mesos::slave::Limitation;
 
 
 template<class T>
@@ -575,4 +581,5 @@ void CgroupsMemIsolatorProcess::oom(const ContainerID& containerId)
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

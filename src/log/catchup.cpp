@@ -38,6 +38,7 @@ using namespace process;
 using std::list;
 
 namespace mesos {
+namespace internal {
 namespace log {
 
 class CatchUpProcess : public Process<CatchUpProcess>
@@ -349,4 +350,5 @@ Future<Nothing> catchup(
 }
 
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {

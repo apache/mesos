@@ -21,6 +21,7 @@
 #include "slave/state.hpp"
 
 namespace mesos {
+namespace internal {
 namespace slave {
 namespace state {
 
@@ -739,4 +740,5 @@ Try<ResourcesState> ResourcesState::recover(
 
 } // namespace state {
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

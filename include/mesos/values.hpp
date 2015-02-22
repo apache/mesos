@@ -56,11 +56,13 @@ Value::Set& operator -= (Value::Set& left, const Value::Set& right);
 std::ostream& operator << (std::ostream& stream, const Value::Text& value);
 bool operator == (const Value::Text& left, const Value::Text& right);
 
+namespace internal {
 namespace values {
 
 Try<Value> parse(const std::string& text);
 
 } // namespace values {
+} // namespace internal {
 
 } // namespace mesos {
 

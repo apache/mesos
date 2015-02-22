@@ -17,6 +17,7 @@
 #include "zookeeper/authentication.hpp"
 
 namespace mesos {
+namespace internal {
 namespace state {
 
 // Forward declarations.
@@ -46,6 +47,7 @@ private:
 
 
 } // namespace state {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __STATE_ZOOKEEPER_HPP__

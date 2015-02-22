@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package mesos.log;
+package mesos.internal.log;
 
 
 // Represents a "promise" that a replica has made. A promise is

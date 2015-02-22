@@ -33,7 +33,7 @@
 #include "org_apache_mesos_Log_Writer.h"
 
 using namespace mesos;
-using namespace mesos::log;
+using namespace mesos::internal::log;
 
 using namespace process;
 

@@ -43,6 +43,7 @@ using std::vector;
 using process::Owned;
 
 using namespace mesos;
+using namespace mesos::internal;
 using namespace mesos::modules;
 
 pthread_mutex_t ModuleManager::mutex = PTHREAD_MUTEX_INITIALIZER;

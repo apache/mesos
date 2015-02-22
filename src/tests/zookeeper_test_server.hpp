@@ -30,6 +30,7 @@
 #include "zookeeper/zookeeper.hpp"
 
 namespace mesos {
+namespace internal {
 namespace tests {
 
 // An in-process ZooKeeper server that can be manipulated to control
@@ -80,6 +81,7 @@ private:
 };
 
 } // namespace tests {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __ZOOKEEPER_TEST_SERVER_HPP__

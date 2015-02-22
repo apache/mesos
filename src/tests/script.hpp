@@ -22,12 +22,14 @@
 #include <gtest/gtest.h>
 
 namespace mesos {
+namespace internal {
 namespace tests {
 
 // Helper used by TEST_SCRIPT to execute the script.
 void execute(const std::string& script);
 
 } // namespace tests {
+} // namespace internal {
 } // namespace mesos {
 
 
@@ -37,7 +39,7 @@ void execute(const std::string& script);
 // script returns 0.
 #define TEST_SCRIPT(test_case_name, test_name, script)      \
   TEST(test_case_name, test_name) {                         \
-    mesos::tests::execute(script);                \
+    mesos::internal::tests::execute(script);                \
   }
 
 #endif // __TESTS_SCRIPT_HPP__

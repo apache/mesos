@@ -67,10 +67,9 @@
 
 #include "zookeeper/detector.hpp"
 
-using namespace mesos;
-using namespace mesos::log;
-using namespace mesos::master;
-using namespace mesos::state;
+using namespace mesos::internal;
+using namespace mesos::internal::log;
+using namespace mesos::internal::master;
 using namespace zookeeper;
 
 using mesos::MasterInfo;
@@ -193,7 +192,7 @@ int main(int argc, char** argv)
 
   allocator::Allocator* allocator = new allocator::HierarchicalDRFAllocator();
 
-  Storage* storage = NULL;
+  state::Storage* storage = NULL;
   Log* log = NULL;
 
   if (flags.registry == "in_memory") {
@@ -201,7 +200,7 @@ int main(int argc, char** argv)
       EXIT(1) << "Cannot use '--registry_strict' when using in-memory storage"
               << " based registry";
     }
-    storage = new InMemoryStorage();
+    storage = new state::InMemoryStorage();
   } else if (flags.registry == "replicated_log" ||
              flags.registry == "log_storage") {
     // TODO(bmahler): "log_storage" is present for backwards
@@ -244,7 +243,7 @@ int main(int argc, char** argv)
           set<UPID>(),
           flags.log_auto_initialize);
     }
-    storage = new LogStorage(log);
+    storage = new state::LogStorage(log);
   } else {
     EXIT(1) << "'" << flags.registry << "' is not a supported"
             << " option for registry persistence";
@@ -252,8 +251,7 @@ int main(int argc, char** argv)
 
   CHECK_NOTNULL(storage);
 
-  mesos::state::protobuf::State* state =
-    new mesos::state::protobuf::State(storage);
+  state::protobuf::State* state = new state::protobuf::State(storage);
   Registrar* registrar = new Registrar(flags, state);
   Repairer* repairer = new Repairer();
 

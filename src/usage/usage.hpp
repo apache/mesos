@@ -24,12 +24,14 @@
 #include "mesos/mesos.hpp"
 
 namespace mesos {
+namespace internal {
 
 // Collects resource usage of a process tree rooted at 'pid'. Only
 // collects the 'mem_*' values if 'mem' is true and the 'cpus_*'
 // values if 'cpus' is true.
 Try<ResourceStatistics> usage(pid_t pid, bool mem = true, bool cpus = true);
 
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __USAGE_HPP__

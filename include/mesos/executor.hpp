@@ -50,7 +50,10 @@ namespace mesos {
 
 // A few forward declarations.
 class ExecutorDriver;
+
+namespace internal {
 class ExecutorProcess;
+}
 
 // Callback interface to be implemented by frameworks' executors. Note
 // that only one callback will be invoked at a time, so it is not
@@ -226,12 +229,12 @@ public:
   virtual Status sendFrameworkMessage(const std::string& data);
 
 private:
-  friend class ExecutorProcess;
+  friend class internal::ExecutorProcess;
 
   Executor* executor;
 
   // Libprocess process for communicating with slave.
-  ExecutorProcess* process;
+  internal::ExecutorProcess* process;
 
   // Mutex to enforce all non-callbacks are execute serially.
   pthread_mutex_t mutex;

@@ -21,7 +21,7 @@
 
 #include "slave/containerizer/isolators/network/port_mapping.hpp"
 
-using namespace mesos::slave;
+using namespace mesos::internal::slave;
 
 
 int main(int argc, char** argv)

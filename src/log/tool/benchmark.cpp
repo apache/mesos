@@ -52,6 +52,7 @@ using std::string;
 using std::vector;
 
 namespace mesos {
+namespace internal {
 namespace log {
 namespace tool {
 
@@ -277,4 +278,5 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
 
 } // namespace tool {
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {

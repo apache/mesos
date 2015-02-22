@@ -33,6 +33,7 @@
 #include "slave/flags.hpp"
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 // Forward declaration.
@@ -151,6 +152,7 @@ private:
 };
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __SLAVE_FETCHER_HPP__

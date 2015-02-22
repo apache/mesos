@@ -30,21 +30,22 @@
 #include "slave/containerizer/isolators/cgroups/constants.hpp"
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 // Use the Linux cpu cgroup controller for cpu isolation which uses the
 // Completely Fair Scheduler (CFS).
 // - cpushare implements proportionally weighted scheduling.
 // - cfs implements hard quota based scheduling.
-class CgroupsCpushareIsolatorProcess : public IsolatorProcess
+class CgroupsCpushareIsolatorProcess : public mesos::slave::IsolatorProcess
 {
 public:
-  static Try<Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
   virtual ~CgroupsCpushareIsolatorProcess();
 
   virtual process::Future<Nothing> recover(
-      const std::list<ExecutorRunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
@@ -56,7 +57,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<Limitation> watch(
+  virtual process::Future<mesos::slave::Limitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
@@ -88,7 +89,7 @@ private:
     const std::string cgroup;
     Option<pid_t> pid;
 
-    process::Promise<Limitation> limitation;
+    process::Promise<mesos::slave::Limitation> limitation;
   };
 
   const Flags flags;
@@ -107,6 +108,7 @@ private:
 };
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __CPUSHARE_ISOLATOR_HPP__

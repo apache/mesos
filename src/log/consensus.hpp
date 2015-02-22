@@ -41,6 +41,7 @@
 // to agree on previously written entries in the log.
 
 namespace mesos {
+namespace internal {
 namespace log {
 
 // Runs the promise phase (a.k.a., the prepare phase) in Paxos. This
@@ -129,6 +130,7 @@ extern process::Future<Action> fill(
     uint64_t position);
 
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOG_CONSENSUS_HPP__

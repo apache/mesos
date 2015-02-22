@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package mesos.state;
+package mesos.internal.state;
 
 // Describes a state entry, a versioned (via a UUID) key/value pair.
 message Entry {

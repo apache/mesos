@@ -39,7 +39,13 @@ using std::set;
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace slave {
+
+using mesos::slave::ExecutorRunState;
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
+using mesos::slave::Limitation;
 
 // The root directory where we bind mount all the namespace handles.
 const string BIND_MOUNT_ROOT = "/var/run/mesos/pidns";
@@ -254,4 +260,5 @@ Future<Nothing> NamespacesPidIsolatorProcess::cleanup(
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

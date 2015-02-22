@@ -38,6 +38,7 @@ using namespace process;
 using namespace zookeeper;
 
 namespace mesos {
+namespace internal {
 
 using namespace master;
 
@@ -244,4 +245,5 @@ Future<Future<Nothing> > ZooKeeperMasterContenderProcess::contend()
   return candidacy.get();
 }
 
+} // namespace internal {
 } // namespace mesos {

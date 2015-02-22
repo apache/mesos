@@ -30,6 +30,7 @@
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace protobuf {
 
 bool isTerminalState(const TaskState& state)
@@ -154,4 +155,5 @@ MasterInfo createMasterInfo(const process::UPID& pid)
 }
 
 } // namespace protobuf {
+} // namespace internal {
 } // namespace mesos {

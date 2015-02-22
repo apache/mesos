@@ -108,6 +108,7 @@ using process::metrics::Counter;
 using memory::shared_ptr;
 
 namespace mesos {
+namespace internal {
 namespace master {
 
 using allocator::Allocator;
@@ -5063,4 +5064,5 @@ double Master::_resources_percent(const std::string& name)
 }
 
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {

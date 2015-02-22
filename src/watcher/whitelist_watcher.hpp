@@ -30,6 +30,7 @@
 #include <stout/path.hpp>
 
 namespace mesos {
+namespace internal {
 
 // A whitelist may be (1) absent, (2) empty, (3) non-empty. The
 // watcher notifies the subscriber if the state of the whitelist
@@ -70,6 +71,7 @@ private:
   Option<hashset<std::string>> lastWhitelist;
 };
 
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __WATCHER_WHITELIST_WATCHER_HPP__

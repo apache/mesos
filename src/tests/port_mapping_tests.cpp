@@ -61,8 +61,10 @@
 #include "tests/utils.hpp"
 
 using namespace mesos;
-using namespace mesos::slave;
-using namespace mesos::tests;
+
+using namespace mesos::internal;
+using namespace mesos::internal::slave;
+using namespace mesos::internal::tests;
 
 using namespace process;
 
@@ -70,14 +72,15 @@ using namespace routing;
 using namespace routing::filter;
 using namespace routing::queueing;
 
-using mesos::master::Master;
+using mesos::internal::master::Master;
+
+using mesos::internal::slave::Launcher;
+using mesos::internal::slave::LinuxLauncher;
+using mesos::internal::slave::MesosContainerizer;
+using mesos::internal::slave::MesosContainerizerLaunch;
+using mesos::internal::slave::PortMappingIsolatorProcess;
 
 using mesos::slave::Isolator;
-using mesos::slave::Launcher;
-using mesos::slave::LinuxLauncher;
-using mesos::slave::MesosContainerizer;
-using mesos::slave::MesosContainerizerLaunch;
-using mesos::slave::PortMappingIsolatorProcess;
 
 using std::list;
 using std::ostringstream;
@@ -131,7 +134,7 @@ static void cleanup(const string& eth0, const string& lo)
 
     // NOTE: Here, we ignore the unmount errors because previous tests
     // may have created the file and died before mounting.
-    mesos::fs::unmount(target, MNT_DETACH);
+    mesos::internal::fs::unmount(target, MNT_DETACH);
 
     // Use best effort to remove the bind mount file, but it is okay
     // the file can't be removed at this point.

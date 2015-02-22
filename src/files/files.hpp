@@ -35,6 +35,7 @@
 #include <stout/path.hpp>
 
 namespace mesos {
+namespace internal {
 
 // Forward declarations.
 class FilesProcess;
@@ -139,6 +140,7 @@ inline JSON::Object jsonFileInfo(const std::string& path,
   return file;
 }
 
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __FILES_HPP__

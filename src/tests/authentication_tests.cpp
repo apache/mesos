@@ -34,12 +34,13 @@
 #include "tests/utils.hpp"
 
 using namespace mesos;
-using namespace mesos::slave;
-using namespace mesos::tests;
+using namespace mesos::internal;
+using namespace mesos::internal::slave;
+using namespace mesos::internal::tests;
 
 using namespace process;
 
-using mesos::master::Master;
+using mesos::internal::master::Master;
 
 using testing::_;
 using testing::Eq;

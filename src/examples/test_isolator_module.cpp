@@ -30,10 +30,11 @@
 
 using namespace mesos;
 
-using mesos::slave::Flags;
+using mesos::internal::slave::Flags;
+using mesos::internal::slave::PosixCpuIsolatorProcess;
+using mesos::internal::slave::PosixMemIsolatorProcess;
+
 using mesos::slave::Isolator;
-using mesos::slave::PosixCpuIsolatorProcess;
-using mesos::slave::PosixMemIsolatorProcess;
 
 
 // The sole purpose of this function is just to exercise the

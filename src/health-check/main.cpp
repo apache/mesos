@@ -60,6 +60,7 @@ using std::vector;
 using process::UPID;
 
 namespace mesos {
+namespace internal {
 
 using namespace process;
 
@@ -250,6 +251,7 @@ private:
   process::Time startTime;
 };
 
+} // namespace internal {
 } // namespace mesos {
 
 
@@ -357,7 +359,7 @@ int main(int argc, char** argv)
   TaskID taskID;
   taskID.set_value(flags.task_id.get());
 
-  HealthCheckerProcess process(
+  internal::HealthCheckerProcess process(
     check.get(),
     flags.executor.get(),
     taskID);
@@ -366,7 +368,7 @@ int main(int argc, char** argv)
 
   process::Future<Nothing> checking =
     process::dispatch(
-      process, &HealthCheckerProcess::healthCheck);
+      process, &internal::HealthCheckerProcess::healthCheck);
 
   checking.await();
 

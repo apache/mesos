@@ -22,6 +22,7 @@
 #include "slave/containerizer/launcher.hpp"
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 // Launcher for Linux systems with cgroups. Uses a freezer cgroup to
@@ -34,7 +35,7 @@ public:
   virtual ~LinuxLauncher() {}
 
   virtual process::Future<Nothing> recover(
-      const std::list<ExecutorRunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,
@@ -69,6 +70,7 @@ private:
 
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __LINUX_LAUNCHER_HPP__

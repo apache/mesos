@@ -36,6 +36,7 @@
 #include "slave/flags.hpp"
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 class Launcher
@@ -45,7 +46,7 @@ public:
 
   // Recover the necessary state for each container listed in state.
   virtual process::Future<Nothing> recover(
-      const std::list<ExecutorRunState>& states) = 0;
+      const std::list<mesos::slave::ExecutorRunState>& states) = 0;
 
   // Fork a new process in the containerized context. The child will
   // exec the binary at the given path with the given argv, flags and
@@ -82,7 +83,7 @@ public:
   virtual ~PosixLauncher() {}
 
   virtual process::Future<Nothing> recover(
-      const std::list<ExecutorRunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,
@@ -106,6 +107,7 @@ private:
 };
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __LAUNCHER_HPP__

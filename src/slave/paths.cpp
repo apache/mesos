@@ -38,6 +38,7 @@ using std::list;
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace slave {
 namespace paths {
 
@@ -428,4 +429,5 @@ string createSlaveDirectory(
 
 } // namespace paths {
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

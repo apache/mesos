@@ -24,6 +24,7 @@
 #include "common/attributes.hpp"
 
 using namespace mesos;
+using namespace mesos::internal;
 
 using std::string;
 

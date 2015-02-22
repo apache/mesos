@@ -49,7 +49,8 @@
 using namespace process;
 
 using namespace mesos;
-using namespace mesos::tests;
+using namespace mesos::internal;
+using namespace mesos::internal::tests;
 
 using std::string;
 using std::vector;
@@ -57,12 +58,12 @@ using std::vector;
 using testing::_;
 using testing::Return;
 
-using mesos::master::Master;
+using mesos::internal::master::Master;
 
-using mesos::slave::DiskUsageCollector;
-using mesos::slave::Fetcher;
-using mesos::slave::MesosContainerizer;
-using mesos::slave::Slave;
+using mesos::internal::slave::DiskUsageCollector;
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::MesosContainerizer;
+using mesos::internal::slave::Slave;
 
 
 class DiskUsageCollectorTest : public TemporaryDirectoryTest {};

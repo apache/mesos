@@ -29,6 +29,7 @@
 #include "tests/flags.hpp"
 
 namespace mesos {
+namespace internal {
 namespace tests {
 
 // Used to set up and manage the test environment.
@@ -59,6 +60,7 @@ private:
 extern Environment* environment;
 
 } // namespace tests {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __TESTS_ENVIRONMENT_HPP__

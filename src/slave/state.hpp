@@ -40,6 +40,7 @@
 #include "messages/messages.hpp"
 
 namespace mesos {
+namespace internal {
 namespace slave {
 namespace state {
 
@@ -100,7 +101,7 @@ inline Try<Nothing> checkpoint(
   return checkpoint(path, messages);
 }
 
-} // namespace internal {
+}  // namespace internal {
 
 
 // Thin wrapper to checkpoint data to disk and perform the necessary
@@ -298,6 +299,7 @@ struct TaskState
 
 } // namespace state {
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __SLAVE_STATE_HPP__

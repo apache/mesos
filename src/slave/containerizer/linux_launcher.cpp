@@ -48,7 +48,10 @@ using std::string;
 using std::vector;
 
 namespace mesos {
+namespace internal {
 namespace slave {
+
+using mesos::slave::ExecutorRunState;
 
 LinuxLauncher::LinuxLauncher(
     const Flags& _flags,
@@ -400,4 +403,5 @@ string LinuxLauncher::cgroup(const ContainerID& containerId)
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

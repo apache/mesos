@@ -26,6 +26,7 @@
 #include <stout/option.hpp>
 
 namespace mesos {
+namespace internal {
 namespace tests {
 
 // Test fixture for creating a temporary directory for each test.
@@ -42,6 +43,7 @@ private:
 };
 
 } // namespace tests {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __TESTS_UTILS_HPP__

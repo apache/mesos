@@ -29,7 +29,7 @@
 
 #include "state/log.hpp"
 
-using namespace mesos::log;
+using namespace mesos::internal::log;
 using namespace process;
 
 // Note that we don't add 'using std::set' here because we need
@@ -38,6 +38,7 @@ using std::list;
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace state {
 
 // A storage implementation for State that uses the replicated
@@ -671,4 +672,5 @@ Future<std::set<string> > LogStorage::names()
 }
 
 } // namespace state {
+} // namespace internal {
 } // namespace mesos {

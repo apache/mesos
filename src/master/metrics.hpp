@@ -31,6 +31,7 @@
 #include "mesos/mesos.hpp"
 
 namespace mesos {
+namespace internal {
 namespace master {
 
 class Master;
@@ -177,6 +178,7 @@ struct Metrics
 };
 
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __MASTER_METRICS_HPP__

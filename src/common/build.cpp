@@ -26,6 +26,7 @@
 #include "common/build.hpp"
 
 namespace mesos {
+namespace internal {
 namespace build {
 
 const std::string DATE = BUILD_DATE;
@@ -52,4 +53,5 @@ const Option<std::string> GIT_TAG = std::string(BUILD_GIT_TAG);
 const Option<std::string> GIT_TAG = None();
 #endif
 } // namespace build {
+} // namespace internal {
 } // namespace mesos {

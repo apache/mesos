@@ -22,6 +22,7 @@
 #include <mesos/mesos.hpp>
 
 namespace mesos {
+namespace internal {
 namespace master {
 
 // An abstraction for recieve notification of unhealty nodes
@@ -37,6 +38,7 @@ public:
 };
 
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __MESOS_MASTER_REPAIRER_HPP__

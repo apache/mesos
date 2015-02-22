@@ -78,6 +78,7 @@
 #include "zookeeper/url.hpp"
 
 namespace mesos {
+namespace internal {
 namespace tests {
 
 class Cluster
@@ -588,6 +589,7 @@ inline Try<Nothing> Cluster::Slaves::stop(
 }
 
 } // namespace tests {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __TESTS_CLUSTER_HPP__

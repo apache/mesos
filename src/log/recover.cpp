@@ -46,6 +46,7 @@ using namespace process;
 using std::set;
 
 namespace mesos {
+namespace internal {
 namespace log {
 
 // This class is responsible for executing the log recover protocol.
@@ -640,4 +641,5 @@ Future<Owned<Replica> > recover(
 }
 
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {

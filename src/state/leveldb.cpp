@@ -32,6 +32,7 @@ using namespace process;
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace state {
 
 
@@ -293,4 +294,5 @@ Future<std::set<string> > LevelDBStorage::names()
 }
 
 } // namespace state {
+} // namespace internal {
 } // namespace mesos {

@@ -58,7 +58,13 @@ using std::string;
 using std::vector;
 
 namespace mesos {
+namespace internal {
 namespace slave {
+
+using mesos::slave::ExecutorRunState;
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
+using mesos::slave::Limitation;
 
 Try<Isolator*> CgroupsPerfEventIsolatorProcess::create(const Flags& flags)
 {
@@ -437,4 +443,5 @@ void CgroupsPerfEventIsolatorProcess::_sample(
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

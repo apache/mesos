@@ -225,7 +225,7 @@ private:
 };
 
 
-class Flags : public mesos::logging::Flags
+class Flags : public mesos::internal::logging::Flags
 {
 public:
   Flags()
@@ -326,7 +326,7 @@ int main(int argc, char** argv)
   }
 
   // We want the logger to catch failure signals.
-  mesos::logging::initialize(argv[0], flags, true);
+  mesos::internal::logging::initialize(argv[0], flags, true);
 
   LoadGeneratorScheduler scheduler(flags.qps.get(), flags.duration);
 

@@ -62,6 +62,7 @@ using std::vector;
 using namespace process;
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 using state::SlaveState;
@@ -1085,7 +1086,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::__usage(
   // Note that here getting the root pid is enough because
   // the root process acts as an 'init' process in the docker
   // container, so no other child processes will escape it.
-  Try<ResourceStatistics> statistics = mesos::usage(pid, true, true);
+  Try<ResourceStatistics> statistics = mesos::internal::usage(pid, true, true);
   if (statistics.isError()) {
     return Failure(statistics.error());
   }
@@ -1343,4 +1344,5 @@ void DockerContainerizerProcess::remove(const string& container)
 
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

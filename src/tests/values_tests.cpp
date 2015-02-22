@@ -29,7 +29,8 @@
 #include "master/master.hpp"
 
 using namespace mesos;
-using namespace mesos::values;
+using namespace mesos::internal;
+using namespace mesos::internal::values;
 
 using std::string;
 

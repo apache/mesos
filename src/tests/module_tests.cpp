@@ -36,9 +36,9 @@
 using std::string;
 
 using namespace mesos;
-using namespace mesos::modules;
-using namespace mesos::slave;
-using namespace mesos::tests;
+using namespace mesos::internal::modules;
+using namespace mesos::internal::slave;
+using namespace mesos::internal::tests;
 
 const char* DEFAULT_MODULE_LIBRARY_NAME = "examplemodule";
 const char* DEFAULT_MODULE_NAME = "org_apache_mesos_TestModule";

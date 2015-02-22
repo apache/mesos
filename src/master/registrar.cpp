@@ -46,8 +46,8 @@
 
 #include "state/protobuf.hpp"
 
-using mesos::state::protobuf::State;
-using mesos::state::protobuf::Variable;
+using mesos::internal::state::protobuf::State;
+using mesos::internal::state::protobuf::Variable;
 
 using process::dispatch;
 using process::spawn;
@@ -73,6 +73,7 @@ using std::deque;
 using std::string;
 
 namespace mesos {
+namespace internal {
 namespace master {
 
 using process::http::Response;
@@ -541,4 +542,5 @@ Future<bool> Registrar::apply(Owned<Operation> operation)
 }
 
 } // namespace master {
+} // namespace internal {
 } // namespace mesos {

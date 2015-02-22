@@ -42,18 +42,19 @@
 
 
 using namespace mesos;
-using namespace mesos::slave::paths;
-using namespace mesos::slave::state;
-using namespace mesos::tests;
+using namespace mesos::internal;
+using namespace mesos::internal::slave::paths;
+using namespace mesos::internal::slave::state;
+using namespace mesos::internal::tests;
 
 using namespace process;
 
-using mesos::master::Master;
+using mesos::internal::master::Master;
 
-using mesos::slave::DockerContainerizer;
-using mesos::slave::DockerContainerizerProcess;
-using mesos::slave::Fetcher;
-using mesos::slave::Slave;
+using mesos::internal::slave::DockerContainerizer;
+using mesos::internal::slave::DockerContainerizerProcess;
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::Slave;
 
 using process::Future;
 using process::Message;

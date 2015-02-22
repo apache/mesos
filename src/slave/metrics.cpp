@@ -27,6 +27,7 @@
 
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
 Metrics::Metrics(const Slave& slave)
@@ -178,4 +179,5 @@ Metrics::~Metrics()
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

@@ -33,6 +33,7 @@
 #include "log/replica.hpp"
 
 namespace mesos {
+namespace internal {
 namespace log {
 
 // Catches-up a set of log positions in the local replica. The user of
@@ -52,6 +53,7 @@ extern process::Future<Nothing> catchup(
     const Duration& timeout = Seconds(10));
 
 } // namespace log {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOG_CATCHUP_HPP__

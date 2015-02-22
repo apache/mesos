@@ -31,9 +31,10 @@
 
 
 using namespace mesos;
-using namespace mesos::tests;
+using namespace mesos::internal;
+using namespace mesos::internal::tests;
 
-using mesos::master::Master;
+using mesos::internal::master::Master;
 
 using process::Future;
 using process::PID;

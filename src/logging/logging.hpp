@@ -26,6 +26,7 @@
 #include "logging/flags.hpp"
 
 namespace mesos {
+namespace internal {
 namespace logging {
 
 void initialize(
@@ -43,6 +44,7 @@ Try<std::string> getLogFile(google::LogSeverity severity);
 google::LogSeverity getLogSeverity(const std::string& logging_level);
 
 } // namespace logging {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOGGING_LOGGING_HPP__

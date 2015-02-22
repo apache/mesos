@@ -19,6 +19,7 @@
 #include "lock.hpp"
 
 namespace mesos {
+namespace internal {
 
 Lock::Lock(pthread_mutex_t* _mutex)
   : mutex(_mutex), locked(false)
@@ -50,4 +51,5 @@ Lock::~Lock()
   unlock();
 }
 
+} // namespace internal {
 } // namespace mesos {

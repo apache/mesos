@@ -35,6 +35,7 @@
 #include "logging/logging.hpp"
 
 using namespace mesos;
+using namespace mesos::internal;
 
 using mesos::fetcher::FetcherInfo;
 
@@ -256,7 +257,7 @@ int main(int argc, char* argv[])
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  mesos::logging::Flags flags;
+  mesos::internal::logging::Flags flags;
 
   Try<Nothing> load = flags.load("MESOS_", argc, argv);
 

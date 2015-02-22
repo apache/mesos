@@ -33,7 +33,8 @@
 #include "tests/utils.hpp"
 
 using namespace mesos;
-using namespace mesos::tests;
+using namespace mesos::internal;
+using namespace mesos::internal::tests;
 
 using std::string;
 

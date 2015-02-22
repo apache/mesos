@@ -66,6 +66,7 @@
 #include "messages/messages.hpp"
 
 namespace mesos {
+namespace internal {
 
 class MasterDetector; // Forward declaration.
 
@@ -629,6 +630,7 @@ std::ostream& operator << (std::ostream& stream, Framework::State state);
 std::ostream& operator << (std::ostream& stream, Executor::State state);
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
 
 #endif // __SLAVE_HPP__

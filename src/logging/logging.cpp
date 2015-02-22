@@ -59,6 +59,7 @@ extern "C" void __cxa_pure_virtual()
 
 
 namespace mesos {
+namespace internal {
 namespace logging {
 
 // Persistent copy of argv0 since InitGoogleLogging requires the
@@ -232,4 +233,5 @@ Try<string> getLogFile(google::LogSeverity severity)
 }
 
 } // namespace logging {
+} // namespace internal {
 } // namespace mesos {
