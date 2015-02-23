@@ -34,7 +34,6 @@
 using namespace mesos;
 
 using namespace mesos::modules;
-using namespace mesos::tests;
 
 using std::string;
 using std::vector;

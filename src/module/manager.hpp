@@ -117,7 +117,7 @@ public:
   template <typename T>
   static std::vector<std::string> find()
   {
-    mesos::Lock lock(&mutex);
+    mesos::internal::Lock lock(&mutex);
 
     std::vector<std::string> names;
 

@@ -76,6 +76,12 @@ using mesos::internal::master::Master;
 using mesos::internal::master::Registrar;
 using mesos::internal::master::Repairer;
 
+using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::GarbageCollector;
+using mesos::internal::slave::Slave;
+using mesos::internal::slave::StatusUpdateManager;
+
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
