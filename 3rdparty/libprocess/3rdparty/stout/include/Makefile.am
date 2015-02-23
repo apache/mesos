@@ -25,10 +25,12 @@ nobase_include_HEADERS =		\
   stout/hashmap.hpp			\
   stout/hashset.hpp			\
   stout/interval.hpp			\
+  stout/ip.hpp				\
   stout/json.hpp			\
   stout/lambda.hpp			\
   stout/linkedhashmap.hpp		\
   stout/list.hpp			\
+  stout/mac.hpp				\
   stout/memory.hpp			\
   stout/multihashmap.hpp		\
   stout/multimap.hpp			\
