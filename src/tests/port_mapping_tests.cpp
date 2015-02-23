@@ -62,6 +62,8 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+using namespace mesos::internal::slave;
+
 using namespace process;
 
 using namespace routing;
@@ -69,12 +71,6 @@ using namespace routing::filter;
 using namespace routing::queueing;
 
 using mesos::internal::master::Master;
-
-using mesos::internal::slave::Launcher;
-using mesos::internal::slave::LinuxLauncher;
-using mesos::internal::slave::MesosContainerizer;
-using mesos::internal::slave::MesosContainerizerLaunch;
-using mesos::internal::slave::PortMappingIsolatorProcess;
 
 using mesos::slave::Isolator;
 
