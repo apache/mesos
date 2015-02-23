@@ -8,9 +8,7 @@ Experimental support for Mesos modules was introduced in Mesos 0.21.0.
 
 ### Disclaimer
 
-- Use and development of Mesos modules is at own risk! Only graced modules
-(modules that are part of Mesos distribution) are maintained by the Mesos
-project.
+- Use and development of Mesos modules is at own risk!
 
 - Please direct all questions to the relevant module writer and/or write to
 modules@mesos.apache.org. Questions related to modules sent to user and dev list
@@ -119,8 +117,39 @@ If both "file" and "name" are specified, "name" is ignored.
 
 ## What kinds of modules are supported?
 
-Mesos currently only provides Isolator and Authentication modules.  Additional
-graced modules will be added in the near future.
+Here are the various module kinds currently available:
+
+### Anonymous
+
+Anonymous modules do __not__ receive any callbacks but simply
+coexists with their parent process.
+
+Unlike other named modules, an anonymous module does not directly
+replace or provide essential Mesos functionality (such as an
+Isolator module does). Unlike a decorator module it does not
+directly add or inject data into Mesos core either.
+
+Anonymous modules do not require any specific selectors (flags) as
+they are immediately instantiated when getting loaded via the
+`--modules` flag by the Mesos master or slave.
+
+### Authentication
+
+Authenticatee and Authenticator modules allow for third parties to quickly
+develop and plug-in new authentication methods. An example for such modules
+could be to support PAM (LDAP, MySQL, NIS, UNIX) backed authentication.
+
+### Hook
+
+Similar to Apache Webserver Modules, hooks allows module writers to tie into
+internal components which may not be suitable to be abstracted entirely behind
+modules but rather let's them define actions on so-called hooks.
+
+### Isolator
+
+Isolator modules enable experimenting with specialized isolation and monitoring
+capabilities. Examples of these could be 3rdparty resource isolation mechanisms
+for GPGPU hardware, networking, etc.
 
 ## Writing Mesos modules
 
