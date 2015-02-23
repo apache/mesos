@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include <stout/net.hpp>
+#include <stout/ip.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>

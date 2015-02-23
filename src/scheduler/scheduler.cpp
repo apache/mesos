@@ -51,8 +51,8 @@
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/flags.hpp>
+#include <stout/ip.hpp>
 #include <stout/lambda.hpp>
-#include <stout/net.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>

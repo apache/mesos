@@ -43,6 +43,7 @@
 #include <stout/error.hpp>
 #include <stout/duration.hpp>
 #include <stout/lambda.hpp>
+#include <stout/net.hpp>
 #include <stout/none.hpp>
 #include <stout/os.hpp>
 

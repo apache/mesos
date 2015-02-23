@@ -32,6 +32,8 @@
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/ip.hpp>
+#include <stout/mac.hpp>
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
 

@@ -24,7 +24,6 @@
 
 #include <stout/fs.hpp>
 #include <stout/hashmap.hpp>
-#include <stout/net.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>

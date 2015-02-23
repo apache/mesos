@@ -27,7 +27,9 @@
 
 #include <boost/functional/hash.hpp>
 
+#include <stout/ip.hpp>
 #include <stout/net.hpp>
+#include <stout/mac.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>

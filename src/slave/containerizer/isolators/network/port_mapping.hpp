@@ -37,8 +37,9 @@
 #include <stout/bytes.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/ip.hpp>
 #include <stout/interval.hpp>
-#include <stout/net.hpp>
+#include <stout/mac.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/subcommand.hpp>

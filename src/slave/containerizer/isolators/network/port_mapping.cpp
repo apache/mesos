@@ -38,6 +38,7 @@
 #include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
+#include <stout/mac.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/option.hpp>

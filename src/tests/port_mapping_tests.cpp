@@ -29,7 +29,9 @@
 
 #include <stout/bytes.hpp>
 #include <stout/gtest.hpp>
+#include <stout/ip.hpp>
 #include <stout/json.hpp>
+#include <stout/mac.hpp>
 #include <stout/net.hpp>
 
 #include "linux/fs.hpp"

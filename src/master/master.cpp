@@ -45,6 +45,7 @@
 
 #include <stout/check.hpp>
 #include <stout/error.hpp>
+#include <stout/ip.hpp>
 #include <stout/lambda.hpp>
 #include <stout/memory.hpp>
 #include <stout/multihashmap.hpp>
