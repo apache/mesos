@@ -22,11 +22,12 @@ EXTRA_DIST =					\
   tests/hashmap_tests.cpp			\
   tests/hashset_tests.cpp			\
   tests/interval_tests.cpp			\
+  tests/ip_tests.cpp                            \
   tests/json_tests.cpp				\
   tests/linkedhashmap_tests.cpp			\
+  tests/mac_tests.cpp                           \
   tests/main.cpp				\
   tests/multimap_tests.cpp			\
-  tests/net_tests.cpp				\
   tests/none_tests.cpp				\
   tests/option_tests.cpp			\
   tests/os_tests.cpp				\
