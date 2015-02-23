@@ -46,7 +46,7 @@ function cleanup() {
   fi
 
   # Make sure we cleanup any cgroups we created on exiting.
-  find ${TEST_CGROUP_HIERARCHY}/*/${TEST_CGROUP_ROOT} -mindepth 1 -depth -type d | xargs -r rmdir
+  find ${TEST_CGROUP_HIERARCHY}/*/${TEST_CGROUP_ROOT} -mindepth 1 -depth -type d -exec rmdir '{}' \+
 
   # Make sure we cleanup the hierarchy, if we created it.
   # NOTE: We do a sleep here, to ensure the hierarchy is not busy.

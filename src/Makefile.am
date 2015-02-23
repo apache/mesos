@@ -1825,7 +1825,7 @@ endif # HAS_PYTHON
 
 clean-python:
 	find python -name "build" -o -name "dist" -o -name "*.pyc"	\
-	  -o -name "*.egg-info" | xargs rm -rf
+	  -o -name "*.egg-info" -exec rm -rf '{}' \+
 
 PHONY_TARGETS += clean-python
 
