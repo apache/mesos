@@ -201,7 +201,7 @@ inline std::ostream& operator << (std::ostream& stream, const IP& ip)
 // TODO(jieyu): It is uncommon, but likely that a link device has
 // multiple IPv4 addresses. In that case, consider returning the
 // primary IP address instead of the first one.
-inline Result<IP> ip(const std::string& name)
+inline Result<IP> fromLinkDevice(const std::string& name)
 {
 #if !defined(__linux__) && !defined(__APPLE__)
   return Error("Not implemented");

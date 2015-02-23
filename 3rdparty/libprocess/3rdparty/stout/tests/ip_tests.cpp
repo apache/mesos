@@ -19,13 +19,13 @@ using std::string;
 using std::vector;
 
 
-TEST(NetTest, ip)
+TEST(NetTest, LinkDevice)
 {
   Try<set<string> > links = net::links();
   ASSERT_SOME(links);
 
   foreach(const string& link, links.get()) {
-    Result<net::IP> ip = net::ip(link);
+    Result<net::IP> ip = net::fromLinkDevice(link);
     EXPECT_FALSE(ip.isError());
 
     if (ip.isSome()) {
@@ -50,7 +50,7 @@ TEST(NetTest, ip)
     }
   }
 
-  Result<net::IP> ip = net::ip("non-exist");
+  Result<net::IP> ip = net::fromLinkDevice("non-exist");
   EXPECT_ERROR(ip);
 }
 
