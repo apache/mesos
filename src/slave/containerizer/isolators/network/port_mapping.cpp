@@ -1052,7 +1052,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   }
 
   // Get the host IP, MAC and default gateway.
-  Result<net::IP> hostIP = net::ip(eth0.get());
+  Result<net::IP> hostIP = net::fromLinkDevice(eth0.get());
   if (!hostIP.isSome()) {
     return Error(
         "Failed to get the public IP of " + eth0.get() + ": " +

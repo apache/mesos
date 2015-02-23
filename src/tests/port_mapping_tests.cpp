@@ -197,7 +197,7 @@ protected:
     cleanup(eth0, lo);
 
     // Get host IP address.
-    Result<net::IP> _hostIP = net::ip(eth0);
+    Result<net::IP> _hostIP = net::fromLinkDevice(eth0);
 
     CHECK_SOME(_hostIP)
       << "Failed to retrieve the host public IP from " << eth0 << ": "
