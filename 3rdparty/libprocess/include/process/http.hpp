@@ -17,8 +17,8 @@
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/ip.hpp>
 #include <stout/json.hpp>
-#include <stout/net.hpp>
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>

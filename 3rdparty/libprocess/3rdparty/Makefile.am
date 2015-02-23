@@ -155,11 +155,12 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/hashmap_tests.cpp		\
   $(STOUT)/tests/hashset_tests.cpp		\
   $(STOUT)/tests/interval_tests.cpp		\
+  $(STOUT)/tests/ip_tests.cpp                  \
   $(STOUT)/tests/json_tests.cpp			\
   $(STOUT)/tests/linkedhashmap_tests.cpp	\
+  $(STOUT)/tests/mac_tests.cpp                  \
   $(STOUT)/tests/main.cpp			\
   $(STOUT)/tests/multimap_tests.cpp		\
-  $(STOUT)/tests/net_tests.cpp			\
   $(STOUT)/tests/none_tests.cpp			\
   $(STOUT)/tests/option_tests.cpp		\
   $(STOUT)/tests/os_tests.cpp			\

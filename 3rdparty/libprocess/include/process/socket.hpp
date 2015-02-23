@@ -8,7 +8,6 @@
 
 #include <stout/abort.hpp>
 #include <stout/nothing.hpp>
-#include <stout/net.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 

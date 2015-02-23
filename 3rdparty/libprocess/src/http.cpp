@@ -13,7 +13,9 @@
 #include <process/owned.hpp>
 #include <process/socket.hpp>
 
+#include <stout/ip.hpp>
 #include <stout/lambda.hpp>
+#include <stout/net.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
