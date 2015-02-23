@@ -271,6 +271,20 @@ struct BadRequest : Response
 };
 
 
+struct Forbidden : Response
+{
+  Forbidden()
+  {
+    status = "403 Forbidden";
+  }
+
+  explicit Forbidden(const std::string& body) : Response(body)
+  {
+    status = "403 Forbidden";
+  }
+};
+
+
 struct NotFound : Response
 {
   NotFound()
