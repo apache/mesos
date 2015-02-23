@@ -107,6 +107,29 @@ public:
             moduleBases[moduleName]->kind == stringify(kind<T>()));
   }
 
+  // Returns all module names that have been loaded that implement the
+  // specified interface 'T'. For example:
+  //
+  //   std::vector<std::string> modules = ModuleManager::find<Isolator>();
+  //
+  // Will return all of the module names for modules that implement
+  // the Isolator interface.
+  template <typename T>
+  static std::vector<std::string> find()
+  {
+    mesos::Lock lock(&mutex);
+
+    std::vector<std::string> names;
+
+    foreachpair (const std::string& name, ModuleBase* base, moduleBases) {
+      if (base->kind == stringify(kind<T>())) {
+        names.push_back(name);
+      }
+    }
+
+    return names;
+  }
+
   // Exposed just for testing so that we can unload a given
   // module  and remove it from the list of ModuleBases.
   static Try<Nothing> unload(const std::string& moduleName);

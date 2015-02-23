@@ -21,6 +21,7 @@
 
 #include <mesos/module.hpp>
 
+#include <mesos/module/anonymous.hpp>
 #include <mesos/module/module.hpp>
 
 #include <stout/json.hpp>
@@ -31,7 +32,9 @@
 #include <stout/version.hpp>
 
 #include "common/lock.hpp"
+
 #include "messages/messages.hpp"
+
 #include "module/manager.hpp"
 
 using std::list;
@@ -58,6 +61,7 @@ void ModuleManager::initialize()
   // current change.  Typically that should be the version currently
   // under development.
 
+  kindToVersion["Anonymous"] = MESOS_VERSION;
   kindToVersion["Authenticatee"] = MESOS_VERSION;
   kindToVersion["Authenticator"] = MESOS_VERSION;
   kindToVersion["Hook"] = MESOS_VERSION;

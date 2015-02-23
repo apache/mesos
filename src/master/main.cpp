@@ -22,6 +22,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/module/anonymous.hpp>
+
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
@@ -72,6 +74,8 @@ using namespace mesos::state;
 using namespace zookeeper;
 
 using mesos::MasterInfo;
+
+using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
 using process::Owned;
@@ -285,6 +289,22 @@ int main(int argc, char** argv)
     authorizer = authorizer__.release();
   }
 
+  // Create anonymous modules.
+  foreach (const string& name, ModuleManager::find<Anonymous>()) {
+    Try<Anonymous*> create = ModuleManager::create<Anonymous>(name);
+    if (create.isError()) {
+      EXIT(1) << "Failed to create anonymous module named '" << name << "'";
+    }
+
+    // We don't bother keeping around the pointer to this anonymous
+    // module, when we exit that will effectively free it's memory.
+    //
+    // TODO(benh): We might want to add explicit finalization (and
+    // maybe explicit initialization too) in order to let the module
+    // do any housekeeping necessary when the master is cleanly
+    // terminating.
+  }
+
   LOG(INFO) << "Starting Mesos master";
 
   Master* master =
@@ -305,8 +325,8 @@ int main(int argc, char** argv)
   }
 
   process::spawn(master);
-
   process::wait(master->self());
+
   delete master;
   delete allocator;
 
