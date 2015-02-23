@@ -110,7 +110,7 @@ public:
   // Returns all module names that have been loaded that implement the
   // specified interface 'T'. For example:
   //
-  //   std::vector<std::string> modules = ModuleManager::find<Isolator>();
+  //   std::vector<std::string> modules = ModuleManager::find<Hook>();
   //
   // Will return all of the module names for modules that implement
   // the Isolator interface.

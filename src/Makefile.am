@@ -486,8 +486,9 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	common/status_utils.hpp						\
 	common/thread.hpp						\
 	credentials/credentials.hpp					\
-	examples/utils.hpp						\
+	examples/test_anonymous_module.hpp				\
 	examples/test_module.hpp					\
+	examples/utils.hpp						\
 	files/files.hpp							\
 	hdfs/hdfs.hpp							\
 	hook/manager.hpp						\
@@ -1278,6 +1279,12 @@ libexamplemodule_la_SOURCES = examples/example_module_impl.cpp
 libexamplemodule_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libexamplemodule_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
+# Library containing the test anonymous modules.
+noinst_LTLIBRARIES += libtestanonymous.la
+libtestanonymous_la_SOURCES = examples/test_anonymous_module.cpp
+libtestanonymous_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestanonymous_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+
 # Library containing the test CRAM-MD5 authentication modules.
 # TODO(tillt): Add cyrus-sasl2 dependency while removing it from libmesos.
 # TODO(tillt): Enable optional building of this module library.
@@ -1300,6 +1307,7 @@ libtestisolator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestisolator_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 mesos_tests_SOURCES =				\
+  tests/anonymous_tests.cpp			\
   tests/attributes_tests.cpp			\
   tests/authentication_tests.cpp		\
   tests/authorization_tests.cpp		        \

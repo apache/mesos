@@ -44,7 +44,8 @@ enum ModuleID
   TestCpuIsolator,
   TestCRAMMD5Authenticatee,
   TestCRAMMD5Authenticator,
-  TestHook
+  TestHook,
+  TestAnonymous
 };
 
 
