@@ -393,35 +393,7 @@ message Resource {
   optional Value.Scalar scalar = 3;
   optional Value.Ranges ranges = 4;
   optional Value.Set set = 5;
-
-  // The following are valid states for
-  // (role, reservation_type) pairs.
-  //   - ("*", STATIC) -- unreserved
-  //   - (R, STATIC) -- statically reserved for role R
-  //   - (R, DYNAMIC) -- dynamically reserved for role R
-  //
-  // The following are valid transitions for
-  // (role, reservation_type) pairs.
-  //   Reservation:   ("*", STATIC) => (R, DYNAMIC)
-  //   "An unreserved resource can become dynamically reserved."
-  //
-  //   Unreservation: (R, DYNAMIC) => ("*", STATIC)
-  //   "A dynamically reserved resource can become unreserved."
-  //
-  // NOTE 1: R refers to any string not "*".
-  // NOTE 2: Static reservations cannot be set or changed by a framework.
-  //         These are set by a cluster administrator on slave start.
   optional string role = 6 [default = "*"];
-
-  enum ReservationType {
-    STATIC = 0;
-    DYNAMIC = 1;
-  }
-
-  // Describes the type of reservation. Reservations are made for
-  // some specific role R. It can either be reserved statically by
-  // an operator or dynamically by a framework.
-  optional ReservationType reservation_type = 8 [default = STATIC];
 
   message DiskInfo {
     // Describes a persistent disk volume.
