@@ -58,16 +58,11 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
+using namespace mesos::internal::slave;
+
 using namespace process;
 
 using mesos::internal::master::Master;
-
-using mesos::internal::slave::Containerizer;
-using mesos::internal::slave::Fetcher;
-using mesos::internal::slave::GarbageCollectorProcess;
-using mesos::internal::slave::MesosContainerizer;
-using mesos::internal::slave::MesosContainerizerProcess;
-using mesos::internal::slave::Slave;
 
 using std::map;
 using std::string;
@@ -1181,7 +1176,6 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  EXPECT_CALL(exec, registered(_, _, _, _));
 
   TestContainerizer containerizer(&exec);
 
@@ -1198,6 +1192,11 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, "1", "128", "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // The executor may not receive the ExecutorRegisteredMessage if the
+  // container is destroyed before that.
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(AtMost(1));
 
   // Set up the containerizer so update() will fail.
   EXPECT_CALL(containerizer, update(_, _))
