@@ -232,6 +232,12 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
   ASSERT_EQ(task.task_id(), status.get().task_id());
   ASSERT_EQ(TASK_LOST, status.get().state());
 
+  // Before we obtain the metrics, ensure that the master has finished
+  // processing the status update so metrics have been updated.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
   // Check metrics.
   JSON::Object stats = Metrics();
   EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
