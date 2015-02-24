@@ -18,7 +18,7 @@
 
 import "mesos/mesos.proto";
 
-package mesos;
+package mesos.internal;
 
 option java_package = "org.apache.mesos";
 option java_outer_classname = "Protos";
