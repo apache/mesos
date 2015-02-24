@@ -26,6 +26,7 @@
 #include <mesos/values.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/strings.hpp>
 
 using std::ostream;
@@ -406,15 +407,15 @@ bool Resources::isPersistentVolume(const Resource& resource)
 }
 
 
-bool Resources::isReserved(const Resource& resource)
+bool Resources::isReserved(
+    const Resource& resource,
+    const Option<std::string>& role)
 {
-  return !isUnreserved(resource);
-}
-
-
-bool Resources::isReserved(const Resource& resource, const std::string& role)
-{
-  return isReserved(resource) && resource.role() == role;
+  if (role.isSome()) {
+    return resource.role() != "*" && role.get() == resource.role();
+  } else {
+    return resource.role() != "*";
+  }
 }
 
 
@@ -483,6 +484,19 @@ bool Resources::contains(const Resource& that) const
 }
 
 
+Resources Resources::filter(
+    const lambda::function<bool(const Resource&)>& predicate) const
+{
+  Resources result;
+  foreach (const Resource& resource, resources) {
+    if (predicate(resource)) {
+      result += resource;
+    }
+  }
+  return result;
+}
+
+
 hashmap<string, Resources> Resources::reserved() const
 {
   hashmap<string, Resources> result;
@@ -499,29 +513,19 @@ hashmap<string, Resources> Resources::reserved() const
 
 Resources Resources::reserved(const string& role) const
 {
-  Resources result;
-
-  foreach (const Resource& resource, resources) {
-    if (isReserved(resource, role)) {
-      result += resource;
-    }
-  }
-
-  return result;
+  return filter(lambda::bind(isReserved, lambda::_1, role));
 }
 
 
 Resources Resources::unreserved() const
 {
-  Resources result;
+  return filter(isUnreserved);
+}
 
-  foreach (const Resource& resource, resources) {
-    if (isUnreserved(resource)) {
-      result += resource;
-    }
-  }
 
-  return result;
+Resources Resources::persistentVolumes() const
+{
+  return filter(isPersistentVolume);
 }
 
 
@@ -538,21 +542,26 @@ Resources Resources::flatten(const string& role) const
 }
 
 
+// A predicate that returns true for any resource.
+static bool any(const Resource&) { return true; }
+
+
 Option<Resources> Resources::find(const Resource& target) const
 {
   Resources found;
   Resources total = *this;
   Resources remaining = Resources(target).flatten();
 
-  // First look in the target role, then "*", then any remaining role.
-  vector<RoleFilter> filters = {
-    RoleFilter(target.role()),
-    RoleFilter("*"),
-    RoleFilter::any()
+  // First look in the target role, then unreserved, then any remaining role.
+  // TODO(mpark): Use a lambda for 'any' instead once we get full C++11.
+  vector<lambda::function<bool(const Resource&)>> predicates = {
+    lambda::bind(isReserved, lambda::_1, target.role()),
+    isUnreserved,
+    any
   };
 
-  foreach (const RoleFilter& filter, filters) {
-    foreach (const Resource& resource, filter.apply(total)) {
+  foreach (const auto& predicate, predicates) {
+    foreach (const Resource& resource, total.filter(predicate)) {
       // Need to flatten to ignore the roles in contains().
       Resources flattened = Resources(resource).flatten();
 

@@ -30,6 +30,7 @@
 #include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -94,11 +95,11 @@ public:
   // Tests if the given Resource object is a persistent volume.
   static bool isPersistentVolume(const Resource& resource);
 
-  // Tests if the given Resource object is reserved.
-  static bool isReserved(const Resource& resource);
-
-  // Tests if the given Resource object is reserved for the given role.
-  static bool isReserved(const Resource& resource, const std::string& role);
+  // Tests if the given Resource object is reserved. If the role is
+  // specified, tests that it's reserved for the given role.
+  static bool isReserved(
+      const Resource& resource,
+      const Option<std::string>& role = None());
 
   // Tests if the given Resource object is unreserved.
   static bool isUnreserved(const Resource& resource);
@@ -132,6 +133,10 @@ public:
   // Checks if this Resources contains the given Resource.
   bool contains(const Resource& that) const;
 
+  // Filter resources based on the given predicate.
+  Resources filter(
+      const lambda::function<bool(const Resource&)>& predicate) const;
+
   // Returns the reserved resources, by role.
   hashmap<std::string, Resources> reserved() const;
 
@@ -141,6 +146,9 @@ public:
 
   // Returns the unreserved resources.
   Resources unreserved() const;
+
+  // Returns the persistent volumes.
+  Resources persistentVolumes() const;
 
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
@@ -234,83 +242,6 @@ public:
   Resources operator - (const Resources& that) const;
   Resources& operator -= (const Resource& that);
   Resources& operator -= (const Resources& that);
-
-  // The base class for all resources filters.
-  // TODO(jieyu): Pull resources filters out of Resources class and
-  // possibly put them inside a resources::filter namespace.
-  class Filter
-  {
-  public:
-    // Apply this filter to the given resources and return the
-    // filtered resources.
-    virtual Resources apply(const Resources& resources) const = 0;
-  };
-
-  class RoleFilter : public Filter
-  {
-  public:
-    static RoleFilter any() { return RoleFilter(); }
-
-    RoleFilter() : type(ANY) {}
-
-    explicit RoleFilter(const std::string& _role)
-      : type(SOME), role(_role) {}
-
-    virtual Resources apply(const Resources& resources) const
-    {
-      if (type == ANY) {
-        return resources;
-      }
-
-      CHECK_SOME(role);
-
-      return role.get() == "*" ?
-        resources.unreserved() :
-        resources.reserved(role.get());
-    }
-
-  private:
-    enum { ANY, SOME } type;
-    Option<std::string> role;
-  };
-
-  class PersistentVolumeFilter : public Filter
-  {
-  public:
-    PersistentVolumeFilter() {}
-
-    virtual Resources apply(const Resources& resources) const
-    {
-      Resources result;
-      foreach (const Resource& resource, resources) {
-        if (isPersistentVolume(resource)) {
-          result += resource;
-        }
-      }
-      return result;
-    }
-  };
-
-  // Resources that need checkpointing on the slave.
-  // TODO(jieyu): This filter is only used by master and slave.
-  // Consider pulling this out of this header.
-  class CheckpointFilter : public Filter
-  {
-  public:
-    CheckpointFilter() {}
-
-    virtual Resources apply(const Resources& resources) const
-    {
-      Resources result;
-      foreach (const Resource& resource, resources) {
-        // TODO(jieyu): Consider dynamic reservation as well.
-        if (isPersistentVolume(resource)) {
-          result += resource;
-        }
-      }
-      return result;
-    }
-  };
 
 private:
   // Similar to 'contains(const Resource&)' but skips the validity

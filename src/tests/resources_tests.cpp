@@ -951,7 +951,7 @@ TEST(DiskResourcesTest, FilterPersistentVolumes)
   resources += r1;
   resources += r2;
 
-  EXPECT_EQ(r1, Resources::PersistentVolumeFilter().apply(resources));
+  EXPECT_EQ(r1, resources.persistentVolumes());
 }
 
 

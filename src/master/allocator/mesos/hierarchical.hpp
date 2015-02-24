@@ -795,11 +795,11 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
 
-        Resources unreserved = slaves[slaveId].available.unreserved();
-        Resources resources = unreserved;
-        if (role != "*") {
-          resources += slaves[slaveId].available.reserved(role);
-        }
+        // NOTE: Currently, frameworks are allowed to have '*' role.
+        // Calling reserved('*') returns an empty Resources object.
+        Resources resources =
+          slaves[slaveId].available.unreserved() +
+          slaves[slaveId].available.reserved(role);
 
         // If the resources are not allocatable, ignore.
         if (!allocatable(resources)) {
@@ -825,7 +825,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         // roles.
         frameworkSorters[role]->add(resources);
         frameworkSorters[role]->allocated(frameworkId_, resources);
-        roleSorter->allocated(role, unreserved);
+        roleSorter->allocated(role, resources.unreserved());
       }
     }
   }

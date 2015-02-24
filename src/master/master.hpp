@@ -923,7 +923,8 @@ struct Slave
     CHECK_SOME(resources);
 
     totalResources = resources.get();
-    checkpointedResources = Resources::CheckpointFilter().apply(totalResources);
+
+    checkpointedResources = totalResources.filter(needCheckpointing);
   }
 
   const SlaveID id;
@@ -982,6 +983,14 @@ struct Slave
 private:
   Slave(const Slave&);              // No copying.
   Slave& operator = (const Slave&); // No assigning.
+
+  // Returns true iff the resource needs to be checkpointed on the slave.
+  // TODO(mpark): Consider framework reservations.
+  // TODO(mpark): Factor this out to somewhere the slave can use it.
+  static bool needCheckpointing(const Resource& resource)
+  {
+    return Resources::isPersistentVolume(resource);
+  }
 };
 
 

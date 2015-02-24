@@ -102,13 +102,11 @@ Option<Error> validateUniquePersistenceID(
   hashmap<string, hashset<string>> persistenceIds;
 
   // Check duplicated persistence ID within the given resources.
-  foreach (const Resource& resource, resources) {
-    if (!Resources::isPersistentVolume(resource)) {
-      continue;
-    }
+  Resources volumes = Resources(resources).persistentVolumes();
 
-    const string& role = resource.role();
-    const string& id = resource.disk().persistence().id();
+  foreach (const Resource& volume, volumes) {
+    const string& role = volume.role();
+    const string& id = volume.disk().persistence().id();
 
     if (persistenceIds.contains(role) &&
         persistenceIds[role].contains(id)) {

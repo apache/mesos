@@ -1299,23 +1299,24 @@ void Slave::_runTask(
   // should already know about it. In case the slave doesn't know
   // about them (e.g., CheckpointResourcesMessage was dropped or came
   // out of order), we simply fail the slave to be safe.
-  foreach (const Resource& resource, task.resources()) {
-    if (Resources::isPersistentVolume(resource)) {
-      CHECK(checkpointedResources.contains(resource))
-        << "Unknown persistent volume " << resource
-        << " for task " << task.task_id()
-        << " of framework " << frameworkId;
-    }
+  Resources volumes = Resources(task.resources()).persistentVolumes();
+
+  foreach (const Resource& volume, volumes) {
+    CHECK(checkpointedResources.contains(volume))
+      << "Unknown persistent volume " << volume
+      << " for task " << task.task_id()
+      << " of framework " << frameworkId;
   }
 
   if (task.has_executor()) {
-    foreach (const Resource& resource, task.executor().resources()) {
-      if (Resources::isPersistentVolume(resource)) {
-        CHECK(checkpointedResources.contains(resource))
-          << "Unknown persistent volume " << resource
-          << " for executor " << task.executor().executor_id()
-          << " of framework " << frameworkId;
-      }
+    Resources volumes =
+      Resources(task.executor().resources()).persistentVolumes();
+
+    foreach (const Resource& volume, volumes) {
+      CHECK(checkpointedResources.contains(volume))
+        << "Unknown persistent volume " << volume
+        << " for executor " << task.executor().executor_id()
+        << " of framework " << frameworkId;
     }
   }
 
@@ -1983,11 +1984,9 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
   // to support multiple disks, or raw disks. Depending on the
   // DiskInfo, we may want to create either directories under a root
   // directory, or LVM volumes from a given device.
-  foreach (const Resource& volume, newCheckpointedResources) {
-    if (!Resources::isPersistentVolume(volume)) {
-      continue;
-    }
+  Resources volumes = newCheckpointedResources.persistentVolumes();
 
+  foreach (const Resource& volume, volumes) {
     // This is validated in master.
     CHECK_NE(volume.role(), "*");
 
