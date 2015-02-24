@@ -547,6 +547,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	tests/environment.hpp						\
 	tests/flags.hpp							\
 	tests/isolator.hpp						\
+	tests/launcher.hpp						\
 	tests/mesos.hpp							\
 	tests/module.hpp						\
 	tests/script.hpp						\
