@@ -390,6 +390,8 @@ public:
         "used for the 'posix/disk' isolator.",
         Seconds(15));
 
+    // TODO(jieyu): Consider enabling this flag by default. Remember
+    // to update the user doc if we decide to do so.
     add(&Flags::enforce_container_disk_quota,
         "enforce_container_disk_quota",
         "Whether to enable disk quota enforcement for containers. This flag\n"
