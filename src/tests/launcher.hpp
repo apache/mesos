@@ -76,9 +76,9 @@ public:
     EXPECT_CALL(*this, recover(_))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, fork(_,_,_,_,_,_,_,_,_))
+    ON_CALL(*this, fork(_, _, _, _, _, _, _, _, _))
       .WillByDefault(InvokeFork(this));
-    EXPECT_CALL(*this, fork(_,_,_,_,_,_,_,_,_))
+    EXPECT_CALL(*this, fork(_, _, _, _, _, _, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, destroy(_))
