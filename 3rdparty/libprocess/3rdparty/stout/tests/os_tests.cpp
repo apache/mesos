@@ -898,3 +898,25 @@ TEST_F(OsTest, Libraries)
   os::libraries::setPaths(originalLibraryPath);
   EXPECT_EQ(os::libraries::paths(), originalLibraryPath);
 }
+
+
+TEST_F(OsTest, Mknod)
+{
+  const string& device = "null";
+
+  const string& existing = path::join("/dev", device);
+  CHECK(os::exists(existing));
+
+  Try<mode_t> mode = os::stat::mode(existing);
+  CHECK_SOME(mode);
+
+  Try<dev_t> rdev = os::stat::rdev(existing);
+  CHECK_SOME(rdev);
+
+  const string& another = path::join(os::getcwd(), device);
+  CHECK(!os::exists(another));
+
+  EXPECT_SOME(os::mknod(another, mode.get(), rdev.get()));
+
+  EXPECT_SOME(os::rm(another));
+}

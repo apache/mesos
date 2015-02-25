@@ -585,6 +585,19 @@ inline Try<Nothing> chroot(const std::string& directory)
 }
 
 
+inline Try<Nothing> mknod(
+    const std::string& path,
+    mode_t mode,
+    dev_t dev)
+{
+  if (::mknod(path.c_str(), mode, dev) < 0) {
+    return ErrnoError();
+  }
+
+  return Nothing();
+}
+
+
 inline Result<uid_t> getuid(const Option<std::string>& user = None())
 {
   if (user.isNone()) {
