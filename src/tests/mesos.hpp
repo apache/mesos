@@ -181,7 +181,7 @@ protected:
   virtual void ShutdownSlaves();
 
   // Get the metrics snapshot.
-  // TODO(vinod): Move this into "tests/utils.hpp".
+  // TODO(vinod): Move this into a libprocess "tests/utils.hpp".
   JSON::Object Metrics() const;
 
   Cluster cluster;
