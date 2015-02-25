@@ -57,6 +57,7 @@
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 using mesos::internal::master::Master;
 

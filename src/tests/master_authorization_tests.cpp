@@ -40,6 +40,7 @@
 #include "slave/slave.hpp"
 
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 using mesos::internal::master::Master;
 

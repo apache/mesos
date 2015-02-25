@@ -23,6 +23,7 @@
 
 #include <string>
 
+#include <stout/json.hpp>
 #include <stout/option.hpp>
 
 namespace mesos {
@@ -41,6 +42,11 @@ private:
   std::string cwd;
   Option<std::string> sandbox;
 };
+
+
+// Get the metrics snapshot.
+// TODO(vinod): Move this into a libprocess utility header.
+JSON::Object Metrics();
 
 } // namespace tests {
 } // namespace internal {

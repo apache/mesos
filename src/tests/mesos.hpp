@@ -180,10 +180,6 @@ protected:
   // Stop all slaves.
   virtual void ShutdownSlaves();
 
-  // Get the metrics snapshot.
-  // TODO(vinod): Move this into a libprocess "tests/utils.hpp".
-  JSON::Object Metrics() const;
-
   Cluster cluster;
 
   // Containerizer(s) created during test that we need to cleanup.

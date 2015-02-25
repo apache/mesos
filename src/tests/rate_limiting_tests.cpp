@@ -31,6 +31,7 @@
 #include "master/allocator/allocator.hpp"
 
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 using namespace mesos::internal::master;
 
