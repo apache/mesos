@@ -27,7 +27,7 @@ As part of this feature, 4 new flags were added to the slave.
 * `checkpoint` :  Whether to checkpoint slave and frameworks information
                   to disk [Default: true].
     - This enables a restarted slave to recover status updates and reconnect
-      with (--recover=reconnect) or kill (--recover=kill) old executors.
+      with (--recover=reconnect) or kill (--recover=cleanup) old executors.
     > NOTE: From Mesos 0.22.0 this flag will be removed as it will be enabled for all slaves.
 
 	* `strict` : Whether to do recovery in strict mode [Default: true].
