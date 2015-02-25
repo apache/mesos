@@ -209,3 +209,43 @@ Declared in `MESOS_HOME/include/mesos/executor.hpp`
 You need to put your framework somewhere that all slaves on the cluster can get it from. If you are running HDFS, you can put your executor into HDFS. Then, you tell Mesos where it is via the `ExecutorInfo` parameter of `MesosSchedulerDriver`'s constructor (e.g. see src/examples/java/TestFramework.java for an example of this). ExecutorInfo is a a Protocol Buffer Message class (defined in `include/mesos/mesos.proto`), and you set its URI field to something like "HDFS://path/to/executor/". Also, you can pass the `frameworks_home` configuration option (defaults to: `MESOS_HOME/frameworks`) to your `mesos-slave` daemons when you launch them to specify where all of your framework executors are stored (e.g. on an NFS mount that is available to all slaves), then set `ExecutorInfo` to be a relative path, and the slave will prepend the value of frameworks_home to the relative path provided.
 
 Once you are sure that your executors are available to the mesos-slaves, you should be able to run your scheduler, which will register with the Mesos master, and start receiving resource offers!
+
+## Service discovery
+
+When your framework registers an executor or launches a task, it can provide additional information for service discovery. This information is stored by the Mesos master along with other imporant information such as the slave currently running the task. A service discovery system can programmatically retrieve this information in order to set up DNS entries, configure proxies, or update any consistent store used for service discovery in a Mesos cluster that runs multiple frameworks and multiple tasks.
+
+The optional `DiscoveryInfo` message for `TaskInfo` and `ExecutorInfo` is declared in  `MESOS_HOME/include/mesos/mesos.proto`
+
+```
+message DiscoveryInfo {
+  enum Visibility {
+    FRAMEWORK = 0;
+    CLUSTER = 1;
+    EXTERNAL = 2;
+  }
+
+  required Visibility visibility = 1;
+  optional string name = 2;
+  optional string environment = 3;
+  optional string location = 4;
+  optional string version = 5;
+  optional Ports ports = 6;
+  optional Labels labels = 7;
+}
+```
+
+`Visibility` is the key parameter that instructs the service discovery system whether a service should be discoverable. We currently differentiate between three cases:
+
+ - a task should not be discoverable for anyone but its framework.
+ - a task should be discoverable for all frameworks running on the Mesos cluster but not externally.
+ - a task should be made discoverable broadly.
+
+Many service discovery systems provide additional features that manage the visibility of services (e.g., ACLs in proxy based systems, security extensions to DNS, VLAN or subnet selection). It is not the intended use of the visibility field to manage such features. When a service discovery system retrieves the task or executor information from the master, it can decide how to handle tasks without DiscoveryInfo. For instance, tasks may be made non discoverable to other frameworks (equivalent to `visibility=FRAMEWORK`) or discoverable to all frameworks (equivalent to `visibility=CLUSTER`).
+
+The `name` field is a string that that provides the service discovery system with the name under which the task is discoverable. The typical use of the name field will be to provide a valid hostname. If name is not provided, it is up to the service discovery system to create a name for the task based on the name field in `taskInfo` or other information.
+
+The `environment`, `location`, and `version` fields provide first class support for common attributes used to differentiate between similar services in large deployments. The `environment` may receive values such as `PROD/QA/DEV`, the `location` field may receive values like `EAST-US/WEST-US/EUROPE/AMEA`, and the `version` field may receive values like v2.0/v0.9. The exact use of these fields is up to the service discovery system.
+
+The `ports` field allows the framework to identify the ports a task listens to and explicitly name the functionality they represent and the layer-4 protocol they use (TCP, UDP, or other). For example, a Cassandra task will define ports like `“7000,Cluster,TCP”`, `“7001,SSL,TCP”`, `“9160,Thrift,TCP”`, `“9042,Native,TCP”`, and `“7199,JMX,TCP”`. It is up to the service discovery system to use these names and protocol in appropriate ways, potentially combining them with the `name` field in DiscoveryInfo.
+
+The `labels` field allows a framework to pass arbitrary labels to the service discovery system in the form of key/value pairs. Note that anything passed through this field is not guaranteed to be supported moving forward. Nevertheless, this field provides extensibility. Common uses of this field will allow us to identify use cases that require first class support.
