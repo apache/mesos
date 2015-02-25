@@ -362,6 +362,10 @@ protected:
       const std::vector<Archive::Framework>& completedFrameworks =
         std::vector<Archive::Framework>());
 
+  // Remove the slave from the registrar. Called when the slave
+  // does not re-register in time after a master failover.
+  Nothing removeSlave(const Registry::Slave& slave);
+
   // Remove the slave from the registrar and from the master's state.
   void removeSlave(Slave* slave);
   void _removeSlave(
