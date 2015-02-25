@@ -151,18 +151,25 @@ Try<FileSystemTable> FileSystemTable::read()
 }
 
 
-Try<Nothing> mount(const std::string& source,
+Try<Nothing> mount(const Option<std::string>& source,
                    const std::string& target,
-                   const std::string& type,
+                   const Option<std::string>& type,
                    unsigned long flags,
                    const void* data)
 {
   // The prototype of function 'mount' on Linux is as follows:
-  // int mount(const char *source, const char *target,
-  //           const char *filesystemtype, unsigned long mountflags,
+  // int mount(const char *source,
+  //           const char *target,
+  //           const char *filesystemtype,
+  //           unsigned long mountflags,
   //           const void *data);
-  if (::mount(source.c_str(), target.c_str(), type.c_str(), flags, data) < 0) {
-    return ErrnoError("Failed to mount '" + source + "' at '" + target + "'");
+  if (::mount(
+        (source.isSome() ? source.get().c_str() : NULL),
+        target.c_str(),
+        (type.isSome() ? type.get().c_str() : NULL),
+        flags,
+        data) < 0) {
+    return ErrnoError();
   }
 
   return Nothing();

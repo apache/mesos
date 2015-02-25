@@ -28,6 +28,7 @@
 #include <vector>
 
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 
@@ -121,15 +122,26 @@ struct FileSystemTable {
 
 
 // Mount a file system.
-// @param   source    Specify the file system (often a device name).
+// @param   source    Specify the file system (often a device name but
+//                    it can also be a directory for a bind mount).
+//                    If None(), NULL will be passed as a dummy
+//                    argument to mount(), i.e., it is not used for
+//                    the specified mount operation. For example, you
+//                    can mount a filesystem specified in /etc/fstab
+//                    by just specifying the target.
 // @param   target    Directory to be attached to.
 // @param   type      File system type (listed in /proc/filesystems).
+//                    If None(), NULL will be passed as a dummy
+//                    argument to mount(), i.e., it is not used for
+//                    the specified mount operation. For example, it
+//                    should be None() for a bind mount as it will
+//                    inherit the type of the source.
 // @param   flags     Mount flags.
 // @param   data      Extra data interpreted by different file systems.
 // @return  Whether the mount operation succeeds.
-Try<Nothing> mount(const std::string& source,
+Try<Nothing> mount(const Option<std::string>& source,
                    const std::string& target,
-                   const std::string& type,
+                   const Option<std::string>& type,
                    unsigned long flags,
                    const void* data);
 
