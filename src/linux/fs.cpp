@@ -23,6 +23,9 @@
 #include <linux/limits.h>
 
 #include <stout/error.hpp>
+#include <stout/strings.hpp>
+
+#include <stout/os/stat.hpp>
 
 #include "common/lock.hpp"
 
@@ -172,6 +175,50 @@ Try<Nothing> unmount(const std::string& target, int flags)
   // int umount2(const char *target, int flags);
   if (::umount2(target.c_str(), flags) < 0) {
     return ErrnoError("Failed to unmount '" + target + "'");
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> pivot_root(
+    const std::string& newRoot,
+    const std::string& putOld)
+{
+  // These checks are done in the syscall but we'll do them here to
+  // provide less cryptic error messages. See 'man 2 pivot_root'.
+  if (!os::stat::isdir(newRoot)) {
+    return Error("newRoot '" + newRoot + "' is not a directory");
+  }
+
+  if (!os::stat::isdir(putOld)) {
+    return Error("putOld '" + putOld + "' is not a directory");
+  }
+
+  // TODO(idownes): Verify that newRoot (and putOld) is on a different
+  // filesystem to the current root. st_dev distinguishes the device
+  // an inode is on, but bind mounts (which are acceptable to
+  // pivot_root) share the same st_dev as the source of the mount so
+  // st_dev is not generally sufficient.
+
+  if (!strings::startsWith(putOld, newRoot)) {
+    return Error("putOld '" + putOld +
+                 "' must be beneath newRoot '" + newRoot);
+  }
+
+#ifdef __NR_pivot_root
+  int ret = ::syscall(__NR_pivot_root, newRoot.c_str(), putOld.c_str());
+#elif __x86_64__
+  // A workaround for systems that have an old glib but have a new
+  // kernel. The magic number '155' is the syscall number for
+  // 'pivot_root' on the x86_64 architecture, see
+  // arch/x86/syscalls/syscall_64.tbl
+  int ret = ::syscall(155, newRoot.c_str(), putOld.c_str());
+#else
+#error "pivot_root is not available"
+#endif
+  if (ret == -1) {
+    return ErrnoError();
   }
 
   return Nothing();

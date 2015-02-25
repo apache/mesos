@@ -141,6 +141,12 @@ Try<Nothing> mount(const std::string& source,
 Try<Nothing> unmount(const std::string& target, int flags = 0);
 
 
+// Change the root filesystem.
+Try<Nothing> pivot_root(
+    const std::string& newRoot,
+    const std::string& putOld);
+
+
 } // namespace fs {
 } // namespace internal {
 } // namespace mesos {
