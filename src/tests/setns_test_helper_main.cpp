@@ -14,22 +14,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-
-#ifndef __SETNS_TEST_HELPER_HPP__
-#define __SETNS_TEST_HELPER_HPP__
+*/
 
 #include <stout/subcommand.hpp>
 
-class SetnsTestHelper : public Subcommand
+#include "tests/setns_test_helper.hpp"
+
+int main(int argc, char** argv)
 {
-public:
-  static const char NAME[];
-
-  SetnsTestHelper() : Subcommand(NAME) {}
-
-protected:
-  virtual int execute();
-};
-
-#endif // __SETNS_TEST_HELPER_HPP__
+  return Subcommand::dispatch(
+      None(),
+      argc,
+      argv,
+      new SetnsTestHelper());
+}
