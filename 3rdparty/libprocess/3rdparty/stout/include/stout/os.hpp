@@ -575,6 +575,16 @@ inline Try<Nothing> chdir(const std::string& directory)
 }
 
 
+inline Try<Nothing> chroot(const std::string& directory)
+{
+  if (::chroot(directory.c_str()) < 0) {
+    return ErrnoError();
+  }
+
+  return Nothing();
+}
+
+
 inline Result<uid_t> getuid(const Option<std::string>& user = None())
 {
   if (user.isNone()) {
