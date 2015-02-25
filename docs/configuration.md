@@ -51,16 +51,6 @@ If you have special compilation requirements, please refer to `./configure --hel
   </tr>
   <tr>
     <td>
-      --[no-]initialize_driver_logging
-    </td>
-    <td>
-      Whether to automatically initialize google logging of scheduler
-      and/or executor drivers. (default: true)
-
-    </td>
-  </tr>
-  <tr>
-    <td>
       --log_dir=VALUE
     </td>
     <td>
@@ -138,7 +128,9 @@ If you have special compilation requirements, please refer to `./configure --hel
       The size of the quorum of replicas when using 'replicated_log' based
       registry. It is imperative to set this value to be a majority of
       masters i.e., quorum > (number of masters)/2.
+      <p/>
 
+      <b>NOTE</b> Not required if master is run in standalone mode (non-HA).
     </td>
   </tr>
   <tr>
@@ -158,7 +150,10 @@ If you have special compilation requirements, please refer to `./configure --hel
       ZooKeeper URL (used for leader election amongst masters)
       May be one of:
 <pre><code>zk://host1:port1,host2:port2,.../path
-zk://username:password@host1:port1,host2:port2,.../path</code></pre>
+zk://username:password@host1:port1,host2:port2,.../path
+file:///path/to/file (where file contains one of the above)</code></pre>
+      <p/>
+      <b>NOTE</b> Not required if master is run in standalone mode (non-HA).
     </td>
   </tr>
 </table>
@@ -181,8 +176,8 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
     </td>
     <td>
       The value is a JSON formatted string of ACLs. Remember you can also use
-      the <code>file:///path/to/file</code> argument value format to write the
-      JSON in a file.
+      the <code>file:///path/to/file</code> or <code>/path/to/file</code>
+      argument value format to write the JSON in a file.
       <p/>
       See the ACLs protobuf in mesos.proto for the expected format.
       <p/>
@@ -245,7 +240,8 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
     <td>
       Authenticator implementation to use when authenticating frameworks
       and/or slaves. Use the default <code>crammd5</code>, or
-        load an alternate authenticator module using <code>--modules</code>. (default: crammd5)
+      load an alternate authenticator module using <code>--modules</code>.
+      (default: crammd5)
     </td>
   </tr>
   <tr>
@@ -265,7 +261,8 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
       Either a path to a text file with a list of credentials,
       each line containing 'principal' and 'secret' separated by whitespace,
       or, a path to a JSON-formatted file containing credentials.
-      Path should be of the form <code>file:///path/to/file</code>
+      Path should be of the form <code>file:///path/to/file</code> or
+      <code>/path/to/file</code>
       <p/>
       JSON file Example:
 <pre><code>{
@@ -285,12 +282,31 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
   </tr>
   <tr>
     <td>
+      --external_log_file=VALUE
+    </td>
+    <td>
+      Specified the externally managed log file. This file will be
+      exposed in the webui and HTTP api. This is useful when using
+      stderr logging as the log file is otherwise unknown to Mesos.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --framework_sorter=VALUE
     </td>
     <td>
       Policy to use for allocating resources
       between a given user's frameworks. Options
       are the same as for user_allocator. (default: drf)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --hooks=VALUE
+    </td>
+    <td>
+      A comma separated list of hook modules to be
+      installed inside master.
     </td>
   </tr>
   <tr>
@@ -322,10 +338,10 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
       subsystems.
       <p/>
       Use <code>--modules=filepath</code> to specify the list of modules via a
-      file containing a JSON formatted string. Remember you can also use
-      the <code>file:///path/to/file</code> argument value format to write the
-      JSON in a file.
-      <p/>
+      file containing a JSON formatted string.
+      Remember you can also use the <code>file:///path/to/file</code> or
+      <code>/path/to/file</code> argument value format to write the JSON in a
+      file.<p/>
       Use <code>--modules="{...}"</code> to specify the list of modules inline.
       <p/>
       JSON file example:
@@ -382,8 +398,8 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
       for framework rate limiting.
       <p/>
       Remember you can also use
-      the <code>file:///path/to/file</code> argument value format to write the
-      JSON in a file.
+      the <code>file:///path/to/file</code> or <code>/path/to/file</code>
+      argument value format to write the JSON in a file.
       <p/>
 
       See the RateLimits protobuf in mesos.proto for the expected format.
@@ -617,13 +633,11 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
 </code></pre>
         </li>
 
-        <li> a path to a file containing either one of the above options </li>
-        <pre><code>You can also use the <code>file:///path/to/file</code> syntax
-        to read the argument from a file which contains one of the above</code></pre>
+        <li> a path to a file containing either one of the above options. You
+        can also use the <code>file:///path/to/file</code> syntax to read the
+        argument from a file which contains one of the above.
         </li>
       </ol>
-      Examples:
-
     </td>
   </tr>
 </table>
@@ -648,6 +662,16 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
       Attributes of machine, in the form:
       <p/>
       <code>rack:2</code> or <code>'rack:2;u:1'</code>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --authenticatee=VALUE
+    </td>
+    <td>
+      Authenticatee implementation to use when authenticating against the
+      master. Use the default <code>crammd5</code>, or
+      load an alternate authenticatee module using <code>--modules</code>. (default: crammd5)
     </td>
   </tr>
   <tr>
@@ -690,14 +714,11 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
   </tr>
   <tr>
     <td>
-      --[no-]checkpoint
+      --container_disk_watch_interval=VALUE
     </td>
     <td>
-      This flag is deprecated and will be removed in a future release.
-      Whether to checkpoint slave and frameworks information
-      to disk. This enables a restarted slave to recover
-      status updates and reconnect with (--recover=reconnect) or
-      kill (--recover=cleanup) old executors (default: true)
+      The interval between disk quota checks for containers. This flag is
+      used for the <code>posix/disk</code> isolator. (default: 15secs)
     </td>
   </tr>
   <tr>
@@ -785,24 +806,6 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
   </tr>
   <tr>
     <td>
-      --docker_stop_timeout=VALUE
-    </td>
-    <td>
-      The time as a duration for docker to wait after stopping an instance
-      before it kills that instance. (default: 0secs)
-    </td>
-  </tr>
-    <tr>
-    <td>
-      --network_enable_socket_statistics
-    </td>
-    <td>
-      Whether to collect socket statistics (e.g., TCP RTT) for
-      each container. (default: false)
-    </td>
-  </tr>
-  <tr>
-    <td>
       --default_role=VALUE
     </td>
     <td>
@@ -854,6 +857,24 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
   </tr>
   <tr>
     <td>
+      --docker_stop_timeout=VALUE
+    </td>
+    <td>
+      The time as a duration for docker to wait after stopping an instance
+      before it kills that instance. (default: 0secs)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --[no-]enforce_container_disk_quota
+    </td>
+    <td>
+      Whether to enable disk quota enforcement for containers. This flag
+      is used for the 'posix/disk' isolator. (default: false)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --executor_registration_timeout=VALUE
     </td>
     <td>
@@ -869,6 +890,16 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
     <td>
       Amount of time to wait for an executor
       to shut down (e.g., 60secs, 3mins, etc) (default: 5secs)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --external_log_file=VALUE
+    </td>
+    <td>
+      Specified the externally managed log file. This file will be
+      exposed in the webui and HTTP api. This is useful when using
+      stderr logging as the log file is otherwise unknown to Mesos.
     </td>
   </tr>
   <tr>
@@ -893,6 +924,19 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
   </tr>
   <tr>
     <td>
+      --gc_disk_headroom=VALUE
+    </td>
+    <td>
+      Adjust disk headroom used to calculate maximum executor
+      directory age. Age is calculated by:</p>
+      <code>gc_delay * max(0.0, (1.0 - gc_disk_headroom - disk usage))</code>
+      every <code>--disk_watch_interval</code> duration.
+      <code>gc_disk_headroom</code> must be a value between 0.0 and 1.0
+      (default: 0.1)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --hadoop_home=VALUE
     </td>
     <td>
@@ -900,6 +944,15 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
       fetching framework executors from HDFS)
       (no default, look for HADOOP_HOME in
       environment or find hadoop on PATH) (default: )
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --hooks=VALUE
+    </td>
+    <td>
+      A comma separated list of hook modules to be
+      installed inside master.
     </td>
   </tr>
   <tr>
@@ -941,9 +994,9 @@ zk://username:password@host1:port1,host2:port2,.../path</code></pre>
       List of modules to be loaded and be available to the internal
       subsystems.
       <p/>
-      Remember you can also use the <code>file:///path/to/file</code>
-      argument value format to have the value read from a file.
-      <p/>
+      Remember you can also use the <code>file:///path/to/file</code> or
+      <code>/path/to/file</code> argument value format to have the value read
+      from a file.<p/>
       Use <code>--modules="{...}"</code> to specify the list of modules inline.
       <p/>
       JSON file example:
