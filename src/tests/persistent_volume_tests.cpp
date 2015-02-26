@@ -589,7 +589,7 @@ TEST_F(PersistentVolumeTest, AccessPersistentVolume)
   TaskInfo task = createTask(
       offer.slave_id(),
       taskResources,
-      "echo -n abc > path1/file");
+      "echo abc > path1/file");
 
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
@@ -632,7 +632,7 @@ TEST_F(PersistentVolumeTest, AccessPersistentVolume)
       "role1",
       "id1");
 
-  EXPECT_SOME_EQ("abc", os::read(path::join(volumePath, "file")));
+  EXPECT_SOME_EQ("abc\n", os::read(path::join(volumePath, "file")));
 
   driver.stop();
   driver.join();
