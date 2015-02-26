@@ -19,7 +19,9 @@
 #endif
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <string.h>
+
+#include <arpa/inet.h>
 
 #ifdef __linux__
 #include <linux/if.h>
@@ -33,6 +35,9 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #endif
+
+#include <sys/socket.h>
+#include <sys/types.h>
 
 #include <iostream>
 #include <string>
