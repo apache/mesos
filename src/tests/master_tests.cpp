@@ -37,6 +37,7 @@
 #include <process/metrics/metrics.hpp>
 
 #include <stout/json.hpp>
+#include <stout/memory.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -56,8 +57,11 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/containerizer.hpp"
+#include "tests/limiter.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
+
+using memory::shared_ptr;
 
 using mesos::internal::master::Master;
 
@@ -72,6 +76,7 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
+using process::Promise;
 using process::UPID;
 
 using std::string;
@@ -1835,6 +1840,174 @@ TEST_F(MasterTest, NonStrictRegistryWriteOnly)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveReregisteredMessage);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test ensures that slave removals during master recovery
+// are rate limited.
+TEST_F(MasterTest, RateLimitRecoveredSlaveRemoval)
+{
+  // Start a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master> > master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Stop the slave while the master is down.
+  this->Stop(master.get());
+  this->Stop(slave.get());
+
+  shared_ptr<MockRateLimiter> slaveRemovalLimiter(new MockRateLimiter());
+
+  // Return a pending future from the rate limiter.
+  Future<Nothing> acquire;
+  Promise<Nothing> promise;
+  EXPECT_CALL(*slaveRemovalLimiter, acquire())
+    .WillOnce(DoAll(FutureSatisfy(&acquire),
+                    Return(promise.future())));
+
+  // Restart the master.
+  master = StartMaster(slaveRemovalLimiter, masterFlags);
+  ASSERT_SOME(master);
+
+  // Start a scheduler to ensure the master would notify
+  // a framework about slave removal.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillRepeatedly(FutureSatisfy(&slaveLost));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  // Trigger the slave re-registration timeout.
+  Clock::pause();
+  Clock::advance(masterFlags.slave_reregister_timeout);
+
+  // The master should attempt to acquire a permit.
+  AWAIT_READY(acquire);
+
+  // The removal should not occur before the permit is satisfied.
+  Clock::settle();
+  ASSERT_TRUE(slaveLost.isPending());
+
+  // Once the permit is satisfied, the slave should be removed.
+  promise.set(Nothing());
+  AWAIT_READY(slaveLost);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test ensures that slave removals that get scheduled during
+// master recovery can be canceled if the slave re-registers.
+TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
+{
+  // Start a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master> > master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  // Start a slave with checkpointing.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.checkpoint = true;
+  slaveFlags.recover = "reconnect";
+  slaveFlags.strict = true;
+  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Stop the slave while the master is down.
+  this->Stop(master.get());
+  this->Stop(slave.get());
+
+  shared_ptr<MockRateLimiter> slaveRemovalLimiter(new MockRateLimiter());
+
+  // Return a pending future from the rate limiter.
+  Future<Nothing> acquire;
+  Promise<Nothing> promise;
+  EXPECT_CALL(*slaveRemovalLimiter, acquire())
+    .WillOnce(DoAll(FutureSatisfy(&acquire),
+                    Return(promise.future())));
+
+  // Restart the master.
+  master = StartMaster(slaveRemovalLimiter, masterFlags);
+  ASSERT_SOME(master);
+
+  // Start a scheduler to ensure the master would notify
+  // a framework about slave removal.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillRepeatedly(FutureSatisfy(&slaveLost));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  // Trigger the slave re-registration timeout.
+  Clock::pause();
+  Clock::advance(masterFlags.slave_reregister_timeout);
+
+  // The master should attempt to acquire a permit.
+  AWAIT_READY(acquire);
+
+  // The removal should not occur before the permit is satisfied.
+  Clock::settle();
+  ASSERT_TRUE(slaveLost.isPending());
+
+  // Ignore resource offers from the re-registered slave.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), _);
+
+  // Restart the slave.
+  slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Satisfy the rate limit permit. Ensure a removal does not occur!
+  promise.set(Nothing());
+  Clock::settle();
+  ASSERT_TRUE(slaveLost.isPending());
 
   driver.stop();
   driver.join();
