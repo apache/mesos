@@ -21,6 +21,7 @@
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
+#include <stout/memory.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/result.hpp>
@@ -46,6 +47,8 @@
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
+
+using memory::shared_ptr;
 
 using std::string;
 using testing::_;
@@ -206,6 +209,18 @@ Try<PID<master::Master> > MesosTest::StartMaster(
       flags.isNone() ? CreateMasterFlags() : flags.get(),
       None(),
       authorizer);
+}
+
+
+Try<PID<master::Master>> MesosTest::StartMaster(
+    const shared_ptr<MockRateLimiter>& slaveRemovalLimiter,
+    const Option<master::Flags>& flags)
+{
+  return cluster.masters.start(
+      flags.isNone() ? CreateMasterFlags() : flags.get(),
+      None(),
+      None(),
+      slaveRemovalLimiter);
 }
 
 

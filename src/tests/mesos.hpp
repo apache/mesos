@@ -57,6 +57,7 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/cluster.hpp"
+#include "tests/limiter.hpp"
 #include "tests/utils.hpp"
 
 #ifdef MESOS_HAS_JAVA
@@ -103,6 +104,11 @@ protected:
   // returning if 'wait' is set to true.
   virtual Try<process::PID<master::Master> > StartMaster(
       Authorizer* authorizer,
+      const Option<master::Flags>& flags = None());
+
+  // Starts a master with a slave removal rate limiter and flags.
+  virtual Try<process::PID<master::Master> > StartMaster(
+      const memory::shared_ptr<MockRateLimiter>& slaveRemovalLimiter,
       const Option<master::Flags>& flags = None());
 
   // TODO(bmahler): Consider adding a builder style interface, e.g.

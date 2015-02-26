@@ -36,6 +36,7 @@
 #include <process/pid.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/memory.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -56,7 +57,10 @@
 
 #include "tests/containerizer.hpp"
 #include "tests/flags.hpp"
+#include "tests/limiter.hpp"
 #include "tests/mesos.hpp"
+
+using memory::shared_ptr;
 
 using namespace mesos::internal::slave;
 
@@ -1302,14 +1306,13 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
 
 
 // This test ensures that when slave removal rate limit is specified
-// a slave that fails health checks is removed after acquiring permit
-// from the rate limiter.
+// a slave that fails health checks is removed after a permit is
+// provided by the rate limiter.
 TEST_F(SlaveTest, RateLimitSlaveShutdown)
 {
   // Start a master.
-  master::Flags flags = CreateMasterFlags();
-  flags.slave_removal_rate_limit = "1/1secs";
-  Try<PID<Master> > master = StartMaster(flags);
+  shared_ptr<MockRateLimiter> slaveRemovalLimiter(new MockRateLimiter());
+  Try<PID<Master> > master = StartMaster(slaveRemovalLimiter);
   ASSERT_SOME(master);
 
   // Set these expectations up before we spawn the slave so that we
@@ -1328,31 +1331,39 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  Future<Nothing> acquire =
-    FUTURE_DISPATCH(_, &RateLimiterProcess::acquire);
+  // Return a pending future from the rate limiter.
+  Future<Nothing> acquire;
+  Promise<Nothing> promise;
+  EXPECT_CALL(*slaveRemovalLimiter, acquire())
+    .WillOnce(DoAll(FutureSatisfy(&acquire),
+                    Return(promise.future())));
 
   Future<ShutdownMessage> shutdown = FUTURE_PROTOBUF(ShutdownMessage(), _, _);
 
-  // Now advance through the PINGs.
+  // Induce a health check failure of the slave.
   Clock::pause();
   uint32_t pings = 0;
   while (true) {
     AWAIT_READY(ping);
     pings++;
     if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+      Clock::advance(master::SLAVE_PING_TIMEOUT);
       break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
     Clock::advance(master::SLAVE_PING_TIMEOUT);
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
-  Clock::settle();
-
-  // Master should acquire the permit for shutting down the slave.
+  // The master should attempt to acquire a permit.
   AWAIT_READY(acquire);
 
-  // Master should shutdown the slave.
+  // The shutdown should not occur before the permit is satisfied.
+  Clock::settle();
+  ASSERT_TRUE(shutdown.isPending());
+
+  // Once the permit is satisfied, the shutdown message
+  // should be sent.
+  promise.set(Nothing());
   AWAIT_READY(shutdown);
 }
 
@@ -1363,11 +1374,8 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
 TEST_F(SlaveTest, CancelSlaveShutdown)
 {
   // Start a master.
-  master::Flags flags = CreateMasterFlags();
-  // Interval between slave removals.
-  Duration interval = master::SLAVE_PING_TIMEOUT * 10;
-  flags.slave_removal_rate_limit = "1/" + stringify(interval);
-  Try<PID<Master> > master = StartMaster(flags);
+  shared_ptr<MockRateLimiter> slaveRemovalLimiter(new MockRateLimiter());
+  Try<PID<Master> > master = StartMaster(slaveRemovalLimiter);
   ASSERT_SOME(master);
 
   // Set these expectations up before we spawn the slave so that we
@@ -1377,71 +1385,58 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
   // Drop all the PONGs to simulate health check timeout.
   DROP_MESSAGES(Eq("PONG"), _, _);
 
-  // NOTE: We start two slaves in this test so that the rate limiter
-  // used by the slave observers gives out 2 permits. The first permit
-  // gets satisfied immediately. And since the 2nd permit will be
-  // enqueued, it's corresponding future can be discarded before it
-  // becomes ready.
-  // TODO(vinod): Inject a rate limiter into 'Master' instead to
-  // simplify the test.
+  // No shutdown should occur during the test!
+  EXPECT_NO_FUTURE_PROTOBUFS(ShutdownMessage(), _, _);
 
-  // Start the first slave.
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage1 =
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<PID<Slave> > slave1 = StartSlave();
-  ASSERT_SOME(slave1);
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveRegisteredMessage1);
+  AWAIT_READY(slaveRegisteredMessage);
 
-  // Start the second slave.
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+  // Return a pending future from the rate limiter.
+  Future<Nothing> acquire;
+  Promise<Nothing> promise;
+  EXPECT_CALL(*slaveRemovalLimiter, acquire())
+    .WillOnce(DoAll(FutureSatisfy(&acquire),
+                    Return(promise.future())));
 
-  Try<PID<Slave> > slave2 = StartSlave();
-  ASSERT_SOME(slave2);
-
-  AWAIT_READY(slaveRegisteredMessage2);
-
-  Future<Nothing> acquire1 =
-    FUTURE_DISPATCH(_, &RateLimiterProcess::acquire);
-
-  Future<Nothing> acquire2 =
-    FUTURE_DISPATCH(_, &RateLimiterProcess::acquire);
-
-  Future<ShutdownMessage> shutdown = FUTURE_PROTOBUF(ShutdownMessage(), _, _);
-
-  // Now advance through the PINGs until shutdown permits are given
-  // out for both the slaves.
+  // Induce a health check failure of the slave.
   Clock::pause();
+  uint32_t pings = 0;
   while (true) {
     AWAIT_READY(ping);
-    if (acquire1.isReady() && acquire2.isReady()) {
+    pings++;
+    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+      Clock::advance(master::SLAVE_PING_TIMEOUT);
       break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
     Clock::advance(master::SLAVE_PING_TIMEOUT);
   }
+
+  // The master should attempt to acquire a permit.
+  AWAIT_READY(acquire);
+
+  // Settle to make sure the shutdown does not occur.
   Clock::settle();
 
-  // The slave that first timed out should be shutdown right away.
-  AWAIT_READY(shutdown);
-
-  // Ensure the 2nd slave's shutdown is canceled.
-  EXPECT_NO_FUTURE_PROTOBUFS(ShutdownMessage(), _, _);
-
-  // Reset the filters to allow pongs from the 2nd slave.
+  // Reset the filters to allow pongs from the slave.
   filter(NULL);
 
   // Advance clock enough to do a ping pong.
   Clock::advance(master::SLAVE_PING_TIMEOUT);
   Clock::settle();
 
-  // Now advance the clock to the time the 2nd permit is acquired.
-  Clock::advance(interval);
+  // The master should have tried to cancel the removal.
+  ASSERT_TRUE(promise.future().hasDiscard());
 
-  // Settle the clock to give a chance for the master to shutdown
-  // the 2nd slave (it shouldn't in this test).
+  // Allow the cancelation and settle the clock to ensure a shutdown
+  // does not occur.
+  promise.discard();
   Clock::settle();
 }
 
