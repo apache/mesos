@@ -21,6 +21,8 @@
 #include <map>
 #include <string>
 
+#include <hdfs/hdfs.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -82,7 +84,9 @@ TEST_F(FetcherEnvironmentTest, Simple)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(1u, environment.size());
+  EXPECT_EQ(2u, environment.size());
+
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
 
   Try<JSON::Object> parse =
     JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
@@ -96,7 +100,6 @@ TEST_F(FetcherEnvironmentTest, Simple)
   EXPECT_EQ(directory, fetcherInfo.get().work_directory());
   EXPECT_EQ(user.get(), fetcherInfo.get().user());
   EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -121,7 +124,9 @@ TEST_F(FetcherEnvironmentTest, MultipleURIs)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(1u, environment.size());
+  EXPECT_EQ(2u, environment.size());
+
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
 
   Try<JSON::Object> parse =
     JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
@@ -135,7 +140,6 @@ TEST_F(FetcherEnvironmentTest, MultipleURIs)
   EXPECT_EQ(directory, fetcherInfo.get().work_directory());
   EXPECT_EQ(user.get(), fetcherInfo.get().user());
   EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -155,7 +159,9 @@ TEST_F(FetcherEnvironmentTest, NoUser)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, None(), flags);
 
-  EXPECT_EQ(1u, environment.size());
+  EXPECT_EQ(2u, environment.size());
+
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
 
   Try<JSON::Object> parse =
     JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
@@ -169,7 +175,6 @@ TEST_F(FetcherEnvironmentTest, NoUser)
   EXPECT_EQ(directory, fetcherInfo.get().work_directory());
   EXPECT_FALSE(fetcherInfo.get().has_user());
   EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -190,6 +195,7 @@ TEST_F(FetcherEnvironmentTest, EmptyHadoop)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
+  EXPECT_EQ(0, environment.count("HADOOP_HOME"));
   EXPECT_EQ(1u, environment.size());
 
   Try<JSON::Object> parse =
@@ -204,7 +210,6 @@ TEST_F(FetcherEnvironmentTest, EmptyHadoop)
   EXPECT_EQ(directory, fetcherInfo.get().work_directory());
   EXPECT_EQ(user.get(), fetcherInfo.get().user());
   EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -224,6 +229,7 @@ TEST_F(FetcherEnvironmentTest, NoHadoop)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
+  EXPECT_EQ(0, environment.count("HADOOP_HOME"));
   EXPECT_EQ(1u, environment.size());
 
   Try<JSON::Object> parse =
@@ -238,7 +244,6 @@ TEST_F(FetcherEnvironmentTest, NoHadoop)
   EXPECT_EQ(directory, fetcherInfo.get().work_directory());
   EXPECT_EQ(user.get(), fetcherInfo.get().user());
   EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-  EXPECT_FALSE(fetcherInfo.get().has_hadoop_home());
 }
 
 
@@ -260,7 +265,9 @@ TEST_F(FetcherEnvironmentTest, NoExtractNoExecutable)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(1u, environment.size());
+  EXPECT_EQ(2u, environment.size());
+
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
 
   Try<JSON::Object> parse =
     JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
@@ -274,7 +281,6 @@ TEST_F(FetcherEnvironmentTest, NoExtractNoExecutable)
   EXPECT_EQ(directory, fetcherInfo.get().work_directory());
   EXPECT_EQ(user.get(), fetcherInfo.get().user());
   EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -296,7 +302,9 @@ TEST_F(FetcherEnvironmentTest, NoExtractExecutable)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(1u, environment.size());
+  EXPECT_EQ(2u, environment.size());
+
+  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
 
   Try<JSON::Object> parse =
     JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
@@ -310,7 +318,6 @@ TEST_F(FetcherEnvironmentTest, NoExtractExecutable)
   EXPECT_EQ(directory, fetcherInfo.get().work_directory());
   EXPECT_EQ(user.get(), fetcherInfo.get().user());
   EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-  EXPECT_EQ(flags.hadoop_home, fetcherInfo.get().hadoop_home());
 }
 
 
@@ -328,7 +335,6 @@ TEST_F(FetcherTest, FileURI)
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.frameworks_home = "/tmp/frameworks";
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -353,22 +359,21 @@ TEST_F(FetcherTest, FileURI)
 }
 
 
-TEST_F(FetcherTest, FilePath)
+TEST_F(FetcherTest, AbsoluteFilePath)
 {
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
-  string testFile = path::join(fromDir, "test");
-  EXPECT_FALSE(os::write(testFile, "data").isError());
+  string testPath = path::join(fromDir, "test");
+  EXPECT_FALSE(os::write(testPath, "data").isError());
 
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.frameworks_home = "/tmp/frameworks";
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
-  uri->set_value(testFile);
+  uri->set_value(testPath);
 
   map<string, string> environment =
     Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
@@ -384,6 +389,65 @@ TEST_F(FetcherTest, FilePath)
   AWAIT_READY(status);
   ASSERT_SOME(status.get());
   EXPECT_EQ(0, status.get().get());
+
+  EXPECT_TRUE(os::exists(localFile));
+}
+
+
+TEST_F(FetcherTest, RelativeFilePath)
+{
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+  string testPath = path::join(fromDir, "test");
+  EXPECT_FALSE(os::write(testPath, "data").isError());
+
+  string localFile = path::join(os::getcwd(), "test");
+  EXPECT_FALSE(os::exists(localFile));
+
+  slave::Flags flags;
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("test");
+
+  // The first run must fail, because we have not set frameworks_home yet.
+
+  map<string, string> environment1 =
+    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
+
+  Try<Subprocess> fetcherSubprocess1 =
+    process::subprocess(
+      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
+      environment1);
+
+  ASSERT_SOME(fetcherSubprocess1);
+  Future<Option<int>> status1 = fetcherSubprocess1.get().status();
+
+  AWAIT_READY(status1);
+  ASSERT_SOME(status1.get());
+
+  // mesos-fetcher always exits with EXIT(1) on failure.
+  EXPECT_EQ(1, WIFEXITED(status1.get().get()));
+
+  EXPECT_FALSE(os::exists(localFile));
+
+  // The next run must succeed due to this flag.
+  flags.frameworks_home = fromDir;
+
+  map<string, string> environment2 =
+    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
+
+  Try<Subprocess> fetcherSubprocess2 =
+    process::subprocess(
+      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
+      environment2);
+
+  ASSERT_SOME(fetcherSubprocess2);
+  Future<Option<int>> status2 = fetcherSubprocess2.get().status();
+
+  AWAIT_READY(status2);
+  ASSERT_SOME(status2.get());
+  EXPECT_EQ(0, status2.get().get());
 
   EXPECT_TRUE(os::exists(localFile));
 }
@@ -634,6 +698,97 @@ TEST_F(FetcherTest, ExtractNotExecutable)
   EXPECT_FALSE(permissions.get().others.x);
 
   ASSERT_SOME(os::rm(path.get()));
+}
+
+
+// Tests fetching via the local HDFS client. Since we cannot rely on
+// Hadoop being installed, we use our own mock version that works on
+// the local file system only, but this lets us exercise the exact
+// same C++ code paths as if there were real Hadoop at the other end.
+// Specifying a source URI that begins with "hdfs://" makes control
+// flow go there. To use this method of fetching, the slave flag
+// hadoop_home gets set to a path where we create a fake hadoop
+// executable. This also tests whether the HADOOP_HOME environment
+// variable gets set for mesos-fetcher (MESOS-2390).
+TEST_F(FetcherTest, HdfsURI)
+{
+  string hadoopPath = os::getcwd();
+  ASSERT_TRUE(os::exists(hadoopPath));
+
+  string hadoopBinPath = path::join(hadoopPath, "bin");
+  ASSERT_SOME(os::mkdir(hadoopBinPath));
+  ASSERT_SOME(os::chmod(hadoopBinPath, S_IRWXU | S_IRWXG | S_IRWXO));
+
+  const string& proof = path::join(hadoopPath, "proof");
+
+  // This acts exactly as "hadoop" for testing purposes.
+  string mockHadoopScript =
+    "#!/usr/bin/env bash\n"
+    "\n"
+    "touch " + proof + "\n"
+    "\n"
+    "if [[ 'version' == $1 ]]; then\n"
+    "  echo $0 'for Mesos testing'\n"
+    "fi\n"
+    "\n"
+    "# hadoop fs -copyToLocal $3 $4\n"
+    "if [[ 'fs' == $1 && '-copyToLocal' == $2 ]]; then\n"
+    "  if [[ $3 == 'hdfs://'* ]]; then\n"
+    "    # Remove 'hdfs://<host>/' and use just the (absolute) path.\n"
+    "    withoutProtocol=${3/'hdfs:'\\/\\//}\n"
+    "    withoutHost=${withoutProtocol#*\\/}\n"
+    "    absolutePath='/'$withoutHost\n"
+    "   cp $absolutePath $4\n"
+    "  else\n"
+    "    cp #3 $4\n"
+    "  fi\n"
+    "fi\n";
+
+  string hadoopCommand = path::join(hadoopBinPath, "hadoop");
+  ASSERT_SOME(os::write(hadoopCommand, mockHadoopScript));
+  ASSERT_SOME(os::chmod(hadoopCommand,
+                        S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH));
+
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+  string testFile = path::join(fromDir, "test");
+  EXPECT_SOME(os::write(testFile, "data"));
+
+  string localFile = path::join(os::getcwd(), "test");
+  EXPECT_FALSE(os::exists(localFile));
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.hadoop_home = hadoopPath;
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path::join("hdfs://localhost", testFile));
+
+  Option<int> stdout = None();
+  Option<int> stderr = None();
+
+  // Redirect mesos-fetcher output if running the tests verbosely.
+  if (tests::flags.verbose) {
+    stdout = STDOUT_FILENO;
+    stderr = STDERR_FILENO;
+  }
+
+  Fetcher fetcher;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), flags, stdout, stderr);
+
+  AWAIT_READY(fetch);
+
+  // Proof that we used our own mock version of Hadoop.
+  ASSERT_TRUE(os::exists(proof));
+
+  // Proof that hdfs fetching worked.
+  EXPECT_TRUE(os::exists(localFile));
 }
 
 } // namespace tests {

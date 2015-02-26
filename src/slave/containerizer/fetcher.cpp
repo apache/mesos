@@ -71,11 +71,12 @@ map<string, string> Fetcher::environment(
     fetcherInfo.set_frameworks_home(flags.frameworks_home);
   }
 
+  map<string, string> result;
+
   if (!flags.hadoop_home.empty()) {
-    fetcherInfo.set_hadoop_home(flags.hadoop_home);
+    result["HADOOP_HOME"] = flags.hadoop_home;
   }
 
-  map<string, string> result;
   result["MESOS_FETCHER_INFO"] = stringify(JSON::Protobuf(fetcherInfo));
 
   return result;
