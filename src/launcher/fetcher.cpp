@@ -149,7 +149,8 @@ Try<string> fetchWithNet(
 
 Try<string> fetchWithLocalCopy(
     const string& uri,
-    const string& directory)
+    const string& directory,
+    const Option<std::string>& frameworksHome)
 {
     string local = uri;
     bool fileUri = false;
@@ -167,16 +168,15 @@ Try<string> fetchWithLocalCopy(
 
     if (local.find_first_of("/") != 0) {
         // We got a non-Hadoop and non-absolute path.
-        if (os::hasenv("MESOS_FRAMEWORKS_HOME")) {
-            local = path::join(os::getenv("MESOS_FRAMEWORKS_HOME"), local);
-            LOG(INFO) << "Prepended environment variable "
-            << "MESOS_FRAMEWORKS_HOME to relative path, "
-            << "making it: '" << local << "'";
+        if (frameworksHome.isSome()) {
+            local = path::join(frameworksHome.get(), local);
+            LOG(INFO) << "Prepended the slave's frameworks_home flag value "
+                      << " to relative path, making it: '" << local << "'";
         } else {
             LOG(ERROR) << "A relative path was passed for the resource but the "
-            << "environment variable MESOS_FRAMEWORKS_HOME is not set. "
-            << "Please either specify this config option "
-            << "or avoid using a relative path";
+                       << "slave's frameworks_home flag is not set; "
+                       << "please either specify this slave configuration "
+                       << "option or avoid using a relative path";
             return Error("Could not resolve relative URI");
         }
     }
@@ -192,12 +192,12 @@ Try<string> fetchWithLocalCopy(
     std::ostringstream command;
     command << "cp '" << local << "' '" << path << "'";
     LOG(INFO) << "Copying resource from '" << local
-    << "' to '" << directory << "'";
+              << "' to '" << directory << "'";
 
     int status = os::system(command.str());
     if (status != 0) {
         LOG(ERROR) << "Failed to copy '" << local
-        << "' : Exit status " << status;
+                   << "' : Exit status " << status;
         return Error("Local copy failed");
     }
 
@@ -208,7 +208,8 @@ Try<string> fetchWithLocalCopy(
 // Fetch URI into directory.
 Try<string> fetch(
     const string& uri,
-    const string& directory)
+    const string& directory,
+    const Option<std::string>& frameworksHome)
 {
     LOG(INFO) << "Fetching URI '" << uri << "'";
     // Some checks to make sure using the URI value in shell commands
@@ -225,7 +226,7 @@ Try<string> fetch(
     // We consider file:// or no scheme uri are considered local uri.
     if (strings::startsWith(uri, "file://") ||
         uri.find("://") == string::npos) {
-      return fetchWithLocalCopy(uri, directory);
+      return fetchWithLocalCopy(uri, directory, frameworksHome);
     }
 
     // 2. Try to fetch URI using os::net / libcurl implementation.
@@ -295,10 +296,15 @@ int main(int argc, char* argv[])
     user = fetcherInfo.get().user();
   }
 
+  Option<std::string> frameworksHome = None();
+  if (fetcherInfo.get().has_frameworks_home()) {
+    frameworksHome = fetcherInfo.get().frameworks_home();
+  }
+
   // Fetch each URI to a local file, chmod, then chown if a user is provided.
   foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
     // Fetch the URI to a local file.
-    Try<string> fetched = fetch(uri.value(), directory);
+    Try<string> fetched = fetch(uri.value(), directory, frameworksHome);
     if (fetched.isError()) {
       EXIT(1) << "Failed to fetch: " << uri.value();
     }
