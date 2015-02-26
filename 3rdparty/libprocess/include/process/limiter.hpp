@@ -32,11 +32,11 @@ class RateLimiter
 public:
   RateLimiter(int permits, const Duration& duration);
   explicit RateLimiter(double permitsPerSecond);
-  ~RateLimiter();
+  virtual ~RateLimiter();
 
   // Returns a future that becomes ready when the permit is acquired.
   // Discarding this future cancels this acquisition.
-  Future<Nothing> acquire();
+  virtual Future<Nothing> acquire();
 
 private:
   // Not copyable, not assignable.
