@@ -19,17 +19,22 @@
 #include <stdint.h>
 
 #include <set>
+#include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
 #include <mesos/module/anonymous.hpp>
 
+#include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/check.hpp>
+#include <stout/duration.hpp>
 #include <stout/exit.hpp>
 #include <stout/flags.hpp>
+#include <stout/memory.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -72,12 +77,15 @@ using namespace mesos::internal::log;
 using namespace mesos::internal::master;
 using namespace zookeeper;
 
+using memory::shared_ptr;
+
 using mesos::MasterInfo;
 
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
 using process::Owned;
+using process::RateLimiter;
 using process::UPID;
 
 using std::cerr;
@@ -85,6 +93,7 @@ using std::cout;
 using std::endl;
 using std::set;
 using std::string;
+using std::vector;
 
 
 void usage(const char* argv0, const flags::FlagsBase& flags)
@@ -287,6 +296,39 @@ int main(int argc, char** argv)
     authorizer = authorizer__.release();
   }
 
+  Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();
+  if (flags.slave_removal_rate_limit.isSome()) {
+    // Parse the flag value.
+    // TODO(vinod): Move this parsing logic to flags once we have a
+    // 'Rate' abstraction in stout.
+    vector<string> tokens =
+      strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
+
+    if (tokens.size() != 2) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>";
+    }
+
+    Try<int> permits = numify<int>(tokens[0]);
+    if (permits.isError()) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>"
+              << ": " << permits.error();
+    }
+
+    Try<Duration> duration = Duration::parse(tokens[1]);
+    if (duration.isError()) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>"
+              << ": " << duration.error();
+    }
+
+    slaveRemovalLimiter = new RateLimiter(permits.get(), duration.get());
+  }
+
   // Create anonymous modules.
   foreach (const string& name, ModuleManager::find<Anonymous>()) {
     Try<Anonymous*> create = ModuleManager::create<Anonymous>(name);
@@ -314,6 +356,7 @@ int main(int argc, char** argv)
       contender,
       detector,
       authorizer,
+      slaveRemovalLimiter,
       flags);
 
   if (zk.isNone()) {

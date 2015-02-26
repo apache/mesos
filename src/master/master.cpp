@@ -273,6 +273,7 @@ Master::Master(
     MasterContender* _contender,
     MasterDetector* _detector,
     const Option<Authorizer*>& _authorizer,
+    const Option<shared_ptr<RateLimiter>>& _slaveRemovalLimiter,
     const Flags& _flags)
   : ProcessBase("master"),
     http(this),
@@ -287,6 +288,8 @@ Master::Master(
     metrics(new Metrics(*this)),
     electedTime(None())
 {
+  slaves.limiter = _slaveRemovalLimiter;
+
   // NOTE: We populate 'info_' here instead of inside 'initialize()'
   // because 'StandaloneMasterDetector' needs access to the info.
 
@@ -489,39 +492,11 @@ void Master::initialize()
     LOG(INFO) << "Framework rate limiting enabled";
   }
 
-  if (flags.slave_removal_rate_limit.isSome()) {
+  // If the rate limiter is injected for testing,
+  // the flag may not be set.
+  if (slaves.limiter.isSome() && flags.slave_removal_rate_limit.isSome()) {
     LOG(INFO) << "Slave removal is rate limited to "
               << flags.slave_removal_rate_limit.get();
-
-    // Parse the flag value.
-    // TODO(vinod): Move this parsing logic to flags once we have a
-    // 'Rate' abstraction in stout.
-    vector<string> tokens =
-      strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
-
-    if (tokens.size() != 2) {
-      EXIT(1) << "Invalid slave_removal_rate_limit: "
-              << flags.slave_removal_rate_limit.get()
-              << ". Format is <Number of slaves>/<Duration>";
-    }
-
-    Try<int> permits = numify<int>(tokens[0]);
-    if (permits.isError()) {
-      EXIT(1) << "Invalid slave_removal_rate_limit: "
-              << flags.slave_removal_rate_limit.get()
-              << ". Format is <Number of slaves>/<Duration>"
-              << ": " << permits.error();
-    }
-
-    Try<Duration> duration = Duration::parse(tokens[1]);
-    if (duration.isError()) {
-      EXIT(1) << "Invalid slave_removal_rate_limit: "
-              << flags.slave_removal_rate_limit.get()
-              << ". Format is <Number of slaves>/<Duration>"
-              << ": " << duration.error();
-    }
-
-    slaves.limiter = new RateLimiter(permits.get(), duration.get());
   }
 
   hashmap<string, RoleInfo> roleInfos;

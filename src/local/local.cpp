@@ -19,15 +19,19 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include <mesos/module/anonymous.hpp>
 
+#include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/memory.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/try.hpp>
@@ -66,6 +70,8 @@
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 
+using memory::shared_ptr;
+
 using namespace mesos::internal;
 using namespace mesos::internal::log;
 
@@ -87,6 +93,7 @@ using mesos::modules::ModuleManager;
 
 using process::Owned;
 using process::PID;
+using process::RateLimiter;
 using process::UPID;
 
 using std::map;
@@ -200,6 +207,39 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       authorizer = authorizer__.release();
     }
 
+    Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();
+    if (flags.slave_removal_rate_limit.isSome()) {
+      // Parse the flag value.
+      // TODO(vinod): Move this parsing logic to flags once we have a
+      // 'Rate' abstraction in stout.
+      vector<string> tokens =
+        strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
+
+      if (tokens.size() != 2) {
+        EXIT(1) << "Invalid slave_removal_rate_limit: "
+                << flags.slave_removal_rate_limit.get()
+                << ". Format is <Number of slaves>/<Duration>";
+      }
+
+      Try<int> permits = numify<int>(tokens[0]);
+      if (permits.isError()) {
+        EXIT(1) << "Invalid slave_removal_rate_limit: "
+                << flags.slave_removal_rate_limit.get()
+                << ". Format is <Number of slaves>/<Duration>"
+                << ": " << permits.error();
+      }
+
+      Try<Duration> duration = Duration::parse(tokens[1]);
+      if (duration.isError()) {
+        EXIT(1) << "Invalid slave_removal_rate_limit: "
+                << flags.slave_removal_rate_limit.get()
+                << ". Format is <Number of slaves>/<Duration>"
+                << ": " << duration.error();
+      }
+
+      slaveRemovalLimiter = new RateLimiter(permits.get(), duration.get());
+    }
+
     // Create anonymous modules.
     foreach (const string& name, ModuleManager::find<Anonymous>()) {
       Try<Anonymous*> create = ModuleManager::create<Anonymous>(name);
@@ -224,6 +264,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         contender,
         detector,
         authorizer,
+        slaveRemovalLimiter,
         flags);
 
     detector->appoint(master->info());

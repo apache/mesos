@@ -34,6 +34,7 @@
 
 #include <mesos/module/authenticator.hpp>
 
+#include <process/limiter.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -104,6 +105,8 @@ public:
          MasterContender* contender,
          MasterDetector* detector,
          const Option<Authorizer*>& authorizer,
+         const Option<memory::shared_ptr<process::RateLimiter>>&
+           slaveRemovalLimiter,
          const Flags& flags = Flags());
 
   virtual ~Master();

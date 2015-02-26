@@ -20,6 +20,8 @@
 #define __TESTS_CLUSTER_HPP__
 
 #include <map>
+#include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -27,13 +29,16 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>
+#include <stout/memory.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
@@ -101,7 +106,9 @@ public:
     Try<process::PID<master::Master> > start(
         const master::Flags& flags = master::Flags(),
         const Option<master::allocator::Allocator*>& allocator = None(),
-        const Option<Authorizer*>& authorizer = None());
+        const Option<Authorizer*>& authorizer = None(),
+        const Option<memory::shared_ptr<process::RateLimiter> >&
+          slaveRemovalLimiter = None());
 
     // Stops and cleans up a master at the specified PID.
     Try<Nothing> stop(const process::PID<master::Master>& pid);
@@ -136,6 +143,8 @@ public:
       process::Owned<MasterDetector> detector;
 
       process::Owned<Authorizer> authorizer;
+
+      Option<memory::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
 
       master::Master* master;
     };
@@ -246,7 +255,8 @@ inline void Cluster::Masters::shutdown()
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const master::Flags& flags,
     const Option<master::allocator::Allocator*>& allocator,
-    const Option<Authorizer*>& authorizer)
+    const Option<Authorizer*>& authorizer,
+    const Option<memory::shared_ptr<process::RateLimiter>>& slaveRemovalLimiter)
 {
   // Disallow multiple masters when not using ZooKeeper.
   if (!masters.empty() && url.isNone()) {
@@ -333,6 +343,40 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
     master.authorizer = authorizer__;
   }
 
+  if (slaveRemovalLimiter.isNone() &&
+      flags.slave_removal_rate_limit.isSome()) {
+    // Parse the flag value.
+    // TODO(vinod): Move this parsing logic to flags once we have a
+    // 'Rate' abstraction in stout.
+    std::vector<std::string> tokens =
+      strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
+
+    if (tokens.size() != 2) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>";
+    }
+
+    Try<int> permits = numify<int>(tokens[0]);
+    if (permits.isError()) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>"
+              << ": " << permits.error();
+    }
+
+    Try<Duration> duration = Duration::parse(tokens[1]);
+    if (duration.isError()) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>"
+              << ": " << duration.error();
+    }
+
+    master.slaveRemovalLimiter = memory::shared_ptr<process::RateLimiter>(
+        new process::RateLimiter(permits.get(), duration.get()));
+  }
+
   master.master = new master::Master(
       master.allocator,
       master.registrar.get(),
@@ -340,7 +384,10 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
       &cluster->files,
       master.contender.get(),
       master.detector.get(),
-      authorizer.isSome() ? authorizer : master.authorizer.get(),
+      authorizer.isSome()
+          ? authorizer : master.authorizer.get(),
+      slaveRemovalLimiter.isSome()
+          ? slaveRemovalLimiter : master.slaveRemovalLimiter,
       flags);
 
   if (url.isNone()) {
