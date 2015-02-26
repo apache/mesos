@@ -33,5 +33,4 @@ message FetcherInfo {
   required string work_directory = 2;
   optional string user = 3;
   optional string frameworks_home = 4;
-  optional string hadoop_home = 5;
 }
