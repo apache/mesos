@@ -660,6 +660,7 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
           errno == ESRCH ||
           errno == EBADF ||
           errno == EPERM) {
+        delete[] buffer;
         return None();
       }
 
@@ -715,6 +716,7 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
           errno == ESRCH ||
           errno == EBADF ||
           errno == EPERM) {
+        delete[] buffer;
         return None();
       }
 
