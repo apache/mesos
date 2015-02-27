@@ -2,6 +2,7 @@
 #define __ENCODER_HPP__
 
 #include <stdint.h>
+#include <time.h>
 
 #include <map>
 #include <sstream>
@@ -178,8 +179,12 @@ public:
 
     char date[256];
 
+    tm tm_;
+    PCHECK(gmtime_r(&rawtime, &tm_) != NULL)
+      << "Cannot convert the current time to a tm struct using gmtime_r()";
+
     // TODO(benh): Check return code of strftime!
-    strftime(date, 256, "%a, %d %b %Y %H:%M:%S GMT", gmtime(&rawtime));
+    strftime(date, 256, "%a, %d %b %Y %H:%M:%S GMT", &tm_);
 
     headers["Date"] = date;
 

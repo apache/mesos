@@ -1,6 +1,8 @@
 #ifndef __PROCESS_TIME_HPP__
 #define __PROCESS_TIME_HPP__
 
+#include <time.h>
+
 #include <iomanip>
 
 #include <glog/logging.h>
@@ -87,14 +89,14 @@ inline std::ostream& operator << (std::ostream& stream, const Time& time)
   char date[64];
 
   // The RFC 3339 Format.
-  tm* tm_ = gmtime(&secs);
-  if (tm_ == NULL) {
-    LOG(ERROR) << "Cannot convert the 'time' to a tm struct using gmtime(): "
+  tm tm_;
+  if (gmtime_r(&secs, &tm_) == NULL) {
+    LOG(ERROR) << "Cannot convert the 'time' to a tm struct using gmtime_r(): "
                << errno;
     return stream;
   }
 
-  strftime(date, 64, "%Y-%m-%d %H:%M:%S", tm_);
+  strftime(date, 64, "%Y-%m-%d %H:%M:%S", &tm_);
   stream << date;
 
   // Append the fraction part in nanoseconds.
