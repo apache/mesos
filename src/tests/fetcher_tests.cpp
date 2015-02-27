@@ -195,7 +195,7 @@ TEST_F(FetcherEnvironmentTest, EmptyHadoop)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(0, environment.count("HADOOP_HOME"));
+  EXPECT_EQ(0u, environment.count("HADOOP_HOME"));
   EXPECT_EQ(1u, environment.size());
 
   Try<JSON::Object> parse =
@@ -229,7 +229,7 @@ TEST_F(FetcherEnvironmentTest, NoHadoop)
   map<string, string> environment =
     Fetcher::environment(commandInfo, directory, user, flags);
 
-  EXPECT_EQ(0, environment.count("HADOOP_HOME"));
+  EXPECT_EQ(0u, environment.count("HADOOP_HOME"));
   EXPECT_EQ(1u, environment.size());
 
   Try<JSON::Object> parse =
