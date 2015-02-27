@@ -879,7 +879,7 @@ void Slave::reregistered(
       // https://issues.apache.org/jira/browse/MESOS-677
     default:
       LOG(FATAL) << "Unexpected slave state " << state;
-      return;;
+      return;
   }
 
   if (!(info.id() == slaveId)) {

@@ -200,7 +200,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
       continue;
     }
 
-    infos[containerId] = new Info(containerId, cgroup);;
+    infos[containerId] = new Info(containerId, cgroup);
     cgroups.insert(cgroup);
   }
 

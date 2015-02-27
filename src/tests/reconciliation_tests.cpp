@@ -740,7 +740,7 @@ TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
   // Prevent the slave from retrying the status update by
   // only allowing a single update through to the master.
   DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get());
-  FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get());;
+  FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get());
 
   // Drop the status update acknowledgements to ensure that the
   // task remains terminal and unacknowledged in the master.

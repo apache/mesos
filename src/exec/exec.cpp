@@ -520,7 +520,7 @@ protected:
 
     // Incoming status update might come from an executor which has not set
     // slave id in TaskStatus. Set/overwrite slave id.
-    update->mutable_status()->mutable_slave_id()->CopyFrom(slaveId);;
+    update->mutable_status()->mutable_slave_id()->CopyFrom(slaveId);
 
     VLOG(1) << "Executor sending status update " << *update;
 
