@@ -12,7 +12,7 @@ This document serves as a guide for users who wish to upgrade an existing mesos 
 slaves. Frameworks must still enable checkpointing during registration to take advantage
 of checkpointing their tasks.
 
-**NOTE** The stats.json endpoints for masters and slaves have been depricated.
+**NOTE** The stats.json endpoints for masters and slaves have been deprecated.
 Please refer to the metrics/snapshot endpoint.
 
 **NOTE** The C++/Java/Python scheduler bindings have been updated. In particular, the driver can be constructed with an additional argument that specifies whether to use implicit driver acknowledgements. In `statusUpdate`, the `TaskStatus` now includes a UUID to make explicit acknowledgements possible.

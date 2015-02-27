@@ -30,22 +30,22 @@ As part of this feature, 4 new flags were added to the slave.
       with (--recover=reconnect) or kill (--recover=cleanup) old executors.
     > NOTE: From Mesos 0.22.0 this flag will be removed as it will be enabled for all slaves.
 
-	* `strict` : Whether to do recovery in strict mode [Default: true].
-		* If strict=true, any and all recovery errors are considered fatal.
-		* If strict=false, any errors (e.g., corruption in checkpointed data) during recovery are
+* `strict` : Whether to do recovery in strict mode [Default: true].
+    - If strict=true, any and all recovery errors are considered fatal.
+    - If strict=false, any errors (e.g., corruption in checkpointed data) during recovery are
       ignored and as much state as possible is recovered.
 
-	* `recover` : Whether to recover status updates and reconnect with old executors [Default: reconnect].
-		* If recover=reconnect, Reconnect with any old live executors.
-		* If recover=cleanup, Kill any old live executors and exit.
+* `recover` : Whether to recover status updates and reconnect with old executors [Default: reconnect].
+    - If recover=reconnect, Reconnect with any old live executors.
+    - If recover=cleanup, Kill any old live executors and exit.
       Use this option when doing an incompatible slave or executor upgrade!).
-      NOTE: If no checkpointing information exists, no recovery is performed
-      and the slave registers with the master as a new slave.
+    > NOTE: If no checkpointing information exists, no recovery is performed
+    > and the slave registers with the master as a new slave.
 
-	* `recovery_timeout` : Amount of time allotted for the slave to recover [Default: 15 mins].
-		* If the slave takes longer than `recovery_timeout` to recover, any executors that are waiting to
-    reconnect to the slave will self-terminate.
-    NOTE: This flag is only applicable when `--checkpoint` is enabled.
+* `recovery_timeout` : Amount of time allotted for the slave to recover [Default: 15 mins].
+    - If the slave takes longer than `recovery_timeout` to recover, any executors that are waiting to
+      reconnect to the slave will self-terminate.
+    > NOTE: This flag is only applicable when `--checkpoint` is enabled.
 
 > NOTE: If none of the frameworks have enabled checkpointing,
 > executors/tasks of frameworks die when the slave dies and are not recovered.
