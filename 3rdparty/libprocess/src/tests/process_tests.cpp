@@ -771,7 +771,7 @@ TEST(Process, handlers)
 }
 
 
-// Tests EXPECT_MESSAGE and EXPECT_DISPATCH and in particular that an
+// Tests DROP_MESSAGE and DROP_DISPATCH and in particular that an
 // event can get dropped before being processed.
 TEST(Process, expect)
 {

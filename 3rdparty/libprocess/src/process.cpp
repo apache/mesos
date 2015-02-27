@@ -465,7 +465,7 @@ static ProcessManager* process_manager = NULL;
 static Gate* gate = new Gate();
 
 // Filter. Synchronized support for using the filterer needs to be
-// recursive incase a filterer wants to do anything fancy (which is
+// recursive in case a filterer wants to do anything fancy (which is
 // possible and likely given that filters will get used for testing).
 static Filter* filterer = NULL;
 static synchronizable(filterer) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
