@@ -8,7 +8,7 @@ The logic that the Mesos master uses to determine which frameworks to make offer
 
 ## Allocation Module API
 
-Mesos is implemented in C++, so allocation modules are implemented in C++, and inherit the `AllocatorProcess` class defined in `MESOS_HOME/src/master/allocator.hpp`. As of the time of this writing (5/29/13), the API for allocation modules is as follows:
+Mesos is implemented in C++, so allocation modules are implemented in C++, and inherit the `AllocatorProcess` class defined in `MESOS_HOME/src/master/allocator/allocator.hpp`. As of the time of this writing (5/29/13), the API for allocation modules is as follows:
 
 ```
   virtual ~AllocatorProcess() {}
@@ -72,7 +72,7 @@ Additionally, the hierarchical allocator module can be extended without the need
 
 Sorters define the order that roles or frameworks should be offered resources in by taking "client" objects and some information about those clients and returning an ordered list of clients.
 
-Sorters are implemented in C++ and inherit the `Sorter` class defined in `MESOS_HOME/src/master/sorter.hpp`. As of the time of this writing, the API for Sorters is as follows:
+Sorters are implemented in C++ and inherit the `Sorter` class defined in `MESOS_HOME/src/master/allocator/sorter/sorter.hpp`. As of the time of this writing, the API for Sorters is as follows:
 
 ```
   virtual ~Sorter() {}
