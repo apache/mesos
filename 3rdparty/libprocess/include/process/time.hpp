@@ -91,8 +91,8 @@ inline std::ostream& operator << (std::ostream& stream, const Time& time)
   // The RFC 3339 Format.
   tm tm_;
   if (gmtime_r(&secs, &tm_) == NULL) {
-    LOG(ERROR) << "Cannot convert the 'time' to a tm struct using gmtime_r(): "
-               << errno;
+    PLOG(ERROR)
+      << "Failed to convert the 'time' to a tm struct using gmtime_r()";
     return stream;
   }
 
