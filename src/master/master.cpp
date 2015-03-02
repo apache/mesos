@@ -760,9 +760,20 @@ void Master::finalize()
 {
   LOG(INFO) << "Master terminating";
 
+  // NOTE: Even though we remove the slave and framework from the
+  // allocator, it is possible that offers are already dispatched to
+  // this master. In tests, if a new master (with the same PID) is
+  // started, it might process the offers from the old master's
+  // allocator.
+  // TODO(vinod): Fix the above race by changing the allocator
+  // interface to return a stream of offer events.
+
   // Remove the slaves.
   foreachvalue (Slave* slave, slaves.registered) {
-    // Remove tasks, don't bother recovering resources.
+    // We first remove the slave from the allocator so that any
+    // recovered resources below are not reoffered.
+    allocator->removeSlave(slave->id);
+
     foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
       foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
         removeTask(task);
@@ -793,9 +804,11 @@ void Master::finalize()
 
   // Remove the frameworks.
   // Note we are not deleting the pointers to the frameworks from the
-  // allocator or the roles because it is unnecessary bookkeeping at
-  // this point since we are shutting down.
+  // roles because it is unnecessary bookkeeping at this point since
+  // we are shutting down.
   foreachvalue (Framework* framework, frameworks.registered) {
+    allocator->removeFramework(framework->id);
+
     // Remove pending tasks from the framework. Don't bother
     // recovering the resources in the allocator.
     framework->pendingTasks.clear();
