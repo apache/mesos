@@ -69,6 +69,19 @@ inline Try<long> mtime(const std::string& path)
   return s.st_mtime;
 }
 
+
+inline Try<mode_t> mode(const std::string& path)
+{
+  struct stat s;
+
+  if (::stat(path.c_str(), &s) < 0) {
+    return ErrnoError("Error invoking stat for '" + path + "'");
+  }
+
+  return s.st_mode;
+}
+
+
 } // namespace stat {
 } // namespace os {
 #endif // __STOUT_OS_STAT_HPP__
