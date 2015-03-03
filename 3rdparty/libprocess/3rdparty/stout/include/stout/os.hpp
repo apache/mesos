@@ -38,8 +38,6 @@
 #include <linux/version.h>
 #endif // __linux__
 
-#include <sys/stat.h>
-#include <sys/statvfs.h>
 #ifdef __linux__
 #include <sys/sysinfo.h>
 #endif // __linux__
@@ -86,6 +84,7 @@
 #include <stout/os/sendfile.hpp>
 #include <stout/os/shell.hpp>
 #include <stout/os/signals.hpp>
+#include <stout/os/stat.hpp>
 #ifdef __APPLE__
 #include <stout/os/sysctl.hpp>
 #endif // __APPLE__
@@ -366,52 +365,6 @@ inline Result<std::string> realpath(const std::string& path)
     return ErrnoError();
   }
   return std::string(temp);
-}
-
-
-inline bool isdir(const std::string& path)
-{
-  struct stat s;
-
-  if (::stat(path.c_str(), &s) < 0) {
-    return false;
-  }
-  return S_ISDIR(s.st_mode);
-}
-
-
-inline bool isfile(const std::string& path)
-{
-  struct stat s;
-
-  if (::stat(path.c_str(), &s) < 0) {
-    return false;
-  }
-  return S_ISREG(s.st_mode);
-}
-
-
-inline bool islink(const std::string& path)
-{
-  struct stat s;
-
-  if (::lstat(path.c_str(), &s) < 0) {
-    return false;
-  }
-  return S_ISLNK(s.st_mode);
-}
-
-
-// TODO(benh): Put this in the 'paths' or 'files' or 'fs' namespace.
-inline Try<long> mtime(const std::string& path)
-{
-  struct stat s;
-
-  if (::lstat(path.c_str(), &s) < 0) {
-    return ErrnoError("Error invoking stat for '" + path + "'");
-  }
-
-  return s.st_mtime;
 }
 
 
@@ -793,7 +746,7 @@ inline Try<std::list<std::string> > find(
 {
   std::list<std::string> results;
 
-  if (!isdir(directory)) {
+  if (!stat::isdir(directory)) {
     return Error("'" + directory + "' is not a directory");
   }
 
@@ -802,7 +755,7 @@ inline Try<std::list<std::string> > find(
     foreach (const std::string& entry, entries.get()) {
       std::string path = path::join(directory, entry);
       // If it's a directory, recurse.
-      if (isdir(path) && !islink(path)) {
+      if (stat::isdir(path) && !stat::islink(path)) {
         Try<std::list<std::string> > matches = find(path, pattern);
         if (matches.isError()) {
           return matches;

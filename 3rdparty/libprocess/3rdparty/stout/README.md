@@ -246,7 +246,7 @@ To make reading and writing from files easier there are implementations of `os::
 
 #### Files
 
-Most of the ways to get or set information about files requires complicated calls using the `stat` family of functions. We provide simple wrappers around `stat` via things like `os::exists`, `os::isdir`, `os::isfile`, and `os::islink`.
+Most of the ways to get or set information about files requires complicated calls using the `stat` family of functions. We provide simple wrappers around `stat` via things like `os::exists`, `os::stat::isdir`, `os::stat::isfile`, and `os::stat::islink`.
 
 #### Processes
 
