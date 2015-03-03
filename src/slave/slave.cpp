@@ -3781,7 +3781,7 @@ void Slave::__recover(const Future<Nothing>& future)
     foreach (const string& entry, entries.get()) {
       string path = path::join(directory, entry);
       // Ignore non-directory entries.
-      if (!os::isdir(path)) {
+      if (!os::stat::isdir(path)) {
         continue;
       }
 
@@ -3874,7 +3874,7 @@ void Slave::recoverFramework(const FrameworkState& state)
 
 Future<Nothing> Slave::garbageCollect(const string& path)
 {
-  Try<long> mtime = os::mtime(path);
+  Try<long> mtime = os::stat::mtime(path);
   if (mtime.isError()) {
     LOG(ERROR) << "Failed to find the mtime of '" << path
                << "': " << mtime.error();

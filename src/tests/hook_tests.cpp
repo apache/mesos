@@ -260,7 +260,7 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
 
   EXPECT_SOME(path);
   // The file must have been create by the environment decorator hook.
-  EXPECT_TRUE(os::isfile(path.get()));
+  EXPECT_TRUE(os::stat::isfile(path.get()));
 
   driver.stop();
   driver.join();
@@ -269,7 +269,7 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
 
   // The removeExecutor hook in the test module deletes the temp file.
   // Verify that the file is not present.
-  EXPECT_FALSE(os::isfile(path.get()));
+  EXPECT_FALSE(os::stat::isfile(path.get()));
 }
 
 } // namespace tests {

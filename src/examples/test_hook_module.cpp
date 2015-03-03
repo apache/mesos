@@ -107,7 +107,7 @@ public:
         string path = variable.value();
         // The removeExecutor hook may be called multiple times; thus
         // we ignore the subsequent calls.
-        if (os::isfile(path)) {
+        if (os::stat::isfile(path)) {
           CHECK_SOME(os::rm(path));
         }
         break;

@@ -789,7 +789,7 @@ TEST_F(SharedFilesystemIsolatorTest, ROOT_RelativeVolume)
 
   // Use /var/tmp so we don't mask the work directory (under /tmp).
   const string containerPath = "/var/tmp";
-  ASSERT_TRUE(os::isdir(containerPath));
+  ASSERT_TRUE(os::stat::isdir(containerPath));
 
   // Use a host path relative to the container work directory.
   const string hostPath = strings::remove(containerPath, "/", strings::PREFIX);
