@@ -22,6 +22,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
@@ -33,6 +34,8 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include <stout/bytes.hpp>
+#include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
@@ -398,6 +401,56 @@ inline Resource::DiskInfo createDiskInfo(
   }
 
   return info;
+}
+
+
+inline Resource createPersistentVolume(
+    const Bytes& size,
+    const std::string& role,
+    const std::string& persistenceId,
+    const std::string& containerPath)
+{
+  Resource volume = Resources::parse(
+      "disk",
+      stringify(size.megabytes()),
+      role).get();
+
+  volume.mutable_disk()->CopyFrom(
+      createDiskInfo(persistenceId, containerPath));
+
+  return volume;
+}
+
+
+// Helpers for creating offer operations.
+inline Offer::Operation CREATE(const Resources& volumes)
+{
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::CREATE);
+  operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
+  return operation;
+}
+
+
+inline Offer::Operation DESTROY(const Resources& volumes)
+{
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::DESTROY);
+  operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
+  return operation;
+}
+
+
+inline Offer::Operation LAUNCH(const std::vector<TaskInfo>& tasks)
+{
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::LAUNCH);
+
+  foreach (const TaskInfo& task, tasks) {
+    operation.mutable_launch()->add_task_infos()->CopyFrom(task);
+  }
+
+  return operation;
 }
 
 

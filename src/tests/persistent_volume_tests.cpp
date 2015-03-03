@@ -28,7 +28,6 @@
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 
-#include <stout/bytes.hpp>
 #include <stout/foreach.hpp>
 #include <stout/format.hpp>
 #include <stout/hashset.hpp>
@@ -87,51 +86,6 @@ protected:
 
     return flags;
   }
-
-  Resource PersistentVolume(
-      const Bytes& size,
-      const string& role,
-      const string& persistenceId,
-      const string& containerPath)
-  {
-    Resource volume = Resources::parse(
-        "disk",
-        stringify(size.megabytes()),
-        role).get();
-
-    volume.mutable_disk()->CopyFrom(
-        createDiskInfo(persistenceId, containerPath));
-
-    return volume;
-  }
-
-  Offer::Operation CreateOperation(const Resources& volumes)
-  {
-    Offer::Operation operation;
-    operation.set_type(Offer::Operation::CREATE);
-    operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
-    return operation;
-  }
-
-  Offer::Operation DestroyOperation(const Resources& volumes)
-  {
-    Offer::Operation operation;
-    operation.set_type(Offer::Operation::DESTROY);
-    operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
-    return operation;
-  }
-
-  Offer::Operation LaunchOperation(const vector<TaskInfo>& tasks)
-  {
-    Offer::Operation operation;
-    operation.set_type(Offer::Operation::LAUNCH);
-
-    foreach (const TaskInfo& task, tasks) {
-      operation.mutable_launch()->add_task_infos()->CopyFrom(task);
-    }
-
-    return operation;
-  }
 };
 
 
@@ -180,13 +134,13 @@ TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
   Future<CheckpointResourcesMessage> message1 =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
 
-  Resources volume1 = PersistentVolume(
+  Resources volume1 = createPersistentVolume(
       Megabytes(64),
       "role1",
       "id1",
       "path1");
 
-  Resources volume2 = PersistentVolume(
+  Resources volume2 = createPersistentVolume(
       Megabytes(128),
       "role1",
       "id2",
@@ -194,9 +148,9 @@ TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
 
   driver.acceptOffers(
       {offer.id()},
-      {CreateOperation(volume1),
-       CreateOperation(volume2),
-       DestroyOperation(volume1)});
+      {CREATE(volume1),
+       CREATE(volume2),
+       DESTROY(volume1)});
 
   // NOTE: Currently, we send one message per operation. But this is
   // an implementation detail which is subject to change.
@@ -255,7 +209,7 @@ TEST_F(PersistentVolumeTest, ResourcesCheckpointing)
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
 
-  Resources volume = PersistentVolume(
+  Resources volume = createPersistentVolume(
       Megabytes(64),
       "role1",
       "id1",
@@ -263,7 +217,7 @@ TEST_F(PersistentVolumeTest, ResourcesCheckpointing)
 
   driver.acceptOffers(
       {offer.id()},
-      {CreateOperation(volume)});
+      {CREATE(volume)});
 
   AWAIT_READY(checkpointResources);
 
@@ -318,7 +272,7 @@ TEST_F(PersistentVolumeTest, PreparePersistentVolume)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = PersistentVolume(
+  Resources volume = createPersistentVolume(
       Megabytes(64),
       "role1",
       "id1",
@@ -329,7 +283,7 @@ TEST_F(PersistentVolumeTest, PreparePersistentVolume)
 
   driver.acceptOffers(
       {offer.id()},
-      {CreateOperation(volume)});
+      {CREATE(volume)});
 
   AWAIT_READY(checkpointResources);
 
@@ -389,7 +343,7 @@ TEST_F(PersistentVolumeTest, MasterFailover)
 
   Offer offer1 = offers1.get()[0];
 
-  Resources volume = PersistentVolume(
+  Resources volume = createPersistentVolume(
       Megabytes(64),
       "role1",
       "id1",
@@ -400,7 +354,7 @@ TEST_F(PersistentVolumeTest, MasterFailover)
 
   driver.acceptOffers(
       {offer1.id()},
-      {CreateOperation(volume)});
+      {CREATE(volume)});
 
   AWAIT_READY(checkpointResources);
 
@@ -488,7 +442,7 @@ TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = PersistentVolume(
+  Resources volume = createPersistentVolume(
       Megabytes(64),
       "role1",
       "id1",
@@ -499,7 +453,7 @@ TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
 
   driver.acceptOffers(
       {offer.id()},
-      {CreateOperation(volume)});
+      {CREATE(volume)});
 
   AWAIT_READY(checkpointResources);
 
@@ -576,7 +530,7 @@ TEST_F(PersistentVolumeTest, AccessPersistentVolume)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = PersistentVolume(
+  Resources volume = createPersistentVolume(
       Megabytes(64),
       "role1",
       "id1",
@@ -599,8 +553,8 @@ TEST_F(PersistentVolumeTest, AccessPersistentVolume)
 
   driver.acceptOffers(
       {offer.id()},
-      {CreateOperation(volume),
-       LaunchOperation({task})});
+      {CREATE(volume),
+       LAUNCH({task})});
 
   AWAIT_READY(status1);
   EXPECT_EQ(task.task_id(), status1.get().task_id());

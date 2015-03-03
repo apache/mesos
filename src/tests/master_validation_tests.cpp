@@ -27,6 +27,10 @@
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <process/clock.hpp>
+#include <process/gmock.hpp>
+#include <process/gtest.hpp>
+
 #include <stout/gtest.hpp>
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
@@ -46,6 +50,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using process::Clock;
 using process::Future;
 using process::PID;
 
@@ -136,7 +141,7 @@ TEST_F(ResourceValidationTest, NonPersistentVolume)
 }
 
 
-class CreateOperationValidationTest : public ::testing::Test {};
+class CreateOperationValidationTest : public MesosTest {};
 
 
 // This test verifies that all resources specified in the CREATE
@@ -177,6 +182,94 @@ TEST_F(CreateOperationValidationTest, DuplicatedPersistenceID)
   create.add_volumes()->CopyFrom(volume2);
 
   EXPECT_SOME(operation::validate(create, Resources()));
+}
+
+
+// This test verifies that creating a persistent volume that is larger
+// than the offered disk resource results won't succeed.
+TEST_F(CreateOperationValidationTest, InsufficientDiskResource)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  ACLs acls;
+  mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
+  acl->mutable_principals()->add_values(frameworkInfo.principal());
+  acl->mutable_roles()->add_values(frameworkInfo.role());
+
+  masterFlags.acls = acls;
+  masterFlags.roles = "role1";
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.checkpoint = true;
+  slaveFlags.resources = "disk(role1):1024";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers1;
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_FALSE(offers1.get().empty());
+
+  Offer offer1 = offers1.get()[0];
+
+  // Since the CREATE operation will fail, we don't expect any
+  // CheckpointResourcesMessage to be sent.
+  EXPECT_NO_FUTURE_PROTOBUFS(CheckpointResourcesMessage(), _, _);
+
+  Resources volume = createPersistentVolume(
+      Megabytes(2048),
+      "role1",
+      "id1",
+      "path1");
+
+  // We want to be notified immediately with new offer.
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  driver.acceptOffers(
+      {offer1.id()},
+      {CREATE(volume)},
+      filters);
+
+  // Advance the clock to trigger another allocation.
+  Clock::pause();
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers2);
+  EXPECT_FALSE(offers2.get().empty());
+
+  Offer offer2 = offers2.get()[0];
+
+  EXPECT_EQ(Resources(offer1.resources()), Resources(offer2.resources()));
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
 }
 
 
@@ -715,89 +808,6 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
 
   EXPECT_CALL(exec2, shutdown(_))
     .Times(AtMost(1));
-
-  driver.stop();
-  driver.join();
-
-  Shutdown();
-}
-
-
-// This test ensures that a persistent volume that is larger than the
-// offered disk resources results in a failed task.
-TEST_F(TaskValidationTest, DISABLED_AcquirePersistentDiskTooBig)
-{
-  // Create a framework with role "role1";
-  FrameworkInfo frameworkInfo;
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-
-  // Setup ACLs in order to receive offers for "role1".
-  ACLs acls;
-  mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
-  acl->mutable_principals()->add_values(frameworkInfo.principal());
-  acl->mutable_roles()->add_values(frameworkInfo.role());
-
-  // Start master with ACLs.
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.roles = frameworkInfo.role();
-  masterFlags.acls = acls;
-
-  Try<PID<Master>> master = StartMaster(masterFlags);
-  ASSERT_SOME(master);
-
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "cpus(*):4;mem(*):2048;disk(role1):1024";
-
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
-
-  // Create a persistent volume whose size is larger than the size of
-  // the offered disk.
-  Resource diskResource = Resources::parse("disk", "2048", "role1").get();
-  diskResource.mutable_disk()->CopyFrom(createDiskInfo("1", "1"));
-
-  // Include other resources in task resources.
-  Resources taskResources =
-    Resources::parse("cpus:1;mem:128").get() + diskResource;
-
-  Offer offer = offers.get()[0];
-  TaskInfo task =
-    createTask(offer.slave_id(), taskResources, "", DEFAULT_EXECUTOR_ID);
-
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
-
-  driver.launchTasks(offer.id(), tasks);
-
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_ERROR, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
-  EXPECT_TRUE(status.get().has_message());
-  EXPECT_TRUE(strings::contains(
-      status.get().message(), "Failed to create persistent volumes"));
 
   driver.stop();
   driver.join();
