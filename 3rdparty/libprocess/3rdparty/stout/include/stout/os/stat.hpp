@@ -82,6 +82,22 @@ inline Try<mode_t> mode(const std::string& path)
 }
 
 
+inline Try<dev_t> rdev(const std::string& path)
+{
+  struct stat s;
+
+  if (::stat(path.c_str(), &s) < 0) {
+    return ErrnoError("Error invoking stat for '" + path + "'");
+  }
+
+  if (!S_ISCHR(s.st_mode) && !S_ISBLK(s.st_mode)) {
+    return Error("Not a special file: " + path);
+  }
+
+  return s.st_rdev;
+}
+
+
 } // namespace stat {
 } // namespace os {
 #endif // __STOUT_OS_STAT_HPP__
