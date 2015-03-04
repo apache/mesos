@@ -23,12 +23,12 @@
 
 #include <google/protobuf/io/zero_copy_stream_impl.h> // For ArrayInputStream.
 
+#include <ostream>
 #include <string>
 
 #include <stout/error.hpp>
 #include <stout/try.hpp>
 
-#include "messages/log.hpp"
 #include "messages/messages.pb.h"
 
 namespace messages {
@@ -83,25 +83,6 @@ inline std::ostream& operator << (
     << StatusUpdateRecord::Type_descriptor()->FindValueByNumber(type)->name();
 }
 
-
-namespace log {
-
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const Action::Type& type)
-{
-  return stream << Action::Type_Name(type);
-}
-
-
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const Metadata::Status& status)
-{
-  return stream << Metadata::Status_Name(status);
-}
-
-} // namespace log {
 } // namespace internal {
 } // namespace mesos {
 
