@@ -241,7 +241,7 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
 
     position = writer.append(data[i]);
 
-    if (position.await(Seconds(10))) {
+    if (!position.await(Seconds(10))) {
       return Error("Failed to append: timed out");
     } else if (!position.isReady()) {
       return Error("Failed to append: " +
