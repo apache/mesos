@@ -399,13 +399,6 @@ Try<RunState> RunState::recover(
   state.id = containerId;
   string message;
 
-  state.directory = paths::getExecutorRunPath(
-      rootDir,
-      slaveId,
-      frameworkId,
-      executorId,
-      containerId);
-
   // See if the sentinel file exists. This is done first so it is
   // known even if partial state is returned, e.g., if the libprocess
   // pid file is not recovered. It indicates the slave removed the

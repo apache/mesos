@@ -354,10 +354,22 @@ Future<Nothing> MesosContainerizerProcess::recover(
                   << "' for executor '" << executor.id
                   << "' of framework " << framework.id;
 
+        // NOTE: We create the executor directory before checkpointing
+        // the executor. Therefore, it's not possible for this
+        // directory to be non-existent.
+        const string& directory = paths::getExecutorRunPath(
+            flags.work_dir,
+            state.get().id,
+            framework.id,
+            executor.id,
+            containerId);
+
+        CHECK(os::exists(directory));
+
         ExecutorRunState executorRunState(
             run.get().id.get(),
             run.get().forkedPid.get(),
-            run.get().directory);
+            directory);
 
         recoverable.push_back(executorRunState);
       }
