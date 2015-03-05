@@ -265,11 +265,6 @@ struct RunState
   Option<pid_t> forkedPid;
   Option<process::UPID> libprocessPid;
 
-  // NOTE: We create the executor directory before checkpointing the
-  // executor. Therefore, it's not possible for this directory to be
-  // non-existent.
-  std::string directory;
-
   // Executor terminated and all its updates acknowledged.
   bool completed;
 
