@@ -874,7 +874,8 @@ void initialize(const string& delegate)
   // actually have a valid external ip address. Note that we need only
   // one ip address, so that other processes can send and receive and
   // don't get confused as to whom they are sending to.
-  if (__address__.ip == 0 || __address__.ip == 2130706433) {
+  if (__address__.ip == htonl(INADDR_ANY) ||
+      __address__.ip == htonl(INADDR_LOOPBACK)) {
     char hostname[512];
 
     if (gethostname(hostname, sizeof(hostname)) < 0) {
