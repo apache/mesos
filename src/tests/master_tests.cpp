@@ -186,7 +186,6 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   TestContainerizer containerizer(&exec);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.executor_shutdown_grace_period = Seconds(0);
 
   Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
