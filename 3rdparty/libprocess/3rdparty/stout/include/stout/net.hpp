@@ -14,22 +14,12 @@
 #ifndef __STOUT_NET_HPP__
 #define __STOUT_NET_HPP__
 
-#if defined(__linux__) || defined(__APPLE__)
-#include <ifaddrs.h>
-#endif
 #include <netdb.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <arpa/inet.h>
-
-#ifdef __linux__
-#include <linux/if.h>
-#include <linux/if_packet.h>
-#endif
-
-#include <net/ethernet.h>
 
 #ifdef __APPLE__
 #include <net/if.h>
@@ -38,8 +28,6 @@
 #endif
 
 #include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 
 #include <curl/curl.h>
 
@@ -47,14 +35,11 @@
 #include <set>
 #include <string>
 
-#include "abort.hpp"
 #include "error.hpp"
-#include "none.hpp"
+#include "ip.hpp"
 #include "option.hpp"
 #include "os.hpp"
-#include "result.hpp"
 #include "stringify.hpp"
-#include "strings.hpp"
 #include "try.hpp"
 
 
@@ -73,16 +58,29 @@ inline struct addrinfo createAddrInfo(int socktype, int family, int flags)
 }
 
 
-// TODO(evelinad): Add createSockaddrIn6 when will support IPv6
-inline struct sockaddr_in createSockaddrIn(uint32_t ip, int port)
+// TODO(evelinad): Move this to Address.
+inline struct sockaddr_storage createSockaddrStorage(const IP& ip, int port)
 {
-  struct sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = ip;
-  addr.sin_port = htons(port);
+  struct sockaddr_storage storage;
+  memset(&storage, 0, sizeof(storage));
 
-  return addr;
+  switch (ip.family()) {
+    case AF_INET: {
+      struct sockaddr_in addr;
+      memset(&addr, 0, sizeof(addr));
+      addr.sin_family = AF_INET;
+      addr.sin_addr = ip.in().get();
+      addr.sin_port = htons(port);
+
+      memcpy(&storage, &addr, sizeof(addr));
+      break;
+    }
+    default: {
+      ABORT("Unsupported family type: " + stringify(ip.family()));
+    }
+  }
+
+  return storage;
 }
 
 
@@ -169,19 +167,20 @@ inline Try<std::string> hostname()
 // Returns a Try of the hostname for the provided IP. If the hostname
 // cannot be resolved, then a string version of the IP address is
 // returned.
-inline Try<std::string> getHostname(uint32_t ip)
+inline Try<std::string> getHostname(const IP& ip)
 {
-  sockaddr_in addr = createSockaddrIn(ip, 0);
-
+  struct sockaddr_storage storage = createSockaddrStorage(ip, 0);
   char hostname[MAXHOSTNAMELEN];
+
   int error = getnameinfo(
-      (sockaddr*)&addr,
-      sizeof(addr),
+      (struct sockaddr*) &storage,
+      sizeof(storage),
       hostname,
       MAXHOSTNAMELEN,
       NULL,
       0,
       0);
+
   if (error != 0) {
     return Error(std::string(gai_strerror(error)));
   }
@@ -190,13 +189,12 @@ inline Try<std::string> getHostname(uint32_t ip)
 }
 
 
-// Returns a Try of the IP for the provided hostname or an error if no
-// IP is obtained.
-inline Try<uint32_t> getIP(const std::string& hostname, sa_family_t family)
+// Returns a Try of the IP for the provided hostname or an error if no IP is
+// obtained.
+inline Try<IP> getIP(const std::string& hostname, int family)
 {
   struct addrinfo hints, *result;
   hints = createAddrInfo(SOCK_STREAM, family, 0);
-
   int error = getaddrinfo(hostname.c_str(), NULL, &hints, &result);
   if (error != 0 || result == NULL) {
     if (result != NULL ) {
@@ -209,10 +207,14 @@ inline Try<uint32_t> getIP(const std::string& hostname, sa_family_t family)
     return Error("Got no addresses for '" + hostname + "'");
   }
 
-  uint32_t ip = ((struct sockaddr_in*)(result->ai_addr))->sin_addr.s_addr;
-  freeaddrinfo(result);
+  Try<IP> ip = IP::create(*result->ai_addr);
+  if (ip.isError()) {
+    freeaddrinfo(result);
+    return Error("Unsupported family type: " + stringify(family));
+  }
 
-  return ip;
+  freeaddrinfo(result);
+  return ip.get();
 }
 
 
