@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <stout/error.hpp>
+#include <stout/result.hpp>
 #include <stout/try.hpp>
 
 namespace os {
