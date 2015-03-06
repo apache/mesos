@@ -46,61 +46,28 @@
 #include "try.hpp"
 
 
-// Network utilities.
 namespace net {
 
-// Represents an IPv4 address. Besides the actual IP address, we also
-// store additional information about the address such as the netmask
-// which defines the subnet.
+// Represents an IP address.
 class IP
 {
 public:
   // Creates an IP from the given string that has the dot-decimal
-  // format (with or without subnet prefix). For example:
-  //   10.0.0.1/8
-  //   192.168.1.100/24
+  // format. For example:
+  //   10.0.0.1
+  //   192.168.1.100
   //   172.158.1.23
-  static Try<IP> fromDotDecimal(const std::string& value);
+  static Try<IP> parse(const std::string& value);
 
-  // Creates an IP from the given IP address (in host order) and the
-  // given netmask (in host order). Returns error if the netmask is
-  // not valid (e.g., not contiguous).
-  static Try<IP> fromAddressNetmask(uint32_t address, uint32_t netmask);
-
-  // Creates an IP from a 32-bit address (in host order) and a subnet
-  // prefix (within [0,32]). Returns error if the prefix is not valid.
-  static Try<IP> fromAddressPrefix(uint32_t address, size_t prefix);
-
-  // Constructs an IP with the given IP address (in host order).
+  // Constructs an IP address from an unsigned integer (in host order).
   explicit IP(uint32_t _address) : address_(_address) {}
 
   // Returns the IP address (in host order).
   uint32_t address() const { return address_; }
 
-  // Returns the net mask (in host order).
-  Option<uint32_t> netmask() const { return netmask_; }
-
-  // Returns the prefix of the subnet defined by the net mask.
-  Option<size_t> prefix() const
-  {
-    if (netmask_.isNone()) {
-      return None();
-    }
-
-    uint32_t mask = netmask_.get();
-
-    size_t value = 0;
-    while (mask != 0) {
-      value += mask & 1;
-      mask >>= 1;
-    }
-
-    return value;
-  }
-
   bool operator == (const IP& that) const
   {
-    return address_ == that.address_ && netmask_ == that.netmask_;
+    return address_ == that.address_;
   }
 
   bool operator != (const IP& that) const
@@ -109,68 +76,24 @@ public:
   }
 
 private:
-  // Constructs an IP with the given IP address (in host order) and
-  // the given netmask (in host order).
-  IP(uint32_t _address, uint32_t _netmask)
-    : address_(_address), netmask_(_netmask) {}
-
   // IP address (in host order).
   uint32_t address_;
-
-  // The optional net mask (in host order).
-  Option<uint32_t> netmask_;
 };
 
 
-inline Try<IP> IP::fromDotDecimal(const std::string& value)
+inline Try<IP> IP::parse(const std::string& value)
 {
-  std::vector<std::string> tokens = strings::split(value, "/");
-
-  if (tokens.size() > 2) {
-    return Error("More than one '/' detected");
-  }
-
   struct in_addr in;
-  if (inet_aton(tokens[0].c_str(), &in) == 0) {
+  if (inet_aton(value.c_str(), &in) == 0) {
     return Error("Failed to parse the IP address");
-  }
-
-  // Parse the subnet prefix if specified.
-  if (tokens.size() == 2) {
-    Try<size_t> prefix = numify<size_t>(tokens[1]);
-    if (prefix.isError()) {
-      return Error("Subnet prefix is not a number");
-    }
-
-    return fromAddressPrefix(ntohl(in.s_addr), prefix.get());
   }
 
   return IP(ntohl(in.s_addr));
 }
 
 
-inline Try<IP> IP::fromAddressNetmask(uint32_t address, uint32_t netmask)
-{
-  if (((~netmask + 1) & (~netmask)) != 0) {
-    return Error("Netmask is not valid");
-  }
-
-  return IP(address, netmask);
-}
-
-
-inline Try<IP> IP::fromAddressPrefix(uint32_t address, size_t prefix)
-{
-  if (prefix > 32) {
-    return Error("Subnet prefix is larger than 32");
-  }
-
-  return IP(address, (0xffffffff << (32 - prefix)));
-}
-
-
 // Returns the string representation of the given IP address using the
-// canonical dot-decimal form with prefix. For example: "10.0.0.1/8".
+// canonical dot-decimal form. For example: "10.0.0.1".
 inline std::ostream& operator << (std::ostream& stream, const IP& ip)
 {
   char buffer[INET_ADDRSTRLEN];
@@ -189,22 +112,150 @@ inline std::ostream& operator << (std::ostream& stream, const IP& ip)
 
   stream << str;
 
-  if (ip.prefix().isSome()) {
-    stream << "/" << ip.prefix().get();
+  return stream;
+}
+
+
+// Represents an IP network composed from the IP address and the netmask
+// which defines the subnet.
+class IPNetwork
+{
+public:
+  // Creates an IP network from the given string that has the dot-decimal
+  // format with subnet prefix). For example:
+  //   10.0.0.1/8
+  //   192.168.1.100/24
+  //   172.158.1.23
+  static Try<IPNetwork> parse(const std::string& value);
+
+  // Creates an IP network from the given IP address
+  // and the given netmask.
+  // Returns error if the netmask is not valid (e.g., not contiguous).
+  static Try<IPNetwork> fromAddressNetmask(
+      const IP& address,
+      const IP& netmask);
+
+  // Creates an IP network from an IP address and a subnet
+  // prefix (within [0,32]). Returns error if the prefix is not valid.
+  static Try<IPNetwork> fromAddressPrefix(const IP& address, int prefix);
+
+  // Returns the IP address.
+  IP address() const { return address_; }
+
+  // Returns the netmask.
+  IP netmask() const { return netmask_; }
+
+  // Returns the prefix of the subnet defined by the netmask.
+  int prefix() const
+  {
+    uint32_t mask = netmask_.address();
+
+    int value = 0;
+    while (mask != 0) {
+      value += mask & 1;
+      mask >>= 1;
+    }
+
+    return value;
   }
+
+  bool operator == (const IPNetwork& that) const
+  {
+    return address_ == that.address_ && netmask_ == that.netmask_;
+  }
+
+  bool operator != (const IPNetwork& that) const
+  {
+    return !operator == (that);
+  }
+
+private:
+  // Constructs an IP with the given IP address and the given netmask.
+  IPNetwork(const IP& _address, const IP& _netmask)
+    : address_(_address), netmask_(_netmask) {}
+
+  // IP address.
+  IP address_;
+
+  // Netmask.
+  IP netmask_;
+};
+
+
+inline Try<IPNetwork> IPNetwork::parse(const std::string& value)
+{
+  std::vector<std::string> tokens = strings::split(value, "/");
+
+  if (tokens.size() != 2) {
+    return Error("Unexpected number of '/' detected: " + string(tokens.size()));
+  }
+
+  // Parse the IP address.
+  Try<IP> ip = IP::parse(tokens[0]);
+  if (ip.isError()) {
+    return Error(ip.error());
+  }
+
+  // Parse the subnet prefix.
+  Try<int> prefix = numify<int>(tokens[1]);
+  if (prefix.isError()) {
+    return Error("Subnet prefix is not a number");
+  }
+
+  return fromAddressPrefix(ip.get(), prefix.get());
+}
+
+
+inline Try<IPNetwork> IPNetwork::fromAddressNetmask(
+    const IP& address,
+    const IP& netmask)
+{
+  uint32_t mask = netmask.address();
+  if (((~mask + 1) & (~mask)) != 0) {
+    return Error("Netmask is not valid");
+  }
+
+  return IPNetwork(address, netmask);
+}
+
+
+inline Try<IPNetwork> IPNetwork::fromAddressPrefix(
+    const IP& address,
+    int prefix)
+{
+  if (prefix > 32) {
+    return Error("Subnet prefix is larger than 32");
+  }
+
+  if (prefix < 0) {
+    return Error("Subnet prefix is negative");
+  }
+
+  return IPNetwork(address, IP(0xffffffff << (32 - prefix)));
+}
+
+
+// Returns the string representation of the given IP network using the
+// canonical dot-decimal form with prefix. For example: "10.0.0.1/8".
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const IPNetwork& network)
+{
+  stream << network.address() << "/" << network.prefix();
 
   return stream;
 }
 
 
-// Returns the first available IPv4 address of a given link device.
-// The link device is specified using its name (e.g., eth0). Returns
-// error if the link device is not found. Returns none if the link
-// device is found, but does not have an IPv4 address.
+// Returns the first available IP network of a given link device.
+// The link device is specified using its name (e.g., eth0).
+// Returns error if the link device is not found.
+// Returns none if the link device is found,
+// but does not have an IP network.
 // TODO(jieyu): It is uncommon, but likely that a link device has
-// multiple IPv4 addresses. In that case, consider returning the
-// primary IP address instead of the first one.
-inline Result<IP> fromLinkDevice(const std::string& name)
+// multiple IP networks. In that case, consider returning
+// the primary IP network instead of the first one.
+inline Result<IPNetwork> fromLinkDevice(const std::string& name)
 {
 #if !defined(__linux__) && !defined(__APPLE__)
   return Error("Not implemented");
@@ -228,25 +279,32 @@ inline Result<IP> fromLinkDevice(const std::string& name)
             ifa->ifa_netmask->sa_family == AF_INET) {
           struct sockaddr_in* netmask = (struct sockaddr_in*) ifa->ifa_netmask;
 
-          Try<IP> ip = IP::fromAddressNetmask(
-              ntohl(addr->sin_addr.s_addr),
-              ntohl(netmask->sin_addr.s_addr));
+          Try<IPNetwork> network = IPNetwork::fromAddressNetmask(
+              IP(ntohl(addr->sin_addr.s_addr)),
+              IP(ntohl(netmask->sin_addr.s_addr)));
 
           freeifaddrs(ifaddr);
 
-          if (ip.isError()) {
-            return Error(ip.error());
+          if (network.isError()) {
+            return Error(network.error());
           }
 
-          return ip.get();
+          return network.get();
         }
 
-        // Note that this is the case where net mask is not specified.
+        // Note that this is the case where netmask is not specified.
+        // A default /32 value is used.
         // We've seen such cases when VPN is used.
-        IP ip(ntohl(addr->sin_addr.s_addr));
+        Try<IPNetwork> ip = IPNetwork::fromAddressPrefix(
+            IP(ntohl(addr->sin_addr.s_addr)),
+            32);
 
         freeifaddrs(ifaddr);
-        return ip;
+        if (ip.isError()) {
+          return Error(ip.error());
+        }
+
+        return ip.get();
       }
     }
   }
@@ -260,6 +318,7 @@ inline Result<IP> fromLinkDevice(const std::string& name)
   return None();
 #endif
 }
+
 
 } // namespace net {
 
