@@ -2,14 +2,17 @@
 
 #include <stdint.h>
 
+#include <algorithm>
 #include <cstring>
 #include <deque>
 #include <iostream>
+#include <queue>
 #include <string>
 #include <vector>
 
 #include <process/future.hpp>
 #include <process/http.hpp>
+#include <process/internal.hpp>
 #include <process/owned.hpp>
 #include <process/socket.hpp>
 
@@ -23,6 +26,7 @@
 #include "decoder.hpp"
 
 using std::deque;
+using std::queue;
 using std::string;
 using std::vector;
 
@@ -34,6 +38,152 @@ using process::network::Socket;
 
 namespace process {
 namespace http {
+
+Pipe::Reader Pipe::reader() const
+{
+  return Pipe::Reader(data);
+}
+
+
+Pipe::Writer Pipe::writer() const
+{
+  return Pipe::Writer(data);
+}
+
+
+Future<string> Pipe::Reader::read()
+{
+  Future<string> future;
+
+  process::internal::acquire(&data->lock);
+  {
+    if (data->readEnd == CLOSED) {
+      future = Failure("closed");
+    } else if (!data->writes.empty()) {
+      future = data->writes.front();
+      data->writes.pop();
+    } else if (data->writeEnd == CLOSED) {
+      future = ""; // End-of-file.
+    } else {
+      data->reads.push(Owned<Promise<string>>(new Promise<string>()));
+      future = data->reads.back()->future();
+    }
+  }
+  process::internal::release(&data->lock);
+
+  return future;
+}
+
+
+bool Pipe::Reader::close()
+{
+  bool closed = false;
+  bool notify = false;
+  queue<Owned<Promise<string>>> reads;
+
+  process::internal::acquire(&data->lock);
+  {
+    if (data->readEnd == OPEN) {
+      // Throw away outstanding data.
+      while (!data->writes.empty()) {
+        data->writes.pop();
+      }
+
+      // Extract the pending reads so we can fail them.
+      std::swap(data->reads, reads);
+
+      closed = true;
+      data->readEnd = CLOSED;
+
+      // Notify if write-end is still open!
+      notify = data->writeEnd == OPEN;
+    }
+  }
+  process::internal::release(&data->lock);
+
+  // NOTE: We transition the promises outside the critical section
+  // to avoid triggering callbacks that try to reacquire the lock.
+  if (closed) {
+    while (!reads.empty()) {
+      reads.front()->fail("closed");
+      reads.pop();
+    }
+
+    if (notify) {
+      data->readerClosure.set(Nothing());
+    }
+  }
+
+  return closed;
+}
+
+
+bool Pipe::Writer::write(const string& s)
+{
+  bool written = false;
+  Owned<Promise<string>> read;
+
+  process::internal::acquire(&data->lock);
+  {
+    // Ignore writes if either end of the pipe is closed!
+    if (data->writeEnd == OPEN && data->readEnd == OPEN) {
+      // Don't bother surfacing empty writes to the readers.
+      if (!s.empty()) {
+        if (data->reads.empty()) {
+          data->writes.push(s);
+        } else {
+          read = data->reads.front();
+          data->reads.pop();
+        }
+      }
+      written = true;
+    }
+  }
+  process::internal::release(&data->lock);
+
+  // NOTE: We set the promise outside the critical section to avoid
+  // triggering callbacks that try to reacquire the lock.
+  if (read.get() != NULL) {
+    read->set(s);
+  }
+
+  return written;
+}
+
+
+bool Pipe::Writer::close()
+{
+  bool closed = false;
+  queue<Owned<Promise<string>>> reads;
+
+  process::internal::acquire(&data->lock);
+  {
+    if (data->writeEnd == OPEN) {
+      // Extract all the pending reads so we can complete them.
+      std::swap(data->reads, reads);
+
+      data->writeEnd = CLOSED;
+      closed = true;
+    }
+  }
+  process::internal::release(&data->lock);
+
+  // NOTE: We set the promises outside the critical section to avoid
+  // triggering callbacks that try to reacquire the lock.
+  while (!reads.empty()) {
+    reads.front()->set(string("")); // End-of-file.
+    reads.pop();
+  }
+
+  return closed;
+}
+
+
+Future<Nothing> Pipe::Writer::readerClosed()
+{
+  return data->readerClosure.future();
+}
+
 
 hashmap<uint16_t, string> statuses;
 

@@ -175,8 +175,8 @@ private:
   // Demuxes and handles a response.
   bool process(const Future<Response>& future, const Request& request);
 
-  // Handles stream (i.e., pipe) based responses.
-  void stream(const Future<short>& poll, const Request& request);
+  // Handles stream based responses.
+  void stream(const Request& request, const Future<string>& chunk);
 
   Socket socket; // Wrap the socket to keep it from getting closed.
 
@@ -194,12 +194,14 @@ private:
       delete future;
     }
 
-    // Helper for cleaning up a response (i.e., closing any open pipes
+    // Helper for cleaning up a response (i.e., closing any open Pipes
     // in the event Response::type is PIPE).
     static void cleanup(const Response& response)
     {
       if (response.type == Response::PIPE) {
-        os::close(response.pipe);
+        CHECK_SOME(response.reader);
+        http::Pipe::Reader reader = response.reader.get(); // Remove const.
+        reader.close();
       }
     }
 
@@ -209,7 +211,7 @@ private:
 
   queue<Item*> items;
 
-  Option<int> pipe; // Current pipe, if streaming.
+  Option<http::Pipe::Reader> pipe; // Current pipe, if streaming.
 };
 
 
@@ -939,7 +941,8 @@ HttpProxy::~HttpProxy()
   // Need to make sure response producers know not to continue to
   // create a response (streaming or otherwise).
   if (pipe.isSome()) {
-    os::close(pipe.get());
+    http::Pipe::Reader reader = pipe.get();
+    reader.close();
   }
   pipe = None();
 
@@ -1074,29 +1077,23 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
     // should be reported and no response sent.
     response.body.clear();
 
-    // Make sure the pipe is nonblocking.
-    Try<Nothing> nonblock = os::nonblock(response.pipe);
-    if (nonblock.isError()) {
-      const char* error = strerror(errno);
-      VLOG(1) << "Failed make pipe nonblocking: " << error;
-      socket_manager->send(InternalServerError(), request, socket);
-      return true; // All done, can process next response.
-    }
-
     // While the user is expected to properly set a 'Content-Type'
     // header, we fill in (or overwrite) 'Transfer-Encoding' header.
     response.headers["Transfer-Encoding"] = "chunked";
 
-    VLOG(1) << "Starting \"chunked\" streaming";
+    VLOG(3) << "Starting \"chunked\" streaming";
 
     socket_manager->send(
         new HttpResponseEncoder(socket, response, request),
         true);
 
-    pipe = response.pipe;
+    CHECK_SOME(response.reader);
+    http::Pipe::Reader reader = response.reader.get();
 
-    io::poll(pipe.get(), io::READ).onAny(
-        defer(self(), &Self::stream, lambda::_1, request));
+    pipe = reader;
+
+    reader.read()
+      .onAny(defer(self(), &Self::stream, request, lambda::_1));
 
     return false; // Streaming, don't process next response (yet)!
   } else {
@@ -1107,66 +1104,51 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
 }
 
 
-void HttpProxy::stream(const Future<short>& poll, const Request& request)
+void HttpProxy::stream(
+    const Request& request,
+    const Future<string>& chunk)
 {
-  // TODO(benh): Use 'splice' on Linux.
+  CHECK_SOME(pipe);
 
-  CHECK(pipe.isSome());
+  http::Pipe::Reader reader = pipe.get();
 
   bool finished = false; // Whether we're done streaming.
 
-  if (poll.isReady()) {
-    // Read and write.
-    CHECK(poll.get() == io::READ);
-    const size_t size = 4 * 1024; // 4K.
-    char data[size];
-    while (!finished) {
-      ssize_t length = ::read(pipe.get(), data, size);
-      if (length < 0 && (errno == EINTR)) {
-        // Interrupted, try again now.
-        continue;
-      } else if (length < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-        // Might block, try again later.
-        io::poll(pipe.get(), io::READ).onAny(
-            defer(self(), &Self::stream, lambda::_1, request));
-        break;
-      } else {
-        std::ostringstream out;
-        if (length <= 0) {
-          // Error or closed, treat both as closed.
-          if (length < 0) {
-            // Error.
-            const char* error = strerror(errno);
-            VLOG(1) << "Read error while streaming: " << error;
-          }
-          out << "0\r\n" << "\r\n";
-          finished = true;
-        } else {
-          // Data!
-          out << std::hex << length << "\r\n";
-          out.write(data, length);
-          out << "\r\n";
-        }
+  if (chunk.isReady()) {
+    std::ostringstream out;
 
-        // We always persist the connection when we're not finished
-        // streaming.
-        socket_manager->send(
-            new DataEncoder(socket, out.str()),
-            finished ? request.keepAlive : true);
-      }
+    if (chunk.get().empty()) {
+      // Finished reading.
+      out << "0\r\n" << "\r\n";
+      finished = true;
+    } else {
+      out << std::hex << chunk.get().size() << "\r\n";
+      out << chunk.get();
+      out << "\r\n";
+
+      // Keep reading.
+      reader.read()
+        .onAny(defer(self(), &Self::stream, request, lambda::_1));
     }
-  } else if (poll.isFailed()) {
-    VLOG(1) << "Failed to poll: " << poll.failure();
+
+    // Always persist the connection when streaming is not finished.
+    socket_manager->send(
+        new DataEncoder(socket, out.str()),
+        finished ? request.keepAlive : true);
+  } else if (chunk.isFailed()) {
+    VLOG(1) << "Failed to read from stream: " << chunk.failure();
+    // TODO(bmahler): Have to close connection if headers were sent!
     socket_manager->send(InternalServerError(), request, socket);
     finished = true;
   } else {
-    VLOG(1) << "Unexpected discarded future while polling";
+    VLOG(1) << "Failed to read from stream: discarded";
+    // TODO(bmahler): Have to close connection if headers were sent!
     socket_manager->send(InternalServerError(), request, socket);
     finished = true;
   }
 
   if (finished) {
-    os::close(pipe.get());
+    reader.close();
     pipe = None();
     next();
   }

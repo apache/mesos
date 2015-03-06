@@ -8,10 +8,13 @@
 #include <cctype>
 #include <cstdlib>
 #include <iomanip>
+#include <queue>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/error.hpp>
@@ -19,7 +22,9 @@
 #include <stout/hashmap.hpp>
 #include <stout/ip.hpp>
 #include <stout/json.hpp>
+#include <stout/memory.hpp>
 #include <stout/none.hpp>
+#include <stout/nothing.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
@@ -121,6 +126,130 @@ struct Request
 };
 
 
+// Represents an asynchronous in-memory unbuffered Pipe, currently
+// used for streaming HTTP responses via chunked encoding. Note that
+// being an in-memory pipe means that this cannot be used across OS
+// processes.
+//
+// Much like unix pipes, data is read until end-of-file is
+// encountered; this occurs when the the write-end of the pipe is
+// closed and there is no outstanding data left to read.
+//
+// Unlike unix pipes, if the read-end of the pipe is closed before
+// the write-end is closed, rather than receiving SIGPIPE or EPIPE
+// during a write, the writer is notified via a future. Like unix
+// pipes, we are not notified if the read-end is closed after the
+// write-end is closed, even if data is remaining in the pipe!
+//
+// No buffering means that each non-empty write to the pipe will
+// correspond to to an equivalent read from the pipe, and the
+// reader must "keep up" with the writer in order to avoid
+// unbounded memory growth.
+//
+// TODO(bmahler): The writer needs to be able to induce a failure
+// on the reader to signal an error has occurred. For example, if
+// we are receiving a response but a disconnection occurs before
+// the response is completed, we want the reader to detect that a
+// disconnection occurred!
+//
+// TODO(bmahler): Consider aggregating writes into larger reads to
+// help the reader keep up (a process::Stream abstraction with
+// backpressure would obviate the need for this).
+//
+// TODO(bmahler): Add a more general process::Stream<T> abstraction
+// to represent asynchronous finite/infinite streams (possibly
+// with "backpressure" on the writer). This is broadly useful
+// (e.g. allocator can expose Stream<Allocation>, http::Pipe
+// becomes Stream<string>, process::Queue<T> is just an infinite
+// Stream<T> (i.e. completion and error semantics hidden)).
+class Pipe
+{
+private:
+  struct Data; // Forward declaration.
+
+public:
+  class Reader
+  {
+  public:
+    // Returns data written to the pipe.
+    // Returns an empty read when end-of-file is reached.
+    // Returns Failure if the read-end of the pipe is closed.
+    Future<std::string> read();
+
+    // Closing the read-end of the pipe before the write-end closes
+    // will notify the writer that the reader is no longer interested.
+    // Returns false if the read-end of the pipe was already closed.
+    bool close();
+
+  private:
+    friend class Pipe;
+    explicit Reader(const memory::shared_ptr<Data>& _data) : data(_data) {}
+    memory::shared_ptr<Data> data;
+  };
+
+  class Writer
+  {
+  public:
+    // Returns false if the data could not be written because
+    // either end of the pipe was already closed. Note that an
+    // empty write has no effect.
+    bool write(const std::string& s);
+
+    // Closing the write-end of the pipe will send end-of-file
+    // to the reader. Returns false if the write-end of the pipe
+    // was already closed.
+    bool close();
+
+    // Returns Nothing when the read-end of the pipe is closed
+    // before the write-end is closed, which means the reader
+    // was unable to continue reading!
+    Future<Nothing> readerClosed();
+
+  private:
+    friend class Pipe;
+    explicit Writer(const memory::shared_ptr<Data>& _data) : data(_data) {}
+    memory::shared_ptr<Data> data;
+  };
+
+  Pipe() : data(new Data()) {}
+
+  Reader reader() const;
+  Writer writer() const;
+
+private:
+  enum State
+  {
+    OPEN,
+    CLOSED,
+  };
+
+  struct Data
+  {
+    Data() : lock(0), readEnd(OPEN), writeEnd(OPEN) {}
+
+    // Rather than use a process to serialize access to the pipe's
+    // internal data we use a low-level "lock" which we acquire and
+    // release using atomic builtins.
+    int lock;
+
+    State readEnd;
+    State writeEnd;
+
+    // Represents readers waiting for data from the pipe.
+    std::queue<Owned<Promise<std::string>>> reads;
+
+    // Represents unread writes in the pipe. Note that we omit
+    // empty strings as they serve as a signal for end-of-file.
+    std::queue<std::string> writes;
+
+    // Signals when the read-end is closed before the write-end.
+    Promise<Nothing> readerClosure;
+  };
+
+  memory::shared_ptr<Data> data;
+};
+
+
 struct Response
 {
   Response()
@@ -138,8 +267,8 @@ struct Response
   std::string status;
   hashmap<std::string, std::string> headers;
 
-  // Either provide a "body", an absolute "path" to a file, or a
-  // "pipe" for streaming a response. Distinguish between the cases
+  // Either provide a 'body', an absolute 'path' to a file, or a
+  // 'pipe' for streaming a response. Distinguish between the cases
   // using 'type' below.
   //
   // BODY: Uses 'body' as the body of the response. These may be
@@ -149,13 +278,12 @@ struct Response
   // PATH: Attempts to perform a 'sendfile' operation on the file
   // found at 'path'.
   //
-  // PIPE: Splices data from 'pipe' using 'Transfer-Encoding=chunked'.
-  // Note that the read end of the pipe will be closed by libprocess
-  // either after the write end has been closed or if the socket the
-  // data is being spliced to has been closed (i.e., nobody is
-  // listening any longer). This can cause writes to the pipe to
-  // generate a SIGPIPE (which will terminate your program unless you
-  // explicitly ignore them or handle them).
+  // PIPE: Splices data from the Pipe 'reader' using a "chunked"
+  // 'Transfer-Encoding'. The writer uses a Pipe::Writer to
+  // perform writes and to detect a closed read-end of the Pipe
+  // (i.e. nobody is listening any longer). Once the writer is
+  // finished, it will close its end of the pipe to signal end
+  // of file to the Reader.
   //
   // In all cases (BODY, PATH, PIPE), you are expected to properly
   // specify the 'Content-Type' header, but the 'Content-Length' and
@@ -169,7 +297,7 @@ struct Response
 
   std::string body;
   std::string path;
-  int pipe; // See comment above regarding the semantics for closing.
+  Option<Pipe::Reader> reader;
 };
 
 

@@ -143,24 +143,24 @@ TEST(HTTP, Endpoints)
   AWAIT_EXPECT_EQ(response, socket.recv(response.size()));
 
   // Now hit '/pipe' (by using http::get).
-  int pipes[2];
-  ASSERT_NE(-1, ::pipe(pipes));
-
+  http::Pipe pipe;
   http::OK ok;
   ok.type = http::Response::PIPE;
-  ok.pipe = pipes[0];
+  ok.reader = pipe.reader();
 
-  Future<Nothing> pipe;
+  Future<Nothing> request;
   EXPECT_CALL(process, pipe(_))
-    .WillOnce(DoAll(FutureSatisfy(&pipe),
+    .WillOnce(DoAll(FutureSatisfy(&request),
                     Return(ok)));
 
   Future<http::Response> future = http::get(process.self(), "pipe");
 
-  AWAIT_READY(pipe);
+  AWAIT_READY(request);
 
-  ASSERT_SOME(os::write(pipes[1], "Hello World\n"));
-  ASSERT_SOME(os::close(pipes[1]));
+  // Write the response.
+  http::Pipe::Writer writer = pipe.writer();
+  EXPECT_TRUE(writer.write("Hello World\n"));
+  EXPECT_TRUE(writer.close());
 
   AWAIT_READY(future);
   EXPECT_EQ(http::statuses[200], future.get().status);
@@ -169,6 +169,90 @@ TEST(HTTP, Endpoints)
 
   terminate(process);
   wait(process);
+}
+
+
+TEST(HTTP, PipeEOF)
+{
+  http::Pipe pipe;
+  http::Pipe::Reader reader = pipe.reader();
+  http::Pipe::Writer writer = pipe.writer();
+
+  // A 'read' on an empty pipe should block.
+  Future<string> read = reader.read();
+  EXPECT_TRUE(read.isPending());
+
+  // Writing an empty string should have no effect.
+  EXPECT_TRUE(writer.write(""));
+  EXPECT_TRUE(read.isPending());
+
+  // After a 'write' the pending 'read' should complete.
+  EXPECT_TRUE(writer.write("hello"));
+  ASSERT_TRUE(read.isReady());
+  EXPECT_EQ("hello", read.get());
+
+  // After a 'write' a call to 'read' should be completed immediately.
+  ASSERT_TRUE(writer.write("world"));
+
+  read = reader.read();
+  ASSERT_TRUE(read.isReady());
+  EXPECT_EQ("world", read.get());
+
+  // Close the write end of the pipe and ensure the remaining
+  // data can be read.
+  EXPECT_TRUE(writer.write("!"));
+  EXPECT_TRUE(writer.close());
+  AWAIT_EQ("!", reader.read());
+
+  // End of file should be reached.
+  AWAIT_EQ("", reader.read());
+  AWAIT_EQ("", reader.read());
+
+  // Writes to a pipe with the write end closed are ignored.
+  EXPECT_FALSE(writer.write("!"));
+  AWAIT_EQ("", reader.read());
+
+  // The write end cannot be closed twice.
+  EXPECT_FALSE(writer.close());
+
+  // Close the read end, this should not notify the writer
+  // since the write end was already closed.
+  EXPECT_TRUE(reader.close());
+  EXPECT_TRUE(writer.readerClosed().isPending());
+}
+
+
+TEST(HTTP, PipeReaderCloses)
+{
+  http::Pipe pipe;
+  http::Pipe::Reader reader = pipe.reader();
+  http::Pipe::Writer writer = pipe.writer();
+
+  // If the read end of the pipe is closed,
+  // it should discard any unread data.
+  EXPECT_TRUE(writer.write("hello"));
+  EXPECT_TRUE(writer.write("world"));
+
+  // The writer should discover the closure.
+  Future<Nothing> closed = writer.readerClosed();
+  EXPECT_TRUE(reader.close());
+  EXPECT_TRUE(closed.isReady());
+
+  // The read end is closed, subsequent reads will fail.
+  AWAIT_FAILED(reader.read());
+
+  // The read end is closed, writes are ignored.
+  EXPECT_FALSE(writer.write("!"));
+  AWAIT_FAILED(reader.read());
+
+  // The read end cannot be closed twice.
+  EXPECT_FALSE(reader.close());
+
+  // Close the write end.
+  EXPECT_TRUE(writer.close());
+
+  // Reads should fail since the read end is closed.
+  AWAIT_FAILED(reader.read());
 }
 
 
