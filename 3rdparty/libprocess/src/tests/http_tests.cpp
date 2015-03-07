@@ -393,7 +393,7 @@ TEST(HTTP, QueryEncodeDecode)
                  http::query::decode("a%26b%3Dc=d%26e%3Dfg"));
 }
 
-
+// TODO(evelinad): Add URLTest for IPv6.
 TEST(URLTest, stringification)
 {
   EXPECT_EQ("http://mesos.apache.org:80/",
@@ -402,7 +402,7 @@ TEST(URLTest, stringification)
   EXPECT_EQ("https://mesos.apache.org:8080/",
             stringify(URL("https", "mesos.apache.org", 8080)));
 
-  Try<net::IP> ip = net::IP::fromDotDecimal("172.158.1.23");
+  Try<net::IP> ip = net::IP::parse("172.158.1.23", AF_INET);
   ASSERT_SOME(ip);
 
   EXPECT_EQ("http://172.158.1.23:8080/",

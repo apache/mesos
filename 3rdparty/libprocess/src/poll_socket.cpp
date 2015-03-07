@@ -31,7 +31,7 @@ namespace internal {
 
 Future<Socket> accept(int fd)
 {
-  Try<int> accepted = network::accept(fd, AF_INET);
+  Try<int> accepted = network::accept(fd);
   if (accepted.isError()) {
     return Failure(accepted.error());
   }

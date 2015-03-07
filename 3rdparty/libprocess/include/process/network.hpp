@@ -33,32 +33,27 @@ inline Try<int> socket(int family, int type, int protocol)
 
 
 // TODO(benh): Remove and defer to Socket::accept.
-inline Try<int> accept(int s, sa_family_t family)
+inline Try<int> accept(int s)
 {
-  switch (family) {
-    case AF_INET: {
-      sockaddr_in addr = net::createSockaddrIn(0, 0);
-      socklen_t addrlen = sizeof(addr);
+  struct sockaddr_storage storage;
+  socklen_t storagelen = sizeof(storage);
 
-      int accepted = ::accept(s, (sockaddr*) &addr, &addrlen);
-      if (accepted < 0) {
-        return ErrnoError("Failed to accept");
-      }
-
-      return accepted;
-    }
-    default:
-      return Error("Unsupported family type: " + stringify(family));
+  int accepted = ::accept(s, (struct sockaddr*) &storage, &storagelen);
+  if (accepted < 0) {
+    return ErrnoError("Failed to accept");
   }
+
+  return accepted;
 }
 
 
 // TODO(benh): Remove and defer to Socket::bind.
 inline Try<int> bind(int s, const Address& address)
 {
-  sockaddr_in addr = net::createSockaddrIn(address.ip, address.port);
+  struct sockaddr_storage storage =
+    net::createSockaddrStorage(address.ip, address.port);
 
-  int error = ::bind(s, (sockaddr*) &addr, sizeof(addr));
+  int error = ::bind(s, (struct sockaddr*) &storage, address.size());
   if (error < 0) {
     return ErrnoError("Failed to bind on " + stringify(address));
   }
@@ -70,9 +65,10 @@ inline Try<int> bind(int s, const Address& address)
 // TODO(benh): Remove and defer to Socket::connect.
 inline Try<int> connect(int s, const Address& address)
 {
-  sockaddr_in addr = net::createSockaddrIn(address.ip, address.port);
+  struct sockaddr_storage storage =
+    net::createSockaddrStorage(address.ip, address.port);
 
-  int error = ::connect(s, (sockaddr*) &addr, sizeof(addr));
+  int error = ::connect(s, (struct sockaddr*) &storage, address.size());
   if (error < 0) {
     return ErrnoError("Failed to connect to " + stringify(address));
   }
@@ -81,26 +77,19 @@ inline Try<int> connect(int s, const Address& address)
 }
 
 
+// Returns the Address with the assigned ip and assigned port.
+// Returns an error if the getsockname system call fails or the family
+// type is not supported.
 inline Try<Address> address(int s)
 {
-  union {
-    struct sockaddr s;
-    struct sockaddr_in v4;
-    struct sockaddr_in6 v6;
-  } addr;
+  struct sockaddr_storage storage;
+  socklen_t storagelen = sizeof(storage);
 
-  socklen_t addrlen = sizeof(addr);
-
-  if (::getsockname(s, (sockaddr*) &addr, &addrlen) < 0) {
+  if(::getsockname(s, (struct sockaddr*) &storage, &storagelen) < 0) {
     return ErrnoError("Failed to getsockname");
   }
 
-  if (addr.s.sa_family == AF_INET) {
-    return Address(addr.v4.sin_addr.s_addr, ntohs(addr.v4.sin_port));
-  }
-
-  return Error("Unsupported IP address family '" +
-               stringify(addr.s.sa_family) + "'");
+  return Address::create(storage);
 }
 
 } // namespace network {

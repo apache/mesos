@@ -12,6 +12,10 @@
 
 #include <boost/functional/hash.hpp>
 
+#include <stout/abort.hpp>
+#include <stout/ip.hpp>
+#include <stout/stringify.hpp>
+
 namespace process {
 namespace network {
 
@@ -19,12 +23,45 @@ namespace network {
 // struct sockaddr* that typically is used to encapsulate IP and port.
 //
 // TODO(benh): Create a Family enumeration to replace sa_family_t.
+// TODO(jieyu): Move this class to stout.
 class Address
 {
 public:
-  Address() : ip(0), port(0) {}
+  Address() : ip(INADDR_ANY), port(0) {}
 
-  Address(uint32_t _ip, uint16_t _port) : ip(_ip), port(_port) {}
+  Address(const net::IP& _ip, uint16_t _port) : ip(_ip), port(_port) {}
+
+  static Try<Address> create(const struct sockaddr_storage& storage)
+  {
+    switch (storage.ss_family) {
+       case AF_INET: {
+         struct sockaddr_in addr = *(struct sockaddr_in*) &storage;
+         return Address(net::IP(addr.sin_addr), ntohs(addr.sin_port));
+       }
+       default: {
+         return Error(
+             "Unsupported family type: " +
+             stringify(storage.ss_family));
+       }
+     }
+  }
+
+  int family() const
+  {
+    return ip.family();
+  }
+
+  // Returns the storage size (i.e., either sizeof(sockaddr_in) or
+  // sizeof(sockaddr_in6) depending on the family) of this address.
+  size_t size() const
+  {
+    switch (family()) {
+      case AF_INET:
+        return sizeof(sockaddr_in);
+      default:
+        ABORT("Unsupported family type: " + stringify(family()));
+    }
+  }
 
   bool operator < (const Address& that) const
   {
@@ -54,24 +91,14 @@ public:
     return !(*this == that);
   }
 
-  sa_family_t family() const
-  {
-    return AF_INET;
-  }
-
-  uint32_t ip;
+  net::IP ip;
   uint16_t port;
 };
 
 
 inline std::ostream& operator << (std::ostream& stream, const Address& address)
 {
-  char ip[INET_ADDRSTRLEN];
-  if (inet_ntop(AF_INET, (in_addr*) &address.ip, ip, INET_ADDRSTRLEN) == NULL) {
-    PLOG(FATAL) << "Failed to get human-readable IP address for '"
-                << address.ip << "'";
-  }
-  stream << ip << ":" << address.port;
+  stream << address.ip << ":" << address.port;
   return stream;
 }
 

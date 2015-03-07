@@ -145,11 +145,11 @@ Future<Response> request(
   Address address;
 
   if (url.ip.isSome()) {
-    address.ip = url.ip.get().address();
+    address.ip = url.ip.get();
   } else if (url.domain.isNone()) {
     return Failure("Missing URL domain or IP");
   } else {
-    Try<uint32_t> ip = net::getIP(url.domain.get(), AF_INET);
+    Try<net::IP> ip = net::getIP(url.domain.get(), AF_INET);
 
     if (ip.isError()) {
       return Failure("Failed to determine IP of domain '" +

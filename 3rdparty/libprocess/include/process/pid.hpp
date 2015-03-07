@@ -9,6 +9,8 @@
 
 #include <process/address.hpp>
 
+#include <stout/ip.hpp>
+
 namespace process {
 
 // Forward declaration to break cyclic dependencies.
@@ -22,13 +24,13 @@ struct UPID
   UPID(const UPID& that)
     : id(that.id), address(that.address) {}
 
-  UPID(const char* id_, uint32_t ip_, uint16_t port_)
+  UPID(const char* id_, const net::IP& ip_, uint16_t port_)
     : id(id_), address(ip_, port_) {}
 
   UPID(const char* id_, const network::Address& address_)
     : id(id_), address(address_) {}
 
-  UPID(const std::string& id_, uint32_t ip_, uint16_t port_)
+  UPID(const std::string& id_, const net::IP& ip_, uint16_t port_)
     : id(id_), address(ip_, port_) {}
 
   UPID(const std::string& id_, const network::Address& address_)
@@ -44,12 +46,12 @@ struct UPID
 
   operator bool () const
   {
-    return id != "" && address.ip != 0 && address.port != 0;
+    return id != "" && !address.ip.isAny() && address.port != 0;
   }
 
   bool operator ! () const // NOLINT(whitespace/operators)
   {
-    return id == "" && address.ip == 0 && address.port == 0;
+    return id == "" && address.ip.isAny() && address.port == 0;
   }
 
   bool operator < (const UPID& that) const

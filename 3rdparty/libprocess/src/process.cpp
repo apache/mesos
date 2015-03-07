@@ -824,7 +824,7 @@ void initialize(const string& delegate)
     LOG(FATAL) << "Failed to initialize, pthread_create";
   }
 
-  __address__.ip = 0;
+  __address__.ip = net::IP(INADDR_ANY);
   __address__.port = 0;
 
   char* value;
@@ -832,12 +832,12 @@ void initialize(const string& delegate)
   // Check environment for ip.
   value = getenv("LIBPROCESS_IP");
   if (value != NULL) {
-    int result = inet_pton(AF_INET, value, &__address__.ip);
-    if (result == 0) {
-      LOG(FATAL) << "LIBPROCESS_IP=" << value << " was unparseable";
-    } else if (result < 0) {
-      PLOG(FATAL) << "Failed to initialize, inet_pton";
+    Try<net::IP> ip = net::IP::parse(value, AF_INET);
+    if (ip.isError()) {
+      LOG(FATAL) << "Parsing LIBPROCESS_IP=" << value
+                 << " failed: " << ip.error();
     }
+    __address__.ip = ip.get();
   }
 
   // Check environment for port.
@@ -874,8 +874,7 @@ void initialize(const string& delegate)
   // actually have a valid external ip address. Note that we need only
   // one ip address, so that other processes can send and receive and
   // don't get confused as to whom they are sending to.
-  if (__address__.ip == htonl(INADDR_ANY) ||
-      __address__.ip == htonl(INADDR_LOOPBACK)) {
+  if (__address__.ip.isAny() || __address__.ip.isLoopback()) {
     char hostname[512];
 
     if (gethostname(hostname, sizeof(hostname)) < 0) {
@@ -884,7 +883,7 @@ void initialize(const string& delegate)
     }
 
     // Lookup IP address of local hostname.
-    Try<uint32_t> ip = net::getIP(hostname, AF_INET);
+    Try<net::IP> ip = net::getIP(hostname, __address__.ip.family());
 
     if (ip.isError()) {
       LOG(FATAL) << ip.error();

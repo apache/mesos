@@ -70,7 +70,7 @@ ostream& operator << (ostream& stream, const UPID& pid)
 istream& operator >> (istream& stream, UPID& pid)
 {
   pid.id = "";
-  pid.address.ip = 0;
+  pid.address.ip = net::IP(INADDR_ANY);
   pid.address.port = 0;
 
   string str;
@@ -110,8 +110,8 @@ istream& operator >> (istream& stream, UPID& pid)
     return stream;
   }
 
-  //TODO(evelinad): Extend this to support IPv6
-  Try<uint32_t> ip = net::getIP(host, AF_INET);
+  // TODO(evelinad): Extend this to support IPv6.
+  Try<net::IP> ip = net::getIP(host, AF_INET);
 
   if (ip.isError()) {
     VLOG(2) << ip.error();
