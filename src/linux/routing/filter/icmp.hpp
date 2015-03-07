@@ -51,6 +51,8 @@ public:
   const Option<net::IP>& destinationIP() const { return destinationIP_; }
 
 private:
+  // TODO(evelinad): Replace net::IP with net::IPNetwork when we will
+  // support classifiers for the entire subnet.
   Option<net::IP> destinationIP_;
 };
 

@@ -130,7 +130,7 @@ TEST_F(MasterContenderDetectorTest, File)
 TEST(BasicMasterContenderDetectorTest, Contender)
 {
   PID<Master> master;
-  master.address.ip = 10000000;
+  master.address.ip = net::IP(10000000);
   master.address.port = 10000;
 
   MasterContender* contender = new StandaloneMasterContender();
@@ -155,7 +155,7 @@ TEST(BasicMasterContenderDetectorTest, Contender)
 TEST(BasicMasterContenderDetectorTest, Detector)
 {
   PID<Master> master;
-  master.address.ip = 10000000;
+  master.address.ip = net::IP(10000000);
   master.address.port = 10000;
 
   StandaloneMasterDetector detector;
@@ -199,7 +199,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
   ZooKeeperMasterContender* contender = new ZooKeeperMasterContender(group);
 
   PID<Master> pid;
-  pid.address.ip = 10000000;
+  pid.address.ip = net::IP(10000000);
   pid.address.port = 10000;
 
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
@@ -258,7 +258,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderPendingElection)
   ZooKeeperMasterContender contender(url.get());
 
   PID<Master> pid;
-  pid.address.ip = 10000000;
+  pid.address.ip = net::IP(10000000);
   pid.address.port = 10000;
 
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
@@ -313,7 +313,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
     new ZooKeeperMasterContender(url.get());
 
   PID<Master> pid1;
-  pid1.address.ip = 10000000;
+  pid1.address.ip = net::IP(10000000);
   pid1.address.port = 10000;
 
   MasterInfo master1 = internal::protobuf::createMasterInfo(pid1);
@@ -332,7 +332,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
   ZooKeeperMasterContender contender2(url.get());
 
   PID<Master> pid2;
-  pid2.address.ip = 10000001;
+  pid2.address.ip = net::IP(10000001);
   pid2.address.port = 10001;
 
   MasterInfo master2 = internal::protobuf::createMasterInfo(pid2);
@@ -372,7 +372,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, NonRetryableFrrors)
   AWAIT_READY(group1.join("data"));
 
   PID<Master> pid;
-  pid.address.ip = 10000000;
+  pid.address.ip = net::IP(10000000);
   pid.address.port = 10000;
 
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
@@ -437,7 +437,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
   ZooKeeperMasterContender contender(url.get());
 
   PID<Master> pid;
-  pid.address.ip = 10000000;
+  pid.address.ip = net::IP(10000000);
   pid.address.port = 10000;
 
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
@@ -514,7 +514,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   ZooKeeperMasterContender leaderContender(leaderGroup);
 
   PID<Master> pid;
-  pid.address.ip = 10000000;
+  pid.address.ip = net::IP(10000000);
   pid.address.port = 10000;
 
   MasterInfo leader = internal::protobuf::createMasterInfo(pid);
@@ -536,7 +536,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   ZooKeeperMasterContender followerContender(followerGroup);
 
   PID<Master> pid2;
-  pid2.address.ip = 10000001;
+  pid2.address.ip = net::IP(10000001);
   pid2.address.port = 10001;
 
   MasterInfo follower = internal::protobuf::createMasterInfo(pid2);
@@ -626,7 +626,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   ASSERT_SOME(url);
 
   PID<Master> pid;
-  pid.address.ip = 10000000;
+  pid.address.ip = net::IP(10000000);
   pid.address.port = 10000;
 
   MasterInfo leader = internal::protobuf::createMasterInfo(pid);
@@ -656,7 +656,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 
   // Simulate a following master.
   PID<Master> pid2;
-  pid2.address.ip = 10000001;
+  pid2.address.ip = net::IP(10000001);
   pid2.address.port = 10001;
 
   MasterInfo follower = internal::protobuf::createMasterInfo(pid2);
@@ -704,7 +704,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorExpireSlaveZKSession)
   ASSERT_SOME(url);
 
   PID<Master> pid;
-  pid.address.ip = 10000000;
+  pid.address.ip = net::IP(10000000);
   pid.address.port = 10000;
 
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
@@ -766,7 +766,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   ZooKeeperMasterDetector leaderDetector(leaderGroup);
 
   PID<Master> pid;
-  pid.address.ip = 10000000;
+  pid.address.ip = net::IP(10000000);
   pid.address.port = 10000;
 
   MasterInfo leader = internal::protobuf::createMasterInfo(pid);
@@ -787,7 +787,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   ZooKeeperMasterDetector followerDetector(followerGroup);
 
   PID<Master> pid2;
-  pid2.address.ip = 10000001;
+  pid2.address.ip = net::IP(10000001);
   pid2.address.port = 10001;
 
   MasterInfo follower = internal::protobuf::createMasterInfo(pid2);

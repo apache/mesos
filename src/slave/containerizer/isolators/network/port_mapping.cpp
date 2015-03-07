@@ -130,11 +130,6 @@ static const uint8_t NORMAL = 2;
 static const uint8_t LOW = 3;
 
 
-// The loopback IP reserved by IPv4 standard.
-// TODO(jieyu): Support IP filters for the entire subnet.
-static net::IP LOOPBACK_IP = net::IP::fromDotDecimal("127.0.0.1/8").get();
-
-
 // The well known ports. Used for sanity check.
 static const Interval<uint16_t> WELL_KNOWN_PORTS =
   (Bound<uint16_t>::closed(0), Bound<uint16_t>::open(1024));
@@ -329,7 +324,11 @@ static Try<Nothing> addContainerIPFilters(
   Try<bool> eth0ToLoLoopback = filter::ip::create(
       eth0,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), None(), range),
+      ip::Classifier(
+          None(),
+          net::IPNetwork::LOOPBACK_V4().address(),
+          None(),
+          range),
       Priority(IP_FILTER_PRIORITY, NORMAL),
       action::Redirect(lo));
 
@@ -376,7 +375,11 @@ static Try<Nothing> removeContainerIPFilters(
   Try<bool> eth0ToLoLoopback = filter::ip::remove(
       eth0,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), None(), range));
+      ip::Classifier(
+          None(),
+          net::IPNetwork::LOOPBACK_V4().address(),
+          None(),
+          range));
 
   if (eth0ToLoLoopback.isError()) {
     return Error(
@@ -1051,12 +1054,16 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     }
   }
 
-  // Get the host IP, MAC and default gateway.
-  Result<net::IP> hostIP = net::fromLinkDevice(eth0.get());
-  if (!hostIP.isSome()) {
+  // Get the host IP network, MAC and default gateway.
+  Result<net::IPNetwork> hostIPNetwork =
+    net::fromLinkDevice(eth0.get(), AF_INET);
+
+  if (!hostIPNetwork.isSome()) {
     return Error(
-        "Failed to get the public IP of " + eth0.get() + ": " +
-        (hostIP.isError() ? hostIP.error() : "does not have an IPv4 address"));
+        "Failed to get the public IP network of " + eth0.get() + ": " +
+        (hostIPNetwork.isError() ?
+            hostIPNetwork.error() :
+            "does not have an IPv4 network"));
   }
 
   Result<net::MAC> hostMAC = net::mac(eth0.get());
@@ -1310,7 +1317,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           eth0.get(),
           lo.get(),
           hostMAC.get(),
-          hostIP.get(),
+          hostIPNetwork.get(),
           hostEth0MTU.get(),
           hostDefaultGateway.get(),
           hostNetworkConfigurations,
@@ -1737,7 +1744,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     Try<bool> icmpEth0ToVeth = filter::icmp::create(
         eth0,
         ingress::HANDLE,
-        icmp::Classifier(net::IP(hostIP.address())),
+        icmp::Classifier(hostIPNetwork.address()),
         Priority(ICMP_FILTER_PRIORITY, NORMAL),
         action::Mirror(targets));
 
@@ -1778,7 +1785,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     Try<bool> icmpEth0ToVeth = filter::icmp::update(
         eth0,
         ingress::HANDLE,
-        icmp::Classifier(net::IP(hostIP.address())),
+        icmp::Classifier(hostIPNetwork.address()),
         action::Mirror(targets));
 
     if (icmpEth0ToVeth.isError()) {
@@ -2342,7 +2349,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     Try<bool> icmpEth0ToVeth = filter::icmp::remove(
         eth0,
         ingress::HANDLE,
-        icmp::Classifier(net::IP(hostIP.address())));
+        icmp::Classifier(hostIPNetwork.address()));
 
     if (icmpEth0ToVeth.isError()) {
       ++metrics.removing_eth0_icmp_filters_errors;
@@ -2383,7 +2390,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     Try<bool> icmpEth0ToVeth = filter::icmp::update(
         eth0,
         ingress::HANDLE,
-        icmp::Classifier(net::IP(hostIP.address())),
+        icmp::Classifier(hostIPNetwork.address()),
         action::Mirror(targets));
 
     if (icmpEth0ToVeth.isError()) {
@@ -2507,7 +2514,7 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
   Try<bool> vethToHostLoPublic = filter::ip::create(
       veth,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(hostIP.address()), range, None()),
+      ip::Classifier(None(), hostIPNetwork.address(), range, None()),
       Priority(IP_FILTER_PRIORITY, NORMAL),
       action::Redirect(lo));
 
@@ -2528,7 +2535,11 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
   Try<bool> vethToHostLoLoopback = filter::ip::create(
       veth,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), range, None()),
+      ip::Classifier(
+          None(),
+          net::IPNetwork::LOOPBACK_V4().address(),
+          range,
+          None()),
       Priority(IP_FILTER_PRIORITY, NORMAL),
       action::Redirect(lo));
 
@@ -2552,7 +2563,7 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
   Try<bool> hostEth0ToVeth = filter::ip::create(
       eth0,
       ingress::HANDLE,
-      ip::Classifier(hostMAC, net::IP(hostIP.address()), None(), range),
+      ip::Classifier(hostMAC, hostIPNetwork.address(), None(), range),
       Priority(IP_FILTER_PRIORITY, NORMAL),
       action::Redirect(veth));
 
@@ -2615,7 +2626,7 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
   Try<bool> hostEth0ToVeth = filter::ip::remove(
       eth0,
       ingress::HANDLE,
-      ip::Classifier(hostMAC, net::IP(hostIP.address()), None(), range));
+      ip::Classifier(hostMAC, hostIPNetwork.address(), None(), range));
 
   if (hostEth0ToVeth.isError()) {
     ++metrics.removing_eth0_ip_filters_errors;
@@ -2660,7 +2671,7 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
   Try<bool> vethToHostLoPublic = filter::ip::remove(
       veth,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(hostIP.address()), range, None()));
+      ip::Classifier(None(), hostIPNetwork.address(), range, None()));
 
   if (vethToHostLoPublic.isError()) {
     ++metrics.removing_lo_ip_filters_errors;
@@ -2680,7 +2691,11 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
   Try<bool> vethToHostLoLoopback = filter::ip::remove(
       veth,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), range, None()));
+      ip::Classifier(
+          None(),
+          net::IPNetwork::LOOPBACK_V4().address(),
+          range,
+          None()));
 
   if (vethToHostLoLoopback.isError()) {
     ++metrics.removing_veth_ip_filters_errors;
@@ -2743,11 +2758,10 @@ string PortMappingIsolatorProcess::scripts(Info* info)
          << " mtu "<< hostEth0MTU << " up\n";
 
   script << "ip link set " << eth0 << " address " << hostMAC << " up\n";
-  script << "ip addr add " << hostIP  << " dev " << eth0 << "\n";
+  script << "ip addr add " << hostIPNetwork  << " dev " << eth0 << "\n";
 
   // Set up the default gateway to match that of eth0.
-  script << "ip route add default via "
-         << net::IP(hostDefaultGateway.address()) << "\n";
+  script << "ip route add default via " << hostDefaultGateway << "\n";
 
   // Restrict the ephemeral ports that can be used by the container.
   script << "echo " << info->ephemeralPorts.lower() << " "
@@ -2784,13 +2798,14 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   script << "tc filter add dev " << lo << " parent ffff: protocol ip"
          << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
-         << " match ip dst " << net::IP(hostIP.address())
+         << " match ip dst " << hostIPNetwork.address()
          << " action mirred egress redirect dev " << eth0 << "\n";
 
   script << "tc filter add dev " << lo << " parent ffff: protocol ip"
          << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
-         << " match ip dst " << net::IP(LOOPBACK_IP.address())
+         << " match ip dst "
+         << net::IPNetwork::LOOPBACK_V4().address()
          << " action mirred egress redirect dev " << eth0 << "\n";
 
   foreach (const PortRange& range,
@@ -2807,7 +2822,8 @@ string PortMappingIsolatorProcess::scripts(Info* info)
     script << "tc filter add dev " << eth0 << " parent ffff: protocol ip"
            << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
            << " flowid ffff:0"
-           << " match ip dst " << net::IP(LOOPBACK_IP.address())
+           << " match ip dst "
+           << net::IPNetwork::LOOPBACK_V4().address()
            << " match ip dport " << range.begin() << " "
            << hex << range.mask() << dec
            << " action mirred egress redirect dev " << lo << "\n";
@@ -2818,13 +2834,14 @@ string PortMappingIsolatorProcess::scripts(Info* info)
          << " prio " << Priority(ICMP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
          << " match ip protocol 1 0xff"
-         << " match ip dst " << net::IP(hostIP.address()) << "\n";
+         << " match ip dst " << hostIPNetwork.address() << "\n";
 
   script << "tc filter add dev " << lo << " parent ffff: protocol ip"
          << " prio " << Priority(ICMP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
          << " match ip protocol 1 0xff"
-         << " match ip dst " << net::IP(LOOPBACK_IP.address()) << "\n";
+         << " match ip dst "
+         << net::IPNetwork::LOOPBACK_V4().address() << "\n";
 
   // Display the filters created on eth0 and lo.
   script << "tc filter show dev " << eth0 << " parent ffff:\n";

@@ -133,7 +133,11 @@ public:
 
 private:
   Option<net::MAC> destinationMAC_;
+
+  // TODO(evelinad): Replace net::IP with net::IPNetwork when we will
+  // support classifiers for the entire subnet.
   Option<net::IP> destinationIP_;
+
   Option<PortRange> sourcePorts_;
   Option<PortRange> destinationPorts_;
 };

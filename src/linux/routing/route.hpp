@@ -34,19 +34,19 @@ namespace route {
 class Rule
 {
 public:
-  Rule(const Option<net::IP>& _destination,
+  Rule(const Option<net::IPNetwork>& _destination,
        const Option<net::IP>& _gateway,
        const std::string& _link)
     : destination_(_destination),
       gateway_(_gateway),
       link_(_link) {}
 
-  const Option<net::IP>& destination() const { return destination_; }
+  const Option<net::IPNetwork>& destination() const { return destination_; }
   const Option<net::IP>& gateway() const { return gateway_; }
   const std::string& link() const { return link_; }
 
 private:
-  Option<net::IP> destination_;
+  Option<net::IPNetwork> destination_;
   Option<net::IP> gateway_;
   std::string link_;
 };

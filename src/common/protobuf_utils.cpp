@@ -142,7 +142,11 @@ MasterInfo createMasterInfo(const process::UPID& pid)
 {
   MasterInfo info;
   info.set_id(stringify(pid) + "-" + UUID::random().toString());
-  info.set_ip(pid.address.ip);
+
+  // NOTE: Currently, we store the ip in network order, which should
+  // be fixed. See MESOS-1201 for more details.
+  info.set_ip(pid.address.ip.in().get().s_addr);
+
   info.set_port(pid.address.port);
   info.set_pid(pid);
 

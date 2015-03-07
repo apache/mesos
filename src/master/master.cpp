@@ -294,14 +294,21 @@ Master::Master(
 
   // The master ID is currently comprised of the current date, the IP
   // address and port from self() and the OS PID.
-  Try<string> id =
-    strings::format("%s-%u-%u-%d", DateUtils::currentDate(),
-                    self().address.ip, self().address.port, getpid());
+  Try<string> id = strings::format(
+      "%s-%u-%u-%d",
+      DateUtils::currentDate(),
+      self().address.ip.in().get().s_addr,
+      self().address.port,
+      getpid());
 
   CHECK(!id.isError()) << id.error();
 
   info_.set_id(id.get());
-  info_.set_ip(self().address.ip);
+
+  // NOTE: Currently, we store ip in MasterInfo in network order,
+  // which should be fixed. See MESOS-1201 for details.
+  info_.set_ip(self().address.ip.in().get().s_addr);
+
   info_.set_port(self().address.port);
   info_.set_pid(self());
 
@@ -351,7 +358,7 @@ void Master::initialize()
   LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
             << " started on " << string(self()).substr(7);
 
-  if (stringify(net::IP(ntohl(self().address.ip))) == "127.0.0.1") {
+  if (process::address().ip.isLoopback()) {
     LOG(WARNING) << "\n**************************************************\n"
                  << "Master bound to loopback interface!"
                  << " Cannot communicate with remote schedulers or slaves."

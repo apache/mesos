@@ -356,8 +356,11 @@ Future<Response> Master::Http::redirect(const Request& request)
     ? master->leader.get()
     : master->info_;
 
-  Try<string> hostname =
-    info.has_hostname() ? info.hostname() : net::getHostname(info.ip());
+  // NOTE: Currently, 'info.ip()' stores ip in network order, which
+  // should be fixed. See MESOS-1201 for details.
+  Try<string> hostname = info.has_hostname()
+    ? info.hostname()
+    : net::getHostname(net::IP(ntohl(info.ip())));
 
   if (hostname.isError()) {
     return InternalServerError(hostname.error());

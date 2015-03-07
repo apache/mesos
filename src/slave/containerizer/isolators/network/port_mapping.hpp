@@ -226,7 +226,7 @@ private:
       const std::string& _eth0,
       const std::string& _lo,
       const net::MAC& _hostMAC,
-      const net::IP& _hostIP,
+      const net::IPNetwork& _hostIPNetwork,
       const size_t _hostEth0MTU,
       const net::IP& _hostDefaultGateway,
       const hashmap<std::string, std::string>& _hostNetworkConfigurations,
@@ -237,7 +237,7 @@ private:
       eth0(_eth0),
       lo(_lo),
       hostMAC(_hostMAC),
-      hostIP(_hostIP),
+      hostIPNetwork(_hostIPNetwork),
       hostEth0MTU(_hostEth0MTU),
       hostDefaultGateway(_hostDefaultGateway),
       hostNetworkConfigurations(_hostNetworkConfigurations),
@@ -279,7 +279,7 @@ private:
   const std::string eth0;
   const std::string lo;
   const net::MAC hostMAC;
-  const net::IP hostIP;
+  const net::IPNetwork hostIPNetwork;
   const size_t hostEth0MTU;
   const net::IP hostDefaultGateway;
 

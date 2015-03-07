@@ -193,13 +193,13 @@ protected:
     cleanup(eth0, lo);
 
     // Get host IP address.
-    Result<net::IP> _hostIP = net::fromLinkDevice(eth0);
+    Result<net::IPNetwork> _hostIPNetwork = net::fromLinkDevice(eth0, AF_INET);
 
-    CHECK_SOME(_hostIP)
-      << "Failed to retrieve the host public IP from " << eth0 << ": "
-      << _hostIP.error();
+    CHECK_SOME(_hostIPNetwork)
+      << "Failed to retrieve the host public IP network from " << eth0 << ": "
+      << _hostIPNetwork.error();
 
-    hostIP = _hostIP.get();
+    hostIPNetwork = _hostIPNetwork.get();
 
     // Get all the external name servers for tests that need to talk
     // to an external host, e.g., ping, DNS.
@@ -354,8 +354,8 @@ protected:
   string eth0;
   string lo;
 
-  // Host public IP.
-  Option<net::IP> hostIP;
+  // Host public IP network.
+  Option<net::IPNetwork> hostIPNetwork;
 
   // 'port' is within the range of ports assigned to one container.
   int port;
@@ -420,7 +420,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   command1 << "nc -l localhost " << port << " > " << trafficViaLoopback << "& ";
 
   // Listen to 'public ip' and 'port'.
-  command1 << "nc -l " << net::IP(hostIP.get().address()) << " " << port
+  command1 << "nc -l " << hostIPNetwork.get().address() << " " << port
            << " > " << trafficViaPublic << "& ";
 
   // Listen to 'errorPort'. This should not get anything.
@@ -482,10 +482,10 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   // Send to 'localhost' and 'errorPort'. This should fail.
   command2 << "echo -n hello2 | nc localhost " << errorPort << ";";
   // Send to 'public IP' and 'port'.
-  command2 << "echo -n hello3 | nc " << net::IP(hostIP.get().address())
+  command2 << "echo -n hello3 | nc " << hostIPNetwork.get().address()
            << " " << port << ";";
   // Send to 'public IP' and 'errorPort'. This should fail.
-  command2 << "echo -n hello4 | nc " << net::IP(hostIP.get().address())
+  command2 << "echo -n hello4 | nc " << hostIPNetwork.get().address()
            << " " << errorPort << ";";
   // Touch the guard file.
   command2 << "touch " << container2Ready;
@@ -571,7 +571,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
            << trafficViaLoopback << "& ";
 
   // Listen to 'public ip' and 'port'.
-  command1 << "nc -u -l " << net::IP(hostIP.get().address()) << " " << port
+  command1 << "nc -u -l " << hostIPNetwork.get().address() << " " << port
            << " > " << trafficViaPublic << "& ";
 
   // Listen to 'errorPort'. This should not receive anything.
@@ -633,10 +633,10 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   // Send to 'localhost' and 'errorPort'. No data should be sent.
   command2 << "echo -n hello2 | nc -w1 -u localhost " << errorPort << ";";
   // Send to 'public IP' and 'port'.
-  command2 << "echo -n hello3 | nc -w1 -u " << net::IP(hostIP.get().address())
+  command2 << "echo -n hello3 | nc -w1 -u " << hostIPNetwork.get().address()
            << " " << port << ";";
   // Send to 'public IP' and 'errorPort'. No data should be sent.
-  command2 << "echo -n hello4 | nc -w1 -u " << net::IP(hostIP.get().address())
+  command2 << "echo -n hello4 | nc -w1 -u " << hostIPNetwork.get().address()
            << " " << errorPort << ";";
   // Touch the guard file.
   command2 << "touch " << container2Ready;
@@ -724,7 +724,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
            << trafficViaLoopback << "&";
 
   // Listen to 'public IP' and 'Port'.
-  command1 << "nc -u -l " << net::IP(hostIP.get().address()) << " " << port
+  command1 << "nc -u -l " << hostIPNetwork.get().address() << " " << port
            << " > " << trafficViaPublic << "&";
 
   // Listen to 'public IP' and 'errorPort'. This should not receive anything.
@@ -780,7 +780,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
   ASSERT_SOME_EQ(0, os::shell(
       NULL,
       "echo -n hello3 | nc -w1 -u %s %s",
-      stringify(net::IP(hostIP.get().address())).c_str(),
+      stringify(hostIPNetwork.get().address()).c_str(),
       stringify(port).c_str()));
 
   // Send to 'public IP' and 'errorPort'. The command should return
@@ -788,7 +788,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
   ASSERT_SOME_EQ(0, os::shell(
       NULL,
       "echo -n hello4 | nc -w1 -u %s %s",
-      stringify(net::IP(hostIP.get().address())).c_str(),
+      stringify(hostIPNetwork.get().address()).c_str(),
       stringify(errorPort).c_str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
@@ -840,7 +840,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   command1 << "nc -l localhost " << port << " > " << trafficViaLoopback << "&";
 
   // Listen to 'public IP' and 'Port'.
-  command1 << "nc -l " << net::IP(hostIP.get().address()) << " " << port
+  command1 << "nc -l " << hostIPNetwork.get().address() << " " << port
            << " > " << trafficViaPublic << "&";
 
   // Listen to 'public IP' and 'errorPort'. This should fail.
@@ -896,7 +896,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   ASSERT_SOME_EQ(0, os::shell(
       NULL,
       "echo -n hello3 | nc %s %s",
-      stringify(net::IP(hostIP.get().address())).c_str(),
+      stringify(hostIPNetwork.get().address()).c_str(),
       stringify(port).c_str()));
 
   // Send to 'public IP' and 'errorPort'. This should fail because TCP
@@ -904,7 +904,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   ASSERT_SOME_EQ(256, os::shell(
       NULL,
       "echo -n hello4 | nc %s %s",
-      stringify(net::IP(hostIP.get().address())).c_str(),
+      stringify(hostIPNetwork.get().address()).c_str(),
       stringify(errorPort).c_str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
@@ -1041,7 +1041,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternalTest)
   ostringstream command1;
 
   command1 << "ping -c1 127.0.0.1 && ping -c1 "
-           << stringify(net::IP(hostIP.get().address()));
+           << stringify(hostIPNetwork.get().address());
 
   command1 << "; echo -n $? > " << exitStatus << "; sync";
 
@@ -1537,7 +1537,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
   // connections to the localhost IP are filtered out when retrieving
   // the RTT information inside containers.
   Try<Subprocess> s = subprocess(
-      "nc -l " + stringify(net::IP(hostIP.get().address())) + " " +
+      "nc -l " + stringify(hostIPNetwork.get().address()) + " " +
       stringify(errorPort) + " > /devnull");
 
   CHECK_SOME(s);
@@ -1572,7 +1572,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
            << "Bytes/s...';";
 
   command1 << "{ time -p echo " << data  << " | nc "
-           << stringify(net::IP(hostIP.get().address())) << " "
+           << stringify(hostIPNetwork.get().address()) << " "
            << errorPort << " ; } 2> " << transmissionTime << " && ";
 
   // Touch the guard file.

@@ -174,7 +174,7 @@ void Slave::initialize()
 {
   LOG(INFO) << "Slave started on " << string(self()).substr(6);
 
-  if (stringify(net::IP(ntohl(self().address.ip))) == "127.0.0.1") {
+  if (self().address.ip.isLoopback()) {
     LOG(WARNING) << "\n**************************************************\n"
                  << "Slave bound to loopback interface!"
                  << " Cannot communicate with remote master(s)."
