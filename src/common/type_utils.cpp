@@ -56,19 +56,15 @@ bool operator == (const CommandInfo& left, const CommandInfo& right)
     }
   }
 
-  return left.has_environment() == right.has_environment() &&
-    (!left.has_environment() || (left.environment() == right.environment())) &&
-    left.has_value() == right.has_value() &&
-    (!left.has_value() || (left.value() == right.value())) &&
-    left.has_shell() == right.has_shell() &&
-    (!left.has_shell() || (left.shell() == right.shell()));
+  return left.environment() == right.environment() &&
+    left.value() == right.value() &&
+    left.shell() == right.shell();
 }
 
 
 bool operator == (const CommandInfo::URI& left, const CommandInfo::URI& right)
 {
-  return left.has_executable() == right.has_executable() &&
-    (!left.has_executable() || (left.executable() == right.executable())) &&
+  return left.executable() == right.executable() &&
     left.value() == right.value();
 }
 
@@ -76,8 +72,7 @@ bool operator == (const CommandInfo::URI& left, const CommandInfo::URI& right)
 bool operator == (const Credential& left, const Credential& right)
 {
   return left.principal() == right.principal() &&
-         left.has_secret() == right.has_secret() &&
-         (!left.has_secret() || (left.secret() == right.secret()));
+    left.secret() == right.secret();
 }
 
 
@@ -110,17 +105,12 @@ bool operator == (const Environment& left, const Environment& right)
 bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
 {
   return left.executor_id() == right.executor_id() &&
-    left.has_framework_id() == right.has_framework_id() &&
-    (!left.has_framework_id() ||
-    (left.framework_id() == right.framework_id())) &&
+    left.framework_id() == right.framework_id() &&
     left.command() == right.command() &&
     Resources(left.resources()) == Resources(right.resources()) &&
-    left.has_name() == right.has_name() &&
-    (!left.has_name() || (left.name() == right.name())) &&
-    left.has_source() == right.has_source() &&
-    (!left.has_source() || (left.source() == right.source())) &&
-    left.has_data() == right.has_data() &&
-    (!left.has_data() || (left.data() == right.data()));
+    left.name() == right.name() &&
+    left.source() == right.source() &&
+    left.data() == right.data();
 }
 
 
@@ -129,10 +119,8 @@ bool operator == (const MasterInfo& left, const MasterInfo& right)
   return left.id() == right.id() &&
     left.ip() == right.ip() &&
     left.port() == right.port() &&
-    left.has_pid() == right.has_pid() &&
-    (!left.has_pid() || (left.pid() == right.pid())) &&
-    left.has_hostname() == right.has_hostname() &&
-    (!left.has_hostname() || (left.hostname() == right.hostname()));
+    left.pid() == right.pid() &&
+    left.hostname() == right.hostname();
 }
 
 
@@ -141,11 +129,9 @@ bool operator == (const SlaveInfo& left, const SlaveInfo& right)
   return left.hostname() == right.hostname() &&
     Resources(left.resources()) == Resources(right.resources()) &&
     internal::Attributes(left.attributes()) ==
-    internal::Attributes(right.attributes()) &&
-    left.has_id() == right.has_id() &&
-    (!left.has_id() || (left.id() == right.id())) &&
-    left.has_checkpoint() == right.has_checkpoint() &&
-    (!left.has_checkpoint() || (left.checkpoint() == right.checkpoint()));
+      internal::Attributes(right.attributes()) &&
+    left.id() == right.id() &&
+    left.checkpoint() == right.checkpoint();
 }
 
 
@@ -153,8 +139,7 @@ bool operator == (const Volume& left, const Volume& right)
 {
   return left.container_path() == right.container_path() &&
     left.mode() == right.mode() &&
-    left.has_host_path() == right.has_host_path() &&
-    (!left.has_host_path() || (left.host_path() == right.host_path()));
+    left.host_path() == right.host_path();
 }
 
 
@@ -168,8 +153,7 @@ bool operator == (const Task& left, const Task& right)
     left.slave_id() == right.slave_id() &&
     left.state() == right.state() &&
     Resources(left.resources()) == Resources(right.resources()) &&
-    left.has_executor_id() == right.has_executor_id() &&
-    (!left.has_executor_id() || (left.executor_id() == right.executor_id()));
+    left.executor_id() == right.executor_id();
 }
 
 
