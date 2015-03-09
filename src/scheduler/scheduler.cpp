@@ -31,6 +31,11 @@
 
 #include <mesos/mesos.hpp>
 #include <mesos/scheduler.hpp>
+#include <mesos/type_utils.hpp>
+
+#include <mesos/authentication/authenticatee.hpp>
+
+#include <mesos/module/authenticatee.hpp>
 
 #include <process/async.hpp>
 #include <process/defer.hpp>
@@ -46,17 +51,15 @@
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/flags.hpp>
+#include <stout/ip.hpp>
 #include <stout/lambda.hpp>
-#include <stout/net.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/uuid.hpp>
 
-#include "authentication/authenticatee.hpp"
 #include "authentication/cram_md5/authenticatee.hpp"
 
-#include "common/type_utils.hpp"
 
 #include "master/detector.hpp"
 
@@ -127,7 +130,7 @@ public:
     // want to use flags to initialize libprocess).
     process::initialize();
 
-    if (stringify(net::IP(ntohl(self().node.ip))) == "127.0.0.1") {
+    if (self().address.ip.isLoopback()) {
       LOG(WARNING) << "\n**************************************************\n"
                    << "Scheduler driver bound to loopback interface!"
                    << " Cannot communicate with remote master(s)."
@@ -687,6 +690,7 @@ protected:
     update->mutable_status()->set_timestamp(message.update().timestamp());
 
     update->set_uuid(message.update().uuid());
+    update->mutable_status()->set_uuid(message.update().uuid());
 
     receive(from, event);
   }
@@ -759,6 +763,7 @@ protected:
     status->set_timestamp(Clock::now().secs());
 
     update->set_uuid(UUID::random().toBytes());
+    status->set_uuid(update->uuid());
 
     receive(None(), event);
   }

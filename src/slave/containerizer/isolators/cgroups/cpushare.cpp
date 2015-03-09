@@ -20,8 +20,9 @@
 
 #include <vector>
 
-#include <mesos/values.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/type_utils.hpp>
+#include <mesos/values.hpp>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -36,8 +37,6 @@
 #include <stout/nothing.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "linux/cgroups.hpp"
 
@@ -55,6 +54,11 @@ using std::vector;
 namespace mesos {
 namespace internal {
 namespace slave {
+
+using mesos::slave::ExecutorRunState;
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
+using mesos::slave::Limitation;
 
 
 template<class T>
@@ -169,20 +173,12 @@ Try<Isolator*> CgroupsCpushareIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
-    const list<state::RunState>& states)
+    const list<ExecutorRunState>& states)
 {
   hashset<string> cgroups;
 
-  foreach (const state::RunState& state, states) {
-    if (!state.id.isSome()) {
-      foreachvalue (Info* info, infos) {
-        delete info;
-      }
-      infos.clear();
-      return Failure("ContainerID is required to recover");
-    }
-
-    const ContainerID& containerId = state.id.get();
+  foreach (const ExecutorRunState& state, states) {
+    const ContainerID& containerId = state.id;
     const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
     Try<bool> exists = cgroups::exists(hierarchies["cpu"], cgroup);
@@ -204,7 +200,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
       continue;
     }
 
-    infos[containerId] = new Info(containerId, cgroup);;
+    infos[containerId] = new Info(containerId, cgroup);
     cgroups.insert(cgroup);
   }
 

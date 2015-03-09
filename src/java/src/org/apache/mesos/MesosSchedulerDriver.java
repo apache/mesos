@@ -106,14 +106,15 @@ public class MesosSchedulerDriver implements SchedulerDriver {
     this.scheduler = scheduler;
     this.framework = framework;
     this.master = master;
+    this.implicitAcknowledgements = true;
     this.credential = null;
 
     initialize();
   }
 
   /**
-   * Same as the above constructor, except that it accepts 'credential'
-   * as a parameter.
+   * Same as the other constructors, except that it accepts the newly
+   * introduced 'credential' parameter.
    *
    * @param scheduler   The scheduler implementation which callbacks are invoked
    *                    upon scheduler events.
@@ -146,6 +147,92 @@ public class MesosSchedulerDriver implements SchedulerDriver {
     this.scheduler = scheduler;
     this.framework = framework;
     this.master = master;
+    this.implicitAcknowledgements = true;
+    this.credential = credential;
+
+    initialize();
+  }
+
+  /**
+   * Same as the other constructors, except that it accepts the newly
+   * introduced 'implicitAcknowledgements' parameter.
+   *
+   * @param scheduler   The scheduler implementation which callbacks are invoked
+   *                    upon scheduler events.
+   * @param framework   The frameworkInfo describing the current framework.
+   * @param master      The address to the currently active Mesos master.
+   * @param implicitAcknowledgements  Whether the driver should send
+   *            acknowledgements on behalf of the scheduler. Setting this to
+   *            false allows schedulers to perform their own acknowledgements,
+   *            which enables asynchronous / batch processing of status updates.
+   */
+  public MesosSchedulerDriver(Scheduler scheduler,
+                              FrameworkInfo framework,
+                              String master,
+                              boolean implicitAcknowledgements) {
+
+    if (scheduler == null) {
+      throw new NullPointerException("Not expecting a null Scheduler");
+    }
+
+    if (framework == null) {
+      throw new NullPointerException("Not expecting a null FrameworkInfo");
+    }
+
+    if (master == null) {
+      throw new NullPointerException("Not expecting a null master");
+    }
+
+    this.scheduler = scheduler;
+    this.framework = framework;
+    this.master = master;
+    this.implicitAcknowledgements = implicitAcknowledgements;
+    this.credential = null;
+
+    initialize();
+  }
+
+  /**
+   * Same as the other constructors, except that it accepts the newly
+   * introduced 'implicitAcknowledgements' and 'credentials' parameters.
+   *
+   * @param scheduler   The scheduler implementation which callbacks are invoked
+   *                    upon scheduler events.
+   * @param framework   The frameworkInfo describing the current framework.
+   * @param master      The address to the currently active Mesos master.
+   * @param implicitAcknowledgements  Whether the driver should send
+   *            acknowledgements on behalf of the scheduler. Setting this to
+   *            false allows schedulers to perform their own acknowledgements,
+   *            which enables asynchronous / batch processing of status updates.
+   * @param credential  The credentials that will be used used to authenticate
+   *                    calls from this scheduler.
+   */
+  public MesosSchedulerDriver(Scheduler scheduler,
+                              FrameworkInfo framework,
+                              String master,
+                              boolean implicitAcknowledgements,
+                              Credential credential) {
+
+    if (scheduler == null) {
+      throw new NullPointerException("Not expecting a null Scheduler");
+    }
+
+    if (framework == null) {
+      throw new NullPointerException("Not expecting a null FrameworkInfo");
+    }
+
+    if (master == null) {
+      throw new NullPointerException("Not expecting a null master");
+    }
+
+    if (credential == null) {
+      throw new NullPointerException("Not expecting a null credential");
+    }
+
+    this.scheduler = scheduler;
+    this.framework = framework;
+    this.master = master;
+    this.implicitAcknowledgements = implicitAcknowledgements;
     this.credential = credential;
 
     initialize();
@@ -197,6 +284,8 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   public native Status reviveOffers();
 
+  public native Status acknowledgeStatusUpdate(TaskStatus status);
+
   public native Status sendFrameworkMessage(ExecutorID executorId,
                                             SlaveID slaveId,
                                             byte[] data);
@@ -209,6 +298,7 @@ public class MesosSchedulerDriver implements SchedulerDriver {
   private final Scheduler scheduler;
   private final FrameworkInfo framework;
   private final String master;
+  private final boolean implicitAcknowledgements;
   private final Credential credential;
 
   private long __scheduler;

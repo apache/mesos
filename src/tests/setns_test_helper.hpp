@@ -19,15 +19,12 @@
 #ifndef __SETNS_TEST_HELPER_HPP__
 #define __SETNS_TEST_HELPER_HPP__
 
-#include <string>
-
-#include <stout/flags.hpp>
 #include <stout/subcommand.hpp>
 
 class SetnsTestHelper : public Subcommand
 {
 public:
-  static const std::string NAME;
+  static const char NAME[];
 
   SetnsTestHelper() : Subcommand(NAME) {}
 

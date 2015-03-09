@@ -24,6 +24,8 @@
 #include <string>
 #include <utility>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -40,8 +42,6 @@
 #include <stout/stringify.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "logging/logging.hpp"
 
@@ -184,7 +184,7 @@ struct StatusUpdateStream
       Try<int> result = os::open(
           path.get(),
           O_CREAT | O_WRONLY | O_APPEND | O_SYNC | O_CLOEXEC,
-          S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       if (result.isError()) {
         error = "Failed to open '" + path.get() + "' for status updates";

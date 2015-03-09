@@ -7,6 +7,7 @@
 #include <map>
 #include <queue>
 
+#include <process/address.hpp>
 #include <process/clock.hpp>
 #include <process/event.hpp>
 #include <process/filter.hpp>
@@ -276,9 +277,9 @@ void finalize();
 
 
 /**
- * Returns the node associated with this instance of the library.
+ * Returns the socket address associated with this instance of the library.
  */
-Node node();
+network::Address address();
 
 
 /**

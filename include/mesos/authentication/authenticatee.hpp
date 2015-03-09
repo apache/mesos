@@ -16,18 +16,17 @@
  * limitations under the License.
  */
 
-#ifndef __AUTHENTICATEE_HPP__
-#define __AUTHENTICATEE_HPP__
+#ifndef __MESOS_AUTHENTICATION_AUTHENTICATEE_HPP__
+#define __MESOS_AUTHENTICATION_AUTHENTICATEE_HPP__
 
 #include <mesos/mesos.hpp>
 
-#include <process/future.hpp>
+#include <mesos/authentication/authentication.hpp>
 
-#include <stout/nothing.hpp>
-#include <stout/try.hpp>
+#include <process/future.hpp>
+#include <process/pid.hpp>
 
 namespace mesos {
-namespace internal {
 
 class Authenticatee
 {
@@ -52,7 +51,6 @@ public:
     const mesos::Credential& credential) = 0;
 };
 
-} // namespace internal {
 } // namespace mesos {
 
-#endif // __AUTHENTICATEE_HPP__
+#endif // __MESOS_AUTHENTICATION_AUTHENTICATEE_HPP__

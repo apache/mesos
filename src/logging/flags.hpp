@@ -49,7 +49,9 @@ public:
         "log_dir",
         "Directory path to put log files (no default, nothing\n"
         "is written to disk unless specified;\n"
-        "does not affect logging to stderr)");
+        "does not affect logging to stderr).\n"
+        "NOTE: 3rd party log messages (e.g. ZooKeeper) are\n"
+        "only written to stderr!\n");
 
     add(&Flags::logbufsecs,
         "logbufsecs",
@@ -61,6 +63,12 @@ public:
         "Whether to automatically initialize google logging of scheduler\n"
         "and/or executor drivers.",
         true);
+
+    add(&Flags::external_log_file,
+        "external_log_file",
+        "Specified the externally managed log file. This file will be\n"
+        "exposed in the webui and HTTP api. This is useful when using\n"
+        "stderr logging as the log file is otherwise unknown to Mesos.");
   }
 
   bool quiet;
@@ -68,6 +76,7 @@ public:
   Option<std::string> log_dir;
   int logbufsecs;
   bool initialize_driver_logging;
+  Option<std::string> external_log_file;
 };
 
 } // namespace logging {

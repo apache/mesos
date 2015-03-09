@@ -89,7 +89,7 @@ namespace paths {
 //           |-- <role>
 //               |-- <persistence_id> (persistent volume)
 
-const std::string LATEST_SYMLINK = "latest";
+const char LATEST_SYMLINK[] = "latest";
 
 // Helpers for obtaining paths in the layout:
 

@@ -18,7 +18,7 @@
 
 #include "logging/logging.hpp"
 
-#include "master/drf_sorter.hpp"
+#include "master/allocator/sorter/drf/sorter.hpp"
 
 using std::list;
 using std::set;
@@ -117,7 +117,7 @@ void DRFSorter::allocated(
 }
 
 
-void DRFSorter::transform(
+void DRFSorter::update(
     const string& name,
     const Resources& oldAllocation,
     const Resources& newAllocation)
@@ -249,7 +249,7 @@ double DRFSorter::calculateShare(const string& name)
   // scalars.
 
   // Scalar resources may be spread across multiple 'Resource'
-  // objects. E.g. persistent disks. So we first collect the names
+  // objects. E.g. persistent volumes. So we first collect the names
   // of the scalar resources, before computing the totals.
   hashset<string> scalars;
   foreach (const Resource& resource, resources) {

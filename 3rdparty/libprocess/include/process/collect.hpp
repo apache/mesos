@@ -181,8 +181,10 @@ Future<tuples::tuple<Future<T1>, Future<T2>>> __await(
 }
 
 
+// NOTE: We do not use overload (i.e., '__await') here because gcc-4.4
+// cannot resolve the overload when we call 'bind' below.
 template <typename T1, typename T2, typename T3>
-Future<tuples::tuple<Future<T1>, Future<T2>, Future<T3>>> __await(
+Future<tuples::tuple<Future<T1>, Future<T2>, Future<T3>>> ___await(
     const tuples::tuple<Future<T1>, Future<T2>, Future<T3>>& future)
 {
   return future;
@@ -314,7 +316,7 @@ Future<tuples::tuple<Future<T1>, Future<T2>, Future<T3>>> await(
 
   return await(futures)
     .then(lambda::bind(
-      internal::__await<T1, T2, T3>,
+      internal::___await<T1, T2, T3>,
       tuples::make_tuple(future1, future2, future3)));
 }
 

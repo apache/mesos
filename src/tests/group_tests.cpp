@@ -33,9 +33,6 @@
 #include "zookeeper/authentication.hpp"
 #include "zookeeper/group.hpp"
 
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using zookeeper::Group;
 using zookeeper::GroupProcess;
 
@@ -44,6 +41,10 @@ using process::Future;
 using std::string;
 
 using testing::_;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 class GroupTest : public ZooKeeperTest {};
 
@@ -433,3 +434,7 @@ TEST_F(GroupTest, LabelledGroup)
   ASSERT_TRUE(membership.get().cancelled().isReady());
   ASSERT_TRUE(membership.get().cancelled().get());
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

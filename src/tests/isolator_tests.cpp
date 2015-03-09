@@ -26,6 +26,10 @@
 
 #include <mesos/resources.hpp>
 
+#include <mesos/module/isolator.hpp>
+
+#include <mesos/slave/isolator.hpp>
+
 #include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/reap.hpp>
@@ -42,12 +46,9 @@
 #include "master/master.hpp"
 #include "master/detector.hpp"
 
-#include "module/isolator.hpp"
-
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
-#include "slave/containerizer/isolator.hpp"
 #ifdef __linux__
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
@@ -70,11 +71,6 @@
 #include "tests/module.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using namespace process;
 
 using mesos::internal::master::Master;
@@ -85,8 +81,6 @@ using mesos::internal::slave::CgroupsPerfEventIsolatorProcess;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::SharedFilesystemIsolatorProcess;
 #endif // __linux__
-using mesos::internal::slave::Isolator;
-using mesos::internal::slave::IsolatorProcess;
 using mesos::internal::slave::Launcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
@@ -97,6 +91,8 @@ using mesos::internal::slave::PosixLauncher;
 using mesos::internal::slave::PosixCpuIsolatorProcess;
 using mesos::internal::slave::PosixMemIsolatorProcess;
 
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
 
 using std::ostringstream;
 using std::set;
@@ -107,6 +103,10 @@ using testing::_;
 using testing::DoAll;
 using testing::Return;
 using testing::SaveArg;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 static int childSetup(int pipes[2])
@@ -1142,3 +1142,7 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   delete isolator.get();
 }
 #endif // __linux__
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

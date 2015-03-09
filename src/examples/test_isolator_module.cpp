@@ -19,20 +19,22 @@
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
+#include <mesos/module/isolator.hpp>
+
+#include <mesos/slave/isolator.hpp>
+
 #include <stout/try.hpp>
 
-#include "module/isolator.hpp"
-
-#include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/isolators/posix.hpp"
 #include "slave/flags.hpp"
 
 using namespace mesos;
 
 using mesos::internal::slave::Flags;
-using mesos::internal::slave::Isolator;
 using mesos::internal::slave::PosixCpuIsolatorProcess;
 using mesos::internal::slave::PosixMemIsolatorProcess;
+
+using mesos::slave::Isolator;
 
 
 // The sole purpose of this function is just to exercise the

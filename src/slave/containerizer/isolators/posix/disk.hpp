@@ -21,13 +21,16 @@
 
 #include <string>
 
+#include <mesos/slave/isolator.hpp>
+
 #include <process/owned.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 
-#include "slave/containerizer/isolator.hpp"
+#include "slave/flags.hpp"
+#include "slave/state.hpp"
 
 namespace mesos {
 namespace internal {
@@ -67,15 +70,15 @@ private:
 // TODO(jieyu): Consider handling each container independently, or
 // triggering an initial collection when the container starts, to
 // ensure that we have usage statistics without a large delay.
-class PosixDiskIsolatorProcess : public IsolatorProcess
+class PosixDiskIsolatorProcess : public mesos::slave::IsolatorProcess
 {
 public:
-  static Try<Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
   virtual ~PosixDiskIsolatorProcess();
 
   virtual process::Future<Nothing> recover(
-      const std::list<state::RunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
@@ -87,7 +90,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<Limitation> watch(
+  virtual process::Future<mesos::slave::Limitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
@@ -119,7 +122,7 @@ private:
     // to collect disk usage for disk resources without DiskInfo.
     const std::string directory;
 
-    process::Promise<Limitation> limitation;
+    process::Promise<mesos::slave::Limitation> limitation;
 
     // The keys of the hashmaps contain the executor working directory
     // above, and optionally paths of volumes used by the container.

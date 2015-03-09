@@ -140,11 +140,7 @@ inline Try<Nothing> setns(const std::string& path, const std::string& ns)
     return Error("Pid namespace is not supported");
   }
 
-#ifdef O_CLOEXEC
   Try<int> fd = os::open(path, O_RDONLY | O_CLOEXEC);
-#else
-  Try<int> fd = os::open(path, O_RDONLY);
-#endif
 
   if (fd.isError()) {
     return Error("Failed to open '" + path + "': " + fd.error());

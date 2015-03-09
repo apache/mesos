@@ -7,7 +7,7 @@ layout: documentation
 
 The Mesos master and slave can take a variety of configuration options through command-line arguments, or environment variables. A list of the available options can be seen by running `mesos-master --help` or `mesos-slave --help`. Each option can be set in two ways:
 
-* By passing it to the binary using `--option_name=value`.
+* By passing it to the binary using `--option_name=value`, either specifying the value directly, or specifying a file in which the value resides (`--option_name=file://path/to/file`). The path can be absolute or relative to the current working directory.
 * By setting the environment variable `MESOS_OPTION_NAME` (the option name with a `MESOS_` prefix added to it).
 
 Configuration values are searched for first in the environment, then on the command-line.
@@ -46,16 +46,6 @@ If you have special compilation requirements, please refer to `./configure --hel
     </td>
     <td>
       Prints this help message (default: false)
-
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --[no-]initialize_driver_logging
-    </td>
-    <td>
-      Whether to automatically initialize google logging of scheduler
-      and/or executor drivers. (default: true)
 
     </td>
   </tr>
@@ -138,7 +128,9 @@ If you have special compilation requirements, please refer to `./configure --hel
       The size of the quorum of replicas when using 'replicated_log' based
       registry. It is imperative to set this value to be a majority of
       masters i.e., quorum > (number of masters)/2.
+      <p/>
 
+      <b>NOTE</b> Not required if master is run in standalone mode (non-HA).
     </td>
   </tr>
   <tr>
@@ -159,7 +151,9 @@ If you have special compilation requirements, please refer to `./configure --hel
       May be one of:
 <pre><code>zk://host1:port1,host2:port2,.../path
 zk://username:password@host1:port1,host2:port2,.../path
-file://path/to/file (where file contains one of the above)</code></pre>
+file:///path/to/file (where file contains one of the above)</code></pre>
+      <p/>
+      <b>NOTE</b> Not required if master is run in standalone mode (non-HA).
     </td>
   </tr>
 </table>
@@ -181,10 +175,9 @@ file://path/to/file (where file contains one of the above)</code></pre>
       --acls=VALUE
     </td>
     <td>
-      The value could be a JSON formatted string of ACLs
-      or a file path containing the JSON formatted ACLs used
-      for authorization. Path could be of the form <code>file:///path/to/file</code>
-      or <code>/path/to/file</code>.
+      The value is a JSON formatted string of ACLs. Remember you can also use
+      the <code>file:///path/to/file</code> or <code>/path/to/file</code>
+      argument value format to write the JSON in a file.
       <p/>
       See the ACLs protobuf in mesos.proto for the expected format.
       <p/>
@@ -247,7 +240,8 @@ file://path/to/file (where file contains one of the above)</code></pre>
     <td>
       Authenticator implementation to use when authenticating frameworks
       and/or slaves. Use the default <code>crammd5</code>, or
-        load an alternate authenticator module using <code>--modules</code>. (default: crammd5)
+      load an alternate authenticator module using <code>--modules</code>.
+      (default: crammd5)
     </td>
   </tr>
   <tr>
@@ -267,7 +261,8 @@ file://path/to/file (where file contains one of the above)</code></pre>
       Either a path to a text file with a list of credentials,
       each line containing 'principal' and 'secret' separated by whitespace,
       or, a path to a JSON-formatted file containing credentials.
-      Path could be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
+      Path should be of the form <code>file:///path/to/file</code> or
+      <code>/path/to/file</code>
       <p/>
       JSON file Example:
 <pre><code>{
@@ -287,12 +282,31 @@ file://path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --external_log_file=VALUE
+    </td>
+    <td>
+      Specified the externally managed log file. This file will be
+      exposed in the webui and HTTP api. This is useful when using
+      stderr logging as the log file is otherwise unknown to Mesos.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --framework_sorter=VALUE
     </td>
     <td>
       Policy to use for allocating resources
       between a given user's frameworks. Options
       are the same as for user_allocator. (default: drf)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --hooks=VALUE
+    </td>
+    <td>
+      A comma separated list of hook modules to be
+      installed inside master.
     </td>
   </tr>
   <tr>
@@ -324,9 +338,10 @@ file://path/to/file (where file contains one of the above)</code></pre>
       subsystems.
       <p/>
       Use <code>--modules=filepath</code> to specify the list of modules via a
-      file containing a JSON formatted string. 'filepath' can be
-      of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
-      <p/>
+      file containing a JSON formatted string.
+      Remember you can also use the <code>file:///path/to/file</code> or
+      <code>/path/to/file</code> argument value format to write the JSON in a
+      file.<p/>
       Use <code>--modules="{...}"</code> to specify the list of modules inline.
       <p/>
       JSON file example:
@@ -382,8 +397,9 @@ file://path/to/file (where file contains one of the above)</code></pre>
       or a file path containing the JSON formatted rate limits used
       for framework rate limiting.
       <p/>
-      Path could be of the form <code>file:///path/to/file</code>
-        or <code>/path/to/file</code>.
+      Remember you can also use
+      the <code>file:///path/to/file</code> or <code>/path/to/file</code>
+      argument value format to write the JSON in a file.
       <p/>
 
       See the RateLimits protobuf in mesos.proto for the expected format.
@@ -534,10 +550,15 @@ file://path/to/file (where file contains one of the above)</code></pre>
       --whitelist=VALUE
     </td>
     <td>
-      Path to a file with a list of slaves
-      (one per line) to advertise offers for.
+      A filename which contains a list of slaves (one per line) to advertise
+      offers for. The file is watched, and periodically re-read to refresh
+      the slave whitelist. By default there is no whitelist / all machines are
+      accepted. (default: None)
+     <p/>
+
+      Example:
+      <pre><code>file:///etc/mesos/slave_whitelist</code></pre>
       <p/>
-      Path could be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>. (default: *)
     </td>
   </tr>
   <tr>
@@ -612,12 +633,11 @@ file://path/to/file (where file contains one of the above)</code></pre>
 </code></pre>
         </li>
 
-        <li> a path to a file containing either one of the above options </li>
-<pre><code> --master=file://path/to/file (where file contains one of the above)</code></pre>
+        <li> a path to a file containing either one of the above options. You
+        can also use the <code>file:///path/to/file</code> syntax to read the
+        argument from a file which contains one of the above.
         </li>
       </ol>
-      Examples:
-
     </td>
   </tr>
 </table>
@@ -642,6 +662,16 @@ file://path/to/file (where file contains one of the above)</code></pre>
       Attributes of machine, in the form:
       <p/>
       <code>rack:2</code> or <code>'rack:2;u:1'</code>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --authenticatee=VALUE
+    </td>
+    <td>
+      Authenticatee implementation to use when authenticating against the
+      master. Use the default <code>crammd5</code>, or
+      load an alternate authenticatee module using <code>--modules</code>. (default: crammd5)
     </td>
   </tr>
   <tr>
@@ -684,23 +714,11 @@ file://path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
-      --cgroups_subsystems=VALUE
+      --container_disk_watch_interval=VALUE
     </td>
     <td>
-      This flag has been deprecated and is no longer used,
-      please update your flags
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --[no-]checkpoint
-    </td>
-    <td>
-      This flag is deprecated and will be removed in a future release.
-      Whether to checkpoint slave and frameworks information
-      to disk. This enables a restarted slave to recover
-      status updates and reconnect with (--recover=reconnect) or
-      kill (--recover=cleanup) old executors (default: true)
+      The interval between disk quota checks for containers. This flag is
+      used for the <code>posix/disk</code> isolator. (default: 15secs)
     </td>
   </tr>
   <tr>
@@ -733,13 +751,18 @@ file://path/to/file (where file contains one of the above)</code></pre>
       --credential=VALUE
     </td>
     <td>
-      Either a path to a text with a single line
+      A path to a text file with a single line
       containing 'principal' and 'secret' separated by whitespace.
+
       <p/>
       Or a path containing the JSON formatted information used for one credential.
       <p/>
-      Path could be of the form <code>file:///path/to/file< code> or <code>/path/to/file</code>.
+      Path should be of the form <code>file://path/to/file</code>.
       <p/>
+      Remember you can also use
+      the <code>file:///path/to/file</code> argument value format to read the
+      value from a file.
+      </p>
       JSON file example:
 <pre><code>{
   "principal": "username",
@@ -834,6 +857,24 @@ file://path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --docker_stop_timeout=VALUE
+    </td>
+    <td>
+      The time as a duration for docker to wait after stopping an instance
+      before it kills that instance. (default: 0secs)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --[no-]enforce_container_disk_quota
+    </td>
+    <td>
+      Whether to enable disk quota enforcement for containers. This flag
+      is used for the 'posix/disk' isolator. (default: false)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --executor_registration_timeout=VALUE
     </td>
     <td>
@@ -849,6 +890,16 @@ file://path/to/file (where file contains one of the above)</code></pre>
     <td>
       Amount of time to wait for an executor
       to shut down (e.g., 60secs, 3mins, etc) (default: 5secs)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --external_log_file=VALUE
+    </td>
+    <td>
+      Specified the externally managed log file. This file will be
+      exposed in the webui and HTTP api. This is useful when using
+      stderr logging as the log file is otherwise unknown to Mesos.
     </td>
   </tr>
   <tr>
@@ -873,6 +924,19 @@ file://path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --gc_disk_headroom=VALUE
+    </td>
+    <td>
+      Adjust disk headroom used to calculate maximum executor
+      directory age. Age is calculated by:</p>
+      <code>gc_delay * max(0.0, (1.0 - gc_disk_headroom - disk usage))</code>
+      every <code>--disk_watch_interval</code> duration.
+      <code>gc_disk_headroom</code> must be a value between 0.0 and 1.0
+      (default: 0.1)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --hadoop_home=VALUE
     </td>
     <td>
@@ -880,6 +944,15 @@ file://path/to/file (where file contains one of the above)</code></pre>
       fetching framework executors from HDFS)
       (no default, look for HADOOP_HOME in
       environment or find hadoop on PATH) (default: )
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --hooks=VALUE
+    </td>
+    <td>
+      A comma separated list of hook modules to be
+      installed inside master.
     </td>
   </tr>
   <tr>
@@ -921,10 +994,9 @@ file://path/to/file (where file contains one of the above)</code></pre>
       List of modules to be loaded and be available to the internal
       subsystems.
       <p/>
-      Use <code>--modules=filepath</code> to specify the list of modules via a
-      file containing a JSON formatted string. 'filepath' can be
-      of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
-      <p/>
+      Remember you can also use the <code>file:///path/to/file</code> or
+      <code>/path/to/file</code> argument value format to have the value read
+      from a file.<p/>
       Use <code>--modules="{...}"</code> to specify the list of modules inline.
       <p/>
       JSON file example:

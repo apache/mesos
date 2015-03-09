@@ -21,6 +21,8 @@
 
 #include <set>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
@@ -33,8 +35,6 @@
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "log/catchup.hpp"
 #include "log/recover.hpp"

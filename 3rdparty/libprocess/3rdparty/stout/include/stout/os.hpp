@@ -82,6 +82,7 @@
 #include <stout/os/permissions.hpp>
 #include <stout/os/pstree.hpp>
 #include <stout/os/read.hpp>
+#include <stout/os/rename.hpp>
 #include <stout/os/sendfile.hpp>
 #include <stout/os/shell.hpp>
 #include <stout/os/signals.hpp>
@@ -225,8 +226,10 @@ inline Try<Nothing> utime(const std::string& path)
 inline Try<Nothing> touch(const std::string& path)
 {
   if (!exists(path)) {
-    Try<int> fd =
-      open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+    Try<int> fd = open(
+        path,
+        O_RDWR | O_CREAT,
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
     if (fd.isError()) {
       return Error("Failed to open file: " + fd.error());
@@ -293,8 +296,11 @@ inline Try<Nothing> write(int fd, const std::string& message)
 // open and closing the file.
 inline Try<Nothing> write(const std::string& path, const std::string& message)
 {
-  Try<int> fd = os::open(path, O_WRONLY | O_CREAT | O_TRUNC,
-                         S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  Try<int> fd = os::open(
+      path,
+      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
   if (fd.isError()) {
     return ErrnoError("Failed to open file '" + path + "'");
   }
@@ -654,6 +660,7 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
           errno == ESRCH ||
           errno == EBADF ||
           errno == EPERM) {
+        delete[] buffer;
         return None();
       }
 
@@ -709,6 +716,7 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
           errno == ESRCH ||
           errno == EBADF ||
           errno == EPERM) {
+        delete[] buffer;
         return None();
       }
 

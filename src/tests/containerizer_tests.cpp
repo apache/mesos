@@ -22,29 +22,31 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/mesos.hpp>
+
+#include <mesos/slave/isolator.hpp>
+
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
 #include <stout/strings.hpp>
 
-#include <mesos/mesos.hpp>
-
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/fetcher.hpp"
-#include "slave/containerizer/isolator.hpp"
 #include "slave/containerizer/launcher.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/isolator.hpp"
+#include "tests/launcher.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
 using namespace mesos::internal::slave;
+
+using namespace mesos::slave;
 
 using std::map;
 using std::string;
@@ -54,6 +56,11 @@ using testing::_;
 using testing::DoAll;
 using testing::Invoke;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
+
 
 class MesosContainerizerIsolatorPreparationTest :
   public tests::TemporaryDirectoryTest
@@ -313,13 +320,13 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
 }
 
 
-class MesosContainerizerDestroyTest : public tests::TemporaryDirectoryTest {};
+class MesosContainerizerDestroyTest : public MesosTest {};
 
 class MockMesosContainerizerProcess : public MesosContainerizerProcess
 {
 public:
   MockMesosContainerizerProcess(
-      const Flags& flags,
+      const slave::Flags& flags,
       bool local,
       Fetcher* fetcher,
       const process::Owned<Launcher>& launcher,
@@ -403,3 +410,81 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
   // The container should still exit even if fetch didn't complete.
   AWAIT_READY(wait);
 }
+
+
+// This action destroys the container using the real launcher and
+// waits until the destroy is complete.
+ACTION_P(InvokeDestroyAndWait, launcher)
+{
+  Future<Nothing> destroy = launcher->real->destroy(arg0);
+  AWAIT_READY(destroy);
+}
+
+
+// This test verifies that when a container destruction fails the
+// 'container_destroy_errors' metric is updated.
+TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
+{
+  // Create a TestLauncher backed by PosixLauncher.
+  slave::Flags flags;
+  Try<Launcher*> launcher_ = PosixLauncher::create(flags);
+  ASSERT_SOME(launcher_);
+  TestLauncher* launcher = new TestLauncher(Owned<Launcher>(launcher_.get()));
+
+  std::vector<process::Owned<Isolator>> isolators;
+  Fetcher fetcher;
+
+  MesosContainerizerProcess* process = new MesosContainerizerProcess(
+      flags,
+      true,
+      &fetcher,
+      Owned<Launcher>(launcher),
+      isolators);
+
+  MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  TaskInfo taskInfo;
+  CommandInfo commandInfo;
+  taskInfo.mutable_command()->MergeFrom(commandInfo);
+
+  // Destroy the container using the PosixLauncher but return a failed
+  // future to the containerizer.
+  EXPECT_CALL(*launcher, destroy(_))
+    .WillOnce(DoAll(InvokeDestroyAndWait(launcher),
+                    Return(Failure("Destroy failure"))));
+
+  Future<bool> launch = containerizer.launch(
+      containerId,
+      taskInfo,
+      CREATE_EXECUTOR_INFO("executor", "sleep 1000"),
+      os::getcwd(),
+      None(),
+      SlaveID(),
+      process::PID<Slave>(),
+      false);
+
+  AWAIT_READY(launch);
+
+  Future<containerizer::Termination> wait = containerizer.wait(containerId);
+
+  containerizer.destroy(containerId);
+
+  // The container destroy should fail.
+  AWAIT_FAILED(wait);
+
+  // Ensure that the metric is updated.
+  JSON::Object metrics = Metrics();
+  ASSERT_EQ(
+      1u,
+      metrics.values.count("containerizer/mesos/container_destroy_errors"));
+  ASSERT_EQ(
+      1u,
+      metrics.values["containerizer/mesos/container_destroy_errors"]);
+}
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

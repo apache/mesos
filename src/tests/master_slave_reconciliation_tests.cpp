@@ -32,18 +32,17 @@
 
 #include "common/protobuf_utils.hpp"
 
-#include "master/allocator.hpp"
 #include "master/master.hpp"
+
+#include "master/allocator/allocator.hpp"
 
 #include "slave/slave.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
 using namespace mesos::internal::protobuf;
-using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
 
@@ -60,6 +59,10 @@ using testing::_;
 using testing::AtMost;
 using testing::Return;
 using testing::SaveArg;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class MasterSlaveReconciliationTest : public MesosTest {};
@@ -229,6 +232,24 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 
   ASSERT_EQ(task.task_id(), status.get().task_id());
   ASSERT_EQ(TASK_LOST, status.get().state());
+
+  // Before we obtain the metrics, ensure that the master has finished
+  // processing the status update so metrics have been updated.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+  EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(
+      1u,
+      stats.values.count(
+          "master/task_lost/source_slave/reason_reconciliation"));
+  EXPECT_EQ(
+      1u,
+      stats.values["master/task_lost/source_slave/reason_reconciliation"]);
 
   driver.stop();
   driver.join();
@@ -518,3 +539,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
 
   Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

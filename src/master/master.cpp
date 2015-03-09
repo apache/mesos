@@ -27,6 +27,10 @@
 
 #include <mesos/module.hpp>
 
+#include <mesos/authentication/authenticator.hpp>
+
+#include <mesos/module/authenticator.hpp>
+
 #include <process/check.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -41,6 +45,7 @@
 
 #include <stout/check.hpp>
 #include <stout/error.hpp>
+#include <stout/ip.hpp>
 #include <stout/lambda.hpp>
 #include <stout/memory.hpp>
 #include <stout/multihashmap.hpp>
@@ -53,7 +58,6 @@
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
-#include "authentication/authenticator.hpp"
 #include "authentication/cram_md5/authenticator.hpp"
 
 #include "authorizer/authorizer.hpp"
@@ -70,11 +74,11 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
-#include "module/authenticator.hpp"
+#include "master/allocator/allocator.hpp"
+
 #include "module/manager.hpp"
 
 #include "watcher/whitelist_watcher.hpp"
@@ -94,6 +98,7 @@ using process::Owned;
 using process::PID;
 using process::Process;
 using process::Promise;
+using process::RateLimiter;
 using process::Shared;
 using process::Time;
 using process::Timer;
@@ -116,12 +121,16 @@ public:
   SlaveObserver(const UPID& _slave,
                 const SlaveInfo& _slaveInfo,
                 const SlaveID& _slaveId,
-                const PID<Master>& _master)
+                const PID<Master>& _master,
+                const Option<shared_ptr<RateLimiter>>& _limiter,
+                const shared_ptr<Metrics> _metrics)
     : ProcessBase(process::ID::generate("slave-observer")),
       slave(_slave),
       slaveInfo(_slaveInfo),
       slaveId(_slaveId),
       master(_master),
+      limiter(_limiter),
+      metrics(_metrics),
       timeouts(0),
       pinged(false),
       connected(true)
@@ -167,23 +176,78 @@ protected:
   {
     timeouts = 0;
     pinged = false;
+
+    // Cancel any pending shutdown.
+    if (shuttingDown.isSome()) {
+      // Need a copy for non-const access.
+      Future<Nothing> future = shuttingDown.get();
+      future.discard();
+    }
   }
 
   void timeout()
   {
-    if (pinged) { // So we haven't got back a pong yet ...
-      if (++timeouts >= MAX_SLAVE_PING_TIMEOUTS) {
+    if (pinged) {
+      timeouts++; // No pong has been received before the timeout.
+      if (timeouts >= MAX_SLAVE_PING_TIMEOUTS) {
+        // No pong has been received for the last
+        // 'MAX_SLAVE_PING_TIMEOUTS' pings.
         shutdown();
-        return;
       }
     }
 
+    // NOTE: We keep pinging even if we schedule a shutdown. This is
+    // because if the slave eventually responds to a ping, we can
+    // cancel the shutdown.
     ping();
   }
 
+  // NOTE: The shutdown of the slave is rate limited and can be
+  // canceled if a pong was received before the actual shutdown is
+  // called.
   void shutdown()
   {
-    dispatch(master, &Master::shutdownSlave, slaveId, "health check timed out");
+    if (shuttingDown.isSome()) {
+      return;  // Shutdown is already in progress.
+    }
+
+    Future<Nothing> acquire = Nothing();
+
+    if (limiter.isSome()) {
+      LOG(INFO) << "Scheduling shutdown of slave " << slaveId
+                << " due to health check timeout";
+
+      acquire = limiter.get()->acquire();
+    }
+
+    shuttingDown = acquire.onAny(defer(self(), &Self::_shutdown));
+    ++metrics->slave_shutdowns_scheduled;
+  }
+
+  void _shutdown()
+  {
+    CHECK_SOME(shuttingDown);
+
+    const Future<Nothing>& future = shuttingDown.get();
+
+    CHECK(!future.isFailed());
+
+    if (future.isReady()) {
+      LOG(INFO) << "Shutting down slave " << slaveId
+                << " due to health check timeout";
+
+      dispatch(master,
+               &Master::shutdownSlave,
+               slaveId,
+               "health check timed out");
+    } else if (future.isDiscarded()) {
+      LOG(INFO) << "Canceling shutdown of slave " << slaveId
+                << " since a pong is received!";
+
+      ++metrics->slave_shutdowns_canceled;
+    }
+
+    shuttingDown = None();
   }
 
 private:
@@ -191,6 +255,9 @@ private:
   const SlaveInfo slaveInfo;
   const SlaveID slaveId;
   const PID<Master> master;
+  const Option<shared_ptr<RateLimiter>> limiter;
+  shared_ptr<Metrics> metrics;
+  Option<Future<Nothing>> shuttingDown;
   uint32_t timeouts;
   bool pinged;
   bool connected;
@@ -205,6 +272,7 @@ Master::Master(
     MasterContender* _contender,
     MasterDetector* _detector,
     const Option<Authorizer*>& _authorizer,
+    const Option<shared_ptr<RateLimiter>>& _slaveRemovalLimiter,
     const Flags& _flags)
   : ProcessBase("master"),
     http(this),
@@ -216,30 +284,39 @@ Master::Master(
     contender(_contender),
     detector(_detector),
     authorizer(_authorizer),
-    metrics(*this),
+    metrics(new Metrics(*this)),
     electedTime(None())
 {
+  slaves.limiter = _slaveRemovalLimiter;
+
   // NOTE: We populate 'info_' here instead of inside 'initialize()'
   // because 'StandaloneMasterDetector' needs access to the info.
 
   // The master ID is currently comprised of the current date, the IP
   // address and port from self() and the OS PID.
-  Try<string> id =
-    strings::format("%s-%u-%u-%d", DateUtils::currentDate(),
-                    self().node.ip, self().node.port, getpid());
+  Try<string> id = strings::format(
+      "%s-%u-%u-%d",
+      DateUtils::currentDate(),
+      self().address.ip.in().get().s_addr,
+      self().address.port,
+      getpid());
 
   CHECK(!id.isError()) << id.error();
 
   info_.set_id(id.get());
-  info_.set_ip(self().node.ip);
-  info_.set_port(self().node.port);
+
+  // NOTE: Currently, we store ip in MasterInfo in network order,
+  // which should be fixed. See MESOS-1201 for details.
+  info_.set_ip(self().address.ip.in().get().s_addr);
+
+  info_.set_port(self().address.port);
   info_.set_pid(self());
 
   // Determine our hostname or use the hostname provided.
   string hostname;
 
   if (flags.hostname.isNone()) {
-    Try<string> result = net::getHostname(self().node.ip);
+    Try<string> result = net::getHostname(self().address.ip);
 
     if (result.isError()) {
       LOG(FATAL) << "Failed to get hostname: " << result.error();
@@ -257,12 +334,31 @@ Master::Master(
 Master::~Master() {}
 
 
+// TODO(vinod): Update this interface to return failed futures when
+// capacity is reached.
+struct BoundedRateLimiter
+{
+  BoundedRateLimiter(double qps, Option<uint64_t> _capacity)
+    : limiter(new process::RateLimiter(qps)),
+      capacity(_capacity),
+      messages(0) {}
+
+  process::Owned<process::RateLimiter> limiter;
+  const Option<uint64_t> capacity;
+
+  // Number of outstanding messages for this RateLimiter.
+  // NOTE: ExitedEvents are throttled but not counted towards
+  // the capacity here.
+  uint64_t messages;
+};
+
+
 void Master::initialize()
 {
   LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
             << " started on " << string(self()).substr(7);
 
-  if (stringify(net::IP(ntohl(self().node.ip))) == "127.0.0.1") {
+  if (process::address().ip.isLoopback()) {
     LOG(WARNING) << "\n**************************************************\n"
                  << "Master bound to loopback interface!"
                  << " Cannot communicate with remote schedulers or slaves."
@@ -334,10 +430,8 @@ void Master::initialize()
 
   // Load credentials.
   if (flags.credentials.isSome()) {
-    const string& path =
-      strings::remove(flags.credentials.get(), "file://", strings::PREFIX);
-
-    Result<Credentials> _credentials = credentials::read(path);
+    Result<Credentials> _credentials =
+      credentials::read(flags.credentials.get());
     if (_credentials.isError()) {
       EXIT(1) << _credentials.error() << " (see --credentials flag)";
     } else if (_credentials.isNone()) {
@@ -360,7 +454,7 @@ void Master::initialize()
   if (flags.rate_limits.isSome()) {
     // Add framework rate limiters.
     foreach (const RateLimit& limit_, flags.rate_limits.get().limits()) {
-      if (limiters.contains(limit_.principal())) {
+      if (frameworks.limiters.contains(limit_.principal())) {
         EXIT(1) << "Duplicate principal " << limit_.principal()
                 << " found in RateLimits configuration";
       }
@@ -375,12 +469,12 @@ void Master::initialize()
         if (limit_.has_capacity()) {
           capacity = limit_.capacity();
         }
-        limiters.put(
+        frameworks.limiters.put(
             limit_.principal(),
             Owned<BoundedRateLimiter>(
                 new BoundedRateLimiter(limit_.qps(), capacity)));
       } else {
-        limiters.put(limit_.principal(), None());
+        frameworks.limiters.put(limit_.principal(), None());
       }
     }
 
@@ -396,12 +490,19 @@ void Master::initialize()
       if (flags.rate_limits.get().has_aggregate_default_capacity()) {
         capacity = flags.rate_limits.get().aggregate_default_capacity();
       }
-      defaultLimiter = Owned<BoundedRateLimiter>(
+      frameworks.defaultLimiter = Owned<BoundedRateLimiter>(
           new BoundedRateLimiter(
               flags.rate_limits.get().aggregate_default_qps(), capacity));
     }
 
     LOG(INFO) << "Framework rate limiting enabled";
+  }
+
+  // If the rate limiter is injected for testing,
+  // the flag may not be set.
+  if (slaves.limiter.isSome() && flags.slave_removal_rate_limit.isSome()) {
+    LOG(INFO) << "Slave removal is rate limited to "
+              << flags.slave_removal_rate_limit.get();
   }
 
   hashmap<string, RoleInfo> roleInfos;
@@ -465,7 +566,7 @@ void Master::initialize()
       defer(self(), &Master::offer, lambda::_1, lambda::_2),
       roleInfos);
 
-  // Parse the whitelist. Passing allocator::updateWhitelist()
+  // Parse the whitelist. Passing Allocator::updateWhitelist()
   // callback is safe because we shut down the whitelistWatcher in
   // Master::finalize(), while allocator lifetime is greater than
   // masters. Therefore there is no risk of calling into an allocator
@@ -479,19 +580,6 @@ void Master::initialize()
   nextFrameworkId = 0;
   nextSlaveId = 0;
   nextOfferId = 0;
-
-  // Start all the statistics at 0.
-  stats.tasks[TASK_STAGING] = 0;
-  stats.tasks[TASK_STARTING] = 0;
-  stats.tasks[TASK_RUNNING] = 0;
-  stats.tasks[TASK_FINISHED] = 0;
-  stats.tasks[TASK_FAILED] = 0;
-  stats.tasks[TASK_KILLED] = 0;
-  stats.tasks[TASK_LOST] = 0;
-  stats.validStatusUpdates = 0;
-  stats.invalidStatusUpdates = 0;
-  stats.validFrameworkMessages = 0;
-  stats.invalidFrameworkMessages = 0;
 
   startTime = Clock::now();
 
@@ -557,11 +645,13 @@ void Master::initialize()
   install<RegisterSlaveMessage>(
       &Master::registerSlave,
       &RegisterSlaveMessage::slave,
+      &RegisterSlaveMessage::checkpointed_resources,
       &RegisterSlaveMessage::version);
 
   install<ReregisterSlaveMessage>(
       &Master::reregisterSlave,
       &ReregisterSlaveMessage::slave,
+      &ReregisterSlaveMessage::checkpointed_resources,
       &ReregisterSlaveMessage::executor_infos,
       &ReregisterSlaveMessage::tasks,
       &ReregisterSlaveMessage::completed_frameworks,
@@ -608,12 +698,12 @@ void Master::initialize()
   route("/shutdown",
         Http::SHUTDOWN_HELP,
         lambda::bind(&Http::shutdown, http, lambda::_1));
+  route("/slaves",
+        Http::SLAVES_HELP,
+        lambda::bind(&Http::slaves, http, lambda::_1));
   route("/state.json",
         None(),
         lambda::bind(&Http::state, http, lambda::_1));
-  route("/stats.json",
-        None(),
-        lambda::bind(&Http::stats, http, lambda::_1));
   route("/tasks.json",
         Http::TASKS_HELP,
         lambda::bind(&Http::tasks, http, lambda::_1));
@@ -626,7 +716,15 @@ void Master::initialize()
   provide("", path::join(flags.webui_dir, "master/static/index.html"));
   provide("static", path::join(flags.webui_dir, "master/static"));
 
-  if (flags.log_dir.isSome()) {
+  // Expose the log file for the webui. Fall back to 'log_dir' if
+  // an explicit file was not specified.
+  if (flags.external_log_file.isSome()) {
+    files->attach(flags.external_log_file.get(), "/master/log")
+      .onAny(defer(self(),
+                   &Self::fileAttached,
+                   lambda::_1,
+                   flags.external_log_file.get()));
+  } else if (flags.log_dir.isSome()) {
     Try<string> log = logging::getLogFile(
         logging::getLogSeverity(flags.logging_level));
 
@@ -653,9 +751,20 @@ void Master::finalize()
 {
   LOG(INFO) << "Master terminating";
 
+  // NOTE: Even though we remove the slave and framework from the
+  // allocator, it is possible that offers are already dispatched to
+  // this master. In tests, if a new master (with the same PID) is
+  // started, it might process the offers from the old master's
+  // allocator.
+  // TODO(vinod): Fix the above race by changing the allocator
+  // interface to return a stream of offer events.
+
   // Remove the slaves.
   foreachvalue (Slave* slave, slaves.registered) {
-    // Remove tasks, don't bother recovering resources.
+    // We first remove the slave from the allocator so that any
+    // recovered resources below are not reoffered.
+    allocator->removeSlave(slave->id);
+
     foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
       foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
         removeTask(task);
@@ -686,9 +795,11 @@ void Master::finalize()
 
   // Remove the frameworks.
   // Note we are not deleting the pointers to the frameworks from the
-  // allocator or the roles because it is unnecessary bookkeeping at
-  // this point since we are shutting down.
+  // roles because it is unnecessary bookkeeping at this point since
+  // we are shutting down.
   foreachvalue (Framework* framework, frameworks.registered) {
+    allocator->removeFramework(framework->id);
+
     // Remove pending tasks from the framework. Don't bother
     // recovering the resources in the allocator.
     framework->pendingTasks.clear();
@@ -856,9 +967,9 @@ void Master::visit(const MessageEvent& event)
   // 'Master::Frameworks::principals' for details.
   if (principal.isSome()) {
     // If the framework has a principal, the counter must exist.
-    CHECK(metrics.frameworks.contains(principal.get()));
+    CHECK(metrics->frameworks.contains(principal.get()));
     Counter messages_received =
-      metrics.frameworks.get(principal.get()).get()->messages_received;
+      metrics->frameworks.get(principal.get()).get()->messages_received;
     ++messages_received;
   }
 
@@ -866,7 +977,7 @@ void Master::visit(const MessageEvent& event)
   if (!elected()) {
     VLOG(1) << "Dropping '" << event.message->name << "' message since "
             << "not elected yet";
-    ++metrics.dropped_messages;
+    ++metrics->dropped_messages;
     return;
   }
 
@@ -880,7 +991,7 @@ void Master::visit(const MessageEvent& event)
   if (!recovered.get().isReady()) {
     VLOG(1) << "Dropping '" << event.message->name << "' message since "
             << "not recovered yet";
-    ++metrics.dropped_messages;
+    ++metrics->dropped_messages;
     return;
   }
 
@@ -895,9 +1006,10 @@ void Master::visit(const MessageEvent& event)
   //    above. (or)
   // 2) the principal exists in RateLimits but 'qps' is not set.
   if (principal.isSome() &&
-      limiters.contains(principal.get()) &&
-      limiters[principal.get()].isSome()) {
-    const Owned<BoundedRateLimiter>& limiter = limiters[principal.get()].get();
+      frameworks.limiters.contains(principal.get()) &&
+      frameworks.limiters[principal.get()].isSome()) {
+    const Owned<BoundedRateLimiter>& limiter =
+      frameworks.limiters[principal.get()].get();
 
     if (limiter->capacity.isNone() ||
         limiter->messages < limiter->capacity.get()) {
@@ -910,19 +1022,21 @@ void Master::visit(const MessageEvent& event)
           principal,
           limiter->capacity.get());
     }
-  } else if ((principal.isNone() || !limiters.contains(principal.get())) &&
+  } else if ((principal.isNone() ||
+              !frameworks.limiters.contains(principal.get())) &&
              isRegisteredFramework &&
-             defaultLimiter.isSome()) {
-    if (defaultLimiter.get()->capacity.isNone() ||
-        defaultLimiter.get()->messages < defaultLimiter.get()->capacity.get()) {
-      defaultLimiter.get()->messages++;
-      defaultLimiter.get()->limiter->acquire()
+             frameworks.defaultLimiter.isSome()) {
+    if (frameworks.defaultLimiter.get()->capacity.isNone() ||
+        frameworks.defaultLimiter.get()->messages <
+          frameworks.defaultLimiter.get()->capacity.get()) {
+      frameworks.defaultLimiter.get()->messages++;
+      frameworks.defaultLimiter.get()->limiter->acquire()
         .onReady(defer(self(), &Self::throttled, event, None()));
     } else {
       exceededCapacity(
           event,
           principal,
-          defaultLimiter.get()->capacity.get());
+          frameworks.defaultLimiter.get()->capacity.get());
     }
   } else {
     _visit(event);
@@ -947,14 +1061,15 @@ void Master::visit(const ExitedEvent& event)
   typedef void(Self::*F)(const ExitedEvent&);
 
   if (principal.isSome() &&
-      limiters.contains(principal.get()) &&
-      limiters[principal.get()].isSome()) {
-    limiters[principal.get()].get()->limiter->acquire()
+      frameworks.limiters.contains(principal.get()) &&
+      frameworks.limiters[principal.get()].isSome()) {
+    frameworks.limiters[principal.get()].get()->limiter->acquire()
       .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
-  } else if ((principal.isNone() || !limiters.contains(principal.get())) &&
+  } else if ((principal.isNone() ||
+              !frameworks.limiters.contains(principal.get())) &&
              isRegisteredFramework &&
-             defaultLimiter.isSome()) {
-    defaultLimiter.get()->limiter->acquire()
+             frameworks.defaultLimiter.isSome()) {
+    frameworks.defaultLimiter.get()->limiter->acquire()
       .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
   } else {
     _visit(event);
@@ -969,11 +1084,11 @@ void Master::throttled(
   // We already know a RateLimiter is used to throttle this event so
   // here we only need to determine which.
   if (principal.isSome()) {
-    CHECK_SOME(limiters[principal.get()]);
-    limiters[principal.get()].get()->messages--;
+    CHECK_SOME(frameworks.limiters[principal.get()]);
+    frameworks.limiters[principal.get()].get()->messages--;
   } else {
-    CHECK_SOME(defaultLimiter);
-    defaultLimiter.get()->messages--;
+    CHECK_SOME(frameworks.defaultLimiter);
+    frameworks.defaultLimiter.get()->messages--;
   }
 
   _visit(event);
@@ -996,9 +1111,9 @@ void Master::_visit(const MessageEvent& event)
   // Note that it could be removed in handling
   // 'UnregisterFrameworkMessage' if it's the last framework with
   // this principal.
-  if (principal.isSome() && metrics.frameworks.contains(principal.get())) {
+  if (principal.isSome() && metrics->frameworks.contains(principal.get())) {
     Counter messages_processed =
-      metrics.frameworks.get(principal.get()).get()->messages_processed;
+      metrics->frameworks.get(principal.get()).get()->messages_processed;
     ++messages_processed;
   }
 }
@@ -1115,40 +1230,80 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
             << " investigate or increase this limit to proceed further";
   }
 
+  // Remove the slaves in a rate limited manner, similar to how the
+  // SlaveObserver removes slaves.
   foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
-    if (!slaves.recovered.contains(slave.info().id())) {
-      continue; // Slave re-registered.
+    Future<Nothing> acquire = Nothing();
+
+    if (slaves.limiter.isSome()) {
+      LOG(INFO) << "Scheduling removal of slave "
+                << slave.info().id() << " (" << slave.info().hostname() << ")"
+                << "; did not re-register within "
+                << flags.slave_reregister_timeout << " after master failover";
+
+      acquire = slaves.limiter.get()->acquire();
     }
 
-    LOG(WARNING) << "Slave " << slave.info().id()
-                 << " (" << slave.info().hostname() << ") did not re-register "
-                 << "within the timeout; removing it from the registrar";
+    // Need to disambiguate for the compiler.
+    // TODO(bmahler): With C++11, just call removeSlave from within
+    // a lambda function to avoid the need to disambiguate.
+    Nothing (Master::*removeSlave)(const Registry::Slave&) = &Self::removeSlave;
+    const string failure = "Slave removal rate limit acquisition failed";
 
-    ++metrics.recovery_slave_removals;
+    acquire
+      .then(defer(self(), removeSlave, slave))
+      .onFailed(lambda::bind(fail, failure, lambda::_1))
+      .onDiscarded(lambda::bind(fail, failure, "discarded"));
 
-    slaves.recovered.erase(slave.info().id());
-
-    if (flags.registry_strict) {
-      slaves.removing.insert(slave.info().id());
-
-      registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
-        .onAny(defer(self(),
-                     &Self::_removeSlave,
-                     slave.info(),
-                     vector<StatusUpdate>(), // No TASK_LOST updates to send.
-                     lambda::_1));
-    } else {
-      // When a non-strict registry is in use, we want to ensure the
-      // registry is used in a write-only manner. Therefore we remove
-      // the slave from the registry but we do not inform the
-      // framework.
-      const string& message =
-        "Failed to remove slave " + stringify(slave.info().id());
-
-      registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
-        .onFailed(lambda::bind(fail, message, lambda::_1));
-    }
+    ++metrics->slave_shutdowns_scheduled;
   }
+}
+
+
+Nothing Master::removeSlave(const Registry::Slave& slave)
+{
+  // The slave is removed from 'recovered' when it re-registers.
+  if (!slaves.recovered.contains(slave.info().id())) {
+    LOG(INFO) << "Canceling removal of slave "
+              << slave.info().id() << " (" << slave.info().hostname() << ")"
+              << " since it re-registered!";
+
+    ++metrics->slave_shutdowns_canceled;
+
+    return Nothing();
+  }
+
+  LOG(WARNING) << "Slave " << slave.info().id()
+               << " (" << slave.info().hostname() << ") did not re-register"
+               << " within " << flags.slave_reregister_timeout
+               << " after master failover; removing it from the registrar";
+
+  ++metrics->recovery_slave_removals;
+
+  slaves.recovered.erase(slave.info().id());
+
+  if (flags.registry_strict) {
+    slaves.removing.insert(slave.info().id());
+
+    registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
+      .onAny(defer(self(),
+                   &Self::_removeSlave,
+                   slave.info(),
+                   vector<StatusUpdate>(), // No TASK_LOST updates to send.
+                   lambda::_1));
+  } else {
+    // When a non-strict registry is in use, we want to ensure the
+    // registry is used in a write-only manner. Therefore we remove
+    // the slave from the registry but we do not inform the
+    // framework.
+    const string& message =
+      "Failed to remove slave " + stringify(slave.info().id());
+
+    registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
+      .onFailed(lambda::bind(fail, message, lambda::_1));
+  }
+
+  return Nothing();
 }
 
 
@@ -1323,8 +1478,26 @@ void Master::drop(
   // TODO(bmahler): Increment a metric.
 
   LOG(ERROR) << "Dropping " << scheduler::Call::Type_Name(call.type())
-             <<  " call from framework '" << call.framework_info().name() << "'"
-                 " at " << from << ": " << message;
+             << " call from framework " << call.framework_info().id()
+             << " (" << call.framework_info().name() << ") at " << from
+             << ": " << message;
+}
+
+
+void Master::drop(
+    Framework* framework,
+    const Offer::Operation& operation,
+    const string& message)
+{
+  // TODO(jieyu): Increment a metric.
+
+  // NOTE: There is no direct feedback to the framework when an
+  // operation is dropped. The framework will find out that the
+  // operation was dropped through subsequent offers.
+
+  LOG(ERROR) << "Dropping " << Offer::Operation::Type_Name(operation.type())
+             << " offer operation from framework " << *framework
+             << ": " << message;
 }
 
 
@@ -1334,9 +1507,37 @@ void Master::receive(
 {
   const FrameworkInfo& frameworkInfo = call.framework_info();
 
+  // For REGISTER and REREGISTER calls, no need to look up the
+  // framework. Therefore, we handle them first and separately from
+  // other types of calls.
   switch (call.type()) {
     case scheduler::Call::REGISTER:
     case scheduler::Call::REREGISTER:
+      drop(from, call, "Unimplemented");
+      return;
+
+    default:
+      break;
+  }
+
+  // We consolidate the framework lookup and pid validation logic here
+  // because they are common for all the call handlers.
+  Framework* framework = getFramework(frameworkInfo.id());
+
+  if (framework == NULL) {
+    drop(from, call, "Framework cannot be found");
+    return;
+  }
+
+  if (from != framework->pid) {
+    drop(from, call, "Call is not from registered framework");
+    return;
+  }
+
+  // TODO(jieyu): Validate frameworkInfo to make sure it's the same as
+  // the one that the framework used during registration.
+
+  switch (call.type()) {
     case scheduler::Call::UNREGISTER:
     case scheduler::Call::REQUEST:
     case scheduler::Call::REVIVE:
@@ -1349,7 +1550,7 @@ void Master::receive(
         drop(from, call, "Expecting 'accept' to be present");
         return;
       }
-      receive(from, frameworkInfo, call.accept());
+      accept(framework, call.accept());
       break;
 
     case scheduler::Call::LAUNCH:
@@ -1361,35 +1562,9 @@ void Master::receive(
       break;
 
     default:
-      LOG(ERROR) << "Unknown Call type " << call.type()
-                 << " received from framework " << frameworkInfo.name()
-                 << " at " << from;
+      drop(from, call, "Unknown call type");
       break;
   }
-}
-
-
-void Master::receive(
-    const UPID& from,
-    const FrameworkInfo& frameworkInfo,
-    const scheduler::Call::Accept& accept)
-{
-  vector<OfferID> offerIds =
-    google::protobuf::convert(accept.offer_ids());
-
-  vector<TaskInfo> tasks;
-
-  // TODO(bmahler): Update this to apply other operations, which
-  // may need some structural change in the master.
-  foreach (const Offer::Operation& operation, accept.operations()) {
-    if (operation.type() == Offer::Operation::LAUNCH) {
-      foreach (const TaskInfo& task, operation.launch().task_infos()) {
-        tasks.push_back(task);
-      }
-    }
-  }
-
-  launchTasks(from, frameworkInfo.id(), tasks, accept.filters(), offerIds);
 }
 
 
@@ -1397,7 +1572,7 @@ void Master::registerFramework(
     const UPID& from,
     const FrameworkInfo& frameworkInfo)
 {
-  ++metrics.messages_register_framework;
+  ++metrics->messages_register_framework;
 
   if (authenticating.contains(from)) {
     // TODO(vinod): Consider dropping this request and fix the tests
@@ -1507,7 +1682,7 @@ void Master::reregisterFramework(
     const FrameworkInfo& frameworkInfo,
     bool failover)
 {
-  ++metrics.messages_reregister_framework;
+  ++metrics->messages_reregister_framework;
 
   if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
     LOG(ERROR) << "Framework '" << frameworkInfo.name() << "' at " << from
@@ -1736,7 +1911,7 @@ void Master::unregisterFramework(
     const UPID& from,
     const FrameworkID& frameworkId)
 {
-  ++metrics.messages_unregister_framework;
+  ++metrics->messages_unregister_framework;
 
   LOG(INFO) << "Asked to unregister framework " << frameworkId;
 
@@ -1757,7 +1932,7 @@ void Master::deactivateFramework(
     const UPID& from,
     const FrameworkID& frameworkId)
 {
-  ++metrics.messages_deactivate_framework;
+  ++metrics->messages_deactivate_framework;
 
   Framework* framework = getFramework(frameworkId);
 
@@ -1860,7 +2035,7 @@ void Master::resourceRequest(
     const FrameworkID& frameworkId,
     const vector<Request>& requests)
 {
-  ++metrics.messages_resource_request;
+  ++metrics->messages_resource_request;
 
   Framework* framework = getFramework(frameworkId);
 
@@ -1883,555 +2058,6 @@ void Master::resourceRequest(
 }
 
 
-// Abstraction for performing any validations, aggregations, etc. of
-// tasks that a framework attempts to run within the resources
-// provided by offers. A validator can return an optional error which
-// will cause the master to send a failed status update back to the
-// framework for only that task. An instance will be reused for each
-// task from same 'launchTasks()', but not for task from different
-// offers.
-struct TaskInfoValidator
-{
-  virtual Option<Error> operator () (
-      const TaskInfo& task,
-      const Framework& framework,
-      const Slave& slave,
-      const Resources& offeredResources,
-      const Resources& usedResources) = 0;
-
-  virtual ~TaskInfoValidator() {}
-};
-
-
-// Validates that a task id is valid, i.e., contains only valid
-// characters.
-struct TaskIDValidator : TaskInfoValidator
-{
-  virtual Option<Error> operator () (
-      const TaskInfo& task,
-      const Framework& framework,
-      const Slave& slave,
-      const Resources& offeredResources,
-      const Resources& usedResources)
-  {
-    const string& id = task.task_id().value();
-
-    if (std::count_if(id.begin(), id.end(), invalid) > 0) {
-      return Error("TaskID '" + id + "' contains invalid characters");
-    }
-
-    return None();
-  }
-
-  static bool invalid(char c)
-  {
-    return iscntrl(c) || c == '/' || c == '\\';
-  }
-};
-
-
-// Validates that the slave ID used by a task is correct.
-struct SlaveIDValidator : TaskInfoValidator
-{
-  virtual Option<Error> operator () (
-      const TaskInfo& task,
-      const Framework& framework,
-      const Slave& slave,
-      const Resources& offeredResources,
-      const Resources& usedResources)
-  {
-    if (!(task.slave_id() == slave.id)) {
-      return Error(
-          "Task uses invalid slave " + task.slave_id().value() +
-          " while slave " + slave.id.value() + " is expected");
-    }
-
-    return None();
-  }
-};
-
-
-// Validates that each task uses a unique ID. Regardless of whether a
-// task actually gets launched (for example, another validator may
-// return an error for a task), we always consider it an error when a
-// task tries to re-use an ID.
-struct UniqueTaskIDValidator : TaskInfoValidator
-{
-  virtual Option<Error> operator () (
-      const TaskInfo& task,
-      const Framework& framework,
-      const Slave& slave,
-      const Resources& offeredResources,
-      const Resources& usedResources)
-  {
-    const TaskID& taskId = task.task_id();
-
-    if (framework.tasks.contains(taskId)) {
-      return Error("Task has duplicate ID: " + taskId.value());
-    }
-
-    return None();
-  }
-};
-
-
-// Validates that resources specified by the framework are valid.
-struct ResourceValidator : TaskInfoValidator
-{
-  virtual Option<Error> operator () (
-      const TaskInfo& task,
-      const Framework& framework,
-      const Slave& slave,
-      const Resources& offeredResources,
-      const Resources& usedResources)
-  {
-    // This is used to ensure no duplicated persistence id exists.
-    // TODO(jieyu): The check we have right now is a partial check for
-    // the current task. We need to add checks against slave's
-    // existing tasks and executors as well.
-    hashmap<string, hashset<string>> persistenceIds;
-
-    Option<Error> error = Resources::validate(task.resources());
-    if (error.isSome()) {
-      return Error("Task uses invalid resources: " + error.get().message);
-    }
-
-    // Ensure any DiskInfos in the task are valid according to the
-    // currently supported semantics.
-    foreach (const Resource& resource, task.resources()) {
-      if (resource.has_disk()) {
-        error = validateDiskInfo(resource);
-        if (error.isSome()) {
-          return Error("Task uses invalid DiskInfo: " + error.get().message);
-        }
-
-        if (resource.disk().has_persistence()) {
-          string role = resource.role();
-          string id = resource.disk().persistence().id();
-
-          if (persistenceIds[role].contains(id)) {
-            return Error("Task uses duplicated persistence ID " + id);
-          }
-
-          persistenceIds[role].insert(id);
-        }
-      }
-    }
-
-    if (task.has_executor()) {
-      Option<Error> error = Resources::validate(task.executor().resources());
-      if (error.isSome()) {
-        return Error(
-            "Executor uses invalid resources: " + error.get().message);
-      }
-
-      // Ensure any DiskInfos in the executor are valid according to
-      // the currently supported semantics.
-      foreach (const Resource& resource, task.executor().resources()) {
-        if (resource.has_disk()) {
-          error = validateDiskInfo(resource);
-          if (error.isSome()) {
-            return Error(
-                "Executor uses invalid DiskInfo: " + error.get().message);
-          }
-
-          if (resource.disk().has_persistence()) {
-            string role = resource.role();
-            string id = resource.disk().persistence().id();
-
-            if (persistenceIds[role].contains(id)) {
-              return Error("Executor uses duplicated persistence ID " + id);
-            }
-
-            persistenceIds[role].insert(id);
-          }
-        }
-      }
-    }
-
-    return None();
-  }
-
-  Option<Error> validateDiskInfo(const Resource& resource)
-  {
-    CHECK(resource.has_disk());
-
-    if (resource.disk().has_persistence()) {
-      if (resource.role() == "*") {
-        return Error("Persistent disk volume is disallowed for '*' role");
-      }
-      if (!resource.disk().has_volume()) {
-        return Error("Persistent disk should specify a volume");
-      }
-      if (resource.disk().volume().mode() == Volume::RO) {
-        return Error("Read-only volume is not supported for DiskInfo");
-      }
-      if (resource.disk().volume().has_host_path()) {
-        return Error("Volume in DiskInfo should not have 'host_path' set");
-      }
-
-      // Ensure persistence ID does not have invalid characters.
-      string id = resource.disk().persistence().id();
-      if (std::count_if(id.begin(), id.end(), invalid) > 0) {
-        return Error("Persistence ID '" + id + "' contains invalid characters");
-      }
-    } else if (resource.disk().has_volume()) {
-      return Error("Non-persistent disk volume is not supported");
-    } else {
-      return Error("DiskInfo is set but empty");
-    }
-
-    return None();
-  }
-
-  static bool invalid(char c)
-  {
-    return iscntrl(c) || c == '/' || c == '\\';
-  }
-};
-
-
-// Validates that the task and the executor are using proper amount of
-// resources. For instance, the used resources by a task on each slave
-// should not exceed the total resources offered on that slave.
-struct ResourceUsageValidator : TaskInfoValidator
-{
-  virtual Option<Error> operator () (
-      const TaskInfo& task,
-      const Framework& framework,
-      const Slave& slave,
-      const Resources& offeredResources,
-      const Resources& usedResources)
-  {
-    Resources taskResources = task.resources();
-
-    if (taskResources.empty()) {
-      return Error("Task uses no resources");
-    }
-
-    Resources executorResources;
-    if (task.has_executor()) {
-      executorResources = task.executor().resources();
-    }
-
-    // Validate minimal cpus and memory resources of executor and log
-    // warnings if not set.
-    if (task.has_executor()) {
-      // TODO(martin): MESOS-1807. Return Error instead of logging a
-      // warning in 0.22.0.
-      Option<double> cpus =  executorResources.cpus();
-      if (cpus.isNone() || cpus.get() < MIN_CPUS) {
-        LOG(WARNING)
-          << "Executor " << stringify(task.executor().executor_id())
-          << " for task " << stringify(task.task_id())
-          << " uses less CPUs ("
-          << (cpus.isSome() ? stringify(cpus.get()) : "None")
-          << ") than the minimum required (" << MIN_CPUS
-          << "). Please update your executor, as this will be mandatory "
-          << "in future releases.";
-      }
-
-      Option<Bytes> mem = executorResources.mem();
-      if (mem.isNone() || mem.get() < MIN_MEM) {
-        LOG(WARNING)
-          << "Executor " << stringify(task.executor().executor_id())
-          << " for task " << stringify(task.task_id())
-          << " uses less memory ("
-          << (mem.isSome() ? stringify(mem.get().megabytes()) : "None")
-          << ") than the minimum required (" << MIN_MEM
-          << "). Please update your executor, as this will be mandatory "
-          << "in future releases.";
-      }
-    }
-
-    // Validate if resources needed by the task (and its executor in
-    // case the executor is new) are available.
-    Resources resources = taskResources;
-    if (!slave.hasExecutor(framework.id, task.executor().executor_id())) {
-      resources += executorResources;
-    }
-
-    // We allow frameworks to implicitly acquire persistent disks
-    // through task and executor resources. This means that we need to
-    // infer these implicit disk acquisition transformations on the
-    // offered resources, so that we can validate resource usage.
-    //
-    // NOTE: ResourceValidator ensures that there are no duplicate
-    // persistence IDs per role in 'resources'.
-    //
-    // NOTE: 'offeredResources' will not contain duplicate persistence
-    // IDs per role, given we do not construct such offers.
-    Resources::CompositeTransformation transformation;
-    foreach (const Resource& disk, resources.persistentDisks()) {
-      if (!offeredResources.contains(disk)) {
-        // This is an implicit acquisition. The framework is not
-        // allowed to mutate an offered persistent disk, so we need to
-        // check the offered resources for this persistence ID within
-        // the role.
-        //
-        // TODO(jieyu): We need to ensure this persistence ID within
-        // the role does not clash with any in-use persistent disks on
-        // the slave.
-        string id = disk.disk().persistence().id();
-        foreach (const Resource& offered, offeredResources.persistentDisks()) {
-          if (offered.role() == disk.role() &&
-              offered.disk().persistence().id() == id) {
-            return Error("Duplicated persistence ID '" + id + "'");
-          }
-        }
-
-        transformation.add(Resources::AcquirePersistentDisk(disk));
-      }
-    }
-
-    // Validate that the offered resources are sufficient for
-    // launching this task/executor. To do that, we must first apply
-    // the implicit transformations.
-    Try<Resources> transformedOfferedResources =
-      transformation(offeredResources);
-
-    if (transformedOfferedResources.isError()) {
-      // TODO(jieyu): Revisit this error message once we start to
-      // allow other types of transformations (e.g., dynamic
-      // reservations).
-      return Error(
-          "Failed to acquire persistent disks: " +
-          transformedOfferedResources.error());
-    }
-
-    if (!transformedOfferedResources.get()
-          .contains(resources + usedResources)) {
-      return Error(
-          "Task uses more resources " + stringify(resources) +
-          " than available " +
-          stringify(transformedOfferedResources.get() - usedResources));
-    }
-
-    return None();
-  }
-};
-
-
-// Validates that tasks that use the "same" executor (i.e., same
-// ExecutorID) have an identical ExecutorInfo.
-struct ExecutorInfoValidator : TaskInfoValidator
-{
-  virtual Option<Error> operator () (
-      const TaskInfo& task,
-      const Framework& framework,
-      const Slave& slave,
-      const Resources& offeredResources,
-      const Resources& usedResources)
-  {
-    if (task.has_executor() == task.has_command()) {
-      return Error(
-          "Task should have at least one (but not both) of CommandInfo or "
-          "ExecutorInfo present");
-    }
-
-    if (task.has_executor()) {
-      // The master currently expects ExecutorInfo.framework_id to be
-      // set even though it is an optional field. Currently, the
-      // scheduler driver ensures that the field is set. For
-      // schedulers not using the driver, we need to do the validation
-      // here.
-      // TODO(bmahler): Set this field in the master instead of
-      // depending on the scheduler driver do it.
-      if (!task.executor().has_framework_id()) {
-        return Error(
-            "Task has invalid ExecutorInfo: missing field 'framework_id'");
-      }
-
-      if (!(task.executor().framework_id() == framework.id)) {
-        return Error(
-            "ExecutorInfo has an invalid FrameworkID"
-            " (Actual: " + stringify(task.executor().framework_id()) +
-            " vs Expected: " + stringify(framework.id) + ")");
-      }
-
-      const ExecutorID& executorId = task.executor().executor_id();
-      Option<ExecutorInfo> executorInfo = None();
-
-      if (slave.hasExecutor(framework.id, executorId)) {
-        executorInfo = slave.executors.get(framework.id).get().get(executorId);
-      }
-
-      if (executorInfo.isSome() && !(task.executor() == executorInfo.get())) {
-        return Error(
-            "Task has invalid ExecutorInfo (existing ExecutorInfo"
-            " with same ExecutorID is not compatible).\n"
-            "------------------------------------------------------------\n"
-            "Existing ExecutorInfo:\n" +
-            stringify(executorInfo.get()) + "\n"
-            "------------------------------------------------------------\n"
-            "Task's ExecutorInfo:\n" +
-            stringify(task.executor()) + "\n"
-            "------------------------------------------------------------\n");
-      }
-    }
-
-    return None();
-  }
-};
-
-
-// Validates that a task that asks for checkpointing is not being
-// launched on a slave that has not enabled checkpointing.
-struct CheckpointValidator : TaskInfoValidator
-{
-  virtual Option<Error> operator () (
-      const TaskInfo& task,
-      const Framework& framework,
-      const Slave& slave,
-      const Resources& offeredResources,
-      const Resources& usedResources)
-  {
-    if (framework.info.checkpoint() && !slave.info.checkpoint()) {
-      return Error(
-          "Task asked to be checkpointed but slave " +
-          stringify(slave.id) + " has checkpointing disabled");
-    }
-
-    return None();
-  }
-};
-
-
-// OfferValidators are similar to the TaskInfoValidator pattern and
-// are used for validation and aggregation of offers. The error
-// reporting scheme is also similar to TaskInfoValidator. However,
-// offer processing (and subsequent task processing) is aborted
-// altogether if offer validator reports an error.
-struct OfferValidator
-{
-  virtual Option<Error> operator () (
-      const OfferID& offerId,
-      const Framework& framework,
-      Master* master) = 0;
-
-  virtual ~OfferValidator() {}
-
-  Slave* getSlave(Master* master, const SlaveID& slaveId)
-  {
-    CHECK_NOTNULL(master);
-    return master->getSlave(slaveId);
-  }
-
-  Offer* getOffer(Master* master, const OfferID& offerId)
-  {
-    CHECK_NOTNULL(master);
-    return master->getOffer(offerId);
-  }
-};
-
-
-// Validates the validity/liveness of an offer.
-struct ValidOfferValidator : OfferValidator
-{
-  virtual Option<Error> operator () (
-      const OfferID& offerId,
-      const Framework& framework,
-      Master* master)
-  {
-    Offer* offer = getOffer(master, offerId);
-    if (offer == NULL) {
-      return Error("Offer " + stringify(offerId) + " is no longer valid");
-    }
-
-    return None();
-  }
-};
-
-
-// Validates that an offer belongs to the expected framework.
-struct FrameworkValidator : OfferValidator
-{
-  virtual Option<Error> operator () (
-      const OfferID& offerId,
-      const Framework& framework,
-      Master* master)
-  {
-    Offer* offer = getOffer(master, offerId);
-    if (offer == NULL) {
-      return Error("Offer " + stringify(offerId) + " is no longer valid");
-    }
-
-    if (!(framework.id == offer->framework_id())) {
-      return Error(
-          "Offer " + stringify(offer->id()) +
-          " has invalid framework " + stringify(offer->framework_id()) +
-          " while framework " + stringify(framework.id) + " is expected");
-    }
-
-    return None();
-  }
-};
-
-
-// Validates that the slave is valid and ensures that all offers
-// belong to the same slave.
-struct SlaveValidator : OfferValidator
-{
-  virtual Option<Error> operator () (
-      const OfferID& offerId,
-      const Framework& framework,
-      Master* master)
-  {
-    Offer* offer = getOffer(master, offerId);
-    if (offer == NULL) {
-      return Error("Offer " + stringify(offerId) + " is no longer valid");
-    }
-
-    Slave* slave = getSlave(master, offer->slave_id());
-
-    // This is not possible because the offer should've been removed.
-    CHECK(slave != NULL)
-      << "Offer " << offerId
-      << " outlived slave " << offer->slave_id();
-
-    // This is not possible because the offer should've been removed.
-    CHECK(slave->connected)
-      << "Offer " << offerId
-      << " outlived disconnected slave " << *slave;
-
-    if (slaveId.isNone()) {
-      // Set slave id and use as base case for validation.
-      slaveId = slave->id;
-    } else if (!(slave->id == slaveId.get())) {
-      return Error(
-          "Aggregated offers must belong to one single slave. Offer " +
-          stringify(offerId) + " uses slave " +
-          stringify(slave->id) + " and slave " +
-          stringify(slaveId.get()));
-    }
-
-    return None();
-  }
-
-  Option<const SlaveID> slaveId;
-};
-
-
-// Validates that an offer only appears once in offer list.
-struct UniqueOfferIDValidator : OfferValidator
-{
-  virtual Option<Error> operator () (
-      const OfferID& offerId,
-      const Framework& framework,
-      Master* master)
-  {
-    if (offers.contains(offerId)) {
-      return Error("Duplicate offer " + stringify(offerId) + " in offer list");
-    }
-    offers.insert(offerId);
-
-    return None();
-  }
-
-  hashset<OfferID> offers;
-};
-
-
 void Master::launchTasks(
     const UPID& from,
     const FrameworkID& frameworkId,
@@ -2440,9 +2066,9 @@ void Master::launchTasks(
     const vector<OfferID>& offerIds)
 {
   if (!tasks.empty()) {
-    ++metrics.messages_launch_tasks;
+    ++metrics->messages_launch_tasks;
   } else {
-    ++metrics.messages_decline_offers;
+    ++metrics->messages_decline_offers;
   }
 
   Framework* framework = getFramework(frameworkId);
@@ -2466,164 +2092,21 @@ void Master::launchTasks(
     return;
   }
 
-  // TODO(bmahler): We currently only support using multiple offers
-  // for a single slave.
-  Resources offeredResources;
-  Option<SlaveID> slaveId = None();
-  Option<Error> error = None();
+  scheduler::Call::Accept message;
+  message.mutable_filters()->CopyFrom(filters);
 
-  if (offerIds.empty()) {
-    error = Error("No offers specified");
-  } else {
-    vector<Owned<OfferValidator>> offerValidators = {
-      Owned<OfferValidator>(new ValidOfferValidator()),
-      Owned<OfferValidator>(new FrameworkValidator()),
-      Owned<OfferValidator>(new SlaveValidator()),
-      Owned<OfferValidator>(new UniqueOfferIDValidator())
-    };
+  Offer::Operation* operation = message.add_operations();
+  operation->set_type(Offer::Operation::LAUNCH);
 
-    // Validate the offers.
-    foreach (const OfferID& offerId, offerIds) {
-      foreach (const Owned<OfferValidator>& validator, offerValidators) {
-        if (error.isNone()) {
-          error = (*validator)(offerId, *framework, this);
-        }
-      }
-    }
-
-    // Compute offered resources and remove the offers. If the
-    // validation failed, return resources to the allocator.
-    foreach (const OfferID& offerId, offerIds) {
-      Offer* offer = getOffer(offerId);
-      if (offer != NULL) {
-        slaveId = offer->slave_id();
-        offeredResources += offer->resources();
-
-        if (error.isSome()) {
-          allocator->recoverResources(
-              offer->framework_id(),
-              offer->slave_id(),
-              offer->resources(),
-              None());
-        }
-        removeOffer(offer);
-      }
-    }
-  }
-
-  // If invalid, send TASK_LOST for the launch attempts.
-  if (error.isSome()) {
-    LOG(WARNING) << "Launch tasks message used invalid offers '"
-                 << stringify(offerIds) << "': " << error.get().message;
-
-    foreach (const TaskInfo& task, tasks) {
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          framework->id,
-          task.slave_id(),
-          task.task_id(),
-          TASK_LOST,
-          TaskStatus::SOURCE_MASTER,
-          "Task launched with invalid offers: " + error.get().message,
-          TaskStatus::REASON_INVALID_OFFERS);
-
-      metrics.tasks_lost++;
-      stats.tasks[TASK_LOST]++;
-
-      forward(update, UPID(), framework);
-    }
-
-    return;
-  }
-
-  CHECK_SOME(slaveId);
-  Slave* slave = CHECK_NOTNULL(getSlave(slaveId.get()));
-
-  LOG(INFO) << "Processing reply for offers: " << stringify(offerIds)
-            << " on slave " << *slave
-            << " for framework " << *framework;
-
-  // Authorize each task. A task is in 'framework->pendingTasks'
-  // before it is authorized.
-  list<Future<bool>> futures;
   foreach (const TaskInfo& task, tasks) {
-    futures.push_back(authorizeTask(task, framework));
-
-    // Add to pending tasks.
-    // NOTE: The task ID here hasn't been validated yet, but it
-    // doesn't matter. If the task ID is not valid, the task won't be
-    // launched anyway. If two tasks have the same ID, the second one
-    // will not be put into 'framework->pendingTasks', therefore will
-    // not be launched.
-    if (!framework->pendingTasks.contains(task.task_id())) {
-      framework->pendingTasks[task.task_id()] = task;
-    }
-
-    stats.tasks[TASK_STAGING]++;
+    operation->mutable_launch()->add_task_infos()->CopyFrom(task);
   }
 
-  // Wait for all the tasks to be authorized.
-  await(futures)
-    .onAny(defer(self(),
-                 &Master::_launchTasks,
-                 frameworkId,
-                 slaveId.get(),
-                 tasks,
-                 offeredResources,
-                 filters,
-                 lambda::_1));
-}
-
-
-Option<Error> Master::validateTask(
-    const TaskInfo& task,
-    Framework* framework,
-    Slave* slave,
-    const Resources& offeredResources,
-    const Resources& usedResources)
-{
-  CHECK_NOTNULL(framework);
-  CHECK_NOTNULL(slave);
-
-  // Create task validators.
-  // NOTE: The order in which the following validators are executed
-  // does matter! For example, ResourceUsageValidator assumes that
-  // ExecutorInfo is valid which is verified by ExecutorInfoValidator.
-  // TODO(vinod): Create the validators on the stack and make the
-  // validate operation const.
-  vector<Owned<TaskInfoValidator>> taskValidators = {
-    Owned<TaskInfoValidator>(new TaskIDValidator()),
-    Owned<TaskInfoValidator>(new SlaveIDValidator()),
-    Owned<TaskInfoValidator>(new UniqueTaskIDValidator()),
-    Owned<TaskInfoValidator>(new CheckpointValidator()),
-    Owned<TaskInfoValidator>(new ExecutorInfoValidator()),
-    Owned<TaskInfoValidator>(new ResourceValidator()),
-    Owned<TaskInfoValidator>(new ResourceUsageValidator())
-  };
-
-  // TODO(benh): Add a HealthCheckValidator.
-
-  // TODO(jieyu): Add a CommandInfoValidator.
-
-  // Invoke each validator.
-  Option<Error> error = None();
-  foreach (const Owned<TaskInfoValidator>& validator, taskValidators) {
-    error = (*validator)(
-        task,
-        *framework,
-        *slave,
-        offeredResources,
-        usedResources);
-
-    if (error.isSome()) {
-      break;
-    }
+  foreach (const OfferID& offerId, offerIds) {
+    message.add_offer_ids()->CopyFrom(offerId);
   }
 
-  if (error.isSome()) {
-    return Error(error.get().message);
-  }
-
-  return None();
+  accept(framework, message);
 }
 
 
@@ -2720,21 +2203,142 @@ Resources Master::addTask(
 }
 
 
-void Master::_launchTasks(
+void Master::accept(
+    Framework* framework,
+    const scheduler::Call::Accept& accept)
+{
+  // TODO(jieyu): Update metrics for ACCEPT calls.
+
+  // TODO(bmahler): We currently only support using multiple offers
+  // for a single slave.
+  Resources offeredResources;
+  Option<SlaveID> slaveId = None();
+  Option<Error> error = None();
+
+  if (accept.offer_ids().size() == 0) {
+    error = Error("No offers specified");
+  } else {
+    // Validate the offers.
+    error = validation::offer::validate(accept.offer_ids(), this, framework);
+
+    // Compute offered resources and remove the offers. If the
+    // validation failed, return resources to the allocator.
+    foreach (const OfferID& offerId, accept.offer_ids()) {
+      Offer* offer = getOffer(offerId);
+      if (offer != NULL) {
+        slaveId = offer->slave_id();
+        offeredResources += offer->resources();
+
+        if (error.isSome()) {
+          allocator->recoverResources(
+              offer->framework_id(),
+              offer->slave_id(),
+              offer->resources(),
+              None());
+        }
+        removeOffer(offer);
+      }
+    }
+  }
+
+  // If invalid, send TASK_LOST for the launch attempts.
+  // TODO(jieyu): Consider adding a 'drop' overload for ACCEPT call to
+  // consistently handle message dropping. It would be ideal if the
+  // 'drop' overload can handle both resource recovery and lost task
+  // notifications.
+  if (error.isSome()) {
+    LOG(WARNING) << "ACCEPT call used invalid offers '" << accept.offer_ids()
+                 << "': " << error.get().message;
+
+    foreach (const Offer::Operation& operation, accept.operations()) {
+      if (operation.type() != Offer::Operation::LAUNCH) {
+        continue;
+      }
+
+      foreach (const TaskInfo& task, operation.launch().task_infos()) {
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+            framework->id,
+            task.slave_id(),
+            task.task_id(),
+            TASK_LOST,
+            TaskStatus::SOURCE_MASTER,
+            "Task launched with invalid offers: " + error.get().message,
+            TaskStatus::REASON_INVALID_OFFERS);
+
+        metrics->tasks_lost++;
+
+        metrics->incrementTasksStates(
+            TASK_LOST,
+            TaskStatus::SOURCE_MASTER,
+            TaskStatus::REASON_INVALID_OFFERS);
+
+        forward(update, UPID(), framework);
+      }
+    }
+
+    return;
+  }
+
+  CHECK_SOME(slaveId);
+  Slave* slave = CHECK_NOTNULL(getSlave(slaveId.get()));
+
+  LOG(INFO) << "Processing ACCEPT call for offers: " << accept.offer_ids()
+            << " on slave " << *slave << " for framework " << *framework;
+
+  // If LAUNCH operation is included, authorize the tasks. A task is
+  // in 'framework->pendingTasks' before it is authorized.
+  //
+  // TODO(jieyu): Currently, we only do authorization for the LAUNCH
+  // operation. In the future, we might want to introduce
+  // authorizations for other offer operations as well.
+  list<Future<bool>> futures;
+  foreach (const Offer::Operation& operation, accept.operations()) {
+    if (operation.type() != Offer::Operation::LAUNCH) {
+      continue;
+    }
+
+    foreach (const TaskInfo& task, operation.launch().task_infos()) {
+      futures.push_back(authorizeTask(task, framework));
+
+      // Add to pending tasks.
+      //
+      // NOTE: The task ID here hasn't been validated yet, but it
+      // doesn't matter. If the task ID is not valid, the task won't
+      // be launched anyway. If two tasks have the same ID, the second
+      // one will not be put into 'framework->pendingTasks', therefore
+      // will not be launched.
+      if (!framework->pendingTasks.contains(task.task_id())) {
+        framework->pendingTasks[task.task_id()] = task;
+      }
+    }
+  }
+
+  // Wait for all the tasks to be authorized.
+  await(futures)
+    .onAny(defer(self(),
+                 &Master::_accept,
+                 framework->id,
+                 slaveId.get(),
+                 offeredResources,
+                 accept,
+                 lambda::_1));
+}
+
+
+void Master::_accept(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    const vector<TaskInfo>& tasks,
     const Resources& offeredResources,
-    const Filters& filters,
-    const Future<list<Future<bool>>>& authorizations)
+    const scheduler::Call::Accept& accept,
+    const Future<list<Future<bool>>>& _authorizations)
 {
-  CHECK_READY(authorizations);
-  CHECK_EQ(authorizations.get().size(), tasks.size());
-
   Framework* framework = getFramework(frameworkId);
+
+  // TODO(jieyu): Consider using the 'drop' overload mentioned in
+  // 'accept' to consistently handle dropping ACCEPT calls.
   if (framework == NULL) {
     LOG(WARNING)
-      << "Ignoring launch tasks message for framework " << frameworkId
+      << "Ignoring ACCEPT call for framework " << frameworkId
       << " because the framework cannot be found";
 
     // Tell the allocator about the recovered resources.
@@ -2748,23 +2352,35 @@ void Master::_launchTasks(
   }
 
   Slave* slave = getSlave(slaveId);
+
   if (slave == NULL || !slave->connected) {
-    foreach (const TaskInfo& task, tasks) {
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          framework->id,
-          task.slave_id(),
-          task.task_id(),
-          TASK_LOST,
-          TaskStatus::SOURCE_MASTER,
-          slave == NULL ? "Slave removed" : "Slave disconnected",
-          slave == NULL ?
-              TaskStatus::REASON_SLAVE_REMOVED :
-              TaskStatus::REASON_SLAVE_DISCONNECTED);
+    foreach (const Offer::Operation& operation, accept.operations()) {
+      if (operation.type() != Offer::Operation::LAUNCH) {
+        continue;
+      }
 
-      metrics.tasks_lost++;
-      stats.tasks[TASK_LOST]++;
+      foreach (const TaskInfo& task, operation.launch().task_infos()) {
+        const TaskStatus::Reason reason =
+            slave == NULL ? TaskStatus::REASON_SLAVE_REMOVED
+                          : TaskStatus::REASON_SLAVE_DISCONNECTED;
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+            framework->id,
+            task.slave_id(),
+            task.task_id(),
+            TASK_LOST,
+            TaskStatus::SOURCE_MASTER,
+            slave == NULL ? "Slave removed" : "Slave disconnected",
+            reason);
 
-      forward(update, UPID(), framework);
+        metrics->tasks_lost++;
+
+        metrics->incrementTasksStates(
+            TASK_LOST,
+            TaskStatus::SOURCE_MASTER,
+            reason);
+
+        forward(update, UPID(), framework);
+      }
     }
 
     // Tell the allocator about the recovered resources.
@@ -2777,159 +2393,211 @@ void Master::_launchTasks(
     return;
   }
 
+  // Some offer operations update the offered resources. We keep
+  // updated offered resources here. When a task is successfully
+  // launched, we remove its resource from offered resources.
+  Resources _offeredResources = offeredResources;
 
-  // We need to transform the offered resources by considering
-  // resources transformations like persistent disk acquisition.
-  Resources transformedOfferedResources = offeredResources;
+  CHECK_READY(_authorizations);
+  list<Future<bool>> authorizations = _authorizations.get();
 
-  // Accumulated resources used by launched tasks.
-  Resources usedResources;
-
-  size_t index = 0;
-  foreach (const Future<bool>& authorization, authorizations.get()) {
-    const TaskInfo& task = tasks[index++];
-
-    // NOTE: The task will not be in 'pendingTasks' if 'killTask()'
-    // for the task was called before we are here. No need to launch
-    // the task if it's no longer pending. However, we still need to
-    // check the authorization result and do the validation so that we
-    // can send status update in case the task has duplicated ID.
-    bool pending = framework->pendingTasks.contains(task.task_id());
-
-    // Remove from pending tasks.
-    framework->pendingTasks.erase(task.task_id());
-
-    // Check authorization result.
-    CHECK(!authorization.isDiscarded());
-
-    if (authorization.isFailed() || !authorization.get()) {
-      string user = framework->info.user(); // Default user.
-      if (task.has_command() && task.command().has_user()) {
-        user = task.command().user();
-      } else if (task.has_executor() && task.executor().command().has_user()) {
-        user = task.executor().command().user();
+  foreach (const Offer::Operation& operation, accept.operations()) {
+    // TODO(jieyu): Validate each operation!
+    switch (operation.type()) {
+      case Offer::Operation::RESERVE: {
+        // TODO(jieyu): Provide implementation for RESERVE.
+        drop(framework, operation, "Unimplemented");
+        break;
       }
 
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          framework->id,
-          task.slave_id(),
-          task.task_id(),
-          TASK_ERROR,
-          TaskStatus::SOURCE_MASTER,
-          authorization.isFailed() ?
-              "Authorization failure: " + authorization.failure() :
-              "Not authorized to launch as user '" + user + "'",
-          TaskStatus::REASON_TASK_UNAUTHORIZED);
+      case Offer::Operation::UNRESERVE: {
+        // TODO(jieyu): Provide implementation for UNRESERVE.
+        drop(framework, operation, "Unimplemented");
+        break;
+      }
 
-      metrics.tasks_error++;
-      stats.tasks[TASK_ERROR]++;
+      case Offer::Operation::CREATE: {
+        Option<Error> error = validation::operation::validate(
+            operation.create(),
+            slave->checkpointedResources);
 
-      forward(update, UPID(), framework);
-
-      continue;
-    }
-
-    // Validate the task.
-    const Option<Error>& validationError = validateTask(
-        task,
-        framework,
-        slave,
-        transformedOfferedResources,
-        usedResources);
-
-    if (validationError.isSome()) {
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          framework->id,
-          task.slave_id(),
-          task.task_id(),
-          TASK_ERROR,
-          TaskStatus::SOURCE_MASTER,
-          validationError.get().message,
-          TaskStatus::REASON_TASK_INVALID);
-
-      metrics.tasks_error++;
-      stats.tasks[TASK_ERROR]++;
-
-      forward(update, UPID(), framework);
-
-      continue;
-    }
-
-    // Add task.
-    if (pending) {
-      usedResources += addTask(task, framework, slave);
-
-      // We allow frameworks to implicitly acquire persistent disk
-      // through resources, meaning that they can transform the
-      // offered resources. We need to infer those acquisitions.
-      Owned<Resources::CompositeTransformation> transformation(
-          new Resources::CompositeTransformation());
-
-      foreach (const Resource& disk, usedResources.persistentDisks()) {
-        if (!transformedOfferedResources.contains(disk)) {
-          // NOTE: No need to check duplicated persistence ID because
-          // it should have been validated in ResourceUsageValidator.
-          transformation->add(Resources::AcquirePersistentDisk(disk));
+        if (error.isSome()) {
+          drop(framework, operation, error.get().message);
+          continue;
         }
+
+        Try<Resources> resources = _offeredResources.apply(operation);
+        if (resources.isError()) {
+          drop(framework, operation, resources.error());
+          continue;
+        }
+
+        _offeredResources = resources.get();
+
+        LOG(INFO) << "Applying CREATE operation for volumes "
+                  << operation.create().volumes() << " from framework "
+                  << *framework << " to slave " << *slave;
+
+        applyOfferOperation(framework, slave, operation);
+        break;
       }
 
-      // Adjust the total resources by applying the transformation.
-      Try<Resources> _transformedOfferedResources =
-        (*transformation)(transformedOfferedResources);
+      case Offer::Operation::DESTROY: {
+        Option<Error> error = validation::operation::validate(
+            operation.destroy(),
+            slave->checkpointedResources);
 
-      // NOTE: The transformation should have also been validated in
-      // ResourceUsageValidator.
-      CHECK_SOME(_transformedOfferedResources);
-      transformedOfferedResources = _transformedOfferedResources.get();
+        if (error.isSome()) {
+          drop(framework, operation, error.get().message);
+          continue;
+        }
 
-      // TODO(jieyu): Ideally, we should just call 'share()' here.
-      // However, Shared currently does not support implicit upcast
-      // (i.e., we cannot implicitly convert from Shared<Derived> to
-      // Shared<Base>). Revisit this once Shared starts to support
-      // implicit upcast.
-      allocator->transformAllocation(
-          frameworkId,
-          slaveId,
-          Shared<Resources::Transformation>(transformation.release()));
+        Try<Resources> resources = _offeredResources.apply(operation);
+        if (resources.isError()) {
+          drop(framework, operation, error.get().message);
+          continue;
+        }
 
-      // TODO(bmahler): Consider updating this log message to indicate
-      // when the executor is also being launched.
-      LOG(INFO) << "Launching task " << task.task_id()
-                << " of framework " << *framework
-                << " with resources " << task.resources()
-                << " on slave " << *slave;
+        _offeredResources = resources.get();
 
-      RunTaskMessage message;
-      message.mutable_framework()->MergeFrom(framework->info);
-      message.mutable_framework_id()->MergeFrom(framework->id);
-      message.set_pid(framework->pid);
-      message.mutable_task()->MergeFrom(task);
+        LOG(INFO) << "Applying DESTROY operation for volumes "
+                  << operation.create().volumes() << " from framework "
+                  << *framework << " to slave " << *slave;
 
-      // Merge labels retrieved from label-decorator hooks.
-      message.mutable_task()->mutable_labels()->MergeFrom(
-          HookManager::masterLaunchTaskLabelDecorator(
+        applyOfferOperation(framework, slave, operation);
+        break;
+      }
+
+      case Offer::Operation::LAUNCH: {
+        foreach (const TaskInfo& task, operation.launch().task_infos()) {
+          Future<bool> authorization = authorizations.front();
+          authorizations.pop_front();
+
+          // NOTE: The task will not be in 'pendingTasks' if
+          // 'killTask()' for the task was called before we are here.
+          // No need to launch the task if it's no longer pending.
+          // However, we still need to check the authorization result
+          // and do the validation so that we can send status update
+          // in case the task has duplicated ID.
+          bool pending = framework->pendingTasks.contains(task.task_id());
+
+          // Remove from pending tasks.
+          framework->pendingTasks.erase(task.task_id());
+
+          // Check authorization result.
+          CHECK(!authorization.isDiscarded());
+
+          if (authorization.isFailed() || !authorization.get()) {
+            string user = framework->info.user(); // Default user.
+            if (task.has_command() && task.command().has_user()) {
+              user = task.command().user();
+            } else if (task.has_executor() &&
+                       task.executor().command().has_user()) {
+              user = task.executor().command().user();
+            }
+
+            const StatusUpdate& update = protobuf::createStatusUpdate(
+                framework->id,
+                task.slave_id(),
+                task.task_id(),
+                TASK_ERROR,
+                TaskStatus::SOURCE_MASTER,
+                authorization.isFailed() ?
+                    "Authorization failure: " + authorization.failure() :
+                    "Not authorized to launch as user '" + user + "'",
+                TaskStatus::REASON_TASK_UNAUTHORIZED);
+
+            metrics->tasks_error++;
+
+            metrics->incrementTasksStates(
+                TASK_ERROR,
+                TaskStatus::SOURCE_MASTER,
+                TaskStatus::REASON_TASK_UNAUTHORIZED);
+
+            forward(update, UPID(), framework);
+
+            continue;
+          }
+
+          // Validate the task.
+          const Option<Error>& validationError = validation::task::validate(
               task,
-              framework->info,
-              slave->info));
+              framework,
+              slave,
+              _offeredResources);
 
-      send(slave->pid, message);
+          if (validationError.isSome()) {
+            const StatusUpdate& update = protobuf::createStatusUpdate(
+                framework->id,
+                task.slave_id(),
+                task.task_id(),
+                TASK_ERROR,
+                TaskStatus::SOURCE_MASTER,
+                validationError.get().message,
+                TaskStatus::REASON_TASK_INVALID);
+
+            metrics->tasks_error++;
+
+            metrics->incrementTasksStates(
+                TASK_ERROR,
+                TaskStatus::SOURCE_MASTER,
+                TaskStatus::REASON_TASK_INVALID);
+
+            forward(update, UPID(), framework);
+
+            continue;
+          }
+
+          // Add task.
+          if (pending) {
+            _offeredResources -= addTask(task, framework, slave);
+
+            // TODO(bmahler): Consider updating this log message to
+            // indicate when the executor is also being launched.
+            LOG(INFO) << "Launching task " << task.task_id()
+                      << " of framework " << *framework
+                      << " with resources " << task.resources()
+                      << " on slave " << *slave;
+
+            RunTaskMessage message;
+            message.mutable_framework()->MergeFrom(framework->info);
+            message.mutable_framework_id()->MergeFrom(framework->id);
+            message.set_pid(framework->pid);
+            message.mutable_task()->MergeFrom(task);
+
+            // Merge labels retrieved from label-decorator hooks.
+            message.mutable_task()->mutable_labels()->MergeFrom(
+                HookManager::masterLaunchTaskLabelDecorator(
+                    task,
+                    framework->info,
+                    slave->info));
+
+            send(slave->pid, message);
+          }
+        }
+        break;
+      }
+
+      default:
+        LOG(ERROR) << "Unsupported offer operation " << operation.type();
+        break;
     }
   }
 
-  // Calculate unused resources.
-  Resources unusedResources = transformedOfferedResources - usedResources;
-
-  if (!unusedResources.empty()) {
+  if (!_offeredResources.empty()) {
     // Tell the allocator about the unused (e.g., refused) resources.
     allocator->recoverResources(
-        frameworkId, slaveId, unusedResources, filters);
+        frameworkId,
+        slaveId,
+        _offeredResources,
+        accept.filters());
   }
 }
 
 
 void Master::reviveOffers(const UPID& from, const FrameworkID& frameworkId)
 {
-  ++metrics.messages_revive_offers;
+  ++metrics->messages_revive_offers;
 
   Framework* framework = getFramework(frameworkId);
 
@@ -2957,7 +2625,7 @@ void Master::killTask(
     const FrameworkID& frameworkId,
     const TaskID& taskId)
 {
-  ++metrics.messages_kill_task;
+  ++metrics->messages_kill_task;
 
   LOG(INFO) << "Asked to kill task " << taskId
             << " of framework " << frameworkId;
@@ -3043,7 +2711,7 @@ void Master::statusUpdateAcknowledgement(
     const TaskID& taskId,
     const string& uuid)
 {
-  metrics.messages_status_update_acknowledgement++;
+  metrics->messages_status_update_acknowledgement++;
 
   // TODO(bmahler): Consider adding a message validator abstraction
   // for the master that takes care of all this boilerplate. Ideally
@@ -3059,7 +2727,7 @@ void Master::statusUpdateAcknowledgement(
       << "Ignoring status update acknowledgement message for task " << taskId
       << " of framework " << frameworkId << " on slave " << slaveId
       << " because the framework cannot be found";
-    metrics.invalid_status_update_acknowledgements++;
+    metrics->invalid_status_update_acknowledgements++;
     return;
   }
 
@@ -3068,7 +2736,7 @@ void Master::statusUpdateAcknowledgement(
       << "Ignoring status update acknowledgement message for task " << taskId
       << " of framework " << *framework << " on slave " << slaveId
       << " because it is not expected from " << from;
-    metrics.invalid_status_update_acknowledgements++;
+    metrics->invalid_status_update_acknowledgements++;
     return;
   }
 
@@ -3079,7 +2747,7 @@ void Master::statusUpdateAcknowledgement(
       << "Cannot send status update acknowledgement message for task " << taskId
       << " of framework " << *framework << " to slave " << slaveId
       << " because slave is not registered";
-    metrics.invalid_status_update_acknowledgements++;
+    metrics->invalid_status_update_acknowledgements++;
     return;
   }
 
@@ -3088,7 +2756,7 @@ void Master::statusUpdateAcknowledgement(
       << "Cannot send status update acknowledgement message for task " << taskId
       << " of framework " << *framework << " to slave " << *slave
       << " because slave is disconnected";
-    metrics.invalid_status_update_acknowledgements++;
+    metrics->invalid_status_update_acknowledgements++;
     return;
   }
 
@@ -3112,7 +2780,7 @@ void Master::statusUpdateAcknowledgement(
         << "Ignoring status update acknowledgement message for task " << taskId
         << " of framework " << *framework << " to slave " << *slave
         << " because it no update was sent by this master";
-      metrics.invalid_status_update_acknowledgements++;
+      metrics->invalid_status_update_acknowledgements++;
       return;
     }
 
@@ -3135,7 +2803,7 @@ void Master::statusUpdateAcknowledgement(
 
   send(slave->pid, message);
 
-  metrics.valid_status_update_acknowledgements++;
+  metrics->valid_status_update_acknowledgements++;
 }
 
 
@@ -3146,7 +2814,7 @@ void Master::schedulerMessage(
     const ExecutorID& executorId,
     const string& data)
 {
-  ++metrics.messages_framework_to_executor;
+  ++metrics->messages_framework_to_executor;
 
   Framework* framework = getFramework(frameworkId);
 
@@ -3155,8 +2823,7 @@ void Master::schedulerMessage(
       << "Ignoring framework message for executor " << executorId
       << " of framework " << frameworkId
       << " because the framework cannot be found";
-    stats.invalidFrameworkMessages++;
-    metrics.invalid_framework_to_executor_messages++;
+    metrics->invalid_framework_to_executor_messages++;
     return;
   }
 
@@ -3165,8 +2832,7 @@ void Master::schedulerMessage(
       << "Ignoring framework message for executor " << executorId
       << " of framework " << *framework
       << " because it is not expected from " << from;
-    stats.invalidFrameworkMessages++;
-    metrics.invalid_framework_to_executor_messages++;
+    metrics->invalid_framework_to_executor_messages++;
     return;
   }
 
@@ -3175,8 +2841,7 @@ void Master::schedulerMessage(
     LOG(WARNING) << "Cannot send framework message for framework "
                  << *framework << " to slave " << slaveId
                  << " because slave is not registered";
-    stats.invalidFrameworkMessages++;
-    metrics.invalid_framework_to_executor_messages++;
+    metrics->invalid_framework_to_executor_messages++;
     return;
   }
 
@@ -3184,8 +2849,7 @@ void Master::schedulerMessage(
     LOG(WARNING) << "Cannot send framework message for framework "
                  << *framework << " to slave " << *slave
                  << " because slave is disconnected";
-    stats.invalidFrameworkMessages++;
-    metrics.invalid_framework_to_executor_messages++;
+    metrics->invalid_framework_to_executor_messages++;
     return;
   }
 
@@ -3199,24 +2863,29 @@ void Master::schedulerMessage(
   message.set_data(data);
   send(slave->pid, message);
 
-  stats.validFrameworkMessages++;
-  metrics.valid_framework_to_executor_messages++;
+  metrics->valid_framework_to_executor_messages++;
 }
 
 
 void Master::registerSlave(
     const UPID& from,
     const SlaveInfo& slaveInfo,
+    const vector<Resource>& checkpointedResources,
     const string& version)
 {
-  ++metrics.messages_register_slave;
+  ++metrics->messages_register_slave;
 
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up registration request from " << from
               << " because authentication is still in progress";
 
     authenticating[from]
-      .onReady(defer(self(), &Self::registerSlave, from, slaveInfo, version));
+      .onReady(defer(self(),
+                     &Self::registerSlave,
+                     from,
+                     slaveInfo,
+                     checkpointedResources,
+                     version));
     return;
   }
 
@@ -3281,6 +2950,7 @@ void Master::registerSlave(
                  &Self::_registerSlave,
                  slaveInfo_,
                  from,
+                 checkpointedResources,
                  version,
                  lambda::_1));
 }
@@ -3289,6 +2959,7 @@ void Master::registerSlave(
 void Master::_registerSlave(
     const SlaveInfo& slaveInfo,
     const UPID& pid,
+    const vector<Resource>& checkpointedResources,
     const string& version,
     const Future<bool>& admit)
 {
@@ -3317,9 +2988,10 @@ void Master::_registerSlave(
         slaveInfo,
         pid,
         version.empty() ? Option<string>::none() : version,
-        Clock::now());
+        Clock::now(),
+        checkpointedResources);
 
-    ++metrics.slave_registrations;
+    ++metrics->slave_registrations;
 
     addSlave(slave);
 
@@ -3336,12 +3008,13 @@ void Master::_registerSlave(
 void Master::reregisterSlave(
     const UPID& from,
     const SlaveInfo& slaveInfo,
+    const vector<Resource>& checkpointedResources,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks,
     const string& version)
 {
-  ++metrics.messages_reregister_slave;
+  ++metrics->messages_reregister_slave;
 
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up re-registration request from " << from
@@ -3352,6 +3025,7 @@ void Master::reregisterSlave(
                      &Self::reregisterSlave,
                      from,
                      slaveInfo,
+                     checkpointedResources,
                      executorInfos,
                      tasks,
                      completedFrameworks,
@@ -3463,6 +3137,7 @@ void Master::reregisterSlave(
                  &Self::_reregisterSlave,
                  slaveInfo,
                  from,
+                 checkpointedResources,
                  executorInfos,
                  tasks,
                  completedFrameworks,
@@ -3474,6 +3149,7 @@ void Master::reregisterSlave(
 void Master::_reregisterSlave(
     const SlaveInfo& slaveInfo,
     const UPID& pid,
+    const vector<Resource>& checkpointedResources,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
     const vector<Archive::Framework>& completedFrameworks,
@@ -3505,12 +3181,13 @@ void Master::_reregisterSlave(
         pid,
         version.empty() ? Option<string>::none() : version,
         Clock::now(),
+        checkpointedResources,
         executorInfos,
         tasks);
 
     slave->reregisteredTime = Clock::now();
 
-    ++metrics.slave_reregistrations;
+    ++metrics->slave_reregistrations;
 
     addSlave(slave, completedFrameworks);
 
@@ -3528,6 +3205,8 @@ void Master::_reregisterSlave(
 
 void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
 {
+  CHECK_NOTNULL(slave);
+
   // Send the latest framework pids to the slave.
   hashset<UPID> pids;
   foreach (const Task& task, tasks) {
@@ -3541,12 +3220,23 @@ void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
       pids.insert(framework->pid);
     }
   }
+
+  // NOTE: Here we always send the message. Slaves whose version are
+  // less than 0.22.0 will drop it silently which is OK.
+  LOG(INFO) << "Sending updated checkpointed resources "
+            << slave->checkpointedResources
+            << " to slave " << *slave;
+
+  CheckpointResourcesMessage message;
+  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
+
+  send(slave->pid, message);
 }
 
 
 void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 {
-  ++metrics.messages_unregister_slave;
+  ++metrics->messages_unregister_slave;
 
   LOG(INFO) << "Asked to unregister slave " << slaveId;
 
@@ -3567,7 +3257,7 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 // because the status updates will be sent by the slave.
 void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 {
-  ++metrics.messages_status_update;
+  ++metrics->messages_status_update;
 
   if (slaves.removed.get(update.slave_id()).isSome()) {
     // If the slave is removed, we have already informed
@@ -3582,8 +3272,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     message.set_message("Status update from unknown slave");
     send(pid, message);
 
-    stats.invalidStatusUpdates++;
-    metrics.invalid_status_updates++;
+    metrics->invalid_status_updates++;
     return;
   }
 
@@ -3593,8 +3282,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     LOG(WARNING) << "Ignoring status update " << update
                  << " from unknown slave " << pid
                  << " with id " << update.slave_id();
-    stats.invalidStatusUpdates++;
-    metrics.invalid_status_updates++;
+    metrics->invalid_status_updates++;
     return;
   }
 
@@ -3604,10 +3292,11 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     LOG(WARNING) << "Ignoring status update " << update
                  << " from slave " << *slave
                  << " because the framework is unknown";
-    stats.invalidStatusUpdates++;
-    metrics.invalid_status_updates++;
+    metrics->invalid_status_updates++;
     return;
   }
+
+  LOG(INFO) << "Status update " << update << " from slave " << *slave;
 
   // Forward the update to the framework.
   forward(update, pid, framework);
@@ -3617,12 +3306,9 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
   if (task == NULL) {
     LOG(WARNING) << "Could not lookup task for status update " << update
                  << " from slave " << *slave;
-    stats.invalidStatusUpdates++;
-    metrics.invalid_status_updates++;
+    metrics->invalid_status_updates++;
     return;
   }
-
-  LOG(INFO) << "Status update " << update << " from slave " << *slave;
 
   updateTask(task, update);
 
@@ -3632,8 +3318,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     removeTask(task);
   }
 
-  stats.validStatusUpdates++;
-  metrics.valid_status_updates++;
+  metrics->valid_status_updates++;
 }
 
 
@@ -3667,7 +3352,7 @@ void Master::exitedExecutor(
     const ExecutorID& executorId,
     int32_t status)
 {
-  ++metrics.messages_exited_executor;
+  ++metrics->messages_exited_executor;
 
   if (slaves.removed.get(slaveId).isSome()) {
     // If the slave is removed, we have already informed
@@ -3742,7 +3427,7 @@ void Master::reconcileTasks(
     const FrameworkID& frameworkId,
     const std::vector<TaskStatus>& statuses)
 {
-  ++metrics.messages_reconcile_tasks;
+  ++metrics->messages_reconcile_tasks;
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
@@ -4083,7 +3768,7 @@ void Master::offer(const FrameworkID& frameworkId,
 // 'authenticate' message doesn't contain the 'FrameworkID'.
 void Master::authenticate(const UPID& from, const UPID& pid)
 {
-  ++metrics.messages_authenticate;
+  ++metrics->messages_authenticate;
 
   // An authentication request is sent by a client (slave/framework)
   // in the following cases:
@@ -4421,8 +4106,8 @@ void Master::addFramework(Framework* framework)
   if (principal.isSome()) {
     // Create new framework metrics if this framework is the first
     // one of this principal. Otherwise existing metrics are reused.
-    if (!metrics.frameworks.contains(principal.get())) {
-      metrics.frameworks.put(
+    if (!metrics->frameworks.contains(principal.get())) {
+      metrics->frameworks.put(
           principal.get(),
           Owned<Metrics::Frameworks>(new Metrics::Frameworks(principal.get())));
     }
@@ -4600,8 +4285,8 @@ void Master::removeFramework(Framework* framework)
     // Remove the metrics for the principal if this framework is the
     // last one with this principal.
     if (!frameworks.principals.containsValue(principal.get())) {
-      CHECK(metrics.frameworks.contains(principal.get()));
-      metrics.frameworks.erase(principal.get());
+      CHECK(metrics->frameworks.contains(principal.get()));
+      metrics->frameworks.erase(principal.get());
     }
   }
 
@@ -4669,7 +4354,7 @@ void Master::addSlave(
 
   // Set up an observer for the slave.
   slave->observer = new SlaveObserver(
-      slave->pid, slave->info, slave->id, self());
+      slave->pid, slave->info, slave->id, self(), slaves.limiter, metrics);
 
   spawn(slave->observer);
 
@@ -4727,13 +4412,10 @@ void Master::addSlave(
     }
   }
 
-  // TODO(bmahler): This will need to include resources that
-  // are "persisted" on the slave (e.g. persistent volumes,
-  // dynamic reservations, etc).
   allocator->addSlave(
       slave->id,
       slave->info,
-      slave->info.resources(),
+      slave->totalResources,
       slave->usedResources);
 }
 
@@ -4844,7 +4526,7 @@ void Master::_removeSlave(
 
   LOG(INFO) << "Removed slave " << slaveInfo.id() << " ("
             << slaveInfo.hostname() << ")";
-  ++metrics.slave_removals;
+  ++metrics->slave_removals;
 
   // Forward the LOST updates on to the framework.
   foreach (const StatusUpdate& update, updates) {
@@ -4939,8 +4621,6 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
                 ? " (status update state: " + stringify(status.state()) + ")"
                 : "");
 
-  stats.tasks[status.state()]++;
-
   // Once the task becomes terminal, we recover the resources.
   if (terminated) {
     allocator->recoverResources(
@@ -4958,12 +4638,20 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
       framework->taskTerminated(task);
     }
 
-    switch (task->state()) {
-      case TASK_FINISHED: ++metrics.tasks_finished; break;
-      case TASK_FAILED:   ++metrics.tasks_failed;   break;
-      case TASK_KILLED:   ++metrics.tasks_killed;   break;
-      case TASK_LOST:     ++metrics.tasks_lost;     break;
-      default: break;
+    switch (status.state()) {
+      case TASK_FINISHED: ++metrics->tasks_finished; break;
+      case TASK_FAILED:   ++metrics->tasks_failed;   break;
+      case TASK_KILLED:   ++metrics->tasks_killed;   break;
+      case TASK_LOST:     ++metrics->tasks_lost;     break;
+      case TASK_ERROR:    ++metrics->tasks_error;    break;
+      default:                                       break;
+    }
+
+    if (status.has_reason()) {
+      metrics->incrementTasksStates(
+          status.state(),
+          status.source(),
+          status.reason());
     }
   }
 }
@@ -5033,6 +4721,32 @@ void Master::removeExecutor(
   }
 
   slave->removeExecutor(frameworkId, executorId);
+}
+
+
+void Master::applyOfferOperation(
+    Framework* framework,
+    Slave* slave,
+    const Offer::Operation& operation)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
+  allocator->updateAllocation(
+      framework->id,
+      slave->id,
+      {operation});
+
+  slave->apply(operation);
+
+  LOG(INFO) << "Sending checkpointed resources "
+            << slave->checkpointedResources
+            << " to slave " << *slave;
+
+  CheckpointResourcesMessage message;
+  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
+
+  send(slave->pid, message);
 }
 
 

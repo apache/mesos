@@ -19,7 +19,7 @@ public:
   // Implementation of the Socket::Impl interface.
   virtual Try<Nothing> listen(int backlog);
   virtual Future<Socket> accept();
-  virtual Future<Nothing> connect(const Node& node);
+  virtual Future<Nothing> connect(const Address& address);
   virtual Future<size_t> recv(char* data, size_t size);
   virtual Future<size_t> send(const char* data, size_t size);
   virtual Future<size_t> sendfile(int fd, off_t offset, size_t size);

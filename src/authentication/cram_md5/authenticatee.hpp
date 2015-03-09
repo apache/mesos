@@ -27,6 +27,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/module/authenticatee.hpp>
+
 #include <process/defer.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
@@ -36,7 +38,6 @@
 
 #include <stout/strings.hpp>
 
-#include "authentication/authenticatee.hpp"
 
 #include "messages/messages.hpp"
 

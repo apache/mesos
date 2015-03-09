@@ -156,19 +156,24 @@ Try<Nothing> encode<ip::Classifier>(
   }
 
   if (classifier.destinationIP().isSome()) {
+    Try<struct in_addr> in = classifier.destinationIP().get().in();
+    if (in.isError()) {
+      return Error(in.error());
+    }
+
     // To match those IP packets that have the given destination IP.
     error = rtnl_u32_add_key(
         cls.get(),
-        htonl(classifier.destinationIP().get().address()),
+        in.get().s_addr,
         htonl(0xffffffff),
         16,
         0);
 
-    if (error != 0) {
-      return Error(
-          "Failed to add selector for destination IP address: " +
-          string(nl_geterror(error)));
-    }
+      if (error != 0) {
+        return Error(
+            "Failed to add selector for destination IP address: " +
+            string(nl_geterror(error)));
+      }
   }
 
   // TODO(jieyu): Here, we assume that the IP packet does not contain

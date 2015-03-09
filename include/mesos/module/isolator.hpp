@@ -16,26 +16,26 @@
  * limitations under the License.
  */
 
-#ifndef __MODULE_ISOLATOR_HPP__
-#define __MODULE_ISOLATOR_HPP__
+#ifndef __MESOS_MODULE_ISOLATOR_HPP__
+#define __MESOS_MODULE_ISOLATOR_HPP__
 
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
-#include "slave/containerizer/isolator.hpp"
+#include <mesos/slave/isolator.hpp>
 
 namespace mesos {
 namespace modules {
 
 template<>
-inline const char* kind<mesos::internal::slave::Isolator>()
+inline const char* kind<mesos::slave::Isolator>()
 {
   return "Isolator";
 }
 
 
 template <>
-struct Module<mesos::internal::slave::Isolator> : ModuleBase
+struct Module<mesos::slave::Isolator> : ModuleBase
 {
   Module(
       const char* _moduleApiVersion,
@@ -44,12 +44,12 @@ struct Module<mesos::internal::slave::Isolator> : ModuleBase
       const char* _authorEmail,
       const char* _description,
       bool (*_compatible)(),
-      mesos::internal::slave::Isolator*
+      mesos::slave::Isolator*
         (*_create)(const Parameters& parameters))
     : ModuleBase(
         _moduleApiVersion,
         _mesosVersion,
-        mesos::modules::kind<mesos::internal::slave::Isolator>(),
+        mesos::modules::kind<mesos::slave::Isolator>(),
         _authorName,
         _authorEmail,
         _description,
@@ -57,10 +57,10 @@ struct Module<mesos::internal::slave::Isolator> : ModuleBase
       create(_create)
   { }
 
-  mesos::internal::slave::Isolator* (*create)(const Parameters& parameters);
+  mesos::slave::Isolator* (*create)(const Parameters& parameters);
 };
 
 } // namespace modules {
 } // namespace mesos {
 
-#endif // __MODULE_ISOLATOR_HPP__
+#endif // __MESOS_MODULE_ISOLATOR_HPP__

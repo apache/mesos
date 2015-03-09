@@ -703,7 +703,7 @@ esac
 # Also pass the flags to 3rdparty libraries.
 CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
 
-AC_CHECK_LIB([dl], [dlopen], [AC_MSG_RESULT([found])],
+AC_CHECK_LIB([dl], [dlopen], [],
 	     [AC_MSG_ERROR([cannot find libdl
 -------------------------------------------------------------------
 libdl was not found, and is required for compilation.

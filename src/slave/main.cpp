@@ -20,6 +20,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/module/anonymous.hpp>
+
 #include <stout/check.hpp>
 #include <stout/flags.hpp>
 #include <stout/nothing.hpp>
@@ -46,7 +48,9 @@
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
 
+using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
+
 using mesos::SlaveInfo;
 
 using std::cerr;
@@ -177,6 +181,22 @@ int main(int argc, char** argv)
     EXIT(1) << "Failed to create a master detector: " << detector.error();
   }
 
+  // Create anonymous modules.
+  foreach (const string& name, ModuleManager::find<Anonymous>()) {
+    Try<Anonymous*> create = ModuleManager::create<Anonymous>(name);
+    if (create.isError()) {
+      EXIT(1) << "Failed to create anonymous module named '" << name << "'";
+    }
+
+    // We don't bother keeping around the pointer to this anonymous
+    // module, when we exit that will effectively free it's memory.
+    //
+    // TODO(benh): We might want to add explicit finalization (and
+    // maybe explicit initialization too) in order to let the module
+    // do any housekeeping necessary when the slave is cleanly
+    // terminating.
+  }
+
   LOG(INFO) << "Starting Mesos slave";
 
   Files files;
@@ -192,8 +212,8 @@ int main(int argc, char** argv)
       &statusUpdateManager);
 
   process::spawn(slave);
-
   process::wait(slave->self());
+
   delete slave;
 
   delete detector.get();

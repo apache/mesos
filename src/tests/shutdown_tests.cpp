@@ -40,11 +40,6 @@
 
 using std::string;
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
@@ -61,7 +56,13 @@ using testing::Eq;
 using testing::SaveArg;
 using testing::Return;
 
+namespace mesos {
+namespace internal {
+namespace tests {
+
+
 class ShutdownTest : public MesosTest {};
+
 
 // Testing /master/shutdown so this endopoint  shuts down
 // designated framework or return adequate error.
@@ -310,3 +311,7 @@ TEST_F(ShutdownTest, ShutdownEndpointNoHeader)
 
   Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

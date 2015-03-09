@@ -25,6 +25,8 @@
 #include <signal.h>
 #include <stdio.h>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/async.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -42,7 +44,6 @@
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
-#include "common/type_utils.hpp"
 #include "common/status_utils.hpp"
 
 #include "slave/paths.hpp"
@@ -1152,8 +1153,8 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
   Try<int> err = os::open(
       sandbox.isSome() ? path::join(sandbox.get().directory, "stderr")
                        : "/dev/null",
-      O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (err.isError()) {
     return Error(
         "Failed to redirect stderr: Failed to open: " +

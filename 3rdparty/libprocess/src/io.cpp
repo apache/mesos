@@ -583,7 +583,7 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
 
   if (to.isNone()) {
     // Open up /dev/null that we can splice into.
-    Try<int> open = os::open("/dev/null", O_WRONLY);
+    Try<int> open = os::open("/dev/null", O_WRONLY | O_CLOEXEC);
 
     if (open.isError()) {
       return Failure("Failed to open /dev/null for writing: " + open.error());

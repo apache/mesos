@@ -27,7 +27,10 @@
 #include <mesos/values.hpp>
 
 #include <stout/bytes.hpp>
+#include <stout/check.hpp>
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -83,8 +86,23 @@ public:
   static Option<Error> validate(
       const google::protobuf::RepeatedPtrField<Resource>& resources);
 
+  // NOTE: The following predicate functions assume that the given
+  // resource is validated.
+
   // Tests if the given Resource object is empty.
-  static bool empty(const Resource& resource);
+  static bool isEmpty(const Resource& resource);
+
+  // Tests if the given Resource object is a persistent volume.
+  static bool isPersistentVolume(const Resource& resource);
+
+  // Tests if the given Resource object is reserved. If the role is
+  // specified, tests that it's reserved for the given role.
+  static bool isReserved(
+      const Resource& resource,
+      const Option<std::string>& role = None());
+
+  // Tests if the given Resource object is unreserved.
+  static bool isUnreserved(const Resource& resource);
 
   Resources() {}
 
@@ -115,6 +133,10 @@ public:
   // Checks if this Resources contains the given Resource.
   bool contains(const Resource& that) const;
 
+  // Filter resources based on the given predicate.
+  Resources filter(
+      const lambda::function<bool(const Resource&)>& predicate) const;
+
   // Returns the reserved resources, by role.
   hashmap<std::string, Resources> reserved() const;
 
@@ -125,11 +147,8 @@ public:
   // Returns the unreserved resources.
   Resources unreserved() const;
 
-  // Returns all the persistent disk resources.
-  // TODO(jieyu): Consider introducing a general filter mechanism for
-  // resources. For example:
-  // Resources persistentDisks = resources.filter(PersistentDiskFilter());
-  Resources persistentDisks() const;
+  // Returns the persistent volumes.
+  Resources persistentVolumes() const;
 
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
@@ -147,6 +166,30 @@ public:
   // consider moving this to an internal "allocation" library for our
   // example frameworks to leverage.
   Option<Resources> find(const Resources& targets) const;
+
+  // Certain offer operations (e.g., RESERVE, UNRESERVE, CREATE or
+  // DESTROY) alter the offered resources. The following methods
+  // provide a convenient way to get the transformed resources by
+  // applying the given offer operation(s). Returns an Error if the
+  // offer operation(s) cannot be applied.
+  Try<Resources> apply(const Offer::Operation& operation) const;
+
+  template <typename Iterable>
+  Try<Resources> apply(const Iterable& operations) const
+  {
+    Resources result = *this;
+
+    foreach (const Offer::Operation& operation, operations) {
+      Try<Resources> transformed = result.apply(operation);
+      if (transformed.isError()) {
+        return Error(transformed.error());
+      }
+
+      result = transformed.get();
+    }
+
+    return result;
+  }
 
   // Helpers to get resource values. We consider all roles here.
   template <typename T>
@@ -199,67 +242,6 @@ public:
   Resources operator - (const Resources& that) const;
   Resources& operator -= (const Resource& that);
   Resources& operator -= (const Resources& that);
-
-  // This is an abstraction for describing a transformation that can
-  // be applied to Resources. Transformations cannot not alter the
-  // quantity, or the static role of the resources.
-  class Transformation
-  {
-  public:
-    virtual ~Transformation() {}
-
-    // Returns the result of the transformation, applied to the given
-    // 'resources'. Returns an Error if the transformation cannot be
-    // applied, or the transformation invariants do not hold.
-    Try<Resources> operator () (const Resources& resources) const;
-
-  protected:
-    virtual Try<Resources> apply(const Resources& resources) const = 0;
-  };
-
-  // Represents a sequence of transformations, the transformations are
-  // applied in an all-or-nothing manner. We follow the composite
-  // pattern here.
-  class CompositeTransformation : public Transformation
-  {
-  public:
-    CompositeTransformation() {}
-
-    ~CompositeTransformation()
-    {
-      foreach (Transformation* transformation, transformations) {
-        delete transformation;
-      }
-    }
-
-    // TODO(jieyu): Consider using unique_ptr here once we finialize
-    // our style guide for unique_ptr.
-    template <typename T>
-    void add(const T& t)
-    {
-      transformations.push_back(new T(t));
-    }
-
-  protected:
-    virtual Try<Resources> apply(const Resources& resources) const;
-
-  private:
-    std::vector<Transformation*> transformations;
-  };
-
-  // Acquires a persistent disk from a regular disk resource.
-  class AcquirePersistentDisk : public Transformation
-  {
-  public:
-    AcquirePersistentDisk(const Resource& _disk);
-
-  protected:
-    virtual Try<Resources> apply(const Resources& resources) const;
-
-  private:
-    // The target persistent disk resource to acquire.
-    Resource disk;
-  };
 
 private:
   // Similar to 'contains(const Resource&)' but skips the validity

@@ -58,3 +58,25 @@ to freezing cgroups under OOM conditions.
 
 /proc will be mounted for containers so tools such as 'ps' will work
 correctly.
+
+
+### Posix Disk Isolator
+
+The Posix Disk isolator provides basic disk isolation. It is able to
+report the disk usage for each sandbox and optionally enforce the disk
+quota. It can be used on both Linux and OS X.
+
+To enable the Posix Disk isolator, append `posix/disk` to the
+`--isolation` flag when starting the slave.
+
+By default, the disk quota enforcement is disabled. To enable it,
+specify `--enforce_container_disk_quota` when starting the slave.
+
+The Posix Disk isolator reports disk usage for each sandbox by
+periodically running the `du` command. The disk usage can be retrieved
+from the resource statistics endpoint (`/monitor/statistics.json`).
+
+The interval between two `du`s can be controlled by the slave flag
+`--container_disk_watch_interval`. For example,
+`--container_disk_watch_interval=1mins` sets the interval to be 1
+minute. The default interval is 15 seconds.

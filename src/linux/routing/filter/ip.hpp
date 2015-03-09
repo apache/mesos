@@ -27,7 +27,9 @@
 
 #include <boost/functional/hash.hpp>
 
+#include <stout/ip.hpp>
 #include <stout/net.hpp>
+#include <stout/mac.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
@@ -131,7 +133,11 @@ public:
 
 private:
   Option<net::MAC> destinationMAC_;
+
+  // TODO(evelinad): Replace net::IP with net::IPNetwork when we will
+  // support classifiers for the entire subnet.
   Option<net::IP> destinationIP_;
+
   Option<PortRange> sourcePorts_;
   Option<PortRange> destinationPorts_;
 };

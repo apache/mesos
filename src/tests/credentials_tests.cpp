@@ -28,14 +28,11 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+using namespace process;
+
 using std::map;
 using std::string;
 using std::vector;
-
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
@@ -43,6 +40,10 @@ using mesos::internal::slave::Slave;
 using process::PID;
 
 using testing::_;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 class CredentialsTest : public MesosTest {};
 
@@ -78,7 +79,7 @@ TEST_F(CredentialsTest, authenticatedSlaveText)
 
   Try<int> fd = os::open(
       path,
-      O_WRONLY | O_CREAT | O_TRUNC,
+      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
 
   CHECK_SOME(fd);
@@ -89,9 +90,11 @@ TEST_F(CredentialsTest, authenticatedSlaveText)
      << "Failed to write credentials to '" << path << "'";
   CHECK_SOME(os::close(fd.get()));
 
-  flags.credentials = "file://" + path;
+  map<string, Option<string>> values{{"credentials", Some("file://" + path)}};
 
-  Try<PID<Master> > master = StartMaster(flags);
+  flags.load(values, true);
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -99,9 +102,9 @@ TEST_F(CredentialsTest, authenticatedSlaveText)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  slaveFlags.credential = "file://" + path;
+  slaveFlags.load(values, true);
 
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -109,3 +112,7 @@ TEST_F(CredentialsTest, authenticatedSlaveText)
 
   Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

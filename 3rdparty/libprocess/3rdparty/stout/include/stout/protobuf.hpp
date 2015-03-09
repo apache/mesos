@@ -25,6 +25,7 @@
 
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/message.h>
+#include <google/protobuf/repeated_field.h>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
@@ -71,22 +72,39 @@ inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
 }
 
 
-// A wrapper function that wraps the above write with open and closing
-// the file.
-inline Try<Nothing> write(
-    const std::string& path,
-    const google::protobuf::Message& message)
+// Write out the given sequence of protobuf messages to the
+// specified file descriptor by repeatedly invoking write
+// on each of the messages.
+// NOTE: On error, this may have written partial data to the file.
+template <typename T>
+Try<Nothing> write(
+    int fd,
+    const google::protobuf::RepeatedPtrField<T>& messages)
+{
+  foreach (const T& message, messages) {
+    Try<Nothing> result = write(fd, message);
+    if (result.isError()) {
+      return Error(result.error());
+    }
+  }
+
+  return Nothing();
+}
+
+
+template <typename T>
+Try<Nothing> write(const std::string& path, const T& t)
 {
   Try<int> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (fd.isError()) {
     return Error("Failed to open file '" + path + "': " + fd.error());
   }
 
-  Try<Nothing> result = write(fd.get(), message);
+  Try<Nothing> result = write(fd.get(), t);
 
   // NOTE: We ignore the return value of close(). This is because
   // users calling this function are interested in the return value of
@@ -104,7 +122,7 @@ inline Try<Nothing> append(
   Try<int> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (fd.isError()) {
     return Error("Failed to open file '" + path + "': " + fd.error());
@@ -121,107 +139,153 @@ inline Try<Nothing> append(
 }
 
 
-// Read the next protobuf of type T from the file by first reading the
+namespace internal {
+
+// Reads a single message of type T from the file by first reading the
 // "size" followed by the contents (as written by 'write' above).
+// NOTE: This struct is used by the public 'read' function.
+// See comments there for the reason why we need this.
+template <typename T>
+struct Read
+{
+  Result<T> operator () (int fd, bool ignorePartial, bool undoFailed)
+  {
+    off_t offset = 0;
+
+    if (undoFailed) {
+      // Save the offset so we can re-adjust if something goes wrong.
+      offset = lseek(fd, 0, SEEK_CUR);
+      if (offset == -1) {
+        return ErrnoError("Failed to lseek to SEEK_CUR");
+      }
+    }
+
+    uint32_t size;
+    Result<std::string> result = os::read(fd, sizeof(size));
+
+    if (result.isError()) {
+      if (undoFailed) {
+        lseek(fd, offset, SEEK_SET);
+      }
+      return Error("Failed to read size: " + result.error());
+    } else if (result.isNone()) {
+      return None(); // No more protobufs to read.
+    } else if (result.get().size() < sizeof(size)) {
+      // Hit EOF unexpectedly.
+      if (undoFailed) {
+        // Restore the offset to before the size read.
+        lseek(fd, offset, SEEK_SET);
+      }
+      if (ignorePartial) {
+        return None();
+      }
+      return Error(
+          "Failed to read size: hit EOF unexpectedly, possible corruption");
+    }
+
+    // Parse the size from the bytes.
+    memcpy((void*) &size, (void*) result.get().data(), sizeof(size));
+
+    // NOTE: Instead of specifically checking for corruption in 'size',
+    // we simply try to read 'size' bytes. If we hit EOF early, it is an
+    // indication of corruption.
+    result = os::read(fd, size);
+
+    if (result.isError()) {
+      if (undoFailed) {
+        // Restore the offset to before the size read.
+        lseek(fd, offset, SEEK_SET);
+      }
+      return Error("Failed to read message: " + result.error());
+    } else if (result.isNone() || result.get().size() < size) {
+      // Hit EOF unexpectedly.
+      if (undoFailed) {
+        // Restore the offset to before the size read.
+        lseek(fd, offset, SEEK_SET);
+      }
+      if (ignorePartial) {
+        return None();
+      }
+      return Error("Failed to read message of size " + stringify(size) +
+                   " bytes: hit EOF unexpectedly, possible corruption");
+    }
+
+    // Parse the protobuf from the string.
+    // NOTE: We need to capture a const reference to the data because it
+    // must outlive the creation of ArrayInputStream.
+    const std::string& data = result.get();
+
+    T message;
+    google::protobuf::io::ArrayInputStream stream(data.data(), data.size());
+
+    if (!message.ParseFromZeroCopyStream(&stream)) {
+      if (undoFailed) {
+        // Restore the offset to before the size read.
+        lseek(fd, offset, SEEK_SET);
+      }
+      return Error("Failed to deserialize message");
+    }
+
+    return message;
+  }
+};
+
+
+// Partial specialization for RepeatedPtrField<T> to read a sequence
+// of protobuf messages from a given fd by repeatedly invoking
+// Read<T> until None is reached, which we treat as EOF.
+// NOTE: This struct is used by the public 'read' function.
+// See comments there for the reason why we need this.
+template <typename T>
+struct Read<google::protobuf::RepeatedPtrField<T>>
+{
+  Result<google::protobuf::RepeatedPtrField<T>> operator () (
+      int fd, bool ignorePartial, bool undoFailed)
+  {
+    google::protobuf::RepeatedPtrField<T> result;
+    for (;;) {
+      Result<T> message = Read<T>()(fd, ignorePartial, undoFailed);
+      if (message.isError()) {
+        return Error(message.error());
+      } else if (message.isNone()) {
+        break;
+      } else {
+        result.Add()->CopyFrom(message.get());
+      }
+    }
+    return result;
+  }
+};
+
+}  // namespace internal {
+
+
+// Reads the protobuf message(s) from a given fd based on the format
+// written by write() above. We use partial specialization of
+//   - internal::Read<T> vs
+//   - internal::Read<google::protobuf::RepeatedPtrField<T>>
+// in order to determine whether T is a single protobuf message or
+// a sequence of messages.
 // If 'ignorePartial' is true, None() is returned when we unexpectedly
 // hit EOF while reading the protobuf (e.g., partial write).
 // If 'undoFailed' is true, failed read attempts will restore the file
 // read/write file offset towards the initial callup position.
 template <typename T>
-inline Result<T> read(
-    int fd,
-    bool ignorePartial = false,
-    bool undoFailed = false)
+Result<T> read(int fd, bool ignorePartial = false, bool undoFailed = false)
 {
-  off_t offset = 0;
-
-  if (undoFailed) {
-    // Save the offset so we can re-adjust if something goes wrong.
-    offset = lseek(fd, 0, SEEK_CUR);
-    if (offset == -1) {
-      return ErrnoError("Failed to lseek to SEEK_CUR");
-    }
-  }
-
-  uint32_t size;
-  Result<std::string> result = os::read(fd, sizeof(size));
-
-  if (result.isError()) {
-    if (undoFailed) {
-      lseek(fd, offset, SEEK_SET);
-    }
-    return Error("Failed to read size: " + result.error());
-  } else if (result.isNone()) {
-    return None(); // No more protobufs to read.
-  } else if (result.get().size() < sizeof(size)) {
-    // Hit EOF unexpectedly.
-    if (undoFailed) {
-      // Restore the offset to before the size read.
-      lseek(fd, offset, SEEK_SET);
-    }
-    if (ignorePartial) {
-      return None();
-    }
-    return Error(
-        "Failed to read size: hit EOF unexpectedly, possible corruption");
-  }
-
-  // Parse the size from the bytes.
-  memcpy((void*) &size, (void*) result.get().data(), sizeof(size));
-
-  // NOTE: Instead of specifically checking for corruption in 'size',
-  // we simply try to read 'size' bytes. If we hit EOF early, it is an
-  // indication of corruption.
-  result = os::read(fd, size);
-
-  if (result.isError()) {
-    if (undoFailed) {
-      // Restore the offset to before the size read.
-      lseek(fd, offset, SEEK_SET);
-    }
-    return Error("Failed to read message: " + result.error());
-  } else if (result.isNone() || result.get().size() < size) {
-    // Hit EOF unexpectedly.
-    if (undoFailed) {
-      // Restore the offset to before the size read.
-      lseek(fd, offset, SEEK_SET);
-    }
-    if (ignorePartial) {
-      return None();
-    }
-    return Error("Failed to read message of size " + stringify(size) +
-                 " bytes: hit EOF unexpectedly, possible corruption");
-  }
-
-  // Parse the protobuf from the string.
-  // NOTE: We need to capture a const reference to the data because it
-  // must outlive the creation of ArrayInputStream.
-  const std::string& data = result.get();
-
-  T message;
-  google::protobuf::io::ArrayInputStream stream(data.data(), data.size());
-
-  if (!message.ParseFromZeroCopyStream(&stream)) {
-    if (undoFailed) {
-      // Restore the offset to before the size read.
-      lseek(fd, offset, SEEK_SET);
-    }
-    return Error("Failed to deserialize message");
-  }
-
-  return message;
+  return internal::Read<T>()(fd, ignorePartial, undoFailed);
 }
 
 
 // A wrapper function that wraps the above read() with open and
 // closing the file.
 template <typename T>
-inline Result<T> read(const std::string& path)
+Result<T> read(const std::string& path)
 {
   Try<int> fd = os::open(
       path,
       O_RDONLY | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (fd.isError()) {
     return Error("Failed to open file '" + path + "': " + fd.error());

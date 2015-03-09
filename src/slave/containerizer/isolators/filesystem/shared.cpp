@@ -30,6 +30,11 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+using mesos::slave::ExecutorRunState;
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
+using mesos::slave::Limitation;
+
 SharedFilesystemIsolatorProcess::SharedFilesystemIsolatorProcess(
     const Flags& _flags)
   : flags(_flags) {}
@@ -58,7 +63,7 @@ Try<Isolator*> SharedFilesystemIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> SharedFilesystemIsolatorProcess::recover(
-    const list<state::RunState>& states)
+    const list<ExecutorRunState>& states)
 {
   // There is nothing to recover because we do not keep any state and
   // do not monitor filesystem usage or perform any action on cleanup.

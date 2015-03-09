@@ -34,14 +34,14 @@
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using namespace process;
 
 using std::list;
 using std::string;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 // This test tests the functionality of the docker's interfaces.
@@ -316,3 +316,7 @@ TEST(DockerTest, ROOT_DOCKER_CancelPull)
 
   AWAIT_DISCARDED(future);
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

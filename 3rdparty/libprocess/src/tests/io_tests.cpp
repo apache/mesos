@@ -125,7 +125,7 @@ TEST(IO, BufferedRead)
   // First read from a file.
   ASSERT_SOME(os::write("file", data));
 
-  Try<int> fd = os::open("file", O_RDONLY);
+  Try<int> fd = os::open("file", O_RDONLY | O_CLOEXEC);
   ASSERT_SOME(fd);
 
   AWAIT_EXPECT_EQ(data, io::read(fd.get()));
@@ -291,8 +291,8 @@ TEST(IO, redirect)
 
   Try<int> fd = os::open(
       path.get(),
-      O_WRONLY | O_CREAT | O_TRUNC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(fd);
 

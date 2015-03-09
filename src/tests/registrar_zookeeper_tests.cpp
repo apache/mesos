@@ -34,10 +34,6 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -52,6 +48,10 @@ using testing::_;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class RegistrarZooKeeperTest : public MesosZooKeeperTest {};
@@ -99,11 +99,10 @@ TEST_F(RegistrarZooKeeperTest, TaskRunning)
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Future<Nothing> resourcesUpdated;
-  Future<Nothing> update;
   EXPECT_CALL(containerizer,
               update(_, Resources(offers.get()[0].resources())))
     .WillOnce(DoAll(FutureSatisfy(&resourcesUpdated),
-                    Return(update)));
+                    Return(Nothing())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -124,3 +123,7 @@ TEST_F(RegistrarZooKeeperTest, TaskRunning)
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

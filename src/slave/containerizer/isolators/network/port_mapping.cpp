@@ -38,11 +38,14 @@
 #include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
+#include <stout/mac.hpp>
+#include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/option.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/result.hpp>
 #include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 
 #include <stout/os/exists.hpp>
 
@@ -96,6 +99,11 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+using mesos::slave::ExecutorRunState;
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
+using mesos::slave::Limitation;
+
 const std::string VETH_PREFIX = "mesos";
 
 
@@ -120,11 +128,6 @@ static const uint8_t IP_FILTER_PRIORITY = 3;
 static const uint8_t HIGH = 1;
 static const uint8_t NORMAL = 2;
 static const uint8_t LOW = 3;
-
-
-// The loopback IP reserved by IPv4 standard.
-// TODO(jieyu): Support IP filters for the entire subnet.
-static net::IP LOOPBACK_IP = net::IP::fromDotDecimal("127.0.0.1/8").get();
 
 
 // The well known ports. Used for sanity check.
@@ -321,7 +324,11 @@ static Try<Nothing> addContainerIPFilters(
   Try<bool> eth0ToLoLoopback = filter::ip::create(
       eth0,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), None(), range),
+      ip::Classifier(
+          None(),
+          net::IPNetwork::LOOPBACK_V4().address(),
+          None(),
+          range),
       Priority(IP_FILTER_PRIORITY, NORMAL),
       action::Redirect(lo));
 
@@ -368,7 +375,11 @@ static Try<Nothing> removeContainerIPFilters(
   Try<bool> eth0ToLoLoopback = filter::ip::remove(
       eth0,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), None(), range));
+      ip::Classifier(
+          None(),
+          net::IPNetwork::LOOPBACK_V4().address(),
+          None(),
+          range));
 
   if (eth0ToLoLoopback.isError()) {
     return Error(
@@ -486,6 +497,17 @@ PortMappingStatistics::Flags::Flags()
   add(&pid,
       "pid",
       "The pid of the process whose namespaces we will enter");
+
+  add(&enable_socket_statistics_summary,
+      "enable_socket_statistics_summary",
+      "Whether to collect socket statistics summary for this container\n",
+      false);
+
+  add(&enable_socket_statistics_details,
+      "enable_socket_statistics_details",
+      "Whether to collect socket statistics details (e.g., TCP RTT)\n"
+      "for this container.",
+      false);
 }
 
 
@@ -511,54 +533,129 @@ int PortMappingStatistics::execute()
     return 1;
   }
 
-  // NOTE: If the underlying library uses the older version of kernel
-  // API, the family argument passed in may not be honored.
-  Try<vector<diagnosis::socket::Info> > infos =
-    diagnosis::socket::infos(AF_INET, diagnosis::socket::state::ALL);
+  JSON::Object object;
 
-  if (infos.isError()) {
-    cerr << "Failed to retrieve the socket information" << endl;
-  }
+  if (flags.enable_socket_statistics_summary) {
+    // Collections for socket statistics summary are below.
 
-  vector<uint32_t> RTTs;
-  foreach (const diagnosis::socket::Info& info, infos.get()) {
-    // We double check on family regardless.
-    if (info.family != AF_INET) {
-      continue;
+    // For TCP, get the number of ACTIVE and TIME_WAIT connections,
+    // from reading /proc/net/sockstat (/proc/net/sockstat6 for IPV6).
+    // This is not as expensive in the kernel because only counter
+    // values are accessed instead of a dump of all the sockets.
+    // Example output:
+
+    // $ cat /proc/net/sockstat
+    // sockets: used 1391
+    // TCP: inuse 33 orphan 0 tw 0 alloc 37 mem 6
+    // UDP: inuse 15 mem 7
+    // UDPLITE: inuse 0
+    // RAW: inuse 0
+    // FRAG: inuse 0 memory 0
+
+    Try<string> value = os::read("/proc/net/sockstat");
+    if (value.isError()) {
+      cerr << "Failed to read /proc/net/sockstat: " << value.error() << endl;
+      return 1;
     }
 
-    // We consider all sockets that have non-zero rtt value.
-    if (info.tcpInfo.isSome() && info.tcpInfo.get().tcpi_rtt != 0) {
-      RTTs.push_back(info.tcpInfo.get().tcpi_rtt);
+    foreach (const string& line, strings::tokenize(value.get(), "\n")) {
+      if (!strings::startsWith(line, "TCP")) {
+        continue;
+      }
+
+      vector<string> tokens = strings::tokenize(line, " ");
+      for (size_t i = 0; i < tokens.size(); i++) {
+        if (tokens[i] == "inuse") {
+          if (i + 1 >= tokens.size()) {
+            cerr << "Unexpected output from /proc/net/sockstat" << endl;
+            // Be a bit forgiving here here since the /proc file
+            // output format can change, though not very likely.
+            continue;
+          }
+
+          // Set number of active TCP connections.
+          Try<size_t> inuse = numify<size_t>(tokens[i+1]);
+          if (inuse.isError()) {
+            cerr << "Failed to parse the number of tcp connections in use: "
+                 << inuse.error() << endl;
+            continue;
+          }
+
+          object.values["net_tcp_active_connections"] = inuse.get();
+        } else if (tokens[i] == "tw") {
+          if (i + 1 >= tokens.size()) {
+            cerr << "Unexpected output from /proc/net/sockstat" << endl;
+            // Be a bit forgiving here here since the /proc file
+            // output format can change, though not very likely.
+            continue;
+          }
+
+          // Set number of TIME_WAIT TCP connections.
+          Try<size_t> tw = numify<size_t>(tokens[i+1]);
+          if (tw.isError()) {
+            cerr << "Failed to parse the number of tcp connections in"
+                 << " TIME_WAIT: " << tw.error() << endl;
+            continue;
+          }
+
+          object.values["net_tcp_time_wait_connections"] = tw.get();
+        }
+      }
     }
   }
 
-  // Only print to stdout when we have results.
-  if (RTTs.size() > 0) {
-    std::sort(RTTs.begin(), RTTs.end());
+  if (flags.enable_socket_statistics_details) {
+    // Collections for socket statistics details are below.
 
-    // NOTE: The size of RTTs is usually within 1 million so we don't
-    // need to worry about overflow here.
-    // TODO(jieyu): Right now, we choose to use "Nearest rank" for
-    // simplicity. Consider directly using the Statistics abstraction
-    // which computes "Linear interpolation between closest ranks".
-    // http://en.wikipedia.org/wiki/Percentile
-    size_t p50 = RTTs.size() * 50 / 100;
-    size_t p90 = RTTs.size() * 90 / 100;
-    size_t p95 = RTTs.size() * 95 / 100;
-    size_t p99 = RTTs.size() * 99 / 100;
+    // NOTE: If the underlying library uses the older version of
+    // kernel API, the family argument passed in may not be honored.
+    Try<vector<diagnosis::socket::Info> > infos =
+      diagnosis::socket::infos(AF_INET, diagnosis::socket::state::ALL);
 
-    JSON::Object object;
-    object.values["net_tcp_rtt_microsecs_p50"] = RTTs[p50];
-    object.values["net_tcp_rtt_microsecs_p90"] = RTTs[p90];
-    object.values["net_tcp_rtt_microsecs_p95"] = RTTs[p95];
-    object.values["net_tcp_rtt_microsecs_p99"] = RTTs[p99];
+    if (infos.isError()) {
+      cerr << "Failed to retrieve the socket information" << endl;
+      return 1;
+    }
 
-    cout << stringify(object);
+    vector<uint32_t> RTTs;
+    foreach (const diagnosis::socket::Info& info, infos.get()) {
+      // We double check on family regardless.
+      if (info.family != AF_INET) {
+        continue;
+      }
+
+      // We consider all sockets that have non-zero rtt value.
+      if (info.tcpInfo.isSome() && info.tcpInfo.get().tcpi_rtt != 0) {
+        RTTs.push_back(info.tcpInfo.get().tcpi_rtt);
+      }
+    }
+
+    // Only print to stdout when we have results.
+    if (RTTs.size() > 0) {
+      std::sort(RTTs.begin(), RTTs.end());
+
+      // NOTE: The size of RTTs is usually within 1 million so we
+      // don't need to worry about overflow here.
+      // TODO(jieyu): Right now, we choose to use "Nearest rank" for
+      // simplicity. Consider directly using the Statistics abstraction
+      // which computes "Linear interpolation between closest ranks".
+      // http://en.wikipedia.org/wiki/Percentile
+      size_t p50 = RTTs.size() * 50 / 100;
+      size_t p90 = RTTs.size() * 90 / 100;
+      size_t p95 = RTTs.size() * 95 / 100;
+      size_t p99 = RTTs.size() * 99 / 100;
+
+      object.values["net_tcp_rtt_microsecs_p50"] = RTTs[p50];
+      object.values["net_tcp_rtt_microsecs_p90"] = RTTs[p90];
+      object.values["net_tcp_rtt_microsecs_p95"] = RTTs[p95];
+      object.values["net_tcp_rtt_microsecs_p99"] = RTTs[p99];
+    }
   }
 
+  cout << stringify(object);
   return 0;
 }
+
 
 /////////////////////////////////////////////////
 // Implementation for the isolator.
@@ -957,12 +1054,16 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     }
   }
 
-  // Get the host IP, MAC and default gateway.
-  Result<net::IP> hostIP = net::ip(eth0.get());
-  if (!hostIP.isSome()) {
+  // Get the host IP network, MAC and default gateway.
+  Result<net::IPNetwork> hostIPNetwork =
+    net::fromLinkDevice(eth0.get(), AF_INET);
+
+  if (!hostIPNetwork.isSome()) {
     return Error(
-        "Failed to get the public IP of " + eth0.get() + ": " +
-        (hostIP.isError() ? hostIP.error() : "does not have an IPv4 address"));
+        "Failed to get the public IP network of " + eth0.get() + ": " +
+        (hostIPNetwork.isError() ?
+            hostIPNetwork.error() :
+            "does not have an IPv4 network"));
   }
 
   Result<net::MAC> hostMAC = net::mac(eth0.get());
@@ -1216,7 +1317,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           eth0.get(),
           lo.get(),
           hostMAC.get(),
-          hostIP.get(),
+          hostIPNetwork.get(),
           hostEth0MTU.get(),
           hostDefaultGateway.get(),
           hostNetworkConfigurations,
@@ -1227,7 +1328,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> PortMappingIsolatorProcess::recover(
-    const list<state::RunState>& states)
+    const list<ExecutorRunState>& states)
 {
   // Extract pids from virtual device names.
   Try<set<string> > links = net::links();
@@ -1250,23 +1351,9 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
     pids.insert(pid.get());
   }
 
-  foreach (const state::RunState& state, states) {
-    if (!state.id.isSome()) {
-      foreachvalue (Info* info, infos) {
-        delete info;
-      }
-      infos.clear();
-      unmanaged.clear();
-
-      return Failure("ContainerID and pid are required to recover");
-    }
-
-    // Containerizer is not supposed to let the isolator recover a run
-    // with a forked pid.
-    CHECK_SOME(state.forkedPid);
-
-    const ContainerID& containerId = state.id.get();
-    pid_t pid = state.forkedPid.get();
+  foreach (const ExecutorRunState& state, states) {
+    const ContainerID& containerId = state.id;
+    pid_t pid = state.pid;
 
     VLOG(1) << "Recovering network isolator for container "
             << containerId << " with pid " << pid;
@@ -1657,7 +1744,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     Try<bool> icmpEth0ToVeth = filter::icmp::create(
         eth0,
         ingress::HANDLE,
-        icmp::Classifier(net::IP(hostIP.address())),
+        icmp::Classifier(hostIPNetwork.address()),
         Priority(ICMP_FILTER_PRIORITY, NORMAL),
         action::Mirror(targets));
 
@@ -1698,7 +1785,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     Try<bool> icmpEth0ToVeth = filter::icmp::update(
         eth0,
         ingress::HANDLE,
-        icmp::Classifier(net::IP(hostIP.address())),
+        icmp::Classifier(hostIPNetwork.address()),
         action::Mirror(targets));
 
     if (icmpEth0ToVeth.isError()) {
@@ -2037,13 +2124,18 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
     result.set_net_tx_dropped(tx_dropped.get());
   }
 
-  if (!flags.network_enable_socket_statistics) {
+  if (!flags.network_enable_socket_statistics_summary &&
+      !flags.network_enable_socket_statistics_details) {
     return result;
   }
 
   // Retrieve the socket information from inside the container.
   PortMappingStatistics statistics;
   statistics.flags.pid = info->pid.get();
+  statistics.flags.enable_socket_statistics_summary =
+    flags.network_enable_socket_statistics_summary;
+  statistics.flags.enable_socket_statistics_details =
+    flags.network_enable_socket_statistics_details;
 
   vector<string> argv(2);
   argv[0] = "mesos-network-helper";
@@ -2109,30 +2201,49 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::__usage(
   CHECK_READY(out);
 
   // NOTE: It's possible the subprocess has no output.
-  if (out.get().size() > 0) {
-    Try<JSON::Object> object = JSON::parse<JSON::Object>(out.get());
-    if (object.isError()) {
-      return Failure(
-          "Failed to parse the output from the process that gets the "
-          "network statistics: " + object.error());
-    }
+  if (out.get().empty()) {
+    return result;
+  }
 
-    Result<JSON::Number> p50 =
-      object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p50");
-    Result<JSON::Number> p90 =
-      object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p90");
-    Result<JSON::Number> p95 =
-      object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p95");
-    Result<JSON::Number> p99 =
-      object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p99");
+  Try<JSON::Object> object = JSON::parse<JSON::Object>(out.get());
+  if (object.isError()) {
+    return Failure("Failed to parse the output from the process that gets the "
+       "network statistics: " + object.error());
+  }
 
-    if (!p50.isSome() || !p90.isSome() || !p95.isSome() || !p99.isSome()) {
-      return Failure("Failed to get TCP RTT statistics");
-    }
+  Result<JSON::Number> active =
+    object.get().find<JSON::Number>("net_tcp_active_connections");
+  if (active.isSome()) {
+    result.set_net_tcp_active_connections(active.get().value);
+  }
 
+  Result<JSON::Number> tw =
+    object.get().find<JSON::Number>("net_tcp_time_wait_connections");
+  if (tw.isSome()) {
+    result.set_net_tcp_time_wait_connections(tw.get().value);
+  }
+
+  Result<JSON::Number> p50 =
+    object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p50");
+  if (p50.isSome()) {
     result.set_net_tcp_rtt_microsecs_p50(p50.get().value);
+  }
+
+  Result<JSON::Number> p90 =
+    object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p90");
+  if (p90.isSome()) {
     result.set_net_tcp_rtt_microsecs_p90(p90.get().value);
+  }
+
+  Result<JSON::Number> p95 =
+    object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p95");
+  if (p95.isSome()) {
     result.set_net_tcp_rtt_microsecs_p95(p95.get().value);
+  }
+
+  Result<JSON::Number> p99 =
+    object.get().find<JSON::Number>("net_tcp_rtt_microsecs_p99");
+  if (p99.isSome()) {
     result.set_net_tcp_rtt_microsecs_p99(p99.get().value);
   }
 
@@ -2238,7 +2349,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     Try<bool> icmpEth0ToVeth = filter::icmp::remove(
         eth0,
         ingress::HANDLE,
-        icmp::Classifier(net::IP(hostIP.address())));
+        icmp::Classifier(hostIPNetwork.address()));
 
     if (icmpEth0ToVeth.isError()) {
       ++metrics.removing_eth0_icmp_filters_errors;
@@ -2279,7 +2390,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     Try<bool> icmpEth0ToVeth = filter::icmp::update(
         eth0,
         ingress::HANDLE,
-        icmp::Classifier(net::IP(hostIP.address())),
+        icmp::Classifier(hostIPNetwork.address()),
         action::Mirror(targets));
 
     if (icmpEth0ToVeth.isError()) {
@@ -2403,7 +2514,7 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
   Try<bool> vethToHostLoPublic = filter::ip::create(
       veth,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(hostIP.address()), range, None()),
+      ip::Classifier(None(), hostIPNetwork.address(), range, None()),
       Priority(IP_FILTER_PRIORITY, NORMAL),
       action::Redirect(lo));
 
@@ -2424,7 +2535,11 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
   Try<bool> vethToHostLoLoopback = filter::ip::create(
       veth,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), range, None()),
+      ip::Classifier(
+          None(),
+          net::IPNetwork::LOOPBACK_V4().address(),
+          range,
+          None()),
       Priority(IP_FILTER_PRIORITY, NORMAL),
       action::Redirect(lo));
 
@@ -2448,7 +2563,7 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
   Try<bool> hostEth0ToVeth = filter::ip::create(
       eth0,
       ingress::HANDLE,
-      ip::Classifier(hostMAC, net::IP(hostIP.address()), None(), range),
+      ip::Classifier(hostMAC, hostIPNetwork.address(), None(), range),
       Priority(IP_FILTER_PRIORITY, NORMAL),
       action::Redirect(veth));
 
@@ -2511,7 +2626,7 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
   Try<bool> hostEth0ToVeth = filter::ip::remove(
       eth0,
       ingress::HANDLE,
-      ip::Classifier(hostMAC, net::IP(hostIP.address()), None(), range));
+      ip::Classifier(hostMAC, hostIPNetwork.address(), None(), range));
 
   if (hostEth0ToVeth.isError()) {
     ++metrics.removing_eth0_ip_filters_errors;
@@ -2556,7 +2671,7 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
   Try<bool> vethToHostLoPublic = filter::ip::remove(
       veth,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(hostIP.address()), range, None()));
+      ip::Classifier(None(), hostIPNetwork.address(), range, None()));
 
   if (vethToHostLoPublic.isError()) {
     ++metrics.removing_lo_ip_filters_errors;
@@ -2576,7 +2691,11 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
   Try<bool> vethToHostLoLoopback = filter::ip::remove(
       veth,
       ingress::HANDLE,
-      ip::Classifier(None(), net::IP(LOOPBACK_IP.address()), range, None()));
+      ip::Classifier(
+          None(),
+          net::IPNetwork::LOOPBACK_V4().address(),
+          range,
+          None()));
 
   if (vethToHostLoLoopback.isError()) {
     ++metrics.removing_veth_ip_filters_errors;
@@ -2639,11 +2758,10 @@ string PortMappingIsolatorProcess::scripts(Info* info)
          << " mtu "<< hostEth0MTU << " up\n";
 
   script << "ip link set " << eth0 << " address " << hostMAC << " up\n";
-  script << "ip addr add " << hostIP  << " dev " << eth0 << "\n";
+  script << "ip addr add " << hostIPNetwork  << " dev " << eth0 << "\n";
 
   // Set up the default gateway to match that of eth0.
-  script << "ip route add default via "
-         << net::IP(hostDefaultGateway.address()) << "\n";
+  script << "ip route add default via " << hostDefaultGateway << "\n";
 
   // Restrict the ephemeral ports that can be used by the container.
   script << "echo " << info->ephemeralPorts.lower() << " "
@@ -2680,13 +2798,14 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   script << "tc filter add dev " << lo << " parent ffff: protocol ip"
          << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
-         << " match ip dst " << net::IP(hostIP.address())
+         << " match ip dst " << hostIPNetwork.address()
          << " action mirred egress redirect dev " << eth0 << "\n";
 
   script << "tc filter add dev " << lo << " parent ffff: protocol ip"
          << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
-         << " match ip dst " << net::IP(LOOPBACK_IP.address())
+         << " match ip dst "
+         << net::IPNetwork::LOOPBACK_V4().address()
          << " action mirred egress redirect dev " << eth0 << "\n";
 
   foreach (const PortRange& range,
@@ -2703,7 +2822,8 @@ string PortMappingIsolatorProcess::scripts(Info* info)
     script << "tc filter add dev " << eth0 << " parent ffff: protocol ip"
            << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
            << " flowid ffff:0"
-           << " match ip dst " << net::IP(LOOPBACK_IP.address())
+           << " match ip dst "
+           << net::IPNetwork::LOOPBACK_V4().address()
            << " match ip dport " << range.begin() << " "
            << hex << range.mask() << dec
            << " action mirred egress redirect dev " << lo << "\n";
@@ -2714,13 +2834,14 @@ string PortMappingIsolatorProcess::scripts(Info* info)
          << " prio " << Priority(ICMP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
          << " match ip protocol 1 0xff"
-         << " match ip dst " << net::IP(hostIP.address()) << "\n";
+         << " match ip dst " << hostIPNetwork.address() << "\n";
 
   script << "tc filter add dev " << lo << " parent ffff: protocol ip"
          << " prio " << Priority(ICMP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
          << " match ip protocol 1 0xff"
-         << " match ip dst " << net::IP(LOOPBACK_IP.address()) << "\n";
+         << " match ip dst "
+         << net::IPNetwork::LOOPBACK_V4().address() << "\n";
 
   // Display the filters created on eth0 and lo.
   script << "tc filter show dev " << eth0 << " parent ffff:\n";

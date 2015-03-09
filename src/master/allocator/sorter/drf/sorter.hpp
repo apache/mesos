@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __DRF_SORTER_HPP__
-#define __DRF_SORTER_HPP__
+#ifndef __MASTER_ALLOCATOR_SORTER_DRF_SORTER_HPP__
+#define __MASTER_ALLOCATOR_SORTER_DRF_SORTER_HPP__
 
 #include <set>
 #include <string>
@@ -26,7 +26,7 @@
 
 #include <stout/hashmap.hpp>
 
-#include "master/sorter.hpp"
+#include "master/allocator/sorter/sorter.hpp"
 
 
 namespace mesos {
@@ -76,9 +76,9 @@ public:
   virtual void allocated(const std::string& name,
                          const Resources& resources);
 
-  virtual void transform(const std::string& name,
-                         const Resources& oldAllocation,
-                         const Resources& newAllocation);
+  virtual void update(const std::string& name,
+                      const Resources& oldAllocation,
+                      const Resources& newAllocation);
 
   virtual void unallocated(const std::string& name,
                            const Resources& resources);
@@ -128,4 +128,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __DRF_SORTER_HPP__
+#endif // __MASTER_ALLOCATOR_SORTER_DRF_SORTER_HPP__

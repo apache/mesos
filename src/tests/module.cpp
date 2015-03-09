@@ -30,10 +30,11 @@
 
 using std::string;
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
 using namespace mesos::modules;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 static hashmap<ModuleID, string> moduleNames;
 
@@ -50,7 +51,7 @@ static void addModule(
 
 
 // Add available Isolator modules.
-static void addIsolatorModules(Modules& modules)
+static void addIsolatorModules(Modules* modules)
 {
   const string libraryPath = path::join(
       tests::flags.build_dir,
@@ -59,7 +60,7 @@ static void addIsolatorModules(Modules& modules)
       os::libraries::expandName("testisolator"));
 
   // Now add our test CPU and Memory isolator modules.
-  Modules::Library* library = modules.add_libraries();
+  Modules::Library* library = modules->add_libraries();
   library->set_file(libraryPath);
 
   // To add a new module from this library, create a new ModuleID enum
@@ -70,7 +71,7 @@ static void addIsolatorModules(Modules& modules)
 
 
 // Add available Authentication modules.
-static void addAuthenticationModules(Modules& modules)
+static void addAuthenticationModules(Modules* modules)
 {
   const string libraryPath = path::join(
       tests::flags.build_dir,
@@ -79,7 +80,7 @@ static void addAuthenticationModules(Modules& modules)
       os::libraries::expandName("testauthentication"));
 
   // Now add our test authentication modules.
-  Modules::Library* library = modules.add_libraries();
+  Modules::Library* library = modules->add_libraries();
   library->set_file(libraryPath);
 
   // To add a new module from this library, create a new ModuleID enum
@@ -93,7 +94,7 @@ static void addAuthenticationModules(Modules& modules)
 }
 
 
-static void addHookModules(Modules& modules)
+static void addHookModules(Modules* modules)
 {
   const string libraryPath = path::join(
       tests::flags.build_dir,
@@ -102,7 +103,7 @@ static void addHookModules(Modules& modules)
       os::libraries::expandName("testhook"));
 
   // Now add our test hook module.
-  Modules::Library* library = modules.add_libraries();
+  Modules::Library* library = modules->add_libraries();
   library->set_file(libraryPath);
 
   // To add a new module from this library, create a new ModuleID enum
@@ -111,7 +112,26 @@ static void addHookModules(Modules& modules)
 }
 
 
-Try<Nothing> tests::initModules(const Option<Modules>& modules)
+static void addAnonymousModules(Modules* modules)
+{
+  const string libraryPath = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      os::libraries::expandName("testanonymous"));
+
+  // Now add our test anonymous module.
+  Modules::Library* library = modules->add_libraries();
+  library->set_file(libraryPath);
+
+  // To add a new module from this library, create a new ModuleID enum
+  // and tie it with a module name.
+  addModule(
+      library, TestAnonymous, "org_apache_mesos_TestAnonymous");
+}
+
+
+Try<Nothing> initModules(const Option<Modules>& modules)
 {
   // First get the user provided modules.
   Modules mergedModules;
@@ -120,23 +140,30 @@ Try<Nothing> tests::initModules(const Option<Modules>& modules)
   }
 
   // Add isolator modules from testisolator library.
-  addIsolatorModules(mergedModules);
+  addIsolatorModules(&mergedModules);
 
   // Add authentication modules from testauthentication library.
-  addAuthenticationModules(mergedModules);
+  addAuthenticationModules(&mergedModules);
 
   // Add hook modules from testhook library.
-  addHookModules(mergedModules);
+  addHookModules(&mergedModules);
+
+  // Add anonymous modules from testanonymous library.
+  addAnonymousModules(&mergedModules);
 
   return ModuleManager::load(mergedModules);
 }
 
 
 // Mapping from module ID to the actual module name.
-Try<string> tests::getModuleName(ModuleID id)
+Try<string> getModuleName(ModuleID id)
 {
   if (!moduleNames.contains(id)) {
     return Error("Module '" + stringify(id) + "' not found");
   }
   return moduleNames[id];
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

@@ -23,6 +23,8 @@
 #include <map>
 #include <string>
 
+#include <mesos/slave/isolator.hpp>
+
 #include <process/future.hpp>
 #include <process/subprocess.hpp>
 
@@ -32,7 +34,6 @@
 #include <stout/try.hpp>
 
 #include "slave/flags.hpp"
-#include "slave/state.hpp"
 
 namespace mesos {
 namespace internal {
@@ -45,7 +46,7 @@ public:
 
   // Recover the necessary state for each container listed in state.
   virtual process::Future<Nothing> recover(
-      const std::list<state::RunState>& states) = 0;
+      const std::list<mesos::slave::ExecutorRunState>& states) = 0;
 
   // Fork a new process in the containerized context. The child will
   // exec the binary at the given path with the given argv, flags and
@@ -82,7 +83,7 @@ public:
   virtual ~PosixLauncher() {}
 
   virtual process::Future<Nothing> recover(
-      const std::list<state::RunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,

@@ -19,20 +19,6 @@
 // in this file.
 
 
-// THIS IS DEPRECATED AND BROKEN! REPLACE ALL USES!
-#define EXPECT_MESSAGE(name, from, to)                                  \
-  EXPECT_CALL(*new process::MockFilter(),                              \
-              filter(testing::A<const process::MessageEvent&>()))       \
-    .With(process::MessageMatcher(name, from, to))
-
-
-// THIS IS DEPRECATED AND BROKEN! REPLACE ALL USES!
-#define EXPECT_DISPATCH(pid, method)                                    \
-  EXPECT_CALL(*new process::MockFilter(),                              \
-              filter(testing::A<const process::DispatchEvent&>()))      \
-    .With(process::DispatchMatcher(pid, method))
-
-
 #define FUTURE_MESSAGE(name, from, to)          \
   process::FutureMessage(name, from, to)
 
@@ -265,7 +251,7 @@ public:
   }
 
   MockFilter mock;
-  pthread_mutex_t mutex;;
+  pthread_mutex_t mutex;
 };
 
 

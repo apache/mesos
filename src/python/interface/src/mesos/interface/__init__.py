@@ -87,14 +87,17 @@ class Scheduler(object):
 
   def statusUpdate(self, driver, status):
     """
-      Invoked when the status of a task has changed (e.g., a slave is lost
-      and so the task is lost, a task finishes and an executor sends a
-      status update saying so, etc.) Note that returning from this callback
-      acknowledges receipt of this status update.  If for whatever reason
-      the scheduler aborts during this callback (or the process exits)
-      another status update will be delivered.  Note, however, that this is
-      currently not true if the slave sending the status update is lost or
-      fails during that time.
+      Invoked when the status of a task has changed (e.g., a slave is
+      lost and so the task is lost, a task finishes and an executor
+      sends a status update saying so, etc). If implicit
+      acknowledgements are being used, then returning from this
+      callback _acknowledges_ receipt of this status update! If for
+      whatever reason the scheduler aborts during this callback (or
+      the process exits) another status update will be delivered (note,
+      however, that this is currently not true if the slave sending the
+      status update is lost/fails during that time). If explicit
+      acknowledgements are in use, the scheduler must acknowledge this
+      status on the driver.
     """
 
   def frameworkMessage(self, driver, executorId, slaveId, message):
@@ -212,6 +215,15 @@ class SchedulerDriver(object):
       Removes all filters previously set by the framework (via
       launchTasks()).  This enables the framework to receive offers from
       those filtered slaves.
+    """
+
+  def acknowledgeStatusUpdate(self, status):
+    """
+      Acknowledges the status update. This should only be called
+      once the status update is processed durably by the scheduler.
+      Not that explicit acknowledgements must be requested via the
+      constructor argument, otherwise a call to this method will
+      cause the driver to crash.
     """
 
   def sendFrameworkMessage(self, executorId, slaveId, data):

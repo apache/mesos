@@ -24,6 +24,8 @@
 
 #include <boost/array.hpp>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/help.hpp>
 
 #include <process/metrics/metrics.hpp>
@@ -45,7 +47,6 @@
 #include "common/build.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
-#include "common/type_utils.hpp"
 
 #include "logging/logging.hpp"
 
@@ -279,8 +280,14 @@ Future<Response> Master::Http::observe(const Request& request)
 {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
-  hashmap<string, string> values =
-    process::http::query::parse(request.body);
+  Try<hashmap<string, string>> decode =
+    process::http::query::decode(request.body);
+
+  if (decode.isError()) {
+    return BadRequest("Unable to decode query string: " + decode.error());
+  }
+
+  hashmap<string, string> values = decode.get();
 
   // Build up a JSON object of the values we recieved and send them back
   // down the wire as JSON for validation / confirmation.
@@ -349,8 +356,11 @@ Future<Response> Master::Http::redirect(const Request& request)
     ? master->leader.get()
     : master->info_;
 
-  Try<string> hostname =
-    info.has_hostname() ? info.hostname() : net::getHostname(info.ip());
+  // NOTE: Currently, 'info.ip()' stores ip in network order, which
+  // should be fixed. See MESOS-1201 for details.
+  Try<string> hostname = info.has_hostname()
+    ? info.hostname()
+    : net::getHostname(net::IP(ntohl(info.ip())));
 
   if (hostname.isError()) {
     return InternalServerError(hostname.error());
@@ -361,118 +371,27 @@ Future<Response> Master::Http::redirect(const Request& request)
 }
 
 
-// Declaration of 'stats' continuation.
-static Future<Response> _stats(
-    const Request& request,
-    JSON::Object object,
-    const Response& response);
+const string Master::Http::SLAVES_HELP = HELP(
+    TLDR(
+        "Information about registered slaves."),
+    USAGE(
+        "/master/slaves"),
+    DESCRIPTION(
+        "This endpoint shows information about the slaves registered in",
+        "this master formated as a json object."));
 
 
-// TODO(alexandra.sava): Add stats for registered and removed slaves.
-Future<Response> Master::Http::stats(const Request& request)
-{
+Future<Response> Master::Http::slaves(const Request& request) {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
+  JSON::Array array;
+  foreachvalue (const Slave* slave, master->slaves.registered) {
+    JSON::Object object = model(*slave);
+    array.values.push_back(object);
+  }
+
   JSON::Object object;
-  object.values["uptime"] = (Clock::now() - master->startTime).secs();
-  object.values["elected"] = master->elected() ? 1 : 0;
-  object.values["total_schedulers"] = master->frameworks.registered.size();
-  object.values["active_schedulers"] = master->_frameworks_active();
-  object.values["activated_slaves"] = master->_slaves_active();
-  object.values["deactivated_slaves"] = master->_slaves_inactive();
-  object.values["outstanding_offers"] = master->offers.size();
-
-  // NOTE: These are monotonically increasing counters.
-  object.values["staged_tasks"] = master->stats.tasks[TASK_STAGING];
-  object.values["started_tasks"] = master->stats.tasks[TASK_STARTING];
-  object.values["finished_tasks"] = master->stats.tasks[TASK_FINISHED];
-  object.values["killed_tasks"] = master->stats.tasks[TASK_KILLED];
-  object.values["failed_tasks"] = master->stats.tasks[TASK_FAILED];
-  object.values["lost_tasks"] = master->stats.tasks[TASK_LOST];
-  object.values["valid_status_updates"] = master->stats.validStatusUpdates;
-  object.values["invalid_status_updates"] = master->stats.invalidStatusUpdates;
-
-  // Get a count of all active tasks in the cluster i.e., the tasks
-  // that are launched (TASK_STAGING, TASK_STARTING, TASK_RUNNING) but
-  // haven't reached terminal state yet.
-  // NOTE: This is a gauge representing an instantaneous value.
-  int active_tasks = 0;
-  foreachvalue (Framework* framework, master->frameworks.registered) {
-    active_tasks += framework->tasks.size();
-  }
-  object.values["active_tasks_gauge"] = active_tasks;
-
-  // Get total and used (note, not offered) resources in order to
-  // compute capacity of scalar resources.
-  Resources totalResources;
-  Resources usedResources;
-  foreachvalue (Slave* slave, master->slaves.registered) {
-    // Instead of accumulating all types of resources (which is
-    // not necessary), we only accumulate scalar resources. This
-    // helps us bypass a performance problem caused by range
-    // additions (e.g. ports).
-    foreach (const Resource& resource, slave->info.resources()) {
-      if (resource.type() == Value::SCALAR) {
-        totalResources += resource;
-      }
-    }
-    foreachvalue (const Resources& resources, slave->usedResources) {
-      foreach (const Resource& resource, resources) {
-        if (resource.type() == Value::SCALAR) {
-          usedResources += resource;
-        }
-      }
-    }
-  }
-
-  foreach (const Resource& resource, totalResources) {
-    CHECK(resource.has_scalar());
-
-    double total = resource.scalar().value();
-    object.values[resource.name() + "_total"] = total;
-
-    Option<Value::Scalar> _used =
-      usedResources.get<Value::Scalar>(resource.name());
-
-    double used = _used.isSome() ? _used.get().value() : 0.0;
-    object.values[resource.name() + "_used"] = used;
-
-    double percent = used / total;
-    object.values[resource.name() + "_percent"] = percent;
-  }
-
-  // Include metrics from libprocess metrics while we sunset this
-  // endpoint in favor of libprocess metrics.
-  // TODO(benh): Remove this after transitioning to libprocess metrics.
-  return process::http::get(MetricsProcess::instance()->self(), "snapshot")
-    .then(lambda::bind(&_stats, request, object, lambda::_1));
-}
-
-
-static Future<Response> _stats(
-    const Request& request,
-    JSON::Object object,
-    const Response& response)
-{
-  if (response.status != process::http::statuses[200]) {
-    return InternalServerError("Failed to get metrics: " + response.status);
-  }
-
-  Option<string> type = response.headers.get("Content-Type");
-
-  if (type.isNone() || type.get() != "application/json") {
-    return InternalServerError("Failed to get metrics: expecting JSON");
-  }
-
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.body);
-
-  if (parse.isError()) {
-    return InternalServerError("Failed to parse metrics: " + parse.error());
-  }
-
-  // Now add all the values from metrics.
-  // TODO(benh): Make sure we're not overwriting any values.
-  object.values.insert(parse.get().values.begin(), parse.get().values.end());
+  object.values["slaves"] = array;
 
   return OK(object, request.query.get("jsonp"));
 }
@@ -511,12 +430,6 @@ Future<Response> Master::Http::state(const Request& request)
   object.values["hostname"] = master->info().hostname();
   object.values["activated_slaves"] = master->_slaves_active();
   object.values["deactivated_slaves"] = master->_slaves_inactive();
-  object.values["staged_tasks"] = master->stats.tasks[TASK_STAGING];
-  object.values["started_tasks"] = master->stats.tasks[TASK_STARTING];
-  object.values["finished_tasks"] = master->stats.tasks[TASK_FINISHED];
-  object.values["killed_tasks"] = master->stats.tasks[TASK_KILLED];
-  object.values["failed_tasks"] = master->stats.tasks[TASK_FAILED];
-  object.values["lost_tasks"] = master->stats.tasks[TASK_LOST];
 
   if (master->flags.cluster.isSome()) {
     object.values["cluster"] = master->flags.cluster.get();
@@ -528,6 +441,10 @@ Future<Response> Master::Http::state(const Request& request)
 
   if (master->flags.log_dir.isSome()) {
     object.values["log_dir"] = master->flags.log_dir.get();
+  }
+
+  if (master->flags.external_log_file.isSome()) {
+    object.values["external_log_file"] = master->flags.external_log_file.get();
   }
 
   JSON::Object flags;
@@ -652,8 +569,14 @@ Future<Response> Master::Http::shutdown(const Request& request)
 
   // Parse the query string in the request body (since this is a POST)
   // in order to determine the framework ID to shutdown.
-  hashmap<string, string> values =
-    process::http::query::parse(request.body);
+  Try<hashmap<string, string>> decode =
+    process::http::query::decode(request.body);
+
+  if (decode.isError()) {
+    return BadRequest("Unable to decode query string: " + decode.error());
+  }
+
+  hashmap<string, string> values = decode.get();
 
   if (values.get("frameworkId").isNone()) {
     return BadRequest("Missing 'frameworkId' query parameter");

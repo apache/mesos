@@ -21,10 +21,15 @@
 
 #include <string>
 
+#include <mesos/mesos.hpp>
+
+#include <mesos/module/module.hpp>
+
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 
 #include "common/parse.hpp"
@@ -147,6 +152,15 @@ public:
         "Values: [0%-100%]",
         stringify(RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT * 100.0) + "%");
 
+    // TODO(vinod): Add a 'Rate' abstraction in stout and the
+    // corresponding parser for flags.
+    add(&Flags::slave_removal_rate_limit,
+        "slave_removal_rate_limit",
+        "The maximum rate (e.g., 1/10mins, 2/3hrs, etc) at which slaves will\n"
+        "be removed from the master when they fail health checks. By default\n"
+        "slaves will be removed as soon as they fail the health checks.\n"
+        "The value is of the form <Number of slaves>/<Duration>.");
+
     add(&Flags::webui_dir,
         "webui_dir",
         "Directory path of the webui files/assets",
@@ -156,8 +170,7 @@ public:
         "whitelist",
         "Path to a file with a list of slaves\n"
         "(one per line) to advertise offers for.\n"
-        "Path could be of the form 'file:///path/to/file' or '/path/to/file'.",
-        "*");
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'.");
 
     add(&Flags::user_sorter,
         "user_sorter",
@@ -377,8 +390,9 @@ public:
   bool log_auto_initialize;
   Duration slave_reregister_timeout;
   std::string recovery_slave_removal_limit;
+  Option<std::string> slave_removal_rate_limit;
   std::string webui_dir;
-  std::string whitelist;
+  Option<Path> whitelist;
   std::string user_sorter;
   std::string framework_sorter;
   Duration allocation_interval;
@@ -387,7 +401,7 @@ public:
   Option<std::string> weights;
   bool authenticate_frameworks;
   bool authenticate_slaves;
-  Option<std::string> credentials;
+  Option<Path> credentials;
   Option<ACLs> acls;
   Option<RateLimits> rate_limits;
   Option<Duration> offer_timeout;

@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <mesos/type_utils.hpp>
+
 #include <process/collect.hpp>
 #include <process/delay.hpp>
 #include <process/process.hpp>
@@ -38,7 +40,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-using state::RunState;
+using mesos::slave::ExecutorRunState;
 
 
 Try<Launcher*> PosixLauncher::create(const Flags& flags)
@@ -47,20 +49,11 @@ Try<Launcher*> PosixLauncher::create(const Flags& flags)
 }
 
 
-Future<Nothing> PosixLauncher::recover(const list<RunState>& states)
+Future<Nothing> PosixLauncher::recover(const list<ExecutorRunState>& states)
 {
-  foreach (const RunState& state, states) {
-    if (state.id.isNone()) {
-      return Failure("ContainerID is required to recover");
-    }
-
-    const ContainerID& containerId = state.id.get();
-
-    if (state.forkedPid.isNone()) {
-      return Failure("Executor pid is required to recover container " +
-                     stringify(containerId));
-    }
-    pid_t pid = state.forkedPid.get();
+  foreach (const ExecutorRunState& state, states) {
+    const ContainerID& containerId = state.id;
+    pid_t pid = state.pid;
 
     if (pids.containsValue(pid)) {
       // This should (almost) never occur. There is the possibility

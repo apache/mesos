@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/pid.hpp>
@@ -31,8 +33,8 @@
 #include <stout/stopwatch.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/attributes.hpp"
 #include "common/protobuf_utils.hpp"
-#include "common/type_utils.hpp"
 
 #include "log/log.hpp"
 #include "log/replica.hpp"
@@ -51,19 +53,12 @@
 
 #include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
+using namespace mesos::internal::master;
 
 using namespace process;
 
-using log::Log;
-using log::Replica;
-
-using state::Entry;
-using state::LogStorage;
-using state::Storage;
-
-using state::protobuf::State;
+using mesos::internal::log::Log;
+using mesos::internal::log::Replica;
 
 using std::map;
 using std::set;
@@ -81,7 +76,13 @@ using ::testing::WithParamInterface;
 
 namespace mesos {
 namespace internal {
-namespace master {
+namespace tests {
+
+using state::Entry;
+using state::LogStorage;
+using state::Storage;
+
+using state::protobuf::State;
 
 // TODO(xujyan): This class copies code from LogStateTest. It would
 // be nice to find a common location for log related base tests when
@@ -527,6 +528,6 @@ TEST_P(Registrar_BENCHMARK_Test, performance)
   LOG(INFO) << "Removed " << slaveCount << " slaves in " << watch.elapsed();
 }
 
-} // namespace master {
+} // namespace tests {
 } // namespace internal {
 } // namespace mesos {

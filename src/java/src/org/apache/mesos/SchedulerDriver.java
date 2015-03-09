@@ -227,6 +227,21 @@ public interface SchedulerDriver {
   Status reviveOffers();
 
   /**
+   * Acknowledges the status update. This should only be called
+   * once the status update is processed durably by the scheduler.
+   * Not that explicit acknowledgements must be requested via the
+   * constructor argument, otherwise a call to this method will
+   * cause the driver to crash.
+   *
+   * @param status  The status to acknowledge.
+   *
+   * @return        The state of the driver after the call.
+   *
+   * @see TaskStatus
+   */
+  Status acknowledgeStatusUpdate(TaskStatus status);
+
+  /**
    * Sends a message from the framework to one of its executors. These
    * messages are best effort; do not expect a framework message to be
    * retransmitted in any reliable fashion.

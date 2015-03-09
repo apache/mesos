@@ -28,6 +28,9 @@
 #include <boost/circular_buffer.hpp>
 
 #include <mesos/resources.hpp>
+#include <mesos/type_utils.hpp>
+
+#include <mesos/module/authenticatee.hpp>
 
 #include <process/http.hpp>
 #include <process/future.hpp>
@@ -57,7 +60,6 @@
 
 #include "common/attributes.hpp"
 #include "common/protobuf_utils.hpp"
-#include "common/type_utils.hpp"
 
 #include "files/files.hpp"
 
@@ -67,8 +69,6 @@ namespace mesos {
 namespace internal {
 
 class MasterDetector; // Forward declaration.
-
-class Authenticatee;
 
 namespace slave {
 
@@ -138,6 +138,8 @@ public:
 
   void updateFramework(const FrameworkID& frameworkId, const std::string& pid);
 
+  void checkpointResources(const std::vector<Resource>& checkpointedResources);
+
   void registerExecutor(
       const process::UPID& from,
       const FrameworkID& frameworkId,
@@ -153,6 +155,12 @@ public:
       const ExecutorID& executorId,
       const std::vector<TaskInfo>& tasks,
       const std::vector<StatusUpdate>& updates);
+
+  void _reregisterExecutor(
+      const process::Future<Nothing>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId);
 
   void executorMessage(
       const SlaveID& slaveId,
@@ -257,6 +265,19 @@ public:
   virtual void finalize();
   virtual void exited(const process::UPID& pid);
 
+  // This is called when the resource limits of the container have
+  // been updated for the given tasks. If the update is successful, we
+  // flush the given tasks to the executor by sending RunTaskMessages.
+  // TODO(jieyu): Consider renaming it to '__runTasks' once the slave
+  // starts to support launching multiple tasks in one call (i.e.,
+  // multi-tasks version of 'runTask').
+  void runTasks(
+      const process::Future<Nothing>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      const std::list<TaskInfo>& tasks);
+
   void fileAttached(const process::Future<Nothing>& result,
                     const std::string& path);
 
@@ -315,7 +336,8 @@ public:
       const Option<state::SlaveState>& state);
 
   // This is called when recovery finishes.
-  void __recover(const process::Future<Nothing>& future);
+  // Made 'virtual' for Slave mocking.
+  virtual void __recover(const process::Future<Nothing>& future);
 
   // Helper to recover a framework from the specified state.
   void recoverFramework(const state::FrameworkState& state);
@@ -346,10 +368,6 @@ private:
 
     // /slave/health
     process::Future<process::http::Response> health(
-        const process::http::Request& request);
-
-    // /slave/stats.json
-    process::Future<process::http::Response> stats(
         const process::http::Request& request);
 
     // /slave/state.json
@@ -403,6 +421,9 @@ private:
 
   SlaveInfo info;
 
+  // Resources that are checkpointed by the slave.
+  Resources checkpointedResources;
+
   Option<process::UPID> master;
 
   hashmap<FrameworkID, Framework*> frameworks;
@@ -414,16 +435,6 @@ private:
   Containerizer* containerizer;
 
   Files* files;
-
-  // Statistics (initialized in Slave::initialize).
-  struct
-  {
-    uint64_t tasks[TaskState_ARRAYSIZE];
-    uint64_t validStatusUpdates;
-    uint64_t invalidStatusUpdates;
-    uint64_t validFrameworkMessages;
-    uint64_t invalidFrameworkMessages;
-  } stats;
 
   Metrics metrics;
 
@@ -487,7 +498,7 @@ struct Executor
   ~Executor();
 
   Task* addTask(const TaskInfo& task);
-  void terminateTask(const TaskID& taskId, const mesos::TaskState& state);
+  void terminateTask(const TaskID& taskId, const mesos::TaskStatus& status);
   void completeTask(const TaskID& taskId);
   void checkpointExecutor();
   void checkpointTask(const TaskInfo& task);

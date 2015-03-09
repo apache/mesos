@@ -588,3 +588,27 @@ TEST_F(FlagsFileTest, JSONFile)
 
   ASSERT_SOME_EQ(object, json);
 }
+
+
+TEST_F(FlagsFileTest, FilePrefix)
+{
+  Flags<TestFlags> flags;
+
+  Option<std::string> something;
+
+  flags.add(&something,
+            "something",
+            "arg to be loaded from file");
+
+  // Write the JSON to a file.
+  const string& file = path::join(os::getcwd(), "file");
+  ASSERT_SOME(os::write(file, "testing"));
+
+  // Read the JSON from the file.
+  map<string, Option<string> > values;
+  values["something"] = Some("file://" + file);
+
+  ASSERT_SOME(flags.load(values));
+
+  ASSERT_SOME_EQ("testing", something);
+}

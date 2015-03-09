@@ -222,9 +222,12 @@ void TestContainerizer::setup()
   // warning "Uninteresting mock function call" unless each tests puts
   // the expectations in place which would make the tests much more
   // verbose.
-  // See groups.google.com/forum/#!topic/googlemock/EX4kLxddlko for a
-  // suggestion for how we might be able to use 'NiceMock' here
-  // instead.
+  //
+  // TODO(bmahler): Update this to use the same style as the
+  // TestAllocatorProcess, which allows us to have default actions
+  // 'DoDefault', without requiring each test to put expectations in
+  // place.
+
   EXPECT_CALL(*this, recover(_))
     .WillRepeatedly(Return(Nothing()));
 

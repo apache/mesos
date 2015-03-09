@@ -18,25 +18,31 @@
 
 #include <mesos/module.hpp>
 
+#include <mesos/module/isolator.hpp>
+#include <mesos/module/module.hpp>
+
+#include <mesos/slave/isolator.hpp>
+
 #include <stout/dynamiclibrary.hpp>
 #include <stout/os.hpp>
 
 #include "common/parse.hpp"
 #include "examples/test_module.hpp"
-#include "module/isolator.hpp"
 #include "module/manager.hpp"
-#include "slave/containerizer/isolator.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
 using std::string;
 
-using namespace mesos;
-using namespace mesos::internal;
 using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
 using namespace mesos::modules;
+
+using mesos::slave::Isolator;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 const char* DEFAULT_MODULE_LIBRARY_NAME = "examplemodule";
 const char* DEFAULT_MODULE_NAME = "org_apache_mesos_TestModule";
@@ -90,8 +96,7 @@ protected:
     library->set_file(path::join(
         libraryDirectory,
         os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME)));
-    Modules::Library::Module* module = library->add_modules();
-    module->set_name(DEFAULT_MODULE_NAME);
+    library->add_modules()->set_name(DEFAULT_MODULE_NAME);
   }
 
   // During the per-test tear-down, we unload the module to allow
@@ -483,3 +488,7 @@ TEST_F(ModuleTest, OlderModuleLibrary)
   moduleBase->mesosVersion = "0.1.0";
   EXPECT_ERROR(ModuleManager::load(defaultModules));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

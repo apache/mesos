@@ -40,8 +40,7 @@ static Option<net::IP> IP(nl_addr* _ip)
   Option<net::IP> result;
   if (_ip != NULL && nl_addr_get_len(_ip) != 0) {
     struct in_addr* addr = (struct in_addr*) nl_addr_get_binary_addr(_ip);
-
-    result = net::IP(ntohl(addr->s_addr));
+    result = net::IP(*addr);
   }
 
   return result;
@@ -70,6 +69,7 @@ Try<vector<Info> > infos(int family, int states)
 
     // For 'state', libnl-idiag only returns the number of left
     // shifts. Convert it back to power-of-2 number.
+
     results.push_back(Info(
         idiagnl_msg_get_family(msg),
         1 << idiagnl_msg_get_state(msg),

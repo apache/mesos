@@ -17,7 +17,6 @@
  */
 
 #include <stout/foreach.hpp>
-#include <stout/none.hpp>
 #include <stout/subcommand.hpp>
 #include <stout/try.hpp>
 
@@ -31,7 +30,7 @@
 using std::set;
 using std::string;
 
-const string SetnsTestHelper::NAME="test";
+const char SetnsTestHelper::NAME[] = "SetnsTestHelper";
 
 int SetnsTestHelper::execute()
 {
@@ -57,14 +56,4 @@ int SetnsTestHelper::execute()
   }
 
   return 0;
-}
-
-
-int main(int argc, char** argv)
-{
-  return Subcommand::dispatch(
-      None(),
-      argc,
-      argv,
-      new SetnsTestHelper());
 }

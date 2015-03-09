@@ -15,6 +15,8 @@
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
+#include "messages/messages.hpp"
+
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
@@ -48,6 +50,8 @@ Result<State> recover(const string& rootDir, bool strict)
     return Error(resources.error());
   }
 
+  // TODO(jieyu): Do not set 'state.resources' if we cannot find the
+  // resources checkpoint file.
   state.resources = resources.get();
 
   // Did the machine reboot? No need to recover slave state if the
@@ -395,13 +399,6 @@ Try<RunState> RunState::recover(
   state.id = containerId;
   string message;
 
-  state.directory = paths::getExecutorRunPath(
-      rootDir,
-      slaveId,
-      frameworkId,
-      executorId,
-      containerId);
-
   // See if the sentinel file exists. This is done first so it is
   // known even if partial state is returned, e.g., if the libprocess
   // pid file is not recovered. It indicates the slave removed the
@@ -735,49 +732,6 @@ Try<ResourcesState> ResourcesState::recover(
   return state;
 }
 
-
-// Helpers to checkpoint string/protobuf to disk, with necessary error checking.
-
-Try<Nothing> checkpoint(
-    const string& path,
-    const google::protobuf::Message& message)
-{
-  // Create the base directory.
-  Try<Nothing> result = os::mkdir(os::dirname(path).get());
-  if (result.isError()) {
-    return Error("Failed to create directory '" + os::dirname(path).get() +
-                 "': " + result.error());
-  }
-
-  // Now checkpoint the protobuf to disk.
-  result = ::protobuf::write(path, message);
-  if (result.isError()) {
-    return Error("Failed to checkpoint \n" + message.DebugString() +
-                 "\n to '" + path + "': " + result.error());
-  }
-
-  return Nothing();
-}
-
-
-Try<Nothing> checkpoint(const std::string& path, const std::string& message)
-{
-  // Create the base directory.
-  Try<Nothing> result = os::mkdir(os::dirname(path).get());
-  if (result.isError()) {
-    return Error("Failed to create directory '" + os::dirname(path).get() +
-                 "': " + result.error());
-  }
-
-  // Now checkpoint the message to disk.
-  result = os::write(path, message);
-  if (result.isError()) {
-    return Error("Failed to checkpoint '" + message + "' to '" + path +
-                 "': " + result.error());
-  }
-
-  return Nothing();
-}
 
 } // namespace state {
 } // namespace slave {

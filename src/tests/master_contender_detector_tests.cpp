@@ -54,10 +54,6 @@
 #include "tests/zookeeper.hpp"
 #endif
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using namespace zookeeper;
 
 using mesos::internal::master::Master;
@@ -77,6 +73,10 @@ using std::vector;
 using testing::_;
 using testing::AtMost;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class MasterContenderDetectorTest : public MesosTest {};
@@ -130,8 +130,8 @@ TEST_F(MasterContenderDetectorTest, File)
 TEST(BasicMasterContenderDetectorTest, Contender)
 {
   PID<Master> master;
-  master.node.ip = 10000000;
-  master.node.port = 10000;
+  master.address.ip = net::IP(10000000);
+  master.address.port = 10000;
 
   MasterContender* contender = new StandaloneMasterContender();
 
@@ -155,8 +155,8 @@ TEST(BasicMasterContenderDetectorTest, Contender)
 TEST(BasicMasterContenderDetectorTest, Detector)
 {
   PID<Master> master;
-  master.node.ip = 10000000;
-  master.node.port = 10000;
+  master.address.ip = net::IP(10000000);
+  master.address.port = 10000;
 
   StandaloneMasterDetector detector;
 
@@ -199,8 +199,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
   ZooKeeperMasterContender* contender = new ZooKeeperMasterContender(group);
 
   PID<Master> pid;
-  pid.node.ip = 10000000;
-  pid.node.port = 10000;
+  pid.address.ip = net::IP(10000000);
+  pid.address.port = 10000;
+
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
   contender->initialize(master);
@@ -257,8 +258,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderPendingElection)
   ZooKeeperMasterContender contender(url.get());
 
   PID<Master> pid;
-  pid.node.ip = 10000000;
-  pid.node.port = 10000;
+  pid.address.ip = net::IP(10000000);
+  pid.address.port = 10000;
+
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
   contender.initialize(master);
@@ -311,8 +313,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
     new ZooKeeperMasterContender(url.get());
 
   PID<Master> pid1;
-  pid1.node.ip = 10000000;
-  pid1.node.port = 10000;
+  pid1.address.ip = net::IP(10000000);
+  pid1.address.port = 10000;
+
   MasterInfo master1 = internal::protobuf::createMasterInfo(pid1);
 
   contender1->initialize(master1);
@@ -329,8 +332,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
   ZooKeeperMasterContender contender2(url.get());
 
   PID<Master> pid2;
-  pid2.node.ip = 10000001;
-  pid2.node.port = 10001;
+  pid2.address.ip = net::IP(10000001);
+  pid2.address.port = 10001;
+
   MasterInfo master2 = internal::protobuf::createMasterInfo(pid2);
 
   contender2.initialize(master2);
@@ -368,8 +372,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, NonRetryableFrrors)
   AWAIT_READY(group1.join("data"));
 
   PID<Master> pid;
-  pid.node.ip = 10000000;
-  pid.node.port = 10000;
+  pid.address.ip = net::IP(10000000);
+  pid.address.port = 10000;
+
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
   // group2's password is wrong and operations on it will fail.
@@ -432,8 +437,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
   ZooKeeperMasterContender contender(url.get());
 
   PID<Master> pid;
-  pid.node.ip = 10000000;
-  pid.node.port = 10000;
+  pid.address.ip = net::IP(10000000);
+  pid.address.port = 10000;
+
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
   contender.initialize(master);
@@ -508,8 +514,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   ZooKeeperMasterContender leaderContender(leaderGroup);
 
   PID<Master> pid;
-  pid.node.ip = 10000000;
-  pid.node.port = 10000;
+  pid.address.ip = net::IP(10000000);
+  pid.address.port = 10000;
+
   MasterInfo leader = internal::protobuf::createMasterInfo(pid);
 
   leaderContender.initialize(leader);
@@ -529,8 +536,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   ZooKeeperMasterContender followerContender(followerGroup);
 
   PID<Master> pid2;
-  pid2.node.ip = 10000001;
-  pid2.node.port = 10001;
+  pid2.address.ip = net::IP(10000001);
+  pid2.address.port = 10001;
+
   MasterInfo follower = internal::protobuf::createMasterInfo(pid2);
 
   followerContender.initialize(follower);
@@ -618,8 +626,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   ASSERT_SOME(url);
 
   PID<Master> pid;
-  pid.node.ip = 10000000;
-  pid.node.port = 10000;
+  pid.address.ip = net::IP(10000000);
+  pid.address.port = 10000;
+
   MasterInfo leader = internal::protobuf::createMasterInfo(pid);
 
   // Create the group instance so we can expire its session.
@@ -647,8 +656,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 
   // Simulate a following master.
   PID<Master> pid2;
-  pid2.node.ip = 10000001;
-  pid2.node.port = 10001;
+  pid2.address.ip = net::IP(10000001);
+  pid2.address.port = 10001;
+
   MasterInfo follower = internal::protobuf::createMasterInfo(pid2);
 
   ZooKeeperMasterDetector followerDetector(url.get());
@@ -694,8 +704,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorExpireSlaveZKSession)
   ASSERT_SOME(url);
 
   PID<Master> pid;
-  pid.node.ip = 10000000;
-  pid.node.port = 10000;
+  pid.address.ip = net::IP(10000000);
+  pid.address.port = 10000;
+
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
   ZooKeeperMasterContender masterContender(url.get());
@@ -755,8 +766,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   ZooKeeperMasterDetector leaderDetector(leaderGroup);
 
   PID<Master> pid;
-  pid.node.ip = 10000000;
-  pid.node.port = 10000;
+  pid.address.ip = net::IP(10000000);
+  pid.address.port = 10000;
+
   MasterInfo leader = internal::protobuf::createMasterInfo(pid);
 
   leaderContender.initialize(leader);
@@ -775,8 +787,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   ZooKeeperMasterDetector followerDetector(followerGroup);
 
   PID<Master> pid2;
-  pid2.node.ip = 10000001;
-  pid2.node.port = 10001;
+  pid2.address.ip = net::IP(10000001);
+  pid2.address.port = 10001;
+
   MasterInfo follower = internal::protobuf::createMasterInfo(pid2);
 
   followerContender.initialize(follower);
@@ -822,3 +835,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 }
 
 #endif // MESOS_HAS_JAVA
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

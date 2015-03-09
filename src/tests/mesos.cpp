@@ -21,6 +21,7 @@
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
+#include <stout/memory.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/result.hpp>
@@ -46,6 +47,8 @@
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
+
+using memory::shared_ptr;
 
 using std::string;
 using testing::_;
@@ -96,7 +99,7 @@ master::Flags MesosTest::CreateMasterFlags()
 
   Try<int> fd = os::open(
       path,
-      O_WRONLY | O_CREAT | O_TRUNC,
+      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
 
   CHECK_SOME(fd);
@@ -111,7 +114,7 @@ master::Flags MesosTest::CreateMasterFlags()
      << "Failed to write credentials to '" << path << "'";
   CHECK_SOME(os::close(fd.get()));
 
-  flags.credentials = "file://" + path;
+  flags.credentials = path;
 
   // Set default ACLs.
   flags.acls = ACLs();
@@ -146,7 +149,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   Try<int> fd = os::open(
       path,
-      O_WRONLY | O_CREAT | O_TRUNC,
+      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
 
   CHECK_SOME(fd);
@@ -160,7 +163,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   CHECK_SOME(os::close(fd.get()));
 
-  flags.credential = "file://" + path;
+  flags.credential = path;
 
   // TODO(vinod): Consider making this true and fixing the tests.
   flags.checkpoint = false;
@@ -180,7 +183,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 }
 
 
-Try<process::PID<master::Master> > MesosTest::StartMaster(
+Try<PID<master::Master> > MesosTest::StartMaster(
     const Option<master::Flags>& flags)
 {
   return cluster.masters.start(
@@ -188,8 +191,8 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
 }
 
 
-Try<process::PID<master::Master> > MesosTest::StartMaster(
-    master::allocator::AllocatorProcess* allocator,
+Try<PID<master::Master> > MesosTest::StartMaster(
+    master::allocator::Allocator* allocator,
     const Option<master::Flags>& flags)
 {
   return cluster.masters.start(
@@ -198,7 +201,7 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
 }
 
 
-Try<process::PID<master::Master> > MesosTest::StartMaster(
+Try<PID<master::Master> > MesosTest::StartMaster(
     Authorizer* authorizer,
     const Option<master::Flags>& flags)
 {
@@ -209,7 +212,19 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
 }
 
 
-Try<process::PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<master::Master>> MesosTest::StartMaster(
+    const shared_ptr<MockRateLimiter>& slaveRemovalLimiter,
+    const Option<master::Flags>& flags)
+{
+  return cluster.masters.start(
+      flags.isNone() ? CreateMasterFlags() : flags.get(),
+      None(),
+      None(),
+      slaveRemovalLimiter);
+}
+
+
+Try<PID<slave::Slave> > MesosTest::StartSlave(
     const Option<slave::Flags>& flags)
 {
   return cluster.slaves.start(
@@ -217,13 +232,13 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<process::PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave> > MesosTest::StartSlave(
     MockExecutor* executor,
     const Option<slave::Flags>& flags)
 {
   slave::Containerizer* containerizer = new TestContainerizer(executor);
 
-  Try<process::PID<slave::Slave> > pid = StartSlave(containerizer, flags);
+  Try<PID<slave::Slave> > pid = StartSlave(containerizer, flags);
 
   if (pid.isError()) {
     delete containerizer;
@@ -236,7 +251,7 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<process::PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave> > MesosTest::StartSlave(
     slave::Containerizer* containerizer,
     const Option<slave::Flags>& flags)
 {
@@ -246,7 +261,7 @@ Try<process::PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<process::PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave> > MesosTest::StartSlave(
     slave::Containerizer* containerizer,
     MasterDetector* detector,
     const Option<slave::Flags>& flags)
@@ -289,7 +304,7 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 {
   slave::Containerizer* containerizer = new TestContainerizer(executor);
 
-  Try<process::PID<slave::Slave> > pid = cluster.slaves.start(
+  Try<PID<slave::Slave> > pid = cluster.slaves.start(
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
           containerizer,
       detector);
@@ -305,13 +320,13 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-void MesosTest::Stop(const process::PID<master::Master>& pid)
+void MesosTest::Stop(const PID<master::Master>& pid)
 {
   cluster.masters.stop(pid);
 }
 
 
-void MesosTest::Stop(const process::PID<slave::Slave>& pid, bool shutdown)
+void MesosTest::Stop(const PID<slave::Slave>& pid, bool shutdown)
 {
   cluster.slaves.stop(pid, shutdown);
   if (containerizers.count(pid) > 0) {
@@ -358,14 +373,16 @@ MockSlave::MockSlave(const slave::Flags& flags,
       statusUpdateManager = new slave::StatusUpdateManager(flags))
 {
   // Set up default behaviors, calling the original methods.
-  EXPECT_CALL(*this, runTask(_, _, _, _, _)).
-      WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
-  EXPECT_CALL(*this, _runTask(_, _, _, _, _)).
-      WillRepeatedly(Invoke(this, &MockSlave::unmocked__runTask));
-  EXPECT_CALL(*this, killTask(_, _, _)).
-      WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
-  EXPECT_CALL(*this, removeFramework(_)).
-      WillRepeatedly(Invoke(this, &MockSlave::unmocked_removeFramework));
+  EXPECT_CALL(*this, runTask(_, _, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
+  EXPECT_CALL(*this, _runTask(_, _, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked__runTask));
+  EXPECT_CALL(*this, killTask(_, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
+  EXPECT_CALL(*this, removeFramework(_))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_removeFramework));
+  EXPECT_CALL(*this, __recover(_))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked___recover));
 }
 
 
@@ -376,7 +393,7 @@ MockSlave::~MockSlave()
 
 
 void MockSlave::unmocked_runTask(
-    const process::UPID& from,
+    const UPID& from,
     const FrameworkInfo& frameworkInfo,
     const FrameworkID& frameworkId,
     const std::string& pid,
@@ -387,7 +404,7 @@ void MockSlave::unmocked_runTask(
 
 
 void MockSlave::unmocked__runTask(
-      const process::Future<bool>& future,
+      const Future<bool>& future,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const std::string& pid,
@@ -398,7 +415,7 @@ void MockSlave::unmocked__runTask(
 
 
 void MockSlave::unmocked_killTask(
-      const process::UPID& from,
+      const UPID& from,
       const FrameworkID& frameworkId,
       const TaskID& taskId)
 {
@@ -409,6 +426,12 @@ void MockSlave::unmocked_killTask(
 void MockSlave::unmocked_removeFramework(slave::Framework* framework)
 {
   slave::Slave::removeFramework(framework);
+}
+
+
+void MockSlave::unmocked___recover(const Future<Nothing>& future)
+{
+  slave::Slave::__recover(future);
 }
 
 

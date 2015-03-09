@@ -1,5 +1,6 @@
 # Headers.
 nobase_include_HEADERS =		\
+  process/address.hpp			\
   process/async.hpp			\
   process/check.hpp			\
   process/clock.hpp			\
@@ -31,7 +32,7 @@ nobase_include_HEADERS =		\
   process/metrics/timer.hpp		\
   process/mime.hpp			\
   process/mutex.hpp			\
-  process/node.hpp			\
+  process/network.hpp			\
   process/once.hpp			\
   process/owned.hpp			\
   process/pid.hpp			\

@@ -3,6 +3,7 @@
 
 #include <deque>
 
+#include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
@@ -31,10 +32,11 @@ class RateLimiter
 public:
   RateLimiter(int permits, const Duration& duration);
   explicit RateLimiter(double permitsPerSecond);
-  ~RateLimiter();
+  virtual ~RateLimiter();
 
   // Returns a future that becomes ready when the permit is acquired.
-  Future<Nothing> acquire();
+  // Discarding this future cancels this acquisition.
+  virtual Future<Nothing> acquire();
 
 private:
   // Not copyable, not assignable.
@@ -66,7 +68,7 @@ public:
   virtual void finalize()
   {
     foreach (Promise<Nothing>* promise, promises) {
-      promise->future().discard();
+      promise->discard();
       delete promise;
     }
     promises.clear();
@@ -78,13 +80,17 @@ public:
       // Need to wait for others to get permits first.
       Promise<Nothing>* promise = new Promise<Nothing>();
       promises.push_back(promise);
-      return promise->future();
-    } if (timeout.remaining() > Seconds(0)) {
+      return promise->future()
+        .onDiscard(defer(self(), &Self::discard, promise->future()));
+    }
+
+    if (timeout.remaining() > Seconds(0)) {
       // Need to wait a bit longer, but first one in the queue.
       Promise<Nothing>* promise = new Promise<Nothing>();
       promises.push_back(promise);
       delay(timeout.remaining(), self(), &Self::_acquire);
-      return promise->future();
+      return promise->future()
+        .onDiscard(defer(self(), &Self::discard, promise->future()));
     }
 
     // No need to wait!
@@ -101,17 +107,33 @@ private:
   {
     CHECK(!promises.empty());
 
-    Promise<Nothing>* promise = promises.front();
-    promises.pop_front();
-
-    promise->set(Nothing());
-    delete promise;
-
-    timeout = Seconds(1) / permitsPerSecond;
+    // Keep removing the top of the queue until we find a promise
+    // whose future is not discarded.
+    while (!promises.empty()) {
+      Promise<Nothing>* promise = promises.front();
+      promises.pop_front();
+      if (!promise->future().isDiscarded()) {
+        promise->set(Nothing());
+        delete promise;
+        timeout = Seconds(1) / permitsPerSecond;
+        break;
+      } else {
+        delete promise;
+      }
+    }
 
     // Repeat if necessary.
     if (!promises.empty()) {
       delay(timeout.remaining(), self(), &Self::_acquire);
+    }
+  }
+
+  void discard(const Future<Nothing>& future)
+  {
+    foreach (Promise<Nothing>* promise, promises) {
+      if (promise->future() == future) {
+        promise->discard();
+      }
     }
   }
 

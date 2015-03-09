@@ -27,6 +27,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/module/authenticator.hpp>
+
 #include <process/defer.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
@@ -35,8 +37,6 @@
 #include <process/protobuf.hpp>
 
 #include <stout/check.hpp>
-
-#include "authentication/authenticator.hpp"
 
 #include "authentication/cram_md5/auxprop.hpp"
 

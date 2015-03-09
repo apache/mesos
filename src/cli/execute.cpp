@@ -21,6 +21,7 @@
 
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/pid.hpp>
 
@@ -30,7 +31,6 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 
-#include "common/type_utils.hpp"
 #include "common/protobuf_utils.hpp"
 
 #include "hdfs/hdfs.hpp"

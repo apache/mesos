@@ -34,10 +34,6 @@
 
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -53,6 +49,10 @@ using testing::_;
 using testing::AtMost;
 using testing::Eq;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 class ExceptionTest : public MesosTest {};
@@ -200,3 +200,7 @@ TEST_F(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 
   Shutdown();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

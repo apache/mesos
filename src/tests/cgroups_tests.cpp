@@ -53,11 +53,14 @@
 
 #include "tests/mesos.hpp" // For TEST_CGROUPS_(HIERARCHY|ROOT).
 
-using namespace mesos::internal::tests;
-
 using namespace process;
 
 using std::set;
+
+namespace mesos {
+namespace internal {
+namespace tests {
+
 
 class CgroupsTest : public ::testing::Test
 {
@@ -1029,3 +1032,7 @@ TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
   Future<Nothing> destroy = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
   AWAIT_READY(destroy);
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

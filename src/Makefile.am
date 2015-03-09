@@ -131,11 +131,17 @@ endif
 
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 
+AUTHENTICATION_PROTO =							\
+  $(top_srcdir)/include/mesos/authentication/authentication.proto
+
 CONTAINERIZER_PROTO =							\
   $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 
 FETCHER_PROTO =								\
   $(top_srcdir)/include/mesos/fetcher/fetcher.proto
+
+MODULE_PROTO =								\
+  $(top_srcdir)/include/mesos/module/module.proto
 
 SCHEDULER_PROTO =							\
   $(top_srcdir)/include/mesos/scheduler/scheduler.proto
@@ -143,10 +149,14 @@ SCHEDULER_PROTO =							\
 CXX_PROTOS =								\
   mesos.pb.cc								\
   ../include/mesos/mesos.pb.h						\
+  authentication/authentication.pb.cc					\
+  ../include/mesos/authentication/authentication.pb.h			\
   containerizer/containerizer.pb.cc					\
   ../include/mesos/containerizer/containerizer.pb.h			\
   fetcher/fetcher.pb.cc							\
   ../include/mesos/fetcher/fetcher.pb.h					\
+  module/module.pb.cc							\
+  ../include/mesos/module/module.pb.h					\
   scheduler/scheduler.pb.cc						\
   ../include/mesos/scheduler/scheduler.pb.h
 
@@ -189,6 +199,12 @@ CLEANFILES += $(REGISTRY_PROTOS)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/*.pb.cc .
 
+authentication/%.pb.cc ../include/mesos/authentication/%.pb.h: $(AUTHENTICATION_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/authentication
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/authentication/*.pb.cc $(@D)
+
 containerizer/%.pb.cc ../include/mesos/containerizer/%.pb.h: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/containerizer
@@ -200,6 +216,12 @@ fetcher/%.pb.cc ../include/mesos/fetcher/%.pb.h: $(FETCHER_PROTO)
 	$(MKDIR_P) ../include/mesos/fetcher
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/fetcher/*.pb.cc $(@D)
+
+module/%.pb.cc ../include/mesos/module/%.pb.h: $(MODULE_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/module
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/module/*.pb.cc $(@D)
 
 scheduler/%.pb.cc ../include/mesos/scheduler/%.pb.h: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
@@ -274,6 +296,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	common/lock.cpp							\
 	common/protobuf_utils.cpp					\
 	common/resources.cpp						\
+	common/resources_utils.cpp					\
 	common/thread.cpp						\
 	common/type_utils.cpp						\
 	common/values.cpp						\
@@ -287,7 +310,6 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/contender.cpp						\
 	master/constants.cpp						\
 	master/detector.cpp						\
-	master/drf_sorter.cpp						\
 	master/http.cpp							\
 	master/master.cpp						\
 	master/metrics.cpp						\
@@ -295,13 +317,14 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/registry.proto						\
 	master/registrar.cpp						\
 	master/repairer.cpp						\
+	master/validation.cpp						\
+	master/allocator/sorter/drf/sorter.cpp				\
 	module/manager.cpp						\
 	sched/constants.cpp						\
 	sched/sched.cpp							\
 	scheduler/scheduler.cpp						\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
-	slave/graceful_shutdown.cpp					\
 	slave/http.cpp							\
 	slave/metrics.cpp						\
 	slave/monitor.cpp						\
@@ -332,16 +355,28 @@ libmesos_no_3rdparty_la_SOURCES =					\
 
 pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/executor.hpp				\
+  $(top_srcdir)/include/mesos/hook.hpp					\
   $(top_srcdir)/include/mesos/mesos.hpp					\
   $(top_srcdir)/include/mesos/module.hpp				\
   $(top_srcdir)/include/mesos/resources.hpp				\
   $(top_srcdir)/include/mesos/scheduler.hpp				\
+  $(top_srcdir)/include/mesos/type_utils.hpp				\
   $(top_srcdir)/include/mesos/values.hpp				\
   $(top_srcdir)/include/mesos/mesos.proto
 
 nodist_pkginclude_HEADERS =						\
   ../include/mesos/version.hpp						\
   ../include/mesos/mesos.pb.h
+
+authenticationdir = $(pkgincludedir)/authentication
+
+authentication_HEADERS =						\
+  $(top_srcdir)/include/mesos/authentication/authenticatee.hpp		\
+  $(top_srcdir)/include/mesos/authentication/authentication.hpp		\
+  $(top_srcdir)/include/mesos/authentication/authentication.proto	\
+  $(top_srcdir)/include/mesos/authentication/authenticator.hpp
+
+nodist_authentication_HEADERS = ../include/mesos/authentication/authentication.pb.h
 
 containerizerdir = $(pkgincludedir)/containerizer
 
@@ -359,6 +394,19 @@ fetcher_HEADERS =							\
 
 nodist_fetcher_HEADERS = ../include/mesos/fetcher/fetcher.pb.h
 
+moduledir = $(pkgincludedir)/module
+
+module_HEADERS =							\
+  $(top_srcdir)/include/mesos/module/anonymous.hpp			\
+  $(top_srcdir)/include/mesos/module/authenticatee.hpp			\
+  $(top_srcdir)/include/mesos/module/authenticator.hpp			\
+  $(top_srcdir)/include/mesos/module/hook.hpp				\
+  $(top_srcdir)/include/mesos/module/isolator.hpp			\
+  $(top_srcdir)/include/mesos/module/module.hpp				\
+  $(top_srcdir)/include/mesos/module/module.proto
+
+nodist_module_HEADERS = ../include/mesos/module/module.pb.h
+
 schedulerdir = $(pkgincludedir)/scheduler
 
 scheduler_HEADERS =							\
@@ -366,6 +414,11 @@ scheduler_HEADERS =							\
   $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 
 nodist_scheduler_HEADERS = ../include/mesos/scheduler/scheduler.pb.h
+
+slavedir = $(pkgincludedir)/slave
+
+slave_HEADERS =								\
+  $(top_srcdir)/include/mesos/slave/isolator.hpp
 
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
@@ -419,8 +472,6 @@ if WITH_NETWORK_ISOLATOR
 endif
 
 libmesos_no_3rdparty_la_SOURCES +=					\
-	authentication/authenticatee.hpp				\
-	authentication/authenticator.hpp				\
 	authentication/cram_md5/authenticatee.hpp			\
 	authentication/cram_md5/authenticator.hpp			\
 	authentication/cram_md5/auxprop.hpp				\
@@ -433,15 +484,15 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	common/lock.hpp							\
 	common/parse.hpp						\
 	common/protobuf_utils.hpp					\
+	common/resources_utils.hpp					\
 	common/status_utils.hpp						\
-	common/type_utils.hpp						\
 	common/thread.hpp						\
 	credentials/credentials.hpp					\
-	examples/utils.hpp						\
+	examples/test_anonymous_module.hpp				\
 	examples/test_module.hpp					\
+	examples/utils.hpp						\
 	files/files.hpp							\
 	hdfs/hdfs.hpp							\
-	hook/hook.hpp							\
 	hook/manager.hpp						\
 	linux/cgroups.hpp						\
 	linux/fs.hpp							\
@@ -451,30 +502,27 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	local/local.hpp							\
 	logging/flags.hpp						\
 	logging/logging.hpp						\
-	master/allocator.hpp						\
 	master/contender.hpp						\
 	master/constants.hpp						\
 	master/detector.hpp						\
-	master/drf_sorter.hpp						\
 	master/flags.hpp						\
-	master/hierarchical_allocator_process.hpp			\
 	master/master.hpp						\
 	master/metrics.hpp						\
 	master/repairer.hpp						\
 	master/registrar.hpp						\
-	master/sorter.hpp						\
+	master/validation.hpp						\
+	master/allocator/allocator.hpp					\
+	master/allocator/mesos/allocator.hpp				\
+	master/allocator/mesos/hierarchical.hpp				\
+	master/allocator/sorter/drf/sorter.hpp				\
+	master/allocator/sorter/sorter.hpp				\
 	messages/messages.hpp						\
-	module/authenticatee.hpp					\
-	module/authenticator.hpp					\
-	module/hook.hpp							\
-	module/isolator.hpp						\
 	module/manager.hpp						\
 	sched/constants.hpp						\
 	sched/flags.hpp							\
 	slave/constants.hpp						\
 	slave/flags.hpp							\
 	slave/gc.hpp							\
-	slave/graceful_shutdown.hpp					\
 	slave/metrics.hpp						\
 	slave/monitor.hpp						\
 	slave/paths.hpp							\
@@ -484,7 +532,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/containerizer.hpp				\
 	slave/containerizer/fetcher.hpp					\
 	slave/containerizer/external_containerizer.hpp			\
-	slave/containerizer/isolator.hpp				\
 	slave/containerizer/launcher.hpp				\
 	slave/containerizer/linux_launcher.hpp				\
 	slave/containerizer/mesos/containerizer.hpp			\
@@ -502,6 +549,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	tests/environment.hpp						\
 	tests/flags.hpp							\
 	tests/isolator.hpp						\
+	tests/launcher.hpp						\
+	tests/limiter.hpp						\
 	tests/mesos.hpp							\
 	tests/module.hpp						\
 	tests/script.hpp						\
@@ -628,7 +677,11 @@ lib_LTLIBRARIES += libmesos.la
 
 # Include as part of the distribution.
 libmesos_la_SOURCES = 							\
-  $(MESOS_PROTO) $(CONTAINERIZER_PROTO) $(FETCHER_PROTO) $(SCHEDULER_PROTO)
+  $(CONTAINERIZER_PROTO)						\
+  $(FETCHER_PROTO)							\
+  $(MESOS_PROTO)							\
+  $(MODULE_PROTO)							\
+  $(SCHEDULER_PROTO)
 
 libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION)
 
@@ -1204,7 +1257,9 @@ load_generator_framework_LDADD = libmesos.la
 
 if OS_LINUX
   check_PROGRAMS += setns-test-helper
-  setns_test_helper_SOURCES = tests/setns_test_helper.cpp
+  setns_test_helper_SOURCES =					\
+    tests/setns_test_helper_main.cpp				\
+    tests/setns_test_helper.cpp
   setns_test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
   setns_test_helper_LDADD = libmesos.la
 endif
@@ -1216,34 +1271,49 @@ active_user_test_helper_LDADD = libmesos.la
 
 check_PROGRAMS += mesos-tests
 
+# LDFLAGS to be used for the module libraries.
+# We need to build the module libraries for running the test suite but don't
+# need to install them.  The 'noinst_' prefix ensures that these libraries will
+# not be installed.  However, it also skips building the shared libraries. The
+# workaround is to use '-rpath /nowhere' to force libtool to build the shared
+# library.
+MESOS_MODULE_LDFLAGS = -release $(PACKAGE_VERSION) -shared -rpath /nowhere
+
 # Library containing an example module.
-lib_LTLIBRARIES += libexamplemodule.la
+noinst_LTLIBRARIES += libexamplemodule.la
 libexamplemodule_la_SOURCES = examples/example_module_impl.cpp
 libexamplemodule_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-libexamplemodule_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+libexamplemodule_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
-# Library containing test CPU and memory isolator modules.
-lib_LTLIBRARIES += libtestisolator.la
-libtestisolator_la_SOURCES = examples/test_isolator_module.cpp
-libtestisolator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-libtestisolator_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+# Library containing the test anonymous modules.
+noinst_LTLIBRARIES += libtestanonymous.la
+libtestanonymous_la_SOURCES = examples/test_anonymous_module.cpp
+libtestanonymous_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestanonymous_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 # Library containing the test CRAM-MD5 authentication modules.
 # TODO(tillt): Add cyrus-sasl2 dependency while removing it from libmesos.
 # TODO(tillt): Enable optional building of this module library.
 # TODO(tillt): Make this module library installable. See MESOS-1940.
-lib_LTLIBRARIES += libtestauthentication.la
+noinst_LTLIBRARIES += libtestauthentication.la
 libtestauthentication_la_SOURCES = examples/test_authentication_modules.cpp
 libtestauthentication_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-libtestauthentication_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+libtestauthentication_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 # Library containing test Hook module.
-lib_LTLIBRARIES += libtesthook.la
+noinst_LTLIBRARIES += libtesthook.la
 libtesthook_la_SOURCES = examples/test_hook_module.cpp
 libtesthook_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-libtesthook_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+libtesthook_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+
+# Library containing test CPU and memory isolator modules.
+noinst_LTLIBRARIES += libtestisolator.la
+libtestisolator_la_SOURCES = examples/test_isolator_module.cpp
+libtestisolator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestisolator_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 mesos_tests_SOURCES =				\
+  tests/anonymous_tests.cpp			\
   tests/attributes_tests.cpp			\
   tests/authentication_tests.cpp		\
   tests/authorization_tests.cpp		        \
@@ -1277,6 +1347,7 @@ mesos_tests_SOURCES =				\
   tests/master_contender_detector_tests.cpp	\
   tests/master_slave_reconciliation_tests.cpp	\
   tests/master_tests.cpp			\
+  tests/master_validation_tests.cpp		\
   tests/mesos.cpp				\
   tests/metrics_tests.cpp			\
   tests/module.cpp				\
@@ -1284,6 +1355,7 @@ mesos_tests_SOURCES =				\
   tests/monitor_tests.cpp			\
   tests/partition_tests.cpp			\
   tests/paths_tests.cpp				\
+  tests/persistent_volume_tests.cpp		\
   tests/protobuf_io_tests.cpp			\
   tests/rate_limiting_tests.cpp			\
   tests/reconciliation_tests.cpp		\
@@ -1319,6 +1391,7 @@ if OS_LINUX
   mesos_tests_SOURCES += tests/fs_tests.cpp
   mesos_tests_SOURCES += tests/ns_tests.cpp
   mesos_tests_SOURCES += tests/perf_tests.cpp
+  mesos_tests_SOURCES += tests/setns_test_helper.cpp
 endif
 
 if WITH_NETWORK_ISOLATOR

@@ -16,57 +16,32 @@
  * limitations under the License.
  */
 
-#ifndef __ALLOCATOR_HPP__
-#define __ALLOCATOR_HPP__
+#ifndef __MASTER_ALLOCATOR_MESOS_ALLOCATOR_HPP__
+#define __MASTER_ALLOCATOR_MESOS_ALLOCATOR_HPP__
 
-#include <string>
-
-#include <mesos/resources.hpp>
-
-#include <process/future.hpp>
 #include <process/dispatch.hpp>
-#include <process/pid.hpp>
 #include <process/process.hpp>
-#include <process/shared.hpp>
 
-#include <stout/hashmap.hpp>
-#include <stout/hashset.hpp>
-#include <stout/lambda.hpp>
-#include <stout/option.hpp>
-
-#include "master/flags.hpp"
-
-#include "messages/messages.hpp"
+#include "master/allocator/allocator.hpp"
 
 namespace mesos {
 namespace internal {
 namespace master {
-
-class Master; // Forward declaration.
-
 namespace allocator {
 
-class AllocatorProcess; // Forward declaration.
+class MesosAllocatorProcess;
 
-// Basic model of an allocator: resources are allocated to a framework
-// in the form of offers. A framework can refuse some resources in
-// offers and run tasks in others. Allocated resources can have
-// transformations applied to them in order for frameworks to alter
-// the resource metadata (e.g. persistent disk). Resources can be
-// recovered from a framework when tasks finish/fail (or are lost
-// due to a slave failure) or when an offer is rescinded.
-//
-// NOTE: DO NOT subclass this class when implementing a new allocator.
-// Implement AllocatorProcess (above) instead!
-class Allocator
+// A wrapper for Process-based allocators. It redirects all function
+// invocations to the underlying AllocatorProcess and manages its
+// lifetime. We ensure the template parameter AllocatorProcess
+// implements MesosAllocatorProcess by storing a pointer to it.
+template <typename AllocatorProcess>
+class MesosAllocator : public Allocator
 {
 public:
-  // The AllocatorProcess object passed to the constructor is spawned
-  // and terminated by the allocator. But it is the responsibility
-  // of the caller to de-allocate the object, if necessary.
-  explicit Allocator(AllocatorProcess* _process);
+  MesosAllocator();
 
-  virtual ~Allocator();
+  ~MesosAllocator();
 
   void initialize(
       const Flags& flags,
@@ -83,18 +58,12 @@ public:
   void removeFramework(
       const FrameworkID& frameworkId);
 
-  // Offers are sent only to activated frameworks.
   void activateFramework(
       const FrameworkID& frameworkId);
 
   void deactivateFramework(
       const FrameworkID& frameworkId);
 
-  // Note that the 'total' resources are passed explicitly because it
-  // includes resources that are dynamically "persisted" on the slave
-  // (e.g. persistent volumes, dynamic reservations, etc).
-  // The slaveInfo resources, on the other hand, correspond directly
-  // to the static --resources flag value on the slave.
   void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
@@ -104,7 +73,6 @@ public:
   void removeSlave(
       const SlaveID& slaveId);
 
-  // Offers are sent only for activated slaves.
   void activateSlave(
       const SlaveID& slaveId);
 
@@ -118,38 +86,35 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
 
-  void transformAllocation(
+  void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      const process::Shared<Resources::Transformation>& transformation);
+      const std::vector<Offer::Operation>& operations);
 
-  // Informs the allocator to recover resources that are considered
-  // used by the framework.
   void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
       const Option<Filters>& filters);
 
-  // Whenever a framework that has filtered resources wants to revive
-  // offers for those resources the master invokes this callback.
   void reviveOffers(
       const FrameworkID& frameworkId);
 
 private:
-  Allocator(const Allocator&); // Not copyable.
-  Allocator& operator=(const Allocator&); // Not assignable.
+  MesosAllocator(const MesosAllocator&); // Not copyable.
+  MesosAllocator& operator=(const MesosAllocator&); // Not assignable.
 
-  AllocatorProcess* process;
+  MesosAllocatorProcess* process;
 };
 
 
-class AllocatorProcess : public process::Process<AllocatorProcess>
+// The basic interface for all Process-based allocators.
+class MesosAllocatorProcess : public process::Process<MesosAllocatorProcess>
 {
 public:
-  AllocatorProcess() {}
+  MesosAllocatorProcess() {}
 
-  virtual ~AllocatorProcess() {}
+  virtual ~MesosAllocatorProcess() {}
 
   // Explicitly unhide 'initialize' to silence a compiler warning
   // from clang, since we overload below.
@@ -198,10 +163,10 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests) = 0;
 
-  virtual void transformAllocation(
+  virtual void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      const process::Shared<Resources::Transformation>& transformation) = 0;
+      const std::vector<Offer::Operation>& operations) = 0;
 
   virtual void recoverResources(
       const FrameworkID& frameworkId,
@@ -214,21 +179,25 @@ public:
 };
 
 
-inline Allocator::Allocator(AllocatorProcess* _process)
-  : process(_process)
+template <typename AllocatorProcess>
+MesosAllocator<AllocatorProcess>::MesosAllocator()
 {
+  process = new AllocatorProcess();
   process::spawn(process);
 }
 
 
-inline Allocator::~Allocator()
+template <typename AllocatorProcess>
+MesosAllocator<AllocatorProcess>::~MesosAllocator()
 {
   process::terminate(process);
   process::wait(process);
+  delete process;
 }
 
 
-inline void Allocator::initialize(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::initialize(
     const Flags& flags,
     const lambda::function<
         void(const FrameworkID&,
@@ -237,58 +206,63 @@ inline void Allocator::initialize(
 {
   process::dispatch(
       process,
-      &AllocatorProcess::initialize,
+      &MesosAllocatorProcess::initialize,
       flags,
       offerCallback,
       roles);
 }
 
 
-inline void Allocator::addFramework(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::addFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const Resources& used)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::addFramework,
+      &MesosAllocatorProcess::addFramework,
       frameworkId,
       frameworkInfo,
       used);
 }
 
 
-inline void Allocator::removeFramework(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::removeFramework(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::removeFramework,
+      &MesosAllocatorProcess::removeFramework,
       frameworkId);
 }
 
 
-inline void Allocator::activateFramework(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::activateFramework(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::activateFramework,
+      &MesosAllocatorProcess::activateFramework,
       frameworkId);
 }
 
 
-inline void Allocator::deactivateFramework(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::deactivateFramework(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::deactivateFramework,
+      &MesosAllocatorProcess::deactivateFramework,
       frameworkId);
 }
 
 
-inline void Allocator::addSlave(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::addSlave(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
     const Resources& total,
@@ -296,7 +270,7 @@ inline void Allocator::addSlave(
 {
   process::dispatch(
       process,
-      &AllocatorProcess::addSlave,
+      &MesosAllocatorProcess::addSlave,
       slaveId,
       slaveInfo,
       total,
@@ -304,70 +278,80 @@ inline void Allocator::addSlave(
 }
 
 
-inline void Allocator::removeSlave(const SlaveID& slaveId)
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::removeSlave(
+    const SlaveID& slaveId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::removeSlave,
+      &MesosAllocatorProcess::removeSlave,
       slaveId);
 }
 
 
-inline void Allocator::activateSlave(const SlaveID& slaveId)
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::activateSlave(
+    const SlaveID& slaveId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::activateSlave,
+      &MesosAllocatorProcess::activateSlave,
       slaveId);
 }
 
 
-inline void Allocator::deactivateSlave(const SlaveID& slaveId)
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::deactivateSlave(
+    const SlaveID& slaveId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::deactivateSlave,
+      &MesosAllocatorProcess::deactivateSlave,
       slaveId);
 }
 
 
-inline void Allocator::updateWhitelist(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::updateWhitelist(
     const Option<hashset<std::string> >& whitelist)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::updateWhitelist,
+      &MesosAllocatorProcess::updateWhitelist,
       whitelist);
 }
 
 
-inline void Allocator::requestResources(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::requestResources(
     const FrameworkID& frameworkId,
     const std::vector<Request>& requests)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::requestResources,
+      &MesosAllocatorProcess::requestResources,
       frameworkId,
       requests);
 }
 
 
-inline void Allocator::transformAllocation(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::updateAllocation(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    const process::Shared<Resources::Transformation>& transformation)
+    const std::vector<Offer::Operation>& operations)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::transformAllocation,
+      &MesosAllocatorProcess::updateAllocation,
       frameworkId,
       slaveId,
-      transformation);
+      operations);
 }
 
 
-inline void Allocator::recoverResources(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::recoverResources(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources,
@@ -375,7 +359,7 @@ inline void Allocator::recoverResources(
 {
   process::dispatch(
       process,
-      &AllocatorProcess::recoverResources,
+      &MesosAllocatorProcess::recoverResources,
       frameworkId,
       slaveId,
       resources,
@@ -383,12 +367,13 @@ inline void Allocator::recoverResources(
 }
 
 
-inline void Allocator::reviveOffers(
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::reviveOffers(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
       process,
-      &AllocatorProcess::reviveOffers,
+      &MesosAllocatorProcess::reviveOffers,
       frameworkId);
 }
 
@@ -397,4 +382,4 @@ inline void Allocator::reviveOffers(
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __ALLOCATOR_HPP__
+#endif // __MASTER_ALLOCATOR_MESOS_ALLOCATOR_HPP__

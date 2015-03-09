@@ -5,6 +5,11 @@ layout: documentation
 # Video and Slides of Mesos Presentations
 _(Listed in date descending order)_
 
+## Building and Deploying Applications to Apache Mesos
+([Slides](https://www.slideshare.net/charmalloc/buildingdeployingapplicationsmesos))
+Joe Stein
+Presented February 26, 2015 at [DigitalOcean Community Meetup](http://www.meetup.com/DigitalOcean_Community/events/220580767/)
+
 ## MesosCon 2014
  [Video playlist](https://www.youtube.com/playlist?list=PLDVc2EaAVPg9kp8cFzjR1Yxj96I4U5EGN)
 
@@ -42,7 +47,7 @@ Presented April 3rd, 2014 at @TwitterOSS #conf
 Paco Nathan
 Presented February 13th, 2014 at [Strata](http://strataconf.com/)
 
-### Run your data center like Google's with Apache Mesos ([Video + Demo](https://www.youtube.com/watch?v=2YWVGMuMTrg)) 
+### Run your data center like Google's with Apache Mesos ([Video + Demo](https://www.youtube.com/watch?v=2YWVGMuMTrg))
 Abhishek Parolkar
 Presented November 14th, 2013 at [Cloud Expo Asia 2013](http://www.cloudexpoasia.com/)
 

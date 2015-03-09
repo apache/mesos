@@ -29,13 +29,18 @@
 
 #include "tests/script.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::slave;
-
 using std::map;
+
+namespace mesos {
+namespace internal {
+namespace tests {
+
 
 // Run the balloon framework under a mesos containerizer.
 TEST_SCRIPT(ContainerizerTest,
             ROOT_CGROUPS_BalloonFramework,
             "balloon_framework_test.sh")
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

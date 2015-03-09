@@ -35,7 +35,7 @@ public:
   virtual ~LinuxLauncher() {}
 
   virtual process::Future<Nothing> recover(
-      const std::list<state::RunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,

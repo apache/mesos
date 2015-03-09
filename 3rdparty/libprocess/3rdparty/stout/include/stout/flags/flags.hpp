@@ -31,10 +31,10 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/flags/fetch.hpp>
 #include <stout/flags/flag.hpp>
 #include <stout/flags/loader.hpp>
 #include <stout/flags/stringifier.hpp>
-#include <stout/flags/parse.hpp>
 
 namespace flags {
 
@@ -171,7 +171,7 @@ void FlagsBase::add(
       &Loader<T1>::load,
       t1,
       lambda::function<Try<T1>(const std::string&)>(
-          lambda::bind(&parse<T1>, lambda::_1)),
+          lambda::bind(&fetch<T1>, lambda::_1)),
       name,
       lambda::_2); // Use _2 because ignore FlagsBase*.
   flag.stringify = lambda::bind(&Stringifier<T1>, t1);
@@ -201,7 +201,7 @@ void FlagsBase::add(
       &OptionLoader<T>::load,
       option,
       lambda::function<Try<T>(const std::string&)>(
-          lambda::bind(&parse<T>, lambda::_1)),
+          lambda::bind(&fetch<T>, lambda::_1)),
       name,
       lambda::_2); // Use _2 because ignore FlagsBase*.
   flag.stringify = lambda::bind(&OptionStringifier<T>, option);
@@ -233,7 +233,7 @@ void FlagsBase::add(
       lambda::_1,
       t1,
       lambda::function<Try<T1>(const std::string&)>(
-          lambda::bind(&parse<T1>, lambda::_1)),
+          lambda::bind(&fetch<T1>, lambda::_1)),
       name,
       lambda::_2);
   flag.stringify = lambda::bind(
@@ -272,7 +272,7 @@ void FlagsBase::add(
       lambda::_1,
       option,
       lambda::function<Try<T>(const std::string&)>(
-          lambda::bind(&parse<T>, lambda::_1)),
+          lambda::bind(&fetch<T>, lambda::_1)),
       name,
       lambda::_2);
   flag.stringify = lambda::bind(

@@ -37,14 +37,17 @@
 #include <process/metrics/metrics.hpp>
 
 #include <stout/json.hpp>
+#include <stout/memory.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
-#include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
+
+#include "master/allocator/allocator.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/gc.hpp"
@@ -54,16 +57,15 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/containerizer.hpp"
+#include "tests/limiter.hpp"
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using memory::shared_ptr;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::master::allocator::AllocatorProcess;
-using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
+using mesos::internal::master::allocator::MesosAllocatorProcess;
 
 using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::Slave;
@@ -74,6 +76,7 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
+using process::Promise;
 using process::UPID;
 
 using std::string;
@@ -83,8 +86,13 @@ using testing::_;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
+using testing::Not;
 using testing::Return;
 using testing::SaveArg;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more master than slave-related are in this file.
@@ -142,7 +150,7 @@ TEST_F(MasterTest, TaskRunning)
   EXPECT_CALL(containerizer,
               update(_, Resources(offers.get()[0].resources())))
     .WillOnce(DoAll(FutureSatisfy(&update),
-                    Return(Future<Nothing>())));
+                    Return(Nothing())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -178,7 +186,6 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   TestContainerizer containerizer(&exec);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.executor_shutdown_grace_period = Seconds(0);
 
   Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
@@ -221,7 +228,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   EXPECT_CALL(containerizer,
               update(_, Resources(offer.resources())))
     .WillOnce(DoAll(FutureSatisfy(&update),
-                    Return(Future<Nothing>())));
+                    Return(Nothing())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -965,8 +972,8 @@ TEST_F(MasterTest, MasterInfo)
   driver.start();
 
   AWAIT_READY(masterInfo);
-  EXPECT_EQ(master.get().node.port, masterInfo.get().port());
-  EXPECT_EQ(master.get().node.ip, masterInfo.get().ip());
+  EXPECT_EQ(master.get().address.port, masterInfo.get().port());
+  EXPECT_EQ(master.get().address.ip, net::IP(ntohl(masterInfo.get().ip())));
 
   driver.stop();
   driver.join();
@@ -1023,8 +1030,8 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   AWAIT_READY(disconnected);
 
   AWAIT_READY(masterInfo);
-  EXPECT_EQ(master.get().node.port, masterInfo.get().port());
-  EXPECT_EQ(master.get().node.ip, masterInfo.get().ip());
+  EXPECT_EQ(master.get().address.port, masterInfo.get().port());
+  EXPECT_EQ(master.get().address.ip, net::IP(ntohl(masterInfo.get().ip())));
 
   // The re-registered framework should get offers.
   AWAIT_READY(resourceOffers2);
@@ -1061,7 +1068,7 @@ TEST_F(WhitelistTest, WhitelistSlave)
   ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
   master::Flags flags = CreateMasterFlags();
-  flags.whitelist = "file://" + path;
+  flags.whitelist = path;
 
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
@@ -1351,7 +1358,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   combinedOffers.push_back(offers2.get()[0].id());
 
   Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   driver.launchTasks(combinedOffers, tasks);
 
@@ -1364,6 +1371,19 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
+
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  std::cout << stats << '\n';
+  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+  EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(
+      1u,
+      stats.values.count(
+          "master/task_lost/source_master/reason_invalid_offers"));
+  EXPECT_EQ(
+      1u,
+      stats.values["master/task_lost/source_master/reason_invalid_offers"]);
 
   driver.stop();
   driver.join();
@@ -1431,7 +1451,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
     .WillOnce(FutureArg<1>(&status));
 
   Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   driver.launchTasks(combinedOffers, tasks);
 
@@ -1445,6 +1465,18 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+  EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(
+      1u,
+      stats.values.count(
+          "master/task_lost/source_master/reason_invalid_offers"));
+  EXPECT_EQ(
+      1u,
+      stats.values["master/task_lost/source_master/reason_invalid_offers"]);
+
   driver.stop();
   driver.join();
 
@@ -1452,13 +1484,118 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
 }
 
 
-TEST_F(MasterTest, MetricsInStatsEndpoint)
+TEST_F(MasterTest, MetricsInMetricsEndpoint)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "stats.json");
+  JSON::Object snapshot = Metrics();
+
+  EXPECT_EQ(1u, snapshot.values.count("master/uptime_secs"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/elected"));
+  EXPECT_EQ(1, snapshot.values["master/elected"]);
+
+  EXPECT_EQ(1u, snapshot.values.count("master/slaves_connected"));
+  EXPECT_EQ(1u, snapshot.values.count("master/slaves_disconnected"));
+  EXPECT_EQ(1u, snapshot.values.count("master/slaves_active"));
+  EXPECT_EQ(1u, snapshot.values.count("master/slaves_inactive"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/frameworks_connected"));
+  EXPECT_EQ(1u, snapshot.values.count("master/frameworks_disconnected"));
+  EXPECT_EQ(1u, snapshot.values.count("master/frameworks_active"));
+  EXPECT_EQ(1u, snapshot.values.count("master/frameworks_inactive"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/outstanding_offers"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_staging"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_starting"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_running"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_finished"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_failed"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_killed"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_lost"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/dropped_messages"));
+
+  // Messages from schedulers.
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_register_framework"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_reregister_framework"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_unregister_framework"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_deactivate_framework"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_kill_task"));
+  EXPECT_EQ(1u, snapshot.values.count(
+      "master/messages_status_update_acknowledgement"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_resource_request"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_launch_tasks"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_decline_offers"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_revive_offers"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_reconcile_tasks"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_framework_to_executor"));
+
+  // Messages from slaves.
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_register_slave"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_reregister_slave"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_unregister_slave"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_status_update"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_exited_executor"));
+
+  // Messages from both schedulers and slaves.
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_authenticate"));
+
+  EXPECT_EQ(1u, snapshot.values.count(
+      "master/valid_framework_to_executor_messages"));
+  EXPECT_EQ(1u, snapshot.values.count(
+      "master/invalid_framework_to_executor_messages"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/valid_status_updates"));
+  EXPECT_EQ(1u, snapshot.values.count("master/invalid_status_updates"));
+
+  EXPECT_EQ(1u, snapshot.values.count(
+      "master/valid_status_update_acknowledgements"));
+  EXPECT_EQ(1u, snapshot.values.count(
+      "master/invalid_status_update_acknowledgements"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/recovery_slave_removals"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/event_queue_messages"));
+  EXPECT_EQ(1u, snapshot.values.count("master/event_queue_dispatches"));
+  EXPECT_EQ(1u, snapshot.values.count("master/event_queue_http_requests"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/cpus_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/cpus_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/cpus_percent"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/mem_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/mem_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/mem_percent"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/disk_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/disk_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/disk_percent"));
+
+  EXPECT_EQ(1u, snapshot.values.count("registrar/queued_operations"));
+  EXPECT_EQ(1u, snapshot.values.count("registrar/registry_size_bytes"));
+
+  EXPECT_EQ(1u, snapshot.values.count("registrar/state_fetch_ms"));
+  EXPECT_EQ(1u, snapshot.values.count("registrar/state_store_ms"));
+
+  Shutdown();
+}
+
+
+// Ensures that an empty response arrives if information about
+// registered slaves is requested from a master where no slaves
+// have been registered.
+TEST_F(MasterTest, SlavesEndpointWithoutSlaves)
+{
+  // Start up.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Query the master.
+  const Future<process::http::Response> response =
+    process::http::get(master.get(), "slaves");
 
   AWAIT_READY(response);
 
@@ -1466,103 +1603,64 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
       "application/json",
       response.get().headers.get("Content-Type"));
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  const Try<JSON::Value> parse =
+    JSON::parse(response.get().body);
+  ASSERT_SOME(parse);
+
+  Try<JSON::Value> expected = JSON::parse(
+      "{"
+      "  \"slaves\" : []"
+      "}");
+
+  ASSERT_SOME(expected);
+  EXPECT_SOME_EQ(expected.get(), parse);
+
+  Shutdown();
+}
+
+
+// Ensures that the number of registered slaves resported by
+// /master/slaves coincides with the actual number of registered
+// slaves.
+TEST_F(MasterTest, SlavesEndpointTwoSlaves)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a couple of slaves. Their only use is for them to register
+  // to the master.
+  Future<SlaveRegisteredMessage> slave1RegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+  Try<PID<Slave>> slave1 = StartSlave();
+
+  Future<SlaveRegisteredMessage> slave2RegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), Not(slave1.get()));
+  StartSlave();
+
+  // Wait for the slaves to be registered.
+  AWAIT_READY(slave1RegisteredMessage);
+  AWAIT_READY(slave2RegisteredMessage);
+
+  // Query the master.
+  const Future<process::http::Response> response =
+    process::http::get(master.get(), "slaves");
+
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  const Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(response.get().body);
 
   ASSERT_SOME(parse);
 
-  JSON::Object stats = parse.get();
-
-  EXPECT_EQ(1u, stats.values.count("master/uptime_secs"));
-
-  EXPECT_EQ(1u, stats.values.count("elected"));
-  EXPECT_EQ(1u, stats.values.count("master/elected"));
-
-  EXPECT_EQ(1, stats.values["elected"]);
-  EXPECT_EQ(1, stats.values["master/elected"]);
-
-  EXPECT_EQ(1u, stats.values.count("master/slaves_connected"));
-  EXPECT_EQ(1u, stats.values.count("master/slaves_disconnected"));
-  EXPECT_EQ(1u, stats.values.count("master/slaves_active"));
-  EXPECT_EQ(1u, stats.values.count("master/slaves_inactive"));
-
-  EXPECT_EQ(1u, stats.values.count("master/frameworks_connected"));
-  EXPECT_EQ(1u, stats.values.count("master/frameworks_disconnected"));
-  EXPECT_EQ(1u, stats.values.count("master/frameworks_active"));
-  EXPECT_EQ(1u, stats.values.count("master/frameworks_inactive"));
-
-  EXPECT_EQ(1u, stats.values.count("master/outstanding_offers"));
-
-  EXPECT_EQ(1u, stats.values.count("master/tasks_staging"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_starting"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_running"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_finished"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_failed"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_killed"));
-  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
-
-  EXPECT_EQ(1u, stats.values.count("master/dropped_messages"));
-
-  // Messages from schedulers.
-  EXPECT_EQ(1u, stats.values.count("master/messages_register_framework"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_reregister_framework"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_unregister_framework"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_deactivate_framework"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_kill_task"));
-  EXPECT_EQ(1u, stats.values.count(
-      "master/messages_status_update_acknowledgement"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_resource_request"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_launch_tasks"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_decline_offers"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_revive_offers"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_reconcile_tasks"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_framework_to_executor"));
-
-  // Messages from slaves.
-  EXPECT_EQ(1u, stats.values.count("master/messages_register_slave"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_reregister_slave"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_unregister_slave"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_status_update"));
-  EXPECT_EQ(1u, stats.values.count("master/messages_exited_executor"));
-
-  // Messages from both schedulers and slaves.
-  EXPECT_EQ(1u, stats.values.count("master/messages_authenticate"));
-
-  EXPECT_EQ(1u, stats.values.count(
-      "master/valid_framework_to_executor_messages"));
-  EXPECT_EQ(1u, stats.values.count(
-      "master/invalid_framework_to_executor_messages"));
-
-  EXPECT_EQ(1u, stats.values.count("master/valid_status_updates"));
-  EXPECT_EQ(1u, stats.values.count("master/invalid_status_updates"));
-
-  EXPECT_EQ(1u, stats.values.count(
-      "master/valid_status_update_acknowledgements"));
-  EXPECT_EQ(1u, stats.values.count(
-      "master/invalid_status_update_acknowledgements"));
-
-  EXPECT_EQ(1u, stats.values.count("master/recovery_slave_removals"));
-
-  EXPECT_EQ(1u, stats.values.count("master/event_queue_messages"));
-  EXPECT_EQ(1u, stats.values.count("master/event_queue_dispatches"));
-  EXPECT_EQ(1u, stats.values.count("master/event_queue_http_requests"));
-
-  EXPECT_EQ(1u, stats.values.count("master/cpus_total"));
-  EXPECT_EQ(1u, stats.values.count("master/cpus_used"));
-  EXPECT_EQ(1u, stats.values.count("master/cpus_percent"));
-
-  EXPECT_EQ(1u, stats.values.count("master/mem_total"));
-  EXPECT_EQ(1u, stats.values.count("master/mem_used"));
-  EXPECT_EQ(1u, stats.values.count("master/mem_percent"));
-
-  EXPECT_EQ(1u, stats.values.count("master/disk_total"));
-  EXPECT_EQ(1u, stats.values.count("master/disk_used"));
-  EXPECT_EQ(1u, stats.values.count("master/disk_percent"));
-
-  EXPECT_EQ(1u, stats.values.count("registrar/queued_operations"));
-  EXPECT_EQ(1u, stats.values.count("registrar/registry_size_bytes"));
-
-  EXPECT_EQ(1u, stats.values.count("registrar/state_fetch_ms"));
-  EXPECT_EQ(1u, stats.values.count("registrar/state_store_ms"));
+  // Check that there are at least two elements in the array.
+  Result<JSON::Array> array = parse.get().find<JSON::Array>("slaves");
+  ASSERT_SOME(array);
+  EXPECT_EQ(2u, array.get().values.size());
 
   Shutdown();
 }
@@ -1723,6 +1821,174 @@ TEST_F(MasterTest, NonStrictRegistryWriteOnly)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveReregisteredMessage);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test ensures that slave removals during master recovery
+// are rate limited.
+TEST_F(MasterTest, RateLimitRecoveredSlaveRemoval)
+{
+  // Start a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master> > master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  // Start a slave.
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Stop the slave while the master is down.
+  this->Stop(master.get());
+  this->Stop(slave.get());
+
+  shared_ptr<MockRateLimiter> slaveRemovalLimiter(new MockRateLimiter());
+
+  // Return a pending future from the rate limiter.
+  Future<Nothing> acquire;
+  Promise<Nothing> promise;
+  EXPECT_CALL(*slaveRemovalLimiter, acquire())
+    .WillOnce(DoAll(FutureSatisfy(&acquire),
+                    Return(promise.future())));
+
+  // Restart the master.
+  master = StartMaster(slaveRemovalLimiter, masterFlags);
+  ASSERT_SOME(master);
+
+  // Start a scheduler to ensure the master would notify
+  // a framework about slave removal.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillRepeatedly(FutureSatisfy(&slaveLost));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  // Trigger the slave re-registration timeout.
+  Clock::pause();
+  Clock::advance(masterFlags.slave_reregister_timeout);
+
+  // The master should attempt to acquire a permit.
+  AWAIT_READY(acquire);
+
+  // The removal should not occur before the permit is satisfied.
+  Clock::settle();
+  ASSERT_TRUE(slaveLost.isPending());
+
+  // Once the permit is satisfied, the slave should be removed.
+  promise.set(Nothing());
+  AWAIT_READY(slaveLost);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test ensures that slave removals that get scheduled during
+// master recovery can be canceled if the slave re-registers.
+TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
+{
+  // Start a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master> > master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  // Start a slave with checkpointing.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.checkpoint = true;
+  slaveFlags.recover = "reconnect";
+  slaveFlags.strict = true;
+  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Stop the slave while the master is down.
+  this->Stop(master.get());
+  this->Stop(slave.get());
+
+  shared_ptr<MockRateLimiter> slaveRemovalLimiter(new MockRateLimiter());
+
+  // Return a pending future from the rate limiter.
+  Future<Nothing> acquire;
+  Promise<Nothing> promise;
+  EXPECT_CALL(*slaveRemovalLimiter, acquire())
+    .WillOnce(DoAll(FutureSatisfy(&acquire),
+                    Return(promise.future())));
+
+  // Restart the master.
+  master = StartMaster(slaveRemovalLimiter, masterFlags);
+  ASSERT_SOME(master);
+
+  // Start a scheduler to ensure the master would notify
+  // a framework about slave removal.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillRepeatedly(FutureSatisfy(&slaveLost));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  // Trigger the slave re-registration timeout.
+  Clock::pause();
+  Clock::advance(masterFlags.slave_reregister_timeout);
+
+  // The master should attempt to acquire a permit.
+  AWAIT_READY(acquire);
+
+  // The removal should not occur before the permit is satisfied.
+  Clock::settle();
+  ASSERT_TRUE(slaveLost.isPending());
+
+  // Ignore resource offers from the re-registered slave.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), _);
+
+  // Restart the slave.
+  slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Satisfy the rate limit permit. Ensure a removal does not occur!
+  promise.set(Nothing());
+  Clock::settle();
+  ASSERT_TRUE(slaveLost.isPending());
 
   driver.stop();
   driver.join();
@@ -2139,8 +2405,8 @@ TEST_F(MasterTest, MaxExecutorsPerSlave)
   driver.start();
 
   AWAIT_READY(masterInfo);
-  EXPECT_EQ(master.get().node.port, masterInfo.get().port());
-  EXPECT_EQ(master.get().node.ip, masterInfo.get().ip());
+  EXPECT_EQ(master.get().address.port, masterInfo.get().port());
+  EXPECT_EQ(master.get().address.ip, net::IP(ntohl(masterInfo.get().ip())));
 
   driver.stop();
   driver.join();
@@ -2182,7 +2448,7 @@ TEST_F(MasterTest, OfferTimeout)
     .WillOnce(FutureSatisfy(&offerRescinded));
 
   Future<Nothing> recoverResources =
-    FUTURE_DISPATCH(_, &AllocatorProcess::recoverResources);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
   driver.start();
 
@@ -2468,7 +2734,7 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
   AWAIT_READY(__statusUpdate2);
 
   Future<Nothing> recoverResources = FUTURE_DISPATCH(
-      _, &AllocatorProcess::recoverResources);
+      _, &MesosAllocatorProcess::recoverResources);
 
   // Advance the clock so that the status update manager resends
   // TASK_RUNNING update with 'latest_state' as TASK_FINISHED.
@@ -2608,7 +2874,7 @@ TEST_F(MasterTest, TaskLabels)
   EXPECT_CALL(containerizer,
               update(_, Resources(offers.get()[0].resources())))
     .WillOnce(DoAll(FutureSatisfy(&update),
-                    Return(Future<Nothing>())));
+                    Return(Nothing())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -2716,7 +2982,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   ASSERT_SOME_EQ(JSON::Boolean(true), status);
 
   Future<Nothing> deactivateSlave =
-    FUTURE_DISPATCH(_, &AllocatorProcess::deactivateSlave);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
 
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected.
@@ -2773,9 +3039,9 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   TaskInfo task;
   task.set_name("testtask");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
-  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  task.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->CopyFrom(offers.get()[0].resources());
+  task.mutable_executor()->CopyFrom(DEFAULT_EXECUTOR_INFO);
 
   // An expanded service discovery info to the task.
   DiscoveryInfo* info = task.mutable_discovery();
@@ -2784,6 +3050,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   info->set_environment("mytest");
   info->set_location("mylocation");
   info->set_version("v0.1.1");
+
   // Add two named ports to the discovery info.
   Ports* ports = info->mutable_ports();
   Port* port1 = ports->add_ports();
@@ -2794,6 +3061,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   port2->set_number(9999);
   port2->set_name("myport2");
   port2->set_protocol("udp");
+
   // Add two labels to the discovery info.
   Labels* labels = info->mutable_labels();
   Label* label1 = labels->add_labels();
@@ -2815,7 +3083,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   EXPECT_CALL(containerizer,
               update(_, Resources(offers.get()[0].resources())))
     .WillOnce(DoAll(FutureSatisfy(&update),
-                    Return(Future<Nothing>())));
+                    Return(Nothing())));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -2874,11 +3142,12 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   ASSERT_EQ("v0.1.1", version.get());
 
   // Verify content of two named ports.
-  Result<JSON::Array> portsObject = parse.get().find<JSON::Array>(
-      "frameworks[0].tasks[0].discovery.ports");
-  EXPECT_SOME(portsObject);
+  Result<JSON::Array> portsArray = parse.get().find<JSON::Array>(
+      "frameworks[0].tasks[0].discovery.ports.ports");
+  EXPECT_SOME(portsArray);
 
-  JSON::Array portsObject_ = portsObject.get();
+  JSON::Array portsArray_ = portsArray.get();
+  EXPECT_EQ(2u, portsArray_.values.size());
 
   // Verify the content of '8888:myport1:tcp' port.
   Try<JSON::Value> expected = JSON::parse(
@@ -2888,7 +3157,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "  \"protocol\":\"tcp\""
       "}");
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), portsObject_.values[0]);
+  EXPECT_EQ(expected.get(), portsArray_.values[0]);
 
   // Verify the content of '9999:myport2:udp' port.
   expected = JSON::parse(
@@ -2898,14 +3167,15 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "  \"protocol\":\"udp\""
       "}");
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), portsObject_.values[1]);
+  EXPECT_EQ(expected.get(), portsArray_.values[1]);
 
   // Verify content of two labels.
-  Result<JSON::Array> labelsObject = parse.get().find<JSON::Array>(
-      "frameworks[0].tasks[0].discovery.labels");
-  EXPECT_SOME(labelsObject);
+  Result<JSON::Array> labelsArray = parse.get().find<JSON::Array>(
+      "frameworks[0].tasks[0].discovery.labels.labels");
+  EXPECT_SOME(labelsArray);
 
-  JSON::Array labelsObject_ = labelsObject.get();
+  JSON::Array labelsArray_ = labelsArray.get();
+  EXPECT_EQ(2u, labelsArray_.values.size());
 
   // Verify the content of 'clearance:high' pair.
   expected = JSON::parse(
@@ -2914,7 +3184,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "  \"value\":\"high\""
       "}");
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), labelsObject_.values[0]);
+  EXPECT_EQ(expected.get(), labelsArray_.values[0]);
 
   // Verify the content of 'RPC:yes' pair.
   expected = JSON::parse(
@@ -2923,7 +3193,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "  \"value\":\"yes\""
       "}");
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), labelsObject_.values[1]);
+  EXPECT_EQ(expected.get(), labelsArray_.values[1]);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -2933,3 +3203,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

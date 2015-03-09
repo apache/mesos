@@ -33,20 +33,17 @@
 #include <stout/hashset.hpp>
 #include <stout/utils.hpp>
 
-#include "master/allocator.hpp"
 #include "master/constants.hpp"
 #include "master/flags.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
+#include "master/allocator/allocator.hpp"
+#include "master/allocator/mesos/hierarchical.hpp"
 
 using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
 
 using mesos::internal::master::allocator::Allocator;
-using mesos::internal::master::allocator::AllocatorProcess;
-using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
+using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using process::Clock;
 using process::Future;
@@ -55,6 +52,10 @@ using process::Shared;
 using std::queue;
 using std::string;
 using std::vector;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 struct Allocation
@@ -68,15 +69,13 @@ class HierarchicalAllocatorTest : public ::testing::Test
 {
 protected:
   HierarchicalAllocatorTest()
-    : allocatorProcess(new HierarchicalDRFAllocatorProcess()),
-      allocator(new Allocator(allocatorProcess)),
+    : allocator(new HierarchicalDRFAllocator),
       nextSlaveId(1),
       nextFrameworkId(1) {}
 
   ~HierarchicalAllocatorTest()
   {
     delete allocator;
-    delete allocatorProcess;
   }
 
   void initialize(
@@ -141,7 +140,6 @@ private:
 protected:
   master::Flags flags;
 
-  AllocatorProcess* allocatorProcess;
   Allocator* allocator;
 
   process::Queue<Allocation> queue;
@@ -669,10 +667,9 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
 }
 
 
-// This test ensures that frameworks can apply resource
-// transformations on their allocations. This allows them
-// to augment the resource metadata (e.g. persistent disk).
-TEST_F(HierarchicalAllocatorTest, TransformAllocation)
+// This test ensures that frameworks can apply offer operations (e.g.,
+// creating persistent volumes) on their allocations.
+TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
 {
   Clock::pause();
   initialize(vector<string>{"role1"});
@@ -693,32 +690,33 @@ TEST_F(HierarchicalAllocatorTest, TransformAllocation)
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(slave.resources(), sum(allocation.get().resources.values()));
 
-  // Construct a transformation for the framework's allocation.
-  Resource disk = Resources::parse("disk", "5", "*").get();
-  disk.mutable_disk()->mutable_persistence()->set_id("ID");
-  disk.mutable_disk()->mutable_volume()->set_container_path("data");
+  // Construct an offer operation for the framework's allocation.
+  Resource volume = Resources::parse("disk", "5", "*").get();
+  volume.mutable_disk()->mutable_persistence()->set_id("ID");
+  volume.mutable_disk()->mutable_volume()->set_container_path("data");
 
-  Shared<Resources::Transformation> transformation(
-      new Resources::AcquirePersistentDisk(disk));
+  Offer::Operation create;
+  create.set_type(Offer::Operation::CREATE);
+  create.mutable_create()->add_volumes()->CopyFrom(volume);
 
-  // Ensure the transformation can be applied.
-  Try<Resources> transformed = (*transformation)(
-      sum(allocation.get().resources.values()));
+  // Ensure the offer operation can be applied.
+  Try<Resources> updated =
+    sum(allocation.get().resources.values()).apply(create);
 
-  ASSERT_SOME(transformed);
+  ASSERT_SOME(updated);
 
-  // Transform the allocation in the allocator.
-  allocator->transformAllocation(
+  // Update the allocation in the allocator.
+  allocator->updateAllocation(
       framework.id(),
       slave.id(),
-      transformation);
+      {create});
 
-  // Now recover the resources, and expect the next allocation
-  // to contain the disk transformation!
+  // Now recover the resources, and expect the next allocation to
+  // contain the updated resources.
   allocator->recoverResources(
       framework.id(),
       slave.id(),
-      transformed.get(),
+      updated.get(),
       None());
 
   Clock::advance(flags.allocation_interval);
@@ -729,16 +727,15 @@ TEST_F(HierarchicalAllocatorTest, TransformAllocation)
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
 
-  // The allocation should be the slave's resources with the
-  // disk transformation applied.
-  transformed = (*transformation)(slave.resources());
-
-  ASSERT_SOME(transformed);
+  // The allocation should be the slave's resources with the offer
+  // operation applied.
+  updated = Resources(slave.resources()).apply(create);
+  ASSERT_SOME(updated);
 
   EXPECT_NE(Resources(slave.resources()),
             sum(allocation.get().resources.values()));
 
-  EXPECT_EQ(transformed.get(),
+  EXPECT_EQ(updated.get(),
             sum(allocation.get().resources.values()));
 }
 
@@ -787,3 +784,7 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(slave.resources(), sum(allocation.get().resources.values()));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

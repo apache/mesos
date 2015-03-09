@@ -3,17 +3,21 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #include <cctype>
 #include <cstdlib>
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include <process/pid.hpp>
 
 #include <stout/error.hpp>
+#include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/ip.hpp>
 #include <stout/json.hpp>
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
@@ -39,11 +43,15 @@ struct Request
   // Tracked by: https://issues.apache.org/jira/browse/MESOS-328.
   hashmap<std::string, std::string> headers;
   std::string method;
+
+  // TODO(benh): Replace 'url', 'path', 'query', and 'fragment' with URL.
   std::string url; // (path?query#fragment)
   std::string path;
-  std::string fragment;
   hashmap<std::string, std::string> query;
+  std::string fragment;
+
   std::string body;
+
   bool keepAlive;
 
   // Returns whether the encoding is considered acceptable in the request.
@@ -263,6 +271,20 @@ struct BadRequest : Response
 };
 
 
+struct Forbidden : Response
+{
+  Forbidden()
+  {
+    status = "403 Forbidden";
+  }
+
+  explicit Forbidden(const std::string& body) : Response(body)
+  {
+    status = "403 Forbidden";
+  }
+};
+
+
 struct NotFound : Response
 {
   NotFound()
@@ -380,12 +402,12 @@ inline Try<hashmap<std::string, std::string> > parse(
 
 namespace query {
 
-// Parses an HTTP query string into a map. For example:
+// Decodes an HTTP query string into a map. For example:
 //
-//   parse("foo=1;bar=2;baz;foo=3")
+//   decode("foo=1&bar=%20&baz&foo=3")
 //
 // Would return a map with the following:
-//   bar: "2"
+//   bar: " "
 //   baz: ""
 //   foo: "3"
 //
@@ -394,22 +416,9 @@ namespace query {
 // http://en.wikipedia.org/wiki/Query_string
 // TODO(bmahler): If needed, investigate populating the query map inline
 // for better performance.
-inline hashmap<std::string, std::string> parse(const std::string& query)
-{
-  hashmap<std::string, std::string> result;
+Try<hashmap<std::string, std::string>> decode(const std::string& query);
 
-  const std::vector<std::string>& tokens = strings::tokenize(query, ";&");
-  foreach (const std::string& token, tokens) {
-    const std::vector<std::string>& pairs = strings::split(token, "=");
-    if (pairs.size() == 2) {
-      result[pairs[0]] = pairs[1];
-    } else if (pairs.size() == 1) {
-      result[pairs[0]] = "";
-    }
-  }
-
-  return result;
-}
+std::string encode(const hashmap<std::string, std::string>& query);
 
 } // namespace query {
 
@@ -506,25 +515,117 @@ inline Try<std::string> decode(const std::string& s)
 }
 
 
-// Sends a blocking HTTP GET request to the process with the given upid.
-// Returns the HTTP response from the process, read asynchronously.
-//
-// TODO(bmahler): Have the request sent asynchronously as well.
-// TODO(bmahler): For efficiency, this should properly use the ResponseDecoder
-// on the read stream, rather than parsing the full string response at the end.
+// Represents a Uniform Resource Locator:
+//   scheme://domain|ip:port/path?query#fragment
+struct URL
+{
+  URL(const std::string& _scheme,
+      const std::string& _domain,
+      const uint16_t _port = 80,
+      const std::string& _path = "/",
+      const hashmap<std::string, std::string>& _query =
+        (hashmap<std::string, std::string>()),
+      const Option<std::string>& _fragment = None())
+    : scheme(_scheme),
+      domain(_domain),
+      port(_port),
+      path(_path),
+      query(_query),
+      fragment(_fragment) {}
+
+  URL(const std::string& _scheme,
+      const net::IP& _ip,
+      const uint16_t _port = 80,
+      const std::string& _path = "/",
+      const hashmap<std::string, std::string>& _query =
+        (hashmap<std::string, std::string>()),
+      const Option<std::string>& _fragment = None())
+    : scheme(_scheme),
+      ip(_ip),
+      port(_port),
+      path(_path),
+      query(_query),
+      fragment(_fragment) {}
+
+  std::string scheme;
+  // TODO(benh): Consider using unrestricted union for 'domain' and 'ip'.
+  Option<std::string> domain;
+  Option<net::IP> ip;
+  uint16_t port;
+  std::string path;
+  hashmap<std::string, std::string> query;
+  Option<std::string> fragment;
+};
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const URL& url)
+{
+  stream << url.scheme << "://";
+
+  if (url.domain.isSome()) {
+    stream << url.domain.get();
+  } else if (url.ip.isSome()) {
+    stream << url.ip.get();
+  }
+
+  stream << ":" << url.port;
+
+  stream << "/" << strings::remove(url.path, "/", strings::PREFIX);
+
+  if (!url.query.empty()) {
+    stream << "?" << query::encode(url.query);
+  }
+
+  if (url.fragment.isSome()) {
+    stream << "#" << url.fragment.get();
+  }
+
+  return stream;
+}
+
+
+// Asynchronously sends an HTTP GET request to the specified URL and
+// returns the HTTP response.
+Future<Response> get(
+    const URL& url,
+    const Option<hashmap<std::string, std::string>>& headers = None());
+
+
+// Asynchronously sends an HTTP PUT request to the specified URL and
+// returns the HTTP response.
+Future<Response> put(
+    const URL& url,
+    const Option<hashmap<std::string, std::string>>& headers = None(),
+    const Option<std::string>& body = None(),
+    const Option<std::string>& contentType = None());
+
+
+// Asynchronously sends an HTTP POST request to the specified URL and
+// returns the HTTP response.
+Future<Response> post(
+    const URL& url,
+    const Option<hashmap<std::string, std::string>>& headers = None(),
+    const Option<std::string>& body = None(),
+    const Option<std::string>& contentType = None());
+
+
+// Asynchronously sends an HTTP GET request to the process with the
+// given UPID and returns the HTTP response from the process.
 Future<Response> get(
     const UPID& upid,
     const Option<std::string>& path = None(),
     const Option<std::string>& query = None(),
-    const Option<hashmap<std::string, std::string> >& headers = None());
+    const Option<hashmap<std::string, std::string>>& headers = None());
 
 
-// Sends a blocking HTTP POST request to the process with the given upid.
-// Returns the HTTP response from the process, read asyncronously.
+// Asynchronously sends an HTTP POST request to the process with the
+// given UPID and returns the HTTP response from the process.
 Future<Response> post(
     const UPID& upid,
     const Option<std::string>& path = None(),
-    const Option<hashmap<std::string, std::string> >& headers = None(),
+    const Option<hashmap<std::string, std::string>>& headers = None(),
     const Option<std::string>& body = None(),
     const Option<std::string>& contentType = None());
 

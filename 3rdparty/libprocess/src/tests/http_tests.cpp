@@ -19,10 +19,15 @@
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/stringify.hpp>
 
 #include "encoder.hpp"
 
 using namespace process;
+
+using process::http::URL;
+
+using process::network::Socket;
 
 using std::string;
 
@@ -32,7 +37,6 @@ using testing::DoAll;
 using testing::EndsWith;
 using testing::Invoke;
 using testing::Return;
-
 
 class HttpProcess : public Process<HttpProcess>
 {
@@ -114,13 +118,12 @@ TEST(HTTP, Endpoints)
   spawn(process);
 
   // First hit '/body' (using explicit sockets and HTTP/1.0).
-  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<Socket> create = Socket::create();
+  ASSERT_SOME(create);
 
-  ASSERT_TRUE(socket.isSome());
+  Socket socket = create.get();
 
-  int s = socket.get();
-
-  ASSERT_TRUE(network::connect(s, process.self().node).isSome());
+  AWAIT_READY(socket.connect(process.self().address));
 
   std::ostringstream out;
   out << "GET /" << process.self().id << "/body"
@@ -133,15 +136,11 @@ TEST(HTTP, Endpoints)
   EXPECT_CALL(process, body(_))
     .WillOnce(Return(http::OK()));
 
-  ASSERT_SOME(os::write(s, data));
+  AWAIT_READY(socket.send(data));
 
   string response = "HTTP/1.1 200 OK";
 
-  char temp[response.size()];
-  ASSERT_LT(0, ::read(s, temp, response.size()));
-  ASSERT_EQ(response, string(temp, response.size()));
-
-  ASSERT_EQ(0, close(s));
+  AWAIT_EXPECT_EQ(response, socket.recv(response.size()));
 
   // Now hit '/pipe' (by using http::get).
   int pipes[2];
@@ -260,7 +259,7 @@ http::Response validateGetWithQuery(const http::Request& request)
   EXPECT_EQ("GET", request.method);
   EXPECT_THAT(request.path, EndsWith("get"));
   EXPECT_EQ("", request.body);
-  EXPECT_EQ("frag", request.fragment);
+  EXPECT_EQ("", request.fragment);
   EXPECT_EQ("bar", request.query.at("foo"));
   EXPECT_EQ(1, request.query.size());
 
@@ -288,7 +287,7 @@ TEST(HTTP, Get)
     .WillOnce(Invoke(validateGetWithQuery));
 
   Future<http::Response> queryFuture =
-    http::get(process.self(), "get", "foo=bar#frag");
+    http::get(process.self(), "get", "foo=bar");
 
   AWAIT_READY(queryFuture);
   ASSERT_EQ(http::statuses[200], queryFuture.get().status);
@@ -352,4 +351,79 @@ TEST(HTTP, Post)
 
   terminate(process);
   wait(process);
+}
+
+TEST(HTTP, QueryEncodeDecode)
+{
+  // If we use Type<a, b> directly inside a macro without surrounding
+  // parenthesis the comma will be eaten by the macro rather than the
+  // template. Typedef to avoid the problem.
+  typedef hashmap<string, string> HashmapStringString;
+
+  EXPECT_EQ("",
+            http::query::encode(HashmapStringString({})));
+
+  EXPECT_EQ("foo=bar",
+            http::query::encode(HashmapStringString({{"foo", "bar"}})));
+
+  EXPECT_EQ("c%7E%2Fasdf=%25asdf&a()=b%2520",
+            http::query::encode(
+                HashmapStringString({{"a()", "b%20"}, {"c~/asdf", "%asdf"}})));
+
+  EXPECT_EQ("d",
+            http::query::encode(HashmapStringString({{"d", ""}})));
+
+  EXPECT_EQ("a%26b%3Dc=d%26e%3Dfg",
+            http::query::encode(HashmapStringString({{"a&b=c", "d&e=fg"}})));
+
+  // Explicitly not testing decoding failures.
+  EXPECT_SOME_EQ(HashmapStringString(),
+                 http::query::decode(""));
+
+  EXPECT_SOME_EQ(HashmapStringString({{"foo", "bar"}}),
+                 http::query::decode("foo=bar"));
+
+  EXPECT_SOME_EQ(HashmapStringString({{"a()", "b%20"}, {"c~/asdf", "%asdf"}}),
+                 http::query::decode("c%7E%2Fasdf=%25asdf&a()=b%2520"));
+
+  EXPECT_SOME_EQ(HashmapStringString({{"d", ""}}),
+                 http::query::decode("d"));
+
+  EXPECT_SOME_EQ(HashmapStringString({{"a&b=c", "d&e=fg"}}),
+                 http::query::decode("a%26b%3Dc=d%26e%3Dfg"));
+}
+
+// TODO(evelinad): Add URLTest for IPv6.
+TEST(URLTest, stringification)
+{
+  EXPECT_EQ("http://mesos.apache.org:80/",
+            stringify(URL("http", "mesos.apache.org")));
+
+  EXPECT_EQ("https://mesos.apache.org:8080/",
+            stringify(URL("https", "mesos.apache.org", 8080)));
+
+  Try<net::IP> ip = net::IP::parse("172.158.1.23", AF_INET);
+  ASSERT_SOME(ip);
+
+  EXPECT_EQ("http://172.158.1.23:8080/",
+            stringify(URL("http", ip.get(), 8080)));
+
+  EXPECT_EQ("http://172.158.1.23:80/path",
+            stringify(URL("http", ip.get(), 80, "/path")));
+
+  hashmap<string, string> query;
+  query["foo"] = "bar";
+  query["baz"] = "bam";
+
+  EXPECT_EQ("http://172.158.1.23:80/?baz=bam&foo=bar",
+            stringify(URL("http", ip.get(), 80, "/", query)));
+
+  EXPECT_EQ("http://172.158.1.23:80/path?baz=bam&foo=bar",
+            stringify(URL("http", ip.get(), 80, "/path", query)));
+
+  EXPECT_EQ("http://172.158.1.23:80/?baz=bam&foo=bar#fragment",
+            stringify(URL("http", ip.get(), 80, "/", query, "fragment")));
+
+  EXPECT_EQ("http://172.158.1.23:80/path?baz=bam&foo=bar#fragment",
+            stringify(URL("http", ip.get(), 80, "/path", query, "fragment")));
 }

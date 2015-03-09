@@ -28,11 +28,13 @@
 
 #include "master/master.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
 using namespace mesos::internal::values;
 
 using std::string;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 TEST(ValuesTest, ValidInput)
@@ -99,3 +101,7 @@ TEST(ValuesTest, SetSubtraction)
 
   EXPECT_EQ(set3, parse("{sda4}").get().set());
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

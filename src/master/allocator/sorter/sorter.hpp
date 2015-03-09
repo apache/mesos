@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __SORTER_HPP__
-#define __SORTER_HPP__
+#ifndef __MASTER_ALLOCATOR_SORTER_SORTER_HPP__
+#define __MASTER_ALLOCATOR_SORTER_SORTER_HPP__
 
 #include <list>
 #include <string>
@@ -64,13 +64,13 @@ public:
   virtual void allocated(const std::string& client,
                          const Resources& resources) = 0;
 
-  // Transforms a portion of the allocation for the client, in
-  // order to augment the resources with additional metadata.
+  // Updates a portion of the allocation for the client, in order to
+  // augment the resources with additional metadata (e.g., volumes)
   // This means that the new allocation must not affect the static
   // roles, or the overall quantities of resources!
-  virtual void transform(const std::string& client,
-                         const Resources& oldAllocation,
-                         const Resources& newAllocation) = 0;
+  virtual void update(const std::string& client,
+                      const Resources& oldAllocation,
+                      const Resources& newAllocation) = 0;
 
   // Specify that resources have been unallocated from the given client.
   virtual void unallocated(const std::string& client,
@@ -104,4 +104,4 @@ public:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __SORTER_HPP__
+#endif // __MASTER_ALLOCATOR_SORTER_SORTER_HPP__

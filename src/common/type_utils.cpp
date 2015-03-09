@@ -18,9 +18,11 @@
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/type_utils.hpp>
 
 #include "common/attributes.hpp"
-#include "common/type_utils.hpp"
+
+#include "messages/messages.hpp"
 
 namespace mesos {
 

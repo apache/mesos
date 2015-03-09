@@ -19,15 +19,22 @@
 #include <stdint.h>
 
 #include <set>
+#include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/module/anonymous.hpp>
+
+#include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/check.hpp>
+#include <stout/duration.hpp>
 #include <stout/exit.hpp>
 #include <stout/flags.hpp>
+#include <stout/memory.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -46,14 +53,14 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/allocator.hpp"
 #include "master/contender.hpp"
 #include "master/detector.hpp"
-#include "master/drf_sorter.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
+
+#include "master/allocator/allocator.hpp"
+#include "master/allocator/mesos/hierarchical.hpp"
 
 #include "module/manager.hpp"
 
@@ -70,10 +77,15 @@ using namespace mesos::internal::log;
 using namespace mesos::internal::master;
 using namespace zookeeper;
 
+using memory::shared_ptr;
+
 using mesos::MasterInfo;
+
+using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
 using process::Owned;
+using process::RateLimiter;
 using process::UPID;
 
 using std::cerr;
@@ -81,6 +93,7 @@ using std::cout;
 using std::endl;
 using std::set;
 using std::string;
+using std::vector;
 
 
 void usage(const char* argv0, const flags::FlagsBase& flags)
@@ -186,10 +199,7 @@ int main(int argc, char** argv)
     LOG(INFO) << "Git SHA: " << build::GIT_SHA.get();
   }
 
-  allocator::AllocatorProcess* allocatorProcess =
-    new allocator::HierarchicalDRFAllocatorProcess();
-  allocator::Allocator* allocator =
-    new allocator::Allocator(allocatorProcess);
+  allocator::Allocator* allocator = new allocator::HierarchicalDRFAllocator();
 
   state::Storage* storage = NULL;
   Log* log = NULL;
@@ -221,20 +231,7 @@ int main(int argc, char** argv)
                 << " registry when using ZooKeeper";
       }
 
-      string zk_;
-      if (strings::startsWith(zk.get(), "file://")) {
-        const string& path = zk.get().substr(7);
-        const Try<string> read = os::read(path);
-        if (read.isError()) {
-          EXIT(1) << "Failed to read from file at '" + path + "': "
-                  << read.error();
-        }
-        zk_ = read.get();
-      } else {
-        zk_ = zk.get();
-      }
-
-      Try<URL> url = URL::parse(zk_);
+      Try<zookeeper::URL> url = zookeeper::URL::parse(zk.get());
       if (url.isError()) {
         EXIT(1) << "Error parsing ZooKeeper URL: " << url.error();
       }
@@ -299,6 +296,55 @@ int main(int argc, char** argv)
     authorizer = authorizer__.release();
   }
 
+  Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();
+  if (flags.slave_removal_rate_limit.isSome()) {
+    // Parse the flag value.
+    // TODO(vinod): Move this parsing logic to flags once we have a
+    // 'Rate' abstraction in stout.
+    vector<string> tokens =
+      strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
+
+    if (tokens.size() != 2) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>";
+    }
+
+    Try<int> permits = numify<int>(tokens[0]);
+    if (permits.isError()) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>"
+              << ": " << permits.error();
+    }
+
+    Try<Duration> duration = Duration::parse(tokens[1]);
+    if (duration.isError()) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>"
+              << ": " << duration.error();
+    }
+
+    slaveRemovalLimiter = new RateLimiter(permits.get(), duration.get());
+  }
+
+  // Create anonymous modules.
+  foreach (const string& name, ModuleManager::find<Anonymous>()) {
+    Try<Anonymous*> create = ModuleManager::create<Anonymous>(name);
+    if (create.isError()) {
+      EXIT(1) << "Failed to create anonymous module named '" << name << "'";
+    }
+
+    // We don't bother keeping around the pointer to this anonymous
+    // module, when we exit that will effectively free it's memory.
+    //
+    // TODO(benh): We might want to add explicit finalization (and
+    // maybe explicit initialization too) in order to let the module
+    // do any housekeeping necessary when the master is cleanly
+    // terminating.
+  }
+
   LOG(INFO) << "Starting Mesos master";
 
   Master* master =
@@ -310,6 +356,7 @@ int main(int argc, char** argv)
       contender,
       detector,
       authorizer,
+      slaveRemovalLimiter,
       flags);
 
   if (zk.isNone()) {
@@ -319,11 +366,10 @@ int main(int argc, char** argv)
   }
 
   process::spawn(master);
-
   process::wait(master->self());
+
   delete master;
   delete allocator;
-  delete allocatorProcess;
 
   delete registrar;
   delete repairer;

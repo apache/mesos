@@ -44,24 +44,22 @@ JSON::Object model(const Resources& resources)
   object.values["mem"] = 0;
   object.values["disk"] = 0;
 
-  const Option<double>& cpus = resources.cpus();
-  if (cpus.isSome()) {
-    object.values["cpus"] = cpus.get();
-  }
-
-  const Option<Bytes>& mem = resources.mem();
-  if (mem.isSome()) {
-    object.values["mem"] = mem.get().megabytes();
-  }
-
-  const Option<Bytes>& disk = resources.disk();
-  if (disk.isSome()) {
-    object.values["disk"] = disk.get().megabytes();
-  }
-
-  const Option<Value::Ranges>& ports = resources.ports();
-  if (ports.isSome()) {
-    object.values["ports"] = stringify(ports.get());
+  foreach (const Resource& resource, resources)
+  {
+    switch(resource.type())
+    {
+      case Value::SCALAR:
+        object.values[resource.name()] = resource.scalar().value();
+        break;
+      case Value::RANGES:
+        object.values[resource.name()] = stringify(resource.ranges());
+        break;
+      case Value::SET:
+        object.values[resource.name()] = stringify(resource.set());
+        break;
+      default:
+        LOG(FATAL) << "Unexpected Value type: " << resource.type();
+    }
   }
 
   return object;
@@ -106,39 +104,6 @@ JSON::Object model(const TaskStatus& status)
   return object;
 }
 
-// Returns JSON object modeled on DiscoveryInfo
-JSON::Object model(const DiscoveryInfo& discovery)
-{
-  JSON::Object object;
-  object.values["visibility"] =
-    DiscoveryInfo::Visibility_Name(discovery.visibility());
-  if (discovery.has_name())
-    object.values["name"] = discovery.name();
-  if (discovery.has_environment())
-    object.values["environment"] = discovery.environment();
-  if (discovery.has_location())
-    object.values["location"] = discovery.location();
-  if (discovery.has_version())
-    object.values["version"] = discovery.version();
-
-  JSON::Array ports;
-  if (discovery.has_ports()) {
-    foreach (const Port& port, discovery.ports().ports()) {
-      ports.values.push_back(JSON::Protobuf(port));
-    }
-  }
-  object.values["ports"] = ports;
-
-  JSON::Array labels;
-  if (discovery.has_labels()) {
-    foreach (const Label& label, discovery.labels().labels()) {
-       labels.values.push_back(JSON::Protobuf(label));
-     }
-  }
-  object.values["labels"] = labels;
-
-  return object;
-}
 
 // TODO(bmahler): Expose the executor name / source.
 JSON::Object model(const Task& task)
@@ -173,7 +138,7 @@ JSON::Object model(const Task& task)
   object.values["labels"] = labels;
 
   if (task.has_discovery()) {
-    object.values["discovery"] = model(task.discovery());
+    object.values["discovery"] = JSON::Protobuf(task.discovery());
   }
 
   return object;
@@ -217,7 +182,7 @@ JSON::Object model(
   object.values["labels"] = labels;
 
   if (task.has_discovery()) {
-    object.values["discovery"] = model(task.discovery());
+    object.values["discovery"] = JSON::Protobuf(task.discovery());
   }
 
   return object;

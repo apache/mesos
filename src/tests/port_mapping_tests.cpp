@@ -23,12 +23,15 @@
 #include <vector>
 
 #include <process/future.hpp>
+#include <process/io.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/gtest.hpp>
+#include <stout/ip.hpp>
 #include <stout/json.hpp>
+#include <stout/mac.hpp>
 #include <stout/net.hpp>
 
 #include "linux/fs.hpp"
@@ -59,11 +62,7 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-
-using namespace mesos::internal;
 using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
 
 using namespace process;
 
@@ -73,11 +72,7 @@ using namespace routing::queueing;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::Launcher;
-using mesos::internal::slave::LinuxLauncher;
-using mesos::internal::slave::MesosContainerizer;
-using mesos::internal::slave::MesosContainerizerLaunch;
-using mesos::internal::slave::PortMappingIsolatorProcess;
+using mesos::slave::Isolator;
 
 using std::list;
 using std::ostringstream;
@@ -88,6 +83,10 @@ using std::vector;
 using testing::_;
 using testing::Eq;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 // An old glibc might not have this symbol.
@@ -194,13 +193,13 @@ protected:
     cleanup(eth0, lo);
 
     // Get host IP address.
-    Result<net::IP> _hostIP = net::ip(eth0);
+    Result<net::IPNetwork> _hostIPNetwork = net::fromLinkDevice(eth0, AF_INET);
 
-    CHECK_SOME(_hostIP)
-      << "Failed to retrieve the host public IP from " << eth0 << ": "
-      << _hostIP.error();
+    CHECK_SOME(_hostIPNetwork)
+      << "Failed to retrieve the host public IP network from " << eth0 << ": "
+      << _hostIPNetwork.error();
 
-    hostIP = _hostIP.get();
+    hostIPNetwork = _hostIPNetwork.get();
 
     // Get all the external name servers for tests that need to talk
     // to an external host, e.g., ping, DNS.
@@ -308,14 +307,55 @@ protected:
     return pid;
   }
 
+
+  JSON::Object statisticsHelper(
+      pid_t pid,
+      bool enable_summary,
+      bool enable_details)
+  {
+    // Retrieve the socket information from inside the container.
+    PortMappingStatistics statistics;
+    statistics.flags.pid = pid;
+    statistics.flags.enable_socket_statistics_summary = enable_summary;
+    statistics.flags.enable_socket_statistics_details = enable_details;
+
+    vector<string> argv(2);
+    argv[0] = "mesos-network-helper";
+    argv[1] = PortMappingStatistics::NAME;
+
+    // We don't need STDIN; we need STDOUT for the result; we leave
+    // STDERR as is to log to slave process.
+    Try<Subprocess> s = subprocess(
+        path::join(flags.launcher_dir, "mesos-network-helper"),
+        argv,
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PIPE(),
+        Subprocess::FD(STDERR_FILENO),
+        statistics.flags);
+
+    CHECK_SOME(s);
+
+    Future<Option<int> > status = s.get().status();
+    AWAIT_EXPECT_READY(status);
+    EXPECT_SOME_EQ(0, status.get());
+
+    Future<string> out = io::read(s.get().out().get());
+    AWAIT_EXPECT_READY(out);
+
+    Try<JSON::Object> object = JSON::parse<JSON::Object>(out.get());
+    CHECK_SOME(object);
+
+    return object.get();
+  }
+
   slave::Flags flags;
 
   // Name of the host eth0 and lo.
   string eth0;
   string lo;
 
-  // Host public IP.
-  Option<net::IP> hostIP;
+  // Host public IP network.
+  Option<net::IPNetwork> hostIPNetwork;
 
   // 'port' is within the range of ports assigned to one container.
   int port;
@@ -380,7 +420,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   command1 << "nc -l localhost " << port << " > " << trafficViaLoopback << "& ";
 
   // Listen to 'public ip' and 'port'.
-  command1 << "nc -l " << net::IP(hostIP.get().address()) << " " << port
+  command1 << "nc -l " << hostIPNetwork.get().address() << " " << port
            << " > " << trafficViaPublic << "& ";
 
   // Listen to 'errorPort'. This should not get anything.
@@ -442,10 +482,10 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   // Send to 'localhost' and 'errorPort'. This should fail.
   command2 << "echo -n hello2 | nc localhost " << errorPort << ";";
   // Send to 'public IP' and 'port'.
-  command2 << "echo -n hello3 | nc " << net::IP(hostIP.get().address())
+  command2 << "echo -n hello3 | nc " << hostIPNetwork.get().address()
            << " " << port << ";";
   // Send to 'public IP' and 'errorPort'. This should fail.
-  command2 << "echo -n hello4 | nc " << net::IP(hostIP.get().address())
+  command2 << "echo -n hello4 | nc " << hostIPNetwork.get().address()
            << " " << errorPort << ";";
   // Touch the guard file.
   command2 << "touch " << container2Ready;
@@ -531,7 +571,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
            << trafficViaLoopback << "& ";
 
   // Listen to 'public ip' and 'port'.
-  command1 << "nc -u -l " << net::IP(hostIP.get().address()) << " " << port
+  command1 << "nc -u -l " << hostIPNetwork.get().address() << " " << port
            << " > " << trafficViaPublic << "& ";
 
   // Listen to 'errorPort'. This should not receive anything.
@@ -593,10 +633,10 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   // Send to 'localhost' and 'errorPort'. No data should be sent.
   command2 << "echo -n hello2 | nc -w1 -u localhost " << errorPort << ";";
   // Send to 'public IP' and 'port'.
-  command2 << "echo -n hello3 | nc -w1 -u " << net::IP(hostIP.get().address())
+  command2 << "echo -n hello3 | nc -w1 -u " << hostIPNetwork.get().address()
            << " " << port << ";";
   // Send to 'public IP' and 'errorPort'. No data should be sent.
-  command2 << "echo -n hello4 | nc -w1 -u " << net::IP(hostIP.get().address())
+  command2 << "echo -n hello4 | nc -w1 -u " << hostIPNetwork.get().address()
            << " " << errorPort << ";";
   // Touch the guard file.
   command2 << "touch " << container2Ready;
@@ -684,7 +724,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
            << trafficViaLoopback << "&";
 
   // Listen to 'public IP' and 'Port'.
-  command1 << "nc -u -l " << net::IP(hostIP.get().address()) << " " << port
+  command1 << "nc -u -l " << hostIPNetwork.get().address() << " " << port
            << " > " << trafficViaPublic << "&";
 
   // Listen to 'public IP' and 'errorPort'. This should not receive anything.
@@ -740,7 +780,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
   ASSERT_SOME_EQ(0, os::shell(
       NULL,
       "echo -n hello3 | nc -w1 -u %s %s",
-      stringify(net::IP(hostIP.get().address())).c_str(),
+      stringify(hostIPNetwork.get().address()).c_str(),
       stringify(port).c_str()));
 
   // Send to 'public IP' and 'errorPort'. The command should return
@@ -748,7 +788,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
   ASSERT_SOME_EQ(0, os::shell(
       NULL,
       "echo -n hello4 | nc -w1 -u %s %s",
-      stringify(net::IP(hostIP.get().address())).c_str(),
+      stringify(hostIPNetwork.get().address()).c_str(),
       stringify(errorPort).c_str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
@@ -800,7 +840,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   command1 << "nc -l localhost " << port << " > " << trafficViaLoopback << "&";
 
   // Listen to 'public IP' and 'Port'.
-  command1 << "nc -l " << net::IP(hostIP.get().address()) << " " << port
+  command1 << "nc -l " << hostIPNetwork.get().address() << " " << port
            << " > " << trafficViaPublic << "&";
 
   // Listen to 'public IP' and 'errorPort'. This should fail.
@@ -856,7 +896,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   ASSERT_SOME_EQ(0, os::shell(
       NULL,
       "echo -n hello3 | nc %s %s",
-      stringify(net::IP(hostIP.get().address())).c_str(),
+      stringify(hostIPNetwork.get().address()).c_str(),
       stringify(port).c_str()));
 
   // Send to 'public IP' and 'errorPort'. This should fail because TCP
@@ -864,7 +904,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   ASSERT_SOME_EQ(256, os::shell(
       NULL,
       "echo -n hello4 | nc %s %s",
-      stringify(net::IP(hostIP.get().address())).c_str(),
+      stringify(hostIPNetwork.get().address()).c_str(),
       stringify(errorPort).c_str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
@@ -1001,7 +1041,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternalTest)
   ostringstream command1;
 
   command1 << "ping -c1 127.0.0.1 && ping -c1 "
-           << stringify(net::IP(hostIP.get().address()));
+           << stringify(hostIPNetwork.get().address());
 
   command1 << "; echo -n $? > " << exitStatus << "; sync";
 
@@ -1442,9 +1482,38 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
 }
 
 
+bool HasTCPSocketsCount(const JSON::Object& object)
+{
+  return object.find<JSON::Number>("net_tcp_active_connections").isSome() &&
+    object.find<JSON::Number>("net_tcp_time_wait_connections").isSome();
+}
+
+
+bool HasTCPSocketsRTT(const JSON::Object& object)
+{
+  Result<JSON::Number> p50 =
+    object.find<JSON::Number>("net_tcp_rtt_microsecs_p50");
+  Result<JSON::Number> p90 =
+    object.find<JSON::Number>("net_tcp_rtt_microsecs_p90");
+  Result<JSON::Number> p95 =
+    object.find<JSON::Number>("net_tcp_rtt_microsecs_p95");
+  Result<JSON::Number> p99 =
+    object.find<JSON::Number>("net_tcp_rtt_microsecs_p99");
+
+  // We either have all of the following metrics or we have nothing.
+  if (!p50.isSome() && !p90.isSome() && !p95.isSome() && !p99.isSome()) {
+    return false;
+  }
+
+  EXPECT_TRUE(p50.isSome() && p90.isSome() && p95.isSome() && p99.isSome());
+
+  return true;
+}
+
+
 // Test that RTT can be returned properly from usage(). This test is
-// very similar to SmallEgressLimitTest in its set up.
-TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
+// very similar to SmallEgressLimitTest in its setup.
+TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
 {
   // To-be-tested egress rate limit, in Bytes/s.
   const Bytes rate = 2000;
@@ -1453,7 +1522,8 @@ TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
 
   // Use a very small egress limit.
   flags.egress_rate_limit_per_container = rate;
-  flags.network_enable_socket_statistics = true;
+  flags.network_enable_socket_statistics_summary = true;
+  flags.network_enable_socket_statistics_details = true;
 
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -1467,7 +1537,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
   // connections to the localhost IP are filtered out when retrieving
   // the RTT information inside containers.
   Try<Subprocess> s = subprocess(
-      "nc -l " + stringify(net::IP(hostIP.get().address())) + " " +
+      "nc -l " + stringify(hostIPNetwork.get().address()) + " " +
       stringify(errorPort) + " > /devnull");
 
   CHECK_SOME(s);
@@ -1502,7 +1572,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
            << "Bytes/s...';";
 
   command1 << "{ time -p echo " << data  << " | nc "
-           << stringify(net::IP(hostIP.get().address())) << " "
+           << stringify(hostIPNetwork.get().address()) << " "
            << errorPort << " ; } 2> " << transmissionTime << " && ";
 
   // Touch the guard file.
@@ -1544,14 +1614,31 @@ TEST_F(PortMappingIsolatorTest, ROOT_ExportRTTTest)
     os::sleep(Milliseconds(200));
     waited += Milliseconds(200);
 
+    // Do an end-to-end test by calling `usage`.
     Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
     AWAIT_READY(usage);
 
-    if (usage.get().has_net_tcp_rtt_microsecs_p50()) {
+    if (usage.get().has_net_tcp_rtt_microsecs_p50() &&
+        usage.get().has_net_tcp_active_connections()) {
+      EXPECT_GT(usage.get().net_tcp_active_connections(), 0);
       break;
     }
   } while (waited < Seconds(5));
   ASSERT_LT(waited, Seconds(5));
+
+  // While the connection is still active, try out different flag
+  // combinations.
+  JSON::Object object = statisticsHelper(pid.get(), true, true);
+  ASSERT_TRUE(HasTCPSocketsCount(object) && HasTCPSocketsRTT(object));
+
+  object = statisticsHelper(pid.get(), true, false);
+  ASSERT_TRUE(HasTCPSocketsCount(object) && !HasTCPSocketsRTT(object));
+
+  object = statisticsHelper(pid.get(), false, true);
+  ASSERT_TRUE(!HasTCPSocketsCount(object) && HasTCPSocketsRTT(object));
+
+  object = statisticsHelper(pid.get(), false, false);
+  ASSERT_TRUE(!HasTCPSocketsCount(object) && !HasTCPSocketsRTT(object));
 
   // Wait for the command to finish.
   while (!os::exists(container1Ready));
@@ -1961,3 +2048,7 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   Shutdown();
   delete containerizer2.get();
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

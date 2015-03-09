@@ -31,11 +31,15 @@ import org.apache.mesos.Protos.*;
 
 public class TestFramework {
   static class TestScheduler implements Scheduler {
-    public TestScheduler(ExecutorInfo executor) {
-      this(executor, 5);
+    public TestScheduler(boolean implicitAcknowledgements,
+                         ExecutorInfo executor) {
+      this(implicitAcknowledgements, executor, 5);
     }
 
-    public TestScheduler(ExecutorInfo executor, int totalTasks) {
+    public TestScheduler(boolean implicitAcknowledgements,
+                         ExecutorInfo executor,
+                         int totalTasks) {
+      this.implicitAcknowledgements = implicitAcknowledgements;
       this.executor = executor;
       this.totalTasks = totalTasks;
     }
@@ -139,6 +143,10 @@ public class TestFramework {
                            " with message '" + status.getMessage() + "'");
         driver.abort();
       }
+
+      if (!implicitAcknowledgements) {
+        driver.acknowledgeStatusUpdate(status);
+      }
     }
 
     @Override
@@ -160,6 +168,7 @@ public class TestFramework {
       System.out.println("Error: " + message);
     }
 
+    private final boolean implicitAcknowledgements;
     private final ExecutorInfo executor;
     private final int totalTasks;
     private int launchedTasks = 0;
@@ -197,9 +206,16 @@ public class TestFramework {
       frameworkBuilder.setCheckpoint(true);
     }
 
+    boolean implicitAcknowledgements = true;
+
+    if (System.getenv("MESOS_EXPLICIT_ACKNOWLEDGEMENTS") != null) {
+      System.out.println("Enabling explicit acknowledgements for status updates");
+      implicitAcknowledgements = false;
+    }
+
     Scheduler scheduler = args.length == 1
-        ? new TestScheduler(executor)
-        : new TestScheduler(executor, Integer.parseInt(args[1]));
+        ? new TestScheduler(implicitAcknowledgements, executor)
+        : new TestScheduler(implicitAcknowledgements, executor, Integer.parseInt(args[1]));
 
     MesosSchedulerDriver driver = null;
     if (System.getenv("MESOS_AUTHENTICATE") != null) {
@@ -222,11 +238,16 @@ public class TestFramework {
 
       frameworkBuilder.setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
 
-      driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), args[0], credential);
+      driver = new MesosSchedulerDriver(
+          scheduler,
+          frameworkBuilder.build(),
+          args[0],
+          implicitAcknowledgements,
+          credential);
     } else {
       frameworkBuilder.setPrincipal("test-framework-java");
 
-      driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), args[0]);
+      driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), args[0], implicitAcknowledgements);
     }
 
     int status = driver.run() == Status.DRIVER_STOPPED ? 0 : 1;

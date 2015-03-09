@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-#ifndef __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
-#define __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
+#ifndef __MASTER_ALLOCATOR_MESOS_HIERARCHICAL_HPP__
+#define __MASTER_ALLOCATOR_MESOS_HIERARCHICAL_HPP__
 
 #include <algorithm>
 #include <vector>
 
 #include <mesos/resources.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/delay.hpp>
 #include <process/id.hpp>
@@ -34,10 +35,8 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
-#include "master/allocator.hpp"
-#include "master/drf_sorter.hpp"
-#include "master/master.hpp"
-#include "master/sorter.hpp"
+#include "master/allocator/mesos/allocator.hpp"
+#include "master/allocator/sorter/drf/sorter.hpp"
 
 namespace mesos {
 namespace internal {
@@ -56,11 +55,14 @@ class HierarchicalAllocatorProcess;
 typedef HierarchicalAllocatorProcess<DRFSorter, DRFSorter>
 HierarchicalDRFAllocatorProcess;
 
+typedef MesosAllocator<HierarchicalDRFAllocatorProcess>
+HierarchicalDRFAllocator;
+
 
 // Implements the basic allocator algorithm - first pick a role by
 // some criteria, then pick one of their frameworks to allocate to.
 template <typename RoleSorter, typename FrameworkSorter>
-class HierarchicalAllocatorProcess : public AllocatorProcess
+class HierarchicalAllocatorProcess : public MesosAllocatorProcess
 {
 public:
   HierarchicalAllocatorProcess();
@@ -112,10 +114,10 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests);
 
-  void transformAllocation(
+  void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      const process::Shared<Resources::Transformation>& transformation);
+      const std::vector<Offer::Operation>& operations);
 
   void recoverResources(
       const FrameworkID& frameworkId,
@@ -548,10 +550,10 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::requestResources(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateAllocation(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    const process::Shared<Resources::Transformation>& transformation)
+    const std::vector<Offer::Operation>& operations)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
@@ -562,9 +564,9 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
   //
   //    total = available + allocated
   //
-  // Here we apply a transformation to the allocated resources,
-  // which in turns leads to a transformation of the total. The
-  // available resources remain unchanged.
+  // Here we apply offer operations to the allocated resources, which
+  // in turns leads to an update of the total. The available resources
+  // remain unchanged.
 
   FrameworkSorter* frameworkSorter =
     frameworkSorters[frameworks[frameworkId].role];
@@ -572,44 +574,36 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::transformAllocation(
   Resources allocation = frameworkSorter->allocation(frameworkId.value());
 
   // Update the allocated resources.
-  // TODO(bmahler): Check transformation invariants! Namely,
-  // we don't want the quantity or the static roles of the
-  // allocation to be altered.
-  Try<Resources> transformedAllocation = (*transformation)(allocation);
+  Try<Resources> updatedAllocation = allocation.apply(operations);
+  CHECK_SOME(updatedAllocation);
 
-  CHECK_SOME(transformedAllocation);
-
-  frameworkSorter->transform(
+  frameworkSorter->update(
       frameworkId.value(),
       allocation,
-      transformedAllocation.get());
+      updatedAllocation.get());
 
-  roleSorter->transform(
+  roleSorter->update(
       frameworks[frameworkId].role,
       allocation.unreserved(),
-      transformedAllocation.get().unreserved());
+      updatedAllocation.get().unreserved());
 
   // Update the total resources.
-  // TODO(bmahler): Check transformation invariants! Namely,
-  // we don't want the quantity or the static roles of the
-  // total to be altered.
-  Try<Resources> transformedTotal = (*transformation)(slaves[slaveId].total);
+  Try<Resources> updatedTotal = slaves[slaveId].total.apply(operations);
+  CHECK_SOME(updatedTotal);
 
-  CHECK_SOME(transformedTotal);
-
-  slaves[slaveId].total = transformedTotal.get();
+  slaves[slaveId].total = updatedTotal.get();
 
   // TODO(bmahler): Validate that the available resources are
   // unaffected. This requires augmenting the sorters with
   // SlaveIDs for allocations, so that we can do:
   //
-  //   CHECK_EQ(slaves[slaveId].total - transformedSlaveAllocation,
+  //   CHECK_EQ(slaves[slaveId].total - updatedAllocation,
   //            slaves[slaveId].available);
 
-  // TODO(jieyu): Do not log if there is no transformation.
+  // TODO(jieyu): Do not log if there is no update.
   LOG(INFO) << "Updated allocation of framework " << frameworkId
             << " on slave " << slaveId
-            << " from " << allocation << " to " << transformedAllocation.get();
+            << " from " << allocation << " to " << updatedAllocation.get();
 }
 
 
@@ -629,8 +623,9 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
 
   // Updated resources allocated to framework (if framework still
   // exists, which it might not in the event that we dispatched
-  // Master::offer before we received AllocatorProcess::removeFramework
-  // or AllocatorProcess::deactivateFramework, in which case we will
+  // Master::offer before we received
+  // MesosAllocatorProcess::removeFramework or
+  // MesosAllocatorProcess::deactivateFramework, in which case we will
   // have already recovered all of its resources).
   if (frameworks.contains(frameworkId)) {
     const std::string& role = frameworks[frameworkId].role;
@@ -800,11 +795,11 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
 
-        Resources unreserved = slaves[slaveId].available.unreserved();
-        Resources resources = unreserved;
-        if (role != "*") {
-          resources += slaves[slaveId].available.reserved(role);
-        }
+        // NOTE: Currently, frameworks are allowed to have '*' role.
+        // Calling reserved('*') returns an empty Resources object.
+        Resources resources =
+          slaves[slaveId].available.unreserved() +
+          slaves[slaveId].available.reserved(role);
 
         // If the resources are not allocatable, ignore.
         if (!allocatable(resources)) {
@@ -830,7 +825,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         // roles.
         frameworkSorters[role]->add(resources);
         frameworkSorters[role]->allocated(frameworkId_, resources);
-        roleSorter->allocated(role, unreserved);
+        roleSorter->allocated(role, resources.unreserved());
       }
     }
   }
@@ -927,4 +922,4 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __HIERARCHICAL_ALLOCATOR_PROCESS_HPP__
+#endif // __MASTER_ALLOCATOR_MESOS_HIERARCHICAL_HPP__

@@ -16,26 +16,25 @@
  * limitations under the License.
  */
 
-#ifndef __MODULE_HOOK_HPP__
-#define __MODULE_HOOK_HPP__
+#ifndef __MESOS_MODULE_AUTHENTICATEE_HPP__
+#define __MESOS_MODULE_AUTHENTICATEE_HPP__
 
-#include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
-#include "hook/hook.hpp"
+#include <mesos/authentication/authenticatee.hpp>
 
 namespace mesos {
 namespace modules {
 
 template<>
-inline const char* kind<mesos::internal::Hook>()
+inline const char* kind<mesos::Authenticatee>()
 {
-  return "Hook";
+  return "Authenticatee";
 }
 
 
 template <>
-struct Module<mesos::internal::Hook> : ModuleBase
+struct Module<mesos::Authenticatee> : ModuleBase
 {
   Module(
       const char* _moduleApiVersion,
@@ -44,11 +43,11 @@ struct Module<mesos::internal::Hook> : ModuleBase
       const char* _authorEmail,
       const char* _description,
       bool (*_compatible)(),
-      mesos::internal::Hook* (*_create)(const Parameters& parameters))
+      mesos::Authenticatee* (*_create)(const Parameters& parameters))
     : ModuleBase(
         _moduleApiVersion,
         _mesosVersion,
-        mesos::modules::kind<mesos::internal::Hook>(),
+        mesos::modules::kind<mesos::Authenticatee>(),
         _authorName,
         _authorEmail,
         _description,
@@ -56,10 +55,10 @@ struct Module<mesos::internal::Hook> : ModuleBase
       create(_create)
   { }
 
-  mesos::internal::Hook* (*create)(const Parameters& parameters);
+  mesos::Authenticatee* (*create)(const Parameters& parameters);
 };
 
 } // namespace modules {
 } // namespace mesos {
 
-#endif // __MODULE_HOOK_HPP__
+#endif // __MESOS_MODULE_AUTHENTICATEE_HPP__

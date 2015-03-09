@@ -25,19 +25,17 @@
 
 #include <process/metrics/metrics.hpp>
 
-#include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
+#include "master/allocator/allocator.hpp"
+
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
+using namespace mesos::internal::master;
 
-using mesos::internal::master::Master;
-
-using mesos::internal::master::allocator::AllocatorProcess;
+using mesos::internal::master::allocator::MesosAllocatorProcess;
 
 using process::metrics::internal::MetricsProcess;
 
@@ -53,23 +51,7 @@ using testing::Return;
 
 namespace mesos {
 namespace internal {
-namespace master {
-
-// Query Mesos metrics snapshot endpoint and return a JSON::Object
-// result.
-#define METRICS_SNAPSHOT                                                       \
-  ({ Future<process::http::Response> response =                                \
-       process::http::get(MetricsProcess::instance()->self(), "snapshot");     \
-     AWAIT_READY(response);                                                    \
-                                                                               \
-     EXPECT_SOME_EQ(                                                           \
-         "application/json",                                                   \
-         response.get().headers.get("Content-Type"));                          \
-                                                                               \
-     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body); \
-     ASSERT_SOME(parse);                                                       \
-                                                                               \
-     parse.get(); })
+namespace tests {
 
 
 // This test case covers tests related to framework API rate limiting
@@ -125,7 +107,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
 
   // Message counters not present before the framework registers.
   {
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     EXPECT_EQ(
         0u,
@@ -176,7 +158,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
 
     // Verify that one message is received and processed (after
     // registration).
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
@@ -190,7 +172,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   }
 
   Future<Nothing> removeFramework =
-    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
   driver->stop();
   driver->join();
@@ -207,7 +189,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
 
   // Message counters removed after the framework is unregistered.
   {
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     EXPECT_EQ(
         0u,
@@ -279,7 +261,7 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
 
     // Verify that one message is received and processed (after
     // registration).
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
@@ -308,7 +290,7 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
   Clock::settle();
 
   {
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
@@ -329,7 +311,7 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
   AWAIT_READY(duplicateFrameworkRegisteredMessage);
 
   // Verify counters after processing of the message.
-  JSON::Object metrics = METRICS_SNAPSHOT;
+  JSON::Object metrics = Metrics();
 
   const string& messages_received =
     "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
@@ -483,7 +465,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
     {
       // Verify counters also indicate that messages are received but
       // not processed.
-      JSON::Object metrics = METRICS_SNAPSHOT;
+      JSON::Object metrics = Metrics();
 
       EXPECT_EQ(
           1u, metrics.values.count("frameworks/framework1/messages_received"));
@@ -520,7 +502,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
 
     // Framework1's message is processed and framework2's is not
     // because it's throttled at a lower rate.
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
     EXPECT_EQ(
         2,
         metrics.values["frameworks/framework1/messages_processed"]
@@ -538,7 +520,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
 
   // 2. Counters confirm that both frameworks' messages are processed.
   {
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     EXPECT_EQ(
         1u, metrics.values.count("frameworks/framework1/messages_received"));
@@ -569,7 +551,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   // 3. Remove a framework and its message counters are deleted while
   // the other framework's counters stay.
   Future<Nothing> removeFramework =
-    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
   driver1->stop();
   driver1->join();
@@ -587,7 +569,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   // Advance for Metrics rate limiting.
   Clock::advance(Milliseconds(501));
 
-  JSON::Object metrics = METRICS_SNAPSHOT;
+  JSON::Object metrics = Metrics();
 
   EXPECT_EQ(
       0u, metrics.values.count("frameworks/framework1/messages_received"));
@@ -677,7 +659,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
 
   // Message counters added after both frameworks are registered.
   {
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     EXPECT_EQ(
         1u,
@@ -715,7 +697,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   Clock::advance(Milliseconds(501));
 
   {
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     // Two messages received and one processed.
     const string& messages_received =
@@ -736,7 +718,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   AWAIT_READY(duplicateFrameworkRegisteredMessage2);
 
   Future<Nothing> removeFramework =
-    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
   driver1->stop();
   driver1->join();
@@ -755,7 +737,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   Clock::advance(Milliseconds(501));
 
   {
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     EXPECT_EQ(
         1u,
@@ -836,7 +818,7 @@ TEST_F(RateLimitingTest, SchedulerFailover)
     Clock::settle();
 
     // Verify the message counters.
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     // One message received and processed after the framework is
     // registered.
@@ -906,7 +888,7 @@ TEST_F(RateLimitingTest, SchedulerFailover)
   Clock::advance(Milliseconds(501));
 
   {
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     // Verify that counters correctly indicates the message is
     // received but not processed.
@@ -930,7 +912,7 @@ TEST_F(RateLimitingTest, SchedulerFailover)
   Clock::advance(Milliseconds(501));
 
   {
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     // Another message after sched2 is reregistered plus the one from
     // the sched1.
@@ -1022,7 +1004,7 @@ TEST_F(RateLimitingTest, CapacityReached)
 
     // Verify that one message is received and processed (after
     // registration).
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
@@ -1077,7 +1059,7 @@ TEST_F(RateLimitingTest, CapacityReached)
   Clock::advance(Milliseconds(501));
 
   {
-    JSON::Object metrics = METRICS_SNAPSHOT;
+    JSON::Object metrics = Metrics();
 
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
@@ -1099,7 +1081,7 @@ TEST_F(RateLimitingTest, CapacityReached)
 
   // Counters are not removed because the scheduler is not
   // unregistered and the master expects it to failover.
-  JSON::Object metrics = METRICS_SNAPSHOT;
+  JSON::Object metrics = Metrics();
 
   const string& messages_received =
     "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
@@ -1114,6 +1096,6 @@ TEST_F(RateLimitingTest, CapacityReached)
   Shutdown();
 }
 
-} // namespace master {
+} // namespace tests {
 } // namespace internal {
 } // namespace mesos {

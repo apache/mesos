@@ -102,10 +102,15 @@ Try<Nothing> encode<icmp::Classifier>(
   }
 
   if (classifier.destinationIP().isSome()) {
+    Try<struct in_addr> in = classifier.destinationIP().get().in();
+    if (in.isError()) {
+      return Error("Destination IP is not an IPv4 address");
+    }
+
     // To match those IP packets that have the given destination IP.
     error = rtnl_u32_add_key(
         cls.get(),
-        htonl(classifier.destinationIP().get().address()),
+        in.get().s_addr,
         htonl(0xffffffff),
         16, // Offset from which to start matching.
         0);
@@ -113,7 +118,7 @@ Try<Nothing> encode<icmp::Classifier>(
     if (error != 0) {
       return Error(
           "Failed to add selector for destination IP address: " +
-          string(nl_geterror(error)));
+           string(nl_geterror(error)));
     }
   }
 

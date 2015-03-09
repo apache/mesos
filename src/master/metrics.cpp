@@ -21,7 +21,6 @@
 #include "master/master.hpp"
 #include "master/metrics.hpp"
 
-
 namespace mesos {
 namespace internal {
 namespace master {
@@ -148,7 +147,11 @@ Metrics::Metrics(const Master& master)
     slave_reregistrations(
         "master/slave_reregistrations"),
     slave_removals(
-        "master/slave_removals")
+        "master/slave_removals"),
+    slave_shutdowns_scheduled(
+        "master/slave_shutdowns_scheduled"),
+    slave_shutdowns_canceled(
+        "master/slave_shutdowns_canceled")
 {
   // TODO(dhamon): Check return values of 'add'.
   process::metrics::add(uptime_secs);
@@ -219,6 +222,9 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(slave_registrations);
   process::metrics::add(slave_reregistrations);
   process::metrics::add(slave_removals);
+
+  process::metrics::add(slave_shutdowns_scheduled);
+  process::metrics::add(slave_shutdowns_canceled);
 
   // Create resource gauges.
   // TODO(dhamon): Set these up dynamically when adding a slave based on the
@@ -319,6 +325,9 @@ Metrics::~Metrics()
   process::metrics::remove(slave_reregistrations);
   process::metrics::remove(slave_removals);
 
+  process::metrics::remove(slave_shutdowns_scheduled);
+  process::metrics::remove(slave_shutdowns_canceled);
+
   foreach (const process::metrics::Gauge& gauge, resources_total) {
     process::metrics::remove(gauge);
   }
@@ -333,6 +342,41 @@ Metrics::~Metrics()
     process::metrics::remove(gauge);
   }
   resources_percent.clear();
+
+  foreachvalue (const auto& source_reason, tasks_states) {
+    foreachvalue (const auto& reason_counter, source_reason) {
+      foreachvalue (const process::metrics::Counter& counter, reason_counter) {
+        process::metrics::remove(counter);
+      }
+    }
+  }
+  tasks_states.clear();
+}
+
+
+void Metrics::incrementTasksStates(
+    TaskState state, TaskStatus::Source source, TaskStatus::Reason reason)
+{
+  if (!tasks_states.contains(state)) {
+    tasks_states[state] = SourcesReasons();
+  }
+  if (!tasks_states[state].contains(source)) {
+    tasks_states[state][source] = Reasons();
+  }
+  if (!tasks_states[state][source].contains(reason)) {
+    process::metrics::Counter counter =
+        process::metrics::Counter(
+            "master/" +
+            strings::lower(TaskState_Name(state)) + "/" +
+            strings::lower(TaskStatus::Source_Name(source)) + "/" +
+            strings::lower(TaskStatus::Reason_Name(reason)));
+    tasks_states[state][source].put(reason, counter);
+    process::metrics::add(counter);
+  }
+
+  process::metrics::Counter counter =
+    tasks_states[state][source].get(reason).get();
+  counter++;
 }
 
 

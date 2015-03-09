@@ -37,7 +37,7 @@ namespace internal {
 
 struct Delay
 {
-  void(*function)(void);
+  lambda::function<void(void)> function;
   event* timer;
 };
 
@@ -45,13 +45,16 @@ void handle_delay(int, short, void* arg)
 {
   Delay* delay = reinterpret_cast<Delay*>(arg);
   delay->function();
+  event_free(delay->timer);
   delete delay;
 }
 
 }  // namespace internal {
 
 
-void EventLoop::delay(const Duration& duration, void(*function)(void))
+void EventLoop::delay(
+    const Duration& duration,
+    const lambda::function<void(void)>& function)
 {
   internal::Delay* delay = new internal::Delay();
   delay->timer = evtimer_new(base, &internal::handle_delay, delay);

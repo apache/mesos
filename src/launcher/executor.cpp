@@ -27,6 +27,7 @@
 #include <vector>
 
 #include <mesos/executor.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -48,7 +49,6 @@
 #include <stout/strings.hpp>
 
 #include "common/http.hpp"
-#include "common/type_utils.hpp"
 #include "common/status_utils.hpp"
 
 #include "logging/logging.hpp"
@@ -56,10 +56,10 @@
 #include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
-#include "slave/graceful_shutdown.hpp"
+
+using namespace mesos::internal::slave;
 
 using process::wait; // Necessary on some OS's to disambiguate.
-using namespace mesos::internal::slave;
 
 using std::cout;
 using std::cerr;
@@ -75,18 +75,15 @@ using namespace process;
 class CommandExecutorProcess : public ProtobufProcess<CommandExecutorProcess>
 {
 public:
-  CommandExecutorProcess(
-      Option<char**> override,
-      const string& healthCheckDir,
-      const Duration& shutdownTimeout)
+  CommandExecutorProcess(Option<char**> override, const string& _healthCheckDir)
     : launched(false),
       killed(false),
       killedByHealthCheck(false),
       pid(-1),
       healthPid(-1),
-      shutdownTimeout(shutdownTimeout),
+      escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
       driver(None()),
-      healthCheckDir(healthCheckDir),
+      healthCheckDir(_healthCheckDir),
       override(override) {}
 
   virtual ~CommandExecutorProcess() {}
@@ -328,7 +325,7 @@ public:
       // TODO(nnielsen): Make escalationTimeout configurable through
       // slave flags and/or per-framework/executor.
       escalationTimer = delay(
-          shutdownTimeout,
+          escalationTimeout,
           self(),
           &Self::escalated);
 
@@ -430,12 +427,8 @@ private:
 
   void escalated()
   {
-    // TODO(alex): If the escalation timeout is too small, the process
-    // may have already exited, but not yet reaped. If this is the
-    // case, do not kill the process, since its OS pid could have been
-    // already reused.
     cout << "Process " << pid << " did not terminate after "
-         << shutdownTimeout << ", sending SIGKILL to "
+         << escalationTimeout << ", sending SIGKILL to "
          << "process tree at " << pid << endl;
 
     // TODO(nnielsen): Sending SIGTERM in the first stage of the
@@ -502,7 +495,7 @@ private:
   bool killedByHealthCheck;
   pid_t pid;
   pid_t healthPid;
-  Duration shutdownTimeout;
+  Duration escalationTimeout;
   Timer escalationTimer;
   Option<ExecutorDriver*> driver;
   string healthCheckDir;
@@ -513,15 +506,9 @@ private:
 class CommandExecutor: public Executor
 {
 public:
-  CommandExecutor(
-      Option<char**> override,
-      const string& healthCheckDir,
-      const Duration& shutdownTimeout)
+  CommandExecutor(Option<char**> override, string healthCheckDir)
   {
-    process = new CommandExecutorProcess(
-        override,
-        healthCheckDir,
-        shutdownTimeout);
+    process = new CommandExecutorProcess(override, healthCheckDir);
     spawn(process);
   }
 
@@ -610,10 +597,10 @@ public:
   {
     add(&override,
         "override",
-        "Whether or not to override the command the executor should run\n"
-        "when the task is launched. Only this flag is expected to be on\n"
-        "the command line and all arguments after the flag will be used as\n"
-        "the subsequent 'argv' to be used with 'execvp'",
+        "Whether to override the command the executor should run when the\n"
+        "task is launched. Only this flag is expected to be on the command\n"
+        "line and all arguments after the flag will be used as the\n"
+        "subsequent 'argv' to be used with 'execvp'",
         false);
 
     // TODO(nnielsen): Add 'prefix' option to enable replacing
@@ -633,25 +620,6 @@ int main(int argc, char** argv)
             "help",
             "Prints this help message",
             false);
-
-  // Get the appropriate shutdown grace period.
-  Duration shutdownTimeout = EXECUTOR_SHUTDOWN_GRACE_PERIOD;
-  auto value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
-  if (!value.empty()) {
-    Try<Duration> parse = Duration::parse(value);
-    if (parse.isSome()) {
-      shutdownTimeout = parse.get();
-    } else {
-      cerr << "Cannot parse MESOS_SHUTDOWN_GRACE_PERIOD '" << value << "': "
-           << parse.error() << endl;
-    }
-  } else {
-    cout << "Environment variable MESOS_SHUTDOWN_GRACE_PERIOD is not set, "
-         << "using default value: " << shutdownTimeout << endl;
-  }
-
-  shutdownTimeout = getExecutorGracePeriod(shutdownTimeout);
-  cout << "Shutdown timeout is set to " << shutdownTimeout;
 
   // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);
@@ -683,7 +651,7 @@ int main(int argc, char** argv)
   if (path.empty()) {
     path = os::realpath(dirname(argv[0])).get();
   }
-  mesos::internal::CommandExecutor executor(override, path, shutdownTimeout);
+  mesos::internal::CommandExecutor executor(override, path);
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
 }

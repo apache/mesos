@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/future.hpp>
 #include <process/gtest.hpp>
@@ -36,8 +37,6 @@
 #include <stout/try.hpp>
 
 #include <stout/protobuf.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "log/log.hpp"
 #include "log/replica.hpp"
@@ -60,11 +59,18 @@
 #include "tests/zookeeper.hpp"
 #endif
 
-using namespace mesos;
-using namespace mesos::internal;
 using namespace mesos::internal::log;
 
 using namespace process;
+
+using std::list;
+using std::set;
+using std::string;
+using std::vector;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 using state::LevelDBStorage;
 using state::Operation;
@@ -76,15 +82,9 @@ using state::ZooKeeperStorage;
 using state::protobuf::State;
 using state::protobuf::Variable;
 
-using std::list;
-using std::set;
-using std::string;
-using std::vector;
-
-using mesos::internal::tests::TemporaryDirectoryTest;
-
 typedef mesos::internal::Registry::Slaves Slaves;
 typedef mesos::internal::Registry::Slave Slave;
+
 
 void FetchAndStoreAndFetch(State* state)
 {
@@ -758,3 +758,7 @@ TEST_F(ZooKeeperStateTest, Names)
   Names(state);
 }
 #endif // MESOS_HAS_JAVA
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

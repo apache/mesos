@@ -28,9 +28,9 @@
 
 #include "linux/fs.hpp"
 
-
-using namespace mesos;
-using namespace mesos::internal;
+namespace mesos {
+namespace internal {
+namespace tests {
 
 using fs::MountTable;
 using fs::FileSystemTable;
@@ -93,3 +93,7 @@ TEST(FsTest, FileSystemTableRead)
 
   EXPECT_SOME(root);
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

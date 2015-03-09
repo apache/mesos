@@ -28,11 +28,12 @@
 #include "master/master.hpp"
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 class MetricsTest : public mesos::internal::tests::MesosTest {};
 
@@ -42,7 +43,7 @@ TEST_F(MetricsTest, Master)
   ASSERT_SOME(master);
 
   // Get the snapshot.
-  process::UPID upid("metrics", process::node());
+  process::UPID upid("metrics", process::address());
 
   process::Future<process::http::Response> response =
       process::http::get(upid, "snapshot");
@@ -159,7 +160,7 @@ TEST_F(MetricsTest, Slave)
   ASSERT_SOME(slave);
 
   // Get the snapshot.
-  process::UPID upid("metrics", process::node());
+  process::UPID upid("metrics", process::address());
 
   process::Future<process::http::Response> response =
       process::http::get(upid, "snapshot");
@@ -212,3 +213,7 @@ TEST_F(MetricsTest, Slave)
   EXPECT_EQ(1u, stats.values.count("slave/disk_used"));
   EXPECT_EQ(1u, stats.values.count("slave/disk_percent"));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

@@ -43,10 +43,6 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -64,6 +60,10 @@ using testing::AtMost;
 using testing::DoAll;
 using testing::Return;
 using testing::SaveArg;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 class ReconciliationTest : public MesosTest {};
 
@@ -740,7 +740,7 @@ TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
   // Prevent the slave from retrying the status update by
   // only allowing a single update through to the master.
   DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get());
-  FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get());;
+  FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get());
 
   // Drop the status update acknowledgements to ensure that the
   // task remains terminal and unacknowledged in the master.
@@ -889,3 +889,7 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 
   Shutdown(); // Must shutdown before the detector gets de-allocated.
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

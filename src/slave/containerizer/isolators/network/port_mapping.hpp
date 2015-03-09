@@ -26,6 +26,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/slave/isolator.hpp>
+
 #include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
@@ -35,8 +37,9 @@
 #include <stout/bytes.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/ip.hpp>
 #include <stout/interval.hpp>
-#include <stout/net.hpp>
+#include <stout/mac.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/subcommand.hpp>
@@ -44,8 +47,6 @@
 #include "linux/routing/filter/ip.hpp"
 
 #include "slave/flags.hpp"
-
-#include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
 namespace internal {
@@ -122,15 +123,15 @@ std::vector<routing::filter::ip::PortRange> getPortRanges(
 // isolator is useful when the operator wants to reuse the host IP for
 // all containers running on the host (e.g., there are insufficient
 // IPs).
-class PortMappingIsolatorProcess : public IsolatorProcess
+class PortMappingIsolatorProcess : public mesos::slave::IsolatorProcess
 {
 public:
-  static Try<Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
   virtual ~PortMappingIsolatorProcess() {}
 
   virtual process::Future<Nothing> recover(
-      const std::list<state::RunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
@@ -142,7 +143,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<Limitation> watch(
+  virtual process::Future<mesos::slave::Limitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
@@ -225,7 +226,7 @@ private:
       const std::string& _eth0,
       const std::string& _lo,
       const net::MAC& _hostMAC,
-      const net::IP& _hostIP,
+      const net::IPNetwork& _hostIPNetwork,
       const size_t _hostEth0MTU,
       const net::IP& _hostDefaultGateway,
       const hashmap<std::string, std::string>& _hostNetworkConfigurations,
@@ -236,7 +237,7 @@ private:
       eth0(_eth0),
       lo(_lo),
       hostMAC(_hostMAC),
-      hostIP(_hostIP),
+      hostIPNetwork(_hostIPNetwork),
       hostEth0MTU(_hostEth0MTU),
       hostDefaultGateway(_hostDefaultGateway),
       hostNetworkConfigurations(_hostNetworkConfigurations),
@@ -278,7 +279,7 @@ private:
   const std::string eth0;
   const std::string lo;
   const net::MAC hostMAC;
-  const net::IP hostIP;
+  const net::IPNetwork hostIPNetwork;
   const size_t hostEth0MTU;
   const net::IP hostDefaultGateway;
 
@@ -347,6 +348,8 @@ public:
 
     bool help;
     Option<pid_t> pid;
+    bool enable_socket_statistics_summary;
+    bool enable_socket_statistics_details;
   };
 
   PortMappingStatistics() : Subcommand(NAME) {}

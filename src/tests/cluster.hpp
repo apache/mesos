@@ -20,6 +20,8 @@
 #define __TESTS_CLUSTER_HPP__
 
 #include <map>
+#include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -27,13 +29,16 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>
+#include <stout/memory.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
@@ -52,14 +57,15 @@
 
 #include "log/tool/initialize.hpp"
 
-#include "master/allocator.hpp"
 #include "master/contender.hpp"
 #include "master/detector.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
+
+#include "master/allocator/allocator.hpp"
+#include "master/allocator/mesos/hierarchical.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
@@ -99,8 +105,10 @@ public:
     // Start a new master with the provided flags and injections.
     Try<process::PID<master::Master> > start(
         const master::Flags& flags = master::Flags(),
-        const Option<master::allocator::AllocatorProcess*>& allocator = None(),
-        const Option<Authorizer*>& authorizer = None());
+        const Option<master::allocator::Allocator*>& allocator = None(),
+        const Option<Authorizer*>& authorizer = None(),
+        const Option<memory::shared_ptr<process::RateLimiter> >&
+          slaveRemovalLimiter = None());
 
     // Stops and cleans up a master at the specified PID.
     Try<Nothing> stop(const process::PID<master::Master>& pid);
@@ -119,10 +127,10 @@ public:
     // Encapsulates a single master's dependencies.
     struct Master
     {
-      Master() : master(NULL) {}
+      Master() : allocator(NULL), createdAllocator(false), master(NULL) {}
 
-      process::Owned<master::allocator::AllocatorProcess> allocatorProcess;
-      process::Owned<master::allocator::Allocator> allocator;
+      master::allocator::Allocator* allocator;
+      bool createdAllocator; // Whether we own the allocator.
 
       process::Owned<log::Log> log;
       process::Owned<state::Storage> storage;
@@ -135,6 +143,8 @@ public:
       process::Owned<MasterDetector> detector;
 
       process::Owned<Authorizer> authorizer;
+
+      Option<memory::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
 
       master::Master* master;
     };
@@ -244,8 +254,9 @@ inline void Cluster::Masters::shutdown()
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const master::Flags& flags,
-    const Option<master::allocator::AllocatorProcess*>& allocatorProcess,
-    const Option<Authorizer*>& authorizer)
+    const Option<master::allocator::Allocator*>& allocator,
+    const Option<Authorizer*>& authorizer,
+    const Option<memory::shared_ptr<process::RateLimiter>>& slaveRemovalLimiter)
 {
   // Disallow multiple masters when not using ZooKeeper.
   if (!masters.empty() && url.isNone()) {
@@ -254,14 +265,13 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
 
   Master master;
 
-  if (allocatorProcess.isNone()) {
-    master.allocatorProcess.reset(
-        new master::allocator::HierarchicalDRFAllocatorProcess());
-    master.allocator.reset(
-        new master::allocator::Allocator(master.allocatorProcess.get()));
+  if (allocator.isSome()) {
+    master.allocator = allocator.get();
   } else {
-    master.allocator.reset(
-        new master::allocator::Allocator(allocatorProcess.get()));
+    // If allocator is not provided, fall back to the default one,
+    // managed by Cluster::Masters.
+    master.allocator = new master::allocator::HierarchicalDRFAllocator();
+    master.createdAllocator = true;
   }
 
   if (flags.registry == "in_memory") {
@@ -333,14 +343,51 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
     master.authorizer = authorizer__;
   }
 
+  if (slaveRemovalLimiter.isNone() &&
+      flags.slave_removal_rate_limit.isSome()) {
+    // Parse the flag value.
+    // TODO(vinod): Move this parsing logic to flags once we have a
+    // 'Rate' abstraction in stout.
+    std::vector<std::string> tokens =
+      strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
+
+    if (tokens.size() != 2) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>";
+    }
+
+    Try<int> permits = numify<int>(tokens[0]);
+    if (permits.isError()) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>"
+              << ": " << permits.error();
+    }
+
+    Try<Duration> duration = Duration::parse(tokens[1]);
+    if (duration.isError()) {
+      EXIT(1) << "Invalid slave_removal_rate_limit: "
+              << flags.slave_removal_rate_limit.get()
+              << ". Format is <Number of slaves>/<Duration>"
+              << ": " << duration.error();
+    }
+
+    master.slaveRemovalLimiter = memory::shared_ptr<process::RateLimiter>(
+        new process::RateLimiter(permits.get(), duration.get()));
+  }
+
   master.master = new master::Master(
-      master.allocator.get(),
+      master.allocator,
       master.registrar.get(),
       master.repairer.get(),
       &cluster->files,
       master.contender.get(),
       master.detector.get(),
-      authorizer.isSome() ? authorizer : master.authorizer.get(),
+      authorizer.isSome()
+          ? authorizer : master.authorizer.get(),
+      slaveRemovalLimiter.isSome()
+          ? slaveRemovalLimiter : master.slaveRemovalLimiter,
       flags);
 
   if (url.isNone()) {
@@ -398,6 +445,10 @@ inline Try<Nothing> Cluster::Masters::stop(
   process::wait(master.master);
   delete master.master;
 
+  if (master.createdAllocator) {
+    delete master.allocator;
+  }
+
   masters.erase(pid);
 
   return Nothing();
@@ -435,21 +486,28 @@ inline void Cluster::Slaves::shutdown()
   foreachpair (const process::PID<slave::Slave>& pid,
                const Slave& slave,
                copy) {
-    process::Future<hashset<ContainerID> > containers =
+    // Destroy the existing containers on the slave. Note that some
+    // containers may terminate while we are doing this, so we ignore
+    // any 'wait' failures and ensure that there are no containers
+    // when we're done destroying.
+    process::Future<hashset<ContainerID>> containers =
       slave.containerizer->containers();
     AWAIT_READY(containers);
 
     foreach (const ContainerID& containerId, containers.get()) {
-      // We need to wait on the container before destroying it in case someone
-      // else has already waited on it (and therefore would be immediately
-      // 'reaped' before we could wait on it).
       process::Future<containerizer::Termination> wait =
         slave.containerizer->wait(containerId);
 
       slave.containerizer->destroy(containerId);
 
-      AWAIT_READY(wait);
+      AWAIT(wait);
     }
+
+    containers = slave.containerizer->containers();
+    AWAIT_READY(containers);
+
+    ASSERT_TRUE(containers.get().empty())
+      << "Failed to destroy containers: " << stringify(containers.get());
 
     stop(pid);
   }

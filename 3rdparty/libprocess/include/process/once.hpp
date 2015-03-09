@@ -12,7 +12,17 @@ namespace process {
 class Once
 {
 public:
-  Once() {}
+  Once() : started(false), finished(false)
+  {
+    pthread_mutex_init(&mutex, NULL);
+    pthread_cond_init(&cond, NULL);
+  }
+
+  ~Once()
+  {
+    pthread_cond_destroy(&cond);
+    pthread_mutex_destroy(&mutex);
+  }
 
   // Returns true if this Once instance has already transitioned to a
   // 'done' state (i.e., the action you wanted to perform "once" has
@@ -20,18 +30,35 @@ public:
   // called.
   bool once()
   {
-    if (!outer.set(&inner)) {
-      inner.future().await();
-      return true;
-    }
+    bool result = false;
 
-    return false;
+    pthread_mutex_lock(&mutex);
+    {
+      if (started) {
+        while (!finished) {
+          pthread_cond_wait(&cond, &mutex);
+        }
+        result = true;
+      } else {
+        started = true;
+      }
+    }
+    pthread_mutex_unlock(&mutex);
+
+    return result;
   }
 
   // Transitions this Once instance to a 'done' state.
   void done()
   {
-    inner.set(Nothing());
+    pthread_mutex_lock(&mutex);
+    {
+      if (started && !finished) {
+        finished = true;
+        pthread_cond_broadcast(&cond);
+      }
+    }
+    pthread_mutex_unlock(&mutex);
   }
 
 private:
@@ -39,8 +66,10 @@ private:
   Once(const Once& that);
   Once& operator = (const Once& that);
 
-  Promise<Nothing> inner;
-  Promise<Promise<Nothing>*> outer;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  bool started;
+  bool finished;
 };
 
 }  // namespace process {

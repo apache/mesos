@@ -36,10 +36,12 @@
 
 #include "tests/zookeeper.hpp"
 
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
 using namespace process;
 using namespace zookeeper;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 TEST_F(ZooKeeperTest, Auth)
@@ -373,3 +375,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
   candidated = contender->contend();
   AWAIT_READY(candidated);
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

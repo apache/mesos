@@ -32,6 +32,8 @@
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/ip.hpp>
+#include <stout/mac.hpp>
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
 
@@ -59,6 +61,10 @@ using std::endl;
 using std::set;
 using std::string;
 using std::vector;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 static const string TEST_VETH_LINK = "veth-test";
@@ -1085,3 +1091,7 @@ TEST_F(RoutingVethTest, ROOT_HandleGeneration)
   // will find the handle matches the first filter.
   EXPECT_SOME_TRUE(ip::remove(TEST_VETH_LINK, ingress::HANDLE, classifier2));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

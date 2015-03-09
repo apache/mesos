@@ -21,27 +21,29 @@
 
 #include <set>
 
+#include <mesos/slave/isolator.hpp>
+
 #include <process/time.hpp>
 
 #include <stout/hashmap.hpp>
 
 #include "linux/perf.hpp"
 
-#include "slave/containerizer/isolator.hpp"
+#include "slave/flags.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-class CgroupsPerfEventIsolatorProcess : public IsolatorProcess
+class CgroupsPerfEventIsolatorProcess : public mesos::slave::IsolatorProcess
 {
 public:
-  static Try<Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
   virtual ~CgroupsPerfEventIsolatorProcess();
 
   virtual process::Future<Nothing> recover(
-      const std::list<state::RunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual process::Future<Option<CommandInfo> > prepare(
       const ContainerID& containerId,
@@ -53,7 +55,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<Limitation> watch(
+  virtual process::Future<mesos::slave::Limitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(

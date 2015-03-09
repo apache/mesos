@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include <stout/ip.hpp>
 #include <stout/option.hpp>
 
 #include "messages/messages.hpp"

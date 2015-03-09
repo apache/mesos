@@ -38,10 +38,6 @@
 
 #include "tests/containerizer.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using process::Clock;
 using process::Future;
 
@@ -56,6 +52,10 @@ using std::string;
 using testing::_;
 using testing::DoAll;
 using testing::Return;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 TEST(MonitorTest, Collection)
@@ -219,7 +219,7 @@ TEST(MonitorTest, Statistics)
   // Now wait for ResouorceMonitorProcess::watch to finish.
   process::Clock::settle();
 
-  process::UPID upid("monitor", process::node());
+  process::UPID upid("monitor", process::address());
 
   // Request the statistics, this will ask the isolator.
   Future<Response> response = process::http::get(upid, "statistics.json");
@@ -297,3 +297,7 @@ TEST(MonitorTest, Statistics)
       response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ("[]", response);
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

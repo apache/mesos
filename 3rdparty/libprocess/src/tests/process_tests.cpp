@@ -20,7 +20,7 @@
 #include <process/gc.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
-#include <process/limiter.hpp>
+#include <process/network.hpp>
 #include <process/process.hpp>
 #include <process/run.hpp>
 #include <process/socket.hpp>
@@ -40,6 +40,9 @@
 #include "encoder.hpp"
 
 using namespace process;
+
+using process::network::Address;
+using process::network::Socket;
 
 using std::string;
 
@@ -160,6 +163,48 @@ TEST(Process, then)
   ASSERT_TRUE(future.isReady());
   EXPECT_EQ("42", future.get());
 }
+
+
+Future<int> repair(const Future<int>& future)
+{
+  EXPECT_TRUE(future.isFailed());
+  EXPECT_EQ("Failure", future.failure());
+  return 43;
+}
+
+
+// Checks that 'repair' callback gets executed if the future failed
+// and not executed if the future is completed successfully.
+TEST(Process, repair)
+{
+  // Check that the 'repair' callback _does not_ get executed by
+  // making sure that when we complete the promise with a value that's
+  // the value that we get back.
+  Promise<int> promise1;
+
+  Future<int> future1 = promise1.future()
+    .repair(lambda::bind(&repair, lambda::_1));
+
+  EXPECT_TRUE(future1.isPending());
+
+  promise1.set(42); // So this means 'repair' should not get executed.
+
+  AWAIT_EXPECT_EQ(42, future1);
+
+  // Check that the 'repair' callback gets executed by failing the
+  // promise which should invoke the 'repair' callback.
+  Promise<int> promise2;
+
+  Future<int> future2 = promise2.future()
+    .repair(lambda::bind(&repair, lambda::_1));
+
+  EXPECT_TRUE(future2.isPending());
+
+  promise2.fail("Failure"); // So 'repair' should get called returning '43'.
+
+  AWAIT_EXPECT_EQ(43, future2);
+}
+
 
 
 Future<Nothing> after(volatile bool* executed, const Future<Nothing>& future)
@@ -726,7 +771,7 @@ TEST(Process, handlers)
 }
 
 
-// Tests EXPECT_MESSAGE and EXPECT_DISPATCH and in particular that an
+// Tests DROP_MESSAGE and DROP_DISPATCH and in particular that an
 // event can get dropped before being processed.
 TEST(Process, expect)
 {
@@ -1419,13 +1464,12 @@ TEST(Process, remote)
   EXPECT_CALL(process, handler(_, _))
     .WillOnce(FutureSatisfy(&handler));
 
-  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  Try<Socket> create = Socket::create();
+  ASSERT_SOME(create);
 
-  ASSERT_TRUE(socket.isSome());
+  Socket socket = create.get();
 
-  int s = socket.get();
-
-  ASSERT_TRUE(network::connect(s, process.self().node).isSome());
+  AWAIT_READY(socket.connect(process.self().address));
 
   Message message;
   message.name = "handler";
@@ -1434,9 +1478,7 @@ TEST(Process, remote)
 
   const string& data = MessageEncoder::encode(&message);
 
-  ASSERT_EQ(data.size(), write(s, data.data(), data.size()));
-
-  ASSERT_EQ(0, close(s));
+  AWAIT_READY(socket.send(data));
 
   AWAIT_READY(handler);
 
@@ -1485,21 +1527,21 @@ TEST(Process, http2)
   spawn(process);
 
   // Create a receiving socket so we can get messages back.
-  Try<int> socket = network::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-  ASSERT_TRUE(socket.isSome());
+  Try<Socket> create = Socket::create();
+  ASSERT_SOME(create);
 
-  int s = socket.get();
+  Socket socket = create.get();
 
-  ASSERT_TRUE(network::bind(s, Node()).isSome());
+  ASSERT_SOME(socket.bind(Address()));
 
   // Create a UPID for 'Libprocess-From' based on the IP and port we
   // got assigned.
-  Try<Node> node = network::getsockname(s, AF_INET);
-  ASSERT_TRUE(node.isSome());
+  Try<Address> address = socket.address();
+  ASSERT_SOME(address);
 
-  UPID from("", node.get());
+  UPID from("", address.get());
 
-  ASSERT_EQ(0, listen(s, 1));
+  ASSERT_SOME(socket.listen(1));
 
   Future<UPID> pid;
   Future<string> body;
@@ -1527,17 +1569,14 @@ TEST(Process, http2)
   post(process.self(), from, name);
 
   // Accept the incoming connection.
-  Try<int> accepted = network::accept(s, AF_INET);
-  ASSERT_TRUE(accepted.isSome());
+  Future<Socket> accept = socket.accept();
+  AWAIT_READY(accept);
 
-  int c = accepted.get();
-  ASSERT_LT(0, c);
+  Socket client = accept.get();
 
   const string data = "POST /" + name + " HTTP/1.1";
-  EXPECT_SOME_EQ(data, os::read(c, data.size()));
 
-  close(c);
-  close(s);
+  AWAIT_EXPECT_EQ(data, client.recv(data.size()));
 
   terminate(process);
   wait(process);
@@ -1596,33 +1635,6 @@ TEST(Process, async)
 
   // Non-void function that returns a future.
   EXPECT_EQ("42", async(&itoa1, &i).get().get());
-}
-
-
-TEST(Process, limiter)
-{
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  int permits = 2;
-  Duration duration = Milliseconds(5);
-
-  RateLimiter limiter(permits, duration);
-  Milliseconds interval = duration / permits;
-
-  Stopwatch stopwatch;
-  stopwatch.start();
-
-  Future<Nothing> acquire1 = limiter.acquire();
-  Future<Nothing> acquire2 = limiter.acquire();
-  Future<Nothing> acquire3 = limiter.acquire();
-
-  AWAIT_READY(acquire1);
-
-  AWAIT_READY(acquire2);
-  ASSERT_LE(interval, stopwatch.elapsed());
-
-  AWAIT_READY(acquire3);
-  ASSERT_LE(interval * 2, stopwatch.elapsed());
 }
 
 
@@ -1858,7 +1870,7 @@ TEST(Process, PercentEncodedURLs)
   spawn(process);
 
   // Construct the PID using percent-encoding.
-  UPID pid("id%2842%29", process.self().node);
+  UPID pid("id%2842%29", process.self().address);
 
   // Mimic a libprocess message sent to an installed handler.
   Future<Nothing> handler1;

@@ -18,6 +18,12 @@
 
 #include <string>
 
+#include <mesos/authentication/authenticatee.hpp>
+#include <mesos/authentication/authenticator.hpp>
+
+#include <mesos/module/authenticatee.hpp>
+#include <mesos/module/authenticator.hpp>
+
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/pid.hpp>
@@ -25,14 +31,8 @@
 
 #include <stout/gtest.hpp>
 
-#include "authentication/authenticatee.hpp"
-#include "authentication/authenticator.hpp"
-
 #include "authentication/cram_md5/authenticatee.hpp"
 #include "authentication/cram_md5/authenticator.hpp"
-
-#include "module/authenticatee.hpp"
-#include "module/authenticator.hpp"
 
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"

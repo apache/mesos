@@ -26,6 +26,7 @@
 #include <mesos/values.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/strings.hpp>
 
 using std::ostream;
@@ -386,7 +387,7 @@ Option<Error> Resources::validate(
 }
 
 
-bool Resources::empty(const Resource& resource)
+bool Resources::isEmpty(const Resource& resource)
 {
   if (resource.type() == Value::SCALAR) {
     return resource.scalar().value() == 0;
@@ -397,6 +398,30 @@ bool Resources::empty(const Resource& resource)
   } else {
     return false;
   }
+}
+
+
+bool Resources::isPersistentVolume(const Resource& resource)
+{
+  return resource.has_disk() && resource.disk().has_persistence();
+}
+
+
+bool Resources::isReserved(
+    const Resource& resource,
+    const Option<std::string>& role)
+{
+  if (role.isSome()) {
+    return resource.role() != "*" && role.get() == resource.role();
+  } else {
+    return resource.role() != "*";
+  }
+}
+
+
+bool Resources::isUnreserved(const Resource& resource)
+{
+  return resource.role() == "*";
 }
 
 
@@ -433,13 +458,17 @@ Resources::Resources(
 
 bool Resources::contains(const Resources& that) const
 {
+  Resources remaining = *this;
+
   foreach (const Resource& resource, that.resources) {
     // NOTE: We use _contains because Resources only contain valid
     // Resource objects, and we don't want the performance hit of the
     // validity check.
-    if (!_contains(resource)) {
+    if (!remaining._contains(resource)) {
       return false;
     }
+
+    remaining -= resource;
   }
 
   return true;
@@ -455,12 +484,25 @@ bool Resources::contains(const Resource& that) const
 }
 
 
+Resources Resources::filter(
+    const lambda::function<bool(const Resource&)>& predicate) const
+{
+  Resources result;
+  foreach (const Resource& resource, resources) {
+    if (predicate(resource)) {
+      result += resource;
+    }
+  }
+  return result;
+}
+
+
 hashmap<string, Resources> Resources::reserved() const
 {
   hashmap<string, Resources> result;
 
   foreach (const Resource& resource, resources) {
-    if (resource.role() != "*") {
+    if (isReserved(resource)) {
       result[resource.role()] += resource;
     }
   }
@@ -471,44 +513,19 @@ hashmap<string, Resources> Resources::reserved() const
 
 Resources Resources::reserved(const string& role) const
 {
-  Resources result;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.role() != "*" &&
-        resource.role() == role) {
-      result += resource;
-    }
-  }
-
-  return result;
+  return filter(lambda::bind(isReserved, lambda::_1, role));
 }
 
 
 Resources Resources::unreserved() const
 {
-  Resources result;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.role() == "*") {
-      result += resource;
-    }
-  }
-
-  return result;
+  return filter(isUnreserved);
 }
 
 
-Resources Resources::persistentDisks() const
+Resources Resources::persistentVolumes() const
 {
-  Resources result;
-
-  foreach (const Resource& resource, resources) {
-    if (resource.has_disk() && resource.disk().has_persistence()) {
-      result += resource;
-    }
-  }
-
-  return result;
+  return filter(isPersistentVolume);
 }
 
 
@@ -525,29 +542,8 @@ Resources Resources::flatten(const string& role) const
 }
 
 
-class RoleFilter
-{
-public:
-  static RoleFilter any() { return RoleFilter(); }
-
-  RoleFilter() : type(ANY) {}
-  /*implicit*/ RoleFilter(const string& _role) : type(SOME), role(_role) {}
-
-  Resources apply(const Resources& resources) const
-  {
-    if (type == ANY) {
-      return resources;
-    } else if (role == "*") {
-      return resources.unreserved();
-    } else {
-      return resources.reserved(role);
-    }
-  }
-
-private:
-  enum { ANY, SOME } type;
-  string role;
-};
+// A predicate that returns true for any resource.
+static bool any(const Resource&) { return true; }
 
 
 Option<Resources> Resources::find(const Resource& target) const
@@ -556,15 +552,16 @@ Option<Resources> Resources::find(const Resource& target) const
   Resources total = *this;
   Resources remaining = Resources(target).flatten();
 
-  // First look in the target role, then "*", then any remaining role.
-  vector<RoleFilter> filters = {
-    RoleFilter(target.role()),
-    RoleFilter("*"),
-    RoleFilter::any()
+  // First look in the target role, then unreserved, then any remaining role.
+  // TODO(mpark): Use a lambda for 'any' instead once we get full C++11.
+  vector<lambda::function<bool(const Resource&)>> predicates = {
+    lambda::bind(isReserved, lambda::_1, target.role()),
+    isUnreserved,
+    any
   };
 
-  foreach (const RoleFilter& filter, filters) {
-    foreach (const Resource& resource, filter.apply(total)) {
+  foreach (const auto& predicate, predicates) {
+    foreach (const Resource& resource, total.filter(predicate)) {
       // Need to flatten to ignore the roles in contains().
       Resources flattened = Resources(resource).flatten();
 
@@ -600,6 +597,96 @@ Option<Resources> Resources::find(const Resources& targets) const
   }
 
   return total;
+}
+
+
+Try<Resources> Resources::apply(const Offer::Operation& operation) const
+{
+  Resources result = *this;
+
+  switch (operation.type()) {
+    case Offer::Operation::LAUNCH:
+      // Launch operation does not alter the offered resources.
+      break;
+
+    case Offer::Operation::RESERVE:
+    case Offer::Operation::UNRESERVE:
+      // TODO(mpark): Provide implementation.
+      return Error("Unimplemented");
+
+    case Offer::Operation::CREATE: {
+      Option<Error> error = validate(operation.create().volumes());
+      if (error.isSome()) {
+        return Error("Invalid CREATE Operation: " + error.get().message);
+      }
+
+      foreach (const Resource& volume, operation.create().volumes()) {
+        if (!volume.has_disk()) {
+          return Error("Invalid CREATE Operation: Missing 'disk'");
+        } else if (!volume.disk().has_persistence()) {
+          return Error("Invalid CREATE Operation: Missing 'persistence'");
+        }
+
+        // Strip the disk info so that we can subtract it from the
+        // original resources.
+        // TODO(jieyu): Non-persistent volumes are not supported for
+        // now. Persistent volumes can only be be created from regular
+        // disk resources. Revisit this once we start to support
+        // non-persistent volumes.
+        Resource stripped = volume;
+        stripped.clear_disk();
+
+        if (!result.contains(stripped)) {
+          return Error("Invalid CREATE Operation: Insufficient disk resources");
+        }
+
+        result -= stripped;
+        result += volume;
+      }
+      break;
+    }
+
+    case Offer::Operation::DESTROY: {
+      Option<Error> error = validate(operation.destroy().volumes());
+      if (error.isSome()) {
+        return Error("Invalid DESTROY Operation: " + error.get().message);
+      }
+
+      foreach (const Resource& volume, operation.destroy().volumes()) {
+        if (!volume.has_disk()) {
+          return Error("Invalid DESTROY Operation: Missing 'disk'");
+        } else if (!volume.disk().has_persistence()) {
+          return Error("Invalid DESTROY Operation: Missing 'persistence'");
+        }
+
+        if (!result.contains(volume)) {
+          return Error(
+              "Invalid DESTROY Operation: Persistent volume does not exist");
+        }
+
+        Resource stripped = volume;
+        stripped.clear_disk();
+
+        result -= volume;
+        result += stripped;
+      }
+      break;
+    }
+
+    default:
+      return Error("Unknown offer operation " + stringify(operation.type()));
+  }
+
+  // This is a sanity check to ensure the amount of each type of
+  // resource does not change.
+  // TODO(jieyu): Currently, we only check known resource types like
+  // cpus, mem, disk, ports, etc. We should generalize this.
+  CHECK(result.cpus() == cpus() &&
+        result.mem() == mem() &&
+        result.disk() == disk() &&
+        result.ports() == ports());
+
+  return result;
 }
 
 
@@ -777,7 +864,7 @@ Resources Resources::operator + (const Resources& that) const
 
 Resources& Resources::operator += (const Resource& that)
 {
-  if (validate(that).isNone() && !empty(that)) {
+  if (validate(that).isNone() && !isEmpty(that)) {
     bool found = false;
     foreach (Resource& resource, resources) {
       if (addable(resource, that)) {
@@ -825,7 +912,7 @@ Resources Resources::operator - (const Resources& that) const
 
 Resources& Resources::operator -= (const Resource& that)
 {
-  if (validate(that).isNone() && !empty(that)) {
+  if (validate(that).isNone() && !isEmpty(that)) {
     for (int i = 0; i < resources.size(); i++) {
       Resource* resource = resources.Mutable(i);
 
@@ -835,7 +922,7 @@ Resources& Resources::operator -= (const Resource& that)
         // Remove the resource if it becomes invalid or zero. We need
         // to do the validation because we want to strip negative
         // scalar Resource object.
-        if (validate(*resource).isSome() || empty(*resource)) {
+        if (validate(*resource).isSome() || isEmpty(*resource)) {
           resources.DeleteSubrange(i, 1);
         }
 
@@ -887,96 +974,6 @@ ostream& operator << (ostream& stream, const Resources& resources)
   }
 
   return stream;
-}
-
-
-/////////////////////////////////////////////////
-// Resources transformations.
-/////////////////////////////////////////////////
-
-
-Try<Resources> Resources::Transformation::operator () (
-    const Resources& resources) const
-{
-  Try<Resources> applied = apply(resources);
-
-  if (applied.isSome()) {
-    // Additional checks.
-
-    // Ensure the amount of each type of resource does not change.
-    // TODO(jieyu): Currently, we only checks known resource types
-    // like cpus, mem, disk, ports, etc. We should generalize this.
-    if (resources.cpus() != applied.get().cpus() ||
-        resources.mem() != applied.get().mem() ||
-        resources.disk() != applied.get().disk() ||
-        resources.ports() != applied.get().ports()) {
-      return Error("Resource amount does not match");
-    }
-
-    // TODO(jieyu): Ensure that static role does not change.
-  }
-
-  return applied;
-}
-
-
-Try<Resources> Resources::CompositeTransformation::apply(
-    const Resources& resources) const
-{
-  Resources result = resources;
-
-  foreach (Transformation* transformation, transformations) {
-    Try<Resources> transformed = (*transformation)(result);
-
-    if (transformed.isError()) {
-      return Error(transformed.error());
-    }
-
-    result = transformed.get();
-  }
-
-  return result;
-}
-
-
-Resources::AcquirePersistentDisk::AcquirePersistentDisk(const Resource& _disk)
-  : disk(_disk)
-{
-  CHECK(disk.has_disk());
-  CHECK(disk.disk().has_persistence());
-}
-
-
-Try<Resources> Resources::AcquirePersistentDisk::apply(
-    const Resources& resources) const
-{
-  foreach (const Resource& resource, resources) {
-    // TODO(jieyu): Non-persistent volumes are not supported for now.
-    // Persistent disk can only be be acquired from regular disk
-    // resources. Revisit this once we start to support non-persistent
-    // disk volumes.
-    if (resource.name() == "disk" &&
-        !resource.has_disk() &&
-        resource.role() == disk.role()) {
-      CHECK_EQ(resource.type(), Value::SCALAR);
-      CHECK_EQ(disk.type(), Value::SCALAR);
-
-      if (disk.scalar() <= resource.scalar()) {
-        // Strip the disk info so that we can subtract it from the
-        // original resources.
-        Resource stripped = disk;
-        stripped.clear_disk();
-
-        Resources result = resources;
-        result -= stripped;
-        result += disk;
-
-        return result;
-      }
-    }
-  }
-
-  return Error("Insufficient disk resources");
 }
 
 } // namespace mesos {

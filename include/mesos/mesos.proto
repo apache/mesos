@@ -252,10 +252,6 @@ message CommandInfo {
   optional string value = 3;
   repeated string arguments = 7;
 
-  // Shutdown grace period for the command (in seconds). Any changes
-  // made by frameworks are currently ignored.
-  optional double grace_period_seconds = 8;
-
   // Enables executor and tasks to run as a specific user. If the user
   // field is present both in FrameworkInfo and here, the CommandInfo
   // user value takes precedence.
@@ -488,6 +484,9 @@ message ResourceStatistics {
   optional double net_tcp_rtt_microsecs_p90 = 23;
   optional double net_tcp_rtt_microsecs_p95 = 24;
   optional double net_tcp_rtt_microsecs_p99 = 25;
+
+  optional double net_tcp_active_connections = 28;
+  optional double net_tcp_time_wait_connections = 29;
 }
 
 
@@ -756,6 +755,16 @@ message TaskStatus {
   optional SlaveID slave_id = 5;
   optional ExecutorID executor_id = 7; // TODO(benh): Use in master/slave.
   optional double timestamp = 6;
+
+  // Statuses that are delivered reliably to the scheduler will
+  // include a 'uuid'. The status is considered delivered once
+  // it is acknowledged by the scheduler. Schedulers can choose
+  // to either explicitly acknowledge statuses or let the scheduler
+  // driver implicitly acknowledge (default).
+  //
+  // TODO(bmahler): This is currently overwritten in the scheduler
+  // driver, even if executors set this.
+  optional bytes uuid = 11;
 
   // Describes whether the task has been determined to be healthy
   // (true) or unhealthy (false) according to the HealthCheck field in
@@ -1062,7 +1071,7 @@ message Port {
  * Collection of ports.
  */
 message Ports {
-    repeated Port ports = 1;
+  repeated Port ports = 1;
 }
 
 
@@ -1080,7 +1089,6 @@ message Ports {
 * service discovery system.
 */
 message DiscoveryInfo {
-
   enum Visibility {
     FRAMEWORK = 0;
     CLUSTER = 1;

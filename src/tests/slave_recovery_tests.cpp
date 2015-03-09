@@ -58,18 +58,13 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
 using namespace mesos::internal::slave;
-using namespace mesos::internal::tests;
 
 using namespace process;
 
-using mesos::internal::master::Master;
+using google::protobuf::RepeatedPtrField;
 
-using mesos::internal::slave::Containerizer;
-using mesos::internal::slave::Fetcher;
-using mesos::internal::slave::GarbageCollectorProcess;
+using mesos::internal::master::Master;
 
 using std::map;
 using std::string;
@@ -82,11 +77,26 @@ using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
 
+namespace mesos {
+namespace internal {
+namespace tests {
+
 
 class SlaveStateTest : public TemporaryDirectoryTest {};
 
 
-TEST_F(SlaveStateTest, CheckpointProtobuf)
+TEST_F(SlaveStateTest, CheckpointString)
+{
+  // Checkpoint a test string.
+  const string expected = "test";
+  const string file = "test-file";
+  slave::state::checkpoint(file, expected);
+
+  EXPECT_SOME_EQ(expected, os::read(file));
+}
+
+
+TEST_F(SlaveStateTest, CheckpointProtobufMessage)
 {
   // Checkpoint slave id.
   SlaveID expected;
@@ -98,19 +108,25 @@ TEST_F(SlaveStateTest, CheckpointProtobuf)
   const Result<SlaveID>& actual = ::protobuf::read<SlaveID>(file);
   ASSERT_SOME(actual);
 
-  ASSERT_SOME_EQ(expected, actual);
+  EXPECT_SOME_EQ(expected, actual);
 }
 
 
-TEST_F(SlaveStateTest, CheckpointString)
+TEST_F(SlaveStateTest, CheckpointRepeatedProtobufMessages)
 {
-  // Checkpoint a test string.
-  const string expected = "test";
-  const string file = "test-file";
+  // Checkpoint resources.
+  const Resources expected =
+    Resources::parse("cpus:2;mem:512;cpus(role):4;mem(role):1024").get();
+
+  const string file = "resources-file";
   slave::state::checkpoint(file, expected);
 
-  ASSERT_SOME_EQ(expected, os::read(file));
+  Result<RepeatedPtrField<Resource>> actual =
+    ::protobuf::read<RepeatedPtrField<Resource>>(file);
+
+  EXPECT_SOME_EQ(expected, actual);
 }
+
 
 template <typename T>
 class SlaveRecoveryTest : public ContainerizerTest<T>
@@ -2237,8 +2253,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 // using an explicit executor.
 TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 {
-  MockAllocatorProcess<master::allocator::HierarchicalDRFAllocatorProcess>
-    allocator;
+  TestAllocator<master::allocator::HierarchicalDRFAllocator> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _));
 
@@ -2390,11 +2405,6 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
             Resources(offers2.get()[0].resources()));
 
   Clock::resume();
-
-  EXPECT_CALL(allocator, deactivateFramework(_))
-    .WillRepeatedly(Return());
-  EXPECT_CALL(allocator, removeFramework(_))
-    .WillRepeatedly(Return());
 
   // If there was an outstanding offer, we can get a call to
   // recoverResources when we stop the scheduler.
@@ -2734,7 +2744,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   Owned<StandaloneMasterDetector> detector(
       new StandaloneMasterDetector(master.get()));
   TestingMesosSchedulerDriver driver(
-      &sched, frameworkInfo, DEFAULT_CREDENTIAL, detector.get());
+      &sched, detector.get(), frameworkInfo);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -3772,3 +3782,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 }
 
 #endif // __linux__
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

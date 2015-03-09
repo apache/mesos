@@ -37,13 +37,9 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
-using namespace mesos;
-using namespace mesos::internal;
-using namespace mesos::internal::tests;
-
 using mesos::internal::master::Master;
 
-using mesos::internal::master::allocator::AllocatorProcess;
+using mesos::internal::master::allocator::MesosAllocatorProcess;
 
 using mesos::internal::slave::Slave;
 
@@ -59,12 +55,16 @@ using testing::AtMost;
 using testing::Eq;
 using testing::Return;
 
+namespace mesos {
+namespace internal {
+namespace tests {
+
 
 class PartitionTest : public MesosTest {};
 
 
 // This test checks that a scheduler gets a slave lost
-// message for a partioned slave.
+// message for a partitioned slave.
 TEST_F(PartitionTest, PartitionedSlave)
 {
   Try<PID<Master> > master = StartMaster();
@@ -445,7 +445,7 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   AWAIT_READY(ping);
 
   Future<Nothing> deactivateSlave =
-    FUTURE_DISPATCH(_, &AllocatorProcess::deactivateSlave);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
 
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected. The slave should not notice
@@ -468,3 +468,7 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   // Slave should re-register.
   AWAIT_READY(slaveReregisteredMessage);
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

@@ -21,6 +21,7 @@
 
 #include <jni.h>
 
+bool construct(JNIEnv* env, jboolean jbool);
 
 template <typename T>
 T construct(JNIEnv* env, jobject jobj);

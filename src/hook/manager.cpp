@@ -21,6 +21,10 @@
 #include <string>
 #include <vector>
 
+#include <mesos/hook.hpp>
+
+#include <mesos/module/hook.hpp>
+
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
@@ -28,9 +32,7 @@
 #include <stout/try.hpp>
 
 #include "common/lock.hpp"
-#include "hook/hook.hpp"
 #include "hook/manager.hpp"
-#include "module/hook.hpp"
 #include "module/manager.hpp"
 
 using std::string;

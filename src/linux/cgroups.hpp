@@ -315,6 +315,8 @@ Try<Nothing> assign(
     pid_t pid);
 
 
+namespace event {
+
 // Listen on an event notifier and return a future which will become ready when
 // the certain event happens. This function will return a future failure if some
 // expected happens (e.g. the given hierarchy does not have the proper
@@ -330,6 +332,8 @@ process::Future<uint64_t> listen(
     const std::string& cgroup,
     const std::string& control,
     const Option<std::string>& args = Option<std::string>::none());
+
+} // namespace event {
 
 
 // Destroy a cgroup under a given hierarchy. It will also recursively
@@ -398,11 +402,6 @@ Try<Nothing> shares(
     const std::string& hierarchy,
     const std::string& cgroup,
     uint64_t shares);
-
-// Returns the cpu shares from cpu.shares.
-Try<uint64_t> shares(
-    const std::string& hierarchy,
-    const std::string& cgroup);
 
 
 // Returns the cpu shares from cpu.shares.

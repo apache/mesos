@@ -39,9 +39,7 @@
 #include "linux/ns.hpp"
 
 #include "tests/flags.hpp"
-
-
-using namespace mesos::internal;
+#include "tests/setns_test_helper.hpp"
 
 using namespace process;
 
@@ -49,6 +47,10 @@ using std::list;
 using std::set;
 using std::string;
 using std::vector;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 // Helper for cloneChild() which expects an int(void*).
@@ -98,7 +100,7 @@ TEST(NsTest, ROOT_setns)
 
   vector<string> argv;
   argv.push_back("setns-test-helper");
-  argv.push_back("test");
+  argv.push_back(SetnsTestHelper::NAME);
 
   Try<Subprocess> s = subprocess(
       path::join(tests::flags.build_dir, "src", "setns-test-helper"),
@@ -286,3 +288,7 @@ TEST(NsTest, ROOT_destroy)
     }
   }
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

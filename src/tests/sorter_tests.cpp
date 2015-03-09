@@ -28,14 +28,16 @@
 
 #include <stout/gtest.hpp>
 
-#include "master/drf_sorter.hpp"
-
-using namespace mesos;
+#include "master/allocator/sorter/drf/sorter.hpp"
 
 using mesos::internal::master::allocator::DRFSorter;
 
 using std::list;
 using std::string;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 
 TEST(SorterTest, DRFSorter)
@@ -168,9 +170,9 @@ TEST(SorterTest, WDRFSorter)
 }
 
 
-// Some resources are split across multiple resource objects
-// (e.g. persistent disks). This test ensures that the shares
-// for these are accounted correctly.
+// Some resources are split across multiple resource objects (e.g.
+// persistent volumes). This test ensures that the shares for these
+// are accounted correctly.
 TEST(SorterTest, SplitResourceShares)
 {
   DRFSorter sorter;
@@ -198,7 +200,7 @@ TEST(SorterTest, SplitResourceShares)
 }
 
 
-TEST(SorterTest, Transform)
+TEST(SorterTest, Update)
 {
   DRFSorter sorter;
 
@@ -209,21 +211,26 @@ TEST(SorterTest, Transform)
 
   sorter.allocated("a", Resources::parse("cpus:10;mem:10;disk:10").get());
 
-  // Construct a transformation.
-  Resource disk = Resources::parse("disk", "5", "*").get();
-  disk.mutable_disk()->mutable_persistence()->set_id("ID");
-  disk.mutable_disk()->mutable_volume()->set_container_path("data");
+  // Construct an offer operation.
+  Resource volume = Resources::parse("disk", "5", "*").get();
+  volume.mutable_disk()->mutable_persistence()->set_id("ID");
+  volume.mutable_disk()->mutable_volume()->set_container_path("data");
 
-  Resources::AcquirePersistentDisk transformation(disk);
+  Offer::Operation create;
+  create.set_type(Offer::Operation::CREATE);
+  create.mutable_create()->add_volumes()->CopyFrom(volume);
 
   // Compute the updated allocation.
   Resources allocation = sorter.allocation("a");
-  Try<Resources> newAllocation = transformation(allocation);
-
+  Try<Resources> newAllocation = allocation.apply(create);
   ASSERT_SOME(newAllocation);
 
-  // Transform the resources for the client.
-  sorter.transform("a", allocation, newAllocation.get());
+  // Update the resources for the client.
+  sorter.update("a", allocation, newAllocation.get());
 
   EXPECT_EQ(newAllocation.get(), sorter.allocation("a"));
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {

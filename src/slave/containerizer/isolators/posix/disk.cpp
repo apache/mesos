@@ -54,6 +54,11 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+using mesos::slave::ExecutorRunState;
+using mesos::slave::Isolator;
+using mesos::slave::IsolatorProcess;
+using mesos::slave::Limitation;
+
 Try<Isolator*> PosixDiskIsolatorProcess::create(const Flags& flags)
 {
   // TODO(jieyu): Check the availability of command 'du'.
@@ -77,25 +82,15 @@ PosixDiskIsolatorProcess::~PosixDiskIsolatorProcess() {}
 
 
 Future<Nothing> PosixDiskIsolatorProcess::recover(
-    const list<state::RunState>& states)
+    const list<ExecutorRunState>& states)
 {
-  foreach (const state::RunState& state, states) {
-    if (state.id.isNone()) {
-      infos.clear();
-
-      return Failure("ContainerID is required for recovery");
-    }
-
-    if (state.completed) {
-      continue;
-    }
-
+  foreach (const ExecutorRunState& state, states) {
     // Since we checkpoint the executor after we create its working
     // directory, the working directory should definitely exist.
     CHECK(os::exists(state.directory))
       << "Executor work directory " << state.directory << " doesn't exist";
 
-    infos.put(state.id.get(), Owned<Info>(new Info(state.directory)));
+    infos.put(state.id, Owned<Info>(new Info(state.directory)));
   }
 
   return Nothing();
@@ -172,7 +167,7 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
       // Regular disk used for executor working directory.
       path = info->directory;
     } else {
-      // TODO(jieyu): Support persistent disk as well.
+      // TODO(jieyu): Support persistent volmes as well.
       LOG(ERROR) << "Enforcing disk quota unsupported for " << resource;
       continue;
     }

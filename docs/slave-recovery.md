@@ -15,37 +15,39 @@ Mesos slave could be restarted for an upgrade or due to a crash. This feature is
 
 Slave recovery works by having the slave checkpoint enough information (e.g., Task Info, Executor Info, Status Updates) about the running tasks and executors to local disk. Once the slave ***and*** the framework(s) enable checkpointing, any subsequent slave restarts would recover the checkpointed information and reconnect with the executors. Note that if the host running the slave process is rebooted all the executors/tasks are killed.
 
-> NOTE: To enable slave recovery both the slave and the framework should explicitly request checkpointing.
+> NOTE: To enable recovery the framework should explicitly request checkpointing.
 > Alternatively, a framework that doesn't want the disk i/o overhead of checkpointing can opt out of checkpointing.
 
 
 ## Enabling slave checkpointing
+> NOTE: From Mesos 0.22.0 slave checkpointing will be automatically enabled for all slaves.
 
 As part of this feature, 4 new flags were added to the slave.
 
 * `checkpoint` :  Whether to checkpoint slave and frameworks information
-                  to disk [Default: false].
+                  to disk [Default: true].
     - This enables a restarted slave to recover status updates and reconnect
-      with (--recover=reconnect) or kill (--recover=kill) old executors.
+      with (--recover=reconnect) or kill (--recover=cleanup) old executors.
+    > NOTE: From Mesos 0.22.0 this flag will be removed as it will be enabled for all slaves.
 
-	* `strict` : Whether to do recovery in strict mode [Default: true].
-		* If strict=true, any and all recovery errors are considered fatal.
-		* If strict=false, any errors (e.g., corruption in checkpointed data) during recovery are
+* `strict` : Whether to do recovery in strict mode [Default: true].
+    - If strict=true, any and all recovery errors are considered fatal.
+    - If strict=false, any errors (e.g., corruption in checkpointed data) during recovery are
       ignored and as much state as possible is recovered.
 
-	* `recover` : Whether to recover status updates and reconnect with old executors [Default: reconnect].
-		* If recover=reconnect, Reconnect with any old live executors.
-		* If recover=cleanup, Kill any old live executors and exit.
+* `recover` : Whether to recover status updates and reconnect with old executors [Default: reconnect].
+    - If recover=reconnect, Reconnect with any old live executors.
+    - If recover=cleanup, Kill any old live executors and exit.
       Use this option when doing an incompatible slave or executor upgrade!).
-      NOTE: If no checkpointing information exists, no recovery is performed
-      and the slave registers with the master as a new slave.
+    > NOTE: If no checkpointing information exists, no recovery is performed
+    > and the slave registers with the master as a new slave.
 
-	* `recovery_timeout` : Amount of time allotted for the slave to recover [Default: 15 mins].
-		* If the slave takes longer than `recovery_timeout` to recover, any executors that are waiting to
-    reconnect to the slave will self-terminate.
-    NOTE: This flag is only applicable when `--checkpoint` is enabled.
+* `recovery_timeout` : Amount of time allotted for the slave to recover [Default: 15 mins].
+    - If the slave takes longer than `recovery_timeout` to recover, any executors that are waiting to
+      reconnect to the slave will self-terminate.
+    > NOTE: This flag is only applicable when `--checkpoint` is enabled.
 
-> NOTE: If checkpointing is enabled on the slave, but none of the frameworks have enabled checkpointing,
+> NOTE: If none of the frameworks have enabled checkpointing,
 > executors/tasks of frameworks die when the slave dies and are not recovered.
 
 A restarted slave should re-register with master within a timeout (currently, 75s). If the slave takes longer

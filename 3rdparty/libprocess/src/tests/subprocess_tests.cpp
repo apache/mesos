@@ -223,8 +223,8 @@ TEST_F(SubprocessTest, PipeRedirect)
 
   Try<int> fd = os::open(
       path,
-      O_WRONLY | O_CREAT | O_TRUNC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(fd);
   ASSERT_SOME(os::nonblock(fd.get()));
@@ -363,8 +363,8 @@ TEST_F(SubprocessTest, FdOutput)
   // Standard out.
   Try<int> outFd = os::open(
       out,
-      O_WRONLY | O_CREAT | O_APPEND,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(outFd);
 
@@ -397,8 +397,8 @@ TEST_F(SubprocessTest, FdOutput)
   // Standard error.
   Try<int> errFd = os::open(
       err,
-      O_WRONLY | O_CREAT | O_APPEND,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+      O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(errFd);
 
@@ -440,7 +440,7 @@ TEST_F(SubprocessTest, FdInput)
 
   ASSERT_SOME(os::write(in, "hello\n"));
 
-  Try<int> inFd = os::open(in, O_RDONLY, 0);
+  Try<int> inFd = os::open(in, O_RDONLY | O_CLOEXEC);
   ASSERT_SOME(inFd);
 
   Try<Subprocess> s = subprocess(

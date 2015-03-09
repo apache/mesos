@@ -334,10 +334,10 @@
 
   mesosApp.controller('HomeCtrl', function($dialog, $scope) {
     $scope.log = function($event) {
-      if (!$scope.state.log_dir) {
+      if (!$scope.state.external_log_file && !$scope.state.log_dir) {
         $dialog.messageBox(
           'Logging to a file is not enabled',
-          "Set the 'log_dir' option if you wish to access the logs.",
+          "Set the 'external_log_file' or 'log_dir' option if you wish to access the logs.",
           [{label: 'Continue'}]
         ).open();
       } else {
@@ -399,10 +399,10 @@
       var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
 
       $scope.log = function($event) {
-        if (!$scope.state.log_dir) {
+        if (!$scope.state.external_log_file && !$scope.state.log_dir) {
           $dialog.messageBox(
             'Logging to a file is not enabled',
-            "Set the 'log_dir' option if you wish to access the logs.",
+            "Set the 'external_log_file' or 'log_dir' option if you wish to access the logs.",
             [{label: 'Continue'}]
           ).open();
         } else {

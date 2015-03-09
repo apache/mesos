@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
+#include <mesos/type_utils.hpp>
+
 #include <process/clock.hpp>
 #include <process/pid.hpp>
 
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
-
-#include "common/type_utils.hpp"
 
 #include "messages/messages.hpp"
 
@@ -114,7 +114,7 @@ Task createTask(
   t.mutable_labels()->MergeFrom(task.labels());
 
   if (task.has_discovery()) {
-      t.mutable_discovery()->MergeFrom(task.discovery());
+    t.mutable_discovery()->MergeFrom(task.discovery());
   }
 
   return t;
@@ -142,11 +142,15 @@ MasterInfo createMasterInfo(const process::UPID& pid)
 {
   MasterInfo info;
   info.set_id(stringify(pid) + "-" + UUID::random().toString());
-  info.set_ip(pid.node.ip);
-  info.set_port(pid.node.port);
+
+  // NOTE: Currently, we store the ip in network order, which should
+  // be fixed. See MESOS-1201 for more details.
+  info.set_ip(pid.address.ip.in().get().s_addr);
+
+  info.set_port(pid.address.port);
   info.set_pid(pid);
 
-  Try<string> hostname = net::getHostname(pid.node.ip);
+  Try<string> hostname = net::getHostname(pid.address.ip);
   if (hostname.isSome()) {
     info.set_hostname(hostname.get());
   }

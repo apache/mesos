@@ -1,10 +1,40 @@
 (WIP) Release Notes - Mesos - Version 0.22.0
 --------------------------------------
 
-** API Changes:
-  * [MESOS-1143] - TASK_ERROR is now sent instead of TASK_LOST when rescheduling a task should not be attempted.
-  * [MESOS-2086] - Update messages.proto to use a raw bytestream instead of a string for AuthenticationStartMessage.
+This release contains several new features:
 
+* Support for explicitly sending status updates acknowledgements from
+  schedulers; refer to the upgrades document for upgrading schedulers.
+
+* API Changes:
+  * [MESOS-1143] - TASK_ERROR is now sent instead of TASK_LOST when rescheduling
+                   a task should not be attempted.
+  * [MESOS-2086] - Update messages.proto to use a raw bytestream instead of a
+                   string for AuthenticationStartMessage.
+  * [MESOS-2322] - All arguments can now read their values from a file, just
+                   specify --name=file://path/to/file.
+  * [MESOS-2347] - The C++/Java/Python APIs have been updated to provide the
+                   ability for schedulers to explicitly send acknowledgements.
+                   TaskStatus now includes a UUID to enable this.
+
+* Deprecations:
+  * [MESOS-2058] - Deprecate stats.json endpoints for Master and Slave.
+  * [MESOS-2322] - Deprecated specifying JSON blobs to parse using an absolute
+    path to point at the filename.
+
+Release Notes - Mesos - Version 0.21.1
+--------------------------------------
+* This is a bug fix release.
+
+** Bug
+  * [MESOS-2047] Isolator cleanup failures shouldn't cause TASK_LOST.
+  * [MESOS-2071] Libprocess generates invalid HTTP
+  * [MESOS-2147] Large number of connections slows statistics.json responses.
+  * [MESOS-2182] Performance issue in libprocess SocketManager.
+
+** Improvement
+  * [MESOS-1925] Docker kill does not allow containers to exit gracefully
+  * [MESOS-2113] Improve configure to find apr and svn libraries/headers in OSX
 
 Release Notes - Mesos - Version 0.21.0
 --------------------------------------
