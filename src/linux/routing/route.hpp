@@ -53,7 +53,7 @@ private:
 
 
 // Returns the main routing table of this host.
-Try<std::vector<Rule> > table();
+Try<std::vector<Rule>> table();
 
 
 // Returns the default gateway of this host.

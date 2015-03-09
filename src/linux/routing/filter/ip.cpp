@@ -528,7 +528,7 @@ Try<bool> remove(
 }
 
 
-Result<vector<Classifier> > classifiers(
+Result<vector<Classifier>> classifiers(
     const string& link,
     const queueing::Handle& parent)
 {

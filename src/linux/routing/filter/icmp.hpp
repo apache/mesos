@@ -116,7 +116,7 @@ Try<bool> update(
 // Returns the classifiers of all the ICMP packet filters attached to
 // the given parent on the link. Returns None if the link or the
 // parent is not found.
-Result<std::vector<Classifier> > classifiers(
+Result<std::vector<Classifier>> classifiers(
     const std::string& link,
     const queueing::Handle& parent);
 

@@ -47,7 +47,7 @@ static Option<net::IP> IP(nl_addr* _ip)
 }
 
 
-Try<vector<Info> > infos(int family, int states)
+Try<vector<Info>> infos(int family, int states)
 {
   Try<Netlink<struct nl_sock>> socket = routing::socket(NETLINK_INET_DIAG);
   if (socket.isError()) {

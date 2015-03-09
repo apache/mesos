@@ -87,7 +87,7 @@ public:
   const Option<Handle>& handle() const { return handle_; }
 
   // Returns all the actions attached to this filter.
-  const std::vector<process::Shared<action::Action> >& actions() const
+  const std::vector<process::Shared<action::Action>>& actions() const
   {
     return actions_;
   }
@@ -108,7 +108,7 @@ private:
 
   // The set of actions attached to this filer. Note that we use
   // Shared here to make Filter copyable.
-  std::vector<process::Shared<action::Action> > actions_;
+  std::vector<process::Shared<action::Action>> actions_;
 };
 
 } // namespace filter {
