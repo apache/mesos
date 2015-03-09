@@ -46,8 +46,8 @@ layout: documentation
 9. Make sure to pull in any changes that have been committed to master branch. Using Git, do this via something like:
     1. `git checkout master`
     2. `git pull`
-    3. `git co my_branch`
-    4. Check the output of `git diff master` and make sure it lists only your changes. If other changes you did not make are listed, try a rebase to bring your branch up to date with master.
+    3. `git checkout my_branch`
+    4. Check the output of `git diff master` and make sure it lists only your changes. If other changes you did not make are listed, try `git rebase master` to bring your branch up to date with master.
 
 ### Submit your patch
 1. You're ready to submit your patch for review!
@@ -55,10 +55,11 @@ layout: documentation
     2. The easiest (and recommended) way to submit reviews is through `post-reviews.py` a wrapper around post-review.
     3. First, install post-review. [See Instructions](http://www.reviewboard.org/docs/manual/dev/users/tools/post-review/)
     4. Configure post-review. The easiest method is to symlink to the sample config: ln -s support/reviewboardrc .reviewboardrc
-    5. From your local branch run `support/post-reviews.py`.
-    6. Note that `post-reviews.py` creates a new review for every commit on your branch that is different from the `master`.
-    7. Be sure to add your JIRA issue id (e.g. MESOS-01) to the field labeled "Bugs" (this will automatically link)
-    8. Under "Description" in addition to details about your changes, include a description of any wiki documentation pages need to be added, or are affected by your changes (e.g. did you change or add any configuration options/flags? Did you add a new binary?)
+    5. Log into Review Board from the command line: run `rbt status`
+    6. From your local branch run `support/post-reviews.py`.
+    7. Note that `post-reviews.py` creates a new review for every commit on your branch that is different from the `master`.
+    8. Be sure to add your JIRA issue id (e.g. MESOS-01) to the field labeled "Bugs" (this will automatically link)
+    9. Under "Description" in addition to details about your changes, include a description of any documentation pages that need to be added, or are affected by your changes (e.g. did you change or add any configuration options/flags? Did you add a new binary?)
 
 2. Wait for a code review from another Mesos developer via Review Board, address their feedback and upload updated patches until you receive a "Ship It" from a Mesos committer.
     1. When addressing feedback, adjust your existing commit(s) instead of creating new commits, otherwise `post-reviews.py` will create a new review (`git rebase -i` is your friend).
