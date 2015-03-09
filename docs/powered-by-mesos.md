@@ -27,6 +27,7 @@ layout: documentation
 * [HubSpot](http://www.hubspot.com)
 * [Ignidata](http://www.ignidata.com)
 * [iQIYI](http://www.iqiyi.com/)
+* [Learnium](http://www.learnium.net/)
 * [LIFX](http://lifx.co)
 * [Localsensor](http://www.localsensor.com)
 * [Magine TV](https://magine.com)
@@ -49,6 +50,7 @@ layout: documentation
 * [Sigmoid Analytics](http://www.sigmoidanalytics.com/)
 * [SiQueries](https://siqueries.com)
 * [Squarespace](http://squarespace.com)
+* [TellApart](http://www.tellapart.com/)
 * [The Factory](http://www.thefactory.com)
 * Time Warner Cable
 * [Twitter](http://www.twitter.com)
