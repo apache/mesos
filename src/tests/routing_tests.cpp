@@ -48,6 +48,7 @@
 
 #include "linux/routing/link/link.hpp"
 
+#include "linux/routing/queueing/fq_codel.hpp"
 #include "linux/routing/queueing/handle.hpp"
 #include "linux/routing/queueing/ingress.hpp"
 
@@ -410,6 +411,18 @@ TEST_F(RoutingVethTest, ROOT_LinkMTU)
 
   EXPECT_NONE(link::mtu("not-exist"));
   EXPECT_SOME_FALSE(link::setMTU("not-exist", 1500));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_FqCodelCreate)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(fq_codel::create(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(fq_codel::exists(TEST_VETH_LINK));
 }
 
 
