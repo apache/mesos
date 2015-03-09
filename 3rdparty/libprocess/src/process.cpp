@@ -820,11 +820,11 @@ void initialize(const string& delegate)
 
   __address__ = bind.get();
 
-  // Lookup hostname if missing ip or if ip is 127.0.0.1 in case we
+  // Lookup hostname if missing ip or if ip is 0.0.0.0 in case we
   // actually have a valid external ip address. Note that we need only
   // one ip address, so that other processes can send and receive and
   // don't get confused as to whom they are sending to.
-  if (__address__.ip.isAny() || __address__.ip.isLoopback()) {
+  if (__address__.ip.isAny()) {
     char hostname[512];
 
     if (gethostname(hostname, sizeof(hostname)) < 0) {
