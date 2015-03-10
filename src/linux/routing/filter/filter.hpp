@@ -42,9 +42,9 @@ namespace filter {
 // satisfies the conditions specified in the classifier. If the
 // priority is not specified, the kernel will assign a priority to the
 // filter.
-// TODO(jieyu): Currently, this data structure is not directly exposed
-// to the user because libnl does not support getting actions of a
-// filter. Expose this data structure once libnl fixes the issue.
+// TODO(jieyu): Currently, libnl does not support getting all actions
+// associated with a filter. In other words, the list of actions
+// obtained from the filter might not be the complete list.
 template <typename Classifier>
 class Filter
 {

@@ -197,6 +197,13 @@ Try<bool> remove(
     const Classifier& classifier);
 
 
+// Returns all the IP packet filters attached to the given parent on
+// the link. Returns none if the link or the parent is not found.
+Result<std::vector<Filter<Classifier>>> filters(
+    const std::string& link,
+    const queueing::Handle& parent);
+
+
 // Returns the classifiers of all the IP packet filters attached to
 // the given parent on the link. Returns none if the link or the
 // parent is not found.
