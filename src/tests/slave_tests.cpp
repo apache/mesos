@@ -842,6 +842,10 @@ TEST_F(SlaveTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("slave/valid_framework_messages"));
   EXPECT_EQ(1u, snapshot.values.count("slave/invalid_framework_messages"));
 
+  EXPECT_EQ(
+      1u,
+      snapshot.values.count("slave/executor_directory_max_allowed_age_secs"));
+
   EXPECT_EQ(1u, snapshot.values.count("slave/cpus_total"));
   EXPECT_EQ(1u, snapshot.values.count("slave/cpus_used"));
   EXPECT_EQ(1u, snapshot.values.count("slave/cpus_percent"));

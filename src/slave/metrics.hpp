@@ -63,6 +63,8 @@ struct Metrics
   process::metrics::Counter valid_framework_messages;
   process::metrics::Counter invalid_framework_messages;
 
+  process::metrics::Gauge executor_directory_max_allowed_age_secs;
+
   // Resource metrics.
   std::vector<process::metrics::Gauge> resources_total;
   std::vector<process::metrics::Gauge> resources_used;

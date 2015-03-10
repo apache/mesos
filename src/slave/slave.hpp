@@ -411,6 +411,8 @@ private:
   double _executors_running();
   double _executors_terminating();
 
+  double _executor_directory_max_allowed_age_secs();
+
   void sendExecutorTerminatedStatusUpdate(
       const TaskID& taskId,
       const Future<containerizer::Termination>& termination,
@@ -481,6 +483,10 @@ private:
 
   // Indicates if a new authentication attempt should be enforced.
   bool reauthenticate;
+
+  // Maximum age of executor directories. Will be recomputed
+  // periodically every flags.disk_watch_interval.
+  Duration executorDirectoryMaxAllowedAge;
 };
 
 
