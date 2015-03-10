@@ -25,7 +25,9 @@ TEST(NetTest, LinkDevice)
   ASSERT_SOME(links);
 
   foreach(const string& link, links.get()) {
-    Result<net::IPNetwork> network = net::fromLinkDevice(link, AF_INET);
+    Result<net::IPNetwork> network =
+      net::IPNetwork::fromLinkDevice(link, AF_INET);
+
     EXPECT_FALSE(network.isError());
 
     if (network.isSome()) {
@@ -47,7 +49,7 @@ TEST(NetTest, LinkDevice)
     }
   }
 
-  EXPECT_ERROR(net::fromLinkDevice("non-exist", AF_INET));
+  EXPECT_ERROR(net::IPNetwork::fromLinkDevice("non-exist", AF_INET));
 }
 
 
