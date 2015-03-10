@@ -91,7 +91,11 @@ class TestScheduler(mesos.interface.Scheduler):
                 remainingCpus -= TASK_CPUS
                 remainingMem -= TASK_MEM
 
-            driver.launchTasks(offer.id, tasks)
+            operation = mesos_pb2.Offer.Operation()
+            operation.type = mesos_pb2.Offer.Operation.LAUNCH
+            operation.launch.task_infos.extend(tasks)
+
+            driver.acceptOffers([offer.id], [operation])
 
     def statusUpdate(self, driver, update):
         print "Task %s is in state %s" % \

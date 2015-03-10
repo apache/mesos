@@ -128,6 +128,11 @@ PyMethodDef MesosSchedulerDriverImpl_methods[] = {
     METH_VARARGS,
     "Kill the task with the given ID"
   },
+  { "acceptOffers",
+    (PyCFunction) MesosSchedulerDriverImpl_acceptOffers,
+    METH_VARARGS,
+    "Reply to a Mesos offer with a list of offer operations"
+  },
   { "declineOffer",
     (PyCFunction) MesosSchedulerDriverImpl_declineOffer,
     METH_VARARGS,
@@ -519,6 +524,85 @@ PyObject* MesosSchedulerDriverImpl_killTask(MesosSchedulerDriverImpl* self,
   }
 
   Status status = self->driver->killTask(tid);
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
+}
+
+
+PyObject* MesosSchedulerDriverImpl_acceptOffers(MesosSchedulerDriverImpl* self,
+                                                PyObject* args)
+{
+  if (self->driver == NULL) {
+    PyErr_Format(PyExc_Exception, "MesosSchedulerDriverImpl.driver is NULL");
+    return NULL;
+  }
+
+  PyObject* offerIdsObj = NULL;
+  PyObject* operationsObj = NULL;
+  PyObject* filtersObj = NULL;
+  Py_ssize_t len = 0;
+  vector<OfferID> offerIds;
+  vector<Offer::Operation> operations;
+  Filters filters;
+
+  if (!PyArg_ParseTuple(args,
+                        "OO|O",
+                        &offerIdsObj,
+                        &operationsObj,
+                        &filtersObj)) {
+    return NULL;
+  }
+
+  if (!PyList_Check(offerIdsObj)) {
+    PyErr_Format(PyExc_Exception, "Parameter 1 to acceptOffers is not a list");
+    return NULL;
+  }
+
+  len = PyList_Size(offerIdsObj);
+  for (int i = 0; i < len; i++) {
+    PyObject* offerObj = PyList_GetItem(offerIdsObj, i);
+    if (offerObj == NULL) {
+      return NULL;
+    }
+
+    OfferID offerId;
+    if (!readPythonProtobuf(offerObj, &offerId)) {
+      PyErr_Format(PyExc_Exception,
+                   "Could not deserialize Python OfferID");
+      return NULL;
+    }
+    offerIds.push_back(offerId);
+  }
+
+  if (!PyList_Check(operationsObj)) {
+    PyErr_Format(PyExc_Exception, "Parameter 2 to acceptOffers is not a list");
+    return NULL;
+  }
+
+  len = PyList_Size(operationsObj);
+  for (int i = 0; i < len; i++) {
+    PyObject* operationObj = PyList_GetItem(operationsObj, i);
+    if (operationObj == NULL) {
+      return NULL; // Exception will have been set by PyList_GetItem.
+    }
+
+    Offer::Operation operation;
+    if (!readPythonProtobuf(operationObj, &operation)) {
+      PyErr_Format(PyExc_Exception,
+                   "Could not deserialize Python Offer.Operation");
+      return NULL;
+    }
+    operations.push_back(operation);
+  }
+
+  if (filtersObj != NULL) {
+    if (!readPythonProtobuf(filtersObj, &filters)) {
+      PyErr_Format(PyExc_Exception,
+                   "Could not deserialize Python Filters");
+      return NULL;
+    }
+  }
+
+  Status status = self->driver->acceptOffers(offerIds, operations, filters);
   return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 

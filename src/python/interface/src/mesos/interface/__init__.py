@@ -201,6 +201,17 @@ class SchedulerDriver(object):
       dropped (these semantics may be changed in the future).
     """
 
+  def acceptOffers(self, offerIds, operations, filters=None):
+    """
+      Accepts the given offers and performs a sequence of operations
+      on those accepted offers. See Offer.Operation in mesos.proto for
+      the set of available operations. Available resources are
+      aggregated when multiple offers are provided. Note that all
+      offers must belong to the same slave. Any unused resources will
+      be considered declined. The specified filters are applied on all
+      unused resources (see mesos.proto for a description of Filters).
+    """
+
   def declineOffer(self, offerId, filters=None):
     """
       Declines an offer in its entirety and applies the specified
