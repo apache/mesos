@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include <string>
-
 #include <mesos/hook.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
@@ -28,15 +26,13 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
-using std::string;
-
 using namespace mesos;
 
 // Must be kept in sync with variables of the same name in
 // tests/hook_tests.cpp.
 const char* testLabelKey = "MESOS_Test_Label";
 const char* testLabelValue = "ApacheMesos";
-const char* testEnvironmentVariableName = "MESOS_TEST_ENVIRONMENT_VARIABLE";
+
 
 class TestHook : public Hook
 {
@@ -57,37 +53,17 @@ public:
   }
 
 
-  // In this hook, we create a temporary file and add its path to an
-  // environment variable.  Later on, this environment variable is
-  // looked up by the removeExecutorHook to locate and delete this
-  // file.
-  virtual Result<Environment> slaveLaunchExecutorEnvironmentDecorator(
-      const ExecutorInfo& executorInfo,
-      const TaskInfo& taskInfo)
+  // In this hook, we create a new environment variable "FOO" and set
+  // it's value to "bar".
+  virtual Result<Environment> slaveExecutorEnvironmentDecorator(
+      const ExecutorInfo& executorInfo)
   {
-    LOG(INFO) << "Executing 'slaveLaunchExecutorEnvironmentDecorator' hook";
+    LOG(INFO) << "Executing 'slaveExecutorEnvironmentDecorator' hook";
 
-    // Find the label value for the label that was created in the
-    // label decorator hook above.
-    Option<string> labelValue;
-    foreach (const Label& label, taskInfo.labels().labels()) {
-      if (label.key() == testLabelKey) {
-        labelValue = label.value();
-        CHECK_EQ(labelValue.get(), testLabelValue);
-      }
-    }
-    CHECK_SOME(labelValue);
-
-    // Create a temporary file.
-    Try<string> file = os::mktemp();
-    CHECK_SOME(file);
-    CHECK_SOME(os::write(file.get(), labelValue.get()));
-
-    // Inject file path into command environment.
     Environment environment;
     Environment::Variable* variable = environment.add_variables();
-    variable->set_name(testEnvironmentVariableName);
-    variable->set_value(file.get());
+    variable->set_name("FOO");
+    variable->set_value("bar");
 
     return environment;
   }
@@ -101,18 +77,10 @@ public:
   {
     LOG(INFO) << "Executing 'slaveRemoveExecutorHook'";
 
-    foreach (const Environment::Variable& variable,
-        executorInfo.command().environment().variables()) {
-      if (variable.name() == testEnvironmentVariableName) {
-        string path = variable.value();
-        // The removeExecutor hook may be called multiple times; thus
-        // we ignore the subsequent calls.
-        if (os::stat::isfile(path)) {
-          CHECK_SOME(os::rm(path));
-        }
-        break;
-      }
-    }
+    // TODO(karya): Need to synchronize VerifySlaveLaunchExecutorHook
+    // test with this hook for validation. The issue is tracked by
+    // MESOS-2226.
+
     return Nothing();
   }
 };

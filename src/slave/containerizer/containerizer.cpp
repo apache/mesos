@@ -28,6 +28,8 @@
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
+#include "hook/manager.hpp"
+
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
@@ -286,6 +288,23 @@ map<string, string> executorEnvironment(
 
   if (checkpoint) {
     env["MESOS_RECOVERY_TIMEOUT"] = stringify(recoveryTimeout);
+  }
+
+  // Include any environment variables from Hooks.
+  // TODO(karya): Call environment decorator hook _after_ putting all
+  // variables from executorInfo into 'env'. This would prevent the
+  // ones provided by hooks from being overwritten by the ones in
+  // executorInfo in case of a conflict. The overwriting takes places
+  // at the callsites of executorEnvironment (e.g., ___launch function
+  // in src/slave/containerizer/docker.cpp)
+  // TODO(karya): Provide a mechanism to pass the new environment
+  // variables created above (MESOS_*) on to the hook modules.
+  const Environment& hooksEnvironment =
+    HookManager::slaveExecutorEnvironmentDecorator(executorInfo);
+
+  foreach (const Environment::Variable& variable,
+           hooksEnvironment.variables()) {
+    env[variable.name()] = variable.value();
   }
 
   return env;

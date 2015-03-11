@@ -27,11 +27,18 @@
 #include <stout/try.hpp>
 
 #include "hook/manager.hpp"
+
 #include "module/manager.hpp"
+
 #include "master/flags.hpp"
 #include "master/master.hpp"
+
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
+
+#include "slave/containerizer/fetcher.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/flags.hpp"
@@ -42,6 +49,9 @@ using std::string;
 using namespace mesos::modules;
 
 using mesos::internal::master::Master;
+
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
 
 using process::Future;
@@ -113,7 +123,7 @@ TEST_F(HookTest, HookLoading)
 // taskinfo message during master launch task.
 TEST_F(HookTest, VerifyMasterLaunchTaskHook)
 {
-  Try<PID<Master> > master = StartMaster(CreateMasterFlags());
+  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
   ASSERT_SOME(master);
 
   TestContainerizer containerizer;
@@ -131,7 +141,7 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -148,9 +158,9 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
-  task.mutable_command()->MergeFrom(command);
+  task.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->CopyFrom(offers.get()[0].resources());
+  task.mutable_command()->CopyFrom(command);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -184,6 +194,50 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
 }
 
 
+// Test that the environment decorator hook adds a new environment
+// variable to the executor runtime.
+// Test hook adds a new environment variable "FOO" to the executor
+// with a value "bar". We validate the hook by verifying the value
+// of this environment variable.
+TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
+{
+  const string& directory = os::getcwd(); // We're inside a temporary sandbox.
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(CreateSlaveFlags(), false, &fetcher);
+  ASSERT_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  // Test hook adds a new environment variable "FOO" to the executor
+  // with a value "bar". A '0' (success) exit status for the following
+  // command validates the hook.
+  process::Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      CREATE_EXECUTOR_INFO("executor", "test $FOO = 'bar'"),
+      directory,
+      None(),
+      SlaveID(),
+      process::PID<Slave>(),
+      false);
+  AWAIT_READY(launch);
+  ASSERT_TRUE(launch.get());
+
+  // Wait on the container.
+  process::Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+
+  delete containerizer.get();
+}
+
+
 // Test executor environment decorator hook and remove executor hook
 // for slave.  We expect the environment-decorator hook to create a
 // temporary file and the remove-executor hook to delete that file.
@@ -191,7 +245,7 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
-  Try<PID<Master> > master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -200,17 +254,16 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
 
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -224,9 +277,9 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
-  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  task.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->CopyFrom(offers.get()[0].resources());
+  task.mutable_executor()->CopyFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -235,7 +288,6 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
 
   Future<ExecutorInfo> executorInfo;
   EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1)
     .WillOnce(FutureArg<1>(&executorInfo));
 
   driver.launchTasks(offers.get()[0].id(), tasks);

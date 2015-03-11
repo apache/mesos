@@ -113,25 +113,27 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
 }
 
 
-Environment HookManager::slaveLaunchExecutorEnvironmentDecorator(
-    const ExecutorInfo& executorInfo,
-    const TaskInfo& taskInfo)
+Environment HookManager::slaveExecutorEnvironmentDecorator(
+    ExecutorInfo executorInfo)
 {
   Lock lock(&mutex);
-  Environment environment;
 
   foreachpair (const string& name, Hook* hook, availableHooks) {
     const Result<Environment>& result =
-      hook->slaveLaunchExecutorEnvironmentDecorator(executorInfo, taskInfo);
+      hook->slaveExecutorEnvironmentDecorator(executorInfo);
     if (result.isSome()) {
-      environment.MergeFrom(result.get());
+      // Update executorInfo to include newer environment variables
+      // so that the next hook module can extend the environment
+      // variables instead of simply overwriting them.
+      executorInfo.mutable_command()->mutable_environment()->MergeFrom(
+          result.get());
     } else if (result.isError()) {
       LOG(WARNING) << "Slave environment decorator hook failed for module '"
                    << name << "': " << result.error();
     }
   }
 
-  return environment;
+  return executorInfo.command().environment();
 }
 
 
