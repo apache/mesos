@@ -144,6 +144,7 @@ check_PROGRAMS = stout-tests
 
 stout_tests_SOURCES =				\
   $(STOUT)/tests/base64_tests.cpp		\
+  $(STOUT)/tests/bits_tests.cpp			\
   $(STOUT)/tests/bytes_tests.cpp		\
   $(STOUT)/tests/cache_tests.cpp		\
   $(STOUT)/tests/svn_tests.cpp			\
