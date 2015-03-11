@@ -904,7 +904,8 @@ TEST_F(OsTest, Mknod)
 {
   // mknod requires root permission.
   Result<string> user = os::user();
-  CHECK_SOME(user);
+  ASSERT_SOME(user);
+
   if (user.get() != "root") {
     return;
   }
@@ -912,16 +913,16 @@ TEST_F(OsTest, Mknod)
   const string& device = "null";
 
   const string& existing = path::join("/dev", device);
-  CHECK(os::exists(existing));
+  ASSERT_TRUE(os::exists(existing));
 
   Try<mode_t> mode = os::stat::mode(existing);
-  CHECK_SOME(mode);
+  ASSERT_SOME(mode);
 
   Try<dev_t> rdev = os::stat::rdev(existing);
-  CHECK_SOME(rdev);
+  ASSERT_SOME(rdev);
 
   const string& another = path::join(os::getcwd(), device);
-  CHECK(!os::exists(another));
+  ASSERT_FALSE(os::exists(another));
 
   EXPECT_SOME(os::mknod(another, mode.get(), rdev.get()));
 
