@@ -45,14 +45,15 @@ public:
     return None();
   }
 
-  // This environment decorator hook is called from within slave
-  // when launching a new executor.  A module implementing the hook
-  // creates and returns a set of environment variables.  These
-  // environment variables are then merged into the executorInfo
-  // and become part of the executor's environment.
-  virtual Result<Environment> slaveLaunchExecutorEnvironmentDecorator(
-      const ExecutorInfo& executorInfo,
-      const TaskInfo& taskInfo)
+  // This environment decorator hook is called from within slave when
+  // launching a new executor. A module implementing the hook creates
+  // and returns a set of environment variables. These environment
+  // variables then become part of the executor's environment.
+  // Ideally, a hook module will also look at the exiting environment
+  // variables in executorInfo and extend the values as needed in case
+  // of a conflict.
+  virtual Result<Environment> slaveExecutorEnvironmentDecorator(
+      const ExecutorInfo& executorInfo)
   {
     return None();
   }
