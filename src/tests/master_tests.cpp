@@ -3204,6 +3204,120 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
+
+// Test verifies that a long lived executor works after master
+// fail-over. The test launches a task, restarts the master and
+// launches another task using the same executor.
+TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
+{
+  // Start master and create detector to inform scheduler and slave
+  // about newly elected master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+  StandaloneMasterDetector detector (master.get());
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  // Compute half of total available resources in order to launch two
+  // tasks on the same executor (and thus slave).
+  Resources halfSlave = Resources::parse("cpus:1;mem:512").get();
+  Resources fullSlave = halfSlave + halfSlave;
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  Try<PID<Slave>> slave = StartSlave(&containerizer, &detector, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(2);
+
+  EXPECT_CALL(sched, disconnected(&driver));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  TaskInfo task1;
+  task1.set_name("");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offers1.get()[0].slave_id());
+  task1.mutable_resources()->MergeFrom(halfSlave);
+  task1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks1;
+  tasks1.push_back(task1);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  // Expect two tasks to eventually be running on the executor.
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver.launchTasks(offers1.get()[0].id(), tasks1);
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  // Fail over master.
+  Stop(master.get());
+
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Subsequent offers have been ignored until now, set an expectation
+  // to get offers from the failed over master.
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  detector.appoint(master.get());
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+
+  // The second task is a just a copy of the first task (using the
+  // same executor and resources). We have to set a new task id.
+  TaskInfo task2 = task1;
+  task2.mutable_task_id()->set_value("2");
+
+  vector<TaskInfo> tasks2;
+  tasks2.push_back(task2);
+
+  // Start the second task with the new master on the running executor.
+  driver.launchTasks(offers2.get()[0].id(), tasks2);
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
