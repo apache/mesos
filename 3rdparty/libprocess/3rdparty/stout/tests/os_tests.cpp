@@ -902,6 +902,13 @@ TEST_F(OsTest, Libraries)
 
 TEST_F(OsTest, Mknod)
 {
+  // mknod requires root permission.
+  Result<string> user = os::user();
+  CHECK_SOME(user);
+  if (user.get() != "root") {
+    return;
+  }
+
   const string& device = "null";
 
   const string& existing = path::join("/dev", device);
