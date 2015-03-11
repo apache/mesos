@@ -12,6 +12,7 @@ SUBDIRS = . include
 # Tests.
 EXTRA_DIST =					\
   tests/base64_tests.cpp			\
+  tests/bits_tests.cpp				\
   tests/bytes_tests.cpp				\
   tests/cache_tests.cpp				\
   tests/duration_tests.cpp			\

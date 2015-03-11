@@ -2,6 +2,7 @@
 nobase_include_HEADERS =		\
   stout/abort.hpp			\
   stout/base64.hpp			\
+  stout/bits.hpp			\
   stout/bytes.hpp			\
   stout/cache.hpp			\
   stout/check.hpp			\

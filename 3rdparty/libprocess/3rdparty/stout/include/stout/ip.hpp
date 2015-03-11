@@ -38,6 +38,7 @@
 #include <string>
 
 #include "abort.hpp"
+#include "bits.hpp"
 #include "error.hpp"
 #include "none.hpp"
 #include "numify.hpp"
@@ -295,15 +296,7 @@ public:
   {
     switch (netmask_.family()) {
       case AF_INET: {
-        uint32_t mask = ntohl(netmask_.in().get().s_addr);
-        int value = 0;
-
-        while (mask != 0) {
-          value += mask & 1;
-          mask >>= 1;
-        }
-
-        return value;
+        return bits::countSetBits(ntohl(netmask_.in().get().s_addr));
       }
       default: {
         UNREACHABLE();
