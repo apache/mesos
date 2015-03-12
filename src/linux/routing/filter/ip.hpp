@@ -188,6 +188,18 @@ Try<bool> create(
     const action::Terminal& terminal);
 
 
+// Creates an IP packet filter attached to the given parent on the
+// link which will set the classid for packets. Returns false if an IP
+// packet filter attached to the given parent with the same classifier
+// already exists.
+Try<bool> create(
+    const std::string& link,
+    const queueing::Handle& parent,
+    const Classifier& classifier,
+    const Option<Priority>& priority,
+    const Option<queueing::Handle>& classid);
+
+
 // Removes the IP packet filter attached to the given parent that
 // matches the specified classifier from the link. Returns false if
 // such a filter is not found.

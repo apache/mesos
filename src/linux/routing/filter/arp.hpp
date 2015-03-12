@@ -63,6 +63,18 @@ Try<bool> create(
     const action::Mirror& mirror);
 
 
+// Creates an ARP packet filter attached to the given parent on the
+// link which will set the classid for packets. Returns false if an
+// ARP packet filter attached to the given parent already exists on
+// the link. The user can choose to specify an optional priority for
+// the filter.
+Try<bool> create(
+    const std::string& link,
+    const queueing::Handle& parent,
+    const Option<Priority>& priority,
+    const Option<queueing::Handle>& classid);
+
+
 // Removes the ARP packet filter attached to the parent from the link.
 // Returns false if no ARP packet filter attached to the given parent
 // is found on the link.

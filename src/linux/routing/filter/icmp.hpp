@@ -94,6 +94,20 @@ Try<bool> create(
     const action::Mirror& mirror);
 
 
+// Creates an ICMP packet filter attached to the given parent on the
+// link which will set the classid for packets that satisfy the
+// conditions specified by the classifier. Returns false if an ICMP
+// packet filter attached to the given parent with the same classifier
+// already exists. The user can choose to specify an optional priority
+// for the filter.
+Try<bool> create(
+    const std::string& link,
+    const queueing::Handle& parent,
+    const Classifier& classifier,
+    const Option<Priority>& priority,
+    const Option<queueing::Handle>& classid);
+
+
 // Removes the ICMP packet filter attached to the given parent that
 // matches the specified classifier from the link. Returns false if
 // such a filter is not found.

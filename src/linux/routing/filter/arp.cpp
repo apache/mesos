@@ -146,6 +146,23 @@ Try<bool> create(
 }
 
 
+Try<bool> create(
+    const string& link,
+    const queueing::Handle& parent,
+    const Option<Priority>& priority,
+    const Option<queueing::Handle>& classid)
+{
+  return internal::create(
+      link,
+      Filter<Classifier>(
+          parent,
+          Classifier(),
+          priority,
+          None(),
+          classid));
+}
+
+
 Try<bool> remove(const string& link, const queueing::Handle& parent)
 {
   return internal::remove(link, parent, Classifier());

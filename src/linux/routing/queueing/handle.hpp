@@ -38,6 +38,16 @@ public:
     handle = (((uint32_t) primary) << 16) + secondary;
   }
 
+  // NOTE: This is used to construct a classid. The higher 16 bits of
+  // the given 'parent' will be the primary and the lower 16 bits is
+  // specified by the given 'id'.
+  Handle(Handle parent, uint16_t id)
+  {
+    handle = (((uint32_t) parent.primary()) << 16) + id;
+  }
+
+  uint16_t primary() const { return handle >> 16; }
+  uint16_t secondary() const { return handle & 0x0000ffff; }
   uint32_t get() const { return handle; }
 
 private:

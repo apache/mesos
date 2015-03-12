@@ -414,6 +414,15 @@ Try<Netlink<struct rtnl_cls>> encodeFilter(
     }
   }
 
+  // Set the classid if needed.
+  if (filter.classid().isSome()) {
+    if (rtnl_tc_get_kind(TC_CAST(cls.get())) == std::string("u32")) {
+      rtnl_u32_set_classid(cls.get(), filter.classid().get().get());
+    } else if (rtnl_tc_get_kind(TC_CAST(cls.get())) == std::string("basic")) {
+      rtnl_basic_set_target(cls.get(), filter.classid().get().get());
+    }
+  }
+
   return cls;
 }
 
@@ -452,10 +461,24 @@ Result<Filter<Classifier>> decodeFilter(const Netlink<struct rtnl_cls>& cls)
     return None();
   }
 
+  Option<queueing::Handle> classid;
+  if (rtnl_tc_get_kind(TC_CAST(cls.get())) == std::string("u32")) {
+    uint32_t _classid;
+    if (rtnl_u32_get_classid(cls.get(), &_classid) == 0) {
+      classid = _classid;
+    }
+  } else if (rtnl_tc_get_kind(TC_CAST(cls.get())) == std::string("basic")) {
+    classid = rtnl_basic_get_target(cls.get());
+  }
+
   // TODO(jieyu): Decode all the actions attached to the filter.
   // Currently, libnl does not support that (but will support that in
   // the future).
-  return Filter<Classifier>(parent, classifier.get(), priority, handle);
+  return Filter<Classifier>(parent,
+                            classifier.get(),
+                            priority,
+                            handle,
+                            classid);
 }
 
 /////////////////////////////////////////////////

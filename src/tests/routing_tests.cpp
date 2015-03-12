@@ -426,6 +426,71 @@ TEST_F(RoutingVethTest, ROOT_FqCodelCreate)
 }
 
 
+TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
+{
+  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  ASSERT_SOME_TRUE(fq_codel::create(TEST_VETH_LINK));
+
+  EXPECT_SOME_TRUE(arp::create(
+      TEST_VETH_LINK,
+      fq_codel::HANDLE,
+      None(),
+      queueing::Handle(fq_codel::HANDLE, 0)));
+
+  // There is a kernel bug which could cause this test fail. Please
+  // make sure your kernel, if newer than 3.14, has commit:
+  // b057df24a7536cce6c372efe9d0e3d1558afedf4
+  // (https://git.kernel.org/cgit/linux/kernel/git/davem/net.git).
+  // Please fix your kernel if you see this failure.
+  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, fq_codel::HANDLE));
+
+  EXPECT_SOME_TRUE(icmp::create(
+      TEST_VETH_LINK,
+      fq_codel::HANDLE,
+      icmp::Classifier(None()),
+      None(),
+      queueing::Handle(fq_codel::HANDLE, 0)));
+
+  EXPECT_SOME_TRUE(icmp::exists(
+      TEST_VETH_LINK,
+      fq_codel::HANDLE,
+      icmp::Classifier(None())));
+
+  Result<net::MAC> mac = net::mac(TEST_VETH_LINK);
+  ASSERT_SOME(mac);
+
+  net::IP ip = net::IP(0x01020304); // 1.2.3.4
+
+  Try<ip::PortRange> sourcePorts =
+    ip::PortRange::fromBeginEnd(1024, 1027);
+  ASSERT_SOME(sourcePorts);
+
+  Try<ip::PortRange> destinationPorts =
+    ip::PortRange::fromBeginEnd(2000, 2000);
+  ASSERT_SOME(destinationPorts);
+
+  ip::Classifier classifier =
+    ip::Classifier(
+        mac.get(),
+        ip,
+        sourcePorts.get(),
+        destinationPorts.get());
+
+  EXPECT_SOME_TRUE(ip::create(
+      TEST_VETH_LINK,
+      fq_codel::HANDLE,
+      classifier,
+      None(),
+      queueing::Handle(fq_codel::HANDLE, 1)));
+
+  EXPECT_SOME_TRUE(ip::exists(TEST_VETH_LINK, fq_codel::HANDLE, classifier));
+}
+
+
 TEST_F(RoutingVethTest, ROOT_ARPFilterCreate)
 {
   ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
