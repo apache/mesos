@@ -3208,7 +3208,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
 // Test verifies that a long lived executor works after master
 // fail-over. The test launches a task, restarts the master and
 // launches another task using the same executor.
-TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
+TEST_F(MasterTest, DISABLED_MasterFailoverLongLivedExecutor)
 {
   // Start master and create detector to inform scheduler and slave
   // about newly elected master.
