@@ -138,6 +138,8 @@ JSON::Object model(const Framework& framework)
   // Model all of the tasks associated with a framework.
   {
     JSON::Array array;
+    array.values.reserve(
+        framework.pendingTasks.size() + framework.tasks.size()); // MESOS-2353.
 
     foreachvalue (const TaskInfo& task, framework.pendingTasks) {
       vector<TaskStatus> statuses;
@@ -154,6 +156,8 @@ JSON::Object model(const Framework& framework)
   // Model all of the completed tasks of a framework.
   {
     JSON::Array array;
+    array.values.reserve(framework.completedTasks.size()); // MESOS-2353.
+
     foreach (const memory::shared_ptr<Task>& task, framework.completedTasks) {
       array.values.push_back(model(*task));
     }
@@ -164,6 +168,8 @@ JSON::Object model(const Framework& framework)
   // Model all of the offers associated with a framework.
   {
     JSON::Array array;
+    array.values.reserve(framework.offers.size()); // MESOS-2353.
+
     foreach (Offer* offer, framework.offers) {
       array.values.push_back(model(*offer));
     }
@@ -386,8 +392,7 @@ Future<Response> Master::Http::slaves(const Request& request) {
 
   JSON::Array array;
   foreachvalue (const Slave* slave, master->slaves.registered) {
-    JSON::Object object = model(*slave);
-    array.values.push_back(object);
+    array.values.push_back(model(*slave));
   }
 
   JSON::Object object;
@@ -459,6 +464,8 @@ Future<Response> Master::Http::state(const Request& request)
   // Model all of the slaves.
   {
     JSON::Array array;
+    array.values.reserve(master->slaves.registered.size()); // MESOS-2353.
+
     foreachvalue (Slave* slave, master->slaves.registered) {
       array.values.push_back(model(*slave));
     }
@@ -469,6 +476,8 @@ Future<Response> Master::Http::state(const Request& request)
   // Model all of the frameworks.
   {
     JSON::Array array;
+    array.values.reserve(master->frameworks.registered.size()); // MESOS-2353.
+
     foreachvalue (Framework* framework, master->frameworks.registered) {
       array.values.push_back(model(*framework));
     }
@@ -479,6 +488,7 @@ Future<Response> Master::Http::state(const Request& request)
   // Model all of the completed frameworks.
   {
     JSON::Array array;
+    array.values.reserve(master->frameworks.completed.size()); // MESOS-2353.
 
     foreach (const memory::shared_ptr<Framework>& framework,
              master->frameworks.completed) {
