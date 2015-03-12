@@ -45,8 +45,8 @@ public class TestFramework {
     }
 
     @Override
-    public void registered(SchedulerDriver driver, 
-                           FrameworkID frameworkId, 
+    public void registered(SchedulerDriver driver,
+                           FrameworkID frameworkId,
                            MasterInfo masterInfo) {
       System.out.println("Registered! ID = " + frameworkId.getValue());
     }
