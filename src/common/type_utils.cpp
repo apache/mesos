@@ -327,7 +327,7 @@ bool operator == (const SlaveInfo& left, const SlaveInfo& right)
 
 bool operator == (const TaskStatus& left, const TaskStatus& right)
 {
-  return left.task_id() == right.task_id();
+  return left.task_id() == right.task_id() &&
     left.state() == right.state() &&
     left.data() == right.data() &&
     left.message() == right.message() &&
