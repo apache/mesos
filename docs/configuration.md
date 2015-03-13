@@ -444,6 +444,18 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --slave_removal_rate_limit=VALUE
+    </td>
+    <td>
+      The maximum rate (e.g., 1/10mins, 2/3hrs, etc) at which slaves will
+      be removed from the master when they fail health checks. By default
+      slaves will be removed as soon as they fail the health checks.
+      <p/>
+      The value is of the form 'Number of slaves'/'Duration'
+    </td>
+  </tr>
+  <tr>
+    <td>
       --registry=VALUE
     </td>
     <td>
