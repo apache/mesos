@@ -226,6 +226,12 @@ public:
         "swap instead of just memory.\n",
         false);
 
+    add(&Flags::cgroups_cpu_enable_pids_and_tids_count,
+        "cgroups_cpu_enable_pids_and_tids_count",
+        "Cgroups feature flag to enable counting of processes and threads\n"
+        "inside a container.\n",
+        false);
+
     add(&Flags::slave_subsystems,
         "slave_subsystems",
         "List of comma-separated cgroup subsystems to run the slave binary\n"
@@ -488,6 +494,7 @@ public:
   std::string cgroups_root;
   bool cgroups_enable_cfs;
   bool cgroups_limit_swap;
+  bool cgroups_cpu_enable_pids_and_tids_count;
   Option<std::string> slave_subsystems;
   Option<std::string> perf_events;
   Duration perf_interval;

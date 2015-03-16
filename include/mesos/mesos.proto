@@ -437,6 +437,9 @@ message Resource {
 message ResourceStatistics {
   required double timestamp = 1; // Snapshot time, in seconds since the Epoch.
 
+  optional uint32 processes = 30;
+  optional uint32 threads = 31;
+
   // CPU Usage Information:
   // Total CPU time spent in user mode, and kernel mode.
   optional double cpus_user_time_secs = 2;

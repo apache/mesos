@@ -417,6 +417,36 @@ Future<ResourceStatistics> CgroupsCpushareIsolatorProcess::usage(
 
   ResourceStatistics result;
 
+  // TODO(chzhcn): Getting the number of processes and threads is
+  // available as long as any cgroup subsystem is used so this best
+  // not be tied to a specific cgroup isolator. A better place is
+  // probably Linux Launcher, which uses the cgroup freezer subsystem.
+  // That requires some change for it to adopt the new semantics of
+  // reporting subsystem-independent cgroup usage.
+  // Note: The complexity of this operation is linear to the number of
+  // processes and threads in a container: the kernel has to allocate
+  // memory to contain the list of pids or tids; the userspace has to
+  // parse the cgroup files to get the size. If this proves to be a
+  // performance bottleneck, some kind of rate limiting mechanism
+  // needs to be employed.
+  if (flags.cgroups_cpu_enable_pids_and_tids_count) {
+    Try<std::set<pid_t>> pids =
+      cgroups::processes(hierarchies["cpuacct"], info->cgroup);
+    if (pids.isError()) {
+      return Failure("Failed to get number of processes: " + pids.error());
+    }
+
+    result.set_processes(pids.get().size());
+
+    Try<std::set<pid_t>> tids =
+      cgroups::threads(hierarchies["cpuacct"], info->cgroup);
+    if (tids.isError()) {
+      return Failure("Failed to get number of threads: " + tids.error());
+    }
+
+    result.set_threads(tids.get().size());
+  }
+
   // Get the number of clock ticks, used for cpu accounting.
   static long ticks = sysconf(_SC_CLK_TCK);
 
