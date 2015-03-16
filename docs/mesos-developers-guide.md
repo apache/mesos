@@ -53,7 +53,7 @@ layout: documentation
 1. You're ready to submit your patch for review!
     1. Log in or create an account at [Apache Review Board](http://reviews.apache.org)
     2. The easiest (and recommended) way to submit reviews is through `post-reviews.py` a wrapper around post-review.
-    3. First, install post-review. [See Instructions](http://www.reviewboard.org/docs/manual/dev/users/tools/post-review/)
+    3. First, install RBTools. [See Instructions](https://www.reviewboard.org/docs/rbtools/dev/)
     4. Configure post-review. The easiest method is to symlink to the sample config: ln -s support/reviewboardrc .reviewboardrc
     5. Log into Review Board from the command line: run `rbt status`
     6. From your local branch run `support/post-reviews.py`.
