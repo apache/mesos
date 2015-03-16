@@ -538,6 +538,8 @@ private:
 namespace internal {
 
 // Helper for executing callbacks that have been registered.
+//
+// TODO(*): Invoke callbacks in another execution context.
 template <typename C, typename... Arguments>
 void run(const std::vector<C>& callbacks, Arguments&&... arguments)
 {
