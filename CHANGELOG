@@ -1,16 +1,34 @@
-(WIP) Release Notes - Mesos - Version 0.22.0
+Release Notes - Mesos - Version 0.22.0
 --------------------------------------
 
 This release contains several new features:
 
 * Support for explicitly sending status updates acknowledgements from
   schedulers; refer to the upgrades document for upgrading schedulers.
+* Rate limiting slave removal, to safeguard against unforeseen bugs leading to
+  widespread slave removal.
+* Disk quota isolation in Mesos containerizer; refer to the containerization
+  documentation to enable disk quota monitoring and enforcement.
+* Support for module hooks in task launch sequence. Refer to the modules
+  documentation for more information.
+* Anonymous modules: a new kind of module that does not receive any callbacks
+  but coexists with its parent process.
+* New service discovery info in task info allows framework users to specify
+  discoverability of tasks for external service discovery systems. Refer to
+  the framework development guide for more information.
+* New '--external_log_file' flag to serve external logs through the Mesos web UI.
+* New '--gc_disk_headroom' flag to control maxmimum executor sandbox age.
 
 * API Changes:
   * [MESOS-1143] - TASK_ERROR is now sent instead of TASK_LOST when rescheduling
                    a task should not be attempted.
   * [MESOS-2086] - Update messages.proto to use a raw bytestream instead of a
                    string for AuthenticationStartMessage.
+  * [MESOS-2120] - Task labels which enable key value pairs in task info which
+                   follows them through the task life-cycle.
+  * [MESOS-2185] - Slave state.json will now include custom resource types in
+                   addition to first-class resource types.
+  * [MESOS-2208] - Service discovery info for tasks and executors.
   * [MESOS-2322] - All arguments can now read their values from a file, just
                    specify --name=file://path/to/file.
   * [MESOS-2347] - The C++/Java/Python APIs have been updated to provide the
@@ -18,9 +36,156 @@ This release contains several new features:
                    TaskStatus now includes a UUID to enable this.
 
 * Deprecations:
-  * [MESOS-2058] - Deprecate stats.json endpoints for Master and Slave.
+  * [MESOS-444]  - Slave checkpoint flag has been removed as it will be enabled
+                   for all slaves.
+  * [MESOS-1876] - Remove deprecated 'slave_id' field in ReregisterSlaveMessage.
+  * [MESOS-2058] - Deprecate stats.json endpoints for Master and Slave and task
+                   status counts from state.json. See /help/metrics endpoint for
+                   more information.
   * [MESOS-2322] - Deprecated specifying JSON blobs to parse using an absolute
-    path to point at the filename.
+                   path to point at the filename.
+
+This release also includes several bug fixes and stability improvements.
+
+** Technical task
+  * [MESOS-2263] - Enable protobuf::write to handle google::protobuf::RepeatedPtrField<T>
+  * [MESOS-2264] - Enable protobuf::read to handle google::protobuf::RepeatedPtrField<T>
+  * [MESOS-2265] - Introduce an os::rename abstraction to stout.
+  * [MESOS-2266] - Introduce a checkpoint function to support google::protobuf::Repeated<T>
+
+** Bug
+  * [MESOS-998]  - Slave should wait until Containerizer::update() completes
+                   successfully.
+  * [MESOS-1432] - Atomically set close-on-exec where possible.
+  * [MESOS-1708] - Using the wrong resource "name" should report a better error.
+  * [MESOS-1922] - Slave blocks on the fetcher after terminating an executor.
+  * [MESOS-2008] - MasterAuthorizationTest.DuplicateReregistration is flaky.
+  * [MESOS-2048] - Fix MesosContainerizerExecuteTest.IoRedirection test.
+  * [MESOS-2121] - Fix ProcTest.MultipleThreads flaky.
+  * [MESOS-2167] - Remove empty resource checker in master.
+  * [MESOS-2176] - Hierarchical allocator inconsistently accounts for
+                   reserved resources.
+  * [MESOS-2177] - Create socket wrappers for different protocol families.
+  * [MESOS-2181] - Build failure - overloaded 'socket(int, __socket_type, int)'
+                   is ambiguous.
+  * [MESOS-2185] - slave state endpoint does not contain all resources in
+                   the resources field.
+  * [MESOS-2192] - libprocess fails to build under g++-4.6 - src/clock.cpp.
+  * [MESOS-2206] - Latest health status omitted during reconciliation.
+  * [MESOS-2225] - FaultToleranceTest.ReregisterFrameworkExitedExecutor is
+                   flaky.
+  * [MESOS-2228] - SlaveTest.MesosExecutorGracefulShutdown is flaky.
+  * [MESOS-2232] - Suppress MockAllocator::transformAllocation() warnings.
+  * [MESOS-2236] - Compilation failure on GCC 4.4.7.
+  * [MESOS-2241] - DiskUsageCollectorTest.SymbolicLink test is flaky.
+  * [MESOS-2279] - Future callbacks should be cleared once the future has transitioned.
+  * [MESOS-2283] - SlaveRecoveryTest.ReconcileKillTask is flaky.
+  * [MESOS-2302] - FaultToleranceTest.SchedulerFailoverFrameworkMessage is flaky.
+  * [MESOS-2305] - Refactor validators in Master.
+  * [MESOS-2306] - MasterAuthorizationTest.FrameworkRemovedBeforeReregistration
+                   is flaky.
+  * [MESOS-2313] - fix reviewboard setting so all users have same rbt settings.
+  * [MESOS-2319] - Unable to set --work_dir to a non /tmp device.
+  * [MESOS-2324] - MasterAllocatorTest/0.OutOfOrderDispatch is flaky.
+  * [MESOS-2325] - CPU busy loop in libprocess libev clock.
+  * [MESOS-2326] - Broken OSX Build after fixed bugs in CREATE/DESTROY operation
+                   handlers.
+  * [MESOS-2328] - http::URL build error with clang 3.3.
+  * [MESOS-2344] - segfaults running make check from ev integration.
+  * [MESOS-2355] - MasterTest.SlavesEndpointTwoSlaves fails sometimes because
+                   the master assigns the same ID to both slaves.
+  * [MESOS-2366] - Fixed a flaky reconciliation test.
+  * [MESOS-2377] - Fix leak in libevent's version EventLoop::delay.
+  * [MESOS-2381] - Put Authentication protobufs back in mesos.internal package.
+  * [MESOS-2390] - HADOOP_HOME no longer works with fetcher.
+  * [MESOS-2410] - Broken build on OS X 10.8.5 caused by mac_tests in stout.
+  * [MESOS-2414] - Java bindings segfault during framework shutdown.
+  * [MESOS-2420] - Fetcher tests fail to build on ubuntu 14.10.
+  * [MESOS-2447] - Mesos replicated log does not log the Action type name.
+  * [MESOS-2452] - The recovered executor directory points to the meta directory.
+  * [MESOS-2463] - Slaves sends mutated copy of executorinfo to new elected
+                   master.
+  * [MESOS-2486] - With unbundled dependencies Mesos doesn't build with
+                   -Wl,--no-copy-dt-needed-entries.
+  * [MESOS-2499] - SOURCE_EXECUTOR not set properly in slave.cpp.
+
+** Documentation
+  * [MESOS-1470] - Add operational documentation for running HA masters.
+  * [MESOS-2282] - developers guide is missing some details.
+  * [MESOS-2327] - Authorization docs incorrectly describe how to configure turn
+                   off permissive mode.
+  * [MESOS-2391] - Provide user doc for the new posix disk isolator in Mesos
+                   containerizer.
+  * [MESOS-2396] - Provide user doc for service discovery info.
+
+** Epic
+  * [MESOS-2150] - Service discovery info for tasks and executors.
+
+** Improvement
+  * [MESOS-1148] - Add support for rate limiting slave removal.
+  * [MESOS-1248] - Use JSON instead of our own format for passing URI information
+                   to mesos-fetcher.
+  * [MESOS-1316] - Implement decent unit test coverage for the mesos-fetcher
+                   tool.
+  * [MESOS-1587] - Report disk usage from MesosContainerizer.
+  * [MESOS-1588] - Enforce disk quota in MesosContainerizer.
+  * [MESOS-1711] - Create method for users to identify HDFS compatible protocols
+                   in fetcher.cpp.
+  * [MESOS-1960] - Silence symbolic link to pre-commit in bootstrap.
+  * [MESOS-1974] - Refactor the C++ Resources abstraction for DiskInfo.
+  * [MESOS-2009] - Libprocess: Introduce mutex.
+  * [MESOS-2010] - Libprocess: Introduce enable_shared_from_this.
+  * [MESOS-2011] - Introduce mutex.
+  * [MESOS-2012] - Introduce enable_shared_from_this.
+  * [MESOS-2019] - Replace the ip and port pairs from the UPID class and
+                   process namespace with Node class.
+  * [MESOS-2051] - Pull Metrics struct out of Master and Slave to improve
+                   readability.
+  * [MESOS-2056] - Refactor fetcher code in preparation for fetcher cache.
+  * [MESOS-2094] - Libprocess: Introduce make_shared.
+  * [MESOS-2095] - Introduce make_shared.
+  * [MESOS-2104] - Correct naming of cgroup memory statistics.
+  * [MESOS-2126] - Libprocess Future: Improve performance, Vector instead of
+                   Queue.
+  * [MESOS-2127] - killTask() should perform reconciliation for unknown tasks.
+  * [MESOS-2169] - Make GC_DISK_HEADROOM configurable through slave command line
+                   flag.
+  * [MESOS-2172] - Refactor fetcher namespace into a class.
+  * [MESOS-2173] - Consolidate all fetcher env vars into one that holds a JSON
+                   object.
+  * [MESOS-2193] - serve an externally managed log via the web ui.
+  * [MESOS-2230] - Update RateLimiter to allow the acquired future to be
+                   discarded.
+  * [MESOS-2272] - Remove "internal" namespace from within "mesos"
+  * [MESOS-2314] - remove unnecessary constants.
+  * [MESOS-2347] - Add ability for schedulers to explicitly acknowledge status
+                   updates on the driver.
+
+** Story
+  * [MESOS-444] - Remove --checkpoint flag in the slave once checkpointing is stable.
+  * [MESOS-1694] - Future::failure should return a const string&
+  * [MESOS-1830] - Expose master stats differentiating between master-generated
+                   and slave-generated LOST tasks Task.
+  * [MESOS-1876] - Remove deprecated 'slave_id' field in ReregisterSlaveMessage.
+  * [MESOS-1903] - Add backoff to framework re-registration retries.
+  * [MESOS-2029] - Allow slave to checkpoint resources.
+  * [MESOS-2060] - Add support for 'hooks' in task launch sequence.
+  * [MESOS-2098] - Update task validation to be after task authorization.
+  * [MESOS-2099] - Support acquiring/releasing resources with DiskInfo in allocator.
+  * [MESOS-2100] - Implement master to slave protocol for persistent disk resources.
+  * [MESOS-2101] - Add the persistent resources release primitive to the
+                   framework API.
+  * [MESOS-2106] - Enable libevent backed libprocess with configure flag.
+  * [MESOS-2107] - Create libevent-backed clock implementation.
+  * [MESOS-2109] - Introduce socket factory.
+  * [MESOS-2114] - Extract and generalize WhitelistWatcher.
+  * [MESOS-2133] - Create libevent-backed poll implementation.
+  * [MESOS-2135] - Support DiskInfo in C++ Resources.
+  * [MESOS-2138] - Add an Offer::Operation message for Dynamic Reservations.
+  * [MESOS-2178] - Add a method from converting the hostname to an ip address and
+                   create initialization wrappers for sockaddr_in and addrinfo.
+  * [MESOS-2240] - Narrow down file permissions on os::open.
+
 
 Release Notes - Mesos - Version 0.21.1
 --------------------------------------
