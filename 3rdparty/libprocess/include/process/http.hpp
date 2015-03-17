@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include <iosfwd>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -515,32 +516,9 @@ struct URL
 };
 
 
-inline std::ostream& operator << (
+std::ostream& operator << (
     std::ostream& stream,
-    const URL& url)
-{
-  stream << url.scheme << "://";
-
-  if (url.domain.isSome()) {
-    stream << url.domain.get();
-  } else if (url.ip.isSome()) {
-    stream << url.ip.get();
-  }
-
-  stream << ":" << url.port;
-
-  stream << "/" << strings::remove(url.path, "/", strings::PREFIX);
-
-  if (!url.query.empty()) {
-    stream << "?" << query::encode(url.query);
-  }
-
-  if (url.fragment.isSome()) {
-    stream << "#" << url.fragment.get();
-  }
-
-  return stream;
-}
+    const URL& url);
 
 
 // Asynchronously sends an HTTP GET request to the specified URL and

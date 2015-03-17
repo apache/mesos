@@ -8,7 +8,7 @@
 #include <cstring>
 #include <deque>
 #include <iomanip>
-#include <iostream>
+#include <ostream>
 #include <map>
 #include <queue>
 #include <string>
@@ -36,6 +36,7 @@
 using std::deque;
 using std::istringstream;
 using std::map;
+using std::ostream;
 using std::ostringstream;
 using std::queue;
 using std::string;
@@ -483,6 +484,34 @@ std::string encode(const hashmap<std::string, std::string>& query)
 }
 
 } // namespace query {
+
+
+ostream& operator << (
+    ostream& stream,
+    const URL& url)
+{
+  stream << url.scheme << "://";
+
+  if (url.domain.isSome()) {
+    stream << url.domain.get();
+  } else if (url.ip.isSome()) {
+    stream << url.ip.get();
+  }
+
+  stream << ":" << url.port;
+
+  stream << "/" << strings::remove(url.path, "/", strings::PREFIX);
+
+  if (!url.query.empty()) {
+    stream << "?" << query::encode(url.query);
+  }
+
+  if (url.fragment.isSome()) {
+    stream << "#" << url.fragment.get();
+  }
+
+  return stream;
+}
 
 
 namespace internal {
