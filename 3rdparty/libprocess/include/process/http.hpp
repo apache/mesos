@@ -25,7 +25,6 @@
 #include <stout/memory.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
-#include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
@@ -62,67 +61,7 @@ struct Request
   // Returns whether the encoding is considered acceptable in the request.
   // TODO(bmahler): Consider this logic being in decoder.hpp, and having the
   // Request contain a member variable for each popular HTTP 1.0/1.1 header.
-  bool accepts(const std::string& encoding) const
-  {
-    // See RFC 2616, section 14.3 for the details.
-    Option<std::string> accepted = headers.get("Accept-Encoding");
-
-    if (accepted.isNone()) {
-      return false;
-    }
-
-    // Remove spaces and tabs for easier parsing.
-    accepted = strings::remove(accepted.get(), " ");
-    accepted = strings::remove(accepted.get(), "\t");
-    accepted = strings::remove(accepted.get(), "\n");
-
-    // From RFC 2616:
-    // 1. If the content-coding is one of the content-codings listed in
-    //    the Accept-Encoding field, then it is acceptable, unless it is
-    //    accompanied by a qvalue of 0. (As defined in section 3.9, a
-    //    qvalue of 0 means "not acceptable.")
-    // 2. The special "*" symbol in an Accept-Encoding field matches any
-    //    available content-coding not explicitly listed in the header
-    //    field.
-
-    // First we'll look for the encoding specified explicitly, then '*'.
-    std::vector<std::string> candidates;
-    candidates.push_back(encoding);      // Rule 1.
-    candidates.push_back("*");           // Rule 2.
-
-    foreach (std::string& candidate, candidates) {
-      // Is the candidate one of the accepted encodings?
-      foreach (const std::string& _encoding,
-               strings::tokenize(accepted.get(), ",")) {
-        if (strings::startsWith(_encoding, candidate)) {
-          // Is there a 0 q value? Ex: 'gzip;q=0.0'.
-          const std::map<std::string, std::vector<std::string> >& values =
-            strings::pairs(_encoding, ";", "=");
-
-          // Look for { "q": ["0"] }.
-          if (values.count("q") == 0 || values.find("q")->second.size() != 1) {
-            // No q value, or malformed q value.
-            return true;
-          }
-
-          // Is the q value > 0?
-          Try<double> value = numify<double>(values.find("q")->second[0]);
-          return value.isSome() && value.get() > 0;
-        }
-      }
-    }
-
-    // NOTE: 3 and 4 are partially ignored since we can only provide gzip.
-    // 3. If multiple content-codings are acceptable, then the acceptable
-    //    content-coding with the highest non-zero qvalue is preferred.
-    // 4. The "identity" content-coding is always acceptable, unless
-    //    specifically refused because the Accept-Encoding field includes
-    //    "identity;q=0", or because the field includes "*;q=0" and does
-    //    not explicitly include the "identity" content-coding. If the
-    //    Accept-Encoding field-value is empty, then only the "identity"
-    //    encoding is acceptable.
-    return false;
-  }
+  bool accepts(const std::string& encoding) const;
 };
 
 
