@@ -1,13 +1,8 @@
 #ifndef __PROCESS_HTTP_HPP__
 #define __PROCESS_HTTP_HPP__
 
-#include <limits.h>
 #include <stdint.h>
-#include <unistd.h>
 
-#include <cctype>
-#include <cstdlib>
-#include <iomanip>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -18,7 +13,6 @@
 #include <process/pid.hpp>
 
 #include <stout/error.hpp>
-#include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/ip.hpp>
 #include <stout/json.hpp>
@@ -477,6 +471,17 @@ inline Try<hashmap<std::string, std::string> > parse(
 } // namespace path {
 
 
+// Returns a percent-encoded string according to RFC 3986.
+// The input string must not already be percent encoded.
+std::string encode(const std::string& s);
+
+
+// Decodes a percent-encoded string according to RFC 3986.
+// The input string must not already be decoded.
+// Returns error on the occurrence of a malformed % escape in s.
+Try<std::string> decode(const std::string& s);
+
+
 namespace query {
 
 // Decodes an HTTP query string into a map. For example:
@@ -498,98 +503,6 @@ Try<hashmap<std::string, std::string>> decode(const std::string& query);
 std::string encode(const hashmap<std::string, std::string>& query);
 
 } // namespace query {
-
-
-// Returns a percent-encoded string according to RFC 3986.
-// The input string must not already be percent encoded.
-inline std::string encode(const std::string& s)
-{
-  std::ostringstream out;
-
-  foreach (unsigned char c, s) {
-    switch (c) {
-      // Reserved characters.
-      case '$':
-      case '&':
-      case '+':
-      case ',':
-      case '/':
-      case ':':
-      case ';':
-      case '=':
-      case '?':
-      case '@':
-      // Unsafe characters.
-      case ' ':
-      case '"':
-      case '<':
-      case '>':
-      case '#':
-      case '%':
-      case '{':
-      case '}':
-      case '|':
-      case '\\':
-      case '^':
-      case '~':
-      case '[':
-      case ']':
-      case '`':
-        // NOTE: The cast to unsigned int is needed.
-        out << '%' << std::setfill('0') << std::setw(2) << std::hex
-            << std::uppercase << (unsigned int) c;
-        break;
-      default:
-        // ASCII control characters and non-ASCII characters.
-        // NOTE: The cast to unsigned int is needed.
-        if (c < 0x20 || c > 0x7F) {
-          out << '%' << std::setfill('0') << std::setw(2) << std::hex
-              << std::uppercase << (unsigned int) c;
-        } else {
-          out << c;
-        }
-        break;
-    }
-  }
-
-  return out.str();
-}
-
-
-// Decodes a percent-encoded string according to RFC 3986.
-// The input string must not already be decoded.
-// Returns error on the occurrence of a malformed % escape in s.
-inline Try<std::string> decode(const std::string& s)
-{
-  std::ostringstream out;
-
-  for (size_t i = 0; i < s.length(); ++i) {
-    if (s[i] != '%') {
-      out << (s[i] == '+' ? ' ' : s[i]);
-      continue;
-    }
-
-    // We now expect two more characters: "% HEXDIG HEXDIG"
-    if (i + 2 >= s.length() || !isxdigit(s[i+1]) || !isxdigit(s[i+2])) {
-      return Error(
-          "Malformed % escape in '" + s + "': '" + s.substr(i, 3) + "'");
-    }
-
-    // Convert from HEXDIG HEXDIG to char value.
-    std::istringstream in(s.substr(i + 1, 2));
-    unsigned long l;
-    in >> std::hex >> l;
-    if (l > UCHAR_MAX) {
-      ABORT("Unexpected conversion from hex string: " + s.substr(i + 1, 2) +
-            " to unsigned long: " + stringify(l));
-    }
-    out << static_cast<unsigned char>(l);
-
-    i += 2;
-  }
-
-  return out.str();
-}
 
 
 // Represents a Uniform Resource Locator:

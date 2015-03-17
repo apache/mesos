@@ -1,14 +1,18 @@
 #include <arpa/inet.h>
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <deque>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <queue>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include <process/future.hpp>
@@ -30,7 +34,9 @@
 #include "decoder.hpp"
 
 using std::deque;
+using std::istringstream;
 using std::map;
+using std::ostringstream;
 using std::queue;
 using std::string;
 using std::vector;
@@ -301,6 +307,93 @@ Future<Nothing> Pipe::Writer::readerClosed()
 }
 
 
+string encode(const string& s)
+{
+  ostringstream out;
+
+  foreach (unsigned char c, s) {
+    switch (c) {
+      // Reserved characters.
+      case '$':
+      case '&':
+      case '+':
+      case ',':
+      case '/':
+      case ':':
+      case ';':
+      case '=':
+      case '?':
+      case '@':
+      // Unsafe characters.
+      case ' ':
+      case '"':
+      case '<':
+      case '>':
+      case '#':
+      case '%':
+      case '{':
+      case '}':
+      case '|':
+      case '\\':
+      case '^':
+      case '~':
+      case '[':
+      case ']':
+      case '`':
+        // NOTE: The cast to unsigned int is needed.
+        out << '%' << std::setfill('0') << std::setw(2) << std::hex
+            << std::uppercase << (unsigned int) c;
+        break;
+      default:
+        // ASCII control characters and non-ASCII characters.
+        // NOTE: The cast to unsigned int is needed.
+        if (c < 0x20 || c > 0x7F) {
+          out << '%' << std::setfill('0') << std::setw(2) << std::hex
+              << std::uppercase << (unsigned int) c;
+        } else {
+          out << c;
+        }
+        break;
+    }
+  }
+
+  return out.str();
+}
+
+
+Try<string> decode(const string& s)
+{
+  ostringstream out;
+
+  for (size_t i = 0; i < s.length(); ++i) {
+    if (s[i] != '%') {
+      out << (s[i] == '+' ? ' ' : s[i]);
+      continue;
+    }
+
+    // We now expect two more characters: "% HEXDIG HEXDIG"
+    if (i + 2 >= s.length() || !isxdigit(s[i+1]) || !isxdigit(s[i+2])) {
+      return Error(
+          "Malformed % escape in '" + s + "': '" + s.substr(i, 3) + "'");
+    }
+
+    // Convert from HEXDIG HEXDIG to char value.
+    istringstream in(s.substr(i + 1, 2));
+    unsigned long l;
+    in >> std::hex >> l;
+    if (l > UCHAR_MAX) {
+      ABORT("Unexpected conversion from hex string: " + s.substr(i + 1, 2) +
+            " to unsigned long: " + stringify(l));
+    }
+    out << static_cast<unsigned char>(l);
+
+    i += 2;
+  }
+
+  return out.str();
+}
+
+
 namespace query {
 
 Try<hashmap<std::string, std::string>> decode(const std::string& query)
@@ -350,6 +443,7 @@ std::string encode(const hashmap<std::string, std::string>& query)
 }
 
 } // namespace query {
+
 
 namespace internal {
 
