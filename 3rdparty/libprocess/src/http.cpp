@@ -307,6 +307,46 @@ Future<Nothing> Pipe::Writer::readerClosed()
 }
 
 
+namespace path {
+
+Try<hashmap<string, string> > parse(const string& pattern, const string& path)
+{
+  // Split the pattern by '/' into keys.
+  vector<string> keys = strings::tokenize(pattern, "/");
+
+  // Split the path by '/' into segments.
+  vector<string> segments = strings::tokenize(path, "/");
+
+  hashmap<string, string> result;
+
+  while (!segments.empty()) {
+    if (keys.empty()) {
+      return Error(
+          "Not expecting suffix '" + strings::join("/", segments) + "'");
+    }
+
+    string key = keys.front();
+
+    if (strings::startsWith(key, "{") &&
+        strings::endsWith(key, "}")) {
+      key = strings::remove(key, "{", strings::PREFIX);
+      key = strings::remove(key, "}", strings::SUFFIX);
+    } else if (key != segments.front()) {
+      return Error("Expecting '" + key + "' not '" + segments.front() + "'");
+    }
+
+    result[key] = segments.front();
+
+    keys.erase(keys.begin());
+    segments.erase(segments.begin());
+  }
+
+  return result;
+}
+
+} // namespace path {
+
+
 string encode(const string& s)
 {
   ostringstream out;
