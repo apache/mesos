@@ -176,6 +176,7 @@ TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
 
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
 
   Clock::resume();
 
@@ -247,6 +248,8 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status.get().reason());
 
   // We use 'gc.schedule' as a signal for the executor being cleaned
   // up by the slave.
@@ -348,10 +351,10 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
   // Expect two status updates, one for once the mesos-executor says
   // the task is running and one for after our overridden command
   // above finishes.
-  Future<TaskStatus> status1, status2;
+  Future<TaskStatus> statusRunning, statusFinished;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status1))
-    .WillOnce(FutureArg<1>(&status2));
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
 
   Try<Subprocess> executor =
     subprocess(
@@ -363,12 +366,15 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
 
   ASSERT_SOME(executor);
 
-  // Scheduler should receive the TASK_RUNNING update.
-  AWAIT_READY(status1);
-  ASSERT_EQ(TASK_RUNNING, status1.get().state());
+  // Scheduler should first receive TASK_RUNNING followed by the
+  // TASK_FINISHED from the executor.
+  AWAIT_READY(statusRunning);
+  ASSERT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
 
-  AWAIT_READY(status2);
-  ASSERT_EQ(TASK_FINISHED, status2.get().state());
+  AWAIT_READY(statusFinished);
+  ASSERT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
 
   AWAIT_READY(wait);
 
@@ -461,11 +467,15 @@ TEST_F(SlaveTest, ComamndTaskWithArguments)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
+  // Scheduler should first receive TASK_RUNNING followed by the
+  // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
 
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
 
   driver.stop();
   driver.join();
@@ -592,11 +602,15 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
+  // Scheduler should first receive TASK_RUNNING followed by the
+  // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
 
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
 
   driver.stop();
   driver.join();
@@ -684,11 +698,15 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
+  // Scheduler should first receive TASK_RUNNING followed by the
+  // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
 
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
 
   driver.stop();
   driver.join();
@@ -1092,9 +1110,12 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFails)
 
   AWAIT_READY(status3);
   EXPECT_EQ(TASK_KILLED, status3.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status3.get().source());
 
   AWAIT_READY(status4);
   EXPECT_EQ(TASK_LOST, status4.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status4.get().source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status4.get().reason());
 
   driver.stop();
   driver.join();
@@ -1204,6 +1225,8 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status.get().reason());
 
   driver.stop();
   driver.join();

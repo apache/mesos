@@ -2479,7 +2479,7 @@ void Slave::reregisterExecutorTimeout()
 // reliable delivery of status updates. Since executor driver caches
 // unacked updates it is important that whoever sent the update gets
 // acknowledgement for it.
-void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
+void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 {
   LOG(INFO) << "Handling status update " << update << " from " << pid;
 
@@ -2487,9 +2487,9 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
         state == RUNNING || state == TERMINATING)
     << state;
 
-  TaskStatus status = update.status();
-  status.set_source(pid == UPID() ? TaskStatus::SOURCE_SLAVE
-                                  : TaskStatus::SOURCE_EXECUTOR);
+  // Set the source before forwarding the status update.
+  update.mutable_status()->set_source(
+      pid == UPID() ? TaskStatus::SOURCE_SLAVE : TaskStatus::SOURCE_EXECUTOR);
 
   Framework* framework = getFramework(update.framework_id());
   if (framework == NULL) {
@@ -2511,6 +2511,8 @@ void Slave::statusUpdate(const StatusUpdate& update, const UPID& pid)
     metrics.invalid_status_updates++;
     return;
   }
+
+  TaskStatus status = update.status();
 
   Executor* executor = framework->getExecutor(status.task_id());
   if (executor == NULL) {

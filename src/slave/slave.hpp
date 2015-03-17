@@ -181,7 +181,9 @@ public:
   // after the update is successfully handled. If pid == UPID()
   // no ACK is sent. The latter is used by the slave to send
   // status updates it generated (e.g., TASK_LOST).
-  void statusUpdate(const StatusUpdate& update, const process::UPID& pid);
+  // NOTE: StatusUpdate is passed by value because it is modified
+  // to ensure source field is set.
+  void statusUpdate(StatusUpdate update, const process::UPID& pid);
 
   // Continue handling the status update after optionally updating the
   // container's resources.
