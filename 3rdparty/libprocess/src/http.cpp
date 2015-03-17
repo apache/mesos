@@ -45,6 +45,54 @@ namespace process {
 namespace http {
 
 
+hashmap<uint16_t, string> statuses;
+
+
+void initialize()
+{
+  statuses[100] = "100 Continue";
+  statuses[101] = "101 Switching Protocols";
+  statuses[200] = "200 OK";
+  statuses[201] = "201 Created";
+  statuses[202] = "202 Accepted";
+  statuses[203] = "203 Non-Authoritative Information";
+  statuses[204] = "204 No Content";
+  statuses[205] = "205 Reset Content";
+  statuses[206] = "206 Partial Content";
+  statuses[300] = "300 Multiple Choices";
+  statuses[301] = "301 Moved Permanently";
+  statuses[302] = "302 Found";
+  statuses[303] = "303 See Other";
+  statuses[304] = "304 Not Modified";
+  statuses[305] = "305 Use Proxy";
+  statuses[307] = "307 Temporary Redirect";
+  statuses[400] = "400 Bad Request";
+  statuses[401] = "401 Unauthorized";
+  statuses[402] = "402 Payment Required";
+  statuses[403] = "403 Forbidden";
+  statuses[404] = "404 Not Found";
+  statuses[405] = "405 Method Not Allowed";
+  statuses[406] = "406 Not Acceptable";
+  statuses[407] = "407 Proxy Authentication Required";
+  statuses[408] = "408 Request Time-out";
+  statuses[409] = "409 Conflict";
+  statuses[410] = "410 Gone";
+  statuses[411] = "411 Length Required";
+  statuses[412] = "412 Precondition Failed";
+  statuses[413] = "413 Request Entity Too Large";
+  statuses[414] = "414 Request-URI Too Large";
+  statuses[415] = "415 Unsupported Media Type";
+  statuses[416] = "416 Requested range not satisfiable";
+  statuses[417] = "417 Expectation Failed";
+  statuses[500] = "500 Internal Server Error";
+  statuses[501] = "501 Not Implemented";
+  statuses[502] = "502 Bad Gateway";
+  statuses[503] = "503 Service Unavailable";
+  statuses[504] = "504 Gateway Time-out";
+  statuses[505] = "505 HTTP Version not supported";
+}
+
+
 bool Request::accepts(const string& encoding) const
 {
   // See RFC 2616, section 14.3 for the details.
@@ -252,8 +300,6 @@ Future<Nothing> Pipe::Writer::readerClosed()
   return data->readerClosure.future();
 }
 
-
-hashmap<uint16_t, string> statuses;
 
 namespace query {
 
@@ -550,7 +596,6 @@ Future<Response> post(
 
   return post(url, headers, body, contentType);
 }
-
 
 } // namespace http {
 } // namespace process {
