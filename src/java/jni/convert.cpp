@@ -527,9 +527,6 @@ Result<jfieldID> getFieldID(
   if (jexception != NULL) {
     env->ExceptionClear(); // Clear the exception first before proceeding.
 
-    // NOTE: This was previously a static variable in order to only
-    // do the lookup once. But this is not thread-safe and led to
-    // crashes on Java 8!
     jclass noSuchFieldError = env->FindClass("java/lang/NoSuchFieldError");
     if (env->ExceptionCheck() == JNI_TRUE) {
       return Error("Cannot find NoSuchFieldError class");
