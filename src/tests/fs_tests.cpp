@@ -134,7 +134,7 @@ TEST(FsTest, MountInfoTableParse)
 }
 
 
-TEST(FsTest, MountInfoTableRead)
+TEST(FsTest, DISABLED_MountInfoTableRead)
 {
   // Examine the calling process's mountinfo table.
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
