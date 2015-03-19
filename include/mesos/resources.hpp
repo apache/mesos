@@ -30,6 +30,7 @@
 #include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
@@ -103,6 +104,29 @@ public:
 
   // Tests if the given Resource object is unreserved.
   static bool isUnreserved(const Resource& resource);
+
+  // Returns the summed up Resources given a hashmap<Key, Resources>.
+  //
+  // NOTE: While scalar resources such as "cpus" sum correctly,
+  // non-scalar resources such as "ports" do not.
+  //   e.g. "cpus:2" + "cpus:1" = "cpus:3"
+  //        "ports:[0-100]" + "ports:[0-100]" = "ports:[0-100]"
+  //
+  // TODO(mpark): Deprecate this function once we introduce the
+  // concept of "cluster-wide" resources which provides correct
+  // semantics for summation over all types of resources. (e.g.
+  // non-scalar)
+  template <typename Key>
+  static Resources sum(const hashmap<Key, Resources>& _resources)
+  {
+    Resources result;
+
+    foreachvalue (const Resources& resources, _resources) {
+      result += resources;
+    }
+
+    return result;
+  }
 
   Resources() {}
 

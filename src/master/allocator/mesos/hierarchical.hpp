@@ -401,22 +401,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::deactivateFramework(
 }
 
 
-namespace internal {
-
-// TODO(bmahler): Generalize this.
-template <typename Iterable>
-Resources sum(const Iterable& resources)
-{
-  Resources total;
-  foreach (const Resources& r, resources) {
-    total += r;
-  }
-  return total;
-}
-
-} // namespace internal {
-
-
 template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
@@ -447,7 +431,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
 
   slaves[slaveId] = Slave();
   slaves[slaveId].total = total;
-  slaves[slaveId].available = total - internal::sum(used.values());
+  slaves[slaveId].available = total - Resources::sum(used);
   slaves[slaveId].activated = true;
   slaves[slaveId].checkpoint = slaveInfo.checkpoint();
   slaves[slaveId].hostname = slaveInfo.hostname();
