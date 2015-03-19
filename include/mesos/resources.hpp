@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
 #include <mesos/values.hpp>
 
 #include <stout/bytes.hpp>
@@ -319,6 +320,29 @@ inline bool operator == (
     const Resources& right)
 {
   return Resources(left) == right;
+}
+
+
+template <typename Key>
+hashmap<Key, Resources>& operator += (
+    hashmap<Key, Resources>& left,
+    const hashmap<Key, Resources>& right)
+{
+  foreachpair (const Key& key, const Resources& resources, right) {
+    left[key] += resources;
+  }
+  return left;
+}
+
+
+template <typename Key>
+hashmap<Key, Resources> operator + (
+    const hashmap<Key, Resources>& left,
+    const hashmap<Key, Resources>& right)
+{
+  hashmap<Key, Resources> result = left;
+  result += right;
+  return result;
 }
 
 } // namespace mesos {
