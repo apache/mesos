@@ -230,6 +230,38 @@ TEST(HTTP, PipeEOF)
 }
 
 
+TEST(HTTP, PipeFailure)
+{
+  http::Pipe pipe;
+  http::Pipe::Reader reader = pipe.reader();
+  http::Pipe::Writer writer = pipe.writer();
+
+  // Fail the writer after writing some data.
+  EXPECT_TRUE(writer.write("hello"));
+  EXPECT_TRUE(writer.write("world"));
+
+  EXPECT_TRUE(writer.fail("disconnected!"));
+
+  // The reader should read the data, followed by the failure.
+  AWAIT_EQ("hello", reader.read());
+  AWAIT_EQ("world", reader.read());
+
+  Future<string> read = reader.read();
+  EXPECT_TRUE(read.isFailed());
+  EXPECT_EQ("disconnected!", read.failure());
+
+  // The writer cannot close or fail an already failed pipe.
+  EXPECT_FALSE(writer.close());
+  EXPECT_FALSE(writer.fail("not again"));
+
+  // The writer shouldn't be notified of the reader closing,
+  // since the writer had already failed.
+  EXPECT_TRUE(reader.close());
+  EXPECT_TRUE(writer.readerClosed().isPending());
+}
+
+
+
 TEST(HTTP, PipeReaderCloses)
 {
   http::Pipe pipe;

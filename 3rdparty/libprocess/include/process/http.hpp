@@ -117,17 +117,26 @@ public:
   public:
     // Returns data written to the pipe.
     // Returns an empty read when end-of-file is reached.
-    // Returns Failure if the read-end of the pipe is closed.
+    // Returns Failure if the writer failed, or the read-end
+    // is closed.
     Future<std::string> read();
 
     // Closing the read-end of the pipe before the write-end closes
-    // will notify the writer that the reader is no longer interested.
-    // Returns false if the read-end of the pipe was already closed.
+    // or fails will notify the writer that the reader is no longer
+    // interested. Returns false if the read-end was already closed.
     bool close();
 
   private:
     friend class Pipe;
+
+    enum State
+    {
+      OPEN,
+      CLOSED,
+    };
+
     explicit Reader(const memory::shared_ptr<Data>& _data) : data(_data) {}
+
     memory::shared_ptr<Data> data;
   };
 
@@ -141,8 +150,13 @@ public:
 
     // Closing the write-end of the pipe will send end-of-file
     // to the reader. Returns false if the write-end of the pipe
-    // was already closed.
+    // was already closed or failed.
     bool close();
+
+    // Closes the write-end of the pipe but sends a failure
+    // to the reader rather than end-of-file. Returns false
+    // if the write-end of the pipe was already closed or failed.
+    bool fail(const std::string& message);
 
     // Returns Nothing when the read-end of the pipe is closed
     // before the write-end is closed, which means the reader
@@ -151,7 +165,16 @@ public:
 
   private:
     friend class Pipe;
+
+    enum State
+    {
+      OPEN,
+      CLOSED,
+      FAILED,
+    };
+
     explicit Writer(const memory::shared_ptr<Data>& _data) : data(_data) {}
+
     memory::shared_ptr<Data> data;
   };
 
@@ -161,23 +184,17 @@ public:
   Writer writer() const;
 
 private:
-  enum State
-  {
-    OPEN,
-    CLOSED,
-  };
-
   struct Data
   {
-    Data() : lock(0), readEnd(OPEN), writeEnd(OPEN) {}
+    Data() : lock(0), readEnd(Reader::OPEN), writeEnd(Writer::OPEN) {}
 
     // Rather than use a process to serialize access to the pipe's
     // internal data we use a low-level "lock" which we acquire and
     // release using atomic builtins.
     int lock;
 
-    State readEnd;
-    State writeEnd;
+    Reader::State readEnd;
+    Writer::State writeEnd;
 
     // Represents readers waiting for data from the pipe.
     std::queue<Owned<Promise<std::string>>> reads;
@@ -188,6 +205,9 @@ private:
 
     // Signals when the read-end is closed before the write-end.
     Promise<Nothing> readerClosure;
+
+    // Failure reason when the 'writeEnd' is FAILED.
+    Option<Failure> failure;
   };
 
   memory::shared_ptr<Data> data;
