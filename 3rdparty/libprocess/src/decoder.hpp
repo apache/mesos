@@ -3,6 +3,8 @@
 
 #include <http_parser.h>
 
+#include <glog/logging.h>
+
 #include <deque>
 #include <string>
 #include <vector>
@@ -81,14 +83,15 @@ private:
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
 
-    assert(!decoder->failure);
+    CHECK(!decoder->failure);
 
     decoder->header = HEADER_FIELD;
     decoder->field.clear();
     decoder->value.clear();
     decoder->query.clear();
 
-    assert(decoder->request == NULL);
+    CHECK(decoder->request == NULL);
+
     decoder->request = new http::Request();
     decoder->request->headers.clear();
     decoder->request->method.clear();
@@ -105,7 +108,7 @@ private:
   static int on_path(http_parser* p, const char* data, size_t length)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
-    assert(decoder->request != NULL);
+    CHECK_NOTNULL(decoder->request);
     decoder->request->path.append(data, length);
     return 0;
   }
@@ -113,7 +116,7 @@ private:
   static int on_query_string(http_parser* p, const char* data, size_t length)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
-    assert(decoder->request != NULL);
+    CHECK_NOTNULL(decoder->request);
     decoder->query.append(data, length);
     return 0;
   }
@@ -121,7 +124,7 @@ private:
   static int on_fragment(http_parser* p, const char* data, size_t length)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
-    assert(decoder->request != NULL);
+    CHECK_NOTNULL(decoder->request);
     decoder->request->fragment.append(data, length);
     return 0;
   }
@@ -130,7 +133,7 @@ private:
   static int on_url(http_parser* p, const char* data, size_t length)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
-    assert(decoder->request != NULL);
+    CHECK_NOTNULL(decoder->request);
     decoder->request->url.append(data, length);
     int result = 0;
 
@@ -166,7 +169,7 @@ private:
   static int on_header_field(http_parser* p, const char* data, size_t length)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
-    assert(decoder->request != NULL);
+    CHECK_NOTNULL(decoder->request);
 
     if (decoder->header != HEADER_FIELD) {
       decoder->request->headers[decoder->field] = decoder->value;
@@ -183,7 +186,7 @@ private:
   static int on_header_value(http_parser* p, const char* data, size_t length)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
-    assert(decoder->request != NULL);
+    CHECK_NOTNULL(decoder->request);
     decoder->value.append(data, length);
     decoder->header = HEADER_VALUE;
     return 0;
@@ -192,6 +195,8 @@ private:
   static int on_headers_complete(http_parser* p)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
+
+    CHECK_NOTNULL(decoder->request);
 
     // Add final header.
     decoder->request->headers[decoder->field] = decoder->value;
@@ -209,7 +214,7 @@ private:
   static int on_body(http_parser* p, const char* data, size_t length)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
-    assert(decoder->request != NULL);
+    CHECK_NOTNULL(decoder->request);
     decoder->request->body.append(data, length);
     return 0;
   }
@@ -217,9 +222,6 @@ private:
   static int on_message_complete(http_parser* p)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
-//     std::cout << "http::Request:" << std::endl;
-//     std::cout << "  method: " << decoder->request->method << std::endl;
-//     std::cout << "  path: " << decoder->request->path << std::endl;
 
     // Parse the query key/values.
     Try<hashmap<std::string, std::string>> decoded =
@@ -229,10 +231,13 @@ private:
       return 1;
     }
 
+    CHECK_NOTNULL(decoder->request);
+
     decoder->request->query =  decoded.get();
 
     Option<std::string> encoding =
       decoder->request->headers.get("Content-Encoding");
+
     if (encoding.isSome() && encoding.get() == "gzip") {
       Try<std::string> decompressed = gzip::decompress(decoder->request->body);
       if (decompressed.isError()) {
@@ -324,13 +329,14 @@ private:
   {
     ResponseDecoder* decoder = (ResponseDecoder*) p->data;
 
-    assert(!decoder->failure);
+    CHECK(!decoder->failure);
 
     decoder->header = HEADER_FIELD;
     decoder->field.clear();
     decoder->value.clear();
 
-    assert(decoder->response == NULL);
+    CHECK(decoder->response == NULL);
+
     decoder->response = new http::Response();
     decoder->response->status.clear();
     decoder->response->headers.clear();
@@ -366,7 +372,7 @@ private:
   static int on_header_field(http_parser* p, const char* data, size_t length)
   {
     ResponseDecoder* decoder = (ResponseDecoder*) p->data;
-    assert(decoder->response != NULL);
+    CHECK_NOTNULL(decoder->response);
 
     if (decoder->header != HEADER_FIELD) {
       decoder->response->headers[decoder->field] = decoder->value;
@@ -383,7 +389,7 @@ private:
   static int on_header_value(http_parser* p, const char* data, size_t length)
   {
     ResponseDecoder* decoder = (ResponseDecoder*) p->data;
-    assert(decoder->response != NULL);
+    CHECK_NOTNULL(decoder->response);
     decoder->value.append(data, length);
     decoder->header = HEADER_VALUE;
     return 0;
@@ -392,6 +398,8 @@ private:
   static int on_headers_complete(http_parser* p)
   {
     ResponseDecoder* decoder = (ResponseDecoder*) p->data;
+
+    CHECK_NOTNULL(decoder->response);
 
     // Add final header.
     decoder->response->headers[decoder->field] = decoder->value;
@@ -404,7 +412,7 @@ private:
   static int on_body(http_parser* p, const char* data, size_t length)
   {
     ResponseDecoder* decoder = (ResponseDecoder*) p->data;
-    assert(decoder->response != NULL);
+    CHECK_NOTNULL(decoder->response);
     decoder->response->body.append(data, length);
     return 0;
   }
@@ -412,6 +420,8 @@ private:
   static int on_message_complete(http_parser* p)
   {
     ResponseDecoder* decoder = (ResponseDecoder*) p->data;
+
+    CHECK_NOTNULL(decoder->response);
 
     // Get the response status string.
     if (http::statuses.contains(decoder->parser.status_code)) {
