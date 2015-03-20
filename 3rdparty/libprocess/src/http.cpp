@@ -687,34 +687,6 @@ Future<Response> get(
 }
 
 
-Future<Response> put(
-    const URL& url,
-    const Option<hashmap<string, string>>& headers,
-    const Option<string>& body,
-    const Option<string>& contentType)
-{
-  if (body.isNone() && contentType.isSome()) {
-    return Failure("Attempted to do a PUT with a Content-Type but no body");
-  }
-
-  return internal::request(url, "PUT", headers, body, contentType);
-}
-
-
-Future<Response> post(
-    const URL& url,
-    const Option<hashmap<string, string>>& headers,
-    const Option<string>& body,
-    const Option<string>& contentType)
-{
-  if (body.isNone() && contentType.isSome()) {
-    return Failure("Attempted to do a POST with a Content-Type but no body");
-  }
-
-  return internal::request(url, "POST", headers, body, contentType);
-}
-
-
 Future<Response> get(
     const UPID& upid,
     const Option<string>& path,
@@ -744,6 +716,20 @@ Future<Response> get(
 
 
 Future<Response> post(
+    const URL& url,
+    const Option<hashmap<string, string>>& headers,
+    const Option<string>& body,
+    const Option<string>& contentType)
+{
+  if (body.isNone() && contentType.isSome()) {
+    return Failure("Attempted to do a POST with a Content-Type but no body");
+  }
+
+  return internal::request(url, "POST", headers, body, contentType);
+}
+
+
+Future<Response> post(
     const UPID& upid,
     const Option<string>& path,
     const Option<hashmap<string, string>>& headers,
@@ -758,6 +744,20 @@ Future<Response> post(
   }
 
   return post(url, headers, body, contentType);
+}
+
+
+Future<Response> put(
+    const URL& url,
+    const Option<hashmap<string, string>>& headers,
+    const Option<string>& body,
+    const Option<string>& contentType)
+{
+  if (body.isNone() && contentType.isSome()) {
+    return Failure("Attempted to do a PUT with a Content-Type but no body");
+  }
+
+  return internal::request(url, "PUT", headers, body, contentType);
 }
 
 } // namespace http {
