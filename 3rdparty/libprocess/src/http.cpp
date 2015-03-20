@@ -746,19 +746,5 @@ Future<Response> post(
   return post(url, headers, body, contentType);
 }
 
-
-Future<Response> put(
-    const URL& url,
-    const Option<hashmap<string, string>>& headers,
-    const Option<string>& body,
-    const Option<string>& contentType)
-{
-  if (body.isNone() && contentType.isSome()) {
-    return Failure("Attempted to do a PUT with a Content-Type but no body");
-  }
-
-  return internal::request(url, "PUT", headers, body, contentType);
-}
-
 } // namespace http {
 } // namespace process {

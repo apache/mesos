@@ -521,6 +521,10 @@ std::ostream& operator << (
     const URL& url);
 
 
+// TODO(bmahler): Consolidate these functions into a single
+// http::request function that takes a 'Request' object.
+
+
 // Asynchronously sends an HTTP GET request to the specified URL
 // and returns the HTTP response of type 'BODY' once the entire
 // response is received.
@@ -555,15 +559,6 @@ Future<Response> post(
 Future<Response> post(
     const UPID& upid,
     const Option<std::string>& path = None(),
-    const Option<hashmap<std::string, std::string>>& headers = None(),
-    const Option<std::string>& body = None(),
-    const Option<std::string>& contentType = None());
-
-
-// Asynchronously sends an HTTP PUT request to the specified URL and
-// returns the HTTP response.
-Future<Response> put(
-    const URL& url,
     const Option<hashmap<std::string, std::string>>& headers = None(),
     const Option<std::string>& body = None(),
     const Option<std::string>& contentType = None());
