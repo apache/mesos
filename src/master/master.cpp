@@ -1603,9 +1603,16 @@ void Master::receive(
       accept(framework, call.accept());
       break;
 
+    case scheduler::Call::RECONCILE:
+      if (!call.has_reconcile()) {
+        drop(from, call, "Expecting 'reconcile' to be present");
+        return;
+      }
+      reconcile(framework, call.reconcile());
+      break;
+
     case scheduler::Call::KILL:
     case scheduler::Call::ACKNOWLEDGE:
-    case scheduler::Call::RECONCILE:
     case scheduler::Call::MESSAGE:
       drop(from, call, "Unimplemented");
       break;
@@ -3474,6 +3481,29 @@ void Master::shutdownSlave(const SlaveID& slaveId, const string& message)
   send(slave->pid, message_);
 
   removeSlave(slave);
+}
+
+
+void Master::reconcile(
+    Framework* framework,
+    const scheduler::Call::Reconcile& reconcile)
+{
+  CHECK_NOTNULL(framework);
+
+  // Construct 'TaskStatus'es from 'Reconcile::Task's.
+  vector<TaskStatus> statuses;
+  foreach (const scheduler::Call::Reconcile::Task& task, reconcile.tasks()) {
+    TaskStatus status;
+    status.mutable_task_id()->CopyFrom(task.task_id());
+    status.set_state(TASK_RUNNING); // Dummy status.
+    if (task.has_slave_id()) {
+      status.mutable_slave_id()->CopyFrom(task.slave_id());
+    }
+
+    statuses.push_back(status);
+  }
+
+  _reconcileTasks(framework, statuses);
 }
 
 

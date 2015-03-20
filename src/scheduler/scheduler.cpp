@@ -314,10 +314,8 @@ public:
           drop(call, "Expecting 'reconcile' to be present");
           return;
         }
-        ReconcileTasksMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_info().id());
-        message.mutable_statuses()->CopyFrom(call.reconcile().statuses());
-        send(master.get(), message);
+
+        send(master.get(), call);
         break;
       }
 

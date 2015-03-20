@@ -453,6 +453,10 @@ private:
     const scheduler::Call::Accept& accept,
     const process::Future<std::list<process::Future<bool>>>& authorizations);
 
+  void reconcile(
+      Framework* framework,
+      const scheduler::Call::Reconcile& reconcile);
+
   bool elected() const
   {
     return leader.isSome() && leader.get() == info_;
