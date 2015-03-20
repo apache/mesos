@@ -133,3 +133,94 @@ TEST(Decoder, Response)
 
   delete response;
 }
+
+
+TEST(Decoder, StreamingResponse)
+{
+  StreamingResponseDecoder decoder;
+
+  const string& headers =
+    "HTTP/1.1 200 OK\r\n"
+    "Date: Fri, 31 Dec 1999 23:59:59 GMT\r\n"
+    "Content-Type: text/plain\r\n"
+    "Content-Length: 2\r\n"
+    "\r\n";
+
+  const string& body = "hi";
+
+  deque<Response*> responses = decoder.decode(headers.data(), headers.length());
+  ASSERT_FALSE(decoder.failed());
+  ASSERT_EQ(1, responses.size());
+
+  Response* response = responses[0];
+
+  EXPECT_EQ("200 OK", response->status);
+  EXPECT_EQ(3, response->headers.size());
+
+  ASSERT_EQ(Response::PIPE, response->type);
+  ASSERT_SOME(response->reader);
+
+  http::Pipe::Reader reader = response->reader.get();
+  Future<string> read = reader.read();
+  EXPECT_TRUE(read.isPending());
+
+  decoder.decode(body.data(), body.length());
+
+  // Feeding EOF to the decoder should be ok.
+  decoder.decode("", 0);
+
+  EXPECT_TRUE(read.isReady());
+  EXPECT_EQ("hi", read.get());
+
+  // Response should be complete.
+  read = reader.read();
+  EXPECT_TRUE(read.isReady());
+  EXPECT_EQ("", read.get());
+}
+
+
+TEST(Decoder, StreamingResponseFailure)
+{
+  StreamingResponseDecoder decoder;
+
+  const string& headers =
+    "HTTP/1.1 200 OK\r\n"
+    "Date: Fri, 31 Dec 1999 23:59:59 GMT\r\n"
+    "Content-Type: text/plain\r\n"
+    "Content-Length: 2\r\n"
+    "\r\n";
+
+  // The body is shorter than the content length!
+  const string& body = "1";
+
+  deque<Response*> responses = decoder.decode(headers.data(), headers.length());
+  ASSERT_FALSE(decoder.failed());
+  ASSERT_EQ(1, responses.size());
+
+  Response* response = responses[0];
+
+  EXPECT_EQ("200 OK", response->status);
+  EXPECT_EQ(3, response->headers.size());
+
+  ASSERT_EQ(Response::PIPE, response->type);
+  ASSERT_SOME(response->reader);
+
+  http::Pipe::Reader reader = response->reader.get();
+  Future<string> read = reader.read();
+  EXPECT_TRUE(read.isPending());
+
+  decoder.decode(body.data(), body.length());
+
+  EXPECT_TRUE(read.isReady());
+  EXPECT_EQ("1", read.get());
+
+  // Body is not yet complete.
+  read = reader.read();
+  EXPECT_TRUE(read.isPending());
+
+  // Feeding EOF to the decoder should trigger a failure!
+  decoder.decode("", 0);
+
+  EXPECT_TRUE(read.isFailed());
+  EXPECT_EQ("failed to decode body", read.failure());
+}
