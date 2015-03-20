@@ -776,8 +776,7 @@ void initialize(const string& delegate)
     LOG(FATAL) << "Failed to initialize, pthread_create";
   }
 
-  __address__.ip = net::IP(INADDR_ANY);
-  __address__.port = 0;
+  __address__ = Address::LOCALHOST_ANY();
 
   char* value;
 
