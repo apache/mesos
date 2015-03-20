@@ -15,7 +15,9 @@
 #include <stout/try.hpp>
 
 
-// TODO(bmahler): Upgrade our http_parser to the latest version.
+// TODO(bmahler): Switch to joyent/http-parser now that it is no
+// longer being hosted under ry/http-parser.
+
 namespace process {
 
 // TODO(benh): Make DataDecoder abstract and make RequestDecoder a
@@ -50,6 +52,7 @@ public:
     size_t parsed = http_parser_execute(&parser, &settings, data, length);
 
     if (parsed != length) {
+      // TODO(bmahler): joyent/http-parser exposes error reasons.
       failure = true;
     }
 
@@ -296,6 +299,7 @@ public:
     size_t parsed = http_parser_execute(&parser, &settings, data, length);
 
     if (parsed != length) {
+      // TODO(bmahler): joyent/http-parser exposes error reasons.
       failure = true;
     }
 
