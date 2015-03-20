@@ -129,6 +129,7 @@ public:
       const process::UPID& from,
       const FrameworkID& frameworkId);
 
+  // TODO(vinod): Remove this once the old driver is removed.
   void resourceRequest(
       const process::UPID& from,
       const FrameworkID& frameworkId,

@@ -235,18 +235,6 @@ public:
         break;
       }
 
-      case Call::REQUEST: {
-        if (!call.has_request()) {
-          drop(call, "Expecting 'request' to be present");
-          return;
-        }
-        ResourceRequestMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_info().id());
-        message.mutable_requests()->CopyFrom(call.request().requests());
-        send(master.get(), message);
-        break;
-      }
-
       case Call::DECLINE: {
         if (!call.has_decline()) {
           drop(call, "Expecting 'decline' to be present");

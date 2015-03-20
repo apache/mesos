@@ -117,7 +117,6 @@ message Call {
     REGISTER = 1;
     REREGISTER = 2;
     UNREGISTER = 3;
-    REQUEST = 4;
     REVIVE = 6;
     DECLINE = 5;
     ACCEPT = 12;
@@ -133,10 +132,6 @@ message Call {
     // SchedulerDriver::abort which was only necessary to handle
     // exceptions getting thrown from within Scheduler callbacks,
     // something that is not an issue with the Event/Call API.
-  }
-
-  message Request {
-    repeated mesos.Request requests = 1;
   }
 
   message Decline {
@@ -208,7 +203,6 @@ message Call {
   // present if that type has a nested message definition.
   required Type type = 2;
 
-  optional Request request = 3;
   optional Decline decline = 4;
   optional Accept accept = 10;
   optional Kill kill = 6;

@@ -1590,7 +1590,6 @@ void Master::receive(
 
   switch (call.type()) {
     case scheduler::Call::UNREGISTER:
-    case scheduler::Call::REQUEST:
     case scheduler::Call::REVIVE:
     case scheduler::Call::DECLINE:
       drop(from, call, "Unimplemented");
