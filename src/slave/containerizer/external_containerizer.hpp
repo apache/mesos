@@ -118,7 +118,7 @@ public:
   virtual process::Future<hashset<ContainerID> > containers();
 
 private:
-  ExternalContainerizerProcess* process;
+  process::Owned<ExternalContainerizerProcess> process;
 };
 
 

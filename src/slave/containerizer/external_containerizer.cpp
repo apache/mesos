@@ -136,24 +136,25 @@ static Try<T> result(
 
 
 ExternalContainerizer::ExternalContainerizer(const Flags& flags)
+  : process(new ExternalContainerizerProcess(flags))
 {
-  process = new ExternalContainerizerProcess(flags);
-  spawn(process);
+  spawn(process.get());
 }
 
 
 ExternalContainerizer::~ExternalContainerizer()
 {
-  terminate(process);
-  process::wait(process);
-  delete process;
+  terminate(process.get());
+  process::wait(process.get());
 }
 
 
 Future<Nothing> ExternalContainerizer::recover(
     const Option<state::SlaveState>& state)
 {
-  return dispatch(process, &ExternalContainerizerProcess::recover, state);
+  return dispatch(process.get(),
+                  &ExternalContainerizerProcess::recover,
+                  state);
 }
 
 
@@ -166,16 +167,16 @@ Future<bool> ExternalContainerizer::launch(
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
-  return dispatch(process,
-                  &ExternalContainerizerProcess::launch,
-                  containerId,
-                  None(),
-                  executorInfo,
-                  directory,
-                  user,
-                  slaveId,
-                  slavePid,
-                  checkpoint);
+    return dispatch(process.get(),
+                    &ExternalContainerizerProcess::launch,
+                    containerId,
+                    None(),
+                    executorInfo,
+                    directory,
+                    user,
+                    slaveId,
+                    slavePid,
+                    checkpoint);
 }
 
 
@@ -189,16 +190,16 @@ Future<bool> ExternalContainerizer::launch(
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
-  return dispatch(process,
-                  &ExternalContainerizerProcess::launch,
-                  containerId,
-                  taskInfo,
-                  executorInfo,
-                  directory,
-                  user,
-                  slaveId,
-                  slavePid,
-                  checkpoint);
+    return dispatch(process.get(),
+                    &ExternalContainerizerProcess::launch,
+                    containerId,
+                    taskInfo,
+                    executorInfo,
+                    directory,
+                    user,
+                    slaveId,
+                    slavePid,
+                    checkpoint);
 }
 
 
@@ -206,36 +207,43 @@ Future<Nothing> ExternalContainerizer::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
-  return dispatch(process,
-                  &ExternalContainerizerProcess::update,
-                  containerId,
-                  resources);
+    return dispatch(process.get(),
+                    &ExternalContainerizerProcess::update,
+                    containerId,
+                    resources);
 }
 
 
 Future<ResourceStatistics> ExternalContainerizer::usage(
     const ContainerID& containerId)
 {
-  return dispatch(process, &ExternalContainerizerProcess::usage, containerId);
+  return dispatch(process.get(),
+                  &ExternalContainerizerProcess::usage,
+                  containerId);
 }
 
 
 Future<containerizer::Termination> ExternalContainerizer::wait(
     const ContainerID& containerId)
 {
-  return dispatch(process, &ExternalContainerizerProcess::wait, containerId);
+  return dispatch(process.get(),
+                  &ExternalContainerizerProcess::wait,
+                  containerId);
 }
 
 
 void ExternalContainerizer::destroy(const ContainerID& containerId)
 {
-  dispatch(process, &ExternalContainerizerProcess::destroy, containerId);
+  dispatch(process.get(),
+           &ExternalContainerizerProcess::destroy,
+           containerId);
 }
 
 
 Future<hashset<ContainerID> > ExternalContainerizer::containers()
 {
-  return dispatch(process, &ExternalContainerizerProcess::containers);
+  return dispatch(process.get(),
+                  &ExternalContainerizerProcess::containers);
 }
 
 
