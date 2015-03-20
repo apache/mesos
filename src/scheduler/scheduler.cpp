@@ -295,33 +295,6 @@ public:
         break;
       }
 
-      case Call::LAUNCH: {
-        if (!call.has_launch()) {
-          drop(call, "Expecting 'launch' to be present");
-          return;
-        }
-        // We do some local validation here, but really this should
-        // all happen in the master so it's only implemented once.
-        foreach (TaskInfo& task,
-                 *call.mutable_launch()->mutable_task_infos()) {
-          // Set ExecutorInfo::framework_id if missing since this
-          // field was added to the API later and thus was made
-          // optional.
-          if (task.has_executor() && !task.executor().has_framework_id()) {
-            task.mutable_executor()->mutable_framework_id()->CopyFrom(
-                call.framework_info().id());
-          }
-        }
-
-        LaunchTasksMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_info().id());
-        message.mutable_filters()->CopyFrom(call.launch().filters());
-        message.mutable_offer_ids()->CopyFrom(call.launch().offer_ids());
-        message.mutable_tasks()->CopyFrom(call.launch().task_infos());
-        send(master.get(), message);
-        break;
-      }
-
       case Call::KILL: {
         if (!call.has_kill()) {
           drop(call, "Expecting 'kill' to be present");
@@ -766,28 +739,7 @@ protected:
 
   void drop(const Call& call, const string& message)
   {
-    VLOG(1) << "Dropping " << stringify(call.type()) << ": " << message;
-
-    switch (call.type()) {
-      case Call::LAUNCH: {
-        // We drop the tasks preemptively (enqueing update events that
-        // put the task in TASK_LOST). This is a hack for now, to keep
-        // the tasks from being forever in PENDING state, when
-        // actually the master never received the launch.
-        // Unfortuantely this is insufficient since it doesn't capture
-        // the case when the scheduler process sends it but the master
-        // never receives it (i.e., during a master failover). In the
-        // future, this should be solved by higher-level abstractions
-        // and this hack should be considered for removal.
-        foreach (const TaskInfo& task, call.launch().task_infos()) {
-          drop(task, message);
-        }
-        break;
-      }
-
-      default:
-        break;
-    }
+    LOG(WARNING) << "Dropping " << call.type() << ": " << message;
   }
 
 private:

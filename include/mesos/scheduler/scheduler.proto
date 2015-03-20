@@ -121,7 +121,6 @@ message Call {
     REVIVE = 6;
     DECLINE = 5;
     ACCEPT = 12;
-    LAUNCH = 7;
     KILL = 8;
     ACKNOWLEDGE = 9;
     RECONCILE = 10;
@@ -162,17 +161,13 @@ message Call {
   //     ]
   //   }
   //
-  // TODO(bmahler): Not implemented.
+  // Note that any of the offer’s resources not used in the 'Accept'
+  // call (e.g., to launch a task) are considered unused and might be
+  // reoffered to other frameworks. In other words, the same OfferID
+  // cannot be used in more than one 'Accept' call.
   message Accept {
     repeated OfferID offer_ids = 1;
     repeated Offer.Operation operations = 2;
-    optional Filters filters = 3;
-  }
-
-  // TODO(bmahler): Deprecate Launch in favor of Accept.
-  message Launch {
-    repeated TaskInfo task_infos = 1;
-    repeated OfferID offer_ids = 2;
     optional Filters filters = 3;
   }
 
@@ -216,7 +211,6 @@ message Call {
   optional Request request = 3;
   optional Decline decline = 4;
   optional Accept accept = 10;
-  optional Launch launch = 5;
   optional Kill kill = 6;
   optional Acknowledge acknowledge = 7;
   optional Reconcile reconcile = 8;

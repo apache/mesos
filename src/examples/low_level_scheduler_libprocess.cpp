@@ -249,13 +249,16 @@ private:
 
       Call call;
       call.mutable_framework_info()->CopyFrom(framework);
-      call.set_type(Call::LAUNCH);
+      call.set_type(Call::ACCEPT);
 
-      Call::Launch* launch = call.mutable_launch();
+      Call::Accept* accept = call.mutable_accept();
+      accept->add_offer_ids()->CopyFrom(offer.id());
+
+      Offer::Operation* operation = accept->add_operations();
+      operation->set_type(Offer::Operation::LAUNCH);
       foreach (const TaskInfo& taskInfo, tasks) {
-        launch->add_task_infos()->CopyFrom(taskInfo);
+        operation->mutable_launch()->add_task_infos()->CopyFrom(taskInfo);
       }
-      launch->add_offer_ids()->CopyFrom(offer.id());
 
       mesos.send(call);
     }

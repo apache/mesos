@@ -1554,6 +1554,8 @@ void Master::receive(
     const UPID& from,
     const scheduler::Call& call)
 {
+  // TODO(vinod): Add metrics for calls.
+
   const FrameworkInfo& frameworkInfo = call.framework_info();
 
   // For REGISTER and REREGISTER calls, no need to look up the
@@ -1602,7 +1604,6 @@ void Master::receive(
       accept(framework, call.accept());
       break;
 
-    case scheduler::Call::LAUNCH:
     case scheduler::Call::KILL:
     case scheduler::Call::ACKNOWLEDGE:
     case scheduler::Call::RECONCILE:

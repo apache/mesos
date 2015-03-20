@@ -185,10 +185,14 @@ TEST_F(SchedulerTest, TaskRunning)
     Call call;
     call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
     call.mutable_framework_info()->mutable_id()->CopyFrom(id);
-    call.set_type(Call::LAUNCH);
-    call.mutable_launch()->add_task_infos()->CopyFrom(taskInfo);
-    call.mutable_launch()->add_offer_ids()->CopyFrom(
-        event.get().offers().offers(0).id());
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(event.get().offers().offers(0).id());
+
+    Offer::Operation* operation = accept->add_operations();
+    operation->set_type(Offer::Operation::LAUNCH);
+    operation->mutable_launch()->add_task_infos()->CopyFrom(taskInfo);
 
     mesos.send(call);
   }
