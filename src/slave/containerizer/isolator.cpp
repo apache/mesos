@@ -49,7 +49,7 @@ Future<Nothing> Isolator::recover(const list<ExecutorRunState>& state)
 }
 
 
-Future<Option<CommandInfo> > Isolator::prepare(
+Future<Option<CommandInfo>> Isolator::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,

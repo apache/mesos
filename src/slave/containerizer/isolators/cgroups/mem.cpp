@@ -62,7 +62,7 @@ using mesos::slave::Limitation;
 
 
 template<class T>
-static Future<Option<T> > none() { return None(); }
+static Future<Option<T>> none() { return None(); }
 
 CgroupsMemIsolatorProcess::CgroupsMemIsolatorProcess(
     const Flags& _flags,
@@ -88,7 +88,7 @@ Try<Isolator*> CgroupsMemIsolatorProcess::create(const Flags& flags)
   }
 
   // Ensure that no other subsystem is attached to the hierarchy.
-  Try<set<string> > subsystems = cgroups::subsystems(hierarchy.get());
+  Try<set<string>> subsystems = cgroups::subsystems(hierarchy.get());
   if (subsystems.isError()) {
     return Error(
         "Failed to get the list of attached subsystems for hierarchy " +
@@ -169,7 +169,7 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
     oomListen(containerId);
   }
 
-  Try<vector<string> > orphans = cgroups::get(
+  Try<vector<string>> orphans = cgroups::get(
       hierarchy, flags.cgroups_root);
   if (orphans.isError()) {
     foreachvalue (Info* info, infos) {
@@ -198,7 +198,7 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
 }
 
 
-Future<Option<CommandInfo> > CgroupsMemIsolatorProcess::prepare(
+Future<Option<CommandInfo>> CgroupsMemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -395,7 +395,7 @@ Future<ResourceStatistics> CgroupsMemIsolatorProcess::usage(
   // structure, e.g, cgroups::memory::stat.
   result.set_mem_rss_bytes(usage.get().bytes());
 
-  Try<hashmap<string, uint64_t> > stat =
+  Try<hashmap<string, uint64_t>> stat =
     cgroups::stat(hierarchy, info->cgroup, "memory.stat");
 
   if (stat.isError()) {

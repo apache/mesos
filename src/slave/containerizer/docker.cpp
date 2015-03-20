@@ -375,7 +375,7 @@ void DockerContainerizer::destroy(const ContainerID& containerId)
 }
 
 
-Future<hashset<ContainerID> > DockerContainerizer::containers()
+Future<hashset<ContainerID>> DockerContainerizer::containers()
 {
   return dispatch(process.get(), &DockerContainerizerProcess::containers);
 }
@@ -1292,7 +1292,7 @@ void DockerContainerizerProcess::__destroy(
 void DockerContainerizerProcess::___destroy(
     const ContainerID& containerId,
     bool killed,
-    const Future<Option<int> >& status)
+    const Future<Option<int>>& status)
 {
   CHECK(containers_.contains(containerId));
 
@@ -1318,7 +1318,7 @@ void DockerContainerizerProcess::___destroy(
 }
 
 
-Future<hashset<ContainerID> > DockerContainerizerProcess::containers()
+Future<hashset<ContainerID>> DockerContainerizerProcess::containers()
 {
   return containers_.keys();
 }

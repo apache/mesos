@@ -53,7 +53,7 @@ public:
 
       pids.put(run.id, run.pid);
 
-      process::Owned<process::Promise<mesos::slave::Limitation> > promise(
+      process::Owned<process::Promise<mesos::slave::Limitation>> promise(
           new process::Promise<mesos::slave::Limitation>());
       promises.put(run.id, promise);
     }
@@ -61,7 +61,7 @@ public:
     return Nothing();
   }
 
-  virtual process::Future<Option<CommandInfo> > prepare(
+  virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
@@ -72,7 +72,7 @@ public:
                               " has already been prepared");
     }
 
-    process::Owned<process::Promise<mesos::slave::Limitation> > promise(
+    process::Owned<process::Promise<mesos::slave::Limitation>> promise(
         new process::Promise<mesos::slave::Limitation>());
     promises.put(containerId, promise);
 

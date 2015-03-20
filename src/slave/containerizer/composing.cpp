@@ -87,7 +87,7 @@ public:
 
   void destroy(const ContainerID& containerId);
 
-  Future<hashset<ContainerID> > containers();
+  Future<hashset<ContainerID>> containers();
 
 private:
   // Continuations.
@@ -234,7 +234,7 @@ void ComposingContainerizer::destroy(const ContainerID& containerId)
 }
 
 
-Future<hashset<ContainerID> > ComposingContainerizer::containers()
+Future<hashset<ContainerID>> ComposingContainerizer::containers()
 {
   return dispatch(process, &ComposingContainerizerProcess::containers);
 }
@@ -259,7 +259,7 @@ Future<Nothing> ComposingContainerizerProcess::recover(
     const Option<state::SlaveState>& state)
 {
   // Recover each containerizer in parallel.
-  list<Future<Nothing> > futures;
+  list<Future<Nothing>> futures;
   foreach (Containerizer* containerizer, containerizers_) {
     futures.push_back(containerizer->recover(state));
   }
@@ -272,7 +272,7 @@ Future<Nothing> ComposingContainerizerProcess::recover(
 Future<Nothing> ComposingContainerizerProcess::_recover()
 {
   // Now collect all the running containers in order to multiplex.
-  list<Future<Nothing> > futures;
+  list<Future<Nothing>> futures;
   foreach (Containerizer* containerizer, containerizers_) {
     Future<Nothing> future = containerizer->containers()
       .then(defer(self(), &Self::__recover, containerizer, lambda::_1));
@@ -544,7 +544,7 @@ void ComposingContainerizerProcess::destroy(const ContainerID& containerId)
 }
 
 
-Future<hashset<ContainerID> > ComposingContainerizerProcess::containers()
+Future<hashset<ContainerID>> ComposingContainerizerProcess::containers()
 {
   return containers_.keys();
 }

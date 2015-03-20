@@ -269,7 +269,7 @@ JSON::Object json(const Iterable& ranges)
 }
 
 
-static Try<vector<PortRange> > parse(const JSON::Object& object)
+static Try<vector<PortRange>> parse(const JSON::Object& object)
 {
   Try<Value::Ranges> parsing = protobuf::parse<Value::Ranges>(object);
   if (parsing.isError()) {
@@ -424,11 +424,11 @@ int PortMappingUpdate::execute()
     return 1;
   }
 
-  Option<vector<PortRange> > portsToAdd;
-  Option<vector<PortRange> > portsToRemove;
+  Option<vector<PortRange>> portsToAdd;
+  Option<vector<PortRange>> portsToRemove;
 
   if (flags.ports_to_add.isSome()) {
-    Try<vector<PortRange> > parsing = parse(flags.ports_to_add.get());
+    Try<vector<PortRange>> parsing = parse(flags.ports_to_add.get());
     if (parsing.isError()) {
       cerr << "Parsing 'ports_to_add' failed: " << parsing.error() << endl;
       return 1;
@@ -437,7 +437,7 @@ int PortMappingUpdate::execute()
   }
 
   if (flags.ports_to_remove.isSome()) {
-    Try<vector<PortRange> > parsing = parse(flags.ports_to_remove.get());
+    Try<vector<PortRange>> parsing = parse(flags.ports_to_remove.get());
     if (parsing.isError()) {
       cerr << "Parsing 'ports_to_remove' failed: " << parsing.error() << endl;
       return 1;
@@ -609,7 +609,7 @@ int PortMappingStatistics::execute()
 
     // NOTE: If the underlying library uses the older version of
     // kernel API, the family argument passed in may not be honored.
-    Try<vector<diagnosis::socket::Info> > infos =
+    Try<vector<diagnosis::socket::Info>> infos =
       diagnosis::socket::infos(AF_INET, diagnosis::socket::state::ALL);
 
     if (infos.isError()) {
@@ -1331,7 +1331,7 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
     const list<ExecutorRunState>& states)
 {
   // Extract pids from virtual device names.
-  Try<set<string> > links = net::links();
+  Try<set<string>> links = net::links();
   if (links.isError()) {
     return Failure("Failed to get all the links: " + links.error());
   }
@@ -1445,7 +1445,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
   // sure that we add filters to veth before adding filters to host
   // eth0 and host lo. Also, we need to make sure we remove filters
   // from host eth0 and host lo before removing filters from veth.
-  Result<vector<ip::Classifier> > classifiers =
+  Result<vector<ip::Classifier>> classifiers =
     ip::classifiers(veth(pid), ingress::HANDLE);
 
   if (classifiers.isError()) {
@@ -1522,7 +1522,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
 }
 
 
-Future<Option<CommandInfo> > PortMappingIsolatorProcess::prepare(
+Future<Option<CommandInfo>> PortMappingIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -1566,7 +1566,7 @@ Future<Option<CommandInfo> > PortMappingIsolatorProcess::prepare(
   }
 
   // Allocate the ephemeral ports used by this container.
-  Try<Interval<uint16_t> > ephemeralPorts = ephemeralPortsAllocator->allocate();
+  Try<Interval<uint16_t>> ephemeralPorts = ephemeralPortsAllocator->allocate();
   if (ephemeralPorts.isError()) {
     return Failure(
         "Failed to allocate ephemeral ports: " + ephemeralPorts.error());
@@ -1850,7 +1850,7 @@ Future<Limitation> PortMappingIsolatorProcess::watch(
 
 void PortMappingIsolatorProcess::_update(
     const ContainerID& containerId,
-    const Future<Option<int> >& status)
+    const Future<Option<int>>& status)
 {
   if (!status.isReady()) {
     ++metrics.updating_container_ip_filters_errors;
@@ -1933,7 +1933,7 @@ Future<Nothing> PortMappingIsolatorProcess::update(
             << containerId << " from " << info->nonEphemeralPorts
             << " to " << nonEphemeralPorts;
 
-  Result<vector<ip::Classifier> > classifiers =
+  Result<vector<ip::Classifier>> classifiers =
     ip::classifiers(veth(pid), ingress::HANDLE);
 
   if (classifiers.isError()) {
@@ -2058,7 +2058,7 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
     return result;
   }
 
-  Result<hashmap<string, uint64_t> > stat =
+  Result<hashmap<string, uint64_t>> stat =
     link::statistics(veth(info->pid.get()));
 
   if (stat.isError()) {
@@ -2882,13 +2882,13 @@ uint32_t EphemeralPortsAllocator::nextMultipleOf(uint32_t x, uint32_t m)
 }
 
 
-Try<Interval<uint16_t> > EphemeralPortsAllocator::allocate()
+Try<Interval<uint16_t>> EphemeralPortsAllocator::allocate()
 {
   if (portsPerContainer_ == 0) {
     return Error("Number of ephemeral ports per container is zero");
   }
 
-  Option<Interval<uint16_t> > allocated;
+  Option<Interval<uint16_t>> allocated;
 
   foreach (const Interval<uint16_t>& interval, free) {
     uint16_t upper = interval.upper();

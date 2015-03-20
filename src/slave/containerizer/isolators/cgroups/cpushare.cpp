@@ -62,7 +62,7 @@ using mesos::slave::Limitation;
 
 
 template<class T>
-static Future<Option<T> > none() { return None(); }
+static Future<Option<T>> none() { return None(); }
 
 CgroupsCpushareIsolatorProcess::CgroupsCpushareIsolatorProcess(
     const Flags& _flags,
@@ -112,7 +112,7 @@ Try<Isolator*> CgroupsCpushareIsolatorProcess::create(const Flags& flags)
     subsystems.push_back("cpu,cpuacct");
 
     // Ensure that no other subsystem is attached to the hierarchy.
-    Try<set<string> > _subsystems = cgroups::subsystems(hierarchyCpu.get());
+    Try<set<string>> _subsystems = cgroups::subsystems(hierarchyCpu.get());
     if (_subsystems.isError()) {
       return Error(
           "Failed to get the list of attached subsystems for hierarchy " +
@@ -129,7 +129,7 @@ Try<Isolator*> CgroupsCpushareIsolatorProcess::create(const Flags& flags)
 
     // Ensure that no other subsystem is attached to each of the
     // hierarchy.
-    Try<set<string> > _subsystems = cgroups::subsystems(hierarchyCpu.get());
+    Try<set<string>> _subsystems = cgroups::subsystems(hierarchyCpu.get());
     if (_subsystems.isError()) {
       return Error(
           "Failed to get the list of attached subsystems for hierarchy " +
@@ -206,7 +206,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
 
   // Remove orphans.
   foreach (const string& subsystem, subsystems) {
-    Try<vector<string> > orphans = cgroups::get(
+    Try<vector<string>> orphans = cgroups::get(
         hierarchies[subsystem],
         flags.cgroups_root);
 
@@ -243,7 +243,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
 }
 
 
-Future<Option<CommandInfo> > CgroupsCpushareIsolatorProcess::prepare(
+Future<Option<CommandInfo>> CgroupsCpushareIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -453,7 +453,7 @@ Future<ResourceStatistics> CgroupsCpushareIsolatorProcess::usage(
   PCHECK(ticks > 0) << "Failed to get sysconf(_SC_CLK_TCK)";
 
   // Add the cpuacct.stat information.
-  Try<hashmap<string, uint64_t> > stat = cgroups::stat(
+  Try<hashmap<string, uint64_t>> stat = cgroups::stat(
       hierarchies["cpuacct"],
       info->cgroup,
       "cpuacct.stat");
@@ -520,7 +520,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::cleanup(
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
-  list<Future<Nothing> > futures;
+  list<Future<Nothing>> futures;
   foreach (const string& subsystem, subsystems) {
     futures.push_back(cgroups::destroy(
         hierarchies[subsystem],
@@ -537,9 +537,9 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::cleanup(
 }
 
 
-Future<list<Nothing> > CgroupsCpushareIsolatorProcess::_cleanup(
+Future<list<Nothing>> CgroupsCpushareIsolatorProcess::_cleanup(
     const ContainerID& containerId,
-    const Future<list<Nothing> >& future)
+    const Future<list<Nothing>>& future)
 {
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");

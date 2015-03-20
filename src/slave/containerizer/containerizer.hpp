@@ -125,7 +125,7 @@ public:
   // termination and manual destruction is not necessary. See wait().
   virtual void destroy(const ContainerID& containerId) = 0;
 
-  virtual process::Future<hashset<ContainerID> > containers() = 0;
+  virtual process::Future<hashset<ContainerID>> containers() = 0;
 };
 
 

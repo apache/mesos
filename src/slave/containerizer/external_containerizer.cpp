@@ -82,7 +82,7 @@ Try<ExternalContainerizer*> ExternalContainerizer::create(const Flags& flags)
 
 // Validate the invocation result.
 static Option<Error> validate(
-    const Future<Option<int> >& future)
+    const Future<Option<int>>& future)
 {
   if (!future.isReady()) {
     return Error("Status not ready");
@@ -107,7 +107,7 @@ static Option<Error> validate(
 // message.
 template<typename T>
 static Try<T> result(
-    const Future<tuple<Future<Result<T> >, Future<Option<int> > > >& future)
+    const Future<tuple<Future<Result<T>>, Future<Option<int>>>>& future)
 {
   if (!future.isReady()) {
     return Error("Could not receive any result");
@@ -118,7 +118,7 @@ static Try<T> result(
     return error.get();
   }
 
-  process::Future<Result<T> > result = tuples::get<0>(future.get());
+  Future<Result<T>> result = tuples::get<0>(future.get());
   if (result.isFailed()) {
     return Error("Could not receive any result: " + result.failure());
   }
@@ -240,7 +240,7 @@ void ExternalContainerizer::destroy(const ContainerID& containerId)
 }
 
 
-Future<hashset<ContainerID> > ExternalContainerizer::containers()
+Future<hashset<ContainerID>> ExternalContainerizer::containers()
 {
   return dispatch(process.get(),
                   &ExternalContainerizerProcess::containers);
@@ -274,7 +274,7 @@ Future<Nothing> ExternalContainerizerProcess::recover(
 
 Future<Nothing> ExternalContainerizerProcess::_recover(
     const Option<state::SlaveState>& state,
-    const Future<Option<int> >& future)
+    const Future<Option<int>>& future)
 {
   VLOG(1) << "Recover validation callback triggered";
 
@@ -393,7 +393,7 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
     return Nothing();
   }
 
-  list<Future<containerizer::Termination> > futures;
+  list<Future<containerizer::Termination>> futures;
 
   // Enforce a 'destroy' on all orphaned containers.
   foreach (const ContainerID& containerId, orphaned) {
@@ -541,7 +541,7 @@ Future<bool> ExternalContainerizerProcess::launch(
 
 Future<bool> ExternalContainerizerProcess::_launch(
     const ContainerID& containerId,
-    const Future<Option<int> >& future)
+    const Future<Option<int>>& future)
 {
   VLOG(1) << "Launch validation callback triggered on container '"
           << containerId << "'";
@@ -635,7 +635,7 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
   Result<containerizer::Termination>(*read)(int, bool, bool) =
     &::protobuf::read<containerizer::Termination>;
 
-  Future<Result<containerizer::Termination> > future = async(
+  Future<Result<containerizer::Termination>> future = async(
       read, invoked.get().out().get(), false, false);
 
   // Await both, a protobuf Message from the subprocess as well as
@@ -654,8 +654,8 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
 void ExternalContainerizerProcess::__wait(
     const ContainerID& containerId,
     const Future<tuple<
-        Future<Result<containerizer::Termination> >,
-        Future<Option<int> > > >& future)
+        Future<Result<containerizer::Termination>>,
+        Future<Option<int>>>>& future)
 {
   VLOG(1) << "Wait callback triggered on container '" << containerId << "'";
 
@@ -669,7 +669,7 @@ void ExternalContainerizerProcess::__wait(
   // the result validation below will return an error due to a non 0
   // exit status.
   if (actives[containerId]->destroying && future.isReady()) {
-    Future<Option<int> > statusFuture = tuples::get<1>(future.get());
+    Future<Option<int>> statusFuture = tuples::get<1>(future.get());
     if (statusFuture.isReady()) {
       Option<int> status = statusFuture.get();
       if (status.isSome()) {
@@ -765,7 +765,7 @@ Future<Nothing> ExternalContainerizerProcess::_update(
 
 Future<Nothing> ExternalContainerizerProcess::__update(
     const ContainerID& containerId,
-    const Future<Option<int> >& future)
+    const Future<Option<int>>& future)
 {
   VLOG(1) << "Update callback triggered on container '" << containerId << "'";
 
@@ -826,7 +826,7 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
   Result<ResourceStatistics>(*read)(int, bool, bool) =
     &::protobuf::read<ResourceStatistics>;
 
-  Future<Result<ResourceStatistics> > future = async(
+  Future<Result<ResourceStatistics>> future = async(
       read, invoked.get().out().get(), false, false);
 
   // Await both, a protobuf Message from the subprocess as well as
@@ -843,8 +843,8 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
 Future<ResourceStatistics> ExternalContainerizerProcess::__usage(
     const ContainerID& containerId,
     const Future<tuple<
-        Future<Result<ResourceStatistics> >,
-        Future<Option<int> > > >& future)
+        Future<Result<ResourceStatistics>>,
+        Future<Option<int>>>>& future)
 {
   VLOG(1) << "Usage callback triggered on container '" << containerId << "'";
 
@@ -930,7 +930,7 @@ void ExternalContainerizerProcess::_destroy(const ContainerID& containerId)
 
 void ExternalContainerizerProcess::__destroy(
     const ContainerID& containerId,
-    const Future<Option<int> >& future)
+    const Future<Option<int>>& future)
 {
   VLOG(1) << "Destroy callback triggered on container '" << containerId << "'";
 
@@ -951,7 +951,7 @@ void ExternalContainerizerProcess::__destroy(
 }
 
 
-Future<hashset<ContainerID> > ExternalContainerizerProcess::containers()
+Future<hashset<ContainerID>> ExternalContainerizerProcess::containers()
 {
   VLOG(1) << "Containers triggered";
 
@@ -964,7 +964,7 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::containers()
   Result<containerizer::Containers>(*read)(int, bool, bool) =
     &::protobuf::read<containerizer::Containers>;
 
-  Future<Result<containerizer::Containers> > future = async(
+  Future<Result<containerizer::Containers>> future = async(
       read, invoked.get().out().get(), false, false);
 
   // Await both, a protobuf Message from the subprocess as well as
@@ -977,10 +977,10 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::containers()
 }
 
 
-Future<hashset<ContainerID> > ExternalContainerizerProcess::_containers(
+Future<hashset<ContainerID>> ExternalContainerizerProcess::_containers(
     const Future<tuple<
-        Future<Result<containerizer::Containers> >,
-        Future<Option<int> > > >& future)
+        Future<Result<containerizer::Containers>>,
+        Future<Option<int>>>>& future)
 {
   VLOG(1) << "Containers callback triggered";
 
@@ -1037,7 +1037,7 @@ void ExternalContainerizerProcess::unwait(const ContainerID& containerId)
 
   // TODO(tillt): Add graceful termination as soon as we have an
   // accepted way to do that in place.
-  Try<list<os::ProcessTree> > trees =
+  Try<list<os::ProcessTree>> trees =
     os::killtree(pid.get(), SIGKILL, true, true);
 
   if (trees.isError()) {
@@ -1086,7 +1086,7 @@ static int setup(const string& directory)
 Try<Subprocess> ExternalContainerizerProcess::invoke(
     const string& command,
     const Option<Sandbox>& sandbox,
-    const Option<map<string, string> >& commandEnvironment)
+    const Option<map<string, string>>& commandEnvironment)
 {
   CHECK_SOME(flags.containerizer_path) << "containerizer_path not set";
 
@@ -1200,7 +1200,7 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
     const string& command,
     const google::protobuf::Message& message,
     const Option<Sandbox>& sandbox,
-    const Option<map<string, string> >& commandEnvironment)
+    const Option<map<string, string>>& commandEnvironment)
 {
   Try<Subprocess> external = invoke(command, sandbox, commandEnvironment);
   if (external.isError()) {
