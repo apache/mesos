@@ -548,26 +548,133 @@ ostream& operator << (
 
 namespace internal {
 
-Future<Response> decode(const string& buffer)
-{
-  ResponseDecoder decoder;
-  deque<Response*> responses = decoder.decode(buffer.c_str(), buffer.length());
+// Forward declarations.
+Future<string> _convert(
+    Pipe::Reader reader,
+    const memory::shared_ptr<string>& buffer,
+    const string& read);
+Response __convert(
+    const Response& pipeResponse,
+    const string& body);
 
-  if (decoder.failed() || responses.empty()) {
-    for (size_t i = 0; i < responses.size(); ++i) {
-      delete responses[i];
+
+// Returns a 'BODY' response once the body of the provided
+// 'PIPE' response can be read completely.
+Future<Response> convert(const Response& pipeResponse)
+{
+  memory::shared_ptr<string> buffer(new string());
+
+  CHECK_EQ(Response::PIPE, pipeResponse.type);
+  CHECK_SOME(pipeResponse.reader);
+
+  Pipe::Reader reader = pipeResponse.reader.get();
+
+  return reader.read()
+    .then(lambda::bind(&_convert, reader, buffer, lambda::_1))
+    .then(lambda::bind(&__convert, pipeResponse, lambda::_1));
+}
+
+
+Future<string> _convert(
+    Pipe::Reader reader,
+    const memory::shared_ptr<string>& buffer,
+    const string& read)
+{
+  if (read.empty()) { // EOF.
+    return *buffer;
+  }
+
+  buffer->append(read);
+
+  return reader.read()
+    .then(lambda::bind(&_convert, reader, buffer, lambda::_1));
+}
+
+
+Response __convert(const Response& pipeResponse, const string& body)
+{
+  Response bodyResponse = pipeResponse;
+  bodyResponse.type = Response::BODY;
+  bodyResponse.body = body;
+  bodyResponse.reader = None(); // Remove the reader.
+  return bodyResponse;
+}
+
+
+// Forward declaration.
+void _decode(
+    Socket socket,
+    Owned<StreamingResponseDecoder> decoder,
+    const Future<string>& data);
+
+
+Future<Response> decode(
+    Socket socket,
+    Owned<StreamingResponseDecoder> decoder,
+    const string& data)
+{
+  deque<Response*> responses = decoder->decode(data.c_str(), data.length());
+
+  if (decoder->failed() || responses.size() > 1) {
+    foreach (Response* response, responses) {
+      delete response;
     }
-    return Failure("Failed to decode HTTP response:\n" + buffer + "\n");
-  } else if (responses.size() > 1) {
-    PLOG(ERROR) << "Received more than 1 HTTP Response";
+    return Failure(string("Failed to decode HTTP response") +
+        (responses.size() > 1 ? ": more than one response received" : ""));
+  }
+
+  if (responses.empty()) {
+    // Keep reading until the headers are complete.
+    return socket.recv(None())
+      .then(lambda::bind(&decode, socket, decoder, lambda::_1));
+  }
+
+  // Keep feeding data to the decoder until EOF or a 'recv' failure.
+  if (!data.empty()) {
+    socket.recv(None())
+      .onAny(lambda::bind(&_decode, socket, decoder, lambda::_1));
   }
 
   Response response = *responses[0];
-  for (size_t i = 0; i < responses.size(); ++i) {
-    delete responses[i];
+  delete responses[0];
+  return response;
+}
+
+
+void _decode(
+    Socket socket,
+    Owned<StreamingResponseDecoder> decoder,
+    const Future<string>& data)
+{
+  deque<Response*> responses;
+
+  if (!data.isReady()) {
+    // Let the decoder process EOF if a failure
+    // or discard is encountered.
+    responses = decoder->decode("", 0);
+  } else {
+    responses = decoder->decode(data.get().c_str(), data.get().length());
   }
 
-  return response;
+  // We're not expecting more responses to arrive on this socket!
+  if (!responses.empty() || decoder->failed()) {
+    VLOG(1) << "Failed to decode HTTP response: "
+            << (responses.size() > 1
+                ? ": more than one response received"
+                : "");
+
+    foreach (Response* response, responses) {
+      delete response;
+    }
+
+    return;
+  }
+
+  // Keep reading if the socket has more data.
+  if (data.isReady() && !data.get().empty()) {
+    socket.recv(None())
+      .onAny(lambda::bind(&_decode, socket, decoder, lambda::_1));
+  }
 }
 
 
@@ -577,6 +684,7 @@ Future<Response> _request(
     const Address& address,
     const URL& url,
     const string& method,
+    bool streamingResponse,
     const Option<hashmap<string, string>>& _headers,
     const Option<string>& body,
     const Option<string>& contentType);
@@ -585,6 +693,7 @@ Future<Response> _request(
 Future<Response> request(
     const URL& url,
     const string& method,
+    bool streamedResponse,
     const Option<hashmap<string, string>>& headers,
     const Option<string>& body,
     const Option<string>& contentType)
@@ -626,6 +735,7 @@ Future<Response> request(
                        address,
                        url,
                        method,
+                       streamedResponse,
                        headers,
                        body,
                        contentType));
@@ -637,6 +747,7 @@ Future<Response> _request(
     const Address& address,
     const URL& url,
     const string& method,
+    bool streamedResponse,
     const Option<hashmap<string, string>>& _headers,
     const Option<string>& body,
     const Option<string>& contentType)
@@ -685,6 +796,13 @@ Future<Response> _request(
     headers["Content-Length"] = stringify(body.get().length());
   }
 
+  // TODO(bmahler): Use a 'Request' and a 'RequestEncoder' here!
+  // Currently this does not handle 'gzip' content encoding,
+  // unless the caller manually compresses the 'body'. For
+  // streaming requests we must wipe 'gzip' as an acceptable
+  // encoding as we don't currently have streaming gzip utilities
+  // to support decoding a streaming gzip response!
+
   // Emit the headers.
   foreachpair (const string& key, const string& value, headers) {
     out << key << ": " << value << "\r\n";
@@ -699,13 +817,18 @@ Future<Response> _request(
   // Need to disambiguate the Socket::recv for binding below.
   Future<string> (Socket::*recv)(const Option<ssize_t>&) = &Socket::recv;
 
-  // TODO(bmahler): For efficiency, this should properly use the
-  // ResponseDecoder when reading, rather than parsing the full string
-  // response.
-  return socket.send(out.str())
-    .then(lambda::function<Future<string>(void)>(
-              lambda::bind(recv, socket, -1)))
-    .then(lambda::bind(&internal::decode, lambda::_1));
+  Owned<StreamingResponseDecoder> decoder(new StreamingResponseDecoder());
+
+  Future<Response> pipeResponse = socket.send(out.str())
+    .then(lambda::bind(recv, socket, None()))
+    .then(lambda::bind(&internal::decode, socket, decoder, lambda::_1));
+
+  if (streamedResponse) {
+    return pipeResponse;
+  } else {
+    return pipeResponse
+      .then(lambda::bind(&internal::convert, lambda::_1));
+  }
 }
 
 } // namespace internal {
@@ -715,7 +838,7 @@ Future<Response> get(
     const URL& url,
     const Option<hashmap<string, string>>& headers)
 {
-  return internal::request(url, "GET", headers, None(), None());
+  return internal::request(url, "GET", false, headers, None(), None());
 }
 
 
@@ -757,7 +880,7 @@ Future<Response> post(
     return Failure("Attempted to do a POST with a Content-Type but no body");
   }
 
-  return internal::request(url, "POST", headers, body, contentType);
+  return internal::request(url, "POST", false, headers, body, contentType);
 }
 
 
@@ -777,6 +900,78 @@ Future<Response> post(
 
   return post(url, headers, body, contentType);
 }
+
+
+namespace streaming {
+
+Future<Response> get(
+    const URL& url,
+    const Option<hashmap<string, string>>& headers)
+{
+  return internal::request(url, "GET", true, headers, None(), None());
+}
+
+
+Future<Response> get(
+    const UPID& upid,
+    const Option<string>& path,
+    const Option<string>& query,
+    const Option<hashmap<string, string>>& headers)
+{
+  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+
+  if (path.isSome()) {
+    // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
+    url.path = strings::join("/", url.path, path.get());
+  }
+
+  if (query.isSome()) {
+    Try<hashmap<string, string>> decode = http::query::decode(
+        strings::remove(query.get(), "?", strings::PREFIX));
+
+    if (decode.isError()) {
+      return Failure("Failed to decode HTTP query string: " + decode.error());
+    }
+
+    url.query = decode.get();
+  }
+
+  return streaming::get(url, headers);
+}
+
+
+Future<Response> post(
+    const URL& url,
+    const Option<hashmap<string, string>>& headers,
+    const Option<string>& body,
+    const Option<string>& contentType)
+{
+  if (body.isNone() && contentType.isSome()) {
+    return Failure("Attempted to do a POST with a Content-Type but no body");
+  }
+
+  return internal::request(url, "POST", true, headers, body, contentType);
+}
+
+
+Future<Response> post(
+    const UPID& upid,
+    const Option<string>& path,
+    const Option<hashmap<string, string>>& headers,
+    const Option<string>& body,
+    const Option<string>& contentType)
+{
+  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+
+  if (path.isSome()) {
+    // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
+    url.path = strings::join("/", url.path, path.get());
+  }
+
+  return streaming::post(url, headers, body, contentType);
+}
+
+} // namespace streaming {
 
 } // namespace http {
 } // namespace process {

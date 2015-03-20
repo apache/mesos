@@ -414,6 +414,90 @@ TEST(HTTP, Get)
 }
 
 
+TEST(HTTP, StreamingGetComplete)
+{
+  Http http;
+
+  http::Pipe pipe;
+  http::OK ok;
+  ok.type = http::Response::PIPE;
+  ok.reader = pipe.reader();
+
+  EXPECT_CALL(*http.process, pipe(_))
+    .WillOnce(Return(ok));
+
+  Future<http::Response> response =
+    http::streaming::get(http.process->self(), "pipe");
+
+  // The response should be ready since the headers were sent.
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
+  ASSERT_EQ(http::Response::PIPE, response.get().type);
+  ASSERT_SOME(response.get().reader);
+
+  http::Pipe::Reader reader = response.get().reader.get();
+
+  // There is no data to read yet.
+  Future<string> read = reader.read();
+  EXPECT_TRUE(read.isPending());
+
+  // Stream data into the body and read it from the response.
+  http::Pipe::Writer writer = pipe.writer();
+  EXPECT_TRUE(writer.write("hello"));
+  AWAIT_EQ("hello", read);
+
+  EXPECT_TRUE(writer.write("goodbye"));
+  AWAIT_EQ("goodbye", reader.read());
+
+  // Complete the response.
+  EXPECT_TRUE(writer.close());
+  AWAIT_EQ("", reader.read()); // EOF.
+}
+
+
+TEST(HTTP, StreamingGetFailure)
+{
+  Http http;
+
+  http::Pipe pipe;
+  http::OK ok;
+  ok.type = http::Response::PIPE;
+  ok.reader = pipe.reader();
+
+  EXPECT_CALL(*http.process, pipe(_))
+    .WillOnce(Return(ok));
+
+  Future<http::Response> response =
+    http::streaming::get(http.process->self(), "pipe");
+
+  // The response should be ready since the headers were sent.
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
+  ASSERT_EQ(http::Response::PIPE, response.get().type);
+  ASSERT_SOME(response.get().reader);
+
+  http::Pipe::Reader reader = response.get().reader.get();
+
+  // There is no data to read yet.
+  Future<string> read = reader.read();
+  EXPECT_TRUE(read.isPending());
+
+  // Stream data into the body and read it from the response.
+  http::Pipe::Writer writer = pipe.writer();
+  EXPECT_TRUE(writer.write("hello"));
+  AWAIT_EQ("hello", read);
+
+  EXPECT_TRUE(writer.write("goodbye"));
+  AWAIT_EQ("goodbye", reader.read());
+
+  // Fail the response.
+  EXPECT_TRUE(writer.fail("oops"));
+  AWAIT_FAILED(reader.read());
+}
+
+
 http::Response validatePost(const http::Request& request)
 {
   EXPECT_EQ("POST", request.method);
