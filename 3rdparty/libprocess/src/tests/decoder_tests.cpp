@@ -119,11 +119,11 @@ TEST(Decoder, Response)
     "\r\n"
     "hi";
 
-  deque<Response*> requests = decoder.decode(data.data(), data.length());
+  deque<Response*> responses = decoder.decode(data.data(), data.length());
   ASSERT_FALSE(decoder.failed());
-  ASSERT_EQ(1, requests.size());
+  ASSERT_EQ(1, responses.size());
 
-  Response* response = requests[0];
+  Response* response = responses[0];
 
   EXPECT_EQ("200 OK", response->status);
   EXPECT_EQ(Response::BODY, response->type);
