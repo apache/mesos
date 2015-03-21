@@ -145,8 +145,7 @@ public:
           framework.mutable_id()->CopyFrom(event.registered().framework_id());
 
           cout << "Framework '" << event.registered().framework_id().value()
-               << "' registered with Master '"
-               << event.registered().master_info().id() << "'" << endl;
+               << "' registered" << endl;
           break;
         }
 
@@ -158,8 +157,7 @@ public:
           pthread_mutex_unlock(&mutex);
 
           cout << "Framework '" << event.reregistered().framework_id().value()
-               << "' re-registered with Master '"
-               << event.reregistered().master_info().id() << "'" << endl;
+               << "' re-registered" << endl;
           break;
         }
 

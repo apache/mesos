@@ -46,12 +46,10 @@ message Event {
 
   message Registered {
     required FrameworkID framework_id = 1;
-    required MasterInfo master_info = 2;
   }
 
   message Reregistered {
     required FrameworkID framework_id = 1;
-    required MasterInfo master_info = 2;
   }
 
   message Offers {

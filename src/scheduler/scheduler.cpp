@@ -576,7 +576,6 @@ protected:
     Event::Registered* registered = event.mutable_registered();
 
     registered->mutable_framework_id()->CopyFrom(message.framework_id());
-    registered->mutable_master_info()->CopyFrom(message.master_info());
 
     receive(from, event);
   }
@@ -594,7 +593,6 @@ protected:
     Event::Reregistered* reregistered = event.mutable_reregistered();
 
     reregistered->mutable_framework_id()->CopyFrom(message.framework_id());
-    reregistered->mutable_master_info()->CopyFrom(message.master_info());
 
     receive(from, event);
   }

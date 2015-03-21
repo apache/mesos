@@ -124,8 +124,7 @@ public:
           state = REGISTERED;
 
           cout << "Framework '" << event.registered().framework_id().value()
-               << "' registered with Master '"
-               << event.registered().master_info().id() << "'" << endl;
+               << "' registered" << endl;
           break;
         }
 
@@ -135,8 +134,7 @@ public:
           state = REGISTERED;
 
           cout << "Framework '" << event.reregistered().framework_id().value()
-               << "' re-registered to Master '"
-               << event.reregistered().master_info().id() << "'" << endl;
+               << "' re-registered" << endl;
           break;
         }
 
