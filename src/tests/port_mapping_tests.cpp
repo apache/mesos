@@ -117,16 +117,16 @@ static void cleanup(const string& eth0, const string& lo)
   ASSERT_SOME(links);
 
   foreach (const string& name, links.get()) {
-    if (strings::startsWith(name, slave::VETH_PREFIX)) {
+    if (strings::startsWith(name, slave::PORT_MAPPING_VETH_PREFIX())) {
       ASSERT_SOME_TRUE(link::remove(name));
     }
   }
 
-  Try<list<string> > entries = os::ls(slave::BIND_MOUNT_ROOT);
+  Try<list<string> > entries = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
   ASSERT_SOME(entries);
 
   foreach (const string& file, entries.get()) {
-    string target = path::join(slave::BIND_MOUNT_ROOT, file);
+    string target = path::join(slave::PORT_MAPPING_BIND_MOUNT_ROOT(), file);
 
     // NOTE: Here, we ignore the unmount errors because previous tests
     // may have created the file and died before mounting.
@@ -2035,11 +2035,11 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   Try<set<string> > links = net::links();
   ASSERT_SOME(links);
   foreach (const string& name, links.get()) {
-    EXPECT_FALSE(strings::startsWith(name, slave::VETH_PREFIX));
+    EXPECT_FALSE(strings::startsWith(name, slave::PORT_MAPPING_VETH_PREFIX()));
   }
 
   // Expect no files in bind mount directory.
-  Try<list<string> > files = os::ls(slave::BIND_MOUNT_ROOT);
+  Try<list<string> > files = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
   ASSERT_SOME(files);
   EXPECT_EQ(0u, files.get().size());
 

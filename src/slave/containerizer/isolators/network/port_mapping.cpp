@@ -104,16 +104,6 @@ using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
 using mesos::slave::Limitation;
 
-const std::string VETH_PREFIX = "mesos";
-
-
-// The root directory where we bind mount all the namespace handles.
-// We choose the directory '/var/run/netns' so that we can use
-// iproute2 suite (e.g., ip netns show/exec) to inspect or enter the
-// network namespace. This is very useful for debugging purposes.
-const string BIND_MOUNT_ROOT = "/var/run/netns";
-
-
 // The minimum number of ephemeral ports a container should have.
 static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
 
@@ -131,8 +121,10 @@ static const uint8_t LOW = 3;
 
 
 // The well known ports. Used for sanity check.
-static const Interval<uint16_t> WELL_KNOWN_PORTS =
-  (Bound<uint16_t>::closed(0), Bound<uint16_t>::open(1024));
+static Interval<uint16_t> WELL_KNOWN_PORTS()
+{
+  return (Bound<uint16_t>::closed(0), Bound<uint16_t>::open(1024));
+}
 
 
 /////////////////////////////////////////////////
@@ -178,16 +170,16 @@ static uint32_t roundDownToPowerOfTwo(uint32_t x)
 // executor process.
 static string veth(pid_t pid)
 {
-  return VETH_PREFIX + stringify(pid);
+  return PORT_MAPPING_VETH_PREFIX() + stringify(pid);
 }
 
 
 // Extracts the pid from the given veth name.
 static Option<pid_t> getPid(string veth)
 {
-  if (strings::startsWith(veth, VETH_PREFIX)) {
+  if (strings::startsWith(veth, PORT_MAPPING_VETH_PREFIX())) {
     Try<pid_t> pid = numify<pid_t>(
-        strings::remove(veth, VETH_PREFIX, strings::PREFIX));
+        strings::remove(veth, PORT_MAPPING_VETH_PREFIX(), strings::PREFIX));
 
     if (pid.isSome()) {
       return pid.get();
@@ -879,10 +871,10 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   // This is a sanity check to make sure that the ephemeral ports
   // specified do not intersect with the well known ports.
-  if (ephemeralPorts.intersects(WELL_KNOWN_PORTS)) {
+  if (ephemeralPorts.intersects(WELL_KNOWN_PORTS())) {
     return Error(
         "The specified ephemeral ports " + stringify(ephemeralPorts) +
-        " intersect with well known ports " + stringify(WELL_KNOWN_PORTS));
+        " intersect with well known ports " + stringify(WELL_KNOWN_PORTS()));
   }
 
   // Obtain the host ephemeral port range by reading the proc file
@@ -1239,23 +1231,23 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     }
   }
 
-  // Self bind mount BIND_MOUNT_ROOT. Since we use a new mount
-  // namespace for each container, for this mount point, we set
-  // '--make-rshared' on the host and set '--make-rslave' inside each
-  // container. This is important because when we unmount the network
-  // namespace handles on the host, those handles will be unmounted in
-  // the containers as well, but NOT vice versa.
+  // Self bind mount PORT_MAPPING_BIND_MOUNT_ROOT(). Since we use a
+  // new mount namespace for each container, for this mount point, we
+  // set '--make-rshared' on the host and set '--make-rslave' inside
+  // each container. This is important because when we unmount the
+  // network namespace handles on the host, those handles will be
+  // unmounted in the containers as well, but NOT vice versa.
 
   // We first create the bind mount directory if it does not exist.
-  Try<Nothing> mkdir = os::mkdir(BIND_MOUNT_ROOT);
+  Try<Nothing> mkdir = os::mkdir(PORT_MAPPING_BIND_MOUNT_ROOT());
   if(mkdir.isError()) {
     return Error(
         "Failed to create the bind mount root directory at " +
-        BIND_MOUNT_ROOT + ": " + mkdir.error());
+        PORT_MAPPING_BIND_MOUNT_ROOT() + ": " + mkdir.error());
   }
 
-  // Now, check '/proc/mounts' to see if BIND_MOUNT_ROOT has already
-  // been self mounted.
+  // Now, check '/proc/mounts' to see if
+  // PORT_MAPPING_BIND_MOUNT_ROOT() has already been self mounted.
   Try<fs::MountTable> mountTable = fs::MountTable::read("/proc/mounts");
   if (mountTable.isError()) {
     return Error(
@@ -1265,12 +1257,12 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   Option<fs::MountTable::Entry> bindMountRoot;
   foreach (const fs::MountTable::Entry& entry, mountTable.get().entries) {
-    if (entry.dir == BIND_MOUNT_ROOT) {
+    if (entry.dir == PORT_MAPPING_BIND_MOUNT_ROOT()) {
       bindMountRoot = entry;
     }
   }
 
-  // Self bind mount BIND_MOUNT_ROOT.
+  // Self bind mount PORT_MAPPING_BIND_MOUNT_ROOT().
   if (bindMountRoot.isNone()) {
     // NOTE: Instead of using fs::mount to perform the bind mount, we
     // use the shell command here because the syscall 'mount' does not
@@ -1281,34 +1273,36 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     Try<int> mount = os::shell(
         NULL,
         "mount --bind %s %s",
-        BIND_MOUNT_ROOT.c_str(),
-        BIND_MOUNT_ROOT.c_str());
+        PORT_MAPPING_BIND_MOUNT_ROOT().c_str(),
+        PORT_MAPPING_BIND_MOUNT_ROOT().c_str());
 
     if (mount.isError()) {
       return Error(
-          "Failed to self bind mount '" + BIND_MOUNT_ROOT +
+          "Failed to self bind mount '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
           "': " + mount.error());
     } else if (mount.get() != 0) {
       return Error(
-          "Failed to self bind mount '" + BIND_MOUNT_ROOT +
+          "Failed to self bind mount '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
           "': non-zero exit code: " + stringify(mount.get()));
     }
   }
 
-  // Mark the mount point BIND_MOUNT_ROOT as recursively shared.
+  // Mark the mount point PORT_MAPPING_BIND_MOUNT_ROOT() as
+  // recursively shared.
   Try<int> mountShared = os::shell(
       NULL,
       "mount --make-rshared %s",
-      BIND_MOUNT_ROOT.c_str());
+      PORT_MAPPING_BIND_MOUNT_ROOT().c_str());
 
   if (mountShared.isError()) {
     return Error(
-        "Failed to mark '" + BIND_MOUNT_ROOT + "' as recursively shared: " +
-        mountShared.error());
+        "Failed to mark '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
+        "' as recursively shared: " + mountShared.error());
   } else if (mountShared.get() != 0) {
     return Error(
-        "Failed to mark '" + BIND_MOUNT_ROOT + "' as recursively shared: " +
-        "non-zero exit code: " + stringify(mountShared.get()));
+        "Failed to mark '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
+        "' as recursively shared: " + "non-zero exit code: " +
+        stringify(mountShared.get()));
   }
 
   return new Isolator(Owned<IsolatorProcess>(
@@ -1613,7 +1607,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
   // the process 'pid' is gone, which allows us to explicitly control
   // the network namespace life cycle.
   const string source = path::join("/proc", stringify(pid), "ns", "net");
-  const string target = path::join(BIND_MOUNT_ROOT, stringify(pid));
+
+  const string target = path::join(
+      PORT_MAPPING_BIND_MOUNT_ROOT(),
+      stringify(pid));
 
   Try<Nothing> touch = os::touch(target);
   if (touch.isError()) {
@@ -2426,7 +2423,9 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
   }
 
   // Release the bind mount for this container.
-  const string target = path::join(BIND_MOUNT_ROOT, stringify(pid));
+  const string target = path::join(
+      PORT_MAPPING_BIND_MOUNT_ROOT(),
+      stringify(pid));
 
   Try<Nothing> unmount = fs::unmount(target, MNT_DETACH);
   if (unmount.isError()) {
@@ -2746,9 +2745,10 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   script << "#!/bin/sh\n";
   script << "set -x\n";
 
-  // Mark the mount point BIND_MOUNT_ROOT as slave mount so that
-  // changes in the container will not be propagated to the host.
-  script << "mount --make-rslave " << BIND_MOUNT_ROOT << "\n";
+  // Mark the mount point PORT_MAPPING_BIND_MOUNT_ROOT() as slave
+  // mount so that changes in the container will not be propagated to
+  // the host.
+  script << "mount --make-rslave " << PORT_MAPPING_BIND_MOUNT_ROOT() << "\n";
 
   // Disable IPv6 as IPv6 packets won't be forwarded anyway.
   script << "echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6\n";

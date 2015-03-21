@@ -53,10 +53,17 @@ namespace internal {
 namespace slave {
 
 // The prefix this isolator uses for the virtual ethernet devices.
-extern const std::string VETH_PREFIX;
+// NOTE: This constant is exposed for testing.
+inline std::string PORT_MAPPING_VETH_PREFIX() { return "mesos"; }
+
 
 // The root directory where we bind mount all the namespace handles.
-extern const std::string BIND_MOUNT_ROOT;
+// We choose the directory '/var/run/netns' so that we can use
+// iproute2 suite (e.g., ip netns show/exec) to inspect or enter the
+// network namespace. This is very useful for debugging purposes.
+// NOTE: This constant is exposed for testing.
+inline std::string PORT_MAPPING_BIND_MOUNT_ROOT() { return "/var/run/netns"; }
+
 
 // Responsible for allocating ephemeral ports for the port mapping
 // network isolator. This class is exposed mainly for unit testing.
