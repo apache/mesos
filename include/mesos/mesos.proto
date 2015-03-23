@@ -135,11 +135,12 @@ message FrameworkInfo {
 /**
  * Describes a health check for a task or executor (or any arbitrary
  * process/command). A "strategy" is picked by specifying one of the
- * optional fields, currently only 'http' and 'command' are
- * supported. Specifying more than one strategy is an error.
+ * optional fields; currently only 'command' is supported.
+ * Specifying more than one strategy is an error.
  */
 message HealthCheck {
-  // Describes an HTTP health check.
+  // Describes an HTTP health check. This is not fully implemented and not
+  // recommended for use - see MESOS-2533.
   message HTTP {
     // Port to send the HTTP request.
     required uint32 port = 1;
@@ -159,6 +160,7 @@ message HealthCheck {
     // for specific data in the response.
   }
 
+  // HTTP health check - not yet recommended for use, see MESOS-2533.
   optional HTTP http = 1;
 
   // TODO(benh): Consider adding a URL health check strategy which
@@ -166,12 +168,7 @@ message HealthCheck {
   // encapsulates all the details in a single string field.
 
   // TODO(benh): Other possible health check strategies could include
-  // one for TCP/UDP or a "command". A "command" could be running a
-  // (shell) command to check the healthiness. We'd need to determine
-  // what arguments (or environment variables) we'd want to set so
-  // that the command could do it's job (i.e., do we want to expose
-  // the stdout/stderr and/or the pid to make checking for healthiness
-  // easier).
+  // one for TCP/UDP.
 
   // Amount of time to wait until starting the health checks.
   optional double delay_seconds = 2 [default = 15.0];
