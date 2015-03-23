@@ -2860,6 +2860,14 @@ string PortMappingIsolatorProcess::scripts(Info* info)
     script << "tc class add dev " << eth0 << " parent 1: classid 1:1 htb rate "
            << egressRateLimitPerContainer.get().bytes() * 8 << "bit\n";
 
+    // Packets are buffered at the leaf qdisc if we send them faster
+    // than the HTB rate limit and may be dropped when the queue is
+    // full, so we change the default leaf qdisc from pfifo_fast to
+    // fq_codel, which has a larger buffer and better control on
+    // buffer bloat.
+    // TODO(cwang): Verity that fq_codel qdisc is available.
+    script << "tc qdisc add dev " << eth0 << " parent 1:1 fq_codel\n";
+
     // Display the htb qdisc and class created on eth0.
     script << "tc qdisc show dev " << eth0 << "\n";
     script << "tc class show dev " << eth0 << "\n";
