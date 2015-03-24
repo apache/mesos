@@ -1669,7 +1669,6 @@ public:
       ContainerizerTest<MesosContainerizer>::CreateSlaveFlags();
 
     // Setup recovery slave flags.
-    flags.checkpoint = true;
     flags.recover = "reconnect";
     flags.strict = true;
 
