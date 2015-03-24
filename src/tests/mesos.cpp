@@ -538,27 +538,43 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
   EXPECT_SOME(user);
 
   if (cgroups::enabled() && user.get() == "root") {
+    // Determine the base hierarchy.
     foreach (const string& subsystem, subsystems) {
-      // Establish the base hierarchy if this is the first subsystem checked.
-      if (baseHierarchy.empty()) {
-        Result<string> hierarchy = cgroups::hierarchy(subsystem);
-        ASSERT_FALSE(hierarchy.isError());
+      Result<string> hierarchy = cgroups::hierarchy(subsystem);
+      ASSERT_FALSE(hierarchy.isError());
 
-        if (hierarchy.isNone()) {
-          baseHierarchy = TEST_CGROUPS_HIERARCHY;
+      if (hierarchy.isSome()) {
+        const string& _baseHierarchy = strings::remove(
+            hierarchy.get(),
+            subsystem,
+            strings::SUFFIX);
+
+        if (baseHierarchy.empty()) {
+          baseHierarchy = _baseHierarchy;
         } else {
-          // Strip the subsystem to get the base hierarchy.
-          baseHierarchy = strings::remove(
-              hierarchy.get(),
-              subsystem,
-              strings::SUFFIX);
+          ASSERT_EQ(baseHierarchy, _baseHierarchy)
+            << "-------------------------------------------------------------\n"
+            << "Multiple cgroups base hierarchies detected:\n"
+            << "  '" << baseHierarchy << "'\n"
+            << "  '" << _baseHierarchy << "'\n"
+            << "Mesos does not support multiple cgroups base hierarchies.\n"
+            << "Please unmount the corresponding (or all) subsystems.\n"
+            << "-------------------------------------------------------------";
         }
       }
+    }
 
-      // Mount the subsystem if necessary.
-      string hierarchy = path::join(baseHierarchy, subsystem);
+    if (baseHierarchy.empty()) {
+      baseHierarchy = TEST_CGROUPS_HIERARCHY;
+    }
+
+    // Mount the subsystem if necessary.
+    foreach (const string& subsystem, subsystems) {
+      const string& hierarchy = path::join(baseHierarchy, subsystem);
+
       Try<bool> mounted = cgroups::mounted(hierarchy, subsystem);
       ASSERT_SOME(mounted);
+
       if (!mounted.get()) {
         ASSERT_SOME(cgroups::mount(hierarchy, subsystem))
           << "-------------------------------------------------------------\n"
