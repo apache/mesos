@@ -34,6 +34,9 @@
 #include <stout/mac.hpp>
 #include <stout/net.hpp>
 
+#include <stout/os/stat.hpp>
+#include <stout/os/exists.hpp>
+
 #include "linux/fs.hpp"
 
 #include "linux/routing/utils.hpp"
@@ -130,10 +133,12 @@ static void cleanup(const string& eth0, const string& lo)
 
     // NOTE: Here, we ignore the unmount errors because previous tests
     // may have created the file and died before mounting.
-    mesos::internal::fs::unmount(target, MNT_DETACH);
+    if (!os::stat::islink(target)) {
+      mesos::internal::fs::unmount(target, MNT_DETACH);
+    }
 
-    // Use best effort to remove the bind mount file, but it is okay
-    // the file can't be removed at this point.
+    // Remove the network namespace handle and the corresponding
+    // symlinks. The removal here is best effort.
     os::rm(target);
   }
 }
@@ -1981,6 +1986,91 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   driver.join();
 
   Shutdown();
+}
+
+
+// This test verfies the creation and destroy of the network namespace
+// handle symlink. The symlink was introduced in 0.23.0.
+TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/port_mapping";
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(DeclineOffers());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Start a long running task using network islator.
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(task.task_id(), status1.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *(containers.get().begin());
+
+  const string symlink = path::join(
+      slave::PORT_MAPPING_BIND_MOUNT_ROOT(),
+      stringify(containerId));
+
+  EXPECT_TRUE(os::exists(symlink));
+  EXPECT_TRUE(os::stat::islink(symlink));
+
+  Future<containerizer::Termination> termination =
+    containerizer.get()->wait(containerId);
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(task.task_id(), status2.get().task_id());
+  EXPECT_EQ(TASK_KILLED, status2.get().state());
+
+  AWAIT_READY(termination);
+  EXPECT_FALSE(os::exists(symlink));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+
+  delete containerizer.get();
 }
 
 } // namespace tests {

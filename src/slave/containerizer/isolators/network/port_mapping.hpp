@@ -253,7 +253,7 @@ private:
       ephemeralPortsAllocator(_ephemeralPortsAllocator) {}
 
   // Continuations.
-  Try<Nothing> _cleanup(Info* info);
+  Try<Nothing> _cleanup(Info* info, const Option<ContainerID>& containerId);
   Try<Info*> _recover(pid_t pid);
 
   void _update(
@@ -317,7 +317,7 @@ private:
 class PortMappingUpdate : public Subcommand
 {
 public:
-  static const std::string NAME;
+  static const char* NAME;
 
   struct Flags : public flags::FlagsBase
   {
@@ -347,7 +347,7 @@ protected:
 class PortMappingStatistics : public Subcommand
 {
 public:
-  static const std::string NAME;
+  static const char* NAME;
 
   struct Flags : public flags::FlagsBase
   {
