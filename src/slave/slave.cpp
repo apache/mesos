@@ -325,15 +325,15 @@ void Slave::initialize()
   info.set_port(self().address.port);
   info.mutable_resources()->CopyFrom(resources.get());
   info.mutable_attributes()->CopyFrom(attributes);
-  info.set_checkpoint(flags.checkpoint);
+  // Checkpointing of slaves is always enabled.
+  info.set_checkpoint(true);
 
   LOG(INFO) << "Slave hostname: " << info.hostname();
-  LOG(INFO) << "Slave checkpoint: " << stringify(flags.checkpoint);
-  if (!flags.checkpoint) {
-    LOG(WARNING) << "Disabling checkpointing is deprecated and the --checkpoint"
-                    " flag will be removed in a future release. Please avoid"
-                    " using this flag";
-  }
+  // Checkpointing of slaves is always enabled.
+  // We keep this line to be compatible with
+  // older monitoring tools.
+  // TODO(joerg84): Delete after 0.23.
+  LOG(INFO) << "Slave checkpoint: " << stringify(true);
 
   statusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1));
 
@@ -786,16 +786,14 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
 
       info.mutable_id()->CopyFrom(slaveId); // Store the slave id.
 
-      if (flags.checkpoint) {
-        // Create the slave meta directory.
-        paths::createSlaveDirectory(metaDir, slaveId);
+      // Create the slave meta directory.
+      paths::createSlaveDirectory(metaDir, slaveId);
 
-        // Checkpoint slave info.
-        const string& path = paths::getSlaveInfoPath(metaDir, slaveId);
+      // Checkpoint slave info.
+      const string& path = paths::getSlaveInfoPath(metaDir, slaveId);
 
-        VLOG(1) << "Checkpointing SlaveInfo to '" << path << "'";
-        CHECK_SOME(state::checkpoint(path, info));
-      }
+      VLOG(1) << "Checkpointing SlaveInfo to '" << path << "'";
+      CHECK_SOME(state::checkpoint(path, info));
 
       // If we don't get a ping from the master, trigger a
       // re-registration. This needs to be done once registered,

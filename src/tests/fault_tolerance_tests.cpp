@@ -120,7 +120,9 @@ TEST_F(FaultToleranceTest, SlaveLost)
   EXPECT_CALL(sched, slaveLost(&driver, offers.get()[0].slave_id()))
     .WillOnce(FutureSatisfy(&slaveLost));
 
-  ShutdownSlaves();
+  // Stop the checkpointing slave with explicit shutdown message
+  // so that the master does not wait for it to reconnect.
+  Stop(slave.get(), true);
 
   AWAIT_READY(offerRescinded);
   AWAIT_READY(slaveLost);

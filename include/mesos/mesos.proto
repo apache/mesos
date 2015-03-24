@@ -315,6 +315,8 @@ message SlaveInfo {
   repeated Resource resources = 3;
   repeated Attribute attributes = 5;
   optional SlaveID id = 6;
+  // TODO(joerg84): Remove checkpoint field as with 0.22.0
+  // slave checkpointing is enabled for all slaves (MESOS-2317).
   optional bool checkpoint = 7 [default = false];
 }
 

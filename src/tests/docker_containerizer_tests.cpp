@@ -1777,11 +1777,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  // Setup recovery slave flags.
-  flags.checkpoint = true;
-  flags.recover = "reconnect";
-  flags.strict = true;
-
   MockDocker* mockDocker = new MockDocker(tests::flags.docker);
   Shared<Docker> docker(mockDocker);
 
@@ -1949,11 +1944,6 @@ TEST_F(DockerContainerizerTest,
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-
-  // Setup recovery slave flags.
-  flags.checkpoint = true;
-  flags.recover = "reconnect";
-  flags.strict = true;
 
   MockDocker* mockDocker = new MockDocker(tests::flags.docker);
   Shared<Docker> docker(mockDocker);

@@ -456,9 +456,8 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  // Start a checkpointing slave.
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.checkpoint = true;
 
   Try<PID<Slave> > slave = StartSlave(&exec, slaveFlags);
   ASSERT_SOME(slave);
@@ -1301,7 +1300,6 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   Resources twoSlaves = fullSlave + fullSlave;
 
   slave::Flags flags = CreateSlaveFlags();
-
   flags.resources = Option<string>(stringify(fullSlave));
 
   Try<PID<Slave> > slave1 = StartSlave(&containerizer, flags);
@@ -1331,7 +1329,11 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  Try<PID<Slave> > slave2 = StartSlave(&containerizer, flags);
+  // Create new Flags as we require another work_dir for checkpoints.
+  slave::Flags flags2 = CreateSlaveFlags();
+  flags2.resources = Option<string>(stringify(fullSlave));
+
+  Try<PID<Slave>> slave2 = StartSlave(&containerizer, flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
@@ -1681,12 +1683,8 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
 
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = this->CreateSlaveFlags();
-
-  // Setup recovery slave flags.
-  slaveFlags.checkpoint = true;
-  slaveFlags.recover = "reconnect";
-  slaveFlags.strict = true;
 
   Try<PID<Slave> > slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -1761,12 +1759,8 @@ TEST_F(MasterTest, NonStrictRegistryWriteOnly)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
 
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = this->CreateSlaveFlags();
-
-  // Setup recovery slave flags.
-  slaveFlags.checkpoint = true;
-  slaveFlags.recover = "reconnect";
-  slaveFlags.strict = true;
 
   Try<PID<Slave> > slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -1916,11 +1910,9 @@ TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
 
-  // Start a slave with checkpointing.
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.checkpoint = true;
-  slaveFlags.recover = "reconnect";
-  slaveFlags.strict = true;
+
   Try<PID<Slave> > slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
@@ -2011,12 +2003,8 @@ TEST_F(MasterTest, RecoveredSlaveReregisters)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
 
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = this->CreateSlaveFlags();
-
-  // Setup recovery slave flags.
-  slaveFlags.checkpoint = true;
-  slaveFlags.recover = "reconnect";
-  slaveFlags.strict = true;
 
   Try<PID<Slave> > slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -2960,10 +2948,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   Future<process::Message> slaveRegisteredMessage =
     FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
 
-  // Start a checkpointing slave.
-  slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
-  Try<PID<Slave>> slave = StartSlave(flags);
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);

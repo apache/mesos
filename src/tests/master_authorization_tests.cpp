@@ -341,8 +341,9 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(FutureSatisfy(&slaveLost));
 
-  // Now stop the slave.
-  Stop(slave.get());
+  // Stop the slave with explicit shutdown as otherwise with
+  // checkpointing the master will wait for the slave to reconnect.
+  Stop(slave.get(), true);
 
   AWAIT_READY(slaveLost);
 
@@ -385,16 +386,12 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
 TEST_F(MasterAuthorizationTest, SlaveDisconnected)
 {
   MockAuthorizer authorizer;
-  Try<PID<Master> > master = StartMaster(&authorizer);
+  Try<PID<Master>> master = StartMaster(&authorizer);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  // Create a checkpointing slave so that a disconnected slave is not
-  // immediately removed.
-  slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
-  Try<PID<Slave> > slave = StartSlave(&exec, flags);
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -436,8 +433,9 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
   Future<Nothing> deactivateSlave =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
 
-  // Now stop the slave.
-  Stop(slave.get());
+  // Stop the checkpointing slave with explicit shutdown message
+  // so that the master does not wait for it to reconnect.
+  Stop(slave.get(), true);
 
   AWAIT_READY(deactivateSlave);
 
@@ -465,10 +463,10 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
   EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
   EXPECT_EQ(1u,
             stats.values.count(
-                "master/task_lost/source_master/reason_slave_disconnected"));
+                "master/task_lost/source_master/reason_slave_removed"));
   EXPECT_EQ(
       1u,
-      stats.values["master/task_lost/source_master/reason_slave_disconnected"]);
+      stats.values["master/task_lost/source_master/reason_slave_removed"]);
 
   driver.stop();
   driver.join();

@@ -434,10 +434,7 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   // Ensure a ping reaches the slave.
   Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
 
-  // Start a checkpointing slave.
-  slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
-  Try<PID<Slave> > slave = StartSlave(flags);
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);

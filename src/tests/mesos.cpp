@@ -165,9 +165,6 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   flags.credential = path;
 
-  // TODO(vinod): Consider making this true and fixing the tests.
-  flags.checkpoint = false;
-
   flags.resources = "cpus:2;mem:1024;disk:1024;ports:[31000-32000]";
 
   flags.registration_backoff_factor = Milliseconds(10);

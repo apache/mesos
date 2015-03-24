@@ -182,7 +182,6 @@ TEST_F(PersistentVolumeTest, ResourcesCheckpointing)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.checkpoint = true;
   slaveFlags.resources = "disk(role1):1024";
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
@@ -413,8 +412,6 @@ TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-
-  slaveFlags.checkpoint = true;
   slaveFlags.resources = "disk(role1):1024";
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);

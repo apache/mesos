@@ -249,6 +249,8 @@ TEST_F(GarbageCollectorTest, Prune)
 class GarbageCollectorIntegrationTest : public MesosTest {};
 
 
+// This test ensures that garbage collection removes
+// the slave working directory after a slave restart.
 TEST_F(GarbageCollectorIntegrationTest, Restart)
 {
   Try<PID<Master> > master = StartMaster();
@@ -313,8 +315,6 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
 
   ASSERT_TRUE(os::exists(slaveDir));
 
-  Clock::pause();
-
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
@@ -325,9 +325,13 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   EXPECT_CALL(sched, slaveLost(_, _))
     .WillOnce(FutureSatisfy(&slaveLost));
 
-  Stop(slave.get());
+  // Stop the slave with explicit shutdown as otherwise with
+  // checkpointing the master will wait for the slave to reconnect.
+  Stop(slave.get(), true);
 
   AWAIT_READY(slaveLost);
+
+  Clock::pause();
 
   Future<Nothing> schedule =
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);

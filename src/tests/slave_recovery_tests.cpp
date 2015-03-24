@@ -134,14 +134,7 @@ class SlaveRecoveryTest : public ContainerizerTest<T>
 public:
   virtual slave::Flags CreateSlaveFlags()
   {
-    slave::Flags flags = ContainerizerTest<T>::CreateSlaveFlags();
-
-    // Setup recovery slave flags.
-    flags.checkpoint = true;
-    flags.recover = "reconnect";
-    flags.strict = true;
-
-    return flags;
+    return ContainerizerTest<T>::CreateSlaveFlags();
   }
 };
 
@@ -1236,64 +1229,6 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   delete containerizer.get();
 }
 
-
-// This test ensures that a non-checkpointing slave's resources are not offered
-// to a framework that requires checkpointing.
-TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
-{
-  Try<PID<Master> > master = this->StartMaster();
-  ASSERT_SOME(master);
-
-  // Disable checkpointing for the slave.
-  slave::Flags flags = this->CreateSlaveFlags();
-  flags.checkpoint = false;
-
-
-  Future<RegisterSlaveMessage> registerSlaveMessage =
-    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
-
-  Fetcher fetcher;
-
-  Try<TypeParam*> containerizer = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer);
-
-  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
-  ASSERT_SOME(slave);
-
-  AWAIT_READY(registerSlaveMessage);
-
-  MockScheduler sched;
-
-  // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
-  frameworkInfo.set_checkpoint(true);
-
-  MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
-
-  Future<Nothing> registered;
-  EXPECT_CALL(sched, registered(_, _, _))
-    .WillOnce(FutureSatisfy(&registered));
-
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .Times(0); // No offers should be received!
-
-  Clock::pause();
-
-  driver.start();
-
-  // Wait for scheduler to register. We do a Clock::settle() here
-  // to ensure that no offers are received by the scheduler.
-  AWAIT_READY(registered);
-  Clock::settle();
-
-  driver.stop();
-  driver.join();
-
-  this->Shutdown();
-  delete containerizer.get();
-}
 
 // Scheduler asks a restarted slave to kill a task that has been
 // running before the slave restarted. This test ensures that a

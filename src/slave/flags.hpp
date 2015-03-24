@@ -47,7 +47,6 @@ class Flags : public logging::Flags
 {
 public:
   Flags()
-    : checkpoint(true)
   {
     add(&Flags::hostname,
         "hostname",
@@ -180,17 +179,14 @@ public:
         "reconnect: Reconnect with any old live executors.\n"
         "cleanup  : Kill any old live executors and exit.\n"
         "           Use this option when doing an incompatible slave\n"
-        "           or executor upgrade!).\n"
-        "NOTE: If checkpointed slave doesn't exist, no recovery is performed\n"
-        "      and the slave registers with the master as a new slave.",
+        "           or executor upgrade!).",
         "reconnect");
 
     add(&Flags::recovery_timeout,
         "recovery_timeout",
         "Amount of time alloted for the slave to recover. If the slave takes\n"
         "longer than recovery_timeout to recover, any executors that are\n"
-        "waiting to reconnect to the slave will self-terminate.\n"
-        "NOTE: This flag is only applicable when checkpoint is enabled.\n",
+        "waiting to reconnect to the slave will self-terminate.\n",
         RECOVERY_TIMEOUT);
 
     add(&Flags::strict,
@@ -482,9 +478,7 @@ public:
   double gc_disk_headroom;
   Duration disk_watch_interval;
   Duration resource_monitoring_interval;
-  // TODO(cmaloney): Remove checkpoint variable entirely, fixing tests
-  // which depend upon it. See MESOS-444 for more details.
-  bool checkpoint;
+
   std::string recover;
   Duration recovery_timeout;
   bool strict;
