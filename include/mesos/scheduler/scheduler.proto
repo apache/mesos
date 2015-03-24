@@ -71,6 +71,8 @@ message Event {
     required bytes data = 3;
   }
 
+  // TODO(vinod): Consider splitting the lost slave and terminated
+  // executor into separate events.
   message Failure {
     optional SlaveID slave_id = 1;
 
@@ -122,6 +124,7 @@ message Call {
     ACKNOWLEDGE = 9;
     RECONCILE = 10;
     MESSAGE = 11;
+    SHUTDOWN = 13;
 
     // TODO(benh): Consider adding an 'ACTIVATE' and 'DEACTIVATE' for
     // already registered frameworks as a way of stopping offers from
@@ -169,6 +172,18 @@ message Call {
     optional SlaveID slave_id = 2;
   }
 
+  // Shuts down a custom executor. When the executor gets a shutdown
+  // event, it is expected to kill all its tasks (and send TASK_KILLED
+  // updates) and terminate. If the executor doesn’t terminate within
+  // a certain timeout (configurable via
+  // '--executor_shutdown_grace_period' slave flag), the slave will
+  // forcefully destroy the container (executor and its tasks) and
+  // transition its active tasks to TASK_LOST.
+  message Shutdown {
+    required ExecutorID executor_id = 1;
+    required SlaveID slave_id = 2;
+  }
+
   message Acknowledge {
     required SlaveID slave_id = 1;
     required TaskID task_id = 2;
@@ -212,4 +227,5 @@ message Call {
   optional Acknowledge acknowledge = 7;
   optional Reconcile reconcile = 8;
   optional Message message = 9;
+  optional Shutdown shutdown = 11;
 }

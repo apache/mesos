@@ -292,6 +292,15 @@ public:
         break;
       }
 
+      case Call::SHUTDOWN: {
+        if (!call.has_shutdown()) {
+          drop(call, "Expecting 'shutdown' to be present");
+          return;
+        }
+        send(master.get(), call);
+        break;
+      }
+
       case Call::ACKNOWLEDGE: {
         if (!call.has_acknowledge()) {
           drop(call, "Expecting 'acknowledge' to be present");
@@ -345,6 +354,7 @@ protected:
     install<RescindResourceOfferMessage>(&MesosProcess::receive);
     install<StatusUpdateMessage>(&MesosProcess::receive);
     install<LostSlaveMessage>(&MesosProcess::receive);
+    install<ExitedExecutorMessage>(&MesosProcess::receive);
     install<ExecutorToFrameworkMessage>(&MesosProcess::receive);
     install<FrameworkErrorMessage>(&MesosProcess::receive);
 
@@ -653,6 +663,20 @@ protected:
     Event::Failure* failure = event.mutable_failure();
 
     failure->mutable_slave_id()->CopyFrom(message.slave_id());
+
+    receive(from, event);
+  }
+
+  void receive(const UPID& from, const ExitedExecutorMessage& message)
+  {
+    Event event;
+    event.set_type(Event::FAILURE);
+
+    Event::Failure* failure = event.mutable_failure();
+
+    failure->mutable_slave_id()->CopyFrom(message.slave_id());
+    failure->mutable_executor_id()->CopyFrom(message.executor_id());
+    failure->set_status(message.status());
 
     receive(from, event);
   }

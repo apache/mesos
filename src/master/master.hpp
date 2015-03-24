@@ -461,6 +461,10 @@ private:
       Framework* framework,
       const scheduler::Call::Kill& kill);
 
+  void shutdown(
+      Framework* framework,
+      const scheduler::Call::Shutdown& shutdown);
+
   bool elected() const
   {
     return leader.isSome() && leader.get() == info_;

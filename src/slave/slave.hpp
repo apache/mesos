@@ -125,6 +125,11 @@ public:
       const FrameworkID& frameworkId,
       const TaskID& taskId);
 
+  void shutdownExecutor(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
+
   void shutdownFramework(
       const process::UPID& from,
       const FrameworkID& frameworkId);
@@ -240,13 +245,6 @@ public:
   // and os calls.
   void _checkDiskUsage(const process::Future<double>& usage);
 
-  // Shut down an executor. This is a two phase process. First, an
-  // executor receives a shut down message (shut down phase), then
-  // after a configurable timeout the slave actually forces a kill
-  // (kill phase, via the isolator) if the executor has not
-  // exited.
-  void shutdownExecutor(Framework* framework, Executor* executor);
-
   // Invoked whenever the detector detects a change in masters.
   // Made public for testing purposes.
   void detected(const process::Future<Option<MasterInfo> >& pid);
@@ -298,13 +296,6 @@ public:
   ExecutorInfo getExecutorInfo(
       const FrameworkID& frameworkId,
       const TaskInfo& task);
-
-  // Handle the second phase of shutting down an executor for those
-  // executors that have not properly shutdown within a timeout.
-  void shutdownExecutorTimeout(
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const ContainerID& containerId);
 
   // Shuts down the executor if it did not register yet.
   void registerExecutorTimeout(
@@ -359,6 +350,20 @@ public:
 private:
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);
+
+  // Shut down an executor. This is a two phase process. First, an
+  // executor receives a shut down message (shut down phase), then
+  // after a configurable timeout the slave actually forces a kill
+  // (kill phase, via the isolator) if the executor has not
+  // exited.
+  void _shutdownExecutor(Framework* framework, Executor* executor);
+
+  // Handle the second phase of shutting down an executor for those
+  // executors that have not properly shutdown within a timeout.
+  void shutdownExecutorTimeout(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId);
 
   // Inner class used to namespace HTTP route handlers (see
   // slave/http.cpp for implementations).

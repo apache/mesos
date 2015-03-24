@@ -1611,6 +1611,13 @@ void Master::receive(
       reconcile(framework, call.reconcile());
       break;
 
+    case scheduler::Call::SHUTDOWN:
+      if (!call.has_shutdown()) {
+        drop(from, call, "Expecting 'shutdown' to be present");
+      }
+      shutdown(framework, call.shutdown());
+      break;
+
     case scheduler::Call::KILL:
       if (!call.has_kill()) {
         drop(from, call, "Expecting 'kill' to be present");
@@ -3484,13 +3491,52 @@ void Master::exitedExecutor(
 
   LOG(INFO) << "Executor " << executorId
             << " of framework " << frameworkId
-            << " on slave " << *slave << " "
+            << " on slave " << *slave << ": "
             << WSTRINGIFY(status);
 
   removeExecutor(slave, frameworkId, executorId);
 
-  // TODO(benh): Send the framework its executor's exit status?
-  // Or maybe at least have something like Scheduler::executorLost?
+  // TODO(vinod): Reliably forward this message to the scheduler.
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+    LOG(WARNING)
+      << "Not forwarding exited executor message for executor '" << executorId
+      << "' of framework " << frameworkId << " on slave " << *slave
+      << " because the framework is unknown";
+
+    return;
+  }
+
+  ExitedExecutorMessage message;
+  message.mutable_executor_id()->CopyFrom(executorId);
+  message.mutable_framework_id()->CopyFrom(frameworkId);
+  message.mutable_slave_id()->CopyFrom(slaveId);
+  message.set_status(status);
+
+  send(framework->pid, message);
+}
+
+
+void Master::shutdown(
+    Framework* framework,
+    const scheduler::Call::Shutdown& shutdown)
+{
+  CHECK_NOTNULL(framework);
+
+  if (!slaves.registered.contains(shutdown.slave_id())) {
+    LOG(WARNING) << "Unable to shutdown executor '" << shutdown.executor_id()
+                 << "' of framework " << framework->id()
+                 << " of unknown slave " << shutdown.slave_id();
+    return;
+  }
+
+  Slave* slave = slaves.registered[shutdown.slave_id()];
+  CHECK_NOTNULL(slave);
+
+  ShutdownExecutorMessage message;
+  message.mutable_executor_id()->CopyFrom(shutdown.executor_id());
+  message.mutable_framework_id()->CopyFrom(framework->id());
+  send(slave->pid, message);
 }
 
 

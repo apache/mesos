@@ -309,9 +309,14 @@ message ShutdownFrameworkMessage {
 }
 
 
-// Tells the executor to initiate a shut down by invoking
-// Executor::shutdown.
-message ShutdownExecutorMessage {}
+// Tells a slave (and consequently executor) to shutdown an executor.
+message ShutdownExecutorMessage {
+  // TODO(vinod): Make these fields required. These are made optional
+  // for backwards compatibility between 0.23.0 slave and pre 0.23.0
+  // executor driver.
+  optional ExecutorID executor_id = 1;
+  optional FrameworkID framework_id = 2;
+}
 
 
 message UpdateFrameworkMessage {
