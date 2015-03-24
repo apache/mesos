@@ -186,8 +186,10 @@ class SchedulerDriver(object):
       Launches the given set of tasks. Any resources remaining (i.e., not
       used by the tasks or their executors) will be considered declined.
       The specified filters are applied on all unused resources (see
-      mesos.proto for a description of Filters.) Invoking this function with
-      an empty collection of tasks declines the offers in entirety (see
+      mesos.proto for a description of Filters). Available resources are
+      aggregated when multiple offers are provided. Note that all offers
+      must belong to the same slave. Invoking this function with an empty
+      collection of tasks declines the offers in entirety (see
       Scheduler.declineOffer). Note that passing a single offer is also
       supported.
     """
