@@ -31,8 +31,6 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
-#include <process/io.hpp>
-#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/subprocess.hpp>
 
@@ -41,6 +39,7 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include "common/build.hpp"
 #include "common/http.hpp"
 
 #include "master/flags.hpp"
@@ -64,9 +63,13 @@ using memory::shared_ptr;
 
 using namespace mesos::internal::slave;
 
-using namespace process;
-
 using mesos::internal::master::Master;
+
+using process::Clock;
+using process::Future;
+using process::PID;
+using process::Promise;
+using process::UPID;
 
 using std::map;
 using std::string;
@@ -85,6 +88,8 @@ using testing::Sequence;
 namespace mesos {
 namespace internal {
 namespace tests {
+
+namespace http = process::http;
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more slave than master-related are in this file.
@@ -887,16 +892,19 @@ TEST_F(SlaveTest, StateEndpoint)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
+  flags.hostname = "localhost";
   flags.resources = "cpus:4;mem:2048;disk:512;ports:[33000-34000]";
   flags.attributes = "rack:abc;host:myhost";
+
+  // Capture the start time deterministically.
+  Clock::pause();
 
   Try<PID<Slave> > slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
-  Future<http::Response> response =
-    http::get(slave.get(), "state.json");
+  Future<http::Response> response = http::get(slave.get(), "state.json");
 
-  AWAIT_READY(response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
 
   EXPECT_SOME_EQ(
       "application/json",
@@ -908,20 +916,61 @@ TEST_F(SlaveTest, StateEndpoint)
 
   JSON::Object state = parse.get();
 
-  // Check if 'resources' matches.
+  EXPECT_EQ(MESOS_VERSION, state.values["version"]);
+
+  if (build::GIT_SHA.isSome()) {
+    EXPECT_EQ(build::GIT_SHA.get(), state.values["git_sha"]);
+  }
+
+  if (build::GIT_BRANCH.isSome()) {
+    EXPECT_EQ(build::GIT_BRANCH.get(), state.values["git_branch"]);
+  }
+
+  if (build::GIT_TAG.isSome()) {
+    EXPECT_EQ(build::GIT_TAG.get(), state.values["git_tag"]);
+  }
+
+  EXPECT_EQ(build::DATE, state.values["build_date"]);
+  EXPECT_EQ(build::TIME, state.values["build_time"]);
+  EXPECT_EQ(build::USER, state.values["build_user"]);
+
+  ASSERT_TRUE(state.values["start_time"].is<JSON::Number>());
+  EXPECT_EQ(
+      static_cast<int>(Clock::now().secs()),
+      static_cast<int>(state.values["start_time"].as<JSON::Number>().value));
+
+  // TODO(bmahler): The slave must register for the 'id'
+  // to be non-empty.
+  ASSERT_TRUE(state.values["id"].is<JSON::String>());
+
+  EXPECT_EQ(stringify(slave.get()), state.values["pid"]);
+  EXPECT_EQ(flags.hostname.get(), state.values["hostname"]);
+
   Try<Resources> resources = Resources::parse(
       flags.resources.get(), flags.default_role);
 
   ASSERT_SOME(resources);
 
-  ASSERT_EQ(1u, state.values.count("resources"));
-  EXPECT_EQ(state.values["resources"], JSON::Value(model(resources.get())));
+  EXPECT_EQ(model(resources.get()), state.values["resources"]);
 
-  // Check if 'attributes' matches.
   Attributes attributes = Attributes::parse(flags.attributes.get());
 
-  ASSERT_EQ(1u, state.values.count("attributes"));
-  EXPECT_EQ(state.values["attributes"], JSON::Value(model(attributes)));
+  EXPECT_EQ(model(attributes), state.values["attributes"]);
+
+  // TODO(bmahler): Test "master_hostname", "log_dir",
+  // "external_log_file".
+
+  ASSERT_TRUE(state.values["frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(state.values["frameworks"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(
+      state.values["completed_frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(
+      state.values["completed_frameworks"].as<JSON::Array>().values.empty());
+
+  // TODO(bmahler): Ensure this contains all the flags.
+  ASSERT_TRUE(state.values["flags"].is<JSON::Object>());
+  EXPECT_FALSE(state.values["flags"].as<JSON::Object>().values.empty());
 
   Shutdown();
 }
@@ -1749,8 +1798,7 @@ TEST_F(SlaveTest, TaskLabels)
   AWAIT_READY(update);
 
   // Verify label key and value in slave state.json.
-  Future<http::Response> response =
-    http::get(slave.get(), "state.json");
+  Future<http::Response> response = http::get(slave.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(

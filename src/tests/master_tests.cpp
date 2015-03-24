@@ -30,7 +30,6 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/http.hpp>
-#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <process/metrics/counter.hpp>
@@ -43,6 +42,8 @@
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+
+#include "common/build.hpp"
 
 #include "master/flags.hpp"
 #include "master/master.hpp"
@@ -74,10 +75,8 @@ using mesos::internal::slave::MesosContainerizerProcess;
 
 using process::Clock;
 using process::Future;
-using process::Owned;
 using process::PID;
 using process::Promise;
-using process::UPID;
 
 using std::string;
 using std::vector;
@@ -93,6 +92,8 @@ using testing::SaveArg;
 namespace mesos {
 namespace internal {
 namespace tests {
+
+namespace http = process::http;
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more master than slave-related are in this file.
@@ -271,8 +272,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   Clock::resume();
 
   // Request master state.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+  Future<http::Response> response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   // These checks are not essential for the test, but may help
@@ -1596,8 +1596,7 @@ TEST_F(MasterTest, SlavesEndpointWithoutSlaves)
   ASSERT_SOME(master);
 
   // Query the master.
-  const Future<process::http::Response> response =
-    process::http::get(master.get(), "slaves");
+  Future<http::Response> response = http::get(master.get(), "slaves");
 
   AWAIT_READY(response);
 
@@ -1645,8 +1644,7 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
   AWAIT_READY(slave2RegisteredMessage);
 
   // Query the master.
-  const Future<process::http::Response> response =
-    process::http::get(master.get(), "slaves");
+  Future<http::Response> response = http::get(master.get(), "slaves");
 
   AWAIT_READY(response);
 
@@ -2192,8 +2190,7 @@ TEST_F(MasterTest, OrphanTasks)
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Get the master's state.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+  Future<http::Response> response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2258,7 +2255,7 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(reregisterFrameworkMessage);
 
   // Get the master's state.
-  response = process::http::get(master.get(), "state.json");
+  response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2290,7 +2287,7 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(frameworkRegisteredMessage);
 
   // Get the master's state.
-  response = process::http::get(master.get(), "state.json");
+  response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2743,6 +2740,93 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
 }
 
 
+TEST_F(MasterTest, StateEndpoint)
+{
+  master::Flags flags = CreateMasterFlags();
+
+  flags.hostname = "localhost";
+  flags.cluster = "test-cluster";
+
+  // Capture the start time deterministically.
+  Clock::pause();
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Future<http::Response> response = http::get(master.get(), "state.json");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  JSON::Object state = parse.get();
+
+  EXPECT_EQ(MESOS_VERSION, state.values["version"]);
+
+  if (build::GIT_SHA.isSome()) {
+    EXPECT_EQ(build::GIT_SHA.get(), state.values["git_sha"]);
+  }
+
+  if (build::GIT_BRANCH.isSome()) {
+    EXPECT_EQ(build::GIT_BRANCH.get(), state.values["git_branch"]);
+  }
+
+  if (build::GIT_TAG.isSome()) {
+    EXPECT_EQ(build::GIT_TAG.get(), state.values["git_tag"]);
+  }
+
+  EXPECT_EQ(build::DATE, state.values["build_date"]);
+  EXPECT_EQ(build::TIME, state.values["build_time"]);
+  EXPECT_EQ(build::USER, state.values["build_user"]);
+
+  ASSERT_TRUE(state.values["start_time"].is<JSON::Number>());
+  EXPECT_EQ(
+      static_cast<int>(Clock::now().secs()),
+      static_cast<int>(state.values["start_time"].as<JSON::Number>().value));
+
+  ASSERT_TRUE(state.values["id"].is<JSON::String>());
+  EXPECT_NE("", state.values["id"].as<JSON::String>().value);
+
+  EXPECT_EQ(stringify(master.get()), state.values["pid"]);
+  EXPECT_EQ(flags.hostname.get(), state.values["hostname"]);
+
+  EXPECT_EQ(0, state.values["activated_slaves"]);
+  EXPECT_EQ(0, state.values["deactivated_slaves"]);
+
+  EXPECT_EQ(flags.cluster.get(), state.values["cluster"]);
+
+  // TODO(bmahler): Test "leader", "log_dir", "external_log_file".
+
+  // TODO(bmahler): Ensure this contains all the flags.
+  ASSERT_TRUE(state.values["flags"].is<JSON::Object>());
+  EXPECT_FALSE(state.values["flags"].as<JSON::Object>().values.empty());
+
+  ASSERT_TRUE(state.values["slaves"].is<JSON::Array>());
+  EXPECT_TRUE(state.values["slaves"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(state.values["orphan_tasks"].is<JSON::Array>());
+  EXPECT_TRUE(state.values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(state.values["frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(state.values["frameworks"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(
+      state.values["completed_frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(
+      state.values["completed_frameworks"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(
+      state.values["unregistered_frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(
+      state.values["unregistered_frameworks"].as<JSON::Array>().values.empty());
+}
+
+
 // This test ensures that the web UI of a framework is included in the
 // state.json endpoint, if provided by the framework.
 TEST_F(MasterTest, FrameworkWebUIUrl)
@@ -2765,9 +2849,8 @@ TEST_F(MasterTest, FrameworkWebUIUrl)
 
   AWAIT_READY(registered);
 
-  Future<process::http::Response> masterState =
-    process::http::get(master.get(), "state.json");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, masterState);
+  Future<http::Response> masterState = http::get(master.get(), "state.json");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, masterState);
 
   Try<JSON::Object> masterStateObject =
     JSON::parse<JSON::Object>(masterState.get().body);
@@ -2876,8 +2959,7 @@ TEST_F(MasterTest, TaskLabels)
   AWAIT_READY(update);
 
   // Verify label key and value in master state.json.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+  Future<http::Response> response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2954,8 +3036,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_READY(slaveRegisteredMessage);
 
   // Verify slave is active.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+  Future<http::Response> response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
@@ -2977,7 +3058,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_READY(deactivateSlave);
 
   // Verify slave is inactive.
-  response = process::http::get(master.get(), "state.json");
+  response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   parse = JSON::parse<JSON::Object>(response.get().body);
@@ -3082,8 +3163,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   AWAIT_READY(update);
 
   // Verify label key and value in master state.json.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+  Future<http::Response> response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
