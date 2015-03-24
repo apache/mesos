@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
+#include <sys/prctl.h>
+
 #include <set>
 
 #include <gmock/gmock.h>
 
 #include <process/clock.hpp>
 #include <process/gtest.hpp>
+#include <process/reap.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/stringify.hpp>
@@ -122,18 +125,39 @@ TEST_F(PerfTest, Parse)
 }
 
 
-TEST_F(PerfTest, ROOT_SampleInit)
+TEST_F(PerfTest, ROOT_SamplePid)
 {
+  // TODO(idownes): Replace this with a Subprocess when it supports
+  // DEATHSIG.
+  // Fork a child which we'll run perf against.
+  pid_t pid = fork();
+  ASSERT_GE(pid, 0);
+
+  if (pid == 0) {
+    // Kill ourself if the parent dies to prevent leaking the child.
+    prctl(PR_SET_PDEATHSIG, SIGKILL);
+
+    // Spin child to consume cpu cycles.
+    while (true);
+  }
+
+  // Continue in parent.
   set<string> events;
   // Hardware event.
   events.insert("cycles");
   // Software event.
   events.insert("task-clock");
 
-  // Sample init/launchd/systemd (pid 1).
+  // Sample the child.
+  Duration duration = Milliseconds(100);
   Future<mesos::PerfStatistics> statistics =
-    perf::sample(events, 1, Seconds(1));
+    perf::sample(events, pid, duration);
   AWAIT_READY(statistics);
+
+  // Kill the child and reap it.
+  Future<Option<int>> status = reap(pid);
+  kill(pid, SIGKILL);
+  AWAIT_READY(status);
 
   // Check the sample timestamp is within the last 5 seconds. This is generous
   // because there's the process reap delay in addition to the sampling
@@ -141,7 +165,7 @@ TEST_F(PerfTest, ROOT_SampleInit)
   ASSERT_TRUE(statistics.get().has_timestamp());
   EXPECT_GT(
       Seconds(5).secs(), Clock::now().secs() - statistics.get().timestamp());
-  EXPECT_EQ(Seconds(1).secs(), statistics.get().duration());
+  EXPECT_EQ(duration.secs(), statistics.get().duration());
 
   ASSERT_TRUE(statistics.get().has_cycles());
   EXPECT_LT(0u, statistics.get().cycles());
