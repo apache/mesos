@@ -1526,10 +1526,10 @@ void Master::drop(
 {
   // TODO(bmahler): Increment a metric.
 
-  LOG(ERROR) << "Dropping " << scheduler::Call::Type_Name(call.type())
-             << " call from framework " << call.framework_info().id()
-             << " (" << call.framework_info().name() << ") at " << from
-             << ": " << message;
+  LOG(ERROR) << "Dropping " << call.type() << " call"
+             << " from framework " << call.framework_info().id()
+             << " (" << call.framework_info().name()
+             << ") at " << from << ": " << message;
 }
 
 

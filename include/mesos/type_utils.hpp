@@ -19,11 +19,15 @@
 #ifndef __MESOS_TYPE_UTILS_H__
 #define __MESOS_TYPE_UTILS_H__
 
+#include <ostream>
+
 #include <boost/functional/hash.hpp>
 
 #include <mesos/mesos.hpp>
 
 #include <mesos/module/module.hpp>
+
+#include <mesos/scheduler/scheduler.hpp>
 
 #include <stout/uuid.hpp>
 
@@ -338,7 +342,23 @@ inline std::ostream& operator << (
     std::ostream& stream,
     const TaskState& state)
 {
-  return stream << TaskState_descriptor()->FindValueByNumber(state)->name();
+  return stream << TaskState_Name(state);
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const scheduler::Call::Type& type)
+{
+  return stream << scheduler::Call_Type_Name(type);
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const scheduler::Event::Type& type)
+{
+  return stream << scheduler::Event_Type_Name(type);
 }
 
 
