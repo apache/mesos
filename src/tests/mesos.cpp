@@ -544,19 +544,18 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
       ASSERT_FALSE(hierarchy.isError());
 
       if (hierarchy.isSome()) {
-        const string& _baseHierarchy = strings::remove(
-            hierarchy.get(),
-            subsystem,
-            strings::SUFFIX);
+        Try<string> _baseHierarchy = os::dirname(hierarchy.get());
+        ASSERT_SOME(_baseHierarchy)
+          << "Failed to get the base of hierarchy '" << hierarchy.get() << "'";
 
         if (baseHierarchy.empty()) {
-          baseHierarchy = _baseHierarchy;
+          baseHierarchy = _baseHierarchy.get();
         } else {
-          ASSERT_EQ(baseHierarchy, _baseHierarchy)
+          ASSERT_EQ(baseHierarchy, _baseHierarchy.get())
             << "-------------------------------------------------------------\n"
             << "Multiple cgroups base hierarchies detected:\n"
             << "  '" << baseHierarchy << "'\n"
-            << "  '" << _baseHierarchy << "'\n"
+            << "  '" << _baseHierarchy.get() << "'\n"
             << "Mesos does not support multiple cgroups base hierarchies.\n"
             << "Please unmount the corresponding (or all) subsystems.\n"
             << "-------------------------------------------------------------";
