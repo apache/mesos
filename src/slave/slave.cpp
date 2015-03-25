@@ -2542,6 +2542,22 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
         executor->state == Executor::TERMINATED)
     << executor->state;
 
+  // Failing this validation on the executor driver used to cause the
+  // driver to abort. Now that the validation is done by the slave, it
+  // should shutdown the executor to be consistent.
+  // TODO(arojas): Once the HTTP API is the default, return a
+  // 400 Bad Request response, indicating the reason in the body.
+  if (status.source() == TaskStatus::SOURCE_EXECUTOR &&
+      status.state() == TASK_STAGING) {
+    LOG(ERROR) << "Received TASK_STAGING from executor " << executor->pid
+               << " of framework " << update.framework_id()
+               << " which is not allowed. Shutting down the executor";
+
+    shutdownExecutor(framework, executor);
+
+    return;
+  }
+
   // TODO(vinod): Revisit these semantics when we disallow executors
   // from sending updates for tasks that belong to other executors.
   if (pid != UPID() && executor->pid != pid) {
