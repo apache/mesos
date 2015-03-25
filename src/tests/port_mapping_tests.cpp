@@ -1663,18 +1663,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
 class PortMappingMesosTest : public ContainerizerTest<MesosContainerizer>
 {
 public:
-  slave::Flags CreateSlaveFlags()
-  {
-    slave::Flags flags =
-      ContainerizerTest<MesosContainerizer>::CreateSlaveFlags();
-
-    // Setup recovery slave flags.
-    flags.recover = "reconnect";
-    flags.strict = true;
-
-    return flags;
-  }
-
   virtual void SetUp()
   {
     ContainerizerTest<MesosContainerizer>::SetUp();
@@ -1696,17 +1684,14 @@ public:
     LOG(INFO) << "Using " << lo << " as the loopback interface";
 
     cleanup(eth0, lo);
-
-    flags = CreateSlaveFlags();
   }
 
   virtual void TearDown()
   {
     cleanup(eth0, lo);
+
     ContainerizerTest<MesosContainerizer>::TearDown();
   }
-
-  slave::Flags flags;
 
   Fetcher fetcher;
 
@@ -1721,79 +1706,68 @@ public:
 // by network isolator, and containers that weren't.
 TEST_F(PortMappingMesosTest, ROOT_RecoverMixedContainersTest)
 {
-  slave::Flags flagsNoNetworkIsolator = flags;
+  master::Flags masterFlags = CreateMasterFlags();
 
-  vector<string> isolations = strings::split(flags.isolation, ",");
-  ASSERT_NE(0u, isolations.size());
-
-  vector<string>::iterator it =
-    find(isolations.begin(), isolations.end(), "network/port_mapping");
-
-  ASSERT_NE(it, isolations.end())
-    << "PortMappingMesosTests could not run because network/port_mapping"
-    << "is not supported on this host.";
-
-  // Clear part of flags to disable network isolator, but keep the
-  // rest of the flags the same to share the same settings for the
-  // slave.
-  isolations.erase(it);
-  flagsNoNetworkIsolator.isolation = strings::join(",", isolations);
-
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
+  // Start the first slave without the network isolator.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  // NOTE: This is to make sure that we use the linux launcher which
+  // is consistent with the launchers we use for other containerizers
+  // we create in this test. Also, this will bypass MESOS-2554.
+  slaveFlags.isolation = "cgroups/cpu,cgroups/mem";
+
   Try<MesosContainerizer*> containerizer1 =
-    MesosContainerizer::create(flagsNoNetworkIsolator, true, &fetcher);
+    MesosContainerizer::create(slaveFlags, true, &fetcher);
 
   ASSERT_SOME(containerizer1);
 
-  // Start the first slave without network isolator and start a task.
-  Try<PID<Slave> > slave = StartSlave(
-      containerizer1.get(),
-      flagsNoNetworkIsolator);
-
+  Try<PID<Slave> > slave = StartSlave(containerizer1.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched1;
+  MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo1;
-  frameworkInfo1.CopyFrom(DEFAULT_FRAMEWORK_INFO);
-  frameworkInfo1.set_checkpoint(true);
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched1, registered(_, _, _));
+  EXPECT_CALL(sched, registered(_, _, _));
 
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // NOTE: We set filter explicitly here so that the resources will
+  // not be filtered for 5 seconds (by default).
   Future<vector<Offer> > offers1;
-  Future<vector<Offer> > offers2;
-  EXPECT_CALL(sched1, resourceOffers(_, _))
+  EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
-    .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(DeclineOffers());      // Ignore subsequent offers.
+    .WillRepeatedly(DeclineOffers(filters));      // Ignore subsequent offers.
 
   driver.start();
 
   AWAIT_READY(offers1);
   EXPECT_NE(0u, offers1.get().size());
 
-  // The first task doesn't need network resources.
   Offer offer1 = offers1.get()[0];
-  offer1.mutable_resources()->CopyFrom(
-      Resources::parse("cpus:1;mem:512").get());
 
-  // Start a long running task without using network isolator.
-  TaskInfo task1 = createTask(offer1, "sleep 1000");
-  vector<TaskInfo> tasks1;
-  tasks1.push_back(task1);
+  // Start a long running task without using the network isolator.
+  TaskInfo task1 = createTask(
+      offer1.slave_id(),
+      Resources::parse("cpus:1;mem:512").get(),
+      "sleep 1000");
 
-  EXPECT_CALL(sched1, statusUpdate(_, _));
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
   Future<Nothing> _statusUpdateAcknowledgement1 =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers1.get()[0].id(), tasks1);
+  driver.launchTasks(offers1.get()[0].id(), {task1}, filters);
 
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement1);
@@ -1801,53 +1775,55 @@ TEST_F(PortMappingMesosTest, ROOT_RecoverMixedContainersTest)
   Stop(slave.get());
   delete containerizer1.get();
 
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover1 = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-      FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  // Restart the slave with a new containerizer that uses network
-  // isolator.
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(DeclineOffers(filters));      // Ignore subsequent offers.
+
+  // Restart the slave with the network isolator.
+  slaveFlags.isolation += ",network/port_mapping";
+
   Try<MesosContainerizer*> containerizer2 =
-    MesosContainerizer::create(flags, true, &fetcher);
+    MesosContainerizer::create(slaveFlags, true, &fetcher);
 
   ASSERT_SOME(containerizer2);
 
-  // Start the second slave with network isolator, recover the first
-  // task without network isolation and start a second task with
-  // network islation.
-  slave = StartSlave(containerizer2.get(), flags);
+  slave = StartSlave(containerizer2.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   Clock::pause();
 
-  // Make sure the new containerizer recovers the task.
-  AWAIT_READY(_recover);
+  AWAIT_READY(_recover1);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
-
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-  Clock::resume();
 
-  // Wait for the slave to re-register.
-  AWAIT_READY(slaveReregisteredMessage);
+  AWAIT_READY(slaveReregisteredMessage1);
+
+  Clock::settle(); // Make sure an allocation is scheduled.
+  Clock::advance(masterFlags.allocation_interval);
+
+  Clock::resume();
 
   AWAIT_READY(offers2);
   EXPECT_NE(0u, offers2.get().size());
 
   Offer offer2 = offers2.get()[0];
 
+  // Start a long running task using the network isolator.
   TaskInfo task2 = createTask(offer2, "sleep 1000");
 
-  vector<TaskInfo> tasks2;
-  tasks2.push_back(task2); // Long-running task.
-
-  EXPECT_CALL(sched1, statusUpdate(_, _));
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
   Future<Nothing> _statusUpdateAcknowledgement2 =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers2.get()[0].id(), tasks2);
+  driver.launchTasks(offers2.get()[0].id(), {task2});
 
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement2);
@@ -1858,52 +1834,43 @@ TEST_F(PortMappingMesosTest, ROOT_RecoverMixedContainersTest)
   Future<Nothing> _recover2 = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage2 =
-      FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  // Restart the slave with a new containerizer that uses network
-  // isolator. This is to verify the case where one task is running
-  // without network isolator and another task is running with network
-  // isolator.
+  // Restart the slave with the network isolator. This is to verify
+  // the slave recovery case where one task is running with the
+  // network isolator and another task is running without it.
   Try<MesosContainerizer*> containerizer3 =
-    MesosContainerizer::create(flags, true, &fetcher);
+    MesosContainerizer::create(slaveFlags, true, &fetcher);
 
   ASSERT_SOME(containerizer3);
 
-  slave = StartSlave(containerizer3.get(), flags);
+  slave = StartSlave(containerizer3.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   Clock::pause();
 
-  // Make sure the new containerizer recovers the tasks from both runs
-  // previously.
   AWAIT_READY(_recover2);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
-
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-  Clock::resume();
 
-  // Wait for the slave to re-register.
   AWAIT_READY(slaveReregisteredMessage2);
 
-  Future<hashset<ContainerID> > containers = containerizer3.get()->containers();
+  Clock::resume();
+
+  // Ensure that both containers (with and without network isolation)
+  // were recovered.
+  Future<hashset<ContainerID>> containers = containerizer3.get()->containers();
   AWAIT_READY(containers);
   EXPECT_EQ(2u, containers.get().size());
 
-  foreach (ContainerID containerId, containers.get()) {
+  foreach (const ContainerID& containerId, containers.get()) {
     // Do some basic checks to make sure the network isolator can
     // handle mixed types of containers correctly.
     Future<ResourceStatistics> usage = containerizer3.get()->usage(containerId);
     AWAIT_READY(usage);
 
-    // TODO(chzhcn): write a more thorough test for update.
-    Try<Resources> resources = Containerizer::resources(flags);
-    ASSERT_SOME(resources);
-
-    Future<Nothing> update =
-      containerizer3.get()->update(containerId, resources.get());
-
-    AWAIT_READY(update);
+    // TODO(chzhcn): Write a more thorough test for update.
   }
 
   driver.stop();
@@ -1921,12 +1888,12 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<MesosContainerizer*> containerizer1 =
-    MesosContainerizer::create(flags, true, &fetcher);
+  slave::Flags flags = CreateSlaveFlags();
 
-  ASSERT_SOME(containerizer1);
+  // NOTE: We add 'cgroups/cpu,cgroups/mem' to bypass MESOS-2554.
+  flags.isolation = "cgroups/cpu,cgroups/mem,network/port_mapping";
 
-  Try<PID<Slave> > slave = StartSlave(containerizer1.get(), flags);
+  Try<PID<Slave> > slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1943,75 +1910,43 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers1;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(DeclineOffers());      // Ignore subsequent offers.
 
   driver.start();
 
-  AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
 
   // Start a long running task using network islator.
-  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
   EXPECT_CALL(sched, statusUpdate(_, _));
 
-  Future<Nothing> _statusUpdateAcknowledgement1 =
+  Future<Nothing> _statusUpdateAcknowledgement =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers1.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   // Wait for the ACK to be checkpointed.
-  AWAIT_READY(_statusUpdateAcknowledgement1);
+  AWAIT_READY(_statusUpdateAcknowledgement);
 
   Stop(slave.get());
-  delete containerizer1.get();
 
-  ExecutorID executorId;
-  executorId.set_value(task.task_id().value());
+  // Wipe the slave meta directory so that the slave will treat the
+  // above running task as an orphan.
+  ASSERT_SOME(os::rmdir(paths::getMetaRootDir(flags.work_dir)));
 
-  // Construct the framework meta directory that needs wiping.
-  string frameworkPath = paths::getFrameworkPath(
-      paths::getMetaRootDir(flags.work_dir),
-      offers1.get()[0].slave_id(),
-      frameworkId.get());
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  // Remove the framework meta directory, so that the slave will not
-  // recover the task.
-  ASSERT_SOME(os::rmdir(frameworkPath, true));
-
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-
-  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
-
-  Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
-
-  // Restart the slave (use same flags) with a new containerizer.
-  Try<MesosContainerizer*> containerizer2 =
-    MesosContainerizer::create(flags, true, &fetcher);
-
-  ASSERT_SOME(containerizer2);
-
-  slave = StartSlave(containerizer2.get(), flags);
+  // Restart the slave.
+  slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
-  // Wait for the slave to recover.
-  AWAIT_READY(_recover);
-
-  // Wait for the slave to re-register.
-  AWAIT_READY(slaveReregisteredMessage);
-
-  // Wait for TASK_LOST update.
-  AWAIT_READY(status);
-  ASSERT_EQ(TASK_LOST, status.get().state());
+  AWAIT_READY(slaveRegisteredMessage);
 
   // Expect that qdiscs still exist on eth0 and lo but with no filters.
   Try<bool> hostEth0ExistsQdisc = ingress::exists(eth0);
@@ -2046,7 +1981,6 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   driver.join();
 
   Shutdown();
-  delete containerizer2.get();
 }
 
 } // namespace tests {
