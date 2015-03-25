@@ -3193,7 +3193,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
 // Test verifies that a long lived executor works after master
 // fail-over. The test launches a task, restarts the master and
 // launches another task using the same executor.
-TEST_F(MasterTest, DISABLED_MasterFailoverLongLivedExecutor)
+TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
 {
   // Start master and create detector to inform scheduler and slave
   // about newly elected master.
@@ -3252,10 +3252,9 @@ TEST_F(MasterTest, DISABLED_MasterFailoverLongLivedExecutor)
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Future<TaskStatus> status1;
-  Future<TaskStatus> status2;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusEq(task1)))
     .WillOnce(FutureArg<1>(&status1))
-    .WillOnce(FutureArg<1>(&status2));
+    .WillRepeatedly(Return());
 
   driver.launchTasks(offers1.get()[0].id(), tasks1);
 
@@ -3287,6 +3286,11 @@ TEST_F(MasterTest, DISABLED_MasterFailoverLongLivedExecutor)
 
   vector<TaskInfo> tasks2;
   tasks2.push_back(task2);
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusEq(task2)))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillRepeatedly(Return());
 
   // Start the second task with the new master on the running executor.
   driver.launchTasks(offers2.get()[0].id(), tasks2);

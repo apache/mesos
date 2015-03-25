@@ -1140,6 +1140,15 @@ void ExpectNoFutureProtobufs(T t, From from, To to)
   process::ExpectNoFutureMessages(testing::Eq(t.GetTypeName()), from, to);
 }
 
+
+// This matcher is used to match the task ids of TaskStatus messages.
+// Suppose we set up N futures for LaunchTasks and N futures for StatusUpdates.
+// (This is a common pattern). We get into a situation where all StatusUpdates
+// are satisfied before the LaunchTasks if the master re-sends StatusUpdates.
+// We use this matcher to only satisfy the StatusUpdate future if the
+// StatusUpdate came from the corresponding task.
+MATCHER_P(TaskStatusEq, task, "") { return arg.task_id() == task.task_id(); }
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
