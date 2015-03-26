@@ -1233,6 +1233,11 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
   // Remove the slaves in a rate limited manner, similar to how the
   // SlaveObserver removes slaves.
   foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
+    // The slave is removed from 'recovered' when it re-registers.
+    if (!slaves.recovered.contains(slave.info().id())) {
+      continue;
+    }
+
     Future<Nothing> acquire = Nothing();
 
     if (slaves.limiter.isSome()) {
