@@ -55,6 +55,7 @@
 #include <stout/proc.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
+#include <stout/unreachable.hpp>
 
 #include "linux/cgroups.hpp"
 #include "linux/fs.hpp"
@@ -71,6 +72,7 @@ using std::istringstream;
 using std::list;
 using std::map;
 using std::ofstream;
+using std::ostream;
 using std::ostringstream;
 using std::set;
 using std::string;
@@ -2149,11 +2151,8 @@ Try<Bytes> max_usage_in_bytes(const string& hierarchy, const string& cgroup)
 
 namespace oom {
 
-namespace {
+static Nothing _nothing() { return Nothing(); }
 
-Nothing _nothing() { return Nothing(); }
-
-} // namespace {
 
 Future<Nothing> listen(const string& hierarchy, const string& cgroup)
 {
@@ -2238,6 +2237,133 @@ Try<Nothing> disable(const string& hierarchy, const string& cgroup)
 } // namespace killer {
 
 } // namespace oom {
+
+
+namespace pressure {
+
+ostream& operator << (ostream& stream, Level level)
+{
+  switch (level) {
+    case LOW:
+      stream << "low";
+      break;
+    case MEDIUM:
+      stream << "medium";
+      break;
+    case CRITICAL:
+      stream << "critical";
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  return stream;
+}
+
+
+// The process drives the event::Listener to keep listening on cgroups
+// memory pressure counters.
+class CounterProcess : public Process<CounterProcess>
+{
+public:
+  CounterProcess(const string& hierarchy,
+                 const string& cgroup,
+                 Level level)
+    : value_(0),
+      error(None()),
+      process(new event::Listener(
+          hierarchy,
+          cgroup,
+          "memory.pressure_level",
+          stringify(level))) {}
+
+  virtual ~CounterProcess() {}
+
+  Future<uint64_t> value()
+  {
+    if (error.isSome()) {
+      return Failure(error.get());
+    }
+
+    return value_;
+  }
+
+protected:
+  virtual void initialize()
+  {
+    spawn(CHECK_NOTNULL(process.get()));
+    listen();
+  }
+
+  virtual void finalize()
+  {
+    terminate(process.get());
+    wait(process.get());
+  }
+
+private:
+  void listen()
+  {
+    dispatch(process.get(), &event::Listener::listen)
+      .onAny(defer(self(), &CounterProcess::_listen, lambda::_1));
+  }
+
+  void _listen(const process::Future<uint64_t>& future)
+  {
+    CHECK(error.isNone());
+
+    if (future.isReady()) {
+      value_ += future.get();
+      listen();
+    } else if (future.isFailed()) {
+      error = Error(future.failure());
+    } else if (future.isDiscarded()) {
+      error = Error("Listening stopped unexpectedly");
+    }
+  }
+
+  uint64_t value_;
+  Option<Error> error;
+  process::Owned<event::Listener> process;
+};
+
+
+Try<Owned<Counter>> Counter::create(
+    const string& hierarchy,
+    const string& cgroup,
+    Level level)
+{
+  Option<Error> error = verify(hierarchy, cgroup);
+  if (error.isSome()) {
+    return Error(error.get());
+  }
+
+  return Owned<Counter>(new Counter(hierarchy, cgroup, level));
+}
+
+
+Counter::Counter(const string& hierarchy,
+                 const string& cgroup,
+                 Level level)
+  : process(new CounterProcess(hierarchy, cgroup, level))
+{
+  spawn(CHECK_NOTNULL(process.get()));
+}
+
+
+Counter::~Counter()
+{
+  terminate(process.get(), true);
+  wait(process.get());
+}
+
+
+Future<uint64_t> Counter::value() const
+{
+  return dispatch(process.get(), &CounterProcess::value);
+}
+
+} // namespace pressure {
 
 } // namespace memory {
 
