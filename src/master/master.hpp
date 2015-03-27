@@ -298,7 +298,6 @@ protected:
   // 'future' is the future returned by the authenticator.
   void _authenticate(
       const process::UPID& pid,
-      const process::Owned<process::Promise<Nothing>>& promise,
       const process::Future<Option<std::string>>& future);
 
   void authenticationTimeout(process::Future<Option<std::string>> future);
@@ -652,9 +651,10 @@ private:
   std::vector<std::string> authenticatorNames;
 
   // Frameworks/slaves that are currently in the process of authentication.
-  // 'authenticating' future for an authenticatee is ready when it is
-  // authenticated.
-  hashmap<process::UPID, process::Future<Nothing>> authenticating;
+  // 'authenticating' future is completed when authenticator
+  // completes authentication.
+  // The future is removed from the map when master completes authentication.
+  hashmap<process::UPID, process::Future<Option<std::string>>> authenticating;
 
   hashmap<process::UPID, process::Owned<Authenticator>> authenticators;
 

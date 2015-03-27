@@ -817,7 +817,7 @@ void Master::finalize()
 
   CHECK(offers.empty());
 
-  foreachvalue (Future<Nothing> future, authenticating) {
+  foreachvalue (Future<Option<string>> future, authenticating) {
     // NOTE: This is necessary during tests because a copy of
     // this future is used to setup authentication timeout. If a
     // test doesn't discard this future, authentication timeout might
@@ -3820,10 +3820,6 @@ void Master::authenticate(const UPID& from, const UPID& pid)
 
   LOG(INFO) << "Authenticating " << pid;
 
-  // Create a promise to capture the entire "authenticating"
-  // procedure. We'll set this _after_ we finish _authenticate.
-  Owned<Promise<Nothing>> promise(new Promise<Nothing>());
-
   // Create and initialize the authenticator.
   Authenticator* authenticator;
   // TODO(tillt): Allow multiple authenticators to be loaded and enable
@@ -3847,7 +3843,7 @@ void Master::authenticate(const UPID& from, const UPID& pid)
 
   // Start authentication.
   const Future<Option<string>>& future = authenticator_->authenticate()
-     .onAny(defer(self(), &Self::_authenticate, pid, promise, lambda::_1));
+     .onAny(defer(self(), &Self::_authenticate, pid, lambda::_1));
 
   // Don't wait for authentication to happen for ever.
   delay(Seconds(5),
@@ -3856,14 +3852,13 @@ void Master::authenticate(const UPID& from, const UPID& pid)
         future);
 
   // Save our state.
-  authenticating[pid] = promise->future();
+  authenticating[pid] = future;
   authenticators.put(pid, authenticator_);
 }
 
 
 void Master::_authenticate(
     const UPID& pid,
-    const Owned<Promise<Nothing>>& promise,
     const Future<Option<string>>& future)
 {
   if (!future.isReady() || future.get().isNone()) {
@@ -3873,13 +3868,10 @@ void Master::_authenticate(
 
     LOG(WARNING) << "Failed to authenticate " << pid
                  << ": " << error;
-
-    promise->fail(error);
   } else {
     LOG(INFO) << "Successfully authenticated principal '" << future.get().get()
               << "' at " << pid;
 
-    promise->set(Nothing());
     authenticated.put(pid, future.get().get());
   }
 
