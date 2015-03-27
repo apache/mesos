@@ -562,6 +562,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	tests/isolator.hpp						\
 	tests/launcher.hpp						\
 	tests/limiter.hpp						\
+	tests/memory_test_helper.hpp					\
 	tests/mesos.hpp							\
 	tests/module.hpp						\
 	tests/script.hpp						\
@@ -1277,7 +1278,16 @@ if OS_LINUX
     tests/setns_test_helper.cpp
   setns_test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
   setns_test_helper_LDADD = libmesos.la $(LDADD)
+
 endif
+
+check_PROGRAMS += memory-test-helper
+memory_test_helper_SOURCES =					\
+  tests/flags.cpp						\
+  tests/memory_test_helper_main.cpp				\
+  tests/memory_test_helper.cpp
+memory_test_helper_CPPFLAGS = $(mesos_tests_CPPFLAGS)
+memory_test_helper_LDADD = libmesos.la $(LDADD)
 
 check_PROGRAMS += active-user-test-helper
 active_user_test_helper_SOURCES = tests/active_user_test_helper.cpp
@@ -1363,6 +1373,7 @@ mesos_tests_SOURCES =				\
   tests/master_slave_reconciliation_tests.cpp	\
   tests/master_tests.cpp			\
   tests/master_validation_tests.cpp		\
+  tests/memory_test_helper.cpp			\
   tests/mesos.cpp				\
   tests/metrics_tests.cpp			\
   tests/module.cpp				\

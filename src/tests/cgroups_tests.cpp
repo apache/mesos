@@ -21,7 +21,6 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -37,6 +36,7 @@
 #include <gmock/gmock.h>
 
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
@@ -51,9 +51,14 @@
 #include "linux/cgroups.hpp"
 #include "linux/perf.hpp"
 
+#include "tests/memory_test_helper.hpp"
 #include "tests/mesos.hpp" // For TEST_CGROUPS_(HIERARCHY|ROOT).
+#include "tests/utils.hpp"
 
 using namespace process;
+
+using cgroups::memory::pressure::Level;
+using cgroups::memory::pressure::Counter;
 
 using std::set;
 
@@ -62,7 +67,7 @@ namespace internal {
 namespace tests {
 
 
-class CgroupsTest : public ::testing::Test
+class CgroupsTest : public TemporaryDirectoryTest
 {
 public:
   static void SetUpTestCase()
@@ -117,6 +122,8 @@ public:
 protected:
   virtual void SetUp()
   {
+    CgroupsTest::SetUp();
+
     foreach (const std::string& subsystem, strings::tokenize(subsystems, ",")) {
       // Establish the base hierarchy if this is the first subsystem checked.
       if (baseHierarchy.empty()) {
@@ -182,6 +189,8 @@ protected:
         }
       }
     }
+
+    CgroupsTest::TearDown();
   }
 
   const std::string subsystems; // Subsystems required to run tests.
@@ -1031,6 +1040,190 @@ TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
   // Destroy the cgroup.
   Future<Nothing> destroy = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
   AWAIT_READY(destroy);
+}
+
+
+class CgroupsAnyHierarchyMemoryPressureTest
+  : public CgroupsAnyHierarchyTest
+{
+public:
+  CgroupsAnyHierarchyMemoryPressureTest()
+    : CgroupsAnyHierarchyTest("memory"),
+      cgroup(TEST_CGROUPS_ROOT) {}
+
+protected:
+  virtual void SetUp()
+  {
+    CgroupsAnyHierarchyTest::SetUp();
+
+    hierarchy = path::join(baseHierarchy, "memory");
+
+    ASSERT_SOME(cgroups::create(hierarchy, cgroup));
+  }
+
+  void listen()
+  {
+    const std::vector<Level> levels = {
+      Level::LOW,
+      Level::MEDIUM,
+      Level::CRITICAL
+    };
+
+    foreach (Level level, levels) {
+      Try<Owned<Counter>> counter = Counter::create(hierarchy, cgroup, level);
+      EXPECT_SOME(counter);
+
+      counters[level] = counter.get();
+    }
+  }
+
+  std::string hierarchy;
+  const std::string cgroup;
+
+  hashmap<Level, Owned<Counter>> counters;
+};
+
+
+TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreaseUnlockedRSS)
+{
+  MemoryTestHelper helper;
+  ASSERT_SOME(helper.spawn());
+  ASSERT_SOME(helper.pid());
+
+  const Bytes limit = Megabytes(16);
+
+  // Move the memory test helper into a cgroup and set the limit.
+  EXPECT_SOME(cgroups::memory::limit_in_bytes(hierarchy, cgroup, limit));
+  EXPECT_SOME(cgroups::assign(hierarchy, cgroup, helper.pid().get()));
+
+  listen();
+
+  // Used to save the counter readings from last iteration.
+  uint64_t previousLow;
+  uint64_t previousMedium;
+  uint64_t previousCritical;
+
+  // Used to save the counter readings from this iteration.
+  uint64_t low;
+  uint64_t medium;
+  uint64_t critical;
+
+  // Use a guard to error out if it's been too long.
+  // TODO(chzhcn): Use a better way to set testing time limit.
+  uint64_t iterationLimit = limit.bytes() / getpagesize() * 10;
+
+  for (uint64_t i = 0; i < iterationLimit; i++) {
+    EXPECT_SOME(helper.increaseRSS(getpagesize()));
+
+    Future<uint64_t> _low = counters[Level::LOW]->value();
+    Future<uint64_t> _medium = counters[Level::MEDIUM]->value();
+    Future<uint64_t> _critical = counters[Level::CRITICAL]->value();
+
+    AWAIT_READY(_low);
+    AWAIT_READY(_medium);
+    AWAIT_READY(_critical);
+
+    low = _low.get();
+    medium = _medium.get();
+    critical = _critical.get();
+
+    // We need to know the readings are the same as last time to be
+    // sure they are stable, because the reading is not atomic. For
+    // example, the medium could turn positive after we read low to be
+    // 0, but this should be fixed by the next read immediately.
+    if ((low == previousLow &&
+         medium == previousMedium &&
+         critical == previousCritical)) {
+      if (low != 0) {
+        EXPECT_LE(medium, low);
+        EXPECT_LE(critical, medium);
+
+        // When child's RSS is full, it will be OOM-kill'ed if we
+        // don't stop it right away.
+        break;
+      } else {
+        EXPECT_EQ(0u, medium);
+        EXPECT_EQ(0u, critical);
+      }
+    }
+
+    previousLow = low;
+    previousMedium = medium;
+    previousCritical = critical;
+  }
+}
+
+
+TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreasePageCache)
+{
+  MemoryTestHelper helper;
+  ASSERT_SOME(helper.spawn());
+  ASSERT_SOME(helper.pid());
+
+  const Bytes limit = Megabytes(16);
+
+  // Move the memory test helper into a cgroup and set the limit.
+  EXPECT_SOME(cgroups::memory::limit_in_bytes(hierarchy, cgroup, limit));
+  EXPECT_SOME(cgroups::assign(hierarchy, cgroup, helper.pid().get()));
+
+  listen();
+
+  // Used to save the counter readings from last iteration.
+  uint64_t previousLow;
+  uint64_t previousMedium;
+  uint64_t previousCritical;
+
+  // Used to save the counter readings from this iteration.
+  uint64_t low;
+  uint64_t medium;
+  uint64_t critical;
+
+  // Use a guard to error out if it's been too long.
+  // TODO(chzhcn): Use a better way to set testing time limit.
+  uint64_t iterationLimit = limit.bytes() / Megabytes(1).bytes() * 2;
+
+  for (uint64_t i = 0; i < iterationLimit; i++) {
+    EXPECT_SOME(helper.increasePageCache(Megabytes(1)));
+
+    Future<uint64_t> _low = counters[Level::LOW]->value();
+    Future<uint64_t> _medium = counters[Level::MEDIUM]->value();
+    Future<uint64_t> _critical = counters[Level::CRITICAL]->value();
+
+    AWAIT_READY(_low);
+    AWAIT_READY(_medium);
+    AWAIT_READY(_critical);
+
+    low = _low.get();
+    medium = _medium.get();
+    critical = _critical.get();
+
+    // We need to know the readings are the same as last time to be
+    // sure they are stable, because the reading is not atomic. For
+    // example, the medium could turn positive after we read low to be
+    // 0, but this should be fixed by the next read immediately.
+    if ((low == previousLow &&
+         medium == previousMedium &&
+         critical == previousCritical)) {
+      if (low != 0) {
+        EXPECT_LE(medium, low);
+        EXPECT_LE(critical, medium);
+
+        // Different from the RSS test, since the child is only
+        // consuming at a slow rate the page cache, which is evictable
+        // and reclaimable, we could therefore be in this state
+        // forever. Our guard will let us out shortly.
+      } else {
+        EXPECT_EQ(0u, medium);
+        EXPECT_EQ(0u, critical);
+      }
+    }
+
+    previousLow = low;
+    previousMedium = medium;
+    previousCritical = critical;
+  }
+
+  EXPECT_LT(0u, low);
 }
 
 } // namespace tests {
