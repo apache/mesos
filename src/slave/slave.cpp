@@ -174,6 +174,7 @@ void Slave::signaled(int signal, int uid)
 void Slave::initialize()
 {
   LOG(INFO) << "Slave started on " << string(self()).substr(6);
+  LOG(INFO) << "Flags at startup: " << flags;
 
   if (self().address.ip.isLoopback()) {
     LOG(WARNING) << "\n**************************************************\n"

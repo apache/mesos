@@ -357,6 +357,7 @@ void Master::initialize()
 {
   LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
             << " started on " << string(self()).substr(7);
+  LOG(INFO) << "Flags at startup: " << flags;
 
   if (process::address().ip.isLoopback()) {
     LOG(WARNING) << "\n**************************************************\n"
