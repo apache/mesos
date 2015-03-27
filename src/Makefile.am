@@ -297,6 +297,7 @@ nodist_libmesos_no_3rdparty_la_SOURCES =				\
 # TODO(tillt): Remove authentication/cram_md5/* which will enable us to
 # lose the immediate cyrus-sasl2 dependency.
 libmesos_no_3rdparty_la_SOURCES =					\
+	authentication/cram_md5/authenticator.cpp			\
 	authentication/cram_md5/auxprop.cpp				\
 	authorizer/authorizer.cpp					\
 	common/attributes.cpp						\
