@@ -19,6 +19,8 @@
 #ifndef __AUTHENTICATION_CRAM_MD5_AUXPROP_HPP__
 #define __AUTHENTICATION_CRAM_MD5_AUXPROP_HPP__
 
+#include <pthread.h>
+
 #include <string>
 
 #include <sasl/sasl.h>
@@ -28,6 +30,8 @@
 #include <stout/multimap.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+
+#include "common/lock.hpp"
 
 namespace mesos {
 namespace internal {
@@ -47,6 +51,7 @@ public:
 
   static void load(const Multimap<std::string, Property>& _properties)
   {
+    Lock lock(&mutex);
     properties = _properties;
   }
 
@@ -54,6 +59,7 @@ public:
       const std::string& user,
       const std::string& name)
   {
+    Lock lock(&mutex);
     if (properties.contains(user)) {
       foreach (const Property& property, properties.get(user)) {
         if (property.name == name) {
@@ -84,9 +90,15 @@ private:
       const char* user,
       unsigned length);
 
+  // TODO(tillt): For allowing multiple authenticators with differing
+  // credentials, consider using a non-static credential properties.
   static Multimap<std::string, Property> properties;
 
   static sasl_auxprop_plug_t plugin;
+
+  // Access to 'properties' has to be protected as multiple
+  // authenticator instances may be active concurrently.
+  static pthread_mutex_t mutex;
 };
 
 } // namespace cram_md5 {
