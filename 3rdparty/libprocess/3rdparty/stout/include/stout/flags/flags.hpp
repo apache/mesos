@@ -15,6 +15,7 @@
 #define __STOUT_FLAGS_FLAGS_HPP__
 
 #include <map>
+#include <ostream>
 #include <string>
 #include <typeinfo> // For typeid.
 
@@ -581,6 +582,21 @@ inline std::string FlagsBase::usage() const
     }
   }
   return usage;
+}
+
+
+inline std::ostream& operator << (std::ostream& stream, const FlagsBase& flags)
+{
+  std::vector<std::string> _flags;
+
+  foreachvalue (const flags::Flag& flag, flags) {
+    const Option<std::string>& value = flag.stringify(flags);
+    if (value.isSome()) {
+      _flags.push_back("--" + flag.name + "=\"" + value.get() + '"');
+    }
+  }
+
+  return stream << strings::join(" ", _flags);
 }
 
 } // namespace flags {
