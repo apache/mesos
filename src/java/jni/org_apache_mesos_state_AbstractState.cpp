@@ -23,6 +23,16 @@ using std::string;
 
 extern "C" {
 
+// TODO(jmlvanre): Deprecate the JNI functions that are in the AbstractState
+// scope that we have replaced with the ones in the names classes 'FetchFuture',
+// 'StoreFuture', 'ExpungeFuture', and 'NamesFuture'. (MESOS-2161). The
+// anonymous futures that used these function accidentally captured the 'thiz'
+// for the 'AbstractState' class, which was not intended and caused the C++
+// Future to be prematurely deleted as a result of the anonymous Future getting
+// garbaged collected by the JVM and invoking the finalizer which deleted the
+// C++ Future. The intent was to capture the 'thiz' for the 'Future'. This is
+// done correctly by using the named inner classes.
+
 /*
  * Class:     org_apache_mesos_state_AbstractState
  * Method:    finalize
@@ -228,6 +238,132 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1fina
 
 
 /*
+ * Class:     org_apache_mesos_state_AbstractState$FetchFuture
+ * Method:    cancel
+ * Signature: (Z)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_cancel
+  (JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
+{
+  if (mayInterruptIfRunning) {
+    static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+    static jfieldID field = env->GetFieldID(clazz, "future", "J");
+    jlong jfuture = env->GetLongField(thiz, field);
+
+    // See TODO at top of file for why we proxy this call.
+    return Java_org_apache_mesos_state_AbstractState__1_1fetch_1cancel(
+        env,
+        thiz,
+        jfuture);
+  }
+
+  return false; // Should not interrupt and already running (or finished).
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$FetchFuture
+ * Method:    is_cancelled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_is_1cancelled
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1fetch_1is_1cancelled(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$FetchFuture
+ * Method:    is_done
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_is_1done
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1fetch_1is_1done(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$FetchFuture
+ * Method:    get
+ * Signature: ()Lorg/apache/mesos/state/Variable;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_get
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1fetch_1get(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$FetchFuture
+ * Method:    get_timeout
+ * Signature: (JLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_get_1timeout
+  (JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1fetch_1get_1timeout(
+      env,
+      thiz,
+      jfuture,
+      jtimeout,
+      junit);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$FetchFuture
+ * Method:    finalize
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_finalize
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  Java_org_apache_mesos_state_AbstractState__1_1fetch_1finalize(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
  * Class:     org_apache_mesos_state_AbstractState
  * Method:    __store
  * Signature: (Lorg/apache/mesos/state/Variable;)J
@@ -422,6 +558,132 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1fina
 
 
 /*
+ * Class:     org_apache_mesos_state_AbstractState$StoreFuture
+ * Method:    cancel
+ * Signature: (Z)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_cancel
+  (JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
+{
+  if (mayInterruptIfRunning) {
+    static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+    static jfieldID field = env->GetFieldID(clazz, "future", "J");
+    jlong jfuture = env->GetLongField(thiz, field);
+
+    // See TODO at top of file for why we proxy this call.
+    return Java_org_apache_mesos_state_AbstractState__1_1store_1cancel(
+        env,
+        thiz,
+        jfuture);
+  }
+
+  return false; // Should not interrupt and already running (or finished).
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$StoreFuture
+ * Method:    is_cancelled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_is_1cancelled
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1store_1is_1cancelled(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$StoreFuture
+ * Method:    is_done
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_is_1done
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1store_1is_1done(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$StoreFuture
+ * Method:    get
+ * Signature: ()Lorg/apache/mesos/state/Variable;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_get
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1store_1get(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$StoreFuture
+ * Method:    get_timeout
+ * Signature: (JLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_get_1timeout
+  (JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1store_1get_1timeout(
+      env,
+      thiz,
+      jfuture,
+      jtimeout,
+      junit);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$StoreFuture
+ * Method:    finalize
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_finalize
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  Java_org_apache_mesos_state_AbstractState__1_1store_1finalize(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
  * Class:     org_apache_mesos_state_AbstractState
  * Method:    __expunge
  * Signature: (Lorg/apache/mesos/state/Variable;)J
@@ -597,6 +859,132 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_1fi
   Future<bool>* future = (Future<bool>*) jfuture;
 
   delete future;
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$ExpungeFuture
+ * Method:    cancel
+ * Signature: (Z)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_cancel
+  (JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
+{
+  if (mayInterruptIfRunning) {
+    static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+    static jfieldID field = env->GetFieldID(clazz, "future", "J");
+    jlong jfuture = env->GetLongField(thiz, field);
+
+    // See TODO at top of file for why we proxy this call.
+    return Java_org_apache_mesos_state_AbstractState__1_1expunge_1cancel(
+        env,
+        thiz,
+        jfuture);
+  }
+
+  return false; // Should not interrupt and already running (or finished).
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$ExpungeFuture
+ * Method:    is_cancelled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_is_1cancelled
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1expunge_1is_1cancelled(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$ExpungeFuture
+ * Method:    is_done
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_is_1done
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1expunge_1is_1done(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$ExpungeFuture
+ * Method:    __get
+ * Signature: ()Ljava/lang/Boolean;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_get
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1expunge_1get(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$ExpungeFuture
+ * Method:    get_timeout
+ * Signature: (JLjava/util/concurrent/TimeUnit;)Ljava/lang/Boolean;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_get_1timeout
+  (JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1expunge_1get_1timeout(
+      env,
+      thiz,
+      jfuture,
+      jtimeout,
+      junit);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$ExpungeFuture
+ * Method:    finalize
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_finalize
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  Java_org_apache_mesos_state_AbstractState__1_1expunge_1finalize(
+      env,
+      thiz,
+      jfuture);
 }
 
 
@@ -790,6 +1178,132 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1fina
   Future<set<string> >* future = (Future<set<string> >*) jfuture;
 
   delete future;
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$NamesFuture
+ * Method:    cancel
+ * Signature: (Z)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_cancel
+  (JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
+{
+  if (mayInterruptIfRunning) {
+    static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+    static jfieldID field = env->GetFieldID(clazz, "future", "J");
+    jlong jfuture = env->GetLongField(thiz, field);
+
+    // See TODO at top of file for why we proxy this call.
+    return Java_org_apache_mesos_state_AbstractState__1_1names_1cancel(
+        env,
+        thiz,
+        jfuture);
+  }
+
+  return false; // Should not interrupt and already running (or finished).
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$NamesFuture
+ * Method:    is_cancelled
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_is_1cancelled
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1names_1is_1cancelled(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$NamesFuture
+ * Method:    is_done
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_is_1done
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1names_1is_1done(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$NamesFuture
+ * Method:    get
+ * Signature: ()Ljava/util/Iterator;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_get
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1names_1get(
+      env,
+      thiz,
+      jfuture);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$NamesFuture
+ * Method:    get_timeout
+ * Signature: (JLjava/util/concurrent/TimeUnit;)Ljava/util/Iterator;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_get_1timeout
+  (JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  return Java_org_apache_mesos_state_AbstractState__1_1names_1get_1timeout(
+      env,
+      thiz,
+      jfuture,
+      jtimeout,
+      junit);
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState$NamesFuture
+ * Method:    finalize
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_finalize
+  (JNIEnv* env, jobject thiz)
+{
+  static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
+  static jfieldID field = env->GetFieldID(clazz, "future", "J");
+  jlong jfuture = env->GetLongField(thiz, field);
+
+  // See TODO at top of file for why we proxy this call.
+  Java_org_apache_mesos_state_AbstractState__1_1names_1finalize(
+      env,
+      thiz,
+      jfuture);
 }
 
 } // extern "C" {
