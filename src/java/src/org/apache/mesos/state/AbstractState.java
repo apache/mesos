@@ -38,6 +38,11 @@ public abstract class AbstractState implements State {
 
   @Override
   public Future<Variable> fetch(final String name) {
+    if (!MesosNativeLibrary.version().before(MESOS_2161_JIRA_FIX_VERSION)) {
+      return new FetchFuture(name);
+    }
+
+    // TODO(jmlvanre): Deprecate anonymous future in 0.24 (MESOS-2161).
     final long future = __fetch(name); // Asynchronously start the operation.
     return new Future<Variable>() {
       @Override
@@ -78,6 +83,11 @@ public abstract class AbstractState implements State {
 
   @Override
   public Future<Variable> store(Variable variable) {
+    if (!MesosNativeLibrary.version().before(MESOS_2161_JIRA_FIX_VERSION)) {
+      return new StoreFuture(variable);
+    }
+
+    // TODO(jmlvanre): Deprecate anonymous future in 0.24 (MESOS-2161).
     final long future = __store(variable); // Asynchronously start the operation.
     return new Future<Variable>() {
       @Override
@@ -118,6 +128,11 @@ public abstract class AbstractState implements State {
 
   @Override
   public Future<Boolean> expunge(Variable variable) {
+    if (!MesosNativeLibrary.version().before(MESOS_2161_JIRA_FIX_VERSION)) {
+      return new ExpungeFuture(variable);
+    }
+
+    // TODO(jmlvanre): Deprecate anonymous future in 0.24 (MESOS-2161).
     final long future = __expunge(variable); // Asynchronously start the operation.
     return new Future<Boolean>() {
       @Override
@@ -157,6 +172,11 @@ public abstract class AbstractState implements State {
   }
 
   public Future<Iterator<String>> names() {
+    if (!MesosNativeLibrary.version().before(MESOS_2161_JIRA_FIX_VERSION)) {
+      return new NamesFuture();
+    }
+
+    // TODO(jmlvanre): Deprecate anonymous future in 0.24 (MESOS-2161).
     final long future = __names(); // Asynchronously start the operation.
     return new Future<Iterator<String>>() {
       @Override
@@ -198,8 +218,46 @@ public abstract class AbstractState implements State {
 
   protected native void finalize();
 
-  // Native implementations of 'fetch', 'store', 'expunge', and 'names'.
+  // Native implementations of 'fetch', 'store', 'expunge', and 'names'. We wrap
+  // them in classes to carry the java references correctly through the JNI
+  // bindings (MESOS-2161). The native functions in AbstractState will be
+  // deprecated in 0.24.
+
+  private class FetchFuture implements Future<Variable> {
+
+    public FetchFuture(String name) {
+      future = __fetch(name);
+    }
+
+    @Override
+    public native boolean cancel(boolean mayInterruptIfRunning);
+
+    @Override
+    public native boolean isCancelled();
+
+    @Override
+    public native boolean isDone();
+
+    @Override
+    public native Variable get()
+        throws InterruptedException, ExecutionException;
+
+    @Override
+    public native Variable get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException;
+
+    @Override
+    protected native void finalize();
+
+    private long future;
+  }
+
   private native long __fetch(String name);
+
+  // TODO(jmlvanre): Deprecate below functions in 0.24 because we can't track
+  // the java object references correctly. (MESOS-2161). The above 'FetchFuture'
+  // class fixes this bug. We leave the below functions for backwards
+  // compatibility.
   private native boolean __fetch_cancel(long future);
   private native boolean __fetch_is_cancelled(long future);
   private native boolean __fetch_is_done(long future);
@@ -208,7 +266,41 @@ public abstract class AbstractState implements State {
       long future, long timeout, TimeUnit unit);
   private native void __fetch_finalize(long future);
 
+  private class StoreFuture implements Future<Variable> {
+
+    public StoreFuture(Variable variable) {
+      future = __store(variable);
+    }
+
+    @Override
+    public native boolean cancel(boolean mayInterruptIfRunning);
+
+    @Override
+    public native boolean isCancelled();
+
+    @Override
+    public native boolean isDone();
+
+    @Override
+    public native Variable get()
+        throws InterruptedException, ExecutionException;
+
+    @Override
+    public native Variable get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException;
+
+    @Override
+    protected native void finalize();
+
+    private long future;
+  }
+
   private native long __store(Variable variable);
+
+  // TODO(jmlvanre): Deprecate below functions in 0.24 because we can't track
+  // the java object references correctly. (MESOS-2161). The above 'StoreFuture'
+  // class fixes this bug. We leave the below functions for backwards
+  // compatibility.
   private native boolean __store_cancel(long future);
   private native boolean __store_is_cancelled(long future);
   private native boolean __store_is_done(long future);
@@ -217,7 +309,41 @@ public abstract class AbstractState implements State {
       long future, long timeout, TimeUnit unit);
   private native void __store_finalize(long future);
 
+  private class ExpungeFuture implements Future<Boolean> {
+
+    public ExpungeFuture(Variable variable) {
+      future = __expunge(variable);
+    }
+
+    @Override
+    public native boolean cancel(boolean mayInterruptIfRunning);
+
+    @Override
+    public native boolean isCancelled();
+
+    @Override
+    public native boolean isDone();
+
+    @Override
+    public native Boolean get()
+        throws InterruptedException, ExecutionException;
+
+    @Override
+    public native Boolean get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException;
+
+    @Override
+    protected native void finalize();
+
+    private long future;
+  }
+
   private native long __expunge(Variable variable);
+
+  // TODO(jmlvanre): Deprecate below functions in 0.24 because we can't track
+  // the java object references correctly. (MESOS-2161). The above
+  // 'ExpungeFuture' class fixes this bug. We leave the below functions for
+  // backwards compatibility.
   private native boolean __expunge_cancel(long future);
   private native boolean __expunge_is_cancelled(long future);
   private native boolean __expunge_is_done(long future);
@@ -226,7 +352,41 @@ public abstract class AbstractState implements State {
       long future, long timeout, TimeUnit unit);
   private native void __expunge_finalize(long future);
 
+  private class NamesFuture implements Future<Iterator<String>> {
+
+    public NamesFuture() {
+      future = __names();
+    }
+
+    @Override
+    public native boolean cancel(boolean mayInterruptIfRunning);
+
+    @Override
+    public native boolean isCancelled();
+
+    @Override
+    public native boolean isDone();
+
+    @Override
+    public native Iterator<String> get()
+        throws InterruptedException, ExecutionException;
+
+    @Override
+    public native Iterator<String> get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException;
+
+    @Override
+    protected native void finalize();
+
+    private long future;
+  }
+
   private native long __names();
+
+  // TODO(jmlvanre): Deprecate below functions in 0.24 because we can't track
+  // the java object references correctly. (MESOS-2161). The above 'NamesFuture'
+  // class fixes this bug. We leave the below functions for backwards
+  // compatibility.
   private native boolean __names_cancel(long future);
   private native boolean __names_is_cancelled(long future);
   private native boolean __names_is_done(long future);
@@ -237,4 +397,7 @@ public abstract class AbstractState implements State {
 
   private long __storage;
   private long __state;
+
+  private final static MesosNativeLibrary.Version MESOS_2161_JIRA_FIX_VERSION =
+    new MesosNativeLibrary.Version(0, 22, 1);
 }
