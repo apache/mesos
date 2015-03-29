@@ -1319,4 +1319,18 @@ AM_CONDITIONAL([WITHOUT_PYTHON_DEPS],
 AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
 
 
+# Provide more granular version numbers based on the version string,
+# using the format MAJOR.MINOR.PATCH[-SUFFIX], where SUFFIX can itself
+# contain dashes.
+#
+# NOTE: This definition must not be named such that it conflicts with
+# existing definitions, e.g., 'version', 'ver'.
+m4_define([major_minor_patch],
+          m4_split(m4_translit(AC_PACKAGE_VERSION, [-], [.]), [\.]))
+
+AC_SUBST(MESOS_MAJOR_VERSION, m4_car(major_minor_patch))
+AC_SUBST(MESOS_MINOR_VERSION, m4_car(m4_shift(major_minor_patch)))
+AC_SUBST(MESOS_PATCH_VERSION, m4_car(m4_shift2(major_minor_patch)))
+
+
 AC_OUTPUT

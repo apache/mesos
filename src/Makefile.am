@@ -966,6 +966,7 @@ libjava_la_SOURCES =							\
 	java/jni/construct.cpp						\
 	java/jni/construct.hpp						\
 	java/jni/org_apache_mesos_Log.cpp				\
+	java/jni/org_apache_mesos_MesosNativeLibrary.cpp		\
 	java/jni/org_apache_mesos_MesosSchedulerDriver.cpp		\
 	java/jni/org_apache_mesos_MesosExecutorDriver.cpp		\
 	java/jni/org_apache_mesos_state_AbstractState.cpp		\
