@@ -294,11 +294,10 @@ protected:
       Slave* slave,
       const std::vector<Task>& tasks);
 
-  // 'promise' is used to signal finish of authentication.
-  // 'future' is the future returned by the authenticator.
+  // 'authenticate' is the future returned by the authenticator.
   void _authenticate(
       const process::UPID& pid,
-      const process::Future<Option<std::string>>& future);
+      const process::Future<Option<std::string>>& authenticate);
 
   void authenticationTimeout(process::Future<Option<std::string>> future);
 
@@ -650,13 +649,13 @@ private:
   // Authenticator names as supplied via flags.
   std::vector<std::string> authenticatorNames;
 
+  Option<Authenticator*> authenticator;
+
   // Frameworks/slaves that are currently in the process of authentication.
   // 'authenticating' future is completed when authenticator
   // completes authentication.
   // The future is removed from the map when master completes authentication.
   hashmap<process::UPID, process::Future<Option<std::string>>> authenticating;
-
-  hashmap<process::UPID, process::Owned<Authenticator>> authenticators;
 
   // Principals of authenticated frameworks/slaves keyed by PID.
   hashmap<process::UPID, std::string> authenticated;

@@ -28,13 +28,16 @@
 
 #include <process/defer.hpp>
 #include <process/once.hpp>
+#include <process/owned.hpp>
 #include <process/protobuf.hpp>
 
 #include <stout/check.hpp>
-
-#include "authentication/cram_md5/auxprop.hpp"
+#include <stout/hashmap.hpp>
+#include <stout/lambda.hpp>
 
 #include "authenticator.hpp"
+
+#include "authentication/cram_md5/auxprop.hpp"
 
 #include "messages/messages.hpp"
 
@@ -45,17 +48,17 @@ namespace cram_md5 {
 using namespace process;
 using std::string;
 
-class CRAMMD5AuthenticatorProcess
-  : public ProtobufProcess<CRAMMD5AuthenticatorProcess>
+class CRAMMD5AuthenticatorSessionProcess :
+  public ProtobufProcess<CRAMMD5AuthenticatorSessionProcess>
 {
 public:
-  explicit CRAMMD5AuthenticatorProcess(const UPID& _pid)
-    : ProcessBase(ID::generate("crammd5_authenticator")),
+  explicit CRAMMD5AuthenticatorSessionProcess(const UPID& _pid)
+    : ProcessBase(ID::generate("crammd5_authenticator_session")),
       status(READY),
       pid(_pid),
       connection(NULL) {}
 
-  virtual ~CRAMMD5AuthenticatorProcess()
+  virtual ~CRAMMD5AuthenticatorSessionProcess()
   {
     if (connection != NULL) {
       sasl_dispose(&connection);
@@ -69,55 +72,6 @@ public:
 
   Future<Option<string>> authenticate()
   {
-    static Once* initialize = new Once();
-    static bool initialized = false;
-
-    if (!initialize->once()) {
-      LOG(INFO) << "Initializing server SASL";
-
-      int result = sasl_server_init(NULL, "mesos");
-
-      if (result != SASL_OK) {
-        string error = "Failed to initialize SASL: ";
-        error += sasl_errstring(result, NULL, NULL);
-        LOG(ERROR) << error;
-        AuthenticationErrorMessage message;
-        message.set_error(error);
-        send(pid, message);
-        status = ERROR;
-        promise.fail(error);
-        initialize->done();
-        return promise.future();
-      }
-
-      result = sasl_auxprop_add_plugin(
-          InMemoryAuxiliaryPropertyPlugin::name(),
-          &InMemoryAuxiliaryPropertyPlugin::initialize);
-
-      if (result != SASL_OK) {
-        string error =
-          "Failed to add \"in-memory\" auxiliary property plugin: ";
-        error += sasl_errstring(result, NULL, NULL);
-        LOG(ERROR) << error;
-        AuthenticationErrorMessage message;
-        message.set_error(error);
-        send(pid, message);
-        status = ERROR;
-        promise.fail(error);
-        initialize->done();
-        return promise.future();
-      }
-
-      initialized = true;
-
-      initialize->done();
-    }
-
-    if (!initialized) {
-      promise.fail("Failed to initialize SASL");
-      return promise.future();
-    }
-
     if (status != READY) {
       return promise.future();
     }
@@ -206,19 +160,18 @@ public:
     return promise.future();
   }
 
-protected:
   virtual void initialize()
   {
     link(pid); // Don't bother waiting for a lost authenticatee.
 
     // Anticipate start and steps messages from the client.
     install<AuthenticationStartMessage>(
-        &CRAMMD5AuthenticatorProcess::start,
+        &CRAMMD5AuthenticatorSessionProcess::start,
         &AuthenticationStartMessage::mechanism,
         &AuthenticationStartMessage::data);
 
     install<AuthenticationStepMessage>(
-        &CRAMMD5AuthenticatorProcess::step,
+        &CRAMMD5AuthenticatorSessionProcess::step,
         &AuthenticationStepMessage::data);
   }
 
@@ -408,6 +361,76 @@ private:
 };
 
 
+class CRAMMD5AuthenticatorSession
+{
+public:
+  explicit CRAMMD5AuthenticatorSession(const UPID& pid)
+  {
+    process = new CRAMMD5AuthenticatorSessionProcess(pid);
+    spawn(process);
+  }
+
+  virtual ~CRAMMD5AuthenticatorSession()
+  {
+    // TODO(vinod): As a short term fix for the race condition #1 in
+    // MESOS-1866, we inject the 'terminate' event at the end of the
+    // CRAMMD5AuthenticatorSessionProcess queue instead of at the front.
+    // The long term fix for this is https://reviews.apache.org/r/25945/.
+    terminate(process, false);
+    wait(process);
+    delete process;
+  }
+
+  virtual Future<Option<string>> authenticate()
+  {
+    return dispatch(
+        process, &CRAMMD5AuthenticatorSessionProcess::authenticate);
+  }
+
+private:
+  CRAMMD5AuthenticatorSessionProcess* process;
+};
+
+
+class CRAMMD5AuthenticatorProcess :
+  public Process<CRAMMD5AuthenticatorProcess>
+{
+public:
+  CRAMMD5AuthenticatorProcess() :
+    ProcessBase(ID::generate("crammd5_authenticator")) {}
+
+  virtual ~CRAMMD5AuthenticatorProcess() {}
+
+  Future<Option<string>> authenticate(const UPID& pid)
+  {
+    VLOG(1) << "Starting authentication session for " << pid;
+
+    if (sessions.contains(pid)) {
+      return Failure("Authentication session already active");
+    }
+
+    Owned<CRAMMD5AuthenticatorSession> session(
+        new CRAMMD5AuthenticatorSession(pid));
+
+    sessions.put(pid, session);
+
+    return session->authenticate()
+      .onAny(defer(self(), &Self::_authenticate, pid));
+  }
+
+  virtual void _authenticate(const UPID& pid)
+  {
+    if (sessions.contains(pid)){
+      VLOG(1) << "Authentication session cleanup for " << pid;
+      sessions.erase(pid);
+  }
+}
+
+private:
+  hashmap <UPID, Owned<CRAMMD5AuthenticatorSession>> sessions;
+};
+
+
 namespace secrets {
 
 // Loads secrets (principal -> secret) into the in-memory auxiliary
@@ -451,31 +474,82 @@ CRAMMD5Authenticator::CRAMMD5Authenticator() : process(NULL) {}
 CRAMMD5Authenticator::~CRAMMD5Authenticator()
 {
   if (process != NULL) {
-    // TODO(vinod): As a short term fix for the race condition #1 in
-    // MESOS-1866, we inject the 'terminate' event at the end of the
-    // CRAMMD5AuthenticatorProcess queue instead of at the front.
-    // The long term fix for this is https://reviews.apache.org/r/25945/.
-    terminate(process, false);
-
+    terminate(process);
     wait(process);
     delete process;
   }
 }
 
 
-void CRAMMD5Authenticator::initialize(const UPID& pid)
+Try<Nothing> CRAMMD5Authenticator::initialize(
+    const Option<Credentials>& credentials)
 {
-  CHECK(process == NULL) << "Authenticator has already been initialized";
-  process = new CRAMMD5AuthenticatorProcess(pid);
+  static Once* initialize = new Once();
+
+  // The 'error' is set atmost once per os process.
+  // To allow subsequent calls to return the possibly set Error
+  // object, we make this a static pointer.
+  static Option<Error>* error = new Option<Error>();
+
+  if (process != NULL) {
+    return Error("Authenticator initialized already");
+  }
+
+  if (credentials.isSome()) {
+    // Load the credentials into the auxiliary memory plugin's storage.
+    // It is necessary for this to be re-entrant as our tests may
+    // re-load credentials.
+    secrets::load(credentials.get());
+  } else {
+    LOG(WARNING) << "No credentials provided, authentication requests will be "
+                 << "refused.";
+  }
+
+  // Initialize SASL and add the auxiliary memory plugin. We must
+  // not do this more than once per os-process.
+  if (!initialize->once()) {
+    LOG(INFO) << "Initializing server SASL";
+
+    int result = sasl_server_init(NULL, "mesos");
+
+    if (result != SASL_OK) {
+      *error = Error(
+          string("Failed to initialize SASL: ") +
+          sasl_errstring(result, NULL, NULL));
+    } else {
+      result = sasl_auxprop_add_plugin(
+          InMemoryAuxiliaryPropertyPlugin::name(),
+          &InMemoryAuxiliaryPropertyPlugin::initialize);
+
+      if (result != SASL_OK) {
+        *error = Error(
+            string("Failed to add in-memory auxiliary property plugin: ") +
+            sasl_errstring(result, NULL, NULL));
+      }
+    }
+
+    initialize->done();
+  }
+
+  if (error->isSome()) {
+    return error->get();
+  }
+
+  process = new CRAMMD5AuthenticatorProcess();
   spawn(process);
+
+  return Nothing();
 }
 
 
-Future<Option<string>> CRAMMD5Authenticator::authenticate(void)
+Future<Option<string>> CRAMMD5Authenticator::authenticate(
+    const UPID& pid)
 {
-  CHECK(process != NULL) << "Authenticator has not been initialized";
+  if (process == NULL) {
+    return Failure("Authenticator not initialized");
+  }
   return dispatch(
-      process, &CRAMMD5AuthenticatorProcess::authenticate);
+      process, &CRAMMD5AuthenticatorProcess::authenticate, pid);
 }
 
 } // namespace cram_md5 {

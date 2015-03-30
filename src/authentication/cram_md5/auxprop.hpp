@@ -55,7 +55,7 @@ public:
     properties = _properties;
   }
 
-  static Option<std::list<std::string> > lookup(
+  static Option<std::list<std::string>> lookup(
       const std::string& user,
       const std::string& name)
   {

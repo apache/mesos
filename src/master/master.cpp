@@ -284,6 +284,7 @@ Master::Master(
     contender(_contender),
     detector(_detector),
     authorizer(_authorizer),
+    authenticator(None()),
     metrics(new Metrics(*this)),
     electedTime(None())
 {
@@ -412,6 +413,20 @@ void Master::initialize()
     LOG(INFO) << "Master allowing unauthenticated slaves to register";
   }
 
+  // Load credentials.
+  if (flags.credentials.isSome()) {
+    Result<Credentials> _credentials =
+      credentials::read(flags.credentials.get());
+    if (_credentials.isError()) {
+      EXIT(1) << _credentials.error() << " (see --credentials flag)";
+    } else if (_credentials.isNone()) {
+      EXIT(1) << "Credentials file must contain at least one credential"
+              << " (see --credentials flag)";
+    }
+    // Store credentials in master to use them in routes.
+    credentials = _credentials.get();
+  }
+
   // Extract authenticator names and validate them.
   authenticatorNames = strings::split(flags.authenticators, ",");
   if (authenticatorNames.empty()) {
@@ -429,23 +444,43 @@ void Master::initialize()
             << "(see --modules)";
   }
 
-  // Load credentials.
-  if (flags.credentials.isSome()) {
-    Result<Credentials> _credentials =
-      credentials::read(flags.credentials.get());
-    if (_credentials.isError()) {
-      EXIT(1) << _credentials.error() << " (see --credentials flag)";
-    } else if (_credentials.isNone()) {
-      EXIT(1) << "Credentials file must contain at least one credential"
-              << " (see --credentials flag)";
+  // TODO(tillt): Allow multiple authenticators to be loaded and enable
+  // the authenticatee to select the appropriate one. See MESOS-1939.
+  if (authenticatorNames[0] == DEFAULT_AUTHENTICATOR) {
+    LOG(INFO) << "Using default '" << DEFAULT_AUTHENTICATOR
+              << "' authenticator";
+    authenticator = new cram_md5::CRAMMD5Authenticator();
+  } else {
+    Try<Authenticator*> module =
+      modules::ModuleManager::create<Authenticator>(authenticatorNames[0]);
+    if (module.isError()) {
+      EXIT(1) << "Could not create authenticator module '"
+              << authenticatorNames[0] << "': " << module.error();
     }
-    // Store credentials in master to use them in routes.
-    credentials = _credentials.get();
+    LOG(INFO) << "Using '" << authenticatorNames[0] << "' authenticator";
+    authenticator = module.get();
+  }
 
-    // Give Authenticator access to credentials.
-    // TODO(tillt): Move this into a mechanism (module) specific
-    // Authenticator factory. See MESOS-2050.
-    cram_md5::secrets::load(credentials.get());
+  // Give Authenticator access to credentials when needed.
+  CHECK_SOME(authenticator);
+  Try<Nothing> initialize = authenticator.get()->initialize(credentials);
+  if (initialize.isError()) {
+    const string error =
+      "Failed to initialize authenticator '" + authenticatorNames[0] +
+      "': " + initialize.error();
+    if (flags.authenticate_frameworks || flags.authenticate_slaves) {
+      EXIT(1) << "Failed to start master with authentication enabled: "
+              << error;
+    } else {
+      // A failure to initialize the authenticator does lead to
+      // unusable authentication but still allows non authenticating
+      // frameworks and slaves to connect.
+      LOG(WARNING) << "Only non-authenticating frameworks and slaves are "
+                   << "allowed to connect. "
+                   << "Authentication is disabled: " << error;
+      delete authenticator.get();
+      authenticator = None();
+    }
   }
 
   if (authorizer.isSome()) {
@@ -847,6 +882,10 @@ void Master::finalize()
   terminate(whitelistWatcher);
   wait(whitelistWatcher);
   delete whitelistWatcher;
+
+  if (authenticator.isSome()) {
+    delete authenticator.get();
+  }
 }
 
 
@@ -3772,6 +3811,8 @@ void Master::offer(const FrameworkID& frameworkId,
 // authenticate with master they would be stepping on each other's
 // toes. Currently it is tricky to detect this case because the
 // 'authenticate' message doesn't contain the 'FrameworkID'.
+// 'from' is the authenticatee process with which to communicate.
+// 'pid' is the framework/slave process being authenticated.
 void Master::authenticate(const UPID& from, const UPID& pid)
 {
   ++metrics->messages_authenticate;
@@ -3803,15 +3844,36 @@ void Master::authenticate(const UPID& from, const UPID& pid)
 
   authenticated.erase(pid);
 
+  if (authenticator.isNone()) {
+    // The default authenticator is CRAM-MD5 rather than none.
+    // Since the default parameters specify CRAM-MD5 authenticator, no
+    // required authentication, and no credentials, we must support
+    // this for starting successfully.
+    // In this case, we must allow non-authenticating frameworks /
+    // slaves to register without authentication, but we will return
+    // an AuthenticationError if they actually try to authenticate.
+
+    // TODO(tillt): We need to make sure this does not cause retries.
+    // See MESOS-2379.
+    LOG(ERROR) << "Received authentication request from " << pid
+               << " but authenticator is not loaded";
+
+    AuthenticationErrorMessage message;
+    message.set_error("No authenticator loaded");
+    send(from, message);
+
+    return;
+  }
+
   if (authenticating.contains(pid)) {
     LOG(INFO) << "Queuing up authentication request from " << pid
               << " because authentication is still in progress";
 
-    // Try to cancel the in progress authentication by deleting
-    // the authenticator.
-    authenticators.erase(pid);
+    // Try to cancel the in progress authentication by discarding the
+    // future.
+    authenticating[pid].discard();
 
-    // Retry after the current authenticator finishes.
+    // Retry after the current authenticator session finishes.
     authenticating[pid]
       .onAny(defer(self(), &Self::authenticate, from, pid));
 
@@ -3820,40 +3882,19 @@ void Master::authenticate(const UPID& from, const UPID& pid)
 
   LOG(INFO) << "Authenticating " << pid;
 
-  // Create and initialize the authenticator.
-  Authenticator* authenticator;
-  // TODO(tillt): Allow multiple authenticators to be loaded and enable
-  // the authenticatee to select the appropriate one. See MESOS-1939.
-  if (authenticatorNames[0] == DEFAULT_AUTHENTICATOR) {
-    LOG(INFO) << "Using default CRAM-MD5 authenticator";
-    authenticator = new cram_md5::CRAMMD5Authenticator();
-  } else {
-    Try<Authenticator*> module =
-      modules::ModuleManager::create<Authenticator>(authenticatorNames[0]);
-    if (module.isError()) {
-      EXIT(1) << "Could not create authenticator module '"
-              << authenticatorNames[0] << "': " << module.error();
-    }
-    LOG(INFO) << "Using '" << authenticatorNames[0] << "' authenticator";
-    authenticator = module.get();
-  }
-  Owned<Authenticator> authenticator_ = Owned<Authenticator>(authenticator);
-
-  authenticator_->initialize(from);
-
   // Start authentication.
-  const Future<Option<string>>& future = authenticator_->authenticate()
-     .onAny(defer(self(), &Self::_authenticate, pid, lambda::_1));
+  const Future<Option<string>> future = authenticator.get()->authenticate(from);
 
-  // Don't wait for authentication to happen for ever.
+  // Save our state.
+  authenticating[pid] = future;
+
+  future.onAny(defer(self(), &Self::_authenticate, pid, lambda::_1));
+
+  // Don't wait for authentication to complete forever.
   delay(Seconds(5),
         self(),
         &Self::authenticationTimeout,
         future);
-
-  // Save our state.
-  authenticating[pid] = future;
-  authenticators.put(pid, authenticator_);
 }
 
 
@@ -3875,7 +3916,6 @@ void Master::_authenticate(
     authenticated.put(pid, future.get().get());
   }
 
-  authenticators.erase(pid);
   authenticating.erase(pid);
 }
 

@@ -36,7 +36,6 @@ namespace cram_md5 {
 // Forward declaration.
 class CRAMMD5AuthenticatorProcess;
 
-
 class CRAMMD5Authenticator : public Authenticator
 {
 public:
@@ -47,32 +46,14 @@ public:
 
   virtual ~CRAMMD5Authenticator();
 
-  virtual void initialize(const process::UPID& clientPid);
+  virtual Try<Nothing> initialize(const Option<Credentials>& credentials);
 
-  // Returns the principal of the Authenticatee if successfully
-  // authenticated otherwise None or an error. Note that we
-  // distinguish authentication failure (None) from a failed future
-  // in the event the future failed due to a transient error and
-  // authentication can (should) be retried. Discarding the future
-  // will cause the future to fail if it hasn't already completed
-  // since we have already started the authentication procedure and
-  // can't reliably cancel.
-  virtual process::Future<Option<std::string>> authenticate();
+  virtual process::Future<Option<std::string>> authenticate(
+      const process::UPID& pid);
 
 private:
   CRAMMD5AuthenticatorProcess* process;
 };
-
-
-namespace secrets {
-
-// Loads secrets (principal -> secret) into the in-memory auxiliary
-// property plugin that is used by the authenticators.
-void load(const std::map<std::string, std::string>& secrets);
-
-void load(const Credentials& credentials);
-
-} // namespace secrets {
 
 } // namespace cram_md5 {
 } // namespace internal {
