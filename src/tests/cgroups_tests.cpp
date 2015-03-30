@@ -1099,9 +1099,9 @@ TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreaseUnlockedRSS)
   listen();
 
   // Used to save the counter readings from last iteration.
-  uint64_t previousLow;
-  uint64_t previousMedium;
-  uint64_t previousCritical;
+  uint64_t previousLow = 0;
+  uint64_t previousMedium = 0;
+  uint64_t previousCritical = 0;
 
   // Used to save the counter readings from this iteration.
   uint64_t low;
@@ -1169,9 +1169,9 @@ TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreasePageCache)
   listen();
 
   // Used to save the counter readings from last iteration.
-  uint64_t previousLow;
-  uint64_t previousMedium;
-  uint64_t previousCritical;
+  uint64_t previousLow = 0;
+  uint64_t previousMedium = 0;
+  uint64_t previousCritical = 0;
 
   // Used to save the counter readings from this iteration.
   uint64_t low;
