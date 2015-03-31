@@ -463,6 +463,15 @@ message ResourceStatistics {
   optional uint64 mem_anon_bytes = 11;
   optional uint64 mem_mapped_file_bytes = 12;
 
+	// Number of occurrences of different levels of memory pressure
+	// events reported by memory cgroup. Pressure listening (re)starts
+	// with these values set to 0 when slave (re)starts. See
+  // https://www.kernel.org/doc/Documentation/cgroups/memory.txt for
+  // more details.
+  optional uint64 mem_low_pressure_counter = 32;
+  optional uint64 mem_medium_pressure_counter = 33;
+  optional uint64 mem_critical_pressure_counter = 34;
+
   // Disk Usage Information for executor working directory.
   optional uint64 disk_limit_bytes = 26;
   optional uint64 disk_used_bytes = 27;

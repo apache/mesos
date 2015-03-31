@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 
+#include <list>
 #include <vector>
 
 #include <mesos/resources.hpp>
@@ -45,6 +46,9 @@
 
 using namespace process;
 
+using cgroups::memory::pressure::Level;
+using cgroups::memory::pressure::Counter;
+
 using std::list;
 using std::ostringstream;
 using std::set;
@@ -63,6 +67,13 @@ using mesos::slave::Limitation;
 
 template<class T>
 static Future<Option<T>> none() { return None(); }
+
+
+static const vector<Level> levels()
+{
+  return {Level::LOW, Level::MEDIUM, Level::CRITICAL};
+}
+
 
 CgroupsMemIsolatorProcess::CgroupsMemIsolatorProcess(
     const Flags& _flags,
@@ -108,6 +119,22 @@ Try<Isolator*> CgroupsMemIsolatorProcess::create(const Flags& flags)
 
   if (enable.isError()) {
     return Error(enable.error());
+  }
+
+  // Test if memory pressure listening is enabled. We test that on the
+  // root cgroup. We rely on 'Counter::create' to test if memory
+  // pressure listening is enabled or not. The created counters will
+  // be destroyed immediately.
+  foreach (Level level, levels()) {
+    Try<Owned<Counter>> counter = Counter::create(
+        hierarchy.get(),
+        flags.cgroups_root,
+        level);
+
+    if (counter.isError()) {
+      return Error("Failed to listen on " + stringify(level) +
+                   " memory events: " + counter.error());
+    }
   }
 
   // Determine whether to limit swap or not.
@@ -167,6 +194,7 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
     cgroups.insert(cgroup);
 
     oomListen(containerId);
+    pressureListen(containerId);
   }
 
   Try<vector<string>> orphans = cgroups::get(
@@ -245,6 +273,7 @@ Future<Option<CommandInfo>> CgroupsMemIsolatorProcess::prepare(
   }
 
   oomListen(containerId);
+  pressureListen(containerId);
 
   return update(containerId, executorInfo.resources())
     .then(lambda::bind(none<CommandInfo>));
@@ -417,6 +446,59 @@ Future<ResourceStatistics> CgroupsMemIsolatorProcess::usage(
     result.set_mem_mapped_file_bytes(total_mapped_file.get());
   }
 
+  // Get pressure counter readings.
+  list<Level> levels;
+  list<Future<uint64_t>> values;
+  foreachpair (Level level,
+               const Owned<Counter>& counter,
+               info->pressureCounters) {
+    levels.push_back(level);
+    values.push_back(counter->value());
+  }
+
+  return await(values)
+    .then(defer(PID<CgroupsMemIsolatorProcess>(this),
+                &CgroupsMemIsolatorProcess::_usage,
+                containerId,
+                result,
+                levels,
+                lambda::_1));
+}
+
+
+Future<ResourceStatistics> CgroupsMemIsolatorProcess::_usage(
+    const ContainerID& containerId,
+    ResourceStatistics result,
+    const list<Level>& levels,
+    const list<Future<uint64_t>>& values)
+{
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  list<Level>::const_iterator iterator = levels.begin();
+  foreach (const Future<uint64_t>& value, values) {
+    if (value.isReady()) {
+      switch (*iterator) {
+        case Level::LOW:
+          result.set_mem_low_pressure_counter(value.get());
+          break;
+        case Level::MEDIUM:
+          result.set_mem_medium_pressure_counter(value.get());
+          break;
+        case Level::CRITICAL:
+          result.set_mem_critical_pressure_counter(value.get());
+          break;
+      }
+    } else {
+      LOG(ERROR) << "Failed to listen on " << stringify(*iterator)
+                 << " pressure events for container " << containerId << ": "
+                 << (value.isFailed() ? value.failure() : "discarded");
+    }
+
+    ++iterator;
+  }
+
   return result;
 }
 
@@ -578,6 +660,32 @@ void CgroupsMemIsolatorProcess::oom(const ContainerID& containerId)
       "*").get();
 
   info->limitation.set(Limitation(mem, message.str()));
+}
+
+
+void CgroupsMemIsolatorProcess::pressureListen(
+    const ContainerID& containerId)
+{
+  CHECK(infos.contains(containerId));
+  Info* info = CHECK_NOTNULL(infos[containerId]);
+
+  foreach (Level level, levels()) {
+    Try<Owned<Counter>> counter = Counter::create(
+        hierarchy,
+        info->cgroup,
+        level);
+
+    if (counter.isError()) {
+      LOG(ERROR) << "Failed to listen on " << level << " memory pressure "
+                 << "events for container " << containerId << ": "
+                 << counter.error();
+    } else {
+      info->pressureCounters[level] = counter.get();
+
+      LOG(INFO) << "Started listening on " << level << " memory pressure "
+                << "events for container " << containerId;
+    }
+  }
 }
 
 } // namespace slave {

@@ -19,9 +19,15 @@
 #ifndef __MEM_ISOLATOR_HPP__
 #define __MEM_ISOLATOR_HPP__
 
+#include <list>
+
 #include <mesos/slave/isolator.hpp>
 
+#include <process/owned.hpp>
+
 #include <stout/hashmap.hpp>
+
+#include "linux/cgroups.hpp"
 
 #include "slave/flags.hpp"
 
@@ -70,7 +76,13 @@ private:
       const std::string& hierarchy,
       bool limitSwap);
 
-  virtual process::Future<Nothing> _cleanup(
+  process::Future<ResourceStatistics> _usage(
+      const ContainerID& containerId,
+      ResourceStatistics result,
+      const std::list<cgroups::memory::pressure::Level>& levels,
+      const std::list<process::Future<uint64_t>>& values);
+
+  process::Future<Nothing> _cleanup(
       const ContainerID& containerId,
       const process::Future<Nothing>& future);
 
@@ -87,6 +99,10 @@ private:
 
     // Used to cancel the OOM listening.
     process::Future<Nothing> oomNotifier;
+
+    hashmap<cgroups::memory::pressure::Level,
+            process::Owned<cgroups::memory::pressure::Counter>>
+      pressureCounters;
   };
 
   // Start listening on OOM events. This function will create an
@@ -101,6 +117,9 @@ private:
 
   // This function is invoked when the OOM event happens.
   void oom(const ContainerID& containerId);
+
+  // Start listening on memory pressure events.
+  void pressureListen(const ContainerID& containerId);
 
   const Flags flags;
 
