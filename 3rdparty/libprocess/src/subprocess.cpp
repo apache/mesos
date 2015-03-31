@@ -31,8 +31,8 @@ namespace internal {
 
 // See the comment below as to why subprocess is passed to cleanup.
 static void cleanup(
-    const Future<Option<int> >& result,
-    Promise<Option<int> >* promise,
+    const Future<Option<int>>& result,
+    Promise<Option<int>>* promise,
     const Subprocess& subprocess)
 {
   CHECK(!result.isPending());
@@ -111,7 +111,7 @@ static int childMain(
     const Subprocess::IO& out,
     const Subprocess::IO& err,
     os::ExecEnv* envp,
-    const Option<lambda::function<int()> >& setup,
+    const Option<lambda::function<int()>>& setup,
     int stdinFd[2],
     int stdoutFd[2],
     int stderrFd[2])
@@ -173,10 +173,10 @@ Try<Subprocess> subprocess(
     const Subprocess::IO& out,
     const Subprocess::IO& err,
     const Option<flags::FlagsBase>& flags,
-    const Option<map<string, string> >& environment,
-    const Option<lambda::function<int()> >& setup,
+    const Option<map<string, string>>& environment,
+    const Option<lambda::function<int()>>& setup,
     const Option<lambda::function<
-        pid_t(const lambda::function<int()>&)> >& _clone)
+        pid_t(const lambda::function<int()>&)>>& _clone)
 {
   // File descriptors for redirecting stdin/stdout/stderr. These file
   // descriptors are used for different purposes depending on the
@@ -385,7 +385,7 @@ Try<Subprocess> subprocess(
   // the termination signal. Otherwise, the caller can discard the
   // reap future, and we will not know when it is safe to close the
   // file descriptors.
-  Promise<Option<int> >* promise = new Promise<Option<int> >();
+  Promise<Option<int>>* promise = new Promise<Option<int>>();
   process.data->status = promise->future();
 
   // We need to bind a copy of this Subprocess into the onAny callback
