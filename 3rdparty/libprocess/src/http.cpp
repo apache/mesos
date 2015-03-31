@@ -820,7 +820,8 @@ Future<Response> _request(
   Owned<StreamingResponseDecoder> decoder(new StreamingResponseDecoder());
 
   Future<Response> pipeResponse = socket.send(out.str())
-    .then(lambda::bind(recv, socket, None()))
+    .then(lambda::function<Future<string>(void)>(
+              lambda::bind(recv, socket, None())))
     .then(lambda::bind(&internal::decode, socket, decoder, lambda::_1));
 
   if (streamedResponse) {
