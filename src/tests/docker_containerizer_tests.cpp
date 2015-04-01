@@ -83,7 +83,21 @@ public:
 
     EXPECT_CALL(*this, stop(_, _, _))
       .WillRepeatedly(Invoke(this, &MockDocker::_stop));
+
+    EXPECT_CALL(*this, run(_, _, _, _, _, _, _))
+      .WillRepeatedly(Invoke(this, &MockDocker::_run));
   }
+
+  MOCK_CONST_METHOD7(
+      run,
+      process::Future<Nothing>(
+          const mesos::ContainerInfo&,
+          const mesos::CommandInfo&,
+          const std::string&,
+          const std::string&,
+          const std::string&,
+          const Option<mesos::Resources>& resources,
+          const Option<std::map<std::string, std::string>>&));
 
   MOCK_CONST_METHOD2(
       logs,
@@ -96,6 +110,25 @@ public:
       process::Future<Nothing>(
           const string&,
           const Duration&, bool));
+
+  process::Future<Nothing> _run(
+      const mesos::ContainerInfo& containerInfo,
+      const mesos::CommandInfo& commandInfo,
+      const std::string& name,
+      const std::string& sandboxDirectory,
+      const std::string& mappedDirectory,
+      const Option<mesos::Resources>& resources = None(),
+      const Option<std::map<std::string, std::string> >& env = None()) const
+  {
+    return Docker::run(
+        containerInfo,
+        commandInfo,
+        name,
+        sandboxDirectory,
+        mappedDirectory,
+        resources,
+        env);
+  }
 
   process::Future<Nothing> _logs(
       const string& container,
@@ -2585,6 +2618,111 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
   driver.stop();
   driver.join();
 
+  Shutdown();
+}
+
+
+// This test checks that when a docker containerizer update failed
+// and the container failed before the executor started, the executor
+// is properly killed and cleaned up.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  // Skip logging so we can avoid waiting for it to terminate.
+  EXPECT_CALL(*mockDocker, logs(_, _))
+    .WillOnce(Return(Nothing()));
+
+  Fetcher fetcher;
+
+  // The docker containerizer will free the process, so we must
+  // allocate on the heap.
+  MockDockerContainerizerProcess* process =
+    new MockDockerContainerizerProcess(flags, &fetcher, docker);
+
+  MockDockerContainerizer dockerContainerizer(
+      (Owned<DockerContainerizerProcess>(process)));
+
+  Try<PID<Slave>> slave = StartSlave(&dockerContainerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  CommandInfo command;
+  command.set_value("ls");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<TaskStatus> statusFailed;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusFailed));
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  // Fail the update so we don't proceed to send run task to the executor.
+  EXPECT_CALL(dockerContainerizer, update(_, _))
+    .WillRepeatedly(Return(Failure("Fail resource update")));
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+
+  AWAIT_READY(statusFailed);
+
+  EXPECT_EQ(TASK_FAILED, statusFailed.get().state());
+
+  driver.stop();
+  driver.join();
+
+  // We expect the executor to have exited, and if not in Shutdown
+  // the test will fail because of the executor process still running.
   Shutdown();
 }
 
