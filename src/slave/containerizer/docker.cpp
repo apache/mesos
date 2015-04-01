@@ -851,6 +851,14 @@ Future<Nothing> DockerContainerizerProcess::update(
     return Nothing();
   }
 
+  if (container->resources == _resources) {
+    LOG(INFO) << "Ignoring updating container '" << containerId
+              << "' with resources passed to update is identical to "
+              << "existing resources";
+    return Nothing();
+  }
+
+
   // Store the resources for usage().
   container->resources = _resources;
 
