@@ -54,7 +54,7 @@ TEST_F(OsSendfileTest, sendfile)
   ASSERT_EQ(LOREM_IPSUM.size(), read(s[1], buffer, LOREM_IPSUM.size()));
   ASSERT_EQ(LOREM_IPSUM, string(buffer, LOREM_IPSUM.size()));
   ASSERT_SOME(os::close(fd.get()));
-  delete buffer;
+  delete[] buffer;
 
   // Now test with a closed socket, the SIGPIPE should be suppressed!
   fd = os::open(filename, O_RDONLY | O_CLOEXEC);
