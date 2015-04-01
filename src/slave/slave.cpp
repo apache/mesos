@@ -245,10 +245,24 @@ void Slave::initialize()
       // possibly automatically killing any running processes and
       // moving this code to during recovery.
       if (!processes.get().empty()) {
+        // For each process, we print its pid as well as its command
+        // to help triaging.
+        vector<string> infos;
+        foreach (pid_t pid, processes.get()) {
+          Result<os::Process> proc = os::process(pid);
+
+          // Only print the command if available.
+          if (proc.isSome()) {
+            infos.push_back(stringify(pid) + " '" + proc.get().command + "'");
+          } else {
+            infos.push_back(stringify(pid));
+          }
+        }
+
         EXIT(1) << "A slave (or child process) is still running, "
-                << "please check the process(es) '"
-                << stringify(processes.get()) << "' listed in "
-                << path::join(hierarchy.get(), cgroup, "cgroups.proc");
+                << "please check the following process(es) listed in "
+                << path::join(hierarchy.get(), cgroup, "cgroups.proc")
+                << ":\n" << strings::join("\n", infos);
       }
 
       // Move all of our threads into the cgroup.
