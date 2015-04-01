@@ -290,7 +290,7 @@ private:
         flags(flags)
     {
       if (task.isSome()) {
-        resources = task.get().resources();
+        resources = task.get().resources() + executor.resources();
       } else {
         resources = executor.resources();
       }
