@@ -118,7 +118,7 @@ public:
 
   virtual ~PerfSampler() {}
 
-  Future<hashmap<string, mesos::PerfStatistics> > future()
+  Future<hashmap<string, mesos::PerfStatistics>> future()
   {
     return promise.future();
   }
@@ -181,7 +181,7 @@ private:
       .onAny(defer(self(), &Self::_sample, lambda::_1));
   }
 
-  void _sample(const Future<Option<int> >& status)
+  void _sample(const Future<Option<int>>& status)
   {
     if (!status.isReady()) {
       promise.fail("Failed to get exit status of perf process: " +
@@ -202,7 +202,7 @@ private:
     collect(output).onAny(defer(self(), &Self::__sample, lambda::_1));
   }
 
-  void  __sample(const Future<list<string> >& future)
+  void  __sample(const Future<list<string>>& future)
   {
     if (!future.isReady()) {
       promise.fail("Failed to collect output of perf process: " +
@@ -212,7 +212,7 @@ private:
     }
 
     // Parse output from stdout.
-    Try<hashmap<string, mesos::PerfStatistics> > parse =
+    Try<hashmap<string, mesos::PerfStatistics>> parse =
       perf::parse(output.front().get());
     if (parse.isError()) {
       promise.fail("Failed to parse perf output: " + parse.error());
@@ -237,8 +237,8 @@ private:
   const Duration duration;
   Time start;
   Option<Subprocess> perf;
-  Promise<hashmap<string, mesos::PerfStatistics> > promise;
-  list<Future<string> > output;
+  Promise<hashmap<string, mesos::PerfStatistics>> promise;
+  list<Future<string>> output;
 };
 
 
@@ -275,7 +275,7 @@ Future<mesos::PerfStatistics> sample(
 
   const string command = internal::command(events, pids, duration);
   internal::PerfSampler* sampler = new internal::PerfSampler(command, duration);
-  Future<hashmap<string, mesos::PerfStatistics> > future = sampler->future();
+  Future<hashmap<string, mesos::PerfStatistics>> future = sampler->future();
   spawn(sampler, true);
   return future
     .then(lambda::bind(&internal::select, PIDS_KEY, lambda::_1));
@@ -294,7 +294,7 @@ Future<mesos::PerfStatistics> sample(
 }
 
 
-Future<hashmap<string, mesos::PerfStatistics> > sample(
+Future<hashmap<string, mesos::PerfStatistics>> sample(
     const set<string>& events,
     const set<string>& cgroups,
     const Duration& duration)
@@ -305,7 +305,7 @@ Future<hashmap<string, mesos::PerfStatistics> > sample(
 
   const string command = internal::command(events, cgroups, duration);
   internal::PerfSampler* sampler = new internal::PerfSampler(command, duration);
-  Future<hashmap<string, mesos::PerfStatistics> > future = sampler->future();
+  Future<hashmap<string, mesos::PerfStatistics>> future = sampler->future();
   spawn(sampler, true);
   return future;
 }
@@ -339,7 +339,7 @@ bool supported()
 }
 
 
-Try<hashmap<string, mesos::PerfStatistics> > parse(const string& output)
+Try<hashmap<string, mesos::PerfStatistics>> parse(const string& output)
 {
   hashmap<string, mesos::PerfStatistics> statistics;
 
