@@ -31,22 +31,22 @@
 
 #include "linux/perf.hpp"
 
+using namespace process;
+
 using std::list;
 using std::ostringstream;
 using std::set;
 using std::string;
 using std::vector;
 
-using namespace process;
-
 namespace perf {
 
 // Delimiter for fields in perf stat output.
-const string PERF_DELIMITER = ",";
+static const char PERF_DELIMITER[] = ",";
 
 // Use an empty string as the key for the parse output when sampling a
 // set of pids. No valid cgroup can be an empty string.
-const string PIDS_KEY = "";
+static const char PIDS_KEY[] = "";
 
 namespace internal {
 
@@ -202,8 +202,8 @@ private:
     // Start reading from stdout and stderr now. We don't use stderr
     // but must read from it to avoid the subprocess blocking on the
     // pipe.
-    output.push_back(process::io::read(perf.get().out().get()));
-    output.push_back(process::io::read(perf.get().err().get()));
+    output.push_back(io::read(perf.get().out().get()));
+    output.push_back(io::read(perf.get().err().get()));
 
     // Wait for the process to exit.
     perf.get().status()
