@@ -33,6 +33,7 @@
 #include <stout/json.hpp>
 #include <stout/mac.hpp>
 #include <stout/net.hpp>
+#include <stout/stopwatch.hpp>
 
 #include <stout/os/stat.hpp>
 #include <stout/os/exists.hpp>
@@ -313,7 +314,6 @@ protected:
     return pid;
   }
 
-
   JSON::Object statisticsHelper(
       pid_t pid,
       bool enable_summary,
@@ -386,6 +386,28 @@ protected:
   string trafficViaPublic;
   string exitStatus;
 };
+
+
+// Wait up to timeout seconds for a file to be created.  If timeout is
+// zero, then wait indefinitely.  Return true if file exists.
+// TODO(pbrett): Consider generalizing this function and moving it to a
+// common header.
+static bool waitForFileCreation(
+    const string& path,
+    const Duration& duration = Seconds(60))
+{
+  Stopwatch timer;
+  timer.start();
+
+  while (!os::exists(path)) {
+    if ((duration > Duration::zero()) && (timer.elapsed() > duration))
+      break;
+
+    os::sleep(Milliseconds(50));
+  }
+
+  return os::exists(path);
+}
 
 
 // This test uses 2 containers: one listens to 'port' and 'errorPort'
@@ -462,7 +484,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   ContainerID containerId2;
   containerId2.set_value("container2");
@@ -520,7 +542,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container2Ready));
+  ASSERT_TRUE(waitForFileCreation(container2Ready));
 
   // Wait for the command to complete.
   AWAIT_READY(status1);
@@ -613,7 +635,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   ContainerID containerId2;
   containerId2.set_value("container2");
@@ -672,7 +694,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container2Ready));
+  ASSERT_TRUE(waitForFileCreation(container2Ready));
 
   // Wait for the command to complete.
   AWAIT_READY(status1);
@@ -767,7 +789,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   // Send to 'localhost' and 'port'.
   ASSERT_SOME_EQ(0, os::shell(
@@ -883,7 +905,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   // Send to 'localhost' and 'port'.
   ASSERT_SOME_EQ(0, os::shell(
@@ -1453,7 +1475,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
   ::close(pipes[1]);
 
   // Wait for the command to finish.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   Try<string> read = os::read(transmissionTime);
   CHECK_SOME(read);
@@ -1647,7 +1669,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
   ASSERT_TRUE(!HasTCPSocketsCount(object) && !HasTCPSocketsRTT(object));
 
   // Wait for the command to finish.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   // Make sure the nc server exits normally.
   Future<Option<int> > status = s.get().status();
