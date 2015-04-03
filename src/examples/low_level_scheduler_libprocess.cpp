@@ -117,24 +117,13 @@ public:
       events.pop();
 
       switch (event.type()) {
-        case Event::REGISTERED: {
-          cout << endl << "Received a REGISTERED event" << endl;
+        case Event::SUBSCRIBED: {
+          cout << endl << "Received a SUBSCRIBED event" << endl;
 
-          framework.mutable_id()->CopyFrom(event.registered().framework_id());
-          state = REGISTERED;
+          framework.mutable_id()->CopyFrom(event.subscribed().framework_id());
+          state = SUBSCRIBED;
 
-          cout << "Framework '" << event.registered().framework_id().value()
-               << "' registered" << endl;
-          break;
-        }
-
-        case Event::REREGISTERED: {
-          cout << endl << "Received a REREGISTERED event" << endl;
-
-          state = REGISTERED;
-
-          cout << "Framework '" << event.reregistered().framework_id().value()
-               << "' re-registered" << endl;
+          cout << "Subscribed with ID '" << framework.id() << endl;
           break;
         }
 
@@ -303,14 +292,13 @@ private:
 
   void doReliableRegistration()
   {
-    if (state == REGISTERED) {
+    if (state == SUBSCRIBED) {
       return;
     }
 
     Call call;
     call.mutable_framework_info()->CopyFrom(framework);
-    call.set_type(
-        state == INITIALIZING ? Call::REGISTER : Call::REREGISTER);
+    call.set_type(Call::SUBSCRIBE);
 
     mesos.send(call);
 
@@ -334,7 +322,7 @@ private:
 
   enum State {
     INITIALIZING = 0,
-    REGISTERED = 1,
+    SUBSCRIBED = 1,
     DISCONNECTED = 2
   } state;
 

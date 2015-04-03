@@ -34,8 +34,7 @@ message Event {
   // Possible event types, followed by message definitions if
   // applicable.
   enum Type {
-    REGISTERED = 1;
-    REREGISTERED = 2;
+    SUBSCRIBED = 1;
     OFFERS = 3;
     RESCIND = 4;
     UPDATE = 5;
@@ -44,11 +43,8 @@ message Event {
     ERROR = 8;
   }
 
-  message Registered {
-    required FrameworkID framework_id = 1;
-  }
-
-  message Reregistered {
+  // First event received when the scheduler subscribes.
+  message Subscribed {
     required FrameworkID framework_id = 1;
   }
 
@@ -93,8 +89,7 @@ message Event {
   // present if that type has a nested message definition.
   required Type type = 1;
 
-  optional Registered registered = 2;
-  optional Reregistered reregistered = 3;
+  optional Subscribed subscribed = 2;
   optional Offers offers = 4;
   optional Rescind rescind = 5;
   optional Update update = 6;
@@ -114,8 +109,7 @@ message Call {
   // Possible call types, followed by message definitions if
   // applicable.
   enum Type {
-    REGISTER = 1;
-    REREGISTER = 2;
+    SUBSCRIBE = 1;    // See 'framework_info' below.
     UNREGISTER = 3;
     REVIVE = 6;
     DECLINE = 5;
@@ -127,7 +121,7 @@ message Call {
     SHUTDOWN = 13;
 
     // TODO(benh): Consider adding an 'ACTIVATE' and 'DEACTIVATE' for
-    // already registered frameworks as a way of stopping offers from
+    // already subscribed frameworks as a way of stopping offers from
     // being generated and other events from being sent by the master.
     // Note that this functionality existed originally to support
     // SchedulerDriver::abort which was only necessary to handle
@@ -214,7 +208,9 @@ message Call {
 
   // Identifies who generated this call. Always necessary, but the
   // only thing that needs to be set for certain calls, e.g.,
-  // REGISTER, REREGISTER, and UNREGISTER.
+  // SUBSCRIBE and UNREGISTER. 'framework_info.id()' must be always
+  // set except when a brand new scheduler SUBSCRIBEs for the very
+  // first time.
   required FrameworkInfo framework_info = 1;
 
   // Type of the call, indicates which optional field below should be

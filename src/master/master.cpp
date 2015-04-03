@@ -1555,15 +1555,13 @@ void Master::receive(
     const scheduler::Call& call)
 {
   // TODO(vinod): Add metrics for calls.
-
+  // TODO(vinod): Implement the unimplemented calls.
   const FrameworkInfo& frameworkInfo = call.framework_info();
 
-  // For REGISTER and REREGISTER calls, no need to look up the
-  // framework. Therefore, we handle them first and separately from
-  // other types of calls.
+  // For SUBSCRIBE call, no need to look up the framework. Therefore,
+  // we handle them first and separately from other types of calls.
   switch (call.type()) {
-    case scheduler::Call::REGISTER:
-    case scheduler::Call::REREGISTER:
+    case scheduler::Call::SUBSCRIBE:
       drop(from, call, "Unimplemented");
       return;
 
@@ -1586,7 +1584,8 @@ void Master::receive(
   }
 
   // TODO(jieyu): Validate frameworkInfo to make sure it's the same as
-  // the one that the framework used during registration.
+  // the one that the framework used during registration and that the
+  // framework id is set and non-empty except for SUBSCRIBE call.
 
   switch (call.type()) {
     case scheduler::Call::UNREGISTER:

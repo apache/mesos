@@ -200,9 +200,10 @@ public:
       call.mutable_framework_info()->set_user(user.get());
     }
 
-    // Only a REGISTER should not have set the framework ID.
-    if (call.type() != Call::REGISTER && !call.framework_info().has_id()) {
-      drop(call, "Call is mising FrameworkInfo.id");
+    // Only a SUBSCRIBE call may not have set the framework ID.
+    if (call.type() != Call::SUBSCRIBE &&
+        (!call.framework_info().has_id() || call.framework_info().id() == "")) {
+      drop(call, "Call is missing FrameworkInfo.id");
       return;
     }
 
@@ -213,18 +214,18 @@ public:
     }
 
     switch (call.type()) {
-      case Call::REGISTER: {
-        RegisterFrameworkMessage message;
-        message.mutable_framework()->CopyFrom(call.framework_info());
-        send(master.get(), message);
-        break;
-      }
-
-      case Call::REREGISTER: {
-        ReregisterFrameworkMessage message;
-        message.mutable_framework()->CopyFrom(call.framework_info());
-        message.set_failover(failover);
-        send(master.get(), message);
+      case Call::SUBSCRIBE: {
+        if (!call.framework_info().has_id() ||
+            call.framework_info().id() == "") {
+          RegisterFrameworkMessage message;
+          message.mutable_framework()->CopyFrom(call.framework_info());
+          send(master.get(), message);
+        } else {
+          ReregisterFrameworkMessage message;
+          message.mutable_framework()->CopyFrom(call.framework_info());
+          message.set_failover(failover);
+          send(master.get(), message);
+        }
         break;
       }
 
@@ -386,6 +387,7 @@ protected:
       VLOG(1) << "New master detected at " << master.get();
 
       if (credential.isSome()) {
+        // TODO(vinod): Do pure HTTP Authentication instead of SASL.
         // Authenticate with the master.
         authenticate();
       } else {
@@ -572,22 +574,15 @@ protected:
 
   void receive(const UPID& from, const FrameworkRegisteredMessage& message)
   {
-    // We've now registered at least once with the master so we're no
-    // longer failing over. See the comment where 'failover' is
-    // declared for further details.
-    failover = false;
-
-    Event event;
-    event.set_type(Event::REGISTERED);
-
-    Event::Registered* registered = event.mutable_registered();
-
-    registered->mutable_framework_id()->CopyFrom(message.framework_id());
-
-    receive(from, event);
+    subscribed(from, message.framework_id());
   }
 
   void receive(const UPID& from, const FrameworkReregisteredMessage& message)
+  {
+    subscribed(from, message.framework_id());
+  }
+
+  void subscribed(const UPID& from, const FrameworkID& frameworkId)
   {
     // We've now registered at least once with the master so we're no
     // longer failing over. See the comment where 'failover' is
@@ -595,11 +590,11 @@ protected:
     failover = false;
 
     Event event;
-    event.set_type(Event::REREGISTERED);
+    event.set_type(Event::SUBSCRIBED);
 
-    Event::Reregistered* reregistered = event.mutable_reregistered();
+    Event::Subscribed* subscribed = event.mutable_subscribed();
 
-    reregistered->mutable_framework_id()->CopyFrom(message.framework_id());
+    subscribed->mutable_framework_id()->CopyFrom(frameworkId);
 
     receive(from, event);
   }

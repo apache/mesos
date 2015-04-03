@@ -135,29 +135,16 @@ public:
       events.pop();
 
       switch (event.type()) {
-        case Event::REGISTERED: {
-          cout << endl << "Received a REGISTERED event" << endl;
+        case Event::SUBSCRIBED: {
+          cout << endl << "Received a SUBSCRIBED event" << endl;
 
           pthread_mutex_lock(&mutex);
-          state = REGISTERED;
+          state = SUBSCRIBED;
           pthread_mutex_unlock(&mutex);
 
-          framework.mutable_id()->CopyFrom(event.registered().framework_id());
+          framework.mutable_id()->CopyFrom(event.subscribed().framework_id());
 
-          cout << "Framework '" << event.registered().framework_id().value()
-               << "' registered" << endl;
-          break;
-        }
-
-        case Event::REREGISTERED: {
-          cout << endl << "Received a REREGISTERED event" << endl;
-
-          pthread_mutex_lock(&mutex);
-          state = REGISTERED;
-          pthread_mutex_unlock(&mutex);
-
-          cout << "Framework '" << event.reregistered().framework_id().value()
-               << "' re-registered" << endl;
+          cout << "Subscribed with ID '" << framework.id() << endl;
           break;
         }
 
@@ -362,8 +349,7 @@ private:
 
     Call call;
     call.mutable_framework_info()->CopyFrom(framework);
-    call.set_type(
-        state == CONNECTED ? Call::REGISTER : Call::REREGISTER);
+    call.set_type(Call::SUBSCRIBE);
     pthread_mutex_unlock(&mutex);
 
     mesos.send(call);
@@ -390,7 +376,7 @@ private:
   enum State {
     INITIALIZING = 0,
     CONNECTED = 1,
-    REGISTERED = 2,
+    SUBSCRIBED = 2,
     DISCONNECTED = 3,
     DONE = 4
   } state;

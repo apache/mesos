@@ -142,16 +142,16 @@ TEST_F(SchedulerTest, TaskRunning)
   {
     Call call;
     call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.set_type(Call::REGISTER);
+    call.set_type(Call::SUBSCRIBE);
 
     mesos.send(call);
   }
 
   Future<Event> event = events.get();
   AWAIT_READY(event);
-  EXPECT_EQ(Event::REGISTERED, event.get().type());
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
 
-  FrameworkID id(event.get().registered().framework_id());
+  FrameworkID id(event.get().subscribed().framework_id());
 
   event = events.get();
   AWAIT_READY(event);
@@ -247,16 +247,16 @@ TEST_F(SchedulerTest, ReconcileTask)
   {
     Call call;
     call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.set_type(Call::REGISTER);
+    call.set_type(Call::SUBSCRIBE);
 
     mesos.send(call);
   }
 
   Future<Event> event = events.get();
   AWAIT_READY(event);
-  EXPECT_EQ(Event::REGISTERED, event.get().type());
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
 
-  FrameworkID id(event.get().registered().framework_id());
+  FrameworkID id(event.get().subscribed().framework_id());
 
   event = events.get();
   AWAIT_READY(event);
@@ -354,16 +354,16 @@ TEST_F(SchedulerTest, KillTask)
   {
     Call call;
     call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.set_type(Call::REGISTER);
+    call.set_type(Call::SUBSCRIBE);
 
     mesos.send(call);
   }
 
   Future<Event> event = events.get();
   AWAIT_READY(event);
-  EXPECT_EQ(Event::REGISTERED, event.get().type());
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
 
-  FrameworkID id(event.get().registered().framework_id());
+  FrameworkID id(event.get().subscribed().framework_id());
 
   event = events.get();
   AWAIT_READY(event);
@@ -478,16 +478,16 @@ TEST_F(SchedulerTest, ShutdownExecutor)
   {
     Call call;
     call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.set_type(Call::REGISTER);
+    call.set_type(Call::SUBSCRIBE);
 
     mesos.send(call);
   }
 
   Future<Event> event = events.get();
   AWAIT_READY(event);
-  EXPECT_EQ(Event::REGISTERED, event.get().type());
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
 
-  FrameworkID id(event.get().registered().framework_id());
+  FrameworkID id(event.get().subscribed().framework_id());
 
   event = events.get();
   AWAIT_READY(event);
