@@ -110,7 +110,7 @@ message Call {
   // applicable.
   enum Type {
     SUBSCRIBE = 1;    // See 'framework_info' below.
-    UNREGISTER = 3;
+    TEARDOWN = 3;     // Shuts down all tasks and executors.
     REVIVE = 6;
     DECLINE = 5;
     ACCEPT = 12;
@@ -208,7 +208,7 @@ message Call {
 
   // Identifies who generated this call. Always necessary, but the
   // only thing that needs to be set for certain calls, e.g.,
-  // SUBSCRIBE and UNREGISTER. 'framework_info.id()' must be always
+  // SUBSCRIBE and TEARDOWN. 'framework_info.id()' must be always
   // set except when a brand new scheduler SUBSCRIBEs for the very
   // first time.
   required FrameworkInfo framework_info = 1;

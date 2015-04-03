@@ -1588,7 +1588,6 @@ void Master::receive(
   // framework id is set and non-empty except for SUBSCRIBE call.
 
   switch (call.type()) {
-    case scheduler::Call::UNREGISTER:
     case scheduler::Call::REVIVE:
     case scheduler::Call::DECLINE:
       drop(from, call, "Unimplemented");
@@ -1627,6 +1626,10 @@ void Master::receive(
     case scheduler::Call::ACKNOWLEDGE:
     case scheduler::Call::MESSAGE:
       drop(from, call, "Unimplemented");
+      break;
+
+    case scheduler::Call::TEARDOWN:
+      removeFramework(framework);
       break;
 
     default:

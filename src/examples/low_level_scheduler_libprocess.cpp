@@ -311,7 +311,7 @@ private:
   {
     Call call;
     call.mutable_framework_info()->CopyFrom(framework);
-    call.set_type(Call::UNREGISTER);
+    call.set_type(Call::TEARDOWN);
 
     mesos.send(call);
   }

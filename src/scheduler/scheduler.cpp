@@ -229,10 +229,8 @@ public:
         break;
       }
 
-      case Call::UNREGISTER: {
-        UnregisterFrameworkMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_info().id());
-        send(master.get(), message);
+      case Call::TEARDOWN: {
+        send(master.get(), call);
         break;
       }
 

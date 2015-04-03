@@ -358,7 +358,7 @@ private:
   void finalize()
   {
     Call call;
-    call.set_type(Call::UNREGISTER);
+    call.set_type(Call::TEARDOWN);
     call.mutable_framework_info()->CopyFrom(framework);
 
     mesos.send(call);
