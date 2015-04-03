@@ -1,3 +1,15 @@
+Release Notes - Mesos - Version 0.22.1
+--------------------------------------
+
+* This is a bug fix release.
+
+** Bug
+  * [MESOS-1795] - Assertion failure in state abstraction crashes JVM.
+  * [MESOS-2161] - AbstractState JNI check fails for Marathon framework.
+  * [MESOS-2494] - Clang build broken with "expression result unused" warning.
+  * [MESOS-2583] - Tasks getting stuck in staging.
+
+
 Release Notes - Mesos - Version 0.22.0
 --------------------------------------
 
