@@ -288,10 +288,7 @@ public:
           drop(call, "Expecting 'kill' to be present");
           return;
         }
-        KillTaskMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_info().id());
-        message.mutable_task_id()->CopyFrom(call.kill().task_id());
-        send(master.get(), message);
+        send(master.get(), call);
         break;
       }
 

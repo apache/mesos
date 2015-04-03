@@ -457,6 +457,10 @@ private:
       Framework* framework,
       const scheduler::Call::Reconcile& reconcile);
 
+  void kill(
+      Framework* framework,
+      const scheduler::Call::Kill& kill);
+
   bool elected() const
   {
     return leader.isSome() && leader.get() == info_;

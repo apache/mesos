@@ -166,6 +166,7 @@ message Call {
 
   message Kill {
     required TaskID task_id = 1;
+    optional SlaveID slave_id = 2;
   }
 
   message Acknowledge {
