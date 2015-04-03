@@ -2047,7 +2047,7 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
   ContainerID containerId = *(containers.get().begin());
 
   const string symlink = path::join(
-      slave::PORT_MAPPING_BIND_MOUNT_ROOT(),
+      slave::PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT(),
       stringify(containerId));
 
   EXPECT_TRUE(os::exists(symlink));

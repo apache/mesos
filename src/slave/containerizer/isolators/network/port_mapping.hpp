@@ -65,6 +65,15 @@ inline std::string PORT_MAPPING_VETH_PREFIX() { return "mesos"; }
 inline std::string PORT_MAPPING_BIND_MOUNT_ROOT() { return "/var/run/netns"; }
 
 
+// The root directory where we keep all the namespace handle
+// symlinks. This is introduced in 0.23.0.
+// NOTE: This constant is exposed for testing.
+inline std::string PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT()
+{
+  return "/var/run/mesos/netns";
+}
+
+
 // Responsible for allocating ephemeral ports for the port mapping
 // network isolator. This class is exposed mainly for unit testing.
 class EphemeralPortsAllocator
