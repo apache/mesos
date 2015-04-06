@@ -28,12 +28,16 @@
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
 
+#include <stout/fs.hpp>
+#include <stout/os.hpp>
+
 #include <stout/os/read.hpp>
 #include <stout/os/stat.hpp>
 
 #include "linux/fs.hpp"
 
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -278,6 +282,21 @@ Try<Nothing> mount(const Option<string>& source,
 }
 
 
+Try<Nothing> mount(const Option<string>& source,
+                   const string& target,
+                   const Option<string>& type,
+                   unsigned long flags,
+                   const Option<string>& options)
+{
+  return mount(
+      source,
+      target,
+      type,
+      flags,
+      options.isSome() ? options.get().c_str() : NULL);
+}
+
+
 Try<Nothing> unmount(const string& target, int flags)
 {
   // The prototype of function 'umount2' on Linux is as follows:
@@ -334,6 +353,257 @@ Try<Nothing> pivot_root(
 }
 
 
+namespace chroot {
+
+namespace internal {
+
+Try<Nothing> copyDeviceNode(const string& source, const string& target)
+{
+  // We are likely to be operating in a multi-threaded environment so
+  // it's not safe to change the umask. Instead, we'll explicitly set
+  // permissions after we create the device node.
+  Try<mode_t> mode = os::stat::mode(source);
+  if (mode.isError()) {
+    return Error("Failed to source mode: " + mode.error());
+  }
+
+  Try<dev_t> dev = os::stat::rdev(source);
+  if (dev.isError()) {
+    return Error("Failed to get source dev: " + dev.error());
+  }
+
+  Try<Nothing> mknod = os::mknod(target, mode.get(), dev.get());
+  if (mknod.isError()) {
+    return Error("Failed to create device:" +  mknod.error());
+  }
+
+  Try<Nothing> chmod = os::chmod(target, mode.get());
+  if (chmod.isError()) {
+    return Error("Failed to chmod device: " + chmod.error());
+  }
+
+  return Nothing();
+}
+
+
+// Some helpful types.
+struct Mount
+{
+  Option<string> source;
+  string target;
+  Option<string> type;
+  Option<string> options;
+  unsigned long flags;
+};
+
+struct SymLink
+{
+  string original;
+  string link;
+};
+
+
+Try<Nothing> mountSpecialFilesystems(const string& root)
+{
+  // List of special filesystems useful for a chroot environment.
+  // NOTE: This list is ordered, e.g., mount /proc before bind
+  // mounting /proc/sys and then making it read-only.
+  vector<Mount> mounts = {
+    {"proc",      "/proc",     "proc",   None(),      MS_NOSUID | MS_NOEXEC | MS_NODEV},             // NOLINT(whitespace/line_length)
+    {"/proc/sys", "/proc/sys", None(),   None(),      MS_BIND},
+    {None(),      "/proc/sys", None(),   None(),      MS_BIND | MS_RDONLY | MS_REMOUNT},             // NOLINT(whitespace/line_length)
+    {"sysfs",     "/sys",      "sysfs",  None(),      MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV}, // NOLINT(whitespace/line_length)
+    {"tmpfs",     "/dev",      "tmpfs",  "mode=755",  MS_NOSUID | MS_STRICTATIME},                   // NOLINT(whitespace/line_length)
+    {"devpts",    "/dev/pts",  "devpts", "newinstance,ptmxmode=0666", MS_NOSUID | MS_NOEXEC},        // NOLINT(whitespace/line_length)
+    {"tmpfs",     "/dev/shm",  "tmpfs",  "mode=1777", MS_NOSUID | MS_NODEV | MS_STRICTATIME},        // NOLINT(whitespace/line_length)
+  };
+
+  foreach (const Mount& mount, mounts) {
+    // Target is always under the new root.
+    const string target = path::join(root, mount.target);
+
+    // Try to create the mount point, if it doesn't already exist.
+    if (!os::exists(target)) {
+      Try<Nothing> mkdir = os::mkdir(target);
+
+      if (mkdir.isError()) {
+        return Error("Failed to create mount point '" + target +
+                     "': " + mkdir.error());
+      }
+    }
+
+    // If source is a path, e.g,. for a bind mount, then it needs to
+    // be prefixed by the new root.
+    Option<string> source;
+    if (mount.source.isSome() && strings::startsWith(mount.source.get(), "/")) {
+      source = path::join(root, mount.source.get());
+    } else {
+      source = mount.source;
+    }
+
+    Try<Nothing> mnt = fs::mount(
+        source,
+        target,
+        mount.type,
+        mount.flags,
+        mount.options);
+
+    if (mnt.isError()) {
+      return Error("Failed to mount '" + target + "': " + mnt.error());
+    }
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> createStandardDevices(const string& root)
+{
+  // List of standard devices useful for a chroot environment.
+  // TODO(idownes): Make this list configurable.
+  vector<string> devices = {
+    "full",
+    "null",
+    "random",
+    "tty",
+    "urandom",
+    "zero"
+  };
+
+  foreach (const string& device, devices) {
+    // Copy the mode and device from the corresponding host device.
+    Try<Nothing> copy = copyDeviceNode(
+        path::join("/",  "dev", device),
+        path::join(root, "dev", device));
+
+    if (copy.isError()) {
+      return Error("Failed to copy device '" + device + "': " + copy.error());
+    }
+  }
+
+  vector<SymLink> symlinks = {
+    {"/proc/self/fd0", path::join(root, "dev", "stdin")},
+    {"/proc/self/fd1", path::join(root, "dev", "stdout")},
+    {"/proc/self/fd2", path::join(root, "dev", "stderr")},
+    {"pts/ptmx",       path::join(root, "dev", "ptmx")}
+  };
+
+  foreach (const SymLink& symlink, symlinks) {
+    Try<Nothing> link = ::fs::symlink(symlink.original, symlink.link);
+    if (link.isError()) {
+      return Error("Failed to symlink '" + symlink.original +
+                   "' to '" + symlink.link + "': " + link.error());
+    }
+  }
+
+  // TODO(idownes): Set up console device.
+  return Nothing();
+}
+
+} // namespace internal {
+
+// TODO(idownes): Add unit test.
+Try<Nothing> enter(const string& root)
+{
+  // Recursively mark current mounts as slaves to prevent propagation.
+  Try<Nothing> mount = fs::mount(None(), "/", None(), MS_REC | MS_SLAVE, NULL);
+  if (mount.isError()) {
+    return Error("Failed to make slave mounts: " + mount.error());
+  }
+
+  // Mount special filesystems.
+  mount = internal::mountSpecialFilesystems(root);
+  if (mount.isError()) {
+    return Error("Failed to mount: " + mount.error());
+  }
+
+  // Create basic device nodes.
+  Try<Nothing> create = internal::createStandardDevices(root);
+  if (create.isError()) {
+    return Error("Failed to create devices: " + create.error());
+  }
+
+  // Create a /tmp directory if it doesn't exist.
+  // TODO(idownes): Consider mounting a tmpfs to /tmp.
+  if (!os::exists(path::join(root, "tmp"))) {
+    Try<Nothing> mkdir = os::mkdir(path::join(root, "tmp"));
+     if (mkdir.isError()) {
+       return Error("Failed to create /tmp in chroot: " + mkdir.error());
+     }
+
+     Try<Nothing> chmod = os::chmod(
+         path::join(root, "tmp"),
+         S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX);
+
+     if (chmod.isError()) {
+       return Error("Failed to set mode on /tmp: " + chmod.error());
+     }
+  }
+
+  // Create a mount point for the old root.
+  Try<string> old = os::mkdtemp(path::join(root, "tmp", "._old_root_.XXXXXX"));
+  if (old.isError()) {
+    return Error("Failed to create mount point for old root: " + old.error());
+  }
+
+  // Chroot to the new root. This is done by a particular sequence of
+  // operations, each of which is necessary: chdir, pivot_root,
+  // chroot, chdir. After these operations, the process will be
+  // chrooted to the new root.
+
+  // Chdir to the new root.
+  Try<Nothing> chdir = os::chdir(root);
+  if (chdir.isError()) {
+    return Error("Failed to chdir to new root: " + chdir.error());
+  }
+
+  // Pivot the root to the cwd.
+  Try<Nothing> pivot = fs::pivot_root(root, old.get());
+  if (pivot.isError()) {
+    return Error("Failed to pivot to new root: " + pivot.error());
+  }
+
+  // Chroot to the new "/". This is necessary to correctly set the
+  // base for all paths.
+  Try<Nothing> chroot = os::chroot(".");
+  if (chroot.isError()) {
+    return Error("Failed to chroot to new root: " + chroot.error());
+  }
+
+  // Ensure all references are within the new root.
+  chdir = os::chdir("/");
+  if (chdir.isError()) {
+    return Error("Failed to chdir to new root: " + chdir.error());
+  }
+
+  // Unmount filesystems on the old root. Note, any filesystems that
+  // were mounted to the chroot directory will be correctly pivoted.
+  Try<fs::MountTable> mountTable = fs::MountTable::read("/proc/mounts");
+  if (mountTable.isError()) {
+    return Error("Failed to read mount table: " + mountTable.error());
+  }
+
+  // The old root is now relative to chroot so remove the chroot path.
+  const string relativeOld = strings::remove(old.get(), root, strings::PREFIX);
+
+  foreach (const fs::MountTable::Entry& entry, mountTable.get().entries) {
+    // TODO(idownes): sort the entries and remove depth first so we
+    // don't rely on the lazy umount and can check the status.
+    if (strings::startsWith(entry.dir, relativeOld)) {
+      fs::unmount(entry.dir, MNT_DETACH);
+    }
+  }
+
+  // TODO(idownes): If any of the lazy umounts above is still pending
+  // this will fail, leaving behind an empty directory which we'll
+  // ignore.
+  // Check status when we stop using lazy umounts.
+  os::rmdir(relativeOld);
+
+  return Nothing();
+}
+
+} // namespace chroot {
 } // namespace fs {
 } // namespace internal {
 } // namespace mesos {

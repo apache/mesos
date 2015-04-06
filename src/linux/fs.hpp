@@ -311,6 +311,15 @@ Try<Nothing> mount(const Option<std::string>& source,
                    const void* data);
 
 
+// Alternate version of mount which passes an option string as
+// additional data for the filesystem mount.
+Try<Nothing> mount(const Option<std::string>& source,
+                   const std::string& target,
+                   const Option<std::string>& type,
+                   unsigned long flags,
+                   const Option<std::string>& options);
+
+
 // Unmount a file system.
 // @param   target    The (topmost) directory where the file system attaches.
 // @param   flags     Unmount flags.
@@ -321,6 +330,15 @@ Try<Nothing> unmount(const std::string& target, int flags = 0);
 // Change the root filesystem.
 Try<Nothing> pivot_root(const std::string& newRoot, const std::string& putOld);
 
+namespace chroot {
+
+// Enter a 'chroot' enviroment. The caller should be in a new mount
+// namespace. Basic configuration of special filesystems and device
+// nodes is performed. Any mounts to the current root will be
+// unmounted.
+Try<Nothing> enter(const std::string& root);
+
+} // namespace chroot {
 
 } // namespace fs {
 } // namespace internal {
