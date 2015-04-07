@@ -508,13 +508,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   ostringstream command2;
 
   // Send to 'localhost' and 'port'.
-  command2 << "echo -n hello1 | nc localhost " << port << ";";
+  command2 << "printf hello1 | nc localhost " << port << ";";
   // Send to 'localhost' and 'errorPort'. This should fail.
-  command2 << "echo -n hello2 | nc localhost " << errorPort << ";";
+  command2 << "printf hello2 | nc localhost " << errorPort << ";";
   // Send to 'public IP' and 'port'.
-  command2 << "echo -n hello3 | nc " << hostIP << " " << port << ";";
+  command2 << "printf hello3 | nc " << hostIP << " " << port << ";";
   // Send to 'public IP' and 'errorPort'. This should fail.
-  command2 << "echo -n hello4 | nc " << hostIP << " " << errorPort << ";";
+  command2 << "printf hello4 | nc " << hostIP << " " << errorPort << ";";
   // Touch the guard file.
   command2 << "touch " << container2Ready;
 
@@ -657,13 +657,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   ostringstream command2;
 
   // Send to 'localhost' and 'port'.
-  command2 << "echo -n hello1 | nc -w1 -u localhost " << port << ";";
+  command2 << "printf hello1 | nc -w1 -u localhost " << port << ";";
   // Send to 'localhost' and 'errorPort'. No data should be sent.
-  command2 << "echo -n hello2 | nc -w1 -u localhost " << errorPort << ";";
+  command2 << "printf hello2 | nc -w1 -u localhost " << errorPort << ";";
   // Send to 'public IP' and 'port'.
-  command2 << "echo -n hello3 | nc -w1 -u " << hostIP << " " << port << ";";
+  command2 << "printf hello3 | nc -w1 -u " << hostIP << " " << port << ";";
   // Send to 'public IP' and 'errorPort'. No data should be sent.
-  command2 << "echo -n hello4 | nc -w1 -u " << hostIP << " " << errorPort
+  command2 << "printf hello4 | nc -w1 -u " << hostIP << " " << errorPort
            << ";";
   // Touch the guard file.
   command2 << "touch " << container2Ready;
@@ -792,24 +792,24 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
 
   // Send to 'localhost' and 'port'.
   ostringstream command2;
-  command2 << "echo -n hello1 | nc -w1 -u localhost " << port;
+  command2 << "printf hello1 | nc -w1 -u localhost " << port;
   ASSERT_SOME_EQ(0, os::shell(NULL, command2.str().c_str()));
 
   // Send to 'localhost' and 'errorPort'. The command should return
   // successfully because UDP is stateless but no data could be sent.
   ostringstream command3;
-  command3 << "echo -n hello2 | nc -w1 -u localhost " << errorPort;
+  command3 << "printf hello2 | nc -w1 -u localhost " << errorPort;
   ASSERT_SOME_EQ(0, os::shell(NULL, command3.str().c_str()));
 
   // Send to 'public IP' and 'port'.
   ostringstream command4;
-  command4 << "echo -n hello3 | nc -w1 -u " << hostIP << " " << port;
+  command4 << "printf hello3 | nc -w1 -u " << hostIP << " " << port;
   ASSERT_SOME_EQ(0, os::shell(NULL, command4.str().c_str()));
 
   // Send to 'public IP' and 'errorPort'. The command should return
   // successfully because UDP is stateless but no data could be sent.
   ostringstream command5;
-  command5 << "echo -n hello4 | nc -w1 -u " << hostIP << " " << errorPort;
+  command5 << "printf hello4 | nc -w1 -u " << hostIP << " " << errorPort;
   ASSERT_SOME_EQ(0, os::shell(NULL, command5.str().c_str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
@@ -902,24 +902,24 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
 
   // Send to 'localhost' and 'port'.
   ostringstream command2;
-  command2 << "echo -n hello1 | nc localhost " << port;
+  command2 << "printf hello1 | nc localhost " << port;
   ASSERT_SOME_EQ(0, os::shell(NULL, command2.str().c_str()));
 
   // Send to 'localhost' and 'errorPort'. This should fail because TCP
   // connection couldn't be established..
   ostringstream command3;
-  command3 << "echo -n hello2 | nc localhost " << errorPort;
+  command3 << "printf hello2 | nc localhost " << errorPort;
   ASSERT_SOME_EQ(256, os::shell(NULL, command3.str().c_str()));
 
   // Send to 'public IP' and 'port'.
   ostringstream command4;
-  command4 << "echo -n hello3 | nc " << hostIP << " " << port;
+  command4 << "printf hello3 | nc " << hostIP << " " << port;
   ASSERT_SOME_EQ(0, os::shell(NULL, command4.str().c_str()));
 
   // Send to 'public IP' and 'errorPort'. This should fail because TCP
   // connection couldn't be established.
   ostringstream command5;
-  command5 << "echo -n hello4 | nc " << hostIP << " " << errorPort;
+  command5 << "printf hello4 | nc " << hostIP << " " << errorPort;
   ASSERT_SOME_EQ(256, os::shell(NULL, command5.str().c_str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
@@ -981,7 +981,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternalTest)
       command1 << " && ";
     }
   }
-  command1 << "; echo -n $? > " << exitStatus << "; sync";
+  command1 << "; printf $? > " << exitStatus << "; sync";
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -1054,8 +1054,8 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternalTest)
   ASSERT_SOME(preparation1.get());
 
   ostringstream command1;
-  command1 << "ping -c1 127.0.0.1 && ping -c1 " << hostIP << "; echo -n $? > "
-           << exitStatus << "; sync";
+  command1 << "ping -c1 127.0.0.1 && ping -c1 " << hostIP
+           << "; printf $? > " << exitStatus << "; sync";
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -1145,7 +1145,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternalTest)
       command1 << " && ";
     }
   }
-  command1 << "; echo -n $? > " << exitStatus << "; sync";
+  command1 << "; printf $? > " << exitStatus << "; sync";
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -1233,7 +1233,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNSTest)
       command1 << " && ";
     }
   }
-  command1 << "; echo -n $? > " << exitStatus << "; sync";
+  command1 << "; printf $? > " << exitStatus << "; sync";
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));

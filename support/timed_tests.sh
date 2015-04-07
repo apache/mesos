@@ -34,7 +34,7 @@ duration=$2
 
 echo "This script runs with session id $$ and can be terminated by: pkill -s $$"
 
-echo -n `date`; echo ": start running $test_cmd"
+printf "$(date)"; echo ": start running $test_cmd"
 
 start=$(date +"%s")
 eval $test_cmd &
@@ -55,7 +55,7 @@ while [ $(($(date +"%s") - $start)) -lt $duration ]; do
   sleep 5
 done
 
-echo -n `date`; echo ": process still running after $duration seconds"
+printf "$(date)"; echo ": process still running after $duration seconds"
 
 tmp=`mktemp XXXXX`
 echo "thread apply all bt" > $tmp
