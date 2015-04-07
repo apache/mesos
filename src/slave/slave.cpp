@@ -4157,13 +4157,31 @@ Executor* Framework::launchExecutor(
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
+  Option<string> user = None();
+  if (slave->flags.switch_user) {
+    // The command (either in form of task or executor command) can
+    // define a specific user to run as. If present, this precedes the
+    // framework user value. The selected user will have been verified by
+    // the master at this point through the active ACLs.
+    // NOTE: The global invariant is that the executor info at this
+    // point is (1) the user provided task.executor() or (2) a command
+    // executor constructed by the slave from the task.command().
+    // If this changes, we need to check the user in both
+    // task.command() and task.executor().command() below.
+    user = info.user();
+    if (executorInfo.command().has_user()) {
+      user = executorInfo.command().user();
+    }
+  }
+
   // Create a directory for the executor.
   const string& directory = paths::createExecutorDirectory(
       slave->flags.work_dir,
       slave->info.id(),
       id,
       executorInfo.executor_id(),
-      containerId);
+      containerId,
+      user);
 
   Executor* executor = new Executor(
       slave, id, executorInfo, containerId, directory, info.checkpoint());
@@ -4197,14 +4215,6 @@ Executor* Framework::launchExecutor(
   resources += taskInfo.resources();
   executorInfo_.mutable_resources()->CopyFrom(resources);
 
-  // The command (either in form of task or executor command) can
-  // define a specific user to run as. If present, this precedes the
-  // framework user value.
-  string user = info.user();
-  if (executor->info.command().has_user()) {
-    user = executor->info.command().user();
-  }
-
   // Launch the container.
   Future<bool> launch;
   if (!executor->isCommandExecutor()) {
@@ -4216,7 +4226,7 @@ Executor* Framework::launchExecutor(
         containerId,
         executorInfo_, // modified to include the task's resources.
         executor->directory,
-        slave->flags.switch_user ? Option<string>(user) : None(),
+        user,
         slave->info.id(),
         slave->self(),
         info.checkpoint());
@@ -4234,7 +4244,7 @@ Executor* Framework::launchExecutor(
         taskInfo,
         executorInfo_,
         executor->directory,
-        slave->flags.switch_user ? Option<string>(user) : None(),
+        user,
         slave->info.id(),
         slave->self(),
         info.checkpoint());

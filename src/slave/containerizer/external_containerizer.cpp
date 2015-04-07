@@ -349,14 +349,6 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
                   << "' for executor '" << executor.id
                   << "' of framework " << framework.id;
 
-        // Re-create the sandbox for this container.
-        const string& directory = paths::createExecutorDirectory(
-            flags.work_dir,
-            state.get().id,
-            framework.id,
-            executor.id,
-            containerId);
-
         Option<string> user = None();
         if (flags.switch_user) {
           // The command (either in form of task or executor command)
@@ -369,6 +361,15 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
             user = framework.info.get().user();
           }
         }
+
+        // Re-create the sandbox for this container.
+        const string directory = paths::createExecutorDirectory(
+            flags.work_dir,
+            state.get().id,
+            framework.id,
+            executor.id,
+            containerId,
+            user);
 
         Sandbox sandbox(directory, user);
 
