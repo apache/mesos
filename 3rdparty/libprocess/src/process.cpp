@@ -2045,7 +2045,7 @@ bool ProcessManager::deliver(
   if (ProcessReference receiver = use(to)) {
     return deliver(receiver, event, sender);
   }
-  VLOG(1) << "Dropped / Lost event for PID: " << to;
+  VLOG(2) << "Dropping event for process " << to;
 
   delete event;
   return false;
