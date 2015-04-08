@@ -287,6 +287,9 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
               << "slave flags from the environment: " << load.error();
     }
 
+    // Use a different work directory for each slave.
+    flags.work_dir = path::join(flags.work_dir, stringify(i));
+
     garbageCollectors->push_back(new GarbageCollector());
     statusUpdateManagers->push_back(new StatusUpdateManager(flags));
     fetchers->push_back(new Fetcher());
@@ -297,9 +300,6 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     if (containerizer.isError()) {
       EXIT(1) << "Failed to create a containerizer: " << containerizer.error();
     }
-
-    // Use a different work directory for each slave.
-    flags.work_dir = path::join(flags.work_dir, stringify(i));
 
     // NOTE: At this point detector is already initialized by the
     // Master.
