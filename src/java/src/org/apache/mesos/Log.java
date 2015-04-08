@@ -64,6 +64,11 @@ public class Log {
     public boolean equals(Object that) {
       return that instanceof Position && value == ((Position) that).value;
     }
+    
+    @Override
+    public int hashCode(){
+      return (int)(this.value()^(this.value()>>>32))
+    }
 
     @Override
     public String toString() {
