@@ -46,7 +46,7 @@ layout: documentation
 * [Committer's Guide](/documentation/latest/committers-guide/) a guiding document for etiquette in reviews and commits.
 * [Code Internals](/documentation/latest/mesos-code-internals/) an overview of the codebase and internal organization.
 * [C++ Style Guide](/documentation/latest/mesos-c++-style-guide/)
-* [Development Road Map](/documentation/latest/mesos-roadmap/)
+* [Development Roadmap](/documentation/latest/mesos-roadmap/)
 * [Release Guide](/documentation/latest/release-guide/)
 
 ## More Info about Mesos

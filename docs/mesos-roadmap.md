@@ -4,6 +4,10 @@ layout: documentation
 
 # Mesos Roadmap
 
-The [Mesos JIRA Road Map](https://issues.apache.org/jira/browse/MESOS#selectedTab=com.atlassian.jira.plugin.system.project%3Aroadmap-panel) provides the most up-to-date information regarding what is planned in future releases.
+The [Mesos JIRA Road Map](https://issues.apache.org/jira/browse/MESOS/?selectedTab=com.atlassian.jira.jira-projects-plugin:roadmap-panel) provides a view of which tickets are targeted for upcoming releases.
 
-If you have comments or suggestions, you may direct them to the Mesos dev list (dev@mesos.apache.org), or assign issues to future releases.
+The ['Epic' issues in JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20MESOS%20AND%20resolution%20%3D%20Unresolved%20AND%20issuetype%20%3D%20Epic%20ORDER%20BY%20priority%20DESC) provide a view into the larger projects planned to be worked on.
+
+There is also an ad-hoc [Release Planning](https://cwiki.apache.org/confluence/display/MESOS/Mesos+Release+Planning) document that attempts to capture times and features for upcoming releases.
+
+If you have comments or suggestions, feel free to reach out to the Mesos dev list (dev@mesos.apache.org).
