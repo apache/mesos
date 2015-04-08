@@ -1276,6 +1276,11 @@ load_generator_framework_SOURCES = examples/load_generator_framework.cpp
 load_generator_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 load_generator_framework_LDADD = libmesos.la $(LDADD)
 
+check_PROGRAMS += persistent-volume-framework
+persistent_volume_framework_SOURCES = examples/persistent_volume_framework.cpp
+persistent_volume_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
+persistent_volume_framework_LDADD = libmesos.la $(LDADD)
+
 if OS_LINUX
   check_PROGRAMS += setns-test-helper
   setns_test_helper_SOURCES =					\
@@ -1480,6 +1485,7 @@ dist_check_SCRIPTS +=							\
   tests/java_framework_test.sh						\
   tests/java_log_test.sh						\
   tests/no_executor_framework_test.sh					\
+  tests/persistent_volume_framework_test.sh				\
   tests/python_framework_test.sh					\
   tests/test_framework_test.sh
 
