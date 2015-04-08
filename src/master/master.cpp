@@ -236,6 +236,8 @@ protected:
       LOG(INFO) << "Shutting down slave " << slaveId
                 << " due to health check timeout";
 
+      ++metrics->slave_shutdowns_completed;
+
       dispatch(master,
                &Master::shutdownSlave,
                slaveId,
@@ -1323,6 +1325,7 @@ Nothing Master::removeSlave(const Registry::Slave& slave)
                << " within " << flags.slave_reregister_timeout
                << " after master failover; removing it from the registrar";
 
+  ++metrics->slave_shutdowns_completed;
   ++metrics->recovery_slave_removals;
 
   slaves.recovered.erase(slave.info().id());

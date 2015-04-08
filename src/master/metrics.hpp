@@ -166,6 +166,7 @@ struct Metrics
 
   // Slave observer metrics.
   process::metrics::Counter slave_shutdowns_scheduled;
+  process::metrics::Counter slave_shutdowns_completed;
   process::metrics::Counter slave_shutdowns_canceled;
 
   // Resource metrics.
