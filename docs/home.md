@@ -41,10 +41,11 @@ layout: documentation
 
 ## Contributing to Mesos
 
+* [Reporting an Issue, Improvement, or Feature](/documentation/latest/reporting-a-bug/) for getting started with JIRA.
+* [Submitting a Patch](/documentation/latest/submitting-a-patch/) for getting started with ReviewBoard, and our tooling around it.
 * [Committer's Guide](/documentation/latest/committers-guide/) a guiding document for etiquette in reviews and commits.
 * [Code Internals](/documentation/latest/mesos-code-internals/) an overview of the codebase and internal organization.
 * [C++ Style Guide](/documentation/latest/mesos-c++-style-guide/)
-* [Developers Guide](/documentation/latest/mesos-developers-guide/) includes resources for developers contributing to Mesos and the process of submitting patches for review.
 * [Development Road Map](/documentation/latest/mesos-roadmap/)
 * [Release Guide](/documentation/latest/release-guide/)
 

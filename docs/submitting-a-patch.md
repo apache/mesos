@@ -2,15 +2,8 @@
 layout: documentation
 ---
 
-# Developers Guide
+# Submitting a patch
 
-## Reporting a Bug
-* You've found a bug and want to report it. THANKS!
-* We track all issues via Apache's hosted [JIRA issue tracker](https://issues.apache.org/jira/browse/MESOS), so if you don't already have an account you'll need to register for one. It's quick and easy.
-* A JIRA should be created for every task, feature, bug-fix, etc. This makes it easy to track track progress of tickets.
-* Assign the JIRA issue to yourself before you start working on it. This helps to avoid duplication of work, and alerts anyone who is following that issue.
-
-## Submitting a patch
 * You've fixed a bug or added a feature and want to contribute it. AWESOME!
 * We use [Apache Review Board](https://reviews.apache.org) for code reviews. If you don't already have an account, you'll need to create one (it's separate from your Apache JIRA account).
 * A code review request should be created for every JIRA that involves a change to the codebase.
@@ -21,13 +14,13 @@ layout: documentation
 2. Join the dev, issues, reviews and builds mailing lists by sending emails to dev-subscribe@mesos.apache.org, issues-subscribe@mesos.apache.org, reviews-subscribe@mesos.apache.org and builds-subscribe@mesos.apache.org respectively.
 
 3. Find a JIRA that is currently unassigned that you want to work on at [JIRA issue tracker](https://issues.apache.org/jira/browse/MESOS), or create your own (you'll need a JIRA account for this, see below)!
-    1. This could be a JIRA representing a bug (possibly a bug that you encountered and reported, e.g. when trying to build) or a new feature
+    1. This could be a JIRA representing a bug (possibly a bug that you encountered and reported, e.g. when trying to build) or a new feature.
 
 4. Assign the JIRA to yourself. To do this, you will need:
-    1. An Apache JIRA user account (sign up for one [here](https://issues.apache.org/jira/secure/Signup!default.jspa))
-    2. You need to be added to the list of Mesos "contributors" by a Mesos committer (send email to dev@mesos.apache.org) in order to be assigned (or to assign yourself) to a JIRA issue
+    1. An Apache JIRA user account (sign up for one [here](https://issues.apache.org/jira/secure/Signup!default.jspa)).
+    2. You need to be added to the list of Mesos "contributors" by a Mesos committer (send email to dev@mesos.apache.org) in order to be assigned (or to assign yourself) to a JIRA issue.
 
-5. Formulate a plan for resolving the issue, propose your plan via comments in the JIRA
+5. Formulate a plan for resolving the issue, propose your plan via comments in the JIRA.
 
 6. Create one or more test cases to exercise the bug or the feature (the Mesos team uses [test-driven development](http://en.wikipedia.org/wiki/Test-driven_development)), before you start coding, make sure these test cases all fail.
 
