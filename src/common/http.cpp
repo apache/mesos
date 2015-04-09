@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <utility>
 #include <vector>
 
 #include <mesos/resources.hpp>
@@ -130,7 +131,7 @@ JSON::Object model(const Task& task)
     foreach (const TaskStatus& status, task.statuses()) {
       array.values.push_back(model(status));
     }
-    object.values["statuses"] = array;
+    object.values["statuses"] = std::move(array);
   }
 
   {
@@ -142,7 +143,7 @@ JSON::Object model(const Task& task)
         array.values.push_back(JSON::Protobuf(label));
       }
     }
-    object.values["labels"] = array;
+    object.values["labels"] = std::move(array);
   }
 
   if (task.has_discovery()) {
@@ -182,7 +183,7 @@ JSON::Object model(
     foreach (const TaskStatus& status, statuses) {
       array.values.push_back(model(status));
     }
-    object.values["statuses"] = array;
+    object.values["statuses"] = std::move(array);
   }
 
   {
@@ -194,7 +195,7 @@ JSON::Object model(
         array.values.push_back(JSON::Protobuf(label));
       }
     }
-    object.values["labels"] = array;
+    object.values["labels"] = std::move(array);
   }
 
   if (task.has_discovery()) {

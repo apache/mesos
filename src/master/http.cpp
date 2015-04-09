@@ -20,6 +20,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <boost/array.hpp>
@@ -150,7 +151,7 @@ JSON::Object model(const Framework& framework)
       array.values.push_back(model(*task));
     }
 
-    object.values["tasks"] = array;
+    object.values["tasks"] = std::move(array);
   }
 
   // Model all of the completed tasks of a framework.
@@ -162,7 +163,7 @@ JSON::Object model(const Framework& framework)
       array.values.push_back(model(*task));
     }
 
-    object.values["completed_tasks"] = array;
+    object.values["completed_tasks"] = std::move(array);
   }
 
   // Model all of the offers associated with a framework.
@@ -174,7 +175,7 @@ JSON::Object model(const Framework& framework)
       array.values.push_back(model(*offer));
     }
 
-    object.values["offers"] = array;
+    object.values["offers"] = std::move(array);
   }
 
   return object;
@@ -216,7 +217,7 @@ JSON::Object model(const Role& role)
       array.values.push_back(frameworkId.value());
     }
 
-    object.values["frameworks"] = array;
+    object.values["frameworks"] = std::move(array);
   }
 
   return object;
@@ -390,13 +391,19 @@ const string Master::Http::SLAVES_HELP = HELP(
 Future<Response> Master::Http::slaves(const Request& request) {
   LOG(INFO) << "HTTP request for '" << request.path << "'";
 
-  JSON::Array array;
-  foreachvalue (const Slave* slave, master->slaves.registered) {
-    array.values.push_back(model(*slave));
+  JSON::Object object;
+
+  {
+    JSON::Array array;
+    array.values.reserve(master->slaves.registered.size()); // MESOS-2353.
+
+    foreachvalue (const Slave* slave, master->slaves.registered) {
+      array.values.push_back(model(*slave));
+    }
+
+    object.values["slaves"] = std::move(array);
   }
 
-  JSON::Object object;
-  object.values["slaves"] = array;
 
   return OK(object, request.query.get("jsonp"));
 }
@@ -452,14 +459,16 @@ Future<Response> Master::Http::state(const Request& request)
     object.values["external_log_file"] = master->flags.external_log_file.get();
   }
 
-  JSON::Object flags;
-  foreachpair (const string& name, const flags::Flag& flag, master->flags) {
-    Option<string> value = flag.stringify(master->flags);
-    if (value.isSome()) {
-      flags.values[name] = value.get();
+  {
+    JSON::Object flags;
+    foreachpair (const string& name, const flags::Flag& flag, master->flags) {
+      Option<string> value = flag.stringify(master->flags);
+      if (value.isSome()) {
+        flags.values[name] = value.get();
+      }
     }
+    object.values["flags"] = std::move(flags);
   }
-  object.values["flags"] = flags;
 
   // Model all of the slaves.
   {
@@ -470,7 +479,7 @@ Future<Response> Master::Http::state(const Request& request)
       array.values.push_back(model(*slave));
     }
 
-    object.values["slaves"] = array;
+    object.values["slaves"] = std::move(array);
   }
 
   // Model all of the frameworks.
@@ -482,7 +491,7 @@ Future<Response> Master::Http::state(const Request& request)
       array.values.push_back(model(*framework));
     }
 
-    object.values["frameworks"] = array;
+    object.values["frameworks"] = std::move(array);
   }
 
   // Model all of the completed frameworks.
@@ -495,7 +504,7 @@ Future<Response> Master::Http::state(const Request& request)
       array.values.push_back(model(*framework));
     }
 
-    object.values["completed_frameworks"] = array;
+    object.values["completed_frameworks"] = std::move(array);
   }
 
   // Model all of the orphan tasks.
@@ -515,7 +524,7 @@ Future<Response> Master::Http::state(const Request& request)
       }
     }
 
-    object.values["orphan_tasks"] = array;
+    object.values["orphan_tasks"] = std::move(array);
   }
 
   // Model all currently unregistered frameworks.
@@ -533,7 +542,7 @@ Future<Response> Master::Http::state(const Request& request)
       }
     }
 
-    object.values["unregistered_frameworks"] = array;
+    object.values["unregistered_frameworks"] = std::move(array);
   }
 
   return OK(object, request.query.get("jsonp"));
@@ -553,7 +562,7 @@ Future<Response> Master::Http::roles(const Request& request)
       array.values.push_back(model(*role));
     }
 
-    object.values["roles"] = array;
+    object.values["roles"] = std::move(array);
   }
 
   return OK(object, request.query.get("jsonp"));
@@ -763,15 +772,18 @@ Future<Response> Master::Http::tasks(const Request& request)
     sort(tasks.begin(), tasks.end(), TaskComparator::descending);
   }
 
-  JSON::Array array;
-  size_t end = std::min(offset + limit, tasks.size());
-  for (size_t i = offset; i < end; i++) {
-    const Task* task = tasks[i];
-    array.values.push_back(model(*task));
-  }
-
   JSON::Object object;
-  object.values["tasks"] = array;
+
+  {
+    JSON::Array array;
+    size_t end = std::min(offset + limit, tasks.size());
+    for (size_t i = offset; i < end; i++) {
+      const Task* task = tasks[i];
+      array.values.push_back(model(*task));
+    }
+
+    object.values["tasks"] = std::move(array);
+  }
 
   return OK(object, request.query.get("jsonp"));
 }
