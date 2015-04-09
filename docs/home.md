@@ -45,6 +45,7 @@ layout: documentation
 * [Reporting an Issue, Improvement, or Feature](/documentation/latest/reporting-a-bug/) for getting started with JIRA.
 * [Submitting a Patch](/documentation/latest/submitting-a-patch/) for getting started with ReviewBoard, and our tooling around it.
 * [Effective Code Reviewing](/documentation/latest/effective-code-reviewing/) guidelines, tips, and learnings for how to do effective code reviews.
+* [Engineering Principles and Practices](/documentation/latest/engineering-principles-and-practices/) to serve as a shared set of project-level values for the community.
 * [Committing](/documentation/latest/committing/) guidelines for committing changes.
 * [Committers and Maintainers](/documentation/latest/committers/) a listing of project committers and component maintainers; useful when seeking feedback.
 * [C++ Style Guide](/documentation/latest/mesos-c++-style-guide/)
