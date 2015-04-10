@@ -271,7 +271,7 @@ private:
   void reaped(const ContainerID& containerId);
 
   // Removes the docker container.
-  void remove(const std::string& container);
+  void remove(const std::string& container, const std::string& executor);
 
   const Flags flags;
 
