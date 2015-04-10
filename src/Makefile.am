@@ -316,10 +316,12 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	files/files.cpp							\
 	hook/manager.cpp						\
 	local/local.cpp							\
+	logging/flags.cpp						\
 	logging/logging.cpp						\
 	master/contender.cpp						\
 	master/constants.cpp						\
 	master/detector.cpp						\
+	master/flags.cpp						\
 	master/http.cpp							\
 	master/master.cpp						\
 	master/metrics.cpp						\
@@ -335,6 +337,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	scheduler/scheduler.cpp						\
 	slave/constants.cpp						\
 	slave/gc.cpp							\
+	slave/flags.cpp							\
 	slave/http.cpp							\
 	slave/metrics.cpp						\
 	slave/monitor.cpp						\

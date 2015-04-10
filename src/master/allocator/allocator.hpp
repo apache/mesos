@@ -30,6 +30,7 @@
 #include <stout/option.hpp>
 
 #include "master/flags.hpp"
+#include "messages/messages.hpp"
 
 namespace mesos {
 namespace internal {
