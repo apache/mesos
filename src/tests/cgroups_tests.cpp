@@ -536,17 +536,15 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
     << "this test.\n"
     << "-------------------------------------------------------------";
 
-  // Disable oom killer.
-  ASSERT_SOME(cgroups::memory::oom::killer::disable(
-        hierarchy, TEST_CGROUPS_ROOT));
+  const Bytes limit =  Megabytes(64);
 
-  // Limit the memory usage of the test cgroup to 64MB.
   ASSERT_SOME(cgroups::memory::limit_in_bytes(
-      hierarchy, TEST_CGROUPS_ROOT, Megabytes(64)));
+      hierarchy, TEST_CGROUPS_ROOT, limit));
 
   // Listen on oom events for test cgroup.
   Future<Nothing> future =
     cgroups::memory::oom::listen(hierarchy, TEST_CGROUPS_ROOT);
+
   ASSERT_FALSE(future.isFailed());
 
   // Test the cancellation.
@@ -556,59 +554,21 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
   future = cgroups::memory::oom::listen(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_FALSE(future.isFailed());
 
-  pid_t pid = ::fork();
-  ASSERT_NE(-1, pid);
+  MemoryTestHelper helper;
+  ASSERT_SOME(helper.spawn());
+  ASSERT_SOME(helper.pid());
 
-  if (pid > 0) {
-    // In parent process.
-    future.await(Seconds(5));
+  EXPECT_SOME(cgroups::assign(
+      hierarchy, TEST_CGROUPS_ROOT, helper.pid().get()));
 
-    EXPECT_TRUE(future.isReady());
+  // Request more RSS memory in the subprocess than the limit.
+  // NOTE: We enable the kernel oom killer in this test. If it were
+  // disabled, the subprocess might hang and the following call won't
+  // return. By enabling the oom killer, we let the subprocess get
+  // killed and expect that an error is returned.
+  EXPECT_ERROR(helper.increaseRSS(limit * 2));
 
-    // Kill the child process.
-    EXPECT_NE(-1, ::kill(pid, SIGKILL));
-
-    // Wait for the child process.
-    int status;
-    EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-    ASSERT_TRUE(WIFSIGNALED(status));
-    EXPECT_EQ(SIGKILL, WTERMSIG(status));
-  } else {
-    // In child process. We try to trigger an oom here.
-    // Put self into the test cgroup.
-    Try<Nothing> assign =
-      cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid());
-
-    if (assign.isError()) {
-      std::cerr << "Failed to assign cgroup: " << assign.error() << std::endl;
-      abort();
-    }
-
-    // Blow up the memory.
-    size_t limit = 1024 * 1024 * 512;
-    void* buffer = NULL;
-
-    if (posix_memalign(&buffer, getpagesize(), limit) != 0) {
-      perror("Failed to allocate page-aligned memory, posix_memalign");
-      abort();
-    }
-
-    // We use mlock and memset here to make sure that the memory
-    // actually gets paged in and thus accounted for.
-    if (mlock(buffer, limit) != 0) {
-      perror("Failed to lock memory, mlock");
-      abort();
-    }
-
-    if (memset(buffer, 1, limit) != buffer) {
-      perror("Failed to fill memory, memset");
-      abort();
-    }
-
-    // Should not reach here.
-    std::cerr << "OOM does not happen!" << std::endl;
-    abort();
-  }
+  AWAIT_READY(future);
 }
 
 
