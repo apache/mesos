@@ -67,6 +67,7 @@
 #endif // __linux__
 
 #include "tests/flags.hpp"
+#include "tests/memory_test_helper.hpp"
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"
 #include "tests/utils.hpp"
@@ -157,15 +158,18 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
       Resources::parse("cpus:1.0").get());
 
   ContainerID containerId;
-  containerId.set_value("user_cpu_usage");
+  containerId.set_value(UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(
-      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
+  AWAIT_READY(isolator.get()->prepare(
+      containerId,
+      executorInfo,
+      dir.get(),
+      None()));
 
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
 
@@ -263,15 +267,18 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
       Resources::parse("cpus:1.0").get());
 
   ContainerID containerId;
-  containerId.set_value("system_cpu_usage");
+  containerId.set_value(UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(
-      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
+  AWAIT_READY(isolator.get()->prepare(
+      containerId,
+      executorInfo,
+      dir.get(),
+      None()));
 
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
 
@@ -377,15 +384,18 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
       Resources::parse("cpus:0.5").get());
 
   ContainerID containerId;
-  containerId.set_value("mesos_test_cfs_cpu_limit");
+  containerId.set_value(UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(
-      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
+  AWAIT_READY(isolator.get()->prepare(
+      containerId,
+      executorInfo,
+      dir.get(),
+      None()));
 
   // Generate random numbers to max out a single core. We'll run this for 0.5
   // seconds of wall time so it should consume approximately 250 ms of total
@@ -484,15 +494,18 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
       Resources::parse("cpus:100.5").get());
 
   ContainerID containerId;
-  containerId.set_value("mesos_test_cfs_big_cpu_limit");
+  containerId.set_value(UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(
-      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
+  AWAIT_READY(isolator.get()->prepare(
+      containerId,
+      executorInfo,
+      dir.get(),
+      None()));
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -563,15 +576,18 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
       Resources::parse("cpus:0.5;mem:512").get());
 
   ContainerID containerId;
-  containerId.set_value("mesos_test_cpu_pids_and_tids");
+  containerId.set_value(UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(
-      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
+  AWAIT_READY(isolator.get()->prepare(
+      containerId,
+      executorInfo,
+      dir.get(),
+      None()));
 
   // Right after the creation of the cgroup, which happens in
   // 'prepare', we check that it is empty.
@@ -669,51 +685,6 @@ typedef ::testing::Types<
 TYPED_TEST_CASE(MemIsolatorTest, MemIsolatorTypes);
 
 
-// This function should be async-signal-safe but it isn't: at least
-// posix_memalign, mlock, memset and perror are not safe.
-int consumeMemory(const Bytes& _size, const Duration& duration, int pipes[2])
-{
-  // In child process.
-  while (::close(pipes[1]) == -1 && errno == EINTR);
-
-  // Wait until the parent signals us to continue.
-  char dummy;
-  ssize_t length;
-  while ((length = ::read(pipes[0], &dummy, sizeof(dummy))) == -1 &&
-         errno == EINTR);
-
-  if (length != sizeof(dummy)) {
-    ABORT("Failed to synchronize with parent");
-  }
-
-  while (::close(pipes[0]) == -1 && errno == EINTR);
-
-  size_t size = static_cast<size_t>(_size.bytes());
-  void* buffer = NULL;
-
-  if (posix_memalign(&buffer, getpagesize(), size) != 0) {
-    perror("Failed to allocate page-aligned memory, posix_memalign");
-    abort();
-  }
-
-  // We use mlock and memset here to make sure that the memory
-  // actually gets paged in and thus accounted for.
-  if (mlock(buffer, size) != 0) {
-    perror("Failed to lock memory, mlock");
-    abort();
-  }
-
-  if (memset(buffer, 1, size) != buffer) {
-    perror("Failed to fill memory, memset");
-    abort();
-  }
-
-  os::sleep(duration);
-
-  return 0;
-}
-
-
 TYPED_TEST(MemIsolatorTest, MemUsage)
 {
   slave::Flags flags;
@@ -721,87 +692,52 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   Try<Isolator*> isolator = TypeParam::create(flags);
   CHECK_SOME(isolator);
 
-  // A PosixLauncher is sufficient even when testing a cgroups isolator.
-  Try<Launcher*> launcher = PosixLauncher::create(flags);
-
   ExecutorInfo executorInfo;
   executorInfo.mutable_resources()->CopyFrom(
       Resources::parse("mem:1024").get());
 
   ContainerID containerId;
-  containerId.set_value("memory_usage");
+  containerId.set_value(UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(
-      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
-
-  int pipes[2];
-  ASSERT_NE(-1, ::pipe(pipes));
-
-  Try<pid_t> pid = launcher.get()->fork(
+  AWAIT_READY(isolator.get()->prepare(
       containerId,
-      "/bin/sh",
-      vector<string>(),
-      Subprocess::FD(STDIN_FILENO),
-      Subprocess::FD(STDOUT_FILENO),
-      Subprocess::FD(STDERR_FILENO),
-      None(),
-      None(),
-      lambda::bind(&consumeMemory, Megabytes(256), Seconds(10), pipes));
+      executorInfo,
+      dir.get(),
+      None()));
 
-  ASSERT_SOME(pid);
+  MemoryTestHelper helper;
+  ASSERT_SOME(helper.spawn());
+  ASSERT_SOME(helper.pid());
 
-  // Set up the reaper to wait on the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  // Set up the reaper to wait on the subprocess.
+  Future<Option<int>> status = process::reap(helper.pid().get());
 
-  // Continue in the parent.
-  ASSERT_SOME(os::close(pipes[0]));
+  // Isolate the subprocess.
+  AWAIT_READY(isolator.get()->isolate(containerId, helper.pid().get()));
 
-  // Isolate the forked child.
-  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+  const Bytes allocation = Megabytes(128);
+  EXPECT_SOME(helper.increaseRSS(allocation));
 
-  // Now signal the child to continue.
-  char dummy;
-  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+  Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+  AWAIT_READY(usage);
 
-  ASSERT_SOME(os::close(pipes[1]));
+  EXPECT_GE(usage.get().mem_rss_bytes(), allocation.bytes());
 
-  // Wait up to 5 seconds for the child process to consume 256 MB of memory;
-  ResourceStatistics statistics;
-  Bytes threshold = Megabytes(256);
-  Duration waited = Duration::zero();
-  do {
-    Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
-    AWAIT_READY(usage);
+  // Ensure the process is killed.
+  helper.cleanup();
 
-    statistics = usage.get();
-
-    // If we meet our usage expectations, we're done!
-    if (statistics.mem_rss_bytes() >= threshold.bytes()) {
-      break;
-    }
-
-    os::sleep(Seconds(1));
-    waited += Seconds(1);
-  } while (waited < Seconds(5));
-
-  EXPECT_LE(threshold.bytes(), statistics.mem_rss_bytes());
-
-  // Ensure all processes are killed.
-  AWAIT_READY(launcher.get()->destroy(containerId));
-
-  // Make sure the child was reaped.
+  // Make sure the subprocess was reaped.
   AWAIT_READY(status);
 
   // Let the isolator clean up.
   AWAIT_READY(isolator.get()->cleanup(containerId));
 
   delete isolator.get();
-  delete launcher.get();
 }
 
 
@@ -822,15 +758,18 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
   ExecutorInfo executorInfo;
 
   ContainerID containerId;
-  containerId.set_value("test");
+  containerId.set_value(UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(
-      isolator.get()->prepare(containerId, executorInfo, dir.get(), None()));
+  AWAIT_READY(isolator.get()->prepare(
+      containerId,
+      executorInfo,
+      dir.get(),
+      None()));
 
   // This first sample is likely to be empty because perf hasn't
   // completed yet but we should still have the required fields.
@@ -916,7 +855,12 @@ TEST_F(SharedFilesystemIsolatorTest, ROOT_RelativeVolume)
   containerId.set_value(UUID::random().toString());
 
   Future<Option<CommandInfo> > prepare =
-    isolator.get()->prepare(containerId, executorInfo, flags.work_dir, None());
+    isolator.get()->prepare(
+        containerId,
+        executorInfo,
+        flags.work_dir,
+        None());
+
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
 
@@ -1008,7 +952,12 @@ TEST_F(SharedFilesystemIsolatorTest, ROOT_AbsoluteVolume)
   containerId.set_value(UUID::random().toString());
 
   Future<Option<CommandInfo> > prepare =
-    isolator.get()->prepare(containerId, executorInfo, flags.work_dir, None());
+    isolator.get()->prepare(
+        containerId,
+        executorInfo,
+        flags.work_dir,
+        None());
+
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
 
@@ -1071,7 +1020,7 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
-  containerId.set_value("test_container");
+  containerId.set_value(UUID::random().toString());
 
   // Write the command's pid namespace inode and init name to files.
   const string command =
@@ -1168,13 +1117,13 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
       Resources::parse("mem:1024;cpus:1").get()); // For cpu/mem isolators.
 
   ContainerID containerId;
-  containerId.set_value("container");
+  containerId.set_value(UUID::random().toString());
 
   AWAIT_READY(isolator.get()->prepare(
-        containerId,
-        executorInfo,
-        os::getcwd(),
-        UNPRIVILEGED_USERNAME));
+      containerId,
+      executorInfo,
+      os::getcwd(),
+      UNPRIVILEGED_USERNAME));
 
   // Isolators don't provide a way to determine the cgroups they use
   // so we'll inspect the cgroups for an isolated dummy process.
