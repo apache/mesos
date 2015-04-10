@@ -126,7 +126,7 @@ public:
         container,
         sandboxDirectory,
         mappedDirectory,
-        task.resources(),
+        task.resources() + task.executor().resources(),
         None(),
         false);
 

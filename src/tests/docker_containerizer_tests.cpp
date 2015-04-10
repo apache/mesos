@@ -2593,10 +2593,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
   MockDocker* mockDocker = new MockDocker(tests::flags.docker);
   Shared<Docker> docker(mockDocker);
 
-  // Skip logging so we can avoid waiting for it to terminate.
-  EXPECT_CALL(*mockDocker, logs(_, _))
-    .WillOnce(Return(Nothing()));
-
   Fetcher fetcher;
 
   // The docker containerizer will free the process, so we must

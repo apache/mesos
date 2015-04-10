@@ -128,16 +128,7 @@ public:
 
   virtual process::Future<bool> launch(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
-      const process::PID<Slave>& slavePid,
-      bool checkpoint);
-
-  virtual process::Future<bool> launch(
-      const ContainerID& containerId,
-      const TaskInfo& taskInfo,
+      const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& user,
@@ -192,27 +183,20 @@ private:
       const ContainerID& containerId);
 
   process::Future<Nothing> __launch(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& container);
 
   // NOTE: This continuation is only applicable when launching a
   // container for a task.
   process::Future<pid_t> ___launch(
       const ContainerID& containerId);
 
-  // NOTE: This continuation is only applicable when launching a
-  // container for a task.
-  process::Future<Nothing> ___launchInContainer(
-      const ContainerID& containerId);
-
-  // NOTE: This continuation is only applicable when launching a
-  // container for a task.
-  process::Future<pid_t> ____launchInContainer(
-      const ContainerID& containerId);
 
   // NOTE: This continuation is only applicable when launching a
   // container for an executor.
   process::Future<Docker::Container> ____launch(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& container);
 
   // NOTE: This continuation is only applicable when launching a
   // container for an executor.
@@ -220,19 +204,9 @@ private:
       const ContainerID& containerId,
       const Docker::Container& container);
 
-  process::Future<pid_t> ______launch(
+  process::Future<bool> ______launch(
       const ContainerID& containerId,
       pid_t pid);
-
-  // NOTE: This continuation is only applicable when launching a
-  // container for a task.
-  process::Future<pid_t> ______launchInContainer(
-      const ContainerID& containerId,
-      pid_t pid);
-
-  process::Future<bool> _______launch(
-    const ContainerID& containerId,
-    pid_t pid);
 
   void _destroy(
       const ContainerID& containerId,
@@ -332,6 +306,14 @@ private:
       if (task.isSome()) {
         CHECK(resources.contains(task.get().resources()));
       }
+
+      overrideEnvironment = executorEnvironment(
+          executor,
+          directory,
+          slaveId,
+          slavePid,
+          checkpoint,
+          flags.recovery_timeout);
     }
 
     ~Container()
@@ -374,6 +356,10 @@ private:
 
     ContainerInfo container() const
     {
+      if (overrideContainer.isSome()) {
+        return overrideContainer.get();
+      }
+
       if (task.isSome()) {
         return task.get().container();
       }
@@ -383,6 +369,10 @@ private:
 
     CommandInfo command() const
     {
+      if (overrideCommand.isSome()) {
+        return overrideCommand.get();
+      }
+
       if (task.isSome()) {
         return task.get().command();
       }
@@ -394,14 +384,8 @@ private:
     // the Docker container (beyond the those found in CommandInfo).
     std::map<std::string, std::string> environment() const
     {
-      if (task.isNone()) {
-        return executorEnvironment(
-            executor,
-            directory,
-            slaveId,
-            slavePid,
-            checkpoint,
-            flags.recovery_timeout);
+      if (overrideEnvironment.isSome()) {
+        return overrideEnvironment.get();
       }
 
       return std::map<std::string, std::string>();
@@ -436,7 +420,7 @@ private:
       DESTROYING = 4
     } state;
 
-    ContainerID id;
+    const ContainerID id;
     Option<TaskInfo> task;
     ExecutorInfo executor;
 
@@ -450,6 +434,10 @@ private:
     bool checkpoint;
     bool symlinked;
     Flags flags;
+
+    Option<ContainerInfo> overrideContainer;
+    Option<CommandInfo> overrideCommand;
+    Option<std::map<std::string, std::string>> overrideEnvironment;
 
     // Promise for future returned from wait().
     Promise<containerizer::Termination> termination;
