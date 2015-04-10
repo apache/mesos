@@ -1,6 +1,0 @@
-#! /usr/bin/env sh 
-#PBS -l nodes=48
-#PBS -N 48_node_hpl_job 
-
-cd /nfs/hpl/48node/ 
-mpiexec -n 48 /nfs/hpl/48node/xhpl
