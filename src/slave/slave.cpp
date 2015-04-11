@@ -1107,8 +1107,8 @@ Future<bool> Slave::unschedule(const string& path)
 // send TASK_LOST to the framework.
 void Slave::runTask(
     const UPID& from,
-    const FrameworkInfo& frameworkInfo,
-    const FrameworkID& frameworkId,
+    const FrameworkInfo& frameworkInfo_,
+    const FrameworkID& frameworkId_,
     const string& pid,
     const TaskInfo& task)
 {
@@ -1118,6 +1118,15 @@ void Slave::runTask(
                  << (master.isSome() ? stringify(master.get()) : "None");
     return;
   }
+
+  // Merge frameworkId_ into frameworkInfo.
+  FrameworkInfo frameworkInfo = frameworkInfo_;
+  if (!frameworkInfo.has_id()) {
+    frameworkInfo.mutable_id()->CopyFrom(frameworkId_);
+  }
+
+  // Create frameworkId alias to use in the rest of the function.
+  const FrameworkID frameworkId = frameworkInfo.id();
 
   LOG(INFO) << "Got assigned task " << task.task_id()
             << " for framework " << frameworkId;
