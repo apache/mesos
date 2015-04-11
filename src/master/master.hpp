@@ -977,10 +977,9 @@ inline std::ostream& operator << (std::ostream& stream, const Slave& slave)
 struct Framework
 {
   Framework(const FrameworkInfo& _info,
-            const FrameworkID& _id,
             const process::UPID& _pid,
             const process::Time& time = process::Clock::now())
-    : id(_id),
+    : id(_info.id()),
       info(_info),
       pid(_pid),
       connected(true),
@@ -1097,8 +1096,9 @@ struct Framework
     }
   }
 
-  const FrameworkID id; // TODO(benh): Store this in 'info'.
-
+  // TODO(karya): Replace 'id' with 'id()' that returns the id from
+  // 'info'.
+  const FrameworkID id; // Copied from info.id().
   const FrameworkInfo info;
 
   process::UPID pid;

@@ -1054,9 +1054,6 @@ void Slave::doReliableRegistration(Duration maxBackoff)
         completedFramework_->mutable_framework_info();
       frameworkInfo->CopyFrom(completedFramework->info);
 
-      // TODO(adam-mesos): Needed because FrameworkInfo doesn't have the id.
-      frameworkInfo->mutable_id()->CopyFrom(completedFramework->id);
-
       completedFramework_->set_pid(completedFramework->pid);
 
       foreach (const Owned<Executor>& executor,
@@ -1172,7 +1169,7 @@ void Slave::runTask(
       unschedule = unschedule.then(defer(self(), &Self::unschedule, path));
     }
 
-    framework = new Framework(this, frameworkId, frameworkInfo, pid);
+    framework = new Framework(this, frameworkInfo, pid);
     frameworks[frameworkId] = framework;
 
     // Is this same framework in completedFrameworks? If so, move the completed
@@ -3895,9 +3892,18 @@ void Slave::recoverFramework(const FrameworkState& state)
   }
 
   CHECK(!frameworks.contains(state.id));
-  Framework* framework = new Framework(
-      this, state.id, state.info.get(), state.pid.get());
 
+  // Merge state.id into state.info.
+  CHECK_SOME(state.info);
+  FrameworkInfo frameworkInfo = state.info.get();
+  if (!frameworkInfo.has_id()) {
+    frameworkInfo.mutable_id()->MergeFrom(state.id);
+  } else {
+    CHECK_EQ(frameworkInfo.id(), state.id);
+  }
+
+  CHECK_SOME(state.pid);
+  Framework* framework = new Framework(this, frameworkInfo, state.pid.get());
   frameworks[framework->id] = framework;
 
   // Now recover the executors for this framework.
@@ -4116,12 +4122,11 @@ double Slave::_resources_percent(const std::string& name)
 
 Framework::Framework(
     Slave* _slave,
-    const FrameworkID& _id,
     const FrameworkInfo& _info,
     const UPID& _pid)
   : state(RUNNING),
     slave(_slave),
-    id(_id),
+    id(_info.id()),
     info(_info),
     pid(_pid),
     completedExecutors(MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK)

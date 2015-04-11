@@ -577,7 +577,6 @@ struct Framework
 {
   Framework(
       Slave* slave,
-      const FrameworkID& id,
       const FrameworkInfo& info,
       const process::UPID& pid);
 
@@ -601,7 +600,9 @@ struct Framework
   // of the 'Slave' class.
   Slave* slave;
 
-  const FrameworkID id;
+  // TODO(karya): Replace 'id' with 'id()' that returns the id from
+  // 'info'.
+  const FrameworkID id; // Copied from info.id().
   const FrameworkInfo info;
 
   UPID pid;

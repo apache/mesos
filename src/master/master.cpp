@@ -1695,8 +1695,11 @@ void Master::_registerFramework(
     }
   }
 
-  Framework* framework =
-    new Framework(frameworkInfo, newFrameworkId(), from, Clock::now());
+  // Assign a new FrameworkID.
+  FrameworkInfo frameworkInfo_ = frameworkInfo;
+  frameworkInfo_.mutable_id()->CopyFrom(newFrameworkId());
+
+  Framework* framework = new Framework(frameworkInfo_, from);
 
   LOG(INFO) << "Registering framework " << *framework;
 
@@ -1901,9 +1904,7 @@ void Master::_reregisterFramework(
     // elected Mesos master to which either an existing scheduler or a
     // failed-over one is connecting. Create a Framework object and add
     // any tasks it has that have been reported by reconnecting slaves.
-    Framework* framework =
-      new Framework(frameworkInfo, frameworkInfo.id(), from, Clock::now());
-    framework->reregisteredTime = Clock::now();
+    Framework* framework = new Framework(frameworkInfo, from);
 
     // TODO(benh): Check for root submissions like above!
 
