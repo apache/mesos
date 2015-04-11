@@ -1222,7 +1222,6 @@ void Slave::runTask(
             &Self::_runTask,
             lambda::_1,
             frameworkInfo,
-            frameworkId,
             pid,
             task));
 }
@@ -1231,10 +1230,11 @@ void Slave::runTask(
 void Slave::_runTask(
     const Future<bool>& future,
     const FrameworkInfo& frameworkInfo,
-    const FrameworkID& frameworkId,
     const string& pid,
     const TaskInfo& task)
 {
+  const FrameworkID frameworkId = frameworkInfo.id();
+
   LOG(INFO) << "Launching task " << task.task_id()
             << " for framework " << frameworkId;
 

@@ -688,17 +688,15 @@ public:
       const std::string& pid,
       const TaskInfo& task);
 
-  MOCK_METHOD5(_runTask, void(
+  MOCK_METHOD4(_runTask, void(
       const process::Future<bool>& future,
       const FrameworkInfo& frameworkInfo,
-      const FrameworkID& frameworkId,
       const std::string& pid,
       const TaskInfo& task));
 
   void unmocked__runTask(
       const process::Future<bool>& future,
       const FrameworkInfo& frameworkInfo,
-      const FrameworkID& frameworkId,
       const std::string& pid,
       const TaskInfo& task);
 

@@ -1569,17 +1569,15 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   // Saved arguments from Slave::_runTask().
   Future<bool> future;
   FrameworkInfo frameworkInfo;
-  FrameworkID frameworkId;
 
   // Skip what Slave::_runTask() normally does, save its arguments for
   // later, tie reaching the critical moment when to kill the task to
   // a future.
   Future<Nothing> _runTask;
-  EXPECT_CALL(slave, _runTask(_, _, _, _, _))
+  EXPECT_CALL(slave, _runTask(_, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_runTask),
                     SaveArg<0>(&future),
-                    SaveArg<1>(&frameworkInfo),
-                    SaveArg<2>(&frameworkId)));
+                    SaveArg<1>(&frameworkInfo)));
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
@@ -1602,7 +1600,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
 
   AWAIT_READY(killTask);
   slave.unmocked__runTask(
-      future, frameworkInfo, frameworkId, master.get(), task);
+      future, frameworkInfo, master.get(), task);
 
   AWAIT_READY(removeFramework);
 

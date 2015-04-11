@@ -114,7 +114,6 @@ public:
   virtual void _runTask(
       const process::Future<bool>& future,
       const FrameworkInfo& frameworkInfo,
-      const FrameworkID& frameworkId,
       const std::string& pid,
       const TaskInfo& task);
 
