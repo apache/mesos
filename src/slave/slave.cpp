@@ -997,7 +997,7 @@ void Slave::doReliableRegistration(Duration maxBackoff)
       foreachvalue (const TaskMap& tasks, framework->pending) {
         foreachvalue (const TaskInfo& task, tasks) {
           message.add_tasks()->CopyFrom(protobuf::createTask(
-              task, TASK_STAGING, framework->id));
+              task, TASK_STAGING, framework->id()));
         }
       }
 
@@ -1017,7 +1017,7 @@ void Slave::doReliableRegistration(Duration maxBackoff)
 
         foreach (const TaskInfo& task, executor->queuedTasks.values()) {
           message.add_tasks()->CopyFrom(protobuf::createTask(
-              task, TASK_STAGING, framework->id));
+              task, TASK_STAGING, framework->id()));
         }
 
         // Do not re-register with Command Executors because the
@@ -1047,7 +1047,7 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     // Add completed frameworks.
     foreach (const Owned<Framework>& completedFramework, completedFrameworks) {
       VLOG(1) << "Reregistering completed framework "
-                << completedFramework->id;
+                << completedFramework->id();
       Archive::Framework* completedFramework_ =
         message.add_completed_frameworks();
       FrameworkInfo* frameworkInfo =
@@ -1178,7 +1178,7 @@ void Slave::runTask(
     // circular_buffer.
     for (boost::circular_buffer<Owned<Framework> >::iterator i =
         completedFrameworks.begin(); i != completedFrameworks.end(); ++i) {
-      if ((*i)->id == frameworkId) {
+      if ((*i)->id() == frameworkId) {
         framework->completedExecutors = (*i)->completedExecutors;
         completedFrameworks.erase(i);
         break;
@@ -1426,7 +1426,7 @@ void Slave::_runTask(
     }
     default:
       LOG(FATAL) << "Executor '" << executor->id
-                 << "' of framework " << framework->id
+                 << "' of framework " << framework->id()
                  << " is in unexpected state " << executor->state;
       break;
   }
@@ -1535,10 +1535,10 @@ void Slave::runTasks(
 
     LOG(INFO) << "Sending queued task '" << task.task_id()
               << "' to executor '" << executor->id
-              << "' of framework " << framework->id;
+              << "' of framework " << framework->id();
 
     RunTaskMessage message;
-    message.mutable_framework_id()->MergeFrom(framework->id);
+    message.mutable_framework_id()->MergeFrom(framework->id());
     message.mutable_framework()->MergeFrom(framework->info);
     message.set_pid(framework->pid);
     message.mutable_task()->MergeFrom(task);
@@ -1673,7 +1673,7 @@ void Slave::killTask(
             << " has launched tasks";
 
         LOG(WARNING) << "Killing the unregistered executor '" << executor->id
-                     << "' of framework " << framework->id
+                     << "' of framework " << framework->id()
                      << " because it has no tasks";
 
         executor->state = Executor::TERMINATING;
@@ -1719,7 +1719,7 @@ void Slave::killTask(
     }
     default:
       LOG(FATAL) << " Executor '" << executor->id
-                 << "' of framework " << framework->id
+                 << "' of framework " << framework->id()
                  << " is in unexpected state " << executor->state;
       break;
   }
@@ -1767,11 +1767,11 @@ void Slave::shutdownFramework(
 
   switch (framework->state) {
     case Framework::TERMINATING:
-      LOG(WARNING) << "Ignoring shutdown framework " << framework->id
+      LOG(WARNING) << "Ignoring shutdown framework " << framework->id()
                    << " because it is terminating";
       break;
     case Framework::RUNNING:
-      LOG(INFO) << "Shutting down framework " << framework->id;
+      LOG(INFO) << "Shutting down framework " << framework->id();
 
       framework->state = Framework::TERMINATING;
 
@@ -1883,7 +1883,7 @@ void Slave::schedulerMessage(
     }
     default:
       LOG(FATAL) << " Executor '" << executor->id
-                 << "' of framework " << framework->id
+                 << "' of framework " << framework->id()
                  << " is in unexpected state " << executor->state;
       break;
   }
@@ -1936,7 +1936,7 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
       break;
     }
     default:
-      LOG(FATAL) << "Framework " << framework->id
+      LOG(FATAL) << "Framework " << framework->id()
                 << " is in unexpected state " << framework->state;
       break;
   }
@@ -2227,7 +2227,7 @@ void Slave::registerExecutor(
       // Tell executor it's registered and give it any queued tasks.
       ExecutorRegisteredMessage message;
       message.mutable_executor_info()->MergeFrom(executor->info);
-      message.mutable_framework_id()->MergeFrom(framework->id);
+      message.mutable_framework_id()->MergeFrom(framework->id());
       message.mutable_framework_info()->MergeFrom(framework->info);
       message.mutable_slave_id()->MergeFrom(info.id());
       message.mutable_slave_info()->MergeFrom(info);
@@ -2258,7 +2258,7 @@ void Slave::registerExecutor(
     }
     default:
       LOG(FATAL) << "Executor '" << executor->id
-                 << "' of framework " << framework->id
+                 << "' of framework " << framework->id()
                  << " is in unexpected state " << executor->state;
       break;
   }
@@ -2375,7 +2375,7 @@ void Slave::reregisterExecutor(
           flags.resource_monitoring_interval)
         .onAny(lambda::bind(_monitor,
                             lambda::_1,
-                            framework->id,
+                            framework->id(),
                             executor->id,
                             executor->containerId));
 
@@ -2420,7 +2420,7 @@ void Slave::reregisterExecutor(
     }
     default:
       LOG(FATAL) << "Executor '" << executor->id
-                 << "' of framework " << framework->id
+                 << "' of framework " << framework->id()
                  << " is in unexpected state " << executor->state;
       break;
   }
@@ -2468,7 +2468,7 @@ void Slave::reregisterExecutorTimeout()
           // it should have already been identified by the isolator
           // (via the reaper) and cleaned up!
           LOG(INFO) << "Killing un-reregistered executor '" << executor->id
-                    << "' of framework " << framework->id;
+                    << "' of framework " << framework->id();
 
           executor->state = Executor::TERMINATING;
 
@@ -2476,7 +2476,7 @@ void Slave::reregisterExecutorTimeout()
           break;
         default:
           LOG(FATAL) << "Executor '" << executor->id
-                     << "' of framework " << framework->id
+                     << "' of framework " << framework->id()
                      << " is in unexpected state " << executor->state;
           break;
       }
@@ -2526,7 +2526,7 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
   // it cannot send acknowledgements.
   if (framework->state == Framework::TERMINATING) {
     LOG(WARNING) << "Ignoring status update " << update
-                 << " for terminating framework " << framework->id;
+                 << " for terminating framework " << framework->id();
     metrics.invalid_status_updates++;
     return;
   }
@@ -3288,7 +3288,7 @@ void Slave::executorTerminated(
     }
     default:
       LOG(FATAL) << "Executor '" << executor->id
-                 << "' of framework " << framework->id
+                 << "' of framework " << framework->id()
                  << " in unexpected state " << executor->state;
       break;
   }
@@ -3301,7 +3301,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   CHECK_NOTNULL(executor);
 
   LOG(INFO) << "Cleaning up executor '" << executor->id
-            << "' of framework " << framework->id;
+            << "' of framework " << framework->id();
 
   CHECK(framework->state == Framework::RUNNING ||
         framework->state == Framework::TERMINATING)
@@ -3321,7 +3321,11 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   // is completed.
   if (executor->checkpoint) {
     const string& path = paths::getExecutorSentinelPath(
-        metaDir, info.id(), framework->id, executor->id, executor->containerId);
+        metaDir,
+        info.id(),
+        framework->id(),
+        executor->id,
+        executor->containerId);
     CHECK_SOME(os::touch(path));
   }
 
@@ -3332,7 +3336,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   const string& path = paths::getExecutorRunPath(
       flags.work_dir,
       info.id(),
-      framework->id,
+      framework->id(),
       executor->id,
       executor->containerId);
 
@@ -3344,7 +3348,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   // framework doesn't have any 'pending' tasks for this executor.
   if (!framework->pending.contains(executor->id)) {
     const string& path = paths::getExecutorPath(
-        flags.work_dir, info.id(), framework->id, executor->id);
+        flags.work_dir, info.id(), framework->id(), executor->id);
 
     os::utime(path); // Update the modification time.
     garbageCollect(path);
@@ -3353,7 +3357,11 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   if (executor->checkpoint) {
     // Schedule the executor run meta directory to get garbage collected.
     const string& path = paths::getExecutorRunPath(
-        metaDir, info.id(), framework->id, executor->id, executor->containerId);
+        metaDir,
+        info.id(),
+        framework->id(),
+        executor->id,
+        executor->containerId);
 
     os::utime(path); // Update the modification time.
     garbageCollect(path);
@@ -3362,7 +3370,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
     // framework doesn't have any 'pending' tasks for this executor.
     if (!framework->pending.contains(executor->id)) {
       const string& path = paths::getExecutorPath(
-          metaDir, info.id(), framework->id, executor->id);
+          metaDir, info.id(), framework->id(), executor->id);
 
       os::utime(path); // Update the modification time.
       garbageCollect(path);
@@ -3379,7 +3387,7 @@ void Slave::removeFramework(Framework* framework)
 {
   CHECK_NOTNULL(framework);
 
-  LOG(INFO)<< "Cleaning up framework " << framework->id;
+  LOG(INFO)<< "Cleaning up framework " << framework->id();
 
   CHECK(framework->state == Framework::RUNNING ||
         framework->state == Framework::TERMINATING);
@@ -3390,7 +3398,7 @@ void Slave::removeFramework(Framework* framework)
   CHECK(framework->pending.empty());
 
   // Close all status update streams for this framework.
-  statusUpdateManager->cleanup(framework->id);
+  statusUpdateManager->cleanup(framework->id());
 
   // Schedule the framework work and meta directories for garbage
   // collection.
@@ -3398,7 +3406,7 @@ void Slave::removeFramework(Framework* framework)
   // Framework struct.
 
   const string& path = paths::getFrameworkPath(
-      flags.work_dir, info.id(), framework->id);
+      flags.work_dir, info.id(), framework->id());
 
   os::utime(path); // Update the modification time.
   garbageCollect(path);
@@ -3406,13 +3414,13 @@ void Slave::removeFramework(Framework* framework)
   if (framework->info.checkpoint()) {
     // Schedule the framework meta directory to get garbage collected.
     const string& path = paths::getFrameworkPath(
-        metaDir, info.id(), framework->id);
+        metaDir, info.id(), framework->id());
 
     os::utime(path); // Update the modification time.
     garbageCollect(path);
   }
 
-  frameworks.erase(framework->id);
+  frameworks.erase(framework->id());
 
   // Pass ownership of the framework pointer.
   completedFrameworks.push_back(Owned<Framework>(framework));
@@ -3442,7 +3450,7 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
   CHECK_NOTNULL(executor);
 
   LOG(INFO) << "Shutting down executor '" << executor->id
-            << "' of framework " << framework->id;
+            << "' of framework " << framework->id();
 
   CHECK(framework->state == Framework::RUNNING ||
         framework->state == Framework::TERMINATING)
@@ -3463,7 +3471,7 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
   delay(flags.executor_shutdown_grace_period,
         self(),
         &Slave::shutdownExecutorTimeout,
-        framework->id,
+        framework->id(),
         executor->id,
         executor->containerId);
 }
@@ -3512,13 +3520,13 @@ void Slave::shutdownExecutorTimeout(
       break;
     case Executor::TERMINATING:
       LOG(INFO) << "Killing executor '" << executor->id
-                << "' of framework " << framework->id;
+                << "' of framework " << framework->id();
 
       containerizer->destroy(executor->containerId);
       break;
     default:
       LOG(FATAL) << "Executor '" << executor->id
-                 << "' of framework " << framework->id
+                 << "' of framework " << framework->id()
                  << " is in unexpected state " << executor->state;
       break;
   }
@@ -3574,7 +3582,7 @@ void Slave::registerExecutorTimeout(
       break;
     case Executor::REGISTERING:
       LOG(INFO) << "Terminating executor " << executor->id
-                << " of framework " << framework->id
+                << " of framework " << framework->id()
                 << " because it did not register within "
                 << flags.executor_registration_timeout;
 
@@ -3585,7 +3593,7 @@ void Slave::registerExecutorTimeout(
       break;
     default:
       LOG(FATAL) << "Executor '" << executor->id
-                 << "' of framework " << framework->id
+                 << "' of framework " << framework->id()
                  << " is in unexpected state " << executor->state;
       break;
   }
@@ -3730,14 +3738,14 @@ Future<Nothing> Slave::_recover()
       containerizer->wait(executor->containerId)
         .onAny(defer(self(),
                      &Self::executorTerminated,
-                     framework->id,
+                     framework->id(),
                      executor->id,
                      lambda::_1));
 
       if (flags.recover == "reconnect") {
         if (executor->pid) {
           LOG(INFO) << "Sending reconnect request to executor " << executor->id
-                    << " of framework " << framework->id
+                    << " of framework " << framework->id()
                     << " at " << executor->pid;
 
           ReconnectExecutorMessage message;
@@ -3745,20 +3753,20 @@ Future<Nothing> Slave::_recover()
           send(executor->pid, message);
         } else {
           LOG(INFO) << "Unable to reconnect to executor '" << executor->id
-                    << "' of framework " << framework->id
+                    << "' of framework " << framework->id()
                     << " because no libprocess PID was found";
         }
       } else {
         if (executor->pid) {
           // Cleanup executors.
           LOG(INFO) << "Sending shutdown to executor '" << executor->id
-                    << "' of framework " << framework->id
+                    << "' of framework " << framework->id()
                     << " to " << executor->pid;
 
           shutdownExecutor(framework, executor);
         } else {
           LOG(INFO) << "Killing executor '" << executor->id
-                    << "' of framework " << framework->id
+                    << "' of framework " << framework->id()
                     << " because no libprocess PID was found";
 
           containerizer->destroy(executor->containerId);
@@ -3904,7 +3912,7 @@ void Slave::recoverFramework(const FrameworkState& state)
 
   CHECK_SOME(state.pid);
   Framework* framework = new Framework(this, frameworkInfo, state.pid.get());
-  frameworks[framework->id] = framework;
+  frameworks[framework->id()] = framework;
 
   // Now recover the executors for this framework.
   foreachvalue (const ExecutorState& executorState, state.executors) {
@@ -4126,7 +4134,6 @@ Framework::Framework(
     const UPID& _pid)
   : state(RUNNING),
     slave(_slave),
-    id(_info.id()),
     info(_info),
     pid(_pid),
     completedExecutors(MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK)
@@ -4134,14 +4141,14 @@ Framework::Framework(
   if (info.checkpoint() && slave->state != slave->RECOVERING) {
     // Checkpoint the framework info.
     string path = paths::getFrameworkInfoPath(
-        slave->metaDir, slave->info.id(), id);
+        slave->metaDir, slave->info.id(), id());
 
     VLOG(1) << "Checkpointing FrameworkInfo to '" << path << "'";
     CHECK_SOME(state::checkpoint(path, info));
 
     // Checkpoint the framework pid.
     path = paths::getFrameworkPidPath(
-        slave->metaDir, slave->info.id(), id);
+        slave->metaDir, slave->info.id(), id());
 
     VLOG(1) << "Checkpointing framework pid '"
             << pid << "' to '" << path << "'";
@@ -4192,13 +4199,13 @@ Executor* Framework::launchExecutor(
   const string& directory = paths::createExecutorDirectory(
       slave->flags.work_dir,
       slave->info.id(),
-      id,
+      id(),
       executorInfo.executor_id(),
       containerId,
       user);
 
   Executor* executor = new Executor(
-      slave, id, executorInfo, containerId, directory, info.checkpoint());
+      slave, id(), executorInfo, containerId, directory, info.checkpoint());
 
   if (executor->checkpoint) {
     executor->checkpointExecutor();
@@ -4210,7 +4217,7 @@ Executor* Framework::launchExecutor(
   executors[executorInfo.executor_id()] = executor;
 
   LOG(INFO) << "Launching executor " << executorInfo.executor_id()
-            << " of framework " << id
+            << " of framework " << id()
             << " in work directory '" << directory << "'";
 
   slave->files->attach(executor->directory, executor->directory)
@@ -4266,7 +4273,7 @@ Executor* Framework::launchExecutor(
 
   launch.onAny(defer(slave,
                &Slave::executorLaunched,
-               id,
+               id(),
                executor->id,
                containerId,
                lambda::_1));
@@ -4275,7 +4282,7 @@ Executor* Framework::launchExecutor(
   delay(slave->flags.executor_registration_timeout,
         slave,
         &Slave::registerExecutorTimeout,
-        id,
+        id(),
         executor->id,
         containerId);
 
@@ -4321,23 +4328,23 @@ Executor* Framework::getExecutor(const TaskID& taskId)
 void Framework::recoverExecutor(const ExecutorState& state)
 {
   LOG(INFO) << "Recovering executor '" << state.id
-            << "' of framework " << id;
+            << "' of framework " << id();
 
   CHECK_NOTNULL(slave);
 
   if (state.runs.empty() || state.latest.isNone() || state.info.isNone()) {
     LOG(WARNING) << "Skipping recovery of executor '" << state.id
-                 << "' of framework " << id
+                 << "' of framework " << id()
                  << " because its latest run or executor info"
                  << " cannot be recovered";
 
     // GC the top level executor work directory.
     slave->garbageCollect(paths::getExecutorPath(
-        slave->flags.work_dir, slave->info.id(), id, state.id));
+        slave->flags.work_dir, slave->info.id(), id(), state.id));
 
     // GC the top level executor meta directory.
     slave->garbageCollect(paths::getExecutorPath(
-        slave->metaDir, slave->info.id(), id, state.id));
+        slave->metaDir, slave->info.id(), id(), state.id));
 
     return;
   }
@@ -4356,25 +4363,25 @@ void Framework::recoverExecutor(const ExecutorState& state)
       // TODO(vinod): Expose this directory to webui by recovering the
       // tasks and doing a 'files->attach()'.
       slave->garbageCollect(paths::getExecutorRunPath(
-          slave->flags.work_dir, slave->info.id(), id, state.id, runId));
+          slave->flags.work_dir, slave->info.id(), id(), state.id, runId));
 
       // GC the executor run's meta directory.
       slave->garbageCollect(paths::getExecutorRunPath(
-          slave->metaDir, slave->info.id(), id, state.id, runId));
+          slave->metaDir, slave->info.id(), id(), state.id, runId));
     }
   }
 
   Option<RunState> run = state.runs.get(latest);
   CHECK_SOME(run)
       << "Cannot find latest run " << latest << " for executor " << state.id
-      << " of framework " << id;
+      << " of framework " << id();
 
   // Create executor.
   const string& directory = paths::getExecutorRunPath(
-      slave->flags.work_dir, slave->info.id(), id, state.id, latest);
+      slave->flags.work_dir, slave->info.id(), id(), state.id, latest);
 
   Executor* executor = new Executor(
-      slave, id, state.info.get(), latest, directory, info.checkpoint());
+      slave, id(), state.info.get(), latest, directory, info.checkpoint());
 
   // Recover the libprocess PID if possible.
   if (run.get().libprocessPid.isSome()) {
@@ -4385,7 +4392,7 @@ void Framework::recoverExecutor(const ExecutorState& state)
     // situation (e.g., disk corruption).
     CHECK_SOME(run.get().forkedPid)
       << "Failed to get forked pid for executor " << state.id
-      << " of framework " << id;
+      << " of framework " << id();
 
     executor->pid = run.get().libprocessPid.get();
   }
@@ -4418,22 +4425,22 @@ void Framework::recoverExecutor(const ExecutorState& state)
 
     // GC the executor run's work directory.
     const string& path = paths::getExecutorRunPath(
-        slave->flags.work_dir, slave->info.id(), id, state.id, runId);
+        slave->flags.work_dir, slave->info.id(), id(), state.id, runId);
 
     slave->garbageCollect(path)
        .then(defer(slave, &Slave::detachFile, path));
 
     // GC the executor run's meta directory.
     slave->garbageCollect(paths::getExecutorRunPath(
-        slave->metaDir, slave->info.id(), id, state.id, runId));
+        slave->metaDir, slave->info.id(), id(), state.id, runId));
 
     // GC the top level executor work directory.
     slave->garbageCollect(paths::getExecutorPath(
-        slave->flags.work_dir, slave->info.id(), id, state.id));
+        slave->flags.work_dir, slave->info.id(), id(), state.id));
 
     // GC the top level executor meta directory.
     slave->garbageCollect(paths::getExecutorPath(
-        slave->metaDir, slave->info.id(), id, state.id));
+        slave->metaDir, slave->info.id(), id(), state.id));
 
     // Move the executor to 'completedExecutors'.
     destroyExecutor(executor->id);

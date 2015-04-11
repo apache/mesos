@@ -979,8 +979,7 @@ struct Framework
   Framework(const FrameworkInfo& _info,
             const process::UPID& _pid,
             const process::Time& time = process::Clock::now())
-    : id(_info.id()),
-      info(_info),
+    : info(_info),
       pid(_pid),
       connected(true),
       active(true),
@@ -1086,7 +1085,7 @@ struct Framework
   {
     CHECK(hasExecutor(slaveId, executorId))
       << "Unknown executor " << executorId
-      << " of framework " << id
+      << " of framework " << id()
       << " of slave " << slaveId;
 
     usedResources -= executors[slaveId][executorId].resources();
@@ -1096,9 +1095,8 @@ struct Framework
     }
   }
 
-  // TODO(karya): Replace 'id' with 'id()' that returns the id from
-  // 'info'.
-  const FrameworkID id; // Copied from info.id().
+  const FrameworkID id() const { return info.id(); }
+
   const FrameworkInfo info;
 
   process::UPID pid;
@@ -1147,7 +1145,7 @@ inline std::ostream& operator << (
 {
   // TODO(vinod): Also log the hostname once FrameworkInfo is properly
   // updated on framework failover (MESOS-1784).
-  return stream << framework.id << " (" << framework.info.name()
+  return stream << framework.id() << " (" << framework.info.name()
                 << ") at " << framework.pid;
 }
 
@@ -1160,12 +1158,12 @@ struct Role
 
   void addFramework(Framework* framework)
   {
-    frameworks[framework->id] = framework;
+    frameworks[framework->id()] = framework;
   }
 
   void removeFramework(Framework* framework)
   {
-    frameworks.erase(framework->id);
+    frameworks.erase(framework->id());
   }
 
   Resources resources() const

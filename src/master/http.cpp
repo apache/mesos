@@ -109,7 +109,7 @@ JSON::Object model(const Offer& offer)
 JSON::Object model(const Framework& framework)
 {
   JSON::Object object;
-  object.values["id"] = framework.id.value();
+  object.values["id"] = framework.id().value();
   object.values["name"] = framework.info.name();
   object.values["user"] = framework.info.user();
   object.values["failover_timeout"] = framework.info.failover_timeout();
@@ -144,7 +144,8 @@ JSON::Object model(const Framework& framework)
 
     foreachvalue (const TaskInfo& task, framework.pendingTasks) {
       vector<TaskStatus> statuses;
-      array.values.push_back(model(task, framework.id, TASK_STAGING, statuses));
+      array.values.push_back(
+          model(task, framework.id(), TASK_STAGING, statuses));
     }
 
     foreachvalue (Task* task, framework.tasks) {

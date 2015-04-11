@@ -204,7 +204,7 @@ JSON::Object model(const Executor& executor)
 JSON::Object model(const Framework& framework)
 {
   JSON::Object object;
-  object.values["id"] = framework.id.value();
+  object.values["id"] = framework.id().value();
   object.values["name"] = framework.info.name();
   object.values["user"] = framework.info.user();
   object.values["failover_timeout"] = framework.info.failover_timeout();
