@@ -26,7 +26,7 @@
 namespace mesos {
 namespace modules {
 
-template<>
+template <>
 inline const char* kind<mesos::Authenticatee>()
 {
   return "Authenticatee";
@@ -52,8 +52,7 @@ struct Module<mesos::Authenticatee> : ModuleBase
         _authorEmail,
         _description,
         _compatible),
-      create(_create)
-  { }
+      create(_create) {}
 
   mesos::Authenticatee* (*create)(const Parameters& parameters);
 };

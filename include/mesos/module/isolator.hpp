@@ -27,7 +27,7 @@
 namespace mesos {
 namespace modules {
 
-template<>
+template <>
 inline const char* kind<mesos::slave::Isolator>()
 {
   return "Isolator";
@@ -54,8 +54,7 @@ struct Module<mesos::slave::Isolator> : ModuleBase
         _authorEmail,
         _description,
         _compatible),
-      create(_create)
-  { }
+      create(_create) {}
 
   mesos::slave::Isolator* (*create)(const Parameters& parameters);
 };

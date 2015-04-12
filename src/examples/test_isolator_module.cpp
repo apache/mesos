@@ -67,7 +67,7 @@ static Isolator* createMemIsolator(const Parameters& parameters)
 }
 
 
-// Declares a CPU Isolator module named 'testCpuIsolator'.
+// Declares a CPU Isolator module named 'org_apache_mesos_TestCpuIsolator'.
 mesos::modules::Module<Isolator> org_apache_mesos_TestCpuIsolator(
     MESOS_MODULE_API_VERSION,
     MESOS_VERSION,
@@ -78,7 +78,7 @@ mesos::modules::Module<Isolator> org_apache_mesos_TestCpuIsolator(
     createCpuIsolator);
 
 
-// Declares a Memory Isolator module named 'testMemIsolator'.
+// Declares a Memory Isolator module named 'org_apache_mesos_TestMemIsolator'.
 mesos::modules::Module<Isolator> org_apache_mesos_TestMemIsolator(
     MESOS_MODULE_API_VERSION,
     MESOS_VERSION,

@@ -71,8 +71,7 @@ struct ModuleBase
       authorName(_authorName),
       authorEmail(_authorEmail),
       description(_description),
-      compatible(_compatible)
-  { }
+      compatible(_compatible) {}
 
   const char* moduleApiVersion;
   const char* mesosVersion;

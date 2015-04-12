@@ -56,7 +56,7 @@ static Anonymous* createAnonymous(const Parameters& parameters)
 }
 
 
-// Declares an anonymous module named 'TestAnonymous'.
+// Declares an Anonymous module named 'org_apache_mesos_TestAnonymous'.
 mesos::modules::Module<Anonymous> org_apache_mesos_TestAnonymous(
   MESOS_MODULE_API_VERSION,
   MESOS_VERSION,

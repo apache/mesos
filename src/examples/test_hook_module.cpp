@@ -92,7 +92,7 @@ static Hook* createHook(const Parameters& parameters)
 }
 
 
-// Declares a Hook module named 'TestHook'.
+// Declares a Hook module named 'org_apache_mesos_TestHook'.
 mesos::modules::Module<Hook> org_apache_mesos_TestHook(
     MESOS_MODULE_API_VERSION,
     MESOS_VERSION,

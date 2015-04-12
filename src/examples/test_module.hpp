@@ -53,7 +53,7 @@ public:
 namespace mesos {
 namespace modules {
 
-template<>
+template <>
 inline const char* kind<TestModule>()
 {
   return "TestModule";
@@ -79,8 +79,7 @@ struct Module<TestModule> : ModuleBase
         _authorEmail,
         _description,
         _compatible),
-      create(_create)
-  { }
+      create(_create) {}
 
   TestModule* (*create)(const Parameters& parameters);
 };
