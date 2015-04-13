@@ -98,6 +98,17 @@ inline Try<dev_t> rdev(const std::string& path)
 }
 
 
+inline Try<ino_t> inode(const std::string& path)
+{
+  struct stat s;
+
+  if (::stat(path.c_str(), &s) < 0) {
+    return ErrnoError("Error invoking stat for '" + path + "'");
+  }
+
+  return s.st_ino;
+}
+
 } // namespace stat {
 } // namespace os {
 #endif // __STOUT_OS_STAT_HPP__
