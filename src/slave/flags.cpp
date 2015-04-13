@@ -27,19 +27,25 @@
 
 mesos::internal::slave::Flags::Flags()
 {
-  add(&Flags::hostname, "hostname",
+  add(&Flags::hostname,
+      "hostname",
       "The hostname the slave should report.\n"
       "If left unset, the hostname is resolved from the IP address\n"
       "that the slave binds to.");
 
-  add(&Flags::version, "version", "Show version and exit.", false);
+  add(&Flags::version,
+      "version",
+      "Show version and exit.",
+      false);
 
   // TODO(benh): Is there a way to specify units for the resources?
-  add(&Flags::resources, "resources",
+  add(&Flags::resources,
+      "resources",
       "Total consumable resources per slave, in\n"
       "the form 'name(role):value;name(role):value...'.");
 
-  add(&Flags::isolation, "isolation",
+  add(&Flags::isolation,
+      "isolation",
       "Isolation mechanisms to use, e.g., 'posix/cpu,posix/mem', or\n"
       "'cgroups/cpu,cgroups/mem', or network/port_mapping\n"
       "(configure with flag: --with-network-isolator to enable),\n"
@@ -47,7 +53,8 @@ mesos::internal::slave::Flags::Flags()
       "the --modules flag.",
       "posix/cpu,posix/mem");
 
-  add(&Flags::default_role, "default_role",
+  add(&Flags::default_role,
+      "default_role",
       "Any resources in the --resources flag that\n"
       "omit a role, as well as any resources that\n"
       "are not present in --resources but that are\n"
@@ -55,33 +62,41 @@ mesos::internal::slave::Flags::Flags()
       "this role.",
       "*");
 
-  add(&Flags::attributes, "attributes",
+  add(&Flags::attributes,
+      "attributes",
       "Attributes of machine, in the form:\n"
       "rack:2 or 'rack:2;u:1'");
 
-  add(&Flags::work_dir, "work_dir",
+  add(&Flags::work_dir,
+      "work_dir",
       "Directory path to place framework work directories\n", "/tmp/mesos");
 
   add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
-      "launcher_dir", "Directory path of Mesos binaries", PKGLIBEXECDIR);
+      "launcher_dir",
+      "Directory path of Mesos binaries",
+      PKGLIBEXECDIR);
 
-  add(&Flags::hadoop_home, "hadoop_home",
+  add(&Flags::hadoop_home,
+      "hadoop_home",
       "Path to find Hadoop installed (for\n"
       "fetching framework executors from HDFS)\n"
       "(no default, look for HADOOP_HOME in\n"
       "environment or find hadoop on PATH)",
       "");
 
-  add(&Flags::switch_user, "switch_user",
+  add(&Flags::switch_user,
+      "switch_user",
       "Whether to run tasks as the user who\n"
       "submitted them rather than the user running\n"
       "the slave (requires setuid permission)",
       true);
 
-  add(&Flags::frameworks_home, "frameworks_home",
+  add(&Flags::frameworks_home,
+      "frameworks_home",
       "Directory path prepended to relative executor URIs", "");
 
-  add(&Flags::registration_backoff_factor, "registration_backoff_factor",
+  add(&Flags::registration_backoff_factor,
+      "registration_backoff_factor",
       "Slave initially picks a random amount of time between [0, b], where\n"
       "b = registration_backoff_factor, to (re-)register with a new master.\n"
       "Subsequent retries are exponentially backed off based on this\n"
@@ -91,25 +106,29 @@ mesos::internal::slave::Flags::Flags()
         stringify(REGISTER_RETRY_INTERVAL_MAX),
       REGISTRATION_BACKOFF_FACTOR);
 
-  add(&Flags::executor_registration_timeout, "executor_registration_timeout",
+  add(&Flags::executor_registration_timeout,
+      "executor_registration_timeout",
       "Amount of time to wait for an executor\n"
       "to register with the slave before considering it hung and\n"
       "shutting it down (e.g., 60secs, 3mins, etc)",
       EXECUTOR_REGISTRATION_TIMEOUT);
 
-  add(&Flags::executor_shutdown_grace_period, "executor_shutdown_grace_period",
+  add(&Flags::executor_shutdown_grace_period,
+      "executor_shutdown_grace_period",
       "Amount of time to wait for an executor\n"
       "to shut down (e.g., 60secs, 3mins, etc)",
       EXECUTOR_SHUTDOWN_GRACE_PERIOD);
 
-  add(&Flags::gc_delay, "gc_delay",
+  add(&Flags::gc_delay,
+      "gc_delay",
       "Maximum amount of time to wait before cleaning up\n"
       "executor directories (e.g., 3days, 2weeks, etc).\n"
       "Note that this delay may be shorter depending on\n"
       "the available disk usage.",
       GC_DELAY);
 
-  add(&Flags::gc_disk_headroom, "gc_disk_headroom",
+  add(&Flags::gc_disk_headroom,
+      "gc_disk_headroom",
       "Adjust disk headroom used to calculate maximum executor\n"
       "directory age. Age is calculated by:\n"
       "gc_delay * max(0.0, (1.0 - gc_disk_headroom - disk usage))\n"
@@ -117,19 +136,22 @@ mesos::internal::slave::Flags::Flags()
       "be a value between 0.0 and 1.0",
       GC_DISK_HEADROOM);
 
-  add(&Flags::disk_watch_interval, "disk_watch_interval",
+  add(&Flags::disk_watch_interval,
+      "disk_watch_interval",
       "Periodic time interval (e.g., 10secs, 2mins, etc)\n"
       "to check the overall disk usage managed by the slave.\n"
       "This drives the garbage collection of archived\n"
       "information and sandboxes.",
       DISK_WATCH_INTERVAL);
 
-  add(&Flags::resource_monitoring_interval, "resource_monitoring_interval",
+  add(&Flags::resource_monitoring_interval,
+      "resource_monitoring_interval",
       "Periodic time interval for monitoring executor\n"
       "resource usage (e.g., 10secs, 1min, etc)",
       RESOURCE_MONITORING_INTERVAL);
 
-  add(&Flags::recover, "recover",
+  add(&Flags::recover,
+      "recover",
       "Whether to recover status updates and reconnect with old executors.\n"
       "Valid values for 'recover' are\n"
       "reconnect: Reconnect with any old live executors.\n"
@@ -138,13 +160,15 @@ mesos::internal::slave::Flags::Flags()
       "           or executor upgrade!).",
       "reconnect");
 
-  add(&Flags::recovery_timeout, "recovery_timeout",
+  add(&Flags::recovery_timeout,
+      "recovery_timeout",
       "Amount of time alloted for the slave to recover. If the slave takes\n"
       "longer than recovery_timeout to recover, any executors that are\n"
       "waiting to reconnect to the slave will self-terminate.\n",
       RECOVERY_TIMEOUT);
 
-  add(&Flags::strict, "strict",
+  add(&Flags::strict,
+      "strict",
       "If strict=true, any and all recovery errors are considered fatal.\n"
       "If strict=false, any expected errors (e.g., slave cannot recover\n"
       "information about an executor, because the slave died right before\n"
@@ -153,19 +177,24 @@ mesos::internal::slave::Flags::Flags()
       true);
 
 #ifdef __linux__
-  add(&Flags::cgroups_hierarchy, "cgroups_hierarchy",
+  add(&Flags::cgroups_hierarchy,
+      "cgroups_hierarchy",
       "The path to the cgroups hierarchy root\n", "/sys/fs/cgroup");
 
-  add(&Flags::cgroups_root, "cgroups_root", "Name of the root cgroup\n",
+  add(&Flags::cgroups_root,
+      "cgroups_root",
+      "Name of the root cgroup\n",
       "mesos");
 
-  add(&Flags::cgroups_enable_cfs, "cgroups_enable_cfs",
+  add(&Flags::cgroups_enable_cfs,
+      "cgroups_enable_cfs",
       "Cgroups feature flag to enable hard limits on CPU resources\n"
       "via the CFS bandwidth limiting subfeature.\n",
       false);
 
   // TODO(antonl): Set default to true in future releases.
-  add(&Flags::cgroups_limit_swap, "cgroups_limit_swap",
+  add(&Flags::cgroups_limit_swap,
+      "cgroups_limit_swap",
       "Cgroups feature flag to enable memory limits on both memory and\n"
       "swap instead of just memory.\n",
       false);
@@ -176,14 +205,16 @@ mesos::internal::slave::Flags::Flags()
       "inside a container.\n",
       false);
 
-  add(&Flags::slave_subsystems, "slave_subsystems",
+  add(&Flags::slave_subsystems,
+      "slave_subsystems",
       "List of comma-separated cgroup subsystems to run the slave binary\n"
       "in, e.g., 'memory,cpuacct'. The default is none.\n"
       "Present functionality is intended for resource monitoring and\n"
       "no cgroup limits are set, they are inherited from the root mesos\n"
       "cgroup.");
 
-  add(&Flags::perf_events, "perf_events",
+  add(&Flags::perf_events,
+      "perf_events",
       "List of command-separated perf events to sample for each container\n"
       "when using the perf_event isolator. Default is none.\n"
       "Run command 'perf list' to see all events. Event names are\n"
@@ -191,7 +222,8 @@ mesos::internal::slave::Flags::Flags()
       "when reported in the PerfStatistics protobuf, e.g., cpu-cycles\n"
       "becomes cpu_cycles; see the PerfStatistics protobuf for all names.");
 
-  add(&Flags::perf_interval, "perf_interval",
+  add(&Flags::perf_interval,
+      "perf_interval",
       "Interval between the start of perf stat samples. Perf samples are\n"
       "obtained periodically according to perf_interval and the most\n"
       "recently obtained sample is returned rather than sampling on\n"
@@ -199,13 +231,15 @@ mesos::internal::slave::Flags::Flags()
       "resource monitoring interval",
       Seconds(60));
 
-  add(&Flags::perf_duration, "perf_duration",
+  add(&Flags::perf_duration,
+      "perf_duration",
       "Duration of a perf stat sample. The duration must be less\n"
       "that the perf_interval.",
       Seconds(10));
 #endif
 
-  add(&Flags::credential, "credential",
+  add(&Flags::credential,
+      "credential",
       "Either a path to a text with a single line\n"
       "containing 'principal' and 'secret' separated by "
       "whitespace.\n"
@@ -219,11 +253,13 @@ mesos::internal::slave::Flags::Flags()
       "    \"secret\": \"secret\",\n"
       "}");
 
-  add(&Flags::containerizer_path, "containerizer_path",
+  add(&Flags::containerizer_path,
+      "containerizer_path",
       "The path to the external containerizer executable used when\n"
       "external isolation is activated (--isolation=external).\n");
 
-  add(&Flags::containerizers, "containerizers",
+  add(&Flags::containerizers,
+      "containerizers",
       "Comma separated list of containerizer implementations\n"
       "to compose in order to provide containerization.\n"
       "Available options are 'mesos', 'external', and\n"
@@ -232,27 +268,32 @@ mesos::internal::slave::Flags::Flags()
       "(--containerizers=mesos).\n",
       "mesos");
 
-  add(&Flags::default_container_image, "default_container_image",
+  add(&Flags::default_container_image,
+      "default_container_image",
       "The default container image to use if not specified by a task,\n"
       "when using external containerizer.\n");
 
   // Docker containerizer flags.
-  add(&Flags::docker, "docker",
+  add(&Flags::docker,
+      "docker",
       "The absolute path to the docker executable for docker\n"
       "containerizer.\n",
       "docker");
 
-  add(&Flags::docker_sandbox_directory, "docker_sandbox_directory",
+  add(&Flags::docker_sandbox_directory,
+      "docker_sandbox_directory",
       "The absolute path for the directory in the container where the\n"
       "sandbox is mapped to.\n",
       "/mnt/mesos/sandbox");
 
-  add(&Flags::docker_remove_delay, "docker_remove_delay",
+  add(&Flags::docker_remove_delay,
+      "docker_remove_delay",
       "The amount of time to wait before removing docker containers\n"
       "(e.g., 3days, 2weeks, etc).\n",
       DOCKER_REMOVE_DELAY);
 
-  add(&Flags::default_container_info, "default_container_info",
+  add(&Flags::default_container_info,
+      "default_container_info",
       "JSON formatted ContainerInfo that will be included into\n"
       "any ExecutorInfo that does not specify a ContainerInfo.\n"
       "\n"
@@ -271,25 +312,29 @@ mesos::internal::slave::Flags::Flags()
       " ]\n"
       "}");
 
-  add(&Flags::docker_stop_timeout, "docker_stop_timeout",
+  add(&Flags::docker_stop_timeout,
+      "docker_stop_timeout",
       "The time as a duration for docker to wait after stopping an instance\n"
       "before it kills that instance.",
       Seconds(0));
 
 #ifdef WITH_NETWORK_ISOLATOR
-  add(&Flags::ephemeral_ports_per_container, "ephemeral_ports_per_container",
+  add(&Flags::ephemeral_ports_per_container,
+      "ephemeral_ports_per_container",
       "Number of ephemeral ports allocated to a container by the network\n"
       "isolator. This number has to be a power of 2. This flag is used\n"
       "for the 'network/port_mapping' isolator.",
       DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER);
 
-  add(&Flags::eth0_name, "eth0_name",
+  add(&Flags::eth0_name,
+      "eth0_name",
       "The name of the public network interface (e.g., eth0). If it is\n"
       "not specified, the network isolator will try to guess it based\n"
       "on the host default gateway. This flag is used for the\n"
       "'network/port_mapping' isolator.");
 
-  add(&Flags::lo_name, "lo_name",
+  add(&Flags::lo_name,
+      "lo_name",
       "The name of the loopback network interface (e.g., lo). If it is\n"
       "not specified, the network isolator will try to guess it. This\n"
       "flag is used for the 'network/port_mapping' isolator.");
@@ -317,14 +362,16 @@ mesos::internal::slave::Flags::Flags()
 
 #endif // WITH_NETWORK_ISOLATOR
 
-  add(&Flags::container_disk_watch_interval, "container_disk_watch_interval",
+  add(&Flags::container_disk_watch_interval,
+      "container_disk_watch_interval",
       "The interval between disk quota checks for containers. This flag is\n"
       "used for the 'posix/disk' isolator.",
       Seconds(15));
 
   // TODO(jieyu): Consider enabling this flag by default. Remember
   // to update the user doc if we decide to do so.
-  add(&Flags::enforce_container_disk_quota, "enforce_container_disk_quota",
+  add(&Flags::enforce_container_disk_quota,
+      "enforce_container_disk_quota",
       "Whether to enable disk quota enforcement for containers. This flag\n"
       "is used for the 'posix/disk' isolator.",
       false);
@@ -334,7 +381,8 @@ mesos::internal::slave::Flags::Flags()
   // sync.
   // TODO(karya): Remove the JSON example and add reference to the
   // doc file explaining the --modules flag.
-  add(&Flags::modules, "modules",
+  add(&Flags::modules,
+      "modules",
       "List of modules to be loaded and be available to the internal\n"
       "subsystems.\n"
       "\n"
@@ -375,7 +423,8 @@ mesos::internal::slave::Flags::Flags()
       "  ]\n"
       "}");
 
-  add(&Flags::authenticatee, "authenticatee",
+  add(&Flags::authenticatee,
+      "authenticatee",
       "Authenticatee implementation to use when authenticating against the\n"
       "master. Use the default '" +
         DEFAULT_AUTHENTICATEE +
@@ -383,7 +432,8 @@ mesos::internal::slave::Flags::Flags()
         "load an alternate authenticatee module using --modules.",
       DEFAULT_AUTHENTICATEE);
 
-  add(&Flags::hooks, "hooks",
+  add(&Flags::hooks,
+      "hooks",
       "A comma separated list of hook modules to be\n"
       "installed inside the slave.");
 }
