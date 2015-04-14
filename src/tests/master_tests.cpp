@@ -1375,7 +1375,6 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
 
   // Check metrics.
   JSON::Object stats = Metrics();
-  std::cout << stats << '\n';
   EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
   EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
   EXPECT_EQ(
@@ -1720,6 +1719,10 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
   Clock::advance(masterFlags.slave_reregister_timeout);
 
   AWAIT_READY(slaveLost);
+
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
 
   Clock::resume();
 

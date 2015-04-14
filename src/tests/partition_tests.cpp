@@ -124,6 +124,12 @@ TEST_F(PartitionTest, PartitionedSlave)
 
   AWAIT_READY(slaveLost);
 
+  this->Stop(slave.get());
+
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+
   driver.stop();
   driver.join();
 

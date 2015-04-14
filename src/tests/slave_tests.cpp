@@ -139,6 +139,10 @@ TEST_F(SlaveTest, Shutdown)
   AWAIT_READY(offerRescinded);
   AWAIT_READY(slaveLost);
 
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unregistered"]);
+
   driver.stop();
   driver.join();
 }
