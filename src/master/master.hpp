@@ -44,6 +44,8 @@
 #include <process/protobuf.hpp>
 #include <process/timer.hpp>
 
+#include <process/metrics/counter.hpp>
+
 #include <stout/cache.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
@@ -363,11 +365,19 @@ protected:
   Nothing removeSlave(const Registry::Slave& slave);
 
   // Remove the slave from the registrar and from the master's state.
-  void removeSlave(Slave* slave);
+  //
+  // TODO(bmahler): 'reason' is optional until MESOS-2317 is resolved.
+  void removeSlave(
+      Slave* slave,
+      const std::string& message,
+      Option<process::metrics::Counter> reason = None());
+
   void _removeSlave(
       const SlaveInfo& slaveInfo,
       const std::vector<StatusUpdate>& updates,
-      const process::Future<bool>& removed);
+      const process::Future<bool>& removed,
+      const std::string& message,
+      Option<process::metrics::Counter> reason = None());
 
   // Authorizes the task.
   // Returns true if task is authorized.

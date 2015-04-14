@@ -163,6 +163,9 @@ struct Metrics
   process::metrics::Counter slave_registrations;
   process::metrics::Counter slave_reregistrations;
   process::metrics::Counter slave_removals;
+  process::metrics::Counter slave_removals_reason_unhealthy;
+  process::metrics::Counter slave_removals_reason_unregistered;
+  process::metrics::Counter slave_removals_reason_registered;
 
   // Slave observer metrics.
   process::metrics::Counter slave_shutdowns_scheduled;

@@ -753,14 +753,17 @@ enum TaskState {
  * Describes the current status of a task.
  */
 message TaskStatus {
-  /** Describes the source of the task status update. */
+  // Describes the source of the task status update.
   enum Source {
     SOURCE_MASTER = 0;
     SOURCE_SLAVE = 1;
     SOURCE_EXECUTOR = 2;
   }
 
-  /** Detailed reason for the task status update. */
+  // Detailed reason for the task status update.
+  //
+  // TODO(bmahler): Differentiate between slave removal reasons
+  // (e.g. unhealthy vs. unregistered for maintenance).
   enum Reason {
     REASON_COMMAND_EXECUTOR_FAILED = 0;
     REASON_EXECUTOR_TERMINATED = 1;

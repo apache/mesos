@@ -148,6 +148,12 @@ Metrics::Metrics(const Master& master)
         "master/slave_reregistrations"),
     slave_removals(
         "master/slave_removals"),
+    slave_removals_reason_unhealthy(
+        "master/slave_removals/reason_unhealthy"),
+    slave_removals_reason_unregistered(
+        "master/slave_removals/reason_unregistered"),
+    slave_removals_reason_registered(
+        "master/slave_removals/reason_registered"),
     slave_shutdowns_scheduled(
         "master/slave_shutdowns_scheduled"),
     slave_shutdowns_completed(
@@ -224,6 +230,9 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(slave_registrations);
   process::metrics::add(slave_reregistrations);
   process::metrics::add(slave_removals);
+  process::metrics::add(slave_removals_reason_unhealthy);
+  process::metrics::add(slave_removals_reason_unregistered);
+  process::metrics::add(slave_removals_reason_registered);
 
   process::metrics::add(slave_shutdowns_scheduled);
   process::metrics::add(slave_shutdowns_completed);
@@ -327,6 +336,9 @@ Metrics::~Metrics()
   process::metrics::remove(slave_registrations);
   process::metrics::remove(slave_reregistrations);
   process::metrics::remove(slave_removals);
+  process::metrics::remove(slave_removals_reason_unhealthy);
+  process::metrics::remove(slave_removals_reason_unregistered);
+  process::metrics::remove(slave_removals_reason_registered);
 
   process::metrics::remove(slave_shutdowns_scheduled);
   process::metrics::remove(slave_shutdowns_completed);

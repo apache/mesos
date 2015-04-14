@@ -993,7 +993,8 @@ void Master::exited(const UPID& pid)
         // Remove the slave, if it is not checkpointing.
         LOG(INFO) << "Removing disconnected slave " << *slave
                   << " because it is not checkpointing!";
-        removeSlave(slave);
+        removeSlave(slave,
+                    "slave is non-checkpointing and disconnected");
         return;
       } else if (slave->connected) {
         // Checkpointing slaves can just be disconnected.
@@ -1380,7 +1381,9 @@ Nothing Master::removeSlave(const Registry::Slave& slave)
                    &Self::_removeSlave,
                    slave.info(),
                    vector<StatusUpdate>(), // No TASK_LOST updates to send.
-                   lambda::_1));
+                   lambda::_1,
+                   "did not re-register after master failover",
+                   metrics->slave_removals_reason_unhealthy));
   } else {
     // When a non-strict registry is in use, we want to ensure the
     // registry is used in a write-only manner. Therefore we remove
@@ -3101,7 +3104,9 @@ void Master::registerSlave(
         LOG(INFO)
           << "Removing old disconnected slave " << *slave
           << " because a registration attempt is being made from " << from;
-        removeSlave(slave);
+        removeSlave(slave,
+                    "a new slave registered at the same address",
+                    metrics->slave_removals_reason_registered);
         break;
       } else {
         CHECK(slave->active)
@@ -3437,7 +3442,9 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
                    << " because it is not the slave " << slave->pid;
       return;
     }
-    removeSlave(slave);
+    removeSlave(slave,
+                "the slave unregistered",
+                metrics->slave_removals_reason_unregistered);
   }
 }
 
@@ -3646,7 +3653,7 @@ void Master::shutdownSlave(const SlaveID& slaveId, const string& message)
   message_.set_message(message);
   send(slave->pid, message_);
 
-  removeSlave(slave);
+  removeSlave(slave, message, metrics->slave_removals_reason_unhealthy);
 }
 
 
@@ -4664,11 +4671,14 @@ void Master::addSlave(
 }
 
 
-void Master::removeSlave(Slave* slave)
+void Master::removeSlave(
+    Slave* slave,
+    const string& message,
+    Option<Counter> reason)
 {
   CHECK_NOTNULL(slave);
 
-  LOG(INFO) << "Removing slave " << *slave;
+  LOG(INFO) << "Removing slave " << *slave << ": " << message;
 
   // We want to remove the slave first, to avoid the allocator
   // re-allocating the recovered resources.
@@ -4692,7 +4702,7 @@ void Master::removeSlave(Slave* slave)
           task->task_id(),
           TASK_LOST,
           TaskStatus::SOURCE_MASTER,
-          "Slave " + slave->info.hostname() + " removed",
+          "Slave " + slave->info.hostname() + " removed: " + message,
           TaskStatus::REASON_SLAVE_REMOVED,
           (task->has_executor_id() ?
               Option<ExecutorID>(task->executor_id()) : None()));
@@ -4743,7 +4753,9 @@ void Master::removeSlave(Slave* slave)
                  &Self::_removeSlave,
                  slave->info,
                  updates,
-                 lambda::_1));
+                 lambda::_1,
+                 message,
+                 reason));
 
   delete slave;
 }
@@ -4752,7 +4764,9 @@ void Master::removeSlave(Slave* slave)
 void Master::_removeSlave(
     const SlaveInfo& slaveInfo,
     const vector<StatusUpdate>& updates,
-    const Future<bool>& removed)
+    const Future<bool>& removed,
+    const string& message,
+    Option<Counter> reason)
 {
   slaves.removing.erase(slaveInfo.id());
 
@@ -4769,8 +4783,13 @@ void Master::_removeSlave(
     << "already removed from the registrar";
 
   LOG(INFO) << "Removed slave " << slaveInfo.id() << " ("
-            << slaveInfo.hostname() << ")";
+            << slaveInfo.hostname() << "): " << message;
+
   ++metrics->slave_removals;
+
+  if (reason.isSome()) {
+    ++utils::copy(reason.get()); // Remove const.
+  }
 
   // Forward the LOST updates on to the framework.
   foreach (const StatusUpdate& update, updates) {
