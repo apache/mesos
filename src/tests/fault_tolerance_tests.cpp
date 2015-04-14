@@ -86,54 +86,6 @@ namespace tests {
 class FaultToleranceTest : public MesosTest {};
 
 
-// This test checks that when a slave is lost,
-// its offer(s) is rescinded.
-TEST_F(FaultToleranceTest, SlaveLost)
-{
-  Try<PID<Master> > master = StartMaster();
-  ASSERT_SOME(master);
-
-  Try<PID<Slave> > slave = StartSlave();
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
-
-  Future<vector<Offer> > offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(offers);
-  EXPECT_EQ(1u, offers.get().size());
-
-  Future<Nothing> offerRescinded;
-  EXPECT_CALL(sched, offerRescinded(&driver, offers.get()[0].id()))
-    .WillOnce(FutureSatisfy(&offerRescinded));
-
-  Future<Nothing> slaveLost;
-  EXPECT_CALL(sched, slaveLost(&driver, offers.get()[0].slave_id()))
-    .WillOnce(FutureSatisfy(&slaveLost));
-
-  // Stop the checkpointing slave with explicit shutdown message
-  // so that the master does not wait for it to reconnect.
-  Stop(slave.get(), true);
-
-  AWAIT_READY(offerRescinded);
-  AWAIT_READY(slaveLost);
-
-  driver.stop();
-  driver.join();
-
-  Shutdown();
-}
-
-
 // The purpose of this test is to ensure that when slaves are removed
 // from the master, and then attempt to send status updates, we send
 // a ShutdownMessage to the slave. Why? Because during a network
