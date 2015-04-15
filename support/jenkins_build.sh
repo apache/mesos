@@ -59,7 +59,7 @@ case $OS in
     append_dockerfile "RUN adduser --disabled-password --gecos '' mesos"
 
     # Disable any tests failing on Ubuntu.
-    append_dockerfile "ENV GTEST_FILTER '*FileSystemTableRead*'"
+    append_dockerfile "ENV GTEST_FILTER '-FsTest.FileSystemTableRead'"
     ;;
   *)
     echo "Unknown OS $OS"
