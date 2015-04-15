@@ -659,6 +659,33 @@ if test "x$CLANG" = "xno"; then
   if test "x$is_gxx47" = "xyes"; then
     AC_MSG_ERROR([Unable to build with g++-4.7 due to missing C++11 features])
   fi
+
+# CLANG=yes
+else
+
+  # Check if -Wno-unused-local-typedef is needed by checking a sample
+  # compilation which contains a local unused typedef.
+  # This is needed because Boost 1.53.0 fails to compile with upstream
+  # Clang 3.6 without -Wno-unused-local-typedef. Apple LLVM based on
+  # Clang 3.6 doesn't have the same behavior.
+  AC_LANG_PUSH([C++])
+  AC_COMPILE_IFELSE(
+  [AC_LANG_SOURCE([[
+    #pragma clang diagnostic error "-Wunused-local-typedef"
+
+    int foo()
+    {
+      typedef int return_type;
+      return 5;
+    }
+  ]])],
+  [warn_local_typedefs=no], [warn_local_typedefs=yes])
+  AC_LANG_POP([C++])
+
+  if test "x$warn_local_typedefs" = "xyes"; then
+    AC_MSG_NOTICE([Disabling warnings about unused local typedefs])
+    CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedef"
+  fi
 fi
 
 
