@@ -178,6 +178,10 @@ private:
       pid_t pid);
 
   process::Future<Nothing> _recover(
+      const Option<state::SlaveState>& state,
+      const std::list<Docker::Container>& containers);
+
+  process::Future<Nothing> __recover(
       const std::list<Docker::Container>& containers);
 
   process::Future<Nothing> _launch(

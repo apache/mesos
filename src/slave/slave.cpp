@@ -2953,8 +2953,15 @@ ExecutorInfo Slave::getExecutorInfo(
 
     // Command executors share the same id as the task.
     executor.mutable_executor_id()->set_value(task.task_id().value());
-
     executor.mutable_framework_id()->CopyFrom(frameworkId);
+
+    if (task.has_container() &&
+        task.container().type() != ContainerInfo::MESOS) {
+      // Store the container info in the executor info so it will
+      // be checkpointed. This allows the correct containerizer to
+      // recover this task on restart.
+      executor.mutable_container()->CopyFrom(task.container());
+    }
 
     // Prepare an executor name which includes information on the
     // command being launched.

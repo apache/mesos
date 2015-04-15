@@ -45,6 +45,7 @@
 #include "tests/utils.hpp"
 
 using namespace mesos::internal::slave;
+using namespace mesos::internal::slave::state;
 
 using namespace mesos::slave;
 
@@ -632,6 +633,56 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
   ASSERT_EQ(
       1u,
       metrics.values["containerizer/mesos/container_destroy_errors"]);
+}
+
+
+class MesosContainerizerRecoverTest : public MesosTest {};
+
+
+// This test checks that MesosContainerizer doesn't recover executors
+// that were started by another containerizer (e.g: Docker).
+TEST_F(MesosContainerizerRecoverTest, SkipRecoverNonMesosContainers)
+{
+  slave::Flags flags;
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(containerizer);
+
+  ExecutorID executorId;
+  executorId.set_value(UUID::random().toString());
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_container()->set_type(ContainerInfo::DOCKER);
+
+  ExecutorState executorState;
+  executorState.info = executorInfo;
+  executorState.latest = containerId;
+
+  RunState runState;
+  runState.id = containerId;
+  executorState.runs.put(containerId, runState);
+
+  FrameworkState frameworkState;
+  frameworkState.executors.put(executorId, executorState);
+
+  SlaveState slaveState;
+  FrameworkID frameworkId;
+  frameworkId.set_value(UUID::random().toString());
+  slaveState.frameworks.put(frameworkId, frameworkState);
+
+  Future<Nothing> recover = containerizer.get()->recover(slaveState);
+  AWAIT_READY(recover);
+
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  EXPECT_EQ(0, containers.get().size());
+
+  delete containerizer.get();
 }
 
 } // namespace tests {

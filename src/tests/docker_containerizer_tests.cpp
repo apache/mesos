@@ -1278,6 +1278,58 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Recover)
 }
 
 
+// This test checks the docker containerizer doesn't recover executors
+// that were started by another containerizer (e.g: mesos).
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  Shared<Docker> docker(mockDocker);
+
+  Fetcher fetcher;
+
+  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
+
+  ContainerID containerId;
+  containerId.set_value("c1");
+  ContainerID reapedContainerId;
+  reapedContainerId.set_value("c2");
+
+  ExecutorID executorId;
+  executorId.set_value(UUID::random().toString());
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
+
+  ExecutorState executorState;
+  executorState.info = executorInfo;
+  executorState.latest = containerId;
+
+  RunState runState;
+  runState.id = containerId;
+  executorState.runs.put(containerId, runState);
+
+  FrameworkState frameworkState;
+  frameworkState.executors.put(executorId, executorState);
+
+  SlaveState slaveState;
+  FrameworkID frameworkId;
+  frameworkId.set_value(UUID::random().toString());
+  slaveState.frameworks.put(frameworkId, frameworkState);
+
+  Future<Nothing> recover = dockerContainerizer.recover(slaveState);
+  AWAIT_READY(recover);
+
+  Future<hashset<ContainerID>> containers = dockerContainerizer.containers();
+  AWAIT_READY(containers);
+
+  // A MesosContainerizer task shouldn't be recovered by
+  // DockerContainerizer.
+  EXPECT_EQ(0, containers.get().size());
+}
+
+
 TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
 {
   Try<PID<Master> > master = StartMaster();

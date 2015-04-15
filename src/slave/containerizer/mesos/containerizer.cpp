@@ -354,6 +354,18 @@ Future<Nothing> MesosContainerizerProcess::recover(
           continue;
         }
 
+        // Note that MesosContainerizer will also recover executors
+        // launched by the DockerContainerizer as before 0.23 the
+        // slave doesn't checkpoint container information.
+        const ExecutorInfo& executorInfo = executor.info.get();
+        if (executorInfo.has_container() &&
+            executorInfo.container().type() != ContainerInfo::MESOS) {
+          LOG(INFO) << "Skipping recovery of executor '" << executor.id
+                    << "' of framework " << framework.id
+                    << " because it was not launched from mesos containerizer";
+          continue;
+        }
+
         LOG(INFO) << "Recovering container '" << containerId
                   << "' for executor '" << executor.id
                   << "' of framework " << framework.id;
