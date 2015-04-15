@@ -1780,7 +1780,7 @@ void Master::_reregisterFramework(
 
     // Update the framework's info fields based on those passed during
     // re-registration.
-    LOG(INFO) << "Updating info for framework " << framework->id();
+    LOG(INFO) << "Updating info for framework " << framework->id;
     framework->updateFrameworkInfo(frameworkInfo);
 
     framework->reregisteredTime = Clock::now();

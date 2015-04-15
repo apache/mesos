@@ -1134,7 +1134,7 @@ struct Framework
 
     if (source.user() != info.user()) {
       LOG(WARNING) << "Can not update FrameworkInfo.user to '" << info.user()
-                   << "' for framework " << id() << ". Check MESOS-703";
+                   << "' for framework " << id << ". Check MESOS-703";
     }
 
     info.set_name(source.name());
@@ -1147,13 +1147,13 @@ struct Framework
 
     if (source.checkpoint() != info.checkpoint()) {
       LOG(WARNING) << "Can not update FrameworkInfo.checkpoint to '"
-                   << stringify(info.checkpoint()) << "' for framework " << id()
+                   << stringify(info.checkpoint()) << "' for framework " << id
                    << ". Check MESOS-703";
     }
 
     if (source.role() != info.role()) {
       LOG(WARNING) << "Can not update FrameworkInfo.role to '" << info.role()
-                   << "' for framework " << id() << ". Check MESOS-703";
+                   << "' for framework " << id << ". Check MESOS-703";
     }
 
     if (source.has_hostname()) {
@@ -1164,7 +1164,7 @@ struct Framework
 
     if (source.principal() != info.principal()) {
       LOG(WARNING) << "Can not update FrameworkInfo.principal to '"
-                   << info.principal() << "' for framework " << id()
+                   << info.principal() << "' for framework " << id
                    << ". Check MESOS-703";
     }
 
