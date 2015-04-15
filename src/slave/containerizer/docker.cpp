@@ -421,6 +421,34 @@ Future<Nothing> DockerContainerizerProcess::recover(
     const Option<SlaveState>& state)
 {
   LOG(INFO) << "Recovering Docker containers";
+  // Get the list of all Docker containers (running and exited) in
+  // order to remove any orphans and reconcile checkpointed executors.
+  // TODO(tnachen): Remove this when we expect users to have already
+  // upgraded to 0.23.
+  return docker->ps(true, DOCKER_NAME_PREFIX)
+    .then(defer(self(), &Self::_recover, state, lambda::_1));
+}
+
+Future<Nothing> DockerContainerizerProcess::_recover(
+    const Option<SlaveState>& state,
+    const list<Docker::Container>& _containers)
+{
+  // Although the slave checkpoints executor pids, before 0.23
+  // docker containers without custom executors didn't record the
+  // container type in the executor info, therefore the Docker
+  // containerizer doesn't know if it should recover that container
+  // as it could be launched from another containerizer. The
+  // workaround is to reconcile running Docker containers and see
+  // if we can find an known container that matches the
+  // checkpointed container id.
+  // TODO(tnachen): Remove this explicit reconciliation 0.24.
+  hashset<ContainerID> existingContainers;
+  foreach (const Docker::Container& container, _containers) {
+    Option<ContainerID> id = parse(container);
+    if (id.isSome()) {
+      existingContainers.insert(id.get());
+    }
+  }
 
   if (state.isSome()) {
     // Collection of pids that we've started reaping in order to
@@ -467,6 +495,24 @@ Future<Nothing> DockerContainerizerProcess::recover(
           continue;
         }
 
+        const ExecutorInfo executorInfo = executor.info.get();
+        if (executorInfo.has_container() &&
+            executorInfo.container().type() != ContainerInfo::DOCKER) {
+          LOG(INFO) << "Skipping recovery of executor '" << executor.id
+                    << "' of framework " << framework.id
+                    << " because it was not launched from docker containerizer";
+          continue;
+        }
+
+        if (!executorInfo.has_container() &&
+            !existingContainers.contains(containerId)) {
+          LOG(INFO) << "Skipping recovery of executor '" << executor.id
+                    << "' of framework " << framework.id
+                    << " because its executor is not marked as docker "
+                    << "and the docker container doesn't exist";
+          continue;
+        }
+
         LOG(INFO) << "Recovering container '" << containerId
                   << "' for executor '" << executor.id
                   << "' of framework " << framework.id;
@@ -501,14 +547,11 @@ Future<Nothing> DockerContainerizerProcess::recover(
     }
   }
 
-  // Get the list of all Docker containers (running and exited) in
-  // order to remove any orphans.
-  return docker->ps(true, DOCKER_NAME_PREFIX)
-    .then(defer(self(), &Self::_recover, lambda::_1));
+  return __recover(_containers);
 }
 
 
-Future<Nothing> DockerContainerizerProcess::_recover(
+Future<Nothing> DockerContainerizerProcess::__recover(
     const list<Docker::Container>& _containers)
 {
   foreach (const Docker::Container& container, _containers) {
