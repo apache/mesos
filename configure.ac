@@ -735,7 +735,7 @@ libsubversion-1 is required for mesos to build.
 ])])
 
 
-# Check if Sasl2  prefix path was provided, and if so, add it to
+# Check if Sasl2 prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
 # suffixes.
 if test -n "`echo $with_sasl`" ; then
@@ -743,15 +743,72 @@ if test -n "`echo $with_sasl`" ; then
     LDFLAGS="-L${with_sasl}/lib $LDFLAGS"
 fi
 
-# TODO(benh): Also check for md5 support so we can use the CRAM-MD5
-# mechanism. We can likely do a AC_CHECK_LIB looking for a particular
-# function only provided if md5 support is present.
 AC_CHECK_LIB([sasl2], [sasl_done], [],
              [AC_MSG_ERROR([cannot find libsasl2
 -------------------------------------------------------------------
 We need libsasl2 for authentication!
 -------------------------------------------------------------------
 ])])
+
+AC_MSG_CHECKING([SASL CRAM-MD5 support])
+
+# Render a test binary for checking if the SASL client supports CRAM-MD5.
+cat <<__EOF__ >crammd5_installed.c [
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include <sasl/sasl.h>
+#include <sasl/saslplug.h>
+#include <sasl/saslutil.h>
+
+static void search_crammd5(
+  client_sasl_mechanism_t *m,
+  sasl_info_callback_stage_t stage,
+  void *rock)
+{
+  if (stage == SASL_INFO_LIST_START || stage == SASL_INFO_LIST_END) {
+    return;
+  }
+  if (m->plug != NULL) {
+    if (!strcmp("CRAM-MD5", m->plug->mech_name)) {
+      printf("found");
+    }
+  }
+}
+
+int main(int argc, char** argv)
+{
+  int result = sasl_client_init(NULL);
+  if (result != SASL_OK) {
+    return 1;
+  }
+  sasl_client_plugin_info(NULL, &search_crammd5, NULL);
+  return 0;
+}]
+__EOF__
+
+# Build the SASL client check test binary. Prevent the use of possibly
+# activated debug symbols in executables (cc -g) as those cause a
+# distcheck failure on OSX by leaking build artefacts (.dsym).
+AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"],
+      [SASL_TEST_CFLAGS=""], [SASL_TEST_CFLAGS=$CFLAGS])
+$CC crammd5_installed.c $CPPFLAGS $SASL_TEST_CFLAGS $LDFLAGS -lsasl2  \
+  -o crammd5_installed 2>&1 >/dev/null
+
+# Run the test binary and get its output.
+crammd5test=`./crammd5_installed 2>&1`
+
+# Clean up all leftovers from this test.
+rm -f crammd5_installed.c crammd5_installed
+
+AS_IF([test "x$crammd5test" = "xfound"],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_ERROR([no
+-------------------------------------------------------------------
+We need CRAM-MD5 support for SASL authentication.
+-------------------------------------------------------------------])])
+
 
 # Perform necessary configuration for network isolator.
 if test "x$with_network_isolator" = "xyes"; then
