@@ -855,7 +855,7 @@ public:
   MOCK_METHOD3(addFramework, void(
       const FrameworkID&,
       const FrameworkInfo&,
-      const Resources&));
+      const hashmap<SlaveID, Resources>&));
 
   MOCK_METHOD1(removeFramework, void(
       const FrameworkID&));

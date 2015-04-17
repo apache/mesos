@@ -65,7 +65,7 @@ public:
   virtual void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const Resources& used) = 0;
+      const hashmap<SlaveID, Resources>& used) = 0;
 
   virtual void removeFramework(
       const FrameworkID& frameworkId) = 0;

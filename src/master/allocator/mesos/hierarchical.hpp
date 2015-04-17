@@ -81,7 +81,7 @@ public:
   void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const Resources& used);
+      const hashmap<SlaveID, Resources>& used);
 
   void removeFramework(
       const FrameworkID& frameworkId);
@@ -295,7 +295,7 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
-    const Resources& used)
+    const hashmap<SlaveID, Resources>& used_)
 {
   CHECK(initialized);
 
@@ -310,6 +310,10 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
   // framework's role.
 
   // Update the allocation to this framework.
+  // TODO(mpark): Once the sorter API is updated to operate on
+  // 'hashmap<SlaveID, Resources>' rather than 'Resources', update
+  // the sorters for each slave instead.
+  Resources used = Resources::sum(used_);
   roleSorter->allocated(role, used.unreserved());
   frameworkSorters[role]->add(used);
   frameworkSorters[role]->allocated(frameworkId.value(), used);

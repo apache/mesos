@@ -184,7 +184,8 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   // framework1 will be offered all of slave1's resources since it is
   // the only framework running so far.
   FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(framework1.id(), framework1, Resources());
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
 
   Future<Allocation> allocation = queue.get();
   AWAIT_READY(allocation);
@@ -195,7 +196,8 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   //   framework1 share = 1
 
   FrameworkInfo framework2 = createFrameworkInfo("role2");
-  allocator->addFramework(framework2.id(), framework2, Resources());
+  allocator->addFramework(
+      framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
   // Total cluster resources will become cpus=3, mem=1536:
   // role1 share = 0.66 (cpus=2, mem=1024)
@@ -238,7 +240,8 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   //   framework2 share = 1
 
   FrameworkInfo framework3 = createFrameworkInfo("role1");
-  allocator->addFramework(framework3.id(), framework3, Resources());
+  allocator->addFramework(
+      framework3.id(), framework3, hashmap<SlaveID, Resources>());
 
   // Total cluster resources will become cpus=10, mem=7680:
   // role1 share = 0.2 (cpus=2, mem=1024)
@@ -264,7 +267,8 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   //   framework2 share = 1
 
   FrameworkInfo framework4 = createFrameworkInfo("role1");
-  allocator->addFramework(framework4.id(), framework4, Resources());
+  allocator->addFramework(
+      framework4.id(), framework4, hashmap<SlaveID, Resources>());
 
   // Total cluster resources will become cpus=11, mem=8192
   // role1 share = 0.63 (cpus=6, mem=5120)
@@ -306,7 +310,8 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
 
   // framework1 will be offered all of the resources.
   FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(framework1.id(), framework1, Resources());
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
 
   Future<Allocation> allocation = queue.get();
   AWAIT_READY(allocation);
@@ -314,7 +319,8 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
   EXPECT_EQ(slave1.resources(), Resources::sum(allocation.get().resources));
 
   FrameworkInfo framework2 = createFrameworkInfo("role2");
-  allocator->addFramework(framework2.id(), framework2, Resources());
+  allocator->addFramework(
+      framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
   // framework2 will be allocated the new resoures.
   SlaveInfo slave2 = createSlaveInfo("cpus:2;mem:512;disk:0");
@@ -342,7 +348,8 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
   // expect framework3 to receive the next allocation of role1
   // resources.
   FrameworkInfo framework3 = createFrameworkInfo("role1");
-  allocator->addFramework(framework3.id(), framework3, Resources());
+  allocator->addFramework(
+      framework3.id(), framework3, hashmap<SlaveID, Resources>());
 
   SlaveInfo slave4 = createSlaveInfo(
       "cpus(role1):2;mem(role1):1024;disk(role1):0");
@@ -378,7 +385,8 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
   // resources so that we can test what happens when there are 2
   // frameworks and 2 slaves to consider during allocation.
   FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(framework1.id(), framework1, Resources());
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
 
   Future<Allocation> allocation = queue.get();
   AWAIT_READY(allocation);
@@ -400,7 +408,8 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
   // Now add the second framework, we expect there to be 2 subsequent
   // allocations, each framework being allocated a full slave.
   FrameworkInfo framework2 = createFrameworkInfo("role2");
-  allocator->addFramework(framework2.id(), framework2, Resources());
+  allocator->addFramework(
+      framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
   hashmap<FrameworkID, Allocation> allocations;
 
@@ -440,10 +449,12 @@ TEST_F(HierarchicalAllocatorTest, SameShareFairness)
   hashmap<FrameworkID, Resources> EMPTY;
 
   FrameworkInfo framework1 = createFrameworkInfo("*");
-  allocator->addFramework(framework1.id(), framework1, Resources());
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
 
   FrameworkInfo framework2 = createFrameworkInfo("*");
-  allocator->addFramework(framework2.id(), framework2, Resources());
+  allocator->addFramework(
+      framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
   SlaveInfo slave = createSlaveInfo("cpus:2;mem:1024;disk:0");
   allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
@@ -501,7 +512,8 @@ TEST_F(HierarchicalAllocatorTest, Reservations)
   // framework1 should get all the resources from slave1, and the
   // unreserved resources from slave2.
   FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(framework1.id(), framework1, Resources());
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
 
   Future<Allocation> allocation = queue.get();
   AWAIT_READY(allocation);
@@ -514,7 +526,8 @@ TEST_F(HierarchicalAllocatorTest, Reservations)
 
   // framework2 should get all of its reserved resources on slave2.
   FrameworkInfo framework2 = createFrameworkInfo("role2");
-  allocator->addFramework(framework2.id(), framework2, Resources());
+  allocator->addFramework(
+      framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
   allocation = queue.get();
   AWAIT_READY(allocation);
@@ -542,7 +555,8 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
 
   // Initially, all the resources are allocated.
   FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(framework1.id(), framework1, Resources());
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
 
   Future<Allocation> allocation = queue.get();
   AWAIT_READY(allocation);
@@ -599,7 +613,8 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
   initialize(vector<string>{"role1"});
 
   FrameworkInfo framework = createFrameworkInfo("role1");
-  allocator->addFramework(framework.id(), framework, Resources());
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
 
   hashmap<FrameworkID, Resources> EMPTY;
 
@@ -671,7 +686,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
 
   // Initially, all the resources are allocated.
   FrameworkInfo framework = createFrameworkInfo("role1");
-  allocator->addFramework(framework.id(), framework, Resources());
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
 
   Future<Allocation> allocation = queue.get();
   AWAIT_READY(allocation);
@@ -749,7 +765,8 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
   allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
 
   FrameworkInfo framework = createFrameworkInfo("*");
-  allocator->addFramework(framework.id(), framework, Resources());
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
 
   Future<Allocation> allocation = queue.get();
 

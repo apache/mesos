@@ -4131,13 +4131,10 @@ void Master::addFramework(Framework* framework)
   // There should be no offered resources yet!
   CHECK_EQ(Resources(), framework->totalOfferedResources);
 
-  // TODO(mpark): Once the allocator API is updated to operate on
-  // 'hashmap<SlaveID, Resources>' rather than 'Resources', pass
-  // 'framework->usedResources' instead.
   allocator->addFramework(
       framework->id(),
       framework->info,
-      framework->totalUsedResources);
+      framework->usedResources);
 
   // Export framework metrics.
 

@@ -53,7 +53,7 @@ public:
   void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const Resources& used);
+      const hashmap<SlaveID, Resources>& used);
 
   void removeFramework(
       const FrameworkID& frameworkId);
@@ -130,7 +130,7 @@ public:
   virtual void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const Resources& used) = 0;
+      const hashmap<SlaveID, Resources>& used) = 0;
 
   virtual void removeFramework(
       const FrameworkID& frameworkId) = 0;
@@ -217,7 +217,7 @@ template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::addFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
-    const Resources& used)
+    const hashmap<SlaveID, Resources>& used)
 {
   process::dispatch(
       process,
