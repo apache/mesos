@@ -111,8 +111,8 @@ docker build -t $TAG .
 # Set a trap to delete the image on exit.
 trap "docker rmi $TAG" EXIT
 
-# Print kernel log incase of failures.
-trap "dmesg" ERR
+# Uncomment below to print kernel log incase of failures.
+# trap "dmesg" ERR
 
 # Now run the image.
 # NOTE: We run in 'privileged' mode to circumvent permission issues
