@@ -4245,7 +4245,7 @@ Executor* Framework::launchExecutor(
     // when it has registered to the slave.
     launch = slave->containerizer->launch(
         containerId,
-        executorInfo_, // modified to include the task's resources.
+        executorInfo_, // Modified to include the task's resources, see above.
         executor->directory,
         user,
         slave->info.id(),
@@ -4263,7 +4263,7 @@ Executor* Framework::launchExecutor(
     launch = slave->containerizer->launch(
         containerId,
         taskInfo,
-        executorInfo_,
+        executorInfo_, // Modified to include the task's resources, see above.
         executor->directory,
         user,
         slave->info.id(),

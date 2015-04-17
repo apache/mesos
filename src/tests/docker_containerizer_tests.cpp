@@ -970,8 +970,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
     waited += Milliseconds(200);
   } while (waited < Seconds(3));
 
-  EXPECT_EQ(2, statistics.cpus_limit());
-  EXPECT_EQ(Gigabytes(1).bytes(), statistics.mem_limit_bytes());
+  // Usage includes the executor resources.
+  EXPECT_EQ(2.0 + slave::DEFAULT_EXECUTOR_CPUS, statistics.cpus_limit());
+  EXPECT_EQ((Gigabytes(1) + slave::DEFAULT_EXECUTOR_MEM).bytes(),
+            statistics.mem_limit_bytes());
   EXPECT_LT(0, statistics.cpus_user_time_secs());
   EXPECT_LT(0, statistics.cpus_system_time_secs());
 
