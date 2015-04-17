@@ -122,11 +122,11 @@ JSON::Object model(const Framework& framework)
   // TODO(bmahler): Consider deprecating this in favor of the split
   // used and offered resources below.
   object.values["resources"] =
-    model(framework.usedResources + framework.offeredResources);
+    model(framework.totalUsedResources + framework.totalOfferedResources);
 
   // TODO(bmahler): Use these in the webui.
-  object.values["used_resources"] = model(framework.usedResources);
-  object.values["offered_resources"] = model(framework.offeredResources);
+  object.values["used_resources"] = model(framework.totalUsedResources);
+  object.values["offered_resources"] = model(framework.totalOfferedResources);
 
   object.values["hostname"] = framework.info.hostname();
   object.values["webui_url"] = framework.info.webui_url();

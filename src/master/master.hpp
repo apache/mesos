@@ -1007,7 +1007,8 @@ struct Framework
     tasks[task->task_id()] = task;
 
     if (!protobuf::isTerminalState(task->state())) {
-      usedResources += task->resources();
+      totalUsedResources += task->resources();
+      usedResources[task->slave_id()] += task->resources();
     }
   }
 
@@ -1022,7 +1023,11 @@ struct Framework
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
 
-    usedResources -= task->resources();
+    totalUsedResources -= task->resources();
+    usedResources[task->slave_id()] -= task->resources();
+    if (usedResources[task->slave_id()].empty()) {
+      usedResources.erase(task->slave_id());
+    }
   }
 
   void addCompletedTask(const Task& task)
@@ -1038,7 +1043,11 @@ struct Framework
       << " of framework " << task->framework_id();
 
     if (!protobuf::isTerminalState(task->state())) {
-      usedResources -= task->resources();
+      totalUsedResources -= task->resources();
+      usedResources[task->slave_id()] -= task->resources();
+      if (usedResources[task->slave_id()].empty()) {
+        usedResources.erase(task->slave_id());
+      }
     }
 
     addCompletedTask(*task);
@@ -1050,7 +1059,8 @@ struct Framework
   {
     CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
     offers.insert(offer);
-    offeredResources += offer->resources();
+    totalOfferedResources += offer->resources();
+    offeredResources[offer->slave_id()] += offer->resources();
   }
 
   void removeOffer(Offer* offer)
@@ -1058,7 +1068,12 @@ struct Framework
     CHECK(offers.find(offer) != offers.end())
       << "Unknown offer " << offer->id();
 
-    offeredResources -= offer->resources();
+    totalOfferedResources -= offer->resources();
+    offeredResources[offer->slave_id()] -= offer->resources();
+    if (offeredResources[offer->slave_id()].empty()) {
+      offeredResources.erase(offer->slave_id());
+    }
+
     offers.erase(offer);
   }
 
@@ -1077,7 +1092,8 @@ struct Framework
       << " on slave " << slaveId;
 
     executors[slaveId][executorInfo.executor_id()] = executorInfo;
-    usedResources += executorInfo.resources();
+    totalUsedResources += executorInfo.resources();
+    usedResources[slaveId] += executorInfo.resources();
   }
 
   void removeExecutor(const SlaveID& slaveId,
@@ -1088,7 +1104,12 @@ struct Framework
       << " of framework " << id()
       << " of slave " << slaveId;
 
-    usedResources -= executors[slaveId][executorId].resources();
+    totalUsedResources -= executors[slaveId][executorId].resources();
+    usedResources[slaveId] -= executors[slaveId][executorId].resources();
+    if (usedResources[slaveId].empty()) {
+      usedResources.erase(slaveId);
+    }
+
     executors[slaveId].erase(executorId);
     if (executors[slaveId].empty()) {
       executors.erase(slaveId);
@@ -1183,10 +1204,35 @@ struct Framework
 
   hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo>> executors;
 
-  // TODO(bmahler): Summing set and ranges resources across slaves
-  // does not yield meaningful totals.
-  Resources usedResources;    // Active task / executor resources.
-  Resources offeredResources; // Offered resources.
+  // NOTE: For the used and offered resources below, we keep the
+  // total as well as partitioned by SlaveID.
+  // We expose the total resources via the HTTP endpoint, and we
+  // keep a running total of the resources because looping over the
+  // slaves to sum the resources has led to perf issues (MESOS-1862).
+  // We keep the resources partitioned by SlaveID because non-scalar
+  // resources can be lost when summing them up across multiple
+  // slaves (MESOS-2373).
+  //
+  // Also note that keeping the totals is safe even though it yields
+  // incorrect results for non-scalar resources.
+  //   (1) For overlapping set items / ranges across slaves, these
+  //       will get added N times but only represented once.
+  //   (2) When an initial subtraction occurs (N-1), the resource is
+  //       no longer represented. (This is the source of the bug).
+  //   (3) When any further subtractions occur (N-(1+M)), the
+  //       Resources simply ignores the subtraction since there's
+  //       nothing to remove, so this is safe for now.
+
+  // TODO(mpark): Strip the non-scalar resources out of the totals
+  // in order to avoid reporting incorrect statistics (MESOS-2623).
+
+  // Active task / executor resources.
+  Resources totalUsedResources;
+  hashmap<SlaveID, Resources> usedResources;
+
+  // Offered resources.
+  Resources totalOfferedResources;
+  hashmap<SlaveID, Resources> offeredResources;
 
 private:
   Framework(const Framework&);              // No copying.
@@ -1225,8 +1271,8 @@ struct Role
   {
     Resources resources;
     foreachvalue (Framework* framework, frameworks) {
-      resources += framework->usedResources;
-      resources += framework->offeredResources;
+      resources += framework->totalUsedResources;
+      resources += framework->totalOfferedResources;
     }
 
     return resources;
